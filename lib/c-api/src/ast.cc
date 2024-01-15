@@ -770,27 +770,23 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
 }
 
 extern "C" auto clingo_ast_to_string_size(clingo_ast_t *ast, size_t *size) -> bool {
-    if (size == nullptr) {
-        return false;
-    }
-    try {
+    CLINGO_TRY {
+        if (ast == nullptr || size == nullptr) {
+            throw std::invalid_argument("invalid arguments");
+        }
         *size = print_size(*ast);
-        return true;
-    } catch (...) {
-        return false;
     }
+    CLINGO_CATCH(nullptr);
 }
 
 extern "C" auto clingo_ast_to_string(clingo_ast_t *ast, char *string, size_t size) -> bool {
-    if (string == nullptr) {
-        return false;
-    }
-    try {
+    CLINGO_TRY {
+        if (ast == nullptr || string == nullptr) {
+            throw std::invalid_argument("invalid arguments");
+        }
         print(string, size, *ast);
-        return true;
-    } catch (...) {
-        return false;
     }
+    CLINGO_CATCH(nullptr);
 }
 
 extern "C" auto clingo_ast_less_than(clingo_ast_t *a, clingo_ast_t *b) -> bool { return a->less_than(*b); }
@@ -800,34 +796,47 @@ extern "C" auto clingo_ast_equal(clingo_ast_t *a, clingo_ast_t *b) -> bool { ret
 extern "C" auto clingo_ast_hash(clingo_ast_t *ast) -> size_t { return ast->hash(); }
 
 extern "C" auto clingo_ast_copy(clingo_ast_t *ast, clingo_ast_t **copy) -> bool {
-    if (ast == nullptr || copy == nullptr) {
-        return false;
-    }
-    try {
+    CLINGO_TRY {
+        if (ast == nullptr || copy == nullptr) {
+            throw std::invalid_argument("invalid arguments");
+        }
         *copy = ast->copy().release();
-        return true;
-    } catch (...) {
-        return false;
     }
+    CLINGO_CATCH(nullptr);
 }
 
 extern "C" void clingo_ast_free(clingo_ast_t *ast) { delete ast; }
 
-extern "C" void clingo_ast_array_free(clingo_ast_t **ast, size_t size) { ASTVec::acquire(ast, size); }
+extern "C" void clingo_ast_array_free(clingo_ast_t **ast, size_t size) {
+    if (ast != nullptr) {
+        ASTVec::acquire(ast, size);
+    }
+}
 
 extern "C" auto clingo_ast_get_type(clingo_ast_t *ast, clingo_ast_type_t *type) -> bool {
-    *type = ast->get_type();
-    return true;
+    CLINGO_TRY {
+        if (ast == nullptr || type == nullptr) {
+            throw std::invalid_argument("invalid arguments");
+        }
+        *type = ast->get_type();
+        return true;
+    }
+    CLINGO_CATCH(nullptr);
 }
 
 extern "C" auto clingo_ast_attribute_get_number(clingo_ast_t *ast, clingo_ast_attribute_t attribute, int *value)
     -> bool {
-    // TODO: check args and error handling
-    if (auto num = ast->get_number(attribute); num) {
-        *value = *num;
-        return true;
+    CLINGO_TRY {
+        if (ast == nullptr || value == nullptr) {
+            throw std::invalid_argument("invalid arguments");
+        }
+        if (auto num = ast->get_number(attribute); num) {
+            *value = *num;
+            return true;
+        }
+        return false;
     }
-    return false;
+    CLINGO_CATCH(nullptr);
 }
 
 extern "C" auto clingo_ast_attribute_get_symbol(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
@@ -879,27 +888,6 @@ extern "C" auto clingo_ast_attribute_get_ast_array(clingo_ast_t *ast, clingo_ast
     }
     return false;
 }
-
-template <class T> struct Q {
-    Q(T const &value) : value{value} {}
-    friend auto operator<<(std::ostream &out, Q const &q) -> std::ostream & {
-        out << '"' << q.value << '"';
-        return out;
-    }
-    T const &value;
-};
-
-struct Comma {
-    friend auto operator<<(std::ostream &out, Comma &q) -> std::ostream & {
-        if (q.comma) {
-            out << ",";
-        } else {
-            q.comma = true;
-        }
-        return out;
-    }
-    bool comma = false;
-};
 
 extern "C" auto clingo_ast_type_info_yaml() -> char const * {
     return R"yaml(- name: unary_operator
@@ -1112,62 +1100,3 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
     doc: The arguments of the tuple.
 )yaml";
 }
-
-/*
-#define CONSTRUCTORS                                                                                                   \
-    C(id, TODO, A(location, location), A(name, string)) \
-    C(variable, Gringo::Input::TermVariable, A(location, location), A(name, string)) \
-    C(symbolic_term, TODO, A(location, location), A(symbol, symbol)) \
-    C(unary_operation, TODO, A(location, location), A(operator_type, number), A(argument, ast)) \
-    C(binary_operation, TODO, A(location, location), A(operator_type, number), A(left, ast), A(right, ast)) \
-    C(interval, TODO, A(location, location), A(left, ast), A(right, ast)) \
-    C(function, TODO, A(location, location), A(name, string), A(arguments, ast_array), A(external, number)) \
-    C(pool, TODO, A(location, location), A(arguments, ast_array)) \
-    C(boolean_constant, TODO, A(value, number)) \
-    C(symbolic_atom, TODO, A(symbol, ast)) \
-    C(comparison, TODO, A(term, ast), A(guards, ast_array)) \
-    C(guard, TODO, A(comparison, number), A(term, ast)) \
-    C(conditional_literal, TODO, A(location, location), A(literal, ast), A(condition, ast_array)) \
-    C(aggregate, TODO, A(location, location), A(left_guard, optional_ast), A(elements, ast_array), \
-      A(right_guard, optional_ast))                                                                                    \
-    C(body_aggregate_element, TODO, A(terms, ast_array), A(condition, ast_array)) \
-    C(body_aggregate, TODO, A(location, location), A(left_guard, optional_ast), A(function, number), A(elements,
-ast_array), \
-      A(right_guard, optional_ast))                                                                                    \
-    C(head_aggregate_element, TODO, A(terms, ast_array), A(condition, ast)) \
-    C(head_aggregate, TODO, A(location, location), A(left_guard, optional_ast), A(function, number), A(elements,
-ast_array), \
-      A(right_guard, optional_ast))                                                                                    \
-    C(disjunction, TODO, A(location, location), A(elements, ast_array)) \
-    C(theory_sequence, TODO, A(location, location), A(sequence_type, number), A(terms, ast_array)) \
-    C(theory_function, TODO, A(location, location), A(name, string), A(arguments, ast_array)) \
-    C(theory_unparsed_term_element, TODO, A(operators, string_array), A(term, ast)) \
-    C(theory_unparsed_term, TODO, A(location, location), A(elements, ast_array)) \
-    C(theory_guard, TODO, A(operator_name, string), A(term, ast)) \
-    C(theory_atom_element, TODO, A(terms, ast_array), A(condition, ast_array)) \
-    C(theory_atom, TODO, A(location, location), A(term, ast), A(elements, ast_array), A(guard, optional_ast)) \
-    C(literal, TODO, A(location, location), A(sign, number), A(atom, ast)) \
-    C(theory_operator_definition, TODO, A(location, location), A(name, string), A(priority, number), \
-      A(operator_type, number))                                                                                        \
-    C(theory_term_definition, TODO, A(location, location), A(name, string), A(operators, ast_array)) \
-    C(theory_guard_definition, TODO, A(operators, string_array), A(term, string)) \
-    C(theory_atom_definition, TODO, A(location, location), A(atom_type, number), A(name, string), A(arity, number), \
-      A(term, string), A(guard, optional_ast))                                                                         \
-    C(rule, TODO, A(location, location), A(head, ast), A(body, ast_array)) \
-    C(definition, TODO, A(location, location), A(name, string), A(value, ast), A(is_default, number)) \
-    C(show_signature, TODO, A(location, location), A(name, string), A(arity, number), A(positive, number)) \
-    C(show_term, TODO, A(location, location), A(term, ast), A(body, ast_array)) \
-    C(minimize, TODO, A(location, location), A(weight, ast), A(priority, ast), A(terms, ast_array), A(body, ast_array))
-\
-    C(script, TODO, A(location, location), A(name, string), A(code, string)) \
-    C(program, TODO, A(location, location), A(name, string), A(parameters, ast_array)) \
-    C(external, TODO, A(location, location), A(atom, ast), A(body, ast_array), A(external_type, ast)) \
-    C(edge, TODO, A(location, location), A(node_u, ast), A(node_v, ast), A(body, ast_array)) \
-    C(heuristic, TODO, A(location, location), A(atom, ast), A(body, ast_array), A(bias, ast), A(priority, ast), \
-      A(modifier, ast))                                                                                                \
-    C(project_atom, TODO, A(location, location), A(atom, ast), A(body, ast_array)) \
-    C(project_signature, TODO, A(location, location), A(name, string), A(arity, number), A(positive, number)) \
-    C(defined, TODO, A(location, location), A(name, string), A(arity, number), A(positive, number)) \
-    C(theory_definition, TODO, A(location, location), A(name, string), A(terms, ast_array), A(atoms, ast_array)) \
-    C(comment, TODO, A(location, location), A(value, string), A(comment_type, number))
-*/
