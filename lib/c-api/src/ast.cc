@@ -974,9 +974,11 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
   value_type: term
 - name: projection
   type: record
+  doc: A placeholder for an argument to project.
   arguments:
   - name: location
     type: location
+    doc: The location of the placeholder.
 - name: term_or_projection
   type: union
   types:
@@ -1000,70 +1002,114 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
   value_type: term_or_pool
 - name: term_variable
   type: record
+  doc: A term representing a variable.
   arguments:
   - name: location
     type: location
+    doc: The location of the variable.
   - name: name
     type: string
+    doc: The name of the variable.
   - name: anonymous
     type: bool
+    doc: >-
+      Whether the variable is anonymous.
+
+      Anonymous variables receive a unique name during preprocessing.
 - name: term_symbolic
   type: record
+  doc: A term representing a symbol.
   arguments:
   - name: location
     type: location
+    doc: The location of the symbol.
   - name: symbol
     type: symbol
+    doc: The symbol.
 - name: term_absolute
   type: record
+  doc: A term representing the absolute operation.
   arguments:
   - name: location
     type: location
+    doc: The location of the operation.
   - name: pool
     type: term_array
+    doc: >-
+      The argument pool.
+
+      If there is more than one argument in the pool, the term is unpooled during preprocessing.
 - name: term_unary_operation
   type: record
+  doc: A term representing a unary operation.
   arguments:
   - name: location
     type: location
+    doc: The location of the operation.
   - name: operator_type
     type: unary_operator
+    doc: The type of the operation.
   - name: right
     type: term
+    doc: The argument of the operation.
 - name: term_binary_operation
   type: record
+  doc: A term representing a binary operation.
   arguments:
   - name: location
     type: location
+    doc: The location of the operation.
   - name: left
     type: term
+    doc: The left argument of the operation.
   - name: operator_type
     type: binary_operator
+    doc: The type of the operation.
   - name: right
     type: term
+    doc: The right argument of the operation.
 - name: term_tuple
   type: record
+  doc: A term representing a tuple.
   arguments:
   - name: location
     type: location
-  - name: arguments
+    doc: The location of the tuple.
+  - name: pool
     type: term_or_pool_array
+    doc: >-
+      The argument pool of the tuple.
+
+      If there is more than one element in the pool, the term is unpooled during preprocessing.
 - name: term_function
   type: record
+  doc: A term representing a function.
   arguments:
   - name: location
     type: location
+    doc: The location of the function.
   - name: name
     type: string
-  - name: arguments
+    doc: The name of the function.
+  - name: pool
     type: pool_array
+    doc: >-
+      The argument pool of the tuple.
+
+      If there is more than one element in the pool, the term is unpooled during preprocessing.
   - name: external
     type: bool
+    doc: Whether the function is external.
 - name: pool
   type: record
+  doc: >-
+    A list of arguments for a function or tuple.
+
+    TODO: this is a misnomer. It should rather be called ArgumentTuple or something.
   arguments:
   - name: arguments
     type: term_or_projection_array
+    doc: The arguments of the tuple.
 )yaml";
 }
 

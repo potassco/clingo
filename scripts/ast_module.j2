@@ -104,12 +104,13 @@ auto c_cast(std::vector<T> const &arr) -> std::vector<clingo_ast_t*> {
 
 void register_module(pybind11::module &m) {
     auto ast = m.def_submodule("ast", doc(R"(
-TODO
+This module provides functions to work with Abstract Syntax Trees of logic programs.
 )"));
 
     ast.def("_type_info_yaml", &clingo_ast_type_info_yaml, doc(R"(
-TODO
-)"));
+Return a yaml description of the AST.
+
+This can be used to auto-generate most of the binding.)"));
 {%  for type in types -%}
 {%    set type_name = type.name | camel -%}
 {%    if type.type == 'enum' %}
@@ -119,8 +120,15 @@ TODO
 {%-       if loop.last %};{% endif -%}
 {%-     endfor %}
 {%    elif type.type == 'record' %}
-    py::class_<{{ type_name }}>(ast, "{{ type_name }}", R"(TODO.)")
-        .def(py::init(&{{ type_name }}::construct))
+    py::class_<{{ type_name }}>(ast, "{{ type_name }}", R"doc({{ type.doc | doc }})doc")
+        .def(py::init(&{{ type_name }}::construct), py::arg("lib"){%- for argument in type.arguments %}, py::arg("{{ argument.name }}"){%- endfor %}, R"doc(Construct a {{ type_name }} object.
+
+Parameters
+----------
+{%-     for argument in type.arguments %}
+{{ argument.name }}
+{{ argument.doc | param_doc }}
+{%-     endfor %})doc")
         .def("__str__", &{{ type_name }}::to_string)
         .def("__hash__", &{{ type_name }}::hash)
 {%-     for argument in type.arguments %}

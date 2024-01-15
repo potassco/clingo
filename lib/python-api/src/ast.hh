@@ -597,11 +597,11 @@ class TermTuple {
 
     auto location() -> clingo_location_t;
 
-    auto arguments() -> TermOrPoolArray;
+    auto pool() -> TermOrPoolArray;
 
     static auto acquire(clingo_ast_t *ast) -> TermTuple { return {ast}; }
 
-    static auto construct(Library const &lib, clingo_location_t const &location, TermOrPoolArray const &arguments)
+    static auto construct(Library const &lib, clingo_location_t const &location, TermOrPoolArray const &pool)
         -> TermTuple;
 
     friend auto c_cast(TermTuple const &x) -> clingo_ast_t *;
@@ -675,14 +675,14 @@ class TermFunction {
 
     auto name() -> char const *;
 
-    auto arguments() -> PoolArray;
+    auto pool() -> PoolArray;
 
     auto external() -> bool;
 
     static auto acquire(clingo_ast_t *ast) -> TermFunction { return {ast}; }
 
     static auto construct(Library const &lib, clingo_location_t const &location, char const *name,
-                          PoolArray const &arguments, bool external) -> TermFunction;
+                          PoolArray const &pool, bool external) -> TermFunction;
 
     friend auto c_cast(TermFunction const &x) -> clingo_ast_t *;
 
@@ -1118,20 +1118,19 @@ auto TermTuple::location() -> clingo_location_t {
     return ret;
 }
 
-auto TermTuple::arguments() -> TermOrPoolArray {
+auto TermTuple::pool() -> TermOrPoolArray {
     clingo_ast_t **ast;
     size_t size;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_arguments, &ast, &size)) {
+    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_pool, &ast, &size)) {
         throw std::runtime_error("could not get ast array attribute");
     }
     return construct_term_or_pool_array(ast, size);
 }
 
-auto TermTuple::construct(Library const &lib, clingo_location_t const &location, TermOrPoolArray const &arguments)
+auto TermTuple::construct(Library const &lib, clingo_location_t const &location, TermOrPoolArray const &pool)
     -> TermTuple {
     clingo_ast_t *res_;
-    if (!clingo_ast_construct(lib, clingo_ast_type_term_tuple, &res_, &location, c_cast(arguments).data(),
-                              arguments.size())) {
+    if (!clingo_ast_construct(lib, clingo_ast_type_term_tuple, &res_, &location, c_cast(pool).data(), pool.size())) {
         throw std::runtime_error("better handle error properly here");
     }
     return TermTuple::acquire(res_);
@@ -1153,10 +1152,10 @@ auto TermFunction::name() -> char const * {
     return ret;
 }
 
-auto TermFunction::arguments() -> PoolArray {
+auto TermFunction::pool() -> PoolArray {
     clingo_ast_t **ast;
     size_t size;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_arguments, &ast, &size)) {
+    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_pool, &ast, &size)) {
         throw std::runtime_error("could not get ast array attribute");
     }
     return construct_pool_array(ast, size);
@@ -1171,10 +1170,10 @@ auto TermFunction::external() -> bool {
 }
 
 auto TermFunction::construct(Library const &lib, clingo_location_t const &location, char const *name,
-                             PoolArray const &arguments, bool external) -> TermFunction {
+                             PoolArray const &pool, bool external) -> TermFunction {
     clingo_ast_t *res_;
-    if (!clingo_ast_construct(lib, clingo_ast_type_term_function, &res_, &location, name, c_cast(arguments).data(),
-                              arguments.size(), static_cast<int>(external))) {
+    if (!clingo_ast_construct(lib, clingo_ast_type_term_function, &res_, &location, name, c_cast(pool).data(),
+                              pool.size(), static_cast<int>(external))) {
         throw std::runtime_error("better handle error properly here");
     }
     return TermFunction::acquire(res_);
@@ -1212,12 +1211,13 @@ template <class T> auto c_cast(std::vector<T> const &arr) -> std::vector<clingo_
 
 void register_module(pybind11::module &m) {
     auto ast = m.def_submodule("ast", doc(R"(
-TODO
+This module provides functions to work with Abstract Syntax Trees of logic programs.
 )"));
 
     ast.def("_type_info_yaml", &clingo_ast_type_info_yaml, doc(R"(
-TODO
-)"));
+Return a yaml description of the AST.
+
+This can be used to auto-generate most of the binding.)"));
 
     py::enum_<UnaryOperator>(ast, "UnaryOperator", R"(Available unary operators.)")
         .value("Minus", UnaryOperator::Minus, R"(Operator `-`.)")
@@ -1234,16 +1234,33 @@ TODO
         .value("Power", BinaryOperator::Power, R"(Operator `**`.)")
         .value("Xor", BinaryOperator::Xor, R"(Operator `^`.)");
 
-    py::class_<Projection>(ast, "Projection", R"(TODO.)")
-        .def(py::init(&Projection::construct))
+    py::class_<Projection>(ast, "Projection", R"doc(A placeholder for an argument to project.)doc")
+        .def(py::init(&Projection::construct), py::arg("lib"), py::arg("location"), R"doc(Construct a Projection object.
+
+Parameters
+----------
+location
+    The location of the placeholder.)doc")
         .def("__str__", &Projection::to_string)
         .def("__hash__", &Projection::hash)
         .def_property_readonly("location", &Projection::location)
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
-    py::class_<TermVariable>(ast, "TermVariable", R"(TODO.)")
-        .def(py::init(&TermVariable::construct))
+    py::class_<TermVariable>(ast, "TermVariable", R"doc(A term representing a variable.)doc")
+        .def(py::init(&TermVariable::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
+             py::arg("anonymous"), R"doc(Construct a TermVariable object.
+
+Parameters
+----------
+location
+    The location of the variable.
+name
+    The name of the variable.
+anonymous
+    Whether the variable is anonymous.
+
+    Anonymous variables receive a unique name during preprocessing.)doc")
         .def("__str__", &TermVariable::to_string)
         .def("__hash__", &TermVariable::hash)
         .def_property_readonly("location", &TermVariable::location)
@@ -1252,8 +1269,16 @@ TODO
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
-    py::class_<TermSymbolic>(ast, "TermSymbolic", R"(TODO.)")
-        .def(py::init(&TermSymbolic::construct))
+    py::class_<TermSymbolic>(ast, "TermSymbolic", R"doc(A term representing a symbol.)doc")
+        .def(py::init(&TermSymbolic::construct), py::arg("lib"), py::arg("location"), py::arg("symbol"),
+             R"doc(Construct a TermSymbolic object.
+
+Parameters
+----------
+location
+    The location of the symbol.
+symbol
+    The symbol.)doc")
         .def("__str__", &TermSymbolic::to_string)
         .def("__hash__", &TermSymbolic::hash)
         .def_property_readonly("location", &TermSymbolic::location)
@@ -1261,8 +1286,19 @@ TODO
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
-    py::class_<TermAbsolute>(ast, "TermAbsolute", R"(TODO.)")
-        .def(py::init(&TermAbsolute::construct))
+    py::class_<TermAbsolute>(ast, "TermAbsolute", R"doc(A term representing the absolute operation.)doc")
+        .def(py::init(&TermAbsolute::construct), py::arg("lib"), py::arg("location"), py::arg("pool"),
+             R"doc(Construct a TermAbsolute object.
+
+Parameters
+----------
+location
+    The location of the operation.
+pool
+    The argument pool.
+
+    If there is more than one argument in the pool, the term is
+    unpooled during preprocessing.)doc")
         .def("__str__", &TermAbsolute::to_string)
         .def("__hash__", &TermAbsolute::hash)
         .def_property_readonly("location", &TermAbsolute::location)
@@ -1270,8 +1306,18 @@ TODO
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
-    py::class_<TermUnaryOperation>(ast, "TermUnaryOperation", R"(TODO.)")
-        .def(py::init(&TermUnaryOperation::construct))
+    py::class_<TermUnaryOperation>(ast, "TermUnaryOperation", R"doc(A term representing a unary operation.)doc")
+        .def(py::init(&TermUnaryOperation::construct), py::arg("lib"), py::arg("location"), py::arg("operator_type"),
+             py::arg("right"), R"doc(Construct a TermUnaryOperation object.
+
+Parameters
+----------
+location
+    The location of the operation.
+operator_type
+    The type of the operation.
+right
+    The argument of the operation.)doc")
         .def("__str__", &TermUnaryOperation::to_string)
         .def("__hash__", &TermUnaryOperation::hash)
         .def_property_readonly("location", &TermUnaryOperation::location)
@@ -1280,8 +1326,20 @@ TODO
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
-    py::class_<TermBinaryOperation>(ast, "TermBinaryOperation", R"(TODO.)")
-        .def(py::init(&TermBinaryOperation::construct))
+    py::class_<TermBinaryOperation>(ast, "TermBinaryOperation", R"doc(A term representing a binary operation.)doc")
+        .def(py::init(&TermBinaryOperation::construct), py::arg("lib"), py::arg("location"), py::arg("left"),
+             py::arg("operator_type"), py::arg("right"), R"doc(Construct a TermBinaryOperation object.
+
+Parameters
+----------
+location
+    The location of the operation.
+left
+    The left argument of the operation.
+operator_type
+    The type of the operation.
+right
+    The right argument of the operation.)doc")
         .def("__str__", &TermBinaryOperation::to_string)
         .def("__hash__", &TermBinaryOperation::hash)
         .def_property_readonly("location", &TermBinaryOperation::location)
@@ -1291,28 +1349,62 @@ TODO
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
-    py::class_<TermTuple>(ast, "TermTuple", R"(TODO.)")
-        .def(py::init(&TermTuple::construct))
+    py::class_<TermTuple>(ast, "TermTuple", R"doc(A term representing a tuple.)doc")
+        .def(py::init(&TermTuple::construct), py::arg("lib"), py::arg("location"), py::arg("pool"),
+             R"doc(Construct a TermTuple object.
+
+Parameters
+----------
+location
+    The location of the tuple.
+pool
+    The argument pool of the tuple.
+
+    If there is more than one element in the pool, the term is
+    unpooled during preprocessing.)doc")
         .def("__str__", &TermTuple::to_string)
         .def("__hash__", &TermTuple::hash)
         .def_property_readonly("location", &TermTuple::location)
-        .def_property_readonly("arguments", &TermTuple::arguments)
+        .def_property_readonly("pool", &TermTuple::pool)
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
-    py::class_<TermFunction>(ast, "TermFunction", R"(TODO.)")
-        .def(py::init(&TermFunction::construct))
+    py::class_<TermFunction>(ast, "TermFunction", R"doc(A term representing a function.)doc")
+        .def(py::init(&TermFunction::construct), py::arg("lib"), py::arg("location"), py::arg("name"), py::arg("pool"),
+             py::arg("external"), R"doc(Construct a TermFunction object.
+
+Parameters
+----------
+location
+    The location of the function.
+name
+    The name of the function.
+pool
+    The argument pool of the tuple.
+
+    If there is more than one element in the pool, the term is
+    unpooled during preprocessing.
+external
+    Whether the function is external.)doc")
         .def("__str__", &TermFunction::to_string)
         .def("__hash__", &TermFunction::hash)
         .def_property_readonly("location", &TermFunction::location)
         .def_property_readonly("name", &TermFunction::name)
-        .def_property_readonly("arguments", &TermFunction::arguments)
+        .def_property_readonly("pool", &TermFunction::pool)
         .def_property_readonly("external", &TermFunction::external)
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
-    py::class_<Pool>(ast, "Pool", R"(TODO.)")
-        .def(py::init(&Pool::construct))
+    py::class_<Pool>(ast, "Pool", R"doc(A list of arguments for a function or tuple.
+
+TODO: this is a misnomer. It should rather be called ArgumentTuple or
+something.)doc")
+        .def(py::init(&Pool::construct), py::arg("lib"), py::arg("arguments"), R"doc(Construct a Pool object.
+
+Parameters
+----------
+arguments
+    The arguments of the tuple.)doc")
         .def("__str__", &Pool::to_string)
         .def("__hash__", &Pool::hash)
         .def_property_readonly("arguments", &Pool::arguments)

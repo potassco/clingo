@@ -2,6 +2,8 @@
 """
 Script to generate python ast module.
 """
+from textwrap import wrap
+
 import jinja2
 import yaml
 from clingo.ast import _type_info_yaml
@@ -81,12 +83,34 @@ def flatten_types(types, type_map):
     return res
 
 
+def doc(text):
+    """
+    Wrap a docstring.
+    """
+    return "\n\n".join("\n".join(wrap(par, width=70)) for par in text.splitlines())
+
+
+def param_doc(text):
+    """
+    Wrap and indent a parameter docstring.
+    """
+    return "\n\n".join(
+        "\n".join(wrap(par, width=70, initial_indent="    ", subsequent_indent="    "))
+        for par in text.splitlines()
+    )
+
+
 def generate():
+    """
+    Generate the python ast module.
+    """
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(searchpath="scripts/"))
     env.filters["camel"] = camel
     env.filters["cref"] = cref
     env.filters["c_cast"] = c_cast
     env.filters["flatten_types"] = flatten_types
+    env.filters["doc"] = doc
+    env.filters["param_doc"] = param_doc
 
     types = yaml.safe_load(_type_info_yaml())
     type_map = {type_attr["name"]: type_attr for type_attr in types}
