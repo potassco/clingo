@@ -446,7 +446,7 @@ class TermUnaryOperation {
 
     static auto acquire(clingo_ast_t *ast) -> TermUnaryOperation { return {ast}; }
 
-    static auto construct(Library const &lib, clingo_location_t const &location, UnaryOperator operator_type,
+    static auto construct(Library const &lib, clingo_location_t const &location, UnaryOperator const &operator_type,
                           Term const &right) -> TermUnaryOperation;
 
     friend auto c_cast(TermUnaryOperation const &x) -> clingo_ast_t *;
@@ -527,7 +527,7 @@ class TermBinaryOperation {
     static auto acquire(clingo_ast_t *ast) -> TermBinaryOperation { return {ast}; }
 
     static auto construct(Library const &lib, clingo_location_t const &location, Term const &left,
-                          BinaryOperator operator_type, Term const &right) -> TermBinaryOperation;
+                          BinaryOperator const &operator_type, Term const &right) -> TermBinaryOperation;
 
     friend auto c_cast(TermBinaryOperation const &x) -> clingo_ast_t *;
 
@@ -1057,8 +1057,8 @@ auto TermUnaryOperation::right() -> Term {
     return construct_term(ast);
 }
 
-auto TermUnaryOperation::construct(Library const &lib, clingo_location_t const &location, UnaryOperator operator_type,
-                                   Term const &right) -> TermUnaryOperation {
+auto TermUnaryOperation::construct(Library const &lib, clingo_location_t const &location,
+                                   UnaryOperator const &operator_type, Term const &right) -> TermUnaryOperation {
     clingo_ast_t *res_;
     if (!clingo_ast_construct(lib, clingo_ast_type_term_unary_operation, &res_, &location,
                               static_cast<int>(operator_type), c_cast(right))) {
@@ -1100,7 +1100,7 @@ auto TermBinaryOperation::right() -> Term {
 }
 
 auto TermBinaryOperation::construct(Library const &lib, clingo_location_t const &location, Term const &left,
-                                    BinaryOperator operator_type, Term const &right) -> TermBinaryOperation {
+                                    BinaryOperator const &operator_type, Term const &right) -> TermBinaryOperation {
     clingo_ast_t *res_;
     if (!clingo_ast_construct(lib, clingo_ast_type_term_binary_operation, &res_, &location, c_cast(left),
                               static_cast<int>(operator_type), c_cast(right))) {

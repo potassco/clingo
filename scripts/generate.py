@@ -7,12 +7,23 @@ def snake_to_camel(name):
     return "".join(x.title() for x in name.split("_"))
 
 
+def cref(name):
+    if name == "location":
+        return "clingo_location_t const &"
+    if name == "string":
+        return "char const *"
+    if name == "number":
+        return "int "
+    if name == "bool":
+        return "bool "
+    if name == "symbol ":
+        return "Symbol const &"
+    return f"{snake_to_camel(name)} const &"
+
+
 ENV = jinja2.Environment(loader=jinja2.FileSystemLoader(searchpath="scripts/"))
 ENV.filters["camel"] = snake_to_camel
-
-
-def location_attribute_declare_cpp(arg):
-    return f"""auto {arg["name"]}() -> clingo_location_t;"""
+ENV.filters["cref"] = cref
 
 
 def location_attribute_define_cpp(type_name, arg):
@@ -28,10 +39,6 @@ auto {type_name}::{arg["name"]}() -> clingo_location_t {{
 """
 
 
-def number_attribute_declare_cpp(arg):
-    return f"""auto {arg["name"]}() -> int;"""
-
-
 def number_attribute_define_cpp(type_name, arg):
     return f"""\
 auto {type_name}::{arg["name"]}() -> int {{
@@ -45,10 +52,6 @@ auto {type_name}::{arg["name"]}() -> int {{
 """
 
 
-def bool_attribute_declare_cpp(arg):
-    return f"""auto {arg["name"]}() -> bool;"""
-
-
 def bool_attribute_define_cpp(type_name, arg):
     return f"""\
 auto {type_name}::{arg["name"]}() -> bool {{
@@ -60,10 +63,6 @@ auto {type_name}::{arg["name"]}() -> bool {{
 }}
 
 """
-
-
-def enum_attribute_declare_cpp(arg):
-    return f"""auto {arg["name"]}() -> {snake_to_camel(arg["type"])};"""
 
 
 def enum_attribute_define_cpp(type_name, arg):
@@ -80,10 +79,6 @@ auto {type_name}::{arg["name"]}() -> {type_} {{
 """
 
 
-def string_attribute_declare_cpp(arg):
-    return f"""auto {arg["name"]}() -> char const *;"""
-
-
 def string_attribute_define_cpp(type_name, arg):
     return f"""\
 auto {type_name}::{arg["name"]}() -> char const * {{
@@ -95,10 +90,6 @@ auto {type_name}::{arg["name"]}() -> char const * {{
 }}
 
 """
-
-
-def symbol_attribute_declare_cpp(arg):
-    return f"""auto {arg["name"]}() -> Symbol;"""
 
 
 def symbol_attribute_define_cpp(type_name, arg):
@@ -114,10 +105,6 @@ auto {type_name}::{arg["name"]}() -> Symbol {{
 """
 
 
-def attribute_array_declare_cpp(arg):
-    return f"""auto {arg["name"]}() -> {snake_to_camel(arg["type"])};"""
-
-
 def attribute_array_define_cpp(type_name, arg):
     return f"""\
 auto {type_name}::{arg["name"]}() -> {snake_to_camel(arg["type"])} {{
@@ -130,10 +117,6 @@ auto {type_name}::{arg["name"]}() -> {snake_to_camel(arg["type"])} {{
 }}
 
 """
-
-
-def union_attribute_declare_cpp(arg):
-    return f"""auto {arg["name"]}() -> {snake_to_camel(arg["type"])};"""
 
 
 def union_attribute_define_cpp(type_name, type_attr, arg):
@@ -151,57 +134,46 @@ auto {type_name}::{arg["name"]}() -> {snake_to_camel(arg["type"])} {{
 
 def record_define_cpp(type_dict, type_name, type_attr):
     args = type_attr["arguments"]
-    decl = ""
     defs = ""
     cons_args = ["Library const &lib"]
     cons_def_args = ["lib", f'clingo_ast_type_{type_attr["name"]}', "&res_"]
     for arg in args:
-        indent = "    "
         if arg["type"] == "location":
             cons_args.append("clingo_location_t const &" + arg["name"])
             cons_def_args.append(f'&{arg["name"]}')
-            decl += indent + location_attribute_declare_cpp(arg) + "\n\n"
             defs += location_attribute_define_cpp(type_name, arg)
         elif arg["type"] == "string":
             cons_args.append("char const *" + arg["name"])
             cons_def_args.append(f'{arg["name"]}')
-            decl += indent + string_attribute_declare_cpp(arg) + "\n\n"
             defs += string_attribute_define_cpp(type_name, arg)
         elif arg["type"] == "number":
             cons_args.append("int " + arg["name"])
             cons_def_args.append(f'{arg["name"]}')
-            decl += indent + number_attribute_declare_cpp(arg) + "\n\n"
             defs += number_attribute_define_cpp(type_name, arg)
         elif arg["type"] == "bool":
             cons_args.append("bool " + arg["name"])
             cons_def_args.append(f'static_cast<int>({arg["name"]})')
-            decl += indent + bool_attribute_declare_cpp(arg) + "\n\n"
             defs += bool_attribute_define_cpp(type_name, arg)
         elif arg["type"] == "symbol":
             cons_args.append("Symbol const &" + arg["name"])
             cons_def_args.append(f'{arg["name"]}.handle()')
-            decl += indent + symbol_attribute_declare_cpp(arg) + "\n\n"
             defs += symbol_attribute_define_cpp(type_name, arg)
         elif type_dict[arg["type"]]["type"] == "enum":
-            cons_args.append(snake_to_camel(arg["type"]) + " " + arg["name"])
+            cons_args.append(snake_to_camel(arg["type"]) + " const &" + arg["name"])
             cons_def_args.append(f'static_cast<int>({arg["name"]})')
-            decl += indent + enum_attribute_declare_cpp(arg) + "\n\n"
             defs += enum_attribute_define_cpp(type_name, arg)
         elif type_dict[arg["type"]]["type"] == "union":
             cons_args.append(snake_to_camel(arg["type"]) + " const &" + arg["name"])
             cons_def_args.append(f'c_cast({arg["name"]})')
-            decl += indent + union_attribute_declare_cpp(arg) + "\n\n"
             defs += union_attribute_define_cpp(type_name, type_dict[arg["type"]], arg)
         elif type_dict[arg["type"]]["type"] == "array":
             cons_args.append(snake_to_camel(arg["type"]) + " const &" + arg["name"])
             cons_def_args.append(f'c_cast({arg["name"]}).data()')
             cons_def_args.append(f'{arg["name"]}.size()')
-            decl += indent + attribute_array_declare_cpp(arg) + "\n\n"
             defs += attribute_array_define_cpp(type_name, arg)
         else:
             pass
             # print("handle:", arg["type"])
-    cons_decl = "static auto construct(" + ", ".join(cons_args) + ") -> " + type_name
     defs += f"""\
 auto {type_name}::construct({", ".join(cons_args)}) -> {type_name} {{
     clingo_ast_t *res_;
@@ -214,7 +186,7 @@ auto {type_name}::construct({", ".join(cons_args)}) -> {type_name} {{
 """
     return (
         ENV.get_template("record_declare_cpp.j2").render(
-            type_name=type_name, cons_decl=cons_decl, decl=decl
+            type=type_attr, types=type_dict
         ),
         defs,
     )
