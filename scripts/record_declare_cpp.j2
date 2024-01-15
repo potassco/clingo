@@ -1,19 +1,20 @@
-class {{ type.name | camel }} {
+{% set type_name = type.name | camel -%}
+class {{ type_name }} {
 public:
     // Note: for pybind
-    {{ type.name | camel }}() = default;
+    {{ type_name }}() = default;
 
-    {{ type.name | camel }}({{ type.name | camel }} const &x) {
+    {{ type_name }}({{ type_name }} const &x) {
         if (!clingo_ast_copy(x.ast_, &ast_)) {
             throw std::runtime_error("could not copy ast");
         }
     }
 
-    {{ type.name | camel }}({{ type.name | camel }} &&x) noexcept {
+    {{ type_name }}({{ type_name }} &&x) noexcept {
         std::swap(ast_, x.ast_);
     }
 
-    auto operator=({{ type.name | camel }} const &x) -> {{ type.name | camel }}& {
+    auto operator=({{ type_name }} const &x) -> {{ type_name }}& {
         clingo_ast_free(ast_);
         ast_ = nullptr;
         if (!clingo_ast_copy(x.ast_, &ast_)) {
@@ -22,7 +23,7 @@ public:
         return *this;
     }
 
-    auto operator=({{ type.name | camel }} &&x) noexcept -> {{ type.name | camel }}& {
+    auto operator=({{ type_name }} &&x) noexcept -> {{ type_name }}& {
         std::swap(ast_, x.ast_);
         return *this;
     }
@@ -31,15 +32,15 @@ public:
         return clingo_ast_hash(ast_);
     }
 
-    friend auto operator==({{ type.name | camel }} const &a, {{ type.name | camel }} const &b) -> bool {
+    friend auto operator==({{ type_name }} const &a, {{ type_name }} const &b) -> bool {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<({{ type.name | camel }} const &a, {{ type.name | camel }} const &b) -> bool {
+    friend auto operator<({{ type_name }} const &a, {{ type_name }} const &b) -> bool {
         return clingo_ast_less_than(a.ast_, b.ast_);
     }
 
-    CLINGO_CPP_TOTAL_ORDER(friend, {{ type.name | camel }})
+    CLINGO_CPP_TOTAL_ORDER(friend, {{ type_name }})
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -57,7 +58,7 @@ public:
         return str;
     }
 
-    ~{{ type.name | camel }}() {
+    ~{{ type_name }}() {
         clingo_ast_free(ast_);
     }
 {% for argument in type.arguments -%}
@@ -75,20 +76,20 @@ public:
     auto {{ argument.name }}() -> {{ argument.type | camel }};
 {% endif %}
 {%- endfor %}
-    static auto acquire(clingo_ast_t *ast) -> {{ type.name | camel }} {
+    static auto acquire(clingo_ast_t *ast) -> {{ type_name }} {
         return {ast};
     }
 
-    static auto construct(Library const &lib{% for argument in type.arguments %}, {{ argument.type | cref }}{{ argument.name }}{% endfor %}) -> {{ type.name | camel }};
+    static auto construct(Library const &lib{% for argument in type.arguments %}, {{ argument.type | cref }}{{ argument.name }}{% endfor %}) -> {{ type_name }};
 
-    friend auto c_cast({{ type.name | camel }} const &x) -> clingo_ast_t *;
+    friend auto c_cast({{ type_name }} const &x) -> clingo_ast_t *;
 
 private:
-    {{ type.name | camel }}(clingo_ast_t *ast) : ast_{ast} { }
+    {{ type_name }}(clingo_ast_t *ast) : ast_{ast} { }
 
     clingo_ast_t *ast_ = nullptr;
 };
 
-inline auto c_cast({{ type.name | camel }} const &x) -> clingo_ast_t * {
+inline auto c_cast({{ type_name }} const &x) -> clingo_ast_t * {
     return x.ast_;
 }

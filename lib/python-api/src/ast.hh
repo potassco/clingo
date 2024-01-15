@@ -794,7 +794,7 @@ auto construct_term(clingo_ast_t *ast) -> Term {
     throw std::runtime_error("unexpected ast type");
 }
 
-inline auto construct_term_array(clingo_ast_t **ast, size_t size) -> TermArray {
+auto construct_term_array(clingo_ast_t **ast, size_t size) -> TermArray {
     TermArray ret;
     try {
         ret.reserve(size);
@@ -862,7 +862,7 @@ auto construct_term_or_projection(clingo_ast_t *ast) -> TermOrProjection {
     throw std::runtime_error("unexpected ast type");
 }
 
-inline auto construct_term_or_projection_array(clingo_ast_t **ast, size_t size) -> TermOrProjectionArray {
+auto construct_term_or_projection_array(clingo_ast_t **ast, size_t size) -> TermOrProjectionArray {
     TermOrProjectionArray ret;
     try {
         ret.reserve(size);
@@ -879,7 +879,7 @@ inline auto construct_term_or_projection_array(clingo_ast_t **ast, size_t size) 
     return ret;
 }
 
-inline auto construct_pool_array(clingo_ast_t **ast, size_t size) -> PoolArray {
+auto construct_pool_array(clingo_ast_t **ast, size_t size) -> PoolArray {
     PoolArray ret;
     try {
         ret.reserve(size);
@@ -931,7 +931,7 @@ auto construct_term_or_pool(clingo_ast_t *ast) -> TermOrPool {
     throw std::runtime_error("unexpected ast type");
 }
 
-inline auto construct_term_or_pool_array(clingo_ast_t **ast, size_t size) -> TermOrPoolArray {
+auto construct_term_or_pool_array(clingo_ast_t **ast, size_t size) -> TermOrPoolArray {
     TermOrPoolArray ret;
     try {
         ret.reserve(size);

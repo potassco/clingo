@@ -21,9 +21,29 @@ def cref(name):
     return f"{snake_to_camel(name)} const &"
 
 
+def flatten_types(types, type_map):
+    res = []
+
+    def flatten_type(name):
+        type_info = type_map[name]
+        if type_info["type"] in ("record", "forward"):
+            res.append(name)
+        elif type_info["type"] == "union":
+            for u in type_info["types"]:
+                flatten_type(u)
+        else:
+            raise RuntimeError("unhandled type")
+
+    for name in types:
+        flatten_type(name)
+
+    return res
+
+
 ENV = jinja2.Environment(loader=jinja2.FileSystemLoader(searchpath="scripts/"))
 ENV.filters["camel"] = snake_to_camel
 ENV.filters["cref"] = cref
+ENV.filters["flatten_types"] = flatten_types
 
 
 def location_attribute_define_cpp(type_name, arg):
@@ -216,91 +236,15 @@ def record_reg(type_dict, type_name, args):
 """
 
 
-def union_define_cpp(arg, type_dict):
-    type_ = snake_to_camel(arg["name"])
-    cases = ""
-    types = []
-
-    def flatten_type(t):
-        type_info = type_dict[t]
-        if type_info["type"] in ("record", "forward"):
-            types.append(t)
-        elif type_info["type"] == "union":
-            for u in type_info["types"]:
-                flatten_type(u)
-        else:
-            raise RuntimeError("unhandled type")
-
-    for result_type in arg["types"]:
-        flatten_type(result_type)
-
-    for result_type in types:
-        cases += f"""\
-        case clingo_ast_type_{result_type}: {{
-            return {snake_to_camel(result_type)}::acquire(ast);
-        }}
-"""
-    return f"""\
-auto construct_{arg["name"]}(clingo_ast_t *ast) -> {type_} {{
-    clingo_ast_type_t type;
-    if (!clingo_ast_get_type(ast, &type)) {{
-        clingo_ast_free(ast);
-        throw std::runtime_error("could not get type");
-    }}
-    switch (type) {{
-{cases}\
-    }}
-    throw std::runtime_error("unexpected ast type");
-}}
-
-"""
-
-
-def array_define_cpp(arg, type_dict):
-    if type_dict[arg["value_type"]]["type"] == "union":
-        cons = f'construct_{arg["value_type"]}'
-    elif type_dict[arg["value_type"]]["type"] in ("forward", "record"):
-        cons = f'{snake_to_camel(arg["value_type"])}::acquire'
-    else:
-        raise RuntimeError("unhandled type")
-    return f"""\
-inline auto construct_{arg["name"]}(clingo_ast_t **ast, size_t size) -> {snake_to_camel(arg["name"])} {{
-    {snake_to_camel(arg["name"])} ret;
-    try {{
-        ret.reserve(size);
-        std::for_each_n(ast, size, [&ret](auto &arg){{
-            auto tmp = arg;
-            arg = nullptr;
-            ret.emplace_back({cons}(tmp));
-        }});
-        clingo_ast_array_free(ast, size);
-    }}
-    catch (...) {{
-        clingo_ast_array_free(ast, size);
-        throw;
-    }}
-    return ret;
-}}
-
-"""
-
-
 def generate():
     types = yaml.safe_load(_type_info_yaml())
-    defines = ""
     register = ""
 
-    type_dict = {}
+    type_map = {type_attr["name"]: type_attr for type_attr in types}
 
     for type_attr in types:
         type_attr["pyname"] = snake_to_camel(type_attr["name"])
-        type_dict[type_attr["name"]] = type_attr
         type_name = snake_to_camel(type_attr["name"])
-        if type_attr["type"] == "array":
-            defines += array_define_cpp(type_attr, type_dict)
-
-        if type_attr["type"] == "union":
-            defines += union_define_cpp(type_attr, type_dict)
 
         if type_attr["type"] == "enum":
             register += f"""    py::enum_<{type_name}>(ast, "{type_name}", R"({type_attr["doc"]})")\n"""
@@ -311,13 +255,13 @@ def generate():
             register += "        ;\n\n"
 
         if type_attr["type"] == "record":
-            decl, defs = record_define_cpp(type_dict, type_name, type_attr)
+            decl, defs = record_define_cpp(type_map, type_name, type_attr)
             type_attr["decl"] = decl
-            defines += defs
-            register += record_reg(type_dict, type_name, type_attr["arguments"])
+            register += record_reg(type_map, type_name, type_attr["arguments"])
+            type_attr["define"] = defs
 
     return ENV.get_template("module.j2").render(
-        register=register, defines=defines, types=types
+        register=register, types=types, type_map=type_map
     )
 
 
