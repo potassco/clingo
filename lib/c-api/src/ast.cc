@@ -223,6 +223,11 @@ struct GetType {
         static_cast<void>(term);
         return clingo_ast_type_term_binary_operation;
     }
+    // literals
+    template <class T> auto operator()(T const &literal) const -> clingo_ast_type_e {
+        static_cast<void>(literal);
+        throw std::logic_error("implement me!!!");
+    }
 };
 
 struct GetNumber {
@@ -445,8 +450,6 @@ class ASTProjection : public clingo_ast {
     Gringo::Input::Projection projection_;
 };
 
-// Note: the AST could simply store the library object for error reporting.
-// This would allow for better error reporting at the expense of a tiny memory overhead.
 class ASTTerm : public clingo_ast {
   public:
     ASTTerm(Gringo::Input::Term term) : term{std::move(term)} {}
@@ -591,6 +594,70 @@ auto ast_convert<Gringo::Input::TermTuple::Element>(clingo_ast const *ast) -> Gr
         return res->term;
     }
     return ast_convert<Gringo::Input::TupleVec>(ast);
+}
+
+class ASTLiteral : public clingo_ast {
+  public:
+    ASTLiteral(Gringo::Input::Literal literal) : literal{std::move(literal)} {}
+    [[nodiscard]] auto copy() const -> std::unique_ptr<clingo_ast_t> override {
+        return std::make_unique<ASTLiteral>(literal);
+    }
+    void print(std::ostream &out) const override { out << literal; }
+    [[nodiscard]] auto get_type() const -> clingo_ast_type_e override { return std::visit(GetType{}, literal); }
+    [[nodiscard]] auto get_number(clingo_ast_attribute_t attr) const -> std::optional<int> override {
+        return std::visit(GetNumber{attr}, literal);
+    }
+    [[nodiscard]] auto get_symbol(clingo_ast_attribute_t attr) const -> std::optional<clingo_symbol_t> override {
+        return std::visit(GetSymbol{attr}, literal);
+    }
+    [[nodiscard]] auto get_location(clingo_ast_attribute_t attr) const -> std::optional<clingo_location_t> override {
+        if (attr == clingo_ast_attribute_location) {
+            return convert_loc(location(literal));
+        }
+        return std::nullopt;
+    }
+    [[nodiscard]] auto get_string(clingo_ast_attribute_t attr) const -> std::optional<char const *> override {
+        return std::visit(GetString{attr}, literal);
+    }
+    [[nodiscard]] auto get_ast(clingo_ast_attribute_t attr) const
+        -> std::optional<std::unique_ptr<clingo_ast_t>> override {
+        return std::visit(GetAST{attr}, literal);
+    }
+    [[nodiscard]] auto get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional<ASTVec> override {
+        return std::visit(GetASTVec{attr}, literal);
+    }
+
+    [[nodiscard]] auto hash() const -> size_t override { return Gringo::Util::value_hash(literal); }
+
+    [[nodiscard]] auto equal_to(clingo_ast_t const &other) const -> bool override {
+        auto const *b = dynamic_cast<ASTLiteral const *>(&other);
+        if (b == nullptr) {
+            return false;
+        }
+        return literal == b->literal;
+    }
+
+    [[nodiscard]] auto less_than(clingo_ast_t const &other) const -> bool override {
+        auto t_a = get_type();
+        auto t_b = other.get_type();
+        if (t_a != t_b) {
+            return t_a < t_b;
+        }
+        throw std::logic_error("implement me!!!");
+        // return literal < static_cast<ASTLiteral const &>(other).literal;
+    }
+
+    template <class T> friend auto ast_convert(clingo_ast const *ast) -> T;
+
+  private:
+    Gringo::Input::Literal literal;
+};
+
+template <> auto ast_convert<Gringo::Input::Literal>(clingo_ast const *ast) -> Gringo::Input::Literal {
+    if (auto const *res = dynamic_cast<ASTLiteral const *>(ast); res != nullptr) {
+        return res->literal;
+    }
+    throw std::runtime_error("invalid type: literal expected");
 }
 
 auto make_ast(Gringo::Input::Term const &term) -> std::unique_ptr<clingo_ast_t> {
@@ -778,6 +845,8 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 *ast = new ASTArgumentTuple{ASTVec::copy(tuple, size)};
                 break;
             }
+                // TODO:
+                static_cast<void>(ast_convert<Gringo::Input::Literal>);
         }
     }
     CLINGO_CATCH(lib);
