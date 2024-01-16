@@ -127,13 +127,21 @@ This can be used to auto-generate most of the binding.)"));
 {%  for type in types -%}
 {%    set type_name = type.name | camel -%}
 {%    if type.type == 'enum' %}
-    py::enum_<{{ type_name }}>(ast, "{{ type_name }}", R"doc({{ type.doc }})doc")
+    auto py_{{ type.name }} = py::enum_<{{ type_name }}>(ast, "{{ type_name }}", R"doc({{ type.doc }})doc");
+{%    elif type.type == 'record' %}
+    auto py_{{ type.name }} = py::class_<{{ type_name }}>(ast, "{{ type_name }}", R"doc({{ type.doc | doc }})doc");
+{%    endif %}
+{%- endfor %}
+{%  for type in types -%}
+{%    set type_name = type.name | camel -%}
+{%    if type.type == 'enum' %}
+    py_{{ type.name }}
 {%-     for value_name, value_type in type["values"].items() %}
         .value("{{ value_name | camel }}", {{ type_name }}::{{ value_name | camel }}, R"doc({{ value_type.doc }})doc")
 {%-       if loop.last %};{% endif -%}
 {%-     endfor %}
 {%    elif type.type == 'record' %}
-    py::class_<{{ type_name }}>(ast, "{{ type_name }}", R"doc({{ type.doc | doc }})doc")
+    py_{{ type.name }}
         .def(py::init(&{{ type_name }}::construct), py::arg("lib")
         {%- for argument in type.arguments -%}
             , py::arg("{{ argument.name }}")

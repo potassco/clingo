@@ -1850,12 +1850,68 @@ Return a yaml description of the AST.
 
 This can be used to auto-generate most of the binding.)"));
 
-    py::enum_<UnaryOperator>(ast, "UnaryOperator", R"doc(Available unary operators.)doc")
-        .value("Minus", UnaryOperator::Minus, R"doc(Operator `-`.)doc")
+    auto py_unary_operator = py::enum_<UnaryOperator>(ast, "UnaryOperator", R"doc(Available unary operators.)doc");
+
+    auto py_binary_operator = py::enum_<BinaryOperator>(ast, "BinaryOperator", R"doc(Available binary operators.)doc");
+
+    auto py_sign = py::enum_<Sign>(ast, "Sign", R"doc(The available signs.)doc");
+
+    auto py_relation = py::enum_<Relation>(ast, "Relation", R"doc(Available relation symbols.)doc");
+
+    auto py_aggregate_function =
+        py::enum_<AggregateFunction>(ast, "AggregateFunction", R"doc(Enumeration of aggregate functions.)doc");
+
+    auto py_theory_operator =
+        py::enum_<TheoryOperator>(ast, "TheoryOperator", R"doc(Enumeration of theory operators.)doc");
+
+    auto py_theory_sequence_type =
+        py::enum_<TheorySequenceType>(ast, "TheorySequenceType", R"doc(Enumeration of theory sequence types.)doc");
+
+    auto py_theory_atom_type =
+        py::enum_<TheoryAtomType>(ast, "TheoryAtomType", R"doc(Enumeration of the theory atom types.)doc");
+
+    auto py_projection =
+        py::class_<Projection>(ast, "Projection", R"doc(A placeholder for an argument to project.)doc");
+
+    auto py_term_variable = py::class_<TermVariable>(ast, "TermVariable", R"doc(A term representing a variable.)doc");
+
+    auto py_term_symbolic = py::class_<TermSymbolic>(ast, "TermSymbolic", R"doc(A term representing a symbol.)doc");
+
+    auto py_term_absolute =
+        py::class_<TermAbsolute>(ast, "TermAbsolute", R"doc(A term representing the absolute operation.)doc");
+
+    auto py_term_unary_operation =
+        py::class_<TermUnaryOperation>(ast, "TermUnaryOperation", R"doc(A term representing a unary operation.)doc");
+
+    auto py_term_binary_operation =
+        py::class_<TermBinaryOperation>(ast, "TermBinaryOperation", R"doc(A term representing a binary operation.)doc");
+
+    auto py_term_tuple = py::class_<TermTuple>(ast, "TermTuple", R"doc(A term representing a tuple.)doc");
+
+    auto py_term_function = py::class_<TermFunction>(ast, "TermFunction", R"doc(A term representing a function.)doc");
+
+    auto py_argument_tuple =
+        py::class_<ArgumentTuple>(ast, "ArgumentTuple", R"doc(A list of arguments for a function or tuple.)doc");
+
+    auto py_left_guard = py::class_<LeftGuard>(ast, "LeftGuard",
+                                               R"doc(A right hand side guard consisting of a term and a relation.)doc");
+
+    auto py_right_guard = py::class_<RightGuard>(ast, "RightGuard",
+                                                 R"doc(A right hand side guard consisting of a relation and term.)doc");
+
+    auto py_literal_boolean =
+        py::class_<LiteralBoolean>(ast, "LiteralBoolean", R"doc(A literal representing a Boolean constant.)doc");
+
+    auto py_literal_comparison = py::class_<LiteralComparison>(
+        ast, "LiteralComparison", R"doc(A literal representing a (chain of) comparison(s).)doc");
+
+    auto py_literal_symbolic =
+        py::class_<LiteralSymbolic>(ast, "LiteralSymbolic", R"doc(A literal representing a symbolic literal.)doc");
+
+    py_unary_operator.value("Minus", UnaryOperator::Minus, R"doc(Operator `-`.)doc")
         .value("Negation", UnaryOperator::Negation, R"doc(Operator `~`.)doc");
 
-    py::enum_<BinaryOperator>(ast, "BinaryOperator", R"doc(Available binary operators.)doc")
-        .value("And", BinaryOperator::And, R"doc(Operator `&`.)doc")
+    py_binary_operator.value("And", BinaryOperator::And, R"doc(Operator `&`.)doc")
         .value("Division", BinaryOperator::Division, R"doc(Operator `/`.)doc")
         .value("Minus", BinaryOperator::Minus, R"doc(Operator `-`.)doc")
         .value("Modulo", BinaryOperator::Modulo, R"doc(Operator `%`.)doc")
@@ -1865,43 +1921,37 @@ This can be used to auto-generate most of the binding.)"));
         .value("Power", BinaryOperator::Power, R"doc(Operator `**`.)doc")
         .value("Xor", BinaryOperator::Xor, R"doc(Operator `^`.)doc");
 
-    py::enum_<Sign>(ast, "Sign", R"doc(The available signs.)doc")
-        .value("None", Sign::None, R"doc(No sign.)doc")
+    py_sign.value("None", Sign::None, R"doc(No sign.)doc")
         .value("Once", Sign::Once, R"doc(One sign.)doc")
         .value("Twice", Sign::Twice, R"doc(Two signs.)doc");
 
-    py::enum_<Relation>(ast, "Relation", R"doc(Available relation symbols.)doc")
-        .value("Equal", Relation::Equal, R"doc(The equal to relation.)doc")
+    py_relation.value("Equal", Relation::Equal, R"doc(The equal to relation.)doc")
         .value("NotEqual", Relation::NotEqual, R"doc(The not equal to relation.)doc")
         .value("Less", Relation::Less, R"doc(The less than relation.)doc")
         .value("LessEqual", Relation::LessEqual, R"doc(The less than or equal to relation.)doc")
         .value("Greater", Relation::Greater, R"doc(The greater than relation.)doc")
         .value("GreaterEqual", Relation::GreaterEqual, R"doc(The greater than or equal to relation.)doc");
 
-    py::enum_<AggregateFunction>(ast, "AggregateFunction", R"doc(Enumeration of aggregate functions.)doc")
-        .value("Count", AggregateFunction::Count, R"doc(Operator "^".)doc")
+    py_aggregate_function.value("Count", AggregateFunction::Count, R"doc(Operator "^".)doc")
         .value("Sum", AggregateFunction::Sum, R"doc(Operator "?".)doc")
         .value("Sump", AggregateFunction::Sump, R"doc(Operator "&".)doc")
         .value("Min", AggregateFunction::Min, R"doc(Operator "+".)doc")
         .value("Max", AggregateFunction::Max, R"doc(Operator "-".)doc");
 
-    py::enum_<TheoryOperator>(ast, "TheoryOperator", R"doc(Enumeration of theory operators.)doc")
-        .value("Unary", TheoryOperator::Unary, R"doc(An unary theory operator.)doc")
+    py_theory_operator.value("Unary", TheoryOperator::Unary, R"doc(An unary theory operator.)doc")
         .value("BinaryLeft", TheoryOperator::BinaryLeft, R"doc(A left associative binary operator.)doc")
         .value("BinaryRight", TheoryOperator::BinaryRight, R"doc(A right associative binary operator.)doc");
 
-    py::enum_<TheorySequenceType>(ast, "TheorySequenceType", R"doc(Enumeration of theory sequence types.)doc")
-        .value("Tuple", TheorySequenceType::Tuple, R"doc(Theory tuples "(t1,...,tn)".)doc")
+    py_theory_sequence_type.value("Tuple", TheorySequenceType::Tuple, R"doc(Theory tuples "(t1,...,tn)".)doc")
         .value("Set", TheorySequenceType::Set, R"doc(Theory sets "{t1,...,tn}".)doc")
         .value("List", TheorySequenceType::List, R"doc(Theory lists "[t1,...,tn]".)doc");
 
-    py::enum_<TheoryAtomType>(ast, "TheoryAtomType", R"doc(Enumeration of the theory atom types.)doc")
-        .value("Head", TheoryAtomType::Head, R"doc(For theory atoms that can appear in the head.)doc")
+    py_theory_atom_type.value("Head", TheoryAtomType::Head, R"doc(For theory atoms that can appear in the head.)doc")
         .value("Body", TheoryAtomType::Body, R"doc(For theory atoms that can appear in the body.)doc")
         .value("Any", TheoryAtomType::Any, R"doc(For theory atoms that can appear in both head and body.)doc")
         .value("Directive", TheoryAtomType::Directive, R"doc(For theory atoms that must not have a body.)doc");
 
-    py::class_<Projection>(ast, "Projection", R"doc(A placeholder for an argument to project.)doc")
+    py_projection
         .def(py::init(&Projection::construct), py::arg("lib"), py::arg("location"), R"doc(Construct a Projection object.
 
 Parameters
@@ -1916,7 +1966,7 @@ location
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
-    py::class_<TermVariable>(ast, "TermVariable", R"doc(A term representing a variable.)doc")
+    py_term_variable
         .def(py::init(&TermVariable::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
              py::arg("anonymous") = false, R"doc(Construct a TermVariable object.
 
@@ -1940,7 +1990,7 @@ anonymous
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
-    py::class_<TermSymbolic>(ast, "TermSymbolic", R"doc(A term representing a symbol.)doc")
+    py_term_symbolic
         .def(py::init(&TermSymbolic::construct), py::arg("lib"), py::arg("location"), py::arg("symbol"),
              R"doc(Construct a TermSymbolic object.
 
@@ -1959,7 +2009,7 @@ symbol
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
-    py::class_<TermAbsolute>(ast, "TermAbsolute", R"doc(A term representing the absolute operation.)doc")
+    py_term_absolute
         .def(py::init(&TermAbsolute::construct), py::arg("lib"), py::arg("location"), py::arg("pool"),
              R"doc(Construct a TermAbsolute object.
 
@@ -1981,7 +2031,7 @@ pool
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
-    py::class_<TermUnaryOperation>(ast, "TermUnaryOperation", R"doc(A term representing a unary operation.)doc")
+    py_term_unary_operation
         .def(py::init(&TermUnaryOperation::construct), py::arg("lib"), py::arg("location"), py::arg("operator_type"),
              py::arg("right"), R"doc(Construct a TermUnaryOperation object.
 
@@ -2003,7 +2053,7 @@ right
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
-    py::class_<TermBinaryOperation>(ast, "TermBinaryOperation", R"doc(A term representing a binary operation.)doc")
+    py_term_binary_operation
         .def(py::init(&TermBinaryOperation::construct), py::arg("lib"), py::arg("location"), py::arg("left"),
              py::arg("operator_type"), py::arg("right"), R"doc(Construct a TermBinaryOperation object.
 
@@ -2028,7 +2078,7 @@ right
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
-    py::class_<TermTuple>(ast, "TermTuple", R"doc(A term representing a tuple.)doc")
+    py_term_tuple
         .def(py::init(&TermTuple::construct), py::arg("lib"), py::arg("location"), py::arg("pool"),
              R"doc(Construct a TermTuple object.
 
@@ -2050,7 +2100,7 @@ pool
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
-    py::class_<TermFunction>(ast, "TermFunction", R"doc(A term representing a function.)doc")
+    py_term_function
         .def(py::init(&TermFunction::construct), py::arg("lib"), py::arg("location"), py::arg("name"), py::arg("pool"),
              py::arg("external") = false, R"doc(Construct a TermFunction object.
 
@@ -2078,7 +2128,7 @@ external
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
-    py::class_<ArgumentTuple>(ast, "ArgumentTuple", R"doc(A list of arguments for a function or tuple.)doc")
+    py_argument_tuple
         .def(py::init(&ArgumentTuple::construct), py::arg("lib"), py::arg("arguments") = TermOrProjectionArray{},
              R"doc(Construct a ArgumentTuple object.
 
@@ -2094,7 +2144,7 @@ arguments
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
-    py::class_<LeftGuard>(ast, "LeftGuard", R"doc(A right hand side guard consisting of a term and a relation.)doc")
+    py_left_guard
         .def(py::init(&LeftGuard::construct), py::arg("lib"), py::arg("term"), py::arg("relation"),
              R"doc(Construct a LeftGuard object.
 
@@ -2113,7 +2163,7 @@ relation
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
-    py::class_<RightGuard>(ast, "RightGuard", R"doc(A right hand side guard consisting of a relation and term.)doc")
+    py_right_guard
         .def(py::init(&RightGuard::construct), py::arg("lib"), py::arg("relation"), py::arg("term"),
              R"doc(Construct a RightGuard object.
 
@@ -2132,7 +2182,7 @@ term
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
-    py::class_<LiteralBoolean>(ast, "LiteralBoolean", R"doc(A literal representing a Boolean constant.)doc")
+    py_literal_boolean
         .def(py::init(&LiteralBoolean::construct), py::arg("lib"), py::arg("location"), py::arg("sign"),
              py::arg("value"), R"doc(Construct a LiteralBoolean object.
 
@@ -2154,8 +2204,7 @@ value
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
-    py::class_<LiteralComparison>(ast, "LiteralComparison",
-                                  R"doc(A literal representing a (chain of) comparison(s).)doc")
+    py_literal_comparison
         .def(py::init(&LiteralComparison::construct), py::arg("lib"), py::arg("location"), py::arg("sign"),
              py::arg("left"), py::arg("right"), R"doc(Construct a LiteralComparison object.
 
@@ -2182,7 +2231,7 @@ right
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
-    py::class_<LiteralSymbolic>(ast, "LiteralSymbolic", R"doc(A literal representing a symbolic literal.)doc")
+    py_literal_symbolic
         .def(py::init(&LiteralSymbolic::construct), py::arg("lib"), py::arg("location"), py::arg("sign"),
              py::arg("atom"), R"doc(Construct a LiteralSymbolic object.
 
