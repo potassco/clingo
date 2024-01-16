@@ -127,9 +127,9 @@ This can be used to auto-generate most of the binding.)"));
 {%  for type in types -%}
 {%    set type_name = type.name | camel -%}
 {%    if type.type == 'enum' %}
-    py::enum_<{{ type_name }}>(ast, "{{ type_name }}", R"({{ type.doc }})")
+    py::enum_<{{ type_name }}>(ast, "{{ type_name }}", R"doc({{ type.doc }})doc")
 {%-     for value_name, value_type in type["values"].items() %}
-        .value("{{ value_name | camel }}", {{ type_name }}::{{ value_name | camel }}, R"({{ value_type.doc }})")
+        .value("{{ value_name | camel }}", {{ type_name }}::{{ value_name | camel }}, R"doc({{ value_type.doc }})doc")
 {%-       if loop.last %};{% endif -%}
 {%-     endfor %}
 {%    elif type.type == 'record' %}

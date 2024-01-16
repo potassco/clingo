@@ -11,18 +11,21 @@
 #include <gringo/input/algo/print.hh>
 
 namespace {
+
 class ASTVec;
 
-template <class T> auto ast_convert(clingo_ast const *ast) -> T = delete;
+auto make_ast(Gringo::Input::LGuard::value_type const &guard) -> std::unique_ptr<clingo_ast_t>;
+auto make_ast(Gringo::Input::RGuard::value_type const &guard) -> std::unique_ptr<clingo_ast_t>;
+auto make_ast(Gringo::Input::Term const &term) -> std::unique_ptr<clingo_ast_t>;
+auto make_ast(Gringo::Input::TupleVec const &tuple) -> std::unique_ptr<clingo_ast_t>;
+auto make_ast(Gringo::Input::TermTuple::Element const &tuple) -> std::unique_ptr<clingo_ast_t>;
 
-template <class T> auto ast_vec_convert(clingo_ast const **ast, size_t size) -> std::vector<T> {
-    std::vector<T> res;
-    res.reserve(size);
-    for (auto it = ast, ie = ast + size; it != ie; ++it) {
-        res.emplace_back(ast_convert<T>(*it));
-    }
-    return res;
-}
+template <class T> auto make_ast_vec(std::vector<T> const &vec) -> ASTVec;
+
+template <class T> auto convert_ast(clingo_ast const *ast) -> T = delete;
+
+template <class T> auto convert_ast_vec(clingo_ast const **ast, size_t size) -> std::vector<T>;
+
 } // namespace
 
 struct clingo_ast {
@@ -48,84 +51,6 @@ struct clingo_ast {
 };
 
 namespace {
-
-/*
-static_assert(clingo_ast_theory_sequence_type_tuple ==
-              static_cast<clingo_ast_theory_sequence_type_e>(Gringo::Input::TheoryTermTupleType::tuple));
-static_assert(clingo_ast_theory_sequence_type_list ==
-              static_cast<clingo_ast_theory_sequence_type_e>(Gringo::Input::TheoryTermTupleType::list));
-static_assert(clingo_ast_theory_sequence_type_set ==
-              static_cast<clingo_ast_theory_sequence_type_e>(Gringo::Input::TheoryTermTupleType::set));
-
-static_assert(clingo_ast_comparison_operator_equal ==
-              static_cast<clingo_ast_comparison_operator_e>(Gringo::Input::Relation::equal));
-static_assert(clingo_ast_comparison_operator_not_equal ==
-              static_cast<clingo_ast_comparison_operator_e>(Gringo::Input::Relation::inequal));
-static_assert(clingo_ast_comparison_operator_less_than ==
-              static_cast<clingo_ast_comparison_operator_e>(Gringo::Input::Relation::less));
-static_assert(clingo_ast_comparison_operator_less_equal ==
-              static_cast<clingo_ast_comparison_operator_e>(Gringo::Input::Relation::less_equal));
-static_assert(clingo_ast_comparison_operator_greater_than ==
-              static_cast<clingo_ast_comparison_operator_e>(Gringo::Input::Relation::greater));
-static_assert(clingo_ast_comparison_operator_greater_equal ==
-              static_cast<clingo_ast_comparison_operator_e>(Gringo::Input::Relation::greater_equal));
-
-static_assert(clingo_ast_sign_no_sign == static_cast<clingo_ast_sign_e>(Gringo::Input::Sign::none));
-static_assert(clingo_ast_sign_negation == static_cast<clingo_ast_sign_e>(Gringo::Input::Sign::once));
-static_assert(clingo_ast_sign_double_negation == static_cast<clingo_ast_sign_e>(Gringo::Input::Sign::twice));
-
-static_assert(clingo_ast_unary_operator_minus ==
-              static_cast<clingo_ast_unary_operator_e>(Gringo::Input::UnaryOperator::negate));
-static_assert(clingo_ast_unary_operator_negation ==
-              static_cast<clingo_ast_unary_operator_e>(Gringo::Input::UnaryOperator::invert));
-
-static_assert(clingo_ast_binary_operator_and ==
-              static_cast<clingo_ast_binary_operator_e>(Gringo::Input::BinaryOperator::and_));
-static_assert(clingo_ast_binary_operator_division ==
-              static_cast<clingo_ast_binary_operator_e>(Gringo::Input::BinaryOperator::div));
-static_assert(clingo_ast_binary_operator_minus ==
-              static_cast<clingo_ast_binary_operator_e>(Gringo::Input::BinaryOperator::minus));
-static_assert(clingo_ast_binary_operator_modulo ==
-              static_cast<clingo_ast_binary_operator_e>(Gringo::Input::BinaryOperator::mod));
-static_assert(clingo_ast_binary_operator_multiplication ==
-              static_cast<clingo_ast_binary_operator_e>(Gringo::Input::BinaryOperator::times));
-static_assert(clingo_ast_binary_operator_or ==
-              static_cast<clingo_ast_binary_operator_e>(Gringo::Input::BinaryOperator::or_));
-static_assert(clingo_ast_binary_operator_plus ==
-              static_cast<clingo_ast_binary_operator_e>(Gringo::Input::BinaryOperator::plus));
-static_assert(clingo_ast_binary_operator_power ==
-              static_cast<clingo_ast_binary_operator_e>(Gringo::Input::BinaryOperator::pow));
-static_assert(clingo_ast_binary_operator_xor ==
-              static_cast<clingo_ast_binary_operator_e>(Gringo::Input::BinaryOperator::xor_));
-
-static_assert(clingo_ast_aggregate_function_count ==
-              static_cast<clingo_ast_aggregate_function_e>(Gringo::Input::AggregateFunction::count));
-static_assert(clingo_ast_aggregate_function_sum ==
-              static_cast<clingo_ast_aggregate_function_e>(Gringo::Input::AggregateFunction::sum));
-static_assert(clingo_ast_aggregate_function_sump ==
-              static_cast<clingo_ast_aggregate_function_e>(Gringo::Input::AggregateFunction::sump));
-static_assert(clingo_ast_aggregate_function_min ==
-              static_cast<clingo_ast_aggregate_function_e>(Gringo::Input::AggregateFunction::min));
-static_assert(clingo_ast_aggregate_function_max ==
-              static_cast<clingo_ast_aggregate_function_e>(Gringo::Input::AggregateFunction::max));
-
-static_assert(clingo_ast_theory_operator_type_unary ==
-              static_cast<clingo_ast_theory_operator_type_e>(Gringo::Input::TheoryOpType::unary));
-static_assert(clingo_ast_theory_operator_type_binary_left ==
-              static_cast<clingo_ast_theory_operator_type_e>(Gringo::Input::TheoryOpType::binary_left));
-static_assert(clingo_ast_theory_operator_type_binary_right ==
-              static_cast<clingo_ast_theory_operator_type_e>(Gringo::Input::TheoryOpType::binary_right));
-
-static_assert(clingo_ast_theory_atom_definition_type_head ==
-              static_cast<clingo_ast_theory_atom_definition_type_e>(Gringo::Input::TheoryAtomType::head));
-static_assert(clingo_ast_theory_atom_definition_type_body ==
-              static_cast<clingo_ast_theory_atom_definition_type_e>(Gringo::Input::TheoryAtomType::body));
-static_assert(clingo_ast_theory_atom_definition_type_any ==
-              static_cast<clingo_ast_theory_atom_definition_type_e>(Gringo::Input::TheoryAtomType::any));
-static_assert(clingo_ast_theory_atom_definition_type_directive ==
-              static_cast<clingo_ast_theory_atom_definition_type_e>(Gringo::Input::TheoryAtomType::directive));
-
-*/
 
 class ASTVec {
   public:
@@ -192,6 +117,25 @@ class ASTVec {
     clingo_ast_t **data_ = nullptr;
     size_t size_ = 0;
 };
+
+template <class T> auto make_ast_vec(std::vector<T> const &vec) -> ASTVec {
+    ASTVec res{vec.size()};
+    size_t i = 0;
+    for (auto const &elem : vec) {
+        res[i] = make_ast(elem).release();
+        ++i;
+    }
+    return res;
+}
+
+template <class T> auto convert_ast_vec(clingo_ast const **ast, size_t size) -> std::vector<T> {
+    std::vector<T> res;
+    res.reserve(size);
+    for (auto it = ast, ie = ast + size; it != ie; ++it) {
+        res.emplace_back(convert_ast<T>(*it));
+    }
+    return res;
+}
 
 struct GetType {
     // terms
@@ -381,22 +325,6 @@ auto convert_loc(Gringo::Input::Location const &loc) -> clingo_location_t {
             loc.end.line,           loc.begin.column,     loc.end.column};
 }
 
-auto make_ast(Gringo::Input::LGuard::value_type const &guard) -> std::unique_ptr<clingo_ast_t>;
-auto make_ast(Gringo::Input::RGuard::value_type const &guard) -> std::unique_ptr<clingo_ast_t>;
-auto make_ast(Gringo::Input::Term const &term) -> std::unique_ptr<clingo_ast_t>;
-auto make_ast(Gringo::Input::TupleVec const &tuple) -> std::unique_ptr<clingo_ast_t>;
-auto make_ast(Gringo::Input::TermTuple::Element const &tuple) -> std::unique_ptr<clingo_ast_t>;
-
-template <class T> auto make_ast_vec(std::vector<T> const &vec) -> ASTVec {
-    ASTVec res{vec.size()};
-    size_t i = 0;
-    for (auto const &elem : vec) {
-        res[i] = make_ast(elem).release();
-        ++i;
-    }
-    return res;
-}
-
 struct GetAST {
     // default
     template <class T> auto operator()(T const &term) const -> std::optional<std::unique_ptr<clingo_ast_t>> {
@@ -524,7 +452,7 @@ class ASTProjection : public clingo_ast {
     [[nodiscard]] auto less_than(clingo_ast_t const &other) const -> bool override {
         return get_type() < other.get_type();
     }
-    template <class T> friend auto ast_convert(clingo_ast const *ast) -> T;
+    template <class T> friend auto convert_ast(clingo_ast const *ast) -> T;
 
   private:
     Gringo::Input::Projection projection_;
@@ -580,13 +508,13 @@ class ASTTerm : public clingo_ast {
         return term < static_cast<ASTTerm const &>(other).term;
     }
 
-    template <class T> friend auto ast_convert(clingo_ast const *ast) -> T;
+    template <class T> friend auto convert_ast(clingo_ast const *ast) -> T;
 
   private:
     Gringo::Input::Term term;
 };
 
-template <> auto ast_convert<Gringo::Input::Term>(clingo_ast const *ast) -> Gringo::Input::Term {
+template <> auto convert_ast<Gringo::Input::Term>(clingo_ast const *ast) -> Gringo::Input::Term {
     if (auto const *res = dynamic_cast<ASTTerm const *>(ast); res != nullptr) {
         return res->term;
     }
@@ -594,9 +522,9 @@ template <> auto ast_convert<Gringo::Input::Term>(clingo_ast const *ast) -> Grin
 }
 
 template <>
-auto ast_convert<Gringo::Util::shared_ptr<Gringo::Input::Term>>(clingo_ast const *ast)
+auto convert_ast<Gringo::Util::shared_ptr<Gringo::Input::Term>>(clingo_ast const *ast)
     -> Gringo::Util::shared_ptr<Gringo::Input::Term> {
-    return Gringo::Util::construct_shared<Gringo::Input::Term>(ast_convert<Gringo::Input::Term>(ast));
+    return Gringo::Util::construct_shared<Gringo::Input::Term>(convert_ast<Gringo::Input::Term>(ast));
 }
 
 class ASTArgumentTuple : public clingo_ast {
@@ -646,13 +574,13 @@ class ASTArgumentTuple : public clingo_ast {
                                             [](auto const *a, auto const *b) { return a->less_than(*b); });
     }
 
-    template <class T> friend auto ast_convert(clingo_ast const *ast) -> T;
+    template <class T> friend auto convert_ast(clingo_ast const *ast) -> T;
 
   private:
     ASTVec tuple_;
 };
 
-template <> auto ast_convert<Gringo::Input::TupleVec>(clingo_ast const *ast) -> Gringo::Input::TupleVec {
+template <> auto convert_ast<Gringo::Input::TupleVec>(clingo_ast const *ast) -> Gringo::Input::TupleVec {
     if (auto const *res = dynamic_cast<ASTArgumentTuple const *>(ast); res != nullptr) {
         Gringo::Input::TupleVec tuple;
         tuple.reserve(res->tuple_.size());
@@ -660,7 +588,7 @@ template <> auto ast_convert<Gringo::Input::TupleVec>(clingo_ast const *ast) -> 
             if (auto const *projection = dynamic_cast<ASTProjection const *>(elem)) {
                 tuple.emplace_back(projection->projection_);
             } else {
-                tuple.emplace_back(ast_convert<Gringo::Input::Term>(elem));
+                tuple.emplace_back(convert_ast<Gringo::Input::Term>(elem));
             }
         }
         return tuple;
@@ -669,11 +597,11 @@ template <> auto ast_convert<Gringo::Input::TupleVec>(clingo_ast const *ast) -> 
 }
 
 template <>
-auto ast_convert<Gringo::Input::TermTuple::Element>(clingo_ast const *ast) -> Gringo::Input::TermTuple::Element {
+auto convert_ast<Gringo::Input::TermTuple::Element>(clingo_ast const *ast) -> Gringo::Input::TermTuple::Element {
     if (auto const *res = dynamic_cast<ASTTerm const *>(ast); res != nullptr) {
         return res->term;
     }
-    return ast_convert<Gringo::Input::TupleVec>(ast);
+    return convert_ast<Gringo::Input::TupleVec>(ast);
 }
 
 class ASTLGuard : public clingo_ast {
@@ -715,14 +643,14 @@ class ASTLGuard : public clingo_ast {
         }
         return guard_ < static_cast<ASTLGuard const &>(other).guard_;
     }
-    template <class T> friend auto ast_convert(clingo_ast const *ast) -> T;
+    template <class T> friend auto convert_ast(clingo_ast const *ast) -> T;
 
   private:
     Gringo::Input::LGuard::value_type guard_;
 };
 
 template <>
-[[maybe_unused]] auto ast_convert<Gringo::Input::LGuard::value_type>(clingo_ast const *ast)
+[[maybe_unused]] auto convert_ast<Gringo::Input::LGuard::value_type>(clingo_ast const *ast)
     -> Gringo::Input::LGuard::value_type {
     if (auto const *res = dynamic_cast<ASTLGuard const *>(ast); res != nullptr) {
         return res->guard_;
@@ -769,14 +697,14 @@ class ASTRGuard : public clingo_ast {
         }
         return guard_ < static_cast<ASTRGuard const &>(other).guard_;
     }
-    template <class T> friend auto ast_convert(clingo_ast const *ast) -> T;
+    template <class T> friend auto convert_ast(clingo_ast const *ast) -> T;
 
   private:
     Gringo::Input::RGuard::value_type guard_;
 };
 
 template <>
-auto ast_convert<Gringo::Input::RGuard::value_type>(clingo_ast const *ast) -> Gringo::Input::RGuard::value_type {
+auto convert_ast<Gringo::Input::RGuard::value_type>(clingo_ast const *ast) -> Gringo::Input::RGuard::value_type {
     if (auto const *res = dynamic_cast<ASTRGuard const *>(ast); res != nullptr) {
         return res->guard_;
     }
@@ -833,14 +761,14 @@ class ASTLiteral : public clingo_ast {
         return literal < static_cast<ASTLiteral const &>(other).literal;
     }
 
-    template <class T> friend auto ast_convert(clingo_ast const *ast) -> T;
+    template <class T> friend auto convert_ast(clingo_ast const *ast) -> T;
 
   private:
     Gringo::Input::Literal literal;
 };
 
 // TODO: remove attribute once used
-template <> [[maybe_unused]] auto ast_convert<Gringo::Input::Literal>(clingo_ast const *ast) -> Gringo::Input::Literal {
+template <> [[maybe_unused]] auto convert_ast<Gringo::Input::Literal>(clingo_ast const *ast) -> Gringo::Input::Literal {
     if (auto const *res = dynamic_cast<ASTLiteral const *>(ast); res != nullptr) {
         return res->literal;
     }
@@ -948,7 +876,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto size = va_arg(args, size_t);
                 va_end(args);
                 *ast = new ASTTerm{Gringo::Input::TermTuple{
-                    convert_loc(lib, loc), ast_vec_convert<Gringo::Input::TermTuple::Element>(pool, size)}};
+                    convert_loc(lib, loc), convert_ast_vec<Gringo::Input::TermTuple::Element>(pool, size)}};
                 return true;
             }
             case clingo_ast_type_term_function: {
@@ -961,7 +889,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto sign = va_arg(args, int);
                 va_end(args);
                 *ast = new ASTTerm{Gringo::Input::TermFunction{convert_loc(lib, loc), lib->store->string(name),
-                                                               ast_vec_convert<Gringo::Input::TupleVec>(pool, size),
+                                                               convert_ast_vec<Gringo::Input::TupleVec>(pool, size),
                                                                sign != 0}};
                 break;
             }
@@ -973,7 +901,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto size = va_arg(args, size_t);
                 va_end(args);
                 *ast = new ASTTerm{
-                    Gringo::Input::TermAbs{convert_loc(lib, loc), ast_vec_convert<Gringo::Input::Term>(pool, size)}};
+                    Gringo::Input::TermAbs{convert_loc(lib, loc), convert_ast_vec<Gringo::Input::Term>(pool, size)}};
                 break;
             }
             case clingo_ast_type_term_unary_operation: {
@@ -985,7 +913,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 va_end(args);
                 *ast = new ASTTerm{
                     Gringo::Input::TermUnary{convert_loc(lib, loc), static_cast<Gringo::Input::UnaryOperator>(op),
-                                             ast_convert<Gringo::Util::shared_ptr<Gringo::Input::Term>>(rhs)}};
+                                             convert_ast<Gringo::Util::shared_ptr<Gringo::Input::Term>>(rhs)}};
                 break;
             }
             case clingo_ast_type_term_binary_operation: {
@@ -997,9 +925,9 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *rhs = va_arg(args, clingo_ast_t *);
                 va_end(args);
                 *ast = new ASTTerm{Gringo::Input::TermBinary{
-                    convert_loc(lib, loc), ast_convert<Gringo::Util::shared_ptr<Gringo::Input::Term>>(lhs),
+                    convert_loc(lib, loc), convert_ast<Gringo::Util::shared_ptr<Gringo::Input::Term>>(lhs),
                     static_cast<Gringo::Input::BinaryOperator>(op),
-                    ast_convert<Gringo::Util::shared_ptr<Gringo::Input::Term>>(rhs)}};
+                    convert_ast<Gringo::Util::shared_ptr<Gringo::Input::Term>>(rhs)}};
                 break;
             }
             case clingo_ast_type_argument_tuple: {
@@ -1017,7 +945,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *left = va_arg(args, clingo_ast const *);
                 auto right = va_arg(args, int);
                 va_end(args);
-                *ast = new ASTLGuard{Gringo::Input::LGuard::value_type{ast_convert<Gringo::Input::Term>(left),
+                *ast = new ASTLGuard{Gringo::Input::LGuard::value_type{convert_ast<Gringo::Input::Term>(left),
                                                                        static_cast<Gringo::Input::Relation>(right)}};
                 break;
             }
@@ -1028,7 +956,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *right = va_arg(args, clingo_ast const *);
                 va_end(args);
                 *ast = new ASTRGuard{Gringo::Input::RGuard::value_type{static_cast<Gringo::Input::Relation>(left),
-                                                                       ast_convert<Gringo::Input::Term>(right)}};
+                                                                       convert_ast<Gringo::Input::Term>(right)}};
                 break;
             }
             case clingo_ast_type_literal_boolean: {
@@ -1051,7 +979,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 va_end(args);
                 *ast = new ASTLiteral{Gringo::Input::LiteralSymbolic{convert_loc(lib, loc),
                                                                      static_cast<Gringo::Input::Sign>(sign),
-                                                                     ast_convert<Gringo::Input::Term>(atom)}};
+                                                                     convert_ast<Gringo::Input::Term>(atom)}};
                 break;
             }
             case clingo_ast_type_literal_comparison: {
@@ -1065,7 +993,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 va_end(args);
                 *ast = new ASTLiteral{Gringo::Input::LiteralRelation{
                     convert_loc(lib, loc), static_cast<Gringo::Input::Sign>(sign),
-                    ast_convert<Gringo::Input::Term>(left), ast_vec_convert<Gringo::Input::Guard>(right, size)}};
+                    convert_ast<Gringo::Input::Term>(left), convert_ast_vec<Gringo::Input::Guard>(right, size)}};
                 break;
             }
         }
@@ -1293,6 +1221,102 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
     xor:
       value: 8
       doc: Operator `^`.
+- name: sign
+  type: enum
+  doc: The available signs.
+  values:
+    none:
+      value: 0
+      doc: No sign.
+    once:
+      value: 1
+      doc: One sign.
+    twice:
+      value: 2
+      doc: Two signs.
+- name: relation
+  type: enum
+  doc: Available relation symbols.
+  values:
+    equal:
+      value: 0
+      doc: The equal to relation.
+    not_equal:
+      value: 1
+      doc: The not equal to relation.
+    less:
+      value: 2
+      doc: The less than relation.
+    less_equal:
+      value: 3
+      doc: The less than or equal to relation.
+    greater:
+      value: 4
+      doc: The greater than relation.
+    greater_equal:
+      value: 5
+      doc: The greater than or equal to relation.
+- name: aggregate_function
+  type: enum
+  doc: Enumeration of aggregate functions.
+  values:
+    count:
+      value: 0
+      doc: Operator "^".
+    sum:
+      value: 1
+      doc: Operator "?".
+    sump:
+      value: 2
+      doc: Operator "&".
+    min:
+      value: 3
+      doc: Operator "+".
+    max:
+      value: 4
+      doc: Operator "-".
+- name: theory_operator
+  type: enum
+  doc: Enumeration of theory operators.
+  values:
+    unary:
+      value: 0
+      doc: An unary theory operator.
+    binary_left:
+      value: 1
+      doc: A left associative binary operator.
+    binary_right:
+      value: 2
+      doc: A right associative binary operator.
+- name: theory_sequence_type
+  type: enum
+  doc: Enumeration of theory sequence types.
+  values:
+    tuple:
+      value: 0
+      doc: Theory tuples "(t1,...,tn)".
+    set:
+      value: 1
+      doc: Theory sets "{t1,...,tn}".
+    list:
+      value: 2
+      doc: Theory lists "[t1,...,tn]".
+- name: theory_atom_type
+  type: enum
+  doc: Enumeration of the theory atom types.
+  values:
+    head:
+      value: 0
+      doc: For theory atoms that can appear in the head.
+    body:
+      value: 1
+      doc: For theory atoms that can appear in the body.
+    any:
+      value: 2
+      doc: For theory atoms that can appear in both head and body.
+    directive:
+      value: 3
+      doc: For theory atoms that must not have a body.
 - name: term_variable
   type: forward
 - name: term_symbolic
@@ -1460,19 +1484,6 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
     type: term_or_projection_array
     default: empty
     doc: The arguments of the tuple.
-- name: sign
-  type: enum
-  doc: The available signs.
-  values:
-    none:
-      value: 0
-      doc: No sign.
-    once:
-      value: 1
-      doc: One sign.
-    twice:
-      value: 2
-      doc: Two signs.
 - name: literal_boolean
   type: forward
 - name: literal_comparison
@@ -1485,28 +1496,6 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
   - literal_boolean
   - literal_comparison
   - literal_symbolic
-- name: relation
-  type: enum
-  doc: Available relation symbols.
-  values:
-    equal:
-      value: 0
-      doc: The equal to relation.
-    not_equal:
-      value: 1
-      doc: The not equal to relation.
-    less:
-      value: 2
-      doc: The less than relation.
-    less_equal:
-      value: 3
-      doc: The less than or equal to relation.
-    greater:
-      value: 4
-      doc: The greater than relation.
-    greater_equal:
-      value: 5
-      doc: The greater than or equal to relation.
 - name: left_guard
   type: record
   doc: A right hand side guard consisting of a term and a relation.

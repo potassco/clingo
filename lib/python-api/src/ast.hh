@@ -34,6 +34,48 @@ enum class BinaryOperator {
     Xor = 8,
 };
 
+enum class Sign {
+    None = 0,
+    Once = 1,
+    Twice = 2,
+};
+
+enum class Relation {
+    Equal = 0,
+    NotEqual = 1,
+    Less = 2,
+    LessEqual = 3,
+    Greater = 4,
+    GreaterEqual = 5,
+};
+
+enum class AggregateFunction {
+    Count = 0,
+    Sum = 1,
+    Sump = 2,
+    Min = 3,
+    Max = 4,
+};
+
+enum class TheoryOperator {
+    Unary = 0,
+    BinaryLeft = 1,
+    BinaryRight = 2,
+};
+
+enum class TheorySequenceType {
+    Tuple = 0,
+    Set = 1,
+    List = 2,
+};
+
+enum class TheoryAtomType {
+    Head = 0,
+    Body = 1,
+    Any = 2,
+    Directive = 3,
+};
+
 class TermVariable;
 
 class TermSymbolic;
@@ -767,12 +809,6 @@ class ArgumentTuple {
 
 inline auto c_cast(ArgumentTuple const &x) -> clingo_ast_t * { return x.ast_; }
 
-enum class Sign {
-    None = 0,
-    Once = 1,
-    Twice = 2,
-};
-
 class LiteralBoolean;
 
 class LiteralComparison;
@@ -782,15 +818,6 @@ class LiteralSymbolic;
 using Literal = std::variant<LiteralBoolean, LiteralComparison, LiteralSymbolic>;
 
 auto construct_literal(clingo_ast_t *ast) -> Literal;
-
-enum class Relation {
-    Equal = 0,
-    NotEqual = 1,
-    Less = 2,
-    LessEqual = 3,
-    Greater = 4,
-    GreaterEqual = 5,
-};
 
 class LeftGuard {
   public:
@@ -1823,20 +1850,56 @@ Return a yaml description of the AST.
 
 This can be used to auto-generate most of the binding.)"));
 
-    py::enum_<UnaryOperator>(ast, "UnaryOperator", R"(Available unary operators.)")
-        .value("Minus", UnaryOperator::Minus, R"(Operator `-`.)")
-        .value("Negation", UnaryOperator::Negation, R"(Operator `~`.)");
+    py::enum_<UnaryOperator>(ast, "UnaryOperator", R"doc(Available unary operators.)doc")
+        .value("Minus", UnaryOperator::Minus, R"doc(Operator `-`.)doc")
+        .value("Negation", UnaryOperator::Negation, R"doc(Operator `~`.)doc");
 
-    py::enum_<BinaryOperator>(ast, "BinaryOperator", R"(Available binary operators.)")
-        .value("And", BinaryOperator::And, R"(Operator `&`.)")
-        .value("Division", BinaryOperator::Division, R"(Operator `/`.)")
-        .value("Minus", BinaryOperator::Minus, R"(Operator `-`.)")
-        .value("Modulo", BinaryOperator::Modulo, R"(Operator `%`.)")
-        .value("Multiplication", BinaryOperator::Multiplication, R"(Operator `*`.)")
-        .value("Or", BinaryOperator::Or, R"(Operator `|`.)")
-        .value("Plus", BinaryOperator::Plus, R"(Operator `+`.)")
-        .value("Power", BinaryOperator::Power, R"(Operator `**`.)")
-        .value("Xor", BinaryOperator::Xor, R"(Operator `^`.)");
+    py::enum_<BinaryOperator>(ast, "BinaryOperator", R"doc(Available binary operators.)doc")
+        .value("And", BinaryOperator::And, R"doc(Operator `&`.)doc")
+        .value("Division", BinaryOperator::Division, R"doc(Operator `/`.)doc")
+        .value("Minus", BinaryOperator::Minus, R"doc(Operator `-`.)doc")
+        .value("Modulo", BinaryOperator::Modulo, R"doc(Operator `%`.)doc")
+        .value("Multiplication", BinaryOperator::Multiplication, R"doc(Operator `*`.)doc")
+        .value("Or", BinaryOperator::Or, R"doc(Operator `|`.)doc")
+        .value("Plus", BinaryOperator::Plus, R"doc(Operator `+`.)doc")
+        .value("Power", BinaryOperator::Power, R"doc(Operator `**`.)doc")
+        .value("Xor", BinaryOperator::Xor, R"doc(Operator `^`.)doc");
+
+    py::enum_<Sign>(ast, "Sign", R"doc(The available signs.)doc")
+        .value("None", Sign::None, R"doc(No sign.)doc")
+        .value("Once", Sign::Once, R"doc(One sign.)doc")
+        .value("Twice", Sign::Twice, R"doc(Two signs.)doc");
+
+    py::enum_<Relation>(ast, "Relation", R"doc(Available relation symbols.)doc")
+        .value("Equal", Relation::Equal, R"doc(The equal to relation.)doc")
+        .value("NotEqual", Relation::NotEqual, R"doc(The not equal to relation.)doc")
+        .value("Less", Relation::Less, R"doc(The less than relation.)doc")
+        .value("LessEqual", Relation::LessEqual, R"doc(The less than or equal to relation.)doc")
+        .value("Greater", Relation::Greater, R"doc(The greater than relation.)doc")
+        .value("GreaterEqual", Relation::GreaterEqual, R"doc(The greater than or equal to relation.)doc");
+
+    py::enum_<AggregateFunction>(ast, "AggregateFunction", R"doc(Enumeration of aggregate functions.)doc")
+        .value("Count", AggregateFunction::Count, R"doc(Operator "^".)doc")
+        .value("Sum", AggregateFunction::Sum, R"doc(Operator "?".)doc")
+        .value("Sump", AggregateFunction::Sump, R"doc(Operator "&".)doc")
+        .value("Min", AggregateFunction::Min, R"doc(Operator "+".)doc")
+        .value("Max", AggregateFunction::Max, R"doc(Operator "-".)doc");
+
+    py::enum_<TheoryOperator>(ast, "TheoryOperator", R"doc(Enumeration of theory operators.)doc")
+        .value("Unary", TheoryOperator::Unary, R"doc(An unary theory operator.)doc")
+        .value("BinaryLeft", TheoryOperator::BinaryLeft, R"doc(A left associative binary operator.)doc")
+        .value("BinaryRight", TheoryOperator::BinaryRight, R"doc(A right associative binary operator.)doc");
+
+    py::enum_<TheorySequenceType>(ast, "TheorySequenceType", R"doc(Enumeration of theory sequence types.)doc")
+        .value("Tuple", TheorySequenceType::Tuple, R"doc(Theory tuples "(t1,...,tn)".)doc")
+        .value("Set", TheorySequenceType::Set, R"doc(Theory sets "{t1,...,tn}".)doc")
+        .value("List", TheorySequenceType::List, R"doc(Theory lists "[t1,...,tn]".)doc");
+
+    py::enum_<TheoryAtomType>(ast, "TheoryAtomType", R"doc(Enumeration of the theory atom types.)doc")
+        .value("Head", TheoryAtomType::Head, R"doc(For theory atoms that can appear in the head.)doc")
+        .value("Body", TheoryAtomType::Body, R"doc(For theory atoms that can appear in the body.)doc")
+        .value("Any", TheoryAtomType::Any, R"doc(For theory atoms that can appear in both head and body.)doc")
+        .value("Directive", TheoryAtomType::Directive, R"doc(For theory atoms that must not have a body.)doc");
 
     py::class_<Projection>(ast, "Projection", R"doc(A placeholder for an argument to project.)doc")
         .def(py::init(&Projection::construct), py::arg("lib"), py::arg("location"), R"doc(Construct a Projection object.
@@ -2030,19 +2093,6 @@ arguments
         .def_property_readonly("arguments", &ArgumentTuple::arguments)
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
-
-    py::enum_<Sign>(ast, "Sign", R"(The available signs.)")
-        .value("None", Sign::None, R"(No sign.)")
-        .value("Once", Sign::Once, R"(One sign.)")
-        .value("Twice", Sign::Twice, R"(Two signs.)");
-
-    py::enum_<Relation>(ast, "Relation", R"(Available relation symbols.)")
-        .value("Equal", Relation::Equal, R"(The equal to relation.)")
-        .value("NotEqual", Relation::NotEqual, R"(The not equal to relation.)")
-        .value("Less", Relation::Less, R"(The less than relation.)")
-        .value("LessEqual", Relation::LessEqual, R"(The less than or equal to relation.)")
-        .value("Greater", Relation::Greater, R"(The greater than relation.)")
-        .value("GreaterEqual", Relation::GreaterEqual, R"(The greater than or equal to relation.)");
 
     py::class_<LeftGuard>(ast, "LeftGuard", R"doc(A right hand side guard consisting of a term and a relation.)doc")
         .def(py::init(&LeftGuard::construct), py::arg("lib"), py::arg("term"), py::arg("relation"),
