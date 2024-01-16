@@ -172,10 +172,10 @@ class TestAST(TestCase):
         """
         Test Boolean literal.
         """
-        p = ast.LiteralBoolean(self.lib, self.loc, ast.Sign.Once, True)
+        p = ast.LiteralBoolean(self.lib, self.loc, ast.Sign.Single, True)
 
         self.assertEqual(p.location, self.loc)
-        self.assertEqual(p.sign, ast.Sign.Once)
+        self.assertEqual(p.sign, ast.Sign.Single)
         self.assertTrue(p.value)
         self.assertEqual(str(p), "not #true")
 
@@ -185,10 +185,10 @@ class TestAST(TestCase):
         """
 
         a = ast.parse_term(self.lib, "-f(X)")
-        p = ast.LiteralSymbolic(self.lib, self.loc, ast.Sign.Once, a)
+        p = ast.LiteralSymbolic(self.lib, self.loc, ast.Sign.Single, a)
 
         self.assertEqual(p.location, self.loc)
-        self.assertEqual(p.sign, ast.Sign.Once)
+        self.assertEqual(p.sign, ast.Sign.Single)
         self.assertEqual(p.atom, a)
         self.assertEqual(str(p), "not -f(X)")
 
@@ -202,10 +202,10 @@ class TestAST(TestCase):
         c = ast.RightGuard(
             self.lib, ast.Relation.LessEqual, ast.parse_term(self.lib, "Z")
         )
-        p = ast.LiteralComparison(self.lib, self.loc, ast.Sign.Once, a, [b, c])
+        p = ast.LiteralComparison(self.lib, self.loc, ast.Sign.Single, a, [b, c])
 
         self.assertEqual(p.location, self.loc)
-        self.assertEqual(p.sign, ast.Sign.Once)
+        self.assertEqual(p.sign, ast.Sign.Single)
         self.assertEqual(p.left, a)
         self.assertEqual(p.right, [b, c])
         self.assertEqual(str(p), "not X<Y<=Z")

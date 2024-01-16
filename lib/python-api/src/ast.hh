@@ -35,9 +35,9 @@ enum class BinaryOperator {
 };
 
 enum class Sign {
-    None = 0,
-    Once = 1,
-    Twice = 2,
+    NoSign = 0,
+    Single = 1,
+    Double = 2,
 };
 
 enum class Relation {
@@ -1921,9 +1921,9 @@ This can be used to auto-generate most of the binding.)"));
         .value("Power", BinaryOperator::Power, R"doc(Operator `**`.)doc")
         .value("Xor", BinaryOperator::Xor, R"doc(Operator `^`.)doc");
 
-    py_sign.value("None", Sign::None, R"doc(No sign.)doc")
-        .value("Once", Sign::Once, R"doc(One sign.)doc")
-        .value("Twice", Sign::Twice, R"doc(Two signs.)doc");
+    py_sign.value("NoSign", Sign::NoSign, R"doc(No sign.)doc")
+        .value("Single", Sign::Single, R"doc(One sign.)doc")
+        .value("Double", Sign::Double, R"doc(Two signs.)doc");
 
     py_relation.value("Equal", Relation::Equal, R"doc(The equal to relation.)doc")
         .value("NotEqual", Relation::NotEqual, R"doc(The not equal to relation.)doc")

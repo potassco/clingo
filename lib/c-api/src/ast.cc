@@ -1225,13 +1225,13 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
   type: enum
   doc: The available signs.
   values:
-    none:
+    no_sign:
       value: 0
       doc: No sign.
-    once:
+    single:
       value: 1
       doc: One sign.
-    twice:
+    double:
       value: 2
       doc: Two signs.
 - name: relation
