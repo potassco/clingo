@@ -97,6 +97,18 @@ auto operator==(LiteralSymbolic const &a, LiteralSymbolic const &b) -> bool {
     return Util::value_equal(a.sign, b.sign, a.term, b.term);
 }
 
+auto operator<(LiteralBoolean const &a, LiteralBoolean const &b) -> bool {
+    return std::tie(a.sign, a.value) < std::tie(b.sign, b.value);
+}
+
+auto operator<(LiteralRelation const &a, LiteralRelation const &b) -> bool {
+    return std::tie(a.sign, a.lhs, a.rhs) < std::tie(b.sign, a.lhs, b.rhs);
+}
+
+auto operator<(LiteralSymbolic const &a, LiteralSymbolic const &b) -> bool {
+    return std::tie(a.sign, a.term) < std::tie(b.sign, b.term);
+}
+
 } // namespace Gringo::Input
 
 namespace Gringo::Util {

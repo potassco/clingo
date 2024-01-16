@@ -75,6 +75,11 @@ class LiteralBoolean {
 //! \related LiteralBoolean
 auto operator==(LiteralBoolean const &a, LiteralBoolean const &b) -> bool;
 
+//! Compare two Boolean literals.
+//!
+//! \related LiteralBoolean
+auto operator<(LiteralBoolean const &a, LiteralBoolean const &b) -> bool;
+
 //! Literal representing a relation literal.
 //!
 //! For example <tt>1 <= X <= 10</tt>.
@@ -99,6 +104,11 @@ class LiteralRelation {
 //! \related LiteralRelation
 auto operator==(LiteralRelation const &a, LiteralRelation const &b) -> bool;
 
+//! Compare two relation literals.
+//!
+//! \related LiteralRelation
+auto operator<(LiteralRelation const &a, LiteralRelation const &b) -> bool;
+
 //! Literal representing a symbolic literal.
 //!
 //! For example <tt>not p(X)</tt>.
@@ -120,6 +130,11 @@ struct LiteralSymbolic {
 //!
 //! \related LiteralSymbolic
 auto operator==(LiteralSymbolic const &a, LiteralSymbolic const &b) -> bool;
+
+//! Compare two symbolic literals.
+//!
+//! \related LiteralSymbolic
+auto operator<(LiteralSymbolic const &a, LiteralSymbolic const &b) -> bool;
 
 //! Variant holding the different literal types.
 using Literal = std::variant<LiteralBoolean, LiteralRelation, LiteralSymbolic>;

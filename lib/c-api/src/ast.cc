@@ -224,9 +224,17 @@ struct GetType {
         return clingo_ast_type_term_binary_operation;
     }
     // literals
-    template <class T> auto operator()(T const &literal) const -> clingo_ast_type_e {
-        static_cast<void>(literal);
-        throw std::logic_error("implement me!!!");
+    auto operator()(Gringo::Input::LiteralBoolean const &lit) const -> clingo_ast_type_e {
+        static_cast<void>(lit);
+        return clingo_ast_type_literal_boolean;
+    }
+    auto operator()(Gringo::Input::LiteralSymbolic const &lit) const -> clingo_ast_type_e {
+        static_cast<void>(lit);
+        return clingo_ast_type_literal_symbolic;
+    }
+    auto operator()(Gringo::Input::LiteralRelation const &lit) const -> clingo_ast_type_e {
+        static_cast<void>(lit);
+        return clingo_ast_type_literal_relation;
     }
 };
 
@@ -271,6 +279,39 @@ struct GetNumber {
         switch (attr) {
             case clingo_ast_attribute_operator_type: {
                 return static_cast<int>(term.op);
+            }
+            default: {
+                return std::nullopt;
+            }
+        }
+    }
+    auto operator()(Gringo::Input::LiteralBoolean const &lit) const -> std::optional<int> {
+        switch (attr) {
+            case clingo_ast_attribute_sign: {
+                return static_cast<int>(lit.sign);
+            }
+            case clingo_ast_attribute_value: {
+                return static_cast<int>(lit.sign);
+            }
+            default: {
+                return std::nullopt;
+            }
+        }
+    }
+    auto operator()(Gringo::Input::LiteralRelation const &lit) const -> std::optional<int> {
+        switch (attr) {
+            case clingo_ast_attribute_sign: {
+                return static_cast<int>(lit.sign);
+            }
+            default: {
+                return std::nullopt;
+            }
+        }
+    }
+    auto operator()(Gringo::Input::LiteralSymbolic const &lit) const -> std::optional<int> {
+        switch (attr) {
+            case clingo_ast_attribute_sign: {
+                return static_cast<int>(lit.sign);
             }
             default: {
                 return std::nullopt;
@@ -643,8 +684,7 @@ class ASTLiteral : public clingo_ast {
         if (t_a != t_b) {
             return t_a < t_b;
         }
-        throw std::logic_error("implement me!!!");
-        // return literal < static_cast<ASTLiteral const &>(other).literal;
+        return literal < static_cast<ASTLiteral const &>(other).literal;
     }
 
     template <class T> friend auto ast_convert(clingo_ast const *ast) -> T;
@@ -653,7 +693,8 @@ class ASTLiteral : public clingo_ast {
     Gringo::Input::Literal literal;
 };
 
-template <> auto ast_convert<Gringo::Input::Literal>(clingo_ast const *ast) -> Gringo::Input::Literal {
+// TODO: remove attribute once used
+template <> [[maybe_unused]] auto ast_convert<Gringo::Input::Literal>(clingo_ast const *ast) -> Gringo::Input::Literal {
     if (auto const *res = dynamic_cast<ASTLiteral const *>(ast); res != nullptr) {
         return res->literal;
     }
@@ -845,8 +886,25 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 *ast = new ASTArgumentTuple{ASTVec::copy(tuple, size)};
                 break;
             }
-                // TODO:
-                static_cast<void>(ast_convert<Gringo::Input::Literal>);
+            case clingo_ast_type_literal_boolean: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto sign = va_arg(args, int);
+                auto value = va_arg(args, int);
+                va_end(args);
+                *ast = new ASTLiteral{Gringo::Input::LiteralBoolean{
+                    convert_loc(lib, loc), static_cast<Gringo::Input::Sign>(sign), value != 0}};
+                break;
+            }
+            case clingo_ast_type_literal_symbolic: {
+                throw std::logic_error("implement me!!!");
+                break;
+            }
+            case clingo_ast_type_literal_relation: {
+                throw std::logic_error("implement me!!!");
+                break;
+            }
         }
     }
     CLINGO_CATCH(lib);
@@ -1221,5 +1279,31 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
     type: term_or_projection_array
     default: empty
     doc: The arguments of the tuple.
+- name: sign
+  type: enum
+  doc: The available signs.
+  values:
+    none:
+      value: 0
+      doc: No sign.
+    once:
+      value: 1
+      doc: One sign.
+    twice:
+      value: 2
+      doc: Two signs.
+- name: literal_boolean
+  type: record
+  doc: A literal representing a Boolean constant.
+  arguments:
+  - name: location
+    type: location
+    doc: The location of the symbol.
+  - name: sign
+    type: sign
+    doc: The sign of the literal.
+  - name: value
+    type: bool
+    doc: The fixed value of the literal.
 )yaml";
 }
