@@ -1039,6 +1039,7 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
     doc: The name of the variable.
   - name: anonymous
     type: bool
+    default: false
     doc: >-
       Whether the variable is anonymous.
 
@@ -1126,6 +1127,7 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
       If there is more than one element in the pool, the term is unpooled during preprocessing.
   - name: external
     type: bool
+    default: false
     doc: Whether the function is external.
 - name: argument_tuple
   type: record
@@ -1133,6 +1135,7 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
   arguments:
   - name: arguments
     type: term_or_projection_array
+    default: empty
     doc: The arguments of the tuple.
 )yaml";
 }

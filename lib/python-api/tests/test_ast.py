@@ -158,19 +158,21 @@ class TestSymbol(TestCase):
                 self.lib, [self.sym("3"), ast.Projection(self.lib, self.loc)]
             ),
         ]
-        p = ast.TermFunction(self.lib, self.loc, "f", a, False)
+        p = ast.TermFunction(self.lib, self.loc, "f", a, True)
+        q = ast.TermFunction(self.lib, self.loc, "f", [ast.ArgumentTuple(self.lib)])
 
         self.assertEqual(p.location, self.loc)
         self.assertEqual(p.name, "f")
         self.assertEqual(p.pool, a)
-        self.assertFalse(p.external)
-        self.assertEqual(str(p), "f(1,2;3,*)")
+        self.assertTrue(p.external)
+        self.assertFalse(q.external)
+        self.assertEqual(str(p), "@f(1,2;3,*)")
 
     def test_cmp(self):
         """
         Test comparision functions.
         """
-        x = ast.TermVariable(self.lib, self.loc, "X", False)
+        x = ast.TermVariable(self.lib, self.loc, "X")
         a = ast.TermVariable(self.lib, self.loc, "_", True)
 
         self.assertEqual(x, x)

@@ -1236,7 +1236,7 @@ location
 
     py::class_<TermVariable>(ast, "TermVariable", R"doc(A term representing a variable.)doc")
         .def(py::init(&TermVariable::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
-             py::arg("anonymous"), R"doc(Construct a TermVariable object.
+             py::arg("anonymous") = false, R"doc(Construct a TermVariable object.
 
 Parameters
 ----------
@@ -1358,7 +1358,7 @@ pool
 
     py::class_<TermFunction>(ast, "TermFunction", R"doc(A term representing a function.)doc")
         .def(py::init(&TermFunction::construct), py::arg("lib"), py::arg("location"), py::arg("name"), py::arg("pool"),
-             py::arg("external"), R"doc(Construct a TermFunction object.
+             py::arg("external") = false, R"doc(Construct a TermFunction object.
 
 Parameters
 ----------
@@ -1383,7 +1383,7 @@ external
         CLINGO_PY_TOTAL_ORDER;
 
     py::class_<ArgumentTuple>(ast, "ArgumentTuple", R"doc(A list of arguments for a function or tuple.)doc")
-        .def(py::init(&ArgumentTuple::construct), py::arg("lib"), py::arg("arguments"),
+        .def(py::init(&ArgumentTuple::construct), py::arg("lib"), py::arg("arguments") = TermOrProjectionArray{},
              R"doc(Construct a ArgumentTuple object.
 
 Parameters
