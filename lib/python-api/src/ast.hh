@@ -775,13 +775,174 @@ enum class Sign {
 
 class LiteralBoolean;
 
-class LiteralRelation;
+class LiteralComparison;
 
 class LiteralSymbolic;
 
-using Literal = std::variant<LiteralBoolean, LiteralRelation, LiteralSymbolic>;
+using Literal = std::variant<LiteralBoolean, LiteralComparison, LiteralSymbolic>;
 
 auto construct_literal(clingo_ast_t *ast) -> Literal;
+
+enum class Relation {
+    Equal = 0,
+    NotEqual = 1,
+    Less = 2,
+    LessEqual = 3,
+    Greater = 4,
+    GreaterEqual = 5,
+};
+
+class LeftGuard {
+  public:
+    // Note: for pybind
+    LeftGuard() = default;
+
+    LeftGuard(LeftGuard const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    LeftGuard(LeftGuard &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(LeftGuard const &x) -> LeftGuard & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(LeftGuard &&x) noexcept -> LeftGuard & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(LeftGuard const &a, LeftGuard const &b) -> bool { return clingo_ast_equal(a.ast_, b.ast_); }
+
+    friend auto operator<(LeftGuard const &a, LeftGuard const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, LeftGuard)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~LeftGuard() { clingo_ast_free(ast_); }
+
+    auto term() -> Term;
+
+    auto relation() -> Relation;
+
+    static auto acquire(clingo_ast_t *ast) -> LeftGuard { return {ast}; }
+
+    static auto construct(Library &lib, Term const &term, Relation const &relation) -> LeftGuard;
+
+    friend auto c_cast(LeftGuard const &x) -> clingo_ast_t *;
+
+  private:
+    LeftGuard(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(LeftGuard const &x) -> clingo_ast_t * { return x.ast_; }
+
+class RightGuard {
+  public:
+    // Note: for pybind
+    RightGuard() = default;
+
+    RightGuard(RightGuard const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    RightGuard(RightGuard &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(RightGuard const &x) -> RightGuard & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(RightGuard &&x) noexcept -> RightGuard & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(RightGuard const &a, RightGuard const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(RightGuard const &a, RightGuard const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, RightGuard)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~RightGuard() { clingo_ast_free(ast_); }
+
+    auto relation() -> Relation;
+
+    auto term() -> Term;
+
+    static auto acquire(clingo_ast_t *ast) -> RightGuard { return {ast}; }
+
+    static auto construct(Library &lib, Relation const &relation, Term const &term) -> RightGuard;
+
+    friend auto c_cast(RightGuard const &x) -> clingo_ast_t *;
+
+  private:
+    RightGuard(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(RightGuard const &x) -> clingo_ast_t * { return x.ast_; }
+
+using RightGuardArray = std::vector<RightGuard>;
+
+auto construct_right_guard_array(clingo_ast_t **ast, size_t size) -> RightGuardArray;
 
 class LiteralBoolean {
   public:
@@ -861,20 +1022,20 @@ class LiteralBoolean {
 
 inline auto c_cast(LiteralBoolean const &x) -> clingo_ast_t * { return x.ast_; }
 
-class LiteralRelation {
+class LiteralComparison {
   public:
     // Note: for pybind
-    LiteralRelation() = default;
+    LiteralComparison() = default;
 
-    LiteralRelation(LiteralRelation const &x) {
+    LiteralComparison(LiteralComparison const &x) {
         if (!clingo_ast_copy(x.ast_, &ast_)) {
             throw std::runtime_error("could not copy ast");
         }
     }
 
-    LiteralRelation(LiteralRelation &&x) noexcept { std::swap(ast_, x.ast_); }
+    LiteralComparison(LiteralComparison &&x) noexcept { std::swap(ast_, x.ast_); }
 
-    auto operator=(LiteralRelation const &x) -> LiteralRelation & {
+    auto operator=(LiteralComparison const &x) -> LiteralComparison & {
         clingo_ast_free(ast_);
         ast_ = nullptr;
         if (!clingo_ast_copy(x.ast_, &ast_)) {
@@ -883,22 +1044,22 @@ class LiteralRelation {
         return *this;
     }
 
-    auto operator=(LiteralRelation &&x) noexcept -> LiteralRelation & {
+    auto operator=(LiteralComparison &&x) noexcept -> LiteralComparison & {
         std::swap(ast_, x.ast_);
         return *this;
     }
 
     [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
 
-    friend auto operator==(LiteralRelation const &a, LiteralRelation const &b) -> bool {
+    friend auto operator==(LiteralComparison const &a, LiteralComparison const &b) -> bool {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(LiteralRelation const &a, LiteralRelation const &b) -> bool {
+    friend auto operator<(LiteralComparison const &a, LiteralComparison const &b) -> bool {
         return clingo_ast_less_than(a.ast_, b.ast_);
     }
 
-    CLINGO_CPP_TOTAL_ORDER(friend, LiteralRelation)
+    CLINGO_CPP_TOTAL_ORDER(friend, LiteralComparison)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -916,25 +1077,30 @@ class LiteralRelation {
         return str;
     }
 
-    ~LiteralRelation() { clingo_ast_free(ast_); }
+    ~LiteralComparison() { clingo_ast_free(ast_); }
 
     auto location() -> clingo_location_t;
 
     auto sign() -> Sign;
 
-    static auto acquire(clingo_ast_t *ast) -> LiteralRelation { return {ast}; }
+    auto left() -> Term;
 
-    static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign) -> LiteralRelation;
+    auto right() -> RightGuardArray;
 
-    friend auto c_cast(LiteralRelation const &x) -> clingo_ast_t *;
+    static auto acquire(clingo_ast_t *ast) -> LiteralComparison { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign, Term const &left,
+                          RightGuardArray const &right) -> LiteralComparison;
+
+    friend auto c_cast(LiteralComparison const &x) -> clingo_ast_t *;
 
   private:
-    LiteralRelation(clingo_ast_t *ast) : ast_{ast} {}
+    LiteralComparison(clingo_ast_t *ast) : ast_{ast} {}
 
     clingo_ast_t *ast_ = nullptr;
 };
 
-inline auto c_cast(LiteralRelation const &x) -> clingo_ast_t * { return x.ast_; }
+inline auto c_cast(LiteralComparison const &x) -> clingo_ast_t * { return x.ast_; }
 
 class LiteralSymbolic {
   public:
@@ -1443,8 +1609,8 @@ auto construct_literal(clingo_ast_t *ast) -> Literal {
         case clingo_ast_type_literal_boolean: {
             return LiteralBoolean::acquire(ast);
         }
-        case clingo_ast_type_literal_relation: {
-            return LiteralRelation::acquire(ast);
+        case clingo_ast_type_literal_comparison: {
+            return LiteralComparison::acquire(ast);
         }
         case clingo_ast_type_literal_symbolic: {
             return LiteralSymbolic::acquire(ast);
@@ -1452,6 +1618,69 @@ auto construct_literal(clingo_ast_t *ast) -> Literal {
     }
     clingo_ast_free(ast);
     throw std::runtime_error("unexpected ast type");
+}
+
+auto LeftGuard::term() -> Term {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_term, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    return construct_term(ast);
+}
+
+auto LeftGuard::relation() -> Relation {
+    int ret;
+    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_relation, &ret)) {
+        throw std::runtime_error("could not get number attribute");
+    }
+    return static_cast<Relation>(ret);
+}
+
+auto LeftGuard::construct(Library &lib, Term const &term, Relation const &relation) -> LeftGuard {
+    clingo_ast_t *res_;
+    handle_error(
+        lib, clingo_ast_construct(lib, clingo_ast_type_left_guard, &res_, c_cast(term), static_cast<int>(relation)));
+    return LeftGuard::acquire(res_);
+}
+
+auto RightGuard::relation() -> Relation {
+    int ret;
+    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_relation, &ret)) {
+        throw std::runtime_error("could not get number attribute");
+    }
+    return static_cast<Relation>(ret);
+}
+
+auto RightGuard::term() -> Term {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_term, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    return construct_term(ast);
+}
+
+auto RightGuard::construct(Library &lib, Relation const &relation, Term const &term) -> RightGuard {
+    clingo_ast_t *res_;
+    handle_error(
+        lib, clingo_ast_construct(lib, clingo_ast_type_right_guard, &res_, static_cast<int>(relation), c_cast(term)));
+    return RightGuard::acquire(res_);
+}
+
+auto construct_right_guard_array(clingo_ast_t **ast, size_t size) -> RightGuardArray {
+    RightGuardArray ret;
+    try {
+        ret.reserve(size);
+        std::for_each_n(ast, size, [&ret](auto &arg) {
+            auto tmp = arg;
+            arg = nullptr;
+            ret.emplace_back(RightGuard::acquire(tmp));
+        });
+        clingo_ast_array_free(ast, size);
+    } catch (...) {
+        clingo_ast_array_free(ast, size);
+        throw;
+    }
+    return ret;
 }
 
 auto LiteralBoolean::location() -> clingo_location_t {
@@ -1486,7 +1715,7 @@ auto LiteralBoolean::construct(Library &lib, clingo_location_t const &location, 
     return LiteralBoolean::acquire(res_);
 }
 
-auto LiteralRelation::location() -> clingo_location_t {
+auto LiteralComparison::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
@@ -1494,7 +1723,7 @@ auto LiteralRelation::location() -> clingo_location_t {
     return ret;
 }
 
-auto LiteralRelation::sign() -> Sign {
+auto LiteralComparison::sign() -> Sign {
     int ret;
     if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_sign, &ret)) {
         throw std::runtime_error("could not get number attribute");
@@ -1502,11 +1731,29 @@ auto LiteralRelation::sign() -> Sign {
     return static_cast<Sign>(ret);
 }
 
-auto LiteralRelation::construct(Library &lib, clingo_location_t const &location, Sign const &sign) -> LiteralRelation {
+auto LiteralComparison::left() -> Term {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_left, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    return construct_term(ast);
+}
+
+auto LiteralComparison::right() -> RightGuardArray {
+    clingo_ast_t **ast;
+    size_t size;
+    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_right, &ast, &size)) {
+        throw std::runtime_error("could not get ast array attribute");
+    }
+    return construct_right_guard_array(ast, size);
+}
+
+auto LiteralComparison::construct(Library &lib, clingo_location_t const &location, Sign const &sign, Term const &left,
+                                  RightGuardArray const &right) -> LiteralComparison {
     clingo_ast_t *res_;
-    handle_error(lib,
-                 clingo_ast_construct(lib, clingo_ast_type_literal_relation, &res_, &location, static_cast<int>(sign)));
-    return LiteralRelation::acquire(res_);
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_literal_comparison, &res_, &location,
+                                           static_cast<int>(sign), c_cast(left), c_cast(right).data(), right.size()));
+    return LiteralComparison::acquire(res_);
 }
 
 auto LiteralSymbolic::location() -> clingo_location_t {
@@ -1596,6 +1843,8 @@ This can be used to auto-generate most of the binding.)"));
 
 Parameters
 ----------
+lib
+    The library object for storing symbols.
 location
     The location of the placeholder.)doc")
         .def("__str__", &Projection::to_string)
@@ -1610,6 +1859,8 @@ location
 
 Parameters
 ----------
+lib
+    The library object for storing symbols.
 location
     The location of the variable.
 name
@@ -1632,6 +1883,8 @@ anonymous
 
 Parameters
 ----------
+lib
+    The library object for storing symbols.
 location
     The location of the symbol.
 symbol
@@ -1649,6 +1902,8 @@ symbol
 
 Parameters
 ----------
+lib
+    The library object for storing symbols.
 location
     The location of the operation.
 pool
@@ -1669,6 +1924,8 @@ pool
 
 Parameters
 ----------
+lib
+    The library object for storing symbols.
 location
     The location of the operation.
 operator_type
@@ -1689,6 +1946,8 @@ right
 
 Parameters
 ----------
+lib
+    The library object for storing symbols.
 location
     The location of the operation.
 left
@@ -1712,6 +1971,8 @@ right
 
 Parameters
 ----------
+lib
+    The library object for storing symbols.
 location
     The location of the tuple.
 pool
@@ -1732,6 +1993,8 @@ pool
 
 Parameters
 ----------
+lib
+    The library object for storing symbols.
 location
     The location of the function.
 name
@@ -1758,6 +2021,8 @@ external
 
 Parameters
 ----------
+lib
+    The library object for storing symbols.
 arguments
     The arguments of the tuple.)doc")
         .def("__str__", &ArgumentTuple::to_string)
@@ -1771,12 +2036,60 @@ arguments
         .value("Once", Sign::Once, R"(One sign.)")
         .value("Twice", Sign::Twice, R"(Two signs.)");
 
+    py::enum_<Relation>(ast, "Relation", R"(Available relation symbols.)")
+        .value("Equal", Relation::Equal, R"(The equal to relation.)")
+        .value("NotEqual", Relation::NotEqual, R"(The not equal to relation.)")
+        .value("Less", Relation::Less, R"(The less than relation.)")
+        .value("LessEqual", Relation::LessEqual, R"(The less than or equal to relation.)")
+        .value("Greater", Relation::Greater, R"(The greater than relation.)")
+        .value("GreaterEqual", Relation::GreaterEqual, R"(The greater than or equal to relation.)");
+
+    py::class_<LeftGuard>(ast, "LeftGuard", R"doc(A right hand side guard consisting of a term and a relation.)doc")
+        .def(py::init(&LeftGuard::construct), py::arg("lib"), py::arg("term"), py::arg("relation"),
+             R"doc(Construct a LeftGuard object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+term
+    The term of the guard.
+relation
+    The relation of the guard.)doc")
+        .def("__str__", &LeftGuard::to_string)
+        .def("__hash__", &LeftGuard::hash)
+        .def_property_readonly("term", &LeftGuard::term)
+        .def_property_readonly("relation", &LeftGuard::relation)
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py::class_<RightGuard>(ast, "RightGuard", R"doc(A right hand side guard consisting of a relation and term.)doc")
+        .def(py::init(&RightGuard::construct), py::arg("lib"), py::arg("relation"), py::arg("term"),
+             R"doc(Construct a RightGuard object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+relation
+    The relation of the guard.
+term
+    The term of the guard.)doc")
+        .def("__str__", &RightGuard::to_string)
+        .def("__hash__", &RightGuard::hash)
+        .def_property_readonly("relation", &RightGuard::relation)
+        .def_property_readonly("term", &RightGuard::term)
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
     py::class_<LiteralBoolean>(ast, "LiteralBoolean", R"doc(A literal representing a Boolean constant.)doc")
         .def(py::init(&LiteralBoolean::construct), py::arg("lib"), py::arg("location"), py::arg("sign"),
              py::arg("value"), R"doc(Construct a LiteralBoolean object.
 
 Parameters
 ----------
+lib
+    The library object for storing symbols.
 location
     The location of the symbol.
 sign
@@ -1791,20 +2104,31 @@ value
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
-    py::class_<LiteralRelation>(ast, "LiteralRelation", R"doc(A literal representing a (chain of) comparison(s).)doc")
-        .def(py::init(&LiteralRelation::construct), py::arg("lib"), py::arg("location"), py::arg("sign"),
-             R"doc(Construct a LiteralRelation object.
+    py::class_<LiteralComparison>(ast, "LiteralComparison",
+                                  R"doc(A literal representing a (chain of) comparison(s).)doc")
+        .def(py::init(&LiteralComparison::construct), py::arg("lib"), py::arg("location"), py::arg("sign"),
+             py::arg("left"), py::arg("right"), R"doc(Construct a LiteralComparison object.
 
 Parameters
 ----------
+lib
+    The library object for storing symbols.
 location
     The location of the symbol.
 sign
-    The sign of the literal.)doc")
-        .def("__str__", &LiteralRelation::to_string)
-        .def("__hash__", &LiteralRelation::hash)
-        .def_property_readonly("location", &LiteralRelation::location)
-        .def_property_readonly("sign", &LiteralRelation::sign)
+    The sign of the literal.
+left
+    The first term of the comparison.
+right
+    The chain of comparisons.
+
+    Note that the chain must have at least length one.)doc")
+        .def("__str__", &LiteralComparison::to_string)
+        .def("__hash__", &LiteralComparison::hash)
+        .def_property_readonly("location", &LiteralComparison::location)
+        .def_property_readonly("sign", &LiteralComparison::sign)
+        .def_property_readonly("left", &LiteralComparison::left)
+        .def_property_readonly("right", &LiteralComparison::right)
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -1814,6 +2138,8 @@ sign
 
 Parameters
 ----------
+lib
+    The library object for storing symbols.
 location
     The location of the symbol.
 sign

@@ -1,5 +1,5 @@
 """
-Unit tests for clingo.core module.
+Unit tests for clingo.ast module.
 """
 from unittest import TestCase
 
@@ -8,9 +8,9 @@ from clingo.core import Library, Location, Position
 from clingo.symbol import parse_term
 
 
-class TestSymbol(TestCase):
+class TestAST(TestCase):
     """
-    Unit tests for clingo.core module.
+    Unit tests for clingo.ast module.
     """
 
     def setUp(self):
@@ -191,6 +191,24 @@ class TestSymbol(TestCase):
         self.assertEqual(p.sign, ast.Sign.Once)
         self.assertEqual(p.atom, a)
         self.assertEqual(str(p), "not -f(X)")
+
+    def test_comparison_literal(self):
+        """
+        Test comparison literal.
+        """
+
+        a = ast.parse_term(self.lib, "X")
+        b = ast.RightGuard(self.lib, ast.Relation.Less, ast.parse_term(self.lib, "Y"))
+        c = ast.RightGuard(
+            self.lib, ast.Relation.LessEqual, ast.parse_term(self.lib, "Z")
+        )
+        p = ast.LiteralComparison(self.lib, self.loc, ast.Sign.Once, a, [b, c])
+
+        self.assertEqual(p.location, self.loc)
+        self.assertEqual(p.sign, ast.Sign.Once)
+        self.assertEqual(p.left, a)
+        self.assertEqual(p.right, [b, c])
+        self.assertEqual(str(p), "not X<Y<=Z")
 
     def test_parse(self):
         """

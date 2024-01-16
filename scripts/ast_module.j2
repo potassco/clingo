@@ -146,6 +146,8 @@ This can be used to auto-generate most of the binding.)"));
 
 Parameters
 ----------
+lib
+    The library object for storing symbols.
 {%-     for argument in type.arguments %}
 {{ argument.name }}
 {{ argument.doc | param_doc }}

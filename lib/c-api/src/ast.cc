@@ -234,7 +234,7 @@ struct GetType {
     }
     auto operator()(Gringo::Input::LiteralRelation const &lit) const -> clingo_ast_type_e {
         static_cast<void>(lit);
-        return clingo_ast_type_literal_relation;
+        return clingo_ast_type_literal_comparison;
     }
 };
 
@@ -381,12 +381,21 @@ auto convert_loc(Gringo::Input::Location const &loc) -> clingo_location_t {
             loc.end.line,           loc.begin.column,     loc.end.column};
 }
 
+auto make_ast(Gringo::Input::LGuard::value_type const &guard) -> std::unique_ptr<clingo_ast_t>;
+auto make_ast(Gringo::Input::RGuard::value_type const &guard) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Gringo::Input::Term const &term) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Gringo::Input::TupleVec const &tuple) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Gringo::Input::TermTuple::Element const &tuple) -> std::unique_ptr<clingo_ast_t>;
-auto make_ast_vec(Gringo::Input::TermVec const &terms) -> ASTVec;
-auto make_ast_vec(Gringo::Input::PoolVec const &pool) -> ASTVec;
-auto make_ast_vec(Gringo::Input::TermTuple::ElementVec const &pool) -> ASTVec;
+
+template <class T> auto make_ast_vec(std::vector<T> const &vec) -> ASTVec {
+    ASTVec res{vec.size()};
+    size_t i = 0;
+    for (auto const &elem : vec) {
+        res[i] = make_ast(elem).release();
+        ++i;
+    }
+    return res;
+}
 
 struct GetAST {
     // default
@@ -412,6 +421,16 @@ struct GetAST {
             }
             case clingo_ast_attribute_right: {
                 return make_ast(*term.rhs);
+            }
+            default: {
+                return std::nullopt;
+            }
+        }
+    }
+    auto operator()(Gringo::Input::LiteralRelation const &lit) const -> std::optional<std::unique_ptr<clingo_ast_t>> {
+        switch (attr) {
+            case clingo_ast_attribute_left: {
+                return make_ast(lit.lhs);
             }
             default: {
                 return std::nullopt;
@@ -462,6 +481,16 @@ struct GetASTVec {
         switch (attr) {
             case clingo_ast_attribute_pool: {
                 return make_ast_vec(term.pool);
+            }
+            default: {
+                return std::nullopt;
+            }
+        }
+    }
+    auto operator()(Gringo::Input::LiteralRelation const &lit) const -> std::optional<ASTVec> {
+        switch (attr) {
+            case clingo_ast_attribute_right: {
+                return make_ast_vec(lit.rhs);
             }
             default: {
                 return std::nullopt;
@@ -647,6 +676,113 @@ auto ast_convert<Gringo::Input::TermTuple::Element>(clingo_ast const *ast) -> Gr
     return ast_convert<Gringo::Input::TupleVec>(ast);
 }
 
+class ASTLGuard : public clingo_ast {
+  public:
+    ASTLGuard(Gringo::Input::LGuard::value_type guard) : guard_{std::move(guard)} {}
+    [[nodiscard]] auto copy() const -> std::unique_ptr<clingo_ast_t> override {
+        return std::make_unique<ASTLGuard>(guard_);
+    }
+    void print(std::ostream &out) const override { out << guard_.first << " " << guard_.second; }
+    [[nodiscard]] auto get_type() const -> clingo_ast_type_e override { return clingo_ast_type_left_guard; }
+    [[nodiscard]] auto get_ast(clingo_ast_attribute_t attr) const
+        -> std::optional<std::unique_ptr<clingo_ast_t>> override {
+        if (attr == clingo_ast_attribute_term) {
+            return make_ast(guard_.first);
+        }
+        return std::nullopt;
+    }
+    [[nodiscard]] auto get_number(clingo_ast_attribute_t attr) const -> std::optional<int> override {
+        if (attr == clingo_ast_attribute_relation) {
+            return static_cast<int>(guard_.second);
+        }
+        return std::nullopt;
+    }
+
+    [[nodiscard]] auto equal_to(clingo_ast_t const &other) const -> bool override {
+        auto const *x = dynamic_cast<ASTLGuard const *>(&other);
+        return x != nullptr && guard_ == x->guard_;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t override {
+        return Gringo::Util::value_hash(typeid(ASTLGuard).hash_code(), guard_);
+    }
+
+    [[nodiscard]] auto less_than(clingo_ast_t const &other) const -> bool override {
+        auto t_a = get_type();
+        auto t_b = other.get_type();
+        if (t_a != t_b) {
+            return t_a < t_b;
+        }
+        return guard_ < static_cast<ASTLGuard const &>(other).guard_;
+    }
+    template <class T> friend auto ast_convert(clingo_ast const *ast) -> T;
+
+  private:
+    Gringo::Input::LGuard::value_type guard_;
+};
+
+template <>
+[[maybe_unused]] auto ast_convert<Gringo::Input::LGuard::value_type>(clingo_ast const *ast)
+    -> Gringo::Input::LGuard::value_type {
+    if (auto const *res = dynamic_cast<ASTLGuard const *>(ast); res != nullptr) {
+        return res->guard_;
+    }
+    throw std::runtime_error("invalid type: left guard expected");
+}
+
+class ASTRGuard : public clingo_ast {
+  public:
+    ASTRGuard(Gringo::Input::RGuard::value_type guard) : guard_{std::move(guard)} {}
+    [[nodiscard]] auto copy() const -> std::unique_ptr<clingo_ast_t> override {
+        return std::make_unique<ASTRGuard>(guard_);
+    }
+    void print(std::ostream &out) const override { out << guard_.first << " " << guard_.second; }
+    [[nodiscard]] auto get_type() const -> clingo_ast_type_e override { return clingo_ast_type_right_guard; }
+    [[nodiscard]] auto get_ast(clingo_ast_attribute_t attr) const
+        -> std::optional<std::unique_ptr<clingo_ast_t>> override {
+        if (attr == clingo_ast_attribute_term) {
+            return make_ast(guard_.second);
+        }
+        return std::nullopt;
+    }
+    [[nodiscard]] auto get_number(clingo_ast_attribute_t attr) const -> std::optional<int> override {
+        if (attr == clingo_ast_attribute_relation) {
+            return static_cast<int>(guard_.first);
+        }
+        return std::nullopt;
+    }
+
+    [[nodiscard]] auto equal_to(clingo_ast_t const &other) const -> bool override {
+        auto const *x = dynamic_cast<ASTRGuard const *>(&other);
+        return x != nullptr && guard_ == x->guard_;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t override {
+        return Gringo::Util::value_hash(typeid(ASTRGuard).hash_code(), guard_);
+    }
+
+    [[nodiscard]] auto less_than(clingo_ast_t const &other) const -> bool override {
+        auto t_a = get_type();
+        auto t_b = other.get_type();
+        if (t_a != t_b) {
+            return t_a < t_b;
+        }
+        return guard_ < static_cast<ASTRGuard const &>(other).guard_;
+    }
+    template <class T> friend auto ast_convert(clingo_ast const *ast) -> T;
+
+  private:
+    Gringo::Input::RGuard::value_type guard_;
+};
+
+template <>
+auto ast_convert<Gringo::Input::RGuard::value_type>(clingo_ast const *ast) -> Gringo::Input::RGuard::value_type {
+    if (auto const *res = dynamic_cast<ASTRGuard const *>(ast); res != nullptr) {
+        return res->guard_;
+    }
+    throw std::runtime_error("invalid type: right guard expected");
+}
+
 class ASTLiteral : public clingo_ast {
   public:
     ASTLiteral(Gringo::Input::Literal literal) : literal{std::move(literal)} {}
@@ -733,34 +869,13 @@ auto make_ast(Gringo::Input::TermTuple::Element const &term_or_tuple) -> std::un
     return std::visit([](auto const &x) { return make_ast(x); }, term_or_tuple);
 }
 
-auto make_ast_vec(Gringo::Input::PoolVec const &pool) -> ASTVec {
-    ASTVec res{pool.size()};
-    size_t i = 0;
-    for (auto const &tuple : pool) {
-        res[i] = make_ast(tuple).release();
-        ++i;
-    }
-    return res;
+// TODO
+[[maybe_unused]] auto make_ast(Gringo::Input::LGuard::value_type const &guard) -> std::unique_ptr<clingo_ast_t> {
+    return std::make_unique<ASTLGuard>(guard);
 }
 
-auto make_ast_vec(Gringo::Input::TermTuple::ElementVec const &pool) -> ASTVec {
-    ASTVec res{pool.size()};
-    size_t i = 0;
-    for (auto const &tuple : pool) {
-        res[i] = make_ast(tuple).release();
-        ++i;
-    }
-    return res;
-}
-
-auto make_ast_vec(Gringo::Input::TermVec const &terms) -> ASTVec {
-    ASTVec res{terms.size()};
-    size_t i = 0;
-    for (auto const &term : terms) {
-        res[i] = make_ast(term).release();
-        ++i;
-    }
-    return res;
+auto make_ast(Gringo::Input::RGuard::value_type const &guard) -> std::unique_ptr<clingo_ast_t> {
+    return std::make_unique<ASTRGuard>(guard);
 }
 
 }; // namespace
@@ -896,6 +1011,26 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 *ast = new ASTArgumentTuple{ASTVec::copy(tuple, size)};
                 break;
             }
+            case clingo_ast_type_left_guard: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const *left = va_arg(args, clingo_ast const *);
+                auto right = va_arg(args, int);
+                va_end(args);
+                *ast = new ASTLGuard{Gringo::Input::LGuard::value_type{ast_convert<Gringo::Input::Term>(left),
+                                                                       static_cast<Gringo::Input::Relation>(right)}};
+                break;
+            }
+            case clingo_ast_type_right_guard: {
+                std::va_list args;
+                va_start(args, ast);
+                auto left = va_arg(args, int);
+                auto const *right = va_arg(args, clingo_ast const *);
+                va_end(args);
+                *ast = new ASTRGuard{Gringo::Input::RGuard::value_type{static_cast<Gringo::Input::Relation>(left),
+                                                                       ast_convert<Gringo::Input::Term>(right)}};
+                break;
+            }
             case clingo_ast_type_literal_boolean: {
                 std::va_list args;
                 va_start(args, ast);
@@ -919,8 +1054,18 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                                                                      ast_convert<Gringo::Input::Term>(atom)}};
                 break;
             }
-            case clingo_ast_type_literal_relation: {
-                throw std::logic_error("implement me!!!");
+            case clingo_ast_type_literal_comparison: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto sign = va_arg(args, int);
+                auto const *left = va_arg(args, clingo_ast_t const *);
+                auto const **right = va_arg(args, clingo_ast_t const **);
+                auto size = va_arg(args, size_t);
+                va_end(args);
+                *ast = new ASTLiteral{Gringo::Input::LiteralRelation{
+                    convert_loc(lib, loc), static_cast<Gringo::Input::Sign>(sign),
+                    ast_convert<Gringo::Input::Term>(left), ast_vec_convert<Gringo::Input::Guard>(right, size)}};
                 break;
             }
         }
@@ -1330,7 +1475,7 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
       doc: Two signs.
 - name: literal_boolean
   type: forward
-- name: literal_relation
+- name: literal_comparison
   type: forward
 - name: literal_symbolic
   type: forward
@@ -1338,8 +1483,53 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
   type: union
   types:
   - literal_boolean
-  - literal_relation
+  - literal_comparison
   - literal_symbolic
+- name: relation
+  type: enum
+  doc: Available relation symbols.
+  values:
+    equal:
+      value: 0
+      doc: The equal to relation.
+    not_equal:
+      value: 1
+      doc: The not equal to relation.
+    less:
+      value: 2
+      doc: The less than relation.
+    less_equal:
+      value: 3
+      doc: The less than or equal to relation.
+    greater:
+      value: 4
+      doc: The greater than relation.
+    greater_equal:
+      value: 5
+      doc: The greater than or equal to relation.
+- name: left_guard
+  type: record
+  doc: A right hand side guard consisting of a term and a relation.
+  arguments:
+  - name: term
+    type: term
+    doc: The term of the guard.
+  - name: relation
+    type: relation
+    doc: The relation of the guard.
+- name: right_guard
+  type: record
+  doc: A right hand side guard consisting of a relation and term.
+  arguments:
+  - name: relation
+    type: relation
+    doc: The relation of the guard.
+  - name: term
+    type: term
+    doc: The term of the guard.
+- name: right_guard_array
+  type: array
+  value_type: right_guard
 - name: literal_boolean
   type: record
   doc: A literal representing a Boolean constant.
@@ -1353,7 +1543,7 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
   - name: value
     type: bool
     doc: The fixed value of the literal.
-- name: literal_relation
+- name: literal_comparison
   type: record
   doc: A literal representing a (chain of) comparison(s).
   arguments:
@@ -1363,6 +1553,15 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
   - name: sign
     type: sign
     doc: The sign of the literal.
+  - name: left
+    type: term
+    doc: The first term of the comparison.
+  - name: right
+    type: right_guard_array
+    doc: >-
+      The chain of comparisons.
+
+      Note that the chain must have at least length one.
 - name: literal_symbolic
   type: record
   doc: A literal representing a symbolic literal.

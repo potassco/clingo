@@ -723,8 +723,11 @@ enum clingo_ast_type_e {
     clingo_ast_type_term_tuple,
     clingo_ast_type_term_function,
     clingo_ast_type_argument_tuple,
+    // literals
+    clingo_ast_type_left_guard,
+    clingo_ast_type_right_guard,
     clingo_ast_type_literal_boolean,
-    clingo_ast_type_literal_relation,
+    clingo_ast_type_literal_comparison,
     clingo_ast_type_literal_symbolic,
     /*
     // simple atoms
@@ -792,6 +795,8 @@ enum clingo_ast_attribute_e {
     clingo_ast_attribute_sign,
     clingo_ast_attribute_value,
     clingo_ast_attribute_atom,
+    clingo_ast_attribute_term,
+    clingo_ast_attribute_relation,
     /*
     clingo_ast_attribute_argument,
     clingo_ast_attribute_arity,
