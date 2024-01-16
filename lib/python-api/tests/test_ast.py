@@ -168,12 +168,38 @@ class TestSymbol(TestCase):
         self.assertFalse(q.external)
         self.assertEqual(str(p), "@f(1,2;3,*)")
 
+    def test_boolean(self):
+        """
+        Test Boolean literal.
+        """
+        p = ast.LiteralBoolean(self.lib, self.loc, ast.Sign.Once, True)
+
+        self.assertEqual(p.location, self.loc)
+        self.assertEqual(p.sign, ast.Sign.Once)
+        self.assertTrue(p.value)
+        self.assertEqual(str(p), "not #true")
+
+    def test_symbolic_literal(self):
+        """
+        Test symbolic literal.
+        """
+
+        a = ast.parse_term(self.lib, "-f(X)")
+        p = ast.LiteralSymbolic(self.lib, self.loc, ast.Sign.Once, a)
+
+        self.assertEqual(p.location, self.loc)
+        self.assertEqual(p.sign, ast.Sign.Once)
+        self.assertEqual(p.atom, a)
+        self.assertEqual(str(p), "not -f(X)")
+
     def test_parse(self):
         """
         Test parsing of asts.
         """
         term = "-f(X+Y,3)"
         self.assertEqual(str(ast.parse_term(self.lib, term)), term)
+        lit = "not not p(X+2)"
+        self.assertEqual(str(ast.parse_literal(self.lib, lit)), lit)
 
     def test_cmp(self):
         """

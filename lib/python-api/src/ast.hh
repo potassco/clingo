@@ -767,6 +767,253 @@ class ArgumentTuple {
 
 inline auto c_cast(ArgumentTuple const &x) -> clingo_ast_t * { return x.ast_; }
 
+enum class Sign {
+    None = 0,
+    Once = 1,
+    Twice = 2,
+};
+
+class LiteralBoolean;
+
+class LiteralRelation;
+
+class LiteralSymbolic;
+
+using Literal = std::variant<LiteralBoolean, LiteralRelation, LiteralSymbolic>;
+
+auto construct_literal(clingo_ast_t *ast) -> Literal;
+
+class LiteralBoolean {
+  public:
+    // Note: for pybind
+    LiteralBoolean() = default;
+
+    LiteralBoolean(LiteralBoolean const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    LiteralBoolean(LiteralBoolean &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(LiteralBoolean const &x) -> LiteralBoolean & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(LiteralBoolean &&x) noexcept -> LiteralBoolean & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(LiteralBoolean const &a, LiteralBoolean const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(LiteralBoolean const &a, LiteralBoolean const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, LiteralBoolean)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~LiteralBoolean() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    auto sign() -> Sign;
+
+    auto value() -> bool;
+
+    static auto acquire(clingo_ast_t *ast) -> LiteralBoolean { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign, bool value)
+        -> LiteralBoolean;
+
+    friend auto c_cast(LiteralBoolean const &x) -> clingo_ast_t *;
+
+  private:
+    LiteralBoolean(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(LiteralBoolean const &x) -> clingo_ast_t * { return x.ast_; }
+
+class LiteralRelation {
+  public:
+    // Note: for pybind
+    LiteralRelation() = default;
+
+    LiteralRelation(LiteralRelation const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    LiteralRelation(LiteralRelation &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(LiteralRelation const &x) -> LiteralRelation & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(LiteralRelation &&x) noexcept -> LiteralRelation & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(LiteralRelation const &a, LiteralRelation const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(LiteralRelation const &a, LiteralRelation const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, LiteralRelation)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~LiteralRelation() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    auto sign() -> Sign;
+
+    static auto acquire(clingo_ast_t *ast) -> LiteralRelation { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign) -> LiteralRelation;
+
+    friend auto c_cast(LiteralRelation const &x) -> clingo_ast_t *;
+
+  private:
+    LiteralRelation(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(LiteralRelation const &x) -> clingo_ast_t * { return x.ast_; }
+
+class LiteralSymbolic {
+  public:
+    // Note: for pybind
+    LiteralSymbolic() = default;
+
+    LiteralSymbolic(LiteralSymbolic const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    LiteralSymbolic(LiteralSymbolic &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(LiteralSymbolic const &x) -> LiteralSymbolic & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(LiteralSymbolic &&x) noexcept -> LiteralSymbolic & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(LiteralSymbolic const &a, LiteralSymbolic const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(LiteralSymbolic const &a, LiteralSymbolic const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, LiteralSymbolic)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~LiteralSymbolic() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    auto sign() -> Sign;
+
+    auto atom() -> Term;
+
+    static auto acquire(clingo_ast_t *ast) -> LiteralSymbolic { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign, Term const &atom)
+        -> LiteralSymbolic;
+
+    friend auto c_cast(LiteralSymbolic const &x) -> clingo_ast_t *;
+
+  private:
+    LiteralSymbolic(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(LiteralSymbolic const &x) -> clingo_ast_t * { return x.ast_; }
+
 auto construct_term(clingo_ast_t *ast) -> Term {
     clingo_ast_type_t type;
     if (!clingo_ast_get_type(ast, &type)) {
@@ -1186,6 +1433,114 @@ auto ArgumentTuple::construct(Library &lib, TermOrProjectionArray const &argumen
     return ArgumentTuple::acquire(res_);
 }
 
+auto construct_literal(clingo_ast_t *ast) -> Literal {
+    clingo_ast_type_t type;
+    if (!clingo_ast_get_type(ast, &type)) {
+        clingo_ast_free(ast);
+        throw std::runtime_error("could not get type");
+    }
+    switch (type) {
+        case clingo_ast_type_literal_boolean: {
+            return LiteralBoolean::acquire(ast);
+        }
+        case clingo_ast_type_literal_relation: {
+            return LiteralRelation::acquire(ast);
+        }
+        case clingo_ast_type_literal_symbolic: {
+            return LiteralSymbolic::acquire(ast);
+        }
+    }
+    clingo_ast_free(ast);
+    throw std::runtime_error("unexpected ast type");
+}
+
+auto LiteralBoolean::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto LiteralBoolean::sign() -> Sign {
+    int ret;
+    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_sign, &ret)) {
+        throw std::runtime_error("could not get number attribute");
+    }
+    return static_cast<Sign>(ret);
+}
+
+auto LiteralBoolean::value() -> bool {
+    int ret;
+    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_value, &ret)) {
+        throw std::runtime_error("could not get number attribute");
+    }
+    return ret != 0;
+}
+
+auto LiteralBoolean::construct(Library &lib, clingo_location_t const &location, Sign const &sign, bool value)
+    -> LiteralBoolean {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_literal_boolean, &res_, &location,
+                                           static_cast<int>(sign), static_cast<int>(value)));
+    return LiteralBoolean::acquire(res_);
+}
+
+auto LiteralRelation::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto LiteralRelation::sign() -> Sign {
+    int ret;
+    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_sign, &ret)) {
+        throw std::runtime_error("could not get number attribute");
+    }
+    return static_cast<Sign>(ret);
+}
+
+auto LiteralRelation::construct(Library &lib, clingo_location_t const &location, Sign const &sign) -> LiteralRelation {
+    clingo_ast_t *res_;
+    handle_error(lib,
+                 clingo_ast_construct(lib, clingo_ast_type_literal_relation, &res_, &location, static_cast<int>(sign)));
+    return LiteralRelation::acquire(res_);
+}
+
+auto LiteralSymbolic::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto LiteralSymbolic::sign() -> Sign {
+    int ret;
+    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_sign, &ret)) {
+        throw std::runtime_error("could not get number attribute");
+    }
+    return static_cast<Sign>(ret);
+}
+
+auto LiteralSymbolic::atom() -> Term {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_atom, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    return construct_term(ast);
+}
+
+auto LiteralSymbolic::construct(Library &lib, clingo_location_t const &location, Sign const &sign, Term const &atom)
+    -> LiteralSymbolic {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_literal_symbolic, &res_, &location,
+                                           static_cast<int>(sign), c_cast(atom)));
+    return LiteralSymbolic::acquire(res_);
+}
+
 template <class... Ts> auto c_cast(std::variant<Ts...> const &var) -> clingo_ast_t * {
     return std::visit([](auto const &x) { return c_cast(x); }, var);
 }
@@ -1199,10 +1554,16 @@ template <class T> auto c_cast(std::vector<T> const &arr) -> std::vector<clingo_
     return ret;
 }
 
-auto parse_term(Library &lib, char const *string) {
+auto parse_term(Library &lib, char const *string) -> Term {
     clingo_ast_t *ast;
-    handle_error(lib, clingo_ast_parse_term(lib, string, &ast));
+    handle_error(lib, clingo_ast_parse_expression(lib, clingo_ast_parse_type_term, string, &ast));
     return construct_term(ast);
+}
+
+auto parse_literal(Library &lib, char const *string) -> Literal {
+    clingo_ast_t *ast;
+    handle_error(lib, clingo_ast_parse_expression(lib, clingo_ast_parse_type_literal, string, &ast));
+    return construct_literal(ast);
 }
 
 void register_module(pybind11::module &m) {
@@ -1405,6 +1766,68 @@ arguments
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
+    py::enum_<Sign>(ast, "Sign", R"(The available signs.)")
+        .value("None", Sign::None, R"(No sign.)")
+        .value("Once", Sign::Once, R"(One sign.)")
+        .value("Twice", Sign::Twice, R"(Two signs.)");
+
+    py::class_<LiteralBoolean>(ast, "LiteralBoolean", R"doc(A literal representing a Boolean constant.)doc")
+        .def(py::init(&LiteralBoolean::construct), py::arg("lib"), py::arg("location"), py::arg("sign"),
+             py::arg("value"), R"doc(Construct a LiteralBoolean object.
+
+Parameters
+----------
+location
+    The location of the symbol.
+sign
+    The sign of the literal.
+value
+    The fixed value of the literal.)doc")
+        .def("__str__", &LiteralBoolean::to_string)
+        .def("__hash__", &LiteralBoolean::hash)
+        .def_property_readonly("location", &LiteralBoolean::location)
+        .def_property_readonly("sign", &LiteralBoolean::sign)
+        .def_property_readonly("value", &LiteralBoolean::value)
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py::class_<LiteralRelation>(ast, "LiteralRelation", R"doc(A literal representing a (chain of) comparison(s).)doc")
+        .def(py::init(&LiteralRelation::construct), py::arg("lib"), py::arg("location"), py::arg("sign"),
+             R"doc(Construct a LiteralRelation object.
+
+Parameters
+----------
+location
+    The location of the symbol.
+sign
+    The sign of the literal.)doc")
+        .def("__str__", &LiteralRelation::to_string)
+        .def("__hash__", &LiteralRelation::hash)
+        .def_property_readonly("location", &LiteralRelation::location)
+        .def_property_readonly("sign", &LiteralRelation::sign)
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py::class_<LiteralSymbolic>(ast, "LiteralSymbolic", R"doc(A literal representing a symbolic literal.)doc")
+        .def(py::init(&LiteralSymbolic::construct), py::arg("lib"), py::arg("location"), py::arg("sign"),
+             py::arg("atom"), R"doc(Construct a LiteralSymbolic object.
+
+Parameters
+----------
+location
+    The location of the symbol.
+sign
+    The sign of the literal.
+atom
+    The term representing the atom.)doc")
+        .def("__str__", &LiteralSymbolic::to_string)
+        .def("__hash__", &LiteralSymbolic::hash)
+        .def_property_readonly("location", &LiteralSymbolic::location)
+        .def_property_readonly("sign", &LiteralSymbolic::sign)
+        .def_property_readonly("atom", &LiteralSymbolic::atom)
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
     ast.def("parse_term", &parse_term, py::arg("lib"), py::arg("string"), R"doc(Parse a term.
 
 Parameters
@@ -1417,6 +1840,18 @@ string
 Returns
 -------
 The parsed Term object.)doc");
+    ast.def("parse_literal", &parse_literal, py::arg("lib"), py::arg("string"), R"doc(Parse a literal.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+string
+    The string to parse.
+
+Returns
+-------
+The parsed Literal object.)doc");
 }
 
 } // namespace Clingo::AST

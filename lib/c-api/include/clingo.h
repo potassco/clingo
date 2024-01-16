@@ -791,6 +791,7 @@ enum clingo_ast_attribute_e {
     clingo_ast_attribute_arguments,
     clingo_ast_attribute_sign,
     clingo_ast_attribute_value,
+    clingo_ast_attribute_atom,
     /*
     clingo_ast_attribute_argument,
     clingo_ast_attribute_arity,
@@ -857,7 +858,14 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_construct(clingo_lib_t *lib, clingo_as
 
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_copy(clingo_ast_t *ast, clingo_ast_t **copy);
 
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_parse_term(clingo_lib_t *lib, char const *string, clingo_ast_t **ast);
+enum clingo_ast_parse_type_e {
+    clingo_ast_parse_type_term,
+    clingo_ast_parse_type_literal,
+};
+typedef int clingo_ast_parse_type_t;
+
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_type_t type,
+                                                           char const *string, clingo_ast_t **ast);
 
 //! Free an AST node.
 //!

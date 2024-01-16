@@ -418,6 +418,16 @@ struct GetAST {
             }
         }
     }
+    auto operator()(Gringo::Input::LiteralSymbolic const &lit) const -> std::optional<std::unique_ptr<clingo_ast_t>> {
+        switch (attr) {
+            case clingo_ast_attribute_atom: {
+                return make_ast(lit.term);
+            }
+            default: {
+                return std::nullopt;
+            }
+        }
+    }
     clingo_ast_attribute_t attr;
 };
 
@@ -898,7 +908,15 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 break;
             }
             case clingo_ast_type_literal_symbolic: {
-                throw std::logic_error("implement me!!!");
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto sign = va_arg(args, int);
+                auto const *atom = va_arg(args, clingo_ast_t const *);
+                va_end(args);
+                *ast = new ASTLiteral{Gringo::Input::LiteralSymbolic{convert_loc(lib, loc),
+                                                                     static_cast<Gringo::Input::Sign>(sign),
+                                                                     ast_convert<Gringo::Input::Term>(atom)}};
                 break;
             }
             case clingo_ast_type_literal_relation: {
@@ -1055,17 +1073,35 @@ extern "C" auto clingo_ast_attribute_get_ast_array(clingo_ast_t *ast, clingo_ast
     CLINGO_CATCH(nullptr);
 }
 
-extern "C" auto clingo_ast_parse_term(clingo_lib_t *lib, char const *string, clingo_ast_t **ast) -> bool {
+extern "C" auto clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_type_t type, char const *string,
+                                            clingo_ast_t **ast) -> bool {
     CLINGO_TRY {
         if (ast == nullptr || string == nullptr || ast == nullptr) {
             throw std::invalid_argument("invalid arguments");
         }
-        auto term = Gringo::Input::parse_term(lib->log, *lib->store, string);
-        if (lib->log.has_error() || !term) {
-            lib->log.reset();
-            throw std::runtime_error("parsing term failed");
+        switch (type) {
+            case clingo_ast_parse_type_term: {
+                auto term = Gringo::Input::parse_term(lib->log, *lib->store, string);
+                if (lib->log.has_error() || !term) {
+                    lib->log.reset();
+                    throw std::runtime_error("parsing term failed");
+                }
+                *ast = std::make_unique<ASTTerm>(std::move(term).value()).release();
+                break;
+            }
+            case clingo_ast_parse_type_literal: {
+                auto lit = Gringo::Input::parse_literal(lib->log, *lib->store, string);
+                if (lib->log.has_error() || !lit) {
+                    lib->log.reset();
+                    throw std::runtime_error("parsing term failed");
+                }
+                *ast = std::make_unique<ASTLiteral>(std::move(lit).value()).release();
+                break;
+            }
+            default: {
+                throw std::invalid_argument("invalid arguments");
+            }
         }
-        *ast = std::make_unique<ASTTerm>(std::move(term).value()).release();
     }
     CLINGO_CATCH(lib);
 }
@@ -1293,6 +1329,18 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
       value: 2
       doc: Two signs.
 - name: literal_boolean
+  type: forward
+- name: literal_relation
+  type: forward
+- name: literal_symbolic
+  type: forward
+- name: literal
+  type: union
+  types:
+  - literal_boolean
+  - literal_relation
+  - literal_symbolic
+- name: literal_boolean
   type: record
   doc: A literal representing a Boolean constant.
   arguments:
@@ -1305,5 +1353,28 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
   - name: value
     type: bool
     doc: The fixed value of the literal.
+- name: literal_relation
+  type: record
+  doc: A literal representing a (chain of) comparison(s).
+  arguments:
+  - name: location
+    type: location
+    doc: The location of the symbol.
+  - name: sign
+    type: sign
+    doc: The sign of the literal.
+- name: literal_symbolic
+  type: record
+  doc: A literal representing a symbolic literal.
+  arguments:
+  - name: location
+    type: location
+    doc: The location of the symbol.
+  - name: sign
+    type: sign
+    doc: The sign of the literal.
+  - name: atom
+    type: term
+    doc: The term representing the atom.
 )yaml";
 }
