@@ -796,6 +796,7 @@ auto construct_term(clingo_ast_t *ast) -> Term {
             return TermFunction::acquire(ast);
         }
     }
+    clingo_ast_free(ast);
     throw std::runtime_error("unexpected ast type");
 }
 
@@ -862,6 +863,7 @@ auto construct_term_or_projection(clingo_ast_t *ast) -> TermOrProjection {
             return Projection::acquire(ast);
         }
     }
+    clingo_ast_free(ast);
     throw std::runtime_error("unexpected ast type");
 }
 
@@ -931,6 +933,7 @@ auto construct_term_or_argument_tuple(clingo_ast_t *ast) -> TermOrArgumentTuple 
             return ArgumentTuple::acquire(ast);
         }
     }
+    clingo_ast_free(ast);
     throw std::runtime_error("unexpected ast type");
 }
 
@@ -1196,6 +1199,12 @@ template <class T> auto c_cast(std::vector<T> const &arr) -> std::vector<clingo_
     return ret;
 }
 
+auto parse_term(Library &lib, char const *string) {
+    clingo_ast_t *ast;
+    handle_error(lib, clingo_ast_parse_term(lib, string, &ast));
+    return construct_term(ast);
+}
+
 void register_module(pybind11::module &m) {
     auto ast = m.def_submodule("ast", doc(R"(
 This module provides functions to work with Abstract Syntax Trees of logic programs.
@@ -1395,6 +1404,19 @@ arguments
         .def_property_readonly("arguments", &ArgumentTuple::arguments)
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
+
+    ast.def("parse_term", &parse_term, py::arg("lib"), py::arg("string"), R"doc(Parse a term.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+string
+    The string to parse.
+
+Returns
+-------
+The parsed Term object.)doc");
 }
 
 } // namespace Clingo::AST

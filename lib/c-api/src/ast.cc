@@ -928,6 +928,21 @@ extern "C" auto clingo_ast_attribute_get_ast_array(clingo_ast_t *ast, clingo_ast
     CLINGO_CATCH(nullptr);
 }
 
+extern "C" auto clingo_ast_parse_term(clingo_lib_t *lib, char const *string, clingo_ast_t **ast) -> bool {
+    CLINGO_TRY {
+        if (ast == nullptr || string == nullptr || ast == nullptr) {
+            throw std::invalid_argument("invalid arguments");
+        }
+        auto term = Gringo::Input::parse_term(lib->log, *lib->store, string);
+        if (lib->log.has_error() || !term) {
+            lib->log.reset();
+            throw std::runtime_error("parsing term failed");
+        }
+        *ast = std::make_unique<ASTTerm>(std::move(term).value()).release();
+    }
+    CLINGO_CATCH(lib);
+}
+
 extern "C" auto clingo_ast_type_info_yaml() -> char const * {
     return R"yaml(- name: unary_operator
   type: enum

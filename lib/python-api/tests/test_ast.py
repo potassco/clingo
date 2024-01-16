@@ -168,6 +168,13 @@ class TestSymbol(TestCase):
         self.assertFalse(q.external)
         self.assertEqual(str(p), "@f(1,2;3,*)")
 
+    def test_parse(self):
+        """
+        Test parsing of asts.
+        """
+        term = "-f(X+Y,3)"
+        self.assertEqual(str(ast.parse_term(self.lib, term)), term)
+
     def test_cmp(self):
         """
         Test comparision functions.

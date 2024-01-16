@@ -198,20 +198,14 @@ extern "C" auto clingo_parse_term(clingo_lib_t *lib, char const *string, clingo_
             throw std::invalid_argument("invalid arguments");
         }
         auto term = Gringo::Input::parse_term(lib->log, *lib->store, string);
-        if (lib->log.has_error()) {
+        if (lib->log.has_error() || !term) {
             lib->log.reset();
             throw std::runtime_error("parsing term failed");
-        }
-        if (!term) {
-            return false;
         }
         auto sym = Gringo::Input::evaluate(lib->log, *lib->store, {}, *term);
-        if (lib->log.has_error()) {
+        if (lib->log.has_error() || !sym) {
             lib->log.reset();
             throw std::runtime_error("parsing term failed");
-        }
-        if (!sym) {
-            return false;
         }
         *symbol = Gringo::Symbol::to_rep(*sym);
     }

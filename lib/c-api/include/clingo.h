@@ -852,6 +852,8 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_construct(clingo_lib_t *lib, clingo_as
 
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_copy(clingo_ast_t *ast, clingo_ast_t **copy);
 
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_parse_term(clingo_lib_t *lib, char const *string, clingo_ast_t **ast);
+
 //! Free an AST node.
 //!
 //! @param[in] ast the target AST
