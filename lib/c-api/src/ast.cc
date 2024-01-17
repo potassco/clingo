@@ -996,6 +996,21 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                     convert_ast<Gringo::Input::Term>(left), convert_ast_vec<Gringo::Input::Guard>(right, size)}};
                 break;
             }
+            case clingo_ast_type_theory_term_variable: {
+                throw std::runtime_error("implement me!!!");
+            }
+            case clingo_ast_type_theory_term_symbolic: {
+                throw std::runtime_error("implement me!!!");
+            }
+            case clingo_ast_type_theory_term_tuple: {
+                throw std::runtime_error("implement me!!!");
+            }
+            case clingo_ast_type_theory_term_function: {
+                throw std::runtime_error("implement me!!!");
+            }
+            case clingo_ast_type_theory_term_unparsed: {
+                throw std::runtime_error("implement me!!!");
+            }
         }
     }
     CLINGO_CATCH(lib);
@@ -1288,9 +1303,9 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
     binary_right:
       value: 2
       doc: A right associative binary operator.
-- name: theory_sequence_type
+- name: theory_tuple_type
   type: enum
-  doc: Enumeration of theory sequence types.
+  doc: Enumeration of theory tuple types.
   values:
     tuple:
       value: 0
@@ -1469,7 +1484,7 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
   - name: pool
     type: argument_tuple_array
     doc: >-
-      The argument pool of the tuple.
+      The argument pool of the function.
 
       If there is more than one element in the pool, the term is unpooled during preprocessing.
   - name: external
@@ -1564,5 +1579,86 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
   - name: atom
     type: term
     doc: The term representing the atom.
+- name: theory_term_variable
+  type: forward
+- name: theory_term_symbolic
+  type: forward
+- name: theory_term_tuple
+  type: forward
+- name: theory_term_function
+  type: forward
+- name: theory_term_unparsed
+  type: forward
+- name: theory_term
+  type: union
+  types:
+  - theory_term_variable
+  - theory_term_symbolic
+  - theory_term_tuple
+  - theory_term_function
+  - theory_term_unparsed
+- name: theory_term_array
+  type: array
+  value_type: theory_term
+- name: theory_term_variable
+  type: record
+  doc: A theory term representing a variable.
+  arguments:
+  - name: location
+    type: location
+    doc: The location of the variable.
+  - name: name
+    type: string
+    doc: The name of the variable.
+  - name: anonymous
+    type: bool
+    default: false
+    doc: >-
+      Whether the variable is anonymous.
+
+      Anonymous variables receive a unique name during preprocessing.
+- name: theory_term_symbolic
+  type: record
+  doc: A theory term representing a symbol.
+  arguments:
+  - name: location
+    type: location
+    doc: The location of the symbol.
+  - name: symbol
+    type: symbol
+    doc: The symbol.
+- name: theory_term_tuple
+  type: record
+  doc: A theory term representing a tuple.
+  arguments:
+  - name: location
+    type: location
+    doc: The location of the tuple.
+  - name: tuple_type
+    type: theory_tuple_type
+    doc: The type of the tuple.
+  - name: arguments
+    type: theory_term_array
+    doc: The arguments of the tuple.
+- name: theory_term_function
+  type: record
+  doc: A theory term representing a function.
+  arguments:
+  - name: location
+    type: location
+    doc: The location of the function.
+  - name: name
+    type: string
+    doc: The name of the function.
+  - name: arguments
+    type: theory_term_array
+    doc: The arguments of the function.
+- name: theory_term_unparsed
+  type: record
+  doc: A theory term representing an unparsed theory term.
+  arguments:
+  - name: location
+    type: location
+    doc: The location of the theory term.
 )yaml";
 }

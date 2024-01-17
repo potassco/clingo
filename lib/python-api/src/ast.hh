@@ -63,7 +63,7 @@ enum class TheoryOperator {
     BinaryRight = 2,
 };
 
-enum class TheorySequenceType {
+enum class TheoryTupleType {
     Tuple = 0,
     Set = 1,
     List = 2,
@@ -1207,6 +1207,407 @@ class LiteralSymbolic {
 
 inline auto c_cast(LiteralSymbolic const &x) -> clingo_ast_t * { return x.ast_; }
 
+class TheoryTermVariable;
+
+class TheoryTermSymbolic;
+
+class TheoryTermTuple;
+
+class TheoryTermFunction;
+
+class TheoryTermUnparsed;
+
+using TheoryTerm =
+    std::variant<TheoryTermVariable, TheoryTermSymbolic, TheoryTermTuple, TheoryTermFunction, TheoryTermUnparsed>;
+
+auto construct_theory_term(clingo_ast_t *ast) -> TheoryTerm;
+
+using TheoryTermArray = std::vector<TheoryTerm>;
+
+auto construct_theory_term_array(clingo_ast_t **ast, size_t size) -> TheoryTermArray;
+
+class TheoryTermVariable {
+  public:
+    // Note: for pybind
+    TheoryTermVariable() = default;
+
+    TheoryTermVariable(TheoryTermVariable const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    TheoryTermVariable(TheoryTermVariable &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(TheoryTermVariable const &x) -> TheoryTermVariable & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(TheoryTermVariable &&x) noexcept -> TheoryTermVariable & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(TheoryTermVariable const &a, TheoryTermVariable const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(TheoryTermVariable const &a, TheoryTermVariable const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, TheoryTermVariable)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~TheoryTermVariable() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    auto name() -> char const *;
+
+    auto anonymous() -> bool;
+
+    static auto acquire(clingo_ast_t *ast) -> TheoryTermVariable { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, char const *name, bool anonymous)
+        -> TheoryTermVariable;
+
+    friend auto c_cast(TheoryTermVariable const &x) -> clingo_ast_t *;
+
+  private:
+    TheoryTermVariable(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(TheoryTermVariable const &x) -> clingo_ast_t * { return x.ast_; }
+
+class TheoryTermSymbolic {
+  public:
+    // Note: for pybind
+    TheoryTermSymbolic() = default;
+
+    TheoryTermSymbolic(TheoryTermSymbolic const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    TheoryTermSymbolic(TheoryTermSymbolic &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(TheoryTermSymbolic const &x) -> TheoryTermSymbolic & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(TheoryTermSymbolic &&x) noexcept -> TheoryTermSymbolic & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(TheoryTermSymbolic const &a, TheoryTermSymbolic const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(TheoryTermSymbolic const &a, TheoryTermSymbolic const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, TheoryTermSymbolic)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~TheoryTermSymbolic() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    auto symbol() -> Symbol;
+
+    static auto acquire(clingo_ast_t *ast) -> TheoryTermSymbolic { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, Symbol const &symbol) -> TheoryTermSymbolic;
+
+    friend auto c_cast(TheoryTermSymbolic const &x) -> clingo_ast_t *;
+
+  private:
+    TheoryTermSymbolic(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(TheoryTermSymbolic const &x) -> clingo_ast_t * { return x.ast_; }
+
+class TheoryTermTuple {
+  public:
+    // Note: for pybind
+    TheoryTermTuple() = default;
+
+    TheoryTermTuple(TheoryTermTuple const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    TheoryTermTuple(TheoryTermTuple &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(TheoryTermTuple const &x) -> TheoryTermTuple & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(TheoryTermTuple &&x) noexcept -> TheoryTermTuple & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(TheoryTermTuple const &a, TheoryTermTuple const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(TheoryTermTuple const &a, TheoryTermTuple const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, TheoryTermTuple)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~TheoryTermTuple() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    auto tuple_type() -> TheoryTupleType;
+
+    auto arguments() -> TheoryTermArray;
+
+    static auto acquire(clingo_ast_t *ast) -> TheoryTermTuple { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, TheoryTupleType const &tuple_type,
+                          TheoryTermArray const &arguments) -> TheoryTermTuple;
+
+    friend auto c_cast(TheoryTermTuple const &x) -> clingo_ast_t *;
+
+  private:
+    TheoryTermTuple(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(TheoryTermTuple const &x) -> clingo_ast_t * { return x.ast_; }
+
+class TheoryTermFunction {
+  public:
+    // Note: for pybind
+    TheoryTermFunction() = default;
+
+    TheoryTermFunction(TheoryTermFunction const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    TheoryTermFunction(TheoryTermFunction &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(TheoryTermFunction const &x) -> TheoryTermFunction & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(TheoryTermFunction &&x) noexcept -> TheoryTermFunction & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(TheoryTermFunction const &a, TheoryTermFunction const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(TheoryTermFunction const &a, TheoryTermFunction const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, TheoryTermFunction)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~TheoryTermFunction() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    auto name() -> char const *;
+
+    auto arguments() -> TheoryTermArray;
+
+    static auto acquire(clingo_ast_t *ast) -> TheoryTermFunction { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, char const *name,
+                          TheoryTermArray const &arguments) -> TheoryTermFunction;
+
+    friend auto c_cast(TheoryTermFunction const &x) -> clingo_ast_t *;
+
+  private:
+    TheoryTermFunction(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(TheoryTermFunction const &x) -> clingo_ast_t * { return x.ast_; }
+
+class TheoryTermUnparsed {
+  public:
+    // Note: for pybind
+    TheoryTermUnparsed() = default;
+
+    TheoryTermUnparsed(TheoryTermUnparsed const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    TheoryTermUnparsed(TheoryTermUnparsed &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(TheoryTermUnparsed const &x) -> TheoryTermUnparsed & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(TheoryTermUnparsed &&x) noexcept -> TheoryTermUnparsed & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, TheoryTermUnparsed)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~TheoryTermUnparsed() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    static auto acquire(clingo_ast_t *ast) -> TheoryTermUnparsed { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location) -> TheoryTermUnparsed;
+
+    friend auto c_cast(TheoryTermUnparsed const &x) -> clingo_ast_t *;
+
+  private:
+    TheoryTermUnparsed(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(TheoryTermUnparsed const &x) -> clingo_ast_t * { return x.ast_; }
+
 auto construct_term(clingo_ast_t *ast) -> Term {
     clingo_ast_type_t type;
     if (!clingo_ast_get_type(ast, &type)) {
@@ -1815,6 +2216,186 @@ auto LiteralSymbolic::construct(Library &lib, clingo_location_t const &location,
     return LiteralSymbolic::acquire(res_);
 }
 
+auto construct_theory_term(clingo_ast_t *ast) -> TheoryTerm {
+    clingo_ast_type_t type;
+    if (!clingo_ast_get_type(ast, &type)) {
+        clingo_ast_free(ast);
+        throw std::runtime_error("could not get type");
+    }
+    switch (type) {
+        case clingo_ast_type_theory_term_variable: {
+            return TheoryTermVariable::acquire(ast);
+        }
+        case clingo_ast_type_theory_term_symbolic: {
+            return TheoryTermSymbolic::acquire(ast);
+        }
+        case clingo_ast_type_theory_term_tuple: {
+            return TheoryTermTuple::acquire(ast);
+        }
+        case clingo_ast_type_theory_term_function: {
+            return TheoryTermFunction::acquire(ast);
+        }
+        case clingo_ast_type_theory_term_unparsed: {
+            return TheoryTermUnparsed::acquire(ast);
+        }
+    }
+    clingo_ast_free(ast);
+    throw std::runtime_error("unexpected ast type");
+}
+
+auto construct_theory_term_array(clingo_ast_t **ast, size_t size) -> TheoryTermArray {
+    TheoryTermArray ret;
+    try {
+        ret.reserve(size);
+        std::for_each_n(ast, size, [&ret](auto &arg) {
+            auto tmp = arg;
+            arg = nullptr;
+            ret.emplace_back(construct_theory_term(tmp));
+        });
+        clingo_ast_array_free(ast, size);
+    } catch (...) {
+        clingo_ast_array_free(ast, size);
+        throw;
+    }
+    return ret;
+}
+
+auto TheoryTermVariable::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto TheoryTermVariable::name() -> char const * {
+    char const *ret;
+    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret)) {
+        throw std::runtime_error("could not get string attribute");
+    }
+    return ret;
+}
+
+auto TheoryTermVariable::anonymous() -> bool {
+    int ret;
+    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_anonymous, &ret)) {
+        throw std::runtime_error("could not get number attribute");
+    }
+    return ret != 0;
+}
+
+auto TheoryTermVariable::construct(Library &lib, clingo_location_t const &location, char const *name, bool anonymous)
+    -> TheoryTermVariable {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_theory_term_variable, &res_, &location, name,
+                                           static_cast<int>(anonymous)));
+    return TheoryTermVariable::acquire(res_);
+}
+
+auto TheoryTermSymbolic::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto TheoryTermSymbolic::symbol() -> Symbol {
+    clingo_symbol_t ret;
+    if (!clingo_ast_attribute_get_symbol(ast_, clingo_ast_attribute_symbol, &ret)) {
+        throw std::runtime_error("could not get symbol attribute");
+    }
+    return Symbol::acquire(ret);
+}
+
+auto TheoryTermSymbolic::construct(Library &lib, clingo_location_t const &location, Symbol const &symbol)
+    -> TheoryTermSymbolic {
+    clingo_ast_t *res_;
+    handle_error(lib,
+                 clingo_ast_construct(lib, clingo_ast_type_theory_term_symbolic, &res_, &location, symbol.handle()));
+    return TheoryTermSymbolic::acquire(res_);
+}
+
+auto TheoryTermTuple::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto TheoryTermTuple::tuple_type() -> TheoryTupleType {
+    int ret;
+    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_tuple_type, &ret)) {
+        throw std::runtime_error("could not get number attribute");
+    }
+    return static_cast<TheoryTupleType>(ret);
+}
+
+auto TheoryTermTuple::arguments() -> TheoryTermArray {
+    clingo_ast_t **ast;
+    size_t size;
+    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_arguments, &ast, &size)) {
+        throw std::runtime_error("could not get ast array attribute");
+    }
+    return construct_theory_term_array(ast, size);
+}
+
+auto TheoryTermTuple::construct(Library &lib, clingo_location_t const &location, TheoryTupleType const &tuple_type,
+                                TheoryTermArray const &arguments) -> TheoryTermTuple {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_theory_term_tuple, &res_, &location,
+                                           static_cast<int>(tuple_type), c_cast(arguments).data(), arguments.size()));
+    return TheoryTermTuple::acquire(res_);
+}
+
+auto TheoryTermFunction::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto TheoryTermFunction::name() -> char const * {
+    char const *ret;
+    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret)) {
+        throw std::runtime_error("could not get string attribute");
+    }
+    return ret;
+}
+
+auto TheoryTermFunction::arguments() -> TheoryTermArray {
+    clingo_ast_t **ast;
+    size_t size;
+    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_arguments, &ast, &size)) {
+        throw std::runtime_error("could not get ast array attribute");
+    }
+    return construct_theory_term_array(ast, size);
+}
+
+auto TheoryTermFunction::construct(Library &lib, clingo_location_t const &location, char const *name,
+                                   TheoryTermArray const &arguments) -> TheoryTermFunction {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_theory_term_function, &res_, &location, name,
+                                           c_cast(arguments).data(), arguments.size()));
+    return TheoryTermFunction::acquire(res_);
+}
+
+auto TheoryTermUnparsed::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto TheoryTermUnparsed::construct(Library &lib, clingo_location_t const &location) -> TheoryTermUnparsed {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_theory_term_unparsed, &res_, &location));
+    return TheoryTermUnparsed::acquire(res_);
+}
+
 template <class... Ts> auto c_cast(std::variant<Ts...> const &var) -> clingo_ast_t * {
     return std::visit([](auto const &x) { return c_cast(x); }, var);
 }
@@ -1864,8 +2445,8 @@ This can be used to auto-generate most of the binding.)"));
     auto py_theory_operator =
         py::enum_<TheoryOperator>(ast, "TheoryOperator", R"doc(Enumeration of theory operators.)doc");
 
-    auto py_theory_sequence_type =
-        py::enum_<TheorySequenceType>(ast, "TheorySequenceType", R"doc(Enumeration of theory sequence types.)doc");
+    auto py_theory_tuple_type =
+        py::enum_<TheoryTupleType>(ast, "TheoryTupleType", R"doc(Enumeration of theory tuple types.)doc");
 
     auto py_theory_atom_type =
         py::enum_<TheoryAtomType>(ast, "TheoryAtomType", R"doc(Enumeration of the theory atom types.)doc");
@@ -1908,6 +2489,21 @@ This can be used to auto-generate most of the binding.)"));
     auto py_literal_symbolic =
         py::class_<LiteralSymbolic>(ast, "LiteralSymbolic", R"doc(A literal representing a symbolic literal.)doc");
 
+    auto py_theory_term_variable =
+        py::class_<TheoryTermVariable>(ast, "TheoryTermVariable", R"doc(A theory term representing a variable.)doc");
+
+    auto py_theory_term_symbolic =
+        py::class_<TheoryTermSymbolic>(ast, "TheoryTermSymbolic", R"doc(A theory term representing a symbol.)doc");
+
+    auto py_theory_term_tuple =
+        py::class_<TheoryTermTuple>(ast, "TheoryTermTuple", R"doc(A theory term representing a tuple.)doc");
+
+    auto py_theory_term_function =
+        py::class_<TheoryTermFunction>(ast, "TheoryTermFunction", R"doc(A theory term representing a function.)doc");
+
+    auto py_theory_term_unparsed = py::class_<TheoryTermUnparsed>(
+        ast, "TheoryTermUnparsed", R"doc(A theory term representing an unparsed theory term.)doc");
+
     py_unary_operator.value("Minus", UnaryOperator::Minus, R"doc(Operator `-`.)doc")
         .value("Negation", UnaryOperator::Negation, R"doc(Operator `~`.)doc");
 
@@ -1942,9 +2538,9 @@ This can be used to auto-generate most of the binding.)"));
         .value("BinaryLeft", TheoryOperator::BinaryLeft, R"doc(A left associative binary operator.)doc")
         .value("BinaryRight", TheoryOperator::BinaryRight, R"doc(A right associative binary operator.)doc");
 
-    py_theory_sequence_type.value("Tuple", TheorySequenceType::Tuple, R"doc(Theory tuples "(t1,...,tn)".)doc")
-        .value("Set", TheorySequenceType::Set, R"doc(Theory sets "{t1,...,tn}".)doc")
-        .value("List", TheorySequenceType::List, R"doc(Theory lists "[t1,...,tn]".)doc");
+    py_theory_tuple_type.value("Tuple", TheoryTupleType::Tuple, R"doc(Theory tuples "(t1,...,tn)".)doc")
+        .value("Set", TheoryTupleType::Set, R"doc(Theory sets "{t1,...,tn}".)doc")
+        .value("List", TheoryTupleType::List, R"doc(Theory lists "[t1,...,tn]".)doc");
 
     py_theory_atom_type.value("Head", TheoryAtomType::Head, R"doc(For theory atoms that can appear in the head.)doc")
         .value("Body", TheoryAtomType::Body, R"doc(For theory atoms that can appear in the body.)doc")
@@ -2113,7 +2709,7 @@ location
 name
     The name of the function.
 pool
-    The argument pool of the tuple.
+    The argument pool of the function.
 
     If there is more than one element in the pool, the term is
     unpooled during preprocessing.
@@ -2250,6 +2846,109 @@ atom
         .def_property_readonly("location", &LiteralSymbolic::location)
         .def_property_readonly("sign", &LiteralSymbolic::sign)
         .def_property_readonly("atom", &LiteralSymbolic::atom)
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_theory_term_variable
+        .def(py::init(&TheoryTermVariable::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
+             py::arg("anonymous") = false, R"doc(Construct a TheoryTermVariable object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+location
+    The location of the variable.
+name
+    The name of the variable.
+anonymous
+    Whether the variable is anonymous.
+
+    Anonymous variables receive a unique name during preprocessing.)doc")
+        .def("__str__", &TheoryTermVariable::to_string)
+        .def("__hash__", &TheoryTermVariable::hash)
+        .def_property_readonly("location", &TheoryTermVariable::location)
+        .def_property_readonly("name", &TheoryTermVariable::name)
+        .def_property_readonly("anonymous", &TheoryTermVariable::anonymous)
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_theory_term_symbolic
+        .def(py::init(&TheoryTermSymbolic::construct), py::arg("lib"), py::arg("location"), py::arg("symbol"),
+             R"doc(Construct a TheoryTermSymbolic object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+location
+    The location of the symbol.
+symbol
+    The symbol.)doc")
+        .def("__str__", &TheoryTermSymbolic::to_string)
+        .def("__hash__", &TheoryTermSymbolic::hash)
+        .def_property_readonly("location", &TheoryTermSymbolic::location)
+        .def_property_readonly("symbol", &TheoryTermSymbolic::symbol)
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_theory_term_tuple
+        .def(py::init(&TheoryTermTuple::construct), py::arg("lib"), py::arg("location"), py::arg("tuple_type"),
+             py::arg("arguments"), R"doc(Construct a TheoryTermTuple object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+location
+    The location of the tuple.
+tuple_type
+    The type of the tuple.
+arguments
+    The arguments of the tuple.)doc")
+        .def("__str__", &TheoryTermTuple::to_string)
+        .def("__hash__", &TheoryTermTuple::hash)
+        .def_property_readonly("location", &TheoryTermTuple::location)
+        .def_property_readonly("tuple_type", &TheoryTermTuple::tuple_type)
+        .def_property_readonly("arguments", &TheoryTermTuple::arguments)
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_theory_term_function
+        .def(py::init(&TheoryTermFunction::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
+             py::arg("arguments"), R"doc(Construct a TheoryTermFunction object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+location
+    The location of the function.
+name
+    The name of the function.
+arguments
+    The arguments of the function.)doc")
+        .def("__str__", &TheoryTermFunction::to_string)
+        .def("__hash__", &TheoryTermFunction::hash)
+        .def_property_readonly("location", &TheoryTermFunction::location)
+        .def_property_readonly("name", &TheoryTermFunction::name)
+        .def_property_readonly("arguments", &TheoryTermFunction::arguments)
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_theory_term_unparsed
+        .def(py::init(&TheoryTermUnparsed::construct), py::arg("lib"), py::arg("location"),
+             R"doc(Construct a TheoryTermUnparsed object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+location
+    The location of the theory term.)doc")
+        .def("__str__", &TheoryTermUnparsed::to_string)
+        .def("__hash__", &TheoryTermUnparsed::hash)
+        .def_property_readonly("location", &TheoryTermUnparsed::location)
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
