@@ -163,7 +163,7 @@ struct StatementOptimize {
     //! An element.
     using Element = std::pair<Tuple, LiteralVec>;
     //! A vector of elements.
-    using ElementVec = std::vector<Element>;
+    using ElementVec = Util::immutable_vector<Element>;
 
     //! Construct a weak constraint.
     explicit StatementOptimize(Location loc, OptimizeType type, ElementVec elems)
@@ -312,7 +312,7 @@ struct StatementEdge {
         Term v;
     };
     //! A vector of edges.
-    using EdgeVec = std::vector<Edge>;
+    using EdgeVec = Util::immutable_vector<Edge>;
 
     //! Construct an edge statement.
     explicit StatementEdge(Location loc, EdgeVec edges, BodyLiteralVec body = {})

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdexcept>
 #include <vector>
 
 #include <gringo/util/shared_ptr.hh>

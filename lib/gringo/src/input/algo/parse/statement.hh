@@ -189,7 +189,7 @@ struct statement_optimize {
         return Detail::location(opt | weak);
     }();
     static constexpr auto value =
-        lexy::as_list<StatementOptimize::ElementVec> >>
+        lexy::as_list<std::vector<StatementOptimize::Element>> >>
         lexy::callback<Statement>(
             [](Location loc, OptimizeType type, std::optional<StatementOptimize::ElementVec> elems) -> Statement {
                 return StatementOptimize{std::move(loc), type,
@@ -265,7 +265,7 @@ struct statement_edge {
         return Detail::location(kw >> edge + dsl::p<statement_opt_body> + eos);
     }();
     static constexpr auto value = []() {
-        auto sink = lexy::collect<StatementEdge::EdgeVec>(lexy::construct<StatementEdge::Edge>);
+        auto sink = lexy::collect<std::vector<StatementEdge::Edge>>(lexy::construct<StatementEdge::Edge>);
         auto cb = Detail::construct_v<StatementEdge, Statement>;
         return sink >> cb;
     }();

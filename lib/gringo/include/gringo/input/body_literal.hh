@@ -43,7 +43,7 @@ struct BodyAggregate {
         LiteralVec cond;
     };
     //! A vector of aggregate elements.
-    using ElementVec = std::vector<Element>;
+    using ElementVec = Util::immutable_vector<Element>;
 
     //! Construct a body aggregate.
     explicit BodyAggregate(Location loc, Sign sign, LGuard lhs, AggregateFunction fun, ElementVec elems, RGuard rhs)
@@ -74,8 +74,6 @@ using BodyTheoryAtom = TheoryAtom<true>;
 using BodyLiteral = std::variant<SimpleBodyLiteral, Conjunction, BodyAggregate, BodySetAggregate, BodyTheoryAtom>;
 //! A vector of body literals.
 using BodyLiteralVec = Util::immutable_vector<BodyLiteral>;
-//! A vector of body literal vectors.
-using BodyLiteralVecVec = std::vector<BodyLiteralVec>;
 
 //! @}
 

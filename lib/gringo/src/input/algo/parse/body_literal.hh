@@ -53,7 +53,7 @@ struct body_aggregate_elements {
         auto elems = dsl::list(dsl::p<body_aggregate_element>, dsl::sep(LEXY_LIT(";")));
         return LEXY_LIT("{") + dsl::opt(peek >> elems) + LEXY_LIT("}");
     }();
-    static constexpr auto value = lexy::as_list<BodyAggregate::ElementVec>;
+    static constexpr auto value = lexy::as_list<std::vector<BodyAggregate::Element>>;
 };
 
 struct body_aggregate {
