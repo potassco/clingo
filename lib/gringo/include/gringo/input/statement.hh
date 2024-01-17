@@ -58,7 +58,7 @@ struct TheoryOpDefinition {
 //! A vector of theory operator definitions.
 //!
 //! @related TheoryOpDefinition
-using TheoryOpDefinitionVec = std::vector<TheoryOpDefinition>;
+using TheoryOpDefinitionVec = Util::immutable_vector<TheoryOpDefinition>;
 
 //! A theory term definition.
 //!
@@ -73,13 +73,13 @@ struct TheoryTermDefinition {
     //! The name of the definition.
     String name;
     //! The associated operator definitions.
-    std::vector<TheoryOpDefinition> op_defs;
+    Util::immutable_vector<TheoryOpDefinition> op_defs;
 };
 
 //! A vector of theory term definitions.
 //!
 //! @related TheoryTermDefinition
-using TheoryTermDefinitionVec = std::vector<TheoryTermDefinition>;
+using TheoryTermDefinitionVec = Util::immutable_vector<TheoryTermDefinition>;
 
 //! Enumeration of theory atom types.
 //!
@@ -98,7 +98,7 @@ struct TheoryAtomDefinition {
     //! An optional definition for the right-hand-side of a theory atom.
     //!
     //! It consists of a list of possible operators and a name of a term definition.
-    using RHS = std::optional<std::pair<std::vector<String>, String>>;
+    using RHS = std::optional<std::pair<Util::immutable_vector<String>, String>>;
 
     //! Construct a theory atom definition.
     explicit TheoryAtomDefinition(Location loc, String name, int arity, String term, RHS rhs, TheoryAtomType type)
@@ -121,7 +121,7 @@ struct TheoryAtomDefinition {
 //! A vector of theory atom definitions.
 //!
 //! @related TheoryAtomDefinition
-using TheoryAtomDefinitionVec = std::vector<TheoryAtomDefinition>;
+using TheoryAtomDefinitionVec = Util::immutable_vector<TheoryAtomDefinition>;
 
 //! A theory definition.
 //!
@@ -412,7 +412,7 @@ struct StatementInclude {
 //! For example: <tt>\#program check(t)"</tt>.
 struct StatementProgram {
     //! Construct an program statement.
-    explicit StatementProgram(Location loc, String name, std::vector<String> args)
+    explicit StatementProgram(Location loc, String name, Util::immutable_vector<String> args)
         : loc{std::move(loc)}, name(name), args(std::move(args)) {}
 
     //! The location of the statement.
@@ -420,7 +420,7 @@ struct StatementProgram {
     //! The name of the program.
     String name;
     //! The arguments of the program.
-    std::vector<String> args;
+    Util::immutable_vector<String> args;
 };
 
 //! Enumeration of constant statement types.

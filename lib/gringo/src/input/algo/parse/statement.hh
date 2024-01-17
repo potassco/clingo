@@ -52,7 +52,7 @@ struct theory_term_definition {
         return Detail::location(id >> dsl::curly_bracketed.opt_list(op_def, sep));
     }();
     static constexpr auto
-        value = lexy::as_list<TheoryOpDefinitionVec> >>
+        value = lexy::as_list<std::vector<TheoryOpDefinition>> >>
                 lexy::callback<TheoryTermDefinition>(lexy::construct<TheoryTermDefinition>,
                                                      [](Location loc, String name, lexy::nullopt) {
                                                          return TheoryTermDefinition{std::move(loc), name, {}};
@@ -95,8 +95,8 @@ struct theory_definitions {
     struct value_type {
         void push_back(TheoryTermDefinition term_def) { term_defs.push_back(std::move(term_def)); }
         void push_back(TheoryAtomDefinition atom_def) { atom_defs.push_back(std::move(atom_def)); }
-        TheoryTermDefinitionVec term_defs;
-        TheoryAtomDefinitionVec atom_defs;
+        std::vector<TheoryTermDefinition> term_defs;
+        std::vector<TheoryAtomDefinition> atom_defs;
     };
     static constexpr auto is_atom_def = dsl::context_flag<theory_definitions>;
     static constexpr auto rule = []() {
