@@ -5,6 +5,7 @@
 #include <vector>
 
 #include <gringo/util/algorithm.hh>
+#include <gringo/util/immutable_vector.hh>
 
 namespace Gringo::Util {
 
@@ -147,6 +148,8 @@ template <class T> class ResultVec {
   public:
     //! Construct a result vec to track changes to the given source.
     ResultVec(std::vector<T> const &source) : source_{source}, current_{source.begin()} {}
+    //! Construct a result vec to track changes to the given source.
+    ResultVec(Util::immutable_vector<T> const &source) : source_{source.vector()}, current_{source.begin()} {}
 
     //! Get current element.
     [[nodiscard]] auto currrent() const -> T const & { return *current_; }

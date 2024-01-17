@@ -270,7 +270,7 @@ struct UnpoolHeadBody {
 
     // aggregate
 
-    template <bool head> using HBLitVecVec = std::conditional_t<head, HeadLiteralVec, BodyLiteralVec>;
+    template <bool head> using HBLitVecVec = std::conditional_t<head, HeadLiteralVec, std::vector<BodyLiteral>>;
 
     template <bool HasSign>
     auto operator()(SetAggregate<HasSign> const &lit) const -> std::optional<HBLitVecVec<!HasSign>> {
@@ -347,22 +347,24 @@ struct UnpoolHeadBody {
 
     // body literal
 
-    auto operator()(BodyLiteral const &lit) const -> std::optional<BodyLiteralVec> { return std::visit(*this, lit); }
+    auto operator()(BodyLiteral const &lit) const -> std::optional<std::vector<BodyLiteral>> {
+        return std::visit(*this, lit);
+    }
 
-    auto operator()(SimpleBodyLiteral const &lit) const -> std::optional<BodyLiteralVec> {
+    auto operator()(SimpleBodyLiteral const &lit) const -> std::optional<std::vector<BodyLiteral>> {
         auto build = [](auto lit) -> BodyLiteral { return SimpleBodyLiteral{std::move(lit)}; };
         auto unpool = [](auto const &lit) { return unpool_relations(lit, false); };
         return unpool_crossproducts(build, unpool, lit.lit);
     }
 
-    auto operator()(Conjunction const &lit) const -> std::optional<BodyLiteralVec> {
+    auto operator()(Conjunction const &lit) const -> std::optional<std::vector<BodyLiteral>> {
         auto build = [&lit](auto cond) -> BodyLiteral {
             return ConditionalLiteral{lit.lit.loc, lit.lit.lit, std::move(cond)};
         };
         return unpool_crossproducts(build, unpool_disjunctive, lit.lit.cond);
     }
 
-    auto operator()(BodyAggregate const &lit) const -> std::optional<BodyLiteralVec> {
+    auto operator()(BodyAggregate const &lit) const -> std::optional<std::vector<BodyLiteral>> {
         auto unpool_elem = [](BodyAggregate::Element const &elem) {
             auto build = [&elem](auto cond) -> BodyAggregate::Element {
                 return {elem.loc, elem.tuple, std::move(cond)};
@@ -377,8 +379,13 @@ struct UnpoolHeadBody {
         return std::nullopt;
     }
 
+    auto operator()(std::vector<BodyLiteral> const &body) const -> std::optional<std::vector<BodyLiteralVec>> {
+        return Util::transform_vec(unpool_crossproduct(body, *this),
+                                   [](auto vec) { return BodyLiteralVec{std::move(vec)}; });
+    }
+
     auto operator()(BodyLiteralVec const &body) const -> std::optional<std::vector<BodyLiteralVec>> {
-        return unpool_crossproduct(body, *this);
+        return operator()(body.vector());
     }
 
     RewriteContext const &ctx;

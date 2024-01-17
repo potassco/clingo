@@ -1,7 +1,5 @@
 #pragma once
 
-#include <tuple>
-
 #include <gringo/input/aggregate.hh>
 #include <gringo/input/literal.hh>
 #include <gringo/input/theory.hh>
@@ -75,7 +73,7 @@ using BodyTheoryAtom = TheoryAtom<true>;
 //! A body literal.
 using BodyLiteral = std::variant<SimpleBodyLiteral, Conjunction, BodyAggregate, BodySetAggregate, BodyTheoryAtom>;
 //! A vector of body literals.
-using BodyLiteralVec = std::vector<BodyLiteral>;
+using BodyLiteralVec = Util::immutable_vector<BodyLiteral>;
 //! A vector of body literal vectors.
 using BodyLiteralVecVec = std::vector<BodyLiteralVec>;
 

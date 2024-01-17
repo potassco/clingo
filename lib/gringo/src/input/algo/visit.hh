@@ -77,6 +77,8 @@ template <class T> class Visitor {
         }
     }
 
+    template <class U> void accept_(Util::immutable_vector<U> const &vec) const { visit(vec.vector()); }
+
     // igonre
 
     void accept_(Projection const &x) const { static_cast<void>(x); }

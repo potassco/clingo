@@ -125,6 +125,11 @@ template <class T> class Transformer {
         return ret;
     }
 
+    template <class U>
+    auto accept_(Util::immutable_vector<U> const &vec) const -> std::optional<Util::immutable_vector<U>> {
+        return accept_(vec.vector());
+    }
+
     template <class U> auto apply_(TranslateArgument<U> &arg) const { return arg.transformed = transform(arg.orig); }
 
     template <class U> auto apply_(U const &arg) const { static_cast<void>(arg); }

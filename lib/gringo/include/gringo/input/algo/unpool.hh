@@ -17,7 +17,7 @@ namespace Gringo::Input {
 [[nodiscard]] auto unpool(RewriteContext &ctx, HeadLiteral const &lit) -> std::optional<HeadLiteralVec>;
 
 //! Remove all pooled arguments from the literal.
-[[nodiscard]] auto unpool(RewriteContext &ctx, BodyLiteral const &lit) -> std::optional<BodyLiteralVec>;
+[[nodiscard]] auto unpool(RewriteContext &ctx, BodyLiteral const &lit) -> std::optional<std::vector<BodyLiteral>>;
 
 //! Remove all pooled arguments from the statement.
 [[nodiscard]] auto unpool(RewriteContext &ctx, Statement const &stm) -> std::optional<StatementVec>;

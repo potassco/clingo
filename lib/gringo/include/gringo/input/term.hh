@@ -6,6 +6,7 @@
 #include <gringo/symbol.hh>
 
 #include <gringo/util/hash.hh>
+#include <gringo/util/immutable_vector.hh>
 #include <gringo/util/shared_ptr.hh>
 
 #include <gringo/input/location.hh>

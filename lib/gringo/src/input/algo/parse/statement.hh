@@ -135,13 +135,13 @@ struct statement_body {
         auto sep = dsl::sep(dsl::comma / dsl::semicolon);
         return dsl::opt(peek >> dsl::list(dsl::p<body_literal>, sep));
     }();
-    static constexpr auto value = lexy::as_list<BodyLiteralVec>;
+    static constexpr auto value = lexy::as_list<std::vector<BodyLiteral>>;
 };
 
 struct statement_opt_body {
     static constexpr char const *name = "body";
     static constexpr auto rule = dsl::if_(dsl::colon >> dsl::p<statement_body>);
-    static constexpr auto value = lexy::construct<BodyLiteralVec>;
+    static constexpr auto value = lexy::construct<std::vector<BodyLiteral>>;
 };
 
 struct statement_optimize_tuple {

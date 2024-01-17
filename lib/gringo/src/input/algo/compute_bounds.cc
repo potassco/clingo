@@ -408,9 +408,10 @@ struct ApplyBounds {
 
 struct ComputeBounds {
     //! Compute bounds given a set of literals/body literals.
-    template <class T>
-    auto compute_bounds(IESolver &slv, Location const &loc, std::vector<T> const &lits)
-        -> std::pair<bool, Util::ResultVec<T>> {
+    template <class Span>
+    auto compute_bounds(IESolver &slv, Location const &loc, Span const &lits)
+        -> std::pair<bool, Util::ResultVec<typename Span::value_type>> {
+
         auto res_lits = Util::ResultVec{lits};
 
         // add inequalities to solver
@@ -433,7 +434,7 @@ struct ComputeBounds {
         states.reserve(dom.size());
         for (auto const &lit : lits) {
             Literal const *slit = nullptr;
-            if constexpr (std::is_same_v<T, BodyLiteral>) {
+            if constexpr (std::is_same_v<typename Span::value_type, BodyLiteral>) {
                 if (auto sblit = std::get_if<SimpleBodyLiteral>(&lit); sblit != nullptr) {
                     slit = &sblit->lit;
                 }

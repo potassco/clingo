@@ -432,14 +432,16 @@ struct Unpool {
 
     // body literal
 
-    auto operator()(BodyLiteral const &lit) const -> std::optional<BodyLiteralVec> { return std::visit(*this, lit); }
+    auto operator()(BodyLiteral const &lit) const -> std::optional<std::vector<BodyLiteral>> {
+        return std::visit(*this, lit);
+    }
 
-    auto operator()(SimpleBodyLiteral const &lit) const -> std::optional<BodyLiteralVec> {
+    auto operator()(SimpleBodyLiteral const &lit) const -> std::optional<std::vector<BodyLiteral>> {
         return Util::transform_vec(operator()(lit.lit),
                                    [](auto lit) -> BodyLiteral { return SimpleBodyLiteral{std::move(lit)}; });
     }
 
-    auto operator()(Conjunction const &lit) const -> std::optional<BodyLiteralVec> {
+    auto operator()(Conjunction const &lit) const -> std::optional<std::vector<BodyLiteral>> {
         static_cast<void>(lit);
         return std::nullopt;
     }
@@ -472,7 +474,8 @@ struct Unpool {
                     lits = std::move(res_lits).value();
                 }
             }
-            return res_pool;
+            return std::vector<BodyLiteralVec>{std::make_move_iterator(res_pool->begin()),
+                                               std::make_move_iterator(res_pool->end())};
         }
         if (auto res_lits = unpool(lits); res_lits) {
             return Util::make_vec<BodyLiteralVec>(std::move(res_lits).value());
@@ -494,7 +497,7 @@ struct Unpool {
                                [](auto elems) { return Util::make_vec<BodyAggregate::ElementVec>(std::move(elems)); });
     }
 
-    auto operator()(BodyAggregate const &aggr) const -> std::optional<BodyLiteralVec> {
+    auto operator()(BodyAggregate const &aggr) const -> std::optional<std::vector<BodyLiteral>> {
         return unpool_crossproducts(
             [&aggr](auto lhs, auto elems, auto rhs) -> BodyLiteral {
                 return BodyAggregate{aggr.loc, aggr.sign, std::move(lhs), aggr.fun, std::move(elems), std::move(rhs)};
@@ -542,7 +545,7 @@ struct Unpool {
         StatementVec stms;
         stms.reserve(stm.elems.size());
         for (auto const &elem : stm.elems) {
-            auto body = BodyLiteralVec{};
+            auto body = std::vector<BodyLiteral>{};
             body.reserve(elem.second.size());
             for (auto const &lit : elem.second) {
                 body.emplace_back(SimpleBodyLiteral{lit});
@@ -676,7 +679,9 @@ auto unpool(RewriteContext &ctx, Literal const &lit) -> std::optional<LiteralVec
 
 auto unpool(RewriteContext &ctx, HeadLiteral const &lit) -> std::optional<HeadLiteralVec> { return Unpool{ctx}(lit); }
 
-auto unpool(RewriteContext &ctx, BodyLiteral const &lit) -> std::optional<BodyLiteralVec> { return Unpool{ctx}(lit); }
+auto unpool(RewriteContext &ctx, BodyLiteral const &lit) -> std::optional<std::vector<BodyLiteral>> {
+    return Unpool{ctx}(lit);
+}
 
 template <class F> struct print {
     print(F const &f) : f{f} {}

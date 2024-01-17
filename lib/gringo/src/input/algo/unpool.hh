@@ -56,12 +56,12 @@ struct Unpooler {
     }
 };
 
-template <typename T>
-auto unpool_crossproduct(std::vector<T> const &elems, auto &&unpool = Unpooler{})
-    -> std::optional<std::vector<std::vector<T>>> {
+template <typename Span>
+auto unpool_crossproduct(Span const &elems, auto &&unpool = Unpooler{})
+    -> std::optional<std::vector<std::vector<typename Span::value_type>>> {
     // setup values to unpool + offsets
     std::vector<std::tuple<size_t, size_t, size_t>> offsets;
-    std::vector<T> pool;
+    std::vector<typename Span::value_type> pool;
     bool has_value = false;
     size_t n = 0;
     for (auto const &elem : elems) {
@@ -90,9 +90,9 @@ auto unpool_crossproduct(std::vector<T> const &elems, auto &&unpool = Unpooler{}
         return std::nullopt;
     }
     // unpool if at least one element changed
-    std::vector<std::vector<T>> ret;
+    std::vector<std::vector<typename Span::value_type>> ret;
     for (bool cont = true; cont;) {
-        std::vector<T> res;
+        std::vector<typename Span::value_type> res;
         for (auto const &[cur, begin, end] : offsets) {
             if (begin == end) {
                 return ret;
@@ -114,10 +114,11 @@ auto unpool_crossproduct(std::vector<T> const &elems, auto &&unpool = Unpooler{}
     return ret;
 }
 
-template <typename T>
-auto unpool_union(std::vector<T> const &elems, auto &&unpool = Unpooler{}) -> std::optional<std::vector<T>> {
+template <typename Span>
+auto unpool_union(Span const &elems, auto &&unpool = Unpooler{})
+    -> std::optional<std::vector<typename Span::value_type>> {
     size_t n = 0;
-    std::optional<std::vector<T>> ret;
+    std::optional<std::vector<typename Span::value_type>> ret;
     for (auto const &elem : elems) {
         auto unpooled = unpool(elem);
         if (unpooled.has_value() && !ret.has_value()) {
