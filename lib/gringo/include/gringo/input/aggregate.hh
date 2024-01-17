@@ -52,7 +52,7 @@ struct SetAggregateElement {
 };
 
 //! A vector of set aggregate elements.
-using SetAggregateElementVec = std::vector<SetAggregateElement>;
+using SetAggregateElementVec = Util::immutable_vector<SetAggregateElement>;
 
 //! A set aggregate.
 //!
