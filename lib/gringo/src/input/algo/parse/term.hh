@@ -1,7 +1,5 @@
 #pragma once
 
-#include <optional>
-
 #include <lexy/dsl.hpp>
 
 #include <gringo/input/term.hh>
@@ -11,23 +9,6 @@
 namespace Gringo::Input::Grammar {
 
 namespace Detail {
-
-auto empty_args(std::optional<TermVecVec> value) {
-    PoolVec ret;
-    if (value.has_value()) {
-        ret.reserve(value->size());
-        for (auto &tuple : value.value()) {
-            ret.emplace_back();
-            ret.back().reserve(tuple.size());
-            for (auto &term : tuple) {
-                ret.back().emplace_back(std::move(term));
-            }
-        }
-    } else {
-        ret.emplace_back();
-    }
-    return ret;
-};
 
 template <bool external> struct construct_function {
     using return_type = TermFunction;
@@ -40,8 +21,6 @@ template <bool external> struct construct_function {
         return TermFunction{std::move(loc), name, std::move(args), external};
     }
 };
-
-auto empty_args(std::optional<PoolVec> value) { return std::move(value).value_or(PoolVec{TupleVec{}}); };
 
 class tuple_trail {
   public:

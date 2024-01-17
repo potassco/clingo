@@ -48,8 +48,6 @@ using Term = std::variant<TermVariable, TermSymbol, TermTuple, TermFunction, Ter
 
 //! A vector of terms.
 using TermVec = std::vector<Term>;
-//! A vector of vectors of terms.
-using TermVecVec = std::vector<TermVec>;
 
 //! Indicate a projected position.
 struct Projection {
