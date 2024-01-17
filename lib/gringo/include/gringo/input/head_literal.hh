@@ -26,7 +26,7 @@ struct Disjunction {
     //! An element of a disjunction.
     using Element = std::variant<Literal, ConditionalLiteral>;
     //! A vector of elements.
-    using ElementVec = std::vector<Element>;
+    using ElementVec = Util::immutable_vector<Element>;
     //! Wrap a literal in a head literal.
     Disjunction(Location loc, ElementVec elems) : loc{loc}, elems{std::move(elems)} {}
     //! The location of the disjunction.
@@ -51,7 +51,7 @@ struct HeadAggregate {
         LiteralVec cond;
     };
     //! A vector of head aggregate elements.
-    using ElementVec = std::vector<Element>;
+    using ElementVec = Util::immutable_vector<Element>;
 
     //! Construct a head set aggregate.
     explicit HeadAggregate(Location loc, LGuard lhs, AggregateFunction fun, ElementVec elems, RGuard rhs)
@@ -84,9 +84,7 @@ using HeadTheoryAtom = TheoryAtom<false>;
 //! A head literal.
 using HeadLiteral = std::variant<SimpleHeadLiteral, Disjunction, HeadAggregate, HeadSetAggregate, HeadTheoryAtom>;
 //! A vector of head literals.
-using HeadLiteralVec = std::vector<HeadLiteral>;
-//! A vector of head literal vectors.
-using HeadLiteralVecVec = std::vector<HeadLiteralVec>;
+using HeadLiteralVec = Util::immutable_vector<HeadLiteral>;
 
 //! @}
 

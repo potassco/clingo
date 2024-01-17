@@ -343,9 +343,11 @@ struct Unpool {
 
     // head literal
 
-    auto operator()(HeadLiteral const &lit) const -> std::optional<HeadLiteralVec> { return std::visit(*this, lit); }
+    auto operator()(HeadLiteral const &lit) const -> std::optional<std::vector<HeadLiteral>> {
+        return std::visit(*this, lit);
+    }
 
-    auto operator()(SimpleHeadLiteral const &lit) const -> std::optional<HeadLiteralVec> {
+    auto operator()(SimpleHeadLiteral const &lit) const -> std::optional<std::vector<HeadLiteral>> {
         return Util::transform_vec(operator()(lit.lit),
                                    [](auto lit) -> HeadLiteral { return SimpleHeadLiteral{std::move(lit)}; });
     }
@@ -363,10 +365,11 @@ struct Unpool {
     }
 
     auto operator()(Disjunction::ElementVec const &elems) const -> std::optional<std::vector<Disjunction::ElementVec>> {
-        return unpool_crossproduct(elems, *this);
+        return Util::transform_vec(unpool_crossproduct(elems, *this),
+                                   [](auto vec) { return Disjunction::ElementVec{std::move(vec)}; });
     }
 
-    auto operator()(Disjunction const &lit) const -> std::optional<HeadLiteralVec> {
+    auto operator()(Disjunction const &lit) const -> std::optional<std::vector<HeadLiteral>> {
         auto unpool = [this](auto const &elems) {
             auto res_elems = Util::ResultVec{elems};
             for (auto const &elem : elems) {
@@ -422,7 +425,7 @@ struct Unpool {
                                [](auto elems) { return Util::make_vec<HeadAggregate::ElementVec>(std::move(elems)); });
     }
 
-    auto operator()(HeadAggregate const &lit) const -> std::optional<HeadLiteralVec> {
+    auto operator()(HeadAggregate const &lit) const -> std::optional<std::vector<HeadLiteral>> {
         return unpool_crossproducts(
             [&lit](auto lhs, auto elems, auto rhs) -> HeadLiteral {
                 return HeadAggregate{lit.loc, std::move(lhs), lit.fun, std::move(elems), std::move(rhs)};
@@ -677,7 +680,9 @@ auto unpool(RewriteContext &ctx, Term const &term) -> std::optional<TermVec> { r
 
 auto unpool(RewriteContext &ctx, Literal const &lit) -> std::optional<LiteralVec> { return Unpool{ctx}(lit); }
 
-auto unpool(RewriteContext &ctx, HeadLiteral const &lit) -> std::optional<HeadLiteralVec> { return Unpool{ctx}(lit); }
+auto unpool(RewriteContext &ctx, HeadLiteral const &lit) -> std::optional<std::vector<HeadLiteral>> {
+    return Unpool{ctx}(lit);
+}
 
 auto unpool(RewriteContext &ctx, BodyLiteral const &lit) -> std::optional<std::vector<BodyLiteral>> {
     return Unpool{ctx}(lit);
