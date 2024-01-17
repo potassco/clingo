@@ -260,7 +260,7 @@ auto shift_body(BodyLiteralVec const &body) -> Util::ResultVec<BodyLiteral> {
 
 auto unpool_disjunctive(LiteralVec const &lits) -> std::optional<std::vector<LiteralVec>> {
     auto unpool = [](auto const &lit) { return unpool_relations(lit, false); };
-    return unpool_crossproduct(lits, unpool);
+    return Util::transform_vec(unpool_crossproduct(lits, unpool), [](auto vec) { return LiteralVec{std::move(vec)}; });
 }
 
 struct UnpoolHeadBody {
@@ -518,7 +518,7 @@ struct UnpoolStatement {
     auto const *rel = std::get_if<LiteralRelation>(&lit);
     if (rel != nullptr && rel->rhs.size() > 1 && conjunctive == (rel->sign != Sign::once)) {
         auto const *lhs = &rel->lhs;
-        LiteralVec res;
+        std::vector<Literal> res;
         for (auto const &rhs : rel->rhs) {
             auto cmp = rel->sign != Sign::once ? rhs.first : complement(rhs.first);
             res.emplace_back(

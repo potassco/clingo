@@ -1073,7 +1073,7 @@ struct LiteralToTuple {
 //!
 //! @note The automatic extension with the aux elements makes for a somewhat awkward interface.
 [[nodiscard]] auto simplify_litvec(RewriteContext &ctx, LiteralVec const &lits, bool conjunctive = true)
-    -> SimplifyResult<LiteralVec> {
+    -> SimplifyResult<std::vector<Literal>> {
     auto state_fixed = conjunctive ? TruthValue::bot : TruthValue::top;
     auto state_empty = conjunctive ? TruthValue::top : TruthValue::bot;
     auto state_lits = state_empty;
@@ -1465,7 +1465,7 @@ template <bool head>
                                                     GRINGO_MATCH(value, Symbol) { return value; }
                                                 },
                                                 value)}};
-        auto guards = GuardVec{};
+        auto guards = std::vector<Guard>{};
         if (lit.lhs.has_value()) {
             guards.emplace_back(lit.lhs->second, std::move(lhs));
             lhs = Util::transform(std::move(res_lhs), [](auto guard) {

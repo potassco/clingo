@@ -68,10 +68,10 @@ struct head_aggregate_element {
         return Detail::location(tuple + LEXY_LIT(":") + dsl::p<literal> + dsl::p<if_condition>);
     }();
     static constexpr auto value = lexy::callback<HeadAggregate::Element>(
-        [](Location loc, Literal lit, LiteralVec cond) {
+        [](Location loc, Literal lit, std::vector<Literal> cond) {
             return HeadAggregate::Element{std::move(loc), TermVec{}, std::move(lit), std::move(cond)};
         },
-        [](Location loc, TermVec tuple, Literal lit, LiteralVec cond) {
+        [](Location loc, TermVec tuple, Literal lit, std::vector<Literal> cond) {
             return HeadAggregate::Element{std::move(loc), std::move(tuple), std::move(lit), std::move(cond)};
         });
 };
@@ -147,9 +147,10 @@ struct head_literal {
         [](Term term, Relation rel, auto aggr) -> HeadLiteral {
             return Detail::construct_head_aggr(std::move(term), rel, std::move(aggr));
         },
-        [](Term lhs, Relation rel, Term rhs, std::optional<GuardVec> opt_guards, std::optional<LiteralVec> cond,
-           Position end, std::vector<Disjunction::Element> elems) -> HeadLiteral {
-            GuardVec guards;
+        [](Term lhs, Relation rel, Term rhs, std::optional<std::vector<Guard>> opt_guards,
+           std::optional<std::vector<Literal>> cond, Position end,
+           std::vector<Disjunction::Element> elems) -> HeadLiteral {
+            std::vector<Guard> guards;
             if (opt_guards.has_value()) {
                 guards = std::move(opt_guards).value();
             }
@@ -164,7 +165,7 @@ struct head_literal {
                          Detail::construct_disj_elem(std::move(loc_lit), std::move(rel_lit), std::move(cond)));
             return Disjunction{location(elems.front()) + location(elems.back()), std::move(elems)};
         },
-        [](Term term, std::optional<LiteralVec> cond, Position end,
+        [](Term term, std::optional<std::vector<Literal>> cond, Position end,
            std::vector<Disjunction::Element> elems) -> HeadLiteral {
             auto sym_lit = LiteralSymbolic{location(term), Sign::none, std::move(term)};
             if (elems.empty() && !cond) {

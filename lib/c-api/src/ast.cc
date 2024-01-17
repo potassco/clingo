@@ -128,6 +128,16 @@ template <class T> auto make_ast_vec(std::vector<T> const &vec) -> ASTVec {
     return res;
 }
 
+template <class T> auto make_ast_vec(Gringo::Util::immutable_vector<T> const &vec) -> ASTVec {
+    ASTVec res{vec.size()};
+    size_t i = 0;
+    for (auto const &elem : vec) {
+        res[i] = make_ast(elem).release();
+        ++i;
+    }
+    return res;
+}
+
 template <class T> auto convert_ast_vec(clingo_ast const **ast, size_t size) -> std::vector<T> {
     std::vector<T> res;
     res.reserve(size);

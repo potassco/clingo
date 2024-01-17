@@ -32,7 +32,7 @@ struct right_guard {
 struct right_guards {
     static constexpr char const *name = "guards";
     static constexpr auto rule = dsl::list(dsl::p<right_guard>);
-    static constexpr auto value = lexy::as_list<GuardVec>;
+    static constexpr auto value = lexy::as_list<std::vector<Guard>>;
 };
 
 struct atom_bool : lexy::token_production {

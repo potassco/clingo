@@ -38,27 +38,28 @@ struct condition {
         auto peek = dsl::peek_not(LEXY_ASCII_ONE_OF(".;}"));
         return colon >> dsl::opt(peek >> dsl::list(dsl::p<literal>, dsl::sep(LEXY_LIT(","))));
     }();
-    static constexpr auto value = lexy::as_list<LiteralVec>;
+    static constexpr auto value = lexy::as_list<std::vector<Literal>>;
 };
 
 struct if_condition {
     static constexpr char const *name = "condition";
     static constexpr auto rule = dsl::if_(dsl::p<condition>);
-    static constexpr auto value = lexy::construct<LiteralVec>;
+    static constexpr auto value = lexy::construct<std::vector<Literal>>;
 };
 
 struct opt_condition {
     static constexpr char const *name = "condition";
     static constexpr auto rule = dsl::if_(dsl::p<condition>);
-    static constexpr auto value = lexy::construct<std::optional<LiteralVec>>;
+    static constexpr auto value = lexy::construct<std::optional<std::vector<Literal>>>;
 };
 
 struct set_aggregate_element {
     static constexpr char const *name = "conditional literal";
     static constexpr auto rule = Detail::location(dsl::p<literal> + dsl::p<if_condition>);
-    static constexpr auto value = lexy::callback<SetAggregateElement>([](Location loc, Literal lit, LiteralVec cond) {
-        return SetAggregateElement{std::move(loc), std::move(lit), std::move(cond)};
-    });
+    static constexpr auto value =
+        lexy::callback<SetAggregateElement>([](Location loc, Literal lit, std::vector<Literal> cond) {
+            return SetAggregateElement{std::move(loc), std::move(lit), std::move(cond)};
+        });
 };
 
 static constexpr auto aggregate_right_guard = []() {

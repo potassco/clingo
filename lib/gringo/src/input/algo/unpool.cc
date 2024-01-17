@@ -188,27 +188,31 @@ struct Unpool {
     }
 
     auto operator()(GuardVec const &guards) const -> std::optional<std::vector<GuardVec>> {
-        return unpool_crossproduct(guards, [this](Guard const &guard) {
-            return Util::transform_vec(operator()(guard.second), [&guard](auto term) {
-                return Guard{guard.first, std::move(term)};
-            });
-        });
+        return Util::transform_vec(
+            unpool_crossproduct(guards,
+                                [this](Guard const &guard) {
+                                    return Util::transform_vec(operator()(guard.second), [&guard](auto term) {
+                                        return Guard{guard.first, std::move(term)};
+                                    });
+                                }),
+            [](auto vec) { return GuardVec{std::move(vec)}; });
     }
 
     // literal
 
-    auto operator()(Literal const &lit) const -> std::optional<LiteralVec> { return std::visit(*this, lit); }
+    auto operator()(Literal const &lit) const -> std::optional<std::vector<Literal>> { return std::visit(*this, lit); }
 
     auto operator()(LiteralVec const &lits) const -> std::optional<std::vector<LiteralVec>> {
-        return unpool_crossproduct(lits, *this);
+        return Util::transform_vec(unpool_crossproduct(lits, *this),
+                                   [](auto vec) { return LiteralVec{std::move(vec)}; });
     }
 
-    auto operator()(LiteralBoolean const &lit) const -> std::optional<LiteralVec> {
+    auto operator()(LiteralBoolean const &lit) const -> std::optional<std::vector<Literal>> {
         static_cast<void>(lit);
         return std::nullopt;
     }
 
-    auto operator()(LiteralRelation const &lit) const -> std::optional<LiteralVec> {
+    auto operator()(LiteralRelation const &lit) const -> std::optional<std::vector<Literal>> {
         return unpool_crossproducts(
             [&lit](auto lhs, auto rhs) -> Literal {
                 return LiteralRelation{lit.loc, lit.sign, std::move(lhs), std::move(rhs)};
@@ -216,7 +220,7 @@ struct Unpool {
             *this, lit.lhs, lit.rhs);
     }
 
-    auto operator()(LiteralSymbolic const &lit) const -> std::optional<LiteralVec> {
+    auto operator()(LiteralSymbolic const &lit) const -> std::optional<std::vector<Literal>> {
         return Util::transform_vec(operator()(lit.term), [&lit](auto term) -> Literal {
             return LiteralSymbolic{lit.loc, lit.sign, std::move(term)};
         });
@@ -262,18 +266,21 @@ struct Unpool {
                                              : (SimplifyLiteralFlags::matchable | SimplifyLiteralFlags::unfailable),
                                      ctx, lit);
             lit = res_simp.value.value_or(std::move(lit));
+            auto res_cond = Util::ResultVec{unpooled.cond};
+            res_cond.keep_all();
             for (auto &[lhs, rhs] : ctx.aux()) {
                 auto loc = location(lhs);
                 auto rel = LiteralRelation{loc, Sign::none, std::move(lhs),
                                            Util::make_vec<Guard>(Guard{Relation::equal, std::move(rhs)})};
-                unpooled.cond.emplace_back(std::move(rel));
+
+                res_cond.append(std::move(rel));
             }
             auto tuple = to_tuple(elem.lit, lit);
             if constexpr (HasSign) {
-                unpooled.cond.emplace_back(std::move(lit));
-                elems.emplace_back(elem.loc, std::move(tuple), std::move(unpooled.cond));
+                res_cond.append(std::move(lit));
+                elems.emplace_back(elem.loc, std::move(tuple), std::move(res_cond).value());
             } else {
-                elems.emplace_back(elem.loc, std::move(tuple), std::move(lit), std::move(unpooled.cond));
+                elems.emplace_back(elem.loc, std::move(tuple), std::move(lit), std::move(res_cond).value());
             }
         };
         if (set_elems.has_value()) {

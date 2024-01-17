@@ -81,6 +81,12 @@ template <class T> auto to_str(std::optional<T> const &value) -> std::string {
     return "<failed>";
 }
 
+template <class T> auto to_str(Util::immutable_vector<T> const &value, char const *sep = ", ") -> std::string {
+    std::ostringstream oss;
+    oss << "[" << Util::p_range(value, sep) << "]";
+    return oss.str();
+}
+
 template <class T> auto to_str(std::vector<T> const &value, char const *sep = ", ") -> std::string {
     std::ostringstream oss;
     oss << "[" << Util::p_range(value, sep) << "]";

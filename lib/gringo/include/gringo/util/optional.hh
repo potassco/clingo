@@ -161,6 +161,13 @@ template <class T> class ResultVec {
         }
         ++current_;
     }
+    //! Keep all elements.
+    void keep_all() {
+        if (result_) {
+            result_->insert(result_->end(), current_, source_.end());
+        }
+        current_ = source_.end();
+    }
     //! Remove the current element.
     void remove() {
         if (!result_) {

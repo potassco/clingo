@@ -2,11 +2,11 @@
 
 #include <memory>
 #include <optional>
-#include <string>
 #include <typeinfo>
 #include <variant>
 #include <vector>
 
+#include <gringo/util/immutable_vector.hh>
 #include <gringo/util/shared_ptr.hh>
 
 namespace Gringo::Util {
@@ -211,6 +211,18 @@ template <class T> struct value_hasher<std::vector<T>> {
     //! Operator to compute the hash.
     auto operator()(std::vector<T> const &value) const -> size_t {
         size_t hash = typeid(std::vector<T>).hash_code();
+        for (auto const &elem : value) {
+            hash = hash_combine({hash, value_hasher<T>{}(elem)});
+        }
+        return hash;
+    }
+};
+
+//! Compute the hash of a vector.
+template <class T> struct value_hasher<Util::immutable_vector<T>> {
+    //! Operator to compute the hash.
+    auto operator()(Util::immutable_vector<T> const &value) const -> size_t {
+        size_t hash = typeid(Util::immutable_vector<T>).hash_code();
         for (auto const &elem : value) {
             hash = hash_combine({hash, value_hasher<T>{}(elem)});
         }

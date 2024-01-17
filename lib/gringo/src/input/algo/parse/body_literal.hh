@@ -22,7 +22,7 @@ inline auto construct_body_aggr(Term term, Relation rel, BodySetAggregate aggr) 
     return aggr;
 }
 
-auto construct_conjunction(Literal lit, std::optional<LiteralVec> cond, Position end) -> BodyLiteral {
+auto construct_conjunction(Literal lit, std::optional<std::vector<Literal>> cond, Position end) -> BodyLiteral {
     if (!cond) {
         return lit;
     }
@@ -38,10 +38,10 @@ struct body_aggregate_element {
         return Detail::location(dsl::if_(peek >> dsl::p<term_list>) + dsl::p<if_condition>);
     }();
     static constexpr auto value = lexy::callback<BodyAggregate::Element>(
-        [](Location loc, LiteralVec cond) {
+        [](Location loc, std::vector<Literal> cond) {
             return BodyAggregate::Element{std::move(loc), TermVec{}, std::move(cond)};
         },
-        [](Location loc, TermVec tuple, LiteralVec cond) {
+        [](Location loc, TermVec tuple, std::vector<Literal> cond) {
             return BodyAggregate::Element{std::move(loc), std::move(tuple), std::move(cond)};
         });
 };
@@ -116,9 +116,9 @@ struct body_atom : lexy::transparent_production {
         [](Term term, Relation rel, auto aggr) {
             return Detail::construct_body_aggr(std::move(term), rel, std::move(aggr));
         },
-        [](Term lhs, Relation rel, Term rhs, std::optional<GuardVec> opt_guards, std::optional<LiteralVec> cond,
-           Position end) {
-            GuardVec guards;
+        [](Term lhs, Relation rel, Term rhs, std::optional<GuardVec> opt_guards,
+           std::optional<std::vector<Literal>> cond, Position end) {
+            std::vector<Guard> guards;
             if (opt_guards.has_value()) {
                 guards = std::move(opt_guards).value();
             }
@@ -127,10 +127,10 @@ struct body_atom : lexy::transparent_production {
             auto lit = LiteralRelation{loc, Sign::none, std::move(lhs), std::move(guards)};
             return Detail::construct_conjunction(std::move(lit), std::move(cond), std::move(end));
         },
-        [](Literal lit, std::optional<LiteralVec> cond, Position end) -> BodyLiteral {
+        [](Literal lit, std::optional<std::vector<Literal>> cond, Position end) -> BodyLiteral {
             return Detail::construct_conjunction(std::move(lit), std::move(cond), std::move(end));
         },
-        [](Term term, std::optional<LiteralVec> cond, Position end) {
+        [](Term term, std::optional<std::vector<Literal>> cond, Position end) {
             auto loc = location(term);
             auto lit = LiteralSymbolic{loc, Sign::none, std::move(term)};
             return Detail::construct_conjunction(std::move(lit), std::move(cond), std::move(end));
