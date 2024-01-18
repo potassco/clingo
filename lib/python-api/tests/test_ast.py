@@ -168,6 +168,32 @@ class TestAST(TestCase):
         self.assertFalse(q.external)
         self.assertEqual(str(p), "@f(1,2;3,*)")
 
+    def test_theory_variable(self):
+        """
+        Test theory variable terms.
+        """
+        x = ast.TheoryTermVariable(self.lib, self.loc, "X", False)
+        a = ast.TheoryTermVariable(self.lib, self.loc, "_", True)
+
+        self.assertEqual(x.location, self.loc)
+        self.assertEqual(x.name, "X")
+        self.assertFalse(x.anonymous)
+        self.assertEqual(a.name, "_")
+        self.assertTrue(a.anonymous)
+        self.assertEqual(str(x), "X")
+        self.assertEqual(str(a), "_")
+
+    def test_theory_symbol(self):
+        """
+        Test theory_symbolic term.
+        """
+        s = parse_term(self.lib, "f(1,2)")
+        p = ast.TheoryTermSymbolic(self.lib, self.loc, s)
+
+        self.assertEqual(p.location, self.loc)
+        self.assertEqual(p.symbol, s)
+        self.assertEqual(str(p), "f(1,2)")
+
     def test_boolean(self):
         """
         Test Boolean literal.

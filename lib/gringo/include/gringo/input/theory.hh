@@ -37,6 +37,16 @@ struct TheoryTermSymbol {
     Symbol value;
 };
 
+//! Compare two theory terms.
+//!
+//! @related TheoryTermSymbol
+auto operator==(TheoryTermSymbol const &a, TheoryTermSymbol const &b) -> bool;
+
+//! Compare two theory terms.
+//!
+//! @related TheoryTermSymbol
+auto operator<(TheoryTermSymbol const &a, TheoryTermSymbol const &b) -> bool;
+
 //! A variable theory term.
 //!
 //! For example: <tt>X</tt>.
@@ -52,6 +62,16 @@ struct TheoryTermVariable {
     //! Whether the variable is anonymous.
     bool is_anonymous;
 };
+
+//! Compare two theory terms.
+//!
+//! @related TheoryTermVariable
+auto operator==(TheoryTermVariable const &a, TheoryTermVariable const &b) -> bool;
+
+//! Compare two theory terms.
+//!
+//! @related TheoryTermVariable
+auto operator<(TheoryTermVariable const &a, TheoryTermVariable const &b) -> bool;
 
 //! Enumeration of theory term tuple types.
 //!
@@ -77,6 +97,16 @@ struct TheoryTermTuple {
     TheoryTermVec elems;
 };
 
+//! Compare two theory terms.
+//!
+//! @related TheoryTermTuple
+auto operator==(TheoryTermTuple const &a, TheoryTermTuple const &b) -> bool;
+
+//! Compare two theory terms.
+//!
+//! @related TheoryTermTuple
+auto operator<(TheoryTermTuple const &a, TheoryTermTuple const &b) -> bool;
+
 //! A tuple (set or list) theory term.
 //!
 //! For example: <tt>{f(X,y), Z}</tt>.
@@ -93,6 +123,16 @@ struct TheoryTermFunction {
     //! The arguments of the function.
     TheoryTermVec args;
 };
+
+//! Compare two theory terms.
+//!
+//! @related TheoryTermFunction
+auto operator==(TheoryTermFunction const &a, TheoryTermFunction const &b) -> bool;
+
+//! Compare two theory terms.
+//!
+//! @related TheoryTermFunction
+auto operator<(TheoryTermFunction const &a, TheoryTermFunction const &b) -> bool;
 
 //! An unparsed theory term.
 //!
@@ -120,6 +160,16 @@ struct TheoryTermUnparsed {
     ElementVec elems;
 };
 
+//! Compare two theory terms.
+//!
+//! @related TheoryTermUnparsed
+auto operator==(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> bool;
+
+//! Compare two theory terms.
+//!
+//! @related TheoryTermUnparsed
+auto operator<(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> bool;
+
 inline TheoryTermTuple::TheoryTermTuple(Location loc, TheoryTermTupleType type, TheoryTermVec elems)
     : loc{std::move(loc)}, type(type), elems{std::move(elems)} {}
 inline TheoryTermFunction::TheoryTermFunction(Location loc, String name)
@@ -143,6 +193,16 @@ struct TheoryElement {
 };
 //! A vector of theory atom elements.
 using TheoryElementVec = Util::immutable_vector<TheoryElement>;
+
+//! Compare two theory elements.
+//!
+//! @related TheoryElement
+auto operator==(TheoryElement const &a, TheoryElement const &b) -> bool;
+
+//! Compare two theory elements.
+//!
+//! @related TheoryElement
+auto operator<(TheoryElement const &a, TheoryElement const &b) -> bool;
 
 //! A theory atom.
 //!
@@ -170,6 +230,16 @@ template <bool HasSign> struct TheoryAtom : std::conditional_t<HasSign, Signed, 
     TheoryRGuard rhs;
 };
 
+//! Compare two theory atoms.
+//!
+//! @related TheoryAtom
+template <bool HasSign> auto operator==(TheoryAtom<HasSign> const &a, TheoryAtom<HasSign> const &b) -> bool;
+
+//! Compare two theory atoms.
+//!
+//! @related TheoryAtom
+template <bool HasSign> auto operator<(TheoryAtom<HasSign> const &a, TheoryAtom<HasSign> const &b) -> bool;
+
 //! @}
 
 } // namespace Gringo::Input
@@ -181,5 +251,11 @@ GRINGO_HASH_PROTO(Gringo::Input::TheoryTermSymbol);
 GRINGO_HASH_PROTO(Gringo::Input::TheoryTermFunction);
 GRINGO_HASH_PROTO(Gringo::Input::TheoryTermTuple);
 GRINGO_HASH_PROTO(Gringo::Input::TheoryTermUnparsed);
+GRINGO_HASH_PROTO(Gringo::Input::TheoryElement);
+namespace Gringo::Util {
+template <bool HasSign> struct value_hasher<Gringo::Input::TheoryAtom<HasSign>> {
+    auto operator()(Gringo::Input::TheoryAtom<HasSign> const &x) const -> size_t;
+};
+} // namespace Gringo::Util
 
 #endif

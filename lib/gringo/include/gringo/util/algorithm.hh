@@ -38,6 +38,17 @@ template <class Vec, class Pred> auto erase_if(Vec &vec, Pred pred) -> size_t {
     return n;
 }
 
+template <class T> class LexCmp {
+  public:
+    LexCmp(T const &rng) : rng{rng} {}
+    friend auto operator<(LexCmp const &a, LexCmp const &b) -> bool {
+        return std::lexicographical_compare(a.rng.begin(), a.rng.end(), b.rng.begin(), b.rng.end());
+    }
+
+  private:
+    T const &rng;
+};
+
 //! Helper template to ease using std::visit.
 #define GRINGO_IS_INSTANCE(x, T) std::is_same_v<std::decay_t<decltype(x)>, T>
 

@@ -18,12 +18,6 @@ class ASTVec;
 
 using Owner = Gringo::Util::shared_ptr<std::any>;
 
-/*
-static_assert(sizeof(Gringo::Input::Location) == 6*8);
-static_assert(sizeof(Gringo::Input::Statement) == 392);
-static_assert(sizeof(Gringo::Input::Term) == 80);
-*/
-
 // TODO
 [[maybe_unused]] auto make_ast(Owner const &owner, Gringo::Input::LGuard::value_type const &guard)
     -> std::unique_ptr<clingo_ast_t>;
@@ -31,6 +25,7 @@ auto make_ast(Owner const &owner, Gringo::Input::RGuard::value_type const &guard
 auto make_ast(Owner const &owner, Gringo::Input::Term const &term) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::TupleVec const &tuple) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::TermTuple::Element const &elem) -> std::unique_ptr<clingo_ast_t>;
+auto make_ast(Owner const &owner, Gringo::Input::Literal const &lit) -> std::unique_ptr<clingo_ast_t>;
 // TODO
 [[maybe_unused]] auto make_ast(Owner const &owner, Gringo::Input::TupleElem const &elem)
     -> std::unique_ptr<clingo_ast_t>;
@@ -252,6 +247,22 @@ auto make_ast(Owner const &owner, Gringo::Input::TermTuple::Element const &elem)
         elem);
 }
 
+auto make_ast(Owner const &owner, Gringo::Input::Literal const &lit) -> std::unique_ptr<clingo_ast_t> {
+    return std::visit(
+        [&owner](auto const &x) {
+            GRINGO_MATCH(x, Gringo::Input::LiteralBoolean) {
+                return std::make_unique<clingo_ast>(owner, clingo_ast_type_literal_boolean, &x);
+            }
+            GRINGO_MATCH(x, Gringo::Input::LiteralSymbolic) {
+                return std::make_unique<clingo_ast>(owner, clingo_ast_type_literal_symbolic, &x);
+            }
+            GRINGO_MATCH(x, Gringo::Input::LiteralRelation) {
+                return std::make_unique<clingo_ast>(owner, clingo_ast_type_literal_comparison, &x);
+            }
+        },
+        lit);
+}
+
 template <class T, class... A> auto construct_ast(clingo_ast_type_t type, A &&...args) -> clingo_ast * {
     auto owner = Gringo::Util::construct_shared<std::any>(T{std::forward<A>(args)...});
     auto *ptr = std::any_cast<T>(owner.get());
@@ -353,6 +364,17 @@ auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<
             }
             break;
         }
+        case clingo_ast_type_theory_term_variable: {
+            switch (attr) {
+                case clingo_ast_attribute_anonymous: {
+                    return static_cast<int>(cast<TheoryTermVariable>().is_anonymous);
+                }
+                default: {
+                    break;
+                }
+            }
+            break;
+        }
         case clingo_ast_type_term_function: {
             switch (attr) {
                 case clingo_ast_attribute_external: {
@@ -442,6 +464,16 @@ auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<
                 }
             }
         }
+        case clingo_ast_type_theory_term_symbolic: {
+            switch (attr) {
+                case clingo_ast_attribute_symbol: {
+                    return static_cast<clingo_symbol_t>(Gringo::Symbol::to_rep(cast<TheoryTermSymbol>().value));
+                }
+                default: {
+                    return std::nullopt;
+                }
+            }
+        }
         default: {
             return std::nullopt;
         }
@@ -455,6 +487,17 @@ auto clingo_ast::get_string(clingo_ast_attribute_t attr) const -> std::optional<
             switch (attr) {
                 case clingo_ast_attribute_name: {
                     return cast<TermVariable>().name.c_str();
+                }
+                default: {
+                    break;
+                }
+            }
+            break;
+        }
+        case clingo_ast_type_theory_term_variable: {
+            switch (attr) {
+                case clingo_ast_attribute_name: {
+                    return cast<TheoryTermVariable>().name.c_str();
                 }
                 default: {
                     break;
@@ -615,15 +658,15 @@ auto clingo_ast::hash() const -> size_t {
 }
 
 auto clingo_ast::equal_to(clingo_ast_t const &other) const -> bool {
-    static_cast<void>(this);
-    static_cast<void>(other);
-    throw std::logic_error("implement me!!!");
+    return type_ == other.type_ &&
+           visit([&other](auto const &x) { return x == other.cast<std::decay_t<decltype(x)>>(); });
 }
 
 auto clingo_ast::less_than(clingo_ast_t const &other) const -> bool {
-    static_cast<void>(this);
-    static_cast<void>(other);
-    throw std::logic_error("implement me!!!");
+    if (type_ != other.type_) {
+        return type_ < other.type_;
+    }
+    return visit([&other](auto const &x) { return x < other.cast<std::decay_t<decltype(x)>>(); });
 }
 
 template <> [[nodiscard]] auto clingo_ast::convert<Gringo::Input::Term>() const -> Gringo::Input::Term {
@@ -650,7 +693,7 @@ template <> [[nodiscard]] auto clingo_ast::convert<Gringo::Input::Term>() const 
             return cast<Gringo::Input::TermBinary>();
         }
         default: {
-            throw std::logic_error("term expected");
+            throw std::runtime_error("term expected");
         }
     }
 }
@@ -666,7 +709,7 @@ template <> [[nodiscard]] auto clingo_ast::convert<Gringo::Input::TupleVec>() co
     if (type_ == clingo_ast_type_argument_tuple) {
         return cast<Gringo::Input::TupleVec>();
     }
-    throw std::logic_error("argument tuple expected");
+    throw std::runtime_error("argument tuple expected");
 }
 
 template <>
@@ -682,7 +725,7 @@ template <>
     if (type_ == clingo_ast_type_left_guard) {
         return cast<Gringo::Input::LGuard::value_type>();
     }
-    throw std::logic_error("left guard expected");
+    throw std::runtime_error("left guard expected");
 }
 
 template <>
@@ -690,417 +733,8 @@ template <>
     if (type_ == clingo_ast_type_right_guard) {
         return cast<Gringo::Input::RGuard::value_type>();
     }
-    throw std::logic_error("right guard expected");
+    throw std::runtime_error("right guard expected");
 }
-
-/*
-namespace {
-
-class ASTProjection : public clingo_ast {
-  public:
-    ASTProjection(Gringo::Input::Projection projection) : projection_{std::move(projection)} {}
-    [[nodiscard]] auto copy() const -> std::unique_ptr<clingo_ast_t> override {
-        return std::make_unique<ASTProjection>(projection_);
-    }
-    void print(std::ostream &out) const override { out << "*"; }
-    [[nodiscard]] auto get_location(clingo_ast_attribute_t attr) const -> std::optional<clingo_location_t> override {
-        if (attr == clingo_ast_attribute_location) {
-            return convert_loc(projection_.loc);
-        }
-        return std::nullopt;
-    }
-
-    [[nodiscard]] auto equal_to(clingo_ast_t const &other) const -> bool override {
-        return dynamic_cast<ASTProjection const *>(&other) != nullptr;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t override { return typeid(projection_).hash_code(); }
-
-    [[nodiscard]] auto less_than(clingo_ast_t const &other) const -> bool override {
-        return get_type() < other.get_type();
-    }
-    template <class T> friend auto convert_ast(clingo_ast const *ast) -> T;
-
-  private:
-    Gringo::Input::Projection projection_;
-};
-
-class ASTTerm : public clingo_ast {
-  public:
-    ASTTerm(Gringo::Input::Term term) : term{std::move(term)} {}
-    [[nodiscard]] auto copy() const -> std::unique_ptr<clingo_ast_t> override {
-        return std::make_unique<ASTTerm>(term);
-    }
-    void print(std::ostream &out) const override { out << term; }
-    [[nodiscard]] auto get_type() const -> clingo_ast_type_e override { return std::visit(GetType{}, term); }
-    [[nodiscard]] auto get_number(clingo_ast_attribute_t attr) const -> std::optional<int> override {
-        return std::visit(GetNumber{attr}, term);
-    }
-    [[nodiscard]] auto get_symbol(clingo_ast_attribute_t attr) const -> std::optional<clingo_symbol_t> override {
-        return std::visit(GetSymbol{attr}, term);
-    }
-    [[nodiscard]] auto get_location(clingo_ast_attribute_t attr) const -> std::optional<clingo_location_t> override {
-        if (attr == clingo_ast_attribute_location) {
-            return convert_loc(location(term));
-        }
-        return std::nullopt;
-    }
-    [[nodiscard]] auto get_string(clingo_ast_attribute_t attr) const -> std::optional<char const *> override {
-        return std::visit(GetString{attr}, term);
-    }
-    [[nodiscard]] auto get_ast(clingo_ast_attribute_t attr) const
-        -> std::optional<std::unique_ptr<clingo_ast_t>> override {
-        return std::visit(GetAST{attr}, term);
-    }
-    [[nodiscard]] auto get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional<ASTVec> override {
-        return std::visit(GetASTVec{attr}, term);
-    }
-
-    [[nodiscard]] auto hash() const -> size_t override { return Gringo::Util::value_hash(term); }
-
-    [[nodiscard]] auto equal_to(clingo_ast_t const &other) const -> bool override {
-        auto const *b = dynamic_cast<ASTTerm const *>(&other);
-        if (b == nullptr) {
-            return false;
-        }
-        return term == b->term;
-    }
-
-    [[nodiscard]] auto less_than(clingo_ast_t const &other) const -> bool override {
-        auto t_a = get_type();
-        auto t_b = other.get_type();
-        if (t_a != t_b) {
-            return t_a < t_b;
-        }
-        return term < static_cast<ASTTerm const &>(other).term;
-    }
-
-    template <class T> friend auto convert_ast(clingo_ast const *ast) -> T;
-
-  private:
-    Gringo::Input::Term term;
-};
-
-template <> auto convert_ast<Gringo::Input::Term>(clingo_ast const *ast) -> Gringo::Input::Term {
-    if (auto const *res = dynamic_cast<ASTTerm const *>(ast); res != nullptr) {
-        return res->term;
-    }
-    throw std::runtime_error("invalid type: term expected");
-}
-
-template <>
-auto convert_ast<Gringo::Util::shared_ptr<Gringo::Input::Term>>(clingo_ast const *ast)
-    -> Gringo::Util::shared_ptr<Gringo::Input::Term> {
-    return Gringo::Util::construct_shared<Gringo::Input::Term>(convert_ast<Gringo::Input::Term>(ast));
-}
-
-class ASTArgumentTuple : public clingo_ast {
-  public:
-    ASTArgumentTuple(ASTVec tuple) : tuple_{std::move(tuple)} {}
-    [[nodiscard]] auto copy() const -> std::unique_ptr<clingo_ast_t> override {
-        return std::make_unique<ASTArgumentTuple>(tuple_);
-    }
-    void print(std::ostream &out) const override {
-        bool comma = false;
-        for (auto &term : tuple_) {
-            if (comma) {
-                out << ",";
-            } else {
-                comma = true;
-            }
-            out << term;
-        }
-    }
-    [[nodiscard]] auto get_type() const -> clingo_ast_type_e override { return clingo_ast_type_argument_tuple; }
-
-    [[nodiscard]] auto hash() const -> size_t override {
-        size_t hash = typeid(ASTArgumentTuple).hash_code();
-        for (auto const *elem : tuple_) {
-            hash = Gringo::Util::hash_combine({hash, elem->hash()});
-        }
-        return hash;
-    }
-
-    [[nodiscard]] auto equal_to(clingo_ast_t const &other) const -> bool override {
-        auto const *b = dynamic_cast<ASTArgumentTuple const *>(&other);
-        if (b == nullptr) {
-            return false;
-        }
-        return std::equal(tuple_.begin(), tuple_.end(), b->tuple_.begin(), b->tuple_.end(),
-                          [](auto const *a, auto const *b) { return a->equal_to(*b); });
-    }
-
-    [[nodiscard]] auto less_than(clingo_ast_t const &other) const -> bool override {
-        auto t_a = get_type();
-        auto t_b = other.get_type();
-        if (t_a != t_b) {
-            return t_a < t_b;
-        }
-        auto const &b = static_cast<ASTArgumentTuple const &>(other);
-        return std::lexicographical_compare(tuple_.begin(), tuple_.end(), b.tuple_.begin(), b.tuple_.end(),
-                                            [](auto const *a, auto const *b) { return a->less_than(*b); });
-    }
-
-    template <class T> friend auto convert_ast(clingo_ast const *ast) -> T;
-
-  private:
-    ASTVec tuple_;
-};
-
-template <> auto convert_ast<Gringo::Input::TupleVec>(clingo_ast const *ast) -> Gringo::Input::TupleVec {
-    if (auto const *res = dynamic_cast<ASTArgumentTuple const *>(ast); res != nullptr) {
-        std::vector<Gringo::Input::TupleElem> tuple;
-        tuple.reserve(res->tuple_.size());
-        for (auto const *elem : res->tuple_) {
-            if (auto const *projection = dynamic_cast<ASTProjection const *>(elem)) {
-                tuple.emplace_back(projection->projection_);
-            } else {
-                tuple.emplace_back(convert_ast<Gringo::Input::Term>(elem));
-            }
-        }
-        return tuple;
-    }
-    throw std::runtime_error("invalid type: argument tuple expected");
-}
-
-template <>
-auto convert_ast<Gringo::Input::TermTuple::Element>(clingo_ast const *ast) -> Gringo::Input::TermTuple::Element {
-    if (auto const *res = dynamic_cast<ASTTerm const *>(ast); res != nullptr) {
-        return res->term;
-    }
-    return convert_ast<Gringo::Input::TupleVec>(ast);
-}
-
-class ASTLGuard : public clingo_ast {
-  public:
-    ASTLGuard(Gringo::Input::LGuard::value_type guard) : guard_{std::move(guard)} {}
-    [[nodiscard]] auto copy() const -> std::unique_ptr<clingo_ast_t> override {
-        return std::make_unique<ASTLGuard>(guard_);
-    }
-    void print(std::ostream &out) const override { out << guard_.first << " " << guard_.second; }
-    [[nodiscard]] auto get_type() const -> clingo_ast_type_e override { return clingo_ast_type_left_guard; }
-    [[nodiscard]] auto get_ast(clingo_ast_attribute_t attr) const
-        -> std::optional<std::unique_ptr<clingo_ast_t>> override {
-        if (attr == clingo_ast_attribute_term) {
-            return make_ast(guard_.first);
-        }
-        return std::nullopt;
-    }
-    [[nodiscard]] auto get_number(clingo_ast_attribute_t attr) const -> std::optional<int> override {
-        if (attr == clingo_ast_attribute_relation) {
-            return static_cast<int>(guard_.second);
-        }
-        return std::nullopt;
-    }
-
-    [[nodiscard]] auto equal_to(clingo_ast_t const &other) const -> bool override {
-        auto const *x = dynamic_cast<ASTLGuard const *>(&other);
-        return x != nullptr && guard_ == x->guard_;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t override {
-        return Gringo::Util::value_hash(typeid(ASTLGuard).hash_code(), guard_);
-    }
-
-    [[nodiscard]] auto less_than(clingo_ast_t const &other) const -> bool override {
-        auto t_a = get_type();
-        auto t_b = other.get_type();
-        if (t_a != t_b) {
-            return t_a < t_b;
-        }
-        return guard_ < static_cast<ASTLGuard const &>(other).guard_;
-    }
-    template <class T> friend auto convert_ast(clingo_ast const *ast) -> T;
-
-  private:
-    Gringo::Input::LGuard::value_type guard_;
-};
-
-template <>
-[[maybe_unused]] auto convert_ast<Gringo::Input::LGuard::value_type>(clingo_ast const *ast)
-    -> Gringo::Input::LGuard::value_type {
-    if (auto const *res = dynamic_cast<ASTLGuard const *>(ast); res != nullptr) {
-        return res->guard_;
-    }
-    throw std::runtime_error("invalid type: left guard expected");
-}
-
-class ASTRGuard : public clingo_ast {
-  public:
-    ASTRGuard(Gringo::Input::RGuard::value_type guard) : guard_{std::move(guard)} {}
-    [[nodiscard]] auto copy() const -> std::unique_ptr<clingo_ast_t> override {
-        return std::make_unique<ASTRGuard>(guard_);
-    }
-    void print(std::ostream &out) const override { out << guard_.first << " " << guard_.second; }
-    [[nodiscard]] auto get_type() const -> clingo_ast_type_e override { return clingo_ast_type_right_guard; }
-    [[nodiscard]] auto get_ast(clingo_ast_attribute_t attr) const
-        -> std::optional<std::unique_ptr<clingo_ast_t>> override {
-        if (attr == clingo_ast_attribute_term) {
-            return make_ast(guard_.second);
-        }
-        return std::nullopt;
-    }
-    [[nodiscard]] auto get_number(clingo_ast_attribute_t attr) const -> std::optional<int> override {
-        if (attr == clingo_ast_attribute_relation) {
-            return static_cast<int>(guard_.first);
-        }
-        return std::nullopt;
-    }
-
-    [[nodiscard]] auto equal_to(clingo_ast_t const &other) const -> bool override {
-        auto const *x = dynamic_cast<ASTRGuard const *>(&other);
-        return x != nullptr && guard_ == x->guard_;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t override {
-        return Gringo::Util::value_hash(typeid(ASTRGuard).hash_code(), guard_);
-    }
-
-    [[nodiscard]] auto less_than(clingo_ast_t const &other) const -> bool override {
-        auto t_a = get_type();
-        auto t_b = other.get_type();
-        if (t_a != t_b) {
-            return t_a < t_b;
-        }
-        return guard_ < static_cast<ASTRGuard const &>(other).guard_;
-    }
-    template <class T> friend auto convert_ast(clingo_ast const *ast) -> T;
-
-  private:
-    Gringo::Input::RGuard::value_type guard_;
-};
-
-template <>
-auto convert_ast<Gringo::Input::RGuard::value_type>(clingo_ast const *ast) -> Gringo::Input::RGuard::value_type {
-    if (auto const *res = dynamic_cast<ASTRGuard const *>(ast); res != nullptr) {
-        return res->guard_;
-    }
-    throw std::runtime_error("invalid type: right guard expected");
-}
-
-class ASTLiteral : public clingo_ast {
-  public:
-    ASTLiteral(Gringo::Input::Literal literal) : literal{std::move(literal)} {}
-    [[nodiscard]] auto copy() const -> std::unique_ptr<clingo_ast_t> override {
-        return std::make_unique<ASTLiteral>(literal);
-    }
-    void print(std::ostream &out) const override { out << literal; }
-    [[nodiscard]] auto get_type() const -> clingo_ast_type_e override { return std::visit(GetType{}, literal); }
-    [[nodiscard]] auto get_number(clingo_ast_attribute_t attr) const -> std::optional<int> override {
-        return std::visit(GetNumber{attr}, literal);
-    }
-    [[nodiscard]] auto get_symbol(clingo_ast_attribute_t attr) const -> std::optional<clingo_symbol_t> override {
-        return std::visit(GetSymbol{attr}, literal);
-    }
-    [[nodiscard]] auto get_location(clingo_ast_attribute_t attr) const -> std::optional<clingo_location_t> override {
-        if (attr == clingo_ast_attribute_location) {
-            return convert_loc(location(literal));
-        }
-        return std::nullopt;
-    }
-    [[nodiscard]] auto get_string(clingo_ast_attribute_t attr) const -> std::optional<char const *> override {
-        return std::visit(GetString{attr}, literal);
-    }
-    [[nodiscard]] auto get_ast(clingo_ast_attribute_t attr) const
-        -> std::optional<std::unique_ptr<clingo_ast_t>> override {
-        return std::visit(GetAST{attr}, literal);
-    }
-    [[nodiscard]] auto get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional<ASTVec> override {
-        return std::visit(GetASTVec{attr}, literal);
-    }
-
-    [[nodiscard]] auto hash() const -> size_t override { return Gringo::Util::value_hash(literal); }
-
-    [[nodiscard]] auto equal_to(clingo_ast_t const &other) const -> bool override {
-        auto const *b = dynamic_cast<ASTLiteral const *>(&other);
-        if (b == nullptr) {
-            return false;
-        }
-        return literal == b->literal;
-    }
-
-    [[nodiscard]] auto less_than(clingo_ast_t const &other) const -> bool override {
-        auto t_a = get_type();
-        auto t_b = other.get_type();
-        if (t_a != t_b) {
-            return t_a < t_b;
-        }
-        return literal < static_cast<ASTLiteral const &>(other).literal;
-    }
-
-    template <class T> friend auto convert_ast(clingo_ast const *ast) -> T;
-
-  private:
-    Gringo::Input::Literal literal;
-};
-
-// TODO: remove attribute once used
-template <> [[maybe_unused]] auto convert_ast<Gringo::Input::Literal>(clingo_ast const *ast) -> Gringo::Input::Literal {
-    if (auto const *res = dynamic_cast<ASTLiteral const *>(ast); res != nullptr) {
-        return res->literal;
-    }
-    throw std::runtime_error("invalid type: literal expected");
-}
-
-auto make_ast(Gringo::Input::Term const &term) -> std::unique_ptr<clingo_ast_t> {
-    return std::make_unique<ASTTerm>(term);
-}
-
-auto make_ast(Gringo::Input::TupleVec const &tuple) -> std::unique_ptr<clingo_ast_t> {
-    ASTVec res{tuple.size()};
-    size_t i = 0;
-    for (auto const &term_or_projection : tuple) {
-        if (auto const *term = std::get_if<Gringo::Input::Term>(&term_or_projection); term != nullptr) {
-            res[i] = make_ast(*term).release();
-        } else {
-            res[i] = std::make_unique<ASTProjection>(std::get<Gringo::Input::Projection>(term_or_projection)).release();
-        }
-        ++i;
-    }
-    return std::make_unique<ASTArgumentTuple>(std::move(res));
-}
-
-auto make_ast(Gringo::Input::TermTuple::Element const &term_or_tuple) -> std::unique_ptr<clingo_ast_t> {
-    return std::visit([](auto const &x) { return make_ast(x); }, term_or_tuple);
-}
-
-// TODO
-[[maybe_unused]] auto make_ast(Gringo::Input::LGuard::value_type const &guard) -> std::unique_ptr<clingo_ast_t> {
-    return std::make_unique<ASTLGuard>(guard);
-}
-
-auto make_ast(Gringo::Input::RGuard::value_type const &guard) -> std::unique_ptr<clingo_ast_t> {
-    return std::make_unique<ASTRGuard>(guard);
-}
-
-}; // namespace
-
-auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<int> {
-    static_cast<void>(attr);
-    return std::nullopt;
-}
-auto clingo_ast::get_symbol(clingo_ast_attribute_t attr) const -> std::optional<clingo_symbol_t> {
-    static_cast<void>(attr);
-    return std::nullopt;
-}
-auto clingo_ast::get_location(clingo_ast_attribute_t attr) const -> std::optional<clingo_location_t> {
-    static_cast<void>(attr);
-    return std::nullopt;
-}
-auto clingo_ast::get_string(clingo_ast_attribute_t attr) const -> std::optional<char const *> {
-    static_cast<void>(attr);
-    return std::nullopt;
-}
-auto clingo_ast::get_ast(clingo_ast_attribute_t attr) const -> std::optional<std::unique_ptr<clingo_ast_t>> {
-    static_cast<void>(attr);
-    return std::nullopt;
-}
-auto clingo_ast::get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional<ASTVec> {
-    static_cast<void>(attr);
-    return std::nullopt;
-}
-
-*/
 
 extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, clingo_ast_t **ast, ...) -> bool {
     using namespace Gringo::Input;
@@ -1270,10 +904,25 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 break;
             }
             case clingo_ast_type_theory_term_variable: {
-                throw std::runtime_error("implement me!!!");
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const *name = va_arg(args, char const *);
+                auto anonymous = va_arg(args, int);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::TheoryTermVariable>(type, convert_loc(lib, loc),
+                                                                        lib->store->string(name), anonymous != 0);
+                break;
             }
             case clingo_ast_type_theory_term_symbolic: {
-                throw std::runtime_error("implement me!!!");
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto sym = va_arg(args, clingo_symbol_t);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::TheoryTermSymbol>(type, convert_loc(lib, loc),
+                                                                      Gringo::Symbol::from_rep(sym));
+                break;
             }
             case clingo_ast_type_theory_term_tuple: {
                 throw std::runtime_error("implement me!!!");
@@ -1283,9 +932,6 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
             }
             case clingo_ast_type_theory_term_unparsed: {
                 throw std::runtime_error("implement me!!!");
-            }
-            default: {
-                throw std::logic_error("reimplement me!!!");
             }
         }
     }
@@ -1440,11 +1086,6 @@ extern "C" auto clingo_ast_attribute_get_ast_array(clingo_ast_t *ast, clingo_ast
 extern "C" auto clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_type_t type, char const *string,
                                             clingo_ast_t **ast) -> bool {
     CLINGO_TRY {
-        static_cast<void>(type);
-        static_cast<void>(string);
-        static_cast<void>(ast);
-        throw std::logic_error("reimplement me!!!");
-        /*
         if (ast == nullptr || string == nullptr || ast == nullptr) {
             throw std::invalid_argument("invalid arguments");
         }
@@ -1455,7 +1096,9 @@ extern "C" auto clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_
                     lib->log.reset();
                     throw std::runtime_error("parsing term failed");
                 }
-                *ast = std::make_unique<ASTTerm>(std::move(term).value()).release();
+                auto owner = Gringo::Util::construct_shared<std::any>(std::move(term).value());
+                auto const *ptr = std::any_cast<Gringo::Input::Term>(owner.get());
+                *ast = make_ast(owner, *ptr).release();
                 break;
             }
             case clingo_ast_parse_type_literal: {
@@ -1464,14 +1107,15 @@ extern "C" auto clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_
                     lib->log.reset();
                     throw std::runtime_error("parsing term failed");
                 }
-                *ast = std::make_unique<ASTLiteral>(std::move(lit).value()).release();
+                auto owner = Gringo::Util::construct_shared<std::any>(std::move(lit).value());
+                auto const *ptr = std::any_cast<Gringo::Input::Literal>(owner.get());
+                *ast = make_ast(owner, *ptr).release();
                 break;
             }
             default: {
                 throw std::invalid_argument("invalid arguments");
             }
         }
-        */
     }
     CLINGO_CATCH(lib);
 }

@@ -1,4 +1,5 @@
 #include <gringo/input/term.hh>
+#include <gringo/util/algorithm.hh>
 
 namespace Gringo::Input {
 
@@ -20,23 +21,8 @@ auto operator==(TermFunction const &a, TermFunction const &b) -> bool {
     return Util::value_equal(a.name, b.name, a.pool, b.pool, a.external, b.external);
 }
 
-namespace {
-
-template <class T> struct lex_comp {
-    lex_comp(T const &rng) : rng{rng} {}
-    friend auto operator<(lex_comp const &a, lex_comp const &b) -> bool {
-        return std::lexicographical_compare(a.rng.begin(), a.rng.end(), b.rng.begin(), b.rng.end());
-    }
-    T const &rng;
-};
-
-} // namespace
-
 auto operator<(TermFunction const &a, TermFunction const &b) -> bool {
-    // TODO: a value less then construction would also work
-    auto p_a = lex_comp{a.pool};
-    auto p_b = lex_comp{b.pool};
-    return std::tie(a.name, p_a, a.external) < std::tie(b.name, p_b, b.external);
+    return std::tie(a.name, a.pool, a.external) < std::tie(b.name, b.pool, b.external);
 }
 
 auto operator==(TermAbs const &a, TermAbs const &b) -> bool { return Util::value_equal(a.pool, b.pool); }
