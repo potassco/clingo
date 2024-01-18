@@ -15,7 +15,7 @@ namespace {
 
 class ASTVec;
 
-using Owner = std::shared_ptr<std::any>;
+using Owner = Gringo::Util::shared_ptr<std::any>;
 
 /*
 static_assert(sizeof(Gringo::Input::Location) == 6*8);
@@ -30,8 +30,6 @@ auto make_ast(Owner const &owner, Gringo::Input::TupleVec const &tuple) -> std::
 auto make_ast(Owner const &owner, Gringo::Input::TermTuple::Element const &tuple) -> std::unique_ptr<clingo_ast_t>;
 
 template <class T> auto make_ast_vec(Owner const &owner, std::vector<T> const &vec) -> ASTVec;
-
-template <class T> auto convert_ast(clingo_ast const *ast) -> T = delete;
 
 template <class T> auto convert_ast_vec(clingo_ast const **ast, size_t size) -> std::vector<T>;
 
@@ -63,6 +61,11 @@ struct clingo_ast {
     [[nodiscard]] auto get_string(clingo_ast_attribute_t attr) const -> std::optional<char const *>;
     [[nodiscard]] auto get_ast(clingo_ast_attribute_t attr) const -> std::optional<std::unique_ptr<clingo_ast_t>>;
     [[nodiscard]] auto get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional<ASTVec>;
+
+    template <class T> [[nodiscard]] auto convert() const -> T = delete;
+    template <> [[nodiscard]] auto convert<Gringo::Input::Term>() const -> Gringo::Input::Term;
+    template <>
+    [[nodiscard]] auto convert<Gringo::Input::TermTuple::Element>() const -> Gringo::Input::TermTuple::Element;
 
     friend auto operator<<(std::ostream &out, clingo_ast_t const &ast) -> std::ostream & {
         ast.print(out);
@@ -168,7 +171,7 @@ template <class T> auto convert_ast_vec(clingo_ast const **ast, size_t size) -> 
     std::vector<T> res;
     res.reserve(size);
     for (auto it = ast, ie = ast + size; it != ie; ++it) {
-        res.emplace_back(convert_ast<T>(*it));
+        res.emplace_back((*it)->convert<T>());
     }
     return res;
 }
@@ -203,6 +206,12 @@ auto make_ast(Owner const &owner, Gringo::Input::TermTuple::Element const &tuple
     static_cast<void>(owner);
     static_cast<void>(tuple);
     throw std::logic_error("implement me!!!");
+}
+
+template <class T, class... A> auto construct_ast(clingo_ast_type_t type, A &&...args) -> clingo_ast * {
+    auto owner = Gringo::Util::construct_shared<std::any>(T{std::forward<A>(args)...});
+    auto *ptr = std::any_cast<T>(owner.get());
+    return new clingo_ast{std::move(owner), static_cast<clingo_ast_type_e>(type), ptr};
 }
 
 } // namespace
@@ -511,10 +520,7 @@ auto clingo_ast::get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional
     }
 }
 
-auto clingo_ast::copy() const -> std::unique_ptr<clingo_ast_t> {
-    static_cast<void>(this);
-    throw std::logic_error("implement me!!!");
-}
+auto clingo_ast::copy() const -> std::unique_ptr<clingo_ast_t> { return std::make_unique<clingo_ast>(*this); }
 
 void clingo_ast::print(std::ostream &out) const {
     static_cast<void>(this);
@@ -539,6 +545,49 @@ auto clingo_ast::less_than(clingo_ast_t const &other) const -> bool {
     throw std::logic_error("implement me!!!");
 }
 
+template <> [[nodiscard]] auto clingo_ast::convert<Gringo::Input::Term>() const -> Gringo::Input::Term {
+    switch (type_) {
+        case clingo_ast_type_term_variable: {
+            return cast<Gringo::Input::TermVariable>();
+        }
+        case clingo_ast_type_term_symbolic: {
+            return cast<Gringo::Input::TermSymbol>();
+        }
+        case clingo_ast_type_term_tuple: {
+            return cast<Gringo::Input::TermTuple>();
+        }
+        case clingo_ast_type_term_function: {
+            return cast<Gringo::Input::TermFunction>();
+        }
+        case clingo_ast_type_term_absolute: {
+            return cast<Gringo::Input::TermAbs>();
+        }
+        case clingo_ast_type_term_unary_operation: {
+            return cast<Gringo::Input::TermUnary>();
+        }
+        case clingo_ast_type_term_binary_operation: {
+            return cast<Gringo::Input::TermBinary>();
+        }
+        default: {
+            throw std::logic_error("term expected");
+        }
+    }
+}
+
+template <> [[nodiscard]] auto clingo_ast::convert<Gringo::Input::TupleVec>() const -> Gringo::Input::TupleVec {
+    if (type_ == clingo_ast_type_argument_tuple) {
+        return cast<Gringo::Input::TupleVec>();
+    }
+    throw std::logic_error("argument tuple expected");
+}
+
+template <>
+[[nodiscard]] auto clingo_ast::convert<Gringo::Input::TermTuple::Element>() const -> Gringo::Input::TermTuple::Element {
+    if (type_ == clingo_ast_type_argument_tuple) {
+        return cast<Gringo::Input::TupleVec>();
+    }
+    return convert<Gringo::Input::Term>();
+}
 /*
 namespace {
 
@@ -949,13 +998,8 @@ auto clingo_ast::get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional
 */
 
 extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, clingo_ast_t **ast, ...) -> bool {
+    using namespace Gringo::Input;
     CLINGO_TRY {
-        static_cast<void>(type);
-        std::va_list args;
-        va_start(args, ast);
-        static_cast<void>(args);
-        throw std::logic_error("reimplement me!!!");
-        /*
         if (lib == nullptr || ast == nullptr) {
             throw std::invalid_argument("invalid arguments");
         }
@@ -966,7 +1010,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 va_start(args, ast);
                 auto const *loc = va_arg(args, clingo_location_t const *);
                 va_end(args);
-                *ast = new ASTProjection{Gringo::Input::Projection{convert_loc(lib, loc)}};
+                *ast = construct_ast<Gringo::Input::Projection>(type, convert_loc(lib, loc));
                 break;
             }
             case clingo_ast_type_term_variable: {
@@ -976,8 +1020,8 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *name = va_arg(args, char const *);
                 auto anonymous = va_arg(args, int);
                 va_end(args);
-                *ast = new ASTTerm{
-                    Gringo::Input::TermVariable{convert_loc(lib, loc), lib->store->string(name), anonymous != 0}};
+                *ast = construct_ast<Gringo::Input::TermVariable>(type, convert_loc(lib, loc), lib->store->string(name),
+                                                                  anonymous != 0);
                 break;
             }
             case clingo_ast_type_term_symbolic: {
@@ -986,7 +1030,8 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *loc = va_arg(args, clingo_location_t const *);
                 auto sym = va_arg(args, clingo_symbol_t);
                 va_end(args);
-                *ast = new ASTTerm{Gringo::Input::TermSymbol{convert_loc(lib, loc), Gringo::Symbol::from_rep(sym)}};
+                *ast = construct_ast<Gringo::Input::TermSymbol>(type, convert_loc(lib, loc),
+                                                                Gringo::Symbol::from_rep(sym));
                 break;
             }
             case clingo_ast_type_term_tuple: {
@@ -996,8 +1041,8 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const **pool = va_arg(args, clingo_ast_t const **);
                 auto size = va_arg(args, size_t);
                 va_end(args);
-                *ast = new ASTTerm{Gringo::Input::TermTuple{
-                    convert_loc(lib, loc), convert_ast_vec<Gringo::Input::TermTuple::Element>(pool, size)}};
+                *ast = construct_ast<Gringo::Input::TermTuple>(
+                    type, convert_loc(lib, loc), convert_ast_vec<Gringo::Input::TermTuple::Element>(pool, size));
                 return true;
             }
             case clingo_ast_type_term_function: {
@@ -1009,9 +1054,9 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto size = va_arg(args, size_t);
                 auto sign = va_arg(args, int);
                 va_end(args);
-                *ast = new ASTTerm{Gringo::Input::TermFunction{convert_loc(lib, loc), lib->store->string(name),
-                                                               convert_ast_vec<Gringo::Input::TupleVec>(pool, size),
-                                                               sign != 0}};
+                *ast = construct_ast<Gringo::Input::TermFunction>(type, convert_loc(lib, loc), lib->store->string(name),
+                                                                  convert_ast_vec<Gringo::Input::TupleVec>(pool, size),
+                                                                  sign != 0);
                 break;
             }
             case clingo_ast_type_term_absolute: {
@@ -1021,8 +1066,8 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const **pool = va_arg(args, clingo_ast_t const **);
                 auto size = va_arg(args, size_t);
                 va_end(args);
-                *ast = new ASTTerm{
-                    Gringo::Input::TermAbs{convert_loc(lib, loc), convert_ast_vec<Gringo::Input::Term>(pool, size)}};
+                *ast = construct_ast<Gringo::Input::TermAbs>(type, convert_loc(lib, loc),
+                                                             convert_ast_vec<Gringo::Input::Term>(pool, size));
                 break;
             }
             case clingo_ast_type_term_unary_operation: {
@@ -1032,9 +1077,9 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto op = va_arg(args, int);
                 auto const *rhs = va_arg(args, clingo_ast_t *);
                 va_end(args);
-                *ast = new ASTTerm{
-                    Gringo::Input::TermUnary{convert_loc(lib, loc), static_cast<Gringo::Input::UnaryOperator>(op),
-                                             convert_ast<Gringo::Util::shared_ptr<Gringo::Input::Term>>(rhs)}};
+                *ast = construct_ast<Gringo::Input::TermUnary>(
+                    type, convert_loc(lib, loc), static_cast<Gringo::Input::UnaryOperator>(op),
+                    Gringo::Util::construct_shared<Gringo::Input::Term>(rhs->convert<Gringo::Input::Term>()));
                 break;
             }
             case clingo_ast_type_term_binary_operation: {
@@ -1045,12 +1090,14 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto op = va_arg(args, int);
                 auto const *rhs = va_arg(args, clingo_ast_t *);
                 va_end(args);
-                *ast = new ASTTerm{Gringo::Input::TermBinary{
-                    convert_loc(lib, loc), convert_ast<Gringo::Util::shared_ptr<Gringo::Input::Term>>(lhs),
+                *ast = construct_ast<Gringo::Input::TermBinary>(
+                    type, convert_loc(lib, loc),
+                    Gringo::Util::construct_shared<Gringo::Input::Term>(lhs->convert<Gringo::Input::Term>()),
                     static_cast<Gringo::Input::BinaryOperator>(op),
-                    convert_ast<Gringo::Util::shared_ptr<Gringo::Input::Term>>(rhs)}};
+                    Gringo::Util::construct_shared<Gringo::Input::Term>(rhs->convert<Gringo::Input::Term>()));
                 break;
             }
+            /*
             case clingo_ast_type_argument_tuple: {
                 std::va_list args;
                 va_start(args, ast);
@@ -1132,8 +1179,11 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
             case clingo_ast_type_theory_term_unparsed: {
                 throw std::runtime_error("implement me!!!");
             }
+            */
+            default: {
+                throw std::logic_error("reimplement me!!!");
+            }
         }
-        */
     }
     CLINGO_CATCH(lib);
 }

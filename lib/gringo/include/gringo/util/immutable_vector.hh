@@ -4,6 +4,7 @@
 #include <vector>
 
 #include <gringo/util/shared_ptr.hh>
+#include <tcb/span.hpp>
 
 namespace Gringo::Util {
 
@@ -72,7 +73,10 @@ template <typename T> class immutable_vector {
 
     [[nodiscard]] auto back() const -> const_reference { return vec_->back(); }
 
+    // TODO: ideally only the span method would be used
     [[nodiscard]] auto vector() const -> std::vector<T> const & { return vec_ ? *vec_ : empty_(); }
+
+    [[nodiscard]] auto span() const -> tcb::span<T const &> { return {vec_ ? *vec_ : empty_()}; }
 
     [[nodiscard]] auto data() const -> T const * { return vector().data(); }
 
