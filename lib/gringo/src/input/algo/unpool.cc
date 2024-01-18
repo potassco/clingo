@@ -16,15 +16,15 @@ namespace Gringo::Input {
 namespace {
 
 struct LiteralToTuple {
-    auto operator()(Literal const &orig, Literal const &lit) -> TermVec {
+    auto operator()(Literal const &orig, Literal const &lit) -> std::vector<Term> {
         return std::visit(*this, std::variant<std::reference_wrapper<Literal const>>{orig}, lit);
     }
 
-    auto tuple_from_vars(Literal const &orig) -> TermVec {
+    auto tuple_from_vars(Literal const &orig) -> std::vector<Term> {
         auto var_set = select_variables(orig);
         auto var_vec = VariableVec(var_set.begin(), var_set.end());
         std::sort(var_vec.begin(), var_vec.end());
-        TermVec res;
+        std::vector<Term> res;
         res.reserve(var_vec.size() + 1);
         res.emplace_back(TermSymbol{location(orig), store.num(n)});
         for (auto const &var : var_vec) {
@@ -33,19 +33,19 @@ struct LiteralToTuple {
         return res;
     }
 
-    auto operator()(Literal const &orig, LiteralBoolean const &lit) -> TermVec {
+    auto operator()(Literal const &orig, LiteralBoolean const &lit) -> std::vector<Term> {
         static_cast<void>(lit);
         return tuple_from_vars(orig);
     }
 
-    auto operator()(Literal const &orig, LiteralRelation const &lit) -> TermVec {
+    auto operator()(Literal const &orig, LiteralRelation const &lit) -> std::vector<Term> {
         static_cast<void>(lit);
         return tuple_from_vars(orig);
     }
 
-    auto operator()(Literal const &orig, LiteralSymbolic const &lit) -> TermVec {
+    auto operator()(Literal const &orig, LiteralSymbolic const &lit) -> std::vector<Term> {
         static_cast<void>(orig);
-        TermVec res;
+        std::vector<Term> res;
         res.reserve(2);
         int i = 0;
         switch (lit.sign) {
@@ -81,7 +81,7 @@ struct Unpool {
 
     // terms
 
-    auto operator()(Term const &term) const -> std::optional<TermVec> { return std::visit(*this, term); }
+    auto operator()(Term const &term) const -> std::optional<std::vector<Term>> { return std::visit(*this, term); }
 
     auto operator()(std::optional<Term> const &term) const -> std::optional<std::vector<std::optional<Term>>> {
         return Util::and_then(term, [this](Term const &term) {
@@ -89,16 +89,16 @@ struct Unpool {
         });
     }
 
-    auto operator()(TermVec const &terms) const -> std::optional<std::vector<TermVec>> {
+    auto operator()(TermVec const &terms) const -> std::optional<std::vector<std::vector<Term>>> {
         return unpool_crossproduct(terms, *this);
     }
 
-    auto operator()(TermSymbol const &term) const -> std::optional<TermVec> {
+    auto operator()(TermSymbol const &term) const -> std::optional<std::vector<Term>> {
         static_cast<void>(term);
         return std::nullopt;
     }
 
-    auto operator()(TermVariable const &term) const -> std::optional<TermVec> {
+    auto operator()(TermVariable const &term) const -> std::optional<std::vector<Term>> {
         static_cast<void>(term);
         return std::nullopt;
     }
@@ -129,7 +129,7 @@ struct Unpool {
             tuple_or_term);
     }
 
-    auto operator()(TermTuple const &term) const -> std::optional<TermVec> {
+    auto operator()(TermTuple const &term) const -> std::optional<std::vector<Term>> {
         // unpool the elements
         auto elems = unpool_union(term.pool, *this);
 
@@ -147,7 +147,7 @@ struct Unpool {
         });
     }
 
-    auto operator()(TermFunction const &term) const -> std::optional<TermVec> {
+    auto operator()(TermFunction const &term) const -> std::optional<std::vector<Term>> {
         auto elems = unpool_union(term.pool, [this](TupleVec const &tuple) {
             // unpool the elements
             return unpool_crossproduct(tuple, *this);
@@ -163,7 +163,7 @@ struct Unpool {
         });
     }
 
-    auto operator()(TermAbs const &term) const -> std::optional<TermVec> {
+    auto operator()(TermAbs const &term) const -> std::optional<std::vector<Term>> {
         auto unpooled = unpool_union(term.pool, *this);
         if (!unpooled.has_value() && term.pool.size() != 1) {
             unpooled = term.pool;
@@ -173,13 +173,13 @@ struct Unpool {
         });
     }
 
-    auto operator()(TermUnary const &term) const -> std::optional<TermVec> {
+    auto operator()(TermUnary const &term) const -> std::optional<std::vector<Term>> {
         return Util::transform_vec(operator()(*term.rhs), [&term](auto rhs) -> Term {
             return TermUnary{term.loc, term.op, std::move(rhs)};
         });
     }
 
-    auto operator()(TermBinary const &term) const -> std::optional<TermVec> {
+    auto operator()(TermBinary const &term) const -> std::optional<std::vector<Term>> {
         return unpool_crossproducts(
             [&term](auto lhs, auto rhs) -> Term {
                 return TermBinary{term.loc, std::move(lhs), term.op, std::move(rhs)};
@@ -683,9 +683,9 @@ struct Unpool {
 
 } // namespace
 
-auto unpool(RewriteContext &ctx, Term const &term) -> std::optional<TermVec> { return Unpool{ctx}(term); }
+auto unpool(RewriteContext &ctx, Term const &term) -> std::optional<std::vector<Term>> { return Unpool{ctx}(term); }
 
-auto unpool(RewriteContext &ctx, Literal const &lit) -> std::optional<LiteralVec> { return Unpool{ctx}(lit); }
+auto unpool(RewriteContext &ctx, Literal const &lit) -> std::optional<std::vector<Literal>> { return Unpool{ctx}(lit); }
 
 auto unpool(RewriteContext &ctx, HeadLiteral const &lit) -> std::optional<std::vector<HeadLiteral>> {
     return Unpool{ctx}(lit);

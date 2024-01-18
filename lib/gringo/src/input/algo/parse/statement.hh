@@ -152,13 +152,13 @@ struct statement_optimize_tuple {
         return dsl::p<term> + prio + terms;
     }();
     static constexpr auto
-        value = lexy::as_list<TermVec> >>
+        value = lexy::as_list<std::vector<Term>> >>
                 lexy::callback<StatementOptimize::Tuple>(
-                    [](Term weight, std::optional<TermVec> terms) -> StatementOptimize::Tuple {
-                        return {std::move(weight), std::nullopt, std::move(terms).value_or(TermVec{})};
+                    [](Term weight, std::optional<std::vector<Term>> terms) -> StatementOptimize::Tuple {
+                        return {std::move(weight), std::nullopt, std::move(terms).value_or(std::vector<Term>{})};
                     },
-                    [](Term weight, Term priority, std::optional<TermVec> terms) -> StatementOptimize::Tuple {
-                        return {std::move(weight), std::move(priority), std::move(terms).value_or(TermVec{})};
+                    [](Term weight, Term priority, std::optional<std::vector<Term>> terms) -> StatementOptimize::Tuple {
+                        return {std::move(weight), std::move(priority), std::move(terms).value_or(std::vector<Term>{})};
                     });
 };
 

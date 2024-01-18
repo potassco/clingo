@@ -8,10 +8,10 @@ namespace Gringo::Input {
 //! @{
 
 //! Remove all pooled arguments from the term.
-[[nodiscard]] auto unpool(RewriteContext &ctx, Term const &term) -> std::optional<TermVec>;
+[[nodiscard]] auto unpool(RewriteContext &ctx, Term const &term) -> std::optional<std::vector<Term>>;
 
 //! Remove all pooled arguments from the literal.
-[[nodiscard]] auto unpool(RewriteContext &ctx, Literal const &lit) -> std::optional<LiteralVec>;
+[[nodiscard]] auto unpool(RewriteContext &ctx, Literal const &lit) -> std::optional<std::vector<Literal>>;
 
 //! Remove all pooled arguments from the literal.
 [[nodiscard]] auto unpool(RewriteContext &ctx, HeadLiteral const &lit) -> std::optional<std::vector<HeadLiteral>>;

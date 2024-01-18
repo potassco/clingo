@@ -592,7 +592,7 @@ class ASTArgumentTuple : public clingo_ast {
 
 template <> auto convert_ast<Gringo::Input::TupleVec>(clingo_ast const *ast) -> Gringo::Input::TupleVec {
     if (auto const *res = dynamic_cast<ASTArgumentTuple const *>(ast); res != nullptr) {
-        Gringo::Input::TupleVec tuple;
+        std::vector<Gringo::Input::TupleElem> tuple;
         tuple.reserve(res->tuple_.size());
         for (auto const *elem : res->tuple_) {
             if (auto const *projection = dynamic_cast<ASTProjection const *>(elem)) {

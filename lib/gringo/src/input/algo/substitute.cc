@@ -64,7 +64,7 @@ struct MapParams : Transformer<MapParams> {
             }
             return tuple;
         }
-        auto tuple = TupleVec{};
+        auto tuple = std::vector<TupleElem>{};
         tuple.reserve(res_args->size());
         for (auto &&arg : *res_args) {
             tuple.emplace_back(std::visit(

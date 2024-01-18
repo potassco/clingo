@@ -212,7 +212,7 @@ auto result_as_symbol_vec(TupleResultChanged args_tuple) -> std::vector<Symbol> 
 
 //! Convert the given simplified arguments to term tuple.
 auto result_as_tuple(TupleVec const &tuple, TupleResultChanged args_tuple) -> TupleVec {
-    TupleVec args;
+    std::vector<TupleElem> args;
     auto it = tuple.begin();
     args.reserve(tuple.size());
     for (auto &arg : args_tuple) {
@@ -430,7 +430,7 @@ struct SimplifyTerm {
                 return ctx.store().num(abs(*res.num()));
             }
             GRINGO_MATCH(res, TermResultLinear) {
-                TermVec pool;
+                std::vector<Term> pool;
                 pool.emplace_back(linear_as_term(ctx, std::move(res)));
                 return check_change(TermType::numeric, term, TermAbs(term.loc, std::move(pool)));
             }
@@ -452,7 +452,7 @@ struct SimplifyTerm {
                     return TermResultFail{};
                 }
                 // construct a new term
-                TermVec pool;
+                std::vector<Term> pool;
                 pool.emplace_back(std::move(res.term));
                 return TermResultChanged{TermType::numeric, TermAbs{term.loc, std::move(pool)}};
             }
@@ -689,7 +689,7 @@ struct SimplifyTerm {
 //! there are no failures to handle.
 struct MakeMatchableTerm {
     using Result = std::optional<Term>;
-    using ResultTuple = std::optional<TupleVec>;
+    using ResultTuple = std::optional<std::vector<TupleElem>>;
 
     //! Make the arguments of the given tuple matchable.
     [[nodiscard]] auto handle_tuple(SimplifyTermFlags flags, TupleVec const &tuple) const -> ResultTuple {
@@ -698,7 +698,7 @@ struct MakeMatchableTerm {
         ResultTuple res_tuple;
 
         // helper to initialize the optional result vector
-        auto init = [&]() -> TupleVec & {
+        auto init = [&]() -> std::vector<TupleElem> & {
             if (!res_tuple.has_value()) {
                 res_tuple = Util::copy_n(tuple, n);
             }
@@ -1030,7 +1030,7 @@ struct LiteralToTuple {
         auto var_set = select_variables(lit);
         auto var_vec = VariableVec(var_set.begin(), var_set.end());
         std::sort(var_vec.begin(), var_vec.end());
-        TermVec res;
+        std::vector<Term> res;
         res.reserve(var_vec.size() + 1);
         res.emplace_back(TermSymbol{lit.loc, store.num(n)});
         for (auto const &var : var_vec) {
@@ -1040,7 +1040,7 @@ struct LiteralToTuple {
     }
 
     auto operator()(LiteralSymbolic const &lit) -> TermVec {
-        TermVec res;
+        std::vector<Term> res;
         res.reserve(2);
         int i = 0;
         switch (lit.sign) {

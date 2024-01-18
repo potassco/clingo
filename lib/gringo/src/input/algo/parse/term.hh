@@ -36,7 +36,7 @@ class tuple_trail {
     }
 
   private:
-    TupleVec vec_;
+    std::vector<TupleElem> vec_;
     bool trail_ = false;
 };
 
@@ -178,13 +178,13 @@ struct term {
 struct term_list {
     static constexpr char const *name = "list of terms";
     static constexpr auto rule = dsl::list(dsl::p<term>, dsl::sep(dsl::comma));
-    static constexpr auto value = lexy::as_list<TermVec>;
+    static constexpr auto value = lexy::as_list<std::vector<Term>>;
 };
 
 struct term_function_tuple {
     static constexpr char const *name = "list of terms";
     static constexpr auto rule = dsl::list(dsl::p<projection> | dsl::else_ >> dsl::p<term>, dsl::sep(dsl::comma));
-    static constexpr auto value = lexy::as_list<TupleVec>;
+    static constexpr auto value = lexy::as_list<std::vector<TupleElem>>;
 };
 
 struct term_function_pool {
@@ -195,7 +195,7 @@ struct term_function_pool {
         auto sep = dsl::sep(dsl::semicolon);
         return dsl::list(item, sep);
     }();
-    static constexpr auto value = lexy::collect<PoolVec>(lexy::as_list<TupleVec>);
+    static constexpr auto value = lexy::collect<std::vector<TupleVec>>(lexy::as_list<std::vector<TupleElem>>);
 };
 
 struct term_function {
@@ -220,15 +220,15 @@ struct term_tuple_element {
         return dsl::if_(dsl::p<projection> >> dsl::comma) +
                dsl::if_(dsl::list(dsl::p<projection> | peek >> dsl::p<term>, sep));
     }();
-    static constexpr auto
-        value = lexy::as_list<Detail::tuple_trail> >>
-                lexy::callback<TermTuple::Element>([]() -> TupleVec { return {}; },
-                                                   [](Projection p) -> TupleVec { return {std::move(p)}; },
-                                                   [](Projection p, Detail::tuple_trail elem) {
-                                                       elem.push_front(std::move(p));
-                                                       return elem.to_tuple();
-                                                   },
-                                                   [](Detail::tuple_trail elem) { return elem.to_tuple(); });
+    static constexpr auto value =
+        lexy::as_list<Detail::tuple_trail> >>
+        lexy::callback<TermTuple::Element>([]() -> std::vector<TupleElem> { return {}; },
+                                           [](Projection p) -> std::vector<TupleElem> { return {std::move(p)}; },
+                                           [](Projection p, Detail::tuple_trail elem) {
+                                               elem.push_front(std::move(p));
+                                               return elem.to_tuple();
+                                           },
+                                           [](Detail::tuple_trail elem) { return elem.to_tuple(); });
 };
 
 struct term_tuple {
@@ -236,7 +236,7 @@ struct term_tuple {
     // Note: dsl::parenthesized.list tries to be too clever.
     static constexpr auto rule = Detail::location(
         LEXY_LIT("(") >> dsl::list(dsl::p<term_tuple_element>, dsl::sep(dsl::semicolon)) + LEXY_LIT(")"));
-    static constexpr auto value = lexy::as_list<TermTuple::ElementVec> >>
+    static constexpr auto value = lexy::as_list<std::vector<TermTuple::Element>> >>
                                   lexy::callback<Term>([](Location loc, TermTuple::ElementVec elem) -> Term {
                                       if (elem.size() == 1 && std::holds_alternative<Term>(elem.front())) {
                                           return std::move(std::get<Term>(elem.front()));
@@ -249,7 +249,7 @@ struct term_abs {
     static constexpr char const *name = "absolute value";
     static constexpr auto rule =
         Detail::location(dsl::brackets(LEXY_LIT("|"), LEXY_LIT("|")).list(dsl::p<term>, dsl::sep(dsl::semicolon)));
-    static constexpr auto value = lexy::as_list<TermVec> >> lexy::callback<Term>([](Location loc, auto pool) {
+    static constexpr auto value = lexy::as_list<std::vector<Term>> >> lexy::callback<Term>([](Location loc, auto pool) {
                                       return TermAbs{std::move(loc), std::move(pool)};
                                   });
 };

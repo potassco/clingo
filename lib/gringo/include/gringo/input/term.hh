@@ -47,7 +47,7 @@ struct TermBinary;
 using Term = std::variant<TermVariable, TermSymbol, TermTuple, TermFunction, TermAbs, TermUnary, TermBinary>;
 
 //! A vector of terms.
-using TermVec = std::vector<Term>;
+using TermVec = Util::immutable_vector<Term>;
 
 //! Indicate a projected position.
 struct Projection {
@@ -68,9 +68,9 @@ auto operator<(Projection const &a, Projection const &b) -> bool;
 //! A variant capturing either a term or a position that is to be projected.
 using TupleElem = std::variant<Projection, Term>;
 //! A tuple of terms or positions to project.
-using TupleVec = std::vector<TupleElem>;
+using TupleVec = Util::immutable_vector<TupleElem>;
 //! A vector of tuples used as function or predicate arguments.
-using PoolVec = std::vector<TupleVec>;
+using PoolVec = Util::immutable_vector<TupleVec>;
 
 //! Term representing a variable.
 //!
@@ -128,7 +128,7 @@ struct TermTuple {
     //! A tuple element.
     using Element = std::variant<TupleVec, Term>;
     //! A vector of tuple elements.
-    using ElementVec = std::vector<Element>;
+    using ElementVec = Util::immutable_vector<Element>;
 
     //! Construct a  tuple.
     explicit TermTuple(Location loc, ElementVec args);
