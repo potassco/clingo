@@ -996,12 +996,12 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 std::va_list args;
                 va_start(args, ast);
                 auto const *loc = va_arg(args, clingo_location_t const *);
-                auto type = va_arg(args, int);
+                auto tuple_type = va_arg(args, int);
                 auto const **arguments = va_arg(args, clingo_ast_t const **);
                 auto size = va_arg(args, size_t);
                 va_end(args);
                 *ast = construct_ast<Gringo::Input::TheoryTermTuple>(
-                    type, convert_loc(lib, loc), static_cast<TheoryTermTupleType>(type),
+                    type, convert_loc(lib, loc), static_cast<TheoryTermTupleType>(tuple_type),
                     convert_ast_vec<Gringo::Input::TheoryTerm>(arguments, size));
                 break;
             }
