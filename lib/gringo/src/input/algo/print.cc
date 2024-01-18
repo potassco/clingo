@@ -213,10 +213,7 @@ struct Print {
 
     void operator()(TermVariable const &term) const { out << term.name; }
 
-    void operator()(Projection const &x) const {
-        static_cast<void>(x);
-        out << "*";
-    }
+    void operator()(Projection const &x) const { out << x; }
 
     void operator()(TupleElem const &elem) const { std::visit(*this, elem); }
 
@@ -830,6 +827,12 @@ auto operator<<(std::ostream &out, Location const &loc) -> std::ostream & {
     } else {
         out << loc.end.column;
     }
+    return out;
+}
+
+auto operator<<(std::ostream &out, Projection const &projection) -> std::ostream & {
+    static_cast<void>(projection);
+    out << "*";
     return out;
 }
 

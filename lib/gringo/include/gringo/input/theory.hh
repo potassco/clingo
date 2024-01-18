@@ -173,3 +173,13 @@ template <bool HasSign> struct TheoryAtom : std::conditional_t<HasSign, Signed, 
 //! @}
 
 } // namespace Gringo::Input
+
+#ifndef GRINGO_DOXYGEN_SKIP
+
+GRINGO_HASH_PROTO(Gringo::Input::TheoryTermVariable);
+GRINGO_HASH_PROTO(Gringo::Input::TheoryTermSymbol);
+GRINGO_HASH_PROTO(Gringo::Input::TheoryTermFunction);
+GRINGO_HASH_PROTO(Gringo::Input::TheoryTermTuple);
+GRINGO_HASH_PROTO(Gringo::Input::TheoryTermUnparsed);
+
+#endif

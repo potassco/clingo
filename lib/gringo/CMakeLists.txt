@@ -20,6 +20,7 @@ add_library(gringo
     "src/input/literal.cc"
     "src/input/program.cc"
     "src/input/term.cc"
+    "src/input/theory.cc"
     "src/number.cc"
     "src/symbol.cc"
     )
