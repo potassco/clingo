@@ -194,6 +194,20 @@ class TestAST(TestCase):
         self.assertEqual(p.symbol, s)
         self.assertEqual(str(p), "f(1,2)")
 
+    def test_theory_tuple(self):
+        """
+        Test theory tuple term.
+        """
+        p = ast.TheoryTermSymbolic(self.lib, self.loc, parse_term(self.lib, "p(1,2)"))
+        q = ast.TheoryTermSymbolic(self.lib, self.loc, parse_term(self.lib, "q"))
+        a = [p, q]
+        b = ast.TheoryTermTuple(self.lib, self.loc, ast.TheoryTupleType.Set, a)
+
+        self.assertEqual(b.location, self.loc)
+        self.assertEqual(b.arguments, a)
+        self.assertEqual(b.tuple_type, ast.TheoryTupleType.Set)
+        self.assertEqual(str(b), "(1,2;3)")
+
     def test_boolean(self):
         """
         Test Boolean literal.
