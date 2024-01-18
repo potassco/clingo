@@ -206,7 +206,7 @@ class TestAST(TestCase):
         self.assertEqual(b.location, self.loc)
         self.assertEqual(b.arguments, a)
         self.assertEqual(b.tuple_type, ast.TheoryTupleType.Set)
-        self.assertEqual(str(b), "(1,2;3)")
+        self.assertEqual(str(b), "{p(1,2),q}")
 
     def test_boolean(self):
         """

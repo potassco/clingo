@@ -66,16 +66,6 @@ struct clingo_ast {
     [[nodiscard]] auto get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional<ASTVec>;
 
     template <class T> [[nodiscard]] auto convert() const -> T = delete;
-    template <> [[nodiscard]] auto convert<Gringo::Input::Term>() const -> Gringo::Input::Term;
-    template <>
-    [[nodiscard]] auto convert<Gringo::Input::TermTuple::Element>() const -> Gringo::Input::TermTuple::Element;
-    template <> [[nodiscard]] auto convert<Gringo::Input::TupleElem>() const -> Gringo::Input::TupleElem;
-    template <>
-    [[nodiscard]] auto convert<Gringo::Input::LGuard::value_type>() const -> Gringo::Input::LGuard::value_type;
-    template <>
-    [[nodiscard]] auto convert<Gringo::Input::RGuard::value_type>() const -> Gringo::Input::RGuard::value_type;
-    template <> [[nodiscard]] auto convert<Gringo::Input::TheoryTerm>() const -> Gringo::Input::TheoryTerm;
-
     template <class V> auto visit(V &&visit) const -> std::invoke_result_t<V, Gringo::Input::Projection const &>;
 
     friend auto operator<<(std::ostream &out, clingo_ast_t const &ast) -> std::ostream & {
@@ -357,6 +347,7 @@ auto clingo_ast::visit(V &&visit) const -> std::invoke_result_t<V, Gringo::Input
             return std::invoke(std::move(visit), cast<LiteralSymbolic>());
         }
     }
+    throw std::invalid_argument("invalid ast type");
 }
 
 auto clingo_ast::get_type() const -> clingo_ast_type_e { return type_; }
