@@ -93,12 +93,10 @@ def forward(types, current_type, type_list):
     res = []
 
     def check(name):
-        for t in type_list:
-            if t["type"] == "forward":
-                continue
-            if t["name"] == name:
+        for other in type_list:
+            if other == name:
                 break
-            if t["name"] == current_type:
+            if other == current_type:
                 res.append(name)
                 break
 
@@ -143,7 +141,7 @@ def generate():
     types = yaml.safe_load(_type_info_yaml())
     type_map = {type_attr["name"]: type_attr for type_attr in types}
 
-    return env.get_template("ast_module.j2").render(types=types, type_map=type_map)
+    return env.get_template("ast_module.j2").render(types=type_map)
 
 
 print(generate())

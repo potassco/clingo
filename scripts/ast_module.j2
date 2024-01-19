@@ -33,27 +33,28 @@ auto c_cast(StringArray const &arr) -> std::vector<char const *> {
     return ret;
 }
 
-{%  for type in types -%}
+{%  for type_name, type in types.items() -%}
+{%    set c_type_name = type_name | camel -%}
 {%    if type.type == 'optional' %}
-using {{ type.name | camel }} = std::optional<{{ type.value_type | camel }}>;
+using {{ c_type_name }} = std::optional<{{ type.value_type | camel }}>;
 {%    elif type.type == 'array' %}
-{%      for name in type["value_type"] | forward(type.name, types) -%}
+{%      for name in type["value_type"] | forward(type_name, types) -%}
 class {{ name | camel }};
 
 {%      endfor -%}
-using {{ type.name | camel }} = std::vector<{{ type.value_type | camel }}>;
+using {{ c_type_name }} = std::vector<{{ type.value_type | camel }}>;
 
-auto construct_{{ type.name }}(clingo_ast_t **ast, size_t size) -> {{ type.name | camel }};
+auto construct_{{ type_name }}(clingo_ast_t **ast, size_t size) -> {{ c_type_name }};
 {%    elif type.type == 'union' %}
-{%     for name in type["types"] | forward(type.name, types) -%}
+{%     for name in type["types"] | forward(type_name, types) -%}
 class {{ name | camel }};
 
 {%     endfor -%}
-using {{ type.name | camel }} = std::variant<{{ type.types | map("camel") | join(", ") }}>;
+using {{ c_type_name }} = std::variant<{{ type.types | map("camel") | join(", ") }}>;
 
-auto construct_{{ type.name }}(clingo_ast_t *ast) -> {{ type.name | camel }};
+auto construct_{{ type_name }}(clingo_ast_t *ast) -> {{ c_type_name }};
 {%    elif type.type == 'enum' %}
-enum class {{ type.name | camel }} {
+enum class {{ c_type_name }} {
 {%-     for name, attr in type["values"].items() %}
     {{ name | camel }} = {{ attr.value }},
 {%-     endfor %}
@@ -62,16 +63,16 @@ enum class {{ type.name | camel }} {
 {% include "_record_declare_cpp.j2" %}
 {%    endif %}
 {%- endfor %}
-{%- for type in types -%}
-{%    set type_name = type.name | camel -%}
+{%- for type_name, type in types.items() -%}
+{%    set c_type_name = type_name | camel -%}
 {%    if type.type == 'array' %}
-{%      if type_map[type.value_type].type == "union" -%}
+{%      if types[type.value_type].type == "union" -%}
 {%        set cons = "construct_" + type.value_type -%}
 {%      else -%}
 {%        set cons = type.value_type | camel + "::acquire" -%}
 {%      endif -%}
-auto construct_{{ type.name }}(clingo_ast_t **ast, size_t size) -> {{ type_name }} {
-    {{ type_name }} ret;
+auto construct_{{ type_name }}(clingo_ast_t **ast, size_t size) -> {{ c_type_name }} {
+    {{ c_type_name }} ret;
     try {
         ret.reserve(size);
         std::for_each_n(ast, size, [&ret](auto &arg){
@@ -88,14 +89,14 @@ auto construct_{{ type.name }}(clingo_ast_t **ast, size_t size) -> {{ type_name 
     return ret;
 }
 {%    elif type.type == 'union' %}
-auto construct_{{ type.name }}(clingo_ast_t *ast) -> {{ type_name }} {
+auto construct_{{ type_name }}(clingo_ast_t *ast) -> {{ c_type_name }} {
     clingo_ast_type_t type;
     if (!clingo_ast_get_type(ast, &type)) {
         clingo_ast_free(ast);
         throw std::runtime_error("could not get type");
     }
     switch (type) {
-{%-     for sub_type in type.types | flatten_types(type_map) %}
+{%-     for sub_type in type.types | flatten_types(types) %}
         case clingo_ast_type_{{sub_type}}: {
             return {{ sub_type | camel }}::acquire(ast);
         }
@@ -152,33 +153,33 @@ This module provides functions to work with Abstract Syntax Trees of logic progr
 Return a yaml description of the AST.
 
 This can be used to auto-generate most of the binding.)"));
-{%  for type in types -%}
-{%    set type_name = type.name | camel -%}
+{%  for type_name, type in types.items() -%}
+{%    set c_type_name = type_name | camel -%}
 {%    if type.type == 'enum' %}
-    auto py_{{ type.name }} = py::enum_<{{ type_name }}>(ast, "{{ type_name }}", R"doc({{ type.doc }})doc");
+    auto py_{{ type_name }} = py::enum_<{{ c_type_name }}>(ast, "{{ c_type_name }}", R"doc({{ type.doc }})doc");
 {%    elif type.type == 'record' %}
-    auto py_{{ type.name }} = py::class_<{{ type_name }}>(ast, "{{ type_name }}", R"doc({{ type.doc | doc }})doc");
+    auto py_{{ type_name }} = py::class_<{{ c_type_name }}>(ast, "{{ c_type_name }}", R"doc({{ type.doc | doc }})doc");
 {%    endif %}
 {%- endfor %}
-{%  for type in types -%}
-{%    set type_name = type.name | camel -%}
+{%  for type_name, type in types.items() -%}
+{%    set c_type_name = type_name | camel -%}
 {%    if type.type == 'enum' %}
-    py_{{ type.name }}
+    py_{{ type_name }}
 {%-     for value_name, value_type in type["values"].items() %}
-        .value("{{ value_name | camel }}", {{ type_name }}::{{ value_name | camel }}, R"doc({{ value_type.doc }})doc")
+        .value("{{ value_name | camel }}", {{ c_type_name }}::{{ value_name | camel }}, R"doc({{ value_type.doc }})doc")
 {%-       if loop.last %};{% endif -%}
 {%-     endfor %}
 {%    elif type.type == 'record' %}
-    py_{{ type.name }}
-        .def(py::init(&{{ type_name }}::construct), py::arg("lib")
+    py_{{ type_name }}
+        .def(py::init(&{{ c_type_name }}::construct), py::arg("lib")
         {%- for argument in type.arguments -%}
             , py::arg("{{ argument.name }}")
             {%- if "default" in argument %}
               {%- if argument.type == "bool" %} = {{ argument.default | string | lower }}
-              {%- elif type_map[argument.type].type == "array" and argument.default == "empty" %} = {{ argument.type | camel }}{}
+              {%- elif types[argument.type].type == "array" and argument.default == "empty" %} = {{ argument.type | camel }}{}
               {%- endif %}
             {%- endif %}
-        {%- endfor %}, R"doc(Construct a {{ type_name }} object.
+        {%- endfor %}, R"doc(Construct a {{ c_type_name }} object.
 
 Parameters
 ----------
@@ -188,10 +189,10 @@ lib
 {{ argument.name }}
 {{ argument.doc | param_doc }}
 {%-     endfor %})doc")
-        .def("__str__", &{{ type_name }}::to_string)
-        .def("__hash__", &{{ type_name }}::hash)
+        .def("__str__", &{{ c_type_name }}::to_string)
+        .def("__hash__", &{{ c_type_name }}::hash)
 {%-     for argument in type.arguments %}
-        .def_property_readonly("{{argument.name}}", &{{ type_name }}::{{argument.name}}, R"doc({{ argument.doc }})doc")
+        .def_property_readonly("{{argument.name}}", &{{ c_type_name }}::{{argument.name}}, R"doc({{ argument.doc }})doc")
 {%-     endfor %}
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
