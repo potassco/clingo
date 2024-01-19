@@ -208,6 +208,27 @@ class TestAST(TestCase):
         self.assertEqual(b.tuple_type, ast.TheoryTupleType.Set)
         self.assertEqual(str(b), "{p(1,2),q}")
 
+    def test_theory_function(self):
+        """
+        Test theory function term.
+        """
+        p = ast.TheoryTermSymbolic(self.lib, self.loc, parse_term(self.lib, "p(1,2)"))
+        q = ast.TheoryTermSymbolic(self.lib, self.loc, parse_term(self.lib, "q"))
+        a = [p, q]
+        b = ast.TheoryTermFunction(self.lib, self.loc, "a", a)
+        c = ast.TheoryTermFunction(self.lib, self.loc, "++", a)
+        d = ast.TheoryTermFunction(self.lib, self.loc, "not", [q])
+
+        self.assertEqual(b.location, self.loc)
+        self.assertEqual(c.location, self.loc)
+        self.assertEqual(b.name, "a")
+        self.assertEqual(c.name, "++")
+        self.assertEqual(b.arguments, a)
+        self.assertEqual(c.arguments, a)
+        self.assertEqual(str(b), "a(p(1,2),q)")
+        self.assertEqual(str(c), "(p(1,2) ++ q)")
+        self.assertEqual(str(d), "(not q)")
+
     def test_boolean(self):
         """
         Test Boolean literal.

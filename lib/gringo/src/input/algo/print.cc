@@ -1,3 +1,4 @@
+#include <cstring>
 #include <sstream>
 
 #include <gringo/util/algorithm.hh>
@@ -9,6 +10,10 @@
 namespace Gringo::Input {
 
 namespace {
+
+auto is_theory_operator(std::string_view name) -> bool {
+    return (!name.empty() && std::strchr("/!<=>+-*\\?&@|:;~^.", name.front()) != nullptr) || (name == "not");
+}
 
 //! Enumeration of term positions.
 enum class OperatorPosition : int {
@@ -310,11 +315,22 @@ struct Print {
     }
 
     void operator()(TheoryTermFunction const &term) const {
-        out << term.name;
-        if (!term.args.empty()) {
+        size_t n = term.args.size();
+        if (is_theory_operator(term.name.view()) && 0 < n && n < 3) {
             out << "(";
-            visit_range(term.args);
+            if (n == 2) {
+                out << term.args.front() << " ";
+            }
+            out << term.name;
+            out << " " << term.args.back();
             out << ")";
+        } else {
+            out << term.name;
+            if (n > 0) {
+                out << "(";
+                visit_range(term.args);
+                out << ")";
+            }
         }
     }
 

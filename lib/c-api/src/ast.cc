@@ -374,10 +374,9 @@ auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<
                     return static_cast<int>(cast<TermVariable>().is_anonymous);
                 }
                 default: {
-                    break;
+                    return std::nullopt;
                 }
             }
-            break;
         }
         case clingo_ast_type_theory_term_variable: {
             switch (attr) {
@@ -385,10 +384,9 @@ auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<
                     return static_cast<int>(cast<TheoryTermVariable>().is_anonymous);
                 }
                 default: {
-                    break;
+                    return std::nullopt;
                 }
             }
-            break;
         }
         case clingo_ast_type_term_function: {
             switch (attr) {
@@ -396,10 +394,9 @@ auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<
                     return static_cast<int>(cast<TermFunction>().external);
                 }
                 default: {
-                    break;
+                    return std::nullopt;
                 }
             }
-            break;
         }
         case clingo_ast_type_term_unary_operation: {
             switch (attr) {
@@ -407,10 +404,9 @@ auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<
                     return static_cast<int>(cast<TermUnary>().op);
                 }
                 default: {
-                    break;
+                    return std::nullopt;
                 }
             }
-            break;
         }
         case clingo_ast_type_term_binary_operation: {
             switch (attr) {
@@ -418,10 +414,9 @@ auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<
                     return static_cast<int>(cast<TermBinary>().op);
                 }
                 default: {
-                    break;
+                    return std::nullopt;
                 }
             }
-            break;
         }
         case clingo_ast_type_theory_term_tuple: {
             switch (attr) {
@@ -429,10 +424,9 @@ auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<
                     return static_cast<int>(cast<TheoryTermTuple>().type);
                 }
                 default: {
-                    break;
+                    return std::nullopt;
                 }
             }
-            break;
         }
         case clingo_ast_type_literal_boolean: {
             switch (attr) {
@@ -443,10 +437,9 @@ auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<
                     return static_cast<int>(cast<LiteralBoolean>().sign);
                 }
                 default: {
-                    break;
+                    return std::nullopt;
                 }
             }
-            break;
         }
         case clingo_ast_type_literal_symbolic: {
             switch (attr) {
@@ -454,10 +447,9 @@ auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<
                     return static_cast<int>(cast<LiteralSymbolic>().sign);
                 }
                 default: {
-                    break;
+                    return std::nullopt;
                 }
             }
-            break;
         }
         case clingo_ast_type_literal_comparison: {
             switch (attr) {
@@ -465,16 +457,14 @@ auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<
                     return static_cast<int>(cast<LiteralRelation>().sign);
                 }
                 default: {
-                    break;
+                    return std::nullopt;
                 }
             }
-            break;
         }
         default: {
-            break;
+            return std::nullopt;
         }
     }
-    return std::nullopt;
 }
 
 [[nodiscard]] auto clingo_ast::get_symbol(clingo_ast_attribute_t attr) const -> std::optional<clingo_symbol_t> {
@@ -515,10 +505,9 @@ auto clingo_ast::get_string(clingo_ast_attribute_t attr) const -> std::optional<
                     return cast<TermVariable>().name.c_str();
                 }
                 default: {
-                    break;
+                    return std::nullopt;
                 }
             }
-            break;
         }
         case clingo_ast_type_theory_term_variable: {
             switch (attr) {
@@ -526,10 +515,9 @@ auto clingo_ast::get_string(clingo_ast_attribute_t attr) const -> std::optional<
                     return cast<TheoryTermVariable>().name.c_str();
                 }
                 default: {
-                    break;
+                    return std::nullopt;
                 }
             }
-            break;
         }
         case clingo_ast_type_term_function: {
             switch (attr) {
@@ -537,16 +525,24 @@ auto clingo_ast::get_string(clingo_ast_attribute_t attr) const -> std::optional<
                     return cast<TermFunction>().name.c_str();
                 }
                 default: {
-                    break;
+                    return std::nullopt;
                 }
             }
-            break;
+        }
+        case clingo_ast_type_theory_term_function: {
+            switch (attr) {
+                case clingo_ast_attribute_name: {
+                    return cast<TheoryTermFunction>().name.c_str();
+                }
+                default: {
+                    return std::nullopt;
+                }
+            }
         }
         default: {
-            break;
+            return std::nullopt;
         }
     }
-    return std::nullopt;
 }
 
 auto clingo_ast::get_ast(clingo_ast_attribute_t attr) const -> std::optional<std::unique_ptr<clingo_ast_t>> {
@@ -638,6 +634,16 @@ auto clingo_ast::get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional
             switch (attr) {
                 case clingo_ast_attribute_arguments: {
                     return make_ast_vec(owner_, cast<TheoryTermTuple>().elems);
+                }
+                default: {
+                    return std::nullopt;
+                }
+            }
+        }
+        case clingo_ast_type_theory_term_function: {
+            switch (attr) {
+                case clingo_ast_attribute_arguments: {
+                    return make_ast_vec(owner_, cast<TheoryTermFunction>().args);
                 }
                 default: {
                     return std::nullopt;
@@ -997,7 +1003,17 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 break;
             }
             case clingo_ast_type_theory_term_function: {
-                throw std::runtime_error("implement me!!!");
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const *name = va_arg(args, char const *);
+                auto const **arguments = va_arg(args, clingo_ast_t const **);
+                auto size = va_arg(args, size_t);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::TheoryTermFunction>(
+                    type, convert_loc(lib, loc), lib->store->string(name),
+                    convert_ast_vec<Gringo::Input::TheoryTerm>(arguments, size));
+                break;
             }
             case clingo_ast_type_theory_term_unparsed: {
                 throw std::runtime_error("implement me!!!");

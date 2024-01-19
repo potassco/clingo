@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <type_traits> // NOLINT(unused-includes)
 #include <vector>
 
