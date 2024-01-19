@@ -139,9 +139,8 @@ def generate():
     env.filters["forward"] = forward
 
     types = yaml.safe_load(_type_info_yaml())
-    type_map = {type_attr["name"]: type_attr for type_attr in types}
 
-    return env.get_template("ast_module.j2").render(types=type_map)
+    return env.get_template("ast_module.j2").render(types=types)
 
 
 print(generate())
