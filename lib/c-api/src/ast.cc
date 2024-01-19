@@ -27,6 +27,9 @@ auto make_ast(Owner const &owner, Gringo::Input::TheoryTerm const &term) -> std:
 auto make_ast(Owner const &owner, Gringo::Input::TupleVec const &tuple) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::TermTuple::Element const &elem) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::Literal const &lit) -> std::unique_ptr<clingo_ast_t>;
+auto make_ast(Owner const &owner, Gringo::Input::TheoryTermUnparsed::Element const &elem)
+    -> std::unique_ptr<clingo_ast_t>;
+
 // TODO
 [[maybe_unused]] auto make_ast(Owner const &owner, Gringo::Input::TupleElem const &elem)
     -> std::unique_ptr<clingo_ast_t>;
@@ -38,6 +41,13 @@ template <class T> auto convert_ast_vec(clingo_ast const **ast, size_t size) -> 
 auto convert_loc(clingo_lib_t *lib, clingo_location_t const *loc) -> Gringo::Input::Location {
     return {{lib->store->string(loc->begin_file), loc->begin_line, loc->begin_column},
             {lib->store->string(loc->end_file), loc->end_line, loc->end_column}};
+}
+
+auto convert_string_array(clingo_lib_t *lib, char const **array, size_t size) -> Gringo::StringVec {
+    auto ret = Gringo::StringVec{};
+    ret.reserve(size);
+    std::transform(array, array + size, std::back_inserter(ret), [lib](auto str) { return lib->store->string(str); });
+    return ret;
 }
 
 // Note: it is actualy used
@@ -62,6 +72,8 @@ struct clingo_ast {
     [[nodiscard]] auto get_symbol(clingo_ast_attribute_t attr) const -> std::optional<clingo_symbol_t>;
     [[nodiscard]] auto get_location(clingo_ast_attribute_t attr) const -> std::optional<clingo_location_t>;
     [[nodiscard]] auto get_string(clingo_ast_attribute_t attr) const -> std::optional<char const *>;
+    [[nodiscard]] auto get_string_vec(clingo_ast_attribute_t attr) const
+        -> std::optional<tcb::span<Gringo::String const>>;
     [[nodiscard]] auto get_ast(clingo_ast_attribute_t attr) const -> std::optional<std::unique_ptr<clingo_ast_t>>;
     [[nodiscard]] auto get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional<ASTVec>;
 
@@ -235,6 +247,11 @@ auto make_ast(Owner const &owner, Gringo::Input::TheoryTerm const &term) -> std:
         term);
 }
 
+auto make_ast(Owner const &owner, Gringo::Input::TheoryTermUnparsed::Element const &elem)
+    -> std::unique_ptr<clingo_ast_t> {
+    return std::make_unique<clingo_ast>(owner, clingo_ast_type_unparsed_element, &elem);
+}
+
 auto make_ast(Owner const &owner, Gringo::Input::TupleVec const &tuple) -> std::unique_ptr<clingo_ast_t> {
     return std::make_unique<clingo_ast>(owner, clingo_ast_type_argument_tuple, static_cast<void const *>(&tuple));
 }
@@ -321,6 +338,9 @@ auto clingo_ast::visit(V &&visit) const -> std::invoke_result_t<V, Gringo::Input
         }
         case clingo_ast_type_right_guard: {
             return std::invoke(std::move(visit), cast<RGuard::value_type>());
+        }
+        case clingo_ast_type_unparsed_element: {
+            return std::invoke(std::move(visit), cast<TheoryTermUnparsed::Element>());
         }
         case clingo_ast_type_theory_term_variable: {
             return std::invoke(std::move(visit), cast<TheoryTermVariable>());
@@ -545,6 +565,25 @@ auto clingo_ast::get_string(clingo_ast_attribute_t attr) const -> std::optional<
     }
 }
 
+auto clingo_ast::get_string_vec(clingo_ast_attribute_t attr) const -> std::optional<tcb::span<Gringo::String const>> {
+    using namespace Gringo::Input;
+    switch (type_) {
+        case clingo_ast_type_unparsed_element: {
+            switch (attr) {
+                case clingo_ast_attribute_operators: {
+                    return tcb::make_span(cast<TheoryTermUnparsed::Element>().first);
+                }
+                default: {
+                    return std::nullopt;
+                }
+            }
+        }
+        default: {
+            return std::nullopt;
+        }
+    }
+}
+
 auto clingo_ast::get_ast(clingo_ast_attribute_t attr) const -> std::optional<std::unique_ptr<clingo_ast_t>> {
     using namespace Gringo::Input;
     switch (type_) {
@@ -565,6 +604,16 @@ auto clingo_ast::get_ast(clingo_ast_attribute_t attr) const -> std::optional<std
                 }
                 case clingo_ast_attribute_right: {
                     return make_ast(owner_, *cast<TermBinary>().rhs);
+                }
+                default: {
+                    return std::nullopt;
+                }
+            }
+        }
+        case clingo_ast_type_unparsed_element: {
+            switch (attr) {
+                case clingo_ast_attribute_term: {
+                    return make_ast(owner_, cast<TheoryTermUnparsed::Element>().second);
                 }
                 default: {
                     return std::nullopt;
@@ -650,6 +699,16 @@ auto clingo_ast::get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional
                 }
             }
         }
+        case clingo_ast_type_theory_term_unparsed: {
+            switch (attr) {
+                case clingo_ast_attribute_elements: {
+                    return make_ast_vec(owner_, cast<TheoryTermUnparsed>().elems);
+                }
+                default: {
+                    return std::nullopt;
+                }
+            }
+        }
         case clingo_ast_type_literal_comparison: {
             switch (attr) {
                 case clingo_ast_attribute_right: {
@@ -671,7 +730,13 @@ auto clingo_ast::copy() const -> std::unique_ptr<clingo_ast_t> { return std::mak
 void clingo_ast::print(std::ostream &out) const {
     using namespace Gringo::Input;
     visit([&out](auto &x) {
-        GRINGO_MATCH(x, TupleVec) {
+        GRINGO_MATCH(x, TheoryTermUnparsed::Element) {
+            for (auto const &op : x.first) {
+                out << op << " ";
+            }
+            out << x.second;
+        }
+        else GRINGO_MATCH(x, TupleVec) {
             bool comma = false;
             for (auto const &elem : x) {
                 if (comma) {
@@ -783,6 +848,15 @@ template <>
         return cast<Gringo::Input::TupleVec>();
     }
     return convert<Gringo::Input::Term>();
+}
+
+template <>
+[[nodiscard]] auto clingo_ast::convert<Gringo::Input::TheoryTermUnparsed::Element>() const
+    -> Gringo::Input::TheoryTermUnparsed::Element {
+    if (type_ == clingo_ast_type_unparsed_element) {
+        return cast<Gringo::Input::TheoryTermUnparsed::Element>();
+    }
+    throw std::runtime_error("unparsed element expected");
 }
 
 template <>
@@ -968,6 +1042,17 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                     left->convert<Gringo::Input::Term>(), convert_ast_vec<Gringo::Input::Guard>(right, size));
                 break;
             }
+            case clingo_ast_type_unparsed_element: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const **ops = va_arg(args, char const **);
+                auto size = va_arg(args, size_t);
+                auto const *term = va_arg(args, clingo_ast_t const *);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::TheoryTermUnparsed::Element>(
+                    type, convert_string_array(lib, ops, size), term->convert<Gringo::Input::TheoryTerm>());
+                break;
+            }
             case clingo_ast_type_theory_term_variable: {
                 std::va_list args;
                 va_start(args, ast);
@@ -1016,7 +1101,16 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 break;
             }
             case clingo_ast_type_theory_term_unparsed: {
-                throw std::runtime_error("implement me!!!");
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const **elems = va_arg(args, clingo_ast_t const **);
+                auto size = va_arg(args, size_t);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::TheoryTermUnparsed>(
+                    type, convert_loc(lib, loc),
+                    convert_ast_vec<Gringo::Input::TheoryTermUnparsed::Element>(elems, size));
+                break;
             }
         }
     }
@@ -1131,6 +1225,24 @@ extern "C" auto clingo_ast_attribute_get_string(clingo_ast_t *ast, clingo_ast_at
         }
         if (auto str = ast->get_string(attribute); str) {
             *value = *str;
+            return true;
+        }
+        return false;
+    }
+    CLINGO_CATCH(nullptr);
+}
+
+extern "C" auto clingo_ast_attribute_get_string_array(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
+                                                      char const **value, size_t *size) -> bool {
+    CLINGO_TRY {
+        if (ast == nullptr || size == nullptr) {
+            throw std::invalid_argument("invalid arguments");
+        }
+        if (auto vec = ast->get_string_vec(attribute); vec) {
+            *size = vec->size();
+            if (value != nullptr) {
+                std::transform(vec->begin(), vec->end(), value, [](auto str) { return str.c_str(); });
+            }
             return true;
         }
         return false;
@@ -1611,6 +1723,19 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
 - name: theory_term_array
   type: array
   value_type: theory_term
+- name: unparsed_element
+  type: record
+  doc: A list of unparsed theory terms and operators.
+  arguments:
+  - name: operators
+    type: string_array
+    doc: The list of theory operators.
+  - name: term
+    type: theory_term
+    doc: The theory term.
+- name: unparsed_element_array
+  type: array
+  value_type: unparsed_element
 - name: theory_term_variable
   type: record
   doc: A theory term representing a variable.
@@ -1671,5 +1796,8 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
   - name: location
     type: location
     doc: The location of the theory term.
+  - name: elements
+    type: unparsed_element_array
+    doc: The unparsed theory elements.
 )yaml";
 }

@@ -13,11 +13,22 @@ namespace py = pybind11;
 
 using Clingo::Symbol::Symbol;
 
+using StringArray = std::vector<std::string>;
+
 template <class... Ts>
 auto c_cast(std::variant<Ts...> const &var) -> clingo_ast_t*;
 
 template <class T>
 auto c_cast(std::vector<T> const &arr) -> std::vector<clingo_ast_t*>;
+
+auto c_cast(StringArray const &arr) -> std::vector<char const *> {
+    std::vector<char const *> ret;
+    ret.reserve(arr.size());
+    for (auto const &str : arr) {
+        ret.emplace_back(str.c_str());
+    }
+    return ret;
+}
 
 {% for type in types -%}
 {%    if type.type == 'forward' %}

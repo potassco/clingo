@@ -40,6 +40,19 @@ auto {{ type_name }}::{{ argument.name }}() -> char const * {
     }
     return ret;
 }
+{%    elif argument.type == 'string_array' %}
+auto {{ type_name }}::{{ argument.name }}() -> std::vector<char const *> {
+    size_t size;
+    if (!clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_{{ argument.name }}, nullptr, &size)) {
+        throw std::runtime_error("could not get string array attribute");
+    }
+    std::vector<char const *> ret;
+    ret.resize(size, nullptr);
+    if (!clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_{{ argument.name }}, ret.data(), &size)) {
+        throw std::runtime_error("could not get string array attribute");
+    }
+    return ret;
+}
 {%    elif type_map[argument.type].type == 'enum' %}
 auto {{ type_name }}::{{ argument.name }}() -> {{ argument_type }} {
     int ret;

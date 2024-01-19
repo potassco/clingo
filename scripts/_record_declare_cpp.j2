@@ -72,6 +72,8 @@ public:
     auto {{ argument.name }}() -> bool;
 {% elif argument.type == 'symbol' %}
     auto {{ argument.name }}() -> Symbol;
+{% elif argument.type == 'string_array' %}
+    auto {{ argument.name }}() -> std::vector<char const *>;
 {% else %}
     auto {{ argument.name }}() -> {{ argument.type | camel }};
 {% endif %}

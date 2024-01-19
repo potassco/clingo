@@ -13,9 +13,20 @@ namespace py = pybind11;
 
 using Clingo::Symbol::Symbol;
 
+using StringArray = std::vector<std::string>;
+
 template <class... Ts> auto c_cast(std::variant<Ts...> const &var) -> clingo_ast_t *;
 
 template <class T> auto c_cast(std::vector<T> const &arr) -> std::vector<clingo_ast_t *>;
+
+auto c_cast(StringArray const &arr) -> std::vector<char const *> {
+    std::vector<char const *> ret;
+    ret.reserve(arr.size());
+    for (auto const &str : arr) {
+        ret.emplace_back(str.c_str());
+    }
+    return ret;
+}
 
 enum class UnaryOperator {
     Minus = 0,
@@ -1226,6 +1237,85 @@ using TheoryTermArray = std::vector<TheoryTerm>;
 
 auto construct_theory_term_array(clingo_ast_t **ast, size_t size) -> TheoryTermArray;
 
+class UnparsedElement {
+  public:
+    // Note: for pybind
+    UnparsedElement() = default;
+
+    UnparsedElement(UnparsedElement const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    UnparsedElement(UnparsedElement &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(UnparsedElement const &x) -> UnparsedElement & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(UnparsedElement &&x) noexcept -> UnparsedElement & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(UnparsedElement const &a, UnparsedElement const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(UnparsedElement const &a, UnparsedElement const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, UnparsedElement)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~UnparsedElement() { clingo_ast_free(ast_); }
+
+    auto operators() -> std::vector<char const *>;
+
+    auto term() -> TheoryTerm;
+
+    static auto acquire(clingo_ast_t *ast) -> UnparsedElement { return {ast}; }
+
+    static auto construct(Library &lib, StringArray const &operators, TheoryTerm const &term) -> UnparsedElement;
+
+    friend auto c_cast(UnparsedElement const &x) -> clingo_ast_t *;
+
+  private:
+    UnparsedElement(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(UnparsedElement const &x) -> clingo_ast_t * { return x.ast_; }
+
+using UnparsedElementArray = std::vector<UnparsedElement>;
+
+auto construct_unparsed_element_array(clingo_ast_t **ast, size_t size) -> UnparsedElementArray;
+
 class TheoryTermVariable {
   public:
     // Note: for pybind
@@ -1594,9 +1684,12 @@ class TheoryTermUnparsed {
 
     auto location() -> clingo_location_t;
 
+    auto elements() -> UnparsedElementArray;
+
     static auto acquire(clingo_ast_t *ast) -> TheoryTermUnparsed { return {ast}; }
 
-    static auto construct(Library &lib, clingo_location_t const &location) -> TheoryTermUnparsed;
+    static auto construct(Library &lib, clingo_location_t const &location, UnparsedElementArray const &elements)
+        -> TheoryTermUnparsed;
 
     friend auto c_cast(TheoryTermUnparsed const &x) -> clingo_ast_t *;
 
@@ -2260,6 +2353,51 @@ auto construct_theory_term_array(clingo_ast_t **ast, size_t size) -> TheoryTermA
     return ret;
 }
 
+auto UnparsedElement::operators() -> std::vector<char const *> {
+    size_t size;
+    if (!clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_operators, nullptr, &size)) {
+        throw std::runtime_error("could not get string array attribute");
+    }
+    std::vector<char const *> ret;
+    ret.resize(size, nullptr);
+    if (!clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_operators, ret.data(), &size)) {
+        throw std::runtime_error("could not get string array attribute");
+    }
+    return ret;
+}
+
+auto UnparsedElement::term() -> TheoryTerm {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_term, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    return construct_theory_term(ast);
+}
+
+auto UnparsedElement::construct(Library &lib, StringArray const &operators, TheoryTerm const &term) -> UnparsedElement {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_unparsed_element, &res_, c_cast(operators).data(),
+                                           operators.size(), c_cast(term)));
+    return UnparsedElement::acquire(res_);
+}
+
+auto construct_unparsed_element_array(clingo_ast_t **ast, size_t size) -> UnparsedElementArray {
+    UnparsedElementArray ret;
+    try {
+        ret.reserve(size);
+        std::for_each_n(ast, size, [&ret](auto &arg) {
+            auto tmp = arg;
+            arg = nullptr;
+            ret.emplace_back(UnparsedElement::acquire(tmp));
+        });
+        clingo_ast_array_free(ast, size);
+    } catch (...) {
+        clingo_ast_array_free(ast, size);
+        throw;
+    }
+    return ret;
+}
+
 auto TheoryTermVariable::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -2390,9 +2528,20 @@ auto TheoryTermUnparsed::location() -> clingo_location_t {
     return ret;
 }
 
-auto TheoryTermUnparsed::construct(Library &lib, clingo_location_t const &location) -> TheoryTermUnparsed {
+auto TheoryTermUnparsed::elements() -> UnparsedElementArray {
+    clingo_ast_t **ast;
+    size_t size;
+    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &ast, &size)) {
+        throw std::runtime_error("could not get ast array attribute");
+    }
+    return construct_unparsed_element_array(ast, size);
+}
+
+auto TheoryTermUnparsed::construct(Library &lib, clingo_location_t const &location,
+                                   UnparsedElementArray const &elements) -> TheoryTermUnparsed {
     clingo_ast_t *res_;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_theory_term_unparsed, &res_, &location));
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_theory_term_unparsed, &res_, &location,
+                                           c_cast(elements).data(), elements.size()));
     return TheoryTermUnparsed::acquire(res_);
 }
 
@@ -2488,6 +2637,9 @@ This can be used to auto-generate most of the binding.)"));
 
     auto py_literal_symbolic =
         py::class_<LiteralSymbolic>(ast, "LiteralSymbolic", R"doc(A literal representing a symbolic literal.)doc");
+
+    auto py_unparsed_element =
+        py::class_<UnparsedElement>(ast, "UnparsedElement", R"doc(A list of unparsed theory terms and operators.)doc");
 
     auto py_theory_term_variable =
         py::class_<TheoryTermVariable>(ast, "TheoryTermVariable", R"doc(A theory term representing a variable.)doc");
@@ -2849,6 +3001,25 @@ atom
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
+    py_unparsed_element
+        .def(py::init(&UnparsedElement::construct), py::arg("lib"), py::arg("operators"), py::arg("term"),
+             R"doc(Construct a UnparsedElement object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+operators
+    The list of theory operators.
+term
+    The theory term.)doc")
+        .def("__str__", &UnparsedElement::to_string)
+        .def("__hash__", &UnparsedElement::hash)
+        .def_property_readonly("operators", &UnparsedElement::operators)
+        .def_property_readonly("term", &UnparsedElement::term)
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
     py_theory_term_variable
         .def(py::init(&TheoryTermVariable::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
              py::arg("anonymous") = false, R"doc(Construct a TheoryTermVariable object.
@@ -2937,7 +3108,7 @@ arguments
         CLINGO_PY_TOTAL_ORDER;
 
     py_theory_term_unparsed
-        .def(py::init(&TheoryTermUnparsed::construct), py::arg("lib"), py::arg("location"),
+        .def(py::init(&TheoryTermUnparsed::construct), py::arg("lib"), py::arg("location"), py::arg("elements"),
              R"doc(Construct a TheoryTermUnparsed object.
 
 Parameters
@@ -2945,10 +3116,13 @@ Parameters
 lib
     The library object for storing symbols.
 location
-    The location of the theory term.)doc")
+    The location of the theory term.
+elements
+    The unparsed theory elements.)doc")
         .def("__str__", &TheoryTermUnparsed::to_string)
         .def("__hash__", &TheoryTermUnparsed::hash)
         .def_property_readonly("location", &TheoryTermUnparsed::location)
+        .def_property_readonly("elements", &TheoryTermUnparsed::elements)
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 

@@ -649,6 +649,7 @@ enum clingo_ast_type_e {
     clingo_ast_type_term_function,
     clingo_ast_type_argument_tuple,
     // theory terms
+    clingo_ast_type_unparsed_element,
     clingo_ast_type_theory_term_variable,
     clingo_ast_type_theory_term_symbolic,
     clingo_ast_type_theory_term_tuple,
@@ -729,6 +730,8 @@ enum clingo_ast_attribute_e {
     clingo_ast_attribute_term,
     clingo_ast_attribute_relation,
     clingo_ast_attribute_tuple_type,
+    clingo_ast_attribute_elements,
+    clingo_ast_attribute_operators,
     /*
     clingo_ast_attribute_argument,
     clingo_ast_attribute_arity,
@@ -741,7 +744,6 @@ enum clingo_ast_attribute_e {
     clingo_ast_attribute_coefficient,
     clingo_ast_attribute_comparison,
     clingo_ast_attribute_condition,
-    clingo_ast_attribute_elements,
     clingo_ast_attribute_external_type,
     clingo_ast_attribute_function,
     clingo_ast_attribute_guard,
@@ -934,6 +936,20 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_location(clingo_ast_t *a
 //! - ::clingo_error_runtime
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_string(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
                                                                char const **value);
+
+//! Get the value of a string array attribute.
+//!
+//! @note The the required size of the array can be queried setting value to NULL.
+//!
+//! @param[in] ast the target AST
+//! @param[in] attribute the target attribute
+//! @param[out] value the resulting value
+//! @param[out] size the size of the array
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_string_array(clingo_ast_t *ast,
+                                                                     clingo_ast_attribute_t attribute,
+                                                                     char const **value, size_t *size);
 
 //! Get the value of an ast attribute..
 //!

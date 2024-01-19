@@ -49,6 +49,9 @@ def c_cast(arguments, type_map):
             res.append(f'static_cast<int>({argument["name"]})')
         elif argument["type"] == "symbol":
             res.append(f'{argument["name"]}.handle()')
+        elif argument["type"] == "string_array":
+            res.append(f'c_cast({argument["name"]}).data()')
+            res.append(f'{argument["name"]}.size()')
         elif type_map[argument["type"]]["type"] == "enum":
             res.append(f'static_cast<int>({argument["name"]})')
         elif type_map[argument["type"]]["type"] == "union":

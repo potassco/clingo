@@ -229,6 +229,30 @@ class TestAST(TestCase):
         self.assertEqual(str(c), "(p(1,2) ++ q)")
         self.assertEqual(str(d), "(not q)")
 
+    def test_theory_unparsed(self):
+        """
+        Test theory function term.
+        """
+        p = ast.TheoryTermSymbolic(self.lib, self.loc, parse_term(self.lib, "p(1,2)"))
+        q = ast.TheoryTermSymbolic(self.lib, self.loc, parse_term(self.lib, "q"))
+
+        a = ast.UnparsedElement(self.lib, ["+", "-"], p)
+        b = ast.UnparsedElement(self.lib, ["*"], q)
+
+        x = ast.TheoryTermUnparsed(self.lib, self.loc, [a, b])
+
+        self.assertEqual(x.location, self.loc)
+        self.assertEqual(p.location, self.loc)
+        self.assertEqual(q.location, self.loc)
+        self.assertEqual(a.operators, ["+", "-"])
+        self.assertEqual(b.operators, ["*"])
+        self.assertEqual(a.term, p)
+        self.assertEqual(b.term, q)
+        self.assertEqual(x.elements, [a, b])
+        self.assertEqual(str(a), "+ - p(1,2)")
+        self.assertEqual(str(b), "* q")
+        self.assertEqual(str(x), "(+ - p(1,2) * q)")
+
     def test_boolean(self):
         """
         Test Boolean literal.
