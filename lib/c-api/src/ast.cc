@@ -180,6 +180,14 @@ template <class T> auto make_ast_vec(Owner const &owner, Gringo::Util::immutable
     return res;
 }
 
+template <class T> auto convert_ast_opt(clingo_ast const *ast) -> std::optional<T> {
+    std::optional<T> res;
+    if (ast != nullptr) {
+        res = ast->convert<T>();
+    }
+    return res;
+}
+
 template <class T> auto convert_ast_vec(clingo_ast const **ast, size_t size) -> std::vector<T> {
     std::vector<T> res;
     res.reserve(size);
@@ -860,6 +868,23 @@ template <> [[nodiscard]] auto clingo_ast::convert<Gringo::Input::TheoryTerm>() 
     }
 }
 
+template <> [[nodiscard]] auto clingo_ast::convert<Gringo::Input::Literal>() const -> Gringo::Input::Literal {
+    switch (type_) {
+        case clingo_ast_type_literal_boolean: {
+            return cast<Gringo::Input::LiteralBoolean>();
+        }
+        case clingo_ast_type_literal_symbolic: {
+            return cast<Gringo::Input::LiteralSymbolic>();
+        }
+        case clingo_ast_type_literal_comparison: {
+            return cast<Gringo::Input::LiteralSymbolic>();
+        }
+        default: {
+            throw std::runtime_error("literal expected");
+        }
+    }
+}
+
 template <> [[nodiscard]] auto clingo_ast::convert<Gringo::Input::TupleElem>() const -> Gringo::Input::TupleElem {
     if (type_ == clingo_ast_type_projection) {
         return cast<Gringo::Input::Projection>();
@@ -905,6 +930,41 @@ template <>
         return cast<Gringo::Input::RGuard::value_type>();
     }
     throw std::runtime_error("right guard expected");
+}
+
+template <>
+[[nodiscard]] auto clingo_ast::convert<Gringo::Input::TheoryRGuard::value_type>() const
+    -> Gringo::Input::TheoryRGuard::value_type {
+    if (type_ == clingo_ast_type_theory_right_guard) {
+        return cast<Gringo::Input::TheoryRGuard::value_type>();
+    }
+    throw std::runtime_error("theory right guard expected");
+}
+
+template <>
+[[nodiscard]] auto clingo_ast::convert<Gringo::Input::SetAggregateElement>() const
+    -> Gringo::Input::SetAggregateElement {
+    if (type_ == clingo_ast_type_set_aggregate_element) {
+        return cast<Gringo::Input::SetAggregateElement>();
+    }
+    throw std::runtime_error("set aggregate element expected");
+}
+
+template <>
+[[nodiscard]] auto clingo_ast::convert<Gringo::Input::TheoryElement>() const -> Gringo::Input::TheoryElement {
+    if (type_ == clingo_ast_type_theory_atom_element) {
+        return cast<Gringo::Input::TheoryElement>();
+    }
+    throw std::runtime_error("theory atom element expected");
+}
+
+template <>
+[[nodiscard]] auto clingo_ast::convert<Gringo::Input::BodyAggregate::Element>() const
+    -> Gringo::Input::BodyAggregate::Element {
+    if (type_ == clingo_ast_type_body_aggregate_element) {
+        return cast<Gringo::Input::BodyAggregate::Element>();
+    }
+    throw std::runtime_error("body aggregate element expected");
 }
 
 extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, clingo_ast_t **ast, ...) -> bool {
@@ -1145,31 +1205,130 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 break;
             }
             case clingo_ast_type_set_aggregate_element: {
-                throw std::logic_error("implement me!!!");
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const *lit = va_arg(args, clingo_ast_t const *);
+                auto const **cond = va_arg(args, clingo_ast_t const **);
+                auto size = va_arg(args, size_t);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::SetAggregateElement>(
+                    type, convert_loc(lib, loc), lit->convert<Literal>(),
+                    convert_ast_vec<Gringo::Input::Literal>(cond, size));
+                break;
             }
             case clingo_ast_type_theory_atom_element: {
-                throw std::logic_error("implement me!!!");
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const **tuple = va_arg(args, clingo_ast_t const **);
+                auto tuple_size = va_arg(args, size_t);
+                auto const **cond = va_arg(args, clingo_ast_t const **);
+                auto cond_size = va_arg(args, size_t);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::TheoryElement>(
+                    type, convert_loc(lib, loc), convert_ast_vec<Gringo::Input::TheoryTerm>(tuple, tuple_size),
+                    convert_ast_vec<Gringo::Input::Literal>(cond, cond_size));
+                break;
             }
             case clingo_ast_type_theory_right_guard: {
-                throw std::logic_error("implement me!!!");
+                std::va_list args;
+                va_start(args, ast);
+                auto const *op = va_arg(args, char const *);
+                auto const *term = va_arg(args, clingo_ast_t const *);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::TheoryRGuard::value_type>(
+                    type, lib->store->string(op), term->convert<Gringo::Input::TheoryTerm>());
+                break;
             }
             case clingo_ast_type_body_simple_literal: {
-                throw std::logic_error("implement me!!!");
+                std::va_list args;
+                va_start(args, ast);
+                auto const *lit = va_arg(args, clingo_ast_t const *);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::SimpleBodyLiteral>(type, lit->convert<Gringo::Input::Literal>());
+                break;
             }
             case clingo_ast_type_body_aggregate_element: {
-                throw std::logic_error("implement me!!!");
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const **tuple = va_arg(args, clingo_ast_t const **);
+                auto tuple_size = va_arg(args, size_t);
+                auto const **cond = va_arg(args, clingo_ast_t const **);
+                auto cond_size = va_arg(args, size_t);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::BodyAggregate::Element>(
+                    type, convert_loc(lib, loc), convert_ast_vec<Gringo::Input::Term>(tuple, tuple_size),
+                    convert_ast_vec<Gringo::Input::Literal>(cond, cond_size));
+                break;
             }
             case clingo_ast_type_body_aggregate: {
-                throw std::logic_error("implement me!!!");
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto sign = va_arg(args, int);
+                auto const *lhs = va_arg(args, clingo_ast_t const *);
+                auto fun = va_arg(args, int);
+                auto const **elems = va_arg(args, clingo_ast_t const **);
+                auto elems_size = va_arg(args, size_t);
+                auto const *rhs = va_arg(args, clingo_ast_t const *);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::BodyAggregate>(
+                    type, convert_loc(lib, loc), static_cast<Gringo::Input::Sign>(sign),
+                    convert_ast_opt<Gringo::Input::LGuard::value_type>(lhs),
+                    static_cast<Gringo::Input::AggregateFunction>(fun),
+                    convert_ast_vec<Gringo::Input::BodyAggregate::Element>(elems, elems_size),
+                    convert_ast_opt<Gringo::Input::RGuard::value_type>(rhs));
+                break;
             }
             case clingo_ast_type_body_set_aggregate: {
-                throw std::logic_error("implement me!!!");
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto sign = va_arg(args, int);
+                auto const *lhs = va_arg(args, clingo_ast_t const *);
+                auto const **elems = va_arg(args, clingo_ast_t const **);
+                auto elems_size = va_arg(args, size_t);
+                auto const *rhs = va_arg(args, clingo_ast_t const *);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::BodySetAggregate>(
+                    type, convert_loc(lib, loc), static_cast<Gringo::Input::Sign>(sign),
+                    convert_ast_opt<Gringo::Input::LGuard::value_type>(lhs),
+                    convert_ast_vec<Gringo::Input::SetAggregateElement>(elems, elems_size),
+                    convert_ast_opt<Gringo::Input::RGuard::value_type>(rhs));
+                break;
             }
             case clingo_ast_type_body_theory_atom: {
-                throw std::logic_error("implement me!!!");
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto sign = va_arg(args, int);
+                auto const *term = va_arg(args, clingo_ast_t const *);
+                auto const **elems = va_arg(args, clingo_ast_t const **);
+                auto elems_size = va_arg(args, size_t);
+                auto const *rhs = va_arg(args, clingo_ast_t const *);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::BodyTheoryAtom>(
+                    type, convert_loc(lib, loc), static_cast<Gringo::Input::Sign>(sign),
+                    term->convert<Gringo::Input::Term>(),
+                    convert_ast_vec<Gringo::Input::TheoryElement>(elems, elems_size),
+                    convert_ast_opt<Gringo::Input::TheoryRGuard::value_type>(rhs));
+                break;
             }
             case clingo_ast_type_body_conditional_literal: {
-                throw std::logic_error("implement me!!!");
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const *lit = va_arg(args, clingo_ast_t const *);
+                auto const **cond = va_arg(args, clingo_ast_t const **);
+                auto cond_size = va_arg(args, size_t);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::Conjunction>(
+                    type,
+                    Gringo::Input::ConditionalLiteral{convert_loc(lib, loc), lit->convert<Gringo::Input::Literal>(),
+                                                      convert_ast_vec<Gringo::Input::Literal>(cond, cond_size)});
+                break;
             }
         }
     }
