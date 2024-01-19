@@ -2451,6 +2451,586 @@ class BodyConditionalLiteral {
 
 inline auto c_cast(BodyConditionalLiteral const &x) -> clingo_ast_t * { return x.ast_; }
 
+class HeadConditionalLiteral {
+  public:
+    // Note: for pybind
+    HeadConditionalLiteral() = default;
+
+    HeadConditionalLiteral(HeadConditionalLiteral const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    HeadConditionalLiteral(HeadConditionalLiteral &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(HeadConditionalLiteral const &x) -> HeadConditionalLiteral & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(HeadConditionalLiteral &&x) noexcept -> HeadConditionalLiteral & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(HeadConditionalLiteral const &a, HeadConditionalLiteral const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(HeadConditionalLiteral const &a, HeadConditionalLiteral const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, HeadConditionalLiteral)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~HeadConditionalLiteral() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    auto literal() -> Literal;
+
+    auto condition() -> LiteralArray;
+
+    static auto acquire(clingo_ast_t *ast) -> HeadConditionalLiteral { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, Literal const &literal,
+                          LiteralArray const &condition) -> HeadConditionalLiteral;
+
+    friend auto c_cast(HeadConditionalLiteral const &x) -> clingo_ast_t *;
+
+  private:
+    HeadConditionalLiteral(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(HeadConditionalLiteral const &x) -> clingo_ast_t * { return x.ast_; }
+
+using DisjunctionElement = std::variant<Literal, HeadConditionalLiteral>;
+
+auto construct_disjunction_element(clingo_ast_t *ast) -> DisjunctionElement;
+
+using DisjunctionElementArray = std::vector<DisjunctionElement>;
+
+auto construct_disjunction_element_array(clingo_ast_t **ast, size_t size) -> DisjunctionElementArray;
+
+class HeadAggregateElement {
+  public:
+    // Note: for pybind
+    HeadAggregateElement() = default;
+
+    HeadAggregateElement(HeadAggregateElement const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    HeadAggregateElement(HeadAggregateElement &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(HeadAggregateElement const &x) -> HeadAggregateElement & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(HeadAggregateElement &&x) noexcept -> HeadAggregateElement & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(HeadAggregateElement const &a, HeadAggregateElement const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(HeadAggregateElement const &a, HeadAggregateElement const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, HeadAggregateElement)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~HeadAggregateElement() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    auto tuple() -> TermArray;
+
+    auto literal() -> Literal;
+
+    auto condition() -> LiteralArray;
+
+    static auto acquire(clingo_ast_t *ast) -> HeadAggregateElement { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, TermArray const &tuple,
+                          Literal const &literal, LiteralArray const &condition) -> HeadAggregateElement;
+
+    friend auto c_cast(HeadAggregateElement const &x) -> clingo_ast_t *;
+
+  private:
+    HeadAggregateElement(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(HeadAggregateElement const &x) -> clingo_ast_t * { return x.ast_; }
+
+using HeadAggregateElementArray = std::vector<HeadAggregateElement>;
+
+auto construct_head_aggregate_element_array(clingo_ast_t **ast, size_t size) -> HeadAggregateElementArray;
+
+class HeadSimpleLiteral;
+
+class HeadAggregate;
+
+class HeadSetAggregate;
+
+class HeadTheoryAtom;
+
+class HeadDisjunction;
+
+using HeadLiteral = std::variant<HeadSimpleLiteral, HeadAggregate, HeadSetAggregate, HeadTheoryAtom, HeadDisjunction>;
+
+auto construct_head_literal(clingo_ast_t *ast) -> HeadLiteral;
+
+class HeadSimpleLiteral {
+  public:
+    // Note: for pybind
+    HeadSimpleLiteral() = default;
+
+    HeadSimpleLiteral(HeadSimpleLiteral const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    HeadSimpleLiteral(HeadSimpleLiteral &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(HeadSimpleLiteral const &x) -> HeadSimpleLiteral & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(HeadSimpleLiteral &&x) noexcept -> HeadSimpleLiteral & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(HeadSimpleLiteral const &a, HeadSimpleLiteral const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(HeadSimpleLiteral const &a, HeadSimpleLiteral const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, HeadSimpleLiteral)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~HeadSimpleLiteral() { clingo_ast_free(ast_); }
+
+    auto literal() -> Literal;
+
+    static auto acquire(clingo_ast_t *ast) -> HeadSimpleLiteral { return {ast}; }
+
+    static auto construct(Library &lib, Literal const &literal) -> HeadSimpleLiteral;
+
+    friend auto c_cast(HeadSimpleLiteral const &x) -> clingo_ast_t *;
+
+  private:
+    HeadSimpleLiteral(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(HeadSimpleLiteral const &x) -> clingo_ast_t * { return x.ast_; }
+
+class HeadAggregate {
+  public:
+    // Note: for pybind
+    HeadAggregate() = default;
+
+    HeadAggregate(HeadAggregate const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    HeadAggregate(HeadAggregate &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(HeadAggregate const &x) -> HeadAggregate & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(HeadAggregate &&x) noexcept -> HeadAggregate & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(HeadAggregate const &a, HeadAggregate const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(HeadAggregate const &a, HeadAggregate const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, HeadAggregate)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~HeadAggregate() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    auto left() -> OptionalLeftGuard;
+
+    auto function() -> AggregateFunction;
+
+    auto elements() -> HeadAggregateElementArray;
+
+    auto right() -> OptionalRightGuard;
+
+    static auto acquire(clingo_ast_t *ast) -> HeadAggregate { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, OptionalLeftGuard const &left,
+                          AggregateFunction const &function, HeadAggregateElementArray const &elements,
+                          OptionalRightGuard const &right) -> HeadAggregate;
+
+    friend auto c_cast(HeadAggregate const &x) -> clingo_ast_t *;
+
+  private:
+    HeadAggregate(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(HeadAggregate const &x) -> clingo_ast_t * { return x.ast_; }
+
+class HeadSetAggregate {
+  public:
+    // Note: for pybind
+    HeadSetAggregate() = default;
+
+    HeadSetAggregate(HeadSetAggregate const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    HeadSetAggregate(HeadSetAggregate &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(HeadSetAggregate const &x) -> HeadSetAggregate & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(HeadSetAggregate &&x) noexcept -> HeadSetAggregate & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(HeadSetAggregate const &a, HeadSetAggregate const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(HeadSetAggregate const &a, HeadSetAggregate const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, HeadSetAggregate)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~HeadSetAggregate() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    auto left() -> OptionalLeftGuard;
+
+    auto elements() -> SetAggregateElementArray;
+
+    auto right() -> OptionalRightGuard;
+
+    static auto acquire(clingo_ast_t *ast) -> HeadSetAggregate { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, OptionalLeftGuard const &left,
+                          SetAggregateElementArray const &elements, OptionalRightGuard const &right)
+        -> HeadSetAggregate;
+
+    friend auto c_cast(HeadSetAggregate const &x) -> clingo_ast_t *;
+
+  private:
+    HeadSetAggregate(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(HeadSetAggregate const &x) -> clingo_ast_t * { return x.ast_; }
+
+class HeadTheoryAtom {
+  public:
+    // Note: for pybind
+    HeadTheoryAtom() = default;
+
+    HeadTheoryAtom(HeadTheoryAtom const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    HeadTheoryAtom(HeadTheoryAtom &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(HeadTheoryAtom const &x) -> HeadTheoryAtom & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(HeadTheoryAtom &&x) noexcept -> HeadTheoryAtom & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(HeadTheoryAtom const &a, HeadTheoryAtom const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(HeadTheoryAtom const &a, HeadTheoryAtom const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, HeadTheoryAtom)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~HeadTheoryAtom() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    auto sign() -> Sign;
+
+    auto name() -> Term;
+
+    auto elements() -> TheoryAtomElementArray;
+
+    auto right() -> OptionalTheoryRightGuard;
+
+    static auto acquire(clingo_ast_t *ast) -> HeadTheoryAtom { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign, Term const &name,
+                          TheoryAtomElementArray const &elements, OptionalTheoryRightGuard const &right)
+        -> HeadTheoryAtom;
+
+    friend auto c_cast(HeadTheoryAtom const &x) -> clingo_ast_t *;
+
+  private:
+    HeadTheoryAtom(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(HeadTheoryAtom const &x) -> clingo_ast_t * { return x.ast_; }
+
+class HeadDisjunction {
+  public:
+    // Note: for pybind
+    HeadDisjunction() = default;
+
+    HeadDisjunction(HeadDisjunction const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    HeadDisjunction(HeadDisjunction &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(HeadDisjunction const &x) -> HeadDisjunction & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(HeadDisjunction &&x) noexcept -> HeadDisjunction & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(HeadDisjunction const &a, HeadDisjunction const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(HeadDisjunction const &a, HeadDisjunction const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, HeadDisjunction)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~HeadDisjunction() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    auto elements() -> DisjunctionElementArray;
+
+    static auto acquire(clingo_ast_t *ast) -> HeadDisjunction { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, DisjunctionElementArray const &elements)
+        -> HeadDisjunction;
+
+    friend auto c_cast(HeadDisjunction const &x) -> clingo_ast_t *;
+
+  private:
+    HeadDisjunction(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(HeadDisjunction const &x) -> clingo_ast_t * { return x.ast_; }
+
 auto construct_term(clingo_ast_t *ast) -> Term {
     clingo_ast_type_t type;
     if (!clingo_ast_get_type(ast, &type)) {
@@ -3741,6 +4321,365 @@ auto BodyConditionalLiteral::construct(Library &lib, clingo_location_t const &lo
     return BodyConditionalLiteral::acquire(res_);
 }
 
+auto HeadConditionalLiteral::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto HeadConditionalLiteral::literal() -> Literal {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_literal, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    return construct_literal(ast);
+}
+
+auto HeadConditionalLiteral::condition() -> LiteralArray {
+    clingo_ast_t **ast;
+    size_t size;
+    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_condition, &ast, &size)) {
+        throw std::runtime_error("could not get ast array attribute");
+    }
+    return construct_literal_array(ast, size);
+}
+
+auto HeadConditionalLiteral::construct(Library &lib, clingo_location_t const &location, Literal const &literal,
+                                       LiteralArray const &condition) -> HeadConditionalLiteral {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_head_conditional_literal, &res_, &location,
+                                           c_cast(literal), c_cast(condition).data(), condition.size()));
+    return HeadConditionalLiteral::acquire(res_);
+}
+
+auto construct_disjunction_element(clingo_ast_t *ast) -> DisjunctionElement {
+    clingo_ast_type_t type;
+    if (!clingo_ast_get_type(ast, &type)) {
+        clingo_ast_free(ast);
+        throw std::runtime_error("could not get type");
+    }
+    switch (type) {
+        case clingo_ast_type_literal_boolean: {
+            return LiteralBoolean::acquire(ast);
+        }
+        case clingo_ast_type_literal_comparison: {
+            return LiteralComparison::acquire(ast);
+        }
+        case clingo_ast_type_literal_symbolic: {
+            return LiteralSymbolic::acquire(ast);
+        }
+        case clingo_ast_type_head_conditional_literal: {
+            return HeadConditionalLiteral::acquire(ast);
+        }
+    }
+    clingo_ast_free(ast);
+    throw std::runtime_error("unexpected ast type");
+}
+
+auto construct_disjunction_element_array(clingo_ast_t **ast, size_t size) -> DisjunctionElementArray {
+    DisjunctionElementArray ret;
+    try {
+        ret.reserve(size);
+        std::for_each_n(ast, size, [&ret](auto &arg) {
+            auto tmp = arg;
+            arg = nullptr;
+            ret.emplace_back(construct_disjunction_element(tmp));
+        });
+        clingo_ast_array_free(ast, size);
+    } catch (...) {
+        clingo_ast_array_free(ast, size);
+        throw;
+    }
+    return ret;
+}
+
+auto HeadAggregateElement::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto HeadAggregateElement::tuple() -> TermArray {
+    clingo_ast_t **ast;
+    size_t size;
+    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_tuple, &ast, &size)) {
+        throw std::runtime_error("could not get ast array attribute");
+    }
+    return construct_term_array(ast, size);
+}
+
+auto HeadAggregateElement::literal() -> Literal {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_literal, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    return construct_literal(ast);
+}
+
+auto HeadAggregateElement::condition() -> LiteralArray {
+    clingo_ast_t **ast;
+    size_t size;
+    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_condition, &ast, &size)) {
+        throw std::runtime_error("could not get ast array attribute");
+    }
+    return construct_literal_array(ast, size);
+}
+
+auto HeadAggregateElement::construct(Library &lib, clingo_location_t const &location, TermArray const &tuple,
+                                     Literal const &literal, LiteralArray const &condition) -> HeadAggregateElement {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_head_aggregate_element, &res_, &location,
+                                           c_cast(tuple).data(), tuple.size(), c_cast(literal),
+                                           c_cast(condition).data(), condition.size()));
+    return HeadAggregateElement::acquire(res_);
+}
+
+auto construct_head_aggregate_element_array(clingo_ast_t **ast, size_t size) -> HeadAggregateElementArray {
+    HeadAggregateElementArray ret;
+    try {
+        ret.reserve(size);
+        std::for_each_n(ast, size, [&ret](auto &arg) {
+            auto tmp = arg;
+            arg = nullptr;
+            ret.emplace_back(HeadAggregateElement::acquire(tmp));
+        });
+        clingo_ast_array_free(ast, size);
+    } catch (...) {
+        clingo_ast_array_free(ast, size);
+        throw;
+    }
+    return ret;
+}
+
+auto construct_head_literal(clingo_ast_t *ast) -> HeadLiteral {
+    clingo_ast_type_t type;
+    if (!clingo_ast_get_type(ast, &type)) {
+        clingo_ast_free(ast);
+        throw std::runtime_error("could not get type");
+    }
+    switch (type) {
+        case clingo_ast_type_head_simple_literal: {
+            return HeadSimpleLiteral::acquire(ast);
+        }
+        case clingo_ast_type_head_aggregate: {
+            return HeadAggregate::acquire(ast);
+        }
+        case clingo_ast_type_head_set_aggregate: {
+            return HeadSetAggregate::acquire(ast);
+        }
+        case clingo_ast_type_head_theory_atom: {
+            return HeadTheoryAtom::acquire(ast);
+        }
+        case clingo_ast_type_head_disjunction: {
+            return HeadDisjunction::acquire(ast);
+        }
+    }
+    clingo_ast_free(ast);
+    throw std::runtime_error("unexpected ast type");
+}
+
+auto HeadSimpleLiteral::literal() -> Literal {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_literal, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    return construct_literal(ast);
+}
+
+auto HeadSimpleLiteral::construct(Library &lib, Literal const &literal) -> HeadSimpleLiteral {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_head_simple_literal, &res_, c_cast(literal)));
+    return HeadSimpleLiteral::acquire(res_);
+}
+
+auto HeadAggregate::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto HeadAggregate::left() -> OptionalLeftGuard {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_left, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    if (ast != nullptr) {
+        return LeftGuard::acquire(ast);
+    }
+    return std::nullopt;
+}
+
+auto HeadAggregate::function() -> AggregateFunction {
+    int ret;
+    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_function, &ret)) {
+        throw std::runtime_error("could not get number attribute");
+    }
+    return static_cast<AggregateFunction>(ret);
+}
+
+auto HeadAggregate::elements() -> HeadAggregateElementArray {
+    clingo_ast_t **ast;
+    size_t size;
+    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &ast, &size)) {
+        throw std::runtime_error("could not get ast array attribute");
+    }
+    return construct_head_aggregate_element_array(ast, size);
+}
+
+auto HeadAggregate::right() -> OptionalRightGuard {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_right, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    if (ast != nullptr) {
+        return RightGuard::acquire(ast);
+    }
+    return std::nullopt;
+}
+
+auto HeadAggregate::construct(Library &lib, clingo_location_t const &location, OptionalLeftGuard const &left,
+                              AggregateFunction const &function, HeadAggregateElementArray const &elements,
+                              OptionalRightGuard const &right) -> HeadAggregate {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_head_aggregate, &res_, &location, c_cast(left),
+                                           static_cast<int>(function), c_cast(elements).data(), elements.size(),
+                                           c_cast(right)));
+    return HeadAggregate::acquire(res_);
+}
+
+auto HeadSetAggregate::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto HeadSetAggregate::left() -> OptionalLeftGuard {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_left, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    if (ast != nullptr) {
+        return LeftGuard::acquire(ast);
+    }
+    return std::nullopt;
+}
+
+auto HeadSetAggregate::elements() -> SetAggregateElementArray {
+    clingo_ast_t **ast;
+    size_t size;
+    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &ast, &size)) {
+        throw std::runtime_error("could not get ast array attribute");
+    }
+    return construct_set_aggregate_element_array(ast, size);
+}
+
+auto HeadSetAggregate::right() -> OptionalRightGuard {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_right, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    if (ast != nullptr) {
+        return RightGuard::acquire(ast);
+    }
+    return std::nullopt;
+}
+
+auto HeadSetAggregate::construct(Library &lib, clingo_location_t const &location, OptionalLeftGuard const &left,
+                                 SetAggregateElementArray const &elements, OptionalRightGuard const &right)
+    -> HeadSetAggregate {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_head_set_aggregate, &res_, &location, c_cast(left),
+                                           c_cast(elements).data(), elements.size(), c_cast(right)));
+    return HeadSetAggregate::acquire(res_);
+}
+
+auto HeadTheoryAtom::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto HeadTheoryAtom::sign() -> Sign {
+    int ret;
+    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_sign, &ret)) {
+        throw std::runtime_error("could not get number attribute");
+    }
+    return static_cast<Sign>(ret);
+}
+
+auto HeadTheoryAtom::name() -> Term {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_name, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    return construct_term(ast);
+}
+
+auto HeadTheoryAtom::elements() -> TheoryAtomElementArray {
+    clingo_ast_t **ast;
+    size_t size;
+    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &ast, &size)) {
+        throw std::runtime_error("could not get ast array attribute");
+    }
+    return construct_theory_atom_element_array(ast, size);
+}
+
+auto HeadTheoryAtom::right() -> OptionalTheoryRightGuard {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_right, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    if (ast != nullptr) {
+        return TheoryRightGuard::acquire(ast);
+    }
+    return std::nullopt;
+}
+
+auto HeadTheoryAtom::construct(Library &lib, clingo_location_t const &location, Sign const &sign, Term const &name,
+                               TheoryAtomElementArray const &elements, OptionalTheoryRightGuard const &right)
+    -> HeadTheoryAtom {
+    clingo_ast_t *res_;
+    handle_error(lib,
+                 clingo_ast_construct(lib, clingo_ast_type_head_theory_atom, &res_, &location, static_cast<int>(sign),
+                                      c_cast(name), c_cast(elements).data(), elements.size(), c_cast(right)));
+    return HeadTheoryAtom::acquire(res_);
+}
+
+auto HeadDisjunction::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto HeadDisjunction::elements() -> DisjunctionElementArray {
+    clingo_ast_t **ast;
+    size_t size;
+    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &ast, &size)) {
+        throw std::runtime_error("could not get ast array attribute");
+    }
+    return construct_disjunction_element_array(ast, size);
+}
+
+auto HeadDisjunction::construct(Library &lib, clingo_location_t const &location,
+                                DisjunctionElementArray const &elements) -> HeadDisjunction {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_head_disjunction, &res_, &location,
+                                           c_cast(elements).data(), elements.size()));
+    return HeadDisjunction::acquire(res_);
+}
+
 template <class T> auto c_cast(std::optional<T> const &opt) -> clingo_ast_t * {
     if (opt) {
         return c_cast(*opt);
@@ -3875,7 +4814,7 @@ term.)doc");
     auto py_body_simple_literal =
         py::class_<BodySimpleLiteral>(ast, "BodySimpleLiteral", R"doc(A literal in a rule body.)doc");
 
-    auto py_body_aggregate = py::class_<BodyAggregate>(ast, "BodyAggregate", R"doc(A literal in a rule body.)doc");
+    auto py_body_aggregate = py::class_<BodyAggregate>(ast, "BodyAggregate", R"doc(An aggregate in a rule body.)doc");
 
     auto py_body_set_aggregate = py::class_<BodySetAggregate>(ast, "BodySetAggregate", R"doc(A set aggregate.)doc");
 
@@ -3883,6 +4822,23 @@ term.)doc");
 
     auto py_body_conditional_literal =
         py::class_<BodyConditionalLiteral>(ast, "BodyConditionalLiteral", R"doc(A conditional_literal.)doc");
+
+    auto py_head_conditional_literal =
+        py::class_<HeadConditionalLiteral>(ast, "HeadConditionalLiteral", R"doc(A conditional_literal.)doc");
+
+    auto py_head_aggregate_element =
+        py::class_<HeadAggregateElement>(ast, "HeadAggregateElement", R"doc(An element of a head aggregate.)doc");
+
+    auto py_head_simple_literal =
+        py::class_<HeadSimpleLiteral>(ast, "HeadSimpleLiteral", R"doc(A literal in a rule head.)doc");
+
+    auto py_head_aggregate = py::class_<HeadAggregate>(ast, "HeadAggregate", R"doc(An aggregate in a rule head.)doc");
+
+    auto py_head_set_aggregate = py::class_<HeadSetAggregate>(ast, "HeadSetAggregate", R"doc(A set aggregate.)doc");
+
+    auto py_head_theory_atom = py::class_<HeadTheoryAtom>(ast, "HeadTheoryAtom", R"doc(A theory atom.)doc");
+
+    auto py_head_disjunction = py::class_<HeadDisjunction>(ast, "HeadDisjunction", R"doc(A disjunction.)doc");
 
     py_unary_operator.value("Minus", UnaryOperator::Minus, R"doc(Operator `-`.)doc")
         .value("Negation", UnaryOperator::Negation, R"doc(Operator `~`.)doc");
@@ -4571,6 +5527,170 @@ condition
         .def_property_readonly("literal", &BodyConditionalLiteral::literal, R"doc(The literal of the element.)doc")
         .def_property_readonly("condition", &BodyConditionalLiteral::condition,
                                R"doc(The condition of the element.)doc")
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_head_conditional_literal
+        .def(py::init(&HeadConditionalLiteral::construct), py::arg("lib"), py::arg("location"), py::arg("literal"),
+             py::arg("condition"), R"doc(Construct a HeadConditionalLiteral object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+location
+    The location of the element.
+literal
+    The literal of the element.
+condition
+    The condition of the element.)doc")
+        .def("__str__", &HeadConditionalLiteral::to_string)
+        .def("__hash__", &HeadConditionalLiteral::hash)
+        .def_property_readonly("location", &HeadConditionalLiteral::location, R"doc(The location of the element.)doc")
+        .def_property_readonly("literal", &HeadConditionalLiteral::literal, R"doc(The literal of the element.)doc")
+        .def_property_readonly("condition", &HeadConditionalLiteral::condition,
+                               R"doc(The condition of the element.)doc")
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_head_aggregate_element
+        .def(py::init(&HeadAggregateElement::construct), py::arg("lib"), py::arg("location"), py::arg("tuple"),
+             py::arg("literal"), py::arg("condition"), R"doc(Construct a HeadAggregateElement object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+location
+    The location of the element.
+tuple
+    The term tuple of the element.
+literal
+    The literal of the element.
+condition
+    The condition of the element.)doc")
+        .def("__str__", &HeadAggregateElement::to_string)
+        .def("__hash__", &HeadAggregateElement::hash)
+        .def_property_readonly("location", &HeadAggregateElement::location, R"doc(The location of the element.)doc")
+        .def_property_readonly("tuple", &HeadAggregateElement::tuple, R"doc(The term tuple of the element.)doc")
+        .def_property_readonly("literal", &HeadAggregateElement::literal, R"doc(The literal of the element.)doc")
+        .def_property_readonly("condition", &HeadAggregateElement::condition, R"doc(The condition of the element.)doc")
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_head_simple_literal
+        .def(py::init(&HeadSimpleLiteral::construct), py::arg("lib"), py::arg("literal"),
+             R"doc(Construct a HeadSimpleLiteral object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+literal
+    The literal.)doc")
+        .def("__str__", &HeadSimpleLiteral::to_string)
+        .def("__hash__", &HeadSimpleLiteral::hash)
+        .def_property_readonly("literal", &HeadSimpleLiteral::literal, R"doc(The literal.)doc")
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_head_aggregate
+        .def(py::init(&HeadAggregate::construct), py::arg("lib"), py::arg("location"), py::arg("left"),
+             py::arg("function"), py::arg("elements"), py::arg("right"), R"doc(Construct a HeadAggregate object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+location
+    The location of the element.
+left
+    The left guard of the aggregate.
+function
+    The aggregate function.
+elements
+    The aggregate elements.
+right
+    The right guard of the aggregate.)doc")
+        .def("__str__", &HeadAggregate::to_string)
+        .def("__hash__", &HeadAggregate::hash)
+        .def_property_readonly("location", &HeadAggregate::location, R"doc(The location of the element.)doc")
+        .def_property_readonly("left", &HeadAggregate::left, R"doc(The left guard of the aggregate.)doc")
+        .def_property_readonly("function", &HeadAggregate::function, R"doc(The aggregate function.)doc")
+        .def_property_readonly("elements", &HeadAggregate::elements, R"doc(The aggregate elements.)doc")
+        .def_property_readonly("right", &HeadAggregate::right, R"doc(The right guard of the aggregate.)doc")
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_head_set_aggregate
+        .def(py::init(&HeadSetAggregate::construct), py::arg("lib"), py::arg("location"), py::arg("left"),
+             py::arg("elements"), py::arg("right"), R"doc(Construct a HeadSetAggregate object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+location
+    The location of the element.
+left
+    The left guard of the aggregate.
+elements
+    The aggregate elements.
+right
+    The right guard of the aggregate.)doc")
+        .def("__str__", &HeadSetAggregate::to_string)
+        .def("__hash__", &HeadSetAggregate::hash)
+        .def_property_readonly("location", &HeadSetAggregate::location, R"doc(The location of the element.)doc")
+        .def_property_readonly("left", &HeadSetAggregate::left, R"doc(The left guard of the aggregate.)doc")
+        .def_property_readonly("elements", &HeadSetAggregate::elements, R"doc(The aggregate elements.)doc")
+        .def_property_readonly("right", &HeadSetAggregate::right, R"doc(The right guard of the aggregate.)doc")
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_head_theory_atom
+        .def(py::init(&HeadTheoryAtom::construct), py::arg("lib"), py::arg("location"), py::arg("sign"),
+             py::arg("name"), py::arg("elements"), py::arg("right"), R"doc(Construct a HeadTheoryAtom object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+location
+    The location of the element.
+sign
+    The sign of the literal.
+name
+    The name of the theory atom.
+elements
+    The aggregate elements.
+right
+    The right guard of the theory atom.)doc")
+        .def("__str__", &HeadTheoryAtom::to_string)
+        .def("__hash__", &HeadTheoryAtom::hash)
+        .def_property_readonly("location", &HeadTheoryAtom::location, R"doc(The location of the element.)doc")
+        .def_property_readonly("sign", &HeadTheoryAtom::sign, R"doc(The sign of the literal.)doc")
+        .def_property_readonly("name", &HeadTheoryAtom::name, R"doc(The name of the theory atom.)doc")
+        .def_property_readonly("elements", &HeadTheoryAtom::elements, R"doc(The aggregate elements.)doc")
+        .def_property_readonly("right", &HeadTheoryAtom::right, R"doc(The right guard of the theory atom.)doc")
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_head_disjunction
+        .def(py::init(&HeadDisjunction::construct), py::arg("lib"), py::arg("location"), py::arg("elements"),
+             R"doc(Construct a HeadDisjunction object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+location
+    The location of the element.
+elements
+    The elements of the disjunction.)doc")
+        .def("__str__", &HeadDisjunction::to_string)
+        .def("__hash__", &HeadDisjunction::hash)
+        .def_property_readonly("location", &HeadDisjunction::location, R"doc(The location of the element.)doc")
+        .def_property_readonly("elements", &HeadDisjunction::elements, R"doc(The elements of the disjunction.)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 

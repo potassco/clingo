@@ -672,6 +672,14 @@ enum clingo_ast_type_e {
     clingo_ast_type_body_set_aggregate,
     clingo_ast_type_body_theory_atom,
     clingo_ast_type_body_conditional_literal,
+    // head literals
+    clingo_ast_type_head_simple_literal,
+    clingo_ast_type_head_aggregate_element,
+    clingo_ast_type_head_aggregate,
+    clingo_ast_type_head_set_aggregate,
+    clingo_ast_type_head_theory_atom,
+    clingo_ast_type_head_conditional_literal,
+    clingo_ast_type_head_disjunction,
     /*
     // simple atoms
     clingo_ast_type_boolean_constant,

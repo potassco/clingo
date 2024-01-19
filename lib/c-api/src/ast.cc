@@ -401,6 +401,27 @@ auto clingo_ast::visit(V &&visit) const -> std::invoke_result_t<V, Gringo::Input
         case clingo_ast_type_body_conditional_literal: {
             return std::invoke(std::move(visit), cast<Conjunction>());
         }
+        case clingo_ast_type_head_simple_literal: {
+            return std::invoke(std::move(visit), cast<SimpleHeadLiteral>());
+        }
+        case clingo_ast_type_head_aggregate_element: {
+            return std::invoke(std::move(visit), cast<HeadAggregate::Element>());
+        }
+        case clingo_ast_type_head_aggregate: {
+            return std::invoke(std::move(visit), cast<HeadAggregate>());
+        }
+        case clingo_ast_type_head_set_aggregate: {
+            return std::invoke(std::move(visit), cast<HeadSetAggregate>());
+        }
+        case clingo_ast_type_head_theory_atom: {
+            return std::invoke(std::move(visit), cast<HeadTheoryAtom>());
+        }
+        case clingo_ast_type_head_conditional_literal: {
+            return std::invoke(std::move(visit), cast<ConditionalLiteral>());
+        }
+        case clingo_ast_type_head_disjunction: {
+            return std::invoke(std::move(visit), cast<Disjunction>());
+        }
     }
     throw std::invalid_argument("invalid ast type");
 }
@@ -967,6 +988,24 @@ template <>
     throw std::runtime_error("body aggregate element expected");
 }
 
+template <>
+[[nodiscard]] auto clingo_ast::convert<Gringo::Input::HeadAggregate::Element>() const
+    -> Gringo::Input::HeadAggregate::Element {
+    if (type_ == clingo_ast_type_body_aggregate_element) {
+        return cast<Gringo::Input::HeadAggregate::Element>();
+    }
+    throw std::runtime_error("body aggregate element expected");
+}
+
+template <>
+[[nodiscard]] auto clingo_ast::convert<Gringo::Input::Disjunction::Element>() const
+    -> Gringo::Input::Disjunction::Element {
+    if (type_ == clingo_ast_type_head_conditional_literal) {
+        return cast<Gringo::Input::ConditionalLiteral>();
+    }
+    return cast<Gringo::Input::Literal>();
+}
+
 extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, clingo_ast_t **ast, ...) -> bool {
     using namespace Gringo::Input;
     CLINGO_TRY {
@@ -1328,6 +1367,102 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                     type,
                     Gringo::Input::ConditionalLiteral{convert_loc(lib, loc), lit->convert<Gringo::Input::Literal>(),
                                                       convert_ast_vec<Gringo::Input::Literal>(cond, cond_size)});
+                break;
+            }
+            case clingo_ast_type_head_simple_literal: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const *lit = va_arg(args, clingo_ast_t const *);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::SimpleHeadLiteral>(type, lit->convert<Gringo::Input::Literal>());
+                break;
+            }
+            case clingo_ast_type_head_aggregate_element: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const **tuple = va_arg(args, clingo_ast_t const **);
+                auto tuple_size = va_arg(args, size_t);
+                auto const *lit = va_arg(args, clingo_ast_t const *);
+                auto const **cond = va_arg(args, clingo_ast_t const **);
+                auto cond_size = va_arg(args, size_t);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::HeadAggregate::Element>(
+                    type, convert_loc(lib, loc), convert_ast_vec<Gringo::Input::Term>(tuple, tuple_size),
+                    lit->convert<Literal>(), convert_ast_vec<Gringo::Input::Literal>(cond, cond_size));
+                break;
+            }
+            case clingo_ast_type_head_aggregate: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const *lhs = va_arg(args, clingo_ast_t const *);
+                auto fun = va_arg(args, int);
+                auto const **elems = va_arg(args, clingo_ast_t const **);
+                auto elems_size = va_arg(args, size_t);
+                auto const *rhs = va_arg(args, clingo_ast_t const *);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::HeadAggregate>(
+                    type, convert_loc(lib, loc), convert_ast_opt<Gringo::Input::LGuard::value_type>(lhs),
+                    static_cast<Gringo::Input::AggregateFunction>(fun),
+                    convert_ast_vec<Gringo::Input::HeadAggregate::Element>(elems, elems_size),
+                    convert_ast_opt<Gringo::Input::RGuard::value_type>(rhs));
+                break;
+            }
+            case clingo_ast_type_head_set_aggregate: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const *lhs = va_arg(args, clingo_ast_t const *);
+                auto const **elems = va_arg(args, clingo_ast_t const **);
+                auto elems_size = va_arg(args, size_t);
+                auto const *rhs = va_arg(args, clingo_ast_t const *);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::HeadSetAggregate>(
+                    type, convert_loc(lib, loc), convert_ast_opt<Gringo::Input::LGuard::value_type>(lhs),
+                    convert_ast_vec<Gringo::Input::SetAggregateElement>(elems, elems_size),
+                    convert_ast_opt<Gringo::Input::RGuard::value_type>(rhs));
+                break;
+            }
+            case clingo_ast_type_head_theory_atom: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const *term = va_arg(args, clingo_ast_t const *);
+                auto const **elems = va_arg(args, clingo_ast_t const **);
+                auto elems_size = va_arg(args, size_t);
+                auto const *rhs = va_arg(args, clingo_ast_t const *);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::HeadTheoryAtom>(
+                    type, convert_loc(lib, loc), term->convert<Gringo::Input::Term>(),
+                    convert_ast_vec<Gringo::Input::TheoryElement>(elems, elems_size),
+                    convert_ast_opt<Gringo::Input::TheoryRGuard::value_type>(rhs));
+                break;
+            }
+            case clingo_ast_type_head_conditional_literal: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const *lit = va_arg(args, clingo_ast_t const *);
+                auto const **cond = va_arg(args, clingo_ast_t const **);
+                auto cond_size = va_arg(args, size_t);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::ConditionalLiteral>(
+                    type,
+                    Gringo::Input::ConditionalLiteral{convert_loc(lib, loc), lit->convert<Gringo::Input::Literal>(),
+                                                      convert_ast_vec<Gringo::Input::Literal>(cond, cond_size)});
+                break;
+            }
+            case clingo_ast_type_head_disjunction: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const **elems = va_arg(args, clingo_ast_t const **);
+                auto elems_size = va_arg(args, size_t);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::Disjunction>(
+                    type, convert_loc(lib, loc),
+                    convert_ast_vec<Gringo::Input::Disjunction::Element>(elems, elems_size));
                 break;
             }
         }
@@ -2071,7 +2206,7 @@ body_simple_literal:
       doc: The literal.
 body_aggregate:
   type: record
-  doc: A literal in a rule body.
+  doc: An aggregate in a rule body.
   arguments:
     location:
       type: location
@@ -2142,5 +2277,126 @@ body_conditional_literal:
     condition:
       type: literal_array
       doc: The condition of the element.
+head_conditional_literal:
+  type: record
+  doc: A conditional_literal.
+  arguments:
+    location:
+      type: location
+      doc: The location of the element.
+    literal:
+      type: literal
+      doc: The literal of the element.
+    condition:
+      type: literal_array
+      doc: The condition of the element.
+disjunction_element:
+  type: union
+  doc: An element of a disjunction.
+  types:
+  - literal
+  - head_conditional_literal
+disjunction_element_array:
+  type: array
+  value_type: disjunction_element
+head_aggregate_element:
+  type: record
+  doc: An element of a head aggregate.
+  arguments:
+    location:
+      type: location
+      doc: The location of the element.
+    tuple:
+      type: term_array
+      doc: The term tuple of the element.
+    literal:
+      type: literal
+      doc: The literal of the element.
+    condition:
+      type: literal_array
+      doc: The condition of the element.
+head_aggregate_element_array:
+  type: array
+  value_type: head_aggregate_element
+head_literal:
+  type: union
+  doc: The available head literals.
+  types:
+  - head_simple_literal
+  - head_aggregate
+  - head_set_aggregate
+  - head_theory_atom
+  - head_disjunction
+head_simple_literal:
+  type: record
+  doc: A literal in a rule head.
+  arguments:
+    literal:
+      type: literal
+      doc: The literal.
+head_aggregate:
+  type: record
+  doc: An aggregate in a rule head.
+  arguments:
+    location:
+      type: location
+      doc: The location of the element.
+    left:
+      type: optional_left_guard
+      doc: The left guard of the aggregate.
+    function:
+      type: aggregate_function
+      doc: The aggregate function.
+    elements:
+      type: head_aggregate_element_array
+      doc: The aggregate elements.
+    right:
+      type: optional_right_guard
+      doc: The right guard of the aggregate.
+head_set_aggregate:
+  type: record
+  doc: A set aggregate.
+  arguments:
+    location:
+      type: location
+      doc: The location of the element.
+    left:
+      type: optional_left_guard
+      doc: The left guard of the aggregate.
+    elements:
+      type: set_aggregate_element_array
+      doc: The aggregate elements.
+    right:
+      type: optional_right_guard
+      doc: The right guard of the aggregate.
+head_theory_atom:
+  type: record
+  doc: A theory atom.
+  arguments:
+    location:
+      type: location
+      doc: The location of the element.
+    sign:
+      type: sign
+      doc: The sign of the literal.
+    name:
+      type: term
+      doc: The name of the theory atom.
+    elements:
+      type: theory_atom_element_array
+      doc: The aggregate elements.
+    right:
+      type: optional_theory_right_guard
+      doc: The right guard of the theory atom.
+head_disjunction:
+  type: record
+  doc: A disjunction.
+  arguments:
+    location:
+      type: location
+      doc: The location of the element.
+    elements:
+      type: disjunction_element_array
+      doc: The elements of the disjunction.
 )yaml";
 }
