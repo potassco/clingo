@@ -366,38 +366,40 @@ auto clingo_ast::visit(V &&visit) const -> std::invoke_result_t<V, Gringo::Input
         case clingo_ast_type_literal_symbolic: {
             return std::invoke(std::move(visit), cast<LiteralSymbolic>());
         }
-            // clang-format off
-        // TODO: implement: print, hash, comparison
-        /*
         case clingo_ast_type_set_aggregate_element: {
-            return std::invoke(std::move(visit), cast<SetAggregateElement>());
+            // return std::invoke(std::move(visit), cast<SetAggregateElement>());
+            throw std::logic_error("implement me");
         }
         case clingo_ast_type_theory_atom_element: {
             return std::invoke(std::move(visit), cast<TheoryElement>());
         }
         case clingo_ast_type_theory_right_guard: {
-            return std::invoke(std::move(visit), cast<TheoryRGuard>());
+            // return std::invoke(std::move(visit), cast<TheoryRGuard>());
+            throw std::logic_error("implement me");
         }
         case clingo_ast_type_body_simple_literal: {
-            return std::invoke(std::move(visit), cast<SimpleBodyLiteral>());
+            // return std::invoke(std::move(visit), cast<SimpleBodyLiteral>());
+            throw std::logic_error("implement me");
         }
         case clingo_ast_type_body_aggregate_element: {
-            return std::invoke(std::move(visit), cast<BodyAggregate::Element>());
+            // return std::invoke(std::move(visit), cast<BodyAggregate::Element>());
+            throw std::logic_error("implement me");
         }
         case clingo_ast_type_body_aggregate: {
-            return std::invoke(std::move(visit), cast<BodyAggregate>());
+            // return std::invoke(std::move(visit), cast<BodyAggregate>());
+            throw std::logic_error("implement me");
         }
         case clingo_ast_type_body_set_aggregate: {
-            return std::invoke(std::move(visit), cast<BodySetAggregate>());
+            // return std::invoke(std::move(visit), cast<BodySetAggregate>());
+            throw std::logic_error("implement me");
         }
         case clingo_ast_type_body_theory_atom: {
             return std::invoke(std::move(visit), cast<BodyTheoryAtom>());
         }
         case clingo_ast_type_body_conditional_literal: {
-            return std::invoke(std::move(visit), cast<Conjunction>());
+            // return std::invoke(std::move(visit), cast<Conjunction>());
+            throw std::logic_error("implement me");
         }
-        */
-            // clang-format on
     }
     throw std::invalid_argument("invalid ast type");
 }
@@ -1143,6 +1145,33 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                     type, convert_loc(lib, loc),
                     convert_ast_vec<Gringo::Input::TheoryTermUnparsed::Element>(elems, size));
                 break;
+            }
+            case clingo_ast_type_set_aggregate_element: {
+                throw std::logic_error("implement me!!!");
+            }
+            case clingo_ast_type_theory_atom_element: {
+                throw std::logic_error("implement me!!!");
+            }
+            case clingo_ast_type_theory_right_guard: {
+                throw std::logic_error("implement me!!!");
+            }
+            case clingo_ast_type_body_simple_literal: {
+                throw std::logic_error("implement me!!!");
+            }
+            case clingo_ast_type_body_aggregate_element: {
+                throw std::logic_error("implement me!!!");
+            }
+            case clingo_ast_type_body_aggregate: {
+                throw std::logic_error("implement me!!!");
+            }
+            case clingo_ast_type_body_set_aggregate: {
+                throw std::logic_error("implement me!!!");
+            }
+            case clingo_ast_type_body_theory_atom: {
+                throw std::logic_error("implement me!!!");
+            }
+            case clingo_ast_type_body_conditional_literal: {
+                throw std::logic_error("implement me!!!");
             }
         }
     }
