@@ -53,6 +53,17 @@ auto {{ type_name }}::{{ argument.name }}() -> std::vector<char const *> {
     }
     return ret;
 }
+{%    elif type_map[argument.type].type == 'optional' %}
+auto {{ type_name }}::{{ argument.name }}() -> {{ argument_type }} {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_{{ argument.name }}, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    if (ast != nullptr) {
+        return {{ type_map[argument.type].value_type | camel }}::acquire(ast);
+    }
+    return std::nullopt;
+}
 {%    elif type_map[argument.type].type == 'enum' %}
 auto {{ type_name }}::{{ argument.name }}() -> {{ argument_type }} {
     int ret;

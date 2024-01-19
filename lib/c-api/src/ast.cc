@@ -1646,7 +1646,7 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
     doc: The relation of the guard.
 - name: optional_left_guard
   type: optional
-  value_type: lef_guard
+  value_type: left_guard
 - name: right_guard
   type: record
   doc: A right hand side guard consisting of a relation and term.
@@ -1808,6 +1808,22 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
 - name: literal_array
   type: array
   value_type: literal
+- name: set_aggregate_element
+  type: record
+  doc: An element of a set aggregate.
+  arguments:
+  - name: location
+    type: location
+    doc: The location of the element.
+  - name: literal
+    type: literal
+    doc: The literal of the element.
+  - name: condition
+    type: literal_array
+    doc: The condition of the element.
+- name: set_aggregate_element_array
+  type: array
+  value_type: set_aggregate_element
 - name: body_aggregate_element
   type: record
   doc: An element of a body aggregate.
@@ -1821,6 +1837,19 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
   - name: condition
     type: literal_array
     doc: The condition of the element.
+- name: body_aggregate_element_array
+  type: array
+  value_type: body_aggregate_element
+- name: body_simple_literal
+  type: forward
+- name: body_aggregate
+  type: forward
+- name: body_set_aggregate
+  type: forward
+- name: body_theory_atom
+  type: forward
+- name: body_conditional_literal
+  type: forward
 - name: body_literal
   type: union
   doc: The available body literals.
@@ -1829,7 +1858,7 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
   - body_aggregate
   - body_set_aggregate
   - body_theory_atom
-  - body_conjunction
+  - body_conditional_literal
 - name: body_simple_literal
   type: record
   doc: A literal in a rule body.
@@ -1859,18 +1888,45 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
   - name: right
     type: optional_right_guard
     doc: The right guard of the aggregate.
-
 - name: body_set_aggregate
   type: record
   doc: A set aggregate.
-  arguments: []
+  arguments:
+  - name: location
+    type: location
+    doc: The location of the element.
+  - name: sign
+    type: sign
+    doc: The sign of the literal.
+  - name: left
+    type: optional_left_guard
+    doc: The left guard of the aggregate.
+  - name: function
+    type: aggregate_function
+    doc: The aggregate function.
+  - name: elements
+    type: set_aggregate_element_array
+    doc: The aggregate elements.
+  - name: right
+    type: optional_right_guard
+    doc: The right guard of the aggregate.
+
 - name: body_theory_atom
   type: record
   doc: A theory atom.
   arguments: []
-- name: body_conjunction
+- name: body_conditional_literal
   type: record
-  doc: A conjunction of conditional literals.
-  arguments: []
+  doc: A conditional_literal.
+  arguments:
+  - name: location
+    type: location
+    doc: The location of the element.
+  - name: literal
+    type: literal
+    doc: The literal of the element.
+  - name: condition
+    type: literal_array
+    doc: The condition of the element.
 )yaml";
 }

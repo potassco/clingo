@@ -54,7 +54,7 @@ def c_cast(arguments, type_map):
             res.append(f'{argument["name"]}.size()')
         elif type_map[argument["type"]]["type"] == "enum":
             res.append(f'static_cast<int>({argument["name"]})')
-        elif type_map[argument["type"]]["type"] == "union":
+        elif type_map[argument["type"]]["type"] in ("union", "record", "optional"):
             res.append(f'c_cast({argument["name"]})')
         elif type_map[argument["type"]]["type"] == "array":
             res.append(f'c_cast({argument["name"]}).data()')

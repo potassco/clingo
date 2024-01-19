@@ -661,6 +661,16 @@ enum clingo_ast_type_e {
     clingo_ast_type_literal_boolean,
     clingo_ast_type_literal_comparison,
     clingo_ast_type_literal_symbolic,
+    // set aggregates
+    clingo_ast_type_set_aggregate_element,
+    clingo_ast_type_theory_atom_element,
+    // body literals
+    clingo_ast_type_body_simple_literal,
+    clingo_ast_type_body_aggregate_element,
+    clingo_ast_type_body_aggregate,
+    clingo_ast_type_body_set_aggregate,
+    clingo_ast_type_body_theory_atom,
+    clingo_ast_type_body_conditional_literal,
     /*
     // simple atoms
     clingo_ast_type_boolean_constant,
@@ -732,6 +742,9 @@ enum clingo_ast_attribute_e {
     clingo_ast_attribute_tuple_type,
     clingo_ast_attribute_elements,
     clingo_ast_attribute_operators,
+    clingo_ast_attribute_literal,
+    clingo_ast_attribute_condition,
+    clingo_ast_attribute_function,
     /*
     clingo_ast_attribute_argument,
     clingo_ast_attribute_arity,

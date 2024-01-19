@@ -15,6 +15,9 @@ using Clingo::Symbol::Symbol;
 
 using StringArray = std::vector<std::string>;
 
+template <class T>
+auto c_cast(std::optional<T> const &opt) -> clingo_ast_t*;
+
 template <class... Ts>
 auto c_cast(std::variant<Ts...> const &var) -> clingo_ast_t*;
 
@@ -99,6 +102,14 @@ auto construct_{{ type.name }}(clingo_ast_t *ast) -> {{ type_name }} {
 {%- include "_record_define_cpp.j2" %}
 {%    endif %}
 {%- endfor %}
+template <class T>
+auto c_cast(std::optional<T> const &opt) -> clingo_ast_t* {
+    if (opt) {
+        return c_cast(*opt);
+    }
+    return nullptr;
+}
+
 template <class... Ts>
 auto c_cast(std::variant<Ts...> const &var) -> clingo_ast_t* {
     return std::visit([](auto const &x) { return c_cast(x); }, var);

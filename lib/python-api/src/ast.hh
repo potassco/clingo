@@ -15,6 +15,8 @@ using Clingo::Symbol::Symbol;
 
 using StringArray = std::vector<std::string>;
 
+template <class T> auto c_cast(std::optional<T> const &opt) -> clingo_ast_t *;
+
 template <class... Ts> auto c_cast(std::variant<Ts...> const &var) -> clingo_ast_t *;
 
 template <class T> auto c_cast(std::vector<T> const &arr) -> std::vector<clingo_ast_t *>;
@@ -903,6 +905,8 @@ class LeftGuard {
 
 inline auto c_cast(LeftGuard const &x) -> clingo_ast_t * { return x.ast_; }
 
+using OptionalLeftGuard = std::optional<LeftGuard>;
+
 class RightGuard {
   public:
     // Note: for pybind
@@ -977,6 +981,8 @@ class RightGuard {
 };
 
 inline auto c_cast(RightGuard const &x) -> clingo_ast_t * { return x.ast_; }
+
+using OptionalRightGuard = std::optional<RightGuard>;
 
 using RightGuardArray = std::vector<RightGuard>;
 
@@ -1700,6 +1706,582 @@ class TheoryTermUnparsed {
 };
 
 inline auto c_cast(TheoryTermUnparsed const &x) -> clingo_ast_t * { return x.ast_; }
+
+using LiteralArray = std::vector<Literal>;
+
+auto construct_literal_array(clingo_ast_t **ast, size_t size) -> LiteralArray;
+
+class SetAggregateElement {
+  public:
+    // Note: for pybind
+    SetAggregateElement() = default;
+
+    SetAggregateElement(SetAggregateElement const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    SetAggregateElement(SetAggregateElement &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(SetAggregateElement const &x) -> SetAggregateElement & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(SetAggregateElement &&x) noexcept -> SetAggregateElement & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(SetAggregateElement const &a, SetAggregateElement const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(SetAggregateElement const &a, SetAggregateElement const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, SetAggregateElement)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~SetAggregateElement() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    auto literal() -> Literal;
+
+    auto condition() -> LiteralArray;
+
+    static auto acquire(clingo_ast_t *ast) -> SetAggregateElement { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, Literal const &literal,
+                          LiteralArray const &condition) -> SetAggregateElement;
+
+    friend auto c_cast(SetAggregateElement const &x) -> clingo_ast_t *;
+
+  private:
+    SetAggregateElement(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(SetAggregateElement const &x) -> clingo_ast_t * { return x.ast_; }
+
+using SetAggregateElementArray = std::vector<SetAggregateElement>;
+
+auto construct_set_aggregate_element_array(clingo_ast_t **ast, size_t size) -> SetAggregateElementArray;
+
+class BodyAggregateElement {
+  public:
+    // Note: for pybind
+    BodyAggregateElement() = default;
+
+    BodyAggregateElement(BodyAggregateElement const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    BodyAggregateElement(BodyAggregateElement &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(BodyAggregateElement const &x) -> BodyAggregateElement & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(BodyAggregateElement &&x) noexcept -> BodyAggregateElement & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(BodyAggregateElement const &a, BodyAggregateElement const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(BodyAggregateElement const &a, BodyAggregateElement const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, BodyAggregateElement)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~BodyAggregateElement() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    auto tuple() -> TermArray;
+
+    auto condition() -> LiteralArray;
+
+    static auto acquire(clingo_ast_t *ast) -> BodyAggregateElement { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, TermArray const &tuple,
+                          LiteralArray const &condition) -> BodyAggregateElement;
+
+    friend auto c_cast(BodyAggregateElement const &x) -> clingo_ast_t *;
+
+  private:
+    BodyAggregateElement(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(BodyAggregateElement const &x) -> clingo_ast_t * { return x.ast_; }
+
+using BodyAggregateElementArray = std::vector<BodyAggregateElement>;
+
+auto construct_body_aggregate_element_array(clingo_ast_t **ast, size_t size) -> BodyAggregateElementArray;
+
+class BodySimpleLiteral;
+
+class BodyAggregate;
+
+class BodySetAggregate;
+
+class BodyTheoryAtom;
+
+class BodyConditionalLiteral;
+
+using BodyLiteral =
+    std::variant<BodySimpleLiteral, BodyAggregate, BodySetAggregate, BodyTheoryAtom, BodyConditionalLiteral>;
+
+auto construct_body_literal(clingo_ast_t *ast) -> BodyLiteral;
+
+class BodySimpleLiteral {
+  public:
+    // Note: for pybind
+    BodySimpleLiteral() = default;
+
+    BodySimpleLiteral(BodySimpleLiteral const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    BodySimpleLiteral(BodySimpleLiteral &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(BodySimpleLiteral const &x) -> BodySimpleLiteral & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(BodySimpleLiteral &&x) noexcept -> BodySimpleLiteral & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(BodySimpleLiteral const &a, BodySimpleLiteral const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(BodySimpleLiteral const &a, BodySimpleLiteral const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, BodySimpleLiteral)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~BodySimpleLiteral() { clingo_ast_free(ast_); }
+
+    auto literal() -> Literal;
+
+    static auto acquire(clingo_ast_t *ast) -> BodySimpleLiteral { return {ast}; }
+
+    static auto construct(Library &lib, Literal const &literal) -> BodySimpleLiteral;
+
+    friend auto c_cast(BodySimpleLiteral const &x) -> clingo_ast_t *;
+
+  private:
+    BodySimpleLiteral(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(BodySimpleLiteral const &x) -> clingo_ast_t * { return x.ast_; }
+
+class BodyAggregate {
+  public:
+    // Note: for pybind
+    BodyAggregate() = default;
+
+    BodyAggregate(BodyAggregate const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    BodyAggregate(BodyAggregate &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(BodyAggregate const &x) -> BodyAggregate & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(BodyAggregate &&x) noexcept -> BodyAggregate & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(BodyAggregate const &a, BodyAggregate const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(BodyAggregate const &a, BodyAggregate const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, BodyAggregate)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~BodyAggregate() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    auto sign() -> Sign;
+
+    auto left() -> OptionalLeftGuard;
+
+    auto function() -> AggregateFunction;
+
+    auto elements() -> BodyAggregateElementArray;
+
+    auto right() -> OptionalRightGuard;
+
+    static auto acquire(clingo_ast_t *ast) -> BodyAggregate { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign,
+                          OptionalLeftGuard const &left, AggregateFunction const &function,
+                          BodyAggregateElementArray const &elements, OptionalRightGuard const &right) -> BodyAggregate;
+
+    friend auto c_cast(BodyAggregate const &x) -> clingo_ast_t *;
+
+  private:
+    BodyAggregate(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(BodyAggregate const &x) -> clingo_ast_t * { return x.ast_; }
+
+class BodySetAggregate {
+  public:
+    // Note: for pybind
+    BodySetAggregate() = default;
+
+    BodySetAggregate(BodySetAggregate const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    BodySetAggregate(BodySetAggregate &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(BodySetAggregate const &x) -> BodySetAggregate & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(BodySetAggregate &&x) noexcept -> BodySetAggregate & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(BodySetAggregate const &a, BodySetAggregate const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(BodySetAggregate const &a, BodySetAggregate const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, BodySetAggregate)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~BodySetAggregate() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    auto sign() -> Sign;
+
+    auto left() -> OptionalLeftGuard;
+
+    auto function() -> AggregateFunction;
+
+    auto elements() -> SetAggregateElementArray;
+
+    auto right() -> OptionalRightGuard;
+
+    static auto acquire(clingo_ast_t *ast) -> BodySetAggregate { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign,
+                          OptionalLeftGuard const &left, AggregateFunction const &function,
+                          SetAggregateElementArray const &elements, OptionalRightGuard const &right)
+        -> BodySetAggregate;
+
+    friend auto c_cast(BodySetAggregate const &x) -> clingo_ast_t *;
+
+  private:
+    BodySetAggregate(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(BodySetAggregate const &x) -> clingo_ast_t * { return x.ast_; }
+
+class BodyTheoryAtom {
+  public:
+    // Note: for pybind
+    BodyTheoryAtom() = default;
+
+    BodyTheoryAtom(BodyTheoryAtom const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    BodyTheoryAtom(BodyTheoryAtom &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(BodyTheoryAtom const &x) -> BodyTheoryAtom & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(BodyTheoryAtom &&x) noexcept -> BodyTheoryAtom & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(BodyTheoryAtom const &a, BodyTheoryAtom const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(BodyTheoryAtom const &a, BodyTheoryAtom const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, BodyTheoryAtom)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~BodyTheoryAtom() { clingo_ast_free(ast_); }
+
+    static auto acquire(clingo_ast_t *ast) -> BodyTheoryAtom { return {ast}; }
+
+    static auto construct(Library &lib) -> BodyTheoryAtom;
+
+    friend auto c_cast(BodyTheoryAtom const &x) -> clingo_ast_t *;
+
+  private:
+    BodyTheoryAtom(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(BodyTheoryAtom const &x) -> clingo_ast_t * { return x.ast_; }
+
+class BodyConditionalLiteral {
+  public:
+    // Note: for pybind
+    BodyConditionalLiteral() = default;
+
+    BodyConditionalLiteral(BodyConditionalLiteral const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    BodyConditionalLiteral(BodyConditionalLiteral &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(BodyConditionalLiteral const &x) -> BodyConditionalLiteral & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(BodyConditionalLiteral &&x) noexcept -> BodyConditionalLiteral & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(BodyConditionalLiteral const &a, BodyConditionalLiteral const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(BodyConditionalLiteral const &a, BodyConditionalLiteral const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, BodyConditionalLiteral)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~BodyConditionalLiteral() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    auto literal() -> Literal;
+
+    auto condition() -> LiteralArray;
+
+    static auto acquire(clingo_ast_t *ast) -> BodyConditionalLiteral { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, Literal const &literal,
+                          LiteralArray const &condition) -> BodyConditionalLiteral;
+
+    friend auto c_cast(BodyConditionalLiteral const &x) -> clingo_ast_t *;
+
+  private:
+    BodyConditionalLiteral(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(BodyConditionalLiteral const &x) -> clingo_ast_t * { return x.ast_; }
 
 auto construct_term(clingo_ast_t *ast) -> Term {
     clingo_ast_type_t type;
@@ -2545,6 +3127,344 @@ auto TheoryTermUnparsed::construct(Library &lib, clingo_location_t const &locati
     return TheoryTermUnparsed::acquire(res_);
 }
 
+auto construct_literal_array(clingo_ast_t **ast, size_t size) -> LiteralArray {
+    LiteralArray ret;
+    try {
+        ret.reserve(size);
+        std::for_each_n(ast, size, [&ret](auto &arg) {
+            auto tmp = arg;
+            arg = nullptr;
+            ret.emplace_back(construct_literal(tmp));
+        });
+        clingo_ast_array_free(ast, size);
+    } catch (...) {
+        clingo_ast_array_free(ast, size);
+        throw;
+    }
+    return ret;
+}
+
+auto SetAggregateElement::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto SetAggregateElement::literal() -> Literal {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_literal, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    return construct_literal(ast);
+}
+
+auto SetAggregateElement::condition() -> LiteralArray {
+    clingo_ast_t **ast;
+    size_t size;
+    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_condition, &ast, &size)) {
+        throw std::runtime_error("could not get ast array attribute");
+    }
+    return construct_literal_array(ast, size);
+}
+
+auto SetAggregateElement::construct(Library &lib, clingo_location_t const &location, Literal const &literal,
+                                    LiteralArray const &condition) -> SetAggregateElement {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_set_aggregate_element, &res_, &location,
+                                           c_cast(literal), c_cast(condition).data(), condition.size()));
+    return SetAggregateElement::acquire(res_);
+}
+
+auto construct_set_aggregate_element_array(clingo_ast_t **ast, size_t size) -> SetAggregateElementArray {
+    SetAggregateElementArray ret;
+    try {
+        ret.reserve(size);
+        std::for_each_n(ast, size, [&ret](auto &arg) {
+            auto tmp = arg;
+            arg = nullptr;
+            ret.emplace_back(SetAggregateElement::acquire(tmp));
+        });
+        clingo_ast_array_free(ast, size);
+    } catch (...) {
+        clingo_ast_array_free(ast, size);
+        throw;
+    }
+    return ret;
+}
+
+auto BodyAggregateElement::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto BodyAggregateElement::tuple() -> TermArray {
+    clingo_ast_t **ast;
+    size_t size;
+    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_tuple, &ast, &size)) {
+        throw std::runtime_error("could not get ast array attribute");
+    }
+    return construct_term_array(ast, size);
+}
+
+auto BodyAggregateElement::condition() -> LiteralArray {
+    clingo_ast_t **ast;
+    size_t size;
+    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_condition, &ast, &size)) {
+        throw std::runtime_error("could not get ast array attribute");
+    }
+    return construct_literal_array(ast, size);
+}
+
+auto BodyAggregateElement::construct(Library &lib, clingo_location_t const &location, TermArray const &tuple,
+                                     LiteralArray const &condition) -> BodyAggregateElement {
+    clingo_ast_t *res_;
+    handle_error(lib,
+                 clingo_ast_construct(lib, clingo_ast_type_body_aggregate_element, &res_, &location,
+                                      c_cast(tuple).data(), tuple.size(), c_cast(condition).data(), condition.size()));
+    return BodyAggregateElement::acquire(res_);
+}
+
+auto construct_body_aggregate_element_array(clingo_ast_t **ast, size_t size) -> BodyAggregateElementArray {
+    BodyAggregateElementArray ret;
+    try {
+        ret.reserve(size);
+        std::for_each_n(ast, size, [&ret](auto &arg) {
+            auto tmp = arg;
+            arg = nullptr;
+            ret.emplace_back(BodyAggregateElement::acquire(tmp));
+        });
+        clingo_ast_array_free(ast, size);
+    } catch (...) {
+        clingo_ast_array_free(ast, size);
+        throw;
+    }
+    return ret;
+}
+
+auto construct_body_literal(clingo_ast_t *ast) -> BodyLiteral {
+    clingo_ast_type_t type;
+    if (!clingo_ast_get_type(ast, &type)) {
+        clingo_ast_free(ast);
+        throw std::runtime_error("could not get type");
+    }
+    switch (type) {
+        case clingo_ast_type_body_simple_literal: {
+            return BodySimpleLiteral::acquire(ast);
+        }
+        case clingo_ast_type_body_aggregate: {
+            return BodyAggregate::acquire(ast);
+        }
+        case clingo_ast_type_body_set_aggregate: {
+            return BodySetAggregate::acquire(ast);
+        }
+        case clingo_ast_type_body_theory_atom: {
+            return BodyTheoryAtom::acquire(ast);
+        }
+        case clingo_ast_type_body_conditional_literal: {
+            return BodyConditionalLiteral::acquire(ast);
+        }
+    }
+    clingo_ast_free(ast);
+    throw std::runtime_error("unexpected ast type");
+}
+
+auto BodySimpleLiteral::literal() -> Literal {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_literal, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    return construct_literal(ast);
+}
+
+auto BodySimpleLiteral::construct(Library &lib, Literal const &literal) -> BodySimpleLiteral {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_body_simple_literal, &res_, c_cast(literal)));
+    return BodySimpleLiteral::acquire(res_);
+}
+
+auto BodyAggregate::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto BodyAggregate::sign() -> Sign {
+    int ret;
+    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_sign, &ret)) {
+        throw std::runtime_error("could not get number attribute");
+    }
+    return static_cast<Sign>(ret);
+}
+
+auto BodyAggregate::left() -> OptionalLeftGuard {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_left, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    if (ast != nullptr) {
+        return LeftGuard::acquire(ast);
+    }
+    return std::nullopt;
+}
+
+auto BodyAggregate::function() -> AggregateFunction {
+    int ret;
+    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_function, &ret)) {
+        throw std::runtime_error("could not get number attribute");
+    }
+    return static_cast<AggregateFunction>(ret);
+}
+
+auto BodyAggregate::elements() -> BodyAggregateElementArray {
+    clingo_ast_t **ast;
+    size_t size;
+    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &ast, &size)) {
+        throw std::runtime_error("could not get ast array attribute");
+    }
+    return construct_body_aggregate_element_array(ast, size);
+}
+
+auto BodyAggregate::right() -> OptionalRightGuard {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_right, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    if (ast != nullptr) {
+        return RightGuard::acquire(ast);
+    }
+    return std::nullopt;
+}
+
+auto BodyAggregate::construct(Library &lib, clingo_location_t const &location, Sign const &sign,
+                              OptionalLeftGuard const &left, AggregateFunction const &function,
+                              BodyAggregateElementArray const &elements, OptionalRightGuard const &right)
+    -> BodyAggregate {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_body_aggregate, &res_, &location,
+                                           static_cast<int>(sign), c_cast(left), static_cast<int>(function),
+                                           c_cast(elements).data(), elements.size(), c_cast(right)));
+    return BodyAggregate::acquire(res_);
+}
+
+auto BodySetAggregate::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto BodySetAggregate::sign() -> Sign {
+    int ret;
+    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_sign, &ret)) {
+        throw std::runtime_error("could not get number attribute");
+    }
+    return static_cast<Sign>(ret);
+}
+
+auto BodySetAggregate::left() -> OptionalLeftGuard {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_left, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    if (ast != nullptr) {
+        return LeftGuard::acquire(ast);
+    }
+    return std::nullopt;
+}
+
+auto BodySetAggregate::function() -> AggregateFunction {
+    int ret;
+    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_function, &ret)) {
+        throw std::runtime_error("could not get number attribute");
+    }
+    return static_cast<AggregateFunction>(ret);
+}
+
+auto BodySetAggregate::elements() -> SetAggregateElementArray {
+    clingo_ast_t **ast;
+    size_t size;
+    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &ast, &size)) {
+        throw std::runtime_error("could not get ast array attribute");
+    }
+    return construct_set_aggregate_element_array(ast, size);
+}
+
+auto BodySetAggregate::right() -> OptionalRightGuard {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_right, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    if (ast != nullptr) {
+        return RightGuard::acquire(ast);
+    }
+    return std::nullopt;
+}
+
+auto BodySetAggregate::construct(Library &lib, clingo_location_t const &location, Sign const &sign,
+                                 OptionalLeftGuard const &left, AggregateFunction const &function,
+                                 SetAggregateElementArray const &elements, OptionalRightGuard const &right)
+    -> BodySetAggregate {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_body_set_aggregate, &res_, &location,
+                                           static_cast<int>(sign), c_cast(left), static_cast<int>(function),
+                                           c_cast(elements).data(), elements.size(), c_cast(right)));
+    return BodySetAggregate::acquire(res_);
+}
+
+auto BodyTheoryAtom::construct(Library &lib) -> BodyTheoryAtom {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_body_theory_atom, &res_));
+    return BodyTheoryAtom::acquire(res_);
+}
+
+auto BodyConditionalLiteral::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto BodyConditionalLiteral::literal() -> Literal {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_literal, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    return construct_literal(ast);
+}
+
+auto BodyConditionalLiteral::condition() -> LiteralArray {
+    clingo_ast_t **ast;
+    size_t size;
+    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_condition, &ast, &size)) {
+        throw std::runtime_error("could not get ast array attribute");
+    }
+    return construct_literal_array(ast, size);
+}
+
+auto BodyConditionalLiteral::construct(Library &lib, clingo_location_t const &location, Literal const &literal,
+                                       LiteralArray const &condition) -> BodyConditionalLiteral {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_body_conditional_literal, &res_, &location,
+                                           c_cast(literal), c_cast(condition).data(), condition.size()));
+    return BodyConditionalLiteral::acquire(res_);
+}
+
+template <class T> auto c_cast(std::optional<T> const &opt) -> clingo_ast_t * {
+    if (opt) {
+        return c_cast(*opt);
+    }
+    return nullptr;
+}
+
 template <class... Ts> auto c_cast(std::variant<Ts...> const &var) -> clingo_ast_t * {
     return std::visit([](auto const &x) { return c_cast(x); }, var);
 }
@@ -2655,6 +3575,24 @@ This can be used to auto-generate most of the binding.)"));
 
     auto py_theory_term_unparsed = py::class_<TheoryTermUnparsed>(
         ast, "TheoryTermUnparsed", R"doc(A theory term representing an unparsed theory term.)doc");
+
+    auto py_set_aggregate_element =
+        py::class_<SetAggregateElement>(ast, "SetAggregateElement", R"doc(An element of a set aggregate.)doc");
+
+    auto py_body_aggregate_element =
+        py::class_<BodyAggregateElement>(ast, "BodyAggregateElement", R"doc(An element of a body aggregate.)doc");
+
+    auto py_body_simple_literal =
+        py::class_<BodySimpleLiteral>(ast, "BodySimpleLiteral", R"doc(A literal in a rule body.)doc");
+
+    auto py_body_aggregate = py::class_<BodyAggregate>(ast, "BodyAggregate", R"doc(A literal in a rule body.)doc");
+
+    auto py_body_set_aggregate = py::class_<BodySetAggregate>(ast, "BodySetAggregate", R"doc(A set aggregate.)doc");
+
+    auto py_body_theory_atom = py::class_<BodyTheoryAtom>(ast, "BodyTheoryAtom", R"doc(A theory atom.)doc");
+
+    auto py_body_conditional_literal =
+        py::class_<BodyConditionalLiteral>(ast, "BodyConditionalLiteral", R"doc(A conditional_literal.)doc");
 
     py_unary_operator.value("Minus", UnaryOperator::Minus, R"doc(Operator `-`.)doc")
         .value("Negation", UnaryOperator::Negation, R"doc(Operator `~`.)doc");
@@ -3131,6 +4069,164 @@ elements
         .def("__hash__", &TheoryTermUnparsed::hash)
         .def_property_readonly("location", &TheoryTermUnparsed::location, R"doc(The location of the theory term.)doc")
         .def_property_readonly("elements", &TheoryTermUnparsed::elements, R"doc(The unparsed theory elements.)doc")
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_set_aggregate_element
+        .def(py::init(&SetAggregateElement::construct), py::arg("lib"), py::arg("location"), py::arg("literal"),
+             py::arg("condition"), R"doc(Construct a SetAggregateElement object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+location
+    The location of the element.
+literal
+    The literal of the element.
+condition
+    The condition of the element.)doc")
+        .def("__str__", &SetAggregateElement::to_string)
+        .def("__hash__", &SetAggregateElement::hash)
+        .def_property_readonly("location", &SetAggregateElement::location, R"doc(The location of the element.)doc")
+        .def_property_readonly("literal", &SetAggregateElement::literal, R"doc(The literal of the element.)doc")
+        .def_property_readonly("condition", &SetAggregateElement::condition, R"doc(The condition of the element.)doc")
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_body_aggregate_element
+        .def(py::init(&BodyAggregateElement::construct), py::arg("lib"), py::arg("location"), py::arg("tuple"),
+             py::arg("condition"), R"doc(Construct a BodyAggregateElement object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+location
+    The location of the element.
+tuple
+    The term tuple of the element.
+condition
+    The condition of the element.)doc")
+        .def("__str__", &BodyAggregateElement::to_string)
+        .def("__hash__", &BodyAggregateElement::hash)
+        .def_property_readonly("location", &BodyAggregateElement::location, R"doc(The location of the element.)doc")
+        .def_property_readonly("tuple", &BodyAggregateElement::tuple, R"doc(The term tuple of the element.)doc")
+        .def_property_readonly("condition", &BodyAggregateElement::condition, R"doc(The condition of the element.)doc")
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_body_simple_literal
+        .def(py::init(&BodySimpleLiteral::construct), py::arg("lib"), py::arg("literal"),
+             R"doc(Construct a BodySimpleLiteral object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+literal
+    The literal.)doc")
+        .def("__str__", &BodySimpleLiteral::to_string)
+        .def("__hash__", &BodySimpleLiteral::hash)
+        .def_property_readonly("literal", &BodySimpleLiteral::literal, R"doc(The literal.)doc")
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_body_aggregate
+        .def(py::init(&BodyAggregate::construct), py::arg("lib"), py::arg("location"), py::arg("sign"), py::arg("left"),
+             py::arg("function"), py::arg("elements"), py::arg("right"), R"doc(Construct a BodyAggregate object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+location
+    The location of the element.
+sign
+    The sign of the literal.
+left
+    The left guard of the aggregate.
+function
+    The aggregate function.
+elements
+    The aggregate elements.
+right
+    The right guard of the aggregate.)doc")
+        .def("__str__", &BodyAggregate::to_string)
+        .def("__hash__", &BodyAggregate::hash)
+        .def_property_readonly("location", &BodyAggregate::location, R"doc(The location of the element.)doc")
+        .def_property_readonly("sign", &BodyAggregate::sign, R"doc(The sign of the literal.)doc")
+        .def_property_readonly("left", &BodyAggregate::left, R"doc(The left guard of the aggregate.)doc")
+        .def_property_readonly("function", &BodyAggregate::function, R"doc(The aggregate function.)doc")
+        .def_property_readonly("elements", &BodyAggregate::elements, R"doc(The aggregate elements.)doc")
+        .def_property_readonly("right", &BodyAggregate::right, R"doc(The right guard of the aggregate.)doc")
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_body_set_aggregate
+        .def(py::init(&BodySetAggregate::construct), py::arg("lib"), py::arg("location"), py::arg("sign"),
+             py::arg("left"), py::arg("function"), py::arg("elements"), py::arg("right"),
+             R"doc(Construct a BodySetAggregate object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+location
+    The location of the element.
+sign
+    The sign of the literal.
+left
+    The left guard of the aggregate.
+function
+    The aggregate function.
+elements
+    The aggregate elements.
+right
+    The right guard of the aggregate.)doc")
+        .def("__str__", &BodySetAggregate::to_string)
+        .def("__hash__", &BodySetAggregate::hash)
+        .def_property_readonly("location", &BodySetAggregate::location, R"doc(The location of the element.)doc")
+        .def_property_readonly("sign", &BodySetAggregate::sign, R"doc(The sign of the literal.)doc")
+        .def_property_readonly("left", &BodySetAggregate::left, R"doc(The left guard of the aggregate.)doc")
+        .def_property_readonly("function", &BodySetAggregate::function, R"doc(The aggregate function.)doc")
+        .def_property_readonly("elements", &BodySetAggregate::elements, R"doc(The aggregate elements.)doc")
+        .def_property_readonly("right", &BodySetAggregate::right, R"doc(The right guard of the aggregate.)doc")
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_body_theory_atom
+        .def(py::init(&BodyTheoryAtom::construct), py::arg("lib"), R"doc(Construct a BodyTheoryAtom object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.)doc")
+        .def("__str__", &BodyTheoryAtom::to_string)
+        .def("__hash__", &BodyTheoryAtom::hash)
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_body_conditional_literal
+        .def(py::init(&BodyConditionalLiteral::construct), py::arg("lib"), py::arg("location"), py::arg("literal"),
+             py::arg("condition"), R"doc(Construct a BodyConditionalLiteral object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+location
+    The location of the element.
+literal
+    The literal of the element.
+condition
+    The condition of the element.)doc")
+        .def("__str__", &BodyConditionalLiteral::to_string)
+        .def("__hash__", &BodyConditionalLiteral::hash)
+        .def_property_readonly("location", &BodyConditionalLiteral::location, R"doc(The location of the element.)doc")
+        .def_property_readonly("literal", &BodyConditionalLiteral::literal, R"doc(The literal of the element.)doc")
+        .def_property_readonly("condition", &BodyConditionalLiteral::condition,
+                               R"doc(The condition of the element.)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
