@@ -129,8 +129,7 @@ venv:
 
 stubs: SHELL:=/bin/bash
 stubs:
-	PYTHONPATH=build/lib/python-api pybind11-stubgen -o "$$(python3 -c "import sysconfig; print(sysconfig.get_path('purelib'))")" --stub-extension py clingo
-	touch "$$(python3 -c "import sysconfig; print(sysconfig.get_path('purelib'))")/clingo/py.typed"
+	PYTHONPATH=build/lib/python-api python scripts/stubs.py
 
 %: configure
 	cmake --build build --target $@ --parallel
