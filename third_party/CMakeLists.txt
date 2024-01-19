@@ -25,7 +25,9 @@ target_include_directories(imath INTERFACE
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/imath>")
 add_library(imath::imath ALIAS imath)
 
-add_subdirectory(pybind11)
+if (NOT PARSER_BUILD_WEB)
+    add_subdirectory(pybind11)
+endif()
 
 if (PARSER_BUILD_TESTS)
     set(CATCH_BUILD_STATIC_LIBRARY ON CACHE INTERNAL "" FORCE)
@@ -33,6 +35,4 @@ if (PARSER_BUILD_TESTS)
     add_subdirectory(Catch2)
 endif()
 
-#if (NOT PARSER_BUILD_WEB)
-    add_subdirectory(CLI11)
-#endif()
+add_subdirectory(CLI11)

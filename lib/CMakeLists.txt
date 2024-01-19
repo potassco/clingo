@@ -1,3 +1,5 @@
 add_subdirectory(gringo)
-add_subdirectory(c-api)
-add_subdirectory(python-api)
+if (NOT PARSER_BUILD_WEB)
+    add_subdirectory(c-api)
+    add_subdirectory(python-api)
+endif()
