@@ -1805,6 +1805,19 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
   - name: elements
     type: unparsed_element_array
     doc: The unparsed theory elements.
+- name: theory_right_guard
+  type: record
+  doc: A right hand side guard consisting of a theory operator and theory term.
+  arguments:
+  - name: theory_operator
+    type: string
+    doc: The operator of the guard.
+  - name: term
+    type: theory_term
+    doc: The theory term of the guard.
+- name: optional_theory_right_guard
+  type: optional
+  value_type: theory_right_guard
 - name: literal_array
   type: array
   value_type: literal
@@ -1840,6 +1853,22 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
 - name: body_aggregate_element_array
   type: array
   value_type: body_aggregate_element
+- name: theory_atom_element
+  type: record
+  doc: An element of a theory atom elements.
+  arguments:
+  - name: location
+    type: location
+    doc: The location of the element.
+  - name: tuple
+    type: theory_term_array
+    doc: The theory term tuple of the element.
+  - name: condition
+    type: literal_array
+    doc: The condition of the element.
+- name: theory_atom_element_array
+  type: array
+  value_type: theory_atom_element
 - name: body_simple_literal
   type: forward
 - name: body_aggregate
@@ -1910,11 +1939,25 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
   - name: right
     type: optional_right_guard
     doc: The right guard of the aggregate.
-
 - name: body_theory_atom
   type: record
   doc: A theory atom.
-  arguments: []
+  arguments:
+  - name: location
+    type: location
+    doc: The location of the element.
+  - name: sign
+    type: sign
+    doc: The sign of the literal.
+  - name: name
+    type: term
+    doc: The name of the theory atom.
+  - name: elements
+    type: body_aggregate_element_array
+    doc: The aggregate elements.
+  - name: right
+    type: optional_theory_right_guard
+    doc: The right guard of the theory atom.
 - name: body_conditional_literal
   type: record
   doc: A conditional_literal.

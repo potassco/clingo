@@ -1707,6 +1707,83 @@ class TheoryTermUnparsed {
 
 inline auto c_cast(TheoryTermUnparsed const &x) -> clingo_ast_t * { return x.ast_; }
 
+class TheoryRightGuard {
+  public:
+    // Note: for pybind
+    TheoryRightGuard() = default;
+
+    TheoryRightGuard(TheoryRightGuard const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    TheoryRightGuard(TheoryRightGuard &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(TheoryRightGuard const &x) -> TheoryRightGuard & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(TheoryRightGuard &&x) noexcept -> TheoryRightGuard & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(TheoryRightGuard const &a, TheoryRightGuard const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(TheoryRightGuard const &a, TheoryRightGuard const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, TheoryRightGuard)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~TheoryRightGuard() { clingo_ast_free(ast_); }
+
+    auto theory_operator() -> char const *;
+
+    auto term() -> TheoryTerm;
+
+    static auto acquire(clingo_ast_t *ast) -> TheoryRightGuard { return {ast}; }
+
+    static auto construct(Library &lib, char const *theory_operator, TheoryTerm const &term) -> TheoryRightGuard;
+
+    friend auto c_cast(TheoryRightGuard const &x) -> clingo_ast_t *;
+
+  private:
+    TheoryRightGuard(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(TheoryRightGuard const &x) -> clingo_ast_t * { return x.ast_; }
+
+using OptionalTheoryRightGuard = std::optional<TheoryRightGuard>;
+
 using LiteralArray = std::vector<Literal>;
 
 auto construct_literal_array(clingo_ast_t **ast, size_t size) -> LiteralArray;
@@ -1874,6 +1951,88 @@ inline auto c_cast(BodyAggregateElement const &x) -> clingo_ast_t * { return x.a
 using BodyAggregateElementArray = std::vector<BodyAggregateElement>;
 
 auto construct_body_aggregate_element_array(clingo_ast_t **ast, size_t size) -> BodyAggregateElementArray;
+
+class TheoryAtomElement {
+  public:
+    // Note: for pybind
+    TheoryAtomElement() = default;
+
+    TheoryAtomElement(TheoryAtomElement const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    TheoryAtomElement(TheoryAtomElement &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(TheoryAtomElement const &x) -> TheoryAtomElement & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(TheoryAtomElement &&x) noexcept -> TheoryAtomElement & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(TheoryAtomElement const &a, TheoryAtomElement const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(TheoryAtomElement const &a, TheoryAtomElement const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, TheoryAtomElement)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~TheoryAtomElement() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    auto tuple() -> TheoryTermArray;
+
+    auto condition() -> LiteralArray;
+
+    static auto acquire(clingo_ast_t *ast) -> TheoryAtomElement { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, TheoryTermArray const &tuple,
+                          LiteralArray const &condition) -> TheoryAtomElement;
+
+    friend auto c_cast(TheoryAtomElement const &x) -> clingo_ast_t *;
+
+  private:
+    TheoryAtomElement(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(TheoryAtomElement const &x) -> clingo_ast_t * { return x.ast_; }
+
+using TheoryAtomElementArray = std::vector<TheoryAtomElement>;
+
+auto construct_theory_atom_element_array(clingo_ast_t **ast, size_t size) -> TheoryAtomElementArray;
 
 class BodySimpleLiteral;
 
@@ -2191,9 +2350,21 @@ class BodyTheoryAtom {
 
     ~BodyTheoryAtom() { clingo_ast_free(ast_); }
 
+    auto location() -> clingo_location_t;
+
+    auto sign() -> Sign;
+
+    auto name() -> Term;
+
+    auto elements() -> BodyAggregateElementArray;
+
+    auto right() -> OptionalTheoryRightGuard;
+
     static auto acquire(clingo_ast_t *ast) -> BodyTheoryAtom { return {ast}; }
 
-    static auto construct(Library &lib) -> BodyTheoryAtom;
+    static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign, Term const &name,
+                          BodyAggregateElementArray const &elements, OptionalTheoryRightGuard const &right)
+        -> BodyTheoryAtom;
 
     friend auto c_cast(BodyTheoryAtom const &x) -> clingo_ast_t *;
 
@@ -3127,6 +3298,30 @@ auto TheoryTermUnparsed::construct(Library &lib, clingo_location_t const &locati
     return TheoryTermUnparsed::acquire(res_);
 }
 
+auto TheoryRightGuard::theory_operator() -> char const * {
+    char const *ret;
+    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_theory_operator, &ret)) {
+        throw std::runtime_error("could not get string attribute");
+    }
+    return ret;
+}
+
+auto TheoryRightGuard::term() -> TheoryTerm {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_term, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    return construct_theory_term(ast);
+}
+
+auto TheoryRightGuard::construct(Library &lib, char const *theory_operator, TheoryTerm const &term)
+    -> TheoryRightGuard {
+    clingo_ast_t *res_;
+    handle_error(lib,
+                 clingo_ast_construct(lib, clingo_ast_type_theory_right_guard, &res_, theory_operator, c_cast(term)));
+    return TheoryRightGuard::acquire(res_);
+}
+
 auto construct_literal_array(clingo_ast_t **ast, size_t size) -> LiteralArray {
     LiteralArray ret;
     try {
@@ -3237,6 +3432,58 @@ auto construct_body_aggregate_element_array(clingo_ast_t **ast, size_t size) -> 
             auto tmp = arg;
             arg = nullptr;
             ret.emplace_back(BodyAggregateElement::acquire(tmp));
+        });
+        clingo_ast_array_free(ast, size);
+    } catch (...) {
+        clingo_ast_array_free(ast, size);
+        throw;
+    }
+    return ret;
+}
+
+auto TheoryAtomElement::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto TheoryAtomElement::tuple() -> TheoryTermArray {
+    clingo_ast_t **ast;
+    size_t size;
+    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_tuple, &ast, &size)) {
+        throw std::runtime_error("could not get ast array attribute");
+    }
+    return construct_theory_term_array(ast, size);
+}
+
+auto TheoryAtomElement::condition() -> LiteralArray {
+    clingo_ast_t **ast;
+    size_t size;
+    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_condition, &ast, &size)) {
+        throw std::runtime_error("could not get ast array attribute");
+    }
+    return construct_literal_array(ast, size);
+}
+
+auto TheoryAtomElement::construct(Library &lib, clingo_location_t const &location, TheoryTermArray const &tuple,
+                                  LiteralArray const &condition) -> TheoryAtomElement {
+    clingo_ast_t *res_;
+    handle_error(lib,
+                 clingo_ast_construct(lib, clingo_ast_type_theory_atom_element, &res_, &location, c_cast(tuple).data(),
+                                      tuple.size(), c_cast(condition).data(), condition.size()));
+    return TheoryAtomElement::acquire(res_);
+}
+
+auto construct_theory_atom_element_array(clingo_ast_t **ast, size_t size) -> TheoryAtomElementArray {
+    TheoryAtomElementArray ret;
+    try {
+        ret.reserve(size);
+        std::for_each_n(ast, size, [&ret](auto &arg) {
+            auto tmp = arg;
+            arg = nullptr;
+            ret.emplace_back(TheoryAtomElement::acquire(tmp));
         });
         clingo_ast_array_free(ast, size);
     } catch (...) {
@@ -3419,9 +3666,57 @@ auto BodySetAggregate::construct(Library &lib, clingo_location_t const &location
     return BodySetAggregate::acquire(res_);
 }
 
-auto BodyTheoryAtom::construct(Library &lib) -> BodyTheoryAtom {
+auto BodyTheoryAtom::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto BodyTheoryAtom::sign() -> Sign {
+    int ret;
+    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_sign, &ret)) {
+        throw std::runtime_error("could not get number attribute");
+    }
+    return static_cast<Sign>(ret);
+}
+
+auto BodyTheoryAtom::name() -> Term {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_name, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    return construct_term(ast);
+}
+
+auto BodyTheoryAtom::elements() -> BodyAggregateElementArray {
+    clingo_ast_t **ast;
+    size_t size;
+    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &ast, &size)) {
+        throw std::runtime_error("could not get ast array attribute");
+    }
+    return construct_body_aggregate_element_array(ast, size);
+}
+
+auto BodyTheoryAtom::right() -> OptionalTheoryRightGuard {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_right, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    if (ast != nullptr) {
+        return TheoryRightGuard::acquire(ast);
+    }
+    return std::nullopt;
+}
+
+auto BodyTheoryAtom::construct(Library &lib, clingo_location_t const &location, Sign const &sign, Term const &name,
+                               BodyAggregateElementArray const &elements, OptionalTheoryRightGuard const &right)
+    -> BodyTheoryAtom {
     clingo_ast_t *res_;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_body_theory_atom, &res_));
+    handle_error(lib,
+                 clingo_ast_construct(lib, clingo_ast_type_body_theory_atom, &res_, &location, static_cast<int>(sign),
+                                      c_cast(name), c_cast(elements).data(), elements.size(), c_cast(right)));
     return BodyTheoryAtom::acquire(res_);
 }
 
@@ -3576,11 +3871,18 @@ This can be used to auto-generate most of the binding.)"));
     auto py_theory_term_unparsed = py::class_<TheoryTermUnparsed>(
         ast, "TheoryTermUnparsed", R"doc(A theory term representing an unparsed theory term.)doc");
 
+    auto py_theory_right_guard = py::class_<TheoryRightGuard>(
+        ast, "TheoryRightGuard", R"doc(A right hand side guard consisting of a theory operator and theory
+term.)doc");
+
     auto py_set_aggregate_element =
         py::class_<SetAggregateElement>(ast, "SetAggregateElement", R"doc(An element of a set aggregate.)doc");
 
     auto py_body_aggregate_element =
         py::class_<BodyAggregateElement>(ast, "BodyAggregateElement", R"doc(An element of a body aggregate.)doc");
+
+    auto py_theory_atom_element =
+        py::class_<TheoryAtomElement>(ast, "TheoryAtomElement", R"doc(An element of a theory atom elements.)doc");
 
     auto py_body_simple_literal =
         py::class_<BodySimpleLiteral>(ast, "BodySimpleLiteral", R"doc(A literal in a rule body.)doc");
@@ -4072,6 +4374,26 @@ elements
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
+    py_theory_right_guard
+        .def(py::init(&TheoryRightGuard::construct), py::arg("lib"), py::arg("theory_operator"), py::arg("term"),
+             R"doc(Construct a TheoryRightGuard object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+theory_operator
+    The operator of the guard.
+term
+    The theory term of the guard.)doc")
+        .def("__str__", &TheoryRightGuard::to_string)
+        .def("__hash__", &TheoryRightGuard::hash)
+        .def_property_readonly("theory_operator", &TheoryRightGuard::theory_operator,
+                               R"doc(The operator of the guard.)doc")
+        .def_property_readonly("term", &TheoryRightGuard::term, R"doc(The theory term of the guard.)doc")
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
     py_set_aggregate_element
         .def(py::init(&SetAggregateElement::construct), py::arg("lib"), py::arg("location"), py::arg("literal"),
              py::arg("condition"), R"doc(Construct a SetAggregateElement object.
@@ -4113,6 +4435,28 @@ condition
         .def_property_readonly("location", &BodyAggregateElement::location, R"doc(The location of the element.)doc")
         .def_property_readonly("tuple", &BodyAggregateElement::tuple, R"doc(The term tuple of the element.)doc")
         .def_property_readonly("condition", &BodyAggregateElement::condition, R"doc(The condition of the element.)doc")
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_theory_atom_element
+        .def(py::init(&TheoryAtomElement::construct), py::arg("lib"), py::arg("location"), py::arg("tuple"),
+             py::arg("condition"), R"doc(Construct a TheoryAtomElement object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+location
+    The location of the element.
+tuple
+    The theory term tuple of the element.
+condition
+    The condition of the element.)doc")
+        .def("__str__", &TheoryAtomElement::to_string)
+        .def("__hash__", &TheoryAtomElement::hash)
+        .def_property_readonly("location", &TheoryAtomElement::location, R"doc(The location of the element.)doc")
+        .def_property_readonly("tuple", &TheoryAtomElement::tuple, R"doc(The theory term tuple of the element.)doc")
+        .def_property_readonly("condition", &TheoryAtomElement::condition, R"doc(The condition of the element.)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -4196,14 +4540,30 @@ right
         CLINGO_PY_TOTAL_ORDER;
 
     py_body_theory_atom
-        .def(py::init(&BodyTheoryAtom::construct), py::arg("lib"), R"doc(Construct a BodyTheoryAtom object.
+        .def(py::init(&BodyTheoryAtom::construct), py::arg("lib"), py::arg("location"), py::arg("sign"),
+             py::arg("name"), py::arg("elements"), py::arg("right"), R"doc(Construct a BodyTheoryAtom object.
 
 Parameters
 ----------
 lib
-    The library object for storing symbols.)doc")
+    The library object for storing symbols.
+location
+    The location of the element.
+sign
+    The sign of the literal.
+name
+    The name of the theory atom.
+elements
+    The aggregate elements.
+right
+    The right guard of the theory atom.)doc")
         .def("__str__", &BodyTheoryAtom::to_string)
         .def("__hash__", &BodyTheoryAtom::hash)
+        .def_property_readonly("location", &BodyTheoryAtom::location, R"doc(The location of the element.)doc")
+        .def_property_readonly("sign", &BodyTheoryAtom::sign, R"doc(The sign of the literal.)doc")
+        .def_property_readonly("name", &BodyTheoryAtom::name, R"doc(The name of the theory atom.)doc")
+        .def_property_readonly("elements", &BodyTheoryAtom::elements, R"doc(The aggregate elements.)doc")
+        .def_property_readonly("right", &BodyTheoryAtom::right, R"doc(The right guard of the theory atom.)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
