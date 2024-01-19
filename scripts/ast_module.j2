@@ -172,8 +172,8 @@ This can be used to auto-generate most of the binding.)"));
 {%    elif type.type == 'record' %}
     py_{{ type_name }}
         .def(py::init(&{{ c_type_name }}::construct), py::arg("lib")
-        {%- for argument in type.arguments -%}
-            , py::arg("{{ argument.name }}")
+        {%- for argument_name, argument in type.arguments.items() -%}
+            , py::arg("{{ argument_name }}")
             {%- if "default" in argument %}
               {%- if argument.type == "bool" %} = {{ argument.default | string | lower }}
               {%- elif types[argument.type].type == "array" and argument.default == "empty" %} = {{ argument.type | camel }}{}
@@ -185,14 +185,14 @@ Parameters
 ----------
 lib
     The library object for storing symbols.
-{%-     for argument in type.arguments %}
-{{ argument.name }}
+{%-     for argument_name, argument in type.arguments.items() %}
+{{ argument_name }}
 {{ argument.doc | param_doc }}
 {%-     endfor %})doc")
         .def("__str__", &{{ c_type_name }}::to_string)
         .def("__hash__", &{{ c_type_name }}::hash)
-{%-     for argument in type.arguments %}
-        .def_property_readonly("{{argument.name}}", &{{ c_type_name }}::{{argument.name}}, R"doc({{ argument.doc }})doc")
+{%-     for argument_name, argument in type.arguments.items() %}
+        .def_property_readonly("{{argument_name}}", &{{ c_type_name }}::{{argument_name}}, R"doc({{ argument.doc }})doc")
 {%-     endfor %}
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;

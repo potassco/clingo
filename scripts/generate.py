@@ -38,27 +38,27 @@ def c_cast(arguments, type_map):
     Convert the given C++ types to the clingo C API equivalent.
     """
     res = []
-    for argument in arguments:
+    for argument_name, argument in arguments.items():
         if argument["type"] == "location":
-            res.append(f'&{argument["name"]}')
+            res.append(f"&{argument_name}")
         elif argument["type"] == "string":
-            res.append(f'{argument["name"]}')
+            res.append(f"{argument_name}")
         elif argument["type"] == "number":
-            res.append(f'{argument["name"]}')
+            res.append(f"{argument_name}")
         elif argument["type"] == "bool":
-            res.append(f'static_cast<int>({argument["name"]})')
+            res.append(f"static_cast<int>({argument_name})")
         elif argument["type"] == "symbol":
-            res.append(f'{argument["name"]}.handle()')
+            res.append(f"{argument_name}.handle()")
         elif argument["type"] == "string_array":
-            res.append(f'c_cast({argument["name"]}).data()')
-            res.append(f'{argument["name"]}.size()')
+            res.append(f"c_cast({argument_name}).data()")
+            res.append(f"{argument_name}.size()")
         elif type_map[argument["type"]]["type"] == "enum":
-            res.append(f'static_cast<int>({argument["name"]})')
+            res.append(f"static_cast<int>({argument_name})")
         elif type_map[argument["type"]]["type"] in ("union", "record", "optional"):
-            res.append(f'c_cast({argument["name"]})')
+            res.append(f"c_cast({argument_name})")
         elif type_map[argument["type"]]["type"] == "array":
-            res.append(f'c_cast({argument["name"]}).data()')
-            res.append(f'{argument["name"]}.size()')
+            res.append(f"c_cast({argument_name}).data()")
+            res.append(f"{argument_name}.size()")
         else:
             assert False
     return res

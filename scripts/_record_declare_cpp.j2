@@ -60,28 +60,28 @@ public:
     ~{{ c_type_name }}() {
         clingo_ast_free(ast_);
     }
-{% for argument in type.arguments -%}
+{% for argument_name, argument in type.arguments.items() -%}
 {% if argument.type == 'location' %}
-    auto {{ argument.name }}() -> clingo_location_t;
+    auto {{ argument_name }}() -> clingo_location_t;
 {% elif argument.type == 'string' %}
-    auto {{ argument.name }}() -> char const *;
+    auto {{ argument_name }}() -> char const *;
 {% elif argument.type == 'number' %}
-    auto {{ argument.name }}() -> int;
+    auto {{ argument_name }}() -> int;
 {% elif argument.type == 'bool' %}
-    auto {{ argument.name }}() -> bool;
+    auto {{ argument_name }}() -> bool;
 {% elif argument.type == 'symbol' %}
-    auto {{ argument.name }}() -> Symbol;
+    auto {{ argument_name }}() -> Symbol;
 {% elif argument.type == 'string_array' %}
-    auto {{ argument.name }}() -> std::vector<char const *>;
+    auto {{ argument_name }}() -> std::vector<char const *>;
 {% else %}
-    auto {{ argument.name }}() -> {{ argument.type | camel }};
+    auto {{ argument_name }}() -> {{ argument.type | camel }};
 {% endif %}
 {%- endfor %}
     static auto acquire(clingo_ast_t *ast) -> {{ c_type_name }} {
         return {ast};
     }
 
-    static auto construct(Library &lib{% for argument in type.arguments %}, {{ argument.type | cref }}{{ argument.name }}{% endfor %}) -> {{ c_type_name }};
+    static auto construct(Library &lib{% for argument_name, argument in type.arguments.items() %}, {{ argument.type | cref }}{{ argument_name }}{% endfor %}) -> {{ c_type_name }};
 
     friend auto c_cast({{ c_type_name }} const &x) -> clingo_ast_t *;
 

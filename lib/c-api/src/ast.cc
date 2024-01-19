@@ -1533,7 +1533,7 @@ projection:
   type: record
   doc: A placeholder for an argument to project.
   arguments:
-    - name: location
+    location:
       type: location
       doc: The location of the placeholder.
 term_or_projection:
@@ -1559,13 +1559,13 @@ term_variable:
   type: record
   doc: A term representing a variable.
   arguments:
-    - name: location
+    location:
       type: location
       doc: The location of the variable.
-    - name: name
+    name:
       type: string
       doc: The name of the variable.
-    - name: anonymous
+    anonymous:
       type: bool
       default: false
       doc: >-
@@ -1576,20 +1576,20 @@ term_symbolic:
   type: record
   doc: A term representing a symbol.
   arguments:
-    - name: location
+    location:
       type: location
       doc: The location of the symbol.
-    - name: symbol
+    symbol:
       type: symbol
       doc: The symbol.
 term_absolute:
   type: record
   doc: A term representing the absolute operation.
   arguments:
-    - name: location
+    location:
       type: location
       doc: The location of the operation.
-    - name: pool
+    pool:
       type: term_array
       doc: >-
         The argument pool.
@@ -1599,39 +1599,39 @@ term_unary_operation:
   type: record
   doc: A term representing a unary operation.
   arguments:
-    - name: location
+    location:
       type: location
       doc: The location of the operation.
-    - name: operator_type
+    operator_type:
       type: unary_operator
       doc: The type of the operation.
-    - name: right
+    right:
       type: term
       doc: The argument of the operation.
 term_binary_operation:
   type: record
   doc: A term representing a binary operation.
   arguments:
-    - name: location
+    location:
       type: location
       doc: The location of the operation.
-    - name: left
+    left:
       type: term
       doc: The left argument of the operation.
-    - name: operator_type
+    operator_type:
       type: binary_operator
       doc: The type of the operation.
-    - name: right
+    right:
       type: term
       doc: The right argument of the operation.
 term_tuple:
   type: record
   doc: A term representing a tuple.
   arguments:
-    - name: location
+    location:
       type: location
       doc: The location of the tuple.
-    - name: pool
+    pool:
       type: term_or_argument_tuple_array
       doc: >-
         The argument pool of the tuple.
@@ -1641,19 +1641,19 @@ term_function:
   type: record
   doc: A term representing a function.
   arguments:
-    - name: location
+    location:
       type: location
       doc: The location of the function.
-    - name: name
+    name:
       type: string
       doc: The name of the function.
-    - name: pool
+    pool:
       type: argument_tuple_array
       doc: >-
         The argument pool of the function.
 
         If there is more than one element in the pool, the term is unpooled during preprocessing.
-    - name: external
+    external:
       type: bool
       default: false
       doc: Whether the function is external.
@@ -1661,7 +1661,7 @@ argument_tuple:
   type: record
   doc: A list of arguments for a function or tuple.
   arguments:
-    - name: arguments
+    arguments:
       type: term_or_projection_array
       default: empty
       doc: The arguments of the tuple.
@@ -1675,10 +1675,10 @@ left_guard:
   type: record
   doc: A right hand side guard consisting of a term and a relation.
   arguments:
-    - name: term
+    term:
       type: term
       doc: The term of the guard.
-    - name: relation
+    relation:
       type: relation
       doc: The relation of the guard.
 optional_left_guard:
@@ -1688,10 +1688,10 @@ right_guard:
   type: record
   doc: A right hand side guard consisting of a relation and term.
   arguments:
-    - name: relation
+    relation:
       type: relation
       doc: The relation of the guard.
-    - name: term
+    term:
       type: term
       doc: The term of the guard.
 optional_right_guard:
@@ -1704,29 +1704,29 @@ literal_boolean:
   type: record
   doc: A literal representing a Boolean constant.
   arguments:
-    - name: location
+    location:
       type: location
       doc: The location of the symbol.
-    - name: sign
+    sign:
       type: sign
       doc: The sign of the literal.
-    - name: value
+    value:
       type: bool
       doc: The fixed value of the literal.
 literal_comparison:
   type: record
   doc: A literal representing a (chain of) comparison(s).
   arguments:
-    - name: location
+    location:
       type: location
       doc: The location of the symbol.
-    - name: sign
+    sign:
       type: sign
       doc: The sign of the literal.
-    - name: left
+    left:
       type: term
       doc: The first term of the comparison.
-    - name: right
+    right:
       type: right_guard_array
       doc: >-
         The chain of comparisons.
@@ -1736,13 +1736,13 @@ literal_symbolic:
   type: record
   doc: A literal representing a symbolic literal.
   arguments:
-    - name: location
+    location:
       type: location
       doc: The location of the symbol.
-    - name: sign
+    sign:
       type: sign
       doc: The sign of the literal.
-    - name: atom
+    atom:
       type: term
       doc: The term representing the atom.
 theory_term:
@@ -1760,10 +1760,10 @@ unparsed_element:
   type: record
   doc: A list of unparsed theory terms and operators.
   arguments:
-    - name: operators
+    operators:
       type: string_array
       doc: The list of theory operators.
-    - name: term
+    term:
       type: theory_term
       doc: The theory term.
 unparsed_element_array:
@@ -1773,13 +1773,13 @@ theory_term_variable:
   type: record
   doc: A theory term representing a variable.
   arguments:
-    - name: location
+    location:
       type: location
       doc: The location of the variable.
-    - name: name
+    name:
       type: string
       doc: The name of the variable.
-    - name: anonymous
+    anonymous:
       type: bool
       default: false
       doc: >-
@@ -1790,56 +1790,56 @@ theory_term_symbolic:
   type: record
   doc: A theory term representing a symbol.
   arguments:
-    - name: location
+    location:
       type: location
       doc: The location of the symbol.
-    - name: symbol
+    symbol:
       type: symbol
       doc: The symbol.
 theory_term_tuple:
   type: record
   doc: A theory term representing a tuple.
   arguments:
-    - name: location
+    location:
       type: location
       doc: The location of the tuple.
-    - name: tuple_type
+    tuple_type:
       type: theory_tuple_type
       doc: The type of the tuple.
-    - name: arguments
+    arguments:
       type: theory_term_array
       doc: The arguments of the tuple.
 theory_term_function:
   type: record
   doc: A theory term representing a function.
   arguments:
-    - name: location
+    location:
       type: location
       doc: The location of the function.
-    - name: name
+    name:
       type: string
       doc: The name of the function.
-    - name: arguments
+    arguments:
       type: theory_term_array
       doc: The arguments of the function.
 theory_term_unparsed:
   type: record
   doc: A theory term representing an unparsed theory term.
   arguments:
-    - name: location
+    location:
       type: location
       doc: The location of the theory term.
-    - name: elements
+    elements:
       type: unparsed_element_array
       doc: The unparsed theory elements.
 theory_right_guard:
   type: record
   doc: A right hand side guard consisting of a theory operator and theory term.
   arguments:
-    - name: theory_operator
+    theory_operator:
       type: string
       doc: The operator of the guard.
-    - name: term
+    term:
       type: theory_term
       doc: The theory term of the guard.
 optional_theory_right_guard:
@@ -1852,13 +1852,13 @@ set_aggregate_element:
   type: record
   doc: An element of a set aggregate.
   arguments:
-    - name: location
+    location:
       type: location
       doc: The location of the element.
-    - name: literal
+    literal:
       type: literal
       doc: The literal of the element.
-    - name: condition
+    condition:
       type: literal_array
       doc: The condition of the element.
 set_aggregate_element_array:
@@ -1868,13 +1868,13 @@ body_aggregate_element:
   type: record
   doc: An element of a body aggregate.
   arguments:
-    - name: location
+    location:
       type: location
       doc: The location of the element.
-    - name: tuple
+    tuple:
       type: term_array
       doc: The term tuple of the element.
-    - name: condition
+    condition:
       type: literal_array
       doc: The condition of the element.
 body_aggregate_element_array:
@@ -1884,13 +1884,13 @@ theory_atom_element:
   type: record
   doc: An element of a theory atom elements.
   arguments:
-    - name: location
+    location:
       type: location
       doc: The location of the element.
-    - name: tuple
+    tuple:
       type: theory_term_array
       doc: The theory term tuple of the element.
-    - name: condition
+    condition:
       type: literal_array
       doc: The condition of the element.
 theory_atom_element_array:
@@ -1909,83 +1909,83 @@ body_simple_literal:
   type: record
   doc: A literal in a rule body.
   arguments:
-    - name: literal
+    literal:
       type: literal
       doc: The literal.
 body_aggregate:
   type: record
   doc: A literal in a rule body.
   arguments:
-    - name: location
+    location:
       type: location
       doc: The location of the element.
-    - name: sign
+    sign:
       type: sign
       doc: The sign of the literal.
-    - name: left
+    left:
       type: optional_left_guard
       doc: The left guard of the aggregate.
-    - name: function
+    function:
       type: aggregate_function
       doc: The aggregate function.
-    - name: elements
+    elements:
       type: body_aggregate_element_array
       doc: The aggregate elements.
-    - name: right
+    right:
       type: optional_right_guard
       doc: The right guard of the aggregate.
 body_set_aggregate:
   type: record
   doc: A set aggregate.
   arguments:
-    - name: location
+    location:
       type: location
       doc: The location of the element.
-    - name: sign
+    sign:
       type: sign
       doc: The sign of the literal.
-    - name: left
+    left:
       type: optional_left_guard
       doc: The left guard of the aggregate.
-    - name: function
+    function:
       type: aggregate_function
       doc: The aggregate function.
-    - name: elements
+    elements:
       type: set_aggregate_element_array
       doc: The aggregate elements.
-    - name: right
+    right:
       type: optional_right_guard
       doc: The right guard of the aggregate.
 body_theory_atom:
   type: record
   doc: A theory atom.
   arguments:
-    - name: location
+    location:
       type: location
       doc: The location of the element.
-    - name: sign
+    sign:
       type: sign
       doc: The sign of the literal.
-    - name: name
+    name:
       type: term
       doc: The name of the theory atom.
-    - name: elements
+    elements:
       type: body_aggregate_element_array
       doc: The aggregate elements.
-    - name: right
+    right:
       type: optional_theory_right_guard
       doc: The right guard of the theory atom.
 body_conditional_literal:
   type: record
   doc: A conditional_literal.
   arguments:
-    - name: location
+    location:
       type: location
       doc: The location of the element.
-    - name: literal
+    literal:
       type: literal
       doc: The literal of the element.
-    - name: condition
+    condition:
       type: literal_array
       doc: The condition of the element.
 )yaml";
