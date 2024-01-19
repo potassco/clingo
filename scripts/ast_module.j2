@@ -33,16 +33,22 @@ auto c_cast(StringArray const &arr) -> std::vector<char const *> {
     return ret;
 }
 
-{% for type in types -%}
-{%    if type.type == 'forward' %}
-class {{ type.name | camel }};
-{%    elif type.type == 'optional' %}
+{%  for type in types -%}
+{%    if type.type == 'optional' %}
 using {{ type.name | camel }} = std::optional<{{ type.value_type | camel }}>;
 {%    elif type.type == 'array' %}
+{%      for name in type["value_type"] | forward(type.name, types) -%}
+class {{ name | camel }};
+
+{%      endfor -%}
 using {{ type.name | camel }} = std::vector<{{ type.value_type | camel }}>;
 
 auto construct_{{ type.name }}(clingo_ast_t **ast, size_t size) -> {{ type.name | camel }};
 {%    elif type.type == 'union' %}
+{%     for name in type["types"] | forward(type.name, types) -%}
+class {{ name | camel }};
+
+{%     endfor -%}
 using {{ type.name | camel }} = std::variant<{{ type.types | map("camel") | join(", ") }}>;
 
 auto construct_{{ type.name }}(clingo_ast_t *ast) -> {{ type.name | camel }};

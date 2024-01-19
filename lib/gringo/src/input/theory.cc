@@ -86,14 +86,18 @@ auto value_hasher<Gringo::Input::TheoryElement>::operator()(Gringo::Input::Theor
     return Gringo::Util::value_hash(typeid(Gringo::Input::TheoryElement), x.tuple, x.cond);
 }
 
-template <bool HasSign>
-auto value_hasher<Gringo::Input::TheoryAtom<HasSign>>::operator()(Gringo::Input::TheoryAtom<HasSign> const &x) const
+} // namespace Gringo::Util
+
+namespace Gringo::Util {
+
+auto value_hasher<Gringo::Input::TheoryAtom<true>>::operator()(Gringo::Input::TheoryAtom<true> const &x) const
     -> size_t {
-    return Gringo::Util::value_hash(typeid(Gringo::Input::TheoryAtom<HasSign>), x.name, x.elems, x.rhs);
+    return Gringo::Util::value_hash(typeid(Gringo::Input::TheoryAtom<true>), x.sign, x.name, x.elems, x.rhs);
 }
 
-template <> struct value_hasher<Gringo::Input::TheoryAtom<true>>;
-
-template <> struct value_hasher<Gringo::Input::TheoryAtom<false>>;
+auto value_hasher<Gringo::Input::TheoryAtom<false>>::operator()(Gringo::Input::TheoryAtom<false> const &x) const
+    -> size_t {
+    return Gringo::Util::value_hash(typeid(Gringo::Input::TheoryAtom<false>), x.name, x.elems, x.rhs);
+}
 
 } // namespace Gringo::Util

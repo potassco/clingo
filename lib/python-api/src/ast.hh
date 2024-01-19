@@ -103,8 +103,6 @@ class TermTuple;
 
 class TermFunction;
 
-class TermVariable;
-
 using Term = std::variant<TermVariable, TermSymbolic, TermAbsolute, TermUnaryOperation, TermBinaryOperation, TermTuple,
                           TermFunction>;
 
@@ -200,6 +198,8 @@ class ArgumentTuple;
 using ArgumentTupleArray = std::vector<ArgumentTuple>;
 
 auto construct_argument_tuple_array(clingo_ast_t **ast, size_t size) -> ArgumentTupleArray;
+
+class ArgumentTuple;
 
 using TermOrArgumentTuple = std::variant<Term, ArgumentTuple>;
 

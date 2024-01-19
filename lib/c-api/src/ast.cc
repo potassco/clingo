@@ -1516,22 +1516,6 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
     directive:
       value: 3
       doc: For theory atoms that must not have a body.
-- name: term_variable
-  type: forward
-- name: term_symbolic
-  type: forward
-- name: term_absolute
-  type: forward
-- name: term_unary_operation
-  type: forward
-- name: term_binary_operation
-  type: forward
-- name: term_tuple
-  type: forward
-- name: term_function
-  type: forward
-- name: term_variable
-  type: forward
 - name: term
   type: union
   types:
@@ -1560,8 +1544,6 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
 - name: term_or_projection_array
   type: array
   value_type: term_or_projection
-- name: argument_tuple
-  type: forward
 - name: argument_tuple_array
   type: array
   value_type: argument_tuple
@@ -1683,12 +1665,6 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
     type: term_or_projection_array
     default: empty
     doc: The arguments of the tuple.
-- name: literal_boolean
-  type: forward
-- name: literal_comparison
-  type: forward
-- name: literal_symbolic
-  type: forward
 - name: literal
   type: union
   types:
@@ -1769,16 +1745,6 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
   - name: atom
     type: term
     doc: The term representing the atom.
-- name: theory_term_variable
-  type: forward
-- name: theory_term_symbolic
-  type: forward
-- name: theory_term_tuple
-  type: forward
-- name: theory_term_function
-  type: forward
-- name: theory_term_unparsed
-  type: forward
 - name: theory_term
   type: union
   types:
@@ -1930,16 +1896,6 @@ extern "C" auto clingo_ast_type_info_yaml() -> char const * {
 - name: theory_atom_element_array
   type: array
   value_type: theory_atom_element
-- name: body_simple_literal
-  type: forward
-- name: body_aggregate
-  type: forward
-- name: body_set_aggregate
-  type: forward
-- name: body_theory_atom
-  type: forward
-- name: body_conditional_literal
-  type: forward
 - name: body_literal
   type: union
   doc: The available body literals.

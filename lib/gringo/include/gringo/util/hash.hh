@@ -152,6 +152,17 @@ template <class T> struct value_hasher<T const *> {
     }
 };
 
+//! Value hasher for optionals.
+template <class T> struct value_hasher<std::optional<T>> {
+    //! Operator to compute the hash.
+    auto operator()(std::optional<T> const &value) const -> size_t {
+        if (value) {
+            return hash_combine(typeid(std::optional<T>).hash_code(), value_hasher<T>{}(*value));
+        }
+        return typeid(std::optional<T>).hash_code();
+    }
+};
+
 //! See value_hasher<T const *>.
 template <class T> struct value_hasher<std::unique_ptr<T>> {
     //! Operator to compute the hash.

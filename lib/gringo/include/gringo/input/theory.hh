@@ -253,8 +253,11 @@ GRINGO_HASH_PROTO(Gringo::Input::TheoryTermTuple);
 GRINGO_HASH_PROTO(Gringo::Input::TheoryTermUnparsed);
 GRINGO_HASH_PROTO(Gringo::Input::TheoryElement);
 namespace Gringo::Util {
-template <bool HasSign> struct value_hasher<Gringo::Input::TheoryAtom<HasSign>> {
-    auto operator()(Gringo::Input::TheoryAtom<HasSign> const &x) const -> size_t;
+template <> struct value_hasher<Gringo::Input::TheoryAtom<true>> {
+    auto operator()(Gringo::Input::TheoryAtom<true> const &x) const -> size_t;
+};
+template <> struct value_hasher<Gringo::Input::TheoryAtom<false>> {
+    auto operator()(Gringo::Input::TheoryAtom<false> const &x) const -> size_t;
 };
 } // namespace Gringo::Util
 

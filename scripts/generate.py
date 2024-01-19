@@ -86,6 +86,30 @@ def flatten_types(types, type_map):
     return res
 
 
+def forward(types, current_type, type_list):
+    """
+    Filter the types that have to be forwarded.
+    """
+    res = []
+
+    def check(name):
+        for t in type_list:
+            if t["type"] == "forward":
+                continue
+            if t["name"] == name:
+                break
+            if t["name"] == current_type:
+                res.append(name)
+                break
+
+    if isinstance(types, str):
+        check(types)
+    else:
+        for name in types:
+            check(name)
+    return res
+
+
 def doc(text):
     """
     Wrap a docstring.
@@ -114,6 +138,7 @@ def generate():
     env.filters["flatten_types"] = flatten_types
     env.filters["doc"] = doc
     env.filters["param_doc"] = param_doc
+    env.filters["forward"] = forward
 
     types = yaml.safe_load(_type_info_yaml())
     type_map = {type_attr["name"]: type_attr for type_attr in types}
