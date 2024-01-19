@@ -2710,7 +2710,7 @@ location
     The location of the placeholder.)doc")
         .def("__str__", &Projection::to_string)
         .def("__hash__", &Projection::hash)
-        .def_property_readonly("location", &Projection::location)
+        .def_property_readonly("location", &Projection::location, R"doc(The location of the placeholder.)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -2732,9 +2732,10 @@ anonymous
     Anonymous variables receive a unique name during preprocessing.)doc")
         .def("__str__", &TermVariable::to_string)
         .def("__hash__", &TermVariable::hash)
-        .def_property_readonly("location", &TermVariable::location)
-        .def_property_readonly("name", &TermVariable::name)
-        .def_property_readonly("anonymous", &TermVariable::anonymous)
+        .def_property_readonly("location", &TermVariable::location, R"doc(The location of the variable.)doc")
+        .def_property_readonly("name", &TermVariable::name, R"doc(The name of the variable.)doc")
+        .def_property_readonly("anonymous", &TermVariable::anonymous, R"doc(Whether the variable is anonymous.
+Anonymous variables receive a unique name during preprocessing.)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -2752,8 +2753,8 @@ symbol
     The symbol.)doc")
         .def("__str__", &TermSymbolic::to_string)
         .def("__hash__", &TermSymbolic::hash)
-        .def_property_readonly("location", &TermSymbolic::location)
-        .def_property_readonly("symbol", &TermSymbolic::symbol)
+        .def_property_readonly("location", &TermSymbolic::location, R"doc(The location of the symbol.)doc")
+        .def_property_readonly("symbol", &TermSymbolic::symbol, R"doc(The symbol.)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -2774,8 +2775,9 @@ pool
     unpooled during preprocessing.)doc")
         .def("__str__", &TermAbsolute::to_string)
         .def("__hash__", &TermAbsolute::hash)
-        .def_property_readonly("location", &TermAbsolute::location)
-        .def_property_readonly("pool", &TermAbsolute::pool)
+        .def_property_readonly("location", &TermAbsolute::location, R"doc(The location of the operation.)doc")
+        .def_property_readonly("pool", &TermAbsolute::pool, R"doc(The argument pool.
+If there is more than one argument in the pool, the term is unpooled during preprocessing.)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -2795,9 +2797,10 @@ right
     The argument of the operation.)doc")
         .def("__str__", &TermUnaryOperation::to_string)
         .def("__hash__", &TermUnaryOperation::hash)
-        .def_property_readonly("location", &TermUnaryOperation::location)
-        .def_property_readonly("operator_type", &TermUnaryOperation::operator_type)
-        .def_property_readonly("right", &TermUnaryOperation::right)
+        .def_property_readonly("location", &TermUnaryOperation::location, R"doc(The location of the operation.)doc")
+        .def_property_readonly("operator_type", &TermUnaryOperation::operator_type,
+                               R"doc(The type of the operation.)doc")
+        .def_property_readonly("right", &TermUnaryOperation::right, R"doc(The argument of the operation.)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -2819,10 +2822,11 @@ right
     The right argument of the operation.)doc")
         .def("__str__", &TermBinaryOperation::to_string)
         .def("__hash__", &TermBinaryOperation::hash)
-        .def_property_readonly("location", &TermBinaryOperation::location)
-        .def_property_readonly("left", &TermBinaryOperation::left)
-        .def_property_readonly("operator_type", &TermBinaryOperation::operator_type)
-        .def_property_readonly("right", &TermBinaryOperation::right)
+        .def_property_readonly("location", &TermBinaryOperation::location, R"doc(The location of the operation.)doc")
+        .def_property_readonly("left", &TermBinaryOperation::left, R"doc(The left argument of the operation.)doc")
+        .def_property_readonly("operator_type", &TermBinaryOperation::operator_type,
+                               R"doc(The type of the operation.)doc")
+        .def_property_readonly("right", &TermBinaryOperation::right, R"doc(The right argument of the operation.)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -2843,8 +2847,9 @@ pool
     unpooled during preprocessing.)doc")
         .def("__str__", &TermTuple::to_string)
         .def("__hash__", &TermTuple::hash)
-        .def_property_readonly("location", &TermTuple::location)
-        .def_property_readonly("pool", &TermTuple::pool)
+        .def_property_readonly("location", &TermTuple::location, R"doc(The location of the tuple.)doc")
+        .def_property_readonly("pool", &TermTuple::pool, R"doc(The argument pool of the tuple.
+If there is more than one element in the pool, the term is unpooled during preprocessing.)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -2869,10 +2874,11 @@ external
     Whether the function is external.)doc")
         .def("__str__", &TermFunction::to_string)
         .def("__hash__", &TermFunction::hash)
-        .def_property_readonly("location", &TermFunction::location)
-        .def_property_readonly("name", &TermFunction::name)
-        .def_property_readonly("pool", &TermFunction::pool)
-        .def_property_readonly("external", &TermFunction::external)
+        .def_property_readonly("location", &TermFunction::location, R"doc(The location of the function.)doc")
+        .def_property_readonly("name", &TermFunction::name, R"doc(The name of the function.)doc")
+        .def_property_readonly("pool", &TermFunction::pool, R"doc(The argument pool of the function.
+If there is more than one element in the pool, the term is unpooled during preprocessing.)doc")
+        .def_property_readonly("external", &TermFunction::external, R"doc(Whether the function is external.)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -2888,7 +2894,7 @@ arguments
     The arguments of the tuple.)doc")
         .def("__str__", &ArgumentTuple::to_string)
         .def("__hash__", &ArgumentTuple::hash)
-        .def_property_readonly("arguments", &ArgumentTuple::arguments)
+        .def_property_readonly("arguments", &ArgumentTuple::arguments, R"doc(The arguments of the tuple.)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -2906,8 +2912,8 @@ relation
     The relation of the guard.)doc")
         .def("__str__", &LeftGuard::to_string)
         .def("__hash__", &LeftGuard::hash)
-        .def_property_readonly("term", &LeftGuard::term)
-        .def_property_readonly("relation", &LeftGuard::relation)
+        .def_property_readonly("term", &LeftGuard::term, R"doc(The term of the guard.)doc")
+        .def_property_readonly("relation", &LeftGuard::relation, R"doc(The relation of the guard.)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -2925,8 +2931,8 @@ term
     The term of the guard.)doc")
         .def("__str__", &RightGuard::to_string)
         .def("__hash__", &RightGuard::hash)
-        .def_property_readonly("relation", &RightGuard::relation)
-        .def_property_readonly("term", &RightGuard::term)
+        .def_property_readonly("relation", &RightGuard::relation, R"doc(The relation of the guard.)doc")
+        .def_property_readonly("term", &RightGuard::term, R"doc(The term of the guard.)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -2946,9 +2952,9 @@ value
     The fixed value of the literal.)doc")
         .def("__str__", &LiteralBoolean::to_string)
         .def("__hash__", &LiteralBoolean::hash)
-        .def_property_readonly("location", &LiteralBoolean::location)
-        .def_property_readonly("sign", &LiteralBoolean::sign)
-        .def_property_readonly("value", &LiteralBoolean::value)
+        .def_property_readonly("location", &LiteralBoolean::location, R"doc(The location of the symbol.)doc")
+        .def_property_readonly("sign", &LiteralBoolean::sign, R"doc(The sign of the literal.)doc")
+        .def_property_readonly("value", &LiteralBoolean::value, R"doc(The fixed value of the literal.)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -2972,10 +2978,11 @@ right
     Note that the chain must have at least length one.)doc")
         .def("__str__", &LiteralComparison::to_string)
         .def("__hash__", &LiteralComparison::hash)
-        .def_property_readonly("location", &LiteralComparison::location)
-        .def_property_readonly("sign", &LiteralComparison::sign)
-        .def_property_readonly("left", &LiteralComparison::left)
-        .def_property_readonly("right", &LiteralComparison::right)
+        .def_property_readonly("location", &LiteralComparison::location, R"doc(The location of the symbol.)doc")
+        .def_property_readonly("sign", &LiteralComparison::sign, R"doc(The sign of the literal.)doc")
+        .def_property_readonly("left", &LiteralComparison::left, R"doc(The first term of the comparison.)doc")
+        .def_property_readonly("right", &LiteralComparison::right, R"doc(The chain of comparisons.
+Note that the chain must have at least length one.)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -2995,9 +3002,9 @@ atom
     The term representing the atom.)doc")
         .def("__str__", &LiteralSymbolic::to_string)
         .def("__hash__", &LiteralSymbolic::hash)
-        .def_property_readonly("location", &LiteralSymbolic::location)
-        .def_property_readonly("sign", &LiteralSymbolic::sign)
-        .def_property_readonly("atom", &LiteralSymbolic::atom)
+        .def_property_readonly("location", &LiteralSymbolic::location, R"doc(The location of the symbol.)doc")
+        .def_property_readonly("sign", &LiteralSymbolic::sign, R"doc(The sign of the literal.)doc")
+        .def_property_readonly("atom", &LiteralSymbolic::atom, R"doc(The term representing the atom.)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -3015,8 +3022,8 @@ term
     The theory term.)doc")
         .def("__str__", &UnparsedElement::to_string)
         .def("__hash__", &UnparsedElement::hash)
-        .def_property_readonly("operators", &UnparsedElement::operators)
-        .def_property_readonly("term", &UnparsedElement::term)
+        .def_property_readonly("operators", &UnparsedElement::operators, R"doc(The list of theory operators.)doc")
+        .def_property_readonly("term", &UnparsedElement::term, R"doc(The theory term.)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -3038,9 +3045,10 @@ anonymous
     Anonymous variables receive a unique name during preprocessing.)doc")
         .def("__str__", &TheoryTermVariable::to_string)
         .def("__hash__", &TheoryTermVariable::hash)
-        .def_property_readonly("location", &TheoryTermVariable::location)
-        .def_property_readonly("name", &TheoryTermVariable::name)
-        .def_property_readonly("anonymous", &TheoryTermVariable::anonymous)
+        .def_property_readonly("location", &TheoryTermVariable::location, R"doc(The location of the variable.)doc")
+        .def_property_readonly("name", &TheoryTermVariable::name, R"doc(The name of the variable.)doc")
+        .def_property_readonly("anonymous", &TheoryTermVariable::anonymous, R"doc(Whether the variable is anonymous.
+Anonymous variables receive a unique name during preprocessing.)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -3058,8 +3066,8 @@ symbol
     The symbol.)doc")
         .def("__str__", &TheoryTermSymbolic::to_string)
         .def("__hash__", &TheoryTermSymbolic::hash)
-        .def_property_readonly("location", &TheoryTermSymbolic::location)
-        .def_property_readonly("symbol", &TheoryTermSymbolic::symbol)
+        .def_property_readonly("location", &TheoryTermSymbolic::location, R"doc(The location of the symbol.)doc")
+        .def_property_readonly("symbol", &TheoryTermSymbolic::symbol, R"doc(The symbol.)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -3079,9 +3087,9 @@ arguments
     The arguments of the tuple.)doc")
         .def("__str__", &TheoryTermTuple::to_string)
         .def("__hash__", &TheoryTermTuple::hash)
-        .def_property_readonly("location", &TheoryTermTuple::location)
-        .def_property_readonly("tuple_type", &TheoryTermTuple::tuple_type)
-        .def_property_readonly("arguments", &TheoryTermTuple::arguments)
+        .def_property_readonly("location", &TheoryTermTuple::location, R"doc(The location of the tuple.)doc")
+        .def_property_readonly("tuple_type", &TheoryTermTuple::tuple_type, R"doc(The type of the tuple.)doc")
+        .def_property_readonly("arguments", &TheoryTermTuple::arguments, R"doc(The arguments of the tuple.)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -3101,9 +3109,9 @@ arguments
     The arguments of the function.)doc")
         .def("__str__", &TheoryTermFunction::to_string)
         .def("__hash__", &TheoryTermFunction::hash)
-        .def_property_readonly("location", &TheoryTermFunction::location)
-        .def_property_readonly("name", &TheoryTermFunction::name)
-        .def_property_readonly("arguments", &TheoryTermFunction::arguments)
+        .def_property_readonly("location", &TheoryTermFunction::location, R"doc(The location of the function.)doc")
+        .def_property_readonly("name", &TheoryTermFunction::name, R"doc(The name of the function.)doc")
+        .def_property_readonly("arguments", &TheoryTermFunction::arguments, R"doc(The arguments of the function.)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -3121,8 +3129,8 @@ elements
     The unparsed theory elements.)doc")
         .def("__str__", &TheoryTermUnparsed::to_string)
         .def("__hash__", &TheoryTermUnparsed::hash)
-        .def_property_readonly("location", &TheoryTermUnparsed::location)
-        .def_property_readonly("elements", &TheoryTermUnparsed::elements)
+        .def_property_readonly("location", &TheoryTermUnparsed::location, R"doc(The location of the theory term.)doc")
+        .def_property_readonly("elements", &TheoryTermUnparsed::elements, R"doc(The unparsed theory elements.)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 

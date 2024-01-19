@@ -124,13 +124,13 @@ format_yaml:
 venv: SHELL:=/bin/bash
 venv:
 	python -m venv .venv
-	source .venv/bin/activate && pip install pynvim pyyaml jinja2 pybind11-stubgen
+	source .venv/bin/activate && pip install pynvim pyyaml jinja2 mypy pybind11-stubgen
 	ln -rft .venv/lib/python*/site-packages -s build/lib/python-api/clingo.*.so
 
 stubs: SHELL:=/bin/bash
 stubs:
-	pybind11-stubgen -o "$$(python3 -c "import sysconfig; print(sysconfig.get_path('purelib'))")" clingo
-	touch "$$(python3 -c "import sysconfig; print(sysconfig.get_path('purelib'))")/py.typed"
+	PYTHONPATH=build/lib/python-api pybind11-stubgen -o "$$(python3 -c "import sysconfig; print(sysconfig.get_path('purelib'))")" --stub-extension py clingo
+	touch "$$(python3 -c "import sysconfig; print(sysconfig.get_path('purelib'))")/clingo/py.typed"
 
 %: configure
 	cmake --build build --target $@ --parallel
