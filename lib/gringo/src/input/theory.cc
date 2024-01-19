@@ -86,10 +86,6 @@ auto value_hasher<Gringo::Input::TheoryElement>::operator()(Gringo::Input::Theor
     return Gringo::Util::value_hash(typeid(Gringo::Input::TheoryElement), x.tuple, x.cond);
 }
 
-} // namespace Gringo::Util
-
-namespace Gringo::Util {
-
 auto value_hasher<Gringo::Input::TheoryAtom<true>>::operator()(Gringo::Input::TheoryAtom<true> const &x) const
     -> size_t {
     return Gringo::Util::value_hash(typeid(Gringo::Input::TheoryAtom<true>), x.sign, x.name, x.elems, x.rhs);

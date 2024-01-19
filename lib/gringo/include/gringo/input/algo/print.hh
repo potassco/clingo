@@ -44,6 +44,9 @@ auto operator<<(std::ostream &out, TheoryTerm const &term) -> std::ostream &;
 //! Output the theory term to the given stream.
 auto operator<<(std::ostream &out, TheoryElement const &elem) -> std::ostream &;
 
+//! Output the theory term to the given stream.
+auto operator<<(std::ostream &out, SetAggregateElement const &elem) -> std::ostream &;
+
 //! Output the literal to the given stream.
 auto operator<<(std::ostream &out, Literal const &lit) -> std::ostream &;
 

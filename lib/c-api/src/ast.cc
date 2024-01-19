@@ -367,15 +367,13 @@ auto clingo_ast::visit(V &&visit) const -> std::invoke_result_t<V, Gringo::Input
             return std::invoke(std::move(visit), cast<LiteralSymbolic>());
         }
         case clingo_ast_type_set_aggregate_element: {
-            // return std::invoke(std::move(visit), cast<SetAggregateElement>());
-            throw std::logic_error("implement me");
+            return std::invoke(std::move(visit), cast<SetAggregateElement>());
         }
         case clingo_ast_type_theory_atom_element: {
             return std::invoke(std::move(visit), cast<TheoryElement>());
         }
         case clingo_ast_type_theory_right_guard: {
-            // return std::invoke(std::move(visit), cast<TheoryRGuard>());
-            throw std::logic_error("implement me");
+            return std::invoke(std::move(visit), cast<TheoryRGuard>());
         }
         case clingo_ast_type_body_simple_literal: {
             // return std::invoke(std::move(visit), cast<SimpleBodyLiteral>());
@@ -764,7 +762,12 @@ auto clingo_ast::copy() const -> std::unique_ptr<clingo_ast_t> { return std::mak
 void clingo_ast::print(std::ostream &out) const {
     using namespace Gringo::Input;
     visit([&out](auto &x) {
-        GRINGO_MATCH(x, TheoryTermUnparsed::Element) {
+        GRINGO_MATCH(x, TheoryRGuard) {
+            if (x) {
+                out << " " << x->first << " " << x->second;
+            }
+        }
+        else GRINGO_MATCH(x, TheoryTermUnparsed::Element) {
             for (auto const &op : x.first) {
                 out << op << " ";
             }
@@ -782,10 +785,10 @@ void clingo_ast::print(std::ostream &out) const {
             }
         }
         else GRINGO_MATCH(x, LGuard::value_type) {
-            out << x.first << " " << x.second;
+            out << x.first << " " << x.second << " ";
         }
         else GRINGO_MATCH(x, RGuard::value_type) {
-            out << x.first << " " << x.second;
+            out << " " << x.first << " " << x.second;
         }
         else {
             out << x;

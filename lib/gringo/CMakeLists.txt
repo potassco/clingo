@@ -1,4 +1,5 @@
 add_library(gringo
+    "src/input/aggregate.cc"
     "src/input/algo/add_sign.cc"
     "src/input/algo/analyze.cc"
     "src/input/algo/check_syntax.cc"

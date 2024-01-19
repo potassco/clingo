@@ -376,6 +376,14 @@ struct Print {
         operator()(lit.cond);
     }
 
+    void operator()(SetAggregateElement const &elem) const {
+        operator()(elem.lit);
+        if (!elem.cond.empty()) {
+            out << ": ";
+            operator()(elem.cond);
+        }
+    }
+
     template <bool HasSign> void operator()(SetAggregate<HasSign> const &aggr) const {
         if constexpr (HasSign) {
             out << aggr.sign;
@@ -384,13 +392,7 @@ struct Print {
             out << aggr.lhs->first << " " << aggr.lhs->second << " ";
         }
         out << "{ ";
-        apply_to_range_with(aggr.elems, "; ", [this](auto const &elem) {
-            operator()(elem.lit);
-            if (!elem.cond.empty()) {
-                out << ": ";
-                operator()(elem.cond);
-            }
-        });
+        apply_to_range(aggr.elems, "; ");
         out << (aggr.elems.empty() ? "}" : " }");
         if (aggr.rhs.has_value()) {
             out << " " << aggr.rhs->first << " " << aggr.rhs->second;
@@ -863,6 +865,11 @@ auto operator<<(std::ostream &out, TheoryTerm const &term) -> std::ostream & {
 }
 
 auto operator<<(std::ostream &out, TheoryElement const &elem) -> std::ostream & {
+    Print{out}(elem);
+    return out;
+}
+
+auto operator<<(std::ostream &out, SetAggregateElement const &elem) -> std::ostream & {
     Print{out}(elem);
     return out;
 }

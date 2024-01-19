@@ -51,6 +51,16 @@ struct SetAggregateElement {
     LiteralVec cond;
 };
 
+//! Compare two set aggregate elements.
+//!
+//! @related SetAggregateElement
+auto operator==(SetAggregateElement const &a, SetAggregateElement const &b) -> bool;
+
+//! Compare two set aggregate elements.
+//!
+//! @related SetAggregateElement
+auto operator<(SetAggregateElement const &a, SetAggregateElement const &b) -> bool;
+
 //! A vector of set aggregate elements.
 using SetAggregateElementVec = Util::immutable_vector<SetAggregateElement>;
 
@@ -81,6 +91,30 @@ template <bool HasSign> struct SetAggregate : std::conditional_t<HasSign, Signed
     RGuard rhs;
 };
 
+//! Compare two set aggregates.
+//!
+//! @related SetAggregate
+template <bool HasSign> auto operator==(SetAggregate<HasSign> const &a, SetAggregate<HasSign> const &b) -> bool;
+
+//! Compare two set aggregates.
+//!
+//! @related SetAggregate
+template <bool HasSign> auto operator<(SetAggregate<HasSign> const &a, SetAggregate<HasSign> const &b) -> bool;
+
 //! @}
 
 } // namespace Gringo::Input
+
+#ifndef GRINGO_DOXYGEN_SKIP
+
+GRINGO_HASH_PROTO(Gringo::Input::SetAggregateElement);
+namespace Gringo::Util {
+template <> struct value_hasher<Gringo::Input::SetAggregate<true>> {
+    auto operator()(Gringo::Input::SetAggregate<true> const &x) const -> size_t;
+};
+template <> struct value_hasher<Gringo::Input::SetAggregate<false>> {
+    auto operator()(Gringo::Input::SetAggregate<false> const &x) const -> size_t;
+};
+} // namespace Gringo::Util
+
+#endif
