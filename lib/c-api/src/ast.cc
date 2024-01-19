@@ -366,6 +366,38 @@ auto clingo_ast::visit(V &&visit) const -> std::invoke_result_t<V, Gringo::Input
         case clingo_ast_type_literal_symbolic: {
             return std::invoke(std::move(visit), cast<LiteralSymbolic>());
         }
+            // clang-format off
+        // TODO: implement: print, hash, comparison
+        /*
+        case clingo_ast_type_set_aggregate_element: {
+            return std::invoke(std::move(visit), cast<SetAggregateElement>());
+        }
+        case clingo_ast_type_theory_atom_element: {
+            return std::invoke(std::move(visit), cast<TheoryElement>());
+        }
+        case clingo_ast_type_theory_right_guard: {
+            return std::invoke(std::move(visit), cast<TheoryRGuard>());
+        }
+        case clingo_ast_type_body_simple_literal: {
+            return std::invoke(std::move(visit), cast<SimpleBodyLiteral>());
+        }
+        case clingo_ast_type_body_aggregate_element: {
+            return std::invoke(std::move(visit), cast<BodyAggregate::Element>());
+        }
+        case clingo_ast_type_body_aggregate: {
+            return std::invoke(std::move(visit), cast<BodyAggregate>());
+        }
+        case clingo_ast_type_body_set_aggregate: {
+            return std::invoke(std::move(visit), cast<BodySetAggregate>());
+        }
+        case clingo_ast_type_body_theory_atom: {
+            return std::invoke(std::move(visit), cast<BodyTheoryAtom>());
+        }
+        case clingo_ast_type_body_conditional_literal: {
+            return std::invoke(std::move(visit), cast<Conjunction>());
+        }
+        */
+            // clang-format on
     }
     throw std::invalid_argument("invalid ast type");
 }
