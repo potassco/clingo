@@ -21,6 +21,16 @@ struct SimpleHeadLiteral {
     Literal lit;
 };
 
+//! Compare two literals.
+//!
+//! @related SimpleHeadLiteral
+auto operator==(SimpleHeadLiteral const &a, SimpleHeadLiteral const &b) -> bool;
+
+//! Compare two literals.
+//!
+//! @related SimpleHeadLiteral
+auto operator<(SimpleHeadLiteral const &a, SimpleHeadLiteral const &b) -> bool;
+
 //! A disjunction of conditional literals.
 struct Disjunction {
     //! An element of a disjunction.
@@ -34,6 +44,16 @@ struct Disjunction {
     //! The location of the disjunction.
     ElementVec elems;
 };
+
+//! Compare two head disjunctions.
+//!
+//! @related Disjunction
+auto operator==(Disjunction const &a, Disjunction const &b) -> bool;
+
+//! Compare two head disjunctions.
+//!
+//! @related Disjunction
+auto operator<(Disjunction const &a, Disjunction const &b) -> bool;
 
 //! A head aggregate.
 //!
@@ -75,6 +95,26 @@ struct HeadAggregate {
     RGuard rhs;
 };
 
+//! Compare two head aggregates elements.
+//!
+//! @related HeadAggregate
+auto operator==(HeadAggregate::Element const &a, HeadAggregate::Element const &b) -> bool;
+
+//! Compare two head aggregates elements.
+//!
+//! @related HeadAggregate
+auto operator<(HeadAggregate::Element const &a, HeadAggregate::Element const &b) -> bool;
+
+//! Compare two head aggregates.
+//!
+//! @related HeadAggregate
+auto operator==(HeadAggregate const &a, HeadAggregate const &b) -> bool;
+
+//! Compare two head aggregates.
+//!
+//! @related HeadAggregate
+auto operator<(HeadAggregate const &a, HeadAggregate const &b) -> bool;
+
 //! A head set aggregate.
 using HeadSetAggregate = SetAggregate<false>;
 
@@ -89,3 +129,12 @@ using HeadLiteralVec = Util::immutable_vector<HeadLiteral>;
 //! @}
 
 } // namespace Gringo::Input
+
+#ifndef GRINGO_DOXYGEN_SKIP
+
+GRINGO_HASH_PROTO(Gringo::Input::SimpleHeadLiteral);
+GRINGO_HASH_PROTO(Gringo::Input::Disjunction);
+GRINGO_HASH_PROTO(Gringo::Input::HeadAggregate::Element);
+GRINGO_HASH_PROTO(Gringo::Input::HeadAggregate);
+
+#endif
