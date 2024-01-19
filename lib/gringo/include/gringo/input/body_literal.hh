@@ -21,6 +21,16 @@ struct SimpleBodyLiteral {
     Literal lit;
 };
 
+//! Compare two literals.
+//!
+//! @related SimpleBodyLiteral
+auto operator==(SimpleBodyLiteral const &a, SimpleBodyLiteral const &b) -> bool;
+
+//! Compare two literals.
+//!
+//! @related SimpleBodyLiteral
+auto operator<(SimpleBodyLiteral const &a, SimpleBodyLiteral const &b) -> bool;
+
 //! A conditional literal in a rule body.
 struct Conjunction {
     //! Construct a conjunction.
@@ -28,6 +38,16 @@ struct Conjunction {
     //! The conditional literal representing the elements of the conjunction.
     ConditionalLiteral lit;
 };
+
+//! Compare two body conjunctions.
+//!
+//! @related Conjunction
+auto operator==(Conjunction const &a, Conjunction const &b) -> bool;
+
+//! Compare two body conjunction.
+//!
+//! @related Conjunction
+auto operator<(Conjunction const &a, Conjunction const &b) -> bool;
 
 //! A body aggregate.
 //!
@@ -64,6 +84,26 @@ struct BodyAggregate {
     RGuard rhs;
 };
 
+//! Compare two body aggregates elements.
+//!
+//! @related BodyAggregate
+auto operator==(BodyAggregate::Element const &a, BodyAggregate::Element const &b) -> bool;
+
+//! Compare two body aggregates elements.
+//!
+//! @related BodyAggregate
+auto operator<(BodyAggregate::Element const &a, BodyAggregate::Element const &b) -> bool;
+
+//! Compare two body aggregates.
+//!
+//! @related BodyAggregate
+auto operator==(BodyAggregate const &a, BodyAggregate const &b) -> bool;
+
+//! Compare two body aggregates.
+//!
+//! @related BodyAggregate
+auto operator<(BodyAggregate const &a, BodyAggregate const &b) -> bool;
+
 //! A body set aggregate.
 using BodySetAggregate = SetAggregate<true>;
 
@@ -78,3 +118,12 @@ using BodyLiteralVec = Util::immutable_vector<BodyLiteral>;
 //! @}
 
 } // namespace Gringo::Input
+
+#ifndef GRINGO_DOXYGEN_SKIP
+
+GRINGO_HASH_PROTO(Gringo::Input::SimpleBodyLiteral);
+GRINGO_HASH_PROTO(Gringo::Input::Conjunction);
+GRINGO_HASH_PROTO(Gringo::Input::BodyAggregate::Element);
+GRINGO_HASH_PROTO(Gringo::Input::BodyAggregate);
+
+#endif

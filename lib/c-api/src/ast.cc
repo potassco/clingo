@@ -376,27 +376,22 @@ auto clingo_ast::visit(V &&visit) const -> std::invoke_result_t<V, Gringo::Input
             return std::invoke(std::move(visit), cast<TheoryRGuard>());
         }
         case clingo_ast_type_body_simple_literal: {
-            // return std::invoke(std::move(visit), cast<SimpleBodyLiteral>());
-            throw std::logic_error("implement me");
+            return std::invoke(std::move(visit), cast<SimpleBodyLiteral>());
         }
         case clingo_ast_type_body_aggregate_element: {
-            // return std::invoke(std::move(visit), cast<BodyAggregate::Element>());
-            throw std::logic_error("implement me");
+            return std::invoke(std::move(visit), cast<BodyAggregate::Element>());
         }
         case clingo_ast_type_body_aggregate: {
-            // return std::invoke(std::move(visit), cast<BodyAggregate>());
-            throw std::logic_error("implement me");
+            return std::invoke(std::move(visit), cast<BodyAggregate>());
         }
         case clingo_ast_type_body_set_aggregate: {
-            // return std::invoke(std::move(visit), cast<BodySetAggregate>());
-            throw std::logic_error("implement me");
+            return std::invoke(std::move(visit), cast<BodySetAggregate>());
         }
         case clingo_ast_type_body_theory_atom: {
             return std::invoke(std::move(visit), cast<BodyTheoryAtom>());
         }
         case clingo_ast_type_body_conditional_literal: {
-            // return std::invoke(std::move(visit), cast<Conjunction>());
-            throw std::logic_error("implement me");
+            return std::invoke(std::move(visit), cast<Conjunction>());
         }
     }
     throw std::invalid_argument("invalid ast type");

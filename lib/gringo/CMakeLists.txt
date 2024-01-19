@@ -17,6 +17,7 @@ add_library(gringo
     "src/input/algo/unpool.cc"
     "src/input/algo/unpool_relations.cc"
     "src/input/algo/visit_variables.cc"
+    "src/input/body_literal.cc"
     "src/input/iesolver.cc"
     "src/input/literal.cc"
     "src/input/program.cc"

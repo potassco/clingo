@@ -159,6 +159,16 @@ struct ConditionalLiteral {
     LiteralVec cond;
 };
 
+//! Check whether two symbolic literals are equivalent.
+//!
+//! \related LiteralSymbolic
+auto operator==(ConditionalLiteral const &a, ConditionalLiteral const &b) -> bool;
+
+//! Compare two symbolic literals.
+//!
+//! \related LiteralSymbolic
+auto operator<(ConditionalLiteral const &a, ConditionalLiteral const &b) -> bool;
+
 //! @}
 
 } // namespace Gringo::Input
@@ -168,5 +178,6 @@ struct ConditionalLiteral {
 GRINGO_HASH_PROTO(Gringo::Input::LiteralBoolean)
 GRINGO_HASH_PROTO(Gringo::Input::LiteralRelation)
 GRINGO_HASH_PROTO(Gringo::Input::LiteralSymbolic)
+GRINGO_HASH_PROTO(Gringo::Input::ConditionalLiteral)
 
 #endif
