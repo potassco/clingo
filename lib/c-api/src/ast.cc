@@ -2104,9 +2104,6 @@ body_set_aggregate:
     left:
       type: optional_left_guard
       doc: The left guard of the aggregate.
-    function:
-      type: aggregate_function
-      doc: The aggregate function.
     elements:
       type: set_aggregate_element_array
       doc: The aggregate elements.
@@ -2127,7 +2124,7 @@ body_theory_atom:
       type: term
       doc: The name of the theory atom.
     elements:
-      type: body_aggregate_element_array
+      type: theory_atom_element_array
       doc: The aggregate elements.
     right:
       type: optional_theory_right_guard

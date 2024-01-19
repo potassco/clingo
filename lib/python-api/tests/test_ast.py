@@ -268,7 +268,6 @@ class TestAST(TestCase):
         """
         Test symbolic literal.
         """
-
         a = ast.parse_term(self.lib, "-f(X)")
         p = ast.LiteralSymbolic(self.lib, self.loc, ast.Sign.Single, a)
 
@@ -281,7 +280,6 @@ class TestAST(TestCase):
         """
         Test comparison literal.
         """
-
         a = ast.parse_term(self.lib, "X")
         b = ast.RightGuard(self.lib, ast.Relation.Less, ast.parse_term(self.lib, "Y"))
         c = ast.RightGuard(
@@ -294,6 +292,100 @@ class TestAST(TestCase):
         self.assertEqual(p.left, a)
         self.assertEqual(p.right, [b, c])
         self.assertEqual(str(p), "not X<Y<=Z")
+
+    def test_body_simple_literal(self):
+        """
+        Test simple body literal.
+        """
+        s = "not p(X)"
+        p = ast.BodySimpleLiteral(self.lib, ast.parse_literal(self.lib, s))
+
+        # TODO: attributes
+        self.assertEqual(str(p), "not p(X)")
+
+    def test_body_conditional_literal(self):
+        """
+        Test body conditional literal.
+        """
+        s = ast.parse_literal(self.lib, "not p(X)")
+        t = ast.parse_literal(self.lib, "r(X)")
+        p = ast.BodyConditionalLiteral(self.lib, self.loc, s, [t])
+
+        # TODO: attributes
+        self.assertEqual(str(p), "not p(X): r(X)")
+
+    def test_body_set_aggregate(self):
+        """
+        Test body set aggregate.
+        """
+        t1 = ast.parse_term(self.lib, "5")
+        l1 = ast.parse_literal(self.lib, "not p(X)")
+        l2 = ast.parse_literal(self.lib, "r(X)")
+        e1 = ast.SetAggregateElement(self.lib, self.loc, l1, [l2])
+        lg1 = ast.LeftGuard(self.lib, t1, ast.Relation.Less)
+        rg1 = ast.RightGuard(self.lib, ast.Relation.LessEqual, t1)
+        a1 = ast.BodySetAggregate(self.lib, self.loc, ast.Sign.Single, None, [e1], None)
+        a2 = ast.BodySetAggregate(self.lib, self.loc, ast.Sign.NoSign, lg1, [e1], rg1)
+
+        # TODO: attributes
+        self.assertEqual(str(e1), "not p(X): r(X)")
+        self.assertEqual(str(lg1), "5 < ")
+        self.assertEqual(str(rg1), " <= 5")
+        self.assertEqual(str(a1), "not { not p(X): r(X) }")
+        self.assertEqual(str(a2), "5 < { not p(X): r(X) } <= 5")
+
+    def test_body_aggregate(self):
+        """
+        Test body aggregate.
+        """
+        t1 = ast.parse_term(self.lib, "5")
+        t2 = ast.parse_term(self.lib, "X")
+        l1 = ast.parse_literal(self.lib, "not p(X)")
+        l2 = ast.parse_literal(self.lib, "r(X)")
+        e1 = ast.BodyAggregateElement(self.lib, self.loc, [t1, t2], [l1, l2])
+        lg1 = ast.LeftGuard(self.lib, t1, ast.Relation.Less)
+        rg1 = ast.RightGuard(self.lib, ast.Relation.LessEqual, t1)
+        a1 = ast.BodyAggregate(
+            self.lib,
+            self.loc,
+            ast.Sign.Single,
+            None,
+            ast.AggregateFunction.Count,
+            [e1],
+            None,
+        )
+        a2 = ast.BodyAggregate(
+            self.lib,
+            self.loc,
+            ast.Sign.NoSign,
+            lg1,
+            ast.AggregateFunction.Sum,
+            [e1],
+            rg1,
+        )
+
+        # TODO: attributes
+        self.assertEqual(str(e1), "5,X: not p(X), r(X)")
+        self.assertEqual(str(a1), "not #count { 5,X: not p(X), r(X) }")
+        self.assertEqual(str(a2), "5 < #sum { 5,X: not p(X), r(X) } <= 5")
+
+    def test_body_theory_atom(self):
+        """
+        Test body theory atom.
+        """
+        t1 = ast.parse_term(self.lib, "f(X)")
+        tt1 = ast.TheoryTermSymbolic(self.lib, self.loc, parse_term(self.lib, "f(1,2)"))
+        tt2 = ast.TheoryTermSymbolic(self.lib, self.loc, parse_term(self.lib, "5"))
+        l1 = ast.parse_literal(self.lib, "not p(X)")
+        l2 = ast.parse_literal(self.lib, "r(X)")
+        e1 = ast.TheoryAtomElement(self.lib, self.loc, [tt1, tt2], [l1, l2])
+        rg1 = ast.TheoryRightGuard(self.lib, "<>", tt2)
+        a1 = ast.BodyTheoryAtom(self.lib, self.loc, ast.Sign.Single, t1, [e1], rg1)
+
+        # TODO: attributes
+        self.assertEqual(str(e1), "f(1,2),5: not p(X), r(X)")
+        self.assertEqual(str(rg1), " <> 5")
+        self.assertEqual(str(a1), "not &f(X) { f(1,2),5: not p(X), r(X) } <> 5")
 
     def test_parse(self):
         """

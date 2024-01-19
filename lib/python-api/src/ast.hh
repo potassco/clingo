@@ -2270,8 +2270,6 @@ class BodySetAggregate {
 
     auto left() -> OptionalLeftGuard;
 
-    auto function() -> AggregateFunction;
-
     auto elements() -> SetAggregateElementArray;
 
     auto right() -> OptionalRightGuard;
@@ -2279,9 +2277,8 @@ class BodySetAggregate {
     static auto acquire(clingo_ast_t *ast) -> BodySetAggregate { return {ast}; }
 
     static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign,
-                          OptionalLeftGuard const &left, AggregateFunction const &function,
-                          SetAggregateElementArray const &elements, OptionalRightGuard const &right)
-        -> BodySetAggregate;
+                          OptionalLeftGuard const &left, SetAggregateElementArray const &elements,
+                          OptionalRightGuard const &right) -> BodySetAggregate;
 
     friend auto c_cast(BodySetAggregate const &x) -> clingo_ast_t *;
 
@@ -2356,14 +2353,14 @@ class BodyTheoryAtom {
 
     auto name() -> Term;
 
-    auto elements() -> BodyAggregateElementArray;
+    auto elements() -> TheoryAtomElementArray;
 
     auto right() -> OptionalTheoryRightGuard;
 
     static auto acquire(clingo_ast_t *ast) -> BodyTheoryAtom { return {ast}; }
 
     static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign, Term const &name,
-                          BodyAggregateElementArray const &elements, OptionalTheoryRightGuard const &right)
+                          TheoryAtomElementArray const &elements, OptionalTheoryRightGuard const &right)
         -> BodyTheoryAtom;
 
     friend auto c_cast(BodyTheoryAtom const &x) -> clingo_ast_t *;
@@ -3627,14 +3624,6 @@ auto BodySetAggregate::left() -> OptionalLeftGuard {
     return std::nullopt;
 }
 
-auto BodySetAggregate::function() -> AggregateFunction {
-    int ret;
-    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_function, &ret)) {
-        throw std::runtime_error("could not get number attribute");
-    }
-    return static_cast<AggregateFunction>(ret);
-}
-
 auto BodySetAggregate::elements() -> SetAggregateElementArray {
     clingo_ast_t **ast;
     size_t size;
@@ -3656,13 +3645,12 @@ auto BodySetAggregate::right() -> OptionalRightGuard {
 }
 
 auto BodySetAggregate::construct(Library &lib, clingo_location_t const &location, Sign const &sign,
-                                 OptionalLeftGuard const &left, AggregateFunction const &function,
-                                 SetAggregateElementArray const &elements, OptionalRightGuard const &right)
-    -> BodySetAggregate {
+                                 OptionalLeftGuard const &left, SetAggregateElementArray const &elements,
+                                 OptionalRightGuard const &right) -> BodySetAggregate {
     clingo_ast_t *res_;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_body_set_aggregate, &res_, &location,
-                                           static_cast<int>(sign), c_cast(left), static_cast<int>(function),
-                                           c_cast(elements).data(), elements.size(), c_cast(right)));
+    handle_error(lib,
+                 clingo_ast_construct(lib, clingo_ast_type_body_set_aggregate, &res_, &location, static_cast<int>(sign),
+                                      c_cast(left), c_cast(elements).data(), elements.size(), c_cast(right)));
     return BodySetAggregate::acquire(res_);
 }
 
@@ -3690,13 +3678,13 @@ auto BodyTheoryAtom::name() -> Term {
     return construct_term(ast);
 }
 
-auto BodyTheoryAtom::elements() -> BodyAggregateElementArray {
+auto BodyTheoryAtom::elements() -> TheoryAtomElementArray {
     clingo_ast_t **ast;
     size_t size;
     if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &ast, &size)) {
         throw std::runtime_error("could not get ast array attribute");
     }
-    return construct_body_aggregate_element_array(ast, size);
+    return construct_theory_atom_element_array(ast, size);
 }
 
 auto BodyTheoryAtom::right() -> OptionalTheoryRightGuard {
@@ -3711,7 +3699,7 @@ auto BodyTheoryAtom::right() -> OptionalTheoryRightGuard {
 }
 
 auto BodyTheoryAtom::construct(Library &lib, clingo_location_t const &location, Sign const &sign, Term const &name,
-                               BodyAggregateElementArray const &elements, OptionalTheoryRightGuard const &right)
+                               TheoryAtomElementArray const &elements, OptionalTheoryRightGuard const &right)
     -> BodyTheoryAtom {
     clingo_ast_t *res_;
     handle_error(lib,
@@ -4509,8 +4497,7 @@ right
 
     py_body_set_aggregate
         .def(py::init(&BodySetAggregate::construct), py::arg("lib"), py::arg("location"), py::arg("sign"),
-             py::arg("left"), py::arg("function"), py::arg("elements"), py::arg("right"),
-             R"doc(Construct a BodySetAggregate object.
+             py::arg("left"), py::arg("elements"), py::arg("right"), R"doc(Construct a BodySetAggregate object.
 
 Parameters
 ----------
@@ -4522,8 +4509,6 @@ sign
     The sign of the literal.
 left
     The left guard of the aggregate.
-function
-    The aggregate function.
 elements
     The aggregate elements.
 right
@@ -4533,7 +4518,6 @@ right
         .def_property_readonly("location", &BodySetAggregate::location, R"doc(The location of the element.)doc")
         .def_property_readonly("sign", &BodySetAggregate::sign, R"doc(The sign of the literal.)doc")
         .def_property_readonly("left", &BodySetAggregate::left, R"doc(The left guard of the aggregate.)doc")
-        .def_property_readonly("function", &BodySetAggregate::function, R"doc(The aggregate function.)doc")
         .def_property_readonly("elements", &BodySetAggregate::elements, R"doc(The aggregate elements.)doc")
         .def_property_readonly("right", &BodySetAggregate::right, R"doc(The right guard of the aggregate.)doc")
         // generate comparison operators
