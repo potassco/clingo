@@ -835,6 +835,66 @@ auto clingo_ast::get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional
                 }
             }
         }
+        case clingo_ast_type_head_conditional_literal: {
+            switch (attr) {
+                case clingo_ast_attribute_condition: {
+                    return make_ast_vec(owner_, cast<ConditionalLiteral>().cond);
+                }
+                default: {
+                    return std::nullopt;
+                }
+            }
+        }
+        case clingo_ast_type_body_conditional_literal: {
+            switch (attr) {
+                case clingo_ast_attribute_condition: {
+                    return make_ast_vec(owner_, cast<Conjunction>().lit.cond);
+                }
+                default: {
+                    return std::nullopt;
+                }
+            }
+        }
+        case clingo_ast_type_set_aggregate_element: {
+            switch (attr) {
+                case clingo_ast_attribute_condition: {
+                    return make_ast_vec(owner_, cast<SetAggregateElement>().cond);
+                }
+                default: {
+                    return std::nullopt;
+                }
+            }
+        }
+        case clingo_ast_type_theory_atom_element: {
+            switch (attr) {
+                case clingo_ast_attribute_condition: {
+                    return make_ast_vec(owner_, cast<TheoryElement>().cond);
+                }
+                default: {
+                    return std::nullopt;
+                }
+            }
+        }
+        case clingo_ast_type_head_aggregate_element: {
+            switch (attr) {
+                case clingo_ast_attribute_condition: {
+                    return make_ast_vec(owner_, cast<HeadAggregate::Element>().cond);
+                }
+                default: {
+                    return std::nullopt;
+                }
+            }
+        }
+        case clingo_ast_type_body_aggregate_element: {
+            switch (attr) {
+                case clingo_ast_attribute_condition: {
+                    return make_ast_vec(owner_, cast<BodyAggregate::Element>().cond);
+                }
+                default: {
+                    return std::nullopt;
+                }
+            }
+        }
         default: {
             return std::nullopt;
         }
