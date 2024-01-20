@@ -640,6 +640,20 @@ auto clingo_ast::get_string_vec(clingo_ast_attribute_t attr) const -> std::optio
     }
 }
 
+#define TYPE(type, ...)                                                                                                \
+    case clingo_ast_type_##type: {                                                                                     \
+        switch (attr) {                                                                                                \
+            __VA_ARGS__                                                                                                \
+            default: {                                                                                                 \
+                return std::nullopt;                                                                                   \
+            }                                                                                                          \
+        }                                                                                                              \
+    }
+#define ATTR(attr, type, value)                                                                                        \
+    case clingo_ast_attribute_##attr: {                                                                                \
+        return make_ast(owner_, cast<type>().value);                                                                   \
+    }
+
 auto clingo_ast::get_ast(clingo_ast_attribute_t attr) const -> std::optional<std::unique_ptr<clingo_ast_t>> {
     using namespace Gringo::Input;
     switch (type_) {
@@ -676,16 +690,7 @@ auto clingo_ast::get_ast(clingo_ast_attribute_t attr) const -> std::optional<std
                 }
             }
         }
-        case clingo_ast_type_literal_comparison: {
-            switch (attr) {
-                case clingo_ast_attribute_left: {
-                    return make_ast(owner_, cast<LiteralRelation>().lhs);
-                }
-                default: {
-                    return std::nullopt;
-                }
-            }
-        }
+            TYPE(literal_comparison, ATTR(left, LiteralRelation, lhs))
         case clingo_ast_type_literal_symbolic: {
             switch (attr) {
                 case clingo_ast_attribute_atom: {
