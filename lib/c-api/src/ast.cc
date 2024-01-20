@@ -696,6 +696,66 @@ auto clingo_ast::get_ast(clingo_ast_attribute_t attr) const -> std::optional<std
                 }
             }
         }
+        case clingo_ast_type_head_simple_literal: {
+            switch (attr) {
+                case clingo_ast_attribute_literal: {
+                    return make_ast(owner_, cast<SimpleHeadLiteral>().lit);
+                }
+                default: {
+                    return std::nullopt;
+                }
+            }
+        }
+        case clingo_ast_type_body_simple_literal: {
+            switch (attr) {
+                case clingo_ast_attribute_literal: {
+                    return make_ast(owner_, cast<SimpleBodyLiteral>().lit);
+                }
+                default: {
+                    return std::nullopt;
+                }
+            }
+        }
+        case clingo_ast_type_head_conditional_literal: {
+            switch (attr) {
+                case clingo_ast_attribute_literal: {
+                    return make_ast(owner_, cast<ConditionalLiteral>().lit);
+                }
+                default: {
+                    return std::nullopt;
+                }
+            }
+        }
+        case clingo_ast_type_body_conditional_literal: {
+            switch (attr) {
+                case clingo_ast_attribute_literal: {
+                    return make_ast(owner_, cast<Conjunction>().lit.lit);
+                }
+                default: {
+                    return std::nullopt;
+                }
+            }
+        }
+        case clingo_ast_type_set_aggregate_element: {
+            switch (attr) {
+                case clingo_ast_attribute_literal: {
+                    return make_ast(owner_, cast<SetAggregateElement>().lit);
+                }
+                default: {
+                    return std::nullopt;
+                }
+            }
+        }
+        case clingo_ast_type_head_aggregate_element: {
+            switch (attr) {
+                case clingo_ast_attribute_literal: {
+                    return make_ast(owner_, cast<HeadAggregate::Element>().lit);
+                }
+                default: {
+                    return std::nullopt;
+                }
+            }
+        }
         default: {
             return std::nullopt;
         }
