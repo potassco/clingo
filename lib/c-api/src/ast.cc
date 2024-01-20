@@ -18,6 +18,8 @@ class ASTVec;
 
 using Owner = Gringo::Util::shared_ptr<std::any>;
 
+template <class T>
+auto make_ast(Owner const &owner, Gringo::Util::shared_ptr<T> const &ptr) -> std::unique_ptr<clingo_ast_t>;
 // TODO
 [[maybe_unused]] auto make_ast(Owner const &owner, Gringo::Input::LGuard::value_type const &guard)
     -> std::unique_ptr<clingo_ast_t>;
@@ -195,6 +197,11 @@ template <class T> auto convert_ast_vec(clingo_ast const **ast, size_t size) -> 
         res.emplace_back((*it)->convert<T>());
     }
     return res;
+}
+
+template <class T>
+auto make_ast(Owner const &owner, Gringo::Util::shared_ptr<T> const &ptr) -> std::unique_ptr<clingo_ast_t> {
+    return make_ast(owner, *ptr);
 }
 
 auto make_ast(Owner const &owner, Gringo::Input::LGuard::value_type const &guard) -> std::unique_ptr<clingo_ast_t> {
@@ -640,8 +647,17 @@ auto clingo_ast::get_string_vec(clingo_ast_attribute_t attr) const -> std::optio
     }
 }
 
-#define TYPE(type, ...)                                                                                                \
+#define SWITCH(...)                                                                                                    \
+    using namespace Gringo::Input;                                                                                     \
+    switch (type_) {                                                                                                   \
+        __VA_ARGS__                                                                                                    \
+        default: {                                                                                                     \
+            return std::nullopt;                                                                                       \
+        }                                                                                                              \
+    }
+#define TYPE(type, type_name, ...)                                                                                     \
     case clingo_ast_type_##type: {                                                                                     \
+        using Type = type_name;                                                                                        \
         switch (attr) {                                                                                                \
             __VA_ARGS__                                                                                                \
             default: {                                                                                                 \
@@ -649,123 +665,43 @@ auto clingo_ast::get_string_vec(clingo_ast_attribute_t attr) const -> std::optio
             }                                                                                                          \
         }                                                                                                              \
     }
-#define ATTR(attr, type, value)                                                                                        \
+#define ATTR(attr, value)                                                                                              \
     case clingo_ast_attribute_##attr: {                                                                                \
-        return make_ast(owner_, cast<type>().value);                                                                   \
+        return make_ast(owner_, cast<Type>().value);                                                                   \
     }
 
 auto clingo_ast::get_ast(clingo_ast_attribute_t attr) const -> std::optional<std::unique_ptr<clingo_ast_t>> {
-    using namespace Gringo::Input;
-    switch (type_) {
-        case clingo_ast_type_term_unary_operation: {
-            switch (attr) {
-                case clingo_ast_attribute_right: {
-                    return make_ast(owner_, *cast<TermUnary>().rhs);
-                }
-                default: {
-                    return std::nullopt;
-                }
-            }
-        }
-        case clingo_ast_type_term_binary_operation: {
-            switch (attr) {
-                case clingo_ast_attribute_left: {
-                    return make_ast(owner_, *cast<TermBinary>().lhs);
-                }
-                case clingo_ast_attribute_right: {
-                    return make_ast(owner_, *cast<TermBinary>().rhs);
-                }
-                default: {
-                    return std::nullopt;
-                }
-            }
-        }
-        case clingo_ast_type_unparsed_element: {
-            switch (attr) {
-                case clingo_ast_attribute_term: {
-                    return make_ast(owner_, cast<TheoryTermUnparsed::Element>().second);
-                }
-                default: {
-                    return std::nullopt;
-                }
-            }
-        }
-            TYPE(literal_comparison, ATTR(left, LiteralRelation, lhs))
-        case clingo_ast_type_literal_symbolic: {
-            switch (attr) {
-                case clingo_ast_attribute_atom: {
-                    return make_ast(owner_, cast<LiteralSymbolic>().term);
-                }
-                default: {
-                    return std::nullopt;
-                }
-            }
-        }
-        case clingo_ast_type_head_simple_literal: {
-            switch (attr) {
-                case clingo_ast_attribute_literal: {
-                    return make_ast(owner_, cast<SimpleHeadLiteral>().lit);
-                }
-                default: {
-                    return std::nullopt;
-                }
-            }
-        }
-        case clingo_ast_type_body_simple_literal: {
-            switch (attr) {
-                case clingo_ast_attribute_literal: {
-                    return make_ast(owner_, cast<SimpleBodyLiteral>().lit);
-                }
-                default: {
-                    return std::nullopt;
-                }
-            }
-        }
-        case clingo_ast_type_head_conditional_literal: {
-            switch (attr) {
-                case clingo_ast_attribute_literal: {
-                    return make_ast(owner_, cast<ConditionalLiteral>().lit);
-                }
-                default: {
-                    return std::nullopt;
-                }
-            }
-        }
-        case clingo_ast_type_body_conditional_literal: {
-            switch (attr) {
-                case clingo_ast_attribute_literal: {
-                    return make_ast(owner_, cast<Conjunction>().lit.lit);
-                }
-                default: {
-                    return std::nullopt;
-                }
-            }
-        }
-        case clingo_ast_type_set_aggregate_element: {
-            switch (attr) {
-                case clingo_ast_attribute_literal: {
-                    return make_ast(owner_, cast<SetAggregateElement>().lit);
-                }
-                default: {
-                    return std::nullopt;
-                }
-            }
-        }
-        case clingo_ast_type_head_aggregate_element: {
-            switch (attr) {
-                case clingo_ast_attribute_literal: {
-                    return make_ast(owner_, cast<HeadAggregate::Element>().lit);
-                }
-                default: {
-                    return std::nullopt;
-                }
-            }
-        }
-        default: {
-            return std::nullopt;
-        }
-    }
+    // clang-format off
+    SWITCH(
+        TYPE(term_unary_operation, TermUnary,
+            ATTR(right, rhs))
+        TYPE(term_binary_operation, TermBinary,
+            ATTR(left, lhs)
+            ATTR(right, rhs))
+        TYPE(unparsed_element, TheoryTermUnparsed::Element,
+            ATTR(term, second))
+        TYPE(literal_comparison, LiteralRelation,
+            ATTR(left, lhs))
+        TYPE(literal_symbolic, LiteralSymbolic,
+            ATTR(atom, term))
+        TYPE(head_simple_literal, SimpleHeadLiteral,
+            ATTR(literal, lit))
+        TYPE(body_simple_literal, SimpleBodyLiteral,
+            ATTR(literal, lit))
+        TYPE(head_conditional_literal, ConditionalLiteral,
+            ATTR(literal, lit))
+        TYPE(body_conditional_literal, Conjunction,
+            ATTR(literal, lit.lit))
+        TYPE(set_aggregate_element, SetAggregateElement,
+            ATTR(literal, lit))
+        TYPE(head_aggregate_element, HeadAggregate::Element,
+            ATTR(literal, lit)))
+    // clang-format on
 }
+
+#undef ATTR
+#undef TYPE
+#undef SWITCH
 
 auto clingo_ast::get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional<ASTVec> {
     using namespace Gringo::Input;
