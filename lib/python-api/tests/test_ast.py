@@ -293,6 +293,144 @@ class TestAST(TestCase):
         self.assertEqual(p.right, [b, c])
         self.assertEqual(str(p), "not X<Y<=Z")
 
+    def test_head_simple_literal(self):
+        """
+        Test simple head literal.
+        """
+        s = "not p(X)"
+        p = ast.HeadSimpleLiteral(self.lib, ast.parse_literal(self.lib, s))
+
+        self.assertEqual(p.literal, ast.parse_literal(self.lib, s))
+        self.assertEqual(str(p), "not p(X)")
+
+    def test_head_disjunction(self):
+        """
+        Test head disjunction literal.
+        """
+        l1 = ast.parse_literal(self.lib, "not p(X)")
+        l2 = ast.parse_literal(self.lib, "r(X)")
+        l3 = ast.HeadConditionalLiteral(self.lib, self.loc, l2, [l1])
+
+        p = ast.HeadDisjunction(self.lib, self.loc, [l2, l3])
+
+        self.assertEqual(l3.location, self.loc)
+        self.assertEqual(l3.literal, l2)
+        self.assertEqual(l3.condition, [l1])
+
+        self.assertEqual(p.location, self.loc)
+        self.assertEqual(p.elements, [l2, l3])
+        self.assertEqual(str(p), "r(X); r(X): not p(X)")
+
+    def test_head_set_aggregate(self):
+        """
+        Test head set aggregate.
+        """
+        t1 = ast.parse_term(self.lib, "5")
+        l1 = ast.parse_literal(self.lib, "not p(X)")
+        l2 = ast.parse_literal(self.lib, "r(X)")
+        e1 = ast.SetAggregateElement(self.lib, self.loc, l1, [l2])
+        lg1 = ast.LeftGuard(self.lib, t1, ast.Relation.Less)
+        rg1 = ast.RightGuard(self.lib, ast.Relation.LessEqual, t1)
+        a1 = ast.HeadSetAggregate(self.lib, self.loc, None, [e1], None)
+        a2 = ast.HeadSetAggregate(self.lib, self.loc, lg1, [e1], rg1)
+
+        self.assertEqual(a1.location, self.loc)
+        self.assertIsNone(a1.left)
+        self.assertEqual(a1.elements, [e1])
+        self.assertIsNone(a1.right)
+
+        self.assertEqual(a2.location, self.loc)
+        self.assertEqual(a2.left, lg1)
+        self.assertEqual(a2.elements, [e1])
+        self.assertEqual(a2.right, rg1)
+
+        self.assertEqual(str(e1), "not p(X): r(X)")
+        self.assertEqual(str(lg1), "5 < ")
+        self.assertEqual(str(rg1), " <= 5")
+        self.assertEqual(str(a1), "{ not p(X): r(X) }")
+        self.assertEqual(str(a2), "5 < { not p(X): r(X) } <= 5")
+
+    def test_head_aggregate(self):
+        """
+        Test head aggregate.
+        """
+        t1 = ast.parse_term(self.lib, "5")
+        t2 = ast.parse_term(self.lib, "X")
+        l1 = ast.parse_literal(self.lib, "not p(X)")
+        l2 = ast.parse_literal(self.lib, "r(X)")
+        l3 = ast.parse_literal(self.lib, "q(X)")
+        e1 = ast.HeadAggregateElement(self.lib, self.loc, [t1, t2], l3, [l1, l2])
+        lg1 = ast.LeftGuard(self.lib, t1, ast.Relation.Less)
+        rg1 = ast.RightGuard(self.lib, ast.Relation.LessEqual, t1)
+        a1 = ast.HeadAggregate(
+            self.lib,
+            self.loc,
+            None,
+            ast.AggregateFunction.Count,
+            [e1],
+            None,
+        )
+        a2 = ast.HeadAggregate(
+            self.lib,
+            self.loc,
+            lg1,
+            ast.AggregateFunction.Sum,
+            [e1],
+            rg1,
+        )
+
+        self.assertEqual(e1.location, self.loc)
+        self.assertEqual(e1.tuple, [t1, t2])
+        self.assertEqual(e1.condition, [l1, l2])
+
+        self.assertEqual(a1.location, self.loc)
+        self.assertIsNone(a1.left)
+        self.assertEqual(a1.function, ast.AggregateFunction.Count)
+        self.assertEqual(a1.elements, [e1])
+        self.assertIsNone(a1.right)
+
+        self.assertEqual(a2.location, self.loc)
+        self.assertEqual(a2.left, lg1)
+        self.assertEqual(a2.function, ast.AggregateFunction.Sum)
+        self.assertEqual(a2.elements, [e1])
+        self.assertEqual(a2.right, rg1)
+
+        self.assertEqual(str(e1), "5,X: q(X): not p(X), r(X)")
+        self.assertEqual(str(a1), "#count { 5,X: q(X): not p(X), r(X) }")
+        self.assertEqual(str(a2), "5 < #sum { 5,X: q(X): not p(X), r(X) } <= 5")
+
+    def test_head_theory_atom(self):
+        """
+        Test head theory atom.
+        """
+        t1 = ast.parse_term(self.lib, "f(X)")
+        tt1 = ast.TheoryTermSymbolic(self.lib, self.loc, parse_term(self.lib, "f(1,2)"))
+        tt2 = ast.TheoryTermSymbolic(self.lib, self.loc, parse_term(self.lib, "5"))
+        l1 = ast.parse_literal(self.lib, "not p(X)")
+        l2 = ast.parse_literal(self.lib, "r(X)")
+        e1 = ast.TheoryAtomElement(self.lib, self.loc, [tt1, tt2], [l1, l2])
+        rg1 = ast.TheoryRightGuard(self.lib, "<>", tt2)
+        a1 = ast.HeadTheoryAtom(self.lib, self.loc, t1, [e1], rg1)
+        a2 = ast.HeadTheoryAtom(self.lib, self.loc, t1, [e1], None)
+
+        self.assertEqual(rg1.theory_operator, "<>")
+        self.assertEqual(rg1.term, tt2)
+
+        self.assertEqual(e1.location, self.loc)
+        self.assertEqual(e1.tuple, [tt1, tt2])
+        self.assertEqual(e1.condition, [l1, l2])
+
+        self.assertEqual(a1.location, self.loc)
+        self.assertEqual(a1.name, t1)
+        self.assertEqual(a1.elements, [e1])
+        self.assertEqual(a1.right, rg1)
+
+        self.assertIsNone(a2.right)
+
+        self.assertEqual(str(e1), "f(1,2),5: not p(X), r(X)")
+        self.assertEqual(str(rg1), " <> 5")
+        self.assertEqual(str(a1), "&f(X) { f(1,2),5: not p(X), r(X) } <> 5")
+
     def test_body_simple_literal(self):
         """
         Test simple body literal.

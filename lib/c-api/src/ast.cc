@@ -36,6 +36,7 @@ auto make_ast(Owner const &owner, Gringo::Input::TheoryElement const &elem) -> s
 auto make_ast(Owner const &owner, Gringo::Input::SetAggregateElement const &elem) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::BodyAggregate::Element const &elem) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::HeadAggregate::Element const &elem) -> std::unique_ptr<clingo_ast_t>;
+auto make_ast(Owner const &owner, Gringo::Input::Disjunction::Element const &elem) -> std::unique_ptr<clingo_ast_t>;
 
 template <class T> auto make_ast_vec(Owner const &owner, std::vector<T> const &vec) -> ASTVec;
 
@@ -325,6 +326,20 @@ auto make_ast(Owner const &owner, Gringo::Input::BodyAggregate::Element const &e
 
 auto make_ast(Owner const &owner, Gringo::Input::HeadAggregate::Element const &elem) -> std::unique_ptr<clingo_ast_t> {
     return std::make_unique<clingo_ast>(owner, clingo_ast_type_head_aggregate_element, &elem);
+}
+
+auto make_ast(Owner const &owner, Gringo::Input::Disjunction::Element const &elem) -> std::unique_ptr<clingo_ast_t> {
+    using namespace Gringo::Input;
+    return std::visit(
+        [&owner](auto const &x) {
+            GRINGO_MATCH(x, ConditionalLiteral) {
+                return std::make_unique<clingo_ast>(owner, clingo_ast_type_head_conditional_literal, &x);
+            }
+            else {
+                return make_ast(owner, x);
+            }
+        },
+        elem);
 }
 
 template <class T, class... A> auto construct_ast(clingo_ast_type_t type, A &&...args) -> clingo_ast * {
@@ -621,6 +636,9 @@ auto clingo_ast::get_ast(clingo_ast_attribute_t attr) const -> std::optional<std
         TYPE(body_theory_atom, BodyTheoryAtom,
             ATTR(name, name)
             ATTR(right, rhs))
+        TYPE(head_theory_atom, HeadTheoryAtom,
+            ATTR(name, name)
+            ATTR(right, rhs))
         TYPE(head_set_aggregate, HeadSetAggregate,
             ATTR(left, lhs)
             ATTR(right, rhs))
@@ -674,7 +692,11 @@ auto clingo_ast::get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional
         TYPE(body_aggregate_element, BodyAggregate::Element,
             ATTR(tuple, tuple)
             ATTR(condition, cond))
+        TYPE(head_disjunction, Disjunction,
+            ATTR(elements, elems))
         TYPE(body_theory_atom, BodyTheoryAtom,
+            ATTR(elements, elems))
+        TYPE(head_theory_atom, HeadTheoryAtom,
             ATTR(elements, elems))
         TYPE(head_set_aggregate, HeadSetAggregate,
             ATTR(elements, elems))
@@ -901,7 +923,7 @@ template <>
 template <>
 [[nodiscard]] auto clingo_ast::convert<Gringo::Input::HeadAggregate::Element>() const
     -> Gringo::Input::HeadAggregate::Element {
-    if (type_ == clingo_ast_type_body_aggregate_element) {
+    if (type_ == clingo_ast_type_head_aggregate_element) {
         return cast<Gringo::Input::HeadAggregate::Element>();
     }
     throw std::runtime_error("body aggregate element expected");
@@ -2286,9 +2308,6 @@ head_theory_atom:
     location:
       type: location
       doc: The location of the element.
-    sign:
-      type: sign
-      doc: The sign of the literal.
     name:
       type: term
       doc: The name of the theory atom.

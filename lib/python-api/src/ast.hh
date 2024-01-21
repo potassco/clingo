@@ -2931,8 +2931,6 @@ class HeadTheoryAtom {
 
     auto location() -> clingo_location_t;
 
-    auto sign() -> Sign;
-
     auto name() -> Term;
 
     auto elements() -> TheoryAtomElementArray;
@@ -2941,7 +2939,7 @@ class HeadTheoryAtom {
 
     static auto acquire(clingo_ast_t *ast) -> HeadTheoryAtom { return {ast}; }
 
-    static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign, Term const &name,
+    static auto construct(Library &lib, clingo_location_t const &location, Term const &name,
                           TheoryAtomElementArray const &elements, OptionalTheoryRightGuard const &right)
         -> HeadTheoryAtom;
 
@@ -4609,14 +4607,6 @@ auto HeadTheoryAtom::location() -> clingo_location_t {
     return ret;
 }
 
-auto HeadTheoryAtom::sign() -> Sign {
-    int ret;
-    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_sign, &ret)) {
-        throw std::runtime_error("could not get number attribute");
-    }
-    return static_cast<Sign>(ret);
-}
-
 auto HeadTheoryAtom::name() -> Term {
     clingo_ast_t *ast;
     if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_name, &ast)) {
@@ -4645,13 +4635,12 @@ auto HeadTheoryAtom::right() -> OptionalTheoryRightGuard {
     return std::nullopt;
 }
 
-auto HeadTheoryAtom::construct(Library &lib, clingo_location_t const &location, Sign const &sign, Term const &name,
+auto HeadTheoryAtom::construct(Library &lib, clingo_location_t const &location, Term const &name,
                                TheoryAtomElementArray const &elements, OptionalTheoryRightGuard const &right)
     -> HeadTheoryAtom {
     clingo_ast_t *res_;
-    handle_error(lib,
-                 clingo_ast_construct(lib, clingo_ast_type_head_theory_atom, &res_, &location, static_cast<int>(sign),
-                                      c_cast(name), c_cast(elements).data(), elements.size(), c_cast(right)));
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_head_theory_atom, &res_, &location, c_cast(name),
+                                           c_cast(elements).data(), elements.size(), c_cast(right)));
     return HeadTheoryAtom::acquire(res_);
 }
 
@@ -5648,8 +5637,8 @@ right
         CLINGO_PY_TOTAL_ORDER;
 
     py_head_theory_atom
-        .def(py::init(&HeadTheoryAtom::construct), py::arg("lib"), py::arg("location"), py::arg("sign"),
-             py::arg("name"), py::arg("elements"), py::arg("right"), R"doc(Construct a HeadTheoryAtom object.
+        .def(py::init(&HeadTheoryAtom::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
+             py::arg("elements"), py::arg("right"), R"doc(Construct a HeadTheoryAtom object.
 
 Parameters
 ----------
@@ -5657,8 +5646,6 @@ lib
     The library object for storing symbols.
 location
     The location of the element.
-sign
-    The sign of the literal.
 name
     The name of the theory atom.
 elements
@@ -5668,7 +5655,6 @@ right
         .def("__str__", &HeadTheoryAtom::to_string)
         .def("__hash__", &HeadTheoryAtom::hash)
         .def_property_readonly("location", &HeadTheoryAtom::location, R"doc(The location of the element.)doc")
-        .def_property_readonly("sign", &HeadTheoryAtom::sign, R"doc(The sign of the literal.)doc")
         .def_property_readonly("name", &HeadTheoryAtom::name, R"doc(The name of the theory atom.)doc")
         .def_property_readonly("elements", &HeadTheoryAtom::elements, R"doc(The aggregate elements.)doc")
         .def_property_readonly("right", &HeadTheoryAtom::right, R"doc(The right guard of the theory atom.)doc")
