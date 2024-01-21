@@ -20,10 +20,11 @@ using Owner = Gringo::Util::shared_ptr<std::any>;
 
 template <class T>
 auto make_ast(Owner const &owner, Gringo::Util::shared_ptr<T> const &ptr) -> std::unique_ptr<clingo_ast_t>;
-// TODO
-[[maybe_unused]] auto make_ast(Owner const &owner, Gringo::Input::LGuard::value_type const &guard)
-    -> std::unique_ptr<clingo_ast_t>;
+template <class T> auto make_ast(Owner const &owner, std::optional<T> const &opt) -> std::unique_ptr<clingo_ast_t>;
+auto make_ast(Owner const &owner, Gringo::Input::LGuard::value_type const &guard) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::RGuard::value_type const &guard) -> std::unique_ptr<clingo_ast_t>;
+auto make_ast(Owner const &owner, Gringo::Input::TheoryRGuard::value_type const &guard)
+    -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::Term const &term) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::TheoryTerm const &term) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::TupleVec const &tuple) -> std::unique_ptr<clingo_ast_t>;
@@ -31,10 +32,10 @@ auto make_ast(Owner const &owner, Gringo::Input::TermTuple::Element const &elem)
 auto make_ast(Owner const &owner, Gringo::Input::Literal const &lit) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::TheoryTermUnparsed::Element const &elem)
     -> std::unique_ptr<clingo_ast_t>;
-
-// TODO
-[[maybe_unused]] auto make_ast(Owner const &owner, Gringo::Input::TupleElem const &elem)
-    -> std::unique_ptr<clingo_ast_t>;
+auto make_ast(Owner const &owner, Gringo::Input::TheoryElement const &elem) -> std::unique_ptr<clingo_ast_t>;
+auto make_ast(Owner const &owner, Gringo::Input::SetAggregateElement const &elem) -> std::unique_ptr<clingo_ast_t>;
+auto make_ast(Owner const &owner, Gringo::Input::BodyAggregate::Element const &elem) -> std::unique_ptr<clingo_ast_t>;
+auto make_ast(Owner const &owner, Gringo::Input::HeadAggregate::Element const &elem) -> std::unique_ptr<clingo_ast_t>;
 
 template <class T> auto make_ast_vec(Owner const &owner, std::vector<T> const &vec) -> ASTVec;
 
@@ -204,12 +205,24 @@ auto make_ast(Owner const &owner, Gringo::Util::shared_ptr<T> const &ptr) -> std
     return make_ast(owner, *ptr);
 }
 
+template <class T> auto make_ast(Owner const &owner, std::optional<T> const &opt) -> std::unique_ptr<clingo_ast_t> {
+    if (opt.has_value()) {
+        return make_ast(owner, opt.value());
+    }
+    return nullptr;
+}
+
 auto make_ast(Owner const &owner, Gringo::Input::LGuard::value_type const &guard) -> std::unique_ptr<clingo_ast_t> {
     return std::make_unique<clingo_ast>(owner, clingo_ast_type_left_guard, static_cast<void const *>(&guard));
 }
 
 auto make_ast(Owner const &owner, Gringo::Input::RGuard::value_type const &guard) -> std::unique_ptr<clingo_ast_t> {
     return std::make_unique<clingo_ast>(owner, clingo_ast_type_right_guard, static_cast<void const *>(&guard));
+}
+
+auto make_ast(Owner const &owner, Gringo::Input::TheoryRGuard::value_type const &guard)
+    -> std::unique_ptr<clingo_ast_t> {
+    return std::make_unique<clingo_ast>(owner, clingo_ast_type_theory_right_guard, static_cast<void const *>(&guard));
 }
 
 auto make_ast(Owner const &owner, Gringo::Input::Term const &term) -> std::unique_ptr<clingo_ast_t> {
@@ -271,17 +284,6 @@ auto make_ast(Owner const &owner, Gringo::Input::TupleVec const &tuple) -> std::
     return std::make_unique<clingo_ast>(owner, clingo_ast_type_argument_tuple, static_cast<void const *>(&tuple));
 }
 
-auto make_ast(Owner const &owner, Gringo::Input::TupleElem const &elem) -> std::unique_ptr<clingo_ast_t> {
-    return std::visit(
-        [&owner](auto const &x) {
-            GRINGO_MATCH(x, Gringo::Input::Term) { return make_ast(owner, x); }
-            GRINGO_MATCH(x, Gringo::Input::Projection) {
-                return std::make_unique<clingo_ast>(owner, clingo_ast_type_projection, &x);
-            }
-        },
-        elem);
-}
-
 auto make_ast(Owner const &owner, Gringo::Input::TermTuple::Element const &elem) -> std::unique_ptr<clingo_ast_t> {
     return std::visit(
         [&owner](auto const &x) {
@@ -307,6 +309,22 @@ auto make_ast(Owner const &owner, Gringo::Input::Literal const &lit) -> std::uni
             }
         },
         lit);
+}
+
+auto make_ast(Owner const &owner, Gringo::Input::TheoryElement const &elem) -> std::unique_ptr<clingo_ast_t> {
+    return std::make_unique<clingo_ast>(owner, clingo_ast_type_theory_atom_element, &elem);
+}
+
+auto make_ast(Owner const &owner, Gringo::Input::SetAggregateElement const &elem) -> std::unique_ptr<clingo_ast_t> {
+    return std::make_unique<clingo_ast>(owner, clingo_ast_type_set_aggregate_element, &elem);
+}
+
+auto make_ast(Owner const &owner, Gringo::Input::BodyAggregate::Element const &elem) -> std::unique_ptr<clingo_ast_t> {
+    return std::make_unique<clingo_ast>(owner, clingo_ast_type_body_aggregate_element, &elem);
+}
+
+auto make_ast(Owner const &owner, Gringo::Input::HeadAggregate::Element const &elem) -> std::unique_ptr<clingo_ast_t> {
+    return std::make_unique<clingo_ast>(owner, clingo_ast_type_head_aggregate_element, &elem);
 }
 
 template <class T, class... A> auto construct_ast(clingo_ast_type_t type, A &&...args) -> clingo_ast * {
@@ -444,6 +462,7 @@ auto clingo_ast::get_location(clingo_ast_attribute_t attr) const -> std::optiona
         if constexpr (Detail::has_loc<std::decay_t<decltype(x)>>) {
             return convert_loc(x.loc);
         }
+        GRINGO_MATCH(x, Conjunction) { return convert_loc(x.lit.loc); }
         return std::nullopt;
     });
 }
@@ -492,7 +511,20 @@ auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<
         TYPE(literal_symbolic, LiteralSymbolic,
             ATTR(sign, sign))
         TYPE(literal_comparison, LiteralRelation,
-            ATTR(sign, sign)))
+            ATTR(sign, sign))
+        TYPE(left_guard, LGuard::value_type,
+            ATTR(relation, second))
+        TYPE(right_guard, RGuard::value_type,
+            ATTR(relation, first))
+        TYPE(body_theory_atom, BodyTheoryAtom,
+            ATTR(sign, sign))
+        TYPE(body_set_aggregate, BodySetAggregate,
+            ATTR(sign, sign))
+        TYPE(head_aggregate, HeadAggregate,
+            ATTR(function, fun))
+        TYPE(body_aggregate, BodyAggregate,
+            ATTR(sign, sign)
+            ATTR(function, fun)))
     // clang-format on
 }
 
@@ -528,7 +560,9 @@ auto clingo_ast::get_string(clingo_ast_attribute_t attr) const -> std::optional<
         TYPE(term_function, TermFunction,
             ATTR(name, name))
         TYPE(theory_term_function, TheoryTermFunction,
-            ATTR(name, name)))
+            ATTR(name, name))
+        TYPE(theory_right_guard, TheoryRGuard::value_type,
+            ATTR(theory_operator, first)))
     // clang-format on
 }
 
@@ -574,10 +608,31 @@ auto clingo_ast::get_ast(clingo_ast_attribute_t attr) const -> std::optional<std
             ATTR(literal, lit))
         TYPE(body_conditional_literal, Conjunction,
             ATTR(literal, lit.lit))
+        TYPE(left_guard, LGuard::value_type,
+            ATTR(term, first))
+        TYPE(right_guard, RGuard::value_type,
+            ATTR(term, second))
+        TYPE(theory_right_guard, TheoryRGuard::value_type,
+            ATTR(term, second))
         TYPE(set_aggregate_element, SetAggregateElement,
             ATTR(literal, lit))
         TYPE(head_aggregate_element, HeadAggregate::Element,
-            ATTR(literal, lit)))
+            ATTR(literal, lit))
+        TYPE(body_theory_atom, BodyTheoryAtom,
+            ATTR(name, name)
+            ATTR(right, rhs))
+        TYPE(head_set_aggregate, HeadSetAggregate,
+            ATTR(left, lhs)
+            ATTR(right, rhs))
+        TYPE(head_aggregate, HeadAggregate,
+            ATTR(left, lhs)
+            ATTR(right, rhs))
+        TYPE(body_set_aggregate, BodySetAggregate,
+            ATTR(left, lhs)
+            ATTR(right, rhs))
+        TYPE(body_aggregate, BodyAggregate,
+            ATTR(left, lhs)
+            ATTR(right, rhs)))
     // clang-format on
 }
 
@@ -611,11 +666,24 @@ auto clingo_ast::get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional
         TYPE(set_aggregate_element, SetAggregateElement,
             ATTR(condition, cond))
         TYPE(theory_atom_element, TheoryElement,
+            ATTR(tuple, tuple)
             ATTR(condition, cond))
         TYPE(head_aggregate_element, HeadAggregate::Element,
+            ATTR(tuple, tuple)
             ATTR(condition, cond))
         TYPE(body_aggregate_element, BodyAggregate::Element,
-            ATTR(condition, cond)))
+            ATTR(tuple, tuple)
+            ATTR(condition, cond))
+        TYPE(body_theory_atom, BodyTheoryAtom,
+            ATTR(elements, elems))
+        TYPE(head_set_aggregate, HeadSetAggregate,
+            ATTR(elements, elems))
+        TYPE(head_aggregate, HeadAggregate,
+            ATTR(elements, elems))
+        TYPE(body_set_aggregate, BodySetAggregate,
+            ATTR(elements, elems))
+        TYPE(body_aggregate, BodyAggregate,
+            ATTR(elements, elems)))
     // clang-format on
 }
 

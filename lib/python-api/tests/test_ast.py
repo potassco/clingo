@@ -300,7 +300,7 @@ class TestAST(TestCase):
         s = "not p(X)"
         p = ast.BodySimpleLiteral(self.lib, ast.parse_literal(self.lib, s))
 
-        # TODO: attributes
+        self.assertEqual(p.literal, ast.parse_literal(self.lib, s))
         self.assertEqual(str(p), "not p(X)")
 
     def test_body_conditional_literal(self):
@@ -311,7 +311,9 @@ class TestAST(TestCase):
         t = ast.parse_literal(self.lib, "r(X)")
         p = ast.BodyConditionalLiteral(self.lib, self.loc, s, [t])
 
-        # TODO: attributes
+        self.assertEqual(p.location, self.loc)
+        self.assertEqual(p.literal, s)
+        self.assertEqual(p.condition, [t])
         self.assertEqual(str(p), "not p(X): r(X)")
 
     def test_body_set_aggregate(self):
@@ -327,7 +329,28 @@ class TestAST(TestCase):
         a1 = ast.BodySetAggregate(self.lib, self.loc, ast.Sign.Single, None, [e1], None)
         a2 = ast.BodySetAggregate(self.lib, self.loc, ast.Sign.NoSign, lg1, [e1], rg1)
 
-        # TODO: attributes
+        self.assertEqual(e1.location, self.loc)
+        self.assertEqual(e1.literal, l1)
+        self.assertEqual(e1.condition, [l2])
+
+        self.assertEqual(lg1.term, t1)
+        self.assertEqual(lg1.relation, ast.Relation.Less)
+
+        self.assertEqual(rg1.term, t1)
+        self.assertEqual(rg1.relation, ast.Relation.LessEqual)
+
+        self.assertEqual(a1.location, self.loc)
+        self.assertEqual(a1.sign, ast.Sign.Single)
+        self.assertIsNone(a1.left)
+        self.assertEqual(a1.elements, [e1])
+        self.assertIsNone(a1.right)
+
+        self.assertEqual(a2.location, self.loc)
+        self.assertEqual(a2.sign, ast.Sign.NoSign)
+        self.assertEqual(a2.left, lg1)
+        self.assertEqual(a2.elements, [e1])
+        self.assertEqual(a2.right, rg1)
+
         self.assertEqual(str(e1), "not p(X): r(X)")
         self.assertEqual(str(lg1), "5 < ")
         self.assertEqual(str(rg1), " <= 5")
@@ -364,7 +387,24 @@ class TestAST(TestCase):
             rg1,
         )
 
-        # TODO: attributes
+        self.assertEqual(e1.location, self.loc)
+        self.assertEqual(e1.tuple, [t1, t2])
+        self.assertEqual(e1.condition, [l1, l2])
+
+        self.assertEqual(a1.location, self.loc)
+        self.assertEqual(a1.sign, ast.Sign.Single)
+        self.assertIsNone(a1.left)
+        self.assertEqual(a1.function, ast.AggregateFunction.Count)
+        self.assertEqual(a1.elements, [e1])
+        self.assertIsNone(a1.right)
+
+        self.assertEqual(a2.location, self.loc)
+        self.assertEqual(a2.sign, ast.Sign.NoSign)
+        self.assertEqual(a2.left, lg1)
+        self.assertEqual(a2.function, ast.AggregateFunction.Sum)
+        self.assertEqual(a2.elements, [e1])
+        self.assertEqual(a2.right, rg1)
+
         self.assertEqual(str(e1), "5,X: not p(X), r(X)")
         self.assertEqual(str(a1), "not #count { 5,X: not p(X), r(X) }")
         self.assertEqual(str(a2), "5 < #sum { 5,X: not p(X), r(X) } <= 5")
@@ -381,8 +421,23 @@ class TestAST(TestCase):
         e1 = ast.TheoryAtomElement(self.lib, self.loc, [tt1, tt2], [l1, l2])
         rg1 = ast.TheoryRightGuard(self.lib, "<>", tt2)
         a1 = ast.BodyTheoryAtom(self.lib, self.loc, ast.Sign.Single, t1, [e1], rg1)
+        a2 = ast.BodyTheoryAtom(self.lib, self.loc, ast.Sign.Single, t1, [e1], None)
 
-        # TODO: attributes
+        self.assertEqual(rg1.theory_operator, "<>")
+        self.assertEqual(rg1.term, tt2)
+
+        self.assertEqual(e1.location, self.loc)
+        self.assertEqual(e1.tuple, [tt1, tt2])
+        self.assertEqual(e1.condition, [l1, l2])
+
+        self.assertEqual(a1.location, self.loc)
+        self.assertEqual(a1.sign, ast.Sign.Single)
+        self.assertEqual(a1.name, t1)
+        self.assertEqual(a1.elements, [e1])
+        self.assertEqual(a1.right, rg1)
+
+        self.assertIsNone(a2.right)
+
         self.assertEqual(str(e1), "f(1,2),5: not p(X), r(X)")
         self.assertEqual(str(rg1), " <> 5")
         self.assertEqual(str(a1), "not &f(X) { f(1,2),5: not p(X), r(X) } <> 5")
