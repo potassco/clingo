@@ -22,6 +22,7 @@ add_library(gringo
     "src/input/iesolver.cc"
     "src/input/literal.cc"
     "src/input/program.cc"
+    "src/input/statement.cc"
     "src/input/term.cc"
     "src/input/theory.cc"
     "src/number.cc"

@@ -680,30 +680,10 @@ enum clingo_ast_type_e {
     clingo_ast_type_head_theory_atom,
     clingo_ast_type_head_conditional_literal,
     clingo_ast_type_head_disjunction,
+    // theory definition
+    // statements
+    clingo_ast_type_statement_rule
     /*
-    // simple atoms
-    clingo_ast_type_boolean_constant,
-    clingo_ast_type_symbolic_atom,
-    clingo_ast_type_comparison,
-    // aggregates
-    clingo_ast_type_guard,
-    clingo_ast_type_conditional_literal,
-    clingo_ast_type_aggregate,
-    clingo_ast_type_body_aggregate_element,
-    clingo_ast_type_body_aggregate,
-    clingo_ast_type_head_aggregate_element,
-    clingo_ast_type_head_aggregate,
-    clingo_ast_type_disjunction,
-    // theory atoms
-    clingo_ast_type_theory_sequence,
-    clingo_ast_type_theory_function,
-    clingo_ast_type_theory_unparsed_term_element,
-    clingo_ast_type_theory_unparsed_term,
-    clingo_ast_type_theory_guard,
-    clingo_ast_type_theory_atom_element,
-    clingo_ast_type_theory_atom,
-    // literals
-    clingo_ast_type_literal,
     // theory definition
     clingo_ast_type_theory_operator_definition,
     clingo_ast_type_theory_term_definition,
@@ -755,6 +735,8 @@ enum clingo_ast_attribute_e {
     clingo_ast_attribute_condition,
     clingo_ast_attribute_function,
     clingo_ast_attribute_theory_operator,
+    clingo_ast_attribute_head,
+    clingo_ast_attribute_body
     /*
     clingo_ast_attribute_argument,
     clingo_ast_attribute_arity,

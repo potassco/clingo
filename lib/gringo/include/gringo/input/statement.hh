@@ -28,6 +28,16 @@ struct Rule {
     BodyLiteralVec body;
 };
 
+//! Compare two rules.
+//!
+//! @related Rule.
+auto operator==(Rule const &a, Rule const &b) -> bool;
+
+//! Compare two rules.
+//!
+//! @related Rule.
+auto operator<(Rule const &a, Rule const &b) -> bool;
+
 //! The type of a theory operator.
 //!
 //! @see TheoryOpDefinition
@@ -484,3 +494,9 @@ using StatementVec = std::vector<Statement>;
 //! @}
 
 } // namespace Gringo::Input
+
+#ifndef GRINGO_DOXYGEN_SKIP
+
+GRINGO_HASH_PROTO(Gringo::Input::Rule);
+
+#endif

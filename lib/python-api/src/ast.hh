@@ -2049,6 +2049,10 @@ using BodyLiteral =
 
 auto construct_body_literal(clingo_ast_t *ast) -> BodyLiteral;
 
+using BodyLiteralArray = std::vector<BodyLiteral>;
+
+auto construct_body_literal_array(clingo_ast_t **ast, size_t size) -> BodyLiteralArray;
+
 class BodySimpleLiteral {
   public:
     // Note: for pybind
@@ -3028,6 +3032,90 @@ class HeadDisjunction {
 };
 
 inline auto c_cast(HeadDisjunction const &x) -> clingo_ast_t * { return x.ast_; }
+
+class StatementRule;
+
+using Statement = std::variant<StatementRule>;
+
+auto construct_statement(clingo_ast_t *ast) -> Statement;
+
+class StatementRule {
+  public:
+    // Note: for pybind
+    StatementRule() = default;
+
+    StatementRule(StatementRule const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    StatementRule(StatementRule &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(StatementRule const &x) -> StatementRule & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(StatementRule &&x) noexcept -> StatementRule & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(StatementRule const &a, StatementRule const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(StatementRule const &a, StatementRule const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, StatementRule)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~StatementRule() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    auto head() -> HeadLiteral;
+
+    auto body() -> BodyLiteralArray;
+
+    static auto acquire(clingo_ast_t *ast) -> StatementRule { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, HeadLiteral const &head,
+                          BodyLiteralArray const &body) -> StatementRule;
+
+    friend auto c_cast(StatementRule const &x) -> clingo_ast_t *;
+
+  private:
+    StatementRule(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(StatementRule const &x) -> clingo_ast_t * { return x.ast_; }
 
 auto construct_term(clingo_ast_t *ast) -> Term {
     clingo_ast_type_t type;
@@ -4095,6 +4183,23 @@ auto construct_body_literal(clingo_ast_t *ast) -> BodyLiteral {
     throw std::runtime_error("unexpected ast type");
 }
 
+auto construct_body_literal_array(clingo_ast_t **ast, size_t size) -> BodyLiteralArray {
+    BodyLiteralArray ret;
+    try {
+        ret.reserve(size);
+        std::for_each_n(ast, size, [&ret](auto &arg) {
+            auto tmp = arg;
+            arg = nullptr;
+            ret.emplace_back(construct_body_literal(tmp));
+        });
+        clingo_ast_array_free(ast, size);
+    } catch (...) {
+        clingo_ast_array_free(ast, size);
+        throw;
+    }
+    return ret;
+}
+
 auto BodySimpleLiteral::literal() -> Literal {
     clingo_ast_t *ast;
     if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_literal, &ast)) {
@@ -4669,6 +4774,54 @@ auto HeadDisjunction::construct(Library &lib, clingo_location_t const &location,
     return HeadDisjunction::acquire(res_);
 }
 
+auto construct_statement(clingo_ast_t *ast) -> Statement {
+    clingo_ast_type_t type;
+    if (!clingo_ast_get_type(ast, &type)) {
+        clingo_ast_free(ast);
+        throw std::runtime_error("could not get type");
+    }
+    switch (type) {
+        case clingo_ast_type_statement_rule: {
+            return StatementRule::acquire(ast);
+        }
+    }
+    clingo_ast_free(ast);
+    throw std::runtime_error("unexpected ast type");
+}
+
+auto StatementRule::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto StatementRule::head() -> HeadLiteral {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_head, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    return construct_head_literal(ast);
+}
+
+auto StatementRule::body() -> BodyLiteralArray {
+    clingo_ast_t **ast;
+    size_t size;
+    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_body, &ast, &size)) {
+        throw std::runtime_error("could not get ast array attribute");
+    }
+    return construct_body_literal_array(ast, size);
+}
+
+auto StatementRule::construct(Library &lib, clingo_location_t const &location, HeadLiteral const &head,
+                              BodyLiteralArray const &body) -> StatementRule {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_rule, &res_, &location, c_cast(head),
+                                           c_cast(body).data(), body.size()));
+    return StatementRule::acquire(res_);
+}
+
 template <class T> auto c_cast(std::optional<T> const &opt) -> clingo_ast_t * {
     if (opt) {
         return c_cast(*opt);
@@ -4828,6 +4981,8 @@ term.)doc");
     auto py_head_theory_atom = py::class_<HeadTheoryAtom>(ast, "HeadTheoryAtom", R"doc(A theory atom.)doc");
 
     auto py_head_disjunction = py::class_<HeadDisjunction>(ast, "HeadDisjunction", R"doc(A disjunction.)doc");
+
+    auto py_statement_rule = py::class_<StatementRule>(ast, "StatementRule", R"doc(A rule.)doc");
 
     py_unary_operator.value("Minus", UnaryOperator::Minus, R"doc(Operator `-`.)doc")
         .value("Negation", UnaryOperator::Negation, R"doc(Operator `~`.)doc");
@@ -5677,6 +5832,28 @@ elements
         .def("__hash__", &HeadDisjunction::hash)
         .def_property_readonly("location", &HeadDisjunction::location, R"doc(The location of the element.)doc")
         .def_property_readonly("elements", &HeadDisjunction::elements, R"doc(The elements of the disjunction.)doc")
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_statement_rule
+        .def(py::init(&StatementRule::construct), py::arg("lib"), py::arg("location"), py::arg("head"), py::arg("body"),
+             R"doc(Construct a StatementRule object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+location
+    The location of the element.
+head
+    The head literal.
+body
+    The body of the statement.)doc")
+        .def("__str__", &StatementRule::to_string)
+        .def("__hash__", &StatementRule::hash)
+        .def_property_readonly("location", &StatementRule::location, R"doc(The location of the element.)doc")
+        .def_property_readonly("head", &StatementRule::head, R"doc(The head literal.)doc")
+        .def_property_readonly("body", &StatementRule::body, R"doc(The body of the statement.)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 

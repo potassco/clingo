@@ -37,6 +37,8 @@ auto make_ast(Owner const &owner, Gringo::Input::SetAggregateElement const &elem
 auto make_ast(Owner const &owner, Gringo::Input::BodyAggregate::Element const &elem) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::HeadAggregate::Element const &elem) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::Disjunction::Element const &elem) -> std::unique_ptr<clingo_ast_t>;
+auto make_ast(Owner const &owner, Gringo::Input::BodyLiteral const &lit) -> std::unique_ptr<clingo_ast_t>;
+auto make_ast(Owner const &owner, Gringo::Input::HeadLiteral const &lit) -> std::unique_ptr<clingo_ast_t>;
 
 template <class T> auto make_ast_vec(Owner const &owner, std::vector<T> const &vec) -> ASTVec;
 
@@ -312,6 +314,52 @@ auto make_ast(Owner const &owner, Gringo::Input::Literal const &lit) -> std::uni
         lit);
 }
 
+auto make_ast(Owner const &owner, Gringo::Input::HeadLiteral const &lit) -> std::unique_ptr<clingo_ast_t> {
+    using namespace Gringo::Input;
+    return std::visit(
+        [&owner](auto &x) {
+            GRINGO_MATCH(x, SimpleHeadLiteral) {
+                return std::make_unique<clingo_ast>(owner, clingo_ast_type_head_simple_literal, &x);
+            }
+            GRINGO_MATCH(x, Disjunction) {
+                return std::make_unique<clingo_ast>(owner, clingo_ast_type_head_disjunction, &x);
+            }
+            GRINGO_MATCH(x, HeadSetAggregate) {
+                return std::make_unique<clingo_ast>(owner, clingo_ast_type_head_set_aggregate, &x);
+            }
+            GRINGO_MATCH(x, HeadTheoryAtom) {
+                return std::make_unique<clingo_ast>(owner, clingo_ast_type_head_theory_atom, &x);
+            }
+            GRINGO_MATCH(x, HeadAggregate) {
+                return std::make_unique<clingo_ast>(owner, clingo_ast_type_head_aggregate, &x);
+            }
+        },
+        lit);
+}
+
+auto make_ast(Owner const &owner, Gringo::Input::BodyLiteral const &lit) -> std::unique_ptr<clingo_ast_t> {
+    using namespace Gringo::Input;
+    return std::visit(
+        [&owner](auto &x) {
+            GRINGO_MATCH(x, SimpleBodyLiteral) {
+                return std::make_unique<clingo_ast>(owner, clingo_ast_type_body_simple_literal, &x);
+            }
+            GRINGO_MATCH(x, Conjunction) {
+                return std::make_unique<clingo_ast>(owner, clingo_ast_type_body_conditional_literal, &x);
+            }
+            GRINGO_MATCH(x, BodySetAggregate) {
+                return std::make_unique<clingo_ast>(owner, clingo_ast_type_body_set_aggregate, &x);
+            }
+            GRINGO_MATCH(x, BodyTheoryAtom) {
+                return std::make_unique<clingo_ast>(owner, clingo_ast_type_body_theory_atom, &x);
+            }
+            GRINGO_MATCH(x, BodyAggregate) {
+                return std::make_unique<clingo_ast>(owner, clingo_ast_type_body_aggregate, &x);
+            }
+        },
+        lit);
+}
+
 auto make_ast(Owner const &owner, Gringo::Input::TheoryElement const &elem) -> std::unique_ptr<clingo_ast_t> {
     return std::make_unique<clingo_ast>(owner, clingo_ast_type_theory_atom_element, &elem);
 }
@@ -461,6 +509,9 @@ auto clingo_ast::visit(V &&visit) const -> std::invoke_result_t<V, Gringo::Input
         }
         case clingo_ast_type_head_disjunction: {
             return std::invoke(std::move(visit), cast<Disjunction>());
+        }
+        case clingo_ast_type_statement_rule: {
+            return std::invoke(std::move(visit), cast<Rule>());
         }
     }
     throw std::invalid_argument("invalid ast type");
@@ -650,7 +701,9 @@ auto clingo_ast::get_ast(clingo_ast_attribute_t attr) const -> std::optional<std
             ATTR(right, rhs))
         TYPE(body_aggregate, BodyAggregate,
             ATTR(left, lhs)
-            ATTR(right, rhs)))
+            ATTR(right, rhs))
+        TYPE(statement_rule, Rule,
+            ATTR(head, head)))
     // clang-format on
 }
 
@@ -705,7 +758,9 @@ auto clingo_ast::get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional
         TYPE(body_set_aggregate, BodySetAggregate,
             ATTR(elements, elems))
         TYPE(body_aggregate, BodyAggregate,
-            ATTR(elements, elems)))
+            ATTR(elements, elems))
+        TYPE(statement_rule, Rule,
+            ATTR(body, body)))
     // clang-format on
 }
 
@@ -936,6 +991,52 @@ template <>
         return cast<Gringo::Input::ConditionalLiteral>();
     }
     return cast<Gringo::Input::Literal>();
+}
+
+template <> [[nodiscard]] auto clingo_ast::convert<Gringo::Input::HeadLiteral>() const -> Gringo::Input::HeadLiteral {
+    switch (type_) {
+        case clingo_ast_type_head_simple_literal: {
+            return cast<Gringo::Input::SimpleHeadLiteral>();
+        }
+        case clingo_ast_type_head_disjunction: {
+            return cast<Gringo::Input::Disjunction>();
+        }
+        case clingo_ast_type_head_theory_atom: {
+            return cast<Gringo::Input::HeadTheoryAtom>();
+        }
+        case clingo_ast_type_head_set_aggregate: {
+            return cast<Gringo::Input::HeadSetAggregate>();
+        }
+        case clingo_ast_type_head_aggregate: {
+            return cast<Gringo::Input::HeadAggregate>();
+        }
+        default: {
+            throw std::invalid_argument("head literal expected");
+        }
+    }
+}
+
+template <> [[nodiscard]] auto clingo_ast::convert<Gringo::Input::BodyLiteral>() const -> Gringo::Input::BodyLiteral {
+    switch (type_) {
+        case clingo_ast_type_body_simple_literal: {
+            return cast<Gringo::Input::SimpleBodyLiteral>();
+        }
+        case clingo_ast_type_body_conditional_literal: {
+            return cast<Gringo::Input::Conjunction>();
+        }
+        case clingo_ast_type_body_theory_atom: {
+            return cast<Gringo::Input::BodyTheoryAtom>();
+        }
+        case clingo_ast_type_body_set_aggregate: {
+            return cast<Gringo::Input::BodySetAggregate>();
+        }
+        case clingo_ast_type_body_aggregate: {
+            return cast<Gringo::Input::BodyAggregate>();
+        }
+        default: {
+            throw std::invalid_argument("body literal expected");
+        }
+    }
 }
 
 extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, clingo_ast_t **ast, ...) -> bool {
@@ -1395,6 +1496,18 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 *ast = construct_ast<Gringo::Input::Disjunction>(
                     type, convert_loc(lib, loc),
                     convert_ast_vec<Gringo::Input::Disjunction::Element>(elems, elems_size));
+                break;
+            }
+            case clingo_ast_type_statement_rule: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const *head = va_arg(args, clingo_ast_t const *);
+                auto const **body = va_arg(args, clingo_ast_t const **);
+                auto body_size = va_arg(args, size_t);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::Rule>(type, convert_loc(lib, loc), head->convert<HeadLiteral>(),
+                                                          convert_ast_vec<BodyLiteral>(body, body_size));
                 break;
             }
         }
@@ -2129,6 +2242,9 @@ body_literal:
   - body_set_aggregate
   - body_theory_atom
   - body_conditional_literal
+body_literal_array:
+  type: array
+  value_type: body_literal
 body_simple_literal:
   type: record
   doc: A literal in a rule body.
@@ -2327,5 +2443,23 @@ head_disjunction:
     elements:
       type: disjunction_element_array
       doc: The elements of the disjunction.
+statement:
+  type: union
+  doc: The available statements.
+  types:
+  - statement_rule
+statement_rule:
+  type: record
+  doc: A rule.
+  arguments:
+    location:
+      type: location
+      doc: The location of the element.
+    head:
+      type: head_literal
+      doc: The head literal.
+    body:
+      type: body_literal_array
+      doc: The body of the statement.
 )yaml";
 }

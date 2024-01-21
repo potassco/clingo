@@ -580,6 +580,18 @@ class TestAST(TestCase):
         self.assertEqual(str(rg1), " <> 5")
         self.assertEqual(str(a1), "not &f(X) { f(1,2),5: not p(X), r(X) } <> 5")
 
+    def test_statement_rule(self):
+        """
+        Test rule.
+        """
+        h = ast.HeadSimpleLiteral(self.lib, ast.parse_literal(self.lib, "not q(X)"))
+        b = ast.BodySimpleLiteral(self.lib, ast.parse_literal(self.lib, "p(X)"))
+        r = ast.StatementRule(self.lib, self.loc, h, [b])
+
+        self.assertEqual(r.head, h)
+        self.assertEqual(r.body, [b])
+        self.assertEqual(str(r), "not q(X) :- p(X).")
+
     def test_parse(self):
         """
         Test parsing of asts.
