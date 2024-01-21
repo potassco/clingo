@@ -17,10 +17,10 @@
         .def(py::self >= py::self)
 
 #define CLINGO_CPP_TOTAL_ORDER(type, T)                                                                                \
-    type auto operator!=(T const &a, T const &b) -> bool { return !(a == b); }                                         \
-    type auto operator<=(T const &a, T const &b) -> bool { return !(b < a); }                                          \
-    type auto operator>(T const &a, T const &b) -> bool { return b < a; }                                              \
-    type auto operator>=(T const &a, T const &b) -> bool { return !(a < b); }
+    [[maybe_unused]] type auto operator!=(T const &a, T const &b) -> bool { return !(a == b); }                        \
+    [[maybe_unused]] type auto operator<=(T const &a, T const &b) -> bool { return !(b < a); }                         \
+    [[maybe_unused]] type auto operator>(T const &a, T const &b) -> bool { return b < a; }                             \
+    [[maybe_unused]] type auto operator>=(T const &a, T const &b) -> bool { return !(a < b); }
 
 static auto operator==(clingo_location_t const &a, clingo_location_t const &b) -> bool {
     return clingo_location_equal(&a, &b);
@@ -231,7 +231,7 @@ slotted
 shared
     Indicates whether symbols should be created in a thread-safe manner.
     Setting this to false might improve performance in single-threaded
-    application.
+    applications.
 logger
     A logger to emit/intercept messages.
 message_limit
@@ -251,7 +251,7 @@ Return self.
 Close the library object.
 )"));
     py::class_<Position>(core, "Position", R"(Position tracking object.)")
-        .def(py::init(&Position::construct))
+        .def(py::init(&Position::construct), py::arg("lib"), py::arg("file"), py::arg("line"), py::arg("column"))
         .def_readonly("file", &Position::file)
         .def_readonly("line", &Position::line)
         .def_readonly("column", &Position::column)
@@ -262,7 +262,7 @@ Close the library object.
         CLINGO_PY_TOTAL_ORDER;
 
     py::class_<clingo_location_t>(core, "Location", R"(Location tracking object.)")
-        .def(py::init(&construct_location))
+        .def(py::init(&construct_location), py::arg("begin"), py::arg("end"))
         .def_property_readonly("begin",
                                [](clingo_location_t const &loc) {
                                    return Position{loc.begin_file, loc.begin_line, loc.begin_column};
