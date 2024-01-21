@@ -65,6 +65,16 @@ struct TheoryOpDefinition {
     TheoryOpType type;
 };
 
+//! Compare two theory operator definitions.
+//!
+//! @related TheoryOpDefinition.
+auto operator==(TheoryOpDefinition const &a, TheoryOpDefinition const &b) -> bool;
+
+//! Compare two theory operator definitions.
+//!
+//! @related TheoryOpDefinition.
+auto operator<(TheoryOpDefinition const &a, TheoryOpDefinition const &b) -> bool;
+
 //! A vector of theory operator definitions.
 //!
 //! @related TheoryOpDefinition
@@ -90,6 +100,16 @@ struct TheoryTermDefinition {
 //!
 //! @related TheoryTermDefinition
 using TheoryTermDefinitionVec = Util::immutable_vector<TheoryTermDefinition>;
+
+//! Compare two theory term definitions.
+//!
+//! @related TheoryTermDefinition.
+auto operator==(TheoryTermDefinition const &a, TheoryTermDefinition const &b) -> bool;
+
+//! Compare two theory term definitions.
+//!
+//! @related TheoryTermDefinition.
+auto operator<(TheoryTermDefinition const &a, TheoryTermDefinition const &b) -> bool;
 
 //! Enumeration of theory atom types.
 //!
@@ -133,6 +153,16 @@ struct TheoryAtomDefinition {
 //! @related TheoryAtomDefinition
 using TheoryAtomDefinitionVec = Util::immutable_vector<TheoryAtomDefinition>;
 
+//! Compare two theory atom definitions.
+//!
+//! @related TheoryAtomDefinition.
+auto operator==(TheoryAtomDefinition const &a, TheoryAtomDefinition const &b) -> bool;
+
+//! Compare two theory atom definitions.
+//!
+//! @related TheoryAtomDefinition.
+auto operator<(TheoryAtomDefinition const &a, TheoryAtomDefinition const &b) -> bool;
+
 //! A theory definition.
 //!
 //! For example: <tt>\#theory name { term { - : 0, unary }; name/2: term, any }</tt>.
@@ -151,6 +181,16 @@ struct TheoryDefinition {
     //! The theory atom definitions.
     TheoryAtomDefinitionVec atom_defs;
 };
+
+//! Compare two theory definitions.
+//!
+//! @related TheoryDefinition.
+auto operator==(TheoryDefinition const &a, TheoryDefinition const &b) -> bool;
+
+//! Compare two theory definitions.
+//!
+//! @related TheoryDefinition.
+auto operator<(TheoryDefinition const &a, TheoryDefinition const &b) -> bool;
 
 //! Enumeration of optimization statement types.
 //!
@@ -497,6 +537,10 @@ using StatementVec = std::vector<Statement>;
 
 #ifndef GRINGO_DOXYGEN_SKIP
 
+GRINGO_HASH_PROTO(Gringo::Input::TheoryOpDefinition);
+GRINGO_HASH_PROTO(Gringo::Input::TheoryTermDefinition);
+GRINGO_HASH_PROTO(Gringo::Input::TheoryAtomDefinition);
+GRINGO_HASH_PROTO(Gringo::Input::TheoryDefinition);
 GRINGO_HASH_PROTO(Gringo::Input::Rule);
 
 #endif
