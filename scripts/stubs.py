@@ -16,6 +16,8 @@ with open(os.path.join(clingo, "py.typed"), "w"):
 
 for root, dirs, files in os.walk(clingo):
     for f in files:
+        if not f.endswith(".py"):
+            continue
         with open(os.path.join(root, f), "r") as hnd:
             content = re.sub(
                 r'^(def .*:\n    """(.|\n)*?""")',

@@ -681,8 +681,13 @@ enum clingo_ast_type_e {
     clingo_ast_type_head_conditional_literal,
     clingo_ast_type_head_disjunction,
     // theory definition
+    clingo_ast_type_theory_operator_definition,
+    clingo_ast_type_theory_term_definition,
+    clingo_ast_type_theory_guard_definition,
+    clingo_ast_type_theory_atom_definition,
     // statements
-    clingo_ast_type_statement_rule
+    clingo_ast_type_statement_rule,
+    clingo_ast_type_statement_theory
     /*
     // theory definition
     clingo_ast_type_theory_operator_definition,
@@ -713,30 +718,36 @@ typedef int clingo_ast_type_t;
 //! Enumeration of attributes used by the AST.
 enum clingo_ast_attribute_e {
     clingo_ast_attribute_anonymous,
+    clingo_ast_attribute_arguments,
+    clingo_ast_attribute_arity,
+    clingo_ast_attribute_atom,
+    clingo_ast_attribute_atoms,
+    clingo_ast_attribute_atom_type,
+    clingo_ast_attribute_body,
+    clingo_ast_attribute_condition,
+    clingo_ast_attribute_elements,
     clingo_ast_attribute_external,
+    clingo_ast_attribute_function,
+    clingo_ast_attribute_guard,
+    clingo_ast_attribute_head,
     clingo_ast_attribute_left,
+    clingo_ast_attribute_literal,
     clingo_ast_attribute_location,
     clingo_ast_attribute_name,
+    clingo_ast_attribute_operators,
     clingo_ast_attribute_operator_type,
     clingo_ast_attribute_pool,
-    clingo_ast_attribute_right,
-    clingo_ast_attribute_symbol,
-    clingo_ast_attribute_tuple,
-    clingo_ast_attribute_arguments,
-    clingo_ast_attribute_sign,
-    clingo_ast_attribute_value,
-    clingo_ast_attribute_atom,
-    clingo_ast_attribute_term,
+    clingo_ast_attribute_priority,
     clingo_ast_attribute_relation,
-    clingo_ast_attribute_tuple_type,
-    clingo_ast_attribute_elements,
-    clingo_ast_attribute_operators,
-    clingo_ast_attribute_literal,
-    clingo_ast_attribute_condition,
-    clingo_ast_attribute_function,
+    clingo_ast_attribute_right,
+    clingo_ast_attribute_sign,
+    clingo_ast_attribute_symbol,
+    clingo_ast_attribute_term,
+    clingo_ast_attribute_terms,
     clingo_ast_attribute_theory_operator,
-    clingo_ast_attribute_head,
-    clingo_ast_attribute_body
+    clingo_ast_attribute_tuple,
+    clingo_ast_attribute_tuple_type,
+    clingo_ast_attribute_value
     /*
     clingo_ast_attribute_argument,
     clingo_ast_attribute_arity,
