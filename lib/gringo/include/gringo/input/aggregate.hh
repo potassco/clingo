@@ -62,7 +62,7 @@ auto operator==(SetAggregateElement const &a, SetAggregateElement const &b) -> b
 auto operator<(SetAggregateElement const &a, SetAggregateElement const &b) -> bool;
 
 //! A vector of set aggregate elements.
-using SetAggregateElementVec = Util::immutable_vector<SetAggregateElement>;
+using SetAggregateElementVec = Util::immutable_array<SetAggregateElement>;
 
 //! A set aggregate.
 //!

@@ -6,8 +6,8 @@
 #include <variant>
 #include <vector>
 
-#include <gringo/util/immutable_vector.hh>
-#include <gringo/util/shared_ptr.hh>
+#include <gringo/util/immutable_array.hh>
+#include <gringo/util/immutable_value.hh>
 
 namespace Gringo::Util {
 
@@ -25,80 +25,6 @@ namespace Gringo::Util {
         auto operator()(T const &x) const -> size_t;                                                                   \
     };                                                                                                                 \
     }
-
-//! Recursive equality comparison with support for pointers, optionals, pairs, tuples, variants, and vectors.
-template <class T = std::equal_to<>> struct value_equal_to : public T {
-    using T::operator();
-
-    //! Compare two pointers after dereferencing them.
-    template <class A, class B> auto operator()(A const *a, B const *b) const { return operator()(*a, *b); }
-
-    //! Compare the values of two optionals.
-    template <class A, class B> auto operator()(std::optional<A> const &a, std::optional<B> const &b) const {
-        if (a.has_value() && b.has_value()) {
-            return operator()(a.value(), b.value());
-        }
-        return !a.has_value() && !b.has_value();
-    }
-
-    //! Compare two unique pointers after dereferencing them.
-    template <class A, class B> auto operator()(std::unique_ptr<A> const &a, std::unique_ptr<B> const &b) const {
-        return a == b || operator()(*a, *b);
-    }
-
-    //! Compare two shared pointers after dereferencing them.
-    template <class A, class B> auto operator()(shared_ptr<A> const &a, shared_ptr<B> const &b) const {
-        return a == b || operator()(*a, *b);
-    }
-
-    //! Compare two pairs.
-    template <class A, class B, class C, class D>
-    auto operator()(std::pair<A, B> const &a, std::pair<C, D> const &b) const {
-        return &a == &b || (operator()(a.first, b.first) && operator()(a.second, b.second));
-    }
-
-    //! Compare two tuples.
-    template <class... A> auto operator()(std::tuple<A...> const &a, std::tuple<A...> const &b) const {
-        return &a == &b || value_equal_to_tuple(a, b, std::index_sequence_for<A...>{});
-    }
-
-    //! Compare two variants.
-    template <class... A> auto operator()(std::variant<A...> const &a, std::variant<A...> const &b) const {
-        return &a == &b || value_equal_to_variant(a, b, std::index_sequence_for<A...>{});
-    }
-
-    //! Compare two vectors.
-    template <class A, class B> auto operator()(std::vector<A> const &a, std::vector<B> const &b) const {
-        return &a == &b || std::equal(a.begin(), a.end(), b.begin(), b.end(),
-                                      [this](auto const &a, auto const &b) { return this->operator()(a, b); });
-    }
-
-  private:
-    template <class... A, size_t... Indices>
-    inline auto value_equal_to_tuple(std::tuple<A...> const &a, std::tuple<A...> const &b,
-                                     std::index_sequence<Indices...> indices) const -> bool {
-        static_cast<void>(indices);
-        return (true && ... && operator()(std::get<Indices>(a), std::get<Indices>(b)));
-    }
-
-    template <class... A, size_t... Indices>
-    inline auto value_equal_to_variant(std::variant<A...> const &a, std::variant<A...> const &b,
-                                       std::index_sequence<Indices...> indices) const -> bool {
-        static_cast<void>(indices);
-        return (
-            false || ... ||
-            (a.index() == Indices && b.index() == Indices && operator()(std::get<Indices>(a), std::get<Indices>(b))));
-    }
-};
-
-//! Base case for Gringo::Util::value_equal<class A, class B, class... Args>(A const &a, B const &b, Args const
-//! &...args).
-inline auto value_equal() { return true; }
-
-//! Check whether all argument pairs are value equal.
-template <class A, class B, class... Args> auto value_equal(A const &a, B const &b, Args const &...args) {
-    return value_equal_to{}(a, b) && value_equal(args...);
-}
 
 //! Combine the given seeds.
 inline auto hash_combine(std::initializer_list<size_t> list) -> size_t {
@@ -172,10 +98,10 @@ template <class T> struct value_hasher<std::unique_ptr<T>> {
 };
 
 //! See value_hasher<T const *>.
-template <class T> struct value_hasher<shared_ptr<T>> {
+template <class T> struct value_hasher<immutable_value<T>> {
     //! Operator to compute the hash.
-    auto operator()(shared_ptr<T> const &value) const -> size_t {
-        return hash_combine(typeid(shared_ptr<T>).hash_code(), value_hasher<T>{}(*value));
+    auto operator()(immutable_value<T> const &value) const -> size_t {
+        return hash_combine(typeid(immutable_value<T>).hash_code(), value_hasher<T>{}(*value));
     }
 };
 
@@ -230,10 +156,10 @@ template <class T> struct value_hasher<std::vector<T>> {
 };
 
 //! Compute the hash of a vector.
-template <class T> struct value_hasher<Util::immutable_vector<T>> {
+template <class T> struct value_hasher<Util::immutable_array<T>> {
     //! Operator to compute the hash.
-    auto operator()(Util::immutable_vector<T> const &value) const -> size_t {
-        size_t hash = typeid(Util::immutable_vector<T>).hash_code();
+    auto operator()(Util::immutable_array<T> const &value) const -> size_t {
+        size_t hash = typeid(Util::immutable_array<T>).hash_code();
         for (auto const &elem : value) {
             hash = hash_combine({hash, value_hasher<T>{}(elem)});
         }

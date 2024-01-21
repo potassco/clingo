@@ -8,7 +8,7 @@
 #include <vector>
 
 #include <gringo/util/algorithm.hh>
-#include <gringo/util/shared_ptr.hh>
+#include <gringo/util/immutable_value.hh>
 
 #define FWD(x) std::forward<decltype(x)>(x)
 
@@ -51,7 +51,8 @@ auto unpool_crossproducts(auto &build, std::tuple<As const &...> orig, auto unpo
 
 struct Unpooler {
     template <class T>
-    auto operator()(Util::shared_ptr<T> const &elem) const -> std::optional<std::vector<Util::shared_ptr<T>>> {
+    auto operator()(Util::immutable_value<T> const &elem) const
+        -> std::optional<std::vector<Util::immutable_value<T>>> {
         return elem->unpool();
     }
 };

@@ -47,7 +47,7 @@ enum class Relation {
 //! The right-hand-side of a relation atom including the symbol.
 using Guard = std::pair<Relation, Term>;
 //! A vector of guards.
-using GuardVec = Util::immutable_vector<Guard>;
+using GuardVec = Util::immutable_array<Guard>;
 
 //! Return the equivalent relation when arguments are flipped.
 [[nodiscard]] auto flip(Relation rel) -> Relation;
@@ -140,10 +140,10 @@ auto operator<(LiteralSymbolic const &a, LiteralSymbolic const &b) -> bool;
 using Literal = std::variant<LiteralBoolean, LiteralRelation, LiteralSymbolic>;
 
 //! A vector of literals.
-using LiteralVec = Util::immutable_vector<Literal>;
+using LiteralVec = Util::immutable_array<Literal>;
 
 //! A vector of literal vectors.
-using LiteralVecVec = Util::immutable_vector<LiteralVec>;
+using LiteralVecVec = Util::immutable_array<LiteralVec>;
 
 //! A conditional literal.
 struct ConditionalLiteral {

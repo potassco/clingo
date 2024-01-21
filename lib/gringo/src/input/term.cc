@@ -3,48 +3,42 @@
 
 namespace Gringo::Input {
 
-auto operator==(TermVariable const &a, TermVariable const &b) -> bool { return Util::value_equal(a.name, b.name); }
+auto operator==(TermVariable const &a, TermVariable const &b) -> bool { return a.name == b.name; }
 
 auto operator<(TermVariable const &a, TermVariable const &b) -> bool { return a.name < b.name; }
 
-auto operator==(TermSymbol const &a, TermSymbol const &b) -> bool { return Util::value_equal(a.value, b.value); }
+auto operator==(TermSymbol const &a, TermSymbol const &b) -> bool { return a.value == b.value; }
 
 auto operator<(TermSymbol const &a, TermSymbol const &b) -> bool { return a.value < b.value; }
 
-auto operator==(TermTuple const &a, TermTuple const &b) -> bool { return Util::value_equal(a.pool, b.pool); }
+auto operator==(TermTuple const &a, TermTuple const &b) -> bool { return a.pool == b.pool; }
 
-auto operator<(TermTuple const &a, TermTuple const &b) -> bool {
-    return std::lexicographical_compare(a.pool.begin(), a.pool.end(), b.pool.begin(), b.pool.end());
-}
+auto operator<(TermTuple const &a, TermTuple const &b) -> bool { return a.pool < b.pool; }
 
 auto operator==(TermFunction const &a, TermFunction const &b) -> bool {
-    return Util::value_equal(a.name, b.name, a.pool, b.pool, a.external, b.external);
+    return std::tie(a.name, a.pool, a.external) == std::tie(b.name, b.pool, b.external);
 }
 
 auto operator<(TermFunction const &a, TermFunction const &b) -> bool {
     return std::tie(a.name, a.pool, a.external) < std::tie(b.name, b.pool, b.external);
 }
 
-auto operator==(TermAbs const &a, TermAbs const &b) -> bool { return Util::value_equal(a.pool, b.pool); }
+auto operator==(TermAbs const &a, TermAbs const &b) -> bool { return a.pool == b.pool; }
 
-auto operator<(TermAbs const &a, TermAbs const &b) -> bool {
-    return std::lexicographical_compare(a.pool.begin(), a.pool.end(), b.pool.begin(), b.pool.end());
-}
+auto operator<(TermAbs const &a, TermAbs const &b) -> bool { return a.pool < b.pool; }
 
-auto operator==(TermUnary const &a, TermUnary const &b) -> bool { return Util::value_equal(a.op, b.op, a.rhs, b.rhs); };
+auto operator==(TermUnary const &a, TermUnary const &b) -> bool {
+    return std::tie(a.op, a.rhs) == std::tie(b.op, b.rhs);
+};
 
-auto operator<(TermUnary const &a, TermUnary const &b) -> bool {
-    return std::tie(reinterpret_cast<int const &>(a.op), *a.rhs) <
-           std::tie(reinterpret_cast<int const &>(b.op), *b.rhs);
-}
+auto operator<(TermUnary const &a, TermUnary const &b) -> bool { return std::tie(a.op, a.rhs) < std::tie(b.op, b.rhs); }
 
 auto operator==(TermBinary const &a, TermBinary const &b) -> bool {
-    return Util::value_equal(a.op, b.op, a.lhs, b.lhs, a.rhs, b.rhs);
+    return std::tie(*a.lhs, a.op, a.rhs) == std::tie(*b.lhs, b.op, b.rhs);
 };
 
 auto operator<(TermBinary const &a, TermBinary const &b) -> bool {
-    return std::tie(*a.lhs, reinterpret_cast<int const &>(a.op), *a.rhs) <
-           std::tie(*b.lhs, reinterpret_cast<int const &>(b.op), *b.rhs);
+    return std::tie(*a.lhs, a.op, a.rhs) < std::tie(*b.lhs, b.op, b.rhs);
 }
 
 auto operator==(Projection const &a, Projection const &b) -> bool {

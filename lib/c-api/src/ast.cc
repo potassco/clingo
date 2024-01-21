@@ -16,10 +16,10 @@ namespace {
 
 class ASTVec;
 
-using Owner = Gringo::Util::shared_ptr<std::any>;
+using Owner = Gringo::Util::immutable_value<std::any>;
 
 template <class T>
-auto make_ast(Owner const &owner, Gringo::Util::shared_ptr<T> const &ptr) -> std::unique_ptr<clingo_ast_t>;
+auto make_ast(Owner const &owner, Gringo::Util::immutable_value<T> const &ptr) -> std::unique_ptr<clingo_ast_t>;
 template <class T> auto make_ast(Owner const &owner, std::optional<T> const &opt) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::LGuard::value_type const &guard) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::RGuard::value_type const &guard) -> std::unique_ptr<clingo_ast_t>;
@@ -176,7 +176,7 @@ template <class T> auto make_ast_vec(Owner const &owner, std::vector<T> const &v
     return res;
 }
 
-template <class T> auto make_ast_vec(Owner const &owner, Gringo::Util::immutable_vector<T> const &vec) -> ASTVec {
+template <class T> auto make_ast_vec(Owner const &owner, Gringo::Util::immutable_array<T> const &vec) -> ASTVec {
     ASTVec res{vec.size()};
     size_t i = 0;
     for (auto const &elem : vec) {
@@ -204,7 +204,7 @@ template <class T> auto convert_ast_vec(clingo_ast const **ast, size_t size) -> 
 }
 
 template <class T>
-auto make_ast(Owner const &owner, Gringo::Util::shared_ptr<T> const &ptr) -> std::unique_ptr<clingo_ast_t> {
+auto make_ast(Owner const &owner, Gringo::Util::immutable_value<T> const &ptr) -> std::unique_ptr<clingo_ast_t> {
     return make_ast(owner, *ptr);
 }
 
@@ -391,7 +391,7 @@ auto make_ast(Owner const &owner, Gringo::Input::Disjunction::Element const &ele
 }
 
 template <class T, class... A> auto construct_ast(clingo_ast_type_t type, A &&...args) -> clingo_ast * {
-    auto owner = Gringo::Util::construct_shared<std::any>(T{std::forward<A>(args)...});
+    auto owner = Gringo::Util::make_immutable<std::any>(T{std::forward<A>(args)...});
     auto *ptr = std::any_cast<T>(owner.get());
     return new clingo_ast{std::move(owner), static_cast<clingo_ast_type_e>(type), ptr};
 }
@@ -1121,7 +1121,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 va_end(args);
                 *ast = construct_ast<Gringo::Input::TermUnary>(
                     type, convert_loc(lib, loc), static_cast<Gringo::Input::UnaryOperator>(op),
-                    Gringo::Util::construct_shared<Gringo::Input::Term>(rhs->convert<Gringo::Input::Term>()));
+                    Gringo::Util::make_immutable<Gringo::Input::Term>(rhs->convert<Gringo::Input::Term>()));
                 break;
             }
             case clingo_ast_type_term_binary_operation: {
@@ -1134,9 +1134,9 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 va_end(args);
                 *ast = construct_ast<Gringo::Input::TermBinary>(
                     type, convert_loc(lib, loc),
-                    Gringo::Util::construct_shared<Gringo::Input::Term>(lhs->convert<Gringo::Input::Term>()),
+                    Gringo::Util::make_immutable<Gringo::Input::Term>(lhs->convert<Gringo::Input::Term>()),
                     static_cast<Gringo::Input::BinaryOperator>(op),
-                    Gringo::Util::construct_shared<Gringo::Input::Term>(rhs->convert<Gringo::Input::Term>()));
+                    Gringo::Util::make_immutable<Gringo::Input::Term>(rhs->convert<Gringo::Input::Term>()));
                 break;
             }
             case clingo_ast_type_argument_tuple: {
@@ -1691,7 +1691,7 @@ extern "C" auto clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_
                     lib->log.reset();
                     throw std::runtime_error("parsing term failed");
                 }
-                auto owner = Gringo::Util::construct_shared<std::any>(std::move(term).value());
+                auto owner = Gringo::Util::make_immutable<std::any>(std::move(term).value());
                 auto const *ptr = std::any_cast<Gringo::Input::Term>(owner.get());
                 *ast = make_ast(owner, *ptr).release();
                 break;
@@ -1702,7 +1702,7 @@ extern "C" auto clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_
                     lib->log.reset();
                     throw std::runtime_error("parsing term failed");
                 }
-                auto owner = Gringo::Util::construct_shared<std::any>(std::move(lit).value());
+                auto owner = Gringo::Util::make_immutable<std::any>(std::move(lit).value());
                 auto const *ptr = std::any_cast<Gringo::Input::Literal>(owner.get());
                 *ast = make_ast(owner, *ptr).release();
                 break;

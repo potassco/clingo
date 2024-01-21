@@ -50,7 +50,7 @@ template <class T> class Visitor {
         }
     }
 
-    template <class U> auto accept_(Util::shared_ptr<U> const &ptr) const { visit(*ptr); }
+    template <class U> auto accept_(Util::immutable_value<U> const &ptr) const { visit(*ptr); }
 
     template <class U, class V> auto accept_(std::pair<U, V> const &pair) const {
         visit(pair.first);
@@ -77,7 +77,7 @@ template <class T> class Visitor {
         }
     }
 
-    template <class U> void accept_(Util::immutable_vector<U> const &vec) const { visit(vec.vector()); }
+    template <class U> void accept_(Util::immutable_array<U> const &vec) const { visit(vec.vector()); }
 
     // igonre
 

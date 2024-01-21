@@ -5,8 +5,8 @@
 #include <vector>
 
 #include <gringo/util/algorithm.hh>
+#include <gringo/util/immutable_value.hh>
 #include <gringo/util/optional.hh>
-#include <gringo/util/shared_ptr.hh>
 
 #include <gringo/input/program.hh>
 
@@ -85,8 +85,9 @@ template <class T> class Transformer {
         return std::nullopt;
     }
 
-    template <class U> auto accept_(Util::shared_ptr<U> const &ptr) const -> std::optional<Util::shared_ptr<U>> {
-        return Util::transform(transform(*ptr), [](U val) { return Util::construct_shared<U>(std::move(val)); });
+    template <class U>
+    auto accept_(Util::immutable_value<U> const &ptr) const -> std::optional<Util::immutable_value<U>> {
+        return Util::transform(transform(*ptr), [](U val) { return Util::make_immutable<U>(std::move(val)); });
     }
 
     template <class U, class V> auto accept_(std::pair<U, V> const &pair) const -> std::optional<std::pair<U, V>> {
@@ -126,7 +127,7 @@ template <class T> class Transformer {
     }
 
     template <class U>
-    auto accept_(Util::immutable_vector<U> const &vec) const -> std::optional<Util::immutable_vector<U>> {
+    auto accept_(Util::immutable_array<U> const &vec) const -> std::optional<Util::immutable_array<U>> {
         return accept_(vec.vector());
     }
 

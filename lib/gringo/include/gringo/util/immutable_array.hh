@@ -3,18 +3,18 @@
 #include <stdexcept>
 #include <vector>
 
-#include <gringo/util/shared_ptr.hh>
+#include <gringo/util/immutable_value.hh>
 #include <tcb/span.hpp>
 
 namespace Gringo::Util {
 
-//! @addtogroup core_shared_ptr
+//! @addtogroup core_immutable
 //! @{
 
-//! An const vector with efficient copying.
+//! An immutable array with efficient copying.
 //!
 //! Note that this can be implemented more efficiently avoiding the double indirection.
-template <typename T> class immutable_vector {
+template <typename T> class immutable_array {
   private:
     using vector_type = std::vector<T>;
 
@@ -27,36 +27,36 @@ template <typename T> class immutable_vector {
     using const_pointer = typename vector_type::const_pointer;
     using const_iterator = typename vector_type::const_iterator;
 
-    constexpr immutable_vector() noexcept = default;
+    constexpr immutable_array() noexcept = default;
 
-    immutable_vector(immutable_vector const &other) = default;
+    immutable_array(immutable_array const &other) = default;
 
-    immutable_vector(immutable_vector &&other) noexcept = default;
+    immutable_array(immutable_array &&other) noexcept = default;
 
-    auto operator=(immutable_vector const &other) noexcept -> immutable_vector & = default;
+    auto operator=(immutable_array const &other) noexcept -> immutable_array & = default;
 
-    auto operator=(immutable_vector &&other) noexcept -> immutable_vector & = default;
+    auto operator=(immutable_array &&other) noexcept -> immutable_array & = default;
 
     operator std::vector<T> const &() const noexcept { return vector(); }
 
-    immutable_vector(std::vector<T> &&vec) {
+    immutable_array(std::vector<T> &&vec) {
         if (!vec.empty()) {
             vec.shrink_to_fit();
-            vec_ = Util::construct_shared<vector_type>(std::move(vec));
+            vec_ = Util::make_immutable<vector_type>(std::move(vec));
         }
     }
 
-    immutable_vector(std::vector<T> const &vec) : immutable_vector{std::vector<T>{vec}} {}
+    immutable_array(std::vector<T> const &vec) : immutable_array{std::vector<T>{vec}} {}
 
-    template <class It> immutable_vector(It first, It last) {
+    template <class It> immutable_array(It first, It last) {
         if (first != last) {
-            vec_ = Util::construct_shared<vector_type>(first, last);
+            vec_ = Util::make_immutable<vector_type>(first, last);
         }
     }
 
-    immutable_vector(std::initializer_list<T> init) {
+    immutable_array(std::initializer_list<T> init) {
         if (init.size() > 0) {
-            vec_ = Util::construct_shared<vector_type>(std::move(init));
+            vec_ = Util::make_immutable<vector_type>(std::move(init));
         }
     }
 
@@ -88,41 +88,41 @@ template <typename T> class immutable_vector {
 
     [[nodiscard]] auto size() const noexcept -> size_type { return vector().size(); }
 
-    void swap(immutable_vector &other) noexcept { swap(other.vec_, vec_); }
+    void swap(immutable_array &other) noexcept { swap(other.vec_, vec_); }
 
-    friend auto operator==(immutable_vector const &lhs, immutable_vector const &rhs) -> bool {
+    friend auto operator==(immutable_array const &lhs, immutable_array const &rhs) -> bool {
         return lhs.size() == rhs.size() && std::equal(lhs.begin(), lhs.end(), rhs.begin());
     }
 
-    friend auto operator!=(immutable_vector const &lhs, immutable_vector const &rhs) -> bool { return !(lhs == rhs); }
+    friend auto operator!=(immutable_array const &lhs, immutable_array const &rhs) -> bool { return !(lhs == rhs); }
 
-    friend auto operator<(immutable_vector const &lhs, immutable_vector const &rhs) -> bool {
+    friend auto operator<(immutable_array const &lhs, immutable_array const &rhs) -> bool {
         return std::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
     }
 
-    friend auto operator<=(immutable_vector const &lhs, immutable_vector const &rhs) -> bool { return !(rhs < lhs); }
+    friend auto operator<=(immutable_array const &lhs, immutable_array const &rhs) -> bool { return !(rhs < lhs); }
 
-    friend auto operator>(immutable_vector const &lhs, immutable_vector const &rhs) -> bool { return (rhs < lhs); }
+    friend auto operator>(immutable_array const &lhs, immutable_array const &rhs) -> bool { return (rhs < lhs); }
 
-    friend auto operator>=(immutable_vector const &lhs, immutable_vector const &rhs) -> bool { return !(lhs < rhs); }
+    friend auto operator>=(immutable_array const &lhs, immutable_array const &rhs) -> bool { return !(lhs < rhs); }
 
   private:
     static auto empty_() -> std::vector<T> const & {
         static std::vector<T> res;
         return res;
     }
-    Util::shared_ptr<vector_type> vec_;
+    Util::immutable_value<vector_type> vec_;
 };
 
-template <class It> immutable_vector(It, It) -> immutable_vector<typename std::iterator_traits<It>::value_type>;
+template <class It> immutable_array(It, It) -> immutable_array<typename std::iterator_traits<It>::value_type>;
 
-template <class T> void swap(immutable_vector<T> &lhs, immutable_vector<T> &rhs) noexcept { lhs.swap(rhs); }
+template <class T> void swap(immutable_array<T> &lhs, immutable_array<T> &rhs) noexcept { lhs.swap(rhs); }
 
-template <class T, class... Ts> auto make_immutable_vector(Ts &&...args) -> immutable_vector<T> {
+template <class T, class... Ts> auto make_immutable_array(Ts &&...args) -> immutable_array<T> {
     std::vector<T> res;
     res.reserve(sizeof...(Ts));
     (res.emplace_back(std::forward<Ts>(args)), ...);
-    return immutable_vector(std::move(res));
+    return immutable_array(std::move(res));
 }
 
 //! @}

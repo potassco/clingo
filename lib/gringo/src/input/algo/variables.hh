@@ -29,7 +29,7 @@ template <class P> class VarVisitHelper : public P {
 
     void add(Projection const &x) { static_cast<void>(x); }
 
-    template <class T> void add(Util::shared_ptr<T> const &ptr) { add(*ptr); }
+    template <class T> void add(Util::immutable_value<T> const &ptr) { add(*ptr); }
 
     template <class T> void add(std::optional<T> const &opt) {
         if (opt.has_value()) {

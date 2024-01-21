@@ -29,13 +29,9 @@ struct Rule {
 };
 
 //! Compare two rules.
-//!
-//! @related Rule.
 auto operator==(Rule const &a, Rule const &b) -> bool;
 
 //! Compare two rules.
-//!
-//! @related Rule.
 auto operator<(Rule const &a, Rule const &b) -> bool;
 
 //! The type of a theory operator.
@@ -66,19 +62,13 @@ struct TheoryOpDefinition {
 };
 
 //! Compare two theory operator definitions.
-//!
-//! @related TheoryOpDefinition.
 auto operator==(TheoryOpDefinition const &a, TheoryOpDefinition const &b) -> bool;
 
 //! Compare two theory operator definitions.
-//!
-//! @related TheoryOpDefinition.
 auto operator<(TheoryOpDefinition const &a, TheoryOpDefinition const &b) -> bool;
 
 //! A vector of theory operator definitions.
-//!
-//! @related TheoryOpDefinition
-using TheoryOpDefinitionVec = Util::immutable_vector<TheoryOpDefinition>;
+using TheoryOpDefinitionVec = Util::immutable_array<TheoryOpDefinition>;
 
 //! A theory term definition.
 //!
@@ -93,22 +83,16 @@ struct TheoryTermDefinition {
     //! The name of the definition.
     String name;
     //! The associated operator definitions.
-    Util::immutable_vector<TheoryOpDefinition> op_defs;
+    Util::immutable_array<TheoryOpDefinition> op_defs;
 };
 
 //! A vector of theory term definitions.
-//!
-//! @related TheoryTermDefinition
-using TheoryTermDefinitionVec = Util::immutable_vector<TheoryTermDefinition>;
+using TheoryTermDefinitionVec = Util::immutable_array<TheoryTermDefinition>;
 
 //! Compare two theory term definitions.
-//!
-//! @related TheoryTermDefinition.
 auto operator==(TheoryTermDefinition const &a, TheoryTermDefinition const &b) -> bool;
 
 //! Compare two theory term definitions.
-//!
-//! @related TheoryTermDefinition.
 auto operator<(TheoryTermDefinition const &a, TheoryTermDefinition const &b) -> bool;
 
 //! Enumeration of theory atom types.
@@ -128,7 +112,7 @@ struct TheoryAtomDefinition {
     //! An optional definition for the right-hand-side of a theory atom.
     //!
     //! It consists of a list of possible operators and a name of a term definition.
-    using RHS = std::optional<std::pair<Util::immutable_vector<String>, String>>;
+    using RHS = std::optional<std::pair<Util::immutable_array<String>, String>>;
 
     //! Construct a theory atom definition.
     explicit TheoryAtomDefinition(Location loc, String name, int arity, String term, RHS rhs, TheoryAtomType type)
@@ -149,18 +133,12 @@ struct TheoryAtomDefinition {
 };
 
 //! A vector of theory atom definitions.
-//!
-//! @related TheoryAtomDefinition
-using TheoryAtomDefinitionVec = Util::immutable_vector<TheoryAtomDefinition>;
+using TheoryAtomDefinitionVec = Util::immutable_array<TheoryAtomDefinition>;
 
 //! Compare two theory atom definitions.
-//!
-//! @related TheoryAtomDefinition.
 auto operator==(TheoryAtomDefinition const &a, TheoryAtomDefinition const &b) -> bool;
 
 //! Compare two theory atom definitions.
-//!
-//! @related TheoryAtomDefinition.
 auto operator<(TheoryAtomDefinition const &a, TheoryAtomDefinition const &b) -> bool;
 
 //! A theory definition.
@@ -183,13 +161,9 @@ struct TheoryDefinition {
 };
 
 //! Compare two theory definitions.
-//!
-//! @related TheoryDefinition.
 auto operator==(TheoryDefinition const &a, TheoryDefinition const &b) -> bool;
 
 //! Compare two theory definitions.
-//!
-//! @related TheoryDefinition.
 auto operator<(TheoryDefinition const &a, TheoryDefinition const &b) -> bool;
 
 //! Enumeration of optimization statement types.
@@ -213,7 +187,7 @@ struct StatementOptimize {
     //! An element.
     using Element = std::pair<Tuple, LiteralVec>;
     //! A vector of elements.
-    using ElementVec = Util::immutable_vector<Element>;
+    using ElementVec = Util::immutable_array<Element>;
 
     //! Construct a weak constraint.
     explicit StatementOptimize(Location loc, OptimizeType type, ElementVec elems)
@@ -226,6 +200,18 @@ struct StatementOptimize {
     //! The elements of the statement.
     ElementVec elems;
 };
+
+//! Compare two tuples.
+auto operator==(StatementOptimize::Tuple const &a, StatementOptimize::Tuple const &b) -> bool;
+
+//! Compare two optimization tuples.
+auto operator<(StatementOptimize::Tuple const &a, StatementOptimize::Tuple const &b) -> bool;
+
+//! Compare two optimization statements.
+auto operator==(StatementOptimize const &a, StatementOptimize const &b) -> bool;
+
+//! Compare two optimization statements.
+auto operator<(StatementOptimize const &a, StatementOptimize const &b) -> bool;
 
 //! A weak constraint.
 //!
@@ -246,6 +232,12 @@ struct StatementWeakConstraint {
     Tuple tuple;
 };
 
+//! Compare two weak constraints.
+auto operator==(StatementWeakConstraint const &a, StatementWeakConstraint const &b) -> bool;
+
+//! Compare two weak constraints.
+auto operator<(StatementWeakConstraint const &a, StatementWeakConstraint const &b) -> bool;
+
 //! A show statement.
 //!
 //! Example: <tt>\#show p(X): q(X)</tt>.
@@ -261,6 +253,12 @@ struct StatementShow {
     //! The body.
     BodyLiteralVec body;
 };
+
+//! Compare two show statements.
+auto operator==(StatementShow const &a, StatementShow const &b) -> bool;
+
+//! Compare two show statements.
+auto operator<(StatementShow const &a, StatementShow const &b) -> bool;
 
 //! A show signature statement.
 //!
@@ -280,6 +278,12 @@ struct StatementShowSig {
     int arity;
 };
 
+//! Compare two show statements.
+auto operator==(StatementShowSig const &a, StatementShowSig const &b) -> bool;
+
+//! Compare two show statements.
+auto operator<(StatementShowSig const &a, StatementShowSig const &b) -> bool;
+
 //! A project statement.
 //!
 //! Example: <tt>\#project p(X): q(X)</tt>.
@@ -295,6 +299,12 @@ struct StatementProject {
     //! The body.
     BodyLiteralVec body;
 };
+
+//! Compare two project statements.
+auto operator==(StatementProject const &a, StatementProject const &b) -> bool;
+
+//! Compare two project statements.
+auto operator<(StatementProject const &a, StatementProject const &b) -> bool;
 
 //! A project signature statement.
 //!
@@ -314,6 +324,12 @@ struct StatementProjectSig {
     int arity;
 };
 
+//! Compare two project statements.
+auto operator==(StatementProjectSig const &a, StatementProjectSig const &b) -> bool;
+
+//! Compare two project statements.
+auto operator<(StatementProjectSig const &a, StatementProjectSig const &b) -> bool;
+
 //! A defined statement.
 //!
 //! Example: <tt>\#defined p/2</tt>.
@@ -331,6 +347,12 @@ struct StatementDefined {
     //! The arity.
     int arity;
 };
+
+//! Compare two defined statements.
+auto operator==(StatementDefined const &a, StatementDefined const &b) -> bool;
+
+//! Compare two defined statements.
+auto operator<(StatementDefined const &a, StatementDefined const &b) -> bool;
 
 //! An external statement.
 //!
@@ -350,6 +372,12 @@ struct StatementExternal {
     std::optional<Term> type;
 };
 
+//! Compare two external statements.
+auto operator==(StatementExternal const &a, StatementExternal const &b) -> bool;
+
+//! Compare two external statements.
+auto operator<(StatementExternal const &a, StatementExternal const &b) -> bool;
+
 //! An edge statement.
 //!
 //! Example: <tt>\#edge (X,Y): connected(X,Y).</tt>.
@@ -362,7 +390,7 @@ struct StatementEdge {
         Term v;
     };
     //! A vector of edges.
-    using EdgeVec = Util::immutable_vector<Edge>;
+    using EdgeVec = Util::immutable_array<Edge>;
 
     //! Construct an edge statement.
     explicit StatementEdge(Location loc, EdgeVec edges, BodyLiteralVec body = {})
@@ -375,6 +403,18 @@ struct StatementEdge {
     //! The body.
     BodyLiteralVec body;
 };
+
+//! Compare two edges.
+auto operator==(StatementEdge::Edge const &a, StatementEdge::Edge const &b) -> bool;
+
+//! Compare two edges.
+auto operator<(StatementEdge::Edge const &a, StatementEdge::Edge const &b) -> bool;
+
+//! Compare two edge statements.
+auto operator==(StatementEdge const &a, StatementEdge const &b) -> bool;
+
+//! Compare two edge statements.
+auto operator<(StatementEdge const &a, StatementEdge const &b) -> bool;
 
 //! A heuristic statement.
 //!
@@ -409,6 +449,12 @@ struct StatementHeuristic {
     Term mod;
 };
 
+//! Compare two heuristic statements.
+auto operator==(StatementHeuristic const &a, StatementHeuristic const &b) -> bool;
+
+//! Compare two heuristic statements.
+auto operator<(StatementHeuristic const &a, StatementHeuristic const &b) -> bool;
+
 //! Enumeration of script types.
 //!
 //! @see StatementScript
@@ -432,6 +478,12 @@ struct StatementScript {
     //! The code.
     std::string content;
 };
+
+//! Compare two script statements.
+auto operator==(StatementScript const &a, StatementScript const &b) -> bool;
+
+//! Compare two script statements.
+auto operator<(StatementScript const &a, StatementScript const &b) -> bool;
 
 //! Enumeration of include types.
 //!
@@ -457,12 +509,18 @@ struct StatementInclude {
     std::string path;
 };
 
+//! Compare two include statements.
+auto operator==(StatementInclude const &a, StatementInclude const &b) -> bool;
+
+//! Compare two include statements.
+auto operator<(StatementInclude const &a, StatementInclude const &b) -> bool;
+
 //! A program statement.
 //!
 //! For example: <tt>\#program check(t)"</tt>.
 struct StatementProgram {
     //! Construct an program statement.
-    explicit StatementProgram(Location loc, String name, Util::immutable_vector<String> args)
+    explicit StatementProgram(Location loc, String name, Util::immutable_array<String> args)
         : loc{std::move(loc)}, name(name), args(std::move(args)) {}
 
     //! The location of the statement.
@@ -470,8 +528,14 @@ struct StatementProgram {
     //! The name of the program.
     String name;
     //! The arguments of the program.
-    Util::immutable_vector<String> args;
+    Util::immutable_array<String> args;
 };
+
+//! Compare two program statements.
+auto operator==(StatementProgram const &a, StatementProgram const &b) -> bool;
+
+//! Compare two program statements.
+auto operator<(StatementProgram const &a, StatementProgram const &b) -> bool;
 
 //! Enumeration of constant statement types.
 //!
@@ -499,6 +563,12 @@ struct StatementConst {
     Term value;
 };
 
+//! Compare two const statements.
+auto operator==(StatementConst const &a, StatementConst const &b) -> bool;
+
+//! Compare two const statements.
+auto operator<(StatementConst const &a, StatementConst const &b) -> bool;
+
 //! Enumeration of comment types.
 //!
 //! @related Comment
@@ -523,6 +593,12 @@ struct Comment {
     std::string value;
 };
 
+//! Compare two comments.
+auto operator==(Comment const &a, Comment const &b) -> bool;
+
+//! Compare two comments.
+auto operator<(Comment const &a, Comment const &b) -> bool;
+
 //! Variant of available statements.
 using Statement =
     std::variant<Rule, TheoryDefinition, StatementOptimize, StatementWeakConstraint, StatementShow, StatementShowSig,
@@ -541,6 +617,23 @@ GRINGO_HASH_PROTO(Gringo::Input::TheoryOpDefinition);
 GRINGO_HASH_PROTO(Gringo::Input::TheoryTermDefinition);
 GRINGO_HASH_PROTO(Gringo::Input::TheoryAtomDefinition);
 GRINGO_HASH_PROTO(Gringo::Input::TheoryDefinition);
+GRINGO_HASH_PROTO(Gringo::Input::StatementOptimize::Tuple);
+GRINGO_HASH_PROTO(Gringo::Input::StatementEdge::Edge);
 GRINGO_HASH_PROTO(Gringo::Input::Rule);
+GRINGO_HASH_PROTO(Gringo::Input::StatementOptimize);
+GRINGO_HASH_PROTO(Gringo::Input::StatementWeakConstraint);
+GRINGO_HASH_PROTO(Gringo::Input::StatementShow);
+GRINGO_HASH_PROTO(Gringo::Input::StatementShowSig);
+GRINGO_HASH_PROTO(Gringo::Input::StatementProject);
+GRINGO_HASH_PROTO(Gringo::Input::StatementProjectSig);
+GRINGO_HASH_PROTO(Gringo::Input::StatementDefined);
+GRINGO_HASH_PROTO(Gringo::Input::StatementExternal);
+GRINGO_HASH_PROTO(Gringo::Input::StatementEdge);
+GRINGO_HASH_PROTO(Gringo::Input::StatementHeuristic);
+GRINGO_HASH_PROTO(Gringo::Input::StatementScript);
+GRINGO_HASH_PROTO(Gringo::Input::StatementInclude);
+GRINGO_HASH_PROTO(Gringo::Input::StatementProgram);
+GRINGO_HASH_PROTO(Gringo::Input::StatementConst);
+GRINGO_HASH_PROTO(Gringo::Input::Comment);
 
 #endif

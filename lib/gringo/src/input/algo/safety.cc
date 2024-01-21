@@ -273,9 +273,7 @@ template <class T> void vv_(std::vector<T> const &vec, VarVisitFun fun) {
     }
 }
 
-template <class T> void vv_(Util::immutable_vector<T> const &vec, VarVisitFun fun) {
-    vv_(vec.vector(), std::move(fun));
-}
+template <class T> void vv_(Util::immutable_array<T> const &vec, VarVisitFun fun) { vv_(vec.vector(), std::move(fun)); }
 
 auto check_provided(VariableSet const &bound, VariableSet const &provided, auto &&...args) -> bool {
     VariableVec depend;

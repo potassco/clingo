@@ -22,7 +22,7 @@ struct TheoryTermUnparsed;
 using TheoryTerm =
     std::variant<TheoryTermSymbol, TheoryTermVariable, TheoryTermTuple, TheoryTermFunction, TheoryTermUnparsed>;
 //! A vector of theory terms.
-using TheoryTermVec = Util::immutable_vector<TheoryTerm>;
+using TheoryTermVec = Util::immutable_array<TheoryTerm>;
 
 //! A symbolic theory term.
 //!
@@ -142,14 +142,14 @@ auto operator<(TheoryTermFunction const &a, TheoryTermFunction const &b) -> bool
 //! For example: <tt>- X ++ Y << Z</tt>.
 struct TheoryTermUnparsed {
     //! A vector of operators.
-    using OpVec = Util::immutable_vector<String>;
+    using OpVec = Util::immutable_array<String>;
     //! An element having the form of a right guard.
     using Element = std::pair<OpVec, TheoryTerm>;
     //! A vector of elements.
     //!
     //! In this context, it has to have at least length one.
     //! Furthermore, all but the first element must have at least one operator.
-    using ElementVec = Util::immutable_vector<Element>;
+    using ElementVec = Util::immutable_array<Element>;
 
     //! Construct an unparsed theory term.
     explicit TheoryTermUnparsed(Location loc, ElementVec elems);
@@ -192,7 +192,7 @@ struct TheoryElement {
     LiteralVec cond;
 };
 //! A vector of theory atom elements.
-using TheoryElementVec = Util::immutable_vector<TheoryElement>;
+using TheoryElementVec = Util::immutable_array<TheoryElement>;
 
 //! Compare two theory elements.
 //!

@@ -123,37 +123,37 @@ using TermResult =
 //! Convert term results to terms reusing the old term if possible.
 struct ResultAsTerm {
     //! Convert a linear result.
-    [[nodiscard]] auto operator()(TermResultLinear res) -> Util::shared_ptr<Term> {
+    [[nodiscard]] auto operator()(TermResultLinear res) -> Util::immutable_value<Term> {
         auto ret = linear_as_term(ctx, std::move(res));
-        return ret != *term ? Util::construct_shared<Term>(std::move(ret)) : term;
+        return ret != *term ? Util::make_immutable<Term>(std::move(ret)) : term;
     }
 
     //! Convert a failed result.
-    [[nodiscard]] auto operator()(TermResultFail res) const -> Util::shared_ptr<Term> {
+    [[nodiscard]] auto operator()(TermResultFail res) const -> Util::immutable_value<Term> {
         static_cast<void>(res);
         throw std::logic_error("cannot happen");
     }
 
     //! Convert an unchanged result.
-    [[nodiscard]] auto operator()(TermResultUnchanged res) const -> Util::shared_ptr<Term> {
+    [[nodiscard]] auto operator()(TermResultUnchanged res) const -> Util::immutable_value<Term> {
         static_cast<void>(res);
         return term;
     }
 
     //! Convert a changed result.
-    [[nodiscard]] auto operator()(TermResultChanged res) const -> Util::shared_ptr<Term> {
-        return Util::construct_shared<Term>(std::move(res.term));
+    [[nodiscard]] auto operator()(TermResultChanged res) const -> Util::immutable_value<Term> {
+        return Util::make_immutable<Term>(std::move(res.term));
     }
 
     //! Convert a symbol result.
-    [[nodiscard]] auto operator()(TermResultSymbol res) const -> Util::shared_ptr<Term> {
+    [[nodiscard]] auto operator()(TermResultSymbol res) const -> Util::immutable_value<Term> {
         Term ret = TermSymbol{location(*term), res};
-        return ret != *term ? Util::construct_shared<Term>(std::move(ret)) : term;
+        return ret != *term ? Util::make_immutable<Term>(std::move(ret)) : term;
     }
     //! The rewrite context.
     RewriteContext &ctx;
     //! The original term.
-    Util::shared_ptr<Term> const &term;
+    Util::immutable_value<Term> const &term;
 };
 
 //! Convert terms of form V and -V where V is a variable to linear terms.
@@ -540,8 +540,8 @@ struct SimplifyTerm {
                 if (auto opt_res = fold(type.value(), res.term); opt_res.has_value()) {
                     return std::move(opt_res).value();
                 }
-                return TermResultChanged{
-                    type.value(), TermUnary{term.loc, term.op, Util::construct_shared<Term>(std::move(res.term))}};
+                return TermResultChanged{type.value(),
+                                         TermUnary{term.loc, term.op, Util::make_immutable<Term>(std::move(res.term))}};
             }
         };
         return std::visit(simplify, operator()(*term.rhs, flags));
@@ -776,7 +776,7 @@ struct MakeMatchableTerm {
     auto operator()(TermUnary const &term, SimplifyTermFlags flags) const -> Result {
         if (!test(flags, SimplifyTermFlags::unfailable) && term.op == UnaryOperator::negate) {
             return Util::transform(operator()(*term.rhs, flags), [&term](auto &&arg) -> Term {
-                return TermUnary{term.loc, term.op, Util::construct_shared<Term>(std::forward<decltype(arg)>(arg))};
+                return TermUnary{term.loc, term.op, Util::make_immutable<Term>(std::forward<decltype(arg)>(arg))};
             });
         }
         if (!test(flags, SimplifyTermFlags::unfailable) && test(flags, SimplifyTermFlags::nested_matchable)) {
@@ -791,9 +791,9 @@ struct MakeMatchableTerm {
             // The goal here is to avoid adding additional assignments for auxiliary variables
             // that correspond to variables having a numeric value.
             if (test(flags, SimplifyTermFlags::unfailable)) {
-                auto &n = std::get<TermSymbol>(*term.rhs);
-                auto &mx = std::get<TermBinary>(*term.lhs);
-                auto &m = std::get<TermSymbol>(*mx.lhs);
+                const auto &n = std::get<TermSymbol>(*term.rhs);
+                const auto &mx = std::get<TermBinary>(*term.lhs);
+                const auto &m = std::get<TermSymbol>(*mx.lhs);
                 if (*n.value.num() == 0 && *m.value.num() == 1) {
                     for (auto &[lhs, rhs] : ctx.aux()) {
                         if (*mx.rhs == lhs) {

@@ -6,8 +6,8 @@
 #include <gringo/symbol.hh>
 
 #include <gringo/util/hash.hh>
-#include <gringo/util/immutable_vector.hh>
-#include <gringo/util/shared_ptr.hh>
+#include <gringo/util/immutable_array.hh>
+#include <gringo/util/immutable_value.hh>
 
 #include <gringo/input/location.hh>
 
@@ -47,7 +47,7 @@ struct TermBinary;
 using Term = std::variant<TermVariable, TermSymbol, TermTuple, TermFunction, TermAbs, TermUnary, TermBinary>;
 
 //! A vector of terms.
-using TermVec = Util::immutable_vector<Term>;
+using TermVec = Util::immutable_array<Term>;
 
 //! Indicate a projected position.
 struct Projection {
@@ -68,9 +68,9 @@ auto operator<(Projection const &a, Projection const &b) -> bool;
 //! A variant capturing either a term or a position that is to be projected.
 using TupleElem = std::variant<Projection, Term>;
 //! A tuple of terms or positions to project.
-using TupleVec = Util::immutable_vector<TupleElem>;
+using TupleVec = Util::immutable_array<TupleElem>;
 //! A vector of tuples used as function or predicate arguments.
-using PoolVec = Util::immutable_vector<TupleVec>;
+using PoolVec = Util::immutable_array<TupleVec>;
 
 //! Term representing a variable.
 //!
@@ -128,7 +128,7 @@ struct TermTuple {
     //! A tuple element.
     using Element = std::variant<TupleVec, Term>;
     //! A vector of tuple elements.
-    using ElementVec = Util::immutable_vector<Element>;
+    using ElementVec = Util::immutable_array<Element>;
 
     //! Construct a  tuple.
     explicit TermTuple(Location loc, ElementVec args);
@@ -217,14 +217,14 @@ struct TermUnary {
     //! Construct a term for an unary operation.
     explicit TermUnary(Location loc, UnaryOperator op, Term rhs);
     //! Construct a term for an unary operation.
-    explicit TermUnary(Location loc, UnaryOperator op, Util::shared_ptr<Term> rhs);
+    explicit TermUnary(Location loc, UnaryOperator op, Util::immutable_value<Term> rhs);
 
     //! The location of the function.
     Location loc;
     //! The operation.
     UnaryOperator op;
     //! The right-hand-side.
-    Util::shared_ptr<Term> rhs;
+    Util::immutable_value<Term> rhs;
 };
 
 //! Compare two unary terms.
@@ -258,16 +258,17 @@ struct TermBinary {
     //! Construct a term for an binary operation.
     explicit TermBinary(Location loc, Term lhs, BinaryOperator op, Term rhs);
     //! Construct a term for an binary operation.
-    explicit TermBinary(Location loc, Util::shared_ptr<Term> lhs, BinaryOperator op, Util::shared_ptr<Term> rhs);
+    explicit TermBinary(Location loc, Util::immutable_value<Term> lhs, BinaryOperator op,
+                        Util::immutable_value<Term> rhs);
 
     //! The location of the function.
     Location loc;
     //! The operation.
     BinaryOperator op;
     //! The left-hand-side.
-    Util::shared_ptr<Term> lhs;
+    Util::immutable_value<Term> lhs;
     //! The right-hand-side.
-    Util::shared_ptr<Term> rhs;
+    Util::immutable_value<Term> rhs;
 };
 
 //! Compare two binary terms.
@@ -287,13 +288,14 @@ auto operator<(TermBinary const &a, TermBinary const &b) -> bool;
 
 inline TermAbs::TermAbs(Location loc, TermVec pool) : loc{std::move(loc)}, pool{std::move(pool)} {}
 inline TermUnary::TermUnary(Location loc, UnaryOperator op, Term rhs)
-    : loc{std::move(loc)}, op{op}, rhs{Util::construct_shared<Term>(std::move(rhs))} {}
-inline TermUnary::TermUnary(Location loc, UnaryOperator op, Util::shared_ptr<Term> rhs)
+    : loc{std::move(loc)}, op{op}, rhs{Util::make_immutable<Term>(std::move(rhs))} {}
+inline TermUnary::TermUnary(Location loc, UnaryOperator op, Util::immutable_value<Term> rhs)
     : loc{std::move(loc)}, op{op}, rhs{std::move(rhs)} {}
 inline TermBinary::TermBinary(Location loc, Term lhs, BinaryOperator op, Term rhs)
-    : loc{std::move(loc)}, op{op}, lhs{Util::construct_shared<Term>(std::move(lhs))},
-      rhs{Util::construct_shared<Term>(std::move(rhs))} {}
-inline TermBinary::TermBinary(Location loc, Util::shared_ptr<Term> lhs, BinaryOperator op, Util::shared_ptr<Term> rhs)
+    : loc{std::move(loc)}, op{op}, lhs{Util::make_immutable<Term>(std::move(lhs))},
+      rhs{Util::make_immutable<Term>(std::move(rhs))} {}
+inline TermBinary::TermBinary(Location loc, Util::immutable_value<Term> lhs, BinaryOperator op,
+                              Util::immutable_value<Term> rhs)
     : loc{std::move(loc)}, op{op}, lhs{std::move(lhs)}, rhs{std::move(rhs)} {}
 inline TermFunction::TermFunction(Location loc, String name, PoolVec args, bool external)
     : loc{std::move(loc)}, name(std::move(name)), pool{std::move(args)}, external{external} {}
