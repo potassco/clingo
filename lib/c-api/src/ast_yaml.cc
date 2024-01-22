@@ -138,6 +138,16 @@ theory_atom_type:
     directive:
       value: 3
       doc: For theory atoms that must not have a body.
+optimize_type:
+  type: enum
+  doc: Enumeration of optimization types.
+  values:
+    minimize:
+      value: 0
+      doc: For `#minimize` statements.
+    maximize:
+      value: 1
+      doc: For `#maximize` statements.
 term:
   type: union
   types:
@@ -150,6 +160,9 @@ term:
   - term_function
 term_array:
   type: array
+  value_type: term
+optional_term:
+  type: optional
   value_type: term
 projection:
   type: record
@@ -801,19 +814,59 @@ theory_atom_definition:
 theory_atom_definition_array:
   type: array
   value_type: theory_atom_definition
+optimize_tuple:
+  type: record
+  doc: A tuple of an optimizization statement.
+  arguments:
+    weight:
+      type: term
+      doc: The weight of the tuple.
+    priority:
+      type: optional_term
+      doc: An optional priority.
+    terms:
+      type: term_array
+      doc: The remaining terms in the tuple.
+optimize_element:
+  type: record
+  doc: An element of an optimization statement.
+  arguments:
+    tuple:
+      type: optimize_tuple
+      doc: The tuple of the element.
+    condition:
+      type: literal_array
+      doc: The condition of the element.
+optimize_element_array:
+  type: array
+  value_type: optimize_element
+edge:
+  type: record
+  doc: An edge of an edge statement.
+  arguments:
+    u:
+      type: term
+      doc: The start vertex.
+    v:
+      type: term
+      doc: The end vertex.
+edge_array:
+  type: array
+  value_type: edge
 statement:
   type: union
   doc: The available statements.
   types:
   - statement_rule
   - statement_theory
+  - statement_optimize
 statement_rule:
   type: record
   doc: A rule.
   arguments:
     location:
       type: location
-      doc: The location of the element.
+      doc: The location of the statement.
     head:
       type: head_literal
       doc: The head literal.
@@ -826,7 +879,7 @@ statement_theory:
   arguments:
     location:
       type: location
-      doc: The location of the element.
+      doc: The location of the statement.
     name:
       type: string
       doc: The name of the theory.
@@ -836,5 +889,31 @@ statement_theory:
     atoms:
       type: theory_atom_definition_array
       doc: A list of atom definitions.
+statement_optimize:
+  type: record
+  doc: An optimization statement.
+  arguments:
+    location:
+      type: location
+      doc: The location of the statement.
+    elements:
+      type: optimize_element_array
+      doc: The elements of the statement.
+    optimize_type:
+      type: optimize_type
+      doc: The type of the statement.
+statement_weak_constraint:
+  type: record
+  doc: A weak constraint.
+  arguments:
+    location:
+      type: location
+      doc: The location of the statement.
+    body:
+      type: body_literal_array
+      doc: The body of the statement.
+    tuple:
+      type: optimize_tuple
+      doc: The tuple of the statement.
 )yaml";
 }

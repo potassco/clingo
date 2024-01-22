@@ -177,10 +177,8 @@ auto operator<<(std::ostream &out, BodyLiteral const &lit) -> std::ostream &;
 
 //! @}
 
-//! @name Statements
+//! @name Statement Elements
 //! @{
-
-auto operator<<(std::ostream &out, Rule const &stm) -> std::ostream &;
 
 //! Output the definition to the given stream.
 auto operator<<(std::ostream &out, TheoryOpDefinition const &def) -> std::ostream &;
@@ -193,6 +191,22 @@ auto operator<<(std::ostream &out, TheoryRGuardDefinition const &def) -> std::os
 
 //! Output the definition to the given stream.
 auto operator<<(std::ostream &out, TheoryAtomDefinition const &def) -> std::ostream &;
+
+//! Output the optimize tuple to the given stream.
+auto operator<<(std::ostream &out, StatementOptimize::Tuple const &tuple) -> std::ostream &;
+
+//! Output the optimize element to the given stream.
+auto operator<<(std::ostream &out, StatementOptimize::Element const &elem) -> std::ostream &;
+
+//! Output the edge to the given stream.
+auto operator<<(std::ostream &out, StatementEdge::Edge const &edge) -> std::ostream &;
+
+//! @}
+
+//! @name Statements
+//! @{
+
+auto operator<<(std::ostream &out, Rule const &stm) -> std::ostream &;
 
 //! Output the statement to the given stream.
 auto operator<<(std::ostream &out, TheoryDefinition const &stm) -> std::ostream &;

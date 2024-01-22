@@ -60,7 +60,13 @@ auto {{ c_type_name }}::{{ argument_name }}() -> {{ argument_type }} {
         throw std::runtime_error("could not get ast attribute");
     }
     if (ast != nullptr) {
-        return {{ types[argument.type].value_type | camel }}::acquire(ast);
+{%-     set value_type = types[argument.type].value_type %}
+        // {{ value_type }}
+{%-     if types[value_type].type == 'union' %}
+        return construct_{{ value_type }}(ast);
+{%-     else %}
+        return {{ value_type | camel }}::acquire(ast);
+{%-     endif %}
     }
     return std::nullopt;
 }
@@ -81,13 +87,21 @@ auto {{ c_type_name }}::{{ argument_name }}() -> {{ argument_type }} {
     }
     return construct_{{ argument.type }}(ast, size);
 }
-{%    elif types[argument.type].type == 'union' or types[argument.type].type == 'record' %}
+{%    elif types[argument.type].type == 'union' %}
 auto {{ c_type_name }}::{{ argument_name }}() -> {{ argument_type }} {
     clingo_ast_t *ast;
     if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_{{ argument_name }}, &ast)) {
         throw std::runtime_error("could not get ast attribute");
     }
     return construct_{{ argument.type }}(ast);
+}
+{%    elif types[argument.type].type == 'record' %}
+auto {{ c_type_name }}::{{ argument_name }}() -> {{ argument_type }} {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_{{ argument_name }}, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    return {{ argument_type }}::acquire(ast);
 }
 {%    endif %}
 {%-  endfor %}

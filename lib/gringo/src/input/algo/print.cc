@@ -579,24 +579,29 @@ struct Print {
         out << "}.";
     }
 
+    void operator()(StatementOptimize::Tuple const &tuple) const {
+        out << tuple.weight;
+        if (tuple.priority) {
+            out << "@";
+            operator()(*tuple.priority);
+        }
+        if (!tuple.terms.empty()) {
+            out << ",";
+            visit_range(tuple.terms);
+        }
+    }
+
+    void operator()(StatementOptimize::Element const &elem) const {
+        operator()(elem.first);
+        if (!elem.second.empty()) {
+            out << ": ";
+            visit_range(elem.second, ", ");
+        }
+    }
+
     void operator()(StatementOptimize const &stm) const {
         out << stm.type << " { ";
-        apply_to_range_with(stm.elems, "; ", [this](auto const &elem) {
-            auto const &[tuple, cond] = elem;
-            auto const &[weight, prio, terms] = tuple;
-            out << weight;
-            if (prio) {
-                out << "@" << prio.value();
-            }
-            if (!terms.empty()) {
-                out << ",";
-                visit_range(terms);
-            }
-            if (!cond.empty()) {
-                out << ": ";
-                visit_range(cond, ", ");
-            }
-        });
+        apply_to_range(stm.elems, "; ");
         out << (stm.elems.empty() ? "}" : " }") << ".";
     }
 
@@ -654,9 +659,15 @@ struct Print {
         }
     }
 
+    void operator()(StatementEdge::Edge const &edge) const {
+        operator()(edge.u);
+        out << ",";
+        operator()(edge.v);
+    }
+
     void operator()(StatementEdge const &stm) const {
         out << "#edge (";
-        apply_to_range_with(stm.edges, ";", [this](auto const &edge) { out << edge.u << "," << edge.v; });
+        apply_to_range(stm.edges, ";");
         out << ")" << (stm.body.empty() ? "" : ": ");
         visit_range(stm.body, "; ");
         out << ".";
@@ -1046,10 +1057,15 @@ auto operator<<(std::ostream &out, BodyLiteral const &lit) -> std::ostream & {
     return out;
 }
 
-// statements
+// statement elements
 
-auto operator<<(std::ostream &out, Rule const &stm) -> std::ostream & {
-    Print{out}(stm);
+auto operator<<(std::ostream &out, StatementOptimize::Tuple const &tuple) -> std::ostream & {
+    Print{out}(tuple);
+    return out;
+}
+
+auto operator<<(std::ostream &out, StatementOptimize::Element const &elem) -> std::ostream & {
+    Print{out}(elem);
     return out;
 }
 
@@ -1070,6 +1086,18 @@ auto operator<<(std::ostream &out, TheoryRGuardDefinition const &def) -> std::os
 
 auto operator<<(std::ostream &out, TheoryAtomDefinition const &def) -> std::ostream & {
     Print{out}(def, "");
+    return out;
+}
+
+auto operator<<(std::ostream &out, StatementEdge::Edge const &edge) -> std::ostream & {
+    Print{out}(edge);
+    return out;
+}
+
+// statements
+
+auto operator<<(std::ostream &out, Rule const &stm) -> std::ostream & {
+    Print{out}(stm);
     return out;
 }
 

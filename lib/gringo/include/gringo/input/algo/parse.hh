@@ -37,6 +37,8 @@ class Scanner {
 
 //! Parse a term.
 auto parse_term(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<Term>;
+//! Parse a theory term.
+auto parse_theory_term(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<TheoryTerm>;
 //! Parse a literal.
 auto parse_literal(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<Literal>;
 //! Parse a head literal.

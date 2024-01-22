@@ -651,14 +651,65 @@ class TestAST(TestCase):
             ),
         )
 
+    def test_statement_optimize(self):
+        """
+        Test optimization statements.
+        """
+        terms = [ast.parse_term(self.lib, "X"), ast.parse_term(self.lib, "Y")]
+        weight = ast.parse_term(self.lib, "5")
+        prio = ast.parse_term(self.lib, "2")
+        t1 = ast.OptimizeTuple(self.lib, weight, None, terms)
+        t2 = ast.OptimizeTuple(self.lib, weight, prio, terms)
+        self.assertEqual(t1.weight, weight)
+        self.assertIsNone(t1.priority)
+        self.assertEqual(t1.terms, terms)
+        self.assertEqual(t2.priority, prio)
+        self.assertEqual(str(t1), "5,X,Y")
+        self.assertEqual(str(t2), "5@2,X,Y")
+
+        l1 = ast.parse_literal(self.lib, "p(X)")
+        l2 = ast.parse_literal(self.lib, "q(X)")
+        e1 = ast.OptimizeElement(self.lib, t1, [l1, l2])
+        e2 = ast.OptimizeElement(self.lib, t2, [l1, l2])
+        self.assertEqual(e1.tuple, t1)
+        self.assertEqual(e1.condition, [l1, l2])
+        self.assertEqual(str(e1), "5,X,Y: p(X), q(X)")
+        self.assertEqual(str(e2), "5@2,X,Y: p(X), q(X)")
+
+        so1 = ast.StatementOptimize(
+            self.lib, self.loc, [e1, e2], ast.OptimizeType.Minimize
+        )
+        self.assertEqual(so1.location, self.loc)
+        self.assertEqual(so1.elements, [e1, e2])
+        self.assertEqual(so1.optimize_type, ast.OptimizeType.Minimize)
+        self.assertEqual(
+            str(so1), "#minimize { 5,X,Y: p(X), q(X); 5@2,X,Y: p(X), q(X) }."
+        )
+
+        body = [
+            ast.BodySimpleLiteral(self.lib, l1),
+            ast.BodySimpleLiteral(self.lib, l2),
+        ]
+        sw1 = ast.StatementWeakConstraint(self.lib, self.loc, body, t1)
+        self.assertEqual(sw1.body, body)
+        self.assertEqual(sw1.tuple, t1)
+        self.assertEqual(str(sw1), " :~ p(X); q(X). [5,X,Y]")
+
     def test_parse(self):
         """
         Test parsing of asts.
         """
         term = "-f(X+Y,3)"
         self.assertEqual(str(ast.parse_term(self.lib, term)), term)
+        theory_term = "(f ** X)"
+        self.assertEqual(str(ast.parse_theory_term(self.lib, theory_term)), theory_term)
         lit = "not not p(X+2)"
         self.assertEqual(str(ast.parse_literal(self.lib, lit)), lit)
+        head_lit = "a; b: c"
+        self.assertEqual(str(ast.parse_head_literal(self.lib, head_lit)), head_lit)
+        body_lit = "b: c"
+        self.assertEqual(str(ast.parse_body_literal(self.lib, body_lit)), body_lit)
+        # TODO: statement
 
     def test_cmp(self):
         """

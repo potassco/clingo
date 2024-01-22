@@ -382,6 +382,10 @@ auto parse_term(Logger &log, SymbolStore &store, std::string_view str) -> std::o
     return check(log, parse<Grammar::term>(log, store, str), check_term);
 }
 
+auto parse_theory_term(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<TheoryTerm> {
+    return parse<Grammar::theory_term>(log, store, str);
+}
+
 auto parse_literal(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<Literal> {
     return check(log, parse<Grammar::literal>(log, store, str), check_literal);
 }

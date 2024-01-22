@@ -89,6 +89,11 @@ enum class TheoryAtomType {
     Directive = 3,
 };
 
+enum class OptimizeType {
+    Minimize = 0,
+    Maximize = 1,
+};
+
 class TermVariable;
 
 class TermSymbolic;
@@ -111,6 +116,8 @@ auto construct_term(clingo_ast_t *ast) -> Term;
 using TermArray = std::vector<Term>;
 
 auto construct_term_array(clingo_ast_t **ast, size_t size) -> TermArray;
+
+using OptionalTerm = std::optional<Term>;
 
 class Projection {
   public:
@@ -3365,11 +3372,245 @@ using TheoryAtomDefinitionArray = std::vector<TheoryAtomDefinition>;
 
 auto construct_theory_atom_definition_array(clingo_ast_t **ast, size_t size) -> TheoryAtomDefinitionArray;
 
+class OptimizeTuple {
+  public:
+    // Note: for pybind
+    OptimizeTuple() = default;
+
+    OptimizeTuple(OptimizeTuple const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    OptimizeTuple(OptimizeTuple &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(OptimizeTuple const &x) -> OptimizeTuple & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(OptimizeTuple &&x) noexcept -> OptimizeTuple & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(OptimizeTuple const &a, OptimizeTuple const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(OptimizeTuple const &a, OptimizeTuple const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, OptimizeTuple)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~OptimizeTuple() { clingo_ast_free(ast_); }
+
+    auto weight() -> Term;
+
+    auto priority() -> OptionalTerm;
+
+    auto terms() -> TermArray;
+
+    static auto acquire(clingo_ast_t *ast) -> OptimizeTuple { return {ast}; }
+
+    static auto construct(Library &lib, Term const &weight, OptionalTerm const &priority, TermArray const &terms)
+        -> OptimizeTuple;
+
+    friend auto c_cast(OptimizeTuple const &x) -> clingo_ast_t *;
+
+  private:
+    OptimizeTuple(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(OptimizeTuple const &x) -> clingo_ast_t * { return x.ast_; }
+
+class OptimizeElement {
+  public:
+    // Note: for pybind
+    OptimizeElement() = default;
+
+    OptimizeElement(OptimizeElement const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    OptimizeElement(OptimizeElement &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(OptimizeElement const &x) -> OptimizeElement & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(OptimizeElement &&x) noexcept -> OptimizeElement & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(OptimizeElement const &a, OptimizeElement const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(OptimizeElement const &a, OptimizeElement const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, OptimizeElement)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~OptimizeElement() { clingo_ast_free(ast_); }
+
+    auto tuple() -> OptimizeTuple;
+
+    auto condition() -> LiteralArray;
+
+    static auto acquire(clingo_ast_t *ast) -> OptimizeElement { return {ast}; }
+
+    static auto construct(Library &lib, OptimizeTuple const &tuple, LiteralArray const &condition) -> OptimizeElement;
+
+    friend auto c_cast(OptimizeElement const &x) -> clingo_ast_t *;
+
+  private:
+    OptimizeElement(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(OptimizeElement const &x) -> clingo_ast_t * { return x.ast_; }
+
+using OptimizeElementArray = std::vector<OptimizeElement>;
+
+auto construct_optimize_element_array(clingo_ast_t **ast, size_t size) -> OptimizeElementArray;
+
+class Edge {
+  public:
+    // Note: for pybind
+    Edge() = default;
+
+    Edge(Edge const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    Edge(Edge &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(Edge const &x) -> Edge & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(Edge &&x) noexcept -> Edge & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(Edge const &a, Edge const &b) -> bool { return clingo_ast_equal(a.ast_, b.ast_); }
+
+    friend auto operator<(Edge const &a, Edge const &b) -> bool { return clingo_ast_less_than(a.ast_, b.ast_); }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, Edge)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~Edge() { clingo_ast_free(ast_); }
+
+    auto u() -> Term;
+
+    auto v() -> Term;
+
+    static auto acquire(clingo_ast_t *ast) -> Edge { return {ast}; }
+
+    static auto construct(Library &lib, Term const &u, Term const &v) -> Edge;
+
+    friend auto c_cast(Edge const &x) -> clingo_ast_t *;
+
+  private:
+    Edge(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(Edge const &x) -> clingo_ast_t * { return x.ast_; }
+
+using EdgeArray = std::vector<Edge>;
+
+auto construct_edge_array(clingo_ast_t **ast, size_t size) -> EdgeArray;
+
 class StatementRule;
 
 class StatementTheory;
 
-using Statement = std::variant<StatementRule, StatementTheory>;
+class StatementOptimize;
+
+using Statement = std::variant<StatementRule, StatementTheory, StatementOptimize>;
 
 auto construct_statement(clingo_ast_t *ast) -> Statement;
 
@@ -3531,6 +3772,162 @@ class StatementTheory {
 };
 
 inline auto c_cast(StatementTheory const &x) -> clingo_ast_t * { return x.ast_; }
+
+class StatementOptimize {
+  public:
+    // Note: for pybind
+    StatementOptimize() = default;
+
+    StatementOptimize(StatementOptimize const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    StatementOptimize(StatementOptimize &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(StatementOptimize const &x) -> StatementOptimize & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(StatementOptimize &&x) noexcept -> StatementOptimize & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(StatementOptimize const &a, StatementOptimize const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(StatementOptimize const &a, StatementOptimize const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, StatementOptimize)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~StatementOptimize() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    auto elements() -> OptimizeElementArray;
+
+    auto optimize_type() -> OptimizeType;
+
+    static auto acquire(clingo_ast_t *ast) -> StatementOptimize { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, OptimizeElementArray const &elements,
+                          OptimizeType const &optimize_type) -> StatementOptimize;
+
+    friend auto c_cast(StatementOptimize const &x) -> clingo_ast_t *;
+
+  private:
+    StatementOptimize(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(StatementOptimize const &x) -> clingo_ast_t * { return x.ast_; }
+
+class StatementWeakConstraint {
+  public:
+    // Note: for pybind
+    StatementWeakConstraint() = default;
+
+    StatementWeakConstraint(StatementWeakConstraint const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    StatementWeakConstraint(StatementWeakConstraint &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(StatementWeakConstraint const &x) -> StatementWeakConstraint & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(StatementWeakConstraint &&x) noexcept -> StatementWeakConstraint & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(StatementWeakConstraint const &a, StatementWeakConstraint const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(StatementWeakConstraint const &a, StatementWeakConstraint const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, StatementWeakConstraint)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~StatementWeakConstraint() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    auto body() -> BodyLiteralArray;
+
+    auto tuple() -> OptimizeTuple;
+
+    static auto acquire(clingo_ast_t *ast) -> StatementWeakConstraint { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, BodyLiteralArray const &body,
+                          OptimizeTuple const &tuple) -> StatementWeakConstraint;
+
+    friend auto c_cast(StatementWeakConstraint const &x) -> clingo_ast_t *;
+
+  private:
+    StatementWeakConstraint(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(StatementWeakConstraint const &x) -> clingo_ast_t * { return x.ast_; }
 
 auto construct_term(clingo_ast_t *ast) -> Term {
     clingo_ast_type_t type;
@@ -4651,6 +5048,7 @@ auto BodyAggregate::left() -> OptionalLeftGuard {
         throw std::runtime_error("could not get ast attribute");
     }
     if (ast != nullptr) {
+        // left_guard
         return LeftGuard::acquire(ast);
     }
     return std::nullopt;
@@ -4679,6 +5077,7 @@ auto BodyAggregate::right() -> OptionalRightGuard {
         throw std::runtime_error("could not get ast attribute");
     }
     if (ast != nullptr) {
+        // right_guard
         return RightGuard::acquire(ast);
     }
     return std::nullopt;
@@ -4717,6 +5116,7 @@ auto BodySetAggregate::left() -> OptionalLeftGuard {
         throw std::runtime_error("could not get ast attribute");
     }
     if (ast != nullptr) {
+        // left_guard
         return LeftGuard::acquire(ast);
     }
     return std::nullopt;
@@ -4737,6 +5137,7 @@ auto BodySetAggregate::right() -> OptionalRightGuard {
         throw std::runtime_error("could not get ast attribute");
     }
     if (ast != nullptr) {
+        // right_guard
         return RightGuard::acquire(ast);
     }
     return std::nullopt;
@@ -4791,6 +5192,7 @@ auto BodyTheoryAtom::right() -> OptionalTheoryRightGuard {
         throw std::runtime_error("could not get ast attribute");
     }
     if (ast != nullptr) {
+        // theory_right_guard
         return TheoryRightGuard::acquire(ast);
     }
     return std::nullopt;
@@ -5028,6 +5430,7 @@ auto HeadAggregate::left() -> OptionalLeftGuard {
         throw std::runtime_error("could not get ast attribute");
     }
     if (ast != nullptr) {
+        // left_guard
         return LeftGuard::acquire(ast);
     }
     return std::nullopt;
@@ -5056,6 +5459,7 @@ auto HeadAggregate::right() -> OptionalRightGuard {
         throw std::runtime_error("could not get ast attribute");
     }
     if (ast != nullptr) {
+        // right_guard
         return RightGuard::acquire(ast);
     }
     return std::nullopt;
@@ -5085,6 +5489,7 @@ auto HeadSetAggregate::left() -> OptionalLeftGuard {
         throw std::runtime_error("could not get ast attribute");
     }
     if (ast != nullptr) {
+        // left_guard
         return LeftGuard::acquire(ast);
     }
     return std::nullopt;
@@ -5105,6 +5510,7 @@ auto HeadSetAggregate::right() -> OptionalRightGuard {
         throw std::runtime_error("could not get ast attribute");
     }
     if (ast != nullptr) {
+        // right_guard
         return RightGuard::acquire(ast);
     }
     return std::nullopt;
@@ -5150,6 +5556,7 @@ auto HeadTheoryAtom::right() -> OptionalTheoryRightGuard {
         throw std::runtime_error("could not get ast attribute");
     }
     if (ast != nullptr) {
+        // theory_right_guard
         return TheoryRightGuard::acquire(ast);
     }
     return std::nullopt;
@@ -5364,6 +5771,7 @@ auto TheoryAtomDefinition::guard() -> OptionalTheoryGuardDefinition {
         throw std::runtime_error("could not get ast attribute");
     }
     if (ast != nullptr) {
+        // theory_guard_definition
         return TheoryGuardDefinition::acquire(ast);
     }
     return std::nullopt;
@@ -5403,6 +5811,124 @@ auto construct_theory_atom_definition_array(clingo_ast_t **ast, size_t size) -> 
     return ret;
 }
 
+auto OptimizeTuple::weight() -> Term {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_weight, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    return construct_term(ast);
+}
+
+auto OptimizeTuple::priority() -> OptionalTerm {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_priority, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    if (ast != nullptr) {
+        // term
+        return construct_term(ast);
+    }
+    return std::nullopt;
+}
+
+auto OptimizeTuple::terms() -> TermArray {
+    clingo_ast_t **ast;
+    size_t size;
+    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_terms, &ast, &size)) {
+        throw std::runtime_error("could not get ast array attribute");
+    }
+    return construct_term_array(ast, size);
+}
+
+auto OptimizeTuple::construct(Library &lib, Term const &weight, OptionalTerm const &priority, TermArray const &terms)
+    -> OptimizeTuple {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_optimize_tuple, &res_, c_cast(weight), c_cast(priority),
+                                           c_cast(terms).data(), terms.size()));
+    return OptimizeTuple::acquire(res_);
+}
+
+auto OptimizeElement::tuple() -> OptimizeTuple {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_tuple, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    return OptimizeTuple::acquire(ast);
+}
+
+auto OptimizeElement::condition() -> LiteralArray {
+    clingo_ast_t **ast;
+    size_t size;
+    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_condition, &ast, &size)) {
+        throw std::runtime_error("could not get ast array attribute");
+    }
+    return construct_literal_array(ast, size);
+}
+
+auto OptimizeElement::construct(Library &lib, OptimizeTuple const &tuple, LiteralArray const &condition)
+    -> OptimizeElement {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_optimize_element, &res_, c_cast(tuple),
+                                           c_cast(condition).data(), condition.size()));
+    return OptimizeElement::acquire(res_);
+}
+
+auto construct_optimize_element_array(clingo_ast_t **ast, size_t size) -> OptimizeElementArray {
+    OptimizeElementArray ret;
+    try {
+        ret.reserve(size);
+        std::for_each_n(ast, size, [&ret](auto &arg) {
+            auto tmp = arg;
+            arg = nullptr;
+            ret.emplace_back(OptimizeElement::acquire(tmp));
+        });
+        clingo_ast_array_free(ast, size);
+    } catch (...) {
+        clingo_ast_array_free(ast, size);
+        throw;
+    }
+    return ret;
+}
+
+auto Edge::u() -> Term {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_u, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    return construct_term(ast);
+}
+
+auto Edge::v() -> Term {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_v, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    return construct_term(ast);
+}
+
+auto Edge::construct(Library &lib, Term const &u, Term const &v) -> Edge {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_edge, &res_, c_cast(u), c_cast(v)));
+    return Edge::acquire(res_);
+}
+
+auto construct_edge_array(clingo_ast_t **ast, size_t size) -> EdgeArray {
+    EdgeArray ret;
+    try {
+        ret.reserve(size);
+        std::for_each_n(ast, size, [&ret](auto &arg) {
+            auto tmp = arg;
+            arg = nullptr;
+            ret.emplace_back(Edge::acquire(tmp));
+        });
+        clingo_ast_array_free(ast, size);
+    } catch (...) {
+        clingo_ast_array_free(ast, size);
+        throw;
+    }
+    return ret;
+}
+
 auto construct_statement(clingo_ast_t *ast) -> Statement {
     clingo_ast_type_t type;
     if (!clingo_ast_get_type(ast, &type)) {
@@ -5415,6 +5941,9 @@ auto construct_statement(clingo_ast_t *ast) -> Statement {
         }
         case clingo_ast_type_statement_theory: {
             return StatementTheory::acquire(ast);
+        }
+        case clingo_ast_type_statement_optimize: {
+            return StatementOptimize::acquire(ast);
         }
     }
     clingo_ast_free(ast);
@@ -5497,6 +6026,72 @@ auto StatementTheory::construct(Library &lib, clingo_location_t const &location,
     return StatementTheory::acquire(res_);
 }
 
+auto StatementOptimize::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto StatementOptimize::elements() -> OptimizeElementArray {
+    clingo_ast_t **ast;
+    size_t size;
+    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &ast, &size)) {
+        throw std::runtime_error("could not get ast array attribute");
+    }
+    return construct_optimize_element_array(ast, size);
+}
+
+auto StatementOptimize::optimize_type() -> OptimizeType {
+    int ret;
+    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_optimize_type, &ret)) {
+        throw std::runtime_error("could not get number attribute");
+    }
+    return static_cast<OptimizeType>(ret);
+}
+
+auto StatementOptimize::construct(Library &lib, clingo_location_t const &location, OptimizeElementArray const &elements,
+                                  OptimizeType const &optimize_type) -> StatementOptimize {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_optimize, &res_, &location,
+                                           c_cast(elements).data(), elements.size(), static_cast<int>(optimize_type)));
+    return StatementOptimize::acquire(res_);
+}
+
+auto StatementWeakConstraint::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto StatementWeakConstraint::body() -> BodyLiteralArray {
+    clingo_ast_t **ast;
+    size_t size;
+    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_body, &ast, &size)) {
+        throw std::runtime_error("could not get ast array attribute");
+    }
+    return construct_body_literal_array(ast, size);
+}
+
+auto StatementWeakConstraint::tuple() -> OptimizeTuple {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_tuple, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    return OptimizeTuple::acquire(ast);
+}
+
+auto StatementWeakConstraint::construct(Library &lib, clingo_location_t const &location, BodyLiteralArray const &body,
+                                        OptimizeTuple const &tuple) -> StatementWeakConstraint {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_weak_constraint, &res_, &location,
+                                           c_cast(body).data(), body.size(), c_cast(tuple)));
+    return StatementWeakConstraint::acquire(res_);
+}
+
 template <class T> auto c_cast(std::optional<T> const &opt) -> clingo_ast_t * {
     if (opt) {
         return c_cast(*opt);
@@ -5523,10 +6118,34 @@ auto parse_term(Library &lib, char const *string) -> Term {
     return construct_term(ast);
 }
 
+auto parse_theory_term(Library &lib, char const *string) -> TheoryTerm {
+    clingo_ast_t *ast;
+    handle_error(lib, clingo_ast_parse_expression(lib, clingo_ast_parse_type_theory_term, string, &ast));
+    return construct_theory_term(ast);
+}
+
 auto parse_literal(Library &lib, char const *string) -> Literal {
     clingo_ast_t *ast;
     handle_error(lib, clingo_ast_parse_expression(lib, clingo_ast_parse_type_literal, string, &ast));
     return construct_literal(ast);
+}
+
+auto parse_head_literal(Library &lib, char const *string) -> HeadLiteral {
+    clingo_ast_t *ast;
+    handle_error(lib, clingo_ast_parse_expression(lib, clingo_ast_parse_type_head_literal, string, &ast));
+    return construct_head_literal(ast);
+}
+
+auto parse_body_literal(Library &lib, char const *string) -> BodyLiteral {
+    clingo_ast_t *ast;
+    handle_error(lib, clingo_ast_parse_expression(lib, clingo_ast_parse_type_body_literal, string, &ast));
+    return construct_body_literal(ast);
+}
+
+auto parse_statement(Library &lib, char const *string) -> Statement {
+    clingo_ast_t *ast;
+    handle_error(lib, clingo_ast_parse_expression(lib, clingo_ast_parse_type_statement, string, &ast));
+    return construct_statement(ast);
 }
 
 void register_module(pybind11::module &m) {
@@ -5558,6 +6177,8 @@ This can be used to auto-generate most of the binding.)"));
 
     auto py_theory_atom_type =
         py::enum_<TheoryAtomType>(ast, "TheoryAtomType", R"doc(Enumeration of the theory atom types.)doc");
+
+    auto py_optimize_type = py::enum_<OptimizeType>(ast, "OptimizeType", R"doc(Enumeration of optimization types.)doc");
 
     auto py_projection =
         py::class_<Projection>(ast, "Projection", R"doc(A placeholder for an argument to project.)doc");
@@ -5669,9 +6290,23 @@ term.)doc");
     auto py_theory_atom_definition =
         py::class_<TheoryAtomDefinition>(ast, "TheoryAtomDefinition", R"doc(A theory atom definition.)doc");
 
+    auto py_optimize_tuple =
+        py::class_<OptimizeTuple>(ast, "OptimizeTuple", R"doc(A tuple of an optimizization statement.)doc");
+
+    auto py_optimize_element =
+        py::class_<OptimizeElement>(ast, "OptimizeElement", R"doc(An element of an optimization statement.)doc");
+
+    auto py_edge = py::class_<Edge>(ast, "Edge", R"doc(An edge of an edge statement.)doc");
+
     auto py_statement_rule = py::class_<StatementRule>(ast, "StatementRule", R"doc(A rule.)doc");
 
     auto py_statement_theory = py::class_<StatementTheory>(ast, "StatementTheory", R"doc(A theory definition.)doc");
+
+    auto py_statement_optimize =
+        py::class_<StatementOptimize>(ast, "StatementOptimize", R"doc(An optimization statement.)doc");
+
+    auto py_statement_weak_constraint =
+        py::class_<StatementWeakConstraint>(ast, "StatementWeakConstraint", R"doc(A weak constraint.)doc");
 
     py_unary_operator.value("Minus", UnaryOperator::Minus, R"doc(Operator `-`.)doc")
         .value("Negation", UnaryOperator::Negation, R"doc(Operator `~`.)doc");
@@ -5715,6 +6350,9 @@ term.)doc");
         .value("Body", TheoryAtomType::Body, R"doc(For theory atoms that can appear in the body.)doc")
         .value("Any", TheoryAtomType::Any, R"doc(For theory atoms that can appear in both head and body.)doc")
         .value("Directive", TheoryAtomType::Directive, R"doc(For theory atoms that must not have a body.)doc");
+
+    py_optimize_type.value("Minimize", OptimizeType::Minimize, R"doc(For `#minimize` statements.)doc")
+        .value("Maximize", OptimizeType::Maximize, R"doc(For `#maximize` statements.)doc");
 
     py_projection
         .def(py::init(&Projection::construct), py::arg("lib"), py::arg("location"), R"doc(Construct a Projection object.
@@ -6628,6 +7266,65 @@ atom_type
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
+    py_optimize_tuple
+        .def(py::init(&OptimizeTuple::construct), py::arg("lib"), py::arg("weight"), py::arg("priority"),
+             py::arg("terms"), R"doc(Construct a OptimizeTuple object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+weight
+    The weight of the tuple.
+priority
+    An optional priority.
+terms
+    The remaining terms in the tuple.)doc")
+        .def("__str__", &OptimizeTuple::to_string)
+        .def("__hash__", &OptimizeTuple::hash)
+        .def_property_readonly("weight", &OptimizeTuple::weight, R"doc(The weight of the tuple.)doc")
+        .def_property_readonly("priority", &OptimizeTuple::priority, R"doc(An optional priority.)doc")
+        .def_property_readonly("terms", &OptimizeTuple::terms, R"doc(The remaining terms in the tuple.)doc")
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_optimize_element
+        .def(py::init(&OptimizeElement::construct), py::arg("lib"), py::arg("tuple"), py::arg("condition"),
+             R"doc(Construct a OptimizeElement object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+tuple
+    The tuple of the element.
+condition
+    The condition of the element.)doc")
+        .def("__str__", &OptimizeElement::to_string)
+        .def("__hash__", &OptimizeElement::hash)
+        .def_property_readonly("tuple", &OptimizeElement::tuple, R"doc(The tuple of the element.)doc")
+        .def_property_readonly("condition", &OptimizeElement::condition, R"doc(The condition of the element.)doc")
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_edge
+        .def(py::init(&Edge::construct), py::arg("lib"), py::arg("u"), py::arg("v"), R"doc(Construct a Edge object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+u
+    The start vertex.
+v
+    The end vertex.)doc")
+        .def("__str__", &Edge::to_string)
+        .def("__hash__", &Edge::hash)
+        .def_property_readonly("u", &Edge::u, R"doc(The start vertex.)doc")
+        .def_property_readonly("v", &Edge::v, R"doc(The end vertex.)doc")
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
     py_statement_rule
         .def(py::init(&StatementRule::construct), py::arg("lib"), py::arg("location"), py::arg("head"), py::arg("body"),
              R"doc(Construct a StatementRule object.
@@ -6637,14 +7334,14 @@ Parameters
 lib
     The library object for storing symbols.
 location
-    The location of the element.
+    The location of the statement.
 head
     The head literal.
 body
     The body of the statement.)doc")
         .def("__str__", &StatementRule::to_string)
         .def("__hash__", &StatementRule::hash)
-        .def_property_readonly("location", &StatementRule::location, R"doc(The location of the element.)doc")
+        .def_property_readonly("location", &StatementRule::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("head", &StatementRule::head, R"doc(The head literal.)doc")
         .def_property_readonly("body", &StatementRule::body, R"doc(The body of the statement.)doc")
         // generate comparison operators
@@ -6659,7 +7356,7 @@ Parameters
 lib
     The library object for storing symbols.
 location
-    The location of the element.
+    The location of the statement.
 name
     The name of the theory.
 terms
@@ -6668,10 +7365,56 @@ atoms
     A list of atom definitions.)doc")
         .def("__str__", &StatementTheory::to_string)
         .def("__hash__", &StatementTheory::hash)
-        .def_property_readonly("location", &StatementTheory::location, R"doc(The location of the element.)doc")
+        .def_property_readonly("location", &StatementTheory::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("name", &StatementTheory::name, R"doc(The name of the theory.)doc")
         .def_property_readonly("terms", &StatementTheory::terms, R"doc(A list of term definitions.)doc")
         .def_property_readonly("atoms", &StatementTheory::atoms, R"doc(A list of atom definitions.)doc")
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_statement_optimize
+        .def(py::init(&StatementOptimize::construct), py::arg("lib"), py::arg("location"), py::arg("elements"),
+             py::arg("optimize_type"), R"doc(Construct a StatementOptimize object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+location
+    The location of the statement.
+elements
+    The elements of the statement.
+optimize_type
+    The type of the statement.)doc")
+        .def("__str__", &StatementOptimize::to_string)
+        .def("__hash__", &StatementOptimize::hash)
+        .def_property_readonly("location", &StatementOptimize::location, R"doc(The location of the statement.)doc")
+        .def_property_readonly("elements", &StatementOptimize::elements, R"doc(The elements of the statement.)doc")
+        .def_property_readonly("optimize_type", &StatementOptimize::optimize_type,
+                               R"doc(The type of the statement.)doc")
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_statement_weak_constraint
+        .def(py::init(&StatementWeakConstraint::construct), py::arg("lib"), py::arg("location"), py::arg("body"),
+             py::arg("tuple"), R"doc(Construct a StatementWeakConstraint object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+location
+    The location of the statement.
+body
+    The body of the statement.
+tuple
+    The tuple of the statement.)doc")
+        .def("__str__", &StatementWeakConstraint::to_string)
+        .def("__hash__", &StatementWeakConstraint::hash)
+        .def_property_readonly("location", &StatementWeakConstraint::location,
+                               R"doc(The location of the statement.)doc")
+        .def_property_readonly("body", &StatementWeakConstraint::body, R"doc(The body of the statement.)doc")
+        .def_property_readonly("tuple", &StatementWeakConstraint::tuple, R"doc(The tuple of the statement.)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -6687,6 +7430,18 @@ string
 Returns
 -------
 The parsed Term object.)doc");
+    ast.def("parse_theory_term", &parse_theory_term, py::arg("lib"), py::arg("string"), R"doc(Parse a theory term.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+string
+    The string to parse.
+
+Returns
+-------
+The parsed TheoryTerm object.)doc");
     ast.def("parse_literal", &parse_literal, py::arg("lib"), py::arg("string"), R"doc(Parse a literal.
 
 Parameters
@@ -6699,6 +7454,42 @@ string
 Returns
 -------
 The parsed Literal object.)doc");
+    ast.def("parse_head_literal", &parse_head_literal, py::arg("lib"), py::arg("string"), R"doc(Parse a head literal.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+string
+    The string to parse.
+
+Returns
+-------
+The parsed HeadLiteral object.)doc");
+    ast.def("parse_body_literal", &parse_body_literal, py::arg("lib"), py::arg("string"), R"doc(Parse a body literal.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+string
+    The string to parse.
+
+Returns
+-------
+The parsed BodyLiteral object.)doc");
+    ast.def("parse_statement", &parse_statement, py::arg("lib"), py::arg("string"), R"doc(Parse a statement.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+string
+    The string to parse.
+
+Returns
+-------
+The parsed Statement object.)doc");
 }
 
 } // namespace Clingo::AST

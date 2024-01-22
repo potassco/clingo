@@ -43,6 +43,10 @@ auto make_ast(Owner const &owner, Gringo::Input::TheoryOpDefinition const &def) 
 auto make_ast(Owner const &owner, Gringo::Input::TheoryRGuardDefinition const &def) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::TheoryTermDefinition const &def) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::TheoryAtomDefinition const &def) -> std::unique_ptr<clingo_ast_t>;
+auto make_ast(Owner const &owner, Gringo::Input::StatementOptimize::Tuple const &tuple)
+    -> std::unique_ptr<clingo_ast_t>;
+auto make_ast(Owner const &owner, Gringo::Input::StatementOptimize::Element const &elem)
+    -> std::unique_ptr<clingo_ast_t>;
 
 template <class T> auto make_ast_vec(Owner const &owner, std::vector<T> const &vec) -> ASTVec;
 
@@ -409,6 +413,16 @@ auto make_ast(Owner const &owner, Gringo::Input::TheoryAtomDefinition const &def
     return std::make_unique<clingo_ast>(owner, clingo_ast_type_theory_atom_definition, &def);
 }
 
+auto make_ast(Owner const &owner, Gringo::Input::StatementOptimize::Tuple const &tuple)
+    -> std::unique_ptr<clingo_ast_t> {
+    return std::make_unique<clingo_ast>(owner, clingo_ast_type_optimize_tuple, &tuple);
+}
+
+auto make_ast(Owner const &owner, Gringo::Input::StatementOptimize::Element const &elem)
+    -> std::unique_ptr<clingo_ast_t> {
+    return std::make_unique<clingo_ast>(owner, clingo_ast_type_optimize_element, &elem);
+}
+
 template <class T, class... A> auto construct_ast(clingo_ast_type_t type, A &&...args) -> clingo_ast * {
     auto owner = Gringo::Util::make_immutable<std::any>(T{std::forward<A>(args)...});
     auto *ptr = std::any_cast<T>(owner.get());
@@ -547,6 +561,21 @@ auto clingo_ast::visit(V &&visit) const -> std::invoke_result_t<V, Gringo::Input
         case clingo_ast_type_statement_theory: {
             return std::invoke(std::move(visit), cast<TheoryDefinition>());
         }
+        case clingo_ast_type_optimize_tuple: {
+            return std::invoke(std::move(visit), cast<StatementOptimize::Tuple>());
+        }
+        case clingo_ast_type_optimize_element: {
+            return std::invoke(std::move(visit), cast<StatementOptimize::Element>());
+        }
+        case clingo_ast_type_statement_optimize: {
+            return std::invoke(std::move(visit), cast<StatementOptimize>());
+        }
+        case clingo_ast_type_statement_weak_constraint: {
+            return std::invoke(std::move(visit), cast<StatementWeakConstraint>());
+        }
+        case clingo_ast_type_edge: {
+            return std::invoke(std::move(visit), cast<StatementEdge::Edge>());
+        }
     }
     throw std::invalid_argument("invalid ast type");
 }
@@ -632,7 +661,9 @@ auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<
             ATTR(operator_type, type))
         TYPE(theory_atom_definition, TheoryAtomDefinition,
             ATTR(arity, arity)
-            ATTR(atom_type, type)))
+            ATTR(atom_type, type))
+        TYPE(statement_optimize, StatementOptimize,
+            ATTR(optimize_type, type)))
     // clang-format on
 }
 
@@ -760,7 +791,17 @@ auto clingo_ast::get_ast(clingo_ast_attribute_t attr) const -> std::optional<std
         TYPE(statement_rule, Rule,
             ATTR(head, head))
         TYPE(theory_atom_definition, TheoryAtomDefinition,
-            ATTR(guard, rhs)))
+            ATTR(guard, rhs))
+        TYPE(optimize_tuple, StatementOptimize::Tuple,
+            ATTR(weight, weight)
+            ATTR(priority, priority))
+        TYPE(optimize_element, StatementOptimize::Element,
+            ATTR(tuple, first))
+        TYPE(statement_weak_constraint, StatementWeakConstraint,
+            ATTR(tuple, tuple))
+        TYPE(edge, StatementEdge::Edge,
+            ATTR(u, u)
+            ATTR(v, v)))
     // clang-format on
 }
 
@@ -822,7 +863,15 @@ auto clingo_ast::get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional
             ATTR(operators, op_defs))
         TYPE(statement_theory, TheoryDefinition,
             ATTR(terms, term_defs)
-            ATTR(atoms, atom_defs)))
+            ATTR(atoms, atom_defs))
+        TYPE(optimize_tuple, StatementOptimize::Tuple,
+            ATTR(terms, terms))
+        TYPE(optimize_element, StatementOptimize::Element,
+            ATTR(condition, second))
+        TYPE(statement_optimize, StatementOptimize,
+            ATTR(elements, elems))
+        TYPE(statement_weak_constraint, StatementWeakConstraint,
+            ATTR(body, body)))
     // clang-format on
 }
 
@@ -1130,6 +1179,24 @@ template <>
         return cast<Gringo::Input::TheoryAtomDefinition>();
     }
     throw std::runtime_error("theory atom definition expected");
+}
+
+template <>
+[[nodiscard]] auto clingo_ast::convert<Gringo::Input::StatementOptimize::Tuple>() const
+    -> Gringo::Input::StatementOptimize::Tuple {
+    if (type_ == clingo_ast_type_optimize_tuple) {
+        return cast<Gringo::Input::StatementOptimize::Tuple>();
+    }
+    throw std::runtime_error("optimize tuple expected");
+}
+
+template <>
+[[nodiscard]] auto clingo_ast::convert<Gringo::Input::StatementOptimize::Element>() const
+    -> Gringo::Input::StatementOptimize::Element {
+    if (type_ == clingo_ast_type_optimize_element) {
+        return cast<Gringo::Input::StatementOptimize::Element>();
+    }
+    throw std::runtime_error("optimize tuple expected");
 }
 
 extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, clingo_ast_t **ast, ...) -> bool {
@@ -1672,6 +1739,65 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                     convert_ast_vec<TheoryAtomDefinition>(atoms, atoms_size));
                 break;
             }
+            case clingo_ast_type_optimize_tuple: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const *weight = va_arg(args, clingo_ast_t const *);
+                auto const *prio = va_arg(args, clingo_ast_t const *);
+                auto const **terms = va_arg(args, clingo_ast_t const **);
+                auto terms_size = va_arg(args, size_t);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::StatementOptimize::Tuple>(type, weight->convert<Term>(),
+                                                                              convert_ast_opt<Term>(prio),
+                                                                              convert_ast_vec<Term>(terms, terms_size));
+                break;
+            }
+            case clingo_ast_type_optimize_element: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const *tuple = va_arg(args, clingo_ast_t const *);
+                auto const **cond = va_arg(args, clingo_ast_t const **);
+                auto cond_size = va_arg(args, size_t);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::StatementOptimize::Element>(
+                    type, tuple->convert<StatementOptimize::Tuple>(), convert_ast_vec<Literal>(cond, cond_size));
+                break;
+            }
+            case clingo_ast_type_statement_optimize: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const **elems = va_arg(args, clingo_ast_t const **);
+                auto elems_size = va_arg(args, size_t);
+                auto optimize_type = va_arg(args, int);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::StatementOptimize>(
+                    type, convert_loc(lib, loc), static_cast<OptimizeType>(optimize_type),
+                    convert_ast_vec<StatementOptimize::Element>(elems, elems_size));
+                break;
+            }
+            case clingo_ast_type_statement_weak_constraint: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const **body = va_arg(args, clingo_ast_t const **);
+                auto body_size = va_arg(args, size_t);
+                auto const *tuple = va_arg(args, clingo_ast_t const *);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::StatementWeakConstraint>(
+                    type, convert_loc(lib, loc), convert_ast_vec<BodyLiteral>(body, body_size),
+                    tuple->convert<StatementOptimize::Tuple>());
+                break;
+            }
+            case clingo_ast_type_edge: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const *u = va_arg(args, clingo_ast_t const *);
+                auto const *v = va_arg(args, clingo_ast_t const *);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::StatementEdge::Edge>(type, u->convert<Term>(), v->convert<Term>());
+                break;
+            }
         }
     }
     CLINGO_CATCH(lib);
@@ -1858,15 +1984,61 @@ extern "C" auto clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_
                 *ast = make_ast(owner, *ptr).release();
                 break;
             }
+            case clingo_ast_parse_type_theory_term: {
+                auto term = Gringo::Input::parse_theory_term(lib->log, *lib->store, string);
+                if (lib->log.has_error() || !term) {
+                    lib->log.reset();
+                    throw std::runtime_error("parsing theory term failed");
+                }
+                auto owner = Gringo::Util::make_immutable<std::any>(std::move(term).value());
+                auto const *ptr = std::any_cast<Gringo::Input::TheoryTerm>(owner.get());
+                *ast = make_ast(owner, *ptr).release();
+                break;
+            }
             case clingo_ast_parse_type_literal: {
                 auto lit = Gringo::Input::parse_literal(lib->log, *lib->store, string);
                 if (lib->log.has_error() || !lit) {
                     lib->log.reset();
-                    throw std::runtime_error("parsing term failed");
+                    throw std::runtime_error("parsing literal failed");
                 }
                 auto owner = Gringo::Util::make_immutable<std::any>(std::move(lit).value());
                 auto const *ptr = std::any_cast<Gringo::Input::Literal>(owner.get());
                 *ast = make_ast(owner, *ptr).release();
+                break;
+            }
+            case clingo_ast_parse_type_head_literal: {
+                auto lit = Gringo::Input::parse_head_literal(lib->log, *lib->store, string);
+                if (lib->log.has_error() || !lit) {
+                    lib->log.reset();
+                    throw std::runtime_error("parsing head literal failed");
+                }
+                auto owner = Gringo::Util::make_immutable<std::any>(std::move(lit).value());
+                auto const *ptr = std::any_cast<Gringo::Input::HeadLiteral>(owner.get());
+                *ast = make_ast(owner, *ptr).release();
+                break;
+            }
+            case clingo_ast_parse_type_body_literal: {
+                auto lit = Gringo::Input::parse_body_literal(lib->log, *lib->store, string);
+                if (lib->log.has_error() || !lit) {
+                    lib->log.reset();
+                    throw std::runtime_error("parsing body literal failed");
+                }
+                auto owner = Gringo::Util::make_immutable<std::any>(std::move(lit).value());
+                auto const *ptr = std::any_cast<Gringo::Input::BodyLiteral>(owner.get());
+                *ast = make_ast(owner, *ptr).release();
+                break;
+            }
+            case clingo_ast_parse_type_statement: {
+                auto lit = Gringo::Input::parse_statement(lib->log, *lib->store, string);
+                if (lib->log.has_error() || !lit) {
+                    lib->log.reset();
+                    throw std::runtime_error("parsing statement failed");
+                }
+                auto owner = Gringo::Util::make_immutable<std::any>(std::move(lit).value());
+                auto const *ptr = std::any_cast<Gringo::Input::Statement>(owner.get());
+                static_cast<void>(ptr);
+                throw std::logic_error("implement me!!!");
+                // *ast = make_ast(owner, *ptr).release();
                 break;
             }
             default: {

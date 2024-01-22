@@ -685,21 +685,20 @@ enum clingo_ast_type_e {
     clingo_ast_type_theory_term_definition,
     clingo_ast_type_theory_guard_definition,
     clingo_ast_type_theory_atom_definition,
+    // elements
+    clingo_ast_type_optimize_tuple,
+    clingo_ast_type_optimize_element,
+    clingo_ast_type_edge,
     // statements
     clingo_ast_type_statement_rule,
-    clingo_ast_type_statement_theory
+    clingo_ast_type_statement_theory,
+    clingo_ast_type_statement_optimize,
+    clingo_ast_type_statement_weak_constraint
     /*
-    // theory definition
-    clingo_ast_type_theory_operator_definition,
-    clingo_ast_type_theory_term_definition,
-    clingo_ast_type_theory_guard_definition,
-    clingo_ast_type_theory_atom_definition,
     // statements
-    clingo_ast_type_rule,
     clingo_ast_type_definition,
     clingo_ast_type_show_signature,
     clingo_ast_type_show_term,
-    clingo_ast_type_minimize,
     clingo_ast_type_script,
     clingo_ast_type_program,
     clingo_ast_type_external,
@@ -708,7 +707,6 @@ enum clingo_ast_type_e {
     clingo_ast_type_project_atom,
     clingo_ast_type_project_signature,
     clingo_ast_type_defined,
-    clingo_ast_type_theory_definition,
     clingo_ast_type_comment
     */
 };
@@ -736,6 +734,7 @@ enum clingo_ast_attribute_e {
     clingo_ast_attribute_name,
     clingo_ast_attribute_operators,
     clingo_ast_attribute_operator_type,
+    clingo_ast_attribute_optimize_type,
     clingo_ast_attribute_pool,
     clingo_ast_attribute_priority,
     clingo_ast_attribute_relation,
@@ -747,7 +746,10 @@ enum clingo_ast_attribute_e {
     clingo_ast_attribute_theory_operator,
     clingo_ast_attribute_tuple,
     clingo_ast_attribute_tuple_type,
-    clingo_ast_attribute_value
+    clingo_ast_attribute_value,
+    clingo_ast_attribute_weight,
+    clingo_ast_attribute_u,
+    clingo_ast_attribute_v
     /*
     clingo_ast_attribute_argument,
     clingo_ast_attribute_arity,
@@ -821,7 +823,11 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_copy(clingo_ast_t *ast, clingo_ast_t *
 //! Enumeration of expressions that can be parsed.
 enum clingo_ast_parse_type_e {
     clingo_ast_parse_type_term,
+    clingo_ast_parse_type_theory_term,
     clingo_ast_parse_type_literal,
+    clingo_ast_parse_type_body_literal,
+    clingo_ast_parse_type_head_literal,
+    clingo_ast_parse_type_statement,
 };
 //! Corresponding type to ::clingo_ast_parse_type_e.
 typedef int clingo_ast_parse_type_t;

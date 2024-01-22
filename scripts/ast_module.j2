@@ -138,10 +138,34 @@ auto parse_term(Library &lib, char const *string) -> Term {
     return construct_term(ast);
 }
 
+auto parse_theory_term(Library &lib, char const *string) -> TheoryTerm {
+    clingo_ast_t *ast;
+    handle_error(lib, clingo_ast_parse_expression(lib, clingo_ast_parse_type_theory_term, string, &ast));
+    return construct_theory_term(ast);
+}
+
 auto parse_literal(Library &lib, char const *string) -> Literal {
     clingo_ast_t *ast;
     handle_error(lib, clingo_ast_parse_expression(lib, clingo_ast_parse_type_literal, string, &ast));
     return construct_literal(ast);
+}
+
+auto parse_head_literal(Library &lib, char const *string) -> HeadLiteral {
+    clingo_ast_t *ast;
+    handle_error(lib, clingo_ast_parse_expression(lib, clingo_ast_parse_type_head_literal, string, &ast));
+    return construct_head_literal(ast);
+}
+
+auto parse_body_literal(Library &lib, char const *string) -> BodyLiteral {
+    clingo_ast_t *ast;
+    handle_error(lib, clingo_ast_parse_expression(lib, clingo_ast_parse_type_body_literal, string, &ast));
+    return construct_body_literal(ast);
+}
+
+auto parse_statement(Library &lib, char const *string) -> Statement {
+    clingo_ast_t *ast;
+    handle_error(lib, clingo_ast_parse_expression(lib, clingo_ast_parse_type_statement, string, &ast));
+    return construct_statement(ast);
 }
 
 void register_module(pybind11::module &m) {
@@ -210,6 +234,18 @@ string
 Returns
 -------
 The parsed Term object.)doc");
+    ast.def("parse_theory_term", &parse_theory_term, py::arg("lib"), py::arg("string"), R"doc(Parse a theory term.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+string
+    The string to parse.
+
+Returns
+-------
+The parsed TheoryTerm object.)doc");
     ast.def("parse_literal", &parse_literal, py::arg("lib"), py::arg("string"), R"doc(Parse a literal.
 
 Parameters
@@ -222,6 +258,42 @@ string
 Returns
 -------
 The parsed Literal object.)doc");
+    ast.def("parse_head_literal", &parse_head_literal, py::arg("lib"), py::arg("string"), R"doc(Parse a head literal.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+string
+    The string to parse.
+
+Returns
+-------
+The parsed HeadLiteral object.)doc");
+    ast.def("parse_body_literal", &parse_body_literal, py::arg("lib"), py::arg("string"), R"doc(Parse a body literal.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+string
+    The string to parse.
+
+Returns
+-------
+The parsed BodyLiteral object.)doc");
+    ast.def("parse_statement", &parse_statement, py::arg("lib"), py::arg("string"), R"doc(Parse a statement.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+string
+    The string to parse.
+
+Returns
+-------
+The parsed Statement object.)doc");
 }
 
 }
