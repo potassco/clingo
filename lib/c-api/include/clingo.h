@@ -693,19 +693,19 @@ enum clingo_ast_type_e {
     clingo_ast_type_statement_rule,
     clingo_ast_type_statement_theory,
     clingo_ast_type_statement_optimize,
-    clingo_ast_type_statement_weak_constraint
+    clingo_ast_type_statement_weak_constraint,
+    clingo_ast_type_statement_show,
+    clingo_ast_type_statement_show_signature,
+    clingo_ast_type_statement_project,
+    clingo_ast_type_statement_project_signature,
     /*
     // statements
     clingo_ast_type_definition,
-    clingo_ast_type_show_signature,
-    clingo_ast_type_show_term,
     clingo_ast_type_script,
     clingo_ast_type_program,
     clingo_ast_type_external,
     clingo_ast_type_edge,
     clingo_ast_type_heuristic,
-    clingo_ast_type_project_atom,
-    clingo_ast_type_project_signature,
     clingo_ast_type_defined,
     clingo_ast_type_comment
     */

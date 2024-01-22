@@ -860,6 +860,11 @@ statement:
   - statement_rule
   - statement_theory
   - statement_optimize
+  - statement_weak_constraint
+  - statement_show
+  - statement_show_signature
+  - statement_project
+  - statement_project_signature
 statement_rule:
   type: record
   doc: A rule.
@@ -915,5 +920,65 @@ statement_weak_constraint:
     tuple:
       type: optimize_tuple
       doc: The tuple of the statement.
+statement_show:
+  type: record
+  doc: A show statement.
+  arguments:
+    location:
+      type: location
+      doc: The location of the statement.
+    term:
+      type: term
+      doc: The term to show.
+    body:
+      type: body_literal_array
+      doc: The body of the statement.
+statement_show_signature:
+  type: record
+  doc: A show signature statement.
+  arguments:
+    location:
+      type: location
+      doc: The location of the statement.
+    name:
+      type: string
+      doc: The name of the atom to show.
+    arity:
+      type: number
+      doc: The arity of the atom to show.
+    sign:
+      type: bool
+      default: false
+      doc: The classical sign of the atom.
+statement_project:
+  type: record
+  doc: A project statement.
+  arguments:
+    location:
+      type: location
+      doc: The location of the statement.
+    atom:
+      type: term
+      doc: The atom to project.
+    body:
+      type: body_literal_array
+      doc: The body of the statement.
+statement_project_signature:
+  type: record
+  doc: A project signature statement.
+  arguments:
+    location:
+      type: location
+      doc: The location of the statement.
+    name:
+      type: string
+      doc: The name of the atom to project.
+    arity:
+      type: number
+      doc: The arity of the atom to project.
+    sign:
+      type: bool
+      default: false
+      doc: The classical sign of the atom.
 )yaml";
 }

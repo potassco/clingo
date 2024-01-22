@@ -3610,7 +3610,18 @@ class StatementTheory;
 
 class StatementOptimize;
 
-using Statement = std::variant<StatementRule, StatementTheory, StatementOptimize>;
+class StatementWeakConstraint;
+
+class StatementShow;
+
+class StatementShowSignature;
+
+class StatementProject;
+
+class StatementProjectSignature;
+
+using Statement = std::variant<StatementRule, StatementTheory, StatementOptimize, StatementWeakConstraint,
+                               StatementShow, StatementShowSignature, StatementProject, StatementProjectSignature>;
 
 auto construct_statement(clingo_ast_t *ast) -> Statement;
 
@@ -3928,6 +3939,322 @@ class StatementWeakConstraint {
 };
 
 inline auto c_cast(StatementWeakConstraint const &x) -> clingo_ast_t * { return x.ast_; }
+
+class StatementShow {
+  public:
+    // Note: for pybind
+    StatementShow() = default;
+
+    StatementShow(StatementShow const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    StatementShow(StatementShow &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(StatementShow const &x) -> StatementShow & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(StatementShow &&x) noexcept -> StatementShow & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(StatementShow const &a, StatementShow const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(StatementShow const &a, StatementShow const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, StatementShow)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~StatementShow() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    auto term() -> Term;
+
+    auto body() -> BodyLiteralArray;
+
+    static auto acquire(clingo_ast_t *ast) -> StatementShow { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, Term const &term,
+                          BodyLiteralArray const &body) -> StatementShow;
+
+    friend auto c_cast(StatementShow const &x) -> clingo_ast_t *;
+
+  private:
+    StatementShow(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(StatementShow const &x) -> clingo_ast_t * { return x.ast_; }
+
+class StatementShowSignature {
+  public:
+    // Note: for pybind
+    StatementShowSignature() = default;
+
+    StatementShowSignature(StatementShowSignature const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    StatementShowSignature(StatementShowSignature &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(StatementShowSignature const &x) -> StatementShowSignature & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(StatementShowSignature &&x) noexcept -> StatementShowSignature & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(StatementShowSignature const &a, StatementShowSignature const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(StatementShowSignature const &a, StatementShowSignature const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, StatementShowSignature)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~StatementShowSignature() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    auto name() -> char const *;
+
+    auto arity() -> int;
+
+    auto sign() -> bool;
+
+    static auto acquire(clingo_ast_t *ast) -> StatementShowSignature { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, char const *name, int arity, bool sign)
+        -> StatementShowSignature;
+
+    friend auto c_cast(StatementShowSignature const &x) -> clingo_ast_t *;
+
+  private:
+    StatementShowSignature(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(StatementShowSignature const &x) -> clingo_ast_t * { return x.ast_; }
+
+class StatementProject {
+  public:
+    // Note: for pybind
+    StatementProject() = default;
+
+    StatementProject(StatementProject const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    StatementProject(StatementProject &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(StatementProject const &x) -> StatementProject & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(StatementProject &&x) noexcept -> StatementProject & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(StatementProject const &a, StatementProject const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(StatementProject const &a, StatementProject const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, StatementProject)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~StatementProject() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    auto atom() -> Term;
+
+    auto body() -> BodyLiteralArray;
+
+    static auto acquire(clingo_ast_t *ast) -> StatementProject { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, Term const &atom,
+                          BodyLiteralArray const &body) -> StatementProject;
+
+    friend auto c_cast(StatementProject const &x) -> clingo_ast_t *;
+
+  private:
+    StatementProject(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(StatementProject const &x) -> clingo_ast_t * { return x.ast_; }
+
+class StatementProjectSignature {
+  public:
+    // Note: for pybind
+    StatementProjectSignature() = default;
+
+    StatementProjectSignature(StatementProjectSignature const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    StatementProjectSignature(StatementProjectSignature &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(StatementProjectSignature const &x) -> StatementProjectSignature & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(StatementProjectSignature &&x) noexcept -> StatementProjectSignature & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(StatementProjectSignature const &a, StatementProjectSignature const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(StatementProjectSignature const &a, StatementProjectSignature const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, StatementProjectSignature)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~StatementProjectSignature() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    auto name() -> char const *;
+
+    auto arity() -> int;
+
+    auto sign() -> bool;
+
+    static auto acquire(clingo_ast_t *ast) -> StatementProjectSignature { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, char const *name, int arity, bool sign)
+        -> StatementProjectSignature;
+
+    friend auto c_cast(StatementProjectSignature const &x) -> clingo_ast_t *;
+
+  private:
+    StatementProjectSignature(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(StatementProjectSignature const &x) -> clingo_ast_t * { return x.ast_; }
 
 auto construct_term(clingo_ast_t *ast) -> Term {
     clingo_ast_type_t type;
@@ -5945,6 +6272,21 @@ auto construct_statement(clingo_ast_t *ast) -> Statement {
         case clingo_ast_type_statement_optimize: {
             return StatementOptimize::acquire(ast);
         }
+        case clingo_ast_type_statement_weak_constraint: {
+            return StatementWeakConstraint::acquire(ast);
+        }
+        case clingo_ast_type_statement_show: {
+            return StatementShow::acquire(ast);
+        }
+        case clingo_ast_type_statement_show_signature: {
+            return StatementShowSignature::acquire(ast);
+        }
+        case clingo_ast_type_statement_project: {
+            return StatementProject::acquire(ast);
+        }
+        case clingo_ast_type_statement_project_signature: {
+            return StatementProjectSignature::acquire(ast);
+        }
     }
     clingo_ast_free(ast);
     throw std::runtime_error("unexpected ast type");
@@ -6090,6 +6432,152 @@ auto StatementWeakConstraint::construct(Library &lib, clingo_location_t const &l
     handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_weak_constraint, &res_, &location,
                                            c_cast(body).data(), body.size(), c_cast(tuple)));
     return StatementWeakConstraint::acquire(res_);
+}
+
+auto StatementShow::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto StatementShow::term() -> Term {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_term, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    return construct_term(ast);
+}
+
+auto StatementShow::body() -> BodyLiteralArray {
+    clingo_ast_t **ast;
+    size_t size;
+    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_body, &ast, &size)) {
+        throw std::runtime_error("could not get ast array attribute");
+    }
+    return construct_body_literal_array(ast, size);
+}
+
+auto StatementShow::construct(Library &lib, clingo_location_t const &location, Term const &term,
+                              BodyLiteralArray const &body) -> StatementShow {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_show, &res_, &location, c_cast(term),
+                                           c_cast(body).data(), body.size()));
+    return StatementShow::acquire(res_);
+}
+
+auto StatementShowSignature::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto StatementShowSignature::name() -> char const * {
+    char const *ret;
+    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret)) {
+        throw std::runtime_error("could not get string attribute");
+    }
+    return ret;
+}
+
+auto StatementShowSignature::arity() -> int {
+    int ret;
+    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_arity, &ret)) {
+        throw std::runtime_error("could not get number attribute");
+    }
+    return ret;
+}
+
+auto StatementShowSignature::sign() -> bool {
+    int ret;
+    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_sign, &ret)) {
+        throw std::runtime_error("could not get number attribute");
+    }
+    return ret != 0;
+}
+
+auto StatementShowSignature::construct(Library &lib, clingo_location_t const &location, char const *name, int arity,
+                                       bool sign) -> StatementShowSignature {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_show_signature, &res_, &location, name, arity,
+                                           static_cast<int>(sign)));
+    return StatementShowSignature::acquire(res_);
+}
+
+auto StatementProject::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto StatementProject::atom() -> Term {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_atom, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    return construct_term(ast);
+}
+
+auto StatementProject::body() -> BodyLiteralArray {
+    clingo_ast_t **ast;
+    size_t size;
+    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_body, &ast, &size)) {
+        throw std::runtime_error("could not get ast array attribute");
+    }
+    return construct_body_literal_array(ast, size);
+}
+
+auto StatementProject::construct(Library &lib, clingo_location_t const &location, Term const &atom,
+                                 BodyLiteralArray const &body) -> StatementProject {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_project, &res_, &location, c_cast(atom),
+                                           c_cast(body).data(), body.size()));
+    return StatementProject::acquire(res_);
+}
+
+auto StatementProjectSignature::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto StatementProjectSignature::name() -> char const * {
+    char const *ret;
+    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret)) {
+        throw std::runtime_error("could not get string attribute");
+    }
+    return ret;
+}
+
+auto StatementProjectSignature::arity() -> int {
+    int ret;
+    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_arity, &ret)) {
+        throw std::runtime_error("could not get number attribute");
+    }
+    return ret;
+}
+
+auto StatementProjectSignature::sign() -> bool {
+    int ret;
+    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_sign, &ret)) {
+        throw std::runtime_error("could not get number attribute");
+    }
+    return ret != 0;
+}
+
+auto StatementProjectSignature::construct(Library &lib, clingo_location_t const &location, char const *name, int arity,
+                                          bool sign) -> StatementProjectSignature {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_project_signature, &res_, &location, name,
+                                           arity, static_cast<int>(sign)));
+    return StatementProjectSignature::acquire(res_);
 }
 
 template <class T> auto c_cast(std::optional<T> const &opt) -> clingo_ast_t * {
@@ -6307,6 +6795,16 @@ term.)doc");
 
     auto py_statement_weak_constraint =
         py::class_<StatementWeakConstraint>(ast, "StatementWeakConstraint", R"doc(A weak constraint.)doc");
+
+    auto py_statement_show = py::class_<StatementShow>(ast, "StatementShow", R"doc(A show statement.)doc");
+
+    auto py_statement_show_signature =
+        py::class_<StatementShowSignature>(ast, "StatementShowSignature", R"doc(A show signature statement.)doc");
+
+    auto py_statement_project = py::class_<StatementProject>(ast, "StatementProject", R"doc(A project statement.)doc");
+
+    auto py_statement_project_signature = py::class_<StatementProjectSignature>(
+        ast, "StatementProjectSignature", R"doc(A project signature statement.)doc");
 
     py_unary_operator.value("Minus", UnaryOperator::Minus, R"doc(Operator `-`.)doc")
         .value("Negation", UnaryOperator::Negation, R"doc(Operator `~`.)doc");
@@ -7415,6 +7913,101 @@ tuple
                                R"doc(The location of the statement.)doc")
         .def_property_readonly("body", &StatementWeakConstraint::body, R"doc(The body of the statement.)doc")
         .def_property_readonly("tuple", &StatementWeakConstraint::tuple, R"doc(The tuple of the statement.)doc")
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_statement_show
+        .def(py::init(&StatementShow::construct), py::arg("lib"), py::arg("location"), py::arg("term"), py::arg("body"),
+             R"doc(Construct a StatementShow object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+location
+    The location of the statement.
+term
+    The term to show.
+body
+    The body of the statement.)doc")
+        .def("__str__", &StatementShow::to_string)
+        .def("__hash__", &StatementShow::hash)
+        .def_property_readonly("location", &StatementShow::location, R"doc(The location of the statement.)doc")
+        .def_property_readonly("term", &StatementShow::term, R"doc(The term to show.)doc")
+        .def_property_readonly("body", &StatementShow::body, R"doc(The body of the statement.)doc")
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_statement_show_signature
+        .def(py::init(&StatementShowSignature::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
+             py::arg("arity"), py::arg("sign") = false, R"doc(Construct a StatementShowSignature object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+location
+    The location of the statement.
+name
+    The name of the atom to show.
+arity
+    The arity of the atom to show.
+sign
+    The classical sign of the atom.)doc")
+        .def("__str__", &StatementShowSignature::to_string)
+        .def("__hash__", &StatementShowSignature::hash)
+        .def_property_readonly("location", &StatementShowSignature::location, R"doc(The location of the statement.)doc")
+        .def_property_readonly("name", &StatementShowSignature::name, R"doc(The name of the atom to show.)doc")
+        .def_property_readonly("arity", &StatementShowSignature::arity, R"doc(The arity of the atom to show.)doc")
+        .def_property_readonly("sign", &StatementShowSignature::sign, R"doc(The classical sign of the atom.)doc")
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_statement_project
+        .def(py::init(&StatementProject::construct), py::arg("lib"), py::arg("location"), py::arg("atom"),
+             py::arg("body"), R"doc(Construct a StatementProject object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+location
+    The location of the statement.
+atom
+    The atom to project.
+body
+    The body of the statement.)doc")
+        .def("__str__", &StatementProject::to_string)
+        .def("__hash__", &StatementProject::hash)
+        .def_property_readonly("location", &StatementProject::location, R"doc(The location of the statement.)doc")
+        .def_property_readonly("atom", &StatementProject::atom, R"doc(The atom to project.)doc")
+        .def_property_readonly("body", &StatementProject::body, R"doc(The body of the statement.)doc")
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_statement_project_signature
+        .def(py::init(&StatementProjectSignature::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
+             py::arg("arity"), py::arg("sign") = false, R"doc(Construct a StatementProjectSignature object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+location
+    The location of the statement.
+name
+    The name of the atom to project.
+arity
+    The arity of the atom to project.
+sign
+    The classical sign of the atom.)doc")
+        .def("__str__", &StatementProjectSignature::to_string)
+        .def("__hash__", &StatementProjectSignature::hash)
+        .def_property_readonly("location", &StatementProjectSignature::location,
+                               R"doc(The location of the statement.)doc")
+        .def_property_readonly("name", &StatementProjectSignature::name, R"doc(The name of the atom to project.)doc")
+        .def_property_readonly("arity", &StatementProjectSignature::arity, R"doc(The arity of the atom to project.)doc")
+        .def_property_readonly("sign", &StatementProjectSignature::sign, R"doc(The classical sign of the atom.)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 

@@ -695,6 +695,52 @@ class TestAST(TestCase):
         self.assertEqual(sw1.tuple, t1)
         self.assertEqual(str(sw1), " :~ p(X); q(X). [5,X,Y]")
 
+    def test_statement_show(self):
+        """
+        Test show statements.
+        """
+        t1 = ast.parse_term(self.lib, "-p(X)")
+        l1 = ast.parse_body_literal(self.lib, "q(X)")
+        l2 = ast.parse_body_literal(self.lib, "p(X)")
+        s1 = ast.StatementShow(self.lib, self.loc, t1, [l1, l2])
+        self.assertEqual(s1.location, self.loc)
+        self.assertEqual(s1.term, t1)
+        self.assertEqual(s1.body, [l1, l2])
+        self.assertEqual(str(s1), "#show -p(X): q(X); p(X).")
+
+        s2 = ast.StatementShowSignature(self.lib, self.loc, "p", 2)
+        s3 = ast.StatementShowSignature(self.lib, self.loc, "q", 2, True)
+        self.assertEqual(s2.location, self.loc)
+        self.assertEqual(s2.name, "p")
+        self.assertEqual(s2.arity, 2)
+        self.assertFalse(s2.sign)
+        self.assertTrue(s3.sign)
+        self.assertEqual(str(s2), "#show p/2.")
+        self.assertEqual(str(s3), "#show -q/2.")
+
+    def test_statement_project(self):
+        """
+        Test project statements.
+        """
+        t1 = ast.parse_term(self.lib, "-p(X)")
+        l1 = ast.parse_body_literal(self.lib, "q(X)")
+        l2 = ast.parse_body_literal(self.lib, "p(X)")
+        s1 = ast.StatementProject(self.lib, self.loc, t1, [l1, l2])
+        self.assertEqual(s1.location, self.loc)
+        self.assertEqual(s1.atom, t1)
+        self.assertEqual(s1.body, [l1, l2])
+        self.assertEqual(str(s1), "#project -p(X): q(X); p(X).")
+
+        s2 = ast.StatementProjectSignature(self.lib, self.loc, "p", 2)
+        s3 = ast.StatementProjectSignature(self.lib, self.loc, "q", 2, True)
+        self.assertEqual(s2.location, self.loc)
+        self.assertEqual(s2.name, "p")
+        self.assertEqual(s2.arity, 2)
+        self.assertFalse(s2.sign)
+        self.assertTrue(s3.sign)
+        self.assertEqual(str(s2), "#project p/2.")
+        self.assertEqual(str(s3), "#project -q/2.")
+
     def test_parse(self):
         """
         Test parsing of asts.
