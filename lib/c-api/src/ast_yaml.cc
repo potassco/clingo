@@ -1016,5 +1016,40 @@ statement_external:
       type: optional_term
       default: empty
       doc: The type of the external.
+statement_edge:
+  type: record
+  doc: An edge statement.
+  arguments:
+    location:
+      type: location
+      doc: The location of the statement.
+    pool:
+      type: edge_array
+      doc: The edge pool of the statement.
+    body:
+      type: body_literal_array
+      doc: The body of the statement.
+statement_heuristic:
+  type: record
+  doc: A heuristic statement.
+  arguments:
+    location:
+      type: location
+      doc: The location of the statement.
+    atom:
+      type: term
+      doc: The atom to heuristically modify.
+    body:
+      type: body_literal_array
+      doc: The body of the statement.
+    heuristic_type:
+      type: term
+      doc: The type of the modification.
+    priority:
+      type: optional_term
+      doc: An optional term.
+    modifier:
+      type: term
+      doc: The heuristic modifier.
 )yaml";
 }
