@@ -211,23 +211,23 @@ auto make_ast(Owner const &owner, Gringo::Util::immutable_value<T> const &ptr) -
 }
 
 template <class T> auto make_ast(Owner const &owner, std::optional<T> const &opt) -> std::unique_ptr<clingo_ast_t> {
-    if (opt.has_value()) {
-        return make_ast(owner, opt.value());
+    if (opt) {
+        return make_ast(owner, *opt);
     }
     return nullptr;
 }
 
 auto make_ast(Owner const &owner, Gringo::Input::LGuard::value_type const &guard) -> std::unique_ptr<clingo_ast_t> {
-    return std::make_unique<clingo_ast>(owner, clingo_ast_type_left_guard, static_cast<void const *>(&guard));
+    return std::make_unique<clingo_ast>(owner, clingo_ast_type_left_guard, &guard);
 }
 
 auto make_ast(Owner const &owner, Gringo::Input::RGuard::value_type const &guard) -> std::unique_ptr<clingo_ast_t> {
-    return std::make_unique<clingo_ast>(owner, clingo_ast_type_right_guard, static_cast<void const *>(&guard));
+    return std::make_unique<clingo_ast>(owner, clingo_ast_type_right_guard, &guard);
 }
 
 auto make_ast(Owner const &owner, Gringo::Input::TheoryRGuard::value_type const &guard)
     -> std::unique_ptr<clingo_ast_t> {
-    return std::make_unique<clingo_ast>(owner, clingo_ast_type_theory_right_guard, static_cast<void const *>(&guard));
+    return std::make_unique<clingo_ast>(owner, clingo_ast_type_theory_right_guard, &guard);
 }
 
 auto make_ast(Owner const &owner, Gringo::Input::Term const &term) -> std::unique_ptr<clingo_ast_t> {
@@ -475,7 +475,7 @@ auto clingo_ast::visit(V &&visit) const -> std::invoke_result_t<V, Gringo::Input
             return std::invoke(std::move(visit), cast<TheoryElement>());
         }
         case clingo_ast_type_theory_right_guard: {
-            return std::invoke(std::move(visit), cast<TheoryRGuard>());
+            return std::invoke(std::move(visit), cast<TheoryRGuard::value_type>());
         }
         case clingo_ast_type_body_simple_literal: {
             return std::invoke(std::move(visit), cast<SimpleBodyLiteral>());
@@ -796,11 +796,7 @@ auto clingo_ast::copy() const -> std::unique_ptr<clingo_ast_t> { return std::mak
 void clingo_ast::print(std::ostream &out) const {
     using namespace Gringo::Input;
     visit([&out](auto &x) {
-        GRINGO_MATCH(x, TheoryRGuard) {
-            if (x) {
-                out << " " << x->first << " " << x->second;
-            }
-        }
+        GRINGO_MATCH(x, TheoryRGuard::value_type) { out << " " << x.first << " " << x.second; }
         else GRINGO_MATCH(x, TheoryTermUnparsed::Element) {
             for (auto const &op : x.first) {
                 out << op << " ";
