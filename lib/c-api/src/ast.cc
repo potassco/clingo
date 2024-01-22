@@ -39,6 +39,9 @@ auto make_ast(Owner const &owner, Gringo::Input::HeadAggregate::Element const &e
 auto make_ast(Owner const &owner, Gringo::Input::Disjunction::Element const &elem) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::BodyLiteral const &lit) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::HeadLiteral const &lit) -> std::unique_ptr<clingo_ast_t>;
+// TODO
+[[maybe_unused]] auto make_ast(Owner const &owner, Gringo::Input::TheoryOpDefinition const &def)
+    -> std::unique_ptr<clingo_ast_t>;
 
 template <class T> auto make_ast_vec(Owner const &owner, std::vector<T> const &vec) -> ASTVec;
 
@@ -56,8 +59,7 @@ auto convert_string_array(clingo_lib_t *lib, char const **array, size_t size) ->
     return ret;
 }
 
-// Note: it is actualy used
-[[maybe_unused]] auto convert_loc(Gringo::Input::Location const &loc) -> clingo_location_t {
+auto make_loc(Gringo::Input::Location const &loc) -> clingo_location_t {
     return {loc.begin.file.c_str(), loc.end.file.c_str(), loc.begin.line,
             loc.end.line,           loc.begin.column,     loc.end.column};
 }
@@ -390,6 +392,10 @@ auto make_ast(Owner const &owner, Gringo::Input::Disjunction::Element const &ele
         elem);
 }
 
+auto make_ast(Owner const &owner, Gringo::Input::TheoryOpDefinition const &def) -> std::unique_ptr<clingo_ast_t> {
+    return std::make_unique<clingo_ast>(owner, clingo_ast_type_theory_operator_definition, &def);
+}
+
 template <class T, class... A> auto construct_ast(clingo_ast_type_t type, A &&...args) -> clingo_ast * {
     auto owner = Gringo::Util::make_immutable<std::any>(T{std::forward<A>(args)...});
     auto *ptr = std::any_cast<T>(owner.get());
@@ -535,15 +541,17 @@ auto clingo_ast::visit(V &&visit) const -> std::invoke_result_t<V, Gringo::Input
 auto clingo_ast::get_type() const -> clingo_ast_type_e { return type_; }
 
 auto clingo_ast::get_location(clingo_ast_attribute_t attr) const -> std::optional<clingo_location_t> {
+    // Note: to indicate that make_loc is used
+    static_cast<void>(&make_loc);
     using namespace Gringo::Input;
     if (attr != clingo_ast_attribute_location) {
         return std::nullopt;
     }
     return visit([](auto &x) -> std::optional<clingo_location_t> {
         if constexpr (Detail::has_loc<std::decay_t<decltype(x)>>) {
-            return convert_loc(x.loc);
+            return make_loc(x.loc);
         }
-        GRINGO_MATCH(x, Conjunction) { return convert_loc(x.lit.loc); }
+        GRINGO_MATCH(x, Conjunction) { return make_loc(x.lit.loc); }
         return std::nullopt;
     });
 }
@@ -1054,6 +1062,41 @@ template <> [[nodiscard]] auto clingo_ast::convert<Gringo::Input::BodyLiteral>()
     }
 }
 
+template <>
+[[nodiscard]] auto clingo_ast::convert<Gringo::Input::TheoryOpDefinition>() const -> Gringo::Input::TheoryOpDefinition {
+    if (type_ == clingo_ast_type_theory_operator_definition) {
+        return cast<Gringo::Input::TheoryOpDefinition>();
+    }
+    throw std::runtime_error("theory operator definition expected");
+}
+
+template <>
+[[nodiscard]] auto clingo_ast::convert<Gringo::Input::TheoryRGuardDefinition>() const
+    -> Gringo::Input::TheoryRGuardDefinition {
+    if (type_ == clingo_ast_type_theory_guard_definition) {
+        return cast<Gringo::Input::TheoryRGuardDefinition>();
+    }
+    throw std::runtime_error("theory guard definition expected");
+}
+
+template <>
+[[nodiscard]] auto clingo_ast::convert<Gringo::Input::TheoryTermDefinition>() const
+    -> Gringo::Input::TheoryTermDefinition {
+    if (type_ == clingo_ast_type_theory_term_definition) {
+        return cast<Gringo::Input::TheoryTermDefinition>();
+    }
+    throw std::runtime_error("theory term definition expected");
+}
+
+template <>
+[[nodiscard]] auto clingo_ast::convert<Gringo::Input::TheoryAtomDefinition>() const
+    -> Gringo::Input::TheoryAtomDefinition {
+    if (type_ == clingo_ast_type_theory_atom_definition) {
+        return cast<Gringo::Input::TheoryAtomDefinition>();
+    }
+    throw std::runtime_error("theory atom definition expected");
+}
+
 extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, clingo_ast_t **ast, ...) -> bool {
     using namespace Gringo::Input;
     CLINGO_TRY {
@@ -1526,19 +1569,72 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 break;
             }
             case clingo_ast_type_theory_operator_definition: {
-                throw std::logic_error("implement me!!!");
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const *name = va_arg(args, char const *);
+                auto priority = va_arg(args, int);
+                auto type = va_arg(args, int);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::TheoryOpDefinition>(
+                    type, convert_loc(lib, loc), lib->store->string(name), priority, static_cast<TheoryOpType>(type));
+                break;
             }
             case clingo_ast_type_theory_term_definition: {
-                throw std::logic_error("implement me!!!");
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const *name = va_arg(args, char const *);
+                auto const **ops = va_arg(args, clingo_ast_t const **);
+                auto ops_size = va_arg(args, size_t);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::TheoryTermDefinition>(
+                    type, convert_loc(lib, loc), lib->store->string(name),
+                    convert_ast_vec<TheoryOpDefinition>(ops, ops_size));
+                break;
             }
             case clingo_ast_type_theory_guard_definition: {
-                throw std::logic_error("implement me!!!");
+                std::va_list args;
+                va_start(args, ast);
+                auto const **ops = va_arg(args, char const **);
+                auto ops_size = va_arg(args, size_t);
+                auto const *term = va_arg(args, char const *);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::TheoryRGuardDefinition>(
+                    type, convert_string_array(lib, ops, ops_size), lib->store->string(term));
+                break;
             }
             case clingo_ast_type_theory_atom_definition: {
-                throw std::logic_error("implement me!!!");
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const *name = va_arg(args, char const *);
+                auto arity = va_arg(args, int);
+                auto const *term = va_arg(args, char const *);
+                auto const *guard = va_arg(args, clingo_ast_t const *);
+                auto type = va_arg(args, int);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::TheoryAtomDefinition>(
+                    type, convert_loc(lib, loc), lib->store->string(name), static_cast<int>(arity),
+                    lib->store->string(term), convert_ast_opt<TheoryRGuardDefinition>(guard),
+                    static_cast<TheoryAtomType>(type));
+                break;
             }
             case clingo_ast_type_statement_theory: {
-                throw std::logic_error("implement me!!!");
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const *name = va_arg(args, char const *);
+                auto const **terms = va_arg(args, clingo_ast_t const **);
+                auto terms_size = va_arg(args, size_t);
+                auto const **atoms = va_arg(args, clingo_ast_t const **);
+                auto atoms_size = va_arg(args, size_t);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::TheoryDefinition>(
+                    type, convert_loc(lib, loc), lib->store->string(name),
+                    convert_ast_vec<TheoryTermDefinition>(terms, terms_size),
+                    convert_ast_vec<TheoryAtomDefinition>(atoms, atoms_size));
+                break;
             }
         }
     }

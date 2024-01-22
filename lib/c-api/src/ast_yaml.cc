@@ -757,9 +757,6 @@ theory_term_definition:
     name:
       type: string
       doc: The name of the definition.
-    priority:
-      type: number
-      doc: The priority of the operator.
     operators:
       type: theory_operator_definition_array
       doc: The operator definitions to construct terms.

@@ -3178,13 +3178,11 @@ class TheoryTermDefinition {
 
     auto name() -> char const *;
 
-    auto priority() -> int;
-
     auto operators() -> TheoryOperatorDefinitionArray;
 
     static auto acquire(clingo_ast_t *ast) -> TheoryTermDefinition { return {ast}; }
 
-    static auto construct(Library &lib, clingo_location_t const &location, char const *name, int priority,
+    static auto construct(Library &lib, clingo_location_t const &location, char const *name,
                           TheoryOperatorDefinitionArray const &operators) -> TheoryTermDefinition;
 
     friend auto c_cast(TheoryTermDefinition const &x) -> clingo_ast_t *;
@@ -5265,14 +5263,6 @@ auto TheoryTermDefinition::name() -> char const * {
     return ret;
 }
 
-auto TheoryTermDefinition::priority() -> int {
-    int ret;
-    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_priority, &ret)) {
-        throw std::runtime_error("could not get number attribute");
-    }
-    return ret;
-}
-
 auto TheoryTermDefinition::operators() -> TheoryOperatorDefinitionArray {
     clingo_ast_t **ast;
     size_t size;
@@ -5282,11 +5272,11 @@ auto TheoryTermDefinition::operators() -> TheoryOperatorDefinitionArray {
     return construct_theory_operator_definition_array(ast, size);
 }
 
-auto TheoryTermDefinition::construct(Library &lib, clingo_location_t const &location, char const *name, int priority,
+auto TheoryTermDefinition::construct(Library &lib, clingo_location_t const &location, char const *name,
                                      TheoryOperatorDefinitionArray const &operators) -> TheoryTermDefinition {
     clingo_ast_t *res_;
     handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_theory_term_definition, &res_, &location, name,
-                                           priority, c_cast(operators).data(), operators.size()));
+                                           c_cast(operators).data(), operators.size()));
     return TheoryTermDefinition::acquire(res_);
 }
 
@@ -6564,7 +6554,7 @@ operator_type
 
     py_theory_term_definition
         .def(py::init(&TheoryTermDefinition::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
-             py::arg("priority"), py::arg("operators"), R"doc(Construct a TheoryTermDefinition object.
+             py::arg("operators"), R"doc(Construct a TheoryTermDefinition object.
 
 Parameters
 ----------
@@ -6574,15 +6564,12 @@ location
     The location of the definition.
 name
     The name of the definition.
-priority
-    The priority of the operator.
 operators
     The operator definitions to construct terms.)doc")
         .def("__str__", &TheoryTermDefinition::to_string)
         .def("__hash__", &TheoryTermDefinition::hash)
         .def_property_readonly("location", &TheoryTermDefinition::location, R"doc(The location of the definition.)doc")
         .def_property_readonly("name", &TheoryTermDefinition::name, R"doc(The name of the definition.)doc")
-        .def_property_readonly("priority", &TheoryTermDefinition::priority, R"doc(The priority of the operator.)doc")
         .def_property_readonly("operators", &TheoryTermDefinition::operators,
                                R"doc(The operator definitions to construct terms.)doc")
         // generate comparison operators
