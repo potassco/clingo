@@ -347,7 +347,6 @@ struct ApplyBounds {
                 return {true};
             }
             auto &state = states[std::distance(dom.begin(), it)];
-            auto const &num = *sym->value.num();
             auto bound_type = IEInterval::Lower;
             switch (rel) {
                 case Relation::greater:
@@ -388,8 +387,7 @@ struct ApplyBounds {
             // mark as covered
             state.set_value(bound_type);
             // update if changed
-            auto adjust = bound_type == IEInterval::Lower ? 1 : -1;
-            if (cmp(bound, rel, num + adjust)) {
+            if (cmp(bound, rel, *sym->value.num() + Number{bound_type == IEInterval::Lower ? 1 : -1})) {
                 auto rel = bound_type == IEInterval::Lower > 0 ? Relation::greater_equal : Relation::less_equal;
                 return {true, make_relation(lhs, rel, location(rhs), bound)};
             }
