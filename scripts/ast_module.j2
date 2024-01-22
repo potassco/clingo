@@ -201,6 +201,7 @@ This can be used to auto-generate most of the binding.)"));
             {%- if "default" in argument %}
               {%- if argument.type == "bool" %} = {{ argument.default | string | lower }}
               {%- elif types[argument.type].type == "array" and argument.default == "empty" %} = {{ argument.type | camel }}{}
+              {%- elif types[argument.type].type == "optional" and argument.default == "empty" %} = std::nullopt
               {%- endif %}
             {%- endif %}
         {%- endfor %}, R"doc(Construct a {{ c_type_name }} object.

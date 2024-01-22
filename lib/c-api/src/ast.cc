@@ -588,6 +588,12 @@ auto clingo_ast::visit(V &&visit) const -> std::invoke_result_t<V, Gringo::Input
         case clingo_ast_type_statement_project_signature: {
             return std::invoke(std::move(visit), cast<StatementProjectSig>());
         }
+        case clingo_ast_type_statement_defined: {
+            return std::invoke(std::move(visit), cast<StatementDefined>());
+        }
+        case clingo_ast_type_statement_external: {
+            return std::invoke(std::move(visit), cast<StatementExternal>());
+        }
     }
     throw std::invalid_argument("invalid ast type");
 }
@@ -681,6 +687,9 @@ auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<
             ATTR(arity, arity))
         TYPE(statement_project_signature, StatementProjectSig,
             ATTR(sign, has_sign)
+            ATTR(arity, arity))
+        TYPE(statement_defined, StatementDefined,
+            ATTR(sign, has_sign)
             ATTR(arity, arity)))
     // clang-format on
 }
@@ -734,6 +743,8 @@ auto clingo_ast::get_string(clingo_ast_attribute_t attr) const -> std::optional<
         TYPE(statement_show_signature, StatementShowSig,
             ATTR(name, name))
         TYPE(statement_project_signature, StatementProjectSig,
+            ATTR(name, name))
+        TYPE(statement_defined, StatementDefined,
             ATTR(name, name)))
     // clang-format on
 }
@@ -825,6 +836,9 @@ auto clingo_ast::get_ast(clingo_ast_attribute_t attr) const -> std::optional<std
             ATTR(term, term))
         TYPE(statement_project, StatementProject,
             ATTR(atom, term))
+        TYPE(statement_external, StatementExternal,
+            ATTR(atom, term)
+            ATTR(external_type, type))
         TYPE(edge, StatementEdge::Edge,
             ATTR(u, u)
             ATTR(v, v)))
@@ -901,6 +915,8 @@ auto clingo_ast::get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional
         TYPE(statement_show, StatementShow,
             ATTR(body, body))
         TYPE(statement_project, StatementProject,
+            ATTR(body, body))
+        TYPE(statement_external, StatementExternal,
             ATTR(body, body)))
     // clang-format on
 }
@@ -1874,6 +1890,32 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 va_end(args);
                 *ast = construct_ast<Gringo::Input::StatementProjectSig>(type, convert_loc(lib, loc), sign != 0,
                                                                          lib->store->string(name), arity);
+                break;
+            }
+            case clingo_ast_type_statement_defined: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const *name = va_arg(args, char const *);
+                auto arity = va_arg(args, int);
+                auto sign = va_arg(args, int);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::StatementDefined>(type, convert_loc(lib, loc), sign != 0,
+                                                                      lib->store->string(name), arity);
+                break;
+            }
+            case clingo_ast_type_statement_external: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const *atom = va_arg(args, clingo_ast_t const *);
+                auto const **body = va_arg(args, clingo_ast_t const **);
+                auto body_size = va_arg(args, size_t);
+                auto const *external_type = va_arg(args, clingo_ast_t const *);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::StatementExternal>(
+                    type, convert_loc(lib, loc), atom->convert<Term>(), convert_ast_vec<BodyLiteral>(body, body_size),
+                    convert_ast_opt<Term>(external_type));
                 break;
             }
         }

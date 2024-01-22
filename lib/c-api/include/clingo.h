@@ -698,15 +698,15 @@ enum clingo_ast_type_e {
     clingo_ast_type_statement_show_signature,
     clingo_ast_type_statement_project,
     clingo_ast_type_statement_project_signature,
+    clingo_ast_type_statement_defined,
+    clingo_ast_type_statement_external
     /*
     // statements
     clingo_ast_type_definition,
     clingo_ast_type_script,
     clingo_ast_type_program,
-    clingo_ast_type_external,
     clingo_ast_type_edge,
     clingo_ast_type_heuristic,
-    clingo_ast_type_defined,
     clingo_ast_type_comment
     */
 };
@@ -749,7 +749,8 @@ enum clingo_ast_attribute_e {
     clingo_ast_attribute_value,
     clingo_ast_attribute_weight,
     clingo_ast_attribute_u,
-    clingo_ast_attribute_v
+    clingo_ast_attribute_v,
+    clingo_ast_attribute_external_type
     /*
     clingo_ast_attribute_argument,
     clingo_ast_attribute_arity,

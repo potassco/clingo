@@ -3620,8 +3620,13 @@ class StatementProject;
 
 class StatementProjectSignature;
 
+class StatementDefined;
+
+class StatementExternal;
+
 using Statement = std::variant<StatementRule, StatementTheory, StatementOptimize, StatementWeakConstraint,
-                               StatementShow, StatementShowSignature, StatementProject, StatementProjectSignature>;
+                               StatementShow, StatementShowSignature, StatementProject, StatementProjectSignature,
+                               StatementDefined, StatementExternal>;
 
 auto construct_statement(clingo_ast_t *ast) -> Statement;
 
@@ -4255,6 +4260,166 @@ class StatementProjectSignature {
 };
 
 inline auto c_cast(StatementProjectSignature const &x) -> clingo_ast_t * { return x.ast_; }
+
+class StatementDefined {
+  public:
+    // Note: for pybind
+    StatementDefined() = default;
+
+    StatementDefined(StatementDefined const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    StatementDefined(StatementDefined &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(StatementDefined const &x) -> StatementDefined & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(StatementDefined &&x) noexcept -> StatementDefined & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(StatementDefined const &a, StatementDefined const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(StatementDefined const &a, StatementDefined const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, StatementDefined)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~StatementDefined() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    auto name() -> char const *;
+
+    auto arity() -> int;
+
+    auto sign() -> bool;
+
+    static auto acquire(clingo_ast_t *ast) -> StatementDefined { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, char const *name, int arity, bool sign)
+        -> StatementDefined;
+
+    friend auto c_cast(StatementDefined const &x) -> clingo_ast_t *;
+
+  private:
+    StatementDefined(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(StatementDefined const &x) -> clingo_ast_t * { return x.ast_; }
+
+class StatementExternal {
+  public:
+    // Note: for pybind
+    StatementExternal() = default;
+
+    StatementExternal(StatementExternal const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    StatementExternal(StatementExternal &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(StatementExternal const &x) -> StatementExternal & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(StatementExternal &&x) noexcept -> StatementExternal & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(StatementExternal const &a, StatementExternal const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(StatementExternal const &a, StatementExternal const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, StatementExternal)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~StatementExternal() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    auto atom() -> Term;
+
+    auto body() -> BodyLiteralArray;
+
+    auto external_type() -> OptionalTerm;
+
+    static auto acquire(clingo_ast_t *ast) -> StatementExternal { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, Term const &atom,
+                          BodyLiteralArray const &body, OptionalTerm const &external_type) -> StatementExternal;
+
+    friend auto c_cast(StatementExternal const &x) -> clingo_ast_t *;
+
+  private:
+    StatementExternal(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(StatementExternal const &x) -> clingo_ast_t * { return x.ast_; }
 
 auto construct_term(clingo_ast_t *ast) -> Term {
     clingo_ast_type_t type;
@@ -6287,6 +6452,12 @@ auto construct_statement(clingo_ast_t *ast) -> Statement {
         case clingo_ast_type_statement_project_signature: {
             return StatementProjectSignature::acquire(ast);
         }
+        case clingo_ast_type_statement_defined: {
+            return StatementDefined::acquire(ast);
+        }
+        case clingo_ast_type_statement_external: {
+            return StatementExternal::acquire(ast);
+        }
     }
     clingo_ast_free(ast);
     throw std::runtime_error("unexpected ast type");
@@ -6580,6 +6751,92 @@ auto StatementProjectSignature::construct(Library &lib, clingo_location_t const 
     return StatementProjectSignature::acquire(res_);
 }
 
+auto StatementDefined::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto StatementDefined::name() -> char const * {
+    char const *ret;
+    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret)) {
+        throw std::runtime_error("could not get string attribute");
+    }
+    return ret;
+}
+
+auto StatementDefined::arity() -> int {
+    int ret;
+    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_arity, &ret)) {
+        throw std::runtime_error("could not get number attribute");
+    }
+    return ret;
+}
+
+auto StatementDefined::sign() -> bool {
+    int ret;
+    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_sign, &ret)) {
+        throw std::runtime_error("could not get number attribute");
+    }
+    return ret != 0;
+}
+
+auto StatementDefined::construct(Library &lib, clingo_location_t const &location, char const *name, int arity,
+                                 bool sign) -> StatementDefined {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_defined, &res_, &location, name, arity,
+                                           static_cast<int>(sign)));
+    return StatementDefined::acquire(res_);
+}
+
+auto StatementExternal::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto StatementExternal::atom() -> Term {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_atom, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    return construct_term(ast);
+}
+
+auto StatementExternal::body() -> BodyLiteralArray {
+    clingo_ast_t **ast;
+    size_t size;
+    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_body, &ast, &size)) {
+        throw std::runtime_error("could not get ast array attribute");
+    }
+    return construct_body_literal_array(ast, size);
+}
+
+auto StatementExternal::external_type() -> OptionalTerm {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_external_type, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    if (ast != nullptr) {
+        // term
+        return construct_term(ast);
+    }
+    return std::nullopt;
+}
+
+auto StatementExternal::construct(Library &lib, clingo_location_t const &location, Term const &atom,
+                                  BodyLiteralArray const &body, OptionalTerm const &external_type)
+    -> StatementExternal {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_external, &res_, &location, c_cast(atom),
+                                           c_cast(body).data(), body.size(), c_cast(external_type)));
+    return StatementExternal::acquire(res_);
+}
+
 template <class T> auto c_cast(std::optional<T> const &opt) -> clingo_ast_t * {
     if (opt) {
         return c_cast(*opt);
@@ -6805,6 +7062,11 @@ term.)doc");
 
     auto py_statement_project_signature = py::class_<StatementProjectSignature>(
         ast, "StatementProjectSignature", R"doc(A project signature statement.)doc");
+
+    auto py_statement_defined = py::class_<StatementDefined>(ast, "StatementDefined", R"doc(A defined statement.)doc");
+
+    auto py_statement_external =
+        py::class_<StatementExternal>(ast, "StatementExternal", R"doc(An external statement.)doc");
 
     py_unary_operator.value("Minus", UnaryOperator::Minus, R"doc(Operator `-`.)doc")
         .value("Negation", UnaryOperator::Negation, R"doc(Operator `~`.)doc");
@@ -8008,6 +8270,56 @@ sign
         .def_property_readonly("name", &StatementProjectSignature::name, R"doc(The name of the atom to project.)doc")
         .def_property_readonly("arity", &StatementProjectSignature::arity, R"doc(The arity of the atom to project.)doc")
         .def_property_readonly("sign", &StatementProjectSignature::sign, R"doc(The classical sign of the atom.)doc")
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_statement_defined
+        .def(py::init(&StatementDefined::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
+             py::arg("arity"), py::arg("sign") = false, R"doc(Construct a StatementDefined object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+location
+    The location of the statement.
+name
+    The name of the atom to project.
+arity
+    The arity of the atom to project.
+sign
+    The classical sign of the atom.)doc")
+        .def("__str__", &StatementDefined::to_string)
+        .def("__hash__", &StatementDefined::hash)
+        .def_property_readonly("location", &StatementDefined::location, R"doc(The location of the statement.)doc")
+        .def_property_readonly("name", &StatementDefined::name, R"doc(The name of the atom to project.)doc")
+        .def_property_readonly("arity", &StatementDefined::arity, R"doc(The arity of the atom to project.)doc")
+        .def_property_readonly("sign", &StatementDefined::sign, R"doc(The classical sign of the atom.)doc")
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_statement_external
+        .def(py::init(&StatementExternal::construct), py::arg("lib"), py::arg("location"), py::arg("atom"),
+             py::arg("body"), py::arg("external_type") = std::nullopt, R"doc(Construct a StatementExternal object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+location
+    The location of the statement.
+atom
+    The atom to project.
+body
+    The body of the statement.
+external_type
+    The type of the external.)doc")
+        .def("__str__", &StatementExternal::to_string)
+        .def("__hash__", &StatementExternal::hash)
+        .def_property_readonly("location", &StatementExternal::location, R"doc(The location of the statement.)doc")
+        .def_property_readonly("atom", &StatementExternal::atom, R"doc(The atom to project.)doc")
+        .def_property_readonly("body", &StatementExternal::body, R"doc(The body of the statement.)doc")
+        .def_property_readonly("external_type", &StatementExternal::external_type, R"doc(The type of the external.)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 

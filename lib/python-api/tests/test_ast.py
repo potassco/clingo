@@ -741,6 +741,38 @@ class TestAST(TestCase):
         self.assertEqual(str(s2), "#project p/2.")
         self.assertEqual(str(s3), "#project -q/2.")
 
+    def test_statement_defined(self):
+        """
+        Test defined statements.
+        """
+        s2 = ast.StatementDefined(self.lib, self.loc, "p", 2)
+        s3 = ast.StatementDefined(self.lib, self.loc, "q", 2, True)
+        self.assertEqual(s2.location, self.loc)
+        self.assertEqual(s2.name, "p")
+        self.assertEqual(s2.arity, 2)
+        self.assertFalse(s2.sign)
+        self.assertTrue(s3.sign)
+        self.assertEqual(str(s2), "#defined p/2.")
+        self.assertEqual(str(s3), "#defined -q/2.")
+
+    def test_statement_external(self):
+        """
+        Test external statements.
+        """
+        t1 = ast.parse_term(self.lib, "-p(X)")
+        t2 = ast.parse_term(self.lib, "true")
+        l1 = ast.parse_body_literal(self.lib, "q(X)")
+        l2 = ast.parse_body_literal(self.lib, "p(X)")
+        s1 = ast.StatementExternal(self.lib, self.loc, t1, [l1, l2])
+        s2 = ast.StatementExternal(self.lib, self.loc, t1, [l1, l2], t2)
+        self.assertEqual(s1.location, self.loc)
+        self.assertEqual(s1.atom, t1)
+        self.assertEqual(s1.body, [l1, l2])
+        self.assertIsNone(s1.external_type)
+        self.assertEqual(s2.external_type, t2)
+        self.assertEqual(str(s1), "#external -p(X): q(X); p(X).")
+        self.assertEqual(str(s2), "#external -p(X): q(X); p(X). [true]")
+
     def test_parse(self):
         """
         Test parsing of asts.

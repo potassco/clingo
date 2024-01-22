@@ -865,6 +865,8 @@ statement:
   - statement_show_signature
   - statement_project
   - statement_project_signature
+  - statement_defined
+  - statement_external
 statement_rule:
   type: record
   doc: A rule.
@@ -980,5 +982,39 @@ statement_project_signature:
       type: bool
       default: false
       doc: The classical sign of the atom.
+statement_defined:
+  type: record
+  doc: A defined statement.
+  arguments:
+    location:
+      type: location
+      doc: The location of the statement.
+    name:
+      type: string
+      doc: The name of the atom to project.
+    arity:
+      type: number
+      doc: The arity of the atom to project.
+    sign:
+      type: bool
+      default: false
+      doc: The classical sign of the atom.
+statement_external:
+  type: record
+  doc: An external statement.
+  arguments:
+    location:
+      type: location
+      doc: The location of the statement.
+    atom:
+      type: term
+      doc: The atom to project.
+    body:
+      type: body_literal_array
+      doc: The body of the statement.
+    external_type:
+      type: optional_term
+      default: empty
+      doc: The type of the external.
 )yaml";
 }
