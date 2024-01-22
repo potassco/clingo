@@ -1,6 +1,7 @@
 """
 Unit tests for clingo.ast module.
 """
+from textwrap import dedent
 from unittest import TestCase
 
 from clingo import ast
@@ -591,6 +592,64 @@ class TestAST(TestCase):
         self.assertEqual(r.head, h)
         self.assertEqual(r.body, [b])
         self.assertEqual(str(r), "not q(X) :- p(X).")
+
+    def test_statement_theory(self):
+        """
+        Test theory definition.
+        """
+        od1 = ast.TheoryOperatorDefinition(
+            self.lib, self.loc, "+", 3, ast.TheoryOperatorType.BinaryLeft
+        )
+
+        self.assertEqual(od1.location, self.loc)
+        self.assertEqual(od1.name, "+")
+        self.assertEqual(od1.priority, 3)
+        self.assertEqual(od1.operator_type, ast.TheoryOperatorType.BinaryLeft)
+        self.assertEqual(str(od1), "+ : 3, binary, left")
+
+        td1 = ast.TheoryTermDefinition(self.lib, self.loc, "t", [od1])
+        self.assertEqual(td1.location, self.loc)
+        self.assertEqual(td1.name, "t")
+        self.assertEqual(td1.operators, [od1])
+        self.assertEqual(str(td1), "t { + : 3, binary, left }")
+
+        gd1 = ast.TheoryGuardDefinition(self.lib, ["+", "-"], "t")
+        self.assertEqual(gd1.operators, ["+", "-"])
+        self.assertEqual(gd1.term, "t")
+        self.assertEqual(str(gd1), "{+,-}, t")
+
+        ad1 = ast.TheoryAtomDefinition(
+            self.lib, self.loc, "p", 1, "t", None, ast.TheoryAtomType.Directive
+        )
+        ad2 = ast.TheoryAtomDefinition(
+            self.lib, self.loc, "p", 1, "t", gd1, ast.TheoryAtomType.Directive
+        )
+        self.assertEqual(ad1.location, self.loc)
+        self.assertEqual(ad1.name, "p")
+        self.assertEqual(ad1.arity, 1)
+        self.assertEqual(ad1.term, "t")
+        self.assertIsNone(ad1.guard)
+        self.assertEqual(ad1.atom_type, ast.TheoryAtomType.Directive)
+        self.assertEqual(ad2.guard, gd1)
+        self.assertEqual(str(ad1), "&p/1: t, directive")
+        self.assertEqual(str(ad2), "&p/1: t, {+,-}, t, directive")
+
+        d1 = ast.StatementTheory(self.lib, self.loc, "t", [td1], [ad1, ad2])
+        self.assertEqual(d1.location, self.loc)
+        self.assertEqual(d1.name, "t")
+        self.assertEqual(d1.terms, [td1])
+        self.assertEqual(d1.atoms, [ad1, ad2])
+        self.assertEqual(
+            str(d1),
+            dedent(
+                """\
+                #theory t {
+                  t { + : 3, binary, left };
+                  &p/1: t, directive;
+                  &p/1: t, {+,-}, t, directive
+                }."""
+            ),
+        )
 
     def test_parse(self):
         """

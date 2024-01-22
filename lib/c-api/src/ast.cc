@@ -39,9 +39,10 @@ auto make_ast(Owner const &owner, Gringo::Input::HeadAggregate::Element const &e
 auto make_ast(Owner const &owner, Gringo::Input::Disjunction::Element const &elem) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::BodyLiteral const &lit) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::HeadLiteral const &lit) -> std::unique_ptr<clingo_ast_t>;
-// TODO
-[[maybe_unused]] auto make_ast(Owner const &owner, Gringo::Input::TheoryOpDefinition const &def)
-    -> std::unique_ptr<clingo_ast_t>;
+auto make_ast(Owner const &owner, Gringo::Input::TheoryOpDefinition const &def) -> std::unique_ptr<clingo_ast_t>;
+auto make_ast(Owner const &owner, Gringo::Input::TheoryRGuardDefinition const &def) -> std::unique_ptr<clingo_ast_t>;
+auto make_ast(Owner const &owner, Gringo::Input::TheoryTermDefinition const &def) -> std::unique_ptr<clingo_ast_t>;
+auto make_ast(Owner const &owner, Gringo::Input::TheoryAtomDefinition const &def) -> std::unique_ptr<clingo_ast_t>;
 
 template <class T> auto make_ast_vec(Owner const &owner, std::vector<T> const &vec) -> ASTVec;
 
@@ -396,6 +397,18 @@ auto make_ast(Owner const &owner, Gringo::Input::TheoryOpDefinition const &def) 
     return std::make_unique<clingo_ast>(owner, clingo_ast_type_theory_operator_definition, &def);
 }
 
+auto make_ast(Owner const &owner, Gringo::Input::TheoryRGuardDefinition const &def) -> std::unique_ptr<clingo_ast_t> {
+    return std::make_unique<clingo_ast>(owner, clingo_ast_type_theory_guard_definition, &def);
+}
+
+auto make_ast(Owner const &owner, Gringo::Input::TheoryTermDefinition const &def) -> std::unique_ptr<clingo_ast_t> {
+    return std::make_unique<clingo_ast>(owner, clingo_ast_type_theory_term_definition, &def);
+}
+
+auto make_ast(Owner const &owner, Gringo::Input::TheoryAtomDefinition const &def) -> std::unique_ptr<clingo_ast_t> {
+    return std::make_unique<clingo_ast>(owner, clingo_ast_type_theory_atom_definition, &def);
+}
+
 template <class T, class... A> auto construct_ast(clingo_ast_type_t type, A &&...args) -> clingo_ast * {
     auto owner = Gringo::Util::make_immutable<std::any>(T{std::forward<A>(args)...});
     auto *ptr = std::any_cast<T>(owner.get());
@@ -613,7 +626,13 @@ auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<
             ATTR(function, fun))
         TYPE(body_aggregate, BodyAggregate,
             ATTR(sign, sign)
-            ATTR(function, fun)))
+            ATTR(function, fun))
+        TYPE(theory_operator_definition, TheoryOpDefinition,
+            ATTR(priority, prio)
+            ATTR(operator_type, type))
+        TYPE(theory_atom_definition, TheoryAtomDefinition,
+            ATTR(arity, arity)
+            ATTR(atom_type, type)))
     // clang-format on
 }
 
@@ -651,7 +670,18 @@ auto clingo_ast::get_string(clingo_ast_attribute_t attr) const -> std::optional<
         TYPE(theory_term_function, TheoryTermFunction,
             ATTR(name, name))
         TYPE(theory_right_guard, TheoryRGuard::value_type,
-            ATTR(theory_operator, first)))
+            ATTR(theory_operator, first))
+        TYPE(theory_operator_definition, TheoryOpDefinition,
+            ATTR(name, op))
+        TYPE(theory_term_definition, TheoryTermDefinition,
+            ATTR(name, name))
+        TYPE(theory_guard_definition, TheoryRGuardDefinition,
+            ATTR(term, second))
+        TYPE(theory_atom_definition, TheoryAtomDefinition,
+            ATTR(name, name)
+            ATTR(term, term))
+        TYPE(statement_theory, TheoryDefinition,
+            ATTR(name, name)))
     // clang-format on
 }
 
@@ -665,6 +695,8 @@ auto clingo_ast::get_string_vec(clingo_ast_attribute_t attr) const -> std::optio
     // clang-format off
     SWITCH(
         TYPE(unparsed_element, TheoryTermUnparsed::Element,
+            ATTR(operators, first))
+        TYPE(theory_guard_definition, TheoryRGuardDefinition,
             ATTR(operators, first)))
     // clang-format on
 }
@@ -726,7 +758,9 @@ auto clingo_ast::get_ast(clingo_ast_attribute_t attr) const -> std::optional<std
             ATTR(left, lhs)
             ATTR(right, rhs))
         TYPE(statement_rule, Rule,
-            ATTR(head, head)))
+            ATTR(head, head))
+        TYPE(theory_atom_definition, TheoryAtomDefinition,
+            ATTR(guard, rhs)))
     // clang-format on
 }
 
@@ -783,7 +817,12 @@ auto clingo_ast::get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional
         TYPE(body_aggregate, BodyAggregate,
             ATTR(elements, elems))
         TYPE(statement_rule, Rule,
-            ATTR(body, body)))
+            ATTR(body, body))
+        TYPE(theory_term_definition, TheoryTermDefinition,
+            ATTR(operators, op_defs))
+        TYPE(statement_theory, TheoryDefinition,
+            ATTR(terms, term_defs)
+            ATTR(atoms, atom_defs)))
     // clang-format on
 }
 
@@ -1570,10 +1609,11 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *loc = va_arg(args, clingo_location_t const *);
                 auto const *name = va_arg(args, char const *);
                 auto priority = va_arg(args, int);
-                auto type = va_arg(args, int);
+                auto op_type = va_arg(args, int);
                 va_end(args);
-                *ast = construct_ast<Gringo::Input::TheoryOpDefinition>(
-                    type, convert_loc(lib, loc), lib->store->string(name), priority, static_cast<TheoryOpType>(type));
+                *ast = construct_ast<Gringo::Input::TheoryOpDefinition>(type, convert_loc(lib, loc),
+                                                                        lib->store->string(name), priority,
+                                                                        static_cast<TheoryOpType>(op_type));
                 break;
             }
             case clingo_ast_type_theory_term_definition: {
@@ -1608,12 +1648,12 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto arity = va_arg(args, int);
                 auto const *term = va_arg(args, char const *);
                 auto const *guard = va_arg(args, clingo_ast_t const *);
-                auto type = va_arg(args, int);
+                auto atom_type = va_arg(args, int);
                 va_end(args);
                 *ast = construct_ast<Gringo::Input::TheoryAtomDefinition>(
                     type, convert_loc(lib, loc), lib->store->string(name), static_cast<int>(arity),
                     lib->store->string(term), convert_ast_opt<TheoryRGuardDefinition>(guard),
-                    static_cast<TheoryAtomType>(type));
+                    static_cast<TheoryAtomType>(atom_type));
                 break;
             }
             case clingo_ast_type_statement_theory: {

@@ -530,8 +530,8 @@ struct Print {
         }
     }
 
-    void operator()(TheoryTermDefinition const &def) const {
-        out << "  " << def.name << " {";
+    void operator()(TheoryTermDefinition const &def, char const *pre = "  ") const {
+        out << pre << def.name << " {";
         if (def.op_defs.empty()) {
             out << " }";
         } else if (def.op_defs.size() == 1) {
@@ -554,8 +554,8 @@ struct Print {
         out << "}, " << def.second;
     }
 
-    void operator()(TheoryAtomDefinition const &def) const {
-        out << "  &" << def.name << "/" << def.arity << ": " << def.term << ", ";
+    void operator()(TheoryAtomDefinition const &def, char const *pre = "  ") const {
+        out << pre << "&" << def.name << "/" << def.arity << ": " << def.term << ", ";
         if (def.rhs) {
             operator()(*def.rhs);
             out << ", ";
@@ -1059,7 +1059,7 @@ auto operator<<(std::ostream &out, TheoryOpDefinition const &def) -> std::ostrea
 }
 
 auto operator<<(std::ostream &out, TheoryTermDefinition const &def) -> std::ostream & {
-    Print{out}(def);
+    Print{out}(def, "");
     return out;
 }
 
@@ -1069,7 +1069,7 @@ auto operator<<(std::ostream &out, TheoryRGuardDefinition const &def) -> std::os
 }
 
 auto operator<<(std::ostream &out, TheoryAtomDefinition const &def) -> std::ostream & {
-    Print{out}(def);
+    Print{out}(def, "");
     return out;
 }
 
