@@ -514,20 +514,16 @@ auto clingo_ast::visit(V &&visit) const -> std::invoke_result_t<V, Gringo::Input
             return std::invoke(std::move(visit), cast<Rule>());
         }
         case clingo_ast_type_theory_operator_definition: {
-            throw std::logic_error("imlement me!!!");
-            // return std::invoke(std::move(visit), cast<TheoryOpDefinition>());
+            return std::invoke(std::move(visit), cast<TheoryOpDefinition>());
         }
         case clingo_ast_type_theory_term_definition: {
-            throw std::logic_error("imlement me!!!");
-            // return std::invoke(std::move(visit), cast<TheoryTermDefinition>());
+            return std::invoke(std::move(visit), cast<TheoryTermDefinition>());
         }
         case clingo_ast_type_theory_guard_definition: {
-            throw std::logic_error("imlement me!!!");
-            // return std::invoke(std::move(visit), cast<TheoryAtomDefinition::RHS>());
+            return std::invoke(std::move(visit), cast<TheoryRGuardDefinition>());
         }
         case clingo_ast_type_theory_atom_definition: {
-            throw std::logic_error("imlement me!!!");
-            // return std::invoke(std::move(visit), cast<TheoryAtomDefinition>());
+            return std::invoke(std::move(visit), cast<TheoryAtomDefinition>());
         }
         case clingo_ast_type_statement_theory: {
             return std::invoke(std::move(visit), cast<TheoryDefinition>());

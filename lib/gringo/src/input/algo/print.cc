@@ -548,12 +548,17 @@ struct Print {
         }
     }
 
+    void operator()(TheoryRGuardDefinition const &def) const {
+        out << "{";
+        print_range(def.first);
+        out << "}, " << def.second;
+    }
+
     void operator()(TheoryAtomDefinition const &def) const {
         out << "  &" << def.name << "/" << def.arity << ": " << def.term << ", ";
-        if (def.rhs.has_value()) {
-            out << "{";
-            print_range(def.rhs->first);
-            out << "}, " << def.rhs->second << ", ";
+        if (def.rhs) {
+            operator()(*def.rhs);
+            out << ", ";
         }
         out << def.type;
     }
@@ -848,13 +853,77 @@ auto operator<<(std::ostream &out, Location const &loc) -> std::ostream & {
     return out;
 }
 
+// terms
+
 auto operator<<(std::ostream &out, Projection const &projection) -> std::ostream & {
     static_cast<void>(projection);
     out << "*";
     return out;
 }
 
+auto operator<<(std::ostream &out, TermVariable const &term) -> std::ostream & {
+    Print{out}(term);
+    return out;
+}
+
+auto operator<<(std::ostream &out, TermSymbol const &term) -> std::ostream & {
+    Print{out}(term);
+    return out;
+}
+
+auto operator<<(std::ostream &out, TermAbs const &term) -> std::ostream & {
+    Print{out}(term);
+    return out;
+}
+
+auto operator<<(std::ostream &out, TermUnary const &term) -> std::ostream & {
+    Print{out}(term);
+    return out;
+}
+
+auto operator<<(std::ostream &out, TermBinary const &term) -> std::ostream & {
+    Print{out}(term);
+    return out;
+}
+
+auto operator<<(std::ostream &out, TermTuple const &term) -> std::ostream & {
+    Print{out}(term);
+    return out;
+}
+
+auto operator<<(std::ostream &out, TermFunction const &term) -> std::ostream & {
+    Print{out}(term);
+    return out;
+}
+
 auto operator<<(std::ostream &out, Term const &term) -> std::ostream & {
+    Print{out}(term);
+    return out;
+}
+
+// theory terms
+
+auto operator<<(std::ostream &out, TheoryTermVariable const &term) -> std::ostream & {
+    Print{out}(term);
+    return out;
+}
+
+auto operator<<(std::ostream &out, TheoryTermSymbol const &term) -> std::ostream & {
+    Print{out}(term);
+    return out;
+}
+
+auto operator<<(std::ostream &out, TheoryTermTuple const &term) -> std::ostream & {
+    Print{out}(term);
+    return out;
+}
+
+auto operator<<(std::ostream &out, TheoryTermFunction const &term) -> std::ostream & {
+    Print{out}(term);
+    return out;
+}
+
+auto operator<<(std::ostream &out, TheoryTermUnparsed const &term) -> std::ostream & {
     Print{out}(term);
     return out;
 }
@@ -864,8 +933,10 @@ auto operator<<(std::ostream &out, TheoryTerm const &term) -> std::ostream & {
     return out;
 }
 
-auto operator<<(std::ostream &out, TheoryElement const &elem) -> std::ostream & {
-    Print{out}(elem);
+// aggregates
+
+auto operator<<(std::ostream &out, ConditionalLiteral const &lit) -> std::ostream & {
+    Print{out}(lit);
     return out;
 }
 
@@ -874,8 +945,8 @@ auto operator<<(std::ostream &out, SetAggregateElement const &elem) -> std::ostr
     return out;
 }
 
-auto operator<<(std::ostream &out, Literal const &lit) -> std::ostream & {
-    Print{out}(lit);
+auto operator<<(std::ostream &out, TheoryElement const &elem) -> std::ostream & {
+    Print{out}(elem);
     return out;
 }
 
@@ -884,18 +955,201 @@ auto operator<<(std::ostream &out, HeadAggregate::Element const &elem) -> std::o
     return out;
 }
 
-auto operator<<(std::ostream &out, HeadLiteral const &lit) -> std::ostream & {
-    Print{out}(lit);
-    return out;
-}
-
 auto operator<<(std::ostream &out, BodyAggregate::Element const &elem) -> std::ostream & {
     Print{out}(elem);
     return out;
 }
 
+// literals
+
+auto operator<<(std::ostream &out, LiteralBoolean const &lit) -> std::ostream & {
+    Print{out}(lit);
+    return out;
+}
+
+auto operator<<(std::ostream &out, LiteralRelation const &lit) -> std::ostream & {
+    Print{out}(lit);
+    return out;
+}
+
+auto operator<<(std::ostream &out, LiteralSymbolic const &lit) -> std::ostream & {
+    Print{out}(lit);
+    return out;
+}
+
+auto operator<<(std::ostream &out, Literal const &lit) -> std::ostream & {
+    Print{out}(lit);
+    return out;
+}
+
+// head literals
+
+auto operator<<(std::ostream &out, SimpleHeadLiteral const &lit) -> std::ostream & {
+    Print{out}(lit);
+    return out;
+}
+
+auto operator<<(std::ostream &out, Disjunction const &lit) -> std::ostream & {
+    Print{out}(lit);
+    return out;
+}
+
+auto operator<<(std::ostream &out, HeadSetAggregate const &lit) -> std::ostream & {
+    Print{out}(lit);
+    return out;
+}
+
+auto operator<<(std::ostream &out, HeadAggregate const &lit) -> std::ostream & {
+    Print{out}(lit);
+    return out;
+}
+
+auto operator<<(std::ostream &out, HeadTheoryAtom const &lit) -> std::ostream & {
+    Print{out}(lit);
+    return out;
+}
+
+auto operator<<(std::ostream &out, HeadLiteral const &lit) -> std::ostream & {
+    Print{out}(lit);
+    return out;
+}
+
+// body literals
+
+auto operator<<(std::ostream &out, SimpleBodyLiteral const &lit) -> std::ostream & {
+    Print{out}(lit);
+    return out;
+}
+
+auto operator<<(std::ostream &out, Conjunction const &lit) -> std::ostream & {
+    Print{out}(lit);
+    return out;
+}
+
+auto operator<<(std::ostream &out, BodySetAggregate const &lit) -> std::ostream & {
+    Print{out}(lit);
+    return out;
+}
+
+auto operator<<(std::ostream &out, BodyAggregate const &lit) -> std::ostream & {
+    Print{out}(lit);
+    return out;
+}
+
+auto operator<<(std::ostream &out, BodyTheoryAtom const &lit) -> std::ostream & {
+    Print{out}(lit);
+    return out;
+}
+
 auto operator<<(std::ostream &out, BodyLiteral const &lit) -> std::ostream & {
     Print{out}(lit);
+    return out;
+}
+
+// statements
+
+auto operator<<(std::ostream &out, Rule const &stm) -> std::ostream & {
+    Print{out}(stm);
+    return out;
+}
+
+auto operator<<(std::ostream &out, TheoryOpDefinition const &def) -> std::ostream & {
+    Print{out}(def);
+    return out;
+}
+
+auto operator<<(std::ostream &out, TheoryTermDefinition const &def) -> std::ostream & {
+    Print{out}(def);
+    return out;
+}
+
+auto operator<<(std::ostream &out, TheoryRGuardDefinition const &def) -> std::ostream & {
+    Print{out}(def);
+    return out;
+}
+
+auto operator<<(std::ostream &out, TheoryAtomDefinition const &def) -> std::ostream & {
+    Print{out}(def);
+    return out;
+}
+
+auto operator<<(std::ostream &out, TheoryDefinition const &stm) -> std::ostream & {
+    Print{out}(stm);
+    return out;
+}
+
+auto operator<<(std::ostream &out, StatementOptimize const &stm) -> std::ostream & {
+    Print{out}(stm);
+    return out;
+}
+
+auto operator<<(std::ostream &out, StatementWeakConstraint const &stm) -> std::ostream & {
+    Print{out}(stm);
+    return out;
+}
+
+auto operator<<(std::ostream &out, StatementShow const &stm) -> std::ostream & {
+    Print{out}(stm);
+    return out;
+}
+
+auto operator<<(std::ostream &out, StatementShowSig const &stm) -> std::ostream & {
+    Print{out}(stm);
+    return out;
+}
+
+auto operator<<(std::ostream &out, StatementProject const &stm) -> std::ostream & {
+    Print{out}(stm);
+    return out;
+}
+
+auto operator<<(std::ostream &out, StatementProjectSig const &stm) -> std::ostream & {
+    Print{out}(stm);
+    return out;
+}
+
+auto operator<<(std::ostream &out, StatementDefined const &stm) -> std::ostream & {
+    Print{out}(stm);
+    return out;
+}
+
+auto operator<<(std::ostream &out, StatementExternal const &stm) -> std::ostream & {
+    Print{out}(stm);
+    return out;
+}
+
+auto operator<<(std::ostream &out, StatementEdge const &stm) -> std::ostream & {
+    Print{out}(stm);
+    return out;
+}
+
+auto operator<<(std::ostream &out, StatementHeuristic const &stm) -> std::ostream & {
+    Print{out}(stm);
+    return out;
+}
+
+auto operator<<(std::ostream &out, StatementScript const &stm) -> std::ostream & {
+    Print{out}(stm);
+    return out;
+}
+
+auto operator<<(std::ostream &out, StatementInclude const &stm) -> std::ostream & {
+    Print{out}(stm);
+    return out;
+}
+
+auto operator<<(std::ostream &out, StatementProgram const &stm) -> std::ostream & {
+    Print{out}(stm);
+    return out;
+}
+
+auto operator<<(std::ostream &out, StatementConst const &stm) -> std::ostream & {
+    Print{out}(stm);
+    return out;
+}
+
+auto operator<<(std::ostream &out, Comment const &stm) -> std::ostream & {
+    Print{out}(stm);
     return out;
 }
 

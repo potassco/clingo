@@ -105,17 +105,18 @@ enum class TheoryAtomType {
     directive //!< A theory atom that can appear only in the head with an empty body.
 };
 
+//! An optional definition for the right-hand-side of a theory atom.
+//!
+//! It consists of a list of possible operators and a name of a term definition.
+using TheoryRGuardDefinition = std::pair<Util::immutable_array<String>, String>;
+
 //! A theory atom definition.
 //!
 //! For example: <tt>name/2: term, any</tt>.
 struct TheoryAtomDefinition {
-    //! An optional definition for the right-hand-side of a theory atom.
-    //!
-    //! It consists of a list of possible operators and a name of a term definition.
-    using RHS = std::optional<std::pair<Util::immutable_array<String>, String>>;
-
     //! Construct a theory atom definition.
-    explicit TheoryAtomDefinition(Location loc, String name, int arity, String term, RHS rhs, TheoryAtomType type)
+    explicit TheoryAtomDefinition(Location loc, String name, int arity, String term,
+                                  std::optional<TheoryRGuardDefinition> rhs, TheoryAtomType type)
         : loc{std::move(loc)}, name(name), arity(arity), term(term), rhs(std::move(rhs)), type(type) {}
 
     //! The location of the definition.
@@ -127,7 +128,7 @@ struct TheoryAtomDefinition {
     //! The name of the term definition used in elements.
     String term;
     //! The definition for the right hand side of the atom.
-    RHS rhs;
+    std::optional<TheoryRGuardDefinition> rhs;
     //! The type of the atom.
     TheoryAtomType type;
 };

@@ -67,7 +67,7 @@ struct theory_guard_definition {
     }();
     static constexpr auto value = []() {
         auto sink = lexy::as_list<std::vector<String>>;
-        auto cb = lexy::construct<TheoryAtomDefinition::RHS::value_type>;
+        auto cb = lexy::construct<TheoryRGuardDefinition>;
         return sink >> cb;
     }();
 };
