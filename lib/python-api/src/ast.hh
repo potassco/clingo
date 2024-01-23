@@ -94,6 +94,21 @@ enum class OptimizeType {
     Maximize = 1,
 };
 
+enum class IncludeType {
+    System = 0,
+    Inbuild = 1,
+};
+
+enum class ConstType {
+    Default = 0,
+    Override = 1,
+};
+
+enum class CommentType {
+    Line = 0,
+    Block = 1,
+};
+
 class TermVariable;
 
 class TermSymbolic;
@@ -3624,9 +3639,24 @@ class StatementDefined;
 
 class StatementExternal;
 
+class StatementEdge;
+
+class StatementHeuristic;
+
+class StatementScript;
+
+class StatementInclude;
+
+class StatementProgram;
+
+class StatementConst;
+
+class StatementComment;
+
 using Statement = std::variant<StatementRule, StatementTheory, StatementOptimize, StatementWeakConstraint,
                                StatementShow, StatementShowSignature, StatementProject, StatementProjectSignature,
-                               StatementDefined, StatementExternal>;
+                               StatementDefined, StatementExternal, StatementEdge, StatementHeuristic, StatementScript,
+                               StatementInclude, StatementProgram, StatementConst, StatementComment>;
 
 auto construct_statement(clingo_ast_t *ast) -> Statement;
 
@@ -4583,6 +4613,398 @@ class StatementHeuristic {
 };
 
 inline auto c_cast(StatementHeuristic const &x) -> clingo_ast_t * { return x.ast_; }
+
+class StatementScript {
+  public:
+    // Note: for pybind
+    StatementScript() = default;
+
+    StatementScript(StatementScript const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    StatementScript(StatementScript &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(StatementScript const &x) -> StatementScript & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(StatementScript &&x) noexcept -> StatementScript & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(StatementScript const &a, StatementScript const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(StatementScript const &a, StatementScript const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, StatementScript)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~StatementScript() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    auto script_type() -> char const *;
+
+    auto value() -> char const *;
+
+    static auto acquire(clingo_ast_t *ast) -> StatementScript { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, char const *script_type, char const *value)
+        -> StatementScript;
+
+    friend auto c_cast(StatementScript const &x) -> clingo_ast_t *;
+
+  private:
+    StatementScript(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(StatementScript const &x) -> clingo_ast_t * { return x.ast_; }
+
+class StatementInclude {
+  public:
+    // Note: for pybind
+    StatementInclude() = default;
+
+    StatementInclude(StatementInclude const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    StatementInclude(StatementInclude &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(StatementInclude const &x) -> StatementInclude & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(StatementInclude &&x) noexcept -> StatementInclude & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(StatementInclude const &a, StatementInclude const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(StatementInclude const &a, StatementInclude const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, StatementInclude)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~StatementInclude() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    auto include_type() -> IncludeType;
+
+    auto value() -> char const *;
+
+    static auto acquire(clingo_ast_t *ast) -> StatementInclude { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, IncludeType const &include_type,
+                          char const *value) -> StatementInclude;
+
+    friend auto c_cast(StatementInclude const &x) -> clingo_ast_t *;
+
+  private:
+    StatementInclude(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(StatementInclude const &x) -> clingo_ast_t * { return x.ast_; }
+
+class StatementProgram {
+  public:
+    // Note: for pybind
+    StatementProgram() = default;
+
+    StatementProgram(StatementProgram const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    StatementProgram(StatementProgram &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(StatementProgram const &x) -> StatementProgram & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(StatementProgram &&x) noexcept -> StatementProgram & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(StatementProgram const &a, StatementProgram const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(StatementProgram const &a, StatementProgram const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, StatementProgram)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~StatementProgram() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    auto name() -> char const *;
+
+    auto arguments() -> std::vector<char const *>;
+
+    static auto acquire(clingo_ast_t *ast) -> StatementProgram { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, char const *name,
+                          StringArray const &arguments) -> StatementProgram;
+
+    friend auto c_cast(StatementProgram const &x) -> clingo_ast_t *;
+
+  private:
+    StatementProgram(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(StatementProgram const &x) -> clingo_ast_t * { return x.ast_; }
+
+class StatementConst {
+  public:
+    // Note: for pybind
+    StatementConst() = default;
+
+    StatementConst(StatementConst const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    StatementConst(StatementConst &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(StatementConst const &x) -> StatementConst & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(StatementConst &&x) noexcept -> StatementConst & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(StatementConst const &a, StatementConst const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(StatementConst const &a, StatementConst const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, StatementConst)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~StatementConst() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    auto name() -> char const *;
+
+    auto value() -> Term;
+
+    auto const_type() -> ConstType;
+
+    static auto acquire(clingo_ast_t *ast) -> StatementConst { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, char const *name, Term const &value,
+                          ConstType const &const_type) -> StatementConst;
+
+    friend auto c_cast(StatementConst const &x) -> clingo_ast_t *;
+
+  private:
+    StatementConst(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(StatementConst const &x) -> clingo_ast_t * { return x.ast_; }
+
+class StatementComment {
+  public:
+    // Note: for pybind
+    StatementComment() = default;
+
+    StatementComment(StatementComment const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    StatementComment(StatementComment &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(StatementComment const &x) -> StatementComment & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(StatementComment &&x) noexcept -> StatementComment & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(StatementComment const &a, StatementComment const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(StatementComment const &a, StatementComment const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, StatementComment)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~StatementComment() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    auto comment_type() -> CommentType;
+
+    auto value() -> char const *;
+
+    static auto acquire(clingo_ast_t *ast) -> StatementComment { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, CommentType const &comment_type,
+                          char const *value) -> StatementComment;
+
+    friend auto c_cast(StatementComment const &x) -> clingo_ast_t *;
+
+  private:
+    StatementComment(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(StatementComment const &x) -> clingo_ast_t * { return x.ast_; }
 
 auto construct_term(clingo_ast_t *ast) -> Term {
     clingo_ast_type_t type;
@@ -6621,6 +7043,27 @@ auto construct_statement(clingo_ast_t *ast) -> Statement {
         case clingo_ast_type_statement_external: {
             return StatementExternal::acquire(ast);
         }
+        case clingo_ast_type_statement_edge: {
+            return StatementEdge::acquire(ast);
+        }
+        case clingo_ast_type_statement_heuristic: {
+            return StatementHeuristic::acquire(ast);
+        }
+        case clingo_ast_type_statement_script: {
+            return StatementScript::acquire(ast);
+        }
+        case clingo_ast_type_statement_include: {
+            return StatementInclude::acquire(ast);
+        }
+        case clingo_ast_type_statement_program: {
+            return StatementProgram::acquire(ast);
+        }
+        case clingo_ast_type_statement_const: {
+            return StatementConst::acquire(ast);
+        }
+        case clingo_ast_type_statement_comment: {
+            return StatementComment::acquire(ast);
+        }
     }
     clingo_ast_free(ast);
     throw std::runtime_error("unexpected ast type");
@@ -7097,6 +7540,179 @@ auto StatementHeuristic::construct(Library &lib, clingo_location_t const &locati
     return StatementHeuristic::acquire(res_);
 }
 
+auto StatementScript::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto StatementScript::script_type() -> char const * {
+    char const *ret;
+    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_script_type, &ret)) {
+        throw std::runtime_error("could not get string attribute");
+    }
+    return ret;
+}
+
+auto StatementScript::value() -> char const * {
+    char const *ret;
+    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_value, &ret)) {
+        throw std::runtime_error("could not get string attribute");
+    }
+    return ret;
+}
+
+auto StatementScript::construct(Library &lib, clingo_location_t const &location, char const *script_type,
+                                char const *value) -> StatementScript {
+    clingo_ast_t *res_;
+    handle_error(lib,
+                 clingo_ast_construct(lib, clingo_ast_type_statement_script, &res_, &location, script_type, value));
+    return StatementScript::acquire(res_);
+}
+
+auto StatementInclude::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto StatementInclude::include_type() -> IncludeType {
+    int ret;
+    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_include_type, &ret)) {
+        throw std::runtime_error("could not get number attribute");
+    }
+    return static_cast<IncludeType>(ret);
+}
+
+auto StatementInclude::value() -> char const * {
+    char const *ret;
+    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_value, &ret)) {
+        throw std::runtime_error("could not get string attribute");
+    }
+    return ret;
+}
+
+auto StatementInclude::construct(Library &lib, clingo_location_t const &location, IncludeType const &include_type,
+                                 char const *value) -> StatementInclude {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_include, &res_, &location,
+                                           static_cast<int>(include_type), value));
+    return StatementInclude::acquire(res_);
+}
+
+auto StatementProgram::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto StatementProgram::name() -> char const * {
+    char const *ret;
+    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret)) {
+        throw std::runtime_error("could not get string attribute");
+    }
+    return ret;
+}
+
+auto StatementProgram::arguments() -> std::vector<char const *> {
+    size_t size;
+    if (!clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_arguments, nullptr, &size)) {
+        throw std::runtime_error("could not get string array attribute");
+    }
+    std::vector<char const *> ret;
+    ret.resize(size, nullptr);
+    if (!clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_arguments, ret.data(), &size)) {
+        throw std::runtime_error("could not get string array attribute");
+    }
+    return ret;
+}
+
+auto StatementProgram::construct(Library &lib, clingo_location_t const &location, char const *name,
+                                 StringArray const &arguments) -> StatementProgram {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_program, &res_, &location, name,
+                                           c_cast(arguments).data(), arguments.size()));
+    return StatementProgram::acquire(res_);
+}
+
+auto StatementConst::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto StatementConst::name() -> char const * {
+    char const *ret;
+    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret)) {
+        throw std::runtime_error("could not get string attribute");
+    }
+    return ret;
+}
+
+auto StatementConst::value() -> Term {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_value, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    return construct_term(ast);
+}
+
+auto StatementConst::const_type() -> ConstType {
+    int ret;
+    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_const_type, &ret)) {
+        throw std::runtime_error("could not get number attribute");
+    }
+    return static_cast<ConstType>(ret);
+}
+
+auto StatementConst::construct(Library &lib, clingo_location_t const &location, char const *name, Term const &value,
+                               ConstType const &const_type) -> StatementConst {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_const, &res_, &location, name, c_cast(value),
+                                           static_cast<int>(const_type)));
+    return StatementConst::acquire(res_);
+}
+
+auto StatementComment::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto StatementComment::comment_type() -> CommentType {
+    int ret;
+    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_comment_type, &ret)) {
+        throw std::runtime_error("could not get number attribute");
+    }
+    return static_cast<CommentType>(ret);
+}
+
+auto StatementComment::value() -> char const * {
+    char const *ret;
+    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_value, &ret)) {
+        throw std::runtime_error("could not get string attribute");
+    }
+    return ret;
+}
+
+auto StatementComment::construct(Library &lib, clingo_location_t const &location, CommentType const &comment_type,
+                                 char const *value) -> StatementComment {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_comment, &res_, &location,
+                                           static_cast<int>(comment_type), value));
+    return StatementComment::acquire(res_);
+}
+
 template <class T> auto c_cast(std::optional<T> const &opt) -> clingo_ast_t * {
     if (opt) {
         return c_cast(*opt);
@@ -7184,6 +7800,12 @@ This can be used to auto-generate most of the binding.)"));
         py::enum_<TheoryAtomType>(ast, "TheoryAtomType", R"doc(Enumeration of the theory atom types.)doc");
 
     auto py_optimize_type = py::enum_<OptimizeType>(ast, "OptimizeType", R"doc(Enumeration of optimization types.)doc");
+
+    auto py_include_type = py::enum_<IncludeType>(ast, "IncludeType", R"doc(Enumeration of include types.)doc");
+
+    auto py_const_type = py::enum_<ConstType>(ast, "ConstType", R"doc(Enumeration of const types.)doc");
+
+    auto py_comment_type = py::enum_<CommentType>(ast, "CommentType", R"doc(Enumeration of comment types.)doc");
 
     auto py_projection =
         py::class_<Projection>(ast, "Projection", R"doc(A placeholder for an argument to project.)doc");
@@ -7333,6 +7955,16 @@ term.)doc");
     auto py_statement_heuristic =
         py::class_<StatementHeuristic>(ast, "StatementHeuristic", R"doc(A heuristic statement.)doc");
 
+    auto py_statement_script = py::class_<StatementScript>(ast, "StatementScript", R"doc(A script statement.)doc");
+
+    auto py_statement_include = py::class_<StatementInclude>(ast, "StatementInclude", R"doc(An include statement.)doc");
+
+    auto py_statement_program = py::class_<StatementProgram>(ast, "StatementProgram", R"doc(An program statement.)doc");
+
+    auto py_statement_const = py::class_<StatementConst>(ast, "StatementConst", R"doc(A const statement.)doc");
+
+    auto py_statement_comment = py::class_<StatementComment>(ast, "StatementComment", R"doc(A comment.)doc");
+
     py_unary_operator.value("Minus", UnaryOperator::Minus, R"doc(Operator `-`.)doc")
         .value("Negation", UnaryOperator::Negation, R"doc(Operator `~`.)doc");
 
@@ -7378,6 +8010,15 @@ term.)doc");
 
     py_optimize_type.value("Minimize", OptimizeType::Minimize, R"doc(For `#minimize` statements.)doc")
         .value("Maximize", OptimizeType::Maximize, R"doc(For `#maximize` statements.)doc");
+
+    py_include_type.value("System", IncludeType::System, R"doc(For file includes.)doc")
+        .value("Inbuild", IncludeType::Inbuild, R"doc(For inbuild includes.)doc");
+
+    py_const_type.value("Default", ConstType::Default, R"doc(For default const statements.)doc")
+        .value("Override", ConstType::Override, R"doc(For overriding const statements.)doc");
+
+    py_comment_type.value("Line", CommentType::Line, R"doc(For line comments.)doc")
+        .value("Block", CommentType::Block, R"doc(For block comments.)doc");
 
     py_projection
         .def(py::init(&Projection::construct), py::arg("lib"), py::arg("location"), R"doc(Construct a Projection object.
@@ -8640,6 +9281,119 @@ priority
                                R"doc(The weight of the heuristic modification.)doc")
         .def_property_readonly("modifier", &StatementHeuristic::modifier, R"doc(The heuristic modifier.)doc")
         .def_property_readonly("priority", &StatementHeuristic::priority, R"doc(An optional priority.)doc")
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_statement_script
+        .def(py::init(&StatementScript::construct), py::arg("lib"), py::arg("location"), py::arg("script_type"),
+             py::arg("value"), R"doc(Construct a StatementScript object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+location
+    The location of the statement.
+script_type
+    The type of the script.
+value
+    The content of the script.)doc")
+        .def("__str__", &StatementScript::to_string)
+        .def("__hash__", &StatementScript::hash)
+        .def_property_readonly("location", &StatementScript::location, R"doc(The location of the statement.)doc")
+        .def_property_readonly("script_type", &StatementScript::script_type, R"doc(The type of the script.)doc")
+        .def_property_readonly("value", &StatementScript::value, R"doc(The content of the script.)doc")
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_statement_include
+        .def(py::init(&StatementInclude::construct), py::arg("lib"), py::arg("location"), py::arg("include_type"),
+             py::arg("value"), R"doc(Construct a StatementInclude object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+location
+    The location of the statement.
+include_type
+    The type of the include.
+value
+    The path of the statement.)doc")
+        .def("__str__", &StatementInclude::to_string)
+        .def("__hash__", &StatementInclude::hash)
+        .def_property_readonly("location", &StatementInclude::location, R"doc(The location of the statement.)doc")
+        .def_property_readonly("include_type", &StatementInclude::include_type, R"doc(The type of the include.)doc")
+        .def_property_readonly("value", &StatementInclude::value, R"doc(The path of the statement.)doc")
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_statement_program
+        .def(py::init(&StatementProgram::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
+             py::arg("arguments"), R"doc(Construct a StatementProgram object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+location
+    The location of the statement.
+name
+    The name of the program.
+arguments
+    The arguments of the program.)doc")
+        .def("__str__", &StatementProgram::to_string)
+        .def("__hash__", &StatementProgram::hash)
+        .def_property_readonly("location", &StatementProgram::location, R"doc(The location of the statement.)doc")
+        .def_property_readonly("name", &StatementProgram::name, R"doc(The name of the program.)doc")
+        .def_property_readonly("arguments", &StatementProgram::arguments, R"doc(The arguments of the program.)doc")
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_statement_const
+        .def(py::init(&StatementConst::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
+             py::arg("value"), py::arg("const_type"), R"doc(Construct a StatementConst object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+location
+    The location of the statement.
+name
+    The name of the statement.
+value
+    The term of the statement.
+const_type
+    The type of the statement.)doc")
+        .def("__str__", &StatementConst::to_string)
+        .def("__hash__", &StatementConst::hash)
+        .def_property_readonly("location", &StatementConst::location, R"doc(The location of the statement.)doc")
+        .def_property_readonly("name", &StatementConst::name, R"doc(The name of the statement.)doc")
+        .def_property_readonly("value", &StatementConst::value, R"doc(The term of the statement.)doc")
+        .def_property_readonly("const_type", &StatementConst::const_type, R"doc(The type of the statement.)doc")
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_statement_comment
+        .def(py::init(&StatementComment::construct), py::arg("lib"), py::arg("location"), py::arg("comment_type"),
+             py::arg("value"), R"doc(Construct a StatementComment object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+location
+    The location of the comment.
+comment_type
+    The type of the comment.
+value
+    The value of the comment.)doc")
+        .def("__str__", &StatementComment::to_string)
+        .def("__hash__", &StatementComment::hash)
+        .def_property_readonly("location", &StatementComment::location, R"doc(The location of the comment.)doc")
+        .def_property_readonly("comment_type", &StatementComment::comment_type, R"doc(The type of the comment.)doc")
+        .def_property_readonly("value", &StatementComment::value, R"doc(The value of the comment.)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 

@@ -316,13 +316,10 @@ struct statement_project {
 
 struct statement_script {
     static constexpr char const *name = "script block";
-    static constexpr auto sym_type = lexy::symbol_table<ScriptType> //
-                                         .map<LEXY_SYMBOL("lua")>(ScriptType::lua)
-                                         .map<LEXY_SYMBOL("python")>(ScriptType::python);
     static constexpr auto rule = []() {
         auto script = LEXY_KEYWORD("#script", keyword_base);
         auto open = LEXY_LIT("(");
-        auto type = dsl::symbol<sym_type>(identifier_base);
+        auto type = dsl::p<identifier>;
         auto close = LEXY_LIT(")");
         auto end = LEXY_KEYWORD("#end", keyword_base);
         return Detail::location(script >> open + type + dsl::delimited(close, end)(dsl::code_point) + eos);

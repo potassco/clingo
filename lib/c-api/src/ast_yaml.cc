@@ -148,6 +148,36 @@ optimize_type:
     maximize:
       value: 1
       doc: For `#maximize` statements.
+include_type:
+  type: enum
+  doc: Enumeration of include types.
+  values:
+    system:
+      value: 0
+      doc: For file includes.
+    inbuild:
+      value: 1
+      doc: For inbuild includes.
+const_type:
+  type: enum
+  doc: Enumeration of const types.
+  values:
+    default:
+      value: 0
+      doc: For default const statements.
+    override:
+      value: 1
+      doc: For overriding const statements.
+comment_type:
+  type: enum
+  doc: Enumeration of comment types.
+  values:
+    line:
+      value: 0
+      doc: For line comments.
+    block:
+      value: 1
+      doc: For block comments.
 term:
   type: union
   types:
@@ -867,6 +897,13 @@ statement:
   - statement_project_signature
   - statement_defined
   - statement_external
+  - statement_edge
+  - statement_heuristic
+  - statement_script
+  - statement_include
+  - statement_program
+  - statement_const
+  - statement_comment
 statement_rule:
   type: record
   doc: A rule.
@@ -1052,5 +1089,73 @@ statement_heuristic:
       type: optional_term
       default: empty
       doc: An optional priority.
+statement_script:
+  type: record
+  doc: A script statement.
+  arguments:
+    location:
+      type: location
+      doc: The location of the statement.
+    script_type:
+      type: string
+      doc: The type of the script.
+    value:
+      type: string
+      doc: The content of the script.
+statement_include:
+  type: record
+  doc: An include statement.
+  arguments:
+    location:
+      type: location
+      doc: The location of the statement.
+    include_type:
+      type: include_type
+      doc: The type of the include.
+    value:
+      type: string
+      doc: The path of the statement.
+statement_program:
+  type: record
+  doc: An program statement.
+  arguments:
+    location:
+      type: location
+      doc: The location of the statement.
+    name:
+      type: string
+      doc: The name of the program.
+    arguments:
+      type: string_array
+      doc: The arguments of the program.
+statement_const:
+  type: record
+  doc: A const statement.
+  arguments:
+    location:
+      type: location
+      doc: The location of the statement.
+    name:
+      type: string
+      doc: The name of the statement.
+    value:
+      type: term
+      doc: The term of the statement.
+    const_type:
+      type: const_type
+      doc: The type of the statement.
+statement_comment:
+  type: record
+  doc: A comment.
+  arguments:
+    location:
+      type: location
+      doc: The location of the comment.
+    comment_type:
+      type: comment_type
+      doc: The type of the comment.
+    value:
+      type: string
+      doc: The value of the comment.
 )yaml";
 }

@@ -701,7 +701,12 @@ enum clingo_ast_type_e {
     clingo_ast_type_statement_defined,
     clingo_ast_type_statement_external,
     clingo_ast_type_statement_edge,
-    clingo_ast_type_statement_heuristic
+    clingo_ast_type_statement_heuristic,
+    clingo_ast_type_statement_script,
+    clingo_ast_type_statement_program,
+    clingo_ast_type_statement_include,
+    clingo_ast_type_statement_const,
+    clingo_ast_type_statement_comment
 };
 //! Corresponding type to ::clingo_ast_type_e.
 typedef int clingo_ast_type_t;
@@ -715,13 +720,16 @@ enum clingo_ast_attribute_e {
     clingo_ast_attribute_atoms,
     clingo_ast_attribute_atom_type,
     clingo_ast_attribute_body,
+    clingo_ast_attribute_comment_type,
     clingo_ast_attribute_condition,
+    clingo_ast_attribute_const_type,
     clingo_ast_attribute_elements,
     clingo_ast_attribute_external,
     clingo_ast_attribute_external_type,
     clingo_ast_attribute_function,
     clingo_ast_attribute_guard,
     clingo_ast_attribute_head,
+    clingo_ast_attribute_include_type,
     clingo_ast_attribute_left,
     clingo_ast_attribute_literal,
     clingo_ast_attribute_location,
@@ -734,6 +742,7 @@ enum clingo_ast_attribute_e {
     clingo_ast_attribute_priority,
     clingo_ast_attribute_relation,
     clingo_ast_attribute_right,
+    clingo_ast_attribute_script_type,
     clingo_ast_attribute_sign,
     clingo_ast_attribute_symbol,
     clingo_ast_attribute_term,
@@ -744,7 +753,7 @@ enum clingo_ast_attribute_e {
     clingo_ast_attribute_u,
     clingo_ast_attribute_v,
     clingo_ast_attribute_value,
-    clingo_ast_attribute_weight
+    clingo_ast_attribute_weight,
 };
 
 //! Corresponding type to ::clingo_ast_attribute_e.

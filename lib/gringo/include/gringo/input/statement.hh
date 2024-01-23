@@ -456,26 +456,18 @@ auto operator==(StatementHeuristic const &a, StatementHeuristic const &b) -> boo
 //! Compare two heuristic statements.
 auto operator<(StatementHeuristic const &a, StatementHeuristic const &b) -> bool;
 
-//! Enumeration of script types.
-//!
-//! @see StatementScript
-enum class ScriptType {
-    lua,    //!< Lua code.
-    python, //!< Python code.
-};
-
 //! A script statement.
 //!
 //! For example: <tt>\#script(python) some code \#end</tt>.
 struct StatementScript {
     //! Construct a script statement.
-    explicit StatementScript(Location loc, ScriptType type, std::string content)
+    explicit StatementScript(Location loc, String type, std::string content)
         : loc{std::move(loc)}, type(type), content(std::move(content)) {}
 
     //! The location of the statement.
     Location loc;
     //! The code type.
-    ScriptType type;
+    String type;
     //! The code.
     std::string content;
 };

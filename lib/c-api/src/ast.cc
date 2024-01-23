@@ -605,6 +605,21 @@ auto clingo_ast::visit(V &&visit) const -> std::invoke_result_t<V, Gringo::Input
         case clingo_ast_type_statement_heuristic: {
             return std::invoke(std::move(visit), cast<StatementHeuristic>());
         }
+        case clingo_ast_type_statement_include: {
+            return std::invoke(std::move(visit), cast<StatementInclude>());
+        }
+        case clingo_ast_type_statement_program: {
+            return std::invoke(std::move(visit), cast<StatementProgram>());
+        }
+        case clingo_ast_type_statement_script: {
+            return std::invoke(std::move(visit), cast<StatementScript>());
+        }
+        case clingo_ast_type_statement_const: {
+            return std::invoke(std::move(visit), cast<StatementConst>());
+        }
+        case clingo_ast_type_statement_comment: {
+            return std::invoke(std::move(visit), cast<Comment>());
+        }
     }
     throw std::invalid_argument("invalid ast type");
 }
@@ -1977,6 +1992,21 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                     type, convert_loc(lib, loc), atom->convert<Term>(), convert_ast_vec<BodyLiteral>(body, body_size),
                     weight->convert<Term>(), convert_ast_opt<Term>(priority), modifier->convert<Term>());
                 break;
+            }
+            case clingo_ast_type_statement_include: {
+                throw std::logic_error("implement me!!!");
+            }
+            case clingo_ast_type_statement_program: {
+                throw std::logic_error("implement me!!!");
+            }
+            case clingo_ast_type_statement_script: {
+                throw std::logic_error("implement me!!!");
+            }
+            case clingo_ast_type_statement_const: {
+                throw std::logic_error("implement me!!!");
+            }
+            case clingo_ast_type_statement_comment: {
+                throw std::logic_error("implement me!!!");
             }
         }
     }

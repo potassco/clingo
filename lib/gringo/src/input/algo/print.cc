@@ -113,20 +113,6 @@ auto operator<<(std::ostream &out, OptimizeType type) -> std::ostream & {
     return out;
 }
 
-auto operator<<(std::ostream &out, ScriptType type) -> std::ostream & {
-    switch (type) {
-        case ScriptType::lua: {
-            out << "lua";
-            break;
-        }
-        case ScriptType::python: {
-            out << "python";
-            break;
-        }
-    }
-    return out;
-}
-
 auto operator<<(std::ostream &out, ConstType type) -> std::ostream & {
     switch (type) {
         case ConstType::default_: {
