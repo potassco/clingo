@@ -1042,14 +1042,15 @@ statement_heuristic:
     body:
       type: body_literal_array
       doc: The body of the statement.
-    heuristic_type:
+    weight:
       type: term
-      doc: The type of the modification.
-    priority:
-      type: optional_term
-      doc: An optional term.
+      doc: The weight of the heuristic modification.
     modifier:
       type: term
       doc: The heuristic modifier.
+    priority:
+      type: optional_term
+      default: empty
+      doc: An optional priority.
 )yaml";
 }

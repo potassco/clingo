@@ -47,6 +47,7 @@ auto make_ast(Owner const &owner, Gringo::Input::StatementOptimize::Tuple const 
     -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::StatementOptimize::Element const &elem)
     -> std::unique_ptr<clingo_ast_t>;
+auto make_ast(Owner const &owner, Gringo::Input::StatementEdge::Edge const &edge) -> std::unique_ptr<clingo_ast_t>;
 
 template <class T> auto make_ast_vec(Owner const &owner, std::vector<T> const &vec) -> ASTVec;
 
@@ -423,6 +424,10 @@ auto make_ast(Owner const &owner, Gringo::Input::StatementOptimize::Element cons
     return std::make_unique<clingo_ast>(owner, clingo_ast_type_optimize_element, &elem);
 }
 
+auto make_ast(Owner const &owner, Gringo::Input::StatementEdge::Edge const &edge) -> std::unique_ptr<clingo_ast_t> {
+    return std::make_unique<clingo_ast>(owner, clingo_ast_type_edge, &edge);
+}
+
 template <class T, class... A> auto construct_ast(clingo_ast_type_t type, A &&...args) -> clingo_ast * {
     auto owner = Gringo::Util::make_immutable<std::any>(T{std::forward<A>(args)...});
     auto *ptr = std::any_cast<T>(owner.get());
@@ -593,6 +598,12 @@ auto clingo_ast::visit(V &&visit) const -> std::invoke_result_t<V, Gringo::Input
         }
         case clingo_ast_type_statement_external: {
             return std::invoke(std::move(visit), cast<StatementExternal>());
+        }
+        case clingo_ast_type_statement_edge: {
+            return std::invoke(std::move(visit), cast<StatementEdge>());
+        }
+        case clingo_ast_type_statement_heuristic: {
+            return std::invoke(std::move(visit), cast<StatementHeuristic>());
         }
     }
     throw std::invalid_argument("invalid ast type");
@@ -841,7 +852,12 @@ auto clingo_ast::get_ast(clingo_ast_attribute_t attr) const -> std::optional<std
             ATTR(external_type, type))
         TYPE(edge, StatementEdge::Edge,
             ATTR(u, u)
-            ATTR(v, v)))
+            ATTR(v, v))
+        TYPE(statement_heuristic, StatementHeuristic,
+            ATTR(atom, atom)
+            ATTR(weight, type)
+            ATTR(priority, prio)
+            ATTR(modifier, mod)))
     // clang-format on
 }
 
@@ -917,6 +933,11 @@ auto clingo_ast::get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional
         TYPE(statement_project, StatementProject,
             ATTR(body, body))
         TYPE(statement_external, StatementExternal,
+            ATTR(body, body))
+        TYPE(statement_edge, StatementEdge,
+            ATTR(pool, edges)
+            ATTR(body, body))
+        TYPE(statement_heuristic, StatementHeuristic,
             ATTR(body, body)))
     // clang-format on
 }
@@ -1243,6 +1264,15 @@ template <>
         return cast<Gringo::Input::StatementOptimize::Element>();
     }
     throw std::runtime_error("optimize tuple expected");
+}
+
+template <>
+[[nodiscard]] auto clingo_ast::convert<Gringo::Input::StatementEdge::Edge>() const
+    -> Gringo::Input::StatementEdge::Edge {
+    if (type_ == clingo_ast_type_edge) {
+        return cast<Gringo::Input::StatementEdge::Edge>();
+    }
+    throw std::runtime_error("edge expected");
 }
 
 extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, clingo_ast_t **ast, ...) -> bool {
@@ -1916,6 +1946,36 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 *ast = construct_ast<Gringo::Input::StatementExternal>(
                     type, convert_loc(lib, loc), atom->convert<Term>(), convert_ast_vec<BodyLiteral>(body, body_size),
                     convert_ast_opt<Term>(external_type));
+                break;
+            }
+            case clingo_ast_type_statement_edge: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const **edges = va_arg(args, clingo_ast_t const **);
+                auto edges_size = va_arg(args, size_t);
+                auto const **body = va_arg(args, clingo_ast_t const **);
+                auto body_size = va_arg(args, size_t);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::StatementEdge>(
+                    type, convert_loc(lib, loc), convert_ast_vec<StatementEdge::Edge>(edges, edges_size),
+                    convert_ast_vec<BodyLiteral>(body, body_size));
+                break;
+            }
+            case clingo_ast_type_statement_heuristic: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const *atom = va_arg(args, clingo_ast_t const *);
+                auto const **body = va_arg(args, clingo_ast_t const **);
+                auto body_size = va_arg(args, size_t);
+                auto const *weight = va_arg(args, clingo_ast_t const *);
+                auto const *modifier = va_arg(args, clingo_ast_t const *);
+                auto const *priority = va_arg(args, clingo_ast_t const *);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::StatementHeuristic>(
+                    type, convert_loc(lib, loc), atom->convert<Term>(), convert_ast_vec<BodyLiteral>(body, body_size),
+                    weight->convert<Term>(), convert_ast_opt<Term>(priority), modifier->convert<Term>());
                 break;
             }
         }

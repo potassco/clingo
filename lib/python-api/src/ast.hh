@@ -4421,6 +4421,169 @@ class StatementExternal {
 
 inline auto c_cast(StatementExternal const &x) -> clingo_ast_t * { return x.ast_; }
 
+class StatementEdge {
+  public:
+    // Note: for pybind
+    StatementEdge() = default;
+
+    StatementEdge(StatementEdge const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    StatementEdge(StatementEdge &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(StatementEdge const &x) -> StatementEdge & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(StatementEdge &&x) noexcept -> StatementEdge & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(StatementEdge const &a, StatementEdge const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(StatementEdge const &a, StatementEdge const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, StatementEdge)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~StatementEdge() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    auto pool() -> EdgeArray;
+
+    auto body() -> BodyLiteralArray;
+
+    static auto acquire(clingo_ast_t *ast) -> StatementEdge { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, EdgeArray const &pool,
+                          BodyLiteralArray const &body) -> StatementEdge;
+
+    friend auto c_cast(StatementEdge const &x) -> clingo_ast_t *;
+
+  private:
+    StatementEdge(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(StatementEdge const &x) -> clingo_ast_t * { return x.ast_; }
+
+class StatementHeuristic {
+  public:
+    // Note: for pybind
+    StatementHeuristic() = default;
+
+    StatementHeuristic(StatementHeuristic const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    StatementHeuristic(StatementHeuristic &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    auto operator=(StatementHeuristic const &x) -> StatementHeuristic & {
+        clingo_ast_free(ast_);
+        ast_ = nullptr;
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+        return *this;
+    }
+
+    auto operator=(StatementHeuristic &&x) noexcept -> StatementHeuristic & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(StatementHeuristic const &a, StatementHeuristic const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(StatementHeuristic const &a, StatementHeuristic const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, StatementHeuristic)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~StatementHeuristic() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    auto atom() -> Term;
+
+    auto body() -> BodyLiteralArray;
+
+    auto weight() -> Term;
+
+    auto modifier() -> Term;
+
+    auto priority() -> OptionalTerm;
+
+    static auto acquire(clingo_ast_t *ast) -> StatementHeuristic { return {ast}; }
+
+    static auto construct(Library &lib, clingo_location_t const &location, Term const &atom,
+                          BodyLiteralArray const &body, Term const &weight, Term const &modifier,
+                          OptionalTerm const &priority) -> StatementHeuristic;
+
+    friend auto c_cast(StatementHeuristic const &x) -> clingo_ast_t *;
+
+  private:
+    StatementHeuristic(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(StatementHeuristic const &x) -> clingo_ast_t * { return x.ast_; }
+
 auto construct_term(clingo_ast_t *ast) -> Term {
     clingo_ast_type_t type;
     if (!clingo_ast_get_type(ast, &type)) {
@@ -6837,6 +7000,103 @@ auto StatementExternal::construct(Library &lib, clingo_location_t const &locatio
     return StatementExternal::acquire(res_);
 }
 
+auto StatementEdge::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto StatementEdge::pool() -> EdgeArray {
+    clingo_ast_t **ast;
+    size_t size;
+    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_pool, &ast, &size)) {
+        throw std::runtime_error("could not get ast array attribute");
+    }
+    return construct_edge_array(ast, size);
+}
+
+auto StatementEdge::body() -> BodyLiteralArray {
+    clingo_ast_t **ast;
+    size_t size;
+    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_body, &ast, &size)) {
+        throw std::runtime_error("could not get ast array attribute");
+    }
+    return construct_body_literal_array(ast, size);
+}
+
+auto StatementEdge::construct(Library &lib, clingo_location_t const &location, EdgeArray const &pool,
+                              BodyLiteralArray const &body) -> StatementEdge {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_edge, &res_, &location, c_cast(pool).data(),
+                                           pool.size(), c_cast(body).data(), body.size()));
+    return StatementEdge::acquire(res_);
+}
+
+auto StatementHeuristic::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto StatementHeuristic::atom() -> Term {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_atom, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    return construct_term(ast);
+}
+
+auto StatementHeuristic::body() -> BodyLiteralArray {
+    clingo_ast_t **ast;
+    size_t size;
+    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_body, &ast, &size)) {
+        throw std::runtime_error("could not get ast array attribute");
+    }
+    return construct_body_literal_array(ast, size);
+}
+
+auto StatementHeuristic::weight() -> Term {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_weight, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    return construct_term(ast);
+}
+
+auto StatementHeuristic::modifier() -> Term {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_modifier, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    return construct_term(ast);
+}
+
+auto StatementHeuristic::priority() -> OptionalTerm {
+    clingo_ast_t *ast;
+    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_priority, &ast)) {
+        throw std::runtime_error("could not get ast attribute");
+    }
+    if (ast != nullptr) {
+        // term
+        return construct_term(ast);
+    }
+    return std::nullopt;
+}
+
+auto StatementHeuristic::construct(Library &lib, clingo_location_t const &location, Term const &atom,
+                                   BodyLiteralArray const &body, Term const &weight, Term const &modifier,
+                                   OptionalTerm const &priority) -> StatementHeuristic {
+    clingo_ast_t *res_;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_heuristic, &res_, &location, c_cast(atom),
+                                           c_cast(body).data(), body.size(), c_cast(weight), c_cast(modifier),
+                                           c_cast(priority)));
+    return StatementHeuristic::acquire(res_);
+}
+
 template <class T> auto c_cast(std::optional<T> const &opt) -> clingo_ast_t * {
     if (opt) {
         return c_cast(*opt);
@@ -7067,6 +7327,11 @@ term.)doc");
 
     auto py_statement_external =
         py::class_<StatementExternal>(ast, "StatementExternal", R"doc(An external statement.)doc");
+
+    auto py_statement_edge = py::class_<StatementEdge>(ast, "StatementEdge", R"doc(An edge statement.)doc");
+
+    auto py_statement_heuristic =
+        py::class_<StatementHeuristic>(ast, "StatementHeuristic", R"doc(A heuristic statement.)doc");
 
     py_unary_operator.value("Minus", UnaryOperator::Minus, R"doc(Operator `-`.)doc")
         .value("Negation", UnaryOperator::Negation, R"doc(Operator `~`.)doc");
@@ -8320,6 +8585,61 @@ external_type
         .def_property_readonly("atom", &StatementExternal::atom, R"doc(The atom to project.)doc")
         .def_property_readonly("body", &StatementExternal::body, R"doc(The body of the statement.)doc")
         .def_property_readonly("external_type", &StatementExternal::external_type, R"doc(The type of the external.)doc")
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_statement_edge
+        .def(py::init(&StatementEdge::construct), py::arg("lib"), py::arg("location"), py::arg("pool"), py::arg("body"),
+             R"doc(Construct a StatementEdge object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+location
+    The location of the statement.
+pool
+    The edge pool of the statement.
+body
+    The body of the statement.)doc")
+        .def("__str__", &StatementEdge::to_string)
+        .def("__hash__", &StatementEdge::hash)
+        .def_property_readonly("location", &StatementEdge::location, R"doc(The location of the statement.)doc")
+        .def_property_readonly("pool", &StatementEdge::pool, R"doc(The edge pool of the statement.)doc")
+        .def_property_readonly("body", &StatementEdge::body, R"doc(The body of the statement.)doc")
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_statement_heuristic
+        .def(py::init(&StatementHeuristic::construct), py::arg("lib"), py::arg("location"), py::arg("atom"),
+             py::arg("body"), py::arg("weight"), py::arg("modifier"), py::arg("priority") = std::nullopt,
+             R"doc(Construct a StatementHeuristic object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+location
+    The location of the statement.
+atom
+    The atom to heuristically modify.
+body
+    The body of the statement.
+weight
+    The weight of the heuristic modification.
+modifier
+    The heuristic modifier.
+priority
+    An optional priority.)doc")
+        .def("__str__", &StatementHeuristic::to_string)
+        .def("__hash__", &StatementHeuristic::hash)
+        .def_property_readonly("location", &StatementHeuristic::location, R"doc(The location of the statement.)doc")
+        .def_property_readonly("atom", &StatementHeuristic::atom, R"doc(The atom to heuristically modify.)doc")
+        .def_property_readonly("body", &StatementHeuristic::body, R"doc(The body of the statement.)doc")
+        .def_property_readonly("weight", &StatementHeuristic::weight,
+                               R"doc(The weight of the heuristic modification.)doc")
+        .def_property_readonly("modifier", &StatementHeuristic::modifier, R"doc(The heuristic modifier.)doc")
+        .def_property_readonly("priority", &StatementHeuristic::priority, R"doc(An optional priority.)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 

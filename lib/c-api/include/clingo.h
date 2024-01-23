@@ -699,16 +699,9 @@ enum clingo_ast_type_e {
     clingo_ast_type_statement_project,
     clingo_ast_type_statement_project_signature,
     clingo_ast_type_statement_defined,
-    clingo_ast_type_statement_external
-    /*
-    // statements
-    clingo_ast_type_definition,
-    clingo_ast_type_script,
-    clingo_ast_type_program,
-    clingo_ast_type_edge,
-    clingo_ast_type_heuristic,
-    clingo_ast_type_comment
-    */
+    clingo_ast_type_statement_external,
+    clingo_ast_type_statement_edge,
+    clingo_ast_type_statement_heuristic
 };
 //! Corresponding type to ::clingo_ast_type_e.
 typedef int clingo_ast_type_t;
@@ -725,12 +718,14 @@ enum clingo_ast_attribute_e {
     clingo_ast_attribute_condition,
     clingo_ast_attribute_elements,
     clingo_ast_attribute_external,
+    clingo_ast_attribute_external_type,
     clingo_ast_attribute_function,
     clingo_ast_attribute_guard,
     clingo_ast_attribute_head,
     clingo_ast_attribute_left,
     clingo_ast_attribute_literal,
     clingo_ast_attribute_location,
+    clingo_ast_attribute_modifier,
     clingo_ast_attribute_name,
     clingo_ast_attribute_operators,
     clingo_ast_attribute_operator_type,
@@ -746,51 +741,10 @@ enum clingo_ast_attribute_e {
     clingo_ast_attribute_theory_operator,
     clingo_ast_attribute_tuple,
     clingo_ast_attribute_tuple_type,
-    clingo_ast_attribute_value,
-    clingo_ast_attribute_weight,
     clingo_ast_attribute_u,
     clingo_ast_attribute_v,
-    clingo_ast_attribute_external_type
-    /*
-    clingo_ast_attribute_argument,
-    clingo_ast_attribute_arity,
-    clingo_ast_attribute_atom,
-    clingo_ast_attribute_atoms,
-    clingo_ast_attribute_atom_type,
-    clingo_ast_attribute_bias,
-    clingo_ast_attribute_body,
-    clingo_ast_attribute_code,
-    clingo_ast_attribute_coefficient,
-    clingo_ast_attribute_comparison,
-    clingo_ast_attribute_condition,
-    clingo_ast_attribute_external_type,
-    clingo_ast_attribute_function,
-    clingo_ast_attribute_guard,
-    clingo_ast_attribute_guards,
-    clingo_ast_attribute_head,
-    clingo_ast_attribute_is_default,
-    clingo_ast_attribute_left,
-    clingo_ast_attribute_left_guard,
-    clingo_ast_attribute_literal,
-    clingo_ast_attribute_modifier,
-    clingo_ast_attribute_node_u,
-    clingo_ast_attribute_node_v,
-    clingo_ast_attribute_operator_name,
-    clingo_ast_attribute_operators,
-    clingo_ast_attribute_parameters,
-    clingo_ast_attribute_positive,
-    clingo_ast_attribute_priority,
-    clingo_ast_attribute_right,
-    clingo_ast_attribute_right_guard,
-    clingo_ast_attribute_sequence_type,
-    clingo_ast_attribute_sign,
-    clingo_ast_attribute_term,
-    clingo_ast_attribute_terms,
     clingo_ast_attribute_value,
-    clingo_ast_attribute_variable,
-    clingo_ast_attribute_weight,
-    clingo_ast_attribute_comment_type,
-    */
+    clingo_ast_attribute_weight
 };
 
 //! Corresponding type to ::clingo_ast_attribute_e.

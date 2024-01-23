@@ -773,6 +773,52 @@ class TestAST(TestCase):
         self.assertEqual(str(s1), "#external -p(X): q(X); p(X).")
         self.assertEqual(str(s2), "#external -p(X): q(X); p(X). [true]")
 
+    def test_statement_edge(self):
+        """
+        Test external statements.
+        """
+        u1 = ast.parse_term(self.lib, "u")
+        v1 = ast.parse_term(self.lib, "v")
+        u2 = ast.parse_term(self.lib, "x")
+        v2 = ast.parse_term(self.lib, "y")
+        e1 = ast.Edge(self.lib, u1, v1)
+        e2 = ast.Edge(self.lib, u2, v2)
+        self.assertEqual(e1.u, u1)
+        self.assertEqual(e1.v, v1)
+        self.assertEqual(e2.u, u2)
+        self.assertEqual(e2.v, v2)
+        self.assertEqual(str(e1), "u,v")
+        self.assertEqual(str(e2), "x,y")
+
+        l1 = ast.parse_body_literal(self.lib, "q(X)")
+        l2 = ast.parse_body_literal(self.lib, "p(X)")
+        s1 = ast.StatementEdge(self.lib, self.loc, [e1, e2], [l1, l2])
+        self.assertEqual(s1.location, self.loc)
+        self.assertEqual(s1.pool, [e1, e2])
+        self.assertEqual(s1.body, [l1, l2])
+        self.assertEqual(str(s1), "#edge (u,v;x,y): q(X); p(X).")
+
+    def test_statement_heuristic(self):
+        """
+        Test heuristic statements.
+        """
+        a = ast.parse_term(self.lib, "a")
+        w = ast.parse_term(self.lib, "w")
+        p = ast.parse_term(self.lib, "p")
+        m = ast.parse_term(self.lib, "m")
+
+        l1 = ast.parse_body_literal(self.lib, "q(X)")
+        l2 = ast.parse_body_literal(self.lib, "p(X)")
+        s1 = ast.StatementHeuristic(self.lib, self.loc, a, [l1, l2], w, m)
+        s2 = ast.StatementHeuristic(self.lib, self.loc, a, [l1, l2], w, m, p)
+        self.assertEqual(s1.atom, a)
+        self.assertEqual(s1.weight, w)
+        self.assertEqual(s1.modifier, m)
+        self.assertIsNone(s1.priority)
+        self.assertEqual(s2.priority, p)
+        self.assertEqual(str(s1), "#heuristic a: q(X); p(X). [w,m]")
+        self.assertEqual(str(s2), "#heuristic a: q(X); p(X). [w@p,m]")
+
     def test_parse(self):
         """
         Test parsing of asts.
