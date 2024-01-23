@@ -7807,6 +7807,8 @@ class Scanner {
       private:
         Scanner *scanner_;
     };
+    friend auto operator==(Iterator const &a, Iterator const &b) -> bool;
+    friend auto operator!=(Iterator const &a, Iterator const &b) -> bool;
 
     Scanner(Library &lib, char const *program) : lib_{lib} {
         handle_error(lib, clingo_ast_scan_string(lib, program, &scanner_));
