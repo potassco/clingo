@@ -819,6 +819,60 @@ class TestAST(TestCase):
         self.assertEqual(str(s1), "#heuristic a: q(X); p(X). [w,m]")
         self.assertEqual(str(s2), "#heuristic a: q(X); p(X). [w@p,m]")
 
+    def test_statement_include(self):
+        """
+        Test include statements.
+        """
+        s1 = ast.StatementInclude(self.lib, self.loc, "file", ast.IncludeType.System)
+        self.assertEqual(s1.location, self.loc)
+        self.assertEqual(s1.value, "file")
+        self.assertEqual(s1.include_type, ast.IncludeType.System)
+        self.assertEqual(str(s1), '#include "file".')
+
+    def test_statement_program(self):
+        """
+        Test program statements.
+        """
+        s1 = ast.StatementProgram(self.lib, self.loc, "step", ["t", "k"])
+        self.assertEqual(s1.location, self.loc)
+        self.assertEqual(s1.name, "step")
+        self.assertEqual(s1.arguments, ["t", "k"])
+        self.assertEqual(str(s1), "#program step(t,k).")
+
+    def test_statement_script(self):
+        """
+        Test script statements.
+        """
+        s1 = ast.StatementScript(self.lib, self.loc, "def p(x): return x", "python")
+        self.assertEqual(s1.location, self.loc)
+        self.assertEqual(s1.value, "def p(x): return x")
+        self.assertEqual(s1.script_type, "python")
+        self.assertEqual(str(s1), "#script (python)def p(x): return x#end.")
+
+    def test_statement_const(self):
+        """
+        Test const statements.
+        """
+        t1 = ast.parse_term(self.lib, "f(2+3)")
+        s1 = ast.StatementConst(self.lib, self.loc, "x", t1, ast.ConstType.Override)
+        self.assertEqual(s1.location, self.loc)
+        self.assertEqual(s1.name, "x")
+        self.assertEqual(s1.value, t1)
+        self.assertEqual(s1.const_type, ast.ConstType.Override)
+        self.assertEqual(str(s1), "#const x=f(2+3). [override]")
+
+    def test_statement_comment(self):
+        """
+        Test const statements.
+        """
+        s1 = ast.StatementComment(
+            self.lib, self.loc, "% something arbitrary", ast.CommentType.Line
+        )
+        self.assertEqual(s1.location, self.loc)
+        self.assertEqual(s1.value, "% something arbitrary")
+        self.assertEqual(s1.comment_type, ast.CommentType.Line)
+        self.assertEqual(str(s1), "% something arbitrary")
+
     def test_parse(self):
         """
         Test parsing of asts.
@@ -833,7 +887,8 @@ class TestAST(TestCase):
         self.assertEqual(str(ast.parse_head_literal(self.lib, head_lit)), head_lit)
         body_lit = "b: c"
         self.assertEqual(str(ast.parse_body_literal(self.lib, body_lit)), body_lit)
-        # TODO: statement
+        stm = "a; b: c :- d: e."
+        self.assertEqual(str(stm), stm)
 
     def test_cmp(self):
         """

@@ -1096,12 +1096,12 @@ statement_script:
     location:
       type: location
       doc: The location of the statement.
-    script_type:
-      type: string
-      doc: The type of the script.
     value:
       type: string
       doc: The content of the script.
+    script_type:
+      type: string
+      doc: The type of the script.
 statement_include:
   type: record
   doc: An include statement.
@@ -1151,11 +1151,11 @@ statement_comment:
     location:
       type: location
       doc: The location of the comment.
-    comment_type:
-      type: comment_type
-      doc: The type of the comment.
     value:
       type: string
       doc: The value of the comment.
+    comment_type:
+      type: comment_type
+      doc: The type of the comment.
 )yaml";
 }

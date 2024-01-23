@@ -4673,13 +4673,13 @@ class StatementScript {
 
     auto location() -> clingo_location_t;
 
-    auto script_type() -> char const *;
-
     auto value() -> char const *;
+
+    auto script_type() -> char const *;
 
     static auto acquire(clingo_ast_t *ast) -> StatementScript { return {ast}; }
 
-    static auto construct(Library &lib, clingo_location_t const &location, char const *script_type, char const *value)
+    static auto construct(Library &lib, clingo_location_t const &location, char const *value, char const *script_type)
         -> StatementScript;
 
     friend auto c_cast(StatementScript const &x) -> clingo_ast_t *;
@@ -4751,14 +4751,14 @@ class StatementInclude {
 
     auto location() -> clingo_location_t;
 
-    auto include_type() -> IncludeType;
-
     auto value() -> char const *;
+
+    auto include_type() -> IncludeType;
 
     static auto acquire(clingo_ast_t *ast) -> StatementInclude { return {ast}; }
 
-    static auto construct(Library &lib, clingo_location_t const &location, IncludeType const &include_type,
-                          char const *value) -> StatementInclude;
+    static auto construct(Library &lib, clingo_location_t const &location, char const *value,
+                          IncludeType const &include_type) -> StatementInclude;
 
     friend auto c_cast(StatementInclude const &x) -> clingo_ast_t *;
 
@@ -4987,14 +4987,14 @@ class StatementComment {
 
     auto location() -> clingo_location_t;
 
-    auto comment_type() -> CommentType;
-
     auto value() -> char const *;
+
+    auto comment_type() -> CommentType;
 
     static auto acquire(clingo_ast_t *ast) -> StatementComment { return {ast}; }
 
-    static auto construct(Library &lib, clingo_location_t const &location, CommentType const &comment_type,
-                          char const *value) -> StatementComment;
+    static auto construct(Library &lib, clingo_location_t const &location, char const *value,
+                          CommentType const &comment_type) -> StatementComment;
 
     friend auto c_cast(StatementComment const &x) -> clingo_ast_t *;
 
@@ -7548,14 +7548,6 @@ auto StatementScript::location() -> clingo_location_t {
     return ret;
 }
 
-auto StatementScript::script_type() -> char const * {
-    char const *ret;
-    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_script_type, &ret)) {
-        throw std::runtime_error("could not get string attribute");
-    }
-    return ret;
-}
-
 auto StatementScript::value() -> char const * {
     char const *ret;
     if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_value, &ret)) {
@@ -7564,11 +7556,19 @@ auto StatementScript::value() -> char const * {
     return ret;
 }
 
-auto StatementScript::construct(Library &lib, clingo_location_t const &location, char const *script_type,
-                                char const *value) -> StatementScript {
+auto StatementScript::script_type() -> char const * {
+    char const *ret;
+    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_script_type, &ret)) {
+        throw std::runtime_error("could not get string attribute");
+    }
+    return ret;
+}
+
+auto StatementScript::construct(Library &lib, clingo_location_t const &location, char const *value,
+                                char const *script_type) -> StatementScript {
     clingo_ast_t *res_;
     handle_error(lib,
-                 clingo_ast_construct(lib, clingo_ast_type_statement_script, &res_, &location, script_type, value));
+                 clingo_ast_construct(lib, clingo_ast_type_statement_script, &res_, &location, value, script_type));
     return StatementScript::acquire(res_);
 }
 
@@ -7576,6 +7576,14 @@ auto StatementInclude::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto StatementInclude::value() -> char const * {
+    char const *ret;
+    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_value, &ret)) {
+        throw std::runtime_error("could not get string attribute");
     }
     return ret;
 }
@@ -7588,19 +7596,11 @@ auto StatementInclude::include_type() -> IncludeType {
     return static_cast<IncludeType>(ret);
 }
 
-auto StatementInclude::value() -> char const * {
-    char const *ret;
-    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_value, &ret)) {
-        throw std::runtime_error("could not get string attribute");
-    }
-    return ret;
-}
-
-auto StatementInclude::construct(Library &lib, clingo_location_t const &location, IncludeType const &include_type,
-                                 char const *value) -> StatementInclude {
+auto StatementInclude::construct(Library &lib, clingo_location_t const &location, char const *value,
+                                 IncludeType const &include_type) -> StatementInclude {
     clingo_ast_t *res_;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_include, &res_, &location,
-                                           static_cast<int>(include_type), value));
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_include, &res_, &location, value,
+                                           static_cast<int>(include_type)));
     return StatementInclude::acquire(res_);
 }
 
@@ -7689,14 +7689,6 @@ auto StatementComment::location() -> clingo_location_t {
     return ret;
 }
 
-auto StatementComment::comment_type() -> CommentType {
-    int ret;
-    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_comment_type, &ret)) {
-        throw std::runtime_error("could not get number attribute");
-    }
-    return static_cast<CommentType>(ret);
-}
-
 auto StatementComment::value() -> char const * {
     char const *ret;
     if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_value, &ret)) {
@@ -7705,11 +7697,19 @@ auto StatementComment::value() -> char const * {
     return ret;
 }
 
-auto StatementComment::construct(Library &lib, clingo_location_t const &location, CommentType const &comment_type,
-                                 char const *value) -> StatementComment {
+auto StatementComment::comment_type() -> CommentType {
+    int ret;
+    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_comment_type, &ret)) {
+        throw std::runtime_error("could not get number attribute");
+    }
+    return static_cast<CommentType>(ret);
+}
+
+auto StatementComment::construct(Library &lib, clingo_location_t const &location, char const *value,
+                                 CommentType const &comment_type) -> StatementComment {
     clingo_ast_t *res_;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_comment, &res_, &location,
-                                           static_cast<int>(comment_type), value));
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_comment, &res_, &location, value,
+                                           static_cast<int>(comment_type)));
     return StatementComment::acquire(res_);
 }
 
@@ -9285,8 +9285,8 @@ priority
         CLINGO_PY_TOTAL_ORDER;
 
     py_statement_script
-        .def(py::init(&StatementScript::construct), py::arg("lib"), py::arg("location"), py::arg("script_type"),
-             py::arg("value"), R"doc(Construct a StatementScript object.
+        .def(py::init(&StatementScript::construct), py::arg("lib"), py::arg("location"), py::arg("value"),
+             py::arg("script_type"), R"doc(Construct a StatementScript object.
 
 Parameters
 ----------
@@ -9294,21 +9294,21 @@ lib
     The library object for storing symbols.
 location
     The location of the statement.
-script_type
-    The type of the script.
 value
-    The content of the script.)doc")
+    The content of the script.
+script_type
+    The type of the script.)doc")
         .def("__str__", &StatementScript::to_string)
         .def("__hash__", &StatementScript::hash)
         .def_property_readonly("location", &StatementScript::location, R"doc(The location of the statement.)doc")
-        .def_property_readonly("script_type", &StatementScript::script_type, R"doc(The type of the script.)doc")
         .def_property_readonly("value", &StatementScript::value, R"doc(The content of the script.)doc")
+        .def_property_readonly("script_type", &StatementScript::script_type, R"doc(The type of the script.)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
     py_statement_include
-        .def(py::init(&StatementInclude::construct), py::arg("lib"), py::arg("location"), py::arg("include_type"),
-             py::arg("value"), R"doc(Construct a StatementInclude object.
+        .def(py::init(&StatementInclude::construct), py::arg("lib"), py::arg("location"), py::arg("value"),
+             py::arg("include_type"), R"doc(Construct a StatementInclude object.
 
 Parameters
 ----------
@@ -9316,15 +9316,15 @@ lib
     The library object for storing symbols.
 location
     The location of the statement.
-include_type
-    The type of the include.
 value
-    The path of the statement.)doc")
+    The path of the statement.
+include_type
+    The type of the include.)doc")
         .def("__str__", &StatementInclude::to_string)
         .def("__hash__", &StatementInclude::hash)
         .def_property_readonly("location", &StatementInclude::location, R"doc(The location of the statement.)doc")
-        .def_property_readonly("include_type", &StatementInclude::include_type, R"doc(The type of the include.)doc")
         .def_property_readonly("value", &StatementInclude::value, R"doc(The path of the statement.)doc")
+        .def_property_readonly("include_type", &StatementInclude::include_type, R"doc(The type of the include.)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -9376,8 +9376,8 @@ const_type
         CLINGO_PY_TOTAL_ORDER;
 
     py_statement_comment
-        .def(py::init(&StatementComment::construct), py::arg("lib"), py::arg("location"), py::arg("comment_type"),
-             py::arg("value"), R"doc(Construct a StatementComment object.
+        .def(py::init(&StatementComment::construct), py::arg("lib"), py::arg("location"), py::arg("value"),
+             py::arg("comment_type"), R"doc(Construct a StatementComment object.
 
 Parameters
 ----------
@@ -9385,15 +9385,15 @@ lib
     The library object for storing symbols.
 location
     The location of the comment.
-comment_type
-    The type of the comment.
 value
-    The value of the comment.)doc")
+    The value of the comment.
+comment_type
+    The type of the comment.)doc")
         .def("__str__", &StatementComment::to_string)
         .def("__hash__", &StatementComment::hash)
         .def_property_readonly("location", &StatementComment::location, R"doc(The location of the comment.)doc")
-        .def_property_readonly("comment_type", &StatementComment::comment_type, R"doc(The type of the comment.)doc")
         .def_property_readonly("value", &StatementComment::value, R"doc(The value of the comment.)doc")
+        .def_property_readonly("comment_type", &StatementComment::comment_type, R"doc(The type of the comment.)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 

@@ -428,6 +428,65 @@ auto make_ast(Owner const &owner, Gringo::Input::StatementEdge::Edge const &edge
     return std::make_unique<clingo_ast>(owner, clingo_ast_type_edge, &edge);
 }
 
+auto make_ast(Owner const &owner, Gringo::Input::Statement const &term) -> std::unique_ptr<clingo_ast_t> {
+    return std::visit(
+        [&owner](auto const &x) {
+            GRINGO_MATCH(x, Gringo::Input::Rule) {
+                return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_rule, &x);
+            }
+            // TODO...
+            GRINGO_MATCH(x, Gringo::Input::TheoryDefinition) {
+                return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_theory, &x);
+            }
+            GRINGO_MATCH(x, Gringo::Input::StatementOptimize) {
+                return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_optimize, &x);
+            }
+            GRINGO_MATCH(x, Gringo::Input::StatementWeakConstraint) {
+                return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_weak_constraint, &x);
+            }
+            GRINGO_MATCH(x, Gringo::Input::StatementShow) {
+                return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_show, &x);
+            }
+            GRINGO_MATCH(x, Gringo::Input::StatementShowSig) {
+                return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_show_signature, &x);
+            }
+            GRINGO_MATCH(x, Gringo::Input::StatementProject) {
+                return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_project, &x);
+            }
+            GRINGO_MATCH(x, Gringo::Input::StatementProjectSig) {
+                return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_project_signature, &x);
+            }
+            GRINGO_MATCH(x, Gringo::Input::StatementDefined) {
+                return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_defined, &x);
+            }
+            GRINGO_MATCH(x, Gringo::Input::StatementExternal) {
+                return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_external, &x);
+            }
+            GRINGO_MATCH(x, Gringo::Input::StatementEdge) {
+                return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_edge, &x);
+            }
+            GRINGO_MATCH(x, Gringo::Input::StatementHeuristic) {
+                return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_heuristic, &x);
+            }
+            GRINGO_MATCH(x, Gringo::Input::StatementScript) {
+                return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_script, &x);
+            }
+            GRINGO_MATCH(x, Gringo::Input::StatementInclude) {
+                return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_include, &x);
+            }
+            GRINGO_MATCH(x, Gringo::Input::StatementProgram) {
+                return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_program, &x);
+            }
+            GRINGO_MATCH(x, Gringo::Input::StatementConst) {
+                return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_const, &x);
+            }
+            GRINGO_MATCH(x, Gringo::Input::Comment) {
+                return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_comment, &x);
+            }
+        },
+        term);
+}
+
 template <class T, class... A> auto construct_ast(clingo_ast_type_t type, A &&...args) -> clingo_ast * {
     auto owner = Gringo::Util::make_immutable<std::any>(T{std::forward<A>(args)...});
     auto *ptr = std::any_cast<T>(owner.get());
@@ -716,7 +775,13 @@ auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<
             ATTR(arity, arity))
         TYPE(statement_defined, StatementDefined,
             ATTR(sign, has_sign)
-            ATTR(arity, arity)))
+            ATTR(arity, arity))
+        TYPE(statement_include, StatementInclude,
+            ATTR(include_type, type))
+        TYPE(statement_const, StatementConst,
+            ATTR(const_type, type))
+        TYPE(statement_comment, Comment,
+            ATTR(comment_type, type)))
     // clang-format on
 }
 
@@ -771,7 +836,18 @@ auto clingo_ast::get_string(clingo_ast_attribute_t attr) const -> std::optional<
         TYPE(statement_project_signature, StatementProjectSig,
             ATTR(name, name))
         TYPE(statement_defined, StatementDefined,
-            ATTR(name, name)))
+            ATTR(name, name))
+        TYPE(statement_include, StatementInclude,
+            ATTR(value, path))
+        TYPE(statement_program, StatementProgram,
+            ATTR(name, name))
+        TYPE(statement_script, StatementScript,
+            ATTR(script_type, type)
+            ATTR(value, content))
+        TYPE(statement_const, StatementConst,
+            ATTR(name, name))
+        TYPE(statement_comment, Comment,
+            ATTR(value, value)))
     // clang-format on
 }
 
@@ -787,7 +863,9 @@ auto clingo_ast::get_string_vec(clingo_ast_attribute_t attr) const -> std::optio
         TYPE(unparsed_element, TheoryTermUnparsed::Element,
             ATTR(operators, first))
         TYPE(theory_guard_definition, TheoryRGuardDefinition,
-            ATTR(operators, first)))
+            ATTR(operators, first))
+        TYPE(statement_program, StatementProgram,
+            ATTR(arguments, args)))
     // clang-format on
 }
 
@@ -872,7 +950,9 @@ auto clingo_ast::get_ast(clingo_ast_attribute_t attr) const -> std::optional<std
             ATTR(atom, atom)
             ATTR(weight, type)
             ATTR(priority, prio)
-            ATTR(modifier, mod)))
+            ATTR(modifier, mod))
+        TYPE(statement_const, StatementConst,
+            ATTR(value, value)))
     // clang-format on
 }
 
@@ -2003,7 +2083,6 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 *ast = construct_ast<Gringo::Input::StatementInclude>(type, convert_loc(lib, loc),
                                                                       static_cast<IncludeType>(include_type), value);
                 break;
-                throw std::logic_error("implement me!!!");
             }
             case clingo_ast_type_statement_program: {
                 std::va_list args;
@@ -2019,13 +2098,39 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 break;
             }
             case clingo_ast_type_statement_script: {
-                throw std::logic_error("implement me!!!");
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const *value = va_arg(args, char const *);
+                auto const *script_type = va_arg(args, char const *);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::StatementScript>(type, convert_loc(lib, loc),
+                                                                     lib->store->string(script_type), value);
+                break;
             }
             case clingo_ast_type_statement_const: {
-                throw std::logic_error("implement me!!!");
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const *name = va_arg(args, char const *);
+                auto const *term = va_arg(args, clingo_ast_t const *);
+                auto const_type = va_arg(args, int);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::StatementConst>(type, convert_loc(lib, loc),
+                                                                    static_cast<ConstType>(const_type),
+                                                                    lib->store->string(name), term->convert<Term>());
+                break;
             }
             case clingo_ast_type_statement_comment: {
-                throw std::logic_error("implement me!!!");
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const *value = va_arg(args, char const *);
+                auto comment_type = va_arg(args, int);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::Comment>(type, convert_loc(lib, loc),
+                                                             static_cast<CommentType>(comment_type), value);
+                break;
             }
         }
     }
@@ -2265,9 +2370,7 @@ extern "C" auto clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_
                 }
                 auto owner = Gringo::Util::make_immutable<std::any>(std::move(lit).value());
                 auto const *ptr = std::any_cast<Gringo::Input::Statement>(owner.get());
-                static_cast<void>(ptr);
-                throw std::logic_error("implement me!!!");
-                // *ast = make_ast(owner, *ptr).release();
+                *ast = make_ast(owner, *ptr).release();
                 break;
             }
             default: {
