@@ -19,6 +19,12 @@ class ScannerImpl;
 //! A scanner to parse statements.
 class Scanner {
   public:
+    Scanner(Scanner &&other) noexcept;
+    Scanner(Scanner const &other) = delete;
+
+    auto operator=(Scanner &&other) noexcept -> Scanner &;
+    auto operator=(Scanner const &other) -> Scanner & = delete;
+
     friend auto scan_stream(Logger &log, SymbolStore &store, std::istream &in) -> Scanner;
     friend auto scan_file(Logger &log, SymbolStore &store, char const *path) -> Scanner;
     friend auto scan_string(Logger &log, SymbolStore &store, std::string_view content) -> Scanner;

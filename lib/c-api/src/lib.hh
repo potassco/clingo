@@ -38,7 +38,7 @@ namespace {
 #define CLINGO_TRY try
 #define CLINGO_CATCH(lib)                                                                                              \
     catch (...) {                                                                                                      \
-        if (lib != nullptr) {                                                                                          \
+        if ((lib) != nullptr) {                                                                                        \
             handle_error(lib);                                                                                         \
         }                                                                                                              \
         return false;                                                                                                  \

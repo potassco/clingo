@@ -1,6 +1,7 @@
 #include <any>
 #include <cstdarg>
 #include <cstring>
+#include <forward_list>
 
 #include "lib.hh"
 #include "streams.hh"
@@ -2379,4 +2380,80 @@ extern "C" auto clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_
         }
     }
     CLINGO_CATCH(lib);
+}
+
+struct clingo_ast_scanner {
+  public:
+    clingo_ast_scanner(clingo_lib_t *lib) : lib_{lib} {}
+    [[nodiscard]] auto next() -> std::unique_ptr<clingo_ast_t> {
+        while (!scanners_.empty()) {
+            auto stm = scanners_.front().scan();
+            if (stm) {
+                auto owner = Gringo::Util::make_immutable<std::any>(*std::move(stm));
+                auto const *ptr = std::any_cast<Gringo::Input::Statement>(owner.get());
+                return make_ast(owner, *ptr);
+            }
+            scanners_.pop_front();
+        }
+        if (lib_->last_code != clingo_error_success) {
+            throw std::runtime_error("parsing failed");
+        }
+        return nullptr;
+    }
+    [[nodiscard]] auto lib() const -> clingo_lib_t * { return lib_; }
+    auto scan_string(std::string str) {
+        strings_.emplace_front(std::move(str));
+        scanners_.emplace_front(Gringo::Input::scan_string(lib_->log, *lib_->store, strings_.front()));
+    }
+    auto scan_file(char const *path) {
+        scanners_.emplace_front(Gringo::Input::scan_file(lib_->log, *lib_->store, path));
+    }
+
+  private:
+    clingo_lib_t *lib_;
+    std::forward_list<std::string> strings_;
+    std::forward_list<Gringo::Input::Scanner> scanners_;
+};
+
+extern "C" auto clingo_ast_scan_string(clingo_lib_t *lib, char const *program, clingo_ast_scanner_t **scanner) -> bool {
+    CLINGO_TRY {
+        if (lib == nullptr || program == nullptr || scanner == nullptr) {
+            throw std::invalid_argument("invalid arguments");
+        }
+        auto res = std::make_unique<clingo_ast_scanner>(lib);
+        res->scan_string(program);
+        *scanner = res.release();
+    }
+    CLINGO_CATCH(lib);
+}
+
+extern "C" auto clingo_ast_scan_files(clingo_lib_t *lib, char const *const *files, size_t size,
+                                      clingo_ast_scanner_t **scanner) -> bool {
+    CLINGO_TRY {
+        if (lib == nullptr || (files == nullptr && size == 0) || scanner == nullptr) {
+            throw std::invalid_argument("invalid arguments");
+        }
+        auto res = std::make_unique<clingo_ast_scanner>(lib);
+        auto span = tcb::span(files, size);
+        std::for_each(span.rbegin(), span.rend(), [&res](auto const *path) { res->scan_file(path); });
+        *scanner = res.release();
+    }
+    CLINGO_CATCH(lib);
+}
+
+extern "C" auto clingo_ast_scanner_next(clingo_ast_scanner_t *scanner, clingo_ast_t **ast) -> bool {
+    CLINGO_TRY {
+        if (scanner == nullptr || scanner == nullptr) {
+            throw std::invalid_argument("invalid arguments");
+        }
+        *ast = scanner->next().release();
+    }
+    CLINGO_CATCH(scanner != nullptr ? scanner->lib() : nullptr);
+}
+
+extern "C" void clingo_ast_scanner_close(clingo_ast_scanner_t *scanner) {
+    if (scanner != nullptr) {
+        scanner->lib()->log.reset();
+        delete scanner;
+    }
 }

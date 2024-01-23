@@ -279,6 +279,8 @@ class ScannerImpl {
 Scanner::Scanner(std::unique_ptr<ScannerImpl> impl) : impl_{std::move(impl)} {}
 
 Scanner::~Scanner() noexcept = default;
+Scanner::Scanner(Scanner &&other) noexcept = default;
+auto Scanner::operator=(Scanner &&other) noexcept -> Scanner & = default;
 
 auto Scanner::scan() -> std::optional<Statement> { return check(impl_->logger(), impl_->scan(), check_statement); }
 

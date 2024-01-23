@@ -971,6 +971,21 @@ CLINGO_VISIBILITY_DEFAULT char const *clingo_ast_type_info_yaml();
 
 //! @}
 
+//! @name Functions to scan ASTs
+//! @{
+
+typedef struct clingo_ast_scanner clingo_ast_scanner_t;
+
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_scan_string(clingo_lib_t *lib, char const *program,
+                                                      clingo_ast_scanner_t **scanner);
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_scan_files(clingo_lib_t *lib, char const *const *files, size_t size,
+                                                     clingo_ast_scanner_t **scanner);
+
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_scanner_next(clingo_ast_scanner_t *scanner, clingo_ast_t **ast);
+CLINGO_VISIBILITY_DEFAULT void clingo_ast_scanner_close(clingo_ast_scanner_t *scanner);
+
+//! @}
+
 /*
 //! @name Functions to construct ASTs from strings
 //! @{

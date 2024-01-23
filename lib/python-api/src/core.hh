@@ -44,7 +44,7 @@ constexpr auto doc(char const *str) -> char const * { return str + 1; }
 
 class Library;
 
-void handle_error(Library &lib, bool success);
+void handle_error(clingo_lib_t *lib, bool success);
 
 class Library {
   public:
@@ -91,7 +91,7 @@ class Library {
     LoggerCB cb_;
 };
 
-void handle_error(Library &lib, bool success) {
+void handle_error(clingo_lib_t *lib, bool success) {
     if (!success) {
         auto const *msg = clingo_error_message(lib);
         switch (clingo_error_code(lib)) {

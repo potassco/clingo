@@ -890,6 +890,13 @@ class TestAST(TestCase):
         stm = "a; b: c :- d: e."
         self.assertEqual(str(stm), stm)
 
+    def test_scan(self):
+        """
+        Test the statement scanner.
+        """
+        with ast.Scanner(self.lib, "a. b. c.") as scanner:
+            self.assertEqual([str(stm) for stm in scanner], ["a.", "b.", "c."])
+
     def test_cmp(self):
         """
         Test comparision functions.
