@@ -1994,10 +1994,29 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 break;
             }
             case clingo_ast_type_statement_include: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const *value = va_arg(args, char const *);
+                auto include_type = va_arg(args, int);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::StatementInclude>(type, convert_loc(lib, loc),
+                                                                      static_cast<IncludeType>(include_type), value);
+                break;
                 throw std::logic_error("implement me!!!");
             }
             case clingo_ast_type_statement_program: {
-                throw std::logic_error("implement me!!!");
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                auto const *name = va_arg(args, char const *);
+                auto const **arguments = va_arg(args, char const **);
+                auto arguments_size = va_arg(args, size_t);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::StatementProgram>(
+                    type, convert_loc(lib, loc), lib->store->string(name),
+                    convert_string_array(lib, arguments, arguments_size));
+                break;
             }
             case clingo_ast_type_statement_script: {
                 throw std::logic_error("implement me!!!");

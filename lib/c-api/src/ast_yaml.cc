@@ -1109,12 +1109,12 @@ statement_include:
     location:
       type: location
       doc: The location of the statement.
-    include_type:
-      type: include_type
-      doc: The type of the include.
     value:
       type: string
       doc: The path of the statement.
+    include_type:
+      type: include_type
+      doc: The type of the include.
 statement_program:
   type: record
   doc: An program statement.
