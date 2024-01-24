@@ -986,6 +986,10 @@ CLINGO_VISIBILITY_DEFAULT void clingo_ast_scanner_close(clingo_ast_scanner_t *sc
 
 //! @}
 
+// TODO: this function should also receive rewrite options
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_simplify(clingo_lib_t *lib, clingo_ast_t *statement, char const **parameters,
+                                                   size_t parameters_size, clingo_ast_t ***result, size_t *result_size);
+
 /*
 //! @name Functions to construct ASTs from strings
 //! @{

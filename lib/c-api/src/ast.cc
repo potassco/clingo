@@ -12,6 +12,8 @@
 
 #include <gringo/input/algo/parse.hh>
 #include <gringo/input/algo/print.hh>
+#include <gringo/input/algo/rewrite.hh>
+#include <gringo/input/algo/substitute.hh>
 
 namespace {
 
@@ -1371,6 +1373,58 @@ template <>
     throw std::runtime_error("edge expected");
 }
 
+template <> [[nodiscard]] auto clingo_ast::convert<Gringo::Input::Statement>() const -> Gringo::Input::Statement {
+    switch (type_) {
+        case clingo_ast_type_statement_rule: {
+            return cast<Gringo::Input::Rule>();
+        }
+        case clingo_ast_type_statement_theory: {
+            return cast<Gringo::Input::Rule>();
+        }
+        case clingo_ast_type_statement_optimize: {
+            return cast<Gringo::Input::Rule>();
+        }
+        case clingo_ast_type_statement_weak_constraint: {
+            return cast<Gringo::Input::Rule>();
+        }
+        case clingo_ast_type_statement_show: {
+            return cast<Gringo::Input::Rule>();
+        }
+        case clingo_ast_type_statement_show_signature: {
+            return cast<Gringo::Input::Rule>();
+        }
+        case clingo_ast_type_statement_defined: {
+            return cast<Gringo::Input::Rule>();
+        }
+        case clingo_ast_type_statement_external: {
+            return cast<Gringo::Input::Rule>();
+        }
+        case clingo_ast_type_statement_edge: {
+            return cast<Gringo::Input::Rule>();
+        }
+        case clingo_ast_type_statement_heuristic: {
+            return cast<Gringo::Input::Rule>();
+        }
+        case clingo_ast_type_statement_script: {
+            return cast<Gringo::Input::Rule>();
+        }
+        case clingo_ast_type_statement_program: {
+            return cast<Gringo::Input::Rule>();
+        }
+        case clingo_ast_type_statement_include: {
+            return cast<Gringo::Input::Rule>();
+        }
+        case clingo_ast_type_statement_const: {
+            return cast<Gringo::Input::Rule>();
+        }
+        case clingo_ast_type_statement_comment: {
+            return cast<Gringo::Input::Rule>();
+        }
+        default: {
+            throw std::runtime_error("statement expected");
+        }
+    }
+}
 extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, clingo_ast_t **ast, ...) -> bool {
     using namespace Gringo::Input;
     CLINGO_TRY {
@@ -2456,4 +2510,41 @@ extern "C" void clingo_ast_scanner_close(clingo_ast_scanner_t *scanner) {
         scanner->lib()->log.reset();
         delete scanner;
     }
+}
+
+extern "C" auto clingo_ast_simplify(clingo_lib_t *lib, clingo_ast_t *statement, char const **parameters,
+                                    size_t parameters_size, clingo_ast_t ***result, size_t *result_size) -> bool {
+    CLINGO_TRY {
+        using namespace Gringo::Input;
+        auto stms = StatementVec{};
+        auto stm = statement->convert<Statement>();
+        auto param_map = ParamMap{};
+        param_map.reserve(parameters_size);
+        std::for_each_n(parameters, parameters_size,
+                        [&param_map, lib](auto const *str) { param_map.emplace(lib->store->string(str)); });
+        auto const_map = ConstMap{};
+        RewriteOptions opts;
+        rewrite(lib->log, *lib->store, param_map, const_map, stm, opts, stms);
+        Gringo::Util::ordered_map<Gringo::String, Gringo::String> pum;
+        ASTVec res{stms.size()};
+        if (!param_map.empty()) {
+            size_t i = 0;
+            for (auto const &id : param_map) {
+                auto var = lib->store->string("$" + std::to_string(i));
+                pum.emplace(var, id);
+                ++i;
+            }
+            i = 0;
+            for (auto &stm : stms) {
+                if (auto res_stm = unmap_params(*lib->store, pum, stm); res_stm) {
+                    auto owner = Gringo::Util::make_immutable<std::any>(*std::move(res_stm));
+                    auto const *ptr = std::any_cast<Gringo::Input::BodyLiteral>(owner.get());
+                    res[i] = make_ast(owner, *ptr).release();
+                }
+                ++i;
+            }
+        }
+        std::tie(*result, *result_size) = res.release();
+    }
+    CLINGO_CATCH(lib);
 }
