@@ -918,6 +918,11 @@ class TestAST(TestCase):
         stm = "p(t)."
         self.assertEqual(simp(stm, ["t"]), ["p(t)."])
 
+        stm = "p(1;t) :- #false: p(t)."
+        self.assertEqual(
+            simp(stm, ["t"]), ["p(1) :- #false: p(t).", "p(t) :- #false: p(t)."]
+        )
+
     def test_scan(self):
         """
         Test the statement scanner.

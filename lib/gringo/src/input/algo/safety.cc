@@ -212,7 +212,8 @@ template <class Lit> using NodeVec = std::vector<Node<Lit>>;
 [[nodiscard]] auto flip(BodyLiteral const &lit) -> BodyLiteral { return flip(std::get<SimpleBodyLiteral>(lit).lit); }
 
 [[nodiscard]] auto is_provided(VariableSet const &provided, auto const &vars) {
-    return std::all_of(vars.begin(), vars.end(), [&provided](auto const &var) { return provided.contains(var); });
+    return std::all_of(vars.begin(), vars.end(),
+                       [&provided](auto const &var) { return var.starts_with("$") || provided.contains(var); });
 }
 
 template <class T> using PrepareResult = std::pair<Util::ResultVec<T>, VariableSet>;

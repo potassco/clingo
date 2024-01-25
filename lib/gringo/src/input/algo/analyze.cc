@@ -525,7 +525,7 @@ auto check_global(Logger &log, VariableSet const &global, Statement const &stm) 
         stm,
         [&](Location const &loc, String var) {
             static_cast<void>(loc);
-            if (global.contains(var) != new_global.contains(var)) {
+            if (!var.starts_with("$") && global.contains(var) != new_global.contains(var)) {
                 unsafe.emplace_back(var);
             }
         },
