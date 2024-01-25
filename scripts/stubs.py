@@ -7,7 +7,16 @@ libpath = sysconfig.get_path("purelib")
 clingo = os.path.join(libpath, "clingo")
 
 subprocess.check_call(
-    ["pybind11-stubgen", "-o", libpath, "--stub-extension", "py", "clingo"]
+    [
+        "pybind11-stubgen",
+        "-o",
+        libpath,
+        "--stub-extension",
+        "py",
+        "--enum-class-locations",
+        "ProjectionMode:clingo.ast",
+        "clingo",
+    ]
 )
 
 
