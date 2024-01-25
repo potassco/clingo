@@ -44,12 +44,12 @@ auto check_type(Term const &term, TermCheckType type, CheckTypeResult *res = nul
 
 //! Check if the given term is a linear term.
 //!
-//! Returns true if the term has form m*X+n where m is a non-zero number, X a
+//! Returns "X" if the term has form m*X+n where m is a non-zero number, X a
 //! variable, and n a number.
-[[nodiscard]] auto is_linear(Term const &term) -> bool;
+[[nodiscard]] auto is_linear(Term const &term) -> std::optional<String>;
 
 //! See is_linear().
-[[nodiscard]] auto is_linear(TermBinary const &term) -> bool;
+[[nodiscard]] auto is_linear(TermBinary const &term) -> std::optional<String>;
 
 //! Returns true if the term has form t..u.
 [[nodiscard]] auto is_interval(Term const &term) -> bool;

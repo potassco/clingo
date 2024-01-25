@@ -906,15 +906,17 @@ class TestAST(TestCase):
         stm = "a; b: c :- d: e."
         self.assertEqual(simp(stm), [stm])
 
-        stm = "p(X;Y) :- q(X,2*3), r(Y)."
+        stm = "p(X;Y) :- q(X,2*3); r(Y)."
         self.assertEqual(simp(stm), ["p(X) :- q(X,6); r(*).", "p(Y) :- q(*,6); r(Y)."])
 
-        # TODO: has to be fixed!!!
         stm = "p(X;Y) :- q(X+1,2*3), r(Y,t+1)."
         self.assertEqual(
             simp(stm, ["t"]),
-            ["p(X) :- q(X+1,6), r(*,t+1).", "p(Y) :- q(X+1,6), r(Y,t+1)."],
+            ["p(X) :- q(1*X+1,6); r(*,1*t+1).", "p(Y) :- q(1*X+1,6); r(Y,1*t+1)."],
         )
+
+        stm = "p(t)."
+        self.assertEqual(simp(stm, ["t"]), ["p(t)."])
 
     def test_scan(self):
         """

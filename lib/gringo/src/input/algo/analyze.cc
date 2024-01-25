@@ -446,28 +446,35 @@ auto check_type(Term const &term, TermCheckType type, CheckTypeResult *res) -> b
     return CheckType{type, res}(term);
 }
 
-[[nodiscard]] auto is_linear(TermBinary const &term) -> bool {
+[[nodiscard]] auto is_linear(TermBinary const &term) -> std::optional<String> {
     if (term.op != BinaryOperator::plus) {
-        return false;
+        return std::nullopt;
     }
     auto const *mul = std::get_if<TermBinary>(term.lhs.get());
     if (mul == nullptr || mul->op != BinaryOperator::times) {
-        return false;
+        return std::nullopt;
     }
     auto const *n = std::get_if<TermSymbol>(term.rhs.get());
     if (n == nullptr || n->value.type() != SymbolType::number) {
-        return false;
+        return std::nullopt;
     }
     auto const *m = std::get_if<TermSymbol>(mul->lhs.get());
     if (m == nullptr || m->value.type() != SymbolType::number || *m->value.num() == 0) {
-        return false;
+        return std::nullopt;
     }
-    return std::holds_alternative<TermVariable>(*mul->rhs);
+    auto const *v = std::get_if<TermVariable>(mul->rhs.get());
+    if (v == nullptr) {
+        return std::nullopt;
+    }
+    return v->name;
 }
 
-[[nodiscard]] auto is_linear(Term const &term) -> bool {
+[[nodiscard]] auto is_linear(Term const &term) -> std::optional<String> {
     auto const *plus = std::get_if<TermBinary>(&term);
-    return plus != nullptr && is_linear(*plus);
+    if (plus == nullptr) {
+        return std::nullopt;
+    }
+    return is_linear(*plus);
 }
 
 [[nodiscard]] auto is_interval(Term const &term) -> bool {
