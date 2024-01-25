@@ -888,7 +888,33 @@ class TestAST(TestCase):
         body_lit = "b: c"
         self.assertEqual(str(ast.parse_body_literal(self.lib, body_lit)), body_lit)
         stm = "a; b: c :- d: e."
-        self.assertEqual(str(stm), stm)
+        self.assertEqual(str(ast.parse_statement(self.lib, stm)), stm)
+
+    def test_simplify(self):
+        """
+        Test simplification of statements.
+        """
+
+        def simp(stm, params=()):
+            return [
+                str(x)
+                for x in ast.simplify_statement(
+                    self.lib, ast.parse_statement(self.lib, stm), params
+                )
+            ]
+
+        stm = "a; b: c :- d: e."
+        self.assertEqual(simp(stm), [stm])
+
+        stm = "p(X;Y) :- q(X,2*3), r(Y)."
+        self.assertEqual(simp(stm), ["p(X) :- q(X,6); r(*).", "p(Y) :- q(*,6); r(Y)."])
+
+        # TODO: has to be fixed!!!
+        stm = "p(X;Y) :- q(X+1,2*3), r(Y,t+1)."
+        self.assertEqual(
+            simp(stm, ["t"]),
+            ["p(X) :- q(X+1,6), r(*,t+1).", "p(Y) :- q(X+1,6), r(Y,t+1)."],
+        )
 
     def test_scan(self):
         """

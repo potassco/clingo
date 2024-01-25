@@ -7733,6 +7733,29 @@ template <class T> auto c_cast(std::vector<T> const &arr) -> std::vector<clingo_
     return ret;
 }
 
+auto simplify_statement(Library &lib, Statement &stm, std::vector<std::string> parameters) -> std::vector<Statement> {
+    std::vector<char const *> params;
+    params.reserve(parameters.size());
+    std::transform(parameters.begin(), parameters.end(), std::back_inserter(params),
+                   [](auto const &str) { return str.c_str(); });
+    struct Array {
+        ~Array() { clingo_ast_array_free(result, result_size); }
+        clingo_ast_t **result = nullptr;
+        size_t result_size = 0;
+    };
+    auto arr = Array{};
+    handle_error(lib,
+                 clingo_ast_simplify(lib, c_cast(stm), params.data(), params.size(), &arr.result, &arr.result_size));
+    std::vector<Statement> res;
+    res.reserve(arr.result_size);
+    std::for_each_n(arr.result, arr.result_size, [&res](clingo_ast *&ast) {
+        auto *cpy = ast;
+        ast = nullptr;
+        res.emplace_back(construct_statement(cpy));
+    });
+    return res;
+}
+
 auto parse_term(Library &lib, char const *string) -> Term {
     clingo_ast_t *ast;
     handle_error(lib, clingo_ast_parse_expression(lib, clingo_ast_parse_type_term, string, &ast));
@@ -9596,6 +9619,21 @@ string
 Returns
 -------
 The parsed Statement object.)doc");
+    ast.def("simplify_statement", &simplify_statement, py::arg("lib"), py::arg("statement"),
+            py::arg("parameters") = std::vector<std::string>{}, R"doc(Simplify the given statement.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+statement
+    The statement to simplify.
+parameters
+    The parameters to exempt from simplification.
+
+Returns
+-------
+A list of simplified statements.)doc");
 }
 
 } // namespace Clingo::AST

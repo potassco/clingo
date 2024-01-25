@@ -2515,6 +2515,8 @@ extern "C" void clingo_ast_scanner_close(clingo_ast_scanner_t *scanner) {
 extern "C" auto clingo_ast_simplify(clingo_lib_t *lib, clingo_ast_t *statement, char const **parameters,
                                     size_t parameters_size, clingo_ast_t ***result, size_t *result_size) -> bool {
     CLINGO_TRY {
+        *result = nullptr;
+        *result_size = 0;
         using namespace Gringo::Input;
         auto stms = StatementVec{};
         auto stm = statement->convert<Statement>();
@@ -2522,27 +2524,30 @@ extern "C" auto clingo_ast_simplify(clingo_lib_t *lib, clingo_ast_t *statement, 
         param_map.reserve(parameters_size);
         std::for_each_n(parameters, parameters_size,
                         [&param_map, lib](auto const *str) { param_map.emplace(lib->store->string(str)); });
-        auto const_map = ConstMap{};
         RewriteOptions opts;
-        rewrite(lib->log, *lib->store, param_map, const_map, stm, opts, stms);
+        auto const_map = ConstMap{};
         Gringo::Util::ordered_map<Gringo::String, Gringo::String> pum;
+        size_t i = 0;
+        for (auto const &id : param_map) {
+            auto var = lib->store->string("$" + std::to_string(i));
+            pum.emplace(var, id);
+            ++i;
+        }
+        rewrite(lib->log, *lib->store, param_map, const_map, stm, opts, stms);
+        if (lib->log.has_error()) {
+            lib->log.reset();
+            throw std::runtime_error("simplifying statement failed");
+        }
         ASTVec res{stms.size()};
-        if (!param_map.empty()) {
-            size_t i = 0;
-            for (auto const &id : param_map) {
-                auto var = lib->store->string("$" + std::to_string(i));
-                pum.emplace(var, id);
-                ++i;
+        i = 0;
+        for (auto &stm : stms) {
+            if (auto res_stm = unmap_params(*lib->store, pum, stm); res_stm) {
+                stm = *std::move(res_stm);
             }
-            i = 0;
-            for (auto &stm : stms) {
-                if (auto res_stm = unmap_params(*lib->store, pum, stm); res_stm) {
-                    auto owner = Gringo::Util::make_immutable<std::any>(*std::move(res_stm));
-                    auto const *ptr = std::any_cast<Gringo::Input::BodyLiteral>(owner.get());
-                    res[i] = make_ast(owner, *ptr).release();
-                }
-                ++i;
-            }
+            auto owner = Gringo::Util::make_immutable<std::any>(std::move(stm));
+            auto const *ptr = std::any_cast<Gringo::Input::Statement>(owner.get());
+            res[i] = make_ast(owner, *ptr).release();
+            ++i;
         }
         std::tie(*result, *result_size) = res.release();
     }
