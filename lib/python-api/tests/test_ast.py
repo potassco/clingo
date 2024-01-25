@@ -890,15 +890,15 @@ class TestAST(TestCase):
         stm = "a; b: c :- d: e."
         self.assertEqual(str(ast.parse_statement(self.lib, stm)), stm)
 
-    def test_simplify(self):
+    def test_rewrite(self):
         """
-        Test simplification of statements.
+        Test rewriting of statements.
         """
 
         def simp(stm, params=()):
             return [
                 str(x)
-                for x in ast.simplify_statement(
+                for x in ast.rewrite_statement(
                     self.lib,
                     ast.parse_statement(self.lib, stm),
                     params,

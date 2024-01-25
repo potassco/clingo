@@ -7867,8 +7867,8 @@ class Scanner {
     std::optional<Statement> value_;
 };
 
-auto simplify_statement(Library &lib, Statement &stm, std::vector<std::string> parameters, ProjectionMode mode,
-                        bool project_anonymous) -> std::vector<Statement> {
+auto rewrite_statement(Library &lib, Statement &stm, std::vector<std::string> parameters, ProjectionMode mode,
+                       bool project_anonymous) -> std::vector<Statement> {
     std::vector<char const *> params;
     params.reserve(parameters.size());
     std::transform(parameters.begin(), parameters.end(), std::back_inserter(params),
@@ -7880,8 +7880,8 @@ auto simplify_statement(Library &lib, Statement &stm, std::vector<std::string> p
     };
     auto arr = Array{};
     clingo_ast_rewrite_options_t options{static_cast<clingo_projection_mode_e>(mode), project_anonymous};
-    handle_error(lib, clingo_ast_simplify(lib, c_cast(stm), &options, params.data(), params.size(), &arr.result,
-                                          &arr.result_size));
+    handle_error(lib, clingo_ast_rewrite(lib, c_cast(stm), &options, params.data(), params.size(), &arr.result,
+                                         &arr.result_size));
     std::vector<Statement> res;
     res.reserve(arr.result_size);
     std::for_each_n(arr.result, arr.result_size, [&res](clingo_ast *&ast) {
@@ -7897,16 +7897,16 @@ void register_module(pybind11::module &m) {
 This module provides functions to work with Abstract Syntax Trees of logic programs.
 )"));
 
+    ast.def("_type_info_yaml", &clingo_ast_type_info_yaml, doc(R"(
+Return a yaml description of the AST.
+
+This can be used to auto-generate most of the binding.)"));
+
     auto py_projection_mode =
         py::enum_<ProjectionMode>(ast, "ProjectionMode", R"doc(Available projection modes.)doc")
             .value("Disabled", ProjectionMode::Disabled, R"doc(Do not project.)doc")
             .value("Anonymous", ProjectionMode::Anonymous, R"doc(Only project anonymous variables.)doc")
             .value("Pure", ProjectionMode::Pure, R"doc(Project pure variables.)doc");
-
-    ast.def("_type_info_yaml", &clingo_ast_type_info_yaml, doc(R"(
-Return a yaml description of the AST.
-
-This can be used to auto-generate most of the binding.)"));
 
     auto py_unary_operator = py::enum_<UnaryOperator>(ast, "UnaryOperator", R"doc(Available unary operators.)doc");
 
@@ -9633,7 +9633,7 @@ string
 Returns
 -------
 The parsed Statement object.)doc");
-    ast.def("simplify_statement", &simplify_statement, py::arg("lib"), py::arg("statement"),
+    ast.def("rewrite_statement", &rewrite_statement, py::arg("lib"), py::arg("statement"),
             py::arg("parameters") = std::vector<std::string>{}, py::arg("project_mode") = ProjectionMode::Pure,
             py::arg("project_anonymous") = false,
             R"doc(Simplify the given statement.
@@ -9643,7 +9643,7 @@ Parameters
 lib
     The library object for storing symbols.
 statement
-    The statement to simplify.
+    The statement to rewrite.
 parameters
     The parameters to exempt from simplification.
 project_mode
@@ -9653,7 +9653,7 @@ project_anonymous
 
 Returns
 -------
-A list of simplified statements.)doc");
+A list of rewritten statements.)doc");
 }
 
 } // namespace Clingo::AST

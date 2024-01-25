@@ -1379,46 +1379,46 @@ template <> [[nodiscard]] auto clingo_ast::convert<Gringo::Input::Statement>() c
             return cast<Gringo::Input::Rule>();
         }
         case clingo_ast_type_statement_theory: {
-            return cast<Gringo::Input::Rule>();
+            return cast<Gringo::Input::TheoryDefinition>();
         }
         case clingo_ast_type_statement_optimize: {
-            return cast<Gringo::Input::Rule>();
+            return cast<Gringo::Input::StatementOptimize>();
         }
         case clingo_ast_type_statement_weak_constraint: {
-            return cast<Gringo::Input::Rule>();
+            return cast<Gringo::Input::StatementWeakConstraint>();
         }
         case clingo_ast_type_statement_show: {
-            return cast<Gringo::Input::Rule>();
+            return cast<Gringo::Input::StatementShow>();
         }
         case clingo_ast_type_statement_show_signature: {
-            return cast<Gringo::Input::Rule>();
+            return cast<Gringo::Input::StatementShowSig>();
         }
         case clingo_ast_type_statement_defined: {
-            return cast<Gringo::Input::Rule>();
+            return cast<Gringo::Input::StatementDefined>();
         }
         case clingo_ast_type_statement_external: {
-            return cast<Gringo::Input::Rule>();
+            return cast<Gringo::Input::StatementExternal>();
         }
         case clingo_ast_type_statement_edge: {
-            return cast<Gringo::Input::Rule>();
+            return cast<Gringo::Input::StatementEdge>();
         }
         case clingo_ast_type_statement_heuristic: {
-            return cast<Gringo::Input::Rule>();
+            return cast<Gringo::Input::StatementHeuristic>();
         }
         case clingo_ast_type_statement_script: {
-            return cast<Gringo::Input::Rule>();
+            return cast<Gringo::Input::StatementScript>();
         }
         case clingo_ast_type_statement_program: {
-            return cast<Gringo::Input::Rule>();
+            return cast<Gringo::Input::StatementProgram>();
         }
         case clingo_ast_type_statement_include: {
-            return cast<Gringo::Input::Rule>();
+            return cast<Gringo::Input::StatementInclude>();
         }
         case clingo_ast_type_statement_const: {
-            return cast<Gringo::Input::Rule>();
+            return cast<Gringo::Input::StatementConst>();
         }
         case clingo_ast_type_statement_comment: {
-            return cast<Gringo::Input::Rule>();
+            return cast<Gringo::Input::Comment>();
         }
         default: {
             throw std::runtime_error("statement expected");
@@ -2512,9 +2512,9 @@ extern "C" void clingo_ast_scanner_close(clingo_ast_scanner_t *scanner) {
     }
 }
 
-extern "C" auto clingo_ast_simplify(clingo_lib_t *lib, clingo_ast_t *statement,
-                                    clingo_ast_rewrite_options_t const *options, char const **parameters,
-                                    size_t parameters_size, clingo_ast_t ***result, size_t *result_size) -> bool {
+extern "C" auto clingo_ast_rewrite(clingo_lib_t *lib, clingo_ast_t *statement,
+                                   clingo_ast_rewrite_options_t const *options, char const **parameters,
+                                   size_t parameters_size, clingo_ast_t ***result, size_t *result_size) -> bool {
     CLINGO_TRY {
         *result = nullptr;
         *result_size = 0;
@@ -2537,7 +2537,7 @@ extern "C" auto clingo_ast_simplify(clingo_lib_t *lib, clingo_ast_t *statement,
         rewrite(lib->log, *lib->store, param_map, const_map, stm, opts, stms);
         if (lib->log.has_error()) {
             lib->log.reset();
-            throw std::runtime_error("simplifying statement failed");
+            throw std::runtime_error("rewriting statement failed");
         }
         ASTVec res{stms.size()};
         i = 0;

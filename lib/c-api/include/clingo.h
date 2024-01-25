@@ -1001,9 +1001,9 @@ typedef struct clingo_ast_rewrite_options {
     bool project_anonymous;
 } clingo_ast_rewrite_options_t;
 
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_simplify(clingo_lib_t *lib, clingo_ast_t *statement,
-                                                   clingo_ast_rewrite_options_t const *options, char const **parameters,
-                                                   size_t parameters_size, clingo_ast_t ***result, size_t *result_size);
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_rewrite(clingo_lib_t *lib, clingo_ast_t *statement,
+                                                  clingo_ast_rewrite_options_t const *options, char const **parameters,
+                                                  size_t parameters_size, clingo_ast_t ***result, size_t *result_size);
 
 /*
 //! @name Functions to construct ASTs from strings
