@@ -986,8 +986,23 @@ CLINGO_VISIBILITY_DEFAULT void clingo_ast_scanner_close(clingo_ast_scanner_t *sc
 
 //! @}
 
-// TODO: this function should also receive rewrite options
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_simplify(clingo_lib_t *lib, clingo_ast_t *statement, char const **parameters,
+enum clingo_projection_mode_e {
+    clingo_projection_mode_disabled = 0,  //!< Disable projection.
+    clingo_projection_mode_anonymous = 1, //!< Only project anonymous variables.
+    clingo_projection_mode_pure = 2,      //!< Project pure variables.
+};
+typedef int clingo_projection_mode_t;
+
+//! Enumeration to select variables to project.
+typedef struct clingo_ast_rewrite_options {
+    //! The projection mode.
+    clingo_projection_mode_t project_mode;
+    //! Whether to project anonymous variables in negative literals.
+    bool project_anonymous;
+} clingo_ast_rewrite_options_t;
+
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_simplify(clingo_lib_t *lib, clingo_ast_t *statement,
+                                                   clingo_ast_rewrite_options_t const *options, char const **parameters,
                                                    size_t parameters_size, clingo_ast_t ***result, size_t *result_size);
 
 /*

@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <optional>
+#include <string_view>
 #include <typeinfo>
 #include <variant>
 #include <vector>

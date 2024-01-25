@@ -2512,7 +2512,8 @@ extern "C" void clingo_ast_scanner_close(clingo_ast_scanner_t *scanner) {
     }
 }
 
-extern "C" auto clingo_ast_simplify(clingo_lib_t *lib, clingo_ast_t *statement, char const **parameters,
+extern "C" auto clingo_ast_simplify(clingo_lib_t *lib, clingo_ast_t *statement,
+                                    clingo_ast_rewrite_options_t const *options, char const **parameters,
                                     size_t parameters_size, clingo_ast_t ***result, size_t *result_size) -> bool {
     CLINGO_TRY {
         *result = nullptr;
@@ -2524,7 +2525,7 @@ extern "C" auto clingo_ast_simplify(clingo_lib_t *lib, clingo_ast_t *statement, 
         param_map.reserve(parameters_size);
         std::for_each_n(parameters, parameters_size,
                         [&param_map, lib](auto const *str) { param_map.emplace(lib->store->string(str)); });
-        RewriteOptions opts;
+        RewriteOptions opts{static_cast<ProjectionMode>(options->project_mode), options->project_anonymous};
         auto const_map = ConstMap{};
         Gringo::Util::ordered_map<Gringo::String, Gringo::String> pum;
         size_t i = 0;

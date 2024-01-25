@@ -30,6 +30,12 @@ auto c_cast(StringArray const &arr) -> std::vector<char const *> {
     return ret;
 }
 
+enum class ProjectionMode {
+    Disabled = clingo_projection_mode_disabled,
+    Anonymous = clingo_projection_mode_anonymous,
+    Pure = clingo_projection_mode_pure,
+};
+
 enum class UnaryOperator {
     Minus = 0,
     Negation = 1,
@@ -7733,29 +7739,6 @@ template <class T> auto c_cast(std::vector<T> const &arr) -> std::vector<clingo_
     return ret;
 }
 
-auto simplify_statement(Library &lib, Statement &stm, std::vector<std::string> parameters) -> std::vector<Statement> {
-    std::vector<char const *> params;
-    params.reserve(parameters.size());
-    std::transform(parameters.begin(), parameters.end(), std::back_inserter(params),
-                   [](auto const &str) { return str.c_str(); });
-    struct Array {
-        ~Array() { clingo_ast_array_free(result, result_size); }
-        clingo_ast_t **result = nullptr;
-        size_t result_size = 0;
-    };
-    auto arr = Array{};
-    handle_error(lib,
-                 clingo_ast_simplify(lib, c_cast(stm), params.data(), params.size(), &arr.result, &arr.result_size));
-    std::vector<Statement> res;
-    res.reserve(arr.result_size);
-    std::for_each_n(arr.result, arr.result_size, [&res](clingo_ast *&ast) {
-        auto *cpy = ast;
-        ast = nullptr;
-        res.emplace_back(construct_statement(cpy));
-    });
-    return res;
-}
-
 auto parse_term(Library &lib, char const *string) -> Term {
     clingo_ast_t *ast;
     handle_error(lib, clingo_ast_parse_expression(lib, clingo_ast_parse_type_term, string, &ast));
@@ -7884,10 +7867,41 @@ class Scanner {
     std::optional<Statement> value_;
 };
 
+auto simplify_statement(Library &lib, Statement &stm, std::vector<std::string> parameters, ProjectionMode mode,
+                        bool project_anonymous) -> std::vector<Statement> {
+    std::vector<char const *> params;
+    params.reserve(parameters.size());
+    std::transform(parameters.begin(), parameters.end(), std::back_inserter(params),
+                   [](auto const &str) { return str.c_str(); });
+    struct Array {
+        ~Array() { clingo_ast_array_free(result, result_size); }
+        clingo_ast_t **result = nullptr;
+        size_t result_size = 0;
+    };
+    auto arr = Array{};
+    clingo_ast_rewrite_options_t options{static_cast<clingo_projection_mode_e>(mode), project_anonymous};
+    handle_error(lib, clingo_ast_simplify(lib, c_cast(stm), &options, params.data(), params.size(), &arr.result,
+                                          &arr.result_size));
+    std::vector<Statement> res;
+    res.reserve(arr.result_size);
+    std::for_each_n(arr.result, arr.result_size, [&res](clingo_ast *&ast) {
+        auto *cpy = ast;
+        ast = nullptr;
+        res.emplace_back(construct_statement(cpy));
+    });
+    return res;
+}
+
 void register_module(pybind11::module &m) {
     auto ast = m.def_submodule("ast", doc(R"(
 This module provides functions to work with Abstract Syntax Trees of logic programs.
 )"));
+
+    auto py_projection_mode =
+        py::enum_<ProjectionMode>(ast, "ProjectionMode", R"doc(Available projection modes.)doc")
+            .value("Disabled", ProjectionMode::Disabled, R"doc(Do not project.)doc")
+            .value("Anonymous", ProjectionMode::Anonymous, R"doc(Only project anonymous variables.)doc")
+            .value("Pure", ProjectionMode::Pure, R"doc(Project pure variables.)doc");
 
     ast.def("_type_info_yaml", &clingo_ast_type_info_yaml, doc(R"(
 Return a yaml description of the AST.
@@ -9620,7 +9634,9 @@ Returns
 -------
 The parsed Statement object.)doc");
     ast.def("simplify_statement", &simplify_statement, py::arg("lib"), py::arg("statement"),
-            py::arg("parameters") = std::vector<std::string>{}, R"doc(Simplify the given statement.
+            py::arg("parameters") = std::vector<std::string>{}, py::arg("project_mode") = ProjectionMode::Pure,
+            py::arg("project_anonymous") = false,
+            R"doc(Simplify the given statement.
 
 Parameters
 ----------
@@ -9630,6 +9646,10 @@ statement
     The statement to simplify.
 parameters
     The parameters to exempt from simplification.
+project_mode
+    Which variables to project.
+project_anonymous
+    Whether to project anonymous variables in negative literals.
 
 Returns
 -------

@@ -899,7 +899,10 @@ class TestAST(TestCase):
             return [
                 str(x)
                 for x in ast.simplify_statement(
-                    self.lib, ast.parse_statement(self.lib, stm), params
+                    self.lib,
+                    ast.parse_statement(self.lib, stm),
+                    params,
+                    project_anonymous=True,
                 )
             ]
 
@@ -917,6 +920,9 @@ class TestAST(TestCase):
 
         stm = "p(t)."
         self.assertEqual(simp(stm, ["t"]), ["p(t)."])
+
+        stm = " :- not p(_)."
+        self.assertEqual(simp(stm, ["t"]), [" :- not p(*)."])
 
         stm = "p(1;t) :- #false: p(t)."
         self.assertEqual(
