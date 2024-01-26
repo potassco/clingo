@@ -954,6 +954,22 @@ class TestAST(TestCase):
         dispatch(ast.parse_statement(self.lib, "p(A) :- q(B,C), D = {}."))
         self.assertEqual(variables, ["A", "B", "C", "D"])
 
+    def test_transform(self):
+        """
+        Test transformation.
+        """
+
+        @singledispatch
+        def dispatch(expr, prefix):
+            return expr.transform(dispatch, prefix)
+
+        @transform.register
+        def _(var: ast.TermVariable, prefix):
+            return var.update(name=prefix + var.name)
+
+        stm = ast.parse_statement(self.lib, "a(X) :- b(X).")
+        self.assertEqual(str(dispatch(stm, "_")) == "a(_X) :- b(_X).")
+
     def test_cmp(self):
         """
         Test comparision functions.
