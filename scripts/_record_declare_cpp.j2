@@ -81,6 +81,8 @@ public:
         return {ast};
     }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib{% for argument_name, argument in type.arguments.items() %}, {{ argument.type | cref }}{{ argument_name }}{% endfor %}) -> {{ c_type_name }};
 
     friend auto c_cast({{ c_type_name }} const &x) -> clingo_ast_t *;

@@ -1,6 +1,7 @@
 """
 Unit tests for clingo.ast module.
 """
+from functools import singledispatch
 from textwrap import dedent
 from unittest import TestCase
 
@@ -935,6 +936,23 @@ class TestAST(TestCase):
         """
         with ast.Scanner(self.lib, "a. b. c.") as scanner:
             self.assertEqual([str(stm) for stm in scanner], ["a.", "b.", "c."])
+
+    def test_visit(self):
+        """
+        Test visiting.
+        """
+        variables = []
+
+        @singledispatch
+        def dispatch(arg):
+            arg.visit(dispatch)
+
+        @dispatch.register
+        def _(var: ast.TermVariable):
+            variables.append(var.name)
+
+        dispatch(ast.parse_statement(self.lib, "p(A) :- q(B,C), D = {}."))
+        self.assertEqual(variables, ["A", "B", "C", "D"])
 
     def test_cmp(self):
         """

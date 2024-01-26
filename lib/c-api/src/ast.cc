@@ -24,10 +24,12 @@ using Owner = Gringo::Util::immutable_value<std::any>;
 template <class T>
 auto make_ast(Owner const &owner, Gringo::Util::immutable_value<T> const &ptr) -> std::unique_ptr<clingo_ast_t>;
 template <class T> auto make_ast(Owner const &owner, std::optional<T> const &opt) -> std::unique_ptr<clingo_ast_t>;
+template <class... T> auto make_ast(Owner const &owner, std::variant<T...> const &var) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::LGuard::value_type const &guard) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::RGuard::value_type const &guard) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::TheoryRGuard::value_type const &guard)
     -> std::unique_ptr<clingo_ast_t>;
+auto make_ast(Owner const &owner, Gringo::Input::Projection const &projection) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::Term const &term) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::TheoryTerm const &term) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::TupleVec const &tuple) -> std::unique_ptr<clingo_ast_t>;
@@ -214,6 +216,11 @@ template <class T> auto convert_ast_vec(clingo_ast const **ast, size_t size) -> 
     return res;
 }
 
+template <class... T>
+auto make_ast(Owner const &owner, std::variant<T...> const &var) -> std::unique_ptr<clingo_ast_t> {
+    return std::visit([&owner](auto const &x) { return make_ast(owner, x); }, var);
+}
+
 template <class T>
 auto make_ast(Owner const &owner, Gringo::Util::immutable_value<T> const &ptr) -> std::unique_ptr<clingo_ast_t> {
     return make_ast(owner, *ptr);
@@ -237,6 +244,10 @@ auto make_ast(Owner const &owner, Gringo::Input::RGuard::value_type const &guard
 auto make_ast(Owner const &owner, Gringo::Input::TheoryRGuard::value_type const &guard)
     -> std::unique_ptr<clingo_ast_t> {
     return std::make_unique<clingo_ast>(owner, clingo_ast_type_theory_right_guard, &guard);
+}
+
+auto make_ast(Owner const &owner, Gringo::Input::Projection const &projection) -> std::unique_ptr<clingo_ast_t> {
+    return std::make_unique<clingo_ast>(owner, clingo_ast_type_projection, &projection);
 }
 
 auto make_ast(Owner const &owner, Gringo::Input::Term const &term) -> std::unique_ptr<clingo_ast_t> {
@@ -964,10 +975,16 @@ auto clingo_ast::get_ast(clingo_ast_attribute_t attr) const -> std::optional<std
     case clingo_ast_attribute_##attr: {                                                                                \
         return make_ast_vec(owner_, cast<Type>().value);                                                               \
     }
+#define ATTR_SELF(attr)                                                                                                \
+    case clingo_ast_attribute_##attr: {                                                                                \
+        return make_ast_vec(owner_, cast<Type>());                                                                     \
+    }
 
 auto clingo_ast::get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional<ASTVec> {
     // clang-format off
     SWITCH(
+        TYPE(argument_tuple, TupleVec,
+            ATTR_SELF(arguments))
         TYPE(term_absolute, TermAbs,
             ATTR(pool, pool))
         TYPE(term_tuple, TermTuple,
@@ -1041,6 +1058,7 @@ auto clingo_ast::get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional
 }
 
 #undef ATTR
+#undef ATTR_SELF
 #undef TYPE
 #undef SWITCH
 

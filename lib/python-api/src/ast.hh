@@ -201,6 +201,8 @@ class Projection {
 
     static auto acquire(clingo_ast_t *ast) -> Projection { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, clingo_location_t const &location) -> Projection;
 
     friend auto c_cast(Projection const &x) -> clingo_ast_t *;
@@ -302,6 +304,8 @@ class TermVariable {
 
     static auto acquire(clingo_ast_t *ast) -> TermVariable { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, clingo_location_t const &location, char const *name, bool anonymous)
         -> TermVariable;
 
@@ -378,6 +382,8 @@ class TermSymbolic {
 
     static auto acquire(clingo_ast_t *ast) -> TermSymbolic { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, clingo_location_t const &location, Symbol const &symbol) -> TermSymbolic;
 
     friend auto c_cast(TermSymbolic const &x) -> clingo_ast_t *;
@@ -452,6 +458,8 @@ class TermAbsolute {
     auto pool() -> TermArray;
 
     static auto acquire(clingo_ast_t *ast) -> TermAbsolute { return {ast}; }
+
+    void visit(py::handle visitor);
 
     static auto construct(Library &lib, clingo_location_t const &location, TermArray const &pool) -> TermAbsolute;
 
@@ -529,6 +537,8 @@ class TermUnaryOperation {
     auto right() -> Term;
 
     static auto acquire(clingo_ast_t *ast) -> TermUnaryOperation { return {ast}; }
+
+    void visit(py::handle visitor);
 
     static auto construct(Library &lib, clingo_location_t const &location, UnaryOperator const &operator_type,
                           Term const &right) -> TermUnaryOperation;
@@ -610,6 +620,8 @@ class TermBinaryOperation {
 
     static auto acquire(clingo_ast_t *ast) -> TermBinaryOperation { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, clingo_location_t const &location, Term const &left,
                           BinaryOperator const &operator_type, Term const &right) -> TermBinaryOperation;
 
@@ -683,6 +695,8 @@ class TermTuple {
     auto pool() -> TermOrArgumentTupleArray;
 
     static auto acquire(clingo_ast_t *ast) -> TermTuple { return {ast}; }
+
+    void visit(py::handle visitor);
 
     static auto construct(Library &lib, clingo_location_t const &location, TermOrArgumentTupleArray const &pool)
         -> TermTuple;
@@ -764,6 +778,8 @@ class TermFunction {
 
     static auto acquire(clingo_ast_t *ast) -> TermFunction { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, clingo_location_t const &location, char const *name,
                           ArgumentTupleArray const &pool, bool external) -> TermFunction;
 
@@ -837,6 +853,8 @@ class ArgumentTuple {
     auto arguments() -> TermOrProjectionArray;
 
     static auto acquire(clingo_ast_t *ast) -> ArgumentTuple { return {ast}; }
+
+    void visit(py::handle visitor);
 
     static auto construct(Library &lib, TermOrProjectionArray const &arguments) -> ArgumentTuple;
 
@@ -921,6 +939,8 @@ class LeftGuard {
 
     static auto acquire(clingo_ast_t *ast) -> LeftGuard { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, Term const &term, Relation const &relation) -> LeftGuard;
 
     friend auto c_cast(LeftGuard const &x) -> clingo_ast_t *;
@@ -997,6 +1017,8 @@ class RightGuard {
     auto term() -> Term;
 
     static auto acquire(clingo_ast_t *ast) -> RightGuard { return {ast}; }
+
+    void visit(py::handle visitor);
 
     static auto construct(Library &lib, Relation const &relation, Term const &term) -> RightGuard;
 
@@ -1081,6 +1103,8 @@ class LiteralBoolean {
 
     static auto acquire(clingo_ast_t *ast) -> LiteralBoolean { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign, bool value)
         -> LiteralBoolean;
 
@@ -1161,6 +1185,8 @@ class LiteralComparison {
 
     static auto acquire(clingo_ast_t *ast) -> LiteralComparison { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign, Term const &left,
                           RightGuardArray const &right) -> LiteralComparison;
 
@@ -1238,6 +1264,8 @@ class LiteralSymbolic {
     auto atom() -> Term;
 
     static auto acquire(clingo_ast_t *ast) -> LiteralSymbolic { return {ast}; }
+
+    void visit(py::handle visitor);
 
     static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign, Term const &atom)
         -> LiteralSymbolic;
@@ -1334,6 +1362,8 @@ class UnparsedElement {
 
     static auto acquire(clingo_ast_t *ast) -> UnparsedElement { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, StringArray const &operators, TheoryTerm const &term) -> UnparsedElement;
 
     friend auto c_cast(UnparsedElement const &x) -> clingo_ast_t *;
@@ -1415,6 +1445,8 @@ class TheoryTermVariable {
 
     static auto acquire(clingo_ast_t *ast) -> TheoryTermVariable { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, clingo_location_t const &location, char const *name, bool anonymous)
         -> TheoryTermVariable;
 
@@ -1490,6 +1522,8 @@ class TheoryTermSymbolic {
     auto symbol() -> Symbol;
 
     static auto acquire(clingo_ast_t *ast) -> TheoryTermSymbolic { return {ast}; }
+
+    void visit(py::handle visitor);
 
     static auto construct(Library &lib, clingo_location_t const &location, Symbol const &symbol) -> TheoryTermSymbolic;
 
@@ -1567,6 +1601,8 @@ class TheoryTermTuple {
     auto arguments() -> TheoryTermArray;
 
     static auto acquire(clingo_ast_t *ast) -> TheoryTermTuple { return {ast}; }
+
+    void visit(py::handle visitor);
 
     static auto construct(Library &lib, clingo_location_t const &location, TheoryTupleType const &tuple_type,
                           TheoryTermArray const &arguments) -> TheoryTermTuple;
@@ -1646,6 +1682,8 @@ class TheoryTermFunction {
 
     static auto acquire(clingo_ast_t *ast) -> TheoryTermFunction { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, clingo_location_t const &location, char const *name,
                           TheoryTermArray const &arguments) -> TheoryTermFunction;
 
@@ -1722,6 +1760,8 @@ class TheoryTermUnparsed {
 
     static auto acquire(clingo_ast_t *ast) -> TheoryTermUnparsed { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, clingo_location_t const &location, UnparsedElementArray const &elements)
         -> TheoryTermUnparsed;
 
@@ -1797,6 +1837,8 @@ class TheoryRightGuard {
     auto term() -> TheoryTerm;
 
     static auto acquire(clingo_ast_t *ast) -> TheoryRightGuard { return {ast}; }
+
+    void visit(py::handle visitor);
 
     static auto construct(Library &lib, char const *theory_operator, TheoryTerm const &term) -> TheoryRightGuard;
 
@@ -1881,6 +1923,8 @@ class SetAggregateElement {
 
     static auto acquire(clingo_ast_t *ast) -> SetAggregateElement { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, clingo_location_t const &location, Literal const &literal,
                           LiteralArray const &condition) -> SetAggregateElement;
 
@@ -1963,6 +2007,8 @@ class BodyAggregateElement {
 
     static auto acquire(clingo_ast_t *ast) -> BodyAggregateElement { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, clingo_location_t const &location, TermArray const &tuple,
                           LiteralArray const &condition) -> BodyAggregateElement;
 
@@ -2044,6 +2090,8 @@ class TheoryAtomElement {
     auto condition() -> LiteralArray;
 
     static auto acquire(clingo_ast_t *ast) -> TheoryAtomElement { return {ast}; }
+
+    void visit(py::handle visitor);
 
     static auto construct(Library &lib, clingo_location_t const &location, TheoryTermArray const &tuple,
                           LiteralArray const &condition) -> TheoryAtomElement;
@@ -2142,6 +2190,8 @@ class BodySimpleLiteral {
 
     static auto acquire(clingo_ast_t *ast) -> BodySimpleLiteral { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, Literal const &literal) -> BodySimpleLiteral;
 
     friend auto c_cast(BodySimpleLiteral const &x) -> clingo_ast_t *;
@@ -2224,6 +2274,8 @@ class BodyAggregate {
     auto right() -> OptionalRightGuard;
 
     static auto acquire(clingo_ast_t *ast) -> BodyAggregate { return {ast}; }
+
+    void visit(py::handle visitor);
 
     static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign,
                           OptionalLeftGuard const &left, AggregateFunction const &function,
@@ -2308,6 +2360,8 @@ class BodySetAggregate {
 
     static auto acquire(clingo_ast_t *ast) -> BodySetAggregate { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign,
                           OptionalLeftGuard const &left, SetAggregateElementArray const &elements,
                           OptionalRightGuard const &right) -> BodySetAggregate;
@@ -2391,6 +2445,8 @@ class BodyTheoryAtom {
 
     static auto acquire(clingo_ast_t *ast) -> BodyTheoryAtom { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign, Term const &name,
                           TheoryAtomElementArray const &elements, OptionalTheoryRightGuard const &right)
         -> BodyTheoryAtom;
@@ -2470,6 +2526,8 @@ class BodyConditionalLiteral {
 
     static auto acquire(clingo_ast_t *ast) -> BodyConditionalLiteral { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, clingo_location_t const &location, Literal const &literal,
                           LiteralArray const &condition) -> BodyConditionalLiteral;
 
@@ -2547,6 +2605,8 @@ class HeadConditionalLiteral {
     auto condition() -> LiteralArray;
 
     static auto acquire(clingo_ast_t *ast) -> HeadConditionalLiteral { return {ast}; }
+
+    void visit(py::handle visitor);
 
     static auto construct(Library &lib, clingo_location_t const &location, Literal const &literal,
                           LiteralArray const &condition) -> HeadConditionalLiteral;
@@ -2635,6 +2695,8 @@ class HeadAggregateElement {
     auto condition() -> LiteralArray;
 
     static auto acquire(clingo_ast_t *ast) -> HeadAggregateElement { return {ast}; }
+
+    void visit(py::handle visitor);
 
     static auto construct(Library &lib, clingo_location_t const &location, TermArray const &tuple,
                           Literal const &literal, LiteralArray const &condition) -> HeadAggregateElement;
@@ -2728,6 +2790,8 @@ class HeadSimpleLiteral {
 
     static auto acquire(clingo_ast_t *ast) -> HeadSimpleLiteral { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, Literal const &literal) -> HeadSimpleLiteral;
 
     friend auto c_cast(HeadSimpleLiteral const &x) -> clingo_ast_t *;
@@ -2808,6 +2872,8 @@ class HeadAggregate {
     auto right() -> OptionalRightGuard;
 
     static auto acquire(clingo_ast_t *ast) -> HeadAggregate { return {ast}; }
+
+    void visit(py::handle visitor);
 
     static auto construct(Library &lib, clingo_location_t const &location, OptionalLeftGuard const &left,
                           AggregateFunction const &function, HeadAggregateElementArray const &elements,
@@ -2890,6 +2956,8 @@ class HeadSetAggregate {
 
     static auto acquire(clingo_ast_t *ast) -> HeadSetAggregate { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, clingo_location_t const &location, OptionalLeftGuard const &left,
                           SetAggregateElementArray const &elements, OptionalRightGuard const &right)
         -> HeadSetAggregate;
@@ -2971,6 +3039,8 @@ class HeadTheoryAtom {
 
     static auto acquire(clingo_ast_t *ast) -> HeadTheoryAtom { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, clingo_location_t const &location, Term const &name,
                           TheoryAtomElementArray const &elements, OptionalTheoryRightGuard const &right)
         -> HeadTheoryAtom;
@@ -3047,6 +3117,8 @@ class HeadDisjunction {
     auto elements() -> DisjunctionElementArray;
 
     static auto acquire(clingo_ast_t *ast) -> HeadDisjunction { return {ast}; }
+
+    void visit(py::handle visitor);
 
     static auto construct(Library &lib, clingo_location_t const &location, DisjunctionElementArray const &elements)
         -> HeadDisjunction;
@@ -3127,6 +3199,8 @@ class TheoryOperatorDefinition {
     auto operator_type() -> TheoryOperatorType;
 
     static auto acquire(clingo_ast_t *ast) -> TheoryOperatorDefinition { return {ast}; }
+
+    void visit(py::handle visitor);
 
     static auto construct(Library &lib, clingo_location_t const &location, char const *name, int priority,
                           TheoryOperatorType const &operator_type) -> TheoryOperatorDefinition;
@@ -3210,6 +3284,8 @@ class TheoryTermDefinition {
 
     static auto acquire(clingo_ast_t *ast) -> TheoryTermDefinition { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, clingo_location_t const &location, char const *name,
                           TheoryOperatorDefinitionArray const &operators) -> TheoryTermDefinition;
 
@@ -3289,6 +3365,8 @@ class TheoryGuardDefinition {
     auto term() -> char const *;
 
     static auto acquire(clingo_ast_t *ast) -> TheoryGuardDefinition { return {ast}; }
+
+    void visit(py::handle visitor);
 
     static auto construct(Library &lib, StringArray const &operators, char const *term) -> TheoryGuardDefinition;
 
@@ -3375,6 +3453,8 @@ class TheoryAtomDefinition {
 
     static auto acquire(clingo_ast_t *ast) -> TheoryAtomDefinition { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, clingo_location_t const &location, char const *name, int arity,
                           char const *term, OptionalTheoryGuardDefinition const &guard, TheoryAtomType const &atom_type)
         -> TheoryAtomDefinition;
@@ -3458,6 +3538,8 @@ class OptimizeTuple {
 
     static auto acquire(clingo_ast_t *ast) -> OptimizeTuple { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, Term const &weight, OptionalTerm const &priority, TermArray const &terms)
         -> OptimizeTuple;
 
@@ -3534,6 +3616,8 @@ class OptimizeElement {
 
     static auto acquire(clingo_ast_t *ast) -> OptimizeElement { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, OptimizeTuple const &tuple, LiteralArray const &condition) -> OptimizeElement;
 
     friend auto c_cast(OptimizeElement const &x) -> clingo_ast_t *;
@@ -3608,6 +3692,8 @@ class Edge {
     auto v() -> Term;
 
     static auto acquire(clingo_ast_t *ast) -> Edge { return {ast}; }
+
+    void visit(py::handle visitor);
 
     static auto construct(Library &lib, Term const &u, Term const &v) -> Edge;
 
@@ -3731,6 +3817,8 @@ class StatementRule {
 
     static auto acquire(clingo_ast_t *ast) -> StatementRule { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, clingo_location_t const &location, HeadLiteral const &head,
                           BodyLiteralArray const &body) -> StatementRule;
 
@@ -3811,6 +3899,8 @@ class StatementTheory {
 
     static auto acquire(clingo_ast_t *ast) -> StatementTheory { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, clingo_location_t const &location, char const *name,
                           TheoryTermDefinitionArray const &terms, TheoryAtomDefinitionArray const &atoms)
         -> StatementTheory;
@@ -3890,6 +3980,8 @@ class StatementOptimize {
 
     static auto acquire(clingo_ast_t *ast) -> StatementOptimize { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, clingo_location_t const &location, OptimizeElementArray const &elements,
                           OptimizeType const &optimize_type) -> StatementOptimize;
 
@@ -3968,6 +4060,8 @@ class StatementWeakConstraint {
 
     static auto acquire(clingo_ast_t *ast) -> StatementWeakConstraint { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, clingo_location_t const &location, BodyLiteralArray const &body,
                           OptimizeTuple const &tuple) -> StatementWeakConstraint;
 
@@ -4045,6 +4139,8 @@ class StatementShow {
     auto body() -> BodyLiteralArray;
 
     static auto acquire(clingo_ast_t *ast) -> StatementShow { return {ast}; }
+
+    void visit(py::handle visitor);
 
     static auto construct(Library &lib, clingo_location_t const &location, Term const &term,
                           BodyLiteralArray const &body) -> StatementShow;
@@ -4126,6 +4222,8 @@ class StatementShowSignature {
 
     static auto acquire(clingo_ast_t *ast) -> StatementShowSignature { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, clingo_location_t const &location, char const *name, int arity, bool sign)
         -> StatementShowSignature;
 
@@ -4203,6 +4301,8 @@ class StatementProject {
     auto body() -> BodyLiteralArray;
 
     static auto acquire(clingo_ast_t *ast) -> StatementProject { return {ast}; }
+
+    void visit(py::handle visitor);
 
     static auto construct(Library &lib, clingo_location_t const &location, Term const &atom,
                           BodyLiteralArray const &body) -> StatementProject;
@@ -4284,6 +4384,8 @@ class StatementProjectSignature {
 
     static auto acquire(clingo_ast_t *ast) -> StatementProjectSignature { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, clingo_location_t const &location, char const *name, int arity, bool sign)
         -> StatementProjectSignature;
 
@@ -4363,6 +4465,8 @@ class StatementDefined {
     auto sign() -> bool;
 
     static auto acquire(clingo_ast_t *ast) -> StatementDefined { return {ast}; }
+
+    void visit(py::handle visitor);
 
     static auto construct(Library &lib, clingo_location_t const &location, char const *name, int arity, bool sign)
         -> StatementDefined;
@@ -4444,6 +4548,8 @@ class StatementExternal {
 
     static auto acquire(clingo_ast_t *ast) -> StatementExternal { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, clingo_location_t const &location, Term const &atom,
                           BodyLiteralArray const &body, OptionalTerm const &external_type) -> StatementExternal;
 
@@ -4521,6 +4627,8 @@ class StatementEdge {
     auto body() -> BodyLiteralArray;
 
     static auto acquire(clingo_ast_t *ast) -> StatementEdge { return {ast}; }
+
+    void visit(py::handle visitor);
 
     static auto construct(Library &lib, clingo_location_t const &location, EdgeArray const &pool,
                           BodyLiteralArray const &body) -> StatementEdge;
@@ -4606,6 +4714,8 @@ class StatementHeuristic {
 
     static auto acquire(clingo_ast_t *ast) -> StatementHeuristic { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, clingo_location_t const &location, Term const &atom,
                           BodyLiteralArray const &body, Term const &weight, Term const &modifier,
                           OptionalTerm const &priority) -> StatementHeuristic;
@@ -4685,6 +4795,8 @@ class StatementScript {
 
     static auto acquire(clingo_ast_t *ast) -> StatementScript { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, clingo_location_t const &location, char const *value, char const *script_type)
         -> StatementScript;
 
@@ -4763,6 +4875,8 @@ class StatementInclude {
 
     static auto acquire(clingo_ast_t *ast) -> StatementInclude { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, clingo_location_t const &location, char const *value,
                           IncludeType const &include_type) -> StatementInclude;
 
@@ -4840,6 +4954,8 @@ class StatementProgram {
     auto arguments() -> std::vector<char const *>;
 
     static auto acquire(clingo_ast_t *ast) -> StatementProgram { return {ast}; }
+
+    void visit(py::handle visitor);
 
     static auto construct(Library &lib, clingo_location_t const &location, char const *name,
                           StringArray const &arguments) -> StatementProgram;
@@ -4921,6 +5037,8 @@ class StatementConst {
 
     static auto acquire(clingo_ast_t *ast) -> StatementConst { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, clingo_location_t const &location, char const *name, Term const &value,
                           ConstType const &const_type) -> StatementConst;
 
@@ -4999,6 +5117,8 @@ class StatementComment {
 
     static auto acquire(clingo_ast_t *ast) -> StatementComment { return {ast}; }
 
+    void visit(py::handle visitor);
+
     static auto construct(Library &lib, clingo_location_t const &location, char const *value,
                           CommentType const &comment_type) -> StatementComment;
 
@@ -5075,6 +5195,8 @@ auto Projection::construct(Library &lib, clingo_location_t const &location) -> P
     handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_projection, &res_, &location));
     return Projection::acquire(res_);
 }
+
+void Projection::visit(py::handle visitor) {}
 
 auto construct_term_or_projection(clingo_ast_t *ast) -> TermOrProjection {
     clingo_ast_type_t type;
@@ -5231,6 +5353,8 @@ auto TermVariable::construct(Library &lib, clingo_location_t const &location, ch
     return TermVariable::acquire(res_);
 }
 
+void TermVariable::visit(py::handle visitor) {}
+
 auto TermSymbolic::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -5252,6 +5376,8 @@ auto TermSymbolic::construct(Library &lib, clingo_location_t const &location, Sy
     handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_term_symbolic, &res_, &location, symbol.handle()));
     return TermSymbolic::acquire(res_);
 }
+
+void TermSymbolic::visit(py::handle visitor) {}
 
 auto TermAbsolute::location() -> clingo_location_t {
     clingo_location_t ret;
@@ -5275,6 +5401,25 @@ auto TermAbsolute::construct(Library &lib, clingo_location_t const &location, Te
     handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_term_absolute, &res_, &location, c_cast(pool).data(),
                                            pool.size()));
     return TermAbsolute::acquire(res_);
+}
+
+void TermAbsolute::visit(py::handle visitor) {
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_pool, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(construct_term(cpy));
+        });
+    }
 }
 
 auto TermUnaryOperation::location() -> clingo_location_t {
@@ -5308,6 +5453,8 @@ auto TermUnaryOperation::construct(Library &lib, clingo_location_t const &locati
                                            static_cast<int>(operator_type), c_cast(right)));
     return TermUnaryOperation::acquire(res_);
 }
+
+void TermUnaryOperation::visit(py::handle visitor) { visitor(right()); }
 
 auto TermBinaryOperation::location() -> clingo_location_t {
     clingo_location_t ret;
@@ -5349,6 +5496,11 @@ auto TermBinaryOperation::construct(Library &lib, clingo_location_t const &locat
     return TermBinaryOperation::acquire(res_);
 }
 
+void TermBinaryOperation::visit(py::handle visitor) {
+    visitor(left());
+    visitor(right());
+}
+
 auto TermTuple::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -5372,6 +5524,25 @@ auto TermTuple::construct(Library &lib, clingo_location_t const &location, TermO
     handle_error(
         lib, clingo_ast_construct(lib, clingo_ast_type_term_tuple, &res_, &location, c_cast(pool).data(), pool.size()));
     return TermTuple::acquire(res_);
+}
+
+void TermTuple::visit(py::handle visitor) {
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_pool, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(construct_term_or_argument_tuple(cpy));
+        });
+    }
 }
 
 auto TermFunction::location() -> clingo_location_t {
@@ -5415,6 +5586,25 @@ auto TermFunction::construct(Library &lib, clingo_location_t const &location, ch
     return TermFunction::acquire(res_);
 }
 
+void TermFunction::visit(py::handle visitor) {
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_pool, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(ArgumentTuple::acquire(cpy));
+        });
+    }
+}
+
 auto ArgumentTuple::arguments() -> TermOrProjectionArray {
     clingo_ast_t **ast;
     size_t size;
@@ -5429,6 +5619,25 @@ auto ArgumentTuple::construct(Library &lib, TermOrProjectionArray const &argumen
     handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_argument_tuple, &res_, c_cast(arguments).data(),
                                            arguments.size()));
     return ArgumentTuple::acquire(res_);
+}
+
+void ArgumentTuple::visit(py::handle visitor) {
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_arguments, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(construct_term_or_projection(cpy));
+        });
+    }
 }
 
 auto construct_literal(clingo_ast_t *ast) -> Literal {
@@ -5475,6 +5684,8 @@ auto LeftGuard::construct(Library &lib, Term const &term, Relation const &relati
     return LeftGuard::acquire(res_);
 }
 
+void LeftGuard::visit(py::handle visitor) { visitor(term()); }
+
 auto RightGuard::relation() -> Relation {
     int ret;
     if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_relation, &ret)) {
@@ -5497,6 +5708,8 @@ auto RightGuard::construct(Library &lib, Relation const &relation, Term const &t
         lib, clingo_ast_construct(lib, clingo_ast_type_right_guard, &res_, static_cast<int>(relation), c_cast(term)));
     return RightGuard::acquire(res_);
 }
+
+void RightGuard::visit(py::handle visitor) { visitor(term()); }
 
 auto construct_right_guard_array(clingo_ast_t **ast, size_t size) -> RightGuardArray {
     RightGuardArray ret;
@@ -5547,6 +5760,8 @@ auto LiteralBoolean::construct(Library &lib, clingo_location_t const &location, 
     return LiteralBoolean::acquire(res_);
 }
 
+void LiteralBoolean::visit(py::handle visitor) {}
+
 auto LiteralComparison::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -5588,6 +5803,26 @@ auto LiteralComparison::construct(Library &lib, clingo_location_t const &locatio
     return LiteralComparison::acquire(res_);
 }
 
+void LiteralComparison::visit(py::handle visitor) {
+    visitor(left());
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_right, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(RightGuard::acquire(cpy));
+        });
+    }
+}
+
 auto LiteralSymbolic::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -5619,6 +5854,8 @@ auto LiteralSymbolic::construct(Library &lib, clingo_location_t const &location,
                                            static_cast<int>(sign), c_cast(atom)));
     return LiteralSymbolic::acquire(res_);
 }
+
+void LiteralSymbolic::visit(py::handle visitor) { visitor(atom()); }
 
 auto construct_theory_term(clingo_ast_t *ast) -> TheoryTerm {
     clingo_ast_type_t type;
@@ -5692,6 +5929,8 @@ auto UnparsedElement::construct(Library &lib, StringArray const &operators, Theo
     return UnparsedElement::acquire(res_);
 }
 
+void UnparsedElement::visit(py::handle visitor) { visitor(term()); }
+
 auto construct_unparsed_element_array(clingo_ast_t **ast, size_t size) -> UnparsedElementArray {
     UnparsedElementArray ret;
     try {
@@ -5741,6 +5980,8 @@ auto TheoryTermVariable::construct(Library &lib, clingo_location_t const &locati
     return TheoryTermVariable::acquire(res_);
 }
 
+void TheoryTermVariable::visit(py::handle visitor) {}
+
 auto TheoryTermSymbolic::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -5764,6 +6005,8 @@ auto TheoryTermSymbolic::construct(Library &lib, clingo_location_t const &locati
                  clingo_ast_construct(lib, clingo_ast_type_theory_term_symbolic, &res_, &location, symbol.handle()));
     return TheoryTermSymbolic::acquire(res_);
 }
+
+void TheoryTermSymbolic::visit(py::handle visitor) {}
 
 auto TheoryTermTuple::location() -> clingo_location_t {
     clingo_location_t ret;
@@ -5796,6 +6039,25 @@ auto TheoryTermTuple::construct(Library &lib, clingo_location_t const &location,
     handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_theory_term_tuple, &res_, &location,
                                            static_cast<int>(tuple_type), c_cast(arguments).data(), arguments.size()));
     return TheoryTermTuple::acquire(res_);
+}
+
+void TheoryTermTuple::visit(py::handle visitor) {
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_arguments, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(construct_theory_term(cpy));
+        });
+    }
 }
 
 auto TheoryTermFunction::location() -> clingo_location_t {
@@ -5831,6 +6093,25 @@ auto TheoryTermFunction::construct(Library &lib, clingo_location_t const &locati
     return TheoryTermFunction::acquire(res_);
 }
 
+void TheoryTermFunction::visit(py::handle visitor) {
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_arguments, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(construct_theory_term(cpy));
+        });
+    }
+}
+
 auto TheoryTermUnparsed::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -5856,6 +6137,25 @@ auto TheoryTermUnparsed::construct(Library &lib, clingo_location_t const &locati
     return TheoryTermUnparsed::acquire(res_);
 }
 
+void TheoryTermUnparsed::visit(py::handle visitor) {
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(UnparsedElement::acquire(cpy));
+        });
+    }
+}
+
 auto TheoryRightGuard::theory_operator() -> char const * {
     char const *ret;
     if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_theory_operator, &ret)) {
@@ -5879,6 +6179,8 @@ auto TheoryRightGuard::construct(Library &lib, char const *theory_operator, Theo
                  clingo_ast_construct(lib, clingo_ast_type_theory_right_guard, &res_, theory_operator, c_cast(term)));
     return TheoryRightGuard::acquire(res_);
 }
+
+void TheoryRightGuard::visit(py::handle visitor) { visitor(term()); }
 
 auto construct_literal_array(clingo_ast_t **ast, size_t size) -> LiteralArray {
     LiteralArray ret;
@@ -5928,6 +6230,26 @@ auto SetAggregateElement::construct(Library &lib, clingo_location_t const &locat
     handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_set_aggregate_element, &res_, &location,
                                            c_cast(literal), c_cast(condition).data(), condition.size()));
     return SetAggregateElement::acquire(res_);
+}
+
+void SetAggregateElement::visit(py::handle visitor) {
+    visitor(literal());
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_condition, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(construct_literal(cpy));
+        });
+    }
 }
 
 auto construct_set_aggregate_element_array(clingo_ast_t **ast, size_t size) -> SetAggregateElementArray {
@@ -5982,6 +6304,41 @@ auto BodyAggregateElement::construct(Library &lib, clingo_location_t const &loca
     return BodyAggregateElement::acquire(res_);
 }
 
+void BodyAggregateElement::visit(py::handle visitor) {
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_tuple, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(construct_term(cpy));
+        });
+    }
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_condition, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(construct_literal(cpy));
+        });
+    }
+}
+
 auto construct_body_aggregate_element_array(clingo_ast_t **ast, size_t size) -> BodyAggregateElementArray {
     BodyAggregateElementArray ret;
     try {
@@ -6032,6 +6389,41 @@ auto TheoryAtomElement::construct(Library &lib, clingo_location_t const &locatio
                  clingo_ast_construct(lib, clingo_ast_type_theory_atom_element, &res_, &location, c_cast(tuple).data(),
                                       tuple.size(), c_cast(condition).data(), condition.size()));
     return TheoryAtomElement::acquire(res_);
+}
+
+void TheoryAtomElement::visit(py::handle visitor) {
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_tuple, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(construct_theory_term(cpy));
+        });
+    }
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_condition, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(construct_literal(cpy));
+        });
+    }
 }
 
 auto construct_theory_atom_element_array(clingo_ast_t **ast, size_t size) -> TheoryAtomElementArray {
@@ -6109,6 +6501,8 @@ auto BodySimpleLiteral::construct(Library &lib, Literal const &literal) -> BodyS
     return BodySimpleLiteral::acquire(res_);
 }
 
+void BodySimpleLiteral::visit(py::handle visitor) { visitor(literal()); }
+
 auto BodyAggregate::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -6177,6 +6571,31 @@ auto BodyAggregate::construct(Library &lib, clingo_location_t const &location, S
     return BodyAggregate::acquire(res_);
 }
 
+void BodyAggregate::visit(py::handle visitor) {
+    if (auto opt = left()) {
+        visitor(*opt);
+    }
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(BodyAggregateElement::acquire(cpy));
+        });
+    }
+    if (auto opt = right()) {
+        visitor(*opt);
+    }
+}
+
 auto BodySetAggregate::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -6236,6 +6655,31 @@ auto BodySetAggregate::construct(Library &lib, clingo_location_t const &location
     return BodySetAggregate::acquire(res_);
 }
 
+void BodySetAggregate::visit(py::handle visitor) {
+    if (auto opt = left()) {
+        visitor(*opt);
+    }
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(SetAggregateElement::acquire(cpy));
+        });
+    }
+    if (auto opt = right()) {
+        visitor(*opt);
+    }
+}
+
 auto BodyTheoryAtom::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -6291,6 +6735,29 @@ auto BodyTheoryAtom::construct(Library &lib, clingo_location_t const &location, 
     return BodyTheoryAtom::acquire(res_);
 }
 
+void BodyTheoryAtom::visit(py::handle visitor) {
+    visitor(name());
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(TheoryAtomElement::acquire(cpy));
+        });
+    }
+    if (auto opt = right()) {
+        visitor(*opt);
+    }
+}
+
 auto BodyConditionalLiteral::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -6324,6 +6791,26 @@ auto BodyConditionalLiteral::construct(Library &lib, clingo_location_t const &lo
     return BodyConditionalLiteral::acquire(res_);
 }
 
+void BodyConditionalLiteral::visit(py::handle visitor) {
+    visitor(literal());
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_condition, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(construct_literal(cpy));
+        });
+    }
+}
+
 auto HeadConditionalLiteral::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -6355,6 +6842,26 @@ auto HeadConditionalLiteral::construct(Library &lib, clingo_location_t const &lo
     handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_head_conditional_literal, &res_, &location,
                                            c_cast(literal), c_cast(condition).data(), condition.size()));
     return HeadConditionalLiteral::acquire(res_);
+}
+
+void HeadConditionalLiteral::visit(py::handle visitor) {
+    visitor(literal());
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_condition, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(construct_literal(cpy));
+        });
+    }
 }
 
 auto construct_disjunction_element(clingo_ast_t *ast) -> DisjunctionElement {
@@ -6441,6 +6948,42 @@ auto HeadAggregateElement::construct(Library &lib, clingo_location_t const &loca
     return HeadAggregateElement::acquire(res_);
 }
 
+void HeadAggregateElement::visit(py::handle visitor) {
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_tuple, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(construct_term(cpy));
+        });
+    }
+    visitor(literal());
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_condition, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(construct_literal(cpy));
+        });
+    }
+}
+
 auto construct_head_aggregate_element_array(clingo_ast_t **ast, size_t size) -> HeadAggregateElementArray {
     HeadAggregateElementArray ret;
     try {
@@ -6498,6 +7041,8 @@ auto HeadSimpleLiteral::construct(Library &lib, Literal const &literal) -> HeadS
     handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_head_simple_literal, &res_, c_cast(literal)));
     return HeadSimpleLiteral::acquire(res_);
 }
+
+void HeadSimpleLiteral::visit(py::handle visitor) { visitor(literal()); }
 
 auto HeadAggregate::location() -> clingo_location_t {
     clingo_location_t ret;
@@ -6558,6 +7103,31 @@ auto HeadAggregate::construct(Library &lib, clingo_location_t const &location, O
     return HeadAggregate::acquire(res_);
 }
 
+void HeadAggregate::visit(py::handle visitor) {
+    if (auto opt = left()) {
+        visitor(*opt);
+    }
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(HeadAggregateElement::acquire(cpy));
+        });
+    }
+    if (auto opt = right()) {
+        visitor(*opt);
+    }
+}
+
 auto HeadSetAggregate::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -6608,6 +7178,31 @@ auto HeadSetAggregate::construct(Library &lib, clingo_location_t const &location
     return HeadSetAggregate::acquire(res_);
 }
 
+void HeadSetAggregate::visit(py::handle visitor) {
+    if (auto opt = left()) {
+        visitor(*opt);
+    }
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(SetAggregateElement::acquire(cpy));
+        });
+    }
+    if (auto opt = right()) {
+        visitor(*opt);
+    }
+}
+
 auto HeadTheoryAtom::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -6654,6 +7249,29 @@ auto HeadTheoryAtom::construct(Library &lib, clingo_location_t const &location, 
     return HeadTheoryAtom::acquire(res_);
 }
 
+void HeadTheoryAtom::visit(py::handle visitor) {
+    visitor(name());
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(TheoryAtomElement::acquire(cpy));
+        });
+    }
+    if (auto opt = right()) {
+        visitor(*opt);
+    }
+}
+
 auto HeadDisjunction::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -6677,6 +7295,25 @@ auto HeadDisjunction::construct(Library &lib, clingo_location_t const &location,
     handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_head_disjunction, &res_, &location,
                                            c_cast(elements).data(), elements.size()));
     return HeadDisjunction::acquire(res_);
+}
+
+void HeadDisjunction::visit(py::handle visitor) {
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(construct_disjunction_element(cpy));
+        });
+    }
 }
 
 auto TheoryOperatorDefinition::location() -> clingo_location_t {
@@ -6719,6 +7356,8 @@ auto TheoryOperatorDefinition::construct(Library &lib, clingo_location_t const &
                                            priority, static_cast<int>(operator_type)));
     return TheoryOperatorDefinition::acquire(res_);
 }
+
+void TheoryOperatorDefinition::visit(py::handle visitor) {}
 
 auto construct_theory_operator_definition_array(clingo_ast_t **ast, size_t size) -> TheoryOperatorDefinitionArray {
     TheoryOperatorDefinitionArray ret;
@@ -6770,6 +7409,25 @@ auto TheoryTermDefinition::construct(Library &lib, clingo_location_t const &loca
     return TheoryTermDefinition::acquire(res_);
 }
 
+void TheoryTermDefinition::visit(py::handle visitor) {
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_operators, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(TheoryOperatorDefinition::acquire(cpy));
+        });
+    }
+}
+
 auto construct_theory_term_definition_array(clingo_ast_t **ast, size_t size) -> TheoryTermDefinitionArray {
     TheoryTermDefinitionArray ret;
     try {
@@ -6815,6 +7473,8 @@ auto TheoryGuardDefinition::construct(Library &lib, StringArray const &operators
                                            c_cast(operators).data(), operators.size(), term));
     return TheoryGuardDefinition::acquire(res_);
 }
+
+void TheoryGuardDefinition::visit(py::handle visitor) {}
 
 auto TheoryAtomDefinition::location() -> clingo_location_t {
     clingo_location_t ret;
@@ -6877,6 +7537,12 @@ auto TheoryAtomDefinition::construct(Library &lib, clingo_location_t const &loca
     return TheoryAtomDefinition::acquire(res_);
 }
 
+void TheoryAtomDefinition::visit(py::handle visitor) {
+    if (auto opt = guard()) {
+        visitor(*opt);
+    }
+}
+
 auto construct_theory_atom_definition_array(clingo_ast_t **ast, size_t size) -> TheoryAtomDefinitionArray {
     TheoryAtomDefinitionArray ret;
     try {
@@ -6931,6 +7597,29 @@ auto OptimizeTuple::construct(Library &lib, Term const &weight, OptionalTerm con
     return OptimizeTuple::acquire(res_);
 }
 
+void OptimizeTuple::visit(py::handle visitor) {
+    visitor(weight());
+    if (auto opt = priority()) {
+        visitor(*opt);
+    }
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_terms, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(construct_term(cpy));
+        });
+    }
+}
+
 auto OptimizeElement::tuple() -> OptimizeTuple {
     clingo_ast_t *ast;
     if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_tuple, &ast)) {
@@ -6954,6 +7643,26 @@ auto OptimizeElement::construct(Library &lib, OptimizeTuple const &tuple, Litera
     handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_optimize_element, &res_, c_cast(tuple),
                                            c_cast(condition).data(), condition.size()));
     return OptimizeElement::acquire(res_);
+}
+
+void OptimizeElement::visit(py::handle visitor) {
+    visitor(tuple());
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_condition, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(construct_literal(cpy));
+        });
+    }
 }
 
 auto construct_optimize_element_array(clingo_ast_t **ast, size_t size) -> OptimizeElementArray {
@@ -6993,6 +7702,11 @@ auto Edge::construct(Library &lib, Term const &u, Term const &v) -> Edge {
     clingo_ast_t *res_;
     handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_edge, &res_, c_cast(u), c_cast(v)));
     return Edge::acquire(res_);
+}
+
+void Edge::visit(py::handle visitor) {
+    visitor(u());
+    visitor(v());
 }
 
 auto construct_edge_array(clingo_ast_t **ast, size_t size) -> EdgeArray {
@@ -7108,6 +7822,26 @@ auto StatementRule::construct(Library &lib, clingo_location_t const &location, H
     return StatementRule::acquire(res_);
 }
 
+void StatementRule::visit(py::handle visitor) {
+    visitor(head());
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_body, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(construct_body_literal(cpy));
+        });
+    }
+}
+
 auto StatementTheory::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -7151,6 +7885,41 @@ auto StatementTheory::construct(Library &lib, clingo_location_t const &location,
     return StatementTheory::acquire(res_);
 }
 
+void StatementTheory::visit(py::handle visitor) {
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_terms, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(TheoryTermDefinition::acquire(cpy));
+        });
+    }
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_atoms, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(TheoryAtomDefinition::acquire(cpy));
+        });
+    }
+}
+
 auto StatementOptimize::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -7182,6 +7951,25 @@ auto StatementOptimize::construct(Library &lib, clingo_location_t const &locatio
     handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_optimize, &res_, &location,
                                            c_cast(elements).data(), elements.size(), static_cast<int>(optimize_type)));
     return StatementOptimize::acquire(res_);
+}
+
+void StatementOptimize::visit(py::handle visitor) {
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(OptimizeElement::acquire(cpy));
+        });
+    }
 }
 
 auto StatementWeakConstraint::location() -> clingo_location_t {
@@ -7217,6 +8005,26 @@ auto StatementWeakConstraint::construct(Library &lib, clingo_location_t const &l
     return StatementWeakConstraint::acquire(res_);
 }
 
+void StatementWeakConstraint::visit(py::handle visitor) {
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_body, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(construct_body_literal(cpy));
+        });
+    }
+    visitor(tuple());
+}
+
 auto StatementShow::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -7248,6 +8056,26 @@ auto StatementShow::construct(Library &lib, clingo_location_t const &location, T
     handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_show, &res_, &location, c_cast(term),
                                            c_cast(body).data(), body.size()));
     return StatementShow::acquire(res_);
+}
+
+void StatementShow::visit(py::handle visitor) {
+    visitor(term());
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_body, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(construct_body_literal(cpy));
+        });
+    }
 }
 
 auto StatementShowSignature::location() -> clingo_location_t {
@@ -7290,6 +8118,8 @@ auto StatementShowSignature::construct(Library &lib, clingo_location_t const &lo
     return StatementShowSignature::acquire(res_);
 }
 
+void StatementShowSignature::visit(py::handle visitor) {}
+
 auto StatementProject::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -7321,6 +8151,26 @@ auto StatementProject::construct(Library &lib, clingo_location_t const &location
     handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_project, &res_, &location, c_cast(atom),
                                            c_cast(body).data(), body.size()));
     return StatementProject::acquire(res_);
+}
+
+void StatementProject::visit(py::handle visitor) {
+    visitor(atom());
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_body, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(construct_body_literal(cpy));
+        });
+    }
 }
 
 auto StatementProjectSignature::location() -> clingo_location_t {
@@ -7363,6 +8213,8 @@ auto StatementProjectSignature::construct(Library &lib, clingo_location_t const 
     return StatementProjectSignature::acquire(res_);
 }
 
+void StatementProjectSignature::visit(py::handle visitor) {}
+
 auto StatementDefined::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -7402,6 +8254,8 @@ auto StatementDefined::construct(Library &lib, clingo_location_t const &location
                                            static_cast<int>(sign)));
     return StatementDefined::acquire(res_);
 }
+
+void StatementDefined::visit(py::handle visitor) {}
 
 auto StatementExternal::location() -> clingo_location_t {
     clingo_location_t ret;
@@ -7449,6 +8303,29 @@ auto StatementExternal::construct(Library &lib, clingo_location_t const &locatio
     return StatementExternal::acquire(res_);
 }
 
+void StatementExternal::visit(py::handle visitor) {
+    visitor(atom());
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_body, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(construct_body_literal(cpy));
+        });
+    }
+    if (auto opt = external_type()) {
+        visitor(*opt);
+    }
+}
+
 auto StatementEdge::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -7481,6 +8358,41 @@ auto StatementEdge::construct(Library &lib, clingo_location_t const &location, E
     handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_edge, &res_, &location, c_cast(pool).data(),
                                            pool.size(), c_cast(body).data(), body.size()));
     return StatementEdge::acquire(res_);
+}
+
+void StatementEdge::visit(py::handle visitor) {
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_pool, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(Edge::acquire(cpy));
+        });
+    }
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_body, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(construct_body_literal(cpy));
+        });
+    }
 }
 
 auto StatementHeuristic::location() -> clingo_location_t {
@@ -7546,6 +8458,31 @@ auto StatementHeuristic::construct(Library &lib, clingo_location_t const &locati
     return StatementHeuristic::acquire(res_);
 }
 
+void StatementHeuristic::visit(py::handle visitor) {
+    visitor(atom());
+    {
+        struct Array {
+            ~Array() { clingo_ast_array_free(begin, size); }
+            clingo_ast_t **begin = nullptr;
+            size_t size = 0;
+        };
+        auto array = Array{};
+        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_body, &array.begin, &array.size)) {
+            throw std::runtime_error("could not get ast array attribute");
+        }
+        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+            auto *cpy = ast;
+            ast = nullptr;
+            visitor(construct_body_literal(cpy));
+        });
+    }
+    visitor(weight());
+    visitor(modifier());
+    if (auto opt = priority()) {
+        visitor(*opt);
+    }
+}
+
 auto StatementScript::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -7578,6 +8515,8 @@ auto StatementScript::construct(Library &lib, clingo_location_t const &location,
     return StatementScript::acquire(res_);
 }
 
+void StatementScript::visit(py::handle visitor) {}
+
 auto StatementInclude::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -7609,6 +8548,8 @@ auto StatementInclude::construct(Library &lib, clingo_location_t const &location
                                            static_cast<int>(include_type)));
     return StatementInclude::acquire(res_);
 }
+
+void StatementInclude::visit(py::handle visitor) {}
 
 auto StatementProgram::location() -> clingo_location_t {
     clingo_location_t ret;
@@ -7646,6 +8587,8 @@ auto StatementProgram::construct(Library &lib, clingo_location_t const &location
                                            c_cast(arguments).data(), arguments.size()));
     return StatementProgram::acquire(res_);
 }
+
+void StatementProgram::visit(py::handle visitor) {}
 
 auto StatementConst::location() -> clingo_location_t {
     clingo_location_t ret;
@@ -7687,6 +8630,8 @@ auto StatementConst::construct(Library &lib, clingo_location_t const &location, 
     return StatementConst::acquire(res_);
 }
 
+void StatementConst::visit(py::handle visitor) { visitor(value()); }
+
 auto StatementComment::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -7718,6 +8663,8 @@ auto StatementComment::construct(Library &lib, clingo_location_t const &location
                                            static_cast<int>(comment_type)));
     return StatementComment::acquire(res_);
 }
+
+void StatementComment::visit(py::handle visitor) {}
 
 template <class T> auto c_cast(std::optional<T> const &opt) -> clingo_ast_t * {
     if (opt) {
@@ -8161,6 +9108,13 @@ location
         .def("__str__", &Projection::to_string)
         .def("__hash__", &Projection::hash)
         .def_property_readonly("location", &Projection::location, R"doc(The location of the placeholder.)doc")
+        .def("visit", &Projection::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8186,6 +9140,13 @@ anonymous
         .def_property_readonly("name", &TermVariable::name, R"doc(The name of the variable.)doc")
         .def_property_readonly("anonymous", &TermVariable::anonymous, R"doc(Whether the variable is anonymous.
 Anonymous variables receive a unique name during preprocessing.)doc")
+        .def("visit", &TermVariable::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8205,6 +9166,13 @@ symbol
         .def("__hash__", &TermSymbolic::hash)
         .def_property_readonly("location", &TermSymbolic::location, R"doc(The location of the symbol.)doc")
         .def_property_readonly("symbol", &TermSymbolic::symbol, R"doc(The symbol.)doc")
+        .def("visit", &TermSymbolic::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8228,6 +9196,13 @@ pool
         .def_property_readonly("location", &TermAbsolute::location, R"doc(The location of the operation.)doc")
         .def_property_readonly("pool", &TermAbsolute::pool, R"doc(The argument pool.
 If there is more than one argument in the pool, the term is unpooled during preprocessing.)doc")
+        .def("visit", &TermAbsolute::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8251,6 +9226,13 @@ right
         .def_property_readonly("operator_type", &TermUnaryOperation::operator_type,
                                R"doc(The type of the operation.)doc")
         .def_property_readonly("right", &TermUnaryOperation::right, R"doc(The argument of the operation.)doc")
+        .def("visit", &TermUnaryOperation::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8277,6 +9259,13 @@ right
         .def_property_readonly("operator_type", &TermBinaryOperation::operator_type,
                                R"doc(The type of the operation.)doc")
         .def_property_readonly("right", &TermBinaryOperation::right, R"doc(The right argument of the operation.)doc")
+        .def("visit", &TermBinaryOperation::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8300,6 +9289,13 @@ pool
         .def_property_readonly("location", &TermTuple::location, R"doc(The location of the tuple.)doc")
         .def_property_readonly("pool", &TermTuple::pool, R"doc(The argument pool of the tuple.
 If there is more than one element in the pool, the term is unpooled during preprocessing.)doc")
+        .def("visit", &TermTuple::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8329,6 +9325,13 @@ external
         .def_property_readonly("pool", &TermFunction::pool, R"doc(The argument pool of the function.
 If there is more than one element in the pool, the term is unpooled during preprocessing.)doc")
         .def_property_readonly("external", &TermFunction::external, R"doc(Whether the function is external.)doc")
+        .def("visit", &TermFunction::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8345,6 +9348,13 @@ arguments
         .def("__str__", &ArgumentTuple::to_string)
         .def("__hash__", &ArgumentTuple::hash)
         .def_property_readonly("arguments", &ArgumentTuple::arguments, R"doc(The arguments of the tuple.)doc")
+        .def("visit", &ArgumentTuple::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8364,6 +9374,13 @@ relation
         .def("__hash__", &LeftGuard::hash)
         .def_property_readonly("term", &LeftGuard::term, R"doc(The term of the guard.)doc")
         .def_property_readonly("relation", &LeftGuard::relation, R"doc(The relation of the guard.)doc")
+        .def("visit", &LeftGuard::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8383,6 +9400,13 @@ term
         .def("__hash__", &RightGuard::hash)
         .def_property_readonly("relation", &RightGuard::relation, R"doc(The relation of the guard.)doc")
         .def_property_readonly("term", &RightGuard::term, R"doc(The term of the guard.)doc")
+        .def("visit", &RightGuard::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8405,6 +9429,13 @@ value
         .def_property_readonly("location", &LiteralBoolean::location, R"doc(The location of the symbol.)doc")
         .def_property_readonly("sign", &LiteralBoolean::sign, R"doc(The sign of the literal.)doc")
         .def_property_readonly("value", &LiteralBoolean::value, R"doc(The fixed value of the literal.)doc")
+        .def("visit", &LiteralBoolean::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8433,6 +9464,13 @@ right
         .def_property_readonly("left", &LiteralComparison::left, R"doc(The first term of the comparison.)doc")
         .def_property_readonly("right", &LiteralComparison::right, R"doc(The chain of comparisons.
 Note that the chain must have at least length one.)doc")
+        .def("visit", &LiteralComparison::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8455,6 +9493,13 @@ atom
         .def_property_readonly("location", &LiteralSymbolic::location, R"doc(The location of the symbol.)doc")
         .def_property_readonly("sign", &LiteralSymbolic::sign, R"doc(The sign of the literal.)doc")
         .def_property_readonly("atom", &LiteralSymbolic::atom, R"doc(The term representing the atom.)doc")
+        .def("visit", &LiteralSymbolic::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8474,6 +9519,13 @@ term
         .def("__hash__", &UnparsedElement::hash)
         .def_property_readonly("operators", &UnparsedElement::operators, R"doc(The list of theory operators.)doc")
         .def_property_readonly("term", &UnparsedElement::term, R"doc(The theory term.)doc")
+        .def("visit", &UnparsedElement::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8499,6 +9551,13 @@ anonymous
         .def_property_readonly("name", &TheoryTermVariable::name, R"doc(The name of the variable.)doc")
         .def_property_readonly("anonymous", &TheoryTermVariable::anonymous, R"doc(Whether the variable is anonymous.
 Anonymous variables receive a unique name during preprocessing.)doc")
+        .def("visit", &TheoryTermVariable::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8518,6 +9577,13 @@ symbol
         .def("__hash__", &TheoryTermSymbolic::hash)
         .def_property_readonly("location", &TheoryTermSymbolic::location, R"doc(The location of the symbol.)doc")
         .def_property_readonly("symbol", &TheoryTermSymbolic::symbol, R"doc(The symbol.)doc")
+        .def("visit", &TheoryTermSymbolic::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8540,6 +9606,13 @@ arguments
         .def_property_readonly("location", &TheoryTermTuple::location, R"doc(The location of the tuple.)doc")
         .def_property_readonly("tuple_type", &TheoryTermTuple::tuple_type, R"doc(The type of the tuple.)doc")
         .def_property_readonly("arguments", &TheoryTermTuple::arguments, R"doc(The arguments of the tuple.)doc")
+        .def("visit", &TheoryTermTuple::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8562,6 +9635,13 @@ arguments
         .def_property_readonly("location", &TheoryTermFunction::location, R"doc(The location of the function.)doc")
         .def_property_readonly("name", &TheoryTermFunction::name, R"doc(The name of the function.)doc")
         .def_property_readonly("arguments", &TheoryTermFunction::arguments, R"doc(The arguments of the function.)doc")
+        .def("visit", &TheoryTermFunction::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8581,6 +9661,13 @@ elements
         .def("__hash__", &TheoryTermUnparsed::hash)
         .def_property_readonly("location", &TheoryTermUnparsed::location, R"doc(The location of the theory term.)doc")
         .def_property_readonly("elements", &TheoryTermUnparsed::elements, R"doc(The unparsed theory elements.)doc")
+        .def("visit", &TheoryTermUnparsed::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8601,6 +9688,13 @@ term
         .def_property_readonly("theory_operator", &TheoryRightGuard::theory_operator,
                                R"doc(The operator of the guard.)doc")
         .def_property_readonly("term", &TheoryRightGuard::term, R"doc(The theory term of the guard.)doc")
+        .def("visit", &TheoryRightGuard::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8623,6 +9717,13 @@ condition
         .def_property_readonly("location", &SetAggregateElement::location, R"doc(The location of the element.)doc")
         .def_property_readonly("literal", &SetAggregateElement::literal, R"doc(The literal of the element.)doc")
         .def_property_readonly("condition", &SetAggregateElement::condition, R"doc(The condition of the element.)doc")
+        .def("visit", &SetAggregateElement::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8645,6 +9746,13 @@ condition
         .def_property_readonly("location", &BodyAggregateElement::location, R"doc(The location of the element.)doc")
         .def_property_readonly("tuple", &BodyAggregateElement::tuple, R"doc(The term tuple of the element.)doc")
         .def_property_readonly("condition", &BodyAggregateElement::condition, R"doc(The condition of the element.)doc")
+        .def("visit", &BodyAggregateElement::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8667,6 +9775,13 @@ condition
         .def_property_readonly("location", &TheoryAtomElement::location, R"doc(The location of the element.)doc")
         .def_property_readonly("tuple", &TheoryAtomElement::tuple, R"doc(The theory term tuple of the element.)doc")
         .def_property_readonly("condition", &TheoryAtomElement::condition, R"doc(The condition of the element.)doc")
+        .def("visit", &TheoryAtomElement::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8683,6 +9798,13 @@ literal
         .def("__str__", &BodySimpleLiteral::to_string)
         .def("__hash__", &BodySimpleLiteral::hash)
         .def_property_readonly("literal", &BodySimpleLiteral::literal, R"doc(The literal.)doc")
+        .def("visit", &BodySimpleLiteral::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8714,6 +9836,13 @@ right
         .def_property_readonly("function", &BodyAggregate::function, R"doc(The aggregate function.)doc")
         .def_property_readonly("elements", &BodyAggregate::elements, R"doc(The aggregate elements.)doc")
         .def_property_readonly("right", &BodyAggregate::right, R"doc(The right guard of the aggregate.)doc")
+        .def("visit", &BodyAggregate::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8742,6 +9871,13 @@ right
         .def_property_readonly("left", &BodySetAggregate::left, R"doc(The left guard of the aggregate.)doc")
         .def_property_readonly("elements", &BodySetAggregate::elements, R"doc(The aggregate elements.)doc")
         .def_property_readonly("right", &BodySetAggregate::right, R"doc(The right guard of the aggregate.)doc")
+        .def("visit", &BodySetAggregate::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8770,6 +9906,13 @@ right
         .def_property_readonly("name", &BodyTheoryAtom::name, R"doc(The name of the theory atom.)doc")
         .def_property_readonly("elements", &BodyTheoryAtom::elements, R"doc(The aggregate elements.)doc")
         .def_property_readonly("right", &BodyTheoryAtom::right, R"doc(The right guard of the theory atom.)doc")
+        .def("visit", &BodyTheoryAtom::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8793,6 +9936,13 @@ condition
         .def_property_readonly("literal", &BodyConditionalLiteral::literal, R"doc(The literal of the element.)doc")
         .def_property_readonly("condition", &BodyConditionalLiteral::condition,
                                R"doc(The condition of the element.)doc")
+        .def("visit", &BodyConditionalLiteral::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8816,6 +9966,13 @@ condition
         .def_property_readonly("literal", &HeadConditionalLiteral::literal, R"doc(The literal of the element.)doc")
         .def_property_readonly("condition", &HeadConditionalLiteral::condition,
                                R"doc(The condition of the element.)doc")
+        .def("visit", &HeadConditionalLiteral::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8841,6 +9998,13 @@ condition
         .def_property_readonly("tuple", &HeadAggregateElement::tuple, R"doc(The term tuple of the element.)doc")
         .def_property_readonly("literal", &HeadAggregateElement::literal, R"doc(The literal of the element.)doc")
         .def_property_readonly("condition", &HeadAggregateElement::condition, R"doc(The condition of the element.)doc")
+        .def("visit", &HeadAggregateElement::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8857,6 +10021,13 @@ literal
         .def("__str__", &HeadSimpleLiteral::to_string)
         .def("__hash__", &HeadSimpleLiteral::hash)
         .def_property_readonly("literal", &HeadSimpleLiteral::literal, R"doc(The literal.)doc")
+        .def("visit", &HeadSimpleLiteral::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8885,6 +10056,13 @@ right
         .def_property_readonly("function", &HeadAggregate::function, R"doc(The aggregate function.)doc")
         .def_property_readonly("elements", &HeadAggregate::elements, R"doc(The aggregate elements.)doc")
         .def_property_readonly("right", &HeadAggregate::right, R"doc(The right guard of the aggregate.)doc")
+        .def("visit", &HeadAggregate::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8910,6 +10088,13 @@ right
         .def_property_readonly("left", &HeadSetAggregate::left, R"doc(The left guard of the aggregate.)doc")
         .def_property_readonly("elements", &HeadSetAggregate::elements, R"doc(The aggregate elements.)doc")
         .def_property_readonly("right", &HeadSetAggregate::right, R"doc(The right guard of the aggregate.)doc")
+        .def("visit", &HeadSetAggregate::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8935,6 +10120,13 @@ right
         .def_property_readonly("name", &HeadTheoryAtom::name, R"doc(The name of the theory atom.)doc")
         .def_property_readonly("elements", &HeadTheoryAtom::elements, R"doc(The aggregate elements.)doc")
         .def_property_readonly("right", &HeadTheoryAtom::right, R"doc(The right guard of the theory atom.)doc")
+        .def("visit", &HeadTheoryAtom::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8954,6 +10146,13 @@ elements
         .def("__hash__", &HeadDisjunction::hash)
         .def_property_readonly("location", &HeadDisjunction::location, R"doc(The location of the element.)doc")
         .def_property_readonly("elements", &HeadDisjunction::elements, R"doc(The elements of the disjunction.)doc")
+        .def("visit", &HeadDisjunction::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -8982,6 +10181,13 @@ operator_type
                                R"doc(The priority of the operator.)doc")
         .def_property_readonly("operator_type", &TheoryOperatorDefinition::operator_type,
                                R"doc(The type of the operator.)doc")
+        .def("visit", &TheoryOperatorDefinition::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -9005,6 +10211,13 @@ operators
         .def_property_readonly("name", &TheoryTermDefinition::name, R"doc(The name of the definition.)doc")
         .def_property_readonly("operators", &TheoryTermDefinition::operators,
                                R"doc(The operator definitions to construct terms.)doc")
+        .def("visit", &TheoryTermDefinition::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -9025,6 +10238,13 @@ term
         .def_property_readonly("operators", &TheoryGuardDefinition::operators,
                                R"doc(A list of operator definition names.)doc")
         .def_property_readonly("term", &TheoryGuardDefinition::term, R"doc(The name of a term definition.)doc")
+        .def("visit", &TheoryGuardDefinition::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -9058,6 +10278,13 @@ atom_type
         .def_property_readonly("guard", &TheoryAtomDefinition::guard, R"doc(An optional guard definition.)doc")
         .def_property_readonly("atom_type", &TheoryAtomDefinition::atom_type,
                                R"doc(The type of the atom definition.)doc")
+        .def("visit", &TheoryAtomDefinition::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -9080,6 +10307,13 @@ terms
         .def_property_readonly("weight", &OptimizeTuple::weight, R"doc(The weight of the tuple.)doc")
         .def_property_readonly("priority", &OptimizeTuple::priority, R"doc(An optional priority.)doc")
         .def_property_readonly("terms", &OptimizeTuple::terms, R"doc(The remaining terms in the tuple.)doc")
+        .def("visit", &OptimizeTuple::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -9099,6 +10333,13 @@ condition
         .def("__hash__", &OptimizeElement::hash)
         .def_property_readonly("tuple", &OptimizeElement::tuple, R"doc(The tuple of the element.)doc")
         .def_property_readonly("condition", &OptimizeElement::condition, R"doc(The condition of the element.)doc")
+        .def("visit", &OptimizeElement::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -9117,6 +10358,13 @@ v
         .def("__hash__", &Edge::hash)
         .def_property_readonly("u", &Edge::u, R"doc(The start vertex.)doc")
         .def_property_readonly("v", &Edge::v, R"doc(The end vertex.)doc")
+        .def("visit", &Edge::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -9139,6 +10387,13 @@ body
         .def_property_readonly("location", &StatementRule::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("head", &StatementRule::head, R"doc(The head literal.)doc")
         .def_property_readonly("body", &StatementRule::body, R"doc(The body of the statement.)doc")
+        .def("visit", &StatementRule::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -9164,6 +10419,13 @@ atoms
         .def_property_readonly("name", &StatementTheory::name, R"doc(The name of the theory.)doc")
         .def_property_readonly("terms", &StatementTheory::terms, R"doc(A list of term definitions.)doc")
         .def_property_readonly("atoms", &StatementTheory::atoms, R"doc(A list of atom definitions.)doc")
+        .def("visit", &StatementTheory::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -9187,6 +10449,13 @@ optimize_type
         .def_property_readonly("elements", &StatementOptimize::elements, R"doc(The elements of the statement.)doc")
         .def_property_readonly("optimize_type", &StatementOptimize::optimize_type,
                                R"doc(The type of the statement.)doc")
+        .def("visit", &StatementOptimize::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -9210,6 +10479,13 @@ tuple
                                R"doc(The location of the statement.)doc")
         .def_property_readonly("body", &StatementWeakConstraint::body, R"doc(The body of the statement.)doc")
         .def_property_readonly("tuple", &StatementWeakConstraint::tuple, R"doc(The tuple of the statement.)doc")
+        .def("visit", &StatementWeakConstraint::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -9232,6 +10508,13 @@ body
         .def_property_readonly("location", &StatementShow::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("term", &StatementShow::term, R"doc(The term to show.)doc")
         .def_property_readonly("body", &StatementShow::body, R"doc(The body of the statement.)doc")
+        .def("visit", &StatementShow::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -9257,6 +10540,13 @@ sign
         .def_property_readonly("name", &StatementShowSignature::name, R"doc(The name of the atom to show.)doc")
         .def_property_readonly("arity", &StatementShowSignature::arity, R"doc(The arity of the atom to show.)doc")
         .def_property_readonly("sign", &StatementShowSignature::sign, R"doc(The classical sign of the atom.)doc")
+        .def("visit", &StatementShowSignature::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -9279,6 +10569,13 @@ body
         .def_property_readonly("location", &StatementProject::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("atom", &StatementProject::atom, R"doc(The atom to project.)doc")
         .def_property_readonly("body", &StatementProject::body, R"doc(The body of the statement.)doc")
+        .def("visit", &StatementProject::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -9305,6 +10602,13 @@ sign
         .def_property_readonly("name", &StatementProjectSignature::name, R"doc(The name of the atom to project.)doc")
         .def_property_readonly("arity", &StatementProjectSignature::arity, R"doc(The arity of the atom to project.)doc")
         .def_property_readonly("sign", &StatementProjectSignature::sign, R"doc(The classical sign of the atom.)doc")
+        .def("visit", &StatementProjectSignature::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -9330,6 +10634,13 @@ sign
         .def_property_readonly("name", &StatementDefined::name, R"doc(The name of the atom to project.)doc")
         .def_property_readonly("arity", &StatementDefined::arity, R"doc(The arity of the atom to project.)doc")
         .def_property_readonly("sign", &StatementDefined::sign, R"doc(The classical sign of the atom.)doc")
+        .def("visit", &StatementDefined::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -9355,6 +10666,13 @@ external_type
         .def_property_readonly("atom", &StatementExternal::atom, R"doc(The atom to project.)doc")
         .def_property_readonly("body", &StatementExternal::body, R"doc(The body of the statement.)doc")
         .def_property_readonly("external_type", &StatementExternal::external_type, R"doc(The type of the external.)doc")
+        .def("visit", &StatementExternal::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -9377,6 +10695,13 @@ body
         .def_property_readonly("location", &StatementEdge::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("pool", &StatementEdge::pool, R"doc(The edge pool of the statement.)doc")
         .def_property_readonly("body", &StatementEdge::body, R"doc(The body of the statement.)doc")
+        .def("visit", &StatementEdge::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -9410,6 +10735,13 @@ priority
                                R"doc(The weight of the heuristic modification.)doc")
         .def_property_readonly("modifier", &StatementHeuristic::modifier, R"doc(The heuristic modifier.)doc")
         .def_property_readonly("priority", &StatementHeuristic::priority, R"doc(An optional priority.)doc")
+        .def("visit", &StatementHeuristic::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -9432,6 +10764,13 @@ script_type
         .def_property_readonly("location", &StatementScript::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("value", &StatementScript::value, R"doc(The content of the script.)doc")
         .def_property_readonly("script_type", &StatementScript::script_type, R"doc(The type of the script.)doc")
+        .def("visit", &StatementScript::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -9454,6 +10793,13 @@ include_type
         .def_property_readonly("location", &StatementInclude::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("value", &StatementInclude::value, R"doc(The path of the statement.)doc")
         .def_property_readonly("include_type", &StatementInclude::include_type, R"doc(The type of the include.)doc")
+        .def("visit", &StatementInclude::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -9476,6 +10822,13 @@ arguments
         .def_property_readonly("location", &StatementProgram::location, R"doc(The location of the statement.)doc")
         .def_property_readonly("name", &StatementProgram::name, R"doc(The name of the program.)doc")
         .def_property_readonly("arguments", &StatementProgram::arguments, R"doc(The arguments of the program.)doc")
+        .def("visit", &StatementProgram::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -9501,6 +10854,13 @@ const_type
         .def_property_readonly("name", &StatementConst::name, R"doc(The name of the statement.)doc")
         .def_property_readonly("value", &StatementConst::value, R"doc(The term of the statement.)doc")
         .def_property_readonly("const_type", &StatementConst::const_type, R"doc(The type of the statement.)doc")
+        .def("visit", &StatementConst::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -9523,6 +10883,13 @@ comment_type
         .def_property_readonly("location", &StatementComment::location, R"doc(The location of the comment.)doc")
         .def_property_readonly("value", &StatementComment::value, R"doc(The value of the comment.)doc")
         .def_property_readonly("comment_type", &StatementComment::comment_type, R"doc(The type of the comment.)doc")
+        .def("visit", &StatementComment::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 

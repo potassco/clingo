@@ -279,7 +279,7 @@ private:
 };
 
 auto rewrite_statement(Library &lib, Statement &stm, std::vector<std::string> parameters, ProjectionMode mode,
-                        bool project_anonymous) -> std::vector<Statement> {
+                       bool project_anonymous) -> std::vector<Statement> {
     std::vector<char const *> params;
     params.reserve(parameters.size());
     std::transform(parameters.begin(), parameters.end(), std::back_inserter(params),
@@ -360,6 +360,13 @@ lib
 {%-     for argument_name, argument in type.arguments.items() %}
         .def_property_readonly("{{argument_name}}", &{{ c_type_name }}::{{argument_name}}, R"doc({{ argument.doc }})doc")
 {%-     endfor %}
+        .def("visit", &{{ c_type_name }}::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 {%    endif %}
