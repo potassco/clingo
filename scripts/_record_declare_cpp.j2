@@ -81,7 +81,7 @@ public:
         return {ast};
     }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib{% for argument_name, argument in type.arguments.items() %}, {{ argument.type | cref }}{{ argument_name }}{% endfor %}) -> {{ c_type_name }};
 

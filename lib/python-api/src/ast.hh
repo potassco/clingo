@@ -201,7 +201,7 @@ class Projection {
 
     static auto acquire(clingo_ast_t *ast) -> Projection { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location) -> Projection;
 
@@ -304,7 +304,7 @@ class TermVariable {
 
     static auto acquire(clingo_ast_t *ast) -> TermVariable { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, char const *name, bool anonymous)
         -> TermVariable;
@@ -382,7 +382,7 @@ class TermSymbolic {
 
     static auto acquire(clingo_ast_t *ast) -> TermSymbolic { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, Symbol const &symbol) -> TermSymbolic;
 
@@ -459,7 +459,7 @@ class TermAbsolute {
 
     static auto acquire(clingo_ast_t *ast) -> TermAbsolute { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, TermArray const &pool) -> TermAbsolute;
 
@@ -538,7 +538,7 @@ class TermUnaryOperation {
 
     static auto acquire(clingo_ast_t *ast) -> TermUnaryOperation { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, UnaryOperator const &operator_type,
                           Term const &right) -> TermUnaryOperation;
@@ -620,7 +620,7 @@ class TermBinaryOperation {
 
     static auto acquire(clingo_ast_t *ast) -> TermBinaryOperation { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, Term const &left,
                           BinaryOperator const &operator_type, Term const &right) -> TermBinaryOperation;
@@ -696,7 +696,7 @@ class TermTuple {
 
     static auto acquire(clingo_ast_t *ast) -> TermTuple { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, TermOrArgumentTupleArray const &pool)
         -> TermTuple;
@@ -778,7 +778,7 @@ class TermFunction {
 
     static auto acquire(clingo_ast_t *ast) -> TermFunction { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, char const *name,
                           ArgumentTupleArray const &pool, bool external) -> TermFunction;
@@ -854,7 +854,7 @@ class ArgumentTuple {
 
     static auto acquire(clingo_ast_t *ast) -> ArgumentTuple { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, TermOrProjectionArray const &arguments) -> ArgumentTuple;
 
@@ -939,7 +939,7 @@ class LeftGuard {
 
     static auto acquire(clingo_ast_t *ast) -> LeftGuard { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, Term const &term, Relation const &relation) -> LeftGuard;
 
@@ -1018,7 +1018,7 @@ class RightGuard {
 
     static auto acquire(clingo_ast_t *ast) -> RightGuard { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, Relation const &relation, Term const &term) -> RightGuard;
 
@@ -1103,7 +1103,7 @@ class LiteralBoolean {
 
     static auto acquire(clingo_ast_t *ast) -> LiteralBoolean { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign, bool value)
         -> LiteralBoolean;
@@ -1185,7 +1185,7 @@ class LiteralComparison {
 
     static auto acquire(clingo_ast_t *ast) -> LiteralComparison { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign, Term const &left,
                           RightGuardArray const &right) -> LiteralComparison;
@@ -1265,7 +1265,7 @@ class LiteralSymbolic {
 
     static auto acquire(clingo_ast_t *ast) -> LiteralSymbolic { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign, Term const &atom)
         -> LiteralSymbolic;
@@ -1362,7 +1362,7 @@ class UnparsedElement {
 
     static auto acquire(clingo_ast_t *ast) -> UnparsedElement { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, StringArray const &operators, TheoryTerm const &term) -> UnparsedElement;
 
@@ -1445,7 +1445,7 @@ class TheoryTermVariable {
 
     static auto acquire(clingo_ast_t *ast) -> TheoryTermVariable { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, char const *name, bool anonymous)
         -> TheoryTermVariable;
@@ -1523,7 +1523,7 @@ class TheoryTermSymbolic {
 
     static auto acquire(clingo_ast_t *ast) -> TheoryTermSymbolic { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, Symbol const &symbol) -> TheoryTermSymbolic;
 
@@ -1602,7 +1602,7 @@ class TheoryTermTuple {
 
     static auto acquire(clingo_ast_t *ast) -> TheoryTermTuple { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, TheoryTupleType const &tuple_type,
                           TheoryTermArray const &arguments) -> TheoryTermTuple;
@@ -1682,7 +1682,7 @@ class TheoryTermFunction {
 
     static auto acquire(clingo_ast_t *ast) -> TheoryTermFunction { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, char const *name,
                           TheoryTermArray const &arguments) -> TheoryTermFunction;
@@ -1760,7 +1760,7 @@ class TheoryTermUnparsed {
 
     static auto acquire(clingo_ast_t *ast) -> TheoryTermUnparsed { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, UnparsedElementArray const &elements)
         -> TheoryTermUnparsed;
@@ -1838,7 +1838,7 @@ class TheoryRightGuard {
 
     static auto acquire(clingo_ast_t *ast) -> TheoryRightGuard { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, char const *theory_operator, TheoryTerm const &term) -> TheoryRightGuard;
 
@@ -1923,7 +1923,7 @@ class SetAggregateElement {
 
     static auto acquire(clingo_ast_t *ast) -> SetAggregateElement { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, Literal const &literal,
                           LiteralArray const &condition) -> SetAggregateElement;
@@ -2007,7 +2007,7 @@ class BodyAggregateElement {
 
     static auto acquire(clingo_ast_t *ast) -> BodyAggregateElement { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, TermArray const &tuple,
                           LiteralArray const &condition) -> BodyAggregateElement;
@@ -2091,7 +2091,7 @@ class TheoryAtomElement {
 
     static auto acquire(clingo_ast_t *ast) -> TheoryAtomElement { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, TheoryTermArray const &tuple,
                           LiteralArray const &condition) -> TheoryAtomElement;
@@ -2190,7 +2190,7 @@ class BodySimpleLiteral {
 
     static auto acquire(clingo_ast_t *ast) -> BodySimpleLiteral { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, Literal const &literal) -> BodySimpleLiteral;
 
@@ -2275,7 +2275,7 @@ class BodyAggregate {
 
     static auto acquire(clingo_ast_t *ast) -> BodyAggregate { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign,
                           OptionalLeftGuard const &left, AggregateFunction const &function,
@@ -2360,7 +2360,7 @@ class BodySetAggregate {
 
     static auto acquire(clingo_ast_t *ast) -> BodySetAggregate { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign,
                           OptionalLeftGuard const &left, SetAggregateElementArray const &elements,
@@ -2445,7 +2445,7 @@ class BodyTheoryAtom {
 
     static auto acquire(clingo_ast_t *ast) -> BodyTheoryAtom { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign, Term const &name,
                           TheoryAtomElementArray const &elements, OptionalTheoryRightGuard const &right)
@@ -2526,7 +2526,7 @@ class BodyConditionalLiteral {
 
     static auto acquire(clingo_ast_t *ast) -> BodyConditionalLiteral { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, Literal const &literal,
                           LiteralArray const &condition) -> BodyConditionalLiteral;
@@ -2606,7 +2606,7 @@ class HeadConditionalLiteral {
 
     static auto acquire(clingo_ast_t *ast) -> HeadConditionalLiteral { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, Literal const &literal,
                           LiteralArray const &condition) -> HeadConditionalLiteral;
@@ -2696,7 +2696,7 @@ class HeadAggregateElement {
 
     static auto acquire(clingo_ast_t *ast) -> HeadAggregateElement { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, TermArray const &tuple,
                           Literal const &literal, LiteralArray const &condition) -> HeadAggregateElement;
@@ -2790,7 +2790,7 @@ class HeadSimpleLiteral {
 
     static auto acquire(clingo_ast_t *ast) -> HeadSimpleLiteral { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, Literal const &literal) -> HeadSimpleLiteral;
 
@@ -2873,7 +2873,7 @@ class HeadAggregate {
 
     static auto acquire(clingo_ast_t *ast) -> HeadAggregate { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, OptionalLeftGuard const &left,
                           AggregateFunction const &function, HeadAggregateElementArray const &elements,
@@ -2956,7 +2956,7 @@ class HeadSetAggregate {
 
     static auto acquire(clingo_ast_t *ast) -> HeadSetAggregate { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, OptionalLeftGuard const &left,
                           SetAggregateElementArray const &elements, OptionalRightGuard const &right)
@@ -3039,7 +3039,7 @@ class HeadTheoryAtom {
 
     static auto acquire(clingo_ast_t *ast) -> HeadTheoryAtom { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, Term const &name,
                           TheoryAtomElementArray const &elements, OptionalTheoryRightGuard const &right)
@@ -3118,7 +3118,7 @@ class HeadDisjunction {
 
     static auto acquire(clingo_ast_t *ast) -> HeadDisjunction { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, DisjunctionElementArray const &elements)
         -> HeadDisjunction;
@@ -3200,7 +3200,7 @@ class TheoryOperatorDefinition {
 
     static auto acquire(clingo_ast_t *ast) -> TheoryOperatorDefinition { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, char const *name, int priority,
                           TheoryOperatorType const &operator_type) -> TheoryOperatorDefinition;
@@ -3284,7 +3284,7 @@ class TheoryTermDefinition {
 
     static auto acquire(clingo_ast_t *ast) -> TheoryTermDefinition { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, char const *name,
                           TheoryOperatorDefinitionArray const &operators) -> TheoryTermDefinition;
@@ -3366,7 +3366,7 @@ class TheoryGuardDefinition {
 
     static auto acquire(clingo_ast_t *ast) -> TheoryGuardDefinition { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, StringArray const &operators, char const *term) -> TheoryGuardDefinition;
 
@@ -3453,7 +3453,7 @@ class TheoryAtomDefinition {
 
     static auto acquire(clingo_ast_t *ast) -> TheoryAtomDefinition { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, char const *name, int arity,
                           char const *term, OptionalTheoryGuardDefinition const &guard, TheoryAtomType const &atom_type)
@@ -3538,7 +3538,7 @@ class OptimizeTuple {
 
     static auto acquire(clingo_ast_t *ast) -> OptimizeTuple { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, Term const &weight, OptionalTerm const &priority, TermArray const &terms)
         -> OptimizeTuple;
@@ -3616,7 +3616,7 @@ class OptimizeElement {
 
     static auto acquire(clingo_ast_t *ast) -> OptimizeElement { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, OptimizeTuple const &tuple, LiteralArray const &condition) -> OptimizeElement;
 
@@ -3693,7 +3693,7 @@ class Edge {
 
     static auto acquire(clingo_ast_t *ast) -> Edge { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, Term const &u, Term const &v) -> Edge;
 
@@ -3817,7 +3817,7 @@ class StatementRule {
 
     static auto acquire(clingo_ast_t *ast) -> StatementRule { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, HeadLiteral const &head,
                           BodyLiteralArray const &body) -> StatementRule;
@@ -3899,7 +3899,7 @@ class StatementTheory {
 
     static auto acquire(clingo_ast_t *ast) -> StatementTheory { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, char const *name,
                           TheoryTermDefinitionArray const &terms, TheoryAtomDefinitionArray const &atoms)
@@ -3980,7 +3980,7 @@ class StatementOptimize {
 
     static auto acquire(clingo_ast_t *ast) -> StatementOptimize { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, OptimizeElementArray const &elements,
                           OptimizeType const &optimize_type) -> StatementOptimize;
@@ -4060,7 +4060,7 @@ class StatementWeakConstraint {
 
     static auto acquire(clingo_ast_t *ast) -> StatementWeakConstraint { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, BodyLiteralArray const &body,
                           OptimizeTuple const &tuple) -> StatementWeakConstraint;
@@ -4140,7 +4140,7 @@ class StatementShow {
 
     static auto acquire(clingo_ast_t *ast) -> StatementShow { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, Term const &term,
                           BodyLiteralArray const &body) -> StatementShow;
@@ -4222,7 +4222,7 @@ class StatementShowSignature {
 
     static auto acquire(clingo_ast_t *ast) -> StatementShowSignature { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, char const *name, int arity, bool sign)
         -> StatementShowSignature;
@@ -4302,7 +4302,7 @@ class StatementProject {
 
     static auto acquire(clingo_ast_t *ast) -> StatementProject { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, Term const &atom,
                           BodyLiteralArray const &body) -> StatementProject;
@@ -4384,7 +4384,7 @@ class StatementProjectSignature {
 
     static auto acquire(clingo_ast_t *ast) -> StatementProjectSignature { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, char const *name, int arity, bool sign)
         -> StatementProjectSignature;
@@ -4466,7 +4466,7 @@ class StatementDefined {
 
     static auto acquire(clingo_ast_t *ast) -> StatementDefined { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, char const *name, int arity, bool sign)
         -> StatementDefined;
@@ -4548,7 +4548,7 @@ class StatementExternal {
 
     static auto acquire(clingo_ast_t *ast) -> StatementExternal { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, Term const &atom,
                           BodyLiteralArray const &body, OptionalTerm const &external_type) -> StatementExternal;
@@ -4628,7 +4628,7 @@ class StatementEdge {
 
     static auto acquire(clingo_ast_t *ast) -> StatementEdge { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, EdgeArray const &pool,
                           BodyLiteralArray const &body) -> StatementEdge;
@@ -4714,7 +4714,7 @@ class StatementHeuristic {
 
     static auto acquire(clingo_ast_t *ast) -> StatementHeuristic { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, Term const &atom,
                           BodyLiteralArray const &body, Term const &weight, Term const &modifier,
@@ -4795,7 +4795,7 @@ class StatementScript {
 
     static auto acquire(clingo_ast_t *ast) -> StatementScript { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, char const *value, char const *script_type)
         -> StatementScript;
@@ -4875,7 +4875,7 @@ class StatementInclude {
 
     static auto acquire(clingo_ast_t *ast) -> StatementInclude { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, char const *value,
                           IncludeType const &include_type) -> StatementInclude;
@@ -4955,7 +4955,7 @@ class StatementProgram {
 
     static auto acquire(clingo_ast_t *ast) -> StatementProgram { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, char const *name,
                           StringArray const &arguments) -> StatementProgram;
@@ -5037,7 +5037,7 @@ class StatementConst {
 
     static auto acquire(clingo_ast_t *ast) -> StatementConst { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, char const *name, Term const &value,
                           ConstType const &const_type) -> StatementConst;
@@ -5117,7 +5117,7 @@ class StatementComment {
 
     static auto acquire(clingo_ast_t *ast) -> StatementComment { return {ast}; }
 
-    void visit(py::handle visitor);
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
     static auto construct(Library &lib, clingo_location_t const &location, char const *value,
                           CommentType const &comment_type) -> StatementComment;
@@ -5196,7 +5196,7 @@ auto Projection::construct(Library &lib, clingo_location_t const &location) -> P
     return Projection::acquire(res_);
 }
 
-void Projection::visit(py::handle visitor) {}
+void Projection::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {}
 
 auto construct_term_or_projection(clingo_ast_t *ast) -> TermOrProjection {
     clingo_ast_type_t type;
@@ -5353,7 +5353,7 @@ auto TermVariable::construct(Library &lib, clingo_location_t const &location, ch
     return TermVariable::acquire(res_);
 }
 
-void TermVariable::visit(py::handle visitor) {}
+void TermVariable::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {}
 
 auto TermSymbolic::location() -> clingo_location_t {
     clingo_location_t ret;
@@ -5377,7 +5377,7 @@ auto TermSymbolic::construct(Library &lib, clingo_location_t const &location, Sy
     return TermSymbolic::acquire(res_);
 }
 
-void TermSymbolic::visit(py::handle visitor) {}
+void TermSymbolic::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {}
 
 auto TermAbsolute::location() -> clingo_location_t {
     clingo_location_t ret;
@@ -5403,7 +5403,7 @@ auto TermAbsolute::construct(Library &lib, clingo_location_t const &location, Te
     return TermAbsolute::acquire(res_);
 }
 
-void TermAbsolute::visit(py::handle visitor) {
+void TermAbsolute::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
     {
         struct Array {
             ~Array() { clingo_ast_array_free(begin, size); }
@@ -5414,10 +5414,10 @@ void TermAbsolute::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_pool, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(construct_term(cpy));
+            visitor(construct_term(cpy), *args, **kwargs);
         });
     }
 }
@@ -5454,7 +5454,9 @@ auto TermUnaryOperation::construct(Library &lib, clingo_location_t const &locati
     return TermUnaryOperation::acquire(res_);
 }
 
-void TermUnaryOperation::visit(py::handle visitor) { visitor(right()); }
+void TermUnaryOperation::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+    visitor(right(), *args, **kwargs);
+}
 
 auto TermBinaryOperation::location() -> clingo_location_t {
     clingo_location_t ret;
@@ -5496,9 +5498,9 @@ auto TermBinaryOperation::construct(Library &lib, clingo_location_t const &locat
     return TermBinaryOperation::acquire(res_);
 }
 
-void TermBinaryOperation::visit(py::handle visitor) {
-    visitor(left());
-    visitor(right());
+void TermBinaryOperation::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+    visitor(left(), *args, **kwargs);
+    visitor(right(), *args, **kwargs);
 }
 
 auto TermTuple::location() -> clingo_location_t {
@@ -5526,7 +5528,7 @@ auto TermTuple::construct(Library &lib, clingo_location_t const &location, TermO
     return TermTuple::acquire(res_);
 }
 
-void TermTuple::visit(py::handle visitor) {
+void TermTuple::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
     {
         struct Array {
             ~Array() { clingo_ast_array_free(begin, size); }
@@ -5537,10 +5539,10 @@ void TermTuple::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_pool, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(construct_term_or_argument_tuple(cpy));
+            visitor(construct_term_or_argument_tuple(cpy), *args, **kwargs);
         });
     }
 }
@@ -5586,7 +5588,7 @@ auto TermFunction::construct(Library &lib, clingo_location_t const &location, ch
     return TermFunction::acquire(res_);
 }
 
-void TermFunction::visit(py::handle visitor) {
+void TermFunction::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
     {
         struct Array {
             ~Array() { clingo_ast_array_free(begin, size); }
@@ -5597,10 +5599,10 @@ void TermFunction::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_pool, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(ArgumentTuple::acquire(cpy));
+            visitor(ArgumentTuple::acquire(cpy), *args, **kwargs);
         });
     }
 }
@@ -5621,7 +5623,7 @@ auto ArgumentTuple::construct(Library &lib, TermOrProjectionArray const &argumen
     return ArgumentTuple::acquire(res_);
 }
 
-void ArgumentTuple::visit(py::handle visitor) {
+void ArgumentTuple::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
     {
         struct Array {
             ~Array() { clingo_ast_array_free(begin, size); }
@@ -5632,10 +5634,10 @@ void ArgumentTuple::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_arguments, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(construct_term_or_projection(cpy));
+            visitor(construct_term_or_projection(cpy), *args, **kwargs);
         });
     }
 }
@@ -5684,7 +5686,9 @@ auto LeftGuard::construct(Library &lib, Term const &term, Relation const &relati
     return LeftGuard::acquire(res_);
 }
 
-void LeftGuard::visit(py::handle visitor) { visitor(term()); }
+void LeftGuard::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+    visitor(term(), *args, **kwargs);
+}
 
 auto RightGuard::relation() -> Relation {
     int ret;
@@ -5709,7 +5713,9 @@ auto RightGuard::construct(Library &lib, Relation const &relation, Term const &t
     return RightGuard::acquire(res_);
 }
 
-void RightGuard::visit(py::handle visitor) { visitor(term()); }
+void RightGuard::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+    visitor(term(), *args, **kwargs);
+}
 
 auto construct_right_guard_array(clingo_ast_t **ast, size_t size) -> RightGuardArray {
     RightGuardArray ret;
@@ -5760,7 +5766,7 @@ auto LiteralBoolean::construct(Library &lib, clingo_location_t const &location, 
     return LiteralBoolean::acquire(res_);
 }
 
-void LiteralBoolean::visit(py::handle visitor) {}
+void LiteralBoolean::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {}
 
 auto LiteralComparison::location() -> clingo_location_t {
     clingo_location_t ret;
@@ -5803,8 +5809,8 @@ auto LiteralComparison::construct(Library &lib, clingo_location_t const &locatio
     return LiteralComparison::acquire(res_);
 }
 
-void LiteralComparison::visit(py::handle visitor) {
-    visitor(left());
+void LiteralComparison::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+    visitor(left(), *args, **kwargs);
     {
         struct Array {
             ~Array() { clingo_ast_array_free(begin, size); }
@@ -5815,10 +5821,10 @@ void LiteralComparison::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_right, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(RightGuard::acquire(cpy));
+            visitor(RightGuard::acquire(cpy), *args, **kwargs);
         });
     }
 }
@@ -5855,7 +5861,9 @@ auto LiteralSymbolic::construct(Library &lib, clingo_location_t const &location,
     return LiteralSymbolic::acquire(res_);
 }
 
-void LiteralSymbolic::visit(py::handle visitor) { visitor(atom()); }
+void LiteralSymbolic::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+    visitor(atom(), *args, **kwargs);
+}
 
 auto construct_theory_term(clingo_ast_t *ast) -> TheoryTerm {
     clingo_ast_type_t type;
@@ -5929,7 +5937,9 @@ auto UnparsedElement::construct(Library &lib, StringArray const &operators, Theo
     return UnparsedElement::acquire(res_);
 }
 
-void UnparsedElement::visit(py::handle visitor) { visitor(term()); }
+void UnparsedElement::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+    visitor(term(), *args, **kwargs);
+}
 
 auto construct_unparsed_element_array(clingo_ast_t **ast, size_t size) -> UnparsedElementArray {
     UnparsedElementArray ret;
@@ -5980,7 +5990,7 @@ auto TheoryTermVariable::construct(Library &lib, clingo_location_t const &locati
     return TheoryTermVariable::acquire(res_);
 }
 
-void TheoryTermVariable::visit(py::handle visitor) {}
+void TheoryTermVariable::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {}
 
 auto TheoryTermSymbolic::location() -> clingo_location_t {
     clingo_location_t ret;
@@ -6006,7 +6016,7 @@ auto TheoryTermSymbolic::construct(Library &lib, clingo_location_t const &locati
     return TheoryTermSymbolic::acquire(res_);
 }
 
-void TheoryTermSymbolic::visit(py::handle visitor) {}
+void TheoryTermSymbolic::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {}
 
 auto TheoryTermTuple::location() -> clingo_location_t {
     clingo_location_t ret;
@@ -6041,7 +6051,7 @@ auto TheoryTermTuple::construct(Library &lib, clingo_location_t const &location,
     return TheoryTermTuple::acquire(res_);
 }
 
-void TheoryTermTuple::visit(py::handle visitor) {
+void TheoryTermTuple::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
     {
         struct Array {
             ~Array() { clingo_ast_array_free(begin, size); }
@@ -6052,10 +6062,10 @@ void TheoryTermTuple::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_arguments, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(construct_theory_term(cpy));
+            visitor(construct_theory_term(cpy), *args, **kwargs);
         });
     }
 }
@@ -6093,7 +6103,7 @@ auto TheoryTermFunction::construct(Library &lib, clingo_location_t const &locati
     return TheoryTermFunction::acquire(res_);
 }
 
-void TheoryTermFunction::visit(py::handle visitor) {
+void TheoryTermFunction::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
     {
         struct Array {
             ~Array() { clingo_ast_array_free(begin, size); }
@@ -6104,10 +6114,10 @@ void TheoryTermFunction::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_arguments, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(construct_theory_term(cpy));
+            visitor(construct_theory_term(cpy), *args, **kwargs);
         });
     }
 }
@@ -6137,7 +6147,7 @@ auto TheoryTermUnparsed::construct(Library &lib, clingo_location_t const &locati
     return TheoryTermUnparsed::acquire(res_);
 }
 
-void TheoryTermUnparsed::visit(py::handle visitor) {
+void TheoryTermUnparsed::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
     {
         struct Array {
             ~Array() { clingo_ast_array_free(begin, size); }
@@ -6148,10 +6158,10 @@ void TheoryTermUnparsed::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(UnparsedElement::acquire(cpy));
+            visitor(UnparsedElement::acquire(cpy), *args, **kwargs);
         });
     }
 }
@@ -6180,7 +6190,9 @@ auto TheoryRightGuard::construct(Library &lib, char const *theory_operator, Theo
     return TheoryRightGuard::acquire(res_);
 }
 
-void TheoryRightGuard::visit(py::handle visitor) { visitor(term()); }
+void TheoryRightGuard::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+    visitor(term(), *args, **kwargs);
+}
 
 auto construct_literal_array(clingo_ast_t **ast, size_t size) -> LiteralArray {
     LiteralArray ret;
@@ -6232,8 +6244,8 @@ auto SetAggregateElement::construct(Library &lib, clingo_location_t const &locat
     return SetAggregateElement::acquire(res_);
 }
 
-void SetAggregateElement::visit(py::handle visitor) {
-    visitor(literal());
+void SetAggregateElement::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+    visitor(literal(), *args, **kwargs);
     {
         struct Array {
             ~Array() { clingo_ast_array_free(begin, size); }
@@ -6244,10 +6256,10 @@ void SetAggregateElement::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_condition, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(construct_literal(cpy));
+            visitor(construct_literal(cpy), *args, **kwargs);
         });
     }
 }
@@ -6304,7 +6316,7 @@ auto BodyAggregateElement::construct(Library &lib, clingo_location_t const &loca
     return BodyAggregateElement::acquire(res_);
 }
 
-void BodyAggregateElement::visit(py::handle visitor) {
+void BodyAggregateElement::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
     {
         struct Array {
             ~Array() { clingo_ast_array_free(begin, size); }
@@ -6315,10 +6327,10 @@ void BodyAggregateElement::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_tuple, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(construct_term(cpy));
+            visitor(construct_term(cpy), *args, **kwargs);
         });
     }
     {
@@ -6331,10 +6343,10 @@ void BodyAggregateElement::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_condition, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(construct_literal(cpy));
+            visitor(construct_literal(cpy), *args, **kwargs);
         });
     }
 }
@@ -6391,7 +6403,7 @@ auto TheoryAtomElement::construct(Library &lib, clingo_location_t const &locatio
     return TheoryAtomElement::acquire(res_);
 }
 
-void TheoryAtomElement::visit(py::handle visitor) {
+void TheoryAtomElement::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
     {
         struct Array {
             ~Array() { clingo_ast_array_free(begin, size); }
@@ -6402,10 +6414,10 @@ void TheoryAtomElement::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_tuple, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(construct_theory_term(cpy));
+            visitor(construct_theory_term(cpy), *args, **kwargs);
         });
     }
     {
@@ -6418,10 +6430,10 @@ void TheoryAtomElement::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_condition, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(construct_literal(cpy));
+            visitor(construct_literal(cpy), *args, **kwargs);
         });
     }
 }
@@ -6501,7 +6513,9 @@ auto BodySimpleLiteral::construct(Library &lib, Literal const &literal) -> BodyS
     return BodySimpleLiteral::acquire(res_);
 }
 
-void BodySimpleLiteral::visit(py::handle visitor) { visitor(literal()); }
+void BodySimpleLiteral::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+    visitor(literal(), *args, **kwargs);
+}
 
 auto BodyAggregate::location() -> clingo_location_t {
     clingo_location_t ret;
@@ -6571,9 +6585,9 @@ auto BodyAggregate::construct(Library &lib, clingo_location_t const &location, S
     return BodyAggregate::acquire(res_);
 }
 
-void BodyAggregate::visit(py::handle visitor) {
+void BodyAggregate::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
     if (auto opt = left()) {
-        visitor(*opt);
+        visitor(*opt, *args, **kwargs);
     }
     {
         struct Array {
@@ -6585,14 +6599,14 @@ void BodyAggregate::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(BodyAggregateElement::acquire(cpy));
+            visitor(BodyAggregateElement::acquire(cpy), *args, **kwargs);
         });
     }
     if (auto opt = right()) {
-        visitor(*opt);
+        visitor(*opt, *args, **kwargs);
     }
 }
 
@@ -6655,9 +6669,9 @@ auto BodySetAggregate::construct(Library &lib, clingo_location_t const &location
     return BodySetAggregate::acquire(res_);
 }
 
-void BodySetAggregate::visit(py::handle visitor) {
+void BodySetAggregate::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
     if (auto opt = left()) {
-        visitor(*opt);
+        visitor(*opt, *args, **kwargs);
     }
     {
         struct Array {
@@ -6669,14 +6683,14 @@ void BodySetAggregate::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(SetAggregateElement::acquire(cpy));
+            visitor(SetAggregateElement::acquire(cpy), *args, **kwargs);
         });
     }
     if (auto opt = right()) {
-        visitor(*opt);
+        visitor(*opt, *args, **kwargs);
     }
 }
 
@@ -6735,8 +6749,8 @@ auto BodyTheoryAtom::construct(Library &lib, clingo_location_t const &location, 
     return BodyTheoryAtom::acquire(res_);
 }
 
-void BodyTheoryAtom::visit(py::handle visitor) {
-    visitor(name());
+void BodyTheoryAtom::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+    visitor(name(), *args, **kwargs);
     {
         struct Array {
             ~Array() { clingo_ast_array_free(begin, size); }
@@ -6747,14 +6761,14 @@ void BodyTheoryAtom::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(TheoryAtomElement::acquire(cpy));
+            visitor(TheoryAtomElement::acquire(cpy), *args, **kwargs);
         });
     }
     if (auto opt = right()) {
-        visitor(*opt);
+        visitor(*opt, *args, **kwargs);
     }
 }
 
@@ -6791,8 +6805,8 @@ auto BodyConditionalLiteral::construct(Library &lib, clingo_location_t const &lo
     return BodyConditionalLiteral::acquire(res_);
 }
 
-void BodyConditionalLiteral::visit(py::handle visitor) {
-    visitor(literal());
+void BodyConditionalLiteral::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+    visitor(literal(), *args, **kwargs);
     {
         struct Array {
             ~Array() { clingo_ast_array_free(begin, size); }
@@ -6803,10 +6817,10 @@ void BodyConditionalLiteral::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_condition, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(construct_literal(cpy));
+            visitor(construct_literal(cpy), *args, **kwargs);
         });
     }
 }
@@ -6844,8 +6858,8 @@ auto HeadConditionalLiteral::construct(Library &lib, clingo_location_t const &lo
     return HeadConditionalLiteral::acquire(res_);
 }
 
-void HeadConditionalLiteral::visit(py::handle visitor) {
-    visitor(literal());
+void HeadConditionalLiteral::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+    visitor(literal(), *args, **kwargs);
     {
         struct Array {
             ~Array() { clingo_ast_array_free(begin, size); }
@@ -6856,10 +6870,10 @@ void HeadConditionalLiteral::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_condition, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(construct_literal(cpy));
+            visitor(construct_literal(cpy), *args, **kwargs);
         });
     }
 }
@@ -6948,7 +6962,7 @@ auto HeadAggregateElement::construct(Library &lib, clingo_location_t const &loca
     return HeadAggregateElement::acquire(res_);
 }
 
-void HeadAggregateElement::visit(py::handle visitor) {
+void HeadAggregateElement::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
     {
         struct Array {
             ~Array() { clingo_ast_array_free(begin, size); }
@@ -6959,13 +6973,13 @@ void HeadAggregateElement::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_tuple, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(construct_term(cpy));
+            visitor(construct_term(cpy), *args, **kwargs);
         });
     }
-    visitor(literal());
+    visitor(literal(), *args, **kwargs);
     {
         struct Array {
             ~Array() { clingo_ast_array_free(begin, size); }
@@ -6976,10 +6990,10 @@ void HeadAggregateElement::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_condition, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(construct_literal(cpy));
+            visitor(construct_literal(cpy), *args, **kwargs);
         });
     }
 }
@@ -7042,7 +7056,9 @@ auto HeadSimpleLiteral::construct(Library &lib, Literal const &literal) -> HeadS
     return HeadSimpleLiteral::acquire(res_);
 }
 
-void HeadSimpleLiteral::visit(py::handle visitor) { visitor(literal()); }
+void HeadSimpleLiteral::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+    visitor(literal(), *args, **kwargs);
+}
 
 auto HeadAggregate::location() -> clingo_location_t {
     clingo_location_t ret;
@@ -7103,9 +7119,9 @@ auto HeadAggregate::construct(Library &lib, clingo_location_t const &location, O
     return HeadAggregate::acquire(res_);
 }
 
-void HeadAggregate::visit(py::handle visitor) {
+void HeadAggregate::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
     if (auto opt = left()) {
-        visitor(*opt);
+        visitor(*opt, *args, **kwargs);
     }
     {
         struct Array {
@@ -7117,14 +7133,14 @@ void HeadAggregate::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(HeadAggregateElement::acquire(cpy));
+            visitor(HeadAggregateElement::acquire(cpy), *args, **kwargs);
         });
     }
     if (auto opt = right()) {
-        visitor(*opt);
+        visitor(*opt, *args, **kwargs);
     }
 }
 
@@ -7178,9 +7194,9 @@ auto HeadSetAggregate::construct(Library &lib, clingo_location_t const &location
     return HeadSetAggregate::acquire(res_);
 }
 
-void HeadSetAggregate::visit(py::handle visitor) {
+void HeadSetAggregate::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
     if (auto opt = left()) {
-        visitor(*opt);
+        visitor(*opt, *args, **kwargs);
     }
     {
         struct Array {
@@ -7192,14 +7208,14 @@ void HeadSetAggregate::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(SetAggregateElement::acquire(cpy));
+            visitor(SetAggregateElement::acquire(cpy), *args, **kwargs);
         });
     }
     if (auto opt = right()) {
-        visitor(*opt);
+        visitor(*opt, *args, **kwargs);
     }
 }
 
@@ -7249,8 +7265,8 @@ auto HeadTheoryAtom::construct(Library &lib, clingo_location_t const &location, 
     return HeadTheoryAtom::acquire(res_);
 }
 
-void HeadTheoryAtom::visit(py::handle visitor) {
-    visitor(name());
+void HeadTheoryAtom::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+    visitor(name(), *args, **kwargs);
     {
         struct Array {
             ~Array() { clingo_ast_array_free(begin, size); }
@@ -7261,14 +7277,14 @@ void HeadTheoryAtom::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(TheoryAtomElement::acquire(cpy));
+            visitor(TheoryAtomElement::acquire(cpy), *args, **kwargs);
         });
     }
     if (auto opt = right()) {
-        visitor(*opt);
+        visitor(*opt, *args, **kwargs);
     }
 }
 
@@ -7297,7 +7313,7 @@ auto HeadDisjunction::construct(Library &lib, clingo_location_t const &location,
     return HeadDisjunction::acquire(res_);
 }
 
-void HeadDisjunction::visit(py::handle visitor) {
+void HeadDisjunction::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
     {
         struct Array {
             ~Array() { clingo_ast_array_free(begin, size); }
@@ -7308,10 +7324,10 @@ void HeadDisjunction::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(construct_disjunction_element(cpy));
+            visitor(construct_disjunction_element(cpy), *args, **kwargs);
         });
     }
 }
@@ -7357,7 +7373,7 @@ auto TheoryOperatorDefinition::construct(Library &lib, clingo_location_t const &
     return TheoryOperatorDefinition::acquire(res_);
 }
 
-void TheoryOperatorDefinition::visit(py::handle visitor) {}
+void TheoryOperatorDefinition::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {}
 
 auto construct_theory_operator_definition_array(clingo_ast_t **ast, size_t size) -> TheoryOperatorDefinitionArray {
     TheoryOperatorDefinitionArray ret;
@@ -7409,7 +7425,7 @@ auto TheoryTermDefinition::construct(Library &lib, clingo_location_t const &loca
     return TheoryTermDefinition::acquire(res_);
 }
 
-void TheoryTermDefinition::visit(py::handle visitor) {
+void TheoryTermDefinition::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
     {
         struct Array {
             ~Array() { clingo_ast_array_free(begin, size); }
@@ -7420,10 +7436,10 @@ void TheoryTermDefinition::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_operators, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(TheoryOperatorDefinition::acquire(cpy));
+            visitor(TheoryOperatorDefinition::acquire(cpy), *args, **kwargs);
         });
     }
 }
@@ -7474,7 +7490,7 @@ auto TheoryGuardDefinition::construct(Library &lib, StringArray const &operators
     return TheoryGuardDefinition::acquire(res_);
 }
 
-void TheoryGuardDefinition::visit(py::handle visitor) {}
+void TheoryGuardDefinition::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {}
 
 auto TheoryAtomDefinition::location() -> clingo_location_t {
     clingo_location_t ret;
@@ -7537,9 +7553,9 @@ auto TheoryAtomDefinition::construct(Library &lib, clingo_location_t const &loca
     return TheoryAtomDefinition::acquire(res_);
 }
 
-void TheoryAtomDefinition::visit(py::handle visitor) {
+void TheoryAtomDefinition::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
     if (auto opt = guard()) {
-        visitor(*opt);
+        visitor(*opt, *args, **kwargs);
     }
 }
 
@@ -7597,10 +7613,10 @@ auto OptimizeTuple::construct(Library &lib, Term const &weight, OptionalTerm con
     return OptimizeTuple::acquire(res_);
 }
 
-void OptimizeTuple::visit(py::handle visitor) {
-    visitor(weight());
+void OptimizeTuple::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+    visitor(weight(), *args, **kwargs);
     if (auto opt = priority()) {
-        visitor(*opt);
+        visitor(*opt, *args, **kwargs);
     }
     {
         struct Array {
@@ -7612,10 +7628,10 @@ void OptimizeTuple::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_terms, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(construct_term(cpy));
+            visitor(construct_term(cpy), *args, **kwargs);
         });
     }
 }
@@ -7645,8 +7661,8 @@ auto OptimizeElement::construct(Library &lib, OptimizeTuple const &tuple, Litera
     return OptimizeElement::acquire(res_);
 }
 
-void OptimizeElement::visit(py::handle visitor) {
-    visitor(tuple());
+void OptimizeElement::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+    visitor(tuple(), *args, **kwargs);
     {
         struct Array {
             ~Array() { clingo_ast_array_free(begin, size); }
@@ -7657,10 +7673,10 @@ void OptimizeElement::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_condition, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(construct_literal(cpy));
+            visitor(construct_literal(cpy), *args, **kwargs);
         });
     }
 }
@@ -7704,9 +7720,9 @@ auto Edge::construct(Library &lib, Term const &u, Term const &v) -> Edge {
     return Edge::acquire(res_);
 }
 
-void Edge::visit(py::handle visitor) {
-    visitor(u());
-    visitor(v());
+void Edge::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+    visitor(u(), *args, **kwargs);
+    visitor(v(), *args, **kwargs);
 }
 
 auto construct_edge_array(clingo_ast_t **ast, size_t size) -> EdgeArray {
@@ -7822,8 +7838,8 @@ auto StatementRule::construct(Library &lib, clingo_location_t const &location, H
     return StatementRule::acquire(res_);
 }
 
-void StatementRule::visit(py::handle visitor) {
-    visitor(head());
+void StatementRule::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+    visitor(head(), *args, **kwargs);
     {
         struct Array {
             ~Array() { clingo_ast_array_free(begin, size); }
@@ -7834,10 +7850,10 @@ void StatementRule::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_body, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(construct_body_literal(cpy));
+            visitor(construct_body_literal(cpy), *args, **kwargs);
         });
     }
 }
@@ -7885,7 +7901,7 @@ auto StatementTheory::construct(Library &lib, clingo_location_t const &location,
     return StatementTheory::acquire(res_);
 }
 
-void StatementTheory::visit(py::handle visitor) {
+void StatementTheory::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
     {
         struct Array {
             ~Array() { clingo_ast_array_free(begin, size); }
@@ -7896,10 +7912,10 @@ void StatementTheory::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_terms, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(TheoryTermDefinition::acquire(cpy));
+            visitor(TheoryTermDefinition::acquire(cpy), *args, **kwargs);
         });
     }
     {
@@ -7912,10 +7928,10 @@ void StatementTheory::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_atoms, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(TheoryAtomDefinition::acquire(cpy));
+            visitor(TheoryAtomDefinition::acquire(cpy), *args, **kwargs);
         });
     }
 }
@@ -7953,7 +7969,7 @@ auto StatementOptimize::construct(Library &lib, clingo_location_t const &locatio
     return StatementOptimize::acquire(res_);
 }
 
-void StatementOptimize::visit(py::handle visitor) {
+void StatementOptimize::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
     {
         struct Array {
             ~Array() { clingo_ast_array_free(begin, size); }
@@ -7964,10 +7980,10 @@ void StatementOptimize::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(OptimizeElement::acquire(cpy));
+            visitor(OptimizeElement::acquire(cpy), *args, **kwargs);
         });
     }
 }
@@ -8005,7 +8021,7 @@ auto StatementWeakConstraint::construct(Library &lib, clingo_location_t const &l
     return StatementWeakConstraint::acquire(res_);
 }
 
-void StatementWeakConstraint::visit(py::handle visitor) {
+void StatementWeakConstraint::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
     {
         struct Array {
             ~Array() { clingo_ast_array_free(begin, size); }
@@ -8016,13 +8032,13 @@ void StatementWeakConstraint::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_body, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(construct_body_literal(cpy));
+            visitor(construct_body_literal(cpy), *args, **kwargs);
         });
     }
-    visitor(tuple());
+    visitor(tuple(), *args, **kwargs);
 }
 
 auto StatementShow::location() -> clingo_location_t {
@@ -8058,8 +8074,8 @@ auto StatementShow::construct(Library &lib, clingo_location_t const &location, T
     return StatementShow::acquire(res_);
 }
 
-void StatementShow::visit(py::handle visitor) {
-    visitor(term());
+void StatementShow::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+    visitor(term(), *args, **kwargs);
     {
         struct Array {
             ~Array() { clingo_ast_array_free(begin, size); }
@@ -8070,10 +8086,10 @@ void StatementShow::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_body, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(construct_body_literal(cpy));
+            visitor(construct_body_literal(cpy), *args, **kwargs);
         });
     }
 }
@@ -8118,7 +8134,7 @@ auto StatementShowSignature::construct(Library &lib, clingo_location_t const &lo
     return StatementShowSignature::acquire(res_);
 }
 
-void StatementShowSignature::visit(py::handle visitor) {}
+void StatementShowSignature::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {}
 
 auto StatementProject::location() -> clingo_location_t {
     clingo_location_t ret;
@@ -8153,8 +8169,8 @@ auto StatementProject::construct(Library &lib, clingo_location_t const &location
     return StatementProject::acquire(res_);
 }
 
-void StatementProject::visit(py::handle visitor) {
-    visitor(atom());
+void StatementProject::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+    visitor(atom(), *args, **kwargs);
     {
         struct Array {
             ~Array() { clingo_ast_array_free(begin, size); }
@@ -8165,10 +8181,10 @@ void StatementProject::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_body, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(construct_body_literal(cpy));
+            visitor(construct_body_literal(cpy), *args, **kwargs);
         });
     }
 }
@@ -8213,7 +8229,7 @@ auto StatementProjectSignature::construct(Library &lib, clingo_location_t const 
     return StatementProjectSignature::acquire(res_);
 }
 
-void StatementProjectSignature::visit(py::handle visitor) {}
+void StatementProjectSignature::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {}
 
 auto StatementDefined::location() -> clingo_location_t {
     clingo_location_t ret;
@@ -8255,7 +8271,7 @@ auto StatementDefined::construct(Library &lib, clingo_location_t const &location
     return StatementDefined::acquire(res_);
 }
 
-void StatementDefined::visit(py::handle visitor) {}
+void StatementDefined::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {}
 
 auto StatementExternal::location() -> clingo_location_t {
     clingo_location_t ret;
@@ -8303,8 +8319,8 @@ auto StatementExternal::construct(Library &lib, clingo_location_t const &locatio
     return StatementExternal::acquire(res_);
 }
 
-void StatementExternal::visit(py::handle visitor) {
-    visitor(atom());
+void StatementExternal::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+    visitor(atom(), *args, **kwargs);
     {
         struct Array {
             ~Array() { clingo_ast_array_free(begin, size); }
@@ -8315,14 +8331,14 @@ void StatementExternal::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_body, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(construct_body_literal(cpy));
+            visitor(construct_body_literal(cpy), *args, **kwargs);
         });
     }
     if (auto opt = external_type()) {
-        visitor(*opt);
+        visitor(*opt, *args, **kwargs);
     }
 }
 
@@ -8360,7 +8376,7 @@ auto StatementEdge::construct(Library &lib, clingo_location_t const &location, E
     return StatementEdge::acquire(res_);
 }
 
-void StatementEdge::visit(py::handle visitor) {
+void StatementEdge::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
     {
         struct Array {
             ~Array() { clingo_ast_array_free(begin, size); }
@@ -8371,10 +8387,10 @@ void StatementEdge::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_pool, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(Edge::acquire(cpy));
+            visitor(Edge::acquire(cpy), *args, **kwargs);
         });
     }
     {
@@ -8387,10 +8403,10 @@ void StatementEdge::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_body, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(construct_body_literal(cpy));
+            visitor(construct_body_literal(cpy), *args, **kwargs);
         });
     }
 }
@@ -8458,8 +8474,8 @@ auto StatementHeuristic::construct(Library &lib, clingo_location_t const &locati
     return StatementHeuristic::acquire(res_);
 }
 
-void StatementHeuristic::visit(py::handle visitor) {
-    visitor(atom());
+void StatementHeuristic::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+    visitor(atom(), *args, **kwargs);
     {
         struct Array {
             ~Array() { clingo_ast_array_free(begin, size); }
@@ -8470,16 +8486,16 @@ void StatementHeuristic::visit(py::handle visitor) {
         if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_body, &array.begin, &array.size)) {
             throw std::runtime_error("could not get ast array attribute");
         }
-        std::for_each_n(array.begin, array.size, [&visitor](auto *&ast) {
+        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
             auto *cpy = ast;
             ast = nullptr;
-            visitor(construct_body_literal(cpy));
+            visitor(construct_body_literal(cpy), *args, **kwargs);
         });
     }
-    visitor(weight());
-    visitor(modifier());
+    visitor(weight(), *args, **kwargs);
+    visitor(modifier(), *args, **kwargs);
     if (auto opt = priority()) {
-        visitor(*opt);
+        visitor(*opt, *args, **kwargs);
     }
 }
 
@@ -8515,7 +8531,7 @@ auto StatementScript::construct(Library &lib, clingo_location_t const &location,
     return StatementScript::acquire(res_);
 }
 
-void StatementScript::visit(py::handle visitor) {}
+void StatementScript::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {}
 
 auto StatementInclude::location() -> clingo_location_t {
     clingo_location_t ret;
@@ -8549,7 +8565,7 @@ auto StatementInclude::construct(Library &lib, clingo_location_t const &location
     return StatementInclude::acquire(res_);
 }
 
-void StatementInclude::visit(py::handle visitor) {}
+void StatementInclude::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {}
 
 auto StatementProgram::location() -> clingo_location_t {
     clingo_location_t ret;
@@ -8588,7 +8604,7 @@ auto StatementProgram::construct(Library &lib, clingo_location_t const &location
     return StatementProgram::acquire(res_);
 }
 
-void StatementProgram::visit(py::handle visitor) {}
+void StatementProgram::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {}
 
 auto StatementConst::location() -> clingo_location_t {
     clingo_location_t ret;
@@ -8630,7 +8646,9 @@ auto StatementConst::construct(Library &lib, clingo_location_t const &location, 
     return StatementConst::acquire(res_);
 }
 
-void StatementConst::visit(py::handle visitor) { visitor(value()); }
+void StatementConst::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+    visitor(value(), *args, **kwargs);
+}
 
 auto StatementComment::location() -> clingo_location_t {
     clingo_location_t ret;
@@ -8664,7 +8682,7 @@ auto StatementComment::construct(Library &lib, clingo_location_t const &location
     return StatementComment::acquire(res_);
 }
 
-void StatementComment::visit(py::handle visitor) {}
+void StatementComment::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {}
 
 template <class T> auto c_cast(std::optional<T> const &opt) -> clingo_ast_t * {
     if (opt) {

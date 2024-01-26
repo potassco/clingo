@@ -944,15 +944,16 @@ class TestAST(TestCase):
         variables = []
 
         @singledispatch
-        def dispatch(arg):
-            arg.visit(dispatch)
+        def dispatch(arg, prefix):
+            arg.visit(dispatch, prefix)
 
         @dispatch.register
-        def _(var: ast.TermVariable):
-            variables.append(var.name)
+        def _(var: ast.TermVariable, prefix):
+            variables.append(prefix + var.name)
 
-        dispatch(ast.parse_statement(self.lib, "p(A) :- q(B,C), D = {}."))
-        self.assertEqual(variables, ["A", "B", "C", "D"])
+        stm = ast.parse_statement(self.lib, "p(A) :- q(B,C), D = {}.")
+        dispatch(stm, "_")
+        self.assertEqual(variables, ["_A", "_B", "_C", "_D"])
 
     def test_transform(self):
         """
