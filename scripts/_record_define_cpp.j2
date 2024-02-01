@@ -122,28 +122,7 @@ void {{ c_type_name }}::visit(py::handle visitor, py::args const &args, py::kwar
     }
 {%-     elif types[argument.type].type == 'array' %}
 {%-       set value_type = types[argument.type].value_type %}
-    {
-        struct Array {
-            ~Array() {
-                clingo_ast_array_free(begin, size);
-            }
-            clingo_ast_t **begin = nullptr;
-            size_t size = 0;
-        };
-        auto array = Array{};
-        if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_{{ argument_name }}, &array.begin, &array.size)) {
-            throw std::runtime_error("could not get ast array attribute");
-        }
-        std::for_each_n(array.begin, array.size, [&](auto *&ast) {
-            auto *cpy = ast;
-            ast = nullptr;
-{%-       if types[value_type].type == 'union' %}
-            visitor(construct_{{ value_type }}(cpy), *args, **kwargs);
-{%-       else %}
-            visitor({{ value_type | camel }}::acquire(cpy), *args, **kwargs);
-{%-       endif %}
-        });
-    }
+    visit_array(ast_, clingo_ast_attribute_{{ argument_name }}, visitor, args, kwargs, {% if types[value_type].type == 'union' -%} construct_{{ value_type }} {%- else -%} {{ value_type | camel }}::acquire {%- endif %});
 {%-     endif %}
 {%-   endif %}
 {%- endfor %}

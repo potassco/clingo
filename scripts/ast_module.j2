@@ -33,6 +33,9 @@ auto c_cast(StringArray const &arr) -> std::vector<char const *> {
     return ret;
 }
 
+template <class Cons>
+void visit_array(clingo_ast_t *ast, clingo_ast_attribute_t attr, py::handle visitor, py::args const &args, py::kwargs const &kwargs, Cons &&cons);
+
 enum class ProjectionMode {
     Disabled = clingo_projection_mode_disabled,
     Anonymous = clingo_projection_mode_anonymous,
@@ -136,6 +139,24 @@ auto c_cast(std::vector<T> const &arr) -> std::vector<clingo_ast_t*> {
         ret.emplace_back(c_cast(x));
     }
     return ret;
+}
+
+template <class Cons>
+void visit_array(clingo_ast_t *ast, clingo_ast_attribute_t attr, py::handle visitor, py::args const &args, py::kwargs const &kwargs, Cons &&cons) {
+    struct Array {
+        ~Array() { clingo_ast_array_free(begin, size); }
+        clingo_ast_t **begin = nullptr;
+        size_t size = 0;
+    };
+    auto array = Array{};
+    if (!clingo_ast_attribute_get_ast_array(ast, attr, &array.begin, &array.size)) {
+        throw std::runtime_error("could not get ast array attribute");
+    }
+    std::for_each_n(array.begin, array.size, [&](auto *&cld) {
+        auto *cpy = cld;
+        cld = nullptr;
+        visitor(std::invoke(std::move(cons), cpy), *args, **kwargs);
+    });
 }
 
 auto parse_term(Library &lib, char const *string) -> Term {
