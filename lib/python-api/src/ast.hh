@@ -826,6 +826,8 @@ class TermFunction {
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<TermFunction>;
 
+    auto update(Library &lib, py::kwargs const &kwargs) -> TermFunction;
+
     static auto construct(Library &lib, clingo_location_t const &location, char const *name,
                           ArgumentTupleArray const &pool, bool external) -> TermFunction;
 
@@ -5823,6 +5825,30 @@ auto TermFunction::transform(Library &lib, py::handle transform, py::args const 
         return TermFunction::construct(lib, location(), name(), pool_value, external());
     }
     return std::nullopt;
+}
+
+template <class T, class F, class M>
+auto get_value(Clingo::Library &lib, F *self, M fun, py::kwargs const &kwargs, char const *attr) -> T {
+    if constexpr (std::is_same_v<T, char const *>) {
+        if (kwargs.contains(attr)) {
+            char const *res;
+            clingo_add_string(lib, py::cast<std::string>(kwargs[attr]).c_str(), &res);
+            return res;
+        }
+    } else {
+        if (kwargs.contains(attr)) {
+            return py::cast<T>(kwargs[attr]);
+        }
+    }
+    return (self->*fun)();
+}
+
+auto TermFunction::update(Library &lib, py::kwargs const &kwargs) -> TermFunction {
+    return TermFunction::construct(lib,
+                                   get_value<clingo_location_t>(lib, this, &TermFunction::location, kwargs, "location"),
+                                   get_value<char const *>(lib, this, &TermFunction::name, kwargs, "name"),
+                                   get_value<ArgumentTupleArray>(lib, this, &TermFunction::pool, kwargs, "pool"),
+                                   get_value<bool>(lib, this, &TermFunction::external, kwargs, "external"));
 }
 
 auto ArgumentTuple::arguments() -> TermOrProjectionArray {
