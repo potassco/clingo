@@ -108,6 +108,44 @@ def forward(types, current_type, type_list):
     return res
 
 
+def transform_cond(arguments, types):
+    """
+    Build condition when to transform.
+    """
+    res = []
+    for argument_name, argument in arguments.items():
+        if argument["type"] in types and types[argument["type"]]["type"] in (
+            "union",
+            "record",
+            "optional",
+            "array",
+        ):
+            res.append(f"{argument_name}_changed")
+    if not res:
+        res.append("false")
+    return " || ".join(res)
+
+
+def transform_cons(arguments, types):
+    """
+    Build condition when to transform.
+    """
+    res = ["lib"]
+    for argument_name, argument in arguments.items():
+        if argument["type"] in types and types[argument["type"]]["type"] in (
+            "union",
+            "record",
+            "optional",
+            "array",
+        ):
+            res.append(f"{argument_name}_value")
+        elif argument["type"] == "string_array":
+            res.append(f"to_string_array({argument_name}())")
+        else:
+            res.append(f"{argument_name}()")
+    return ", ".join(res)
+
+
 def doc(text):
     """
     Wrap a docstring.
@@ -137,6 +175,8 @@ def generate():
     env.filters["doc"] = doc
     env.filters["param_doc"] = param_doc
     env.filters["forward"] = forward
+    env.filters["transform_cond"] = transform_cond
+    env.filters["transform_cons"] = transform_cons
 
     types = yaml.safe_load(_type_info_yaml())
 

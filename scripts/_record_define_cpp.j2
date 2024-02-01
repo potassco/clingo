@@ -127,3 +127,24 @@ void {{ c_type_name }}::visit(py::handle visitor, py::args const &args, py::kwar
 {%-   endif %}
 {%- endfor %}
 }
+
+auto {{ c_type_name }}::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs) -> std::optional<{{ c_type_name }}> {
+{%- for argument_name, argument in type.arguments.items() -%}
+{%-   if argument.type in types %}
+{%-     if types[argument.type].type in ('union', 'record') %}
+    auto [{{ argument_name }}_value, {{ argument_name }}_changed] = transform_value({{ argument_name }}(), transform, args, kwargs);
+{%-     elif types[argument.type].type == 'optional' %}
+    auto [{{ argument_name }}_value, {{ argument_name }}_changed] = transform_opt_value({{ argument_name }}(), transform, args, kwargs);
+{%-     elif types[argument.type].type == 'array' %}
+{%-       set value_type = types[argument.type].value_type %}
+    auto [{{ argument_name }}_value, {{ argument_name }}_changed] = transform_array({{ argument_name }}(), transform, args, kwargs);
+{%-     endif %}
+{%-   endif %}
+{%- endfor %}
+{%- if type.arguments | transform_cond(types) != "false" %}
+    if ({{ type.arguments | transform_cond(types) }}) {
+        return {{ c_type_name }}::construct({{ type.arguments | transform_cons(types) }});
+    }
+{%- endif %}
+    return std::nullopt;
+}

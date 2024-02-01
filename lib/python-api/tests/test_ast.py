@@ -962,14 +962,14 @@ class TestAST(TestCase):
 
         @singledispatch
         def dispatch(expr, prefix):
-            return expr.transform(dispatch, prefix)
+            return expr.transform(self.lib, dispatch, prefix)
 
-        @transform.register
+        @dispatch.register
         def _(var: ast.TermVariable, prefix):
             return var.update(name=prefix + var.name)
 
         stm = ast.parse_statement(self.lib, "a(X) :- b(X).")
-        self.assertEqual(str(dispatch(stm, "_")) == "a(_X) :- b(_X).")
+        self.assertEqual(str(dispatch(stm, "_")), "a(_X) :- b(_X).")
 
     def test_cmp(self):
         """

@@ -15,6 +15,12 @@ using Clingo::Symbol::Symbol;
 
 using StringArray = std::vector<std::string>;
 
+auto to_string_array(std::vector<char const *> arr) -> StringArray {
+    auto res = StringArray();
+    res.insert(res.end(), arr.begin(), arr.end());
+    return res;
+}
+
 template <class T>
 auto c_cast(std::optional<T> const &opt) -> clingo_ast_t*;
 
@@ -35,6 +41,15 @@ auto c_cast(StringArray const &arr) -> std::vector<char const *> {
 
 template <class Cons>
 void visit_array(clingo_ast_t *ast, clingo_ast_attribute_t attr, py::handle visitor, py::args const &args, py::kwargs const &kwargs, Cons &&cons);
+
+template <class Array>
+auto transform_array(Array arr, py::handle transform, py::args const &args, py::kwargs const &kwargs) -> std::pair<Array, bool>;
+
+template <class Value>
+auto transform_value(Value val, py::handle transform, py::args const &args, py::kwargs const &kwargs) -> std::pair<Value, bool>;
+
+template <class Value>
+auto transform_opt_value(Value val, py::handle transform, py::args const &args, py::kwargs const &kwargs) -> std::pair<Value, bool>;
 
 enum class ProjectionMode {
     Disabled = clingo_projection_mode_disabled,
@@ -157,6 +172,33 @@ void visit_array(clingo_ast_t *ast, clingo_ast_attribute_t attr, py::handle visi
         cld = nullptr;
         visitor(std::invoke(std::move(cons), cpy), *args, **kwargs);
     });
+}
+
+template <class Array>
+auto transform_array(Array arr, py::handle transform, py::args const &args, py::kwargs const &kwargs) -> std::pair<Array, bool> {
+    bool changed = false;
+    for (auto &elem : arr) {
+        if (auto res = transform(elem, *args, **kwargs); !res.is_none()) {
+            elem = py::cast<typename Array::value_type>(std::move(res));
+            changed = true;
+        }
+    }
+    return {std::move(arr), changed};
+}
+
+template <class Value>
+auto transform_value(Value val, py::handle transform, py::args const &args, py::kwargs const &kwargs) -> std::pair<Value, bool> {
+    auto res = transform(val, *args, **kwargs);
+    return {res.is_none() ? std::move(val) : py::cast<Value>(res), !res.is_none()};
+}
+
+template <class Value>
+auto transform_opt_value(Value opt, py::handle transform, py::args const &args, py::kwargs const &kwargs) -> std::pair<Value, bool> {
+    if (opt) {
+        auto res = transform(*opt, *args, **kwargs);
+        return {res.is_none() ? std::move(opt) : py::cast<Value>(res), !res.is_none()};
+    }
+    return {std::nullopt, false};
 }
 
 auto parse_term(Library &lib, char const *string) -> Term {
@@ -387,6 +429,16 @@ Parameters
 ----------
 visitor
     The visitor accepting the sub expressions.
+)doc")
+        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
+        .def("transform", &{{ c_type_name }}::transform, R"doc(Transform the expression.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+transformer
+    The transformer accepting the sub expressions.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
