@@ -7,6 +7,8 @@
 #include "core.hh"
 #include "symbol.hh"
 
+// NOLINTBEGIN(readability-convert-member-functions-to-static,clang-diagnostic-unused-parameter)
+
 namespace Clingo::AST {
 
 namespace py = pybind11;
@@ -49,7 +51,10 @@ template <class Value>
 auto transform_value(Value val, py::handle transform, py::args const &args, py::kwargs const &kwargs) -> std::pair<Value, bool>;
 
 template <class Value>
-auto transform_opt_value(Value val, py::handle transform, py::args const &args, py::kwargs const &kwargs) -> std::pair<Value, bool>;
+auto transform_opt_value(Value opt, py::handle transform, py::args const &args, py::kwargs const &kwargs) -> std::pair<Value, bool>;
+
+template <class T, class F, class M>
+auto update_value(Clingo::Library &lib, F *self, M fun, py::kwargs const &kwargs, char const *attr) -> T;
 
 enum class ProjectionMode {
     Disabled = clingo_projection_mode_disabled,
@@ -199,6 +204,28 @@ auto transform_opt_value(Value opt, py::handle transform, py::args const &args, 
         return {res.is_none() ? std::move(opt) : py::cast<Value>(res), !res.is_none()};
     }
     return {std::nullopt, false};
+}
+
+template <class T, class F, class M>
+auto update_value(Clingo::Library &lib, F *self, M fun, py::kwargs const &kwargs, char const *attr) -> T {
+    if constexpr (std::is_same_v<T, char const *>) {
+        if (kwargs.contains(attr)) {
+            char const *res;
+            clingo_add_string(lib, py::cast<std::string>(kwargs[attr]).c_str(), &res);
+            return res;
+        }
+    } else {
+        if (kwargs.contains(attr)) {
+            return py::cast<T>(kwargs[attr]);
+        }
+    }
+    if constexpr (std::is_same_v<T, StringArray>) {
+        auto arr = (self->*fun)();
+        return StringArray{arr.begin(), arr.end()};
+    }
+    else {
+        return (self->*fun)();
+    }
 }
 
 auto parse_term(Library &lib, char const *string) -> Term {
@@ -440,6 +467,15 @@ lib
 transformer
     The transformer accepting the sub expressions.
 )doc")
+        .def("update", &{{ c_type_name }}::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 {%    endif %}
@@ -574,3 +610,5 @@ A list of rewritten statements.)doc");
 }
 
 }
+
+// NOLINTEND(readability-convert-member-functions-to-static,clang-diagnostic-unused-parameter)

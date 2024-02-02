@@ -16,6 +16,23 @@ def camel(name):
     return "".join(x.title() for x in name.split("_"))
 
 
+def cval(name):
+    """
+    Convert the given type to a C++ const reference.
+    """
+    if name == "location":
+        return "clingo_location_t"
+    if name == "string":
+        return "char const *"
+    if name == "number":
+        return "int "
+    if name == "bool":
+        return "bool "
+    if name == "symbol":
+        return "Symbol"
+    return f"{camel(name)}"
+
+
 def cref(name):
     """
     Convert the given type to a C++ const reference.
@@ -170,6 +187,7 @@ def generate():
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(searchpath="scripts/"))
     env.filters["camel"] = camel
     env.filters["cref"] = cref
+    env.filters["cval"] = cval
     env.filters["c_cast"] = c_cast
     env.filters["flatten_types"] = flatten_types
     env.filters["doc"] = doc

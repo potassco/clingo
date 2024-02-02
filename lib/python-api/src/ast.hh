@@ -7,6 +7,8 @@
 #include "core.hh"
 #include "symbol.hh"
 
+// NOLINTBEGIN(readability-convert-member-functions-to-static,clang-diagnostic-unused-parameter)
+
 namespace Clingo::AST {
 
 namespace py = pybind11;
@@ -49,8 +51,11 @@ auto transform_value(Value val, py::handle transform, py::args const &args, py::
     -> std::pair<Value, bool>;
 
 template <class Value>
-auto transform_opt_value(Value val, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto transform_opt_value(Value opt, py::handle transform, py::args const &args, py::kwargs const &kwargs)
     -> std::pair<Value, bool>;
+
+template <class T, class F, class M>
+auto update_value(Clingo::Library &lib, F *self, M fun, py::kwargs const &kwargs, char const *attr) -> T;
 
 enum class ProjectionMode {
     Disabled = clingo_projection_mode_disabled,
@@ -225,8 +230,10 @@ class Projection {
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
-    static auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<Projection>;
+
+    auto update(Library &lib, py::kwargs const &kwargs) -> Projection;
 
     static auto construct(Library &lib, clingo_location_t const &location) -> Projection;
 
@@ -331,8 +338,10 @@ class TermVariable {
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
-    static auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<TermVariable>;
+
+    auto update(Library &lib, py::kwargs const &kwargs) -> TermVariable;
 
     static auto construct(Library &lib, clingo_location_t const &location, char const *name, bool anonymous)
         -> TermVariable;
@@ -412,8 +421,10 @@ class TermSymbolic {
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
-    static auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<TermSymbolic>;
+
+    auto update(Library &lib, py::kwargs const &kwargs) -> TermSymbolic;
 
     static auto construct(Library &lib, clingo_location_t const &location, Symbol const &symbol) -> TermSymbolic;
 
@@ -494,6 +505,8 @@ class TermAbsolute {
 
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<TermAbsolute>;
+
+    auto update(Library &lib, py::kwargs const &kwargs) -> TermAbsolute;
 
     static auto construct(Library &lib, clingo_location_t const &location, TermArray const &pool) -> TermAbsolute;
 
@@ -576,6 +589,8 @@ class TermUnaryOperation {
 
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<TermUnaryOperation>;
+
+    auto update(Library &lib, py::kwargs const &kwargs) -> TermUnaryOperation;
 
     static auto construct(Library &lib, clingo_location_t const &location, UnaryOperator const &operator_type,
                           Term const &right) -> TermUnaryOperation;
@@ -662,6 +677,8 @@ class TermBinaryOperation {
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<TermBinaryOperation>;
 
+    auto update(Library &lib, py::kwargs const &kwargs) -> TermBinaryOperation;
+
     static auto construct(Library &lib, clingo_location_t const &location, Term const &left,
                           BinaryOperator const &operator_type, Term const &right) -> TermBinaryOperation;
 
@@ -740,6 +757,8 @@ class TermTuple {
 
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<TermTuple>;
+
+    auto update(Library &lib, py::kwargs const &kwargs) -> TermTuple;
 
     static auto construct(Library &lib, clingo_location_t const &location, TermOrArgumentTupleArray const &pool)
         -> TermTuple;
@@ -907,6 +926,8 @@ class ArgumentTuple {
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<ArgumentTuple>;
 
+    auto update(Library &lib, py::kwargs const &kwargs) -> ArgumentTuple;
+
     static auto construct(Library &lib, TermOrProjectionArray const &arguments) -> ArgumentTuple;
 
     friend auto c_cast(ArgumentTuple const &x) -> clingo_ast_t *;
@@ -995,6 +1016,8 @@ class LeftGuard {
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<LeftGuard>;
 
+    auto update(Library &lib, py::kwargs const &kwargs) -> LeftGuard;
+
     static auto construct(Library &lib, Term const &term, Relation const &relation) -> LeftGuard;
 
     friend auto c_cast(LeftGuard const &x) -> clingo_ast_t *;
@@ -1076,6 +1099,8 @@ class RightGuard {
 
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<RightGuard>;
+
+    auto update(Library &lib, py::kwargs const &kwargs) -> RightGuard;
 
     static auto construct(Library &lib, Relation const &relation, Term const &term) -> RightGuard;
 
@@ -1162,8 +1187,10 @@ class LiteralBoolean {
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
-    static auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<LiteralBoolean>;
+
+    auto update(Library &lib, py::kwargs const &kwargs) -> LiteralBoolean;
 
     static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign, bool value)
         -> LiteralBoolean;
@@ -1250,6 +1277,8 @@ class LiteralComparison {
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<LiteralComparison>;
 
+    auto update(Library &lib, py::kwargs const &kwargs) -> LiteralComparison;
+
     static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign, Term const &left,
                           RightGuardArray const &right) -> LiteralComparison;
 
@@ -1332,6 +1361,8 @@ class LiteralSymbolic {
 
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<LiteralSymbolic>;
+
+    auto update(Library &lib, py::kwargs const &kwargs) -> LiteralSymbolic;
 
     static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign, Term const &atom)
         -> LiteralSymbolic;
@@ -1433,6 +1464,8 @@ class UnparsedElement {
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<UnparsedElement>;
 
+    auto update(Library &lib, py::kwargs const &kwargs) -> UnparsedElement;
+
     static auto construct(Library &lib, StringArray const &operators, TheoryTerm const &term) -> UnparsedElement;
 
     friend auto c_cast(UnparsedElement const &x) -> clingo_ast_t *;
@@ -1516,8 +1549,10 @@ class TheoryTermVariable {
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
-    static auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<TheoryTermVariable>;
+
+    auto update(Library &lib, py::kwargs const &kwargs) -> TheoryTermVariable;
 
     static auto construct(Library &lib, clingo_location_t const &location, char const *name, bool anonymous)
         -> TheoryTermVariable;
@@ -1597,8 +1632,10 @@ class TheoryTermSymbolic {
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
-    static auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<TheoryTermSymbolic>;
+
+    auto update(Library &lib, py::kwargs const &kwargs) -> TheoryTermSymbolic;
 
     static auto construct(Library &lib, clingo_location_t const &location, Symbol const &symbol) -> TheoryTermSymbolic;
 
@@ -1681,6 +1718,8 @@ class TheoryTermTuple {
 
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<TheoryTermTuple>;
+
+    auto update(Library &lib, py::kwargs const &kwargs) -> TheoryTermTuple;
 
     static auto construct(Library &lib, clingo_location_t const &location, TheoryTupleType const &tuple_type,
                           TheoryTermArray const &arguments) -> TheoryTermTuple;
@@ -1765,6 +1804,8 @@ class TheoryTermFunction {
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<TheoryTermFunction>;
 
+    auto update(Library &lib, py::kwargs const &kwargs) -> TheoryTermFunction;
+
     static auto construct(Library &lib, clingo_location_t const &location, char const *name,
                           TheoryTermArray const &arguments) -> TheoryTermFunction;
 
@@ -1846,6 +1887,8 @@ class TheoryTermUnparsed {
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<TheoryTermUnparsed>;
 
+    auto update(Library &lib, py::kwargs const &kwargs) -> TheoryTermUnparsed;
+
     static auto construct(Library &lib, clingo_location_t const &location, UnparsedElementArray const &elements)
         -> TheoryTermUnparsed;
 
@@ -1926,6 +1969,8 @@ class TheoryRightGuard {
 
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<TheoryRightGuard>;
+
+    auto update(Library &lib, py::kwargs const &kwargs) -> TheoryRightGuard;
 
     static auto construct(Library &lib, char const *theory_operator, TheoryTerm const &term) -> TheoryRightGuard;
 
@@ -2015,6 +2060,8 @@ class SetAggregateElement {
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<SetAggregateElement>;
 
+    auto update(Library &lib, py::kwargs const &kwargs) -> SetAggregateElement;
+
     static auto construct(Library &lib, clingo_location_t const &location, Literal const &literal,
                           LiteralArray const &condition) -> SetAggregateElement;
 
@@ -2102,6 +2149,8 @@ class BodyAggregateElement {
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<BodyAggregateElement>;
 
+    auto update(Library &lib, py::kwargs const &kwargs) -> BodyAggregateElement;
+
     static auto construct(Library &lib, clingo_location_t const &location, TermArray const &tuple,
                           LiteralArray const &condition) -> BodyAggregateElement;
 
@@ -2188,6 +2237,8 @@ class TheoryAtomElement {
 
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<TheoryAtomElement>;
+
+    auto update(Library &lib, py::kwargs const &kwargs) -> TheoryAtomElement;
 
     static auto construct(Library &lib, clingo_location_t const &location, TheoryTermArray const &tuple,
                           LiteralArray const &condition) -> TheoryAtomElement;
@@ -2291,6 +2342,8 @@ class BodySimpleLiteral {
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<BodySimpleLiteral>;
 
+    auto update(Library &lib, py::kwargs const &kwargs) -> BodySimpleLiteral;
+
     static auto construct(Library &lib, Literal const &literal) -> BodySimpleLiteral;
 
     friend auto c_cast(BodySimpleLiteral const &x) -> clingo_ast_t *;
@@ -2378,6 +2431,8 @@ class BodyAggregate {
 
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<BodyAggregate>;
+
+    auto update(Library &lib, py::kwargs const &kwargs) -> BodyAggregate;
 
     static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign,
                           OptionalLeftGuard const &left, AggregateFunction const &function,
@@ -2467,6 +2522,8 @@ class BodySetAggregate {
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<BodySetAggregate>;
 
+    auto update(Library &lib, py::kwargs const &kwargs) -> BodySetAggregate;
+
     static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign,
                           OptionalLeftGuard const &left, SetAggregateElementArray const &elements,
                           OptionalRightGuard const &right) -> BodySetAggregate;
@@ -2555,6 +2612,8 @@ class BodyTheoryAtom {
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<BodyTheoryAtom>;
 
+    auto update(Library &lib, py::kwargs const &kwargs) -> BodyTheoryAtom;
+
     static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign, Term const &name,
                           TheoryAtomElementArray const &elements, OptionalTheoryRightGuard const &right)
         -> BodyTheoryAtom;
@@ -2639,6 +2698,8 @@ class BodyConditionalLiteral {
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<BodyConditionalLiteral>;
 
+    auto update(Library &lib, py::kwargs const &kwargs) -> BodyConditionalLiteral;
+
     static auto construct(Library &lib, clingo_location_t const &location, Literal const &literal,
                           LiteralArray const &condition) -> BodyConditionalLiteral;
 
@@ -2721,6 +2782,8 @@ class HeadConditionalLiteral {
 
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<HeadConditionalLiteral>;
+
+    auto update(Library &lib, py::kwargs const &kwargs) -> HeadConditionalLiteral;
 
     static auto construct(Library &lib, clingo_location_t const &location, Literal const &literal,
                           LiteralArray const &condition) -> HeadConditionalLiteral;
@@ -2814,6 +2877,8 @@ class HeadAggregateElement {
 
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<HeadAggregateElement>;
+
+    auto update(Library &lib, py::kwargs const &kwargs) -> HeadAggregateElement;
 
     static auto construct(Library &lib, clingo_location_t const &location, TermArray const &tuple,
                           Literal const &literal, LiteralArray const &condition) -> HeadAggregateElement;
@@ -2912,6 +2977,8 @@ class HeadSimpleLiteral {
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<HeadSimpleLiteral>;
 
+    auto update(Library &lib, py::kwargs const &kwargs) -> HeadSimpleLiteral;
+
     static auto construct(Library &lib, Literal const &literal) -> HeadSimpleLiteral;
 
     friend auto c_cast(HeadSimpleLiteral const &x) -> clingo_ast_t *;
@@ -2997,6 +3064,8 @@ class HeadAggregate {
 
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<HeadAggregate>;
+
+    auto update(Library &lib, py::kwargs const &kwargs) -> HeadAggregate;
 
     static auto construct(Library &lib, clingo_location_t const &location, OptionalLeftGuard const &left,
                           AggregateFunction const &function, HeadAggregateElementArray const &elements,
@@ -3084,6 +3153,8 @@ class HeadSetAggregate {
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<HeadSetAggregate>;
 
+    auto update(Library &lib, py::kwargs const &kwargs) -> HeadSetAggregate;
+
     static auto construct(Library &lib, clingo_location_t const &location, OptionalLeftGuard const &left,
                           SetAggregateElementArray const &elements, OptionalRightGuard const &right)
         -> HeadSetAggregate;
@@ -3170,6 +3241,8 @@ class HeadTheoryAtom {
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<HeadTheoryAtom>;
 
+    auto update(Library &lib, py::kwargs const &kwargs) -> HeadTheoryAtom;
+
     static auto construct(Library &lib, clingo_location_t const &location, Term const &name,
                           TheoryAtomElementArray const &elements, OptionalTheoryRightGuard const &right)
         -> HeadTheoryAtom;
@@ -3251,6 +3324,8 @@ class HeadDisjunction {
 
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<HeadDisjunction>;
+
+    auto update(Library &lib, py::kwargs const &kwargs) -> HeadDisjunction;
 
     static auto construct(Library &lib, clingo_location_t const &location, DisjunctionElementArray const &elements)
         -> HeadDisjunction;
@@ -3334,8 +3409,10 @@ class TheoryOperatorDefinition {
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
-    static auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<TheoryOperatorDefinition>;
+
+    auto update(Library &lib, py::kwargs const &kwargs) -> TheoryOperatorDefinition;
 
     static auto construct(Library &lib, clingo_location_t const &location, char const *name, int priority,
                           TheoryOperatorType const &operator_type) -> TheoryOperatorDefinition;
@@ -3424,6 +3501,8 @@ class TheoryTermDefinition {
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<TheoryTermDefinition>;
 
+    auto update(Library &lib, py::kwargs const &kwargs) -> TheoryTermDefinition;
+
     static auto construct(Library &lib, clingo_location_t const &location, char const *name,
                           TheoryOperatorDefinitionArray const &operators) -> TheoryTermDefinition;
 
@@ -3506,8 +3585,10 @@ class TheoryGuardDefinition {
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
-    static auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<TheoryGuardDefinition>;
+
+    auto update(Library &lib, py::kwargs const &kwargs) -> TheoryGuardDefinition;
 
     static auto construct(Library &lib, StringArray const &operators, char const *term) -> TheoryGuardDefinition;
 
@@ -3599,6 +3680,8 @@ class TheoryAtomDefinition {
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<TheoryAtomDefinition>;
 
+    auto update(Library &lib, py::kwargs const &kwargs) -> TheoryAtomDefinition;
+
     static auto construct(Library &lib, clingo_location_t const &location, char const *name, int arity,
                           char const *term, OptionalTheoryGuardDefinition const &guard, TheoryAtomType const &atom_type)
         -> TheoryAtomDefinition;
@@ -3687,6 +3770,8 @@ class OptimizeTuple {
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<OptimizeTuple>;
 
+    auto update(Library &lib, py::kwargs const &kwargs) -> OptimizeTuple;
+
     static auto construct(Library &lib, Term const &weight, OptionalTerm const &priority, TermArray const &terms)
         -> OptimizeTuple;
 
@@ -3768,6 +3853,8 @@ class OptimizeElement {
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<OptimizeElement>;
 
+    auto update(Library &lib, py::kwargs const &kwargs) -> OptimizeElement;
+
     static auto construct(Library &lib, OptimizeTuple const &tuple, LiteralArray const &condition) -> OptimizeElement;
 
     friend auto c_cast(OptimizeElement const &x) -> clingo_ast_t *;
@@ -3847,6 +3934,8 @@ class Edge {
 
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<Edge>;
+
+    auto update(Library &lib, py::kwargs const &kwargs) -> Edge;
 
     static auto construct(Library &lib, Term const &u, Term const &v) -> Edge;
 
@@ -3975,6 +4064,8 @@ class StatementRule {
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<StatementRule>;
 
+    auto update(Library &lib, py::kwargs const &kwargs) -> StatementRule;
+
     static auto construct(Library &lib, clingo_location_t const &location, HeadLiteral const &head,
                           BodyLiteralArray const &body) -> StatementRule;
 
@@ -4060,6 +4151,8 @@ class StatementTheory {
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<StatementTheory>;
 
+    auto update(Library &lib, py::kwargs const &kwargs) -> StatementTheory;
+
     static auto construct(Library &lib, clingo_location_t const &location, char const *name,
                           TheoryTermDefinitionArray const &terms, TheoryAtomDefinitionArray const &atoms)
         -> StatementTheory;
@@ -4144,6 +4237,8 @@ class StatementOptimize {
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<StatementOptimize>;
 
+    auto update(Library &lib, py::kwargs const &kwargs) -> StatementOptimize;
+
     static auto construct(Library &lib, clingo_location_t const &location, OptimizeElementArray const &elements,
                           OptimizeType const &optimize_type) -> StatementOptimize;
 
@@ -4226,6 +4321,8 @@ class StatementWeakConstraint {
 
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<StatementWeakConstraint>;
+
+    auto update(Library &lib, py::kwargs const &kwargs) -> StatementWeakConstraint;
 
     static auto construct(Library &lib, clingo_location_t const &location, BodyLiteralArray const &body,
                           OptimizeTuple const &tuple) -> StatementWeakConstraint;
@@ -4310,6 +4407,8 @@ class StatementShow {
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<StatementShow>;
 
+    auto update(Library &lib, py::kwargs const &kwargs) -> StatementShow;
+
     static auto construct(Library &lib, clingo_location_t const &location, Term const &term,
                           BodyLiteralArray const &body) -> StatementShow;
 
@@ -4392,8 +4491,10 @@ class StatementShowSignature {
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
-    static auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<StatementShowSignature>;
+
+    auto update(Library &lib, py::kwargs const &kwargs) -> StatementShowSignature;
 
     static auto construct(Library &lib, clingo_location_t const &location, char const *name, int arity, bool sign)
         -> StatementShowSignature;
@@ -4478,6 +4579,8 @@ class StatementProject {
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<StatementProject>;
 
+    auto update(Library &lib, py::kwargs const &kwargs) -> StatementProject;
+
     static auto construct(Library &lib, clingo_location_t const &location, Term const &atom,
                           BodyLiteralArray const &body) -> StatementProject;
 
@@ -4560,8 +4663,10 @@ class StatementProjectSignature {
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
-    static auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<StatementProjectSignature>;
+
+    auto update(Library &lib, py::kwargs const &kwargs) -> StatementProjectSignature;
 
     static auto construct(Library &lib, clingo_location_t const &location, char const *name, int arity, bool sign)
         -> StatementProjectSignature;
@@ -4645,8 +4750,10 @@ class StatementDefined {
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
-    static auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<StatementDefined>;
+
+    auto update(Library &lib, py::kwargs const &kwargs) -> StatementDefined;
 
     static auto construct(Library &lib, clingo_location_t const &location, char const *name, int arity, bool sign)
         -> StatementDefined;
@@ -4733,6 +4840,8 @@ class StatementExternal {
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<StatementExternal>;
 
+    auto update(Library &lib, py::kwargs const &kwargs) -> StatementExternal;
+
     static auto construct(Library &lib, clingo_location_t const &location, Term const &atom,
                           BodyLiteralArray const &body, OptionalTerm const &external_type) -> StatementExternal;
 
@@ -4815,6 +4924,8 @@ class StatementEdge {
 
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<StatementEdge>;
+
+    auto update(Library &lib, py::kwargs const &kwargs) -> StatementEdge;
 
     static auto construct(Library &lib, clingo_location_t const &location, EdgeArray const &pool,
                           BodyLiteralArray const &body) -> StatementEdge;
@@ -4905,6 +5016,8 @@ class StatementHeuristic {
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<StatementHeuristic>;
 
+    auto update(Library &lib, py::kwargs const &kwargs) -> StatementHeuristic;
+
     static auto construct(Library &lib, clingo_location_t const &location, Term const &atom,
                           BodyLiteralArray const &body, Term const &weight, Term const &modifier,
                           OptionalTerm const &priority) -> StatementHeuristic;
@@ -4986,8 +5099,10 @@ class StatementScript {
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
-    static auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<StatementScript>;
+
+    auto update(Library &lib, py::kwargs const &kwargs) -> StatementScript;
 
     static auto construct(Library &lib, clingo_location_t const &location, char const *value, char const *script_type)
         -> StatementScript;
@@ -5069,8 +5184,10 @@ class StatementInclude {
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
-    static auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<StatementInclude>;
+
+    auto update(Library &lib, py::kwargs const &kwargs) -> StatementInclude;
 
     static auto construct(Library &lib, clingo_location_t const &location, char const *value,
                           IncludeType const &include_type) -> StatementInclude;
@@ -5152,8 +5269,10 @@ class StatementProgram {
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
-    static auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<StatementProgram>;
+
+    auto update(Library &lib, py::kwargs const &kwargs) -> StatementProgram;
 
     static auto construct(Library &lib, clingo_location_t const &location, char const *name,
                           StringArray const &arguments) -> StatementProgram;
@@ -5240,6 +5359,8 @@ class StatementConst {
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<StatementConst>;
 
+    auto update(Library &lib, py::kwargs const &kwargs) -> StatementConst;
+
     static auto construct(Library &lib, clingo_location_t const &location, char const *name, Term const &value,
                           ConstType const &const_type) -> StatementConst;
 
@@ -5320,8 +5441,10 @@ class StatementComment {
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
 
-    static auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
         -> std::optional<StatementComment>;
+
+    auto update(Library &lib, py::kwargs const &kwargs) -> StatementComment;
 
     static auto construct(Library &lib, clingo_location_t const &location, char const *value,
                           CommentType const &comment_type) -> StatementComment;
@@ -5405,6 +5528,11 @@ void Projection::visit(py::handle visitor, py::args const &args, py::kwargs cons
 auto Projection::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
     -> std::optional<Projection> {
     return std::nullopt;
+}
+
+auto Projection::update(Library &lib, py::kwargs const &kwargs) -> Projection {
+    return Projection::construct(lib,
+                                 update_value<clingo_location_t>(lib, this, &Projection::location, kwargs, "location"));
 }
 
 auto construct_term_or_projection(clingo_ast_t *ast) -> TermOrProjection {
@@ -5569,6 +5697,13 @@ auto TermVariable::transform(Library &lib, py::handle transform, py::args const 
     return std::nullopt;
 }
 
+auto TermVariable::update(Library &lib, py::kwargs const &kwargs) -> TermVariable {
+    return TermVariable::construct(
+        lib, update_value<clingo_location_t>(lib, this, &TermVariable::location, kwargs, "location"),
+        update_value<char const *>(lib, this, &TermVariable::name, kwargs, "name"),
+        update_value<bool>(lib, this, &TermVariable::anonymous, kwargs, "anonymous"));
+}
+
 auto TermSymbolic::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -5596,6 +5731,12 @@ void TermSymbolic::visit(py::handle visitor, py::args const &args, py::kwargs co
 auto TermSymbolic::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
     -> std::optional<TermSymbolic> {
     return std::nullopt;
+}
+
+auto TermSymbolic::update(Library &lib, py::kwargs const &kwargs) -> TermSymbolic {
+    return TermSymbolic::construct(
+        lib, update_value<clingo_location_t>(lib, this, &TermSymbolic::location, kwargs, "location"),
+        update_value<Symbol>(lib, this, &TermSymbolic::symbol, kwargs, "symbol"));
 }
 
 auto TermAbsolute::location() -> clingo_location_t {
@@ -5633,6 +5774,12 @@ auto TermAbsolute::transform(Library &lib, py::handle transform, py::args const 
         return TermAbsolute::construct(lib, location(), pool_value);
     }
     return std::nullopt;
+}
+
+auto TermAbsolute::update(Library &lib, py::kwargs const &kwargs) -> TermAbsolute {
+    return TermAbsolute::construct(
+        lib, update_value<clingo_location_t>(lib, this, &TermAbsolute::location, kwargs, "location"),
+        update_value<TermArray>(lib, this, &TermAbsolute::pool, kwargs, "pool"));
 }
 
 auto TermUnaryOperation::location() -> clingo_location_t {
@@ -5678,6 +5825,13 @@ auto TermUnaryOperation::transform(Library &lib, py::handle transform, py::args 
         return TermUnaryOperation::construct(lib, location(), operator_type(), right_value);
     }
     return std::nullopt;
+}
+
+auto TermUnaryOperation::update(Library &lib, py::kwargs const &kwargs) -> TermUnaryOperation {
+    return TermUnaryOperation::construct(
+        lib, update_value<clingo_location_t>(lib, this, &TermUnaryOperation::location, kwargs, "location"),
+        update_value<UnaryOperator>(lib, this, &TermUnaryOperation::operator_type, kwargs, "operator_type"),
+        update_value<Term>(lib, this, &TermUnaryOperation::right, kwargs, "right"));
 }
 
 auto TermBinaryOperation::location() -> clingo_location_t {
@@ -5735,6 +5889,14 @@ auto TermBinaryOperation::transform(Library &lib, py::handle transform, py::args
     return std::nullopt;
 }
 
+auto TermBinaryOperation::update(Library &lib, py::kwargs const &kwargs) -> TermBinaryOperation {
+    return TermBinaryOperation::construct(
+        lib, update_value<clingo_location_t>(lib, this, &TermBinaryOperation::location, kwargs, "location"),
+        update_value<Term>(lib, this, &TermBinaryOperation::left, kwargs, "left"),
+        update_value<BinaryOperator>(lib, this, &TermBinaryOperation::operator_type, kwargs, "operator_type"),
+        update_value<Term>(lib, this, &TermBinaryOperation::right, kwargs, "right"));
+}
+
 auto TermTuple::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -5771,6 +5933,12 @@ auto TermTuple::transform(Library &lib, py::handle transform, py::args const &ar
         return TermTuple::construct(lib, location(), pool_value);
     }
     return std::nullopt;
+}
+
+auto TermTuple::update(Library &lib, py::kwargs const &kwargs) -> TermTuple {
+    return TermTuple::construct(lib,
+                                update_value<clingo_location_t>(lib, this, &TermTuple::location, kwargs, "location"),
+                                update_value<TermOrArgumentTupleArray>(lib, this, &TermTuple::pool, kwargs, "pool"));
 }
 
 auto TermFunction::location() -> clingo_location_t {
@@ -5827,28 +5995,12 @@ auto TermFunction::transform(Library &lib, py::handle transform, py::args const 
     return std::nullopt;
 }
 
-template <class T, class F, class M>
-auto get_value(Clingo::Library &lib, F *self, M fun, py::kwargs const &kwargs, char const *attr) -> T {
-    if constexpr (std::is_same_v<T, char const *>) {
-        if (kwargs.contains(attr)) {
-            char const *res;
-            clingo_add_string(lib, py::cast<std::string>(kwargs[attr]).c_str(), &res);
-            return res;
-        }
-    } else {
-        if (kwargs.contains(attr)) {
-            return py::cast<T>(kwargs[attr]);
-        }
-    }
-    return (self->*fun)();
-}
-
 auto TermFunction::update(Library &lib, py::kwargs const &kwargs) -> TermFunction {
-    return TermFunction::construct(lib,
-                                   get_value<clingo_location_t>(lib, this, &TermFunction::location, kwargs, "location"),
-                                   get_value<char const *>(lib, this, &TermFunction::name, kwargs, "name"),
-                                   get_value<ArgumentTupleArray>(lib, this, &TermFunction::pool, kwargs, "pool"),
-                                   get_value<bool>(lib, this, &TermFunction::external, kwargs, "external"));
+    return TermFunction::construct(
+        lib, update_value<clingo_location_t>(lib, this, &TermFunction::location, kwargs, "location"),
+        update_value<char const *>(lib, this, &TermFunction::name, kwargs, "name"),
+        update_value<ArgumentTupleArray>(lib, this, &TermFunction::pool, kwargs, "pool"),
+        update_value<bool>(lib, this, &TermFunction::external, kwargs, "external"));
 }
 
 auto ArgumentTuple::arguments() -> TermOrProjectionArray {
@@ -5878,6 +6030,11 @@ auto ArgumentTuple::transform(Library &lib, py::handle transform, py::args const
         return ArgumentTuple::construct(lib, arguments_value);
     }
     return std::nullopt;
+}
+
+auto ArgumentTuple::update(Library &lib, py::kwargs const &kwargs) -> ArgumentTuple {
+    return ArgumentTuple::construct(
+        lib, update_value<TermOrProjectionArray>(lib, this, &ArgumentTuple::arguments, kwargs, "arguments"));
 }
 
 auto construct_literal(clingo_ast_t *ast) -> Literal {
@@ -5937,6 +6094,11 @@ auto LeftGuard::transform(Library &lib, py::handle transform, py::args const &ar
     return std::nullopt;
 }
 
+auto LeftGuard::update(Library &lib, py::kwargs const &kwargs) -> LeftGuard {
+    return LeftGuard::construct(lib, update_value<Term>(lib, this, &LeftGuard::term, kwargs, "term"),
+                                update_value<Relation>(lib, this, &LeftGuard::relation, kwargs, "relation"));
+}
+
 auto RightGuard::relation() -> Relation {
     int ret;
     if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_relation, &ret)) {
@@ -5971,6 +6133,11 @@ auto RightGuard::transform(Library &lib, py::handle transform, py::args const &a
         return RightGuard::construct(lib, relation(), term_value);
     }
     return std::nullopt;
+}
+
+auto RightGuard::update(Library &lib, py::kwargs const &kwargs) -> RightGuard {
+    return RightGuard::construct(lib, update_value<Relation>(lib, this, &RightGuard::relation, kwargs, "relation"),
+                                 update_value<Term>(lib, this, &RightGuard::term, kwargs, "term"));
 }
 
 auto construct_right_guard_array(clingo_ast_t **ast, size_t size) -> RightGuardArray {
@@ -6029,6 +6196,13 @@ auto LiteralBoolean::transform(Library &lib, py::handle transform, py::args cons
     return std::nullopt;
 }
 
+auto LiteralBoolean::update(Library &lib, py::kwargs const &kwargs) -> LiteralBoolean {
+    return LiteralBoolean::construct(
+        lib, update_value<clingo_location_t>(lib, this, &LiteralBoolean::location, kwargs, "location"),
+        update_value<Sign>(lib, this, &LiteralBoolean::sign, kwargs, "sign"),
+        update_value<bool>(lib, this, &LiteralBoolean::value, kwargs, "value"));
+}
+
 auto LiteralComparison::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -6085,6 +6259,14 @@ auto LiteralComparison::transform(Library &lib, py::handle transform, py::args c
     return std::nullopt;
 }
 
+auto LiteralComparison::update(Library &lib, py::kwargs const &kwargs) -> LiteralComparison {
+    return LiteralComparison::construct(
+        lib, update_value<clingo_location_t>(lib, this, &LiteralComparison::location, kwargs, "location"),
+        update_value<Sign>(lib, this, &LiteralComparison::sign, kwargs, "sign"),
+        update_value<Term>(lib, this, &LiteralComparison::left, kwargs, "left"),
+        update_value<RightGuardArray>(lib, this, &LiteralComparison::right, kwargs, "right"));
+}
+
 auto LiteralSymbolic::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -6128,6 +6310,13 @@ auto LiteralSymbolic::transform(Library &lib, py::handle transform, py::args con
         return LiteralSymbolic::construct(lib, location(), sign(), atom_value);
     }
     return std::nullopt;
+}
+
+auto LiteralSymbolic::update(Library &lib, py::kwargs const &kwargs) -> LiteralSymbolic {
+    return LiteralSymbolic::construct(
+        lib, update_value<clingo_location_t>(lib, this, &LiteralSymbolic::location, kwargs, "location"),
+        update_value<Sign>(lib, this, &LiteralSymbolic::sign, kwargs, "sign"),
+        update_value<Term>(lib, this, &LiteralSymbolic::atom, kwargs, "atom"));
 }
 
 auto construct_theory_term(clingo_ast_t *ast) -> TheoryTerm {
@@ -6215,6 +6404,12 @@ auto UnparsedElement::transform(Library &lib, py::handle transform, py::args con
     return std::nullopt;
 }
 
+auto UnparsedElement::update(Library &lib, py::kwargs const &kwargs) -> UnparsedElement {
+    return UnparsedElement::construct(
+        lib, update_value<StringArray>(lib, this, &UnparsedElement::operators, kwargs, "operators"),
+        update_value<TheoryTerm>(lib, this, &UnparsedElement::term, kwargs, "term"));
+}
+
 auto construct_unparsed_element_array(clingo_ast_t **ast, size_t size) -> UnparsedElementArray {
     UnparsedElementArray ret;
     try {
@@ -6271,6 +6466,13 @@ auto TheoryTermVariable::transform(Library &lib, py::handle transform, py::args 
     return std::nullopt;
 }
 
+auto TheoryTermVariable::update(Library &lib, py::kwargs const &kwargs) -> TheoryTermVariable {
+    return TheoryTermVariable::construct(
+        lib, update_value<clingo_location_t>(lib, this, &TheoryTermVariable::location, kwargs, "location"),
+        update_value<char const *>(lib, this, &TheoryTermVariable::name, kwargs, "name"),
+        update_value<bool>(lib, this, &TheoryTermVariable::anonymous, kwargs, "anonymous"));
+}
+
 auto TheoryTermSymbolic::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -6300,6 +6502,12 @@ void TheoryTermSymbolic::visit(py::handle visitor, py::args const &args, py::kwa
 auto TheoryTermSymbolic::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
     -> std::optional<TheoryTermSymbolic> {
     return std::nullopt;
+}
+
+auto TheoryTermSymbolic::update(Library &lib, py::kwargs const &kwargs) -> TheoryTermSymbolic {
+    return TheoryTermSymbolic::construct(
+        lib, update_value<clingo_location_t>(lib, this, &TheoryTermSymbolic::location, kwargs, "location"),
+        update_value<Symbol>(lib, this, &TheoryTermSymbolic::symbol, kwargs, "symbol"));
 }
 
 auto TheoryTermTuple::location() -> clingo_location_t {
@@ -6348,6 +6556,13 @@ auto TheoryTermTuple::transform(Library &lib, py::handle transform, py::args con
     return std::nullopt;
 }
 
+auto TheoryTermTuple::update(Library &lib, py::kwargs const &kwargs) -> TheoryTermTuple {
+    return TheoryTermTuple::construct(
+        lib, update_value<clingo_location_t>(lib, this, &TheoryTermTuple::location, kwargs, "location"),
+        update_value<TheoryTupleType>(lib, this, &TheoryTermTuple::tuple_type, kwargs, "tuple_type"),
+        update_value<TheoryTermArray>(lib, this, &TheoryTermTuple::arguments, kwargs, "arguments"));
+}
+
 auto TheoryTermFunction::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -6394,6 +6609,13 @@ auto TheoryTermFunction::transform(Library &lib, py::handle transform, py::args 
     return std::nullopt;
 }
 
+auto TheoryTermFunction::update(Library &lib, py::kwargs const &kwargs) -> TheoryTermFunction {
+    return TheoryTermFunction::construct(
+        lib, update_value<clingo_location_t>(lib, this, &TheoryTermFunction::location, kwargs, "location"),
+        update_value<char const *>(lib, this, &TheoryTermFunction::name, kwargs, "name"),
+        update_value<TheoryTermArray>(lib, this, &TheoryTermFunction::arguments, kwargs, "arguments"));
+}
+
 auto TheoryTermUnparsed::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -6432,6 +6654,12 @@ auto TheoryTermUnparsed::transform(Library &lib, py::handle transform, py::args 
     return std::nullopt;
 }
 
+auto TheoryTermUnparsed::update(Library &lib, py::kwargs const &kwargs) -> TheoryTermUnparsed {
+    return TheoryTermUnparsed::construct(
+        lib, update_value<clingo_location_t>(lib, this, &TheoryTermUnparsed::location, kwargs, "location"),
+        update_value<UnparsedElementArray>(lib, this, &TheoryTermUnparsed::elements, kwargs, "elements"));
+}
+
 auto TheoryRightGuard::theory_operator() -> char const * {
     char const *ret;
     if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_theory_operator, &ret)) {
@@ -6467,6 +6695,12 @@ auto TheoryRightGuard::transform(Library &lib, py::handle transform, py::args co
         return TheoryRightGuard::construct(lib, theory_operator(), term_value);
     }
     return std::nullopt;
+}
+
+auto TheoryRightGuard::update(Library &lib, py::kwargs const &kwargs) -> TheoryRightGuard {
+    return TheoryRightGuard::construct(
+        lib, update_value<char const *>(lib, this, &TheoryRightGuard::theory_operator, kwargs, "theory_operator"),
+        update_value<TheoryTerm>(lib, this, &TheoryRightGuard::term, kwargs, "term"));
 }
 
 auto construct_literal_array(clingo_ast_t **ast, size_t size) -> LiteralArray {
@@ -6532,6 +6766,13 @@ auto SetAggregateElement::transform(Library &lib, py::handle transform, py::args
         return SetAggregateElement::construct(lib, location(), literal_value, condition_value);
     }
     return std::nullopt;
+}
+
+auto SetAggregateElement::update(Library &lib, py::kwargs const &kwargs) -> SetAggregateElement {
+    return SetAggregateElement::construct(
+        lib, update_value<clingo_location_t>(lib, this, &SetAggregateElement::location, kwargs, "location"),
+        update_value<Literal>(lib, this, &SetAggregateElement::literal, kwargs, "literal"),
+        update_value<LiteralArray>(lib, this, &SetAggregateElement::condition, kwargs, "condition"));
 }
 
 auto construct_set_aggregate_element_array(clingo_ast_t **ast, size_t size) -> SetAggregateElementArray {
@@ -6601,6 +6842,13 @@ auto BodyAggregateElement::transform(Library &lib, py::handle transform, py::arg
     return std::nullopt;
 }
 
+auto BodyAggregateElement::update(Library &lib, py::kwargs const &kwargs) -> BodyAggregateElement {
+    return BodyAggregateElement::construct(
+        lib, update_value<clingo_location_t>(lib, this, &BodyAggregateElement::location, kwargs, "location"),
+        update_value<TermArray>(lib, this, &BodyAggregateElement::tuple, kwargs, "tuple"),
+        update_value<LiteralArray>(lib, this, &BodyAggregateElement::condition, kwargs, "condition"));
+}
+
 auto construct_body_aggregate_element_array(clingo_ast_t **ast, size_t size) -> BodyAggregateElementArray {
     BodyAggregateElementArray ret;
     try {
@@ -6666,6 +6914,13 @@ auto TheoryAtomElement::transform(Library &lib, py::handle transform, py::args c
         return TheoryAtomElement::construct(lib, location(), tuple_value, condition_value);
     }
     return std::nullopt;
+}
+
+auto TheoryAtomElement::update(Library &lib, py::kwargs const &kwargs) -> TheoryAtomElement {
+    return TheoryAtomElement::construct(
+        lib, update_value<clingo_location_t>(lib, this, &TheoryAtomElement::location, kwargs, "location"),
+        update_value<TheoryTermArray>(lib, this, &TheoryAtomElement::tuple, kwargs, "tuple"),
+        update_value<LiteralArray>(lib, this, &TheoryAtomElement::condition, kwargs, "condition"));
 }
 
 auto construct_theory_atom_element_array(clingo_ast_t **ast, size_t size) -> TheoryAtomElementArray {
@@ -6754,6 +7009,11 @@ auto BodySimpleLiteral::transform(Library &lib, py::handle transform, py::args c
         return BodySimpleLiteral::construct(lib, literal_value);
     }
     return std::nullopt;
+}
+
+auto BodySimpleLiteral::update(Library &lib, py::kwargs const &kwargs) -> BodySimpleLiteral {
+    return BodySimpleLiteral::construct(
+        lib, update_value<Literal>(lib, this, &BodySimpleLiteral::literal, kwargs, "literal"));
 }
 
 auto BodyAggregate::location() -> clingo_location_t {
@@ -6845,6 +7105,16 @@ auto BodyAggregate::transform(Library &lib, py::handle transform, py::args const
     return std::nullopt;
 }
 
+auto BodyAggregate::update(Library &lib, py::kwargs const &kwargs) -> BodyAggregate {
+    return BodyAggregate::construct(
+        lib, update_value<clingo_location_t>(lib, this, &BodyAggregate::location, kwargs, "location"),
+        update_value<Sign>(lib, this, &BodyAggregate::sign, kwargs, "sign"),
+        update_value<OptionalLeftGuard>(lib, this, &BodyAggregate::left, kwargs, "left"),
+        update_value<AggregateFunction>(lib, this, &BodyAggregate::function, kwargs, "function"),
+        update_value<BodyAggregateElementArray>(lib, this, &BodyAggregate::elements, kwargs, "elements"),
+        update_value<OptionalRightGuard>(lib, this, &BodyAggregate::right, kwargs, "right"));
+}
+
 auto BodySetAggregate::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -6925,6 +7195,15 @@ auto BodySetAggregate::transform(Library &lib, py::handle transform, py::args co
     return std::nullopt;
 }
 
+auto BodySetAggregate::update(Library &lib, py::kwargs const &kwargs) -> BodySetAggregate {
+    return BodySetAggregate::construct(
+        lib, update_value<clingo_location_t>(lib, this, &BodySetAggregate::location, kwargs, "location"),
+        update_value<Sign>(lib, this, &BodySetAggregate::sign, kwargs, "sign"),
+        update_value<OptionalLeftGuard>(lib, this, &BodySetAggregate::left, kwargs, "left"),
+        update_value<SetAggregateElementArray>(lib, this, &BodySetAggregate::elements, kwargs, "elements"),
+        update_value<OptionalRightGuard>(lib, this, &BodySetAggregate::right, kwargs, "right"));
+}
+
 auto BodyTheoryAtom::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -6999,6 +7278,15 @@ auto BodyTheoryAtom::transform(Library &lib, py::handle transform, py::args cons
     return std::nullopt;
 }
 
+auto BodyTheoryAtom::update(Library &lib, py::kwargs const &kwargs) -> BodyTheoryAtom {
+    return BodyTheoryAtom::construct(
+        lib, update_value<clingo_location_t>(lib, this, &BodyTheoryAtom::location, kwargs, "location"),
+        update_value<Sign>(lib, this, &BodyTheoryAtom::sign, kwargs, "sign"),
+        update_value<Term>(lib, this, &BodyTheoryAtom::name, kwargs, "name"),
+        update_value<TheoryAtomElementArray>(lib, this, &BodyTheoryAtom::elements, kwargs, "elements"),
+        update_value<OptionalTheoryRightGuard>(lib, this, &BodyTheoryAtom::right, kwargs, "right"));
+}
+
 auto BodyConditionalLiteral::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -7047,6 +7335,13 @@ auto BodyConditionalLiteral::transform(Library &lib, py::handle transform, py::a
     return std::nullopt;
 }
 
+auto BodyConditionalLiteral::update(Library &lib, py::kwargs const &kwargs) -> BodyConditionalLiteral {
+    return BodyConditionalLiteral::construct(
+        lib, update_value<clingo_location_t>(lib, this, &BodyConditionalLiteral::location, kwargs, "location"),
+        update_value<Literal>(lib, this, &BodyConditionalLiteral::literal, kwargs, "literal"),
+        update_value<LiteralArray>(lib, this, &BodyConditionalLiteral::condition, kwargs, "condition"));
+}
+
 auto HeadConditionalLiteral::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -7093,6 +7388,13 @@ auto HeadConditionalLiteral::transform(Library &lib, py::handle transform, py::a
         return HeadConditionalLiteral::construct(lib, location(), literal_value, condition_value);
     }
     return std::nullopt;
+}
+
+auto HeadConditionalLiteral::update(Library &lib, py::kwargs const &kwargs) -> HeadConditionalLiteral {
+    return HeadConditionalLiteral::construct(
+        lib, update_value<clingo_location_t>(lib, this, &HeadConditionalLiteral::location, kwargs, "location"),
+        update_value<Literal>(lib, this, &HeadConditionalLiteral::literal, kwargs, "literal"),
+        update_value<LiteralArray>(lib, this, &HeadConditionalLiteral::condition, kwargs, "condition"));
 }
 
 auto construct_disjunction_element(clingo_ast_t *ast) -> DisjunctionElement {
@@ -7196,6 +7498,14 @@ auto HeadAggregateElement::transform(Library &lib, py::handle transform, py::arg
     return std::nullopt;
 }
 
+auto HeadAggregateElement::update(Library &lib, py::kwargs const &kwargs) -> HeadAggregateElement {
+    return HeadAggregateElement::construct(
+        lib, update_value<clingo_location_t>(lib, this, &HeadAggregateElement::location, kwargs, "location"),
+        update_value<TermArray>(lib, this, &HeadAggregateElement::tuple, kwargs, "tuple"),
+        update_value<Literal>(lib, this, &HeadAggregateElement::literal, kwargs, "literal"),
+        update_value<LiteralArray>(lib, this, &HeadAggregateElement::condition, kwargs, "condition"));
+}
+
 auto construct_head_aggregate_element_array(clingo_ast_t **ast, size_t size) -> HeadAggregateElementArray {
     HeadAggregateElementArray ret;
     try {
@@ -7265,6 +7575,11 @@ auto HeadSimpleLiteral::transform(Library &lib, py::handle transform, py::args c
         return HeadSimpleLiteral::construct(lib, literal_value);
     }
     return std::nullopt;
+}
+
+auto HeadSimpleLiteral::update(Library &lib, py::kwargs const &kwargs) -> HeadSimpleLiteral {
+    return HeadSimpleLiteral::construct(
+        lib, update_value<Literal>(lib, this, &HeadSimpleLiteral::literal, kwargs, "literal"));
 }
 
 auto HeadAggregate::location() -> clingo_location_t {
@@ -7347,6 +7662,15 @@ auto HeadAggregate::transform(Library &lib, py::handle transform, py::args const
     return std::nullopt;
 }
 
+auto HeadAggregate::update(Library &lib, py::kwargs const &kwargs) -> HeadAggregate {
+    return HeadAggregate::construct(
+        lib, update_value<clingo_location_t>(lib, this, &HeadAggregate::location, kwargs, "location"),
+        update_value<OptionalLeftGuard>(lib, this, &HeadAggregate::left, kwargs, "left"),
+        update_value<AggregateFunction>(lib, this, &HeadAggregate::function, kwargs, "function"),
+        update_value<HeadAggregateElementArray>(lib, this, &HeadAggregate::elements, kwargs, "elements"),
+        update_value<OptionalRightGuard>(lib, this, &HeadAggregate::right, kwargs, "right"));
+}
+
 auto HeadSetAggregate::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -7418,6 +7742,14 @@ auto HeadSetAggregate::transform(Library &lib, py::handle transform, py::args co
     return std::nullopt;
 }
 
+auto HeadSetAggregate::update(Library &lib, py::kwargs const &kwargs) -> HeadSetAggregate {
+    return HeadSetAggregate::construct(
+        lib, update_value<clingo_location_t>(lib, this, &HeadSetAggregate::location, kwargs, "location"),
+        update_value<OptionalLeftGuard>(lib, this, &HeadSetAggregate::left, kwargs, "left"),
+        update_value<SetAggregateElementArray>(lib, this, &HeadSetAggregate::elements, kwargs, "elements"),
+        update_value<OptionalRightGuard>(lib, this, &HeadSetAggregate::right, kwargs, "right"));
+}
+
 auto HeadTheoryAtom::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -7483,6 +7815,14 @@ auto HeadTheoryAtom::transform(Library &lib, py::handle transform, py::args cons
     return std::nullopt;
 }
 
+auto HeadTheoryAtom::update(Library &lib, py::kwargs const &kwargs) -> HeadTheoryAtom {
+    return HeadTheoryAtom::construct(
+        lib, update_value<clingo_location_t>(lib, this, &HeadTheoryAtom::location, kwargs, "location"),
+        update_value<Term>(lib, this, &HeadTheoryAtom::name, kwargs, "name"),
+        update_value<TheoryAtomElementArray>(lib, this, &HeadTheoryAtom::elements, kwargs, "elements"),
+        update_value<OptionalTheoryRightGuard>(lib, this, &HeadTheoryAtom::right, kwargs, "right"));
+}
+
 auto HeadDisjunction::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -7519,6 +7859,12 @@ auto HeadDisjunction::transform(Library &lib, py::handle transform, py::args con
         return HeadDisjunction::construct(lib, location(), elements_value);
     }
     return std::nullopt;
+}
+
+auto HeadDisjunction::update(Library &lib, py::kwargs const &kwargs) -> HeadDisjunction {
+    return HeadDisjunction::construct(
+        lib, update_value<clingo_location_t>(lib, this, &HeadDisjunction::location, kwargs, "location"),
+        update_value<DisjunctionElementArray>(lib, this, &HeadDisjunction::elements, kwargs, "elements"));
 }
 
 auto TheoryOperatorDefinition::location() -> clingo_location_t {
@@ -7567,6 +7913,14 @@ void TheoryOperatorDefinition::visit(py::handle visitor, py::args const &args, p
 auto TheoryOperatorDefinition::transform(Library &lib, py::handle transform, py::args const &args,
                                          py::kwargs const &kwargs) -> std::optional<TheoryOperatorDefinition> {
     return std::nullopt;
+}
+
+auto TheoryOperatorDefinition::update(Library &lib, py::kwargs const &kwargs) -> TheoryOperatorDefinition {
+    return TheoryOperatorDefinition::construct(
+        lib, update_value<clingo_location_t>(lib, this, &TheoryOperatorDefinition::location, kwargs, "location"),
+        update_value<char const *>(lib, this, &TheoryOperatorDefinition::name, kwargs, "name"),
+        update_value<int>(lib, this, &TheoryOperatorDefinition::priority, kwargs, "priority"),
+        update_value<TheoryOperatorType>(lib, this, &TheoryOperatorDefinition::operator_type, kwargs, "operator_type"));
 }
 
 auto construct_theory_operator_definition_array(clingo_ast_t **ast, size_t size) -> TheoryOperatorDefinitionArray {
@@ -7632,6 +7986,13 @@ auto TheoryTermDefinition::transform(Library &lib, py::handle transform, py::arg
     return std::nullopt;
 }
 
+auto TheoryTermDefinition::update(Library &lib, py::kwargs const &kwargs) -> TheoryTermDefinition {
+    return TheoryTermDefinition::construct(
+        lib, update_value<clingo_location_t>(lib, this, &TheoryTermDefinition::location, kwargs, "location"),
+        update_value<char const *>(lib, this, &TheoryTermDefinition::name, kwargs, "name"),
+        update_value<TheoryOperatorDefinitionArray>(lib, this, &TheoryTermDefinition::operators, kwargs, "operators"));
+}
+
 auto construct_theory_term_definition_array(clingo_ast_t **ast, size_t size) -> TheoryTermDefinitionArray {
     TheoryTermDefinitionArray ret;
     try {
@@ -7683,6 +8044,12 @@ void TheoryGuardDefinition::visit(py::handle visitor, py::args const &args, py::
 auto TheoryGuardDefinition::transform(Library &lib, py::handle transform, py::args const &args,
                                       py::kwargs const &kwargs) -> std::optional<TheoryGuardDefinition> {
     return std::nullopt;
+}
+
+auto TheoryGuardDefinition::update(Library &lib, py::kwargs const &kwargs) -> TheoryGuardDefinition {
+    return TheoryGuardDefinition::construct(
+        lib, update_value<StringArray>(lib, this, &TheoryGuardDefinition::operators, kwargs, "operators"),
+        update_value<char const *>(lib, this, &TheoryGuardDefinition::term, kwargs, "term"));
 }
 
 auto TheoryAtomDefinition::location() -> clingo_location_t {
@@ -7761,6 +8128,16 @@ auto TheoryAtomDefinition::transform(Library &lib, py::handle transform, py::arg
     return std::nullopt;
 }
 
+auto TheoryAtomDefinition::update(Library &lib, py::kwargs const &kwargs) -> TheoryAtomDefinition {
+    return TheoryAtomDefinition::construct(
+        lib, update_value<clingo_location_t>(lib, this, &TheoryAtomDefinition::location, kwargs, "location"),
+        update_value<char const *>(lib, this, &TheoryAtomDefinition::name, kwargs, "name"),
+        update_value<int>(lib, this, &TheoryAtomDefinition::arity, kwargs, "arity"),
+        update_value<char const *>(lib, this, &TheoryAtomDefinition::term, kwargs, "term"),
+        update_value<OptionalTheoryGuardDefinition>(lib, this, &TheoryAtomDefinition::guard, kwargs, "guard"),
+        update_value<TheoryAtomType>(lib, this, &TheoryAtomDefinition::atom_type, kwargs, "atom_type"));
+}
+
 auto construct_theory_atom_definition_array(clingo_ast_t **ast, size_t size) -> TheoryAtomDefinitionArray {
     TheoryAtomDefinitionArray ret;
     try {
@@ -7834,6 +8211,12 @@ auto OptimizeTuple::transform(Library &lib, py::handle transform, py::args const
     return std::nullopt;
 }
 
+auto OptimizeTuple::update(Library &lib, py::kwargs const &kwargs) -> OptimizeTuple {
+    return OptimizeTuple::construct(lib, update_value<Term>(lib, this, &OptimizeTuple::weight, kwargs, "weight"),
+                                    update_value<OptionalTerm>(lib, this, &OptimizeTuple::priority, kwargs, "priority"),
+                                    update_value<TermArray>(lib, this, &OptimizeTuple::terms, kwargs, "terms"));
+}
+
 auto OptimizeElement::tuple() -> OptimizeTuple {
     clingo_ast_t *ast;
     if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_tuple, &ast)) {
@@ -7872,6 +8255,12 @@ auto OptimizeElement::transform(Library &lib, py::handle transform, py::args con
         return OptimizeElement::construct(lib, tuple_value, condition_value);
     }
     return std::nullopt;
+}
+
+auto OptimizeElement::update(Library &lib, py::kwargs const &kwargs) -> OptimizeElement {
+    return OptimizeElement::construct(
+        lib, update_value<OptimizeTuple>(lib, this, &OptimizeElement::tuple, kwargs, "tuple"),
+        update_value<LiteralArray>(lib, this, &OptimizeElement::condition, kwargs, "condition"));
 }
 
 auto construct_optimize_element_array(clingo_ast_t **ast, size_t size) -> OptimizeElementArray {
@@ -7926,6 +8315,11 @@ auto Edge::transform(Library &lib, py::handle transform, py::args const &args, p
         return Edge::construct(lib, u_value, v_value);
     }
     return std::nullopt;
+}
+
+auto Edge::update(Library &lib, py::kwargs const &kwargs) -> Edge {
+    return Edge::construct(lib, update_value<Term>(lib, this, &Edge::u, kwargs, "u"),
+                           update_value<Term>(lib, this, &Edge::v, kwargs, "v"));
 }
 
 auto construct_edge_array(clingo_ast_t **ast, size_t size) -> EdgeArray {
@@ -8056,6 +8450,13 @@ auto StatementRule::transform(Library &lib, py::handle transform, py::args const
     return std::nullopt;
 }
 
+auto StatementRule::update(Library &lib, py::kwargs const &kwargs) -> StatementRule {
+    return StatementRule::construct(
+        lib, update_value<clingo_location_t>(lib, this, &StatementRule::location, kwargs, "location"),
+        update_value<HeadLiteral>(lib, this, &StatementRule::head, kwargs, "head"),
+        update_value<BodyLiteralArray>(lib, this, &StatementRule::body, kwargs, "body"));
+}
+
 auto StatementTheory::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -8114,6 +8515,14 @@ auto StatementTheory::transform(Library &lib, py::handle transform, py::args con
     return std::nullopt;
 }
 
+auto StatementTheory::update(Library &lib, py::kwargs const &kwargs) -> StatementTheory {
+    return StatementTheory::construct(
+        lib, update_value<clingo_location_t>(lib, this, &StatementTheory::location, kwargs, "location"),
+        update_value<char const *>(lib, this, &StatementTheory::name, kwargs, "name"),
+        update_value<TheoryTermDefinitionArray>(lib, this, &StatementTheory::terms, kwargs, "terms"),
+        update_value<TheoryAtomDefinitionArray>(lib, this, &StatementTheory::atoms, kwargs, "atoms"));
+}
+
 auto StatementOptimize::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -8158,6 +8567,13 @@ auto StatementOptimize::transform(Library &lib, py::handle transform, py::args c
         return StatementOptimize::construct(lib, location(), elements_value, optimize_type());
     }
     return std::nullopt;
+}
+
+auto StatementOptimize::update(Library &lib, py::kwargs const &kwargs) -> StatementOptimize {
+    return StatementOptimize::construct(
+        lib, update_value<clingo_location_t>(lib, this, &StatementOptimize::location, kwargs, "location"),
+        update_value<OptimizeElementArray>(lib, this, &StatementOptimize::elements, kwargs, "elements"),
+        update_value<OptimizeType>(lib, this, &StatementOptimize::optimize_type, kwargs, "optimize_type"));
 }
 
 auto StatementWeakConstraint::location() -> clingo_location_t {
@@ -8208,6 +8624,13 @@ auto StatementWeakConstraint::transform(Library &lib, py::handle transform, py::
     return std::nullopt;
 }
 
+auto StatementWeakConstraint::update(Library &lib, py::kwargs const &kwargs) -> StatementWeakConstraint {
+    return StatementWeakConstraint::construct(
+        lib, update_value<clingo_location_t>(lib, this, &StatementWeakConstraint::location, kwargs, "location"),
+        update_value<BodyLiteralArray>(lib, this, &StatementWeakConstraint::body, kwargs, "body"),
+        update_value<OptimizeTuple>(lib, this, &StatementWeakConstraint::tuple, kwargs, "tuple"));
+}
+
 auto StatementShow::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -8256,6 +8679,13 @@ auto StatementShow::transform(Library &lib, py::handle transform, py::args const
     return std::nullopt;
 }
 
+auto StatementShow::update(Library &lib, py::kwargs const &kwargs) -> StatementShow {
+    return StatementShow::construct(
+        lib, update_value<clingo_location_t>(lib, this, &StatementShow::location, kwargs, "location"),
+        update_value<Term>(lib, this, &StatementShow::term, kwargs, "term"),
+        update_value<BodyLiteralArray>(lib, this, &StatementShow::body, kwargs, "body"));
+}
+
 auto StatementShowSignature::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -8301,6 +8731,14 @@ void StatementShowSignature::visit(py::handle visitor, py::args const &args, py:
 auto StatementShowSignature::transform(Library &lib, py::handle transform, py::args const &args,
                                        py::kwargs const &kwargs) -> std::optional<StatementShowSignature> {
     return std::nullopt;
+}
+
+auto StatementShowSignature::update(Library &lib, py::kwargs const &kwargs) -> StatementShowSignature {
+    return StatementShowSignature::construct(
+        lib, update_value<clingo_location_t>(lib, this, &StatementShowSignature::location, kwargs, "location"),
+        update_value<char const *>(lib, this, &StatementShowSignature::name, kwargs, "name"),
+        update_value<int>(lib, this, &StatementShowSignature::arity, kwargs, "arity"),
+        update_value<bool>(lib, this, &StatementShowSignature::sign, kwargs, "sign"));
 }
 
 auto StatementProject::location() -> clingo_location_t {
@@ -8351,6 +8789,13 @@ auto StatementProject::transform(Library &lib, py::handle transform, py::args co
     return std::nullopt;
 }
 
+auto StatementProject::update(Library &lib, py::kwargs const &kwargs) -> StatementProject {
+    return StatementProject::construct(
+        lib, update_value<clingo_location_t>(lib, this, &StatementProject::location, kwargs, "location"),
+        update_value<Term>(lib, this, &StatementProject::atom, kwargs, "atom"),
+        update_value<BodyLiteralArray>(lib, this, &StatementProject::body, kwargs, "body"));
+}
+
 auto StatementProjectSignature::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -8398,6 +8843,14 @@ auto StatementProjectSignature::transform(Library &lib, py::handle transform, py
     return std::nullopt;
 }
 
+auto StatementProjectSignature::update(Library &lib, py::kwargs const &kwargs) -> StatementProjectSignature {
+    return StatementProjectSignature::construct(
+        lib, update_value<clingo_location_t>(lib, this, &StatementProjectSignature::location, kwargs, "location"),
+        update_value<char const *>(lib, this, &StatementProjectSignature::name, kwargs, "name"),
+        update_value<int>(lib, this, &StatementProjectSignature::arity, kwargs, "arity"),
+        update_value<bool>(lib, this, &StatementProjectSignature::sign, kwargs, "sign"));
+}
+
 auto StatementDefined::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -8443,6 +8896,14 @@ void StatementDefined::visit(py::handle visitor, py::args const &args, py::kwarg
 auto StatementDefined::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
     -> std::optional<StatementDefined> {
     return std::nullopt;
+}
+
+auto StatementDefined::update(Library &lib, py::kwargs const &kwargs) -> StatementDefined {
+    return StatementDefined::construct(
+        lib, update_value<clingo_location_t>(lib, this, &StatementDefined::location, kwargs, "location"),
+        update_value<char const *>(lib, this, &StatementDefined::name, kwargs, "name"),
+        update_value<int>(lib, this, &StatementDefined::arity, kwargs, "arity"),
+        update_value<bool>(lib, this, &StatementDefined::sign, kwargs, "sign"));
 }
 
 auto StatementExternal::location() -> clingo_location_t {
@@ -8510,6 +8971,14 @@ auto StatementExternal::transform(Library &lib, py::handle transform, py::args c
     return std::nullopt;
 }
 
+auto StatementExternal::update(Library &lib, py::kwargs const &kwargs) -> StatementExternal {
+    return StatementExternal::construct(
+        lib, update_value<clingo_location_t>(lib, this, &StatementExternal::location, kwargs, "location"),
+        update_value<Term>(lib, this, &StatementExternal::atom, kwargs, "atom"),
+        update_value<BodyLiteralArray>(lib, this, &StatementExternal::body, kwargs, "body"),
+        update_value<OptionalTerm>(lib, this, &StatementExternal::external_type, kwargs, "external_type"));
+}
+
 auto StatementEdge::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -8557,6 +9026,13 @@ auto StatementEdge::transform(Library &lib, py::handle transform, py::args const
         return StatementEdge::construct(lib, location(), pool_value, body_value);
     }
     return std::nullopt;
+}
+
+auto StatementEdge::update(Library &lib, py::kwargs const &kwargs) -> StatementEdge {
+    return StatementEdge::construct(
+        lib, update_value<clingo_location_t>(lib, this, &StatementEdge::location, kwargs, "location"),
+        update_value<EdgeArray>(lib, this, &StatementEdge::pool, kwargs, "pool"),
+        update_value<BodyLiteralArray>(lib, this, &StatementEdge::body, kwargs, "body"));
 }
 
 auto StatementHeuristic::location() -> clingo_location_t {
@@ -8646,6 +9122,16 @@ auto StatementHeuristic::transform(Library &lib, py::handle transform, py::args 
     return std::nullopt;
 }
 
+auto StatementHeuristic::update(Library &lib, py::kwargs const &kwargs) -> StatementHeuristic {
+    return StatementHeuristic::construct(
+        lib, update_value<clingo_location_t>(lib, this, &StatementHeuristic::location, kwargs, "location"),
+        update_value<Term>(lib, this, &StatementHeuristic::atom, kwargs, "atom"),
+        update_value<BodyLiteralArray>(lib, this, &StatementHeuristic::body, kwargs, "body"),
+        update_value<Term>(lib, this, &StatementHeuristic::weight, kwargs, "weight"),
+        update_value<Term>(lib, this, &StatementHeuristic::modifier, kwargs, "modifier"),
+        update_value<OptionalTerm>(lib, this, &StatementHeuristic::priority, kwargs, "priority"));
+}
+
 auto StatementScript::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -8685,6 +9171,13 @@ auto StatementScript::transform(Library &lib, py::handle transform, py::args con
     return std::nullopt;
 }
 
+auto StatementScript::update(Library &lib, py::kwargs const &kwargs) -> StatementScript {
+    return StatementScript::construct(
+        lib, update_value<clingo_location_t>(lib, this, &StatementScript::location, kwargs, "location"),
+        update_value<char const *>(lib, this, &StatementScript::value, kwargs, "value"),
+        update_value<char const *>(lib, this, &StatementScript::script_type, kwargs, "script_type"));
+}
+
 auto StatementInclude::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -8722,6 +9215,13 @@ void StatementInclude::visit(py::handle visitor, py::args const &args, py::kwarg
 auto StatementInclude::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
     -> std::optional<StatementInclude> {
     return std::nullopt;
+}
+
+auto StatementInclude::update(Library &lib, py::kwargs const &kwargs) -> StatementInclude {
+    return StatementInclude::construct(
+        lib, update_value<clingo_location_t>(lib, this, &StatementInclude::location, kwargs, "location"),
+        update_value<char const *>(lib, this, &StatementInclude::value, kwargs, "value"),
+        update_value<IncludeType>(lib, this, &StatementInclude::include_type, kwargs, "include_type"));
 }
 
 auto StatementProgram::location() -> clingo_location_t {
@@ -8766,6 +9266,13 @@ void StatementProgram::visit(py::handle visitor, py::args const &args, py::kwarg
 auto StatementProgram::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
     -> std::optional<StatementProgram> {
     return std::nullopt;
+}
+
+auto StatementProgram::update(Library &lib, py::kwargs const &kwargs) -> StatementProgram {
+    return StatementProgram::construct(
+        lib, update_value<clingo_location_t>(lib, this, &StatementProgram::location, kwargs, "location"),
+        update_value<char const *>(lib, this, &StatementProgram::name, kwargs, "name"),
+        update_value<StringArray>(lib, this, &StatementProgram::arguments, kwargs, "arguments"));
 }
 
 auto StatementConst::location() -> clingo_location_t {
@@ -8821,6 +9328,14 @@ auto StatementConst::transform(Library &lib, py::handle transform, py::args cons
     return std::nullopt;
 }
 
+auto StatementConst::update(Library &lib, py::kwargs const &kwargs) -> StatementConst {
+    return StatementConst::construct(
+        lib, update_value<clingo_location_t>(lib, this, &StatementConst::location, kwargs, "location"),
+        update_value<char const *>(lib, this, &StatementConst::name, kwargs, "name"),
+        update_value<Term>(lib, this, &StatementConst::value, kwargs, "value"),
+        update_value<ConstType>(lib, this, &StatementConst::const_type, kwargs, "const_type"));
+}
+
 auto StatementComment::location() -> clingo_location_t {
     clingo_location_t ret;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
@@ -8858,6 +9373,13 @@ void StatementComment::visit(py::handle visitor, py::args const &args, py::kwarg
 auto StatementComment::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
     -> std::optional<StatementComment> {
     return std::nullopt;
+}
+
+auto StatementComment::update(Library &lib, py::kwargs const &kwargs) -> StatementComment {
+    return StatementComment::construct(
+        lib, update_value<clingo_location_t>(lib, this, &StatementComment::location, kwargs, "location"),
+        update_value<char const *>(lib, this, &StatementComment::value, kwargs, "value"),
+        update_value<CommentType>(lib, this, &StatementComment::comment_type, kwargs, "comment_type"));
 }
 
 template <class T> auto c_cast(std::optional<T> const &opt) -> clingo_ast_t * {
@@ -8927,6 +9449,27 @@ auto transform_opt_value(Value opt, py::handle transform, py::args const &args, 
         return {res.is_none() ? std::move(opt) : py::cast<Value>(res), !res.is_none()};
     }
     return {std::nullopt, false};
+}
+
+template <class T, class F, class M>
+auto update_value(Clingo::Library &lib, F *self, M fun, py::kwargs const &kwargs, char const *attr) -> T {
+    if constexpr (std::is_same_v<T, char const *>) {
+        if (kwargs.contains(attr)) {
+            char const *res;
+            clingo_add_string(lib, py::cast<std::string>(kwargs[attr]).c_str(), &res);
+            return res;
+        }
+    } else {
+        if (kwargs.contains(attr)) {
+            return py::cast<T>(kwargs[attr]);
+        }
+    }
+    if constexpr (std::is_same_v<T, StringArray>) {
+        auto arr = (self->*fun)();
+        return StringArray{arr.begin(), arr.end()};
+    } else {
+        return (self->*fun)();
+    }
 }
 
 auto parse_term(Library &lib, char const *string) -> Term {
@@ -9368,6 +9911,15 @@ lib
 transformer
     The transformer accepting the sub expressions.
 )doc")
+        .def("update", &Projection::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -9410,6 +9962,15 @@ lib
 transformer
     The transformer accepting the sub expressions.
 )doc")
+        .def("update", &TermVariable::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -9445,6 +10006,15 @@ lib
     The library object for storing symbols.
 transformer
     The transformer accepting the sub expressions.
+)doc")
+        .def("update", &TermSymbolic::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -9486,6 +10056,15 @@ lib
 transformer
     The transformer accepting the sub expressions.
 )doc")
+        .def("update", &TermAbsolute::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -9525,6 +10104,15 @@ lib
     The library object for storing symbols.
 transformer
     The transformer accepting the sub expressions.
+)doc")
+        .def("update", &TermUnaryOperation::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -9569,6 +10157,15 @@ lib
 transformer
     The transformer accepting the sub expressions.
 )doc")
+        .def("update", &TermBinaryOperation::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -9608,6 +10205,15 @@ lib
     The library object for storing symbols.
 transformer
     The transformer accepting the sub expressions.
+)doc")
+        .def("update", &TermTuple::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -9655,6 +10261,15 @@ lib
 transformer
     The transformer accepting the sub expressions.
 )doc")
+        .def("update", &TermFunction::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -9687,6 +10302,15 @@ lib
     The library object for storing symbols.
 transformer
     The transformer accepting the sub expressions.
+)doc")
+        .def("update", &ArgumentTuple::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -9724,6 +10348,15 @@ lib
 transformer
     The transformer accepting the sub expressions.
 )doc")
+        .def("update", &LeftGuard::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -9759,6 +10392,15 @@ lib
     The library object for storing symbols.
 transformer
     The transformer accepting the sub expressions.
+)doc")
+        .def("update", &RightGuard::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -9798,6 +10440,15 @@ lib
     The library object for storing symbols.
 transformer
     The transformer accepting the sub expressions.
+)doc")
+        .def("update", &LiteralBoolean::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -9844,6 +10495,15 @@ lib
 transformer
     The transformer accepting the sub expressions.
 )doc")
+        .def("update", &LiteralComparison::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -9883,6 +10543,15 @@ lib
 transformer
     The transformer accepting the sub expressions.
 )doc")
+        .def("update", &LiteralSymbolic::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -9918,6 +10587,15 @@ lib
     The library object for storing symbols.
 transformer
     The transformer accepting the sub expressions.
+)doc")
+        .def("update", &UnparsedElement::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -9961,6 +10639,15 @@ lib
 transformer
     The transformer accepting the sub expressions.
 )doc")
+        .def("update", &TheoryTermVariable::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -9996,6 +10683,15 @@ lib
     The library object for storing symbols.
 transformer
     The transformer accepting the sub expressions.
+)doc")
+        .def("update", &TheoryTermSymbolic::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -10036,6 +10732,15 @@ lib
 transformer
     The transformer accepting the sub expressions.
 )doc")
+        .def("update", &TheoryTermTuple::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -10075,6 +10780,15 @@ lib
 transformer
     The transformer accepting the sub expressions.
 )doc")
+        .def("update", &TheoryTermFunction::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -10110,6 +10824,15 @@ lib
     The library object for storing symbols.
 transformer
     The transformer accepting the sub expressions.
+)doc")
+        .def("update", &TheoryTermUnparsed::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -10147,6 +10870,15 @@ lib
     The library object for storing symbols.
 transformer
     The transformer accepting the sub expressions.
+)doc")
+        .def("update", &TheoryRightGuard::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -10187,6 +10919,15 @@ lib
 transformer
     The transformer accepting the sub expressions.
 )doc")
+        .def("update", &SetAggregateElement::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -10225,6 +10966,15 @@ lib
     The library object for storing symbols.
 transformer
     The transformer accepting the sub expressions.
+)doc")
+        .def("update", &BodyAggregateElement::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -10265,6 +11015,15 @@ lib
 transformer
     The transformer accepting the sub expressions.
 )doc")
+        .def("update", &TheoryAtomElement::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -10297,6 +11056,15 @@ lib
     The library object for storing symbols.
 transformer
     The transformer accepting the sub expressions.
+)doc")
+        .def("update", &BodySimpleLiteral::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -10346,6 +11114,15 @@ lib
 transformer
     The transformer accepting the sub expressions.
 )doc")
+        .def("update", &BodyAggregate::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -10390,6 +11167,15 @@ lib
     The library object for storing symbols.
 transformer
     The transformer accepting the sub expressions.
+)doc")
+        .def("update", &BodySetAggregate::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -10436,6 +11222,15 @@ lib
 transformer
     The transformer accepting the sub expressions.
 )doc")
+        .def("update", &BodyTheoryAtom::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -10476,6 +11271,15 @@ lib
 transformer
     The transformer accepting the sub expressions.
 )doc")
+        .def("update", &BodyConditionalLiteral::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -10515,6 +11319,15 @@ lib
     The library object for storing symbols.
 transformer
     The transformer accepting the sub expressions.
+)doc")
+        .def("update", &HeadConditionalLiteral::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -10558,6 +11371,15 @@ lib
 transformer
     The transformer accepting the sub expressions.
 )doc")
+        .def("update", &HeadAggregateElement::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -10590,6 +11412,15 @@ lib
     The library object for storing symbols.
 transformer
     The transformer accepting the sub expressions.
+)doc")
+        .def("update", &HeadSimpleLiteral::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -10636,6 +11467,15 @@ lib
 transformer
     The transformer accepting the sub expressions.
 )doc")
+        .def("update", &HeadAggregate::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -10677,6 +11517,15 @@ lib
     The library object for storing symbols.
 transformer
     The transformer accepting the sub expressions.
+)doc")
+        .def("update", &HeadSetAggregate::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -10720,6 +11569,15 @@ lib
 transformer
     The transformer accepting the sub expressions.
 )doc")
+        .def("update", &HeadTheoryAtom::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -10755,6 +11613,15 @@ lib
     The library object for storing symbols.
 transformer
     The transformer accepting the sub expressions.
+)doc")
+        .def("update", &HeadDisjunction::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -10801,6 +11668,15 @@ lib
 transformer
     The transformer accepting the sub expressions.
 )doc")
+        .def("update", &TheoryOperatorDefinition::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -10841,6 +11717,15 @@ lib
 transformer
     The transformer accepting the sub expressions.
 )doc")
+        .def("update", &TheoryTermDefinition::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -10877,6 +11762,15 @@ lib
     The library object for storing symbols.
 transformer
     The transformer accepting the sub expressions.
+)doc")
+        .def("update", &TheoryGuardDefinition::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -10928,6 +11822,15 @@ lib
 transformer
     The transformer accepting the sub expressions.
 )doc")
+        .def("update", &TheoryAtomDefinition::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -10967,6 +11870,15 @@ lib
 transformer
     The transformer accepting the sub expressions.
 )doc")
+        .def("update", &OptimizeTuple::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -11003,6 +11915,15 @@ lib
 transformer
     The transformer accepting the sub expressions.
 )doc")
+        .def("update", &OptimizeElement::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -11037,6 +11958,15 @@ lib
     The library object for storing symbols.
 transformer
     The transformer accepting the sub expressions.
+)doc")
+        .def("update", &Edge::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -11076,6 +12006,15 @@ lib
     The library object for storing symbols.
 transformer
     The transformer accepting the sub expressions.
+)doc")
+        .def("update", &StatementRule::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -11119,6 +12058,15 @@ lib
 transformer
     The transformer accepting the sub expressions.
 )doc")
+        .def("update", &StatementTheory::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -11158,6 +12106,15 @@ lib
     The library object for storing symbols.
 transformer
     The transformer accepting the sub expressions.
+)doc")
+        .def("update", &StatementOptimize::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -11199,6 +12156,15 @@ lib
 transformer
     The transformer accepting the sub expressions.
 )doc")
+        .def("update", &StatementWeakConstraint::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -11237,6 +12203,15 @@ lib
     The library object for storing symbols.
 transformer
     The transformer accepting the sub expressions.
+)doc")
+        .def("update", &StatementShow::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -11280,6 +12255,15 @@ lib
 transformer
     The transformer accepting the sub expressions.
 )doc")
+        .def("update", &StatementShowSignature::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -11318,6 +12302,15 @@ lib
     The library object for storing symbols.
 transformer
     The transformer accepting the sub expressions.
+)doc")
+        .def("update", &StatementProject::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -11362,6 +12355,15 @@ lib
 transformer
     The transformer accepting the sub expressions.
 )doc")
+        .def("update", &StatementProjectSignature::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -11403,6 +12405,15 @@ lib
     The library object for storing symbols.
 transformer
     The transformer accepting the sub expressions.
+)doc")
+        .def("update", &StatementDefined::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -11446,6 +12457,15 @@ lib
 transformer
     The transformer accepting the sub expressions.
 )doc")
+        .def("update", &StatementExternal::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -11484,6 +12504,15 @@ lib
     The library object for storing symbols.
 transformer
     The transformer accepting the sub expressions.
+)doc")
+        .def("update", &StatementEdge::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -11535,6 +12564,15 @@ lib
 transformer
     The transformer accepting the sub expressions.
 )doc")
+        .def("update", &StatementHeuristic::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -11573,6 +12611,15 @@ lib
     The library object for storing symbols.
 transformer
     The transformer accepting the sub expressions.
+)doc")
+        .def("update", &StatementScript::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -11613,6 +12660,15 @@ lib
 transformer
     The transformer accepting the sub expressions.
 )doc")
+        .def("update", &StatementInclude::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -11651,6 +12707,15 @@ lib
     The library object for storing symbols.
 transformer
     The transformer accepting the sub expressions.
+)doc")
+        .def("update", &StatementProgram::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -11694,6 +12759,15 @@ lib
 transformer
     The transformer accepting the sub expressions.
 )doc")
+        .def("update", &StatementConst::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+)doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
@@ -11732,6 +12806,15 @@ lib
     The library object for storing symbols.
 transformer
     The transformer accepting the sub expressions.
+)doc")
+        .def("update", &StatementComment::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -11867,3 +12950,5 @@ A list of rewritten statements.)doc");
 }
 
 } // namespace Clingo::AST
+
+// NOLINTEND(readability-convert-member-functions-to-static,clang-diagnostic-unused-parameter)

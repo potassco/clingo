@@ -957,7 +957,7 @@ class TestAST(TestCase):
 
     def test_transform(self):
         """
-        Test transformation.
+        Test transformation and update.
         """
 
         @singledispatch
@@ -966,7 +966,7 @@ class TestAST(TestCase):
 
         @dispatch.register
         def _(var: ast.TermVariable, prefix):
-            return var.update(name=prefix + var.name)
+            return var.update(self.lib, name=prefix + var.name)
 
         stm = ast.parse_statement(self.lib, "a(X) :- b(X).")
         self.assertEqual(str(dispatch(stm, "_")), "a(_X) :- b(_X).")

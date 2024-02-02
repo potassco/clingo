@@ -148,3 +148,10 @@ auto {{ c_type_name }}::transform(Library &lib, py::handle transform, py::args c
 {%- endif %}
     return std::nullopt;
 }
+
+auto {{ c_type_name }}::update(Library &lib, py::kwargs const &kwargs) -> {{ c_type_name }} {
+    return {{ c_type_name }}::construct(lib
+{%- for argument_name, argument in type.arguments.items() %}
+        , update_value<{{ argument.type | cval }}>(lib, this, &{{ c_type_name }}::{{ argument_name }}, kwargs, "{{ argument_name }}")
+{%- endfor %});
+}
