@@ -3,7 +3,7 @@ Example computing the predicate dependency graph of a program.
 """
 import os
 from functools import singledispatchmethod
-from typing import Any, Union
+from typing import Union
 
 from clingo import ast
 from clingo.core import Library
@@ -51,8 +51,8 @@ def rewrite(lib: Library, prg: Program) -> Program:
     """
     Rewrite the given program.
     """
-    prg_res: list[Any] = []
-    prg_other: list[Any] = []
+    prg_res: list[Statement] = []
+    prg_other: list[Statement] = []
     params_const: list[str] = []
     for stm in prg:
         if isinstance(stm, ast.StatementConst):
