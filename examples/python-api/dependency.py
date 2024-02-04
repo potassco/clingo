@@ -3,18 +3,57 @@ Example computing the predicate dependency graph of a program.
 """
 import os
 from functools import singledispatchmethod
+from typing import Any, Union
 
 from clingo import ast
 from clingo.core import Library
 
+# these variants will be added to the ast module
+HeadLiteral = Union[
+    ast.HeadAggregate,
+    ast.HeadDisjunction,
+    ast.HeadSetAggregate,
+    ast.HeadSimpleLiteral,
+    ast.HeadTheoryAtom,
+]
+BodyLiteral = Union[
+    ast.BodyAggregate,
+    ast.BodyConditionalLiteral,
+    ast.BodySetAggregate,
+    ast.BodySimpleLiteral,
+    ast.BodyTheoryAtom,
+]
+Literal = Union[ast.LiteralBoolean, ast.LiteralComparison, ast.LiteralSymbolic]
+Statement = Union[
+    ast.StatementComment,
+    ast.StatementConst,
+    ast.StatementDefined,
+    ast.StatementEdge,
+    ast.StatementExternal,
+    ast.StatementHeuristic,
+    ast.StatementInclude,
+    ast.StatementOptimize,
+    ast.StatementProgram,
+    ast.StatementProject,
+    ast.StatementProjectSignature,
+    ast.StatementRule,
+    ast.StatementScript,
+    ast.StatementShow,
+    ast.StatementShowSignature,
+    ast.StatementTheory,
+    ast.StatementWeakConstraint,
+]
+Program = list[Statement]
+Predicate = tuple[str, int, bool]
 
-def rewrite(lib, prg):
+
+def rewrite(lib: Library, prg: Program) -> Program:
     """
     Rewrite the given program.
     """
-    prg_res = []
-    prg_other = []
-    params_const = []
+    prg_res: list[Any] = []
+    prg_other: list[Any] = []
+    params_const: list[str] = []
     for stm in prg:
         if isinstance(stm, ast.StatementConst):
             params_const.append(stm.name)
@@ -39,10 +78,9 @@ class DependencyBuilder:
     """
 
     def __init__(self):
-        self.graph = []
-        self._head_predicates = []
+        self.graph = set()
 
-    def _get_pred(self, lit):
+    def _get_pred(self, lit: Literal):
         if isinstance(lit, ast.LiteralSymbolic):
             atom = lit.atom
             if isinstance(atom, ast.TermSymbolic):
@@ -53,26 +91,47 @@ class DependencyBuilder:
             if isinstance(atom, ast.TermUnaryOperation):
                 sign = True
                 atom = atom.right
+            assert isinstance(atom, ast.TermFunction)
+
             return [(atom.name, len(atom.pool[0].arguments), sign)]
         return []
 
     @singledispatchmethod
-    def _head(self, lit):
+    def _head(self, lit) -> list[Predicate]:
         _ = lit
-        assert False
+        return []
 
     @_head.register
-    def _(self, lit: ast.HeadSimpleLiteral):
+    def _(self, lit: ast.HeadSimpleLiteral) -> list[Predicate]:
         if isinstance(lit.literal, ast.LiteralSymbolic):
-            self._head_predicates.extend(self._get_pred(lit.literal))
+            return self._get_pred(lit.literal)
+        return []
+
+    @_head.register(ast.HeadDisjunction)
+    @_head.register(ast.HeadAggregate)
+    def _(self, lit: Union[ast.HeadDisjunction, ast.HeadAggregate]) -> list[Predicate]:
+        res = []
+        for elem in lit.elements:
+            if isinstance(elem, (ast.HeadConditionalLiteral, ast.HeadAggregateElement)):
+                head_preds = self._get_pred(elem.literal)
+                for slit in elem.condition:
+                    for body_pred, sign in self._body(slit):
+                        for head_pred in head_preds:
+                            self.graph.add((head_pred, body_pred, sign))
+            else:
+                head_preds = self._get_pred(elem)
+            for head_pred in head_preds:
+                self.graph.add((head_pred, head_pred, True))
+            res.extend(head_preds)
+        return res
 
     @singledispatchmethod
-    def _body(self, lit):
+    def _body(self, lit: BodyLiteral) -> list[tuple[Predicate, bool]]:
         _ = lit
         return []
 
     @_body.register
-    def _(self, lit: ast.BodySimpleLiteral):
+    def _(self, lit: ast.BodySimpleLiteral) -> list[tuple[Predicate, bool]]:
         if isinstance(lit.literal, ast.LiteralSymbolic):
             return [
                 (pred, lit.literal.sign != ast.Sign.NoSign)
@@ -80,42 +139,39 @@ class DependencyBuilder:
             ]
         return []
 
+    @_body.register
+    def _(self, lit: ast.BodyTheoryAtom) -> list[tuple[Predicate, bool]]:
+        raise RuntimeError("implement me!!!")
+
+    @_body.register
+    def _(self, lit: ast.BodyConditionalLiteral) -> list[tuple[Predicate, bool]]:
+        raise RuntimeError("implement me!!!")
+
+    @_body.register
+    def _(self, lit: ast.BodyAggregate) -> list[tuple[Predicate, bool]]:
+        raise RuntimeError("implement me!!!")
+
     def add(self, stm: ast.StatementRule):
         """
         Add dependencies for the given rule.
         """
-
         print("adding")
         print(" ", stm)
-        self._head_predicates = []
-        self._head(stm.head)
+        head_preds = self._head(stm.head)
+        print(" ", head_preds)
         for lit in stm.body:
-            for head_pred in self._head_predicates:
+            for head_pred in head_preds:
                 for body_pred, sign in self._body(lit):
-                    self.graph.append((head_pred, body_pred, sign))
-
-        print(" ", self._head_predicates)
+                    self.graph.add((head_pred, body_pred, sign))
 
 
 def dependency(prg: list[ast.StatementRule]):
     """
     Compute the dependency graph of a program.
     """
-    # TODO: add edges from body to head
-    # {a} :- b.
-    #   a :- b, not not a.
-    #   for choice rules add edge (a, a, -)
-    # {a: c} :- b.
-    #   a :- b, c, not not a.
-    #   for positive literal in condition add (a, c, +)
-    # {a: c} > 1 :- b.
-    #   {a: c} :- b.
-    #   :- b, not {a: c} > 1.
-    #   guards of head aggregates can be ignored
     bld = DependencyBuilder()
     for stm in prg:
         bld.add(stm)
-
     return bld.graph
 
 
@@ -133,7 +189,7 @@ def run():
         dep = dependency([stm for stm in prg if isinstance(stm, ast.StatementRule)])
 
         print("dependency graph")
-        for edge in dep:
+        for edge in sorted(dep):
             print(f"  {edge}")
 
 
