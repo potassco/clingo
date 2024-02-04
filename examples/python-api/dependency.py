@@ -9,6 +9,7 @@ from clingo import ast
 from clingo.core import Library
 
 # these variants will be added to the ast module
+Literal = Union[ast.LiteralBoolean, ast.LiteralComparison, ast.LiteralSymbolic]
 HeadLiteral = Union[
     ast.HeadAggregate,
     ast.HeadDisjunction,
@@ -23,7 +24,6 @@ BodyLiteral = Union[
     ast.BodySimpleLiteral,
     ast.BodyTheoryAtom,
 ]
-Literal = Union[ast.LiteralBoolean, ast.LiteralComparison, ast.LiteralSymbolic]
 Statement = Union[
     ast.StatementComment,
     ast.StatementConst,
