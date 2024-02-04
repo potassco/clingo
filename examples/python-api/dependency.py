@@ -58,6 +58,7 @@ class DependencyBuilder:
 
     @singledispatchmethod
     def _head(self, lit):
+        _ = lit
         assert False
 
     @_head.register
@@ -67,6 +68,7 @@ class DependencyBuilder:
 
     @singledispatchmethod
     def _body(self, lit):
+        _ = lit
         return []
 
     @_body.register
