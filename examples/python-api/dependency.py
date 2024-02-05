@@ -96,6 +96,9 @@ class DependencyBuilder:
             return [(atom.name, len(atom.pool[0].arguments), sign)]
         return []
 
+    def _get_body_pred(self, lit: Literal):
+        return [(pred, lit.sign != ast.Sign.NoSign) for pred in self._get_pred(lit)]
+
     @singledispatchmethod
     def _head(self, lit) -> list[Predicate]:
         _ = lit
@@ -132,16 +135,15 @@ class DependencyBuilder:
 
     @_body.register
     def _(self, lit: ast.BodySimpleLiteral) -> list[tuple[Predicate, bool]]:
-        if isinstance(lit.literal, ast.LiteralSymbolic):
-            return [
-                (pred, lit.literal.sign != ast.Sign.NoSign)
-                for pred in self._get_pred(lit.literal)
-            ]
-        return []
+        return self._get_body_pred(lit.literal)
 
     @_body.register
     def _(self, lit: ast.BodyTheoryAtom) -> list[tuple[Predicate, bool]]:
-        raise RuntimeError("implement me!!!")
+        res = []
+        for elem in lit.elements:
+            for slit in elem.condition:
+                res.extend(self._get_body_pred(slit))
+        return res
 
     @_body.register
     def _(self, lit: ast.BodyConditionalLiteral) -> list[tuple[Predicate, bool]]:

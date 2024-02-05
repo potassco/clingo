@@ -81,11 +81,11 @@ template <typename T> static constexpr bool has_lit<T, std::void_t<decltype(std:
 inline auto operator+(Position a, Position b) -> Location { return {std::move(a), std::move(b)}; }
 
 //! Get the location of an expression.
-template <class T> auto location(T &x) -> std::enable_if_t<Detail::has_loc<T>, Location const &> { return x.loc; }
+template <class T> auto location(T const &x) -> std::enable_if_t<Detail::has_loc<T>, Location const &> { return x.loc; }
 
 //! Get the location of an expression.
 template <class T>
-auto location(T &x) -> std::enable_if_t<!Detail::has_loc<T> && Detail::has_lit<T>, Location const &> {
+auto location(T const &x) -> std::enable_if_t<!Detail::has_loc<T> && Detail::has_lit<T>, Location const &> {
     return location(x.lit);
 }
 

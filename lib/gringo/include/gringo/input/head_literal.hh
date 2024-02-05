@@ -41,7 +41,7 @@ struct Disjunction {
     Disjunction(Location loc, ElementVec elems) : loc{loc}, elems{std::move(elems)} {}
     //! The location of the disjunction.
     Location loc;
-    //! The location of the disjunction.
+    //! The elements of the disjunction.
     ElementVec elems;
 };
 
