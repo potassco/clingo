@@ -142,15 +142,20 @@ class DependencyBuilder:
         res = []
         for elem in lit.elements:
             for slit in elem.condition:
+                # TODO: add both negative and positive dependency
                 res.extend(self._get_body_pred(slit))
         return res
 
     @_body.register
     def _(self, lit: ast.BodyConditionalLiteral) -> list[tuple[Predicate, bool]]:
+        # TODO: add positive for conclusion
+        #       add positive and negative for condition
         raise RuntimeError("implement me!!!")
 
     @_body.register
     def _(self, lit: ast.BodyAggregate) -> list[tuple[Predicate, bool]]:
+        # TODO: add positive for monotone
+        #       add positive and negative otherwise
         raise RuntimeError("implement me!!!")
 
     def add(self, stm: ast.StatementRule):
