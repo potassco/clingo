@@ -3,7 +3,7 @@ Example computing the predicate dependency graph of a program.
 """
 import os
 from functools import singledispatchmethod
-from typing import Union
+from typing import Optional, Union
 
 from clingo import ast
 from clingo.core import Library
@@ -96,8 +96,11 @@ class DependencyBuilder:
             return [(atom.name, len(atom.pool[0].arguments), sign)]
         return []
 
-    def _get_body_pred(self, lit: Literal):
-        return [(pred, lit.sign != ast.Sign.NoSign) for pred in self._get_pred(lit)]
+    def _get_body_pred(self, lit: Literal, force_negative=False):
+        res = [(pred, lit.sign != ast.Sign.NoSign) for pred in self._get_pred(lit)]
+        if force_negative:
+            res += [(pred, True) for pred, sign in res if not sign]
+        return res
 
     @singledispatchmethod
     def _head(self, lit) -> list[Predicate]:
@@ -142,21 +145,40 @@ class DependencyBuilder:
         res = []
         for elem in lit.elements:
             for slit in elem.condition:
-                # TODO: add both negative and positive dependency
-                res.extend(self._get_body_pred(slit))
+                res.extend(self._get_body_pred(slit, True))
         return res
 
     @_body.register
     def _(self, lit: ast.BodyConditionalLiteral) -> list[tuple[Predicate, bool]]:
-        # TODO: add positive for conclusion
-        #       add positive and negative for condition
-        raise RuntimeError("implement me!!!")
+        res = self._get_body_pred(lit.literal)
+        for slit in lit.condition:
+            res.extend(self._get_body_pred(slit, True))
+        return res
+
+    def _is_monotone(
+        self,
+        left: Optional[ast.LeftGuard],
+        fun: ast.AggregateFunction,
+        right: Optional[ast.RightGuard],
+    ) -> bool:
+        if fun != ast.AggregateFunction.Sum:
+            rel_left = (ast.Relation.Less, ast.Relation.LessEqual)
+            rel_right = (ast.Relation.Greater, ast.Relation.GreaterEqual)
+            if fun == ast.AggregateFunction.Min:
+                rel_left, rel_right = rel_right, rel_left
+            return (not left or left.relation in rel_left) and (
+                not right or right.relation in rel_right
+            )
+        return False
 
     @_body.register
     def _(self, lit: ast.BodyAggregate) -> list[tuple[Predicate, bool]]:
-        # TODO: add positive for monotone
-        #       add positive and negative otherwise
-        raise RuntimeError("implement me!!!")
+        res = []
+        force_negative = not self._is_monotone(lit.left, lit.function, lit.right)
+        for elem in lit.elements:
+            for slit in elem.condition:
+                res.extend(self._get_body_pred(slit, force_negative))
+        return res
 
     def add(self, stm: ast.StatementRule):
         """
