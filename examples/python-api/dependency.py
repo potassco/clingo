@@ -47,6 +47,50 @@ Program = list[Statement]
 Predicate = tuple[str, int, bool]
 
 
+"""
+class Node:
+    def __init__(self, name):
+        self.neighbors = []
+        self.name      = name
+        self.visited   = 0
+
+def tarjan(start):
+    print "tarjan ..."
+
+    if start.visited == 0:
+        s = []
+        t = []
+
+        visited = 2
+        s.append(start)
+
+        while len(s) > 0:
+            x = s[-1]
+            if x.visited == 0:
+                x.visited = visited
+                visited += 1
+                t.append(x)
+                for y in x.neighbors:
+                    if y.visited == 0:
+                        s.append(y)
+            else:
+                s.pop()
+                if x.visited > 1:
+                    root = True
+                    for y in x.neighbors:
+                        if y.visited > 1 and y.visited < x.visited:
+                            root = False
+                            x.visited  = y.visited
+                    if root:
+                        print("scc:"),
+                        while True:
+                            y = t.pop()
+                            y.visited = 1
+                            print y.name,
+                            if x == y: break
+"""
+
+
 def rewrite(lib: Library, prg: Program) -> Program:
     """
     Rewrite the given program.
