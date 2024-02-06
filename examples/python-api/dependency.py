@@ -47,48 +47,96 @@ Program = list[Statement]
 Predicate = tuple[str, int, bool]
 
 
-"""
 class Node:
+    """
+    A node capturing the outgoing edges of predicates.
+    """
+
+    neighbors: list[tuple["Node", bool]]
+    name: Predicate
+    visited: int
+
     def __init__(self, name):
         self.neighbors = []
-        self.name      = name
-        self.visited   = 0
+        self.name = name
+        self.visited = 0
 
-def tarjan(start):
-    print "tarjan ..."
 
-    if start.visited == 0:
+class Component:
+    """
+    A component containing a set of predicates.
+    """
+
+    predicates: list[Predicate]
+
+    def __init__(self):
+        self.predicates = []
+
+
+class Graph:
+    """
+    The dependency graph of a program.
+    """
+
+    nodes_: dict[Predicate, Node]
+
+    def __init__(self):
+        self.nodes_ = {}
+
+    def _add_node(self, a: Predicate) -> Node:
+        return self.nodes_.setdefault(a, Node(a))
+
+    def add_edge(self, a: Predicate, b: Predicate, sign: bool):
+        """
+        Add an edge between two predicates.
+        """
+        self._add_node(a).neighbors.append((self._add_node(b), sign))
+
+    def _tarjan(self, start: Node, sccs: list[Component]):
         s = []
         t = []
 
         visited = 2
         s.append(start)
 
-        while len(s) > 0:
+        while s:
             x = s[-1]
             if x.visited == 0:
                 x.visited = visited
                 visited += 1
                 t.append(x)
-                for y in x.neighbors:
+                for y, _ in x.neighbors:
                     if y.visited == 0:
                         s.append(y)
             else:
                 s.pop()
                 if x.visited > 1:
                     root = True
-                    for y in x.neighbors:
+                    for y, _ in x.neighbors:
                         if y.visited > 1 and y.visited < x.visited:
                             root = False
-                            x.visited  = y.visited
+                            x.visited = y.visited
                     if root:
-                        print("scc:"),
-                        while True:
+                        sccs.append(Component())
+                        while root:
                             y = t.pop()
                             y.visited = 1
-                            print y.name,
-                            if x == y: break
-"""
+                            sccs[-1].predicates.append(y.name)
+                            root = x != y
+
+    def analyze(self) -> list[Component]:
+        """
+        Compute the strongly connected components of the graph.
+        """
+
+        sccs: list[Component] = []
+        for start in self.nodes_.values():
+            if start.visited != 0:
+                self._tarjan(start, sccs)
+
+        # TODO: add some extra info to scc
+
+        return sccs
 
 
 def rewrite(lib: Library, prg: Program) -> Program:
@@ -122,7 +170,7 @@ class DependencyBuilder:
     """
 
     def __init__(self):
-        self.graph = set()
+        self.graph = Graph()
 
     def _get_pred(self, lit: Literal):
         if isinstance(lit, ast.LiteralSymbolic):
@@ -167,11 +215,11 @@ class DependencyBuilder:
                 for slit in elem.condition:
                     for body_pred, sign in self._body(slit):
                         for head_pred in head_preds:
-                            self.graph.add((head_pred, body_pred, sign))
+                            self.graph.add_edge(head_pred, body_pred, sign)
             else:
                 head_preds = self._get_pred(elem)
             for head_pred in head_preds:
-                self.graph.add((head_pred, head_pred, True))
+                self.graph.add_edge(head_pred, head_pred, True)
             res.extend(head_preds)
         return res
 
@@ -235,7 +283,7 @@ class DependencyBuilder:
         for lit in stm.body:
             for head_pred in head_preds:
                 for body_pred, sign in self._body(lit):
-                    self.graph.add((head_pred, body_pred, sign))
+                    self.graph.add_edge(head_pred, body_pred, sign)
 
 
 def dependency(prg: list[ast.StatementRule]):
@@ -261,9 +309,12 @@ def run():
 
         dep = dependency([stm for stm in prg if isinstance(stm, ast.StatementRule)])
 
-        print("dependency graph")
-        for edge in sorted(dep):
-            print(f"  {edge}")
+        sccs = dep.analyze()
+
+        for scc in sccs:
+            print("scc:")
+            for pred in scc.predicates:
+                print(f"  {pred}")
 
 
 run()
