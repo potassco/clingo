@@ -2478,7 +2478,11 @@ struct clingo_ast_scanner {
         scanners_.emplace_front(Gringo::Input::scan_string(lib_->log, *lib_->store, strings_.front()));
     }
     auto scan_file(char const *path) {
-        scanners_.emplace_front(Gringo::Input::scan_file(lib_->log, *lib_->store, path));
+        if (std::strcmp(path, "-") == 0) {
+            scanners_.emplace_front(Gringo::Input::scan_stream(lib_->log, *lib_->store, std::cin));
+        } else {
+            scanners_.emplace_front(Gringo::Input::scan_file(lib_->log, *lib_->store, path));
+        }
     }
 
   private:
@@ -2502,12 +2506,16 @@ extern "C" auto clingo_ast_scan_string(clingo_lib_t *lib, char const *program, c
 extern "C" auto clingo_ast_scan_files(clingo_lib_t *lib, char const *const *files, size_t size,
                                       clingo_ast_scanner_t **scanner) -> bool {
     CLINGO_TRY {
-        if (lib == nullptr || (files == nullptr && size == 0) || scanner == nullptr) {
+        if (lib == nullptr || (files == nullptr && size != 0) || scanner == nullptr) {
             throw std::invalid_argument("invalid arguments");
         }
         auto res = std::make_unique<clingo_ast_scanner>(lib);
         auto span = tcb::span(files, size);
-        std::for_each(span.rbegin(), span.rend(), [&res](auto const *path) { res->scan_file(path); });
+        if (span.empty()) {
+            res->scan_file("-");
+        } else {
+            std::for_each(span.rbegin(), span.rend(), [&res](auto const *path) { res->scan_file(path); });
+        }
         *scanner = res.release();
     }
     CLINGO_CATCH(lib);
