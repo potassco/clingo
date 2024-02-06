@@ -305,6 +305,10 @@ class DependencyBuilder:
     @_head.register(ast.HeadDisjunction)
     @_head.register(ast.HeadAggregate)
     def _(self, lit: Union[ast.HeadDisjunction, ast.HeadAggregate]) -> list[Predicate]:
+        # Note: that here edges are added that only involve the conditionals in
+        # the head. It would also be possible to add the predicates to the
+        # result. Then, one could even change the interface to get the
+        # predicates a rule provides/depends.
         res = []
         for elem in lit.elements:
             if isinstance(elem, (ast.HeadConditionalLiteral, ast.HeadAggregateElement)):
