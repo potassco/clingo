@@ -1,7 +1,8 @@
 """
 Example computing the predicate dependency graph of a program.
 """
-import os
+import sys
+from dataclasses import dataclass, field
 from functools import singledispatchmethod
 from typing import Optional, Union
 
@@ -47,44 +48,53 @@ Program = list[Statement]
 Predicate = tuple[str, int, bool]
 
 
-class Node:
+@dataclass
+class PredicateNode:
     """
     A node capturing the outgoing edges of predicates.
     """
 
-    neighbors: list[tuple["Node", bool]]
     name: Predicate
-    visited: int
-
-    def __init__(self, name):
-        self.neighbors = []
-        self.name = name
-        self.visited = 0
+    neighbors: list[tuple["PredicateNode", bool]] = field(default_factory=list)
+    visited: int = 0
 
 
-class Component:
+@dataclass
+class PredicateComponent:
     """
     A component containing a set of predicates.
+
+    Parameters
+    ----------
+    predicates
+        List of predicates in the component.
+    depends
+        List of *direct* dependencies.
+    has_negative
+        Whether the component contains a negative edge.
+    is_domain
+        Whether the component (transitively) depends on a component with a
+        negative edge.
     """
 
-    predicates: list[Predicate]
+    predicates: list[Predicate] = field(default_factory=list)
+    depends: list[int] = field(default_factory=list)
+    has_negative: bool = False
+    is_domain: bool = True
 
-    def __init__(self):
-        self.predicates = []
 
-
-class Graph:
+class PredicateGraph:
     """
     The dependency graph of a program.
     """
 
-    nodes_: dict[Predicate, Node]
+    nodes_: dict[Predicate, PredicateNode]
 
     def __init__(self):
         self.nodes_ = {}
 
-    def _add_node(self, a: Predicate) -> Node:
-        return self.nodes_.setdefault(a, Node(a))
+    def _add_node(self, a: Predicate) -> PredicateNode:
+        return self.nodes_.setdefault(a, PredicateNode(a))
 
     def add_edge(self, a: Predicate, b: Predicate, sign: bool):
         """
@@ -92,7 +102,7 @@ class Graph:
         """
         self._add_node(a).neighbors.append((self._add_node(b), sign))
 
-    def _tarjan(self, start: Node, sccs: list[Component]):
+    def _tarjan(self, start: PredicateNode, components: list[PredicateComponent]):
         s = []
         t = []
 
@@ -117,26 +127,112 @@ class Graph:
                             root = False
                             x.visited = y.visited
                     if root:
-                        sccs.append(Component())
+                        components.append(PredicateComponent())
                         while root:
                             y = t.pop()
                             y.visited = 1
-                            sccs[-1].predicates.append(y.name)
+                            components[-1].predicates.append(y.name)
                             root = x != y
 
-    def analyze(self) -> list[Component]:
+    def analyze(self) -> list[PredicateComponent]:
         """
         Compute the strongly connected components of the graph.
         """
-
-        sccs: list[Component] = []
+        components: list[PredicateComponent] = []
         for start in self.nodes_.values():
-            if start.visited != 0:
-                self._tarjan(start, sccs)
+            if start.visited == 0:
+                self._tarjan(start, components)
 
-        # TODO: add some extra info to scc
+        occ: dict[Predicate, int] = {}
+        for i, component in enumerate(components):
+            predicates = set(component.predicates)
+            component.predicates = list(sorted(predicates))
 
-        return sccs
+            depends = set()
+            for pred in component.predicates:
+                for node, sign in self.nodes_[pred].neighbors:
+                    if node.name in predicates and sign:
+                        component.has_negative = True
+                        component.is_domain = False
+                    j = occ.get(node.name, i)
+                    if j != i:
+                        depends.add(j)
+                        if not components[j].is_domain:
+                            component.is_domain = False
+                occ[pred] = i
+            component.depends = list(sorted(depends))
+
+        return components
+
+    def to_dot(self, components: list[PredicateComponent]) -> str:
+        """
+        Convert the graph with some extra information into dot format.
+        """
+
+        def p(pred):
+            s = "-" if pred[2] else ""
+            return f'"{s}{pred[0]}/{pred[1]}"'
+
+        res = []
+        res += ["digraph {"]
+        res += ["  compound=true;"]
+        for i, component in enumerate(components):
+            res += [f"  subgraph cluster{i} {{"]
+            res += [f'    label = "component {i}";']
+            nodes = " ".join(p(pred) for pred in component.predicates)
+            res += [f"    {nodes};"]
+            res += ["  }"]
+        for pred, node in self.nodes_.items():
+            pos_edges = set()
+            neg_edges = set()
+            for x, sign in node.neighbors:
+                if sign:
+                    neg_edges.add(x.name)
+                else:
+                    pos_edges.add(x.name)
+
+            nodes = ", ".join(p(x) for x in sorted(pos_edges - neg_edges))
+            if nodes:
+                res += [f"  {{ {nodes} }} -> {p(pred)} [style=solid];"]
+            nodes = ", ".join(p(x) for x in sorted(neg_edges - pos_edges))
+            if nodes:
+                res += [f"  {{ {nodes} }} -> {p(pred)} [style=dotted];"]
+            nodes = ", ".join(p(x) for x in sorted(pos_edges.intersection(neg_edges)))
+            if nodes:
+                res += [f"  {{ {nodes} }} -> {p(pred)} [style=dashed];"]
+
+        for i, component in enumerate(components):
+            start = ", ".join(p(x) for x in component.predicates)
+            end = ", ".join(
+                p(x) for j in component.depends for x in components[j].predicates
+            )
+            if start and end:
+                res += ["  {"]
+                res += ["    edge [style=invis];"]
+                res += [f"    {{{end}}} -> {{{start}}};"]
+                res += ["  }"]
+
+        res += [f"  subgraph cluster{len(components)} {{"]
+        res += ['    label = "Legend";']
+        res += ['    node [shape="plaintext"];']
+        res += [
+            '    keys [label=<<table border="0" cellpadding="2" cellspacing="0" cellborder="0">'
+        ]
+        res += ['      <tr><td align="right">predicate</td><td>&#9675;</td></tr>']
+        res += ['      <tr><td align="right">component</td><td>&#9633;</td></tr>']
+        res += [
+            '      <tr><td align="right" port="i1">positive edge</td><td>&#8594;</td></tr>'
+        ]
+        res += [
+            '      <tr><td align="right" port="i2">negative edge</td><td>&#10513;</td></tr>'
+        ]
+        res += [
+            '      <tr><td align="right" port="i3">postive and negative edge</td><td>&#10511;</td></tr>'
+        ]
+        res += ["      </table>>]"]
+        res += ["  }"]
+        res += ["}"]
+        return "\n".join(res)
 
 
 def rewrite(lib: Library, prg: Program) -> Program:
@@ -146,6 +242,7 @@ def rewrite(lib: Library, prg: Program) -> Program:
     prg_res: list[Statement] = []
     prg_other: list[Statement] = []
     params_const: list[str] = []
+
     for stm in prg:
         if isinstance(stm, ast.StatementConst):
             params_const.append(stm.name)
@@ -170,7 +267,7 @@ class DependencyBuilder:
     """
 
     def __init__(self):
-        self.graph = Graph()
+        self.graph = PredicateGraph()
 
     def _get_pred(self, lit: Literal):
         if isinstance(lit, ast.LiteralSymbolic):
@@ -276,10 +373,7 @@ class DependencyBuilder:
         """
         Add dependencies for the given rule.
         """
-        print("adding")
-        print(" ", stm)
         head_preds = self._head(stm.head)
-        print(" ", head_preds)
         for lit in stm.body:
             for head_pred in head_preds:
                 for body_pred, sign in self._body(lit):
@@ -298,23 +392,19 @@ def dependency(prg: list[ast.StatementRule]):
 
 def run():
     """
-    Run the example.
+    Run the example and print a nice dot graph.
     """
     with Library() as lib:
-        files = [os.path.join(os.path.dirname(__file__), "example.lp")]
-        with ast.Scanner(lib, files) as scanner:
+        with ast.Scanner(lib, sys.argv[1:]) as scanner:
             prg = list(scanner)
 
         prg = rewrite(lib, prg)
 
         dep = dependency([stm for stm in prg if isinstance(stm, ast.StatementRule)])
 
-        sccs = dep.analyze()
+        comps = dep.analyze()
 
-        for scc in sccs:
-            print("scc:")
-            for pred in scc.predicates:
-                print(f"  {pred}")
+        print(dep.to_dot(comps))
 
 
 run()
