@@ -3,27 +3,27 @@
 namespace Gringo::Input {
 
 auto operator==(SetAggregateElement const &a, SetAggregateElement const &b) -> bool {
-    return std::tie(a.lit, a.cond) == std::tie(a.lit, b.cond);
+    return std::tie(a.lit_, a.cond_) == std::tie(a.lit_, b.cond_);
 }
 
 auto operator<(SetAggregateElement const &a, SetAggregateElement const &b) -> bool {
-    return std::tie(a.lit, a.cond) < std::tie(a.lit, b.cond);
+    return std::tie(a.lit_, a.cond_) < std::tie(a.lit_, b.cond_);
 }
 
 template <> auto operator==(SetAggregate<true> const &a, SetAggregate<true> const &b) -> bool {
-    return std::tie(a.sign, a.lhs, a.elems, a.rhs) == std::tie(b.sign, b.lhs, b.elems, b.rhs);
+    return std::tie(a.sign_, a.lhs_, a.elems_, a.rhs_) == std::tie(b.sign_, b.lhs_, b.elems_, b.rhs_);
 }
 
 template <> auto operator<(SetAggregate<true> const &a, SetAggregate<true> const &b) -> bool {
-    return std::tie(a.sign, a.lhs, a.elems, a.rhs) < std::tie(b.sign, b.lhs, b.elems, b.rhs);
+    return std::tie(a.sign_, a.lhs_, a.elems_, a.rhs_) < std::tie(b.sign_, b.lhs_, b.elems_, b.rhs_);
 }
 
 template <> auto operator==(SetAggregate<false> const &a, SetAggregate<false> const &b) -> bool {
-    return std::tie(a.lhs, a.elems, a.rhs) == std::tie(b.lhs, b.elems, b.rhs);
+    return std::tie(a.lhs_, a.elems_, a.rhs_) == std::tie(b.lhs_, b.elems_, b.rhs_);
 }
 
 template <> auto operator<(SetAggregate<false> const &a, SetAggregate<false> const &b) -> bool {
-    return std::tie(a.lhs, a.elems, a.rhs) < std::tie(b.lhs, b.elems, b.rhs);
+    return std::tie(a.lhs_, a.elems_, a.rhs_) < std::tie(b.lhs_, b.elems_, b.rhs_);
 }
 
 } // namespace Gringo::Input
@@ -32,17 +32,17 @@ namespace Gringo::Util {
 
 auto value_hasher<Gringo::Input::SetAggregateElement>::operator()(Gringo::Input::SetAggregateElement const &x) const
     -> size_t {
-    return Gringo::Util::value_hash(typeid(Gringo::Input::SetAggregateElement), x.lit, x.cond);
+    return Gringo::Util::value_hash(typeid(Gringo::Input::SetAggregateElement), x.lit_, x.cond_);
 }
 
 auto value_hasher<Gringo::Input::SetAggregate<true>>::operator()(Gringo::Input::SetAggregate<true> const &x) const
     -> size_t {
-    return Gringo::Util::value_hash(typeid(Gringo::Input::SetAggregate<true>), x.sign, x.lhs, x.elems, x.rhs);
+    return Gringo::Util::value_hash(typeid(Gringo::Input::SetAggregate<true>), x.sign_, x.lhs_, x.elems_, x.rhs_);
 }
 
 auto value_hasher<Gringo::Input::SetAggregate<false>>::operator()(Gringo::Input::SetAggregate<false> const &x) const
     -> size_t {
-    return Gringo::Util::value_hash(typeid(Gringo::Input::SetAggregate<false>), x.lhs, x.elems, x.rhs);
+    return Gringo::Util::value_hash(typeid(Gringo::Input::SetAggregate<false>), x.lhs_, x.elems_, x.rhs_);
 }
 
 } // namespace Gringo::Util

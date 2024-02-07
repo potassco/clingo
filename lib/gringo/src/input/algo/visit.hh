@@ -93,15 +93,15 @@ template <class T> class Visitor {
 
     void accept_(TermVariable const &term) const { static_cast<void>(term); }
 
-    void accept_(TermTuple const &term) const { visit(term.pool); }
+    void accept_(TermTuple const &term) const { visit(term.pool_); }
 
-    void accept_(TermFunction const &term) const { visit(term.pool); }
+    void accept_(TermFunction const &term) const { visit(term.pool_); }
 
-    void accept_(TermAbs const &term) const { visit(term.pool); }
+    void accept_(TermAbs const &term) const { visit(term.pool_); }
 
-    void accept_(TermUnary const &term) const { visit(term.rhs); }
+    void accept_(TermUnary const &term) const { visit(term.rhs_); }
 
-    void accept_(TermBinary const &term) const { visit(term.lhs, term.rhs); }
+    void accept_(TermBinary const &term) const { visit(term.lhs_, term.rhs_); }
 
     // theory terms
 
@@ -109,90 +109,90 @@ template <class T> class Visitor {
 
     void accept_(TheoryTermVariable const &term) const { static_cast<void>(term); }
 
-    void accept_(TheoryTermTuple const &term) const { visit(term.elems); }
+    void accept_(TheoryTermTuple const &term) const { visit(term.elems_); }
 
-    void accept_(TheoryTermFunction const &term) const { visit(term.args); }
+    void accept_(TheoryTermFunction const &term) const { visit(term.args_); }
 
-    void accept_(TheoryTermUnparsed const &term) const { visit(term.elems); }
+    void accept_(TheoryTermUnparsed const &term) const { visit(term.elems_); }
 
     // literals
 
     void accept_(LiteralBoolean const &lit) const { static_cast<void>(lit); }
 
-    void accept_(LiteralRelation const &lit) const { visit(lit.lhs, lit.rhs); }
+    void accept_(LiteralRelation const &lit) const { visit(lit.lhs_, lit.rhs_); }
 
-    void accept_(LiteralSymbolic const &lit) const { visit(lit.term); }
+    void accept_(LiteralSymbolic const &lit) const { visit(lit.term_); }
 
     // conditional literal
 
-    void accept_(ConditionalLiteral const &cond_lit) const { visit(cond_lit.lit, cond_lit.cond); }
+    void accept_(ConditionalLiteral const &cond_lit) const { visit(cond_lit.lit_, cond_lit.cond_); }
 
     // aggregate
 
-    void accept_(SetAggregateElement const &elem) const { visit(elem.lit, elem.cond); }
+    void accept_(SetAggregateElement const &elem) const { visit(elem.lit_, elem.cond_); }
 
     template <bool HasSign> void accept_(SetAggregate<HasSign> const &lit) const {
-        visit(lit.elems);
-        visit(lit.lhs, lit.rhs);
+        visit(lit.elems_);
+        visit(lit.lhs_, lit.rhs_);
     }
 
     // theory
 
-    void accept_(TheoryElement const &elem) const { visit(elem.tuple, elem.cond); }
+    void accept_(TheoryElement const &elem) const { visit(elem.tuple_, elem.cond_); }
 
     template <bool HasSign> void accept_(TheoryAtom<HasSign> const &atom) const {
-        visit(atom.name, atom.elems, atom.rhs);
+        visit(atom.name_, atom.elems_, atom.rhs_);
     }
 
     // head literal
 
-    void accept_(SimpleHeadLiteral const &lit) const { visit(lit.lit); }
+    void accept_(SimpleHeadLiteral const &lit) const { visit(lit.lit_); }
 
-    void accept_(Disjunction const &lit) const { visit(lit.elems); }
+    void accept_(Disjunction const &lit) const { visit(lit.elems_); }
 
-    void accept_(HeadAggregate::Element const &elem) const { visit(elem.tuple, elem.lit, elem.cond); }
+    void accept_(HeadAggregate::Element const &elem) const { visit(elem.tuple_, elem.lit_, elem.cond_); }
 
-    void accept_(HeadAggregate const &lit) const { visit(lit.lhs, lit.elems, lit.rhs); }
+    void accept_(HeadAggregate const &lit) const { visit(lit.lhs_, lit.elems_, lit.rhs_); }
 
     // body literal
 
-    void accept_(SimpleBodyLiteral const &lit) const { visit(lit.lit); }
+    void accept_(SimpleBodyLiteral const &lit) const { visit(lit.lit_); }
 
-    void accept_(Conjunction const &lit) const { visit(lit.lit); }
+    void accept_(Conjunction const &lit) const { visit(lit.lit_); }
 
-    void accept_(BodyAggregate::Element const &elem) const { visit(elem.tuple, elem.cond); }
+    void accept_(BodyAggregate::Element const &elem) const { visit(elem.tuple_, elem.cond_); }
 
-    void accept_(BodyAggregate const &lit) const { visit(lit.lhs, lit.elems, lit.rhs); }
+    void accept_(BodyAggregate const &lit) const { visit(lit.lhs_, lit.elems_, lit.rhs_); }
 
     // statement
 
-    void accept_(Rule const &stm) const { visit(stm.head, stm.body); }
+    void accept_(Rule const &stm) const { visit(stm.head_, stm.body_); }
 
     void accept_(TheoryDefinition const &stm) const { static_cast<void>(stm); }
 
-    void accept_(StatementOptimize::Tuple const &tuple) const { visit(tuple.weight, tuple.priority, tuple.terms); }
+    void accept_(StatementOptimize::Tuple const &tuple) const { visit(tuple.weight_, tuple.priority_, tuple.terms_); }
 
-    void accept_(StatementOptimize const &stm) const { visit(stm.elems); }
+    void accept_(StatementOptimize const &stm) const { visit(stm.elems_); }
 
-    void accept_(StatementWeakConstraint const &stm) const { visit(stm.body, stm.tuple); }
+    void accept_(StatementWeakConstraint const &stm) const { visit(stm.body_, stm.tuple_); }
 
-    void accept_(StatementShow const &stm) const { visit(stm.term, stm.body); }
+    void accept_(StatementShow const &stm) const { visit(stm.term_, stm.body_); }
 
     void accept_(StatementShowSig const &stm) const { static_cast<void>(stm); }
 
-    void accept_(StatementProject const &stm) const { visit(stm.term, stm.body); }
+    void accept_(StatementProject const &stm) const { visit(stm.term_, stm.body_); }
 
     void accept_(StatementProjectSig const &stm) const { static_cast<void>(stm); }
 
     void accept_(StatementDefined const &stm) const { static_cast<void>(stm); }
 
-    void accept_(StatementExternal const &stm) const { visit(stm.term, stm.body, stm.type); }
+    void accept_(StatementExternal const &stm) const { visit(stm.term_, stm.body_, stm.type_); }
 
-    void accept_(StatementEdge::Edge const &edge) const { visit(edge.u, edge.v); }
+    void accept_(StatementEdge::Edge const &edge) const { visit(edge.u_, edge.v_); }
 
-    void accept_(StatementEdge const &stm) const { visit(stm.edges, stm.body); }
+    void accept_(StatementEdge const &stm) const { visit(stm.edges_, stm.body_); }
 
-    void accept_(StatementHeuristic const &stm) const { visit(stm.atom, stm.body, stm.type, stm.prio, stm.mod); }
+    void accept_(StatementHeuristic const &stm) const { visit(stm.atom_, stm.body_, stm.type_, stm.prio_, stm.mod_); }
 
     void accept_(StatementScript const &stm) const { static_cast<void>(stm); }
 
@@ -200,7 +200,7 @@ template <class T> class Visitor {
 
     void accept_(StatementProgram const &stm) const { static_cast<void>(stm); }
 
-    void accept_(StatementConst const &stm) const { visit(stm.value); }
+    void accept_(StatementConst const &stm) const { visit(stm.value_); }
 
     void accept_(Comment const &stm) const { static_cast<void>(stm); }
 };

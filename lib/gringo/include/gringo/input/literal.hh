@@ -27,8 +27,9 @@ auto operator+=(Sign &a, Sign b) -> Sign &;
 
 //! Simple struct with a sign.
 struct Signed {
+    explicit Signed(Sign sign) : sign_{sign} {}
     //! The sign of the struct.
-    Sign sign;
+    Sign sign_;
 };
 
 //! Simple struct without a sign.
@@ -60,14 +61,14 @@ using GuardVec = Util::immutable_array<Guard>;
 class LiteralBoolean {
   public:
     //! Construct a Boolean literal.
-    explicit LiteralBoolean(Location loc, Sign sign, bool value) : loc_{std::move(loc)}, sign(sign), value(value) {}
+    explicit LiteralBoolean(Location loc, Sign sign, bool value) : loc_{std::move(loc)}, sign_(sign), value_(value) {}
 
     //! The location of the literal.
     Location loc_;
     //! The sign of the literal.
-    Sign sign;
+    Sign sign_;
     //! The Boolean value.
-    bool value;
+    bool value_;
 };
 
 //! Check whether two Boolean literals are equivalent.
@@ -87,16 +88,16 @@ class LiteralRelation {
   public:
     //! Construct a relation literal.
     explicit LiteralRelation(Location loc, Sign sign, Term lhs, GuardVec rhs)
-        : loc_{std::move(loc)}, sign(sign), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
+        : loc_{std::move(loc)}, sign_(sign), lhs_(std::move(lhs)), rhs_(std::move(rhs)) {}
 
     //! The location of the literal.
     Location loc_;
     //! The sign of the literal.
-    Sign sign;
+    Sign sign_;
     //! The term on the left hand side.
-    Term lhs;
+    Term lhs_;
     //! The guards on the right hand side.
-    GuardVec rhs;
+    GuardVec rhs_;
 };
 
 //! Check whether two relation literals are equivalent.
@@ -116,14 +117,14 @@ struct LiteralSymbolic {
   public:
     //! Construct a symbolic literal.
     explicit LiteralSymbolic(Location loc, Sign sign, Term term)
-        : loc_{std::move(loc)}, sign(sign), term(std::move(term)) {}
+        : loc_{std::move(loc)}, sign_(sign), term_(std::move(term)) {}
 
     //! The location of the literal.
     Location loc_;
     //! The sign of the literal.
-    Sign sign;
+    Sign sign_;
     //! The term representing the atom.
-    Term term;
+    Term term_;
 };
 
 //! Check whether two symbolic literals are equivalent.
@@ -150,13 +151,13 @@ struct ConditionalLiteral {
   public:
     //! Construct a conditional literal.
     explicit ConditionalLiteral(Location loc, Literal lit, LiteralVec cond)
-        : loc_{std::move(loc)}, lit{std::move(lit)}, cond{std::move(cond)} {}
+        : loc_{std::move(loc)}, lit_{std::move(lit)}, cond_{std::move(cond)} {}
     //! The location of the literal.
     Location loc_;
     //! The literals on the left-hand-side.
-    Literal lit;
+    Literal lit_;
     //! The literals on the right-hand-side.
-    LiteralVec cond;
+    LiteralVec cond_;
 };
 
 //! Check whether two symbolic literals are equivalent.

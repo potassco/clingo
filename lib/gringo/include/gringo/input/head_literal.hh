@@ -16,9 +16,9 @@ namespace Gringo::Input {
 //! A single literal in a rule head.
 struct SimpleHeadLiteral {
     //! Wrap a literal in a head literal.
-    SimpleHeadLiteral(Literal lit) : lit{std::move(lit)} {}
+    SimpleHeadLiteral(Literal lit) : lit_{std::move(lit)} {}
     //! The literal.
-    Literal lit;
+    Literal lit_;
 };
 
 //! Compare two literals.
@@ -38,11 +38,11 @@ struct Disjunction {
     //! A vector of elements.
     using ElementVec = Util::immutable_array<Element>;
     //! Wrap a literal in a head literal.
-    Disjunction(Location loc, ElementVec elems) : loc_{loc}, elems{std::move(elems)} {}
+    Disjunction(Location loc, ElementVec elems) : loc_{loc}, elems_{std::move(elems)} {}
     //! The location of the disjunction.
     Location loc_;
     //! The elements of the disjunction.
-    ElementVec elems;
+    ElementVec elems_;
 };
 
 //! Compare two head disjunctions.
@@ -64,18 +64,18 @@ struct HeadAggregate {
         //! The location of the element.
         Location loc_;
         //! The tuple of the element.
-        TermVec tuple;
+        TermVec tuple_;
         //! The distinguished head literal of the element.
-        Literal lit;
+        Literal lit_;
         //! The condition of the element.
-        LiteralVec cond;
+        LiteralVec cond_;
     };
     //! A vector of head aggregate elements.
     using ElementVec = Util::immutable_array<Element>;
 
     //! Construct a head set aggregate.
     explicit HeadAggregate(Location loc, LGuard lhs, AggregateFunction fun, ElementVec elems, RGuard rhs)
-        : loc_{std::move(loc)}, fun(fun), elems(std::move(elems)), lhs{std::move(lhs)}, rhs{std::move(rhs)} {}
+        : loc_{std::move(loc)}, fun_(fun), elems_(std::move(elems)), lhs_{std::move(lhs)}, rhs_{std::move(rhs)} {}
     //! Construct a head set aggregate.
     explicit HeadAggregate(Location loc, AggregateFunction fun, ElementVec elems)
         : HeadAggregate{std::move(loc), std::nullopt, fun, std::move(elems), std::nullopt} {}
@@ -86,13 +86,13 @@ struct HeadAggregate {
     //! The location of the aggregate.
     Location loc_;
     //! The aggregate function.
-    AggregateFunction fun;
+    AggregateFunction fun_;
     //! The vector of elements.
-    ElementVec elems;
+    ElementVec elems_;
     //! An optional left guard.
-    LGuard lhs;
+    LGuard lhs_;
     //! An optional right guard.
-    RGuard rhs;
+    RGuard rhs_;
 };
 
 //! Compare two head aggregates elements.

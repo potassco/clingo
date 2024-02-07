@@ -16,9 +16,9 @@ namespace Gringo::Input {
 //! A single literal in a rule body.
 struct SimpleBodyLiteral {
     //! Wrap a literal in a body literal.
-    SimpleBodyLiteral(Literal lit) : lit{std::move(lit)} {}
+    SimpleBodyLiteral(Literal lit) : lit_{std::move(lit)} {}
     //! The literal.
-    Literal lit;
+    Literal lit_;
 };
 
 //! Compare two literals.
@@ -34,9 +34,9 @@ auto operator<(SimpleBodyLiteral const &a, SimpleBodyLiteral const &b) -> bool;
 //! A conditional literal in a rule body.
 struct Conjunction {
     //! Construct a conjunction.
-    Conjunction(ConditionalLiteral lit) : lit{std::move(lit)} {}
+    Conjunction(ConditionalLiteral lit) : lit_{std::move(lit)} {}
     //! The conditional literal representing the elements of the conjunction.
-    ConditionalLiteral lit;
+    ConditionalLiteral lit_;
 };
 
 //! Compare two body conjunctions.
@@ -58,30 +58,30 @@ struct BodyAggregate {
         //! The location of the element.
         Location loc_;
         //! The tuple of the element.
-        TermVec tuple;
+        TermVec tuple_;
         //! The condition of the element.
-        LiteralVec cond;
+        LiteralVec cond_;
     };
     //! A vector of aggregate elements.
     using ElementVec = Util::immutable_array<Element>;
 
     //! Construct a body aggregate.
     explicit BodyAggregate(Location loc, Sign sign, LGuard lhs, AggregateFunction fun, ElementVec elems, RGuard rhs)
-        : loc_{std::move(loc)}, sign{sign}, fun(fun), elems(std::move(elems)), lhs{std::move(lhs)},
-          rhs{std::move(rhs)} {}
+        : loc_{std::move(loc)}, sign_{sign}, fun_(fun), elems_(std::move(elems)), lhs_{std::move(lhs)},
+          rhs_{std::move(rhs)} {}
 
     //! The location of the literal.
     Location loc_;
     //! The sign of the literal.
-    Sign sign;
+    Sign sign_;
     //! The aggregate function.
-    AggregateFunction fun;
+    AggregateFunction fun_;
     //! The vector of elements.
-    ElementVec elems;
+    ElementVec elems_;
     //! An optional left guard.
-    LGuard lhs;
+    LGuard lhs_;
     //! An optional right guard.
-    RGuard rhs;
+    RGuard rhs_;
 };
 
 //! Compare two body aggregates elements.

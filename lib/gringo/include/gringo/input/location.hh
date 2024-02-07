@@ -74,7 +74,7 @@ namespace Detail {
 template <typename T, typename V = void> static constexpr bool has_loc = false;
 template <typename T> static constexpr bool has_loc<T, std::void_t<decltype(std::declval<T>().loc_)>> = true;
 template <typename T, typename V = void> static constexpr bool has_lit = false;
-template <typename T> static constexpr bool has_lit<T, std::void_t<decltype(std::declval<T>().lit)>> = true;
+template <typename T> static constexpr bool has_lit<T, std::void_t<decltype(std::declval<T>().lit_)>> = true;
 }; // namespace Detail
 
 //! Create a location from the given two positions.
@@ -88,7 +88,7 @@ template <class T> auto location(T const &x) -> std::enable_if_t<Detail::has_loc
 //! Get the location of an expression.
 template <class T>
 auto location(T const &x) -> std::enable_if_t<!Detail::has_loc<T> && Detail::has_lit<T>, Location const &> {
-    return location(x.lit);
+    return location(x.lit_);
 }
 
 //! Get the location of an expression stored in a variant.

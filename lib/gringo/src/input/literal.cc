@@ -86,35 +86,35 @@ auto complement(Relation rel) -> Relation {
 }
 
 auto operator==(LiteralBoolean const &a, LiteralBoolean const &b) -> bool {
-    return std::tie(a.sign, a.value) == std::tie(b.sign, b.value);
+    return std::tie(a.sign_, a.value_) == std::tie(b.sign_, b.value_);
 }
 
 auto operator==(LiteralRelation const &a, LiteralRelation const &b) -> bool {
-    return std::tie(a.sign, a.lhs, a.rhs) == std::tie(b.sign, b.lhs, b.rhs);
+    return std::tie(a.sign_, a.lhs_, a.rhs_) == std::tie(b.sign_, b.lhs_, b.rhs_);
 }
 
 auto operator==(LiteralSymbolic const &a, LiteralSymbolic const &b) -> bool {
-    return std::tie(a.sign, a.term) == std::tie(b.sign, b.term);
+    return std::tie(a.sign_, a.term_) == std::tie(b.sign_, b.term_);
 }
 
 auto operator==(ConditionalLiteral const &a, ConditionalLiteral const &b) -> bool {
-    return std::tie(a.lit, a.cond) == std::tie(b.lit, b.cond);
+    return std::tie(a.lit_, a.cond_) == std::tie(b.lit_, b.cond_);
 }
 
 auto operator<(LiteralBoolean const &a, LiteralBoolean const &b) -> bool {
-    return std::tie(a.sign, a.value) < std::tie(b.sign, b.value);
+    return std::tie(a.sign_, a.value_) < std::tie(b.sign_, b.value_);
 }
 
 auto operator<(LiteralRelation const &a, LiteralRelation const &b) -> bool {
-    return std::tie(a.sign, a.lhs, a.rhs) < std::tie(b.sign, b.lhs, b.rhs);
+    return std::tie(a.sign_, a.lhs_, a.rhs_) < std::tie(b.sign_, b.lhs_, b.rhs_);
 }
 
 auto operator<(LiteralSymbolic const &a, LiteralSymbolic const &b) -> bool {
-    return std::tie(a.sign, a.term) < std::tie(b.sign, b.term);
+    return std::tie(a.sign_, a.term_) < std::tie(b.sign_, b.term_);
 }
 
 auto operator<(ConditionalLiteral const &a, ConditionalLiteral const &b) -> bool {
-    return std::tie(a.lit, a.cond) < std::tie(b.lit, b.cond);
+    return std::tie(a.lit_, a.cond_) < std::tie(b.lit_, b.cond_);
 }
 
 } // namespace Gringo::Input
@@ -122,20 +122,20 @@ auto operator<(ConditionalLiteral const &a, ConditionalLiteral const &b) -> bool
 namespace Gringo::Util {
 
 auto value_hasher<Gringo::Input::LiteralBoolean>::operator()(Gringo::Input::LiteralBoolean const &x) const -> size_t {
-    return Gringo::Util::value_hash(typeid(Gringo::Input::LiteralBoolean), x.sign, x.value);
+    return Gringo::Util::value_hash(typeid(Gringo::Input::LiteralBoolean), x.sign_, x.value_);
 }
 
 auto value_hasher<Gringo::Input::LiteralRelation>::operator()(Gringo::Input::LiteralRelation const &x) const -> size_t {
-    return Gringo::Util::value_hash(typeid(Gringo::Input::LiteralRelation), x.sign, x.lhs, x.rhs);
+    return Gringo::Util::value_hash(typeid(Gringo::Input::LiteralRelation), x.sign_, x.lhs_, x.rhs_);
 }
 
 auto value_hasher<Gringo::Input::LiteralSymbolic>::operator()(Gringo::Input::LiteralSymbolic const &x) const -> size_t {
-    return Gringo::Util::value_hash(typeid(Gringo::Input::LiteralSymbolic), x.sign, x.term);
+    return Gringo::Util::value_hash(typeid(Gringo::Input::LiteralSymbolic), x.sign_, x.term_);
 }
 
 auto value_hasher<Gringo::Input::ConditionalLiteral>::operator()(Gringo::Input::ConditionalLiteral const &x) const
     -> size_t {
-    return Gringo::Util::value_hash(typeid(Gringo::Input::ConditionalLiteral), x.lit, x.cond);
+    return Gringo::Util::value_hash(typeid(Gringo::Input::ConditionalLiteral), x.lit_, x.cond_);
 }
 
 } // namespace Gringo::Util

@@ -159,8 +159,8 @@ class Program {
     //! See the notes regarding const statements above.
     template <class F> void visit_stms(SymbolStore &store, F fun) const {
         for (auto const &[id, sym] : const_map_) {
-            fun(Statement{StatementConst{sym.first.loc_, sym.first.type, sym.first.name,
-                                         TermSymbol{location(sym.first.value), sym.second}}});
+            fun(Statement{StatementConst{sym.first.loc_, sym.first.type_, sym.first.name_,
+                                         TermSymbol{location(sym.first.value_), sym.second}}});
         }
         for (auto const &stm : meta_stms_) {
             fun(stm);

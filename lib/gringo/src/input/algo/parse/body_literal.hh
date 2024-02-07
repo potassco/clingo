@@ -12,13 +12,13 @@ namespace Detail {
 
 inline auto construct_body_aggr(Term term, Relation rel, BodyAggregate aggr) -> BodyAggregate {
     aggr.loc_.begin = location(term).begin;
-    aggr.lhs = LGuard::value_type{std::move(term), rel};
+    aggr.lhs_ = LGuard::value_type{std::move(term), rel};
     return aggr;
 }
 
 inline auto construct_body_aggr(Term term, Relation rel, BodySetAggregate aggr) -> BodySetAggregate {
     aggr.loc_.begin = location(term).begin;
-    aggr.lhs = LGuard::value_type{term, rel};
+    aggr.lhs_ = LGuard::value_type{term, rel};
     return aggr;
 }
 

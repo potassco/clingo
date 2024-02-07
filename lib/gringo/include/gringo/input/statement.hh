@@ -18,14 +18,14 @@ namespace Gringo::Input {
 struct Rule {
     //! Construct a rule.
     explicit Rule(Location loc, HeadLiteral head, BodyLiteralVec body)
-        : loc_{std::move(loc)}, head{std::move(head)}, body{std::move(body)} {}
+        : loc_{std::move(loc)}, head_{std::move(head)}, body_{std::move(body)} {}
 
     //! The location of the rule.
     Location loc_;
     //! The head.
-    HeadLiteral head;
+    HeadLiteral head_;
     //! The body.
-    BodyLiteralVec body;
+    BodyLiteralVec body_;
 };
 
 //! Compare two rules.
@@ -49,16 +49,16 @@ enum class TheoryOpType {
 struct TheoryOpDefinition {
     //! Construct a theory operator definition.
     explicit TheoryOpDefinition(Location loc, String op, int prio, TheoryOpType type)
-        : loc_{std::move(loc)}, op{op}, prio{prio}, type{type} {}
+        : loc_{std::move(loc)}, op_{op}, prio_{prio}, type_{type} {}
 
     //! The location of the definition.
     Location loc_;
     //! The representation of the operator.
-    String op;
+    String op_;
     //! The priority of the operator.
-    int prio;
+    int prio_;
     //! The type of the operator.
-    TheoryOpType type;
+    TheoryOpType type_;
 };
 
 //! Compare two theory operator definitions.
@@ -76,14 +76,14 @@ using TheoryOpDefinitionVec = Util::immutable_array<TheoryOpDefinition>;
 struct TheoryTermDefinition {
     //! Construct a theory term definition.
     explicit TheoryTermDefinition(Location loc, String name, TheoryOpDefinitionVec op_defs)
-        : loc_{std::move(loc)}, name{name}, op_defs{std::move(op_defs)} {}
+        : loc_{std::move(loc)}, name_{name}, op_defs_{std::move(op_defs)} {}
 
     //! The location of the definition.
     Location loc_;
     //! The name of the definition.
-    String name;
+    String name_;
     //! The associated operator definitions.
-    Util::immutable_array<TheoryOpDefinition> op_defs;
+    Util::immutable_array<TheoryOpDefinition> op_defs_;
 };
 
 //! A vector of theory term definitions.
@@ -117,20 +117,20 @@ struct TheoryAtomDefinition {
     //! Construct a theory atom definition.
     explicit TheoryAtomDefinition(Location loc, String name, int arity, String term,
                                   std::optional<TheoryRGuardDefinition> rhs, TheoryAtomType type)
-        : loc_{std::move(loc)}, name(name), arity(arity), term(term), rhs(std::move(rhs)), type(type) {}
+        : loc_{std::move(loc)}, name_(name), arity_(arity), term_(term), rhs_(std::move(rhs)), type_(type) {}
 
     //! The location of the definition.
     Location loc_;
     //! The name of the atom.
-    String name;
+    String name_;
     //! The arity of the atom.
-    int arity;
+    int arity_;
     //! The name of the term definition used in elements.
-    String term;
+    String term_;
     //! The definition for the right hand side of the atom.
-    std::optional<TheoryRGuardDefinition> rhs;
+    std::optional<TheoryRGuardDefinition> rhs_;
     //! The type of the atom.
-    TheoryAtomType type;
+    TheoryAtomType type_;
 };
 
 //! A vector of theory atom definitions.
@@ -149,16 +149,16 @@ struct TheoryDefinition {
     //! Construct a theory definition.
     explicit TheoryDefinition(Location loc, String name, TheoryTermDefinitionVec term_defs,
                               TheoryAtomDefinitionVec atom_defs)
-        : loc_{std::move(loc)}, name{name}, term_defs{std::move(term_defs)}, atom_defs{std::move(atom_defs)} {}
+        : loc_{std::move(loc)}, name_{name}, term_defs_{std::move(term_defs)}, atom_defs_{std::move(atom_defs)} {}
 
     //! The location of the definition.
     Location loc_;
     //! The name of the definition.
-    String name;
+    String name_;
     //! The theory term definitions.
-    TheoryTermDefinitionVec term_defs;
+    TheoryTermDefinitionVec term_defs_;
     //! The theory atom definitions.
-    TheoryAtomDefinitionVec atom_defs;
+    TheoryAtomDefinitionVec atom_defs_;
 };
 
 //! Compare two theory definitions.
@@ -179,11 +179,11 @@ struct StatementOptimize {
     //! The tuple of a minimize element.
     struct Tuple {
         //! The weight.
-        Term weight;
+        Term weight_;
         //! The optional priority.
-        std::optional<Term> priority;
+        std::optional<Term> priority_;
         //! The remaining terms.
-        TermVec terms;
+        TermVec terms_;
     };
     //! An element.
     using Element = std::pair<Tuple, LiteralVec>;
@@ -192,14 +192,14 @@ struct StatementOptimize {
 
     //! Construct a weak constraint.
     explicit StatementOptimize(Location loc, OptimizeType type, ElementVec elems)
-        : loc_{std::move(loc)}, type{type}, elems{std::move(elems)} {}
+        : loc_{std::move(loc)}, type_{type}, elems_{std::move(elems)} {}
 
     //! The location of the statement.
     Location loc_;
     //! The type of the statement.
-    OptimizeType type;
+    OptimizeType type_;
     //! The elements of the statement.
-    ElementVec elems;
+    ElementVec elems_;
 };
 
 //! Compare two tuples.
@@ -223,14 +223,14 @@ struct StatementWeakConstraint {
 
     //! Construct a weak constraint.
     explicit StatementWeakConstraint(Location loc, BodyLiteralVec body, Tuple tuple)
-        : loc_{std::move(loc)}, body{std::move(body)}, tuple{std::move(tuple)} {}
+        : loc_{std::move(loc)}, body_{std::move(body)}, tuple_{std::move(tuple)} {}
 
     //! The location of the statement.
     Location loc_;
     //! The body of the constraint.
-    BodyLiteralVec body;
+    BodyLiteralVec body_;
     //! The tuple of the constraint.
-    Tuple tuple;
+    Tuple tuple_;
 };
 
 //! Compare two weak constraints.
@@ -245,14 +245,14 @@ auto operator<(StatementWeakConstraint const &a, StatementWeakConstraint const &
 struct StatementShow {
     //! Construct a show statement.
     explicit StatementShow(Location loc, Term term, BodyLiteralVec body)
-        : loc_{std::move(loc)}, term(std::move(term)), body(std::move(body)) {}
+        : loc_{std::move(loc)}, term_(std::move(term)), body_(std::move(body)) {}
 
     //! The location of the statement.
     Location loc_;
     //! The term to show.
-    Term term;
+    Term term_;
     //! The body.
-    BodyLiteralVec body;
+    BodyLiteralVec body_;
 };
 
 //! Compare two show statements.
@@ -267,16 +267,16 @@ auto operator<(StatementShow const &a, StatementShow const &b) -> bool;
 struct StatementShowSig {
     //! Construct a show signature statement.
     explicit StatementShowSig(Location loc, bool has_sign, String name, int arity)
-        : loc_{std::move(loc)}, has_sign{has_sign}, name{name}, arity{arity} {}
+        : loc_{std::move(loc)}, has_sign_{has_sign}, name_{name}, arity_{arity} {}
 
     //! The location of the statement.
     Location loc_;
     //! Whether the signature is negative.
-    bool has_sign;
+    bool has_sign_;
     //! The name.
-    String name;
+    String name_;
     //! The arity.
-    int arity;
+    int arity_;
 };
 
 //! Compare two show statements.
@@ -291,14 +291,14 @@ auto operator<(StatementShowSig const &a, StatementShowSig const &b) -> bool;
 struct StatementProject {
     //! Construct a project statement.
     explicit StatementProject(Location loc, Term term, BodyLiteralVec body)
-        : loc_{std::move(loc)}, term(std::move(term)), body(std::move(body)) {}
+        : loc_{std::move(loc)}, term_(std::move(term)), body_(std::move(body)) {}
 
     //! The location of the statement.
     Location loc_;
     //! The term representing the atom to project.
-    Term term;
+    Term term_;
     //! The body.
-    BodyLiteralVec body;
+    BodyLiteralVec body_;
 };
 
 //! Compare two project statements.
@@ -313,16 +313,16 @@ auto operator<(StatementProject const &a, StatementProject const &b) -> bool;
 struct StatementProjectSig {
     //! Construct a project signature statement.
     explicit StatementProjectSig(Location loc, bool has_sign, String name, int arity)
-        : loc_{std::move(loc)}, has_sign{has_sign}, name{name}, arity{arity} {}
+        : loc_{std::move(loc)}, has_sign_{has_sign}, name_{name}, arity_{arity} {}
 
     //! The location of the statement.
     Location loc_;
     //! Whether the signature is negative.
-    bool has_sign;
+    bool has_sign_;
     //! The name.
-    String name;
+    String name_;
     //! The arity.
-    int arity;
+    int arity_;
 };
 
 //! Compare two project statements.
@@ -337,16 +337,16 @@ auto operator<(StatementProjectSig const &a, StatementProjectSig const &b) -> bo
 struct StatementDefined {
     //! Construct a defined statement.
     explicit StatementDefined(Location loc, bool has_sign, String name, int arity)
-        : loc_{std::move(loc)}, has_sign{has_sign}, name{name}, arity{arity} {}
+        : loc_{std::move(loc)}, has_sign_{has_sign}, name_{name}, arity_{arity} {}
 
     //! The location of the statement.
     Location loc_;
     //! Whether the signature is negative.
-    bool has_sign;
+    bool has_sign_;
     //! The name.
-    String name;
+    String name_;
     //! The arity.
-    int arity;
+    int arity_;
 };
 
 //! Compare two defined statements.
@@ -361,16 +361,16 @@ auto operator<(StatementDefined const &a, StatementDefined const &b) -> bool;
 struct StatementExternal {
     //! Construct an external statement.
     explicit StatementExternal(Location loc, Term term, BodyLiteralVec body, std::optional<Term> type = std::nullopt)
-        : loc_{std::move(loc)}, term(std::move(term)), body(std::move(body)), type{std::move(type)} {}
+        : loc_{std::move(loc)}, term_(std::move(term)), body_(std::move(body)), type_{std::move(type)} {}
 
     //! The location of the statement.
     Location loc_;
     //! The term representing the atom to project.
-    Term term;
+    Term term_;
     //! The body.
-    BodyLiteralVec body;
+    BodyLiteralVec body_;
     //! The type of the statement.
-    std::optional<Term> type;
+    std::optional<Term> type_;
 };
 
 //! Compare two external statements.
@@ -386,23 +386,23 @@ struct StatementEdge {
     //! An directed edge.
     struct Edge {
         //! The source vertex.
-        Term u;
+        Term u_;
         //! The target vertex.
-        Term v;
+        Term v_;
     };
     //! A vector of edges.
     using EdgeVec = Util::immutable_array<Edge>;
 
     //! Construct an edge statement.
     explicit StatementEdge(Location loc, EdgeVec edges, BodyLiteralVec body = {})
-        : loc_{std::move(loc)}, edges{std::move(edges)}, body{std::move(body)} {}
+        : loc_{std::move(loc)}, edges_{std::move(edges)}, body_{std::move(body)} {}
 
     //! The location of the statement.
     Location loc_;
     //! The pool of edges.
-    EdgeVec edges;
+    EdgeVec edges_;
     //! The body.
-    BodyLiteralVec body;
+    BodyLiteralVec body_;
 };
 
 //! Compare two edges.
@@ -424,8 +424,8 @@ struct StatementHeuristic {
     //! Construct a heuristic statement.
     explicit StatementHeuristic(Location loc, Term atom, BodyLiteralVec body, Term type, std::optional<Term> prio,
                                 Term mod)
-        : loc_{std::move(loc)}, atom{std::move(atom)}, body{std::move(body)}, type(std::move(type)),
-          prio(std::move(prio)), mod(std::move(mod)) {}
+        : loc_{std::move(loc)}, atom_{std::move(atom)}, body_{std::move(body)}, type_(std::move(type)),
+          prio_(std::move(prio)), mod_(std::move(mod)) {}
     //! Construct a heuristic statement.
     explicit StatementHeuristic(Location loc, Term atom, BodyLiteralVec body, Term type, Term prio, Term mod)
         : StatementHeuristic{
@@ -439,15 +439,15 @@ struct StatementHeuristic {
     //! The location of the statement.
     Location loc_;
     //! The atom to modify.
-    Term atom;
+    Term atom_;
     //! The body.
-    BodyLiteralVec body;
+    BodyLiteralVec body_;
     //! The type.
-    Term type;
+    Term type_;
     //! The optional priority.
-    std::optional<Term> prio;
+    std::optional<Term> prio_;
     //! The modifier.
-    Term mod;
+    Term mod_;
 };
 
 //! Compare two heuristic statements.
@@ -462,14 +462,14 @@ auto operator<(StatementHeuristic const &a, StatementHeuristic const &b) -> bool
 struct StatementScript {
     //! Construct a script statement.
     explicit StatementScript(Location loc, String type, std::string content)
-        : loc_{std::move(loc)}, type(type), content(std::move(content)) {}
+        : loc_{std::move(loc)}, type_(type), content_(std::move(content)) {}
 
     //! The location of the statement.
     Location loc_;
     //! The code type.
-    String type;
+    String type_;
     //! The code.
-    std::string content;
+    std::string content_;
 };
 
 //! Compare two script statements.
@@ -492,14 +492,14 @@ enum class IncludeType {
 struct StatementInclude {
     //! Construct an include statement.
     explicit StatementInclude(Location loc, IncludeType type, std::string path)
-        : loc_{std::move(loc)}, type(type), path(std::move(path)) {}
+        : loc_{std::move(loc)}, type_(type), path_(std::move(path)) {}
 
     //! The location of the statement.
     Location loc_;
     //! The include type.
-    IncludeType type;
+    IncludeType type_;
     //! The path.
-    std::string path;
+    std::string path_;
 };
 
 //! Compare two include statements.
@@ -514,14 +514,14 @@ auto operator<(StatementInclude const &a, StatementInclude const &b) -> bool;
 struct StatementProgram {
     //! Construct an program statement.
     explicit StatementProgram(Location loc, String name, Util::immutable_array<String> args)
-        : loc_{std::move(loc)}, name(name), args(std::move(args)) {}
+        : loc_{std::move(loc)}, name_(name), args_(std::move(args)) {}
 
     //! The location of the statement.
     Location loc_;
     //! The name of the program.
-    String name;
+    String name_;
     //! The arguments of the program.
-    Util::immutable_array<String> args;
+    Util::immutable_array<String> args_;
 };
 
 //! Compare two program statements.
@@ -544,16 +544,16 @@ enum class ConstType {
 struct StatementConst {
     //! Construct a const statement.
     explicit StatementConst(Location loc, ConstType type, String name, Term value)
-        : loc_{std::move(loc)}, type(type), name(name), value(std::move(value)) {}
+        : loc_{std::move(loc)}, type_(type), name_(name), value_(std::move(value)) {}
 
     //! The location of the statement.
     Location loc_;
     //! The type of the statement.
-    ConstType type;
+    ConstType type_;
     //! The name of the constant.
-    String name;
+    String name_;
     //! The value of the constant
-    Term value;
+    Term value_;
 };
 
 //! Compare two const statements.
@@ -576,14 +576,14 @@ enum class CommentType {
 struct Comment {
     //! Construct a comment.
     explicit Comment(Location loc, CommentType type, std::string value)
-        : loc_{std::move(loc)}, type{type}, value{std::move(value)} {}
+        : loc_{std::move(loc)}, type_{type}, value_{std::move(value)} {}
 
     //! The location of the statement.
     Location loc_;
     //! The type of the comment.
-    CommentType type;
+    CommentType type_;
     //! The content of the comment including comment markers.
-    std::string value;
+    std::string value_;
 };
 
 //! Compare two comments.

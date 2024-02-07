@@ -11,7 +11,7 @@ struct CollectVariables : Visitor<CollectVariables> {
     ~CollectVariables() { vars.clear(); }
 
     template <class T> void accept(T const &x) const = delete;
-    void accept(TermVariable const &term) const { vars.emplace(term.name); }
+    void accept(TermVariable const &term) const { vars.emplace(term.name_); }
 
     VariableSet &vars;
 };
@@ -25,63 +25,63 @@ struct VisitVariables : Visitor<VisitVariables> {
 
     // terms
 
-    void accept(TermVariable const &term) const { fun(term.loc_, term.name); }
+    void accept(TermVariable const &term) const { fun(term.loc_, term.name_); }
 
     // theory terms
 
-    void accept(TheoryTermVariable const &term) const { fun(term.loc_, term.name); }
+    void accept(TheoryTermVariable const &term) const { fun(term.loc_, term.name_); }
 
     // conditional literal
 
     void accept(ConditionalLiteral const &cond_lit) const {
         if (ctx == VariableContext::all) {
-            visit(cond_lit.cond, cond_lit.lit);
+            visit(cond_lit.cond_, cond_lit.lit_);
         }
     }
 
     // aggregate
 
-    void accept(SetAggregateElement const &elem) const { visit(elem.lit, elem.cond); }
+    void accept(SetAggregateElement const &elem) const { visit(elem.lit_, elem.cond_); }
 
     template <bool HasSign> void accept(SetAggregate<HasSign> const &lit) const {
         if (ctx == VariableContext::all) {
-            visit(lit.elems);
+            visit(lit.elems_);
         }
-        visit(lit.lhs, lit.rhs);
+        visit(lit.lhs_, lit.rhs_);
     }
 
     // theory
 
     template <bool HasSign> void accept(TheoryAtom<HasSign> const &atom) const {
         if (ctx == VariableContext::all) {
-            visit(atom.elems);
+            visit(atom.elems_);
         }
-        visit(atom.name, atom.rhs);
+        visit(atom.name_, atom.rhs_);
     }
 
     // head literal
 
     void accept(HeadAggregate const &lit) const {
         if (ctx == VariableContext::all) {
-            visit(lit.elems);
+            visit(lit.elems_);
         }
-        visit(lit.lhs, lit.rhs);
+        visit(lit.lhs_, lit.rhs_);
     }
 
     // body literal
 
     void accept(BodyAggregate const &lit) const {
         if (ctx == VariableContext::all) {
-            visit(lit.elems);
+            visit(lit.elems_);
         }
-        visit(lit.lhs, lit.rhs);
+        visit(lit.lhs_, lit.rhs_);
     }
 
     // statement
 
     void accept(StatementOptimize const &stm) const {
         if (ctx == VariableContext::all) {
-            visit(stm.elems);
+            visit(stm.elems_);
         }
     }
 

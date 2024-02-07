@@ -20,11 +20,11 @@ struct GetDep {
     }
 
     void operator()(TermVariable const &term, bool can_provide) const {
-        if (!ignore.contains(term.name)) {
+        if (!ignore.contains(term.name_)) {
             if (can_provide) {
-                provide.emplace_back(term.name);
+                provide.emplace_back(term.name_);
             } else {
-                depend.emplace_back(term.name);
+                depend.emplace_back(term.name_);
             }
         }
     }
@@ -43,34 +43,34 @@ struct GetDep {
     }
 
     void operator()(TermTuple const &term, bool can_provide) const {
-        for (auto const &elem : term.pool) {
+        for (auto const &elem : term.pool_) {
             std::visit(*this, elem, std::variant<bool>{can_provide});
         }
     }
 
     void operator()(TermFunction const &term, bool can_provide) const {
-        for (auto const &elem : term.pool) {
+        for (auto const &elem : term.pool_) {
             operator()(elem, can_provide);
         }
     }
 
     void operator()(TermAbs const &term, bool can_provide) const {
         static_cast<void>(can_provide);
-        for (auto const &arg : term.pool) {
+        for (auto const &arg : term.pool_) {
             operator()(arg, false);
         }
     }
 
     void operator()(TermUnary const &term, bool can_provide) const {
-        operator()(*term.rhs, can_provide && term.op == UnaryOperator::negate);
+        operator()(*term.rhs_, can_provide && term.op_ == UnaryOperator::negate);
     }
 
     void operator()(TermBinary const &term, bool can_provide) const {
         if (auto var = is_linear(term); can_provide && var && !ignore.contains(*var)) {
             provide.emplace_back(*var);
         } else {
-            operator()(*term.lhs, false);
-            operator()(*term.rhs, false);
+            operator()(*term.lhs_, false);
+            operator()(*term.rhs_, false);
         }
     }
 
@@ -98,13 +98,13 @@ template <class CB> struct MakeNode {
         auto add = [this, &lit](bool lhs, bool rhs) {
             StringVec provide;
             StringVec depend;
-            GetDep{provided, provide, depend}(lit.lhs, lhs);
-            GetDep{provided, provide, depend}(lit.rhs.front().second, rhs);
+            GetDep{provided, provide, depend}(lit.lhs_, lhs);
+            GetDep{provided, provide, depend}(lit.rhs_.front().second, rhs);
             if (!rhs || !provide.empty()) {
                 std::invoke(cb, std::move(provide), std::move(depend), rhs);
             }
         };
-        if (lit.rhs.front().first == Relation::equal && can_provide) {
+        if (lit.rhs_.front().first == Relation::equal && can_provide) {
             add(true, false);
             add(false, true);
         } else {
@@ -115,7 +115,7 @@ template <class CB> struct MakeNode {
     void operator()(LiteralSymbolic const &lit, bool can_provide) {
         StringVec provide;
         StringVec depend;
-        GetDep{provided, provide, depend}(lit.term, can_provide && lit.sign == Sign::none);
+        GetDep{provided, provide, depend}(lit.term_, can_provide && lit.sign_ == Sign::none);
         std::invoke(cb, std::move(provide), std::move(depend), false);
     }
 
@@ -125,7 +125,7 @@ template <class CB> struct MakeNode {
         std::visit(*this, lit, std::variant<bool>{can_provide});
     }
 
-    void operator()(SimpleBodyLiteral const &lit, bool can_provide) { operator()(lit.lit, can_provide); }
+    void operator()(SimpleBodyLiteral const &lit, bool can_provide) { operator()(lit.lit_, can_provide); }
 
     void operator()(Conjunction const &lit, bool can_provide) {
         static_cast<void>(can_provide);
@@ -147,14 +147,14 @@ template <class CB> struct MakeNode {
         VariableVec depend;
         // TODO: aggregate has to be brought into this form in unpool_relations
         can_provide =
-            can_provide && lit.sign == Sign::none && !lit.rhs && lit.lhs && lit.lhs->second == Relation::equal;
-        if (lit.lhs) {
-            GetDep{provided, provide, depend}(lit.lhs->first, can_provide);
+            can_provide && lit.sign_ == Sign::none && !lit.rhs_ && lit.lhs_ && lit.lhs_->second == Relation::equal;
+        if (lit.lhs_) {
+            GetDep{provided, provide, depend}(lit.lhs_->first, can_provide);
         }
-        if (lit.rhs) {
-            GetDep{provided, provide, depend}(lit.rhs->second, false);
+        if (lit.rhs_) {
+            GetDep{provided, provide, depend}(lit.rhs_->second, false);
         }
-        for (auto const &elem : lit.elems) {
+        for (auto const &elem : lit.elems_) {
             visit_variables(elem, [this, &depend](Location const &loc, auto const &var) {
                 static_cast<void>(loc);
                 if (global.contains(var)) {
@@ -204,12 +204,12 @@ template <class Lit> using NodeVec = std::vector<Node<Lit>>;
 
 [[nodiscard]] auto flip(Literal const &lit) -> Literal {
     auto const &rel = std::get<LiteralRelation>(lit);
-    auto const &[sym, rhs] = rel.rhs.front();
-    assert(sym == Relation::equal && rel.rhs.size() == 1);
-    return LiteralRelation{rel.loc_, rel.sign, rhs, Util::make_vec<Guard>(Guard{sym, rel.lhs})};
+    auto const &[sym, rhs] = rel.rhs_.front();
+    assert(sym == Relation::equal && rel.rhs_.size() == 1);
+    return LiteralRelation{rel.loc_, rel.sign_, rhs, Util::make_vec<Guard>(Guard{sym, rel.lhs_})};
 }
 
-[[nodiscard]] auto flip(BodyLiteral const &lit) -> BodyLiteral { return flip(std::get<SimpleBodyLiteral>(lit).lit); }
+[[nodiscard]] auto flip(BodyLiteral const &lit) -> BodyLiteral { return flip(std::get<SimpleBodyLiteral>(lit).lit_); }
 
 [[nodiscard]] auto is_provided(VariableSet const &provided, auto const &vars) {
     return std::all_of(vars.begin(), vars.end(),
@@ -318,13 +318,13 @@ struct CheckLocal {
     auto operator()(TheoryElementVec const &elems) {
         auto res_elems = Util::ResultVec{elems};
         for (auto const &elem : elems) {
-            auto [res_cond, provided] = prepare_lits(log, elem.cond, VariableSet{}, bound);
-            if (!res_cond.complete() || !check_provided(bound, provided, elem.tuple)) {
+            auto [res_cond, provided] = prepare_lits(log, elem.cond_, VariableSet{}, bound);
+            if (!res_cond.complete() || !check_provided(bound, provided, elem.tuple_)) {
                 report_local(log, bound, provided, elem);
                 break;
             }
             if (res_cond) {
-                res_elems.replace(elem.loc_, elem.tuple, res_cond.value());
+                res_elems.replace(elem.loc_, elem.tuple_, res_cond.value());
             } else {
                 res_elems.keep();
             }
@@ -340,16 +340,16 @@ struct CheckLocal {
     }
 
     auto operator()(Disjunction const &hlit) -> Util::ResultState<HeadLiteral> {
-        auto res_elems = Util::ResultVec{hlit.elems};
-        for (auto const &elem : hlit.elems) {
+        auto res_elems = Util::ResultVec{hlit.elems_};
+        for (auto const &elem : hlit.elems_) {
             if (auto const *clit = std::get_if<ConditionalLiteral>(&elem); clit != nullptr) {
-                auto [res_cond, provided] = prepare_lits(log, clit->cond, VariableSet{}, bound);
-                if (!res_cond.complete() || !check_provided(bound, provided, clit->lit)) {
+                auto [res_cond, provided] = prepare_lits(log, clit->cond_, VariableSet{}, bound);
+                if (!res_cond.complete() || !check_provided(bound, provided, clit->lit_)) {
                     report_local(log, bound, provided, *clit);
                     return {false};
                 }
                 if (res_cond) {
-                    res_elems.replace(ConditionalLiteral{clit->loc_, clit->lit, res_cond.value()});
+                    res_elems.replace(ConditionalLiteral{clit->loc_, clit->lit_, res_cond.value()});
                 } else {
                     res_elems.keep();
                 }
@@ -364,21 +364,21 @@ struct CheckLocal {
     }
 
     auto operator()(HeadAggregate const &hlit) -> Util::ResultState<HeadLiteral> {
-        auto res_elems = Util::ResultVec{hlit.elems};
-        for (auto const &elem : hlit.elems) {
-            auto [res_cond, provided] = prepare_lits(log, elem.cond, VariableSet{}, bound);
-            if (!res_cond.complete() || !check_provided(bound, provided, elem.tuple, elem.lit)) {
+        auto res_elems = Util::ResultVec{hlit.elems_};
+        for (auto const &elem : hlit.elems_) {
+            auto [res_cond, provided] = prepare_lits(log, elem.cond_, VariableSet{}, bound);
+            if (!res_cond.complete() || !check_provided(bound, provided, elem.tuple_, elem.lit_)) {
                 report_local(log, bound, provided, elem);
                 return {false};
             }
             if (res_cond) {
-                res_elems.replace(elem.loc_, elem.tuple, elem.lit, res_cond.value());
+                res_elems.replace(elem.loc_, elem.tuple_, elem.lit_, res_cond.value());
             } else {
                 res_elems.keep();
             }
         }
         if (res_elems) {
-            return {true, HeadAggregate{hlit.loc_, hlit.lhs, hlit.fun, std::move(res_elems).value(), hlit.rhs}};
+            return {true, HeadAggregate{hlit.loc_, hlit.lhs_, hlit.fun_, std::move(res_elems).value(), hlit.rhs_}};
         }
         return {true};
     }
@@ -389,12 +389,12 @@ struct CheckLocal {
     }
 
     auto operator()(HeadTheoryAtom const &hlit) -> Util::ResultState<HeadLiteral> {
-        auto res_elems = operator()(hlit.elems);
+        auto res_elems = operator()(hlit.elems_);
         if (!res_elems.complete()) {
             return {false};
         }
         if (res_elems) {
-            return {true, HeadTheoryAtom{hlit.loc_, hlit.name, std::move(res_elems).value(), hlit.rhs}};
+            return {true, HeadTheoryAtom{hlit.loc_, hlit.name_, std::move(res_elems).value(), hlit.rhs_}};
         }
         return {true};
     }
@@ -407,35 +407,35 @@ struct CheckLocal {
     }
 
     auto operator()(Conjunction const &blit) -> Util::ResultState<BodyLiteral> {
-        auto [res_cond, provided] = prepare_lits(log, blit.lit.cond, VariableSet{}, bound);
-        if (!res_cond.complete() || !check_provided(bound, provided, blit.lit.lit)) {
-            report_local(log, bound, provided, blit.lit);
+        auto [res_cond, provided] = prepare_lits(log, blit.lit_.cond_, VariableSet{}, bound);
+        if (!res_cond.complete() || !check_provided(bound, provided, blit.lit_.lit_)) {
+            report_local(log, bound, provided, blit.lit_);
             return {false};
         }
 
         if (res_cond) {
-            return {true, Conjunction{ConditionalLiteral{blit.lit.loc_, blit.lit.lit, std::move(res_cond).value()}}};
+            return {true, Conjunction{ConditionalLiteral{blit.lit_.loc_, blit.lit_.lit_, std::move(res_cond).value()}}};
         }
         return {true};
     }
 
     auto operator()(BodyAggregate const &blit) -> Util::ResultState<BodyLiteral> {
-        auto res_elems = Util::ResultVec{blit.elems};
-        for (auto const &elem : blit.elems) {
-            auto [res_cond, provided] = prepare_lits(log, elem.cond, VariableSet{}, bound);
-            if (!res_cond.complete() || !check_provided(bound, provided, elem.tuple)) {
+        auto res_elems = Util::ResultVec{blit.elems_};
+        for (auto const &elem : blit.elems_) {
+            auto [res_cond, provided] = prepare_lits(log, elem.cond_, VariableSet{}, bound);
+            if (!res_cond.complete() || !check_provided(bound, provided, elem.tuple_)) {
                 report_local(log, bound, provided, elem);
                 return {false};
             }
             if (res_cond) {
-                res_elems.replace(elem.loc_, elem.tuple, res_cond.value());
+                res_elems.replace(elem.loc_, elem.tuple_, res_cond.value());
             } else {
                 res_elems.keep();
             }
         }
         if (res_elems) {
-            return {true,
-                    BodyAggregate{blit.loc_, blit.sign, blit.lhs, blit.fun, std::move(res_elems).value(), blit.rhs}};
+            return {true, BodyAggregate{blit.loc_, blit.sign_, blit.lhs_, blit.fun_, std::move(res_elems).value(),
+                                        blit.rhs_}};
         }
         return {true};
     }
@@ -446,12 +446,12 @@ struct CheckLocal {
     }
 
     auto operator()(BodyTheoryAtom const &blit) -> Util::ResultState<BodyLiteral> {
-        auto res_elems = operator()(blit.elems);
+        auto res_elems = operator()(blit.elems_);
         if (!res_elems.complete()) {
             return {false};
         }
         if (res_elems) {
-            return {true, BodyTheoryAtom{blit.loc_, blit.sign, blit.name, std::move(res_elems).value(), blit.rhs}};
+            return {true, BodyTheoryAtom{blit.loc_, blit.sign_, blit.name_, std::move(res_elems).value(), blit.rhs_}};
         }
         return {true};
     }
@@ -468,7 +468,7 @@ struct CheckGlobal {
         if (atom != nullptr) {
             extra = select_variables(*atom);
         }
-        auto [res_body, provided] = prepare_lits(log, stm.body, global, VariableSet{}, extra);
+        auto [res_body, provided] = prepare_lits(log, stm.body_, global, VariableSet{}, extra);
         if (!res_body.complete() || !is_provided(provided, global)) {
             report(log, global, provided, stm);
             return {false};
@@ -501,14 +501,14 @@ struct CheckGlobal {
     auto operator()(Rule const &stm) -> Util::ResultState<Statement> {
         return check_body<true>(stm, [this, &stm](auto &provided, auto res_body) -> Util::ResultState<Statement> {
             // check nested head
-            auto [state_head, res_head] = CheckLocal{log, provided}(stm.head);
+            auto [state_head, res_head] = CheckLocal{log, provided}(stm.head_);
             if (!state_head) {
                 return {false};
             }
 
             // construct new rule if necessary
             if (res_body || res_head) {
-                return {true, Rule{stm.loc_, std::move(res_head).value_or(stm.head), std::move(res_body).value()}};
+                return {true, Rule{stm.loc_, std::move(res_head).value_or(stm.head_), std::move(res_body).value()}};
             }
             return {true};
         });
@@ -526,12 +526,12 @@ struct CheckGlobal {
 
     auto operator()(StatementWeakConstraint const &stm) -> Util::ResultState<Statement> {
         return check_body(stm, [&stm](auto body) {
-            return StatementWeakConstraint{stm.loc_, std::move(body), stm.tuple};
+            return StatementWeakConstraint{stm.loc_, std::move(body), stm.tuple_};
         });
     }
 
     auto operator()(StatementShow const &stm) -> Util::ResultState<Statement> {
-        return check_body(stm, [&stm](auto body) { return StatementShow{stm.loc_, stm.term, std::move(body)}; });
+        return check_body(stm, [&stm](auto body) { return StatementShow{stm.loc_, stm.term_, std::move(body)}; });
     }
 
     auto operator()(StatementShowSig const &stm) -> Util::ResultState<Statement> {
@@ -543,9 +543,9 @@ struct CheckGlobal {
         return check_body(
             stm,
             [&stm](auto body) {
-                return StatementProject{stm.loc_, stm.term, std::move(body)};
+                return StatementProject{stm.loc_, stm.term_, std::move(body)};
             },
-            &stm.term);
+            &stm.term_);
     }
 
     auto operator()(StatementProjectSig const &stm) -> Util::ResultState<Statement> {
@@ -560,21 +560,21 @@ struct CheckGlobal {
 
     auto operator()(StatementExternal const &stm) -> Util::ResultState<Statement> {
         return check_body(stm, [&stm](auto body) {
-            return StatementExternal{stm.loc_, stm.term, std::move(body), stm.type};
+            return StatementExternal{stm.loc_, stm.term_, std::move(body), stm.type_};
         });
     }
 
     auto operator()(StatementEdge const &stm) -> Util::ResultState<Statement> {
-        return check_body(stm, [&stm](auto body) { return StatementEdge{stm.loc_, stm.edges, std::move(body)}; });
+        return check_body(stm, [&stm](auto body) { return StatementEdge{stm.loc_, stm.edges_, std::move(body)}; });
     }
 
     auto operator()(StatementHeuristic const &stm) -> Util::ResultState<Statement> {
         return check_body(
             stm,
             [&stm](auto body) {
-                return StatementHeuristic{stm.loc_, stm.atom, std::move(body), stm.type, stm.prio, stm.mod};
+                return StatementHeuristic{stm.loc_, stm.atom_, std::move(body), stm.type_, stm.prio_, stm.mod_};
             },
-            &stm.atom);
+            &stm.atom_);
     }
 
     auto operator()(StatementScript const &stm) -> Util::ResultState<Statement> {

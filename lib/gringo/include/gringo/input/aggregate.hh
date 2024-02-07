@@ -22,9 +22,9 @@ enum class AggregateFunction {
     max,   //! The <tt>\#max</tt> function.
 };
 
-//! An optical left guard of an aggregate.
+//! An optional left guard of an aggregate.
 using LGuard = std::optional<std::pair<Term, Relation>>;
-//! An optical right guard of an aggregate.
+//! An optional right guard of an aggregate.
 using RGuard = std::optional<std::pair<Relation, Term>>;
 
 //! Check whether the given aggregate function/guard combination can result in a nonmonotone aggregate.
@@ -46,9 +46,9 @@ struct SetAggregateElement {
     //! The location of the element.
     Location loc_;
     //! The literal.
-    Literal lit;
+    Literal lit_;
     //! The condition.
-    LiteralVec cond;
+    LiteralVec cond_;
 };
 
 //! Compare two set aggregate elements.
@@ -71,24 +71,24 @@ template <bool HasSign> struct SetAggregate : std::conditional_t<HasSign, Signed
 
     //! Construct a set aggregate.
     explicit SetAggregate(Location loc, LGuard lhs, SetAggregateElementVec elems, RGuard rhs)
-        : loc_{std::move(loc)}, elems{std::move(elems)}, lhs(std::move(lhs)), rhs(std::move(rhs)) {
+        : loc_{std::move(loc)}, elems_{std::move(elems)}, lhs_(std::move(lhs)), rhs_(std::move(rhs)) {
         static_assert(!HasSign);
     }
 
     //! Construct a set aggregate.
     explicit SetAggregate(Location loc, Sign sign, LGuard lhs, SetAggregateElementVec elems, RGuard rhs)
-        : Signed{sign}, loc_{std::move(loc)}, elems{std::move(elems)}, lhs(std::move(lhs)), rhs(std::move(rhs)) {
+        : Signed{sign}, loc_{std::move(loc)}, elems_{std::move(elems)}, lhs_(std::move(lhs)), rhs_(std::move(rhs)) {
         static_assert(HasSign);
     }
 
     //! The location of the aggregate.
     Location loc_;
     //! The elements of the set aggregate.
-    SetAggregateElementVec elems;
-    //! The optical right guard of the aggregate.
-    LGuard lhs;
-    //! The optical left guard of the aggregate.
-    RGuard rhs;
+    SetAggregateElementVec elems_;
+    //! The optional right guard of the aggregate.
+    LGuard lhs_;
+    //! The optional left guard of the aggregate.
+    RGuard rhs_;
 };
 
 //! Compare two set aggregates.

@@ -9,10 +9,10 @@ namespace {
 
 [[nodiscard]] auto is_identifier(Term const &term) -> bool {
     if (auto const *fun = std::get_if<TermFunction>(&term); fun != nullptr) {
-        return !fun->external && fun->pool.size() == 1 && fun->pool.front().empty();
+        return !fun->external_ && fun->pool_.size() == 1 && fun->pool_.front().empty();
     }
     if (auto const *sym = std::get_if<TermSymbol>(&term); sym != nullptr) {
-        return sym->value.type() == SymbolType::function && sym->value.args().empty();
+        return sym->value_.type() == SymbolType::function && sym->value_.args().empty();
     }
     return false;
 }
@@ -151,7 +151,7 @@ struct MapParams : Transformer<MapParams> {
     }
 
     [[nodiscard]] auto accept(TermSymbol const &term) const -> std::optional<Term> {
-        auto sym = accept(term.loc_, term.value);
+        auto sym = accept(term.loc_, term.value_);
         if (sym.has_value()) {
             return std::visit(
                 [&term](auto &&x) -> Term {
@@ -164,16 +164,16 @@ struct MapParams : Transformer<MapParams> {
     }
 
     [[nodiscard]] auto accept(TermFunction const &term) const -> std::optional<Term> {
-        if (term.pool.size() != 1) {
+        if (term.pool_.size() != 1) {
             throw std::runtime_error("unpool has to be called before substituting parameters");
         }
-        if (!term.pool.front().empty() || term.external) {
-            return transform_construct<TermFunction>(term.loc_, term.name, tr(term.pool), term.external);
+        if (!term.pool_.front().empty() || term.external_) {
+            return transform_construct<TermFunction>(term.loc_, term.name_, tr(term.pool_), term.external_);
         }
-        if (auto param = ctx.is_param(term.name); param) {
+        if (auto param = ctx.is_param(term.name_); param) {
             return TermVariable{term.loc_, ctx.store().string("$" + std::to_string(param.value()))};
         }
-        if (auto value = ctx.is_const(term.name); value) {
+        if (auto value = ctx.is_const(term.name_); value) {
             return TermSymbol{term.loc_, value.value()};
         }
         return std::nullopt;
@@ -189,8 +189,8 @@ struct MapParams : Transformer<MapParams> {
     // literal
 
     [[nodiscard]] auto accept(LiteralSymbolic const &lit) const -> std::optional<Literal> {
-        if (!is_identifier(lit.term)) {
-            return transform_construct<LiteralSymbolic>(lit.loc_, lit.sign, tr(lit.term));
+        if (!is_identifier(lit.term_)) {
+            return transform_construct<LiteralSymbolic>(lit.loc_, lit.sign_, tr(lit.term_));
         }
         return std::nullopt;
     }
@@ -198,26 +198,26 @@ struct MapParams : Transformer<MapParams> {
     // statement
 
     [[nodiscard]] auto accept(StatementProject const &stm) const -> std::optional<Statement> {
-        if (!is_identifier(stm.term)) {
-            return transform_construct<StatementProject>(stm.loc_, tr(stm.term), tr(stm.body));
+        if (!is_identifier(stm.term_)) {
+            return transform_construct<StatementProject>(stm.loc_, tr(stm.term_), tr(stm.body_));
         }
-        return transform_construct<StatementProject>(stm.loc_, stm.term, tr(stm.body));
+        return transform_construct<StatementProject>(stm.loc_, stm.term_, tr(stm.body_));
     }
 
     [[nodiscard]] auto accept(StatementExternal const &stm) const -> std::optional<Statement> {
-        if (!is_identifier(stm.term)) {
-            return transform_construct<StatementExternal>(stm.loc_, tr(stm.term), tr(stm.body), tr(stm.type));
+        if (!is_identifier(stm.term_)) {
+            return transform_construct<StatementExternal>(stm.loc_, tr(stm.term_), tr(stm.body_), tr(stm.type_));
         }
-        return transform_construct<StatementExternal>(stm.loc_, stm.term, tr(stm.body), tr(stm.type));
+        return transform_construct<StatementExternal>(stm.loc_, stm.term_, tr(stm.body_), tr(stm.type_));
     }
 
     [[nodiscard]] auto accept(StatementHeuristic const &stm) const -> std::optional<Statement> {
-        if (!is_identifier(stm.atom)) {
-            return transform_construct<StatementHeuristic>(stm.loc_, tr(stm.atom), tr(stm.body), tr(stm.type),
-                                                           tr(stm.prio), tr(stm.mod));
+        if (!is_identifier(stm.atom_)) {
+            return transform_construct<StatementHeuristic>(stm.loc_, tr(stm.atom_), tr(stm.body_), tr(stm.type_),
+                                                           tr(stm.prio_), tr(stm.mod_));
         }
-        return transform_construct<StatementHeuristic>(stm.loc_, stm.atom, tr(stm.body), tr(stm.type), tr(stm.prio),
-                                                       tr(stm.mod));
+        return transform_construct<StatementHeuristic>(stm.loc_, stm.atom_, tr(stm.body_), tr(stm.type_), tr(stm.prio_),
+                                                       tr(stm.mod_));
     }
 
     RewriteContext &ctx;
@@ -235,7 +235,7 @@ struct UnmapParams : Transformer<UnmapParams> {
     // term
 
     [[nodiscard]] auto accept(TermVariable const &term) const -> std::optional<Term> {
-        if (auto it = map.find(term.name); it != map.end()) {
+        if (auto it = map.find(term.name_); it != map.end()) {
             return TermSymbol{term.loc_, store.fun(it.value(), {}, false)};
         }
         return std::nullopt;
@@ -285,16 +285,16 @@ struct Collect : Visitor<Collect> {
         }
     }
 
-    void accept(TermSymbol const &term) const { visit(term.value); }
+    void accept(TermSymbol const &term) const { visit(term.value_); }
 
     void accept(TermFunction const &term) const {
-        if (term.pool.size() != 1) {
+        if (term.pool_.size() != 1) {
             throw std::runtime_error("unpool has to be called before substituting parameters");
         }
-        if (term.pool.front().empty() && !term.external) {
-            ids.emplace(term.name);
+        if (term.pool_.front().empty() && !term.external_) {
+            ids.emplace(term.name_);
         } else {
-            visit(term.pool);
+            visit(term.pool_);
         }
     }
 
@@ -305,32 +305,32 @@ struct Collect : Visitor<Collect> {
     // literal
 
     void accept(LiteralSymbolic const &lit) const {
-        if (!is_identifier(lit.term)) {
-            visit(lit.term);
+        if (!is_identifier(lit.term_)) {
+            visit(lit.term_);
         }
     }
 
     // statement
 
     void accept(StatementProject const &stm) const {
-        if (!is_identifier(stm.term)) {
-            visit(stm.term);
+        if (!is_identifier(stm.term_)) {
+            visit(stm.term_);
         }
-        visit(stm.body);
+        visit(stm.body_);
     }
 
     void accept(StatementExternal const &stm) const {
-        if (!is_identifier(stm.term)) {
-            visit(stm.term);
+        if (!is_identifier(stm.term_)) {
+            visit(stm.term_);
         }
-        visit(stm.body, stm.type);
+        visit(stm.body_, stm.type_);
     }
 
     void accept(StatementHeuristic const &stm) const {
-        if (!is_identifier(stm.atom)) {
-            visit(stm.atom);
+        if (!is_identifier(stm.atom_)) {
+            visit(stm.atom_);
         }
-        visit(stm.body, stm.type, stm.prio, stm.mod);
+        visit(stm.body_, stm.type_, stm.prio_, stm.mod_);
     }
 
     StringSet &ids;

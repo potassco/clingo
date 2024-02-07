@@ -29,12 +29,12 @@ using TheoryTermVec = Util::immutable_array<TheoryTerm>;
 //! For example: <tt>1</tt>.
 struct TheoryTermSymbol {
     //! Construct a symbolic theory term.
-    explicit TheoryTermSymbol(Location loc, Symbol value) : loc_{std::move(loc)}, value{std::move(value)} {}
+    explicit TheoryTermSymbol(Location loc, Symbol value) : loc_{std::move(loc)}, value_{std::move(value)} {}
 
     //! The location of the symbol.
     Location loc_;
     //! The symbol.
-    Symbol value;
+    Symbol value_;
 };
 
 //! Compare two theory terms.
@@ -53,14 +53,14 @@ auto operator<(TheoryTermSymbol const &a, TheoryTermSymbol const &b) -> bool;
 struct TheoryTermVariable {
     //! Construct a variable theory term.
     explicit TheoryTermVariable(Location loc, String name, bool is_anonymous = false)
-        : loc_{std::move(loc)}, name{name}, is_anonymous{is_anonymous} {}
+        : loc_{std::move(loc)}, name_{name}, is_anonymous_{is_anonymous} {}
 
     //! The location of the variable.
     Location loc_;
     //! The name of the variable.
-    String name;
+    String name_;
     //! Whether the variable is anonymous.
-    bool is_anonymous;
+    bool is_anonymous_;
 };
 
 //! Compare two theory terms.
@@ -92,9 +92,9 @@ struct TheoryTermTuple {
     //! The location of the symbol.
     Location loc_;
     //! The type of the term.
-    TheoryTermTupleType type;
+    TheoryTermTupleType type_;
     //! The elements of the tuple.
-    TheoryTermVec elems;
+    TheoryTermVec elems_;
 };
 
 //! Compare two theory terms.
@@ -119,9 +119,9 @@ struct TheoryTermFunction {
     //! The location of the symbol.
     Location loc_;
     //! The name of the function.
-    String name;
+    String name_;
     //! The arguments of the function.
-    TheoryTermVec args;
+    TheoryTermVec args_;
 };
 
 //! Compare two theory terms.
@@ -157,7 +157,7 @@ struct TheoryTermUnparsed {
     //! The location of the symbol.
     Location loc_;
     //! The vector of elements.
-    ElementVec elems;
+    ElementVec elems_;
 };
 
 //! Compare two theory terms.
@@ -171,13 +171,13 @@ auto operator==(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> boo
 auto operator<(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> bool;
 
 inline TheoryTermTuple::TheoryTermTuple(Location loc, TheoryTermTupleType type, TheoryTermVec elems)
-    : loc_{std::move(loc)}, type(type), elems{std::move(elems)} {}
+    : loc_{std::move(loc)}, type_(type), elems_{std::move(elems)} {}
 inline TheoryTermFunction::TheoryTermFunction(Location loc, String name)
     : TheoryTermFunction{std::move(loc), name, {}} {}
 inline TheoryTermFunction::TheoryTermFunction(Location loc, String name, TheoryTermVec args)
-    : loc_{std::move(loc)}, name(name), args{std::move(args)} {}
+    : loc_{std::move(loc)}, name_(name), args_{std::move(args)} {}
 inline TheoryTermUnparsed::TheoryTermUnparsed(Location loc, ElementVec elems)
-    : loc_{std::move(loc)}, elems{std::move(elems)} {}
+    : loc_{std::move(loc)}, elems_{std::move(elems)} {}
 
 //! The optional right guard of the theory atom.
 using TheoryRGuard = std::optional<std::pair<String, TheoryTerm>>;
@@ -187,9 +187,9 @@ struct TheoryElement {
     //! The location of the theory element.
     Location loc_;
     //! The tuple of the theory element.
-    TheoryTermVec tuple;
+    TheoryTermVec tuple_;
     //! The condition of the theory element.
-    LiteralVec cond;
+    LiteralVec cond_;
 };
 //! A vector of theory atom elements.
 using TheoryElementVec = Util::immutable_array<TheoryElement>;
@@ -210,24 +210,24 @@ auto operator<(TheoryElement const &a, TheoryElement const &b) -> bool;
 template <bool HasSign> struct TheoryAtom : std::conditional_t<HasSign, Signed, Unsigned> {
     //! Construct a theory atom.
     explicit TheoryAtom(Location loc, Term name, TheoryElementVec elems, TheoryRGuard rhs)
-        : loc_{std::move(loc)}, name{std::move(name)}, elems{std::move(elems)}, rhs{std::move(rhs)} {
+        : loc_{std::move(loc)}, name_{std::move(name)}, elems_{std::move(elems)}, rhs_{std::move(rhs)} {
         static_assert(!HasSign);
     }
 
     //! Construct a theory atom.
     explicit TheoryAtom(Location loc, Sign sign, Term name, TheoryElementVec elems, TheoryRGuard rhs)
-        : Signed{sign}, loc_{std::move(loc)}, name{std::move(name)}, elems{std::move(elems)}, rhs{std::move(rhs)} {
+        : Signed{sign}, loc_{std::move(loc)}, name_{std::move(name)}, elems_{std::move(elems)}, rhs_{std::move(rhs)} {
         static_assert(HasSign);
     }
 
     //! The location of the symbol.
     Location loc_;
     //! The name of the atom.
-    Term name;
+    Term name_;
     //! The elements of the atom.
-    TheoryElementVec elems;
+    TheoryElementVec elems_;
     //! The optional right guard of the atom.
-    TheoryRGuard rhs;
+    TheoryRGuard rhs_;
 };
 
 //! Compare two theory atoms.

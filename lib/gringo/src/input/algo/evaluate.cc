@@ -47,37 +47,37 @@ struct BuildDep {
     void operator()(TermVariable const &term) const { static_cast<void>(term); }
 
     void operator()(TermSymbol const &term) const {
-        if (term.value.type() == SymbolType::function) {
-            add_(term.value.name());
+        if (term.value_.type() == SymbolType::function) {
+            add_(term.value_.name());
         }
     }
 
     void operator()(TermTuple const &term) const {
-        for (auto const &term_or_tuple : term.pool) {
+        for (auto const &term_or_tuple : term.pool_) {
             std::visit(*this, term_or_tuple);
         }
     }
 
     void operator()(TermFunction const &term) const {
-        if (!term.external && term.pool.size() == 1 && term.pool.front().empty()) {
-            add_(term.name);
+        if (!term.external_ && term.pool_.size() == 1 && term.pool_.front().empty()) {
+            add_(term.name_);
         }
-        for (auto const &tuple : term.pool) {
+        for (auto const &tuple : term.pool_) {
             operator()(tuple);
         }
     }
 
     void operator()(TermAbs const &term) const {
-        for (auto const &arg : term.pool) {
+        for (auto const &arg : term.pool_) {
             operator()(arg);
         }
     }
 
-    void operator()(TermUnary const &term) const { operator()(*term.rhs); }
+    void operator()(TermUnary const &term) const { operator()(*term.rhs_); }
 
     void operator()(TermBinary const &term) const {
-        operator()(*term.lhs);
-        operator()(*term.rhs);
+        operator()(*term.lhs_);
+        operator()(*term.rhs_);
     }
 
     //! Add a dependency to the graph.
@@ -211,29 +211,29 @@ struct Evaluate {
         return std::nullopt;
     }
 
-    auto operator()(TermSymbol const &term) const -> std::optional<Symbol> { return operator()(term.value); }
+    auto operator()(TermSymbol const &term) const -> std::optional<Symbol> { return operator()(term.value_); }
 
     auto operator()(TermTuple const &term) const -> std::optional<Symbol> {
-        if (term.pool.size() != 1) {
+        if (term.pool_.size() != 1) {
             return std::nullopt;
         }
-        return std::visit(*this, term.pool.front());
+        return std::visit(*this, term.pool_.front());
     }
 
     auto operator()(TermFunction const &term) const -> std::optional<Symbol> {
-        if (term.pool.size() != 1 || term.external) {
+        if (term.pool_.size() != 1 || term.external_) {
             return std::nullopt;
         }
-        if (term.pool.front().empty()) {
-            if (auto it = map.find(term.name); it != map.end()) {
+        if (term.pool_.front().empty()) {
+            if (auto it = map.find(term.name_); it != map.end()) {
                 return it->second.second;
             }
         }
-        auto args = eval_(term.pool.front());
+        auto args = eval_(term.pool_.front());
         if (!args.has_value()) {
             return std::nullopt;
         }
-        return store.fun(term.name, args.value(), false);
+        return store.fun(term.name_, args.value(), false);
     }
 
     struct ErrorContext {
@@ -248,10 +248,10 @@ struct Evaluate {
     };
 
     auto operator()(TermAbs const &term) const -> std::optional<Symbol> {
-        if (term.pool.size() != 1) {
+        if (term.pool_.size() != 1) {
             return std::nullopt;
         }
-        auto val = operator()(term.pool.front());
+        auto val = operator()(term.pool_.front());
         if (!val.has_value()) {
             return std::nullopt;
         }
@@ -270,11 +270,11 @@ struct Evaluate {
     }
 
     auto operator()(TermUnary const &term) const -> std::optional<Symbol> {
-        auto rhs = operator()(*term.rhs);
+        auto rhs = operator()(*term.rhs_);
         if (!rhs.has_value()) {
             return std::nullopt;
         }
-        auto res = evaluate(store, term.op, rhs.value());
+        auto res = evaluate(store, term.op_, rhs.value());
         if (!res.has_value()) {
             auto const *lp = "";
             auto const *rp = "";
@@ -283,19 +283,19 @@ struct Evaluate {
                 rp = ")";
             }
             GRINGO_REPORT_LOC(log, error, location(term)) << "operation undefined:\n"
-                                                          << "  " << term.op << lp << rhs.value() << rp << "\n"
+                                                          << "  " << term.op_ << lp << rhs.value() << rp << "\n"
                                                           << ErrorContext{root};
         }
         return res;
     }
 
     auto operator()(TermBinary const &term) const -> std::optional<Symbol> {
-        auto lhs = operator()(*term.lhs);
-        auto rhs = operator()(*term.rhs);
-        if (term.op == BinaryOperator::dots || !lhs.has_value() || !rhs.has_value()) {
+        auto lhs = operator()(*term.lhs_);
+        auto rhs = operator()(*term.rhs_);
+        if (term.op_ == BinaryOperator::dots || !lhs.has_value() || !rhs.has_value()) {
             return std::nullopt;
         }
-        auto res = evaluate(store, lhs.value(), term.op, rhs.value());
+        auto res = evaluate(store, lhs.value(), term.op_, rhs.value());
         if (!res.has_value()) {
             auto const *lp = "";
             auto const *rp = "";
@@ -305,7 +305,7 @@ struct Evaluate {
             }
             GRINGO_REPORT_LOC(log, error, location(term))
                 << "operation undefined:\n"
-                << "  " << lhs.value() << term.op << lp << rhs.value() << rp << "\n"
+                << "  " << lhs.value() << term.op_ << lp << rhs.value() << rp << "\n"
                 << ErrorContext{root};
         }
         return res;
@@ -319,7 +319,7 @@ struct Evaluate {
 
 auto evaluate(Logger &log, SymbolStore &store, ConstMap const &map, StatementConst const &stm)
     -> std::optional<Symbol> {
-    return std::visit(Evaluate{log, store, map, &stm}, stm.value);
+    return std::visit(Evaluate{log, store, map, &stm}, stm.value_);
 }
 
 } // namespace
@@ -414,12 +414,12 @@ void evaluate_const(Logger &log, SymbolStore &store, std::vector<StatementConst>
     Util::ordered_map<String, size_t> map;
     size_t id_stm = 0;
     for (auto const &stm_a : stms) {
-        auto res = map.try_emplace(stm_a.name, id_stm);
+        auto res = map.try_emplace(stm_a.name_, id_stm);
         if (!res.second) {
             auto const &stm_b = stms[res.first->second];
-            if (stm_b.type < stm_a.type) {
+            if (stm_b.type_ < stm_a.type_) {
                 res.first.value() = id_stm;
-            } else if (stm_b.type == stm_a.type) {
+            } else if (stm_b.type_ == stm_a.type_) {
                 GRINGO_REPORT_LOC(log, error, location(stm_a))
                     << "redefinition of constant:\n"
                     << "  " << stm_a << "\n"
@@ -433,19 +433,19 @@ void evaluate_const(Logger &log, SymbolStore &store, std::vector<StatementConst>
     Graph dep;
     dep.ensure_size(id_stm);
     for (const auto &[name, id_stm] : map) {
-        BuildDep{map, dep, id_stm}(stms[id_stm].value);
+        BuildDep{map, dep, id_stm}(stms[id_stm].value_);
     }
     // evaluate const statements
     dep.tarjan([&log, &store, &stms, &map, &res](auto const &scc) {
         if (scc.size() == 1) {
             auto const &stm = stms[scc.front()];
-            if (map[stm.name] == scc.front()) {
+            if (map[stm.name_] == scc.front()) {
                 if (auto value = evaluate(log, store, res, stm); value) {
-                    auto [it, ins] = res.try_emplace(stm.name, stm, *value);
+                    auto [it, ins] = res.try_emplace(stm.name_, stm, *value);
                     if (!ins) {
-                        if (it->second.first.type < stm.type) {
+                        if (it->second.first.type_ < stm.type_) {
                             it.value() = std::make_pair(stm, *value);
-                        } else if (it->second.first.type == stm.type) {
+                        } else if (it->second.first.type_ == stm.type_) {
                             GRINGO_REPORT_LOC(log, error, location(stm))
                                 << "redefinition of constant:\n"
                                 << "  " << stm << "\n"
