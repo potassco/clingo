@@ -61,7 +61,7 @@ class Projection {
   private:
     friend auto operator==(Projection const &a, Projection const &b) -> bool;
     friend auto operator<(Projection const &a, Projection const &b) -> bool;
-    friend struct std::hash<Projection>;
+    friend struct Util::value_hasher<Projection>;
 
     Location loc_;
 };
@@ -92,8 +92,22 @@ class ArgumentTuple {
     [[nodiscard]] auto elems() const -> ElementSpan;
 
   private:
+    friend auto operator==(ArgumentTuple const &a, ArgumentTuple const &b) -> bool;
+    friend auto operator<(ArgumentTuple const &a, ArgumentTuple const &b) -> bool;
+    friend struct Util::value_hasher<ArgumentTuple>;
+
     ElementVec elems_;
 };
+
+//! Compare two argument tuples.
+//!
+//! @related ArgumentTuple
+auto operator==(ArgumentTuple const &a, ArgumentTuple const &b) -> bool;
+
+//! Compare two argument tuples.
+//!
+//! @related ArgumentTuple
+auto operator<(ArgumentTuple const &a, ArgumentTuple const &b) -> bool;
 
 //! A vector of tuples used as function or predicate arguments.
 using PoolVec = Util::immutable_array<ArgumentTuple>;
@@ -118,7 +132,7 @@ class TermVariable {
   private:
     friend auto operator==(TermVariable const &a, TermVariable const &b) -> bool;
     friend auto operator<(TermVariable const &a, TermVariable const &b) -> bool;
-    friend struct std::hash<TermVariable>;
+    friend struct Util::value_hasher<TermVariable>;
 
     Location loc_;
     String name_;
@@ -151,7 +165,7 @@ class TermSymbol {
   private:
     friend auto operator==(TermSymbol const &a, TermSymbol const &b) -> bool;
     friend auto operator<(TermSymbol const &a, TermSymbol const &b) -> bool;
-    friend struct std::hash<TermSymbol>;
+    friend struct Util::value_hasher<TermSymbol>;
 
     Location loc_;
     Symbol value_;
@@ -190,7 +204,7 @@ class TermTuple {
   private:
     friend auto operator==(TermTuple const &a, TermTuple const &b) -> bool;
     friend auto operator<(TermTuple const &a, TermTuple const &b) -> bool;
-    friend struct std::hash<TermTuple>;
+    friend struct Util::value_hasher<TermTuple>;
 
     Location loc_;
     ElementVec pool_;
@@ -229,7 +243,7 @@ class TermFunction {
   private:
     friend auto operator==(TermFunction const &a, TermFunction const &b) -> bool;
     friend auto operator<(TermFunction const &a, TermFunction const &b) -> bool;
-    friend struct std::hash<TermFunction>;
+    friend struct Util::value_hasher<TermFunction>;
 
     Location loc_;
     String name_;
@@ -265,7 +279,7 @@ class TermAbs {
   private:
     friend auto operator==(TermAbs const &a, TermAbs const &b) -> bool;
     friend auto operator<(TermAbs const &a, TermAbs const &b) -> bool;
-    friend struct std::hash<TermAbs>;
+    friend struct Util::value_hasher<TermAbs>;
 
     Location loc_;
     TermVec pool_;
@@ -307,7 +321,7 @@ class TermUnary {
   private:
     friend auto operator==(TermUnary const &a, TermUnary const &b) -> bool;
     friend auto operator<(TermUnary const &a, TermUnary const &b) -> bool;
-    friend struct std::hash<TermUnary>;
+    friend struct Util::value_hasher<TermUnary>;
 
     Location loc_;
     UnaryOperator op_;
@@ -361,7 +375,7 @@ class TermBinary {
   private:
     friend auto operator==(TermBinary const &a, TermBinary const &b) -> bool;
     friend auto operator<(TermBinary const &a, TermBinary const &b) -> bool;
-    friend struct std::hash<TermBinary>;
+    friend struct Util::value_hasher<TermBinary>;
 
     Location loc_;
     Util::immutable_value<Term> lhs_;
@@ -414,6 +428,7 @@ inline auto TermBinary::rhs() const -> Term const & { return *rhs_; }
 
 #ifndef GRINGO_DOXYGEN_SKIP
 
+GRINGO_HASH_PROTO(Gringo::Input::ArgumentTuple);
 GRINGO_HASH_PROTO(Gringo::Input::TermVariable);
 GRINGO_HASH_PROTO(Gringo::Input::TermSymbol);
 GRINGO_HASH_PROTO(Gringo::Input::TermFunction);

@@ -103,11 +103,12 @@ struct Unpool {
         return std::nullopt;
     }
 
-    auto operator()(TupleElem const &elem) const -> std::optional<TupleVec> {
+    auto operator()(ArgumentTuple::Element const &elem) const -> std::optional<std::vector<ArgumentTuple::Element>> {
         return std::visit(
-            [this](auto const &x) -> std::optional<TupleVec> {
+            [this](auto const &x) -> std::optional<std::vector<ArgumentTuple::Element>> {
                 GRINGO_MATCH(x, Term) {
-                    return Util::transform_vec(operator()(x), [](auto term) { return TupleElem{std::move(term)}; });
+                    return Util::transform_vec(operator()(x),
+                                               [](auto term) { return ArgumentTuple::Element{std::move(term)}; });
                 }
                 GRINGO_MATCH(x, Projection) { return std::nullopt; }
             },
@@ -121,9 +122,10 @@ struct Unpool {
                     return Util::transform_vec(operator()(x),
                                                [](auto term) { return TermTuple::Element{std::move(term)}; });
                 }
-                GRINGO_MATCH(x, TupleVec) {
-                    return Util::transform_vec(unpool_crossproduct(x, *this),
-                                               [](auto tuple) { return TermTuple::Element{std::move(tuple)}; });
+                GRINGO_MATCH(x, ArgumentTuple) {
+                    return Util::transform_vec(unpool_crossproduct(x.elems(), *this), [](auto tuple) {
+                        return TermTuple::Element{ArgumentTuple{std::move(tuple)}};
+                    });
                 }
             },
             tuple_or_term);
@@ -131,42 +133,42 @@ struct Unpool {
 
     auto operator()(TermTuple const &term) const -> std::optional<std::vector<Term>> {
         // unpool the elements
-        auto elems = unpool_union(term.pool_, *this);
+        auto elems = unpool_union(term.pool(), *this);
 
         // turn the elements into individual tuple terms or terms
-        if (!elems.has_value() && (term.pool_.size() != 1 || std::holds_alternative<Term>(term.pool_.front()))) {
-            elems = term.pool_;
+        if (!elems.has_value() && (term.pool().size() != 1 || std::holds_alternative<Term>(term.pool().front()))) {
+            elems = std::vector<TermTuple::Element>(term.pool().begin(), term.pool().end());
         }
         return Util::transform_vec(std::move(elems), [&term](auto elem) -> Term {
             return std::visit(
                 [&term](auto x) -> Term {
                     GRINGO_MATCH(x, Term) { return x; }
-                    GRINGO_MATCH(x, TupleVec) { return TermTuple{term.loc(), TermTuple::ElementVec{std::move(x)}}; }
+                    GRINGO_MATCH(x, ArgumentTuple) { return TermTuple{term.loc(), {ArgumentTuple{std::move(x)}}}; }
                 },
                 std::move(elem));
         });
     }
 
     auto operator()(TermFunction const &term) const -> std::optional<std::vector<Term>> {
-        auto elems = unpool_union(term.pool_, [this](TupleVec const &tuple) {
+        auto elems = unpool_union(term.pool(), [this](ArgumentTuple const &tuple) {
             // unpool the elements
-            return unpool_crossproduct(tuple, *this);
+            return unpool_crossproduct(tuple.elems(), *this);
         });
 
-        if (!elems.has_value() && term.pool_.size() != 1) {
-            elems = term.pool_;
+        if (!elems.has_value() && term.pool().size() != 1) {
+            elems = PoolVec(term.pool().begin(), term.pool().end());
         }
 
         return Util::transform_vec(std::move(elems), [&term](auto elem) -> Term {
             // turn individual elements into function terms
-            return TermFunction{term.loc(), term.name_, PoolVec{std::move(elem)}, term.external_};
+            return TermFunction{term.loc(), term.name(), PoolVec{std::move(elem)}, term.external()};
         });
     }
 
     auto operator()(TermAbs const &term) const -> std::optional<std::vector<Term>> {
-        auto unpooled = unpool_union(term.pool_, *this);
-        if (!unpooled.has_value() && term.pool_.size() != 1) {
-            unpooled = term.pool_;
+        auto unpooled = unpool_union(term.pool(), *this);
+        if (!unpooled.has_value() && term.pool().size() != 1) {
+            unpooled = std::vector<Term>(term.pool().begin(), term.pool().end());
         }
         return Util::transform_vec(std::move(unpooled), [&term](auto arg) -> Term {
             return TermAbs{term.loc(), TermVec{std::move(arg)}};
@@ -174,17 +176,17 @@ struct Unpool {
     }
 
     auto operator()(TermUnary const &term) const -> std::optional<std::vector<Term>> {
-        return Util::transform_vec(operator()(*term.rhs_), [&term](auto rhs) -> Term {
-            return TermUnary{term.loc(), term.op_, std::move(rhs)};
+        return Util::transform_vec(operator()(term.rhs()), [&term](auto rhs) -> Term {
+            return TermUnary{term.loc(), term.op(), std::move(rhs)};
         });
     }
 
     auto operator()(TermBinary const &term) const -> std::optional<std::vector<Term>> {
         return unpool_crossproducts(
             [&term](auto lhs, auto rhs) -> Term {
-                return TermBinary{term.loc(), std::move(lhs), term.op_, std::move(rhs)};
+                return TermBinary{term.loc(), std::move(lhs), term.op(), std::move(rhs)};
             },
-            *this, *term.lhs_, *term.rhs_);
+            *this, term.lhs(), term.rhs());
     }
 
     auto operator()(GuardVec const &guards) const -> std::optional<std::vector<GuardVec>> {

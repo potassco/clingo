@@ -11,7 +11,7 @@ struct CollectVariables : Visitor<CollectVariables> {
     ~CollectVariables() { vars.clear(); }
 
     template <class T> void accept(T const &x) const = delete;
-    void accept(TermVariable const &term) const { vars.emplace(term.name_); }
+    void accept(TermVariable const &term) const { vars.emplace(term.name()); }
 
     VariableSet &vars;
 };
@@ -25,7 +25,7 @@ struct VisitVariables : Visitor<VisitVariables> {
 
     // terms
 
-    void accept(TermVariable const &term) const { fun(term.loc(), term.name_); }
+    void accept(TermVariable const &term) const { fun(term.loc(), term.name()); }
 
     // theory terms
 

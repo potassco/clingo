@@ -3,6 +3,10 @@
 
 namespace Gringo::Input {
 
+auto operator==(ArgumentTuple const &a, ArgumentTuple const &b) -> bool { return a.elems_ == b.elems_; }
+
+auto operator<(ArgumentTuple const &a, ArgumentTuple const &b) -> bool { return a.elems_ < b.elems_; }
+
 auto operator==(TermVariable const &a, TermVariable const &b) -> bool { return a.name_ == b.name_; }
 
 auto operator<(TermVariable const &a, TermVariable const &b) -> bool { return a.name_ < b.name_; }
@@ -58,6 +62,10 @@ auto operator<(Projection const &a, Projection const &b) -> bool {
 } // namespace Gringo::Input
 
 namespace Gringo::Util {
+
+auto value_hasher<Gringo::Input::ArgumentTuple>::operator()(Gringo::Input::ArgumentTuple const &x) const -> size_t {
+    return Gringo::Util::value_hash(typeid(Gringo::Input::TermVariable), x.elems_);
+}
 
 auto value_hasher<Gringo::Input::TermVariable>::operator()(Gringo::Input::TermVariable const &x) const -> size_t {
     return Gringo::Util::value_hash(typeid(Gringo::Input::TermVariable), x.name_);

@@ -32,7 +32,7 @@ auto make_ast(Owner const &owner, Gringo::Input::TheoryRGuard::value_type const 
 auto make_ast(Owner const &owner, Gringo::Input::Projection const &projection) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::Term const &term) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::TheoryTerm const &term) -> std::unique_ptr<clingo_ast_t>;
-auto make_ast(Owner const &owner, Gringo::Input::TupleVec const &tuple) -> std::unique_ptr<clingo_ast_t>;
+auto make_ast(Owner const &owner, Gringo::Input::ArgumentTuple const &tuple) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::TermTuple::Element const &elem) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::Literal const &lit) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::TheoryTermUnparsed::Element const &elem)
@@ -54,7 +54,9 @@ auto make_ast(Owner const &owner, Gringo::Input::StatementOptimize::Element cons
     -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::StatementEdge::Edge const &edge) -> std::unique_ptr<clingo_ast_t>;
 
+template <class T> auto make_ast_vec(Owner const &owner, tcb::span<T> vec) -> ASTVec;
 template <class T> auto make_ast_vec(Owner const &owner, std::vector<T> const &vec) -> ASTVec;
+template <class T> auto make_ast_vec(Owner const &owner, Gringo::Util::immutable_array<T> const &vec) -> ASTVec;
 
 template <class T> auto convert_ast_vec(clingo_ast const **ast, size_t size) -> std::vector<T>;
 
@@ -179,7 +181,7 @@ class ASTVec {
     size_t size_ = 0;
 };
 
-template <class T> auto make_ast_vec(Owner const &owner, std::vector<T> const &vec) -> ASTVec {
+template <class T> auto make_ast_vec(Owner const &owner, tcb::span<T> vec) -> ASTVec {
     ASTVec res{vec.size()};
     size_t i = 0;
     for (auto const &elem : vec) {
@@ -189,14 +191,12 @@ template <class T> auto make_ast_vec(Owner const &owner, std::vector<T> const &v
     return res;
 }
 
+template <class T> auto make_ast_vec(Owner const &owner, std::vector<T> const &vec) -> ASTVec {
+    return make_ast_vec(owner, tcb::make_span(vec));
+}
+
 template <class T> auto make_ast_vec(Owner const &owner, Gringo::Util::immutable_array<T> const &vec) -> ASTVec {
-    ASTVec res{vec.size()};
-    size_t i = 0;
-    for (auto const &elem : vec) {
-        res[i] = make_ast(owner, elem).release();
-        ++i;
-    }
-    return res;
+    return make_ast_vec(owner, tcb::make_span(vec));
 }
 
 template <class T> auto convert_ast_opt(clingo_ast const *ast) -> std::optional<T> {
@@ -305,7 +305,7 @@ auto make_ast(Owner const &owner, Gringo::Input::TheoryTermUnparsed::Element con
     return std::make_unique<clingo_ast>(owner, clingo_ast_type_unparsed_element, &elem);
 }
 
-auto make_ast(Owner const &owner, Gringo::Input::TupleVec const &tuple) -> std::unique_ptr<clingo_ast_t> {
+auto make_ast(Owner const &owner, Gringo::Input::ArgumentTuple const &tuple) -> std::unique_ptr<clingo_ast_t> {
     return std::make_unique<clingo_ast>(owner, clingo_ast_type_argument_tuple, static_cast<void const *>(&tuple));
 }
 
@@ -313,7 +313,7 @@ auto make_ast(Owner const &owner, Gringo::Input::TermTuple::Element const &elem)
     return std::visit(
         [&owner](auto const &x) {
             GRINGO_MATCH(x, Gringo::Input::Term) { return make_ast(owner, x); }
-            GRINGO_MATCH(x, Gringo::Input::TupleVec) {
+            GRINGO_MATCH(x, Gringo::Input::ArgumentTuple) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_argument_tuple, &x);
             }
         },
@@ -538,7 +538,7 @@ auto clingo_ast::visit(V &&visit) const -> std::invoke_result_t<V, Gringo::Input
             return std::invoke(std::move(visit), cast<TermFunction>());
         }
         case clingo_ast_type_argument_tuple: {
-            return std::invoke(std::move(visit), cast<TupleVec>());
+            return std::invoke(std::move(visit), cast<ArgumentTuple>());
         }
         case clingo_ast_type_left_guard: {
             return std::invoke(std::move(visit), cast<LGuard::value_type>());
@@ -732,140 +732,155 @@ auto clingo_ast::get_location(clingo_ast_attribute_t attr) const -> std::optiona
             }                                                                                                          \
         }                                                                                                              \
     }
-#define ATTR(attr, value)                                                                                              \
+#define ATTR_OLD(attr, value)                                                                                          \
     case clingo_ast_attribute_##attr: {                                                                                \
         return static_cast<int>(cast<Type>().value);                                                                   \
+    }
+
+#define ATTR(attr, value)                                                                                              \
+    case clingo_ast_attribute_##attr: {                                                                                \
+        return static_cast<int>(cast<Type>().value());                                                                 \
     }
 
 auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<int> {
     // clang-format off
     SWITCH(
         TYPE(term_variable, TermVariable,
-            ATTR(anonymous, is_anonymous_))
+            ATTR(anonymous, is_anonymous))
         TYPE(theory_term_variable, TheoryTermVariable,
-            ATTR(anonymous, is_anonymous_))
+            ATTR_OLD(anonymous, is_anonymous_))
         TYPE(term_function, TermFunction,
-            ATTR(external, external_))
+            ATTR(external, external))
         TYPE(term_unary_operation, TermUnary,
-            ATTR(operator_type, op_))
+            ATTR(operator_type, op))
         TYPE(term_binary_operation, TermBinary,
-            ATTR(operator_type, op_))
+            ATTR(operator_type, op))
         TYPE(theory_term_tuple, TheoryTermTuple,
-            ATTR(tuple_type, type_))
+            ATTR_OLD(tuple_type, type_))
         TYPE(literal_boolean, LiteralBoolean,
-            ATTR(sign, sign_)
-            ATTR(value, value_))
+            ATTR_OLD(sign, sign_)
+            ATTR_OLD(value, value_))
         TYPE(literal_symbolic, LiteralSymbolic,
-            ATTR(sign, sign_))
+            ATTR_OLD(sign, sign_))
         TYPE(literal_comparison, LiteralRelation,
-            ATTR(sign, sign_))
+            ATTR_OLD(sign, sign_))
         TYPE(left_guard, LGuard::value_type,
-            ATTR(relation, second))
+            ATTR_OLD(relation, second))
         TYPE(right_guard, RGuard::value_type,
-            ATTR(relation, first))
+            ATTR_OLD(relation, first))
         TYPE(body_theory_atom, BodyTheoryAtom,
-            ATTR(sign, sign_))
+            ATTR_OLD(sign, sign_))
         TYPE(body_set_aggregate, BodySetAggregate,
-            ATTR(sign, sign_))
+            ATTR_OLD(sign, sign_))
         TYPE(head_aggregate, HeadAggregate,
-            ATTR(function, fun_))
+            ATTR_OLD(function, fun_))
         TYPE(body_aggregate, BodyAggregate,
-            ATTR(sign, sign_)
-            ATTR(function, fun_))
+            ATTR_OLD(sign, sign_)
+            ATTR_OLD(function, fun_))
         TYPE(theory_operator_definition, TheoryOpDefinition,
-            ATTR(priority, prio_)
-            ATTR(operator_type, type_))
+            ATTR_OLD(priority, prio_)
+            ATTR_OLD(operator_type, type_))
         TYPE(theory_atom_definition, TheoryAtomDefinition,
-            ATTR(arity, arity_)
-            ATTR(atom_type, type_))
+            ATTR_OLD(arity, arity_)
+            ATTR_OLD(atom_type, type_))
         TYPE(statement_optimize, StatementOptimize,
-            ATTR(optimize_type, type_))
+            ATTR_OLD(optimize_type, type_))
         TYPE(statement_show_signature, StatementShowSig,
-            ATTR(sign, has_sign_)
-            ATTR(arity, arity_))
+            ATTR_OLD(sign, has_sign_)
+            ATTR_OLD(arity, arity_))
         TYPE(statement_project_signature, StatementProjectSig,
-            ATTR(sign, has_sign_)
-            ATTR(arity, arity_))
+            ATTR_OLD(sign, has_sign_)
+            ATTR_OLD(arity, arity_))
         TYPE(statement_defined, StatementDefined,
-            ATTR(sign, has_sign_)
-            ATTR(arity, arity_))
+            ATTR_OLD(sign, has_sign_)
+            ATTR_OLD(arity, arity_))
         TYPE(statement_include, StatementInclude,
-            ATTR(include_type, type_))
+            ATTR_OLD(include_type, type_))
         TYPE(statement_const, StatementConst,
-            ATTR(const_type, type_))
+            ATTR_OLD(const_type, type_))
         TYPE(statement_comment, Comment,
-            ATTR(comment_type, type_)))
+            ATTR_OLD(comment_type, type_)))
     // clang-format on
 }
 
+#undef ATTR_OLD
+#define ATTR_OLD(attr, value)                                                                                          \
+    case clingo_ast_attribute_##attr: {                                                                                \
+        return static_cast<clingo_symbol_t>(Gringo::Symbol::to_rep(cast<Type>().value));                               \
+    }
 #undef ATTR
 #define ATTR(attr, value)                                                                                              \
     case clingo_ast_attribute_##attr: {                                                                                \
-        return static_cast<clingo_symbol_t>(Gringo::Symbol::to_rep(cast<Type>().value));                               \
+        return static_cast<clingo_symbol_t>(Gringo::Symbol::to_rep(cast<Type>().value()));                             \
     }
 
 [[nodiscard]] auto clingo_ast::get_symbol(clingo_ast_attribute_t attr) const -> std::optional<clingo_symbol_t> {
     // clang-format off
     SWITCH(
         TYPE(term_symbolic, TermSymbol,
-            ATTR(symbol, value_))
+            ATTR(symbol, value))
         TYPE(theory_term_symbolic, TheoryTermSymbol,
-            ATTR(symbol, value_)))
+            ATTR_OLD(symbol, value_)))
     // clang-format on
 }
 
+#undef ATTR_OLD
+#define ATTR_OLD(attr, value)                                                                                          \
+    case clingo_ast_attribute_##attr: {                                                                                \
+        return cast<Type>().value.c_str();                                                                             \
+    }
 #undef ATTR
 #define ATTR(attr, value)                                                                                              \
     case clingo_ast_attribute_##attr: {                                                                                \
-        return cast<Type>().value.c_str();                                                                             \
+        return cast<Type>().value().c_str();                                                                           \
     }
 
 auto clingo_ast::get_string(clingo_ast_attribute_t attr) const -> std::optional<char const *> {
     // clang-format off
     SWITCH(
         TYPE(term_variable, TermVariable,
-            ATTR(name, name_))
+            ATTR(name, name))
         TYPE(theory_term_variable, TheoryTermVariable,
-            ATTR(name, name_))
+            ATTR_OLD(name, name_))
         TYPE(term_function, TermFunction,
-            ATTR(name, name_))
+            ATTR(name, name))
         TYPE(theory_term_function, TheoryTermFunction,
-            ATTR(name, name_))
+            ATTR_OLD(name, name_))
         TYPE(theory_right_guard, TheoryRGuard::value_type,
-            ATTR(theory_operator, first))
+            ATTR_OLD(theory_operator, first))
         TYPE(theory_operator_definition, TheoryOpDefinition,
-            ATTR(name, op_))
+            ATTR_OLD(name, op_))
         TYPE(theory_term_definition, TheoryTermDefinition,
-            ATTR(name, name_))
+            ATTR_OLD(name, name_))
         TYPE(theory_guard_definition, TheoryRGuardDefinition,
-            ATTR(term, second))
+            ATTR_OLD(term, second))
         TYPE(theory_atom_definition, TheoryAtomDefinition,
-            ATTR(name, name_)
-            ATTR(term, term_))
+            ATTR_OLD(name, name_)
+            ATTR_OLD(term, term_))
         TYPE(statement_theory, TheoryDefinition,
-            ATTR(name, name_))
+            ATTR_OLD(name, name_))
         TYPE(statement_show_signature, StatementShowSig,
-            ATTR(name, name_))
+            ATTR_OLD(name, name_))
         TYPE(statement_project_signature, StatementProjectSig,
-            ATTR(name, name_))
+            ATTR_OLD(name, name_))
         TYPE(statement_defined, StatementDefined,
-            ATTR(name, name_))
+            ATTR_OLD(name, name_))
         TYPE(statement_include, StatementInclude,
-            ATTR(value, path_))
+            ATTR_OLD(value, path_))
         TYPE(statement_program, StatementProgram,
-            ATTR(name, name_))
+            ATTR_OLD(name, name_))
         TYPE(statement_script, StatementScript,
-            ATTR(script_type, type_)
-            ATTR(value, content_))
+            ATTR_OLD(script_type, type_)
+            ATTR_OLD(value, content_))
         TYPE(statement_const, StatementConst,
-            ATTR(name, name_))
+            ATTR_OLD(name, name_))
         TYPE(statement_comment, Comment,
-            ATTR(value, value_)))
+            ATTR_OLD(value, value_)))
     // clang-format on
 }
 
-#undef ATTR
-#define ATTR(attr, value)                                                                                              \
+#undef ATTR_OLD
+#define ATTR_OLD(attr, value)                                                                                          \
     case clingo_ast_attribute_##attr: {                                                                                \
         return tcb::make_span(cast<Type>().value);                                                                     \
     }
@@ -874,190 +889,195 @@ auto clingo_ast::get_string_vec(clingo_ast_attribute_t attr) const -> std::optio
     // clang-format off
     SWITCH(
         TYPE(unparsed_element, TheoryTermUnparsed::Element,
-            ATTR(operators, first))
+            ATTR_OLD(operators, first))
         TYPE(theory_guard_definition, TheoryRGuardDefinition,
-            ATTR(operators, first))
+            ATTR_OLD(operators, first))
         TYPE(statement_program, StatementProgram,
-            ATTR(arguments, args_)))
+            ATTR_OLD(arguments, args_)))
     // clang-format on
 }
 
+#undef ATTR_OLD
+#define ATTR_OLD(attr, value)                                                                                          \
+    case clingo_ast_attribute_##attr: {                                                                                \
+        return make_ast(owner_, cast<Type>().value);                                                                   \
+    }
 #undef ATTR
 #define ATTR(attr, value)                                                                                              \
     case clingo_ast_attribute_##attr: {                                                                                \
-        return make_ast(owner_, cast<Type>().value);                                                                   \
+        return make_ast(owner_, cast<Type>().value());                                                                 \
     }
 
 auto clingo_ast::get_ast(clingo_ast_attribute_t attr) const -> std::optional<std::unique_ptr<clingo_ast_t>> {
     // clang-format off
     SWITCH(
         TYPE(term_unary_operation, TermUnary,
-            ATTR(right, rhs_))
+            ATTR(right, rhs))
         TYPE(term_binary_operation, TermBinary,
-            ATTR(left, lhs_)
-            ATTR(right, rhs_))
+            ATTR(left, lhs)
+            ATTR(right, rhs))
         TYPE(unparsed_element, TheoryTermUnparsed::Element,
-            ATTR(term, second))
+            ATTR_OLD(term, second))
         TYPE(literal_comparison, LiteralRelation,
-            ATTR(left, lhs_))
+            ATTR_OLD(left, lhs_))
         TYPE(literal_symbolic, LiteralSymbolic,
-            ATTR(atom, term_))
+            ATTR_OLD(atom, term_))
         TYPE(head_simple_literal, SimpleHeadLiteral,
-            ATTR(literal, lit_))
+            ATTR_OLD(literal, lit_))
         TYPE(body_simple_literal, SimpleBodyLiteral,
-            ATTR(literal, lit_))
+            ATTR_OLD(literal, lit_))
         TYPE(head_conditional_literal, ConditionalLiteral,
-            ATTR(literal, lit_))
+            ATTR_OLD(literal, lit_))
         TYPE(body_conditional_literal, Conjunction,
-            ATTR(literal, lit_.lit_))
+            ATTR_OLD(literal, lit_.lit_))
         TYPE(left_guard, LGuard::value_type,
-            ATTR(term, first))
+            ATTR_OLD(term, first))
         TYPE(right_guard, RGuard::value_type,
-            ATTR(term, second))
+            ATTR_OLD(term, second))
         TYPE(theory_right_guard, TheoryRGuard::value_type,
-            ATTR(term, second))
+            ATTR_OLD(term, second))
         TYPE(set_aggregate_element, SetAggregateElement,
-            ATTR(literal, lit_))
+            ATTR_OLD(literal, lit_))
         TYPE(head_aggregate_element, HeadAggregate::Element,
-            ATTR(literal, lit_))
+            ATTR_OLD(literal, lit_))
         TYPE(body_theory_atom, BodyTheoryAtom,
-            ATTR(name, name_)
-            ATTR(right, rhs_))
+            ATTR_OLD(name, name_)
+            ATTR_OLD(right, rhs_))
         TYPE(head_theory_atom, HeadTheoryAtom,
-            ATTR(name, name_)
-            ATTR(right, rhs_))
+            ATTR_OLD(name, name_)
+            ATTR_OLD(right, rhs_))
         TYPE(head_set_aggregate, HeadSetAggregate,
-            ATTR(left, lhs_)
-            ATTR(right, rhs_))
+            ATTR_OLD(left, lhs_)
+            ATTR_OLD(right, rhs_))
         TYPE(head_aggregate, HeadAggregate,
-            ATTR(left, lhs_)
-            ATTR(right, rhs_))
+            ATTR_OLD(left, lhs_)
+            ATTR_OLD(right, rhs_))
         TYPE(body_set_aggregate, BodySetAggregate,
-            ATTR(left, lhs_)
-            ATTR(right, rhs_))
+            ATTR_OLD(left, lhs_)
+            ATTR_OLD(right, rhs_))
         TYPE(body_aggregate, BodyAggregate,
-            ATTR(left, lhs_)
-            ATTR(right, rhs_))
+            ATTR_OLD(left, lhs_)
+            ATTR_OLD(right, rhs_))
         TYPE(statement_rule, Rule,
-            ATTR(head, head_))
+            ATTR_OLD(head, head_))
         TYPE(theory_atom_definition, TheoryAtomDefinition,
-            ATTR(guard, rhs_))
+            ATTR_OLD(guard, rhs_))
         TYPE(optimize_tuple, StatementOptimize::Tuple,
-            ATTR(weight, weight_)
-            ATTR(priority, priority_))
+            ATTR_OLD(weight, weight_)
+            ATTR_OLD(priority, priority_))
         TYPE(optimize_element, StatementOptimize::Element,
-            ATTR(tuple, first))
+            ATTR_OLD(tuple, first))
         TYPE(statement_weak_constraint, StatementWeakConstraint,
-            ATTR(tuple, tuple_))
+            ATTR_OLD(tuple, tuple_))
         TYPE(statement_show, StatementShow,
-            ATTR(term, term_))
+            ATTR_OLD(term, term_))
         TYPE(statement_project, StatementProject,
-            ATTR(atom, term_))
+            ATTR_OLD(atom, term_))
         TYPE(statement_external, StatementExternal,
-            ATTR(atom, term_)
-            ATTR(external_type, type_))
+            ATTR_OLD(atom, term_)
+            ATTR_OLD(external_type, type_))
         TYPE(edge, StatementEdge::Edge,
-            ATTR(u, u_)
-            ATTR(v, v_))
+            ATTR_OLD(u, u_)
+            ATTR_OLD(v, v_))
         TYPE(statement_heuristic, StatementHeuristic,
-            ATTR(atom, atom_)
-            ATTR(weight, type_)
-            ATTR(priority, prio_)
-            ATTR(modifier, mod_))
+            ATTR_OLD(atom, atom_)
+            ATTR_OLD(weight, type_)
+            ATTR_OLD(priority, prio_)
+            ATTR_OLD(modifier, mod_))
         TYPE(statement_const, StatementConst,
-            ATTR(value, value_)))
+            ATTR_OLD(value, value_)))
     // clang-format on
 }
 
-#undef ATTR
-#define ATTR(attr, value)                                                                                              \
+#undef ATTR_OLD
+#define ATTR_OLD(attr, value)                                                                                          \
     case clingo_ast_attribute_##attr: {                                                                                \
         return make_ast_vec(owner_, cast<Type>().value);                                                               \
     }
-#define ATTR_SELF(attr)                                                                                                \
+#undef ATTR
+#define ATTR(attr, value)                                                                                              \
     case clingo_ast_attribute_##attr: {                                                                                \
-        return make_ast_vec(owner_, cast<Type>());                                                                     \
+        return make_ast_vec(owner_, cast<Type>().value());                                                             \
     }
 
 auto clingo_ast::get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional<ASTVec> {
     // clang-format off
     SWITCH(
-        TYPE(argument_tuple, TupleVec,
-            ATTR_SELF(arguments))
+        TYPE(argument_tuple, ArgumentTuple,
+            ATTR(arguments, elems))
         TYPE(term_absolute, TermAbs,
-            ATTR(pool, pool_))
+            ATTR(pool, pool))
         TYPE(term_tuple, TermTuple,
-            ATTR(pool, pool_))
+            ATTR(pool, pool))
         TYPE(term_function, TermFunction,
-            ATTR(pool, pool_))
+            ATTR(pool, pool))
         TYPE(theory_term_tuple, TheoryTermTuple,
-            ATTR(arguments, elems_))
+            ATTR_OLD(arguments, elems_))
         TYPE(theory_term_function, TheoryTermFunction,
-            ATTR(arguments, args_))
+            ATTR_OLD(arguments, args_))
         TYPE(theory_term_unparsed, TheoryTermUnparsed,
-            ATTR(elements, elems_))
+            ATTR_OLD(elements, elems_))
         TYPE(literal_comparison, LiteralRelation,
-            ATTR(right, rhs_))
+            ATTR_OLD(right, rhs_))
         TYPE(head_conditional_literal, ConditionalLiteral,
-            ATTR(condition, cond_))
+            ATTR_OLD(condition, cond_))
         TYPE(body_conditional_literal, Conjunction,
-            ATTR(condition, lit_.cond_))
+            ATTR_OLD(condition, lit_.cond_))
         TYPE(set_aggregate_element, SetAggregateElement,
-            ATTR(condition, cond_))
+            ATTR_OLD(condition, cond_))
         TYPE(theory_atom_element, TheoryElement,
-            ATTR(tuple, tuple_)
-            ATTR(condition, cond_))
+            ATTR_OLD(tuple, tuple_)
+            ATTR_OLD(condition, cond_))
         TYPE(head_aggregate_element, HeadAggregate::Element,
-            ATTR(tuple, tuple_)
-            ATTR(condition, cond_))
+            ATTR_OLD(tuple, tuple_)
+            ATTR_OLD(condition, cond_))
         TYPE(body_aggregate_element, BodyAggregate::Element,
-            ATTR(tuple, tuple_)
-            ATTR(condition, cond_))
+            ATTR_OLD(tuple, tuple_)
+            ATTR_OLD(condition, cond_))
         TYPE(head_disjunction, Disjunction,
-            ATTR(elements, elems_))
+            ATTR_OLD(elements, elems_))
         TYPE(body_theory_atom, BodyTheoryAtom,
-            ATTR(elements, elems_))
+            ATTR_OLD(elements, elems_))
         TYPE(head_theory_atom, HeadTheoryAtom,
-            ATTR(elements, elems_))
+            ATTR_OLD(elements, elems_))
         TYPE(head_set_aggregate, HeadSetAggregate,
-            ATTR(elements, elems_))
+            ATTR_OLD(elements, elems_))
         TYPE(head_aggregate, HeadAggregate,
-            ATTR(elements, elems_))
+            ATTR_OLD(elements, elems_))
         TYPE(body_set_aggregate, BodySetAggregate,
-            ATTR(elements, elems_))
+            ATTR_OLD(elements, elems_))
         TYPE(body_aggregate, BodyAggregate,
-            ATTR(elements, elems_))
+            ATTR_OLD(elements, elems_))
         TYPE(statement_rule, Rule,
-            ATTR(body, body_))
+            ATTR_OLD(body, body_))
         TYPE(theory_term_definition, TheoryTermDefinition,
-            ATTR(operators, op_defs_))
+            ATTR_OLD(operators, op_defs_))
         TYPE(statement_theory, TheoryDefinition,
-            ATTR(terms, term_defs_)
-            ATTR(atoms, atom_defs_))
+            ATTR_OLD(terms, term_defs_)
+            ATTR_OLD(atoms, atom_defs_))
         TYPE(optimize_tuple, StatementOptimize::Tuple,
-            ATTR(terms, terms_))
+            ATTR_OLD(terms, terms_))
         TYPE(optimize_element, StatementOptimize::Element,
-            ATTR(condition, second))
+            ATTR_OLD(condition, second))
         TYPE(statement_optimize, StatementOptimize,
-            ATTR(elements, elems_))
+            ATTR_OLD(elements, elems_))
         TYPE(statement_weak_constraint, StatementWeakConstraint,
-            ATTR(body, body_))
+            ATTR_OLD(body, body_))
         TYPE(statement_show, StatementShow,
-            ATTR(body, body_))
+            ATTR_OLD(body, body_))
         TYPE(statement_project, StatementProject,
-            ATTR(body, body_))
+            ATTR_OLD(body, body_))
         TYPE(statement_external, StatementExternal,
-            ATTR(body, body_))
+            ATTR_OLD(body, body_))
         TYPE(statement_edge, StatementEdge,
-            ATTR(pool, edges_)
-            ATTR(body, body_))
+            ATTR_OLD(pool, edges_)
+            ATTR_OLD(body, body_))
         TYPE(statement_heuristic, StatementHeuristic,
-            ATTR(body, body_)))
+            ATTR_OLD(body, body_)))
     // clang-format on
 }
 
-#undef ATTR
-#undef ATTR_SELF
+#undef ATTR_OLD
 #undef TYPE
 #undef SWITCH
 
@@ -1073,9 +1093,9 @@ void clingo_ast::print(std::ostream &out) const {
             }
             out << x.second;
         }
-        else GRINGO_MATCH(x, TupleVec) {
+        else GRINGO_MATCH(x, ArgumentTuple) {
             bool comma = false;
-            for (auto const &elem : x) {
+            for (auto const &elem : x.elems()) {
                 if (comma) {
                     out << ",";
                 } else {
@@ -1182,16 +1202,19 @@ template <> [[nodiscard]] auto clingo_ast::convert<Gringo::Input::Literal>() con
     }
 }
 
-template <> [[nodiscard]] auto clingo_ast::convert<Gringo::Input::TupleElem>() const -> Gringo::Input::TupleElem {
+template <>
+[[nodiscard]] auto clingo_ast::convert<Gringo::Input::ArgumentTuple::Element>() const
+    -> Gringo::Input::ArgumentTuple::Element {
     if (type_ == clingo_ast_type_projection) {
         return cast<Gringo::Input::Projection>();
     }
     return convert<Gringo::Input::Term>();
 }
 
-template <> [[nodiscard]] auto clingo_ast::convert<Gringo::Input::TupleVec>() const -> Gringo::Input::TupleVec {
+template <>
+[[nodiscard]] auto clingo_ast::convert<Gringo::Input::ArgumentTuple>() const -> Gringo::Input::ArgumentTuple {
     if (type_ == clingo_ast_type_argument_tuple) {
-        return cast<Gringo::Input::TupleVec>();
+        return cast<Gringo::Input::ArgumentTuple>();
     }
     throw std::runtime_error("argument tuple expected");
 }
@@ -1199,7 +1222,7 @@ template <> [[nodiscard]] auto clingo_ast::convert<Gringo::Input::TupleVec>() co
 template <>
 [[nodiscard]] auto clingo_ast::convert<Gringo::Input::TermTuple::Element>() const -> Gringo::Input::TermTuple::Element {
     if (type_ == clingo_ast_type_argument_tuple) {
-        return cast<Gringo::Input::TupleVec>();
+        return cast<Gringo::Input::ArgumentTuple>();
     }
     return convert<Gringo::Input::Term>();
 }
@@ -1499,9 +1522,9 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto size = va_arg(args, size_t);
                 auto sign = va_arg(args, int);
                 va_end(args);
-                *ast = construct_ast<Gringo::Input::TermFunction>(type, convert_loc(lib, loc), lib->store->string(name),
-                                                                  convert_ast_vec<Gringo::Input::TupleVec>(pool, size),
-                                                                  sign != 0);
+                *ast = construct_ast<Gringo::Input::TermFunction>(
+                    type, convert_loc(lib, loc), lib->store->string(name),
+                    convert_ast_vec<Gringo::Input::ArgumentTuple>(pool, size), sign != 0);
                 break;
             }
             case clingo_ast_type_term_absolute: {
@@ -1548,8 +1571,8 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const **tuple = va_arg(args, clingo_ast_t const **);
                 auto size = va_arg(args, size_t);
                 va_end(args);
-                *ast = construct_ast<Gringo::Input::TupleVec>(type,
-                                                              convert_ast_vec<Gringo::Input::TupleElem>(tuple, size));
+                *ast = construct_ast<Gringo::Input::ArgumentTuple>(
+                    type, convert_ast_vec<Gringo::Input::ArgumentTuple::Element>(tuple, size));
                 break;
             }
             case clingo_ast_type_left_guard: {
