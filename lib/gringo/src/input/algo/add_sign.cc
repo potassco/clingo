@@ -10,13 +10,13 @@ struct AddSign {
     auto operator()(Literal const &lit) const -> Literal { return std::visit(*this, lit); }
 
     auto operator()(LiteralBoolean const &lit) const -> Literal {
-        return LiteralBoolean{lit.loc + pos, lit.sign + sign, lit.value};
+        return LiteralBoolean{lit.loc_ + pos, lit.sign + sign, lit.value};
     }
     auto operator()(LiteralRelation const &lit) const -> Literal {
-        return LiteralRelation{lit.loc + pos, lit.sign + sign, lit.lhs, lit.rhs};
+        return LiteralRelation{lit.loc_ + pos, lit.sign + sign, lit.lhs, lit.rhs};
     }
     auto operator()(LiteralSymbolic const &lit) const -> Literal {
-        return LiteralSymbolic{lit.loc + pos, lit.sign + sign, lit.term};
+        return LiteralSymbolic{lit.loc_ + pos, lit.sign + sign, lit.term};
     }
 
     auto operator()(BodyLiteral const &lit) const -> BodyLiteral { return std::visit(*this, lit); }
@@ -25,16 +25,16 @@ struct AddSign {
         return SimpleBodyLiteral{operator()(lit.lit)};
     }
     auto operator()(Conjunction const &lit) const -> BodyLiteral {
-        return Conjunction{ConditionalLiteral{lit.lit.loc + pos, operator()(lit.lit.lit), lit.lit.cond}};
+        return Conjunction{ConditionalLiteral{lit.lit.loc_ + pos, operator()(lit.lit.lit), lit.lit.cond}};
     }
     auto operator()(BodyAggregate const &lit) const -> BodyLiteral {
-        return BodyAggregate{lit.loc + pos, lit.sign + sign, lit.lhs, lit.fun, lit.elems, lit.rhs};
+        return BodyAggregate{lit.loc_ + pos, lit.sign + sign, lit.lhs, lit.fun, lit.elems, lit.rhs};
     }
     auto operator()(BodySetAggregate const &lit) const -> BodyLiteral {
-        return BodySetAggregate{lit.loc + pos, lit.sign + sign, lit.lhs, lit.elems, lit.rhs};
+        return BodySetAggregate{lit.loc_ + pos, lit.sign + sign, lit.lhs, lit.elems, lit.rhs};
     }
     auto operator()(BodyTheoryAtom const &lit) const -> BodyLiteral {
-        return BodyTheoryAtom{lit.loc + pos, lit.sign + sign, lit.name, lit.elems, lit.rhs};
+        return BodyTheoryAtom{lit.loc_ + pos, lit.sign + sign, lit.name, lit.elems, lit.rhs};
     }
 
     Sign sign;

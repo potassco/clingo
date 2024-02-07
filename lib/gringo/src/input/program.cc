@@ -67,7 +67,7 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
                     GRINGO_MATCH(x, Symbol) { part.first.value().facts.emplace_back(x); }
                     GRINGO_MATCH(x, Statement) { part.first.value().stms.emplace_back(std::move(x)); }
                 },
-                map_params(ctx, res_part.part.loc, fact));
+                map_params(ctx, res_part.part.loc_, fact));
         }
 
         // process rules

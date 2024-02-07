@@ -52,7 +52,7 @@ using TermVec = Util::immutable_array<Term>;
 //! Indicate a projected position.
 struct Projection {
     //! The location of the projected position.
-    Location loc;
+    Location loc_;
 };
 
 //! Compare two projected positions.
@@ -78,10 +78,10 @@ using PoolVec = Util::immutable_array<TupleVec>;
 struct TermVariable {
     //! Construct a variable.
     explicit TermVariable(Location loc, String name, bool is_anonymous = false)
-        : loc{std::move(loc)}, name{std::move(name)}, is_anonymous{is_anonymous} {}
+        : loc_{std::move(loc)}, name{std::move(name)}, is_anonymous{is_anonymous} {}
 
     //! The location of the variable.
-    Location loc;
+    Location loc_;
     //! The name of the variable.
     String name;
     //! Whether the variable is anonymous.
@@ -103,10 +103,10 @@ auto operator<(TermVariable const &a, TermVariable const &b) -> bool;
 //! For example <tt>1</tt>.
 struct TermSymbol {
     //! Construct term with the given symbol.
-    explicit TermSymbol(Location loc, Symbol value) : loc{std::move(loc)}, value{std::move(value)} {}
+    explicit TermSymbol(Location loc, Symbol value) : loc_{std::move(loc)}, value{std::move(value)} {}
 
     //! The location of the symbol.
-    Location loc;
+    Location loc_;
     //! The associated symbol.
     Symbol value;
 };
@@ -134,7 +134,7 @@ struct TermTuple {
     explicit TermTuple(Location loc, ElementVec args);
 
     //! The location of the tuple.
-    Location loc;
+    Location loc_;
     //! The argument pool of the tuple.
     ElementVec pool;
 };
@@ -160,7 +160,7 @@ struct TermFunction {
     explicit TermFunction(Location loc, String name, PoolVec args, bool external);
 
     //! The location of the function.
-    Location loc;
+    Location loc_;
     //! The name of the function.
     String name;
     //! The argument pool of the function.
@@ -189,7 +189,7 @@ struct TermAbs {
     explicit TermAbs(Location loc, TermVec pool);
 
     //! The location of the function.
-    Location loc;
+    Location loc_;
     //! The argument pool of the absolute term.
     TermVec pool;
 };
@@ -220,7 +220,7 @@ struct TermUnary {
     explicit TermUnary(Location loc, UnaryOperator op, Util::immutable_value<Term> rhs);
 
     //! The location of the function.
-    Location loc;
+    Location loc_;
     //! The operation.
     UnaryOperator op;
     //! The right-hand-side.
@@ -262,7 +262,7 @@ struct TermBinary {
                         Util::immutable_value<Term> rhs);
 
     //! The location of the function.
-    Location loc;
+    Location loc_;
     //! The operation.
     BinaryOperator op;
     //! The left-hand-side.
@@ -286,20 +286,20 @@ auto operator<(TermBinary const &a, TermBinary const &b) -> bool;
 // Note that constructors are defined here because at this point all types are
 // complete.
 
-inline TermAbs::TermAbs(Location loc, TermVec pool) : loc{std::move(loc)}, pool{std::move(pool)} {}
+inline TermAbs::TermAbs(Location loc, TermVec pool) : loc_{std::move(loc)}, pool{std::move(pool)} {}
 inline TermUnary::TermUnary(Location loc, UnaryOperator op, Term rhs)
-    : loc{std::move(loc)}, op{op}, rhs{Util::make_immutable<Term>(std::move(rhs))} {}
+    : loc_{std::move(loc)}, op{op}, rhs{Util::make_immutable<Term>(std::move(rhs))} {}
 inline TermUnary::TermUnary(Location loc, UnaryOperator op, Util::immutable_value<Term> rhs)
-    : loc{std::move(loc)}, op{op}, rhs{std::move(rhs)} {}
+    : loc_{std::move(loc)}, op{op}, rhs{std::move(rhs)} {}
 inline TermBinary::TermBinary(Location loc, Term lhs, BinaryOperator op, Term rhs)
-    : loc{std::move(loc)}, op{op}, lhs{Util::make_immutable<Term>(std::move(lhs))},
+    : loc_{std::move(loc)}, op{op}, lhs{Util::make_immutable<Term>(std::move(lhs))},
       rhs{Util::make_immutable<Term>(std::move(rhs))} {}
 inline TermBinary::TermBinary(Location loc, Util::immutable_value<Term> lhs, BinaryOperator op,
                               Util::immutable_value<Term> rhs)
-    : loc{std::move(loc)}, op{op}, lhs{std::move(lhs)}, rhs{std::move(rhs)} {}
+    : loc_{std::move(loc)}, op{op}, lhs{std::move(lhs)}, rhs{std::move(rhs)} {}
 inline TermFunction::TermFunction(Location loc, String name, PoolVec args, bool external)
-    : loc{std::move(loc)}, name(std::move(name)), pool{std::move(args)}, external{external} {}
-inline TermTuple::TermTuple(Location loc, ElementVec args) : loc{std::move(loc)}, pool{std::move(args)} {}
+    : loc_{std::move(loc)}, name(std::move(name)), pool{std::move(args)}, external{external} {}
+inline TermTuple::TermTuple(Location loc, ElementVec args) : loc_{std::move(loc)}, pool{std::move(args)} {}
 
 } // namespace Gringo::Input
 

@@ -283,18 +283,18 @@ struct ApplyBounds {
             if (sym.value.num() == bound) {
                 return sym;
             }
-            return TermSymbol{sym.loc, store.num(GRINGO_FWD(bound))};
+            return TermSymbol{sym.loc_, store.num(GRINGO_FWD(bound))};
         };
         auto make_relation = [this, &lit](auto const &lhs, Relation rel, Location loc, auto const &bound) {
-            return LiteralRelation{lit.loc, Sign::none, lhs,
+            return LiteralRelation{lit.loc_, Sign::none, lhs,
                                    Util::make_vec<Guard>(Guard{rel, TermSymbol{std::move(loc), store.num(bound)}})};
         };
         auto make_interval = [&lit](auto var, auto loc, auto u, auto v) -> Util::ResultState<Literal> {
             if (u.value == v.value) {
                 return {true,
-                        LiteralRelation{lit.loc, Sign::none, var, Util::make_vec<Guard>(Guard{Relation::equal, u})}};
+                        LiteralRelation{lit.loc_, Sign::none, var, Util::make_vec<Guard>(Guard{Relation::equal, u})}};
             }
-            return {true, LiteralRelation{lit.loc, Sign::none, std::move(var),
+            return {true, LiteralRelation{lit.loc_, Sign::none, std::move(var),
                                           Util::make_vec<Guard>(
                                               Guard{Relation::equal, TermBinary{std::move(loc), std::move(u),
                                                                                 BinaryOperator::dots, std::move(v)}})}};
@@ -538,16 +538,16 @@ struct ComputeBounds {
     template <bool Body> auto operator()(TheoryAtom<Body> const &lit) -> HBRes<Body> {
         auto res_elems = Util::ResultVec{lit.elems};
         for (auto const &elem : lit.elems) {
-            compute_bounds_elem(lit.loc, res_elems, elem.cond, elem.loc, elem.tuple, rt);
+            compute_bounds_elem(lit.loc_, res_elems, elem.cond, elem.loc_, elem.tuple, rt);
         }
         if constexpr (Body) {
             if (res_elems) {
-                return {true, BodyTheoryAtom{lit.loc, lit.sign, lit.name, std::move(res_elems).value(), lit.rhs}};
+                return {true, BodyTheoryAtom{lit.loc_, lit.sign, lit.name, std::move(res_elems).value(), lit.rhs}};
             }
             return {true};
         } else {
             if (res_elems) {
-                return HeadTheoryAtom{lit.loc, lit.name, std::move(res_elems).value(), lit.rhs};
+                return HeadTheoryAtom{lit.loc_, lit.name, std::move(res_elems).value(), lit.rhs};
             }
             return std::nullopt;
         }
@@ -566,12 +566,12 @@ struct ComputeBounds {
         auto res_elems = Util::ResultVec{lit.elems};
         for (auto const &elem : lit.elems) {
             if (auto const *clit = std::get_if<ConditionalLiteral>(&elem)) {
-                compute_bounds_elem(clit->loc, res_elems, clit->cond, std::in_place_type<ConditionalLiteral>, clit->loc,
-                                    clit->lit, rt);
+                compute_bounds_elem(clit->loc_, res_elems, clit->cond, std::in_place_type<ConditionalLiteral>,
+                                    clit->loc_, clit->lit, rt);
             }
         }
         if (res_elems) {
-            return Disjunction{lit.loc, std::move(res_elems).value()};
+            return Disjunction{lit.loc_, std::move(res_elems).value()};
         }
         return std::nullopt;
     }
@@ -579,10 +579,10 @@ struct ComputeBounds {
     auto operator()(HeadAggregate const &lit) -> std::optional<HeadLiteral> {
         auto res_elems = Util::ResultVec{lit.elems};
         for (auto const &elem : lit.elems) {
-            compute_bounds_elem(elem.loc, res_elems, elem.cond, elem.loc, elem.tuple, elem.lit, rt);
+            compute_bounds_elem(elem.loc_, res_elems, elem.cond, elem.loc_, elem.tuple, elem.lit, rt);
         }
         if (res_elems) {
-            return HeadAggregate{lit.loc, lit.lhs, lit.fun, std::move(res_elems).value(), lit.rhs};
+            return HeadAggregate{lit.loc_, lit.lhs, lit.fun, std::move(res_elems).value(), lit.rhs};
         }
         return std::nullopt;
     }
@@ -598,12 +598,12 @@ struct ComputeBounds {
 
     auto operator()(Conjunction const &conj) -> Util::ResultState<BodyLiteral> {
         auto sub_slv = IESolver{&slv};
-        auto [state_cond, res_cond] = compute_bounds(sub_slv, conj.lit.loc, conj.lit.cond);
+        auto [state_cond, res_cond] = compute_bounds(sub_slv, conj.lit.loc_, conj.lit.cond);
         if (!state_cond) {
-            return {false, SimpleBodyLiteral{LiteralBoolean{conj.lit.loc, Sign::none, false}}};
+            return {false, SimpleBodyLiteral{LiteralBoolean{conj.lit.loc_, Sign::none, false}}};
         }
         if (res_cond) {
-            return {true, Conjunction{ConditionalLiteral{conj.lit.loc, conj.lit.lit, std::move(res_cond).value()}}};
+            return {true, Conjunction{ConditionalLiteral{conj.lit.loc_, conj.lit.lit, std::move(res_cond).value()}}};
         }
         return {true};
     }
@@ -611,10 +611,10 @@ struct ComputeBounds {
     auto operator()(BodyAggregate const &lit) -> Util::ResultState<BodyLiteral> {
         auto res_elems = Util::ResultVec{lit.elems};
         for (auto const &elem : lit.elems) {
-            compute_bounds_elem(elem.loc, res_elems, elem.cond, elem.loc, elem.tuple, rt);
+            compute_bounds_elem(elem.loc_, res_elems, elem.cond, elem.loc_, elem.tuple, rt);
         }
         if (res_elems) {
-            return {true, BodyAggregate{lit.loc, lit.sign, lit.lhs, lit.fun, std::move(res_elems).value(), lit.rhs}};
+            return {true, BodyAggregate{lit.loc_, lit.sign, lit.lhs, lit.fun, std::move(res_elems).value(), lit.rhs}};
         }
         return {true};
     }
@@ -656,10 +656,10 @@ struct ComputeBounds {
     auto operator()(Statement const &stm) -> Util::ResultState<Statement> { return std::visit(*this, stm); }
 
     auto operator()(Rule const &stm) -> Util::ResultState<Statement> {
-        return compute_bounds_body(stm.loc, stm.body, [&](auto res_body) -> Util::ResultState<Statement> {
+        return compute_bounds_body(stm.loc_, stm.body, [&](auto res_body) -> Util::ResultState<Statement> {
             auto res_head = operator()(stm.head);
             if (res_head || res_body) {
-                return {true, Rule{stm.loc, std::move(res_head).value_or(stm.head), std::move(res_body).value()}};
+                return {true, Rule{stm.loc_, std::move(res_head).value_or(stm.head), std::move(res_body).value()}};
             }
             return {true};
         });
@@ -676,12 +676,12 @@ struct ComputeBounds {
     }
 
     auto operator()(StatementWeakConstraint const &stm) -> Util::ResultState<Statement> {
-        return compute_bounds_body(stm.loc, stm.body, std::in_place_type<StatementWeakConstraint>, stm.loc, rt,
+        return compute_bounds_body(stm.loc_, stm.body, std::in_place_type<StatementWeakConstraint>, stm.loc_, rt,
                                    stm.tuple);
     }
 
     auto operator()(StatementShow const &stm) -> Util::ResultState<Statement> {
-        return compute_bounds_body(stm.loc, stm.body, std::in_place_type<StatementShow>, stm.loc, stm.term, rt);
+        return compute_bounds_body(stm.loc_, stm.body, std::in_place_type<StatementShow>, stm.loc_, stm.term, rt);
     }
 
     auto operator()(StatementShowSig const &stm) -> Util::ResultState<Statement> {
@@ -690,7 +690,7 @@ struct ComputeBounds {
     }
 
     auto operator()(StatementProject const &stm) -> Util::ResultState<Statement> {
-        return compute_bounds_body(stm.loc, stm.body, std::in_place_type<StatementProject>, stm.loc, stm.term, rt);
+        return compute_bounds_body(stm.loc_, stm.body, std::in_place_type<StatementProject>, stm.loc_, stm.term, rt);
     }
 
     auto operator()(StatementProjectSig const &stm) -> Util::ResultState<Statement> {
@@ -704,16 +704,16 @@ struct ComputeBounds {
     }
 
     auto operator()(StatementExternal const &stm) -> Util::ResultState<Statement> {
-        return compute_bounds_body(stm.loc, stm.body, std::in_place_type<StatementExternal>, stm.loc, stm.term, rt,
+        return compute_bounds_body(stm.loc_, stm.body, std::in_place_type<StatementExternal>, stm.loc_, stm.term, rt,
                                    stm.type);
     }
 
     auto operator()(StatementEdge const &stm) -> Util::ResultState<Statement> {
-        return compute_bounds_body(stm.loc, stm.body, std::in_place_type<StatementEdge>, stm.loc, stm.edges, rt);
+        return compute_bounds_body(stm.loc_, stm.body, std::in_place_type<StatementEdge>, stm.loc_, stm.edges, rt);
     }
 
     auto operator()(StatementHeuristic const &stm) -> Util::ResultState<Statement> {
-        return compute_bounds_body(stm.loc, stm.body, std::in_place_type<StatementHeuristic>, stm.loc, stm.atom, rt,
+        return compute_bounds_body(stm.loc_, stm.body, std::in_place_type<StatementHeuristic>, stm.loc_, stm.atom, rt,
                                    stm.type, stm.prio, stm.mod);
     }
 

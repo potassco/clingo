@@ -25,11 +25,11 @@ struct VisitVariables : Visitor<VisitVariables> {
 
     // terms
 
-    void accept(TermVariable const &term) const { fun(term.loc, term.name); }
+    void accept(TermVariable const &term) const { fun(term.loc_, term.name); }
 
     // theory terms
 
-    void accept(TheoryTermVariable const &term) const { fun(term.loc, term.name); }
+    void accept(TheoryTermVariable const &term) const { fun(term.loc_, term.name); }
 
     // conditional literal
 

@@ -206,7 +206,7 @@ template <class Lit> using NodeVec = std::vector<Node<Lit>>;
     auto const &rel = std::get<LiteralRelation>(lit);
     auto const &[sym, rhs] = rel.rhs.front();
     assert(sym == Relation::equal && rel.rhs.size() == 1);
-    return LiteralRelation{rel.loc, rel.sign, rhs, Util::make_vec<Guard>(Guard{sym, rel.lhs})};
+    return LiteralRelation{rel.loc_, rel.sign, rhs, Util::make_vec<Guard>(Guard{sym, rel.lhs})};
 }
 
 [[nodiscard]] auto flip(BodyLiteral const &lit) -> BodyLiteral { return flip(std::get<SimpleBodyLiteral>(lit).lit); }
@@ -324,7 +324,7 @@ struct CheckLocal {
                 break;
             }
             if (res_cond) {
-                res_elems.replace(elem.loc, elem.tuple, res_cond.value());
+                res_elems.replace(elem.loc_, elem.tuple, res_cond.value());
             } else {
                 res_elems.keep();
             }
@@ -349,7 +349,7 @@ struct CheckLocal {
                     return {false};
                 }
                 if (res_cond) {
-                    res_elems.replace(ConditionalLiteral{clit->loc, clit->lit, res_cond.value()});
+                    res_elems.replace(ConditionalLiteral{clit->loc_, clit->lit, res_cond.value()});
                 } else {
                     res_elems.keep();
                 }
@@ -358,7 +358,7 @@ struct CheckLocal {
             }
         }
         if (res_elems) {
-            return {true, Disjunction{hlit.loc, std::move(res_elems).value()}};
+            return {true, Disjunction{hlit.loc_, std::move(res_elems).value()}};
         }
         return {true};
     }
@@ -372,13 +372,13 @@ struct CheckLocal {
                 return {false};
             }
             if (res_cond) {
-                res_elems.replace(elem.loc, elem.tuple, elem.lit, res_cond.value());
+                res_elems.replace(elem.loc_, elem.tuple, elem.lit, res_cond.value());
             } else {
                 res_elems.keep();
             }
         }
         if (res_elems) {
-            return {true, HeadAggregate{hlit.loc, hlit.lhs, hlit.fun, std::move(res_elems).value(), hlit.rhs}};
+            return {true, HeadAggregate{hlit.loc_, hlit.lhs, hlit.fun, std::move(res_elems).value(), hlit.rhs}};
         }
         return {true};
     }
@@ -394,7 +394,7 @@ struct CheckLocal {
             return {false};
         }
         if (res_elems) {
-            return {true, HeadTheoryAtom{hlit.loc, hlit.name, std::move(res_elems).value(), hlit.rhs}};
+            return {true, HeadTheoryAtom{hlit.loc_, hlit.name, std::move(res_elems).value(), hlit.rhs}};
         }
         return {true};
     }
@@ -414,7 +414,7 @@ struct CheckLocal {
         }
 
         if (res_cond) {
-            return {true, Conjunction{ConditionalLiteral{blit.lit.loc, blit.lit.lit, std::move(res_cond).value()}}};
+            return {true, Conjunction{ConditionalLiteral{blit.lit.loc_, blit.lit.lit, std::move(res_cond).value()}}};
         }
         return {true};
     }
@@ -428,14 +428,14 @@ struct CheckLocal {
                 return {false};
             }
             if (res_cond) {
-                res_elems.replace(elem.loc, elem.tuple, res_cond.value());
+                res_elems.replace(elem.loc_, elem.tuple, res_cond.value());
             } else {
                 res_elems.keep();
             }
         }
         if (res_elems) {
             return {true,
-                    BodyAggregate{blit.loc, blit.sign, blit.lhs, blit.fun, std::move(res_elems).value(), blit.rhs}};
+                    BodyAggregate{blit.loc_, blit.sign, blit.lhs, blit.fun, std::move(res_elems).value(), blit.rhs}};
         }
         return {true};
     }
@@ -451,7 +451,7 @@ struct CheckLocal {
             return {false};
         }
         if (res_elems) {
-            return {true, BodyTheoryAtom{blit.loc, blit.sign, blit.name, std::move(res_elems).value(), blit.rhs}};
+            return {true, BodyTheoryAtom{blit.loc_, blit.sign, blit.name, std::move(res_elems).value(), blit.rhs}};
         }
         return {true};
     }
@@ -508,7 +508,7 @@ struct CheckGlobal {
 
             // construct new rule if necessary
             if (res_body || res_head) {
-                return {true, Rule{stm.loc, std::move(res_head).value_or(stm.head), std::move(res_body).value()}};
+                return {true, Rule{stm.loc_, std::move(res_head).value_or(stm.head), std::move(res_body).value()}};
             }
             return {true};
         });
@@ -526,12 +526,12 @@ struct CheckGlobal {
 
     auto operator()(StatementWeakConstraint const &stm) -> Util::ResultState<Statement> {
         return check_body(stm, [&stm](auto body) {
-            return StatementWeakConstraint{stm.loc, std::move(body), stm.tuple};
+            return StatementWeakConstraint{stm.loc_, std::move(body), stm.tuple};
         });
     }
 
     auto operator()(StatementShow const &stm) -> Util::ResultState<Statement> {
-        return check_body(stm, [&stm](auto body) { return StatementShow{stm.loc, stm.term, std::move(body)}; });
+        return check_body(stm, [&stm](auto body) { return StatementShow{stm.loc_, stm.term, std::move(body)}; });
     }
 
     auto operator()(StatementShowSig const &stm) -> Util::ResultState<Statement> {
@@ -543,7 +543,7 @@ struct CheckGlobal {
         return check_body(
             stm,
             [&stm](auto body) {
-                return StatementProject{stm.loc, stm.term, std::move(body)};
+                return StatementProject{stm.loc_, stm.term, std::move(body)};
             },
             &stm.term);
     }
@@ -560,19 +560,19 @@ struct CheckGlobal {
 
     auto operator()(StatementExternal const &stm) -> Util::ResultState<Statement> {
         return check_body(stm, [&stm](auto body) {
-            return StatementExternal{stm.loc, stm.term, std::move(body), stm.type};
+            return StatementExternal{stm.loc_, stm.term, std::move(body), stm.type};
         });
     }
 
     auto operator()(StatementEdge const &stm) -> Util::ResultState<Statement> {
-        return check_body(stm, [&stm](auto body) { return StatementEdge{stm.loc, stm.edges, std::move(body)}; });
+        return check_body(stm, [&stm](auto body) { return StatementEdge{stm.loc_, stm.edges, std::move(body)}; });
     }
 
     auto operator()(StatementHeuristic const &stm) -> Util::ResultState<Statement> {
         return check_body(
             stm,
             [&stm](auto body) {
-                return StatementHeuristic{stm.loc, stm.atom, std::move(body), stm.type, stm.prio, stm.mod};
+                return StatementHeuristic{stm.loc_, stm.atom, std::move(body), stm.type, stm.prio, stm.mod};
             },
             &stm.atom);
     }

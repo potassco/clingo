@@ -151,11 +151,11 @@ struct MapParams : Transformer<MapParams> {
     }
 
     [[nodiscard]] auto accept(TermSymbol const &term) const -> std::optional<Term> {
-        auto sym = accept(term.loc, term.value);
+        auto sym = accept(term.loc_, term.value);
         if (sym.has_value()) {
             return std::visit(
                 [&term](auto &&x) -> Term {
-                    GRINGO_MATCH(x, Symbol) { return TermSymbol{term.loc, x}; }
+                    GRINGO_MATCH(x, Symbol) { return TermSymbol{term.loc_, x}; }
                     GRINGO_MATCH(x, Term) { return x; }
                 },
                 sym.value());
@@ -168,13 +168,13 @@ struct MapParams : Transformer<MapParams> {
             throw std::runtime_error("unpool has to be called before substituting parameters");
         }
         if (!term.pool.front().empty() || term.external) {
-            return transform_construct<TermFunction>(term.loc, term.name, tr(term.pool), term.external);
+            return transform_construct<TermFunction>(term.loc_, term.name, tr(term.pool), term.external);
         }
         if (auto param = ctx.is_param(term.name); param) {
-            return TermVariable{term.loc, ctx.store().string("$" + std::to_string(param.value()))};
+            return TermVariable{term.loc_, ctx.store().string("$" + std::to_string(param.value()))};
         }
         if (auto value = ctx.is_const(term.name); value) {
-            return TermSymbol{term.loc, value.value()};
+            return TermSymbol{term.loc_, value.value()};
         }
         return std::nullopt;
     }
@@ -190,7 +190,7 @@ struct MapParams : Transformer<MapParams> {
 
     [[nodiscard]] auto accept(LiteralSymbolic const &lit) const -> std::optional<Literal> {
         if (!is_identifier(lit.term)) {
-            return transform_construct<LiteralSymbolic>(lit.loc, lit.sign, tr(lit.term));
+            return transform_construct<LiteralSymbolic>(lit.loc_, lit.sign, tr(lit.term));
         }
         return std::nullopt;
     }
@@ -199,24 +199,24 @@ struct MapParams : Transformer<MapParams> {
 
     [[nodiscard]] auto accept(StatementProject const &stm) const -> std::optional<Statement> {
         if (!is_identifier(stm.term)) {
-            return transform_construct<StatementProject>(stm.loc, tr(stm.term), tr(stm.body));
+            return transform_construct<StatementProject>(stm.loc_, tr(stm.term), tr(stm.body));
         }
-        return transform_construct<StatementProject>(stm.loc, stm.term, tr(stm.body));
+        return transform_construct<StatementProject>(stm.loc_, stm.term, tr(stm.body));
     }
 
     [[nodiscard]] auto accept(StatementExternal const &stm) const -> std::optional<Statement> {
         if (!is_identifier(stm.term)) {
-            return transform_construct<StatementExternal>(stm.loc, tr(stm.term), tr(stm.body), tr(stm.type));
+            return transform_construct<StatementExternal>(stm.loc_, tr(stm.term), tr(stm.body), tr(stm.type));
         }
-        return transform_construct<StatementExternal>(stm.loc, stm.term, tr(stm.body), tr(stm.type));
+        return transform_construct<StatementExternal>(stm.loc_, stm.term, tr(stm.body), tr(stm.type));
     }
 
     [[nodiscard]] auto accept(StatementHeuristic const &stm) const -> std::optional<Statement> {
         if (!is_identifier(stm.atom)) {
-            return transform_construct<StatementHeuristic>(stm.loc, tr(stm.atom), tr(stm.body), tr(stm.type),
+            return transform_construct<StatementHeuristic>(stm.loc_, tr(stm.atom), tr(stm.body), tr(stm.type),
                                                            tr(stm.prio), tr(stm.mod));
         }
-        return transform_construct<StatementHeuristic>(stm.loc, stm.atom, tr(stm.body), tr(stm.type), tr(stm.prio),
+        return transform_construct<StatementHeuristic>(stm.loc_, stm.atom, tr(stm.body), tr(stm.type), tr(stm.prio),
                                                        tr(stm.mod));
     }
 
@@ -236,7 +236,7 @@ struct UnmapParams : Transformer<UnmapParams> {
 
     [[nodiscard]] auto accept(TermVariable const &term) const -> std::optional<Term> {
         if (auto it = map.find(term.name); it != map.end()) {
-            return TermSymbol{term.loc, store.fun(it.value(), {}, false)};
+            return TermSymbol{term.loc_, store.fun(it.value(), {}, false)};
         }
         return std::nullopt;
     }

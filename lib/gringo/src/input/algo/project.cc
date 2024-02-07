@@ -56,7 +56,7 @@ struct Project : Transformer<Project> {
         if (term.external) {
             return std::nullopt;
         }
-        return transform_construct<TermFunction>(term.loc, term.name, tr(term.pool), term.external);
+        return transform_construct<TermFunction>(term.loc_, term.name, tr(term.pool), term.external);
     }
 
     [[nodiscard]] static auto accept(TermAbs const &term) -> std::optional<Term> {
@@ -66,7 +66,7 @@ struct Project : Transformer<Project> {
 
     [[nodiscard]] auto accept(TermUnary const &term) const -> std::optional<Term> {
         if (check_type(term, TermCheckType::atom, nullptr)) {
-            return transform_construct<TermUnary>(term.loc, term.op, tr(term.rhs));
+            return transform_construct<TermUnary>(term.loc_, term.op, tr(term.rhs));
         }
         return std::nullopt;
     }
@@ -85,7 +85,7 @@ struct Project : Transformer<Project> {
 
     [[nodiscard]] auto accept(LiteralSymbolic const &lit) const -> std::optional<Literal> {
         if (lit.sign == Sign::none) {
-            return transform_construct<LiteralSymbolic>(lit.loc, lit.sign, tr(lit.term));
+            return transform_construct<LiteralSymbolic>(lit.loc_, lit.sign, tr(lit.term));
         }
         return std::nullopt;
     }
@@ -108,7 +108,7 @@ struct Project : Transformer<Project> {
             res_cond = sub_project.transform(elem.cond);
         }
         if (res_lit || res_cond) {
-            return ConditionalLiteral{elem.loc, std::move(res_lit).value_or(elem.lit),
+            return ConditionalLiteral{elem.loc_, std::move(res_lit).value_or(elem.lit),
                                       std::move(res_cond).value_or(elem.cond)};
         }
         return std::nullopt;
@@ -122,7 +122,7 @@ struct Project : Transformer<Project> {
         auto sub_project = Project{ProjectionMap{project.mode(), counts}};
 
         // project literals in condition
-        return sub_project.transform_construct<SetAggregateElement>(elem.loc, elem.lit, tr(elem.cond));
+        return sub_project.transform_construct<SetAggregateElement>(elem.loc_, elem.lit, tr(elem.cond));
     }
 
     // head literal
@@ -147,7 +147,7 @@ struct Project : Transformer<Project> {
     [[nodiscard]] auto accept(Disjunction const &lit) const -> std::optional<HeadLiteral> {
         // only projects variables in premise (almost body literals)
         auto sub_project = Project{project, true, false};
-        return sub_project.transform_construct<Disjunction>(lit.loc, tr(lit.elems));
+        return sub_project.transform_construct<Disjunction>(lit.loc_, tr(lit.elems));
     }
 
     [[nodiscard]] static auto accept(HeadTheoryAtom const &lit) -> std::optional<HeadLiteral> {
@@ -161,18 +161,18 @@ struct Project : Transformer<Project> {
         auto sub_project = Project{ProjectionMap{project.mode(), counts}};
 
         // project literals in condition
-        return sub_project.transform_construct<HeadAggregate::Element>(elem.loc, elem.tuple, elem.lit, tr(elem.cond));
+        return sub_project.transform_construct<HeadAggregate::Element>(elem.loc_, elem.tuple, elem.lit, tr(elem.cond));
     }
 
     [[nodiscard]] auto accept(HeadAggregate const &lit) const -> std::optional<HeadLiteral> {
-        return transform_construct<HeadAggregate>(lit.loc, lit.lhs, lit.fun, tr(lit.elems), lit.rhs);
+        return transform_construct<HeadAggregate>(lit.loc_, lit.lhs, lit.fun, tr(lit.elems), lit.rhs);
     }
 
     [[nodiscard]] auto accept(HeadSetAggregate const &lit) const -> std::optional<HeadLiteral> {
         // Note that we can always project in conditions. Semantic-wise a head
         // aggregate is a shortcut for a choice rule + a body aggregate in an
         // integrity constraint.
-        return transform_construct<HeadSetAggregate>(lit.loc, lit.lhs, tr(lit.elems), lit.rhs);
+        return transform_construct<HeadSetAggregate>(lit.loc_, lit.lhs, tr(lit.elems), lit.rhs);
     }
 
     // body literal
@@ -189,12 +189,12 @@ struct Project : Transformer<Project> {
         auto sub_project = Project{ProjectionMap{project.mode(), counts}};
 
         // project literals in condition
-        return sub_project.transform_construct<BodyAggregate::Element>(elem.loc, elem.tuple, tr(elem.cond));
+        return sub_project.transform_construct<BodyAggregate::Element>(elem.loc_, elem.tuple, tr(elem.cond));
     }
 
     [[nodiscard]] auto accept(BodyAggregate const &lit) const -> std::optional<BodyLiteral> {
         if (lit.sign != Sign::none || in_classical_scope || !reduct_is_nonmonotone(lit.lhs, lit.fun, lit.rhs)) {
-            return transform_construct<BodyAggregate>(lit.loc, lit.sign, lit.lhs, lit.fun, tr(lit.elems), lit.rhs);
+            return transform_construct<BodyAggregate>(lit.loc_, lit.sign, lit.lhs, lit.fun, tr(lit.elems), lit.rhs);
         }
         return std::nullopt;
     }
@@ -204,7 +204,7 @@ struct Project : Transformer<Project> {
             reduct_is_nonmonotone(lit.lhs, AggregateFunction::count, lit.rhs)) {
             return std::nullopt;
         }
-        return transform_construct<BodySetAggregate>(lit.loc, lit.sign, lit.lhs, tr(lit.elems), lit.rhs);
+        return transform_construct<BodySetAggregate>(lit.loc_, lit.sign, lit.lhs, tr(lit.elems), lit.rhs);
     }
 
     [[nodiscard]] static auto accept(BodyTheoryAtom const &lit) -> std::optional<BodyLiteral> {
@@ -230,7 +230,7 @@ struct Project : Transformer<Project> {
         // translators for head and body because the scope setting would
         // ideally just apply to the body. In the current implementation, the
         // head literals simply set the scope themselves.
-        return sub_project.transform_construct<Rule>(stm.loc, tr(stm.head), tr(stm.body));
+        return sub_project.transform_construct<Rule>(stm.loc_, tr(stm.head), tr(stm.body));
     }
 
     [[nodiscard]] auto accept(StatementOptimize::Element const &elem) const
@@ -241,27 +241,27 @@ struct Project : Transformer<Project> {
     }
 
     [[nodiscard]] auto accept(StatementWeakConstraint const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementWeakConstraint>(stm.loc, tr(stm.body), stm.tuple);
+        return transform_construct<StatementWeakConstraint>(stm.loc_, tr(stm.body), stm.tuple);
     }
 
     [[nodiscard]] auto accept(StatementShow const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementShow>(stm.loc, stm.term, tr(stm.body));
+        return transform_construct<StatementShow>(stm.loc_, stm.term, tr(stm.body));
     }
 
     [[nodiscard]] auto accept(StatementProject const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementProject>(stm.loc, stm.term, tr(stm.body));
+        return transform_construct<StatementProject>(stm.loc_, stm.term, tr(stm.body));
     }
 
     [[nodiscard]] auto accept(StatementExternal const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementExternal>(stm.loc, stm.term, tr(stm.body), stm.type);
+        return transform_construct<StatementExternal>(stm.loc_, stm.term, tr(stm.body), stm.type);
     }
 
     [[nodiscard]] auto accept(StatementEdge const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementEdge>(stm.loc, stm.edges, tr(stm.body));
+        return transform_construct<StatementEdge>(stm.loc_, stm.edges, tr(stm.body));
     }
 
     [[nodiscard]] auto accept(StatementHeuristic const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementHeuristic>(stm.loc, stm.atom, tr(stm.body), stm.type, stm.prio, stm.mod);
+        return transform_construct<StatementHeuristic>(stm.loc_, stm.atom, tr(stm.body), stm.type, stm.prio, stm.mod);
     }
 
     ProjectionMap project;

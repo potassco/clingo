@@ -56,7 +56,7 @@ struct BodyAggregate {
     //! An aggregate element.
     struct Element {
         //! The location of the element.
-        Location loc;
+        Location loc_;
         //! The tuple of the element.
         TermVec tuple;
         //! The condition of the element.
@@ -67,11 +67,11 @@ struct BodyAggregate {
 
     //! Construct a body aggregate.
     explicit BodyAggregate(Location loc, Sign sign, LGuard lhs, AggregateFunction fun, ElementVec elems, RGuard rhs)
-        : loc{std::move(loc)}, sign{sign}, fun(fun), elems(std::move(elems)), lhs{std::move(lhs)}, rhs{std::move(rhs)} {
-    }
+        : loc_{std::move(loc)}, sign{sign}, fun(fun), elems(std::move(elems)), lhs{std::move(lhs)},
+          rhs{std::move(rhs)} {}
 
     //! The location of the literal.
-    Location loc;
+    Location loc_;
     //! The sign of the literal.
     Sign sign;
     //! The aggregate function.

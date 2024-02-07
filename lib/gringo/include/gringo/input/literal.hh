@@ -60,10 +60,10 @@ using GuardVec = Util::immutable_array<Guard>;
 class LiteralBoolean {
   public:
     //! Construct a Boolean literal.
-    explicit LiteralBoolean(Location loc, Sign sign, bool value) : loc{std::move(loc)}, sign(sign), value(value) {}
+    explicit LiteralBoolean(Location loc, Sign sign, bool value) : loc_{std::move(loc)}, sign(sign), value(value) {}
 
     //! The location of the literal.
-    Location loc;
+    Location loc_;
     //! The sign of the literal.
     Sign sign;
     //! The Boolean value.
@@ -87,10 +87,10 @@ class LiteralRelation {
   public:
     //! Construct a relation literal.
     explicit LiteralRelation(Location loc, Sign sign, Term lhs, GuardVec rhs)
-        : loc{std::move(loc)}, sign(sign), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
+        : loc_{std::move(loc)}, sign(sign), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
 
     //! The location of the literal.
-    Location loc;
+    Location loc_;
     //! The sign of the literal.
     Sign sign;
     //! The term on the left hand side.
@@ -116,10 +116,10 @@ struct LiteralSymbolic {
   public:
     //! Construct a symbolic literal.
     explicit LiteralSymbolic(Location loc, Sign sign, Term term)
-        : loc{std::move(loc)}, sign(sign), term(std::move(term)) {}
+        : loc_{std::move(loc)}, sign(sign), term(std::move(term)) {}
 
     //! The location of the literal.
-    Location loc;
+    Location loc_;
     //! The sign of the literal.
     Sign sign;
     //! The term representing the atom.
@@ -150,9 +150,9 @@ struct ConditionalLiteral {
   public:
     //! Construct a conditional literal.
     explicit ConditionalLiteral(Location loc, Literal lit, LiteralVec cond)
-        : loc{std::move(loc)}, lit{std::move(lit)}, cond{std::move(cond)} {}
+        : loc_{std::move(loc)}, lit{std::move(lit)}, cond{std::move(cond)} {}
     //! The location of the literal.
-    Location loc;
+    Location loc_;
     //! The literals on the left-hand-side.
     Literal lit;
     //! The literals on the right-hand-side.

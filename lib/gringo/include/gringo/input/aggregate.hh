@@ -44,7 +44,7 @@ inline auto reduct_is_nonmonotone(LGuard const &lhs, AggregateFunction fun, RGua
 //! An element of a set aggregate.
 struct SetAggregateElement {
     //! The location of the element.
-    Location loc;
+    Location loc_;
     //! The literal.
     Literal lit;
     //! The condition.
@@ -71,18 +71,18 @@ template <bool HasSign> struct SetAggregate : std::conditional_t<HasSign, Signed
 
     //! Construct a set aggregate.
     explicit SetAggregate(Location loc, LGuard lhs, SetAggregateElementVec elems, RGuard rhs)
-        : loc{std::move(loc)}, elems{std::move(elems)}, lhs(std::move(lhs)), rhs(std::move(rhs)) {
+        : loc_{std::move(loc)}, elems{std::move(elems)}, lhs(std::move(lhs)), rhs(std::move(rhs)) {
         static_assert(!HasSign);
     }
 
     //! Construct a set aggregate.
     explicit SetAggregate(Location loc, Sign sign, LGuard lhs, SetAggregateElementVec elems, RGuard rhs)
-        : Signed{sign}, loc{std::move(loc)}, elems{std::move(elems)}, lhs(std::move(lhs)), rhs(std::move(rhs)) {
+        : Signed{sign}, loc_{std::move(loc)}, elems{std::move(elems)}, lhs(std::move(lhs)), rhs(std::move(rhs)) {
         static_assert(HasSign);
     }
 
     //! The location of the aggregate.
-    Location loc;
+    Location loc_;
     //! The elements of the set aggregate.
     SetAggregateElementVec elems;
     //! The optical right guard of the aggregate.

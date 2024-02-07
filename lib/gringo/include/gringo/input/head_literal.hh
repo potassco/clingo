@@ -38,9 +38,9 @@ struct Disjunction {
     //! A vector of elements.
     using ElementVec = Util::immutable_array<Element>;
     //! Wrap a literal in a head literal.
-    Disjunction(Location loc, ElementVec elems) : loc{loc}, elems{std::move(elems)} {}
+    Disjunction(Location loc, ElementVec elems) : loc_{loc}, elems{std::move(elems)} {}
     //! The location of the disjunction.
-    Location loc;
+    Location loc_;
     //! The elements of the disjunction.
     ElementVec elems;
 };
@@ -62,7 +62,7 @@ struct HeadAggregate {
     //! An element of a head aggregate.
     struct Element {
         //! The location of the element.
-        Location loc;
+        Location loc_;
         //! The tuple of the element.
         TermVec tuple;
         //! The distinguished head literal of the element.
@@ -75,7 +75,7 @@ struct HeadAggregate {
 
     //! Construct a head set aggregate.
     explicit HeadAggregate(Location loc, LGuard lhs, AggregateFunction fun, ElementVec elems, RGuard rhs)
-        : loc{std::move(loc)}, fun(fun), elems(std::move(elems)), lhs{std::move(lhs)}, rhs{std::move(rhs)} {}
+        : loc_{std::move(loc)}, fun(fun), elems(std::move(elems)), lhs{std::move(lhs)}, rhs{std::move(rhs)} {}
     //! Construct a head set aggregate.
     explicit HeadAggregate(Location loc, AggregateFunction fun, ElementVec elems)
         : HeadAggregate{std::move(loc), std::nullopt, fun, std::move(elems), std::nullopt} {}
@@ -84,7 +84,7 @@ struct HeadAggregate {
         : HeadAggregate{std::move(loc), std::nullopt, fun, std::move(elems), std::make_pair(rel, rhs)} {}
 
     //! The location of the aggregate.
-    Location loc;
+    Location loc_;
     //! The aggregate function.
     AggregateFunction fun;
     //! The vector of elements.
