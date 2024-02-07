@@ -185,7 +185,9 @@ struct CheckSyntax {
 
     // conditional literal
 
-    auto operator()(LiteralVec const &lits) const -> bool {
+    auto operator()(LiteralVec const &lits) const -> bool { return operator()(tcb::make_span(lits)); }
+
+    auto operator()(LiteralSpan lits) const -> bool {
         return std::all_of(lits.begin(), lits.end(), [this](auto const &lit) {
             return operator()(lit, SyntaxCheck::project | SyntaxCheck::project_tuple);
         });
@@ -220,8 +222,9 @@ struct CheckSyntax {
     // theory
 
     template <bool HasSign> auto operator()(TheoryAtom<HasSign> const &atom) const -> bool {
-        return operator()(atom.name_) && std::all_of(atom.elems_.begin(), atom.elems_.end(),
-                                                     [this](auto const &elem) { return this->operator()(elem.cond_); });
+        return operator()(atom.name()) &&
+               std::all_of(atom.elems().begin(), atom.elems().end(),
+                           [this](auto const &elem) { return this->operator()(elem.cond()); });
     }
 
     // head literal

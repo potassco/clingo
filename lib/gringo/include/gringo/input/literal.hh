@@ -158,6 +158,8 @@ using Literal = std::variant<LiteralBoolean, LiteralRelation, LiteralSymbolic>;
 
 //! A vector of literals.
 using LiteralVec = Util::immutable_array<Literal>;
+//! A span of literals.
+using LiteralSpan = tcb::span<Literal const>;
 
 //! A vector of literal vectors.
 using LiteralVecVec = Util::immutable_array<LiteralVec>;

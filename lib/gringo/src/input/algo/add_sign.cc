@@ -34,7 +34,8 @@ struct AddSign {
         return BodySetAggregate{lit.loc() + pos, lit.sign_ + sign, lit.lhs_, lit.elems_, lit.rhs_};
     }
     auto operator()(BodyTheoryAtom const &lit) const -> BodyLiteral {
-        return BodyTheoryAtom{lit.loc() + pos, lit.sign_ + sign, lit.name_, lit.elems_, lit.rhs_};
+        return BodyTheoryAtom{lit.loc() + pos, lit.sign_ + sign, lit.name(),
+                              TheoryElementVec{lit.elems().begin(), lit.elems().end()}, lit.rhs()};
     }
 
     Sign sign;

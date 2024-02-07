@@ -23,6 +23,8 @@ using TheoryTerm =
     std::variant<TheoryTermSymbol, TheoryTermVariable, TheoryTermTuple, TheoryTermFunction, TheoryTermUnparsed>;
 //! A vector of theory terms.
 using TheoryTermVec = Util::immutable_array<TheoryTerm>;
+//! A span of theory terms.
+using TheoryTermSpan = tcb::span<TheoryTerm const>;
 
 //! A symbolic theory term.
 //!
@@ -34,12 +36,15 @@ class TheoryTermSymbol {
 
     //! The location of the symbol.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The symbol.
+    [[nodiscard]] auto value() const -> Symbol { return value_; }
 
   private:
-    Location loc_;
+    friend auto operator==(TheoryTermSymbol const &a, TheoryTermSymbol const &b) -> bool;
+    friend auto operator<(TheoryTermSymbol const &a, TheoryTermSymbol const &b) -> bool;
+    friend struct Util::value_hasher<TheoryTermSymbol>;
 
-  public:
-    //! The symbol.
+    Location loc_;
     Symbol value_;
 };
 
@@ -64,14 +69,18 @@ class TheoryTermVariable {
 
     //! The location of the variable.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The name of the variable.
+    [[nodiscard]] auto name() const -> String { return name_; }
+    //! Whether the variable is anonymous.
+    [[nodiscard]] auto is_anonymous() const -> bool { return is_anonymous_; }
 
   private:
-    Location loc_;
+    friend auto operator==(TheoryTermVariable const &a, TheoryTermVariable const &b) -> bool;
+    friend auto operator<(TheoryTermVariable const &a, TheoryTermVariable const &b) -> bool;
+    friend struct Util::value_hasher<TheoryTermVariable>;
 
-  public:
-    //! The name of the variable.
+    Location loc_;
     String name_;
-    //! Whether the variable is anonymous.
     bool is_anonymous_;
 };
 
@@ -104,14 +113,18 @@ class TheoryTermTuple {
 
     //! The location of the symbol.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The type of the term.
+    [[nodiscard]] auto type() const -> TheoryTermTupleType { return type_; }
+    //! The elements of the tuple.
+    [[nodiscard]] auto elems() const -> TheoryTermSpan;
 
   private:
-    Location loc_;
+    friend auto operator==(TheoryTermTuple const &a, TheoryTermTuple const &b) -> bool;
+    friend auto operator<(TheoryTermTuple const &a, TheoryTermTuple const &b) -> bool;
+    friend struct Util::value_hasher<TheoryTermTuple>;
 
-  public:
-    //! The type of the term.
+    Location loc_;
     TheoryTermTupleType type_;
-    //! The elements of the tuple.
     TheoryTermVec elems_;
 };
 
@@ -137,14 +150,18 @@ class TheoryTermFunction {
 
     //! The location of the symbol.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The name of the function.
+    [[nodiscard]] auto name() const -> String { return name_; }
+    //! The arguments of the function.
+    [[nodiscard]] auto args() const -> TheoryTermSpan;
 
   private:
-    Location loc_;
+    friend auto operator==(TheoryTermFunction const &a, TheoryTermFunction const &b) -> bool;
+    friend auto operator<(TheoryTermFunction const &a, TheoryTermFunction const &b) -> bool;
+    friend struct Util::value_hasher<TheoryTermFunction>;
 
-  public:
-    //! The name of the function.
+    Location loc_;
     String name_;
-    //! The arguments of the function.
     TheoryTermVec args_;
 };
 
@@ -175,18 +192,23 @@ class TheoryTermUnparsed {
     //! In this context, it has to have at least length one.
     //! Furthermore, all but the first element must have at least one operator.
     using ElementVec = Util::immutable_array<Element>;
+    //! A span of elements.
+    using ElementSpan = tcb::span<Element const>;
 
     //! Construct an unparsed theory term.
     explicit TheoryTermUnparsed(Location loc, ElementVec elems);
 
     //! The location of the symbol.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The vector of elements.
+    [[nodiscard]] auto elems() const -> ElementSpan;
 
   private:
-    Location loc_;
+    friend auto operator==(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> bool;
+    friend auto operator<(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> bool;
+    friend struct Util::value_hasher<TheoryTermUnparsed>;
 
-  public:
-    //! The vector of elements.
+    Location loc_;
     ElementVec elems_;
 };
 
@@ -209,6 +231,10 @@ inline TheoryTermFunction::TheoryTermFunction(Location loc, String name, TheoryT
 inline TheoryTermUnparsed::TheoryTermUnparsed(Location loc, ElementVec elems)
     : loc_{std::move(loc)}, elems_{std::move(elems)} {}
 
+auto TheoryTermTuple::elems() const -> TheoryTermSpan { return elems_; }
+auto TheoryTermFunction::args() const -> TheoryTermSpan { return args_; }
+auto TheoryTermUnparsed::elems() const -> ElementSpan { return elems_; }
+
 //! The optional right guard of the theory atom.
 using TheoryRGuard = std::optional<std::pair<String, TheoryTerm>>;
 
@@ -219,18 +245,24 @@ class TheoryElement {
         : loc_{loc}, tuple_{std::move(tuple)}, cond_{std::move(cond)} {}
     //! The location of the theory element.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The tuple of the theory element.
+    [[nodiscard]] auto tuple() const -> TheoryTermSpan { return tuple_; }
+    //! The condition of the theory element.
+    [[nodiscard]] auto cond() const -> LiteralSpan { return cond_; }
 
   private:
-    Location loc_;
+    friend auto operator==(TheoryElement const &a, TheoryElement const &b) -> bool;
+    friend auto operator<(TheoryElement const &a, TheoryElement const &b) -> bool;
+    friend struct Util::value_hasher<TheoryElement>;
 
-  public:
-    //! The tuple of the theory element.
+    Location loc_;
     TheoryTermVec tuple_;
-    //! The condition of the theory element.
     LiteralVec cond_;
 };
 //! A vector of theory atom elements.
 using TheoryElementVec = Util::immutable_array<TheoryElement>;
+//! A vector of theory atom elements.
+using TheoryElementSpan = tcb::span<TheoryElement const>;
 
 //! Compare two theory elements.
 //!
@@ -261,16 +293,21 @@ template <bool HasSign> class TheoryAtom : public std::conditional_t<HasSign, Si
 
     //! The location of the symbol.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The name of the atom.
+    [[nodiscard]] auto name() const -> Term const & { return name_; }
+    //! The elements of the atom.
+    [[nodiscard]] auto elems() const -> TheoryElementSpan { return elems_; }
+    //! The optional right guard of the atom.
+    [[nodiscard]] auto rhs() const -> TheoryRGuard const & { return rhs_; }
 
   private:
-    Location loc_;
+    friend auto operator==(TheoryAtom<true> const &a, TheoryAtom<true> const &b) -> bool;
+    friend auto operator<(TheoryAtom<true> const &a, TheoryAtom<true> const &b) -> bool;
+    friend struct Util::value_hasher<TheoryAtom<true>>;
 
-  public:
-    //! The name of the atom.
+    Location loc_;
     Term name_;
-    //! The elements of the atom.
     TheoryElementVec elems_;
-    //! The optional right guard of the atom.
     TheoryRGuard rhs_;
 };
 

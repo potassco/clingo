@@ -536,18 +536,20 @@ struct ComputeBounds {
     }
 
     template <bool Body> auto operator()(TheoryAtom<Body> const &lit) -> HBRes<Body> {
-        auto res_elems = Util::ResultVec{lit.elems_};
-        for (auto const &elem : lit.elems_) {
-            compute_bounds_elem(lit.loc(), res_elems, elem.cond_, elem.loc(), elem.tuple_, rt);
+        // TODO: the result vec has to use a span!!!
+        auto res_elems = Util::ResultVec{lit.elems()};
+        for (auto const &elem : lit.elems()) {
+            compute_bounds_elem(lit.loc(), res_elems, elem.cond(), elem.loc(), elem.tuple(), rt);
         }
         if constexpr (Body) {
             if (res_elems) {
-                return {true, BodyTheoryAtom{lit.loc(), lit.sign_, lit.name_, std::move(res_elems).value(), lit.rhs_}};
+                return {true,
+                        BodyTheoryAtom{lit.loc(), lit.sign_, lit.name(), std::move(res_elems).value(), lit.rhs()}};
             }
             return {true};
         } else {
             if (res_elems) {
-                return HeadTheoryAtom{lit.loc(), lit.name_, std::move(res_elems).value(), lit.rhs_};
+                return HeadTheoryAtom{lit.loc(), lit.name(), std::move(res_elems).value(), lit.rhs()};
             }
             return std::nullopt;
         }
