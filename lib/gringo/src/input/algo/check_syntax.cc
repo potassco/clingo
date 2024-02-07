@@ -52,12 +52,12 @@ struct CheckSyntax {
         return true;
     }
 
-    auto operator()(TupleElem const &elem, SyntaxCheck check) const -> bool {
+    auto operator()(ArgumentTuple::Element const &elem, SyntaxCheck check) const -> bool {
         return std::visit(*this, elem, std::variant<SyntaxCheck>{check});
     }
 
-    auto operator()(TupleVec const &tuple, SyntaxCheck check) const -> bool {
-        return std::all_of(tuple.begin(), tuple.end(),
+    auto operator()(ArgumentTuple const &tuple, SyntaxCheck check) const -> bool {
+        return std::all_of(tuple.elems().begin(), tuple.elems().end(),
                            [this, check](auto const &project_or_term) { return operator()(project_or_term, check); });
     }
 
@@ -69,39 +69,40 @@ struct CheckSyntax {
     }
 
     auto operator()(TermTuple const &term, SyntaxCheck check) const -> bool {
-        if (test(check, SyntaxCheck::is_const) && term.pool_.size() != 1) {
+        if (test(check, SyntaxCheck::is_const) && term.pool().size() != 1) {
             GRINGO_REPORT_LOC(log, error, term.loc()) << "pools not permitted in this context";
             return false;
         }
-        return std::all_of(term.pool_.begin(), term.pool_.end(),
+        return std::all_of(term.pool().begin(), term.pool().end(),
                            [this, check](auto const &tuple_or_term) { return operator()(tuple_or_term, check); });
     }
 
     auto operator()(TermFunction const &term, SyntaxCheck check) const -> bool {
         if (test(check, SyntaxCheck::is_const)) {
-            if (term.external_) {
+            if (term.external()) {
                 GRINGO_REPORT_LOC(log, error, term.loc()) << "external functions not permitted in this context";
                 return false;
             }
-            if (term.pool_.size() != 1) {
+            if (term.pool().size() != 1) {
                 GRINGO_REPORT_LOC(log, error, term.loc()) << "pools not permitted in this context";
                 return false;
             }
         }
-        return std::all_of(term.pool_.begin(), term.pool_.end(),
+        return std::all_of(term.pool().begin(), term.pool().end(),
                            [this, check](auto const &tuple) { return operator()(tuple, check); });
     }
 
     auto operator()(TermAbs const &term, SyntaxCheck check) const -> bool {
-        if (test(check, SyntaxCheck::is_const) && term.pool_.size() != 1) {
+        if (test(check, SyntaxCheck::is_const) && term.pool().size() != 1) {
             GRINGO_REPORT_LOC(log, error, term.loc()) << "pools not permitted in this context";
             return false;
         }
-        return std::all_of(term.pool_.begin(), term.pool_.end(), [this](auto const &term) { return operator()(term); });
+        return std::all_of(term.pool().begin(), term.pool().end(),
+                           [this](auto const &term) { return operator()(term); });
     }
 
     auto operator()(TermUnary const &term, SyntaxCheck check) const -> bool {
-        switch (term.op_) {
+        switch (term.op()) {
             case UnaryOperator::invert: {
                 check &= ~SyntaxCheck::project_tuple;
                 break;
@@ -111,12 +112,12 @@ struct CheckSyntax {
                 break;
             }
         }
-        return operator()(*term.rhs_, check);
+        return operator()(term.rhs(), check);
     }
 
     auto operator()(TermBinary const &term, SyntaxCheck check) const -> bool {
         static_cast<void>(check);
-        return operator()(*term.lhs_) && operator()(*term.rhs_);
+        return operator()(term.lhs()) && operator()(term.rhs());
     }
 
     // theory terms

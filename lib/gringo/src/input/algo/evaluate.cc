@@ -36,10 +36,10 @@ struct BuildDep {
 
     void operator()(Projection const &pro) const { static_cast<void>(pro); }
 
-    void operator()(TupleElem const &elem) const { std::visit(*this, elem); };
+    void operator()(ArgumentTuple::Element const &elem) const { std::visit(*this, elem); };
 
-    void operator()(TupleVec const &vec) const {
-        for (auto const &elem : vec) {
+    void operator()(ArgumentTuple const &tuple) const {
+        for (auto const &elem : tuple.elems()) {
             std::visit(*this, elem);
         }
     }
@@ -47,37 +47,37 @@ struct BuildDep {
     void operator()(TermVariable const &term) const { static_cast<void>(term); }
 
     void operator()(TermSymbol const &term) const {
-        if (term.value_.type() == SymbolType::function) {
-            add_(term.value_.name());
+        if (term.value().type() == SymbolType::function) {
+            add_(term.value().name());
         }
     }
 
     void operator()(TermTuple const &term) const {
-        for (auto const &term_or_tuple : term.pool_) {
+        for (auto const &term_or_tuple : term.pool()) {
             std::visit(*this, term_or_tuple);
         }
     }
 
     void operator()(TermFunction const &term) const {
-        if (!term.external_ && term.pool_.size() == 1 && term.pool_.front().empty()) {
-            add_(term.name_);
+        if (!term.external() && term.pool().size() == 1 && term.pool().front().elems().empty()) {
+            add_(term.name());
         }
-        for (auto const &tuple : term.pool_) {
+        for (auto const &tuple : term.pool()) {
             operator()(tuple);
         }
     }
 
     void operator()(TermAbs const &term) const {
-        for (auto const &arg : term.pool_) {
+        for (auto const &arg : term.pool()) {
             operator()(arg);
         }
     }
 
-    void operator()(TermUnary const &term) const { operator()(*term.rhs_); }
+    void operator()(TermUnary const &term) const { operator()(term.rhs()); }
 
     void operator()(TermBinary const &term) const {
-        operator()(*term.lhs_);
-        operator()(*term.rhs_);
+        operator()(term.lhs());
+        operator()(term.rhs());
     }
 
     //! Add a dependency to the graph.
@@ -183,12 +183,14 @@ struct Evaluate {
         return std::nullopt;
     }
 
-    auto operator()(TupleElem const &elem) const -> std::optional<Symbol> { return std::visit(*this, elem); };
+    auto operator()(ArgumentTuple::Element const &elem) const -> std::optional<Symbol> {
+        return std::visit(*this, elem);
+    };
 
-    [[nodiscard]] auto eval_(TupleVec const &vec) const -> std::optional<std::vector<Symbol>> {
+    [[nodiscard]] auto eval_(ArgumentTuple const &tuple) const -> std::optional<std::vector<Symbol>> {
         std::vector<Symbol> args;
-        args.reserve(vec.size());
-        for (auto const &elem : vec) {
+        args.reserve(tuple.elems().size());
+        for (auto const &elem : tuple.elems()) {
             auto res = operator()(elem);
             if (!res.has_value()) {
                 return std::nullopt;
@@ -198,8 +200,8 @@ struct Evaluate {
         return {std::move(args)};
     }
 
-    auto operator()(TupleVec const &vec) const -> std::optional<Symbol> {
-        auto args = eval_(vec);
+    auto operator()(ArgumentTuple const &tuple) const -> std::optional<Symbol> {
+        auto args = eval_(tuple);
         if (!args.has_value()) {
             return std::nullopt;
         }
@@ -211,29 +213,29 @@ struct Evaluate {
         return std::nullopt;
     }
 
-    auto operator()(TermSymbol const &term) const -> std::optional<Symbol> { return operator()(term.value_); }
+    auto operator()(TermSymbol const &term) const -> std::optional<Symbol> { return operator()(term.value()); }
 
     auto operator()(TermTuple const &term) const -> std::optional<Symbol> {
-        if (term.pool_.size() != 1) {
+        if (term.pool().size() != 1) {
             return std::nullopt;
         }
-        return std::visit(*this, term.pool_.front());
+        return std::visit(*this, term.pool().front());
     }
 
     auto operator()(TermFunction const &term) const -> std::optional<Symbol> {
-        if (term.pool_.size() != 1 || term.external_) {
+        if (term.pool().size() != 1 || term.external()) {
             return std::nullopt;
         }
-        if (term.pool_.front().empty()) {
-            if (auto it = map.find(term.name_); it != map.end()) {
+        if (term.pool().front().elems().empty()) {
+            if (auto it = map.find(term.name()); it != map.end()) {
                 return it->second.second;
             }
         }
-        auto args = eval_(term.pool_.front());
+        auto args = eval_(term.pool().front());
         if (!args.has_value()) {
             return std::nullopt;
         }
-        return store.fun(term.name_, args.value(), false);
+        return store.fun(term.name(), args.value(), false);
     }
 
     struct ErrorContext {
@@ -248,10 +250,10 @@ struct Evaluate {
     };
 
     auto operator()(TermAbs const &term) const -> std::optional<Symbol> {
-        if (term.pool_.size() != 1) {
+        if (term.pool().size() != 1) {
             return std::nullopt;
         }
-        auto val = operator()(term.pool_.front());
+        auto val = operator()(term.pool().front());
         if (!val.has_value()) {
             return std::nullopt;
         }
@@ -270,11 +272,11 @@ struct Evaluate {
     }
 
     auto operator()(TermUnary const &term) const -> std::optional<Symbol> {
-        auto rhs = operator()(*term.rhs_);
+        auto rhs = operator()(term.rhs());
         if (!rhs.has_value()) {
             return std::nullopt;
         }
-        auto res = evaluate(store, term.op_, rhs.value());
+        auto res = evaluate(store, term.op(), rhs.value());
         if (!res.has_value()) {
             auto const *lp = "";
             auto const *rp = "";
@@ -283,19 +285,19 @@ struct Evaluate {
                 rp = ")";
             }
             GRINGO_REPORT_LOC(log, error, location(term)) << "operation undefined:\n"
-                                                          << "  " << term.op_ << lp << rhs.value() << rp << "\n"
+                                                          << "  " << term.op() << lp << rhs.value() << rp << "\n"
                                                           << ErrorContext{root};
         }
         return res;
     }
 
     auto operator()(TermBinary const &term) const -> std::optional<Symbol> {
-        auto lhs = operator()(*term.lhs_);
-        auto rhs = operator()(*term.rhs_);
-        if (term.op_ == BinaryOperator::dots || !lhs.has_value() || !rhs.has_value()) {
+        auto lhs = operator()(term.lhs());
+        auto rhs = operator()(term.rhs());
+        if (term.op() == BinaryOperator::dots || !lhs.has_value() || !rhs.has_value()) {
             return std::nullopt;
         }
-        auto res = evaluate(store, lhs.value(), term.op_, rhs.value());
+        auto res = evaluate(store, lhs.value(), term.op(), rhs.value());
         if (!res.has_value()) {
             auto const *lp = "";
             auto const *rp = "";
@@ -305,7 +307,7 @@ struct Evaluate {
             }
             GRINGO_REPORT_LOC(log, error, location(term))
                 << "operation undefined:\n"
-                << "  " << lhs.value() << term.op_ << lp << rhs.value() << rp << "\n"
+                << "  " << lhs.value() << term.op() << lp << rhs.value() << rp << "\n"
                 << ErrorContext{root};
         }
         return res;

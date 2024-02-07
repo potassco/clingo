@@ -48,6 +48,7 @@ using Term = std::variant<TermVariable, TermSymbol, TermTuple, TermFunction, Ter
 
 //! A vector of terms.
 using TermVec = Util::immutable_array<Term>;
+using TermSpan = tcb::span<Term const>;
 
 //! Indicate a projected position.
 class Projection {
@@ -58,6 +59,10 @@ class Projection {
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
 
   private:
+    friend auto operator==(Projection const &a, Projection const &b) -> bool;
+    friend auto operator<(Projection const &a, Projection const &b) -> bool;
+    friend struct std::hash<Projection>;
+
     Location loc_;
 };
 
@@ -71,12 +76,29 @@ auto operator==(Projection const &a, Projection const &b) -> bool;
 //! @related Projection
 auto operator<(Projection const &a, Projection const &b) -> bool;
 
-//! A variant capturing either a term or a position that is to be projected.
-using TupleElem = std::variant<Projection, Term>;
-//! A tuple of terms or positions to project.
-using TupleVec = Util::immutable_array<TupleElem>;
+class ArgumentTuple {
+  public:
+    //! A variant capturing either a term or a position that is to be projected.
+    using Element = std::variant<Projection, Term>;
+    //! A tuple of terms or positions to project.
+    using ElementVec = Util::immutable_array<Element>;
+    //! A tuple of terms or positions to project.
+    using ElementSpan = tcb::span<Element const>;
+
+    //! Construct an argument tuple.
+    ArgumentTuple(ElementVec elems) : elems_{std::move(elems)} {}
+
+    //! The elements of the tuple.
+    [[nodiscard]] auto elems() const -> ElementSpan;
+
+  private:
+    ElementVec elems_;
+};
+
 //! A vector of tuples used as function or predicate arguments.
-using PoolVec = Util::immutable_array<TupleVec>;
+using PoolVec = Util::immutable_array<ArgumentTuple>;
+//! A span of tuples used as function or predicate arguments.
+using PoolSpan = tcb::span<ArgumentTuple const>;
 
 //! Term representing a variable.
 //!
@@ -88,14 +110,18 @@ class TermVariable {
         : loc_{std::move(loc)}, name_{std::move(name)}, is_anonymous_{is_anonymous} {}
     //! The location of the variable.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The name of the variable.
+    [[nodiscard]] auto name() const -> String { return name_; }
+    //! Whether the variable is anonymous.
+    [[nodiscard]] auto is_anonymous() const -> bool { return is_anonymous_; }
 
   private:
-    Location loc_;
+    friend auto operator==(TermVariable const &a, TermVariable const &b) -> bool;
+    friend auto operator<(TermVariable const &a, TermVariable const &b) -> bool;
+    friend struct std::hash<TermVariable>;
 
-  public:
-    //! The name of the variable.
+    Location loc_;
     String name_;
-    //! Whether the variable is anonymous.
     bool is_anonymous_;
 };
 
@@ -119,12 +145,15 @@ class TermSymbol {
 
     //! The location of the symbol.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The associated symbol.
+    [[nodiscard]] auto value() const -> Symbol { return value_; }
 
   private:
-    Location loc_;
+    friend auto operator==(TermSymbol const &a, TermSymbol const &b) -> bool;
+    friend auto operator<(TermSymbol const &a, TermSymbol const &b) -> bool;
+    friend struct std::hash<TermSymbol>;
 
-  public:
-    //! The associated symbol.
+    Location loc_;
     Symbol value_;
 };
 
@@ -144,21 +173,26 @@ auto operator<(TermSymbol const &a, TermSymbol const &b) -> bool;
 class TermTuple {
   public:
     //! A tuple element.
-    using Element = std::variant<TupleVec, Term>;
+    using Element = std::variant<ArgumentTuple, Term>;
     //! A vector of tuple elements.
     using ElementVec = Util::immutable_array<Element>;
+    //! A span of tuple elements.
+    using ElementSpan = tcb::span<Element const>;
 
     //! Construct a  tuple.
     explicit TermTuple(Location loc, ElementVec args);
 
     //! The location of the tuple.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The argument pool of the tuple.
+    [[nodiscard]] auto pool() const -> ElementSpan;
 
   private:
-    Location loc_;
+    friend auto operator==(TermTuple const &a, TermTuple const &b) -> bool;
+    friend auto operator<(TermTuple const &a, TermTuple const &b) -> bool;
+    friend struct std::hash<TermTuple>;
 
-  public:
-    //! The argument pool of the tuple.
+    Location loc_;
     ElementVec pool_;
 };
 
@@ -185,16 +219,21 @@ class TermFunction {
 
     //! The location of the function.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The name of the function.
+    [[nodiscard]] auto name() const -> String { return name_; }
+    //! The argument pool of the function.
+    [[nodiscard]] auto pool() const -> PoolSpan { return pool_; }
+    //! Whether this is an external function.
+    [[nodiscard]] auto external() const -> bool { return external_; }
 
   private:
-    Location loc_;
+    friend auto operator==(TermFunction const &a, TermFunction const &b) -> bool;
+    friend auto operator<(TermFunction const &a, TermFunction const &b) -> bool;
+    friend struct std::hash<TermFunction>;
 
-  public:
-    //! The name of the function.
+    Location loc_;
     String name_;
-    //! The argument pool of the function.
     PoolVec pool_;
-    //! Whether this is an external function.
     bool external_;
 };
 
@@ -220,12 +259,15 @@ class TermAbs {
 
     //! The location of the function.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The argument pool of the absolute term.
+    [[nodiscard]] auto pool() const -> TermSpan;
 
   private:
-    Location loc_;
+    friend auto operator==(TermAbs const &a, TermAbs const &b) -> bool;
+    friend auto operator<(TermAbs const &a, TermAbs const &b) -> bool;
+    friend struct std::hash<TermAbs>;
 
-  public:
-    //! The argument pool of the absolute term.
+    Location loc_;
     TermVec pool_;
 };
 
@@ -257,14 +299,18 @@ class TermUnary {
 
     //! The location of the function.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The operation.
+    [[nodiscard]] auto op() const -> UnaryOperator { return op_; }
+    //! The right-hand-side.
+    [[nodiscard]] auto rhs() const -> Term const &;
 
   private:
-    Location loc_;
+    friend auto operator==(TermUnary const &a, TermUnary const &b) -> bool;
+    friend auto operator<(TermUnary const &a, TermUnary const &b) -> bool;
+    friend struct std::hash<TermUnary>;
 
-  public:
-    //! The operation.
+    Location loc_;
     UnaryOperator op_;
-    //! The right-hand-side.
     Util::immutable_value<Term> rhs_;
 };
 
@@ -305,16 +351,21 @@ class TermBinary {
 
     //! The location of the function.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The left-hand-side.
+    [[nodiscard]] auto lhs() const -> Term const &;
+    //! The right-hand-side.
+    [[nodiscard]] auto rhs() const -> Term const &;
+    //! The operation.
+    [[nodiscard]] auto op() const -> BinaryOperator { return op_; }
 
   private:
-    Location loc_;
+    friend auto operator==(TermBinary const &a, TermBinary const &b) -> bool;
+    friend auto operator<(TermBinary const &a, TermBinary const &b) -> bool;
+    friend struct std::hash<TermBinary>;
 
-  public:
-    //! The left-hand-side.
+    Location loc_;
     Util::immutable_value<Term> lhs_;
-    //! The right-hand-side.
     Util::immutable_value<Term> rhs_;
-    //! The operation.
     BinaryOperator op_;
 };
 
@@ -347,6 +398,17 @@ inline TermBinary::TermBinary(Location loc, Util::immutable_value<Term> lhs, Bin
 inline TermFunction::TermFunction(Location loc, String name, PoolVec args, bool external)
     : loc_{std::move(loc)}, name_(std::move(name)), pool_{std::move(args)}, external_{external} {}
 inline TermTuple::TermTuple(Location loc, ElementVec args) : loc_{std::move(loc)}, pool_{std::move(args)} {}
+
+inline auto ArgumentTuple::elems() const -> ElementSpan { return elems_; }
+
+inline auto TermTuple::pool() const -> TermTuple::ElementSpan { return tcb::make_span(pool_); }
+
+inline auto TermAbs::pool() const -> TermSpan { return tcb::make_span(pool_); }
+
+inline auto TermUnary::rhs() const -> Term const & { return *rhs_; }
+
+inline auto TermBinary::lhs() const -> Term const & { return *lhs_; }
+inline auto TermBinary::rhs() const -> Term const & { return *rhs_; }
 
 } // namespace Gringo::Input
 

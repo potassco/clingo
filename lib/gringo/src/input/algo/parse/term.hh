@@ -14,7 +14,7 @@ template <bool external> struct construct_function {
     using return_type = TermFunction;
 
     auto operator()(Location loc, auto name) const {
-        return TermFunction{std::move(loc), name, PoolVec{TupleVec{}}, external};
+        return TermFunction{std::move(loc), name, PoolVec{ArgumentTuple{ArgumentTuple::ElementVec{}}}, external};
     }
 
     auto operator()(Location loc, auto name, auto args) const {
@@ -32,11 +32,11 @@ class tuple_trail {
         if (vec_.size() == 1 && !trail_ && std::holds_alternative<Term>(vec_.back())) {
             return std::get<Term>(std::move(vec_.back()));
         }
-        return std::move(vec_);
+        return ArgumentTuple{std::move(vec_)};
     }
 
   private:
-    std::vector<TupleElem> vec_;
+    std::vector<ArgumentTuple::Element> vec_;
     bool trail_ = false;
 };
 
@@ -184,7 +184,7 @@ struct term_list {
 struct term_function_tuple {
     static constexpr char const *name = "list of terms";
     static constexpr auto rule = dsl::list(dsl::p<projection> | dsl::else_ >> dsl::p<term>, dsl::sep(dsl::comma));
-    static constexpr auto value = lexy::as_list<std::vector<TupleElem>>;
+    static constexpr auto value = lexy::as_list<std::vector<ArgumentTuple::Element>>;
 };
 
 struct term_function_pool {
@@ -195,7 +195,9 @@ struct term_function_pool {
         auto sep = dsl::sep(dsl::semicolon);
         return dsl::list(item, sep);
     }();
-    static constexpr auto value = lexy::collect<std::vector<TupleVec>>(lexy::as_list<std::vector<TupleElem>>);
+    static constexpr auto value = lexy::collect<std::vector<ArgumentTuple>>(
+        lexy::callback<ArgumentTuple>([](lexy::nullopt) { return ArgumentTuple{ArgumentTuple::ElementVec{}}; },
+                                      [](auto &&tuple) { return ArgumentTuple{GRINGO_FWD(tuple)}; }));
 };
 
 struct term_function {
@@ -220,15 +222,15 @@ struct term_tuple_element {
         return dsl::if_(dsl::p<projection> >> dsl::comma) +
                dsl::if_(dsl::list(dsl::p<projection> | peek >> dsl::p<term>, sep));
     }();
-    static constexpr auto value =
-        lexy::as_list<Detail::tuple_trail> >>
-        lexy::callback<TermTuple::Element>([]() -> std::vector<TupleElem> { return {}; },
-                                           [](Projection p) -> std::vector<TupleElem> { return {std::move(p)}; },
-                                           [](Projection p, Detail::tuple_trail elem) {
-                                               elem.push_front(std::move(p));
-                                               return elem.to_tuple();
-                                           },
-                                           [](Detail::tuple_trail elem) { return elem.to_tuple(); });
+    static constexpr auto
+        value = lexy::as_list<Detail::tuple_trail> >>
+                lexy::callback<TermTuple::Element>([]() { return ArgumentTuple{{}}; },
+                                                   [](Projection p) { return ArgumentTuple{{std::move(p)}}; },
+                                                   [](Projection p, Detail::tuple_trail elem) {
+                                                       elem.push_front(std::move(p));
+                                                       return elem.to_tuple();
+                                                   },
+                                                   [](Detail::tuple_trail elem) { return elem.to_tuple(); });
 };
 
 struct term_tuple {

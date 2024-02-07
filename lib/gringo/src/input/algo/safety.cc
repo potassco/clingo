@@ -20,11 +20,11 @@ struct GetDep {
     }
 
     void operator()(TermVariable const &term, bool can_provide) const {
-        if (!ignore.contains(term.name_)) {
+        if (!ignore.contains(term.name())) {
             if (can_provide) {
-                provide.emplace_back(term.name_);
+                provide.emplace_back(term.name());
             } else {
-                depend.emplace_back(term.name_);
+                depend.emplace_back(term.name());
             }
         }
     }
@@ -34,8 +34,8 @@ struct GetDep {
         static_cast<void>(can_provide);
     }
 
-    void operator()(TupleVec const &tuple, bool can_provide) const {
-        for (auto const &tuple_elem : tuple) {
+    void operator()(ArgumentTuple const &tuple, bool can_provide) const {
+        for (auto const &tuple_elem : tuple.elems()) {
             if (auto const *term = std::get_if<Term>(&tuple_elem); term != nullptr) {
                 operator()(*term, can_provide);
             }
@@ -43,34 +43,34 @@ struct GetDep {
     }
 
     void operator()(TermTuple const &term, bool can_provide) const {
-        for (auto const &elem : term.pool_) {
+        for (auto const &elem : term.pool()) {
             std::visit(*this, elem, std::variant<bool>{can_provide});
         }
     }
 
     void operator()(TermFunction const &term, bool can_provide) const {
-        for (auto const &elem : term.pool_) {
+        for (auto const &elem : term.pool()) {
             operator()(elem, can_provide);
         }
     }
 
     void operator()(TermAbs const &term, bool can_provide) const {
         static_cast<void>(can_provide);
-        for (auto const &arg : term.pool_) {
+        for (auto const &arg : term.pool()) {
             operator()(arg, false);
         }
     }
 
     void operator()(TermUnary const &term, bool can_provide) const {
-        operator()(*term.rhs_, can_provide && term.op_ == UnaryOperator::negate);
+        operator()(term.rhs(), can_provide && term.op() == UnaryOperator::negate);
     }
 
     void operator()(TermBinary const &term, bool can_provide) const {
         if (auto var = is_linear(term); can_provide && var && !ignore.contains(*var)) {
             provide.emplace_back(*var);
         } else {
-            operator()(*term.lhs_, false);
-            operator()(*term.rhs_, false);
+            operator()(term.lhs(), false);
+            operator()(term.rhs(), false);
         }
     }
 

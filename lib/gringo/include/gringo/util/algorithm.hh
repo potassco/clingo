@@ -15,7 +15,7 @@ namespace Gringo::Util {
 
 //! Return a vector with the first n elements from the given one.
 template <class Span> auto copy_n(Span const &vec, size_t n) -> std::vector<typename Span::value_type> {
-    std::vector<typename Span::value_type> ret;
+    std::vector<std::remove_const_t<typename Span::value_type>> ret;
     ret.reserve(vec.size());
     for (auto it = vec.begin(), ie = it + n; it != ie; ++it) {
         ret.emplace_back(*it);

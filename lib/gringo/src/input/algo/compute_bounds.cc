@@ -96,7 +96,7 @@ struct ExtractTerms {
     }
 
     auto operator()(TermVariable const &term) const -> bool {
-        auto x = IETerm{Number{1}, term.name_};
+        auto x = IETerm{Number{1}, term.name()};
         if (!add) {
             x.coefficient *= -1;
         }
@@ -105,8 +105,8 @@ struct ExtractTerms {
     }
 
     auto operator()(TermSymbol const &term) const -> bool {
-        if (term.value_.type() == SymbolType::number) {
-            auto x = IETerm{term.value_.num(), String{}};
+        if (term.value().type() == SymbolType::number) {
+            auto x = IETerm{term.value().num(), String{}};
             if (!add) {
                 x.coefficient *= -1;
             }
@@ -117,27 +117,27 @@ struct ExtractTerms {
     }
 
     auto operator()(TermUnary const &term) const -> bool {
-        if (term.op_ == UnaryOperator::negate) {
-            return ExtractTerms{terms, !add}(*term.rhs_);
+        if (term.op() == UnaryOperator::negate) {
+            return ExtractTerms{terms, !add}(term.rhs());
         }
         return false;
     }
 
     auto operator()(TermBinary const &term) const -> bool {
-        switch (term.op_) {
+        switch (term.op()) {
             case BinaryOperator::minus: {
-                return operator()(*term.lhs_) && ExtractTerms{terms, !add}(*term.rhs_);
+                return operator()(term.lhs()) && ExtractTerms{terms, !add}(term.rhs());
             }
             case BinaryOperator::plus: {
-                return operator()(*term.lhs_) && operator()(*term.rhs_);
+                return operator()(term.lhs()) && operator()(term.rhs());
             }
             case BinaryOperator::times: {
                 IETermVec lhs;
                 IETermVec rhs;
                 auto fixed_lhs = Number{0};
                 auto fixed_rhs = Number{0};
-                auto ret_lhs = ExtractTerms{lhs, true}(*term.lhs_);
-                auto ret_rhs = ExtractTerms{rhs, true}(*term.rhs_);
+                auto ret_lhs = ExtractTerms{lhs, true}(term.lhs());
+                auto ret_rhs = ExtractTerms{rhs, true}(term.rhs());
                 if (!ret_lhs && !ret_rhs) {
                     return false;
                 }
@@ -199,8 +199,8 @@ struct ExtractInequalities {
         //   X = u..t -> X - u >= 0
         //               t - X >= 0
         if (is_variable(lit.lhs_) && is_interval(rhs.second)) {
-            auto const &u = *std::get<TermBinary>(rhs.second).lhs_;
-            auto const &t = *std::get<TermBinary>(rhs.second).rhs_;
+            auto const &u = std::get<TermBinary>(rhs.second).lhs();
+            auto const &t = std::get<TermBinary>(rhs.second).rhs();
             if (IETermVec terms; ExtractTerms{terms, true}(lit.lhs_) && ExtractTerms{terms, false}(u)) {
                 slv.add(IE{std::move(terms), bound});
             }
@@ -280,7 +280,7 @@ struct ApplyBounds {
         assert(lit.sign_ == Sign::none);
         auto const &rhs = lit.rhs_.front();
         auto make_symbol = [this](TermSymbol const &sym, auto &&bound) {
-            if (sym.value_.num() == bound) {
+            if (sym.value().num() == bound) {
                 return sym;
             }
             return TermSymbol{sym.loc(), store.num(GRINGO_FWD(bound))};
@@ -290,7 +290,7 @@ struct ApplyBounds {
                                    Util::make_vec<Guard>(Guard{rel, TermSymbol{std::move(loc), store.num(bound)}})};
         };
         auto make_interval = [&lit](auto var, auto loc, auto u, auto v) -> Util::ResultState<Literal> {
-            if (u.value_ == v.value_) {
+            if (u.value() == v.value()) {
                 return {true,
                         LiteralRelation{lit.loc(), Sign::none, var, Util::make_vec<Guard>(Guard{Relation::equal, u})}};
             }
@@ -301,15 +301,15 @@ struct ApplyBounds {
         };
         if (is_variable(lit.lhs_) && is_interval(rhs.second)) {
             auto const *var = std::get_if<TermVariable>(&lit.lhs_);
-            auto it = dom.find(var->name_);
+            auto it = dom.find(var->name());
             if (it == dom.end()) {
                 return {true};
             }
-            auto const *u = std::get_if<TermSymbol>(std::get<TermBinary>(rhs.second).lhs_.get());
-            auto const *t = std::get_if<TermSymbol>(std::get<TermBinary>(rhs.second).rhs_.get());
+            auto const *u = std::get_if<TermSymbol>(&std::get<TermBinary>(rhs.second).lhs());
+            auto const *t = std::get_if<TermSymbol>(&std::get<TermBinary>(rhs.second).rhs());
             // Note: in theory the lower/upper bounds could be refined even if only one of them is a number
-            if (u == nullptr || t == nullptr || u->value_.type() != SymbolType::number ||
-                t->value_.type() != SymbolType::number) {
+            if (u == nullptr || t == nullptr || u->value().type() != SymbolType::number ||
+                t->value().type() != SymbolType::number) {
                 return {true};
             }
             auto &state = states[std::distance(dom.begin(), it)];
@@ -318,11 +318,11 @@ struct ApplyBounds {
             }
             state.both = 1;
             auto res_u = std::optional<TermSymbol>{};
-            if (*u->value_.num() < it->second.value(IEInterval::Lower)) {
+            if (*u->value().num() < it->second.value(IEInterval::Lower)) {
                 res_u = make_symbol(*u, it->second.value(IEInterval::Lower));
             }
             auto res_t = std::optional<TermSymbol>{};
-            if (*t->value_.num() > it->second.value(IEInterval::Upper)) {
+            if (*t->value().num() > it->second.value(IEInterval::Upper)) {
                 res_t = make_symbol(*t, it->second.value(IEInterval::Upper));
             }
             if (res_u || res_t) {
@@ -339,10 +339,10 @@ struct ApplyBounds {
             auto const *var = std::get_if<TermVariable>(&lhs);
             auto const *sym = std::get_if<TermSymbol>(&rhs);
             // Note: non-integer bounds could also be handled
-            if (var == nullptr || sym == nullptr || sym->value_.type() != SymbolType::number) {
+            if (var == nullptr || sym == nullptr || sym->value().type() != SymbolType::number) {
                 return {true};
             }
-            auto it = dom.find(var->name_);
+            auto it = dom.find(var->name());
             if (it == dom.end()) {
                 return {true};
             }
@@ -387,7 +387,7 @@ struct ApplyBounds {
             // mark as covered
             state.set_value(bound_type);
             // update if changed
-            if (cmp(bound, rel, *sym->value_.num() + Number{bound_type == IEInterval::Lower ? 1 : -1})) {
+            if (cmp(bound, rel, *sym->value().num() + Number{bound_type == IEInterval::Lower ? 1 : -1})) {
                 auto rel = bound_type == IEInterval::Lower > 0 ? Relation::greater_equal : Relation::less_equal;
                 return {true, make_relation(lhs, rel, location(rhs), bound)};
             }

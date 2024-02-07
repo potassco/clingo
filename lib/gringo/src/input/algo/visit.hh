@@ -71,13 +71,15 @@ template <class T> class Visitor {
         return std::visit([this](auto const &elem) { this->visit(elem); }, var);
     }
 
-    template <class U> void accept_(std::vector<U> const &vec) const {
-        for (auto &elem : vec) {
+    template <class U> void accept_(tcb::span<U> const &span) const {
+        for (auto &elem : span) {
             visit(elem);
         }
     }
 
-    template <class U> void accept_(Util::immutable_array<U> const &vec) const { visit(vec.vector()); }
+    template <class U> void accept_(std::vector<U> const &vec) const { visit(tcb::make_span(vec)); }
+
+    template <class U> void accept_(Util::immutable_array<U> const &vec) const { visit(tcb::make_span(vec)); }
 
     // igonre
 
@@ -89,19 +91,21 @@ template <class T> class Visitor {
 
     // terms
 
+    void accept_(ArgumentTuple const &tuple) const { visit(tuple.elems()); }
+
     void accept_(TermSymbol const &term) const { static_cast<void>(term); }
 
     void accept_(TermVariable const &term) const { static_cast<void>(term); }
 
-    void accept_(TermTuple const &term) const { visit(term.pool_); }
+    void accept_(TermTuple const &term) const { visit(term.pool()); }
 
-    void accept_(TermFunction const &term) const { visit(term.pool_); }
+    void accept_(TermFunction const &term) const { visit(term.pool()); }
 
-    void accept_(TermAbs const &term) const { visit(term.pool_); }
+    void accept_(TermAbs const &term) const { visit(term.pool()); }
 
-    void accept_(TermUnary const &term) const { visit(term.rhs_); }
+    void accept_(TermUnary const &term) const { visit(term.rhs()); }
 
-    void accept_(TermBinary const &term) const { visit(term.lhs_, term.rhs_); }
+    void accept_(TermBinary const &term) const { visit(term.lhs(), term.rhs()); }
 
     // theory terms
 

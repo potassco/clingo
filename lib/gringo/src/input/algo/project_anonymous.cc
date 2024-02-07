@@ -12,7 +12,7 @@ auto is_anonymous(Term const *term) -> bool {
         return false;
     }
     auto const *var = std::get_if<TermVariable>(term);
-    return var != nullptr && var->is_anonymous_;
+    return var != nullptr && var->is_anonymous();
 }
 
 struct ProjectAnonymous : Transformer<ProjectAnonymous> {
@@ -23,22 +23,23 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
 
     // term
 
-    [[nodiscard]] auto accept(TupleElem const &elem) const -> std::optional<TupleElem> {
+    [[nodiscard]] auto accept(ArgumentTuple::Element const &elem) const -> std::optional<ArgumentTuple::Element> {
         if (auto const *term = std::get_if<Term>(&elem); is_anonymous(term)) {
             return {Projection{location(*term)}};
         }
         return std::visit(
-            [this](auto const &x) -> std::optional<TupleElem> {
-                return Util::transform(transform(x), [](auto &&y) -> TupleElem { return {GRINGO_FWD(y)}; });
+            [this](auto const &x) -> std::optional<ArgumentTuple::Element> {
+                return Util::transform(transform(x),
+                                       [](auto &&y) -> ArgumentTuple::Element { return {GRINGO_FWD(y)}; });
             },
             elem);
     };
 
     [[nodiscard]] auto accept(TermFunction const &term) const -> std::optional<Term> {
-        if (term.external_) {
+        if (term.external()) {
             return std::nullopt;
         }
-        return transform_construct<TermFunction>(term.loc(), term.name_, tr(term.pool_), term.external_);
+        return transform_construct<TermFunction>(term.loc(), term.name(), tr(term.pool()), term.external());
     }
 
     [[nodiscard]] static auto accept(TermAbs const &term) -> std::optional<Term> {
@@ -48,7 +49,7 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
 
     [[nodiscard]] auto accept(TermUnary const &term) const -> std::optional<Term> {
         if (check_type(term, TermCheckType::atom, nullptr)) {
-            return transform_construct<TermUnary>(term.loc(), term.op_, tr(term.rhs_));
+            return transform_construct<TermUnary>(term.loc(), term.op(), tr(term.rhs()));
         }
         return std::nullopt;
     }

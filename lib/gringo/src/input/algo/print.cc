@@ -195,32 +195,32 @@ struct Print {
     void operator()(TermSymbol const &term) const {
         char const *lp = "";
         char const *rp = "";
-        if (no_leading_op && term.value_.has_sign()) {
+        if (no_leading_op && term.value().has_sign()) {
             lp = "(";
             rp = ")";
         }
-        out << lp << term.value_ << rp;
+        out << lp << term.value() << rp;
     }
 
-    void operator()(TermVariable const &term) const { out << term.name_; }
+    void operator()(TermVariable const &term) const { out << term.name(); }
 
     void operator()(Projection const &x) const { out << x; }
 
-    void operator()(TupleElem const &elem) const { std::visit(*this, elem); }
+    void operator()(ArgumentTuple::Element const &elem) const { std::visit(*this, elem); }
 
     void operator()(TermTuple const &term) const {
-        auto const &pool = term.pool_;
+        auto const &pool = term.pool();
         if (pool.size() == 1 && std::holds_alternative<Term>(pool.front())) {
-            std::visit(*this, std::get<Term>(term.pool_.front()));
+            std::visit(*this, std::get<Term>(term.pool().front()));
         } else {
             out << "(";
             apply_to_range_with(pool, ";", [this](auto const &term_or_tuple) {
                 std::visit(
                     [this](auto const &x) {
                         GRINGO_MATCH(x, Term) { Print{out}(x); }
-                        GRINGO_MATCH(x, TupleVec) {
-                            Print{out}.apply_to_range(x);
-                            if (x.size() == 1) {
+                        GRINGO_MATCH(x, ArgumentTuple) {
+                            Print{out}.apply_to_range(x.elems());
+                            if (x.elems().size() == 1) {
                                 out << ",";
                             }
                         }
@@ -232,28 +232,28 @@ struct Print {
     }
 
     void operator()(TermFunction const &term) const {
-        if (term.external_) {
+        if (term.external()) {
             out << "@";
         }
-        out << term.name_;
-        auto const &pool = term.pool_;
-        if (pool.size() != 1 || !pool.front().empty()) {
+        out << term.name();
+        auto const &pool = term.pool();
+        if (pool.size() != 1 || !pool.front().elems().empty()) {
             out << "(";
-            apply_to_range_with(pool, ";", [this](auto const &tuple) { Print{out}.apply_to_range(tuple); });
+            apply_to_range_with(pool, ";", [this](auto const &tuple) { Print{out}.apply_to_range(tuple.elems()); });
             out << ")";
         }
     }
 
     void operator()(TermAbs const &term) const {
         out << "|";
-        Print{out}.visit_range(term.pool_, ";");
+        Print{out}.visit_range(term.pool(), ";");
         out << "|";
     }
 
     void operator()(TermUnary const &term) const {
         char const *lp = "";
         char const *rp = "";
-        auto op = term.op_;
+        auto op = term.op();
         // No need to consider associativity/position because the unary priority is
         // different from all binary ones.
         if (no_leading_op || (priority(op) < prio)) {
@@ -261,14 +261,14 @@ struct Print {
             rp = ")";
         }
         out << lp << op;
-        std::visit(Print{out, OperatorPosition::none, priority(op), true}, *term.rhs_);
+        std::visit(Print{out, OperatorPosition::none, priority(op), true}, term.rhs());
         out << rp;
     }
 
     void operator()(TermBinary const &term) const {
         char const *lp = "";
         char const *rp = "";
-        auto op = term.op_;
+        auto op = term.op();
         bool lhs_no_leading_op = no_leading_op;
         // We assume that operators with the same priority have the same associativity.
         if (priority(op) < prio || (prio == priority(op) && associativity(op) != pos)) {
@@ -277,9 +277,9 @@ struct Print {
             lhs_no_leading_op = false;
         }
         out << lp;
-        std::visit(Print{out, OperatorPosition::left, priority(op), lhs_no_leading_op}, *term.lhs_);
+        std::visit(Print{out, OperatorPosition::left, priority(op), lhs_no_leading_op}, term.lhs());
         out << op;
-        std::visit(Print{out, OperatorPosition::right, priority(op), true}, *term.rhs_);
+        std::visit(Print{out, OperatorPosition::right, priority(op), true}, term.rhs());
         out << rp;
     }
 

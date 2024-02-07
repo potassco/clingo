@@ -24,12 +24,17 @@ struct transformer_has_accept<T, U, std::void_t<decltype(std::declval<T const *>
 
 template <class U> struct TranslateArgument {
     U const &orig;
-    std::optional<U> transformed;
+    std::optional<U> transformed = std::nullopt;
+};
+
+template <class U> struct TranslateArgument<tcb::span<U>> {
+    tcb::span<U> orig;
+    std::optional<std::vector<std::remove_const_t<U>>> transformed = std::nullopt;
 };
 
 template <class T> class Transformer {
   public:
-    template <class U> auto tr(U const &arg) const { return TranslateArgument<U>{arg, std::nullopt}; }
+    template <class U> auto tr(U const &arg) const { return TranslateArgument<U>{arg}; }
 
     template <class U> auto transform(U const &x) const {
         if constexpr (Detail::transformer_has_accept<T, U>::value) {
@@ -110,13 +115,13 @@ template <class T> class Transformer {
             var);
     }
 
-    template <class U> auto accept_(std::vector<U> const &vec) const -> std::optional<std::vector<U>> {
+    template <class U> auto accept_(tcb::span<U> span) const -> std::optional<std::vector<std::remove_const_t<U>>> {
         size_t n = 0;
-        std::optional<std::vector<U>> ret;
-        for (auto const &elem : vec) {
-            std::optional<U> transformed = transform(elem);
-            if (transformed.has_value() && !ret.has_value()) {
-                ret = Util::copy_n(vec, n);
+        std::optional<std::vector<std::remove_const_t<U>>> ret;
+        for (auto const &elem : span) {
+            auto transformed = transform(elem);
+            if (transformed && !ret.has_value()) {
+                ret = Util::copy_n(span, n);
             }
             if (ret.has_value()) {
                 ret->emplace_back(std::move(transformed).value_or(elem));
@@ -126,9 +131,15 @@ template <class T> class Transformer {
         return ret;
     }
 
+    // TODO: remove
+    template <class U> auto accept_(std::vector<U> const &vec) const -> std::optional<std::vector<U>> {
+        return accept_(tcb::make_span(vec));
+    }
+
+    // TODO: remove
     template <class U>
     auto accept_(Util::immutable_array<U> const &vec) const -> std::optional<Util::immutable_array<U>> {
-        return accept_(vec.vector());
+        return accept_(tcb::make_span(vec));
     }
 
     template <class U> auto apply_(TranslateArgument<U> &arg) const { return arg.transformed = transform(arg.orig); }
@@ -137,6 +148,14 @@ template <class T> class Transformer {
 
     template <class U> auto get_value_(TranslateArgument<U> &&arg) const {
         return std::move(arg.transformed).value_or(arg.orig);
+    }
+
+    template <class U>
+    auto get_value_(TranslateArgument<tcb::span<U>> &&arg) const -> std::vector<std::remove_const_t<U>> {
+        if (arg.transformed) {
+            return *std::move(arg.transformed);
+        }
+        return {arg.orig.begin(), arg.orig.end()};
     }
 
     template <class U> auto get_value_(U const &arg) const { return arg; }
@@ -169,6 +188,10 @@ template <class T> class Transformer {
 
     // term
 
+    [[nodiscard]] auto accept_(ArgumentTuple const &tuple) const -> std::optional<ArgumentTuple> {
+        return transform_construct<ArgumentTuple>(tr(tuple.elems()));
+    }
+
     [[nodiscard]] auto accept_(TermSymbol const &term) const -> std::optional<Term> {
         static_cast<void>(term);
         return std::nullopt;
@@ -180,23 +203,23 @@ template <class T> class Transformer {
     }
 
     [[nodiscard]] auto accept_(TermFunction const &term) const -> std::optional<Term> {
-        return transform_construct<TermFunction>(term.loc(), term.name_, tr(term.pool_), term.external_);
+        return transform_construct<TermFunction>(term.loc(), term.name(), tr(term.pool()), term.external());
     }
 
     [[nodiscard]] auto accept_(TermTuple const &term) const -> std::optional<Term> {
-        return transform_construct<TermTuple>(term.loc(), tr(term.pool_));
+        return transform_construct<TermTuple>(term.loc(), tr(term.pool()));
     }
 
     [[nodiscard]] auto accept_(TermAbs const &term) const -> std::optional<Term> {
-        return transform_construct<TermAbs>(term.loc(), tr(term.pool_));
+        return transform_construct<TermAbs>(term.loc(), tr(term.pool()));
     }
 
     [[nodiscard]] auto accept_(TermUnary const &term) const -> std::optional<Term> {
-        return transform_construct<TermUnary>(term.loc(), term.op_, tr(term.rhs_));
+        return transform_construct<TermUnary>(term.loc(), term.op(), tr(term.rhs()));
     }
 
     [[nodiscard]] auto accept_(TermBinary const &term) const -> std::optional<Term> {
-        return transform_construct<TermBinary>(term.loc(), tr(term.lhs_), term.op_, tr(term.rhs_));
+        return transform_construct<TermBinary>(term.loc(), tr(term.lhs()), term.op(), tr(term.rhs()));
     }
 
     // theory

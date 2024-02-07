@@ -308,7 +308,8 @@ struct statement_project {
             return StatementProject{std::move(loc), std::move(atom), std::move(body)};
         },
         [](Location loc, Location loc_term, bool has_sign, Position begin_name, String name, BodyLiteralVec body) {
-            Term atom = TermFunction{std::move(begin_name) + loc_term, name, PoolVec{TupleVec{}}, false};
+            Term atom = TermFunction{std::move(begin_name) + loc_term, name,
+                                     PoolVec{ArgumentTuple{ArgumentTuple::ElementVec{}}}, false};
             if (has_sign) {
                 atom = TermUnary{std::move(loc_term), UnaryOperator::negate, std::move(atom)};
             }

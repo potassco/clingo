@@ -9,10 +9,10 @@ namespace {
 
 [[nodiscard]] auto is_identifier(Term const &term) -> bool {
     if (auto const *fun = std::get_if<TermFunction>(&term); fun != nullptr) {
-        return !fun->external_ && fun->pool_.size() == 1 && fun->pool_.front().empty();
+        return !fun->external() && fun->pool().size() == 1 && fun->pool().front().elems().empty();
     }
     if (auto const *sym = std::get_if<TermSymbol>(&term); sym != nullptr) {
-        return sym->value_.type() == SymbolType::function && sym->value_.args().empty();
+        return sym->value().type() == SymbolType::function && sym->value().args().empty();
     }
     return false;
 }
@@ -32,7 +32,7 @@ struct MapParams : Transformer<MapParams> {
     // term
 
     [[nodiscard]] auto accept(Location const &loc, SymbolSpan args) const
-        -> std::optional<std::variant<SymbolVec, TupleVec>> {
+        -> std::optional<std::variant<SymbolVec, ArgumentTuple>> {
         std::optional<std::vector<std::variant<Term, Symbol>>> res_args;
         bool constant = true;
         {
@@ -64,7 +64,7 @@ struct MapParams : Transformer<MapParams> {
             }
             return tuple;
         }
-        auto tuple = std::vector<TupleElem>{};
+        auto tuple = std::vector<ArgumentTuple::Element>{};
         tuple.reserve(res_args->size());
         for (auto &&arg : *res_args) {
             tuple.emplace_back(std::visit(
@@ -74,7 +74,7 @@ struct MapParams : Transformer<MapParams> {
                 },
                 std::move(arg)));
         }
-        return tuple;
+        return ArgumentTuple{std::move(tuple)};
     }
 
     [[nodiscard]] auto accept(Location const &loc, Symbol const &sym) const
@@ -114,9 +114,8 @@ struct MapParams : Transformer<MapParams> {
                             GRINGO_MATCH(tuple, SymbolVec) {
                                 return ctx.store().fun(sym.name(), std::move(tuple), sym.has_sign());
                             }
-                            GRINGO_MATCH(tuple, TupleVec) {
-                                auto ret = Term{
-                                    TermFunction{loc, sym.name(), Util::make_vec<TupleVec>(std::move(tuple)), false}};
+                            GRINGO_MATCH(tuple, ArgumentTuple) {
+                                auto ret = Term{TermFunction{loc, sym.name(), {std::move(tuple)}, false}};
                                 if (sym.has_sign()) {
                                     ret = TermUnary{loc, UnaryOperator::negate, std::move(ret)};
                                 }
@@ -132,7 +131,7 @@ struct MapParams : Transformer<MapParams> {
                     return std::visit(
                         [this, &loc](auto &&tuple) -> std::variant<Term, Symbol> {
                             GRINGO_MATCH(tuple, SymbolVec) { return ctx.store().tup(std::move(tuple)); }
-                            GRINGO_MATCH(tuple, TupleVec) {
+                            GRINGO_MATCH(tuple, ArgumentTuple) {
                                 return TermTuple{loc, Util::make_vec<TermTuple::Element>(std::move(tuple))};
                             }
                         },
@@ -151,7 +150,7 @@ struct MapParams : Transformer<MapParams> {
     }
 
     [[nodiscard]] auto accept(TermSymbol const &term) const -> std::optional<Term> {
-        auto sym = accept(term.loc(), term.value_);
+        auto sym = accept(term.loc(), term.value());
         if (sym.has_value()) {
             return std::visit(
                 [&term](auto &&x) -> Term {
@@ -164,16 +163,16 @@ struct MapParams : Transformer<MapParams> {
     }
 
     [[nodiscard]] auto accept(TermFunction const &term) const -> std::optional<Term> {
-        if (term.pool_.size() != 1) {
+        if (term.pool().size() != 1) {
             throw std::runtime_error("unpool has to be called before substituting parameters");
         }
-        if (!term.pool_.front().empty() || term.external_) {
-            return transform_construct<TermFunction>(term.loc(), term.name_, tr(term.pool_), term.external_);
+        if (!term.pool().front().elems().empty() || term.external()) {
+            return transform_construct<TermFunction>(term.loc(), term.name(), tr(term.pool()), term.external());
         }
-        if (auto param = ctx.is_param(term.name_); param) {
+        if (auto param = ctx.is_param(term.name()); param) {
             return TermVariable{term.loc(), ctx.store().string("$" + std::to_string(param.value()))};
         }
-        if (auto value = ctx.is_const(term.name_); value) {
+        if (auto value = ctx.is_const(term.name()); value) {
             return TermSymbol{term.loc(), value.value()};
         }
         return std::nullopt;
@@ -235,7 +234,7 @@ struct UnmapParams : Transformer<UnmapParams> {
     // term
 
     [[nodiscard]] auto accept(TermVariable const &term) const -> std::optional<Term> {
-        if (auto it = map.find(term.name_); it != map.end()) {
+        if (auto it = map.find(term.name()); it != map.end()) {
             return TermSymbol{term.loc(), store.fun(it.value(), {}, false)};
         }
         return std::nullopt;
@@ -285,16 +284,16 @@ struct Collect : Visitor<Collect> {
         }
     }
 
-    void accept(TermSymbol const &term) const { visit(term.value_); }
+    void accept(TermSymbol const &term) const { visit(term.value()); }
 
     void accept(TermFunction const &term) const {
-        if (term.pool_.size() != 1) {
+        if (term.pool().size() != 1) {
             throw std::runtime_error("unpool has to be called before substituting parameters");
         }
-        if (term.pool_.front().empty() && !term.external_) {
-            ids.emplace(term.name_);
+        if (term.pool().front().elems().empty() && !term.external()) {
+            ids.emplace(term.name());
         } else {
-            visit(term.pool_);
+            visit(term.pool());
         }
     }
 
