@@ -258,7 +258,7 @@ struct SimplifyTerm {
             // projected argument
             GRINGO_MATCH(arg, Projection) {
                 constant = false;
-                init().emplace_back();
+                init().emplace_back(arg);
                 return true;
             }
             // term argument

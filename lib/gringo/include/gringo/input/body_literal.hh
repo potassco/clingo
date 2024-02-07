@@ -14,7 +14,8 @@ namespace Gringo::Input {
 //! @{
 
 //! A single literal in a rule body.
-struct SimpleBodyLiteral {
+class SimpleBodyLiteral {
+  public:
     //! Wrap a literal in a body literal.
     SimpleBodyLiteral(Literal lit) : lit_{std::move(lit)} {}
     //! The literal.
@@ -32,7 +33,8 @@ auto operator==(SimpleBodyLiteral const &a, SimpleBodyLiteral const &b) -> bool;
 auto operator<(SimpleBodyLiteral const &a, SimpleBodyLiteral const &b) -> bool;
 
 //! A conditional literal in a rule body.
-struct Conjunction {
+class Conjunction {
+  public:
     //! Construct a conjunction.
     Conjunction(ConditionalLiteral lit) : lit_{std::move(lit)} {}
     //! The conditional literal representing the elements of the conjunction.
@@ -52,9 +54,13 @@ auto operator<(Conjunction const &a, Conjunction const &b) -> bool;
 //! A body aggregate.
 //!
 //! For example: <tt>\#count { X: q(X) } = 1</tt>
-struct BodyAggregate {
+class BodyAggregate {
+  public:
     //! An aggregate element.
-    struct Element {
+    class Element {
+      public:
+        explicit Element(Location loc, TermVec tuple, LiteralVec cond)
+            : loc_{loc}, tuple_{std::move(tuple)}, cond_{std::move(cond)} {}
         //! The location of the element.
         Location loc_;
         //! The tuple of the element.
@@ -103,9 +109,6 @@ auto operator==(BodyAggregate const &a, BodyAggregate const &b) -> bool;
 //!
 //! @related BodyAggregate
 auto operator<(BodyAggregate const &a, BodyAggregate const &b) -> bool;
-
-//! A body set aggregate.
-using BodySetAggregate = SetAggregate<true>;
 
 //! A body theory atom.
 using BodyTheoryAtom = TheoryAtom<true>;

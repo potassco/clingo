@@ -25,15 +25,16 @@ auto operator+(Sign a, Sign b) -> Sign;
 //! Combine two signs.
 auto operator+=(Sign &a, Sign b) -> Sign &;
 
-//! Simple struct with a sign.
-struct Signed {
+//! Simple class with a sign.
+class Signed {
+  public:
     explicit Signed(Sign sign) : sign_{sign} {}
-    //! The sign of the struct.
+    //! The sign of the class.
     Sign sign_;
 };
 
-//! Simple struct without a sign.
-struct Unsigned {};
+//! Simple class without a sign.
+class Unsigned {};
 
 //! Enumeration of relation symbols.
 enum class Relation {
@@ -113,7 +114,7 @@ auto operator<(LiteralRelation const &a, LiteralRelation const &b) -> bool;
 //! Literal representing a symbolic literal.
 //!
 //! For example <tt>not p(X)</tt>.
-struct LiteralSymbolic {
+class LiteralSymbolic {
   public:
     //! Construct a symbolic literal.
     explicit LiteralSymbolic(Location loc, Sign sign, Term term)
@@ -147,7 +148,7 @@ using LiteralVec = Util::immutable_array<Literal>;
 using LiteralVecVec = Util::immutable_array<LiteralVec>;
 
 //! A conditional literal.
-struct ConditionalLiteral {
+class ConditionalLiteral {
   public:
     //! Construct a conditional literal.
     explicit ConditionalLiteral(Location loc, Literal lit, LiteralVec cond)

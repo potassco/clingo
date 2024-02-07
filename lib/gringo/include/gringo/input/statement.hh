@@ -15,7 +15,8 @@ namespace Gringo::Input {
 //! A rule.
 //!
 //! For example: <tt>p(X) :- q(X)</tt>.
-struct Rule {
+class Rule {
+  public:
     //! Construct a rule.
     explicit Rule(Location loc, HeadLiteral head, BodyLiteralVec body)
         : loc_{std::move(loc)}, head_{std::move(head)}, body_{std::move(body)} {}
@@ -46,7 +47,8 @@ enum class TheoryOpType {
 //! A theory operator definition.
 //!
 //! For example: <tt>- : 0, unary</tt>.
-struct TheoryOpDefinition {
+class TheoryOpDefinition {
+  public:
     //! Construct a theory operator definition.
     explicit TheoryOpDefinition(Location loc, String op, int prio, TheoryOpType type)
         : loc_{std::move(loc)}, op_{op}, prio_{prio}, type_{type} {}
@@ -73,7 +75,8 @@ using TheoryOpDefinitionVec = Util::immutable_array<TheoryOpDefinition>;
 //! A theory term definition.
 //!
 //! For example: <tt>term { - : 0, unary }</tt>.
-struct TheoryTermDefinition {
+class TheoryTermDefinition {
+  public:
     //! Construct a theory term definition.
     explicit TheoryTermDefinition(Location loc, String name, TheoryOpDefinitionVec op_defs)
         : loc_{std::move(loc)}, name_{name}, op_defs_{std::move(op_defs)} {}
@@ -113,7 +116,8 @@ using TheoryRGuardDefinition = std::pair<Util::immutable_array<String>, String>;
 //! A theory atom definition.
 //!
 //! For example: <tt>name/2: term, any</tt>.
-struct TheoryAtomDefinition {
+class TheoryAtomDefinition {
+  public:
     //! Construct a theory atom definition.
     explicit TheoryAtomDefinition(Location loc, String name, int arity, String term,
                                   std::optional<TheoryRGuardDefinition> rhs, TheoryAtomType type)
@@ -145,7 +149,8 @@ auto operator<(TheoryAtomDefinition const &a, TheoryAtomDefinition const &b) -> 
 //! A theory definition.
 //!
 //! For example: <tt>\#theory name { term { - : 0, unary }; name/2: term, any }</tt>.
-struct TheoryDefinition {
+class TheoryDefinition {
+  public:
     //! Construct a theory definition.
     explicit TheoryDefinition(Location loc, String name, TheoryTermDefinitionVec term_defs,
                               TheoryAtomDefinitionVec atom_defs)
@@ -175,9 +180,13 @@ enum class OptimizeType { minimize, maximize };
 //! An optimization statement.
 //!
 //! For example: <tt>\#minimize { 1@0,X: p(X) }</tt>.
-struct StatementOptimize {
+class StatementOptimize {
+  public:
     //! The tuple of a minimize element.
-    struct Tuple {
+    class Tuple {
+      public:
+        explicit Tuple(Term weight, std::optional<Term> priority, TermVec terms)
+            : weight_{std::move(weight)}, priority_{std::move(priority)}, terms_{std::move(terms)} {}
         //! The weight.
         Term weight_;
         //! The optional priority.
@@ -217,7 +226,8 @@ auto operator<(StatementOptimize const &a, StatementOptimize const &b) -> bool;
 //! A weak constraint.
 //!
 //! For example: <tt>:~ p(X). [1@0,X]</tt>.
-struct StatementWeakConstraint {
+class StatementWeakConstraint {
+  public:
     //! A weak constraint uses the same tuple as an optimize statement.
     using Tuple = StatementOptimize::Tuple;
 
@@ -242,7 +252,8 @@ auto operator<(StatementWeakConstraint const &a, StatementWeakConstraint const &
 //! A show statement.
 //!
 //! Example: <tt>\#show p(X): q(X)</tt>.
-struct StatementShow {
+class StatementShow {
+  public:
     //! Construct a show statement.
     explicit StatementShow(Location loc, Term term, BodyLiteralVec body)
         : loc_{std::move(loc)}, term_(std::move(term)), body_(std::move(body)) {}
@@ -264,7 +275,8 @@ auto operator<(StatementShow const &a, StatementShow const &b) -> bool;
 //! A show signature statement.
 //!
 //! Example: <tt>\#show p/2</tt>.
-struct StatementShowSig {
+class StatementShowSig {
+  public:
     //! Construct a show signature statement.
     explicit StatementShowSig(Location loc, bool has_sign, String name, int arity)
         : loc_{std::move(loc)}, has_sign_{has_sign}, name_{name}, arity_{arity} {}
@@ -288,7 +300,8 @@ auto operator<(StatementShowSig const &a, StatementShowSig const &b) -> bool;
 //! A project statement.
 //!
 //! Example: <tt>\#project p(X): q(X)</tt>.
-struct StatementProject {
+class StatementProject {
+  public:
     //! Construct a project statement.
     explicit StatementProject(Location loc, Term term, BodyLiteralVec body)
         : loc_{std::move(loc)}, term_(std::move(term)), body_(std::move(body)) {}
@@ -310,7 +323,8 @@ auto operator<(StatementProject const &a, StatementProject const &b) -> bool;
 //! A project signature statement.
 //!
 //! Example: <tt>\#project p/2</tt>.
-struct StatementProjectSig {
+class StatementProjectSig {
+  public:
     //! Construct a project signature statement.
     explicit StatementProjectSig(Location loc, bool has_sign, String name, int arity)
         : loc_{std::move(loc)}, has_sign_{has_sign}, name_{name}, arity_{arity} {}
@@ -334,7 +348,8 @@ auto operator<(StatementProjectSig const &a, StatementProjectSig const &b) -> bo
 //! A defined statement.
 //!
 //! Example: <tt>\#defined p/2</tt>.
-struct StatementDefined {
+class StatementDefined {
+  public:
     //! Construct a defined statement.
     explicit StatementDefined(Location loc, bool has_sign, String name, int arity)
         : loc_{std::move(loc)}, has_sign_{has_sign}, name_{name}, arity_{arity} {}
@@ -358,7 +373,8 @@ auto operator<(StatementDefined const &a, StatementDefined const &b) -> bool;
 //! An external statement.
 //!
 //! Example: <tt>\#external p(X): q(X)</tt>.
-struct StatementExternal {
+class StatementExternal {
+  public:
     //! Construct an external statement.
     explicit StatementExternal(Location loc, Term term, BodyLiteralVec body, std::optional<Term> type = std::nullopt)
         : loc_{std::move(loc)}, term_(std::move(term)), body_(std::move(body)), type_{std::move(type)} {}
@@ -382,9 +398,12 @@ auto operator<(StatementExternal const &a, StatementExternal const &b) -> bool;
 //! An edge statement.
 //!
 //! Example: <tt>\#edge (X,Y): connected(X,Y).</tt>.
-struct StatementEdge {
+class StatementEdge {
+  public:
     //! An directed edge.
-    struct Edge {
+    class Edge {
+      public:
+        explicit Edge(Term u, Term v) : u_{std::move(u)}, v_{std::move(v)} {}
         //! The source vertex.
         Term u_;
         //! The target vertex.
@@ -420,7 +439,8 @@ auto operator<(StatementEdge const &a, StatementEdge const &b) -> bool;
 //! A heuristic statement.
 //!
 //! Example: <tt>\#heuristic p(X). [sign,false]</tt>.
-struct StatementHeuristic {
+class StatementHeuristic {
+  public:
     //! Construct a heuristic statement.
     explicit StatementHeuristic(Location loc, Term atom, BodyLiteralVec body, Term type, std::optional<Term> prio,
                                 Term mod)
@@ -459,7 +479,8 @@ auto operator<(StatementHeuristic const &a, StatementHeuristic const &b) -> bool
 //! A script statement.
 //!
 //! For example: <tt>\#script(python) some code \#end</tt>.
-struct StatementScript {
+class StatementScript {
+  public:
     //! Construct a script statement.
     explicit StatementScript(Location loc, String type, std::string content)
         : loc_{std::move(loc)}, type_(type), content_(std::move(content)) {}
@@ -489,7 +510,8 @@ enum class IncludeType {
 //! An include statement.
 //!
 //! For example: <tt>\#include "encoding.lp"</tt>.
-struct StatementInclude {
+class StatementInclude {
+  public:
     //! Construct an include statement.
     explicit StatementInclude(Location loc, IncludeType type, std::string path)
         : loc_{std::move(loc)}, type_(type), path_(std::move(path)) {}
@@ -511,7 +533,8 @@ auto operator<(StatementInclude const &a, StatementInclude const &b) -> bool;
 //! A program statement.
 //!
 //! For example: <tt>\#program check(t)"</tt>.
-struct StatementProgram {
+class StatementProgram {
+  public:
     //! Construct an program statement.
     explicit StatementProgram(Location loc, String name, Util::immutable_array<String> args)
         : loc_{std::move(loc)}, name_(name), args_(std::move(args)) {}
@@ -541,7 +564,8 @@ enum class ConstType {
 //! A const statement.
 //!
 //! For example: <tt>\#const n=42</tt>.
-struct StatementConst {
+class StatementConst {
+  public:
     //! Construct a const statement.
     explicit StatementConst(Location loc, ConstType type, String name, Term value)
         : loc_{std::move(loc)}, type_(type), name_(name), value_(std::move(value)) {}
@@ -573,7 +597,8 @@ enum class CommentType {
 //! A commment.
 //!
 //! For example: <tt>%* comment *%</tt>
-struct Comment {
+class Comment {
+  public:
     //! Construct a comment.
     explicit Comment(Location loc, CommentType type, std::string value)
         : loc_{std::move(loc)}, type_{type}, value_{std::move(value)} {}

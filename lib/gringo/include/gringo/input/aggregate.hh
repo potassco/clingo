@@ -42,7 +42,10 @@ inline auto reduct_is_nonmonotone(LGuard const &lhs, AggregateFunction fun, RGua
 }
 
 //! An element of a set aggregate.
-struct SetAggregateElement {
+class SetAggregateElement {
+  public:
+    explicit SetAggregateElement(Location loc, Literal lit, LiteralVec cond)
+        : loc_{loc}, lit_{std::move(lit)}, cond_{std::move(cond)} {}
     //! The location of the element.
     Location loc_;
     //! The literal.
@@ -67,8 +70,8 @@ using SetAggregateElementVec = Util::immutable_array<SetAggregateElement>;
 //! A set aggregate.
 //!
 //! For example: <tt>{ p(X): q(X) } = 1</tt>.
-template <bool HasSign> struct SetAggregate : std::conditional_t<HasSign, Signed, Unsigned> {
-
+template <bool HasSign> class SetAggregate : public std::conditional_t<HasSign, Signed, Unsigned> {
+  public:
     //! Construct a set aggregate.
     explicit SetAggregate(Location loc, LGuard lhs, SetAggregateElementVec elems, RGuard rhs)
         : loc_{std::move(loc)}, elems_{std::move(elems)}, lhs_(std::move(lhs)), rhs_(std::move(rhs)) {
@@ -91,6 +94,12 @@ template <bool HasSign> struct SetAggregate : std::conditional_t<HasSign, Signed
     RGuard rhs_;
 };
 
+//! A head set aggregate.
+using HeadSetAggregate = SetAggregate<false>;
+
+//! A body set aggregate.
+using BodySetAggregate = SetAggregate<true>;
+
 //! Compare two set aggregates.
 //!
 //! @related SetAggregate
@@ -108,13 +117,7 @@ template <bool HasSign> auto operator<(SetAggregate<HasSign> const &a, SetAggreg
 #ifndef GRINGO_DOXYGEN_SKIP
 
 GRINGO_HASH_PROTO(Gringo::Input::SetAggregateElement);
-namespace Gringo::Util {
-template <> struct value_hasher<Gringo::Input::SetAggregate<true>> {
-    auto operator()(Gringo::Input::SetAggregate<true> const &x) const -> size_t;
-};
-template <> struct value_hasher<Gringo::Input::SetAggregate<false>> {
-    auto operator()(Gringo::Input::SetAggregate<false> const &x) const -> size_t;
-};
-} // namespace Gringo::Util
+GRINGO_HASH_PROTO(Gringo::Input::HeadSetAggregate);
+GRINGO_HASH_PROTO(Gringo::Input::BodySetAggregate);
 
 #endif

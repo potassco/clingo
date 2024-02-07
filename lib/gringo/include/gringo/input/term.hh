@@ -35,13 +35,13 @@ using VariableSet = StringSet;
 //! A vector of variable names.
 using VariableVec = std::vector<String>;
 
-struct TermVariable;
-struct TermSymbol;
-struct TermTuple;
-struct TermFunction;
-struct TermAbs;
-struct TermUnary;
-struct TermBinary;
+class TermVariable;
+class TermSymbol;
+class TermTuple;
+class TermFunction;
+class TermAbs;
+class TermUnary;
+class TermBinary;
 
 //! Variant holding the different term types.
 using Term = std::variant<TermVariable, TermSymbol, TermTuple, TermFunction, TermAbs, TermUnary, TermBinary>;
@@ -50,7 +50,9 @@ using Term = std::variant<TermVariable, TermSymbol, TermTuple, TermFunction, Ter
 using TermVec = Util::immutable_array<Term>;
 
 //! Indicate a projected position.
-struct Projection {
+class Projection {
+  public:
+    explicit Projection(Location loc) : loc_{loc} {}
     //! The location of the projected position.
     Location loc_;
 };
@@ -75,7 +77,8 @@ using PoolVec = Util::immutable_array<TupleVec>;
 //! Term representing a variable.
 //!
 //! For example <tt>X</tt>.
-struct TermVariable {
+class TermVariable {
+  public:
     //! Construct a variable.
     explicit TermVariable(Location loc, String name, bool is_anonymous = false)
         : loc_{std::move(loc)}, name_{std::move(name)}, is_anonymous_{is_anonymous} {}
@@ -101,7 +104,8 @@ auto operator<(TermVariable const &a, TermVariable const &b) -> bool;
 //! Term representing a symbol.
 //!
 //! For example <tt>1</tt>.
-struct TermSymbol {
+class TermSymbol {
+  public:
     //! Construct term with the given symbol.
     explicit TermSymbol(Location loc, Symbol value) : loc_{std::move(loc)}, value_{std::move(value)} {}
 
@@ -124,7 +128,8 @@ auto operator<(TermSymbol const &a, TermSymbol const &b) -> bool;
 //! Term representing a tuple.
 //!
 //! For example <tt>(a,b;c)</tt>.
-struct TermTuple {
+class TermTuple {
+  public:
     //! A tuple element.
     using Element = std::variant<TupleVec, Term>;
     //! A vector of tuple elements.
@@ -152,7 +157,8 @@ auto operator<(TermTuple const &a, TermTuple const &b) -> bool;
 //! Term representing a symbolic or external function.
 //!
 //! For example <tt>f(a,b;c)</tt>.
-struct TermFunction {
+class TermFunction {
+  public:
     //! Construct a symbolic function.
     //!
     //! The function takes a pool of term tuples, which will be reduced to a single element after calling
@@ -182,7 +188,8 @@ auto operator<(TermFunction const &a, TermFunction const &b) -> bool;
 //! Term representing the absolute function.
 //!
 //! For example <tt>|-X|</tt>.
-struct TermAbs {
+class TermAbs {
+  public:
     //! Construct an absolute term.
     //!
     //! The term has a pool of arguments, which will be reduced to a single element after calling Term::unpool().
@@ -213,7 +220,8 @@ enum class UnaryOperator : int {
 //! Term representing an unary operation.
 //!
 //! For example <tt>-X</tt>.
-struct TermUnary {
+class TermUnary {
+  public:
     //! Construct a term for an unary operation.
     explicit TermUnary(Location loc, UnaryOperator op, Term rhs);
     //! Construct a term for an unary operation.
@@ -254,7 +262,8 @@ enum class BinaryOperator : int {
 //! Term representing a binary operation.
 //!
 //! For example <tt>X-Y</tt>.
-struct TermBinary {
+class TermBinary {
+  public:
     //! Construct a term for an binary operation.
     explicit TermBinary(Location loc, Term lhs, BinaryOperator op, Term rhs);
     //! Construct a term for an binary operation.

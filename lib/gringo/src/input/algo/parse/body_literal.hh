@@ -26,7 +26,7 @@ auto construct_conjunction(Literal lit, std::optional<std::vector<Literal>> cond
     if (!cond) {
         return lit;
     }
-    return ConditionalLiteral{location(lit) + std::move(end), std::move(lit), std::move(cond).value()};
+    return Conjunction{ConditionalLiteral{location(lit) + std::move(end), std::move(lit), std::move(cond).value()}};
 }
 
 } // namespace Detail

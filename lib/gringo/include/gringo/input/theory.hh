@@ -12,11 +12,11 @@ namespace Gringo::Input {
 //!
 //! @{
 
-struct TheoryTermSymbol;
-struct TheoryTermVariable;
-struct TheoryTermTuple;
-struct TheoryTermFunction;
-struct TheoryTermUnparsed;
+class TheoryTermSymbol;
+class TheoryTermVariable;
+class TheoryTermTuple;
+class TheoryTermFunction;
+class TheoryTermUnparsed;
 
 //! A variant for the different theory terms.
 using TheoryTerm =
@@ -27,7 +27,8 @@ using TheoryTermVec = Util::immutable_array<TheoryTerm>;
 //! A symbolic theory term.
 //!
 //! For example: <tt>1</tt>.
-struct TheoryTermSymbol {
+class TheoryTermSymbol {
+  public:
     //! Construct a symbolic theory term.
     explicit TheoryTermSymbol(Location loc, Symbol value) : loc_{std::move(loc)}, value_{std::move(value)} {}
 
@@ -50,7 +51,8 @@ auto operator<(TheoryTermSymbol const &a, TheoryTermSymbol const &b) -> bool;
 //! A variable theory term.
 //!
 //! For example: <tt>X</tt>.
-struct TheoryTermVariable {
+class TheoryTermVariable {
+  public:
     //! Construct a variable theory term.
     explicit TheoryTermVariable(Location loc, String name, bool is_anonymous = false)
         : loc_{std::move(loc)}, name_{name}, is_anonymous_{is_anonymous} {}
@@ -85,7 +87,8 @@ enum class TheoryTermTupleType {
 //! A tuple (set or list) theory term.
 //!
 //! For example: <tt>f(X,y)</tt>.
-struct TheoryTermTuple {
+class TheoryTermTuple {
+  public:
     //! Construct a tuple theory term.
     explicit TheoryTermTuple(Location loc, TheoryTermTupleType type, TheoryTermVec elems);
 
@@ -110,7 +113,8 @@ auto operator<(TheoryTermTuple const &a, TheoryTermTuple const &b) -> bool;
 //! A tuple (set or list) theory term.
 //!
 //! For example: <tt>{f(X,y), Z}</tt>.
-struct TheoryTermFunction {
+class TheoryTermFunction {
+  public:
     //! Construct a function theory term.
     explicit TheoryTermFunction(Location loc, String name);
     //! Construct a function theory term.
@@ -140,7 +144,8 @@ auto operator<(TheoryTermFunction const &a, TheoryTermFunction const &b) -> bool
 //! They are simply stored as a list.
 //!
 //! For example: <tt>- X ++ Y << Z</tt>.
-struct TheoryTermUnparsed {
+class TheoryTermUnparsed {
+  public:
     //! A vector of operators.
     using OpVec = Util::immutable_array<String>;
     //! An element having the form of a right guard.
@@ -183,7 +188,10 @@ inline TheoryTermUnparsed::TheoryTermUnparsed(Location loc, ElementVec elems)
 using TheoryRGuard = std::optional<std::pair<String, TheoryTerm>>;
 
 //! An element of the theory atom.
-struct TheoryElement {
+class TheoryElement {
+  public:
+    TheoryElement(Location loc, TheoryTermVec tuple, LiteralVec cond)
+        : loc_{loc}, tuple_{std::move(tuple)}, cond_{std::move(cond)} {}
     //! The location of the theory element.
     Location loc_;
     //! The tuple of the theory element.
@@ -207,7 +215,8 @@ auto operator<(TheoryElement const &a, TheoryElement const &b) -> bool;
 //! A theory atom.
 //!
 //! For example: <tt>&sum { X+Y: p(X), q(Y) } >= 0</tt>.
-template <bool HasSign> struct TheoryAtom : std::conditional_t<HasSign, Signed, Unsigned> {
+template <bool HasSign> class TheoryAtom : public std::conditional_t<HasSign, Signed, Unsigned> {
+  public:
     //! Construct a theory atom.
     explicit TheoryAtom(Location loc, Term name, TheoryElementVec elems, TheoryRGuard rhs)
         : loc_{std::move(loc)}, name_{std::move(name)}, elems_{std::move(elems)}, rhs_{std::move(rhs)} {
@@ -229,6 +238,12 @@ template <bool HasSign> struct TheoryAtom : std::conditional_t<HasSign, Signed, 
     //! The optional right guard of the atom.
     TheoryRGuard rhs_;
 };
+
+//! A head theory atom.
+using HeadTheoryAtom = TheoryAtom<false>;
+
+//! A body theory atom.
+using BodyTheoryAtom = TheoryAtom<true>;
 
 //! Compare two theory atoms.
 //!
@@ -252,13 +267,7 @@ GRINGO_HASH_PROTO(Gringo::Input::TheoryTermFunction);
 GRINGO_HASH_PROTO(Gringo::Input::TheoryTermTuple);
 GRINGO_HASH_PROTO(Gringo::Input::TheoryTermUnparsed);
 GRINGO_HASH_PROTO(Gringo::Input::TheoryElement);
-namespace Gringo::Util {
-template <> struct value_hasher<Gringo::Input::TheoryAtom<true>> {
-    auto operator()(Gringo::Input::TheoryAtom<true> const &x) const -> size_t;
-};
-template <> struct value_hasher<Gringo::Input::TheoryAtom<false>> {
-    auto operator()(Gringo::Input::TheoryAtom<false> const &x) const -> size_t;
-};
-} // namespace Gringo::Util
+GRINGO_HASH_PROTO(Gringo::Input::HeadTheoryAtom);
+GRINGO_HASH_PROTO(Gringo::Input::BodyTheoryAtom);
 
 #endif

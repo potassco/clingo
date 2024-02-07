@@ -14,7 +14,8 @@ namespace Gringo::Input {
 //! @{
 
 //! A single literal in a rule head.
-struct SimpleHeadLiteral {
+class SimpleHeadLiteral {
+  public:
     //! Wrap a literal in a head literal.
     SimpleHeadLiteral(Literal lit) : lit_{std::move(lit)} {}
     //! The literal.
@@ -32,13 +33,14 @@ auto operator==(SimpleHeadLiteral const &a, SimpleHeadLiteral const &b) -> bool;
 auto operator<(SimpleHeadLiteral const &a, SimpleHeadLiteral const &b) -> bool;
 
 //! A disjunction of conditional literals.
-struct Disjunction {
+class Disjunction {
+  public:
     //! An element of a disjunction.
     using Element = std::variant<Literal, ConditionalLiteral>;
     //! A vector of elements.
     using ElementVec = Util::immutable_array<Element>;
     //! Wrap a literal in a head literal.
-    Disjunction(Location loc, ElementVec elems) : loc_{loc}, elems_{std::move(elems)} {}
+    explicit Disjunction(Location loc, ElementVec elems) : loc_{loc}, elems_{std::move(elems)} {}
     //! The location of the disjunction.
     Location loc_;
     //! The elements of the disjunction.
@@ -58,9 +60,13 @@ auto operator<(Disjunction const &a, Disjunction const &b) -> bool;
 //! A head aggregate.
 //!
 //! For example: <tt>\#count { X: p(X): q(X) } = 1</tt>
-struct HeadAggregate {
+class HeadAggregate {
+  public:
     //! An element of a head aggregate.
-    struct Element {
+    class Element {
+      public:
+        explicit Element(Location loc, TermVec tuple, Literal lit, LiteralVec cond)
+            : loc_{loc}, tuple_{std::move(tuple)}, lit_{std::move(lit)}, cond_{std::move(cond)} {}
         //! The location of the element.
         Location loc_;
         //! The tuple of the element.
@@ -114,12 +120,6 @@ auto operator==(HeadAggregate const &a, HeadAggregate const &b) -> bool;
 //!
 //! @related HeadAggregate
 auto operator<(HeadAggregate const &a, HeadAggregate const &b) -> bool;
-
-//! A head set aggregate.
-using HeadSetAggregate = SetAggregate<false>;
-
-//! A head theory atom.
-using HeadTheoryAtom = TheoryAtom<false>;
 
 //! A head literal.
 using HeadLiteral = std::variant<SimpleHeadLiteral, Disjunction, HeadAggregate, HeadSetAggregate, HeadTheoryAtom>;
