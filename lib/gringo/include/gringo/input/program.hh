@@ -159,7 +159,7 @@ class Program {
     //! See the notes regarding const statements above.
     template <class F> void visit_stms(SymbolStore &store, F fun) const {
         for (auto const &[id, sym] : const_map_) {
-            fun(Statement{StatementConst{sym.first.loc_, sym.first.type_, sym.first.name_,
+            fun(Statement{StatementConst{sym.first.loc(), sym.first.type_, sym.first.name_,
                                          TermSymbol{location(sym.first.value_), sym.second}}});
         }
         for (auto const &stm : meta_stms_) {
@@ -167,7 +167,7 @@ class Program {
         }
         for (auto const &[sig, part] : parts_) {
             auto pum = param_map_(store, part);
-            auto loc = part.part.loc_;
+            auto loc = part.part.loc();
             StringVec ids;
             ids.reserve(sig.second);
             std::transform(pum.begin(), pum.end(), std::back_inserter(ids), [](auto x) { return x.second; });

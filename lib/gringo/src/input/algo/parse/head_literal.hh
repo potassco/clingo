@@ -16,15 +16,13 @@ inline auto construct_disj_elem(auto loc, auto lit, auto cond) -> Disjunction::E
 }
 
 inline auto construct_head_aggr(Term term, Relation rel, HeadAggregate aggr) -> HeadAggregate {
-    aggr.loc_.begin = location(term).begin;
-    aggr.lhs_ = LGuard::value_type{std::move(term), rel};
-    return aggr;
+    return HeadAggregate{location(term).begin + aggr.loc(), LGuard::value_type{std::move(term), rel}, aggr.fun_,
+                         std::move(aggr.elems_), aggr.rhs_};
 }
 
 inline auto construct_head_aggr(Term term, Relation rel, HeadSetAggregate aggr) -> HeadSetAggregate {
-    aggr.loc_ = location(term) + aggr.loc_;
-    aggr.lhs_ = LGuard::value_type{std::move(term), rel};
-    return aggr;
+    return HeadSetAggregate{location(term).begin + aggr.loc(), LGuard::value_type{std::move(term), rel},
+                            std::move(aggr.elems_), aggr.rhs_};
 }
 
 } // namespace Detail

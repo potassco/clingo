@@ -18,6 +18,8 @@ class SimpleHeadLiteral {
   public:
     //! Wrap a literal in a head literal.
     SimpleHeadLiteral(Literal lit) : lit_{std::move(lit)} {}
+    //! The location of the literal.
+    [[nodiscard]] auto loc() const -> Location const & { return location(lit_); }
     //! The literal.
     Literal lit_;
 };
@@ -42,7 +44,12 @@ class Disjunction {
     //! Wrap a literal in a head literal.
     explicit Disjunction(Location loc, ElementVec elems) : loc_{loc}, elems_{std::move(elems)} {}
     //! The location of the disjunction.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The elements of the disjunction.
     ElementVec elems_;
 };
@@ -68,7 +75,12 @@ class HeadAggregate {
         explicit Element(Location loc, TermVec tuple, Literal lit, LiteralVec cond)
             : loc_{loc}, tuple_{std::move(tuple)}, lit_{std::move(lit)}, cond_{std::move(cond)} {}
         //! The location of the element.
+        [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+      private:
         Location loc_;
+
+      public:
         //! The tuple of the element.
         TermVec tuple_;
         //! The distinguished head literal of the element.
@@ -90,7 +102,12 @@ class HeadAggregate {
         : HeadAggregate{std::move(loc), std::nullopt, fun, std::move(elems), std::make_pair(rel, rhs)} {}
 
     //! The location of the aggregate.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The aggregate function.
     AggregateFunction fun_;
     //! The vector of elements.

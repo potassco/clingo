@@ -52,8 +52,12 @@ using TermVec = Util::immutable_array<Term>;
 //! Indicate a projected position.
 class Projection {
   public:
+    //! Construct a projection indicator.
     explicit Projection(Location loc) : loc_{loc} {}
     //! The location of the projected position.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
 };
 
@@ -82,9 +86,13 @@ class TermVariable {
     //! Construct a variable.
     explicit TermVariable(Location loc, String name, bool is_anonymous = false)
         : loc_{std::move(loc)}, name_{std::move(name)}, is_anonymous_{is_anonymous} {}
-
     //! The location of the variable.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The name of the variable.
     String name_;
     //! Whether the variable is anonymous.
@@ -110,7 +118,12 @@ class TermSymbol {
     explicit TermSymbol(Location loc, Symbol value) : loc_{std::move(loc)}, value_{std::move(value)} {}
 
     //! The location of the symbol.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The associated symbol.
     Symbol value_;
 };
@@ -139,7 +152,12 @@ class TermTuple {
     explicit TermTuple(Location loc, ElementVec args);
 
     //! The location of the tuple.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The argument pool of the tuple.
     ElementVec pool_;
 };
@@ -166,7 +184,12 @@ class TermFunction {
     explicit TermFunction(Location loc, String name, PoolVec args, bool external);
 
     //! The location of the function.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The name of the function.
     String name_;
     //! The argument pool of the function.
@@ -196,7 +219,12 @@ class TermAbs {
     explicit TermAbs(Location loc, TermVec pool);
 
     //! The location of the function.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The argument pool of the absolute term.
     TermVec pool_;
 };
@@ -228,7 +256,12 @@ class TermUnary {
     explicit TermUnary(Location loc, UnaryOperator op, Util::immutable_value<Term> rhs);
 
     //! The location of the function.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The operation.
     UnaryOperator op_;
     //! The right-hand-side.
@@ -271,7 +304,12 @@ class TermBinary {
                         Util::immutable_value<Term> rhs);
 
     //! The location of the function.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The left-hand-side.
     Util::immutable_value<Term> lhs_;
     //! The right-hand-side.

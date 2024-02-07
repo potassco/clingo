@@ -151,11 +151,11 @@ struct MapParams : Transformer<MapParams> {
     }
 
     [[nodiscard]] auto accept(TermSymbol const &term) const -> std::optional<Term> {
-        auto sym = accept(term.loc_, term.value_);
+        auto sym = accept(term.loc(), term.value_);
         if (sym.has_value()) {
             return std::visit(
                 [&term](auto &&x) -> Term {
-                    GRINGO_MATCH(x, Symbol) { return TermSymbol{term.loc_, x}; }
+                    GRINGO_MATCH(x, Symbol) { return TermSymbol{term.loc(), x}; }
                     GRINGO_MATCH(x, Term) { return x; }
                 },
                 sym.value());
@@ -168,13 +168,13 @@ struct MapParams : Transformer<MapParams> {
             throw std::runtime_error("unpool has to be called before substituting parameters");
         }
         if (!term.pool_.front().empty() || term.external_) {
-            return transform_construct<TermFunction>(term.loc_, term.name_, tr(term.pool_), term.external_);
+            return transform_construct<TermFunction>(term.loc(), term.name_, tr(term.pool_), term.external_);
         }
         if (auto param = ctx.is_param(term.name_); param) {
-            return TermVariable{term.loc_, ctx.store().string("$" + std::to_string(param.value()))};
+            return TermVariable{term.loc(), ctx.store().string("$" + std::to_string(param.value()))};
         }
         if (auto value = ctx.is_const(term.name_); value) {
-            return TermSymbol{term.loc_, value.value()};
+            return TermSymbol{term.loc(), value.value()};
         }
         return std::nullopt;
     }
@@ -190,7 +190,7 @@ struct MapParams : Transformer<MapParams> {
 
     [[nodiscard]] auto accept(LiteralSymbolic const &lit) const -> std::optional<Literal> {
         if (!is_identifier(lit.term_)) {
-            return transform_construct<LiteralSymbolic>(lit.loc_, lit.sign_, tr(lit.term_));
+            return transform_construct<LiteralSymbolic>(lit.loc(), lit.sign_, tr(lit.term_));
         }
         return std::nullopt;
     }
@@ -199,25 +199,25 @@ struct MapParams : Transformer<MapParams> {
 
     [[nodiscard]] auto accept(StatementProject const &stm) const -> std::optional<Statement> {
         if (!is_identifier(stm.term_)) {
-            return transform_construct<StatementProject>(stm.loc_, tr(stm.term_), tr(stm.body_));
+            return transform_construct<StatementProject>(stm.loc(), tr(stm.term_), tr(stm.body_));
         }
-        return transform_construct<StatementProject>(stm.loc_, stm.term_, tr(stm.body_));
+        return transform_construct<StatementProject>(stm.loc(), stm.term_, tr(stm.body_));
     }
 
     [[nodiscard]] auto accept(StatementExternal const &stm) const -> std::optional<Statement> {
         if (!is_identifier(stm.term_)) {
-            return transform_construct<StatementExternal>(stm.loc_, tr(stm.term_), tr(stm.body_), tr(stm.type_));
+            return transform_construct<StatementExternal>(stm.loc(), tr(stm.term_), tr(stm.body_), tr(stm.type_));
         }
-        return transform_construct<StatementExternal>(stm.loc_, stm.term_, tr(stm.body_), tr(stm.type_));
+        return transform_construct<StatementExternal>(stm.loc(), stm.term_, tr(stm.body_), tr(stm.type_));
     }
 
     [[nodiscard]] auto accept(StatementHeuristic const &stm) const -> std::optional<Statement> {
         if (!is_identifier(stm.atom_)) {
-            return transform_construct<StatementHeuristic>(stm.loc_, tr(stm.atom_), tr(stm.body_), tr(stm.type_),
+            return transform_construct<StatementHeuristic>(stm.loc(), tr(stm.atom_), tr(stm.body_), tr(stm.type_),
                                                            tr(stm.prio_), tr(stm.mod_));
         }
-        return transform_construct<StatementHeuristic>(stm.loc_, stm.atom_, tr(stm.body_), tr(stm.type_), tr(stm.prio_),
-                                                       tr(stm.mod_));
+        return transform_construct<StatementHeuristic>(stm.loc(), stm.atom_, tr(stm.body_), tr(stm.type_),
+                                                       tr(stm.prio_), tr(stm.mod_));
     }
 
     RewriteContext &ctx;
@@ -236,7 +236,7 @@ struct UnmapParams : Transformer<UnmapParams> {
 
     [[nodiscard]] auto accept(TermVariable const &term) const -> std::optional<Term> {
         if (auto it = map.find(term.name_); it != map.end()) {
-            return TermSymbol{term.loc_, store.fun(it.value(), {}, false)};
+            return TermSymbol{term.loc(), store.fun(it.value(), {}, false)};
         }
         return std::nullopt;
     }

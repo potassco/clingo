@@ -72,9 +72,7 @@ struct Location {
 
 namespace Detail {
 template <typename T, typename V = void> static constexpr bool has_loc = false;
-template <typename T> static constexpr bool has_loc<T, std::void_t<decltype(std::declval<T>().loc_)>> = true;
-template <typename T, typename V = void> static constexpr bool has_lit = false;
-template <typename T> static constexpr bool has_lit<T, std::void_t<decltype(std::declval<T>().lit_)>> = true;
+template <typename T> static constexpr bool has_loc<T, std::void_t<decltype(std::declval<T>().loc())>> = true;
 }; // namespace Detail
 
 //! Create a location from the given two positions.
@@ -82,13 +80,7 @@ inline auto operator+(Position a, Position b) -> Location { return {std::move(a)
 
 //! Get the location of an expression.
 template <class T> auto location(T const &x) -> std::enable_if_t<Detail::has_loc<T>, Location const &> {
-    return x.loc_;
-}
-
-//! Get the location of an expression.
-template <class T>
-auto location(T const &x) -> std::enable_if_t<!Detail::has_loc<T> && Detail::has_lit<T>, Location const &> {
-    return location(x.lit_);
+    return x.loc();
 }
 
 //! Get the location of an expression stored in a variant.

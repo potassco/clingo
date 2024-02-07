@@ -18,6 +18,8 @@ class SimpleBodyLiteral {
   public:
     //! Wrap a literal in a body literal.
     SimpleBodyLiteral(Literal lit) : lit_{std::move(lit)} {}
+    //! The location of the literal.
+    [[nodiscard]] auto loc() const -> Location const & { return location(lit_); }
     //! The literal.
     Literal lit_;
 };
@@ -37,6 +39,8 @@ class Conjunction {
   public:
     //! Construct a conjunction.
     Conjunction(ConditionalLiteral lit) : lit_{std::move(lit)} {}
+    //! Get the location of the literal.
+    [[nodiscard]] auto loc() const -> Location const & { return lit_.loc(); }
     //! The conditional literal representing the elements of the conjunction.
     ConditionalLiteral lit_;
 };
@@ -62,7 +66,12 @@ class BodyAggregate {
         explicit Element(Location loc, TermVec tuple, LiteralVec cond)
             : loc_{loc}, tuple_{std::move(tuple)}, cond_{std::move(cond)} {}
         //! The location of the element.
+        [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+      private:
         Location loc_;
+
+      public:
         //! The tuple of the element.
         TermVec tuple_;
         //! The condition of the element.
@@ -77,7 +86,12 @@ class BodyAggregate {
           rhs_{std::move(rhs)} {}
 
     //! The location of the literal.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The sign of the literal.
     Sign sign_;
     //! The aggregate function.

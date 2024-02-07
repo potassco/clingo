@@ -708,9 +708,8 @@ auto clingo_ast::get_location(clingo_ast_attribute_t attr) const -> std::optiona
     }
     return visit([](auto &x) -> std::optional<clingo_location_t> {
         if constexpr (Detail::has_loc<std::decay_t<decltype(x)>>) {
-            return make_loc(x.loc_);
+            return make_loc(x.loc());
         }
-        GRINGO_MATCH(x, Conjunction) { return make_loc(x.lit_.loc_); }
         return std::nullopt;
     });
 }

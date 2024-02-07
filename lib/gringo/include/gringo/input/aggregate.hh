@@ -47,7 +47,12 @@ class SetAggregateElement {
     explicit SetAggregateElement(Location loc, Literal lit, LiteralVec cond)
         : loc_{loc}, lit_{std::move(lit)}, cond_{std::move(cond)} {}
     //! The location of the element.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The literal.
     Literal lit_;
     //! The condition.
@@ -85,7 +90,12 @@ template <bool HasSign> class SetAggregate : public std::conditional_t<HasSign, 
     }
 
     //! The location of the aggregate.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The elements of the set aggregate.
     SetAggregateElementVec elems_;
     //! The optional right guard of the aggregate.

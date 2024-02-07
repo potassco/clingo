@@ -33,7 +33,12 @@ class TheoryTermSymbol {
     explicit TheoryTermSymbol(Location loc, Symbol value) : loc_{std::move(loc)}, value_{std::move(value)} {}
 
     //! The location of the symbol.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The symbol.
     Symbol value_;
 };
@@ -58,7 +63,12 @@ class TheoryTermVariable {
         : loc_{std::move(loc)}, name_{name}, is_anonymous_{is_anonymous} {}
 
     //! The location of the variable.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The name of the variable.
     String name_;
     //! Whether the variable is anonymous.
@@ -93,7 +103,12 @@ class TheoryTermTuple {
     explicit TheoryTermTuple(Location loc, TheoryTermTupleType type, TheoryTermVec elems);
 
     //! The location of the symbol.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The type of the term.
     TheoryTermTupleType type_;
     //! The elements of the tuple.
@@ -121,7 +136,12 @@ class TheoryTermFunction {
     explicit TheoryTermFunction(Location loc, String name, TheoryTermVec args);
 
     //! The location of the symbol.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The name of the function.
     String name_;
     //! The arguments of the function.
@@ -160,7 +180,12 @@ class TheoryTermUnparsed {
     explicit TheoryTermUnparsed(Location loc, ElementVec elems);
 
     //! The location of the symbol.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The vector of elements.
     ElementVec elems_;
 };
@@ -193,7 +218,12 @@ class TheoryElement {
     TheoryElement(Location loc, TheoryTermVec tuple, LiteralVec cond)
         : loc_{loc}, tuple_{std::move(tuple)}, cond_{std::move(cond)} {}
     //! The location of the theory element.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The tuple of the theory element.
     TheoryTermVec tuple_;
     //! The condition of the theory element.
@@ -230,7 +260,12 @@ template <bool HasSign> class TheoryAtom : public std::conditional_t<HasSign, Si
     }
 
     //! The location of the symbol.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The name of the atom.
     Term name_;
     //! The elements of the atom.

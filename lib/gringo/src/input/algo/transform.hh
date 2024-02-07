@@ -180,29 +180,29 @@ template <class T> class Transformer {
     }
 
     [[nodiscard]] auto accept_(TermFunction const &term) const -> std::optional<Term> {
-        return transform_construct<TermFunction>(term.loc_, term.name_, tr(term.pool_), term.external_);
+        return transform_construct<TermFunction>(term.loc(), term.name_, tr(term.pool_), term.external_);
     }
 
     [[nodiscard]] auto accept_(TermTuple const &term) const -> std::optional<Term> {
-        return transform_construct<TermTuple>(term.loc_, tr(term.pool_));
+        return transform_construct<TermTuple>(term.loc(), tr(term.pool_));
     }
 
     [[nodiscard]] auto accept_(TermAbs const &term) const -> std::optional<Term> {
-        return transform_construct<TermAbs>(term.loc_, tr(term.pool_));
+        return transform_construct<TermAbs>(term.loc(), tr(term.pool_));
     }
 
     [[nodiscard]] auto accept_(TermUnary const &term) const -> std::optional<Term> {
-        return transform_construct<TermUnary>(term.loc_, term.op_, tr(term.rhs_));
+        return transform_construct<TermUnary>(term.loc(), term.op_, tr(term.rhs_));
     }
 
     [[nodiscard]] auto accept_(TermBinary const &term) const -> std::optional<Term> {
-        return transform_construct<TermBinary>(term.loc_, tr(term.lhs_), term.op_, tr(term.rhs_));
+        return transform_construct<TermBinary>(term.loc(), tr(term.lhs_), term.op_, tr(term.rhs_));
     }
 
     // theory
 
     [[nodiscard]] auto accept_(TheoryTermUnparsed const &term) const -> std::optional<TheoryTerm> {
-        return transform_construct<TheoryTermUnparsed>(term.loc_, tr(term.elems_));
+        return transform_construct<TheoryTermUnparsed>(term.loc(), tr(term.elems_));
     }
 
     [[nodiscard]] auto accept_(TheoryTermSymbol const &term) const -> std::optional<TheoryTerm> {
@@ -216,11 +216,11 @@ template <class T> class Transformer {
     }
 
     [[nodiscard]] auto accept_(TheoryTermTuple const &term) const -> std::optional<TheoryTerm> {
-        return transform_construct<TheoryTermTuple>(term.loc_, term.type_, tr(term.elems_));
+        return transform_construct<TheoryTermTuple>(term.loc(), term.type_, tr(term.elems_));
     }
 
     [[nodiscard]] auto accept_(TheoryTermFunction const &term) const -> std::optional<TheoryTerm> {
-        return transform_construct<TheoryTermFunction>(term.loc_, term.name_, tr(term.args_));
+        return transform_construct<TheoryTermFunction>(term.loc(), term.name_, tr(term.args_));
     }
 
     // literal
@@ -231,23 +231,23 @@ template <class T> class Transformer {
     }
 
     [[nodiscard]] auto accept_(LiteralRelation const &lit) const -> std::optional<Literal> {
-        return transform_construct<LiteralRelation>(lit.loc_, lit.sign_, tr(lit.lhs_), tr(lit.rhs_));
+        return transform_construct<LiteralRelation>(lit.loc(), lit.sign_, tr(lit.lhs_), tr(lit.rhs_));
     }
 
     [[nodiscard]] auto accept_(LiteralSymbolic const &lit) const -> std::optional<Literal> {
-        return transform_construct<LiteralSymbolic>(lit.loc_, lit.sign_, tr(lit.term_));
+        return transform_construct<LiteralSymbolic>(lit.loc(), lit.sign_, tr(lit.term_));
     }
 
     // conditional literal
 
     [[nodiscard]] auto accept_(ConditionalLiteral const &lit) const -> std::optional<ConditionalLiteral> {
-        return transform_construct<ConditionalLiteral>(lit.loc_, tr(lit.lit_), tr(lit.cond_));
+        return transform_construct<ConditionalLiteral>(lit.loc(), tr(lit.lit_), tr(lit.cond_));
     }
 
     // set aggregate
 
     [[nodiscard]] auto accept_(SetAggregateElement const &elem) const -> std::optional<SetAggregateElement> {
-        return transform_construct<SetAggregateElement>(elem.loc_, tr(elem.lit_), tr(elem.cond_));
+        return transform_construct<SetAggregateElement>(elem.loc(), tr(elem.lit_), tr(elem.cond_));
     }
 
     // head literal
@@ -262,27 +262,27 @@ template <class T> class Transformer {
     }
 
     [[nodiscard]] auto accept_(Disjunction const &lit) const -> std::optional<HeadLiteral> {
-        return transform_construct<Disjunction>(lit.loc_, tr(lit.elems_));
+        return transform_construct<Disjunction>(lit.loc(), tr(lit.elems_));
     }
 
     [[nodiscard]] auto accept_(HeadSetAggregate const &lit) const -> std::optional<HeadLiteral> {
-        return transform_construct<HeadSetAggregate>(lit.loc_, tr(lit.lhs_), tr(lit.elems_), tr(lit.rhs_));
+        return transform_construct<HeadSetAggregate>(lit.loc(), tr(lit.lhs_), tr(lit.elems_), tr(lit.rhs_));
     }
 
     [[nodiscard]] auto accept_(HeadAggregate::Element const &elem) const -> std::optional<HeadAggregate::Element> {
-        return transform_construct<HeadAggregate::Element>(elem.loc_, tr(elem.tuple_), tr(elem.lit_), tr(elem.cond_));
+        return transform_construct<HeadAggregate::Element>(elem.loc(), tr(elem.tuple_), tr(elem.lit_), tr(elem.cond_));
     }
 
     [[nodiscard]] auto accept_(HeadAggregate const &lit) const -> std::optional<HeadLiteral> {
-        return transform_construct<HeadAggregate>(lit.loc_, tr(lit.lhs_), lit.fun_, tr(lit.elems_), tr(lit.rhs_));
+        return transform_construct<HeadAggregate>(lit.loc(), tr(lit.lhs_), lit.fun_, tr(lit.elems_), tr(lit.rhs_));
     }
 
     [[nodiscard]] auto accept_(TheoryElement const elem) const -> std::optional<TheoryElement> {
-        return transform_construct<TheoryElement>(elem.loc_, tr(elem.tuple_), tr(elem.cond_));
+        return transform_construct<TheoryElement>(elem.loc(), tr(elem.tuple_), tr(elem.cond_));
     }
 
     [[nodiscard]] auto accept_(HeadTheoryAtom const &lit) const -> std::optional<HeadLiteral> {
-        return transform_construct<HeadTheoryAtom>(lit.loc_, tr(lit.name_), tr(lit.elems_), tr(lit.rhs_));
+        return transform_construct<HeadTheoryAtom>(lit.loc(), tr(lit.name_), tr(lit.elems_), tr(lit.rhs_));
     }
 
     // body literal
@@ -296,26 +296,26 @@ template <class T> class Transformer {
     }
 
     [[nodiscard]] auto accept_(BodySetAggregate const &lit) const -> std::optional<BodyLiteral> {
-        return transform_construct<BodySetAggregate>(lit.loc_, lit.sign_, tr(lit.lhs_), tr(lit.elems_), tr(lit.rhs_));
+        return transform_construct<BodySetAggregate>(lit.loc(), lit.sign_, tr(lit.lhs_), tr(lit.elems_), tr(lit.rhs_));
     }
 
     [[nodiscard]] auto accept_(BodyAggregate::Element const &elem) const -> std::optional<BodyAggregate::Element> {
-        return transform_construct<BodyAggregate::Element>(elem.loc_, tr(elem.tuple_), tr(elem.cond_));
+        return transform_construct<BodyAggregate::Element>(elem.loc(), tr(elem.tuple_), tr(elem.cond_));
     }
 
     [[nodiscard]] auto accept_(BodyAggregate const &lit) const -> std::optional<BodyLiteral> {
-        return transform_construct<BodyAggregate>(lit.loc_, lit.sign_, tr(lit.lhs_), lit.fun_, tr(lit.elems_),
+        return transform_construct<BodyAggregate>(lit.loc(), lit.sign_, tr(lit.lhs_), lit.fun_, tr(lit.elems_),
                                                   tr(lit.rhs_));
     }
 
     [[nodiscard]] auto accept_(BodyTheoryAtom const &lit) const -> std::optional<BodyLiteral> {
-        return transform_construct<BodyTheoryAtom>(lit.loc_, lit.sign_, tr(lit.name_), tr(lit.elems_), tr(lit.rhs_));
+        return transform_construct<BodyTheoryAtom>(lit.loc(), lit.sign_, tr(lit.name_), tr(lit.elems_), tr(lit.rhs_));
     }
 
     // statement
 
     [[nodiscard]] auto accept_(Rule const &stm) const -> std::optional<Statement> {
-        return transform_construct<Rule>(stm.loc_, tr(stm.head_), tr(stm.body_));
+        return transform_construct<Rule>(stm.loc(), tr(stm.head_), tr(stm.body_));
     }
 
     [[nodiscard]] auto accept_(TheoryDefinition const &stm) const -> std::optional<Statement> {
@@ -333,15 +333,15 @@ template <class T> class Transformer {
     }
 
     [[nodiscard]] auto accept_(StatementOptimize const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementOptimize>(stm.loc_, stm.type_, tr(stm.elems_));
+        return transform_construct<StatementOptimize>(stm.loc(), stm.type_, tr(stm.elems_));
     }
 
     [[nodiscard]] auto accept_(StatementWeakConstraint const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementWeakConstraint>(stm.loc_, tr(stm.body_), tr(stm.tuple_));
+        return transform_construct<StatementWeakConstraint>(stm.loc(), tr(stm.body_), tr(stm.tuple_));
     }
 
     [[nodiscard]] auto accept_(StatementShow const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementShow>(stm.loc_, tr(stm.term_), tr(stm.body_));
+        return transform_construct<StatementShow>(stm.loc(), tr(stm.term_), tr(stm.body_));
     }
 
     [[nodiscard]] auto accept_(StatementShowSig const &stm) const -> std::optional<Statement> {
@@ -350,7 +350,7 @@ template <class T> class Transformer {
     }
 
     [[nodiscard]] auto accept_(StatementProject const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementProject>(stm.loc_, tr(stm.term_), tr(stm.body_));
+        return transform_construct<StatementProject>(stm.loc(), tr(stm.term_), tr(stm.body_));
     }
 
     [[nodiscard]] auto accept_(StatementProjectSig const &stm) const -> std::optional<Statement> {
@@ -364,7 +364,7 @@ template <class T> class Transformer {
     }
 
     [[nodiscard]] auto accept_(StatementExternal const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementExternal>(stm.loc_, tr(stm.term_), tr(stm.body_), tr(stm.type_));
+        return transform_construct<StatementExternal>(stm.loc(), tr(stm.term_), tr(stm.body_), tr(stm.type_));
     }
 
     [[nodiscard]] auto accept_(StatementEdge::Edge const &edge) const -> std::optional<StatementEdge::Edge> {
@@ -372,11 +372,11 @@ template <class T> class Transformer {
     }
 
     [[nodiscard]] auto accept_(StatementEdge const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementEdge>(stm.loc_, tr(stm.edges_), tr(stm.body_));
+        return transform_construct<StatementEdge>(stm.loc(), tr(stm.edges_), tr(stm.body_));
     }
 
     [[nodiscard]] auto accept_(StatementHeuristic const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementHeuristic>(stm.loc_, tr(stm.atom_), tr(stm.body_), tr(stm.type_),
+        return transform_construct<StatementHeuristic>(stm.loc(), tr(stm.atom_), tr(stm.body_), tr(stm.type_),
                                                        tr(stm.prio_), tr(stm.mod_));
     }
 

@@ -65,7 +65,12 @@ class LiteralBoolean {
     explicit LiteralBoolean(Location loc, Sign sign, bool value) : loc_{std::move(loc)}, sign_(sign), value_(value) {}
 
     //! The location of the literal.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The sign of the literal.
     Sign sign_;
     //! The Boolean value.
@@ -92,7 +97,12 @@ class LiteralRelation {
         : loc_{std::move(loc)}, sign_(sign), lhs_(std::move(lhs)), rhs_(std::move(rhs)) {}
 
     //! The location of the literal.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The sign of the literal.
     Sign sign_;
     //! The term on the left hand side.
@@ -121,7 +131,12 @@ class LiteralSymbolic {
         : loc_{std::move(loc)}, sign_(sign), term_(std::move(term)) {}
 
     //! The location of the literal.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The sign of the literal.
     Sign sign_;
     //! The term representing the atom.
@@ -154,7 +169,12 @@ class ConditionalLiteral {
     explicit ConditionalLiteral(Location loc, Literal lit, LiteralVec cond)
         : loc_{std::move(loc)}, lit_{std::move(lit)}, cond_{std::move(cond)} {}
     //! The location of the literal.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The literals on the left-hand-side.
     Literal lit_;
     //! The literals on the right-hand-side.

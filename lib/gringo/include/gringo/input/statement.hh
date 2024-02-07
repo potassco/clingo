@@ -22,7 +22,12 @@ class Rule {
         : loc_{std::move(loc)}, head_{std::move(head)}, body_{std::move(body)} {}
 
     //! The location of the rule.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The head.
     HeadLiteral head_;
     //! The body.
@@ -54,7 +59,12 @@ class TheoryOpDefinition {
         : loc_{std::move(loc)}, op_{op}, prio_{prio}, type_{type} {}
 
     //! The location of the definition.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The representation of the operator.
     String op_;
     //! The priority of the operator.
@@ -82,7 +92,12 @@ class TheoryTermDefinition {
         : loc_{std::move(loc)}, name_{name}, op_defs_{std::move(op_defs)} {}
 
     //! The location of the definition.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The name of the definition.
     String name_;
     //! The associated operator definitions.
@@ -124,7 +139,12 @@ class TheoryAtomDefinition {
         : loc_{std::move(loc)}, name_(name), arity_(arity), term_(term), rhs_(std::move(rhs)), type_(type) {}
 
     //! The location of the definition.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The name of the atom.
     String name_;
     //! The arity of the atom.
@@ -157,7 +177,12 @@ class TheoryDefinition {
         : loc_{std::move(loc)}, name_{name}, term_defs_{std::move(term_defs)}, atom_defs_{std::move(atom_defs)} {}
 
     //! The location of the definition.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The name of the definition.
     String name_;
     //! The theory term definitions.
@@ -204,7 +229,12 @@ class StatementOptimize {
         : loc_{std::move(loc)}, type_{type}, elems_{std::move(elems)} {}
 
     //! The location of the statement.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The type of the statement.
     OptimizeType type_;
     //! The elements of the statement.
@@ -236,7 +266,12 @@ class StatementWeakConstraint {
         : loc_{std::move(loc)}, body_{std::move(body)}, tuple_{std::move(tuple)} {}
 
     //! The location of the statement.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The body of the constraint.
     BodyLiteralVec body_;
     //! The tuple of the constraint.
@@ -259,7 +294,12 @@ class StatementShow {
         : loc_{std::move(loc)}, term_(std::move(term)), body_(std::move(body)) {}
 
     //! The location of the statement.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The term to show.
     Term term_;
     //! The body.
@@ -282,7 +322,12 @@ class StatementShowSig {
         : loc_{std::move(loc)}, has_sign_{has_sign}, name_{name}, arity_{arity} {}
 
     //! The location of the statement.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! Whether the signature is negative.
     bool has_sign_;
     //! The name.
@@ -307,7 +352,12 @@ class StatementProject {
         : loc_{std::move(loc)}, term_(std::move(term)), body_(std::move(body)) {}
 
     //! The location of the statement.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The term representing the atom to project.
     Term term_;
     //! The body.
@@ -330,7 +380,12 @@ class StatementProjectSig {
         : loc_{std::move(loc)}, has_sign_{has_sign}, name_{name}, arity_{arity} {}
 
     //! The location of the statement.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! Whether the signature is negative.
     bool has_sign_;
     //! The name.
@@ -355,7 +410,12 @@ class StatementDefined {
         : loc_{std::move(loc)}, has_sign_{has_sign}, name_{name}, arity_{arity} {}
 
     //! The location of the statement.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! Whether the signature is negative.
     bool has_sign_;
     //! The name.
@@ -380,7 +440,12 @@ class StatementExternal {
         : loc_{std::move(loc)}, term_(std::move(term)), body_(std::move(body)), type_{std::move(type)} {}
 
     //! The location of the statement.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The term representing the atom to project.
     Term term_;
     //! The body.
@@ -417,7 +482,12 @@ class StatementEdge {
         : loc_{std::move(loc)}, edges_{std::move(edges)}, body_{std::move(body)} {}
 
     //! The location of the statement.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The pool of edges.
     EdgeVec edges_;
     //! The body.
@@ -457,7 +527,12 @@ class StatementHeuristic {
                              std::move(type), std::nullopt,    std::move(mod)} {}
 
     //! The location of the statement.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The atom to modify.
     Term atom_;
     //! The body.
@@ -486,7 +561,12 @@ class StatementScript {
         : loc_{std::move(loc)}, type_(type), content_(std::move(content)) {}
 
     //! The location of the statement.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The code type.
     String type_;
     //! The code.
@@ -517,7 +597,12 @@ class StatementInclude {
         : loc_{std::move(loc)}, type_(type), path_(std::move(path)) {}
 
     //! The location of the statement.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The include type.
     IncludeType type_;
     //! The path.
@@ -540,7 +625,12 @@ class StatementProgram {
         : loc_{std::move(loc)}, name_(name), args_(std::move(args)) {}
 
     //! The location of the statement.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The name of the program.
     String name_;
     //! The arguments of the program.
@@ -571,7 +661,12 @@ class StatementConst {
         : loc_{std::move(loc)}, type_(type), name_(name), value_(std::move(value)) {}
 
     //! The location of the statement.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The type of the statement.
     ConstType type_;
     //! The name of the constant.
@@ -604,7 +699,12 @@ class Comment {
         : loc_{std::move(loc)}, type_{type}, value_{std::move(value)} {}
 
     //! The location of the statement.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
     Location loc_;
+
+  public:
     //! The type of the comment.
     CommentType type_;
     //! The content of the comment including comment markers.
