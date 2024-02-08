@@ -31,6 +31,15 @@ template <class N, class O> auto update_value(std::optional<N> opt, O const &old
     return old;
 }
 
+//! Overloaded helper to update an immutable value.
+template <class N, class O>
+auto update_value(std::optional<N> opt, immutable_value<O> const &old) -> immutable_value<O> {
+    if (opt) {
+        return make_immutable<O>(*std::move(opt));
+    }
+    return old;
+}
+
 //! Implemenatation of std::optional<T>::transform.
 template <class T, class F> constexpr auto transform(std::optional<T> &x, F &&f) -> Detail::transform_result<T &, F> {
     if (x.has_value()) {
@@ -254,7 +263,7 @@ template <class T> class ResultVec {
   private:
     Span source_;
     std::optional<Vector> result_;
-    Span::iterator current_;
+    typename Span::iterator current_;
 };
 
 } // namespace Gringo::Util
