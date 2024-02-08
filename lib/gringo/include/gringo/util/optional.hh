@@ -20,6 +20,16 @@ using transform_vec_result = std::optional<std::vector<typename transform_result
 
 } // namespace Detail
 
+//! Helper to update a value.
+//!
+//! A shortcut for <tt>opt ? static_cast<O>(*std::move(opt)) : old</tt>.
+template <class N, class O> auto update_value(std::optional<N> opt, O const &old) -> O {
+    if (opt) {
+        return *std::move(opt);
+    }
+    return old;
+}
+
 //! Implemenatation of std::optional<T>::transform.
 template <class T, class F> constexpr auto transform(std::optional<T> &x, F &&f) -> Detail::transform_result<T &, F> {
     if (x.has_value()) {
@@ -146,13 +156,19 @@ template <class E, class S = bool> struct ResultState {
 //! Helper to update a vector of elements.
 template <class T> class ResultVec {
   public:
+    using Span = tcb::span<T const>;
+    using Vector = std::vector<T>;
+    using Array = Util::immutable_array<T>;
+
     //! Construct a result vec to track changes to the given source.
-    ResultVec(std::vector<T> const &source) : source_{source}, current_{source.begin()} {}
+    ResultVec(Span source) : source_{source}, current_{source_.begin()} {}
     //! Construct a result vec to track changes to the given source.
-    ResultVec(Util::immutable_array<T> const &source) : source_{source.vector()}, current_{source.begin()} {}
+    ResultVec(Vector const &source) : source_{source}, current_{source_.begin()} {}
+    //! Construct a result vec to track changes to the given source.
+    ResultVec(Array const &source) : source_{source.vector()}, current_{source_.begin()} {}
 
     //! Get current element.
-    [[nodiscard]] auto currrent() const -> T const & { return *current_; }
+    [[nodiscard]] auto current() const -> T const & { return *current_; }
 
     //! Keep the current element.
     void keep() {
@@ -208,9 +224,14 @@ template <class T> class ResultVec {
     //! Get a const reference to the current vector.
     //!
     //! This returns a reference to the old vector if it does not have a new one.
-    [[nodiscard]] auto value() const & -> std::vector<T> const & { return result_ ? result_.value() : source_; }
+    [[nodiscard]] auto value() const & -> Span { return result_ ? Span{*result_} : source_; }
     //! Move out the new vector or return a copy of the old one.
-    [[nodiscard]] auto value() && -> std::vector<T> { return std::move(result_).value_or(source_); }
+    [[nodiscard]] auto value() && -> std::vector<T> {
+        if (result_) {
+            return *std::move(result_);
+        }
+        return {source_.begin(), source_.end()};
+    }
     //! Check if the old vector has been updated.
     [[nodiscard]] auto has_value() const -> bool { return result_.has_value(); }
     //! Return a reference to the updated vector if there was a change.
@@ -224,17 +245,15 @@ template <class T> class ResultVec {
     [[nodiscard]] auto operator*() const & -> std::vector<T> const & { return value(); }
     //! Move out the new vector or return a copy of the old one.
     [[nodiscard]] auto operator*() && -> std::vector<T> { return value(); }
-    //! Arrow operator based on (const ref) value.
-    auto operator->() const -> std::vector<T> const * { return result_ ? &result_.value() : &source_; }
     //! Check if the old vector has been updated.
     explicit operator bool() const { return has_value(); }
     //! Check if all elements have been processed.
     [[nodiscard]] auto complete() const { return current_ == source_.end(); }
 
   private:
-    std::vector<T> const &source_;
-    std::optional<std::vector<T>> result_;
-    std::vector<T>::const_iterator current_;
+    Span source_;
+    std::optional<Vector> result_;
+    Span::iterator current_;
 };
 
 } // namespace Gringo::Util

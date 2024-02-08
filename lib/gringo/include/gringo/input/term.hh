@@ -86,7 +86,7 @@ class ArgumentTuple {
     using ElementSpan = tcb::span<Element const>;
 
     //! Construct an argument tuple.
-    ArgumentTuple(ElementVec elems) : elems_{std::move(elems)} {}
+    ArgumentTuple(ElementVec elems);
 
     //! The elements of the tuple.
     [[nodiscard]] auto elems() const -> ElementSpan;
@@ -398,6 +398,7 @@ auto operator<(TermBinary const &a, TermBinary const &b) -> bool;
 // Note that constructors are defined here because at this point all types are
 // complete.
 
+inline ArgumentTuple::ArgumentTuple(ElementVec elems) : elems_{std::move(elems)} {}
 inline TermAbs::TermAbs(Location loc, TermVec pool) : loc_{std::move(loc)}, pool_{std::move(pool)} {}
 inline TermUnary::TermUnary(Location loc, UnaryOperator op, Term rhs)
     : loc_{std::move(loc)}, op_{op}, rhs_{Util::make_immutable<Term>(std::move(rhs))} {}

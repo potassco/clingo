@@ -225,7 +225,7 @@ template <class T> class Transformer {
     // theory
 
     [[nodiscard]] auto accept_(TheoryTermUnparsed const &term) const -> std::optional<TheoryTerm> {
-        return transform_construct<TheoryTermUnparsed>(term.loc(), tr(term.elems_));
+        return transform_construct<TheoryTermUnparsed>(term.loc(), tr(term.elems()));
     }
 
     [[nodiscard]] auto accept_(TheoryTermSymbol const &term) const -> std::optional<TheoryTerm> {
@@ -239,11 +239,11 @@ template <class T> class Transformer {
     }
 
     [[nodiscard]] auto accept_(TheoryTermTuple const &term) const -> std::optional<TheoryTerm> {
-        return transform_construct<TheoryTermTuple>(term.loc(), term.type_, tr(term.elems_));
+        return transform_construct<TheoryTermTuple>(term.loc(), term.type(), tr(term.elems()));
     }
 
     [[nodiscard]] auto accept_(TheoryTermFunction const &term) const -> std::optional<TheoryTerm> {
-        return transform_construct<TheoryTermFunction>(term.loc(), term.name_, tr(term.args_));
+        return transform_construct<TheoryTermFunction>(term.loc(), term.name(), tr(term.args()));
     }
 
     // literal
@@ -301,11 +301,11 @@ template <class T> class Transformer {
     }
 
     [[nodiscard]] auto accept_(TheoryElement const elem) const -> std::optional<TheoryElement> {
-        return transform_construct<TheoryElement>(elem.loc(), tr(elem.tuple_), tr(elem.cond_));
+        return transform_construct<TheoryElement>(elem.loc(), tr(elem.tuple()), tr(elem.cond()));
     }
 
     [[nodiscard]] auto accept_(HeadTheoryAtom const &lit) const -> std::optional<HeadLiteral> {
-        return transform_construct<HeadTheoryAtom>(lit.loc(), tr(lit.name_), tr(lit.elems_), tr(lit.rhs_));
+        return transform_construct<HeadTheoryAtom>(lit.loc(), tr(lit.name()), tr(lit.elems()), tr(lit.rhs()));
     }
 
     // body literal
@@ -332,7 +332,8 @@ template <class T> class Transformer {
     }
 
     [[nodiscard]] auto accept_(BodyTheoryAtom const &lit) const -> std::optional<BodyLiteral> {
-        return transform_construct<BodyTheoryAtom>(lit.loc(), lit.sign_, tr(lit.name_), tr(lit.elems_), tr(lit.rhs_));
+        return transform_construct<BodyTheoryAtom>(lit.loc(), lit.sign_, tr(lit.name()), tr(lit.elems()),
+                                                   tr(lit.rhs()));
     }
 
     // statement

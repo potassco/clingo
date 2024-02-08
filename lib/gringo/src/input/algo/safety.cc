@@ -257,7 +257,7 @@ template <class Span>
                 GRINGO_REPORT(log, trace) << "  " << *it->lit;
                 done[it->done] = true;
                 provided.insert(it->provide.begin(), it->provide.end());
-                if (&res_body.currrent() == it->lit && !it->swap) {
+                if (&res_body.current() == it->lit && !it->swap) {
                     res_body.keep();
                 } else {
                     res_body.replace(it->swap ? flip(*it->lit) : *it->lit);
@@ -271,10 +271,14 @@ template <class Span>
 
 void vv_(auto const &x, VarVisitFun fun) { visit_variables(x, std::move(fun)); }
 
-template <class T> void vv_(std::vector<T> const &vec, VarVisitFun fun) {
-    for (auto const &term : vec) {
+template <class T> void vv_(tcb::span<T const> span, VarVisitFun fun) {
+    for (auto const &term : span) {
         vv_(term, fun);
     }
+}
+
+template <class T> void vv_(std::vector<T> const &vec, VarVisitFun fun) {
+    return vv_(tcb::make_span(vec), std::move(fun));
 }
 
 template <class T> void vv_(Util::immutable_array<T> const &vec, VarVisitFun fun) { vv_(vec.vector(), std::move(fun)); }
@@ -318,13 +322,13 @@ struct CheckLocal {
     auto operator()(TheoryElementVec const &elems) {
         auto res_elems = Util::ResultVec{elems};
         for (auto const &elem : elems) {
-            auto [res_cond, provided] = prepare_lits(log, elem.cond_, VariableSet{}, bound);
-            if (!res_cond.complete() || !check_provided(bound, provided, elem.tuple_)) {
+            auto [res_cond, provided] = prepare_lits(log, elem.cond(), VariableSet{}, bound);
+            if (!res_cond.complete() || !check_provided(bound, provided, elem.tuple())) {
                 report_local(log, bound, provided, elem);
                 break;
             }
             if (res_cond) {
-                res_elems.replace(elem.loc(), elem.tuple_, res_cond.value());
+                res_elems.replace(elem.loc(), elem.tuple(), res_cond.value());
             } else {
                 res_elems.keep();
             }
@@ -389,12 +393,12 @@ struct CheckLocal {
     }
 
     auto operator()(HeadTheoryAtom const &hlit) -> Util::ResultState<HeadLiteral> {
-        auto res_elems = operator()(hlit.elems_);
+        auto res_elems = operator()(hlit.elems());
         if (!res_elems.complete()) {
             return {false};
         }
         if (res_elems) {
-            return {true, HeadTheoryAtom{hlit.loc(), hlit.name_, std::move(res_elems).value(), hlit.rhs_}};
+            return {true, HeadTheoryAtom{hlit.loc(), hlit.name(), std::move(res_elems).value(), hlit.rhs()}};
         }
         return {true};
     }
@@ -447,12 +451,13 @@ struct CheckLocal {
     }
 
     auto operator()(BodyTheoryAtom const &blit) -> Util::ResultState<BodyLiteral> {
-        auto res_elems = operator()(blit.elems_);
+        auto res_elems = operator()(blit.elems());
         if (!res_elems.complete()) {
             return {false};
         }
         if (res_elems) {
-            return {true, BodyTheoryAtom{blit.loc(), blit.sign_, blit.name_, std::move(res_elems).value(), blit.rhs_}};
+            return {true,
+                    BodyTheoryAtom{blit.loc(), blit.sign_, blit.name(), std::move(res_elems).value(), blit.rhs()}};
         }
         return {true};
     }

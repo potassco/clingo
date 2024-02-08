@@ -287,41 +287,41 @@ struct Print {
 
     void operator()(TheoryTerm const &term) const { std::visit(*this, term); }
 
-    void operator()(TheoryTermSymbol const &term) const { out << term.value_; }
+    void operator()(TheoryTermSymbol const &term) const { out << term.value(); }
 
-    void operator()(TheoryTermVariable const &term) const { out << term.name_; }
+    void operator()(TheoryTermVariable const &term) const { out << term.name(); }
 
     void operator()(TheoryTermTuple const &term) const {
-        out << left_bracket(term.type_);
-        visit_range(term.elems_);
-        if (term.type_ == TheoryTermTupleType::tuple && term.elems_.size() == 1) {
+        out << left_bracket(term.type());
+        visit_range(term.elems());
+        if (term.type() == TheoryTermTupleType::tuple && term.elems().size() == 1) {
             out << ",";
         }
-        out << right_bracket(term.type_);
+        out << right_bracket(term.type());
     }
 
     void operator()(TheoryTermFunction const &term) const {
-        size_t n = term.args_.size();
-        if (is_theory_operator(term.name_.view()) && 0 < n && n < 3) {
+        size_t n = term.args().size();
+        if (is_theory_operator(term.name().view()) && 0 < n && n < 3) {
             out << "(";
             if (n == 2) {
-                out << term.args_.front() << " ";
+                out << term.args().front() << " ";
             }
-            out << term.name_;
-            out << " " << term.args_.back();
+            out << term.name();
+            out << " " << term.args().back();
             out << ")";
         } else {
-            out << term.name_;
+            out << term.name();
             if (n > 0) {
                 out << "(";
-                visit_range(term.args_);
+                visit_range(term.args());
                 out << ")";
             }
         }
     }
 
     void operator()(TheoryTermUnparsed const &term) const {
-        auto elems = term.elems_;
+        auto elems = term.elems();
         bool needs_parens = elems.size() != 1 || !elems.front().first.empty();
         if (needs_parens) {
             out << "(";
@@ -386,10 +386,10 @@ struct Print {
     }
 
     void operator()(TheoryElement const &elem) const {
-        visit_range(elem.tuple_);
-        if (!elem.cond_.empty() || elem.tuple_.empty()) {
+        visit_range(elem.tuple());
+        if (!elem.cond().empty() || elem.tuple().empty()) {
             out << ": ";
-            visit_range(elem.cond_, ", ");
+            visit_range(elem.cond(), ", ");
         }
     }
 
@@ -397,16 +397,16 @@ struct Print {
         if constexpr (HasSign) {
             out << atom.sign_;
         }
-        out << "&" << atom.name_;
-        auto const &elems = atom.elems_;
-        if (!elems.empty() || atom.rhs_.has_value()) {
+        out << "&" << atom.name();
+        auto const &elems = atom.elems();
+        if (!elems.empty() || atom.rhs().has_value()) {
             out << " { ";
             apply_to_range(elems, "; ");
             out << (elems.empty() ? "}" : " }");
         }
-        if (atom.rhs_.has_value()) {
-            out << " " << atom.rhs_.value().first << " ";
-            operator()(atom.rhs_.value().second);
+        if (atom.rhs().has_value()) {
+            out << " " << atom.rhs().value().first << " ";
+            operator()(atom.rhs().value().second);
         }
     }
 

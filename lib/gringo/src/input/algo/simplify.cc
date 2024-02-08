@@ -29,6 +29,13 @@ template <class T> void extend(Util::ResultVec<T> &res, AuxTermVec &aux, bool co
     }
 }
 
+template <class O, class T> auto opt_vector_or(O &&vec, T span) -> std::decay_t<O>::value_type {
+    if (vec) {
+        return *std::forward<O>(vec);
+    }
+    return {span.begin(), span.end()};
+}
+
 //! Return a Boolean literal with the given location and truth value.
 [[nodiscard]] auto make_constant(Location loc, bool truth) -> Literal { return LiteralBoolean{loc, Sign::none, truth}; }
 
@@ -1497,35 +1504,31 @@ template <bool head>
 [[nodiscard]] auto simplify_element(RewriteContext &ctx, TheoryElement const &elem) -> SimplifyResult<TheoryElement> {
     auto guard = ctx.push();
     auto res_tuple = std::optional<TheoryTermVec>{};
-    auto [state_cond, res_cond] = simplify_litvec(ctx, elem.cond_);
+    auto [state_cond, res_cond] = simplify_litvec(ctx, elem.cond());
 
     auto state_elem = TruthValue::unknown;
     if (state_cond == TruthValue::top) {
         state_elem = TruthValue::unknown;
-        if (!elem.cond_.empty()) {
+        if (!elem.cond().empty()) {
             res_cond = LiteralVec{};
         }
     }
     if (state_cond == TruthValue::bot) {
         state_elem = TruthValue::bot;
-        if (!elem.tuple_.empty()) {
+        if (!elem.tuple().empty()) {
             res_tuple = TheoryTermVec{};
         }
     }
-    if (res_tuple.has_value() || res_cond.has_value()) {
-        return {state_elem, TheoryElement{elem.loc(), std::move(res_tuple).value_or(elem.tuple_),
-                                          std::move(res_cond).value_or(elem.cond_)}};
-    }
-    return {state_elem};
+    return {state_elem, elem.update(std::nullopt, std::move(res_tuple), std::move(res_cond))};
 }
 
 //! Simplify a theory atom.
 template <bool HasSign>
 auto simplify_theory_atom(RewriteContext &ctx, TheoryAtom<HasSign> const &lit) -> SimplifyResult<HBLiteral<!HasSign>> {
     constexpr auto head = !HasSign;
-    auto [state_name, res_name] = simplify(SimplifyTermFlags::none, ctx, lit.name_);
-    auto res_elems = Util::ResultVec{lit.elems_};
-    for (auto const &elem : lit.elems_) {
+    auto [state_name, res_name] = simplify(SimplifyTermFlags::none, ctx, lit.name());
+    auto res_elems = Util::ResultVec{lit.elems()};
+    for (auto const &elem : lit.elems()) {
         auto [state_elem, res_elem] = simplify_element(ctx, elem);
         if (state_elem == TruthValue::bot) {
             res_elems.remove();
@@ -1538,11 +1541,11 @@ auto simplify_theory_atom(RewriteContext &ctx, TheoryAtom<HasSign> const &lit) -
     }
     auto value = std::optional<TheoryAtom<HasSign>>{};
     if (res_name.has_value() || res_elems.has_value()) {
-        auto name = std::move(res_name).value_or(lit.name_);
+        auto name = std::move(res_name).value_or(lit.name());
         if constexpr (head) {
-            value = HeadTheoryAtom{lit.loc(), std::move(name), std::move(res_elems).value(), lit.rhs_};
+            value = HeadTheoryAtom{lit.loc(), std::move(name), std::move(res_elems).value(), lit.rhs()};
         } else {
-            value = BodyTheoryAtom{lit.loc(), lit.sign_, std::move(name), std::move(res_elems).value(), lit.rhs_};
+            value = BodyTheoryAtom{lit.loc(), lit.sign_, std::move(name), std::move(res_elems).value(), lit.rhs()};
         }
     }
     return {TruthValue::unknown, std::move(value)};

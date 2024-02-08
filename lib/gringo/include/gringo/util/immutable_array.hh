@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <stdexcept>
 #include <vector>
 
@@ -39,6 +40,10 @@ template <typename T> class immutable_array {
 
     operator std::vector<T> const &() const noexcept { return vector(); }
 
+    immutable_array(tcb::span<T> span) : immutable_array{span.begin(), span.end()} {}
+
+    immutable_array(tcb::span<T const> span) : immutable_array{span.begin(), span.end()} {}
+
     immutable_array(std::vector<T> &&vec) {
         if (!vec.empty()) {
             vec.shrink_to_fit();
@@ -46,7 +51,7 @@ template <typename T> class immutable_array {
         }
     }
 
-    immutable_array(std::vector<T> const &vec) : immutable_array{std::vector<T>{vec}} {}
+    immutable_array(std::vector<T> const &vec) : immutable_array{vec.begin(), vec.end()} {}
 
     template <class It> immutable_array(It first, It last) {
         if (first != last) {

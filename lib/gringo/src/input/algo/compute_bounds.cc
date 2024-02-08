@@ -512,13 +512,15 @@ struct ComputeBounds {
     }
 
     //! Helper to compute bounds for a set of elements.
-    template <class T, class... A>
-    auto compute_bounds_elem(Location const &loc, Util::ResultVec<T> &elems, LiteralVec const &lits, A const &...args) {
+    template <class T, class LS, class... A>
+    auto compute_bounds_elem(Location const &loc, Util::ResultVec<T> &elems, LS const &lits, A const &...args) {
         auto sub_slv = IESolver{&slv};
         auto [state_lits, res_lits] = compute_bounds(sub_slv, loc, lits);
         if (!state_lits) {
             elems.remove();
         } else if (res_lits) {
+            // Gringo::Util::ResultVec<Gringo::Input::TheoryElement>::replace<Gringo::Input::Location,
+            // tcb::span<TheoryTerm const>, std::vector<Literal>>
             elems.replace(map_rt(args, res_lits)...);
         } else {
             elems.keep();

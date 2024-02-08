@@ -26,7 +26,7 @@ struct RewriteAnonymous : Transformer<RewriteAnonymous> {
     // theory
 
     [[nodiscard]] auto accept(TheoryTermVariable const &term) const -> std::optional<TheoryTerm> {
-        if (term.is_anonymous_) {
+        if (term.is_anonymous()) {
             return TheoryTermVariable{term.loc(), gen.new_name(), true};
         }
         return std::nullopt;

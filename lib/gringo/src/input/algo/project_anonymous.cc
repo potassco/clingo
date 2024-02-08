@@ -95,7 +95,7 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
     }
 
     [[nodiscard]] auto accept(HeadTheoryAtom const &lit) const -> std::optional<HeadLiteral> {
-        return transform_construct<HeadTheoryAtom>(lit.loc(), lit.name_, tr(lit.elems_), lit.rhs_);
+        return transform_construct<HeadTheoryAtom>(lit.loc(), lit.name(), tr(lit.elems()), lit.rhs());
     }
 
     // body literal
@@ -115,7 +115,7 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
     // theory
 
     [[nodiscard]] auto accept(BodyTheoryAtom const &lit) const -> std::optional<BodyLiteral> {
-        return transform_construct<BodyTheoryAtom>(lit.loc(), lit.sign_, lit.name_, tr(lit.elems_), lit.rhs_);
+        return transform_construct<BodyTheoryAtom>(lit.loc(), lit.sign_, lit.name(), tr(lit.elems()), lit.rhs());
     }
 
     // statement

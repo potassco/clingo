@@ -1,5 +1,6 @@
 #pragma once
 
+#include "gringo/util/optional.hh"
 #include <gringo/input/literal.hh>
 #include <gringo/input/term.hh>
 
@@ -241,8 +242,18 @@ using TheoryRGuard = std::optional<std::pair<String, TheoryTerm>>;
 //! An element of the theory atom.
 class TheoryElement {
   public:
-    TheoryElement(Location loc, TheoryTermVec tuple, LiteralVec cond)
+    //! Construct a theory element.
+    explicit TheoryElement(Location loc, TheoryTermVec tuple, LiteralVec cond)
         : loc_{loc}, tuple_{std::move(tuple)}, cond_{std::move(cond)} {}
+    //! Functional-like record update.
+    [[nodiscard]] auto update(std::optional<Location> loc, std::optional<TheoryTermSpan> tuple,
+                              std::optional<LiteralSpan> cond) const -> std::optional<TheoryElement> {
+        if (loc || tuple || cond) {
+            return TheoryElement{loc.value_or(loc_), Util::update_value(std::move(tuple), tuple_),
+                                 Util::update_value(std::move(cond), cond_)};
+        }
+        return std::nullopt;
+    }
     //! The location of the theory element.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The tuple of the theory element.
