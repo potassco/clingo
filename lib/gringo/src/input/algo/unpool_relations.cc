@@ -65,8 +65,8 @@ auto shift(auto const &lit, auto &lits, bool negate) -> std::optional<Literal> {
 auto shift(TheoryElementVec const &elems) -> Util::ResultVec<TheoryElement> {
     auto res_elems = Util::ResultVec{elems};
     for (auto const &elem : elems) {
-        if (auto res_cond = unpool_conjunctive(elem.cond_); res_cond) {
-            res_elems.replace(TheoryElement{elem.loc(), elem.tuple_, std::move(res_cond).value()});
+        if (auto res_cond = unpool_conjunctive(elem.cond()); res_cond) {
+            res_elems.replace(TheoryElement{elem.loc(), elem.tuple(), std::move(res_cond).value()});
         } else {
             res_elems.keep();
         }
@@ -171,8 +171,8 @@ struct ShiftHead {
     }
 
     auto operator()(HeadTheoryAtom const &atom) const -> std::optional<HeadLiteral> {
-        if (auto res_elems = shift(atom.elems_); res_elems) {
-            return HeadTheoryAtom{atom.loc(), atom.name_, *std::move(res_elems), atom.rhs_};
+        if (auto res_elems = shift(atom.elems()); res_elems) {
+            return HeadTheoryAtom{atom.loc(), atom.name(), *std::move(res_elems), atom.rhs()};
         }
         return std::nullopt;
     }
@@ -240,11 +240,8 @@ struct ShiftBody {
     }
 
     void operator()(BodyTheoryAtom const &atom) const {
-        if (auto res_elems = shift(atom.elems_); res_elems) {
-            body.replace(BodyTheoryAtom{atom.loc(), atom.sign_, atom.name_, *std::move(res_elems), atom.rhs_});
-        } else {
-            body.keep();
-        }
+        body.update(
+            atom.opt_update(std::nullopt, std::nullopt, std::nullopt, shift(atom.elems()).as_optional(), std::nullopt));
     }
 
     Util::ResultVec<BodyLiteral> &body;
@@ -283,18 +280,20 @@ struct UnpoolHeadBody {
     template <bool HasSign>
     auto operator()(TheoryAtom<HasSign> const &atom) const -> std::optional<HBLitVecVec<!HasSign>> {
         auto unpool_elem = [](TheoryElement const &elem) {
-            auto build = [&elem](auto lits) -> TheoryElement { return {elem.loc(), elem.tuple_, std::move(lits)}; };
-            return unpool_crossproducts(build, unpool_disjunctive, elem.cond_);
+            auto build = [&elem](auto lits) -> TheoryElement {
+                return elem.update(std::nullopt, std::nullopt, std::move(lits));
+            };
+            return unpool_crossproducts(build, unpool_disjunctive, elem.cond());
         };
-        auto res_elems = unpool_union(atom.elems_, unpool_elem);
-        if (res_elems) {
-            if constexpr (HasSign) {
-                return Util::make_vec<BodyLiteral>(
-                    TheoryAtom<HasSign>{atom.loc(), atom.sign_, atom.name_, *std::move(res_elems), atom.rhs_});
-            } else {
-                return Util::make_vec<HeadLiteral>(
-                    TheoryAtom<HasSign>{atom.loc(), atom.name_, *std::move(res_elems), atom.rhs_});
-            }
+        auto res_elems = unpool_union(atom.elems(), unpool_elem);
+        auto res = std::optional<TheoryAtom<HasSign>>{std::nullopt};
+        if constexpr (HasSign) {
+            res = atom.opt_update(std::nullopt, std::nullopt, std::nullopt, std::move(res_elems), std::nullopt);
+        } else {
+            res = atom.opt_update(std::nullopt, std::nullopt, std::move(res_elems), std::nullopt);
+        }
+        if (res) {
+            return Util::make_vec<std::conditional_t<HasSign, BodyLiteral, HeadLiteral>>(*std::move(res));
         }
         return std::nullopt;
     }
@@ -379,13 +378,17 @@ struct UnpoolHeadBody {
         return std::nullopt;
     }
 
-    auto operator()(std::vector<BodyLiteral> const &body) const -> std::optional<std::vector<BodyLiteralVec>> {
+    auto operator()(tcb::span<BodyLiteral const> body) const -> std::optional<std::vector<BodyLiteralVec>> {
         return Util::transform_vec(unpool_crossproduct(body, *this),
                                    [](auto vec) { return BodyLiteralVec{std::move(vec)}; });
     }
 
+    auto operator()(std::vector<BodyLiteral> const &body) const -> std::optional<std::vector<BodyLiteralVec>> {
+        return operator()(tcb::make_span(body));
+    }
+
     auto operator()(BodyLiteralVec const &body) const -> std::optional<std::vector<BodyLiteralVec>> {
-        return operator()(body.vector());
+        return operator()(tcb::make_span(body));
     }
 
     RewriteContext const &ctx;

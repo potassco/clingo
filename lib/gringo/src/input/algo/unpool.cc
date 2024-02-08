@@ -204,6 +204,11 @@ struct Unpool {
 
     auto operator()(Literal const &lit) const -> std::optional<std::vector<Literal>> { return std::visit(*this, lit); }
 
+    auto operator()(LiteralSpan lits) const -> std::optional<std::vector<LiteralVec>> {
+        return Util::transform_vec(unpool_crossproduct(lits, *this),
+                                   [](auto vec) { return LiteralVec{std::move(vec)}; });
+    }
+
     auto operator()(LiteralVec const &lits) const -> std::optional<std::vector<LiteralVec>> {
         return Util::transform_vec(unpool_crossproduct(lits, *this),
                                    [](auto vec) { return LiteralVec{std::move(vec)}; });
@@ -324,13 +329,11 @@ struct Unpool {
 
     auto operator()(TheoryElement const &elem) const -> std::optional<std::vector<TheoryElement>> {
         return unpool_crossproducts(
-            [&elem](auto cond) {
-                return TheoryElement{elem.loc(), elem.tuple_, std::move(cond)};
-            },
-            *this, elem.cond_);
+            [&elem](auto cond) { return elem.update(std::nullopt, std::nullopt, std::move(cond)); }, *this,
+            elem.cond());
     }
 
-    auto operator()(TheoryElementVec const &elems) const -> std::optional<std::vector<TheoryElementVec>> {
+    auto operator()(TheoryElementSpan const &elems) const -> std::optional<std::vector<TheoryElementVec>> {
         return Util::transform(unpool_union(elems, *this),
                                [](auto elems) { return Util::make_vec<TheoryElementVec>(std::move(elems)); });
     }
@@ -342,12 +345,12 @@ struct Unpool {
             [&atom](auto name, auto elems) {
                 if constexpr (HasSign) {
                     return BodyLiteral{
-                        TheoryAtom<HasSign>{atom.loc(), atom.sign_, std::move(name), std::move(elems), atom.rhs_}};
+                        atom.update(std::nullopt, std::nullopt, std::move(name), std::move(elems), std::nullopt)};
                 } else {
-                    return HeadLiteral{TheoryAtom<HasSign>{atom.loc(), std::move(name), std::move(elems), atom.rhs_}};
+                    return HeadLiteral{atom.update(std::nullopt, std::move(name), std::move(elems), std::nullopt)};
                 }
             },
-            *this, atom.name_, atom.elems_);
+            *this, atom.name(), atom.elems());
     }
 
     // head literal

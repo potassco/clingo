@@ -232,9 +232,9 @@ inline TheoryTermFunction::TheoryTermFunction(Location loc, String name, TheoryT
 inline TheoryTermUnparsed::TheoryTermUnparsed(Location loc, ElementVec elems)
     : loc_{std::move(loc)}, elems_{std::move(elems)} {}
 
-auto TheoryTermTuple::elems() const -> TheoryTermSpan { return elems_; }
-auto TheoryTermFunction::args() const -> TheoryTermSpan { return args_; }
-auto TheoryTermUnparsed::elems() const -> ElementSpan { return elems_; }
+inline auto TheoryTermTuple::elems() const -> TheoryTermSpan { return elems_; }
+inline auto TheoryTermFunction::args() const -> TheoryTermSpan { return args_; }
+inline auto TheoryTermUnparsed::elems() const -> ElementSpan { return elems_; }
 
 //! The optional right guard of the theory atom.
 using TheoryRGuard = std::optional<std::pair<String, TheoryTerm>>;
@@ -245,14 +245,19 @@ class TheoryElement {
     //! Construct a theory element.
     explicit TheoryElement(Location loc, TheoryTermVec tuple, LiteralVec cond)
         : loc_{loc}, tuple_{std::move(tuple)}, cond_{std::move(cond)} {}
-    //! Functional-like record update.
+    //! Update a theory element.
     [[nodiscard]] auto update(std::optional<Location> loc, std::optional<TheoryTermSpan> tuple,
-                              std::optional<LiteralSpan> cond) const -> std::optional<TheoryElement> {
-        if (loc || tuple || cond) {
-            return TheoryElement{loc.value_or(loc_), Util::update_value(std::move(tuple), tuple_),
-                                 Util::update_value(std::move(cond), cond_)};
+                              std::optional<LiteralSpan> cond) const -> TheoryElement {
+        return TheoryElement{loc.value_or(loc_), Util::update_value(std::move(tuple), tuple_),
+                             Util::update_value(std::move(cond), cond_)};
+    }
+    //! Update a theory element.
+    [[nodiscard]] auto opt_update(std::optional<Location> loc, std::optional<TheoryTermSpan> tuple,
+                                  std::optional<LiteralSpan> cond) const -> std::optional<TheoryElement> {
+        if (!loc && !tuple && !cond) {
+            return std::nullopt;
         }
-        return std::nullopt;
+        return update(std::move(loc), std::move(tuple), std::move(cond));
     }
     //! The location of the theory element.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
@@ -302,6 +307,41 @@ template <bool HasSign> class TheoryAtom : public std::conditional_t<HasSign, Si
         static_assert(HasSign);
     }
 
+    //! Update a theory atom.
+    auto update(std::optional<Location> loc, std::optional<Sign> sign, std::optional<Term> name,
+                std::optional<TheoryElementSpan> elems, std::optional<TheoryRGuard> rhs) const -> TheoryAtom {
+        static_assert(HasSign);
+        return TheoryAtom{loc.value_or(loc_), sign.value_or(this->sign_), std::move(name).value_or(name_),
+                          Util::update_value(std::move(elems), elems_), std::move(rhs).value_or(rhs_)};
+    }
+    //! Update a theory atom.
+    auto opt_update(std::optional<Location> loc, std::optional<Sign> sign, std::optional<Term> name,
+                    std::optional<TheoryElementSpan> elems, std::optional<TheoryRGuard> rhs) const
+        -> std::optional<TheoryAtom> {
+        static_assert(HasSign);
+        if (!loc && !sign && !name && !elems && !rhs) {
+            return std::nullopt;
+        }
+        return update(std::move(loc), std::move(sign), std::move(name), std::move(elems), std::move(rhs));
+    }
+
+    //! Update a theory atom.
+    auto update(std::optional<Location> loc, std::optional<Term> name, std::optional<TheoryElementSpan> elems,
+                std::optional<TheoryRGuard> rhs) const -> TheoryAtom {
+        static_assert(!HasSign);
+        return TheoryAtom{loc.value_or(loc_), std::move(name).value_or(name_),
+                          Util::update_value(std::move(elems), elems_), std::move(rhs).value_or(rhs_)};
+    }
+    //! Update a theory atom.
+    auto opt_update(std::optional<Location> loc, std::optional<Term> name, std::optional<TheoryElementSpan> elems,
+                    std::optional<TheoryRGuard> rhs) const -> std::optional<TheoryAtom> {
+        static_assert(!HasSign);
+        if (!loc && !name && !elems && !rhs) {
+            return std::nullopt;
+        }
+        return update(std::move(loc), std::move(name), std::move(elems), std::move(rhs));
+    }
+
     //! The location of the symbol.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The name of the atom.
@@ -313,8 +353,11 @@ template <bool HasSign> class TheoryAtom : public std::conditional_t<HasSign, Si
 
   private:
     friend auto operator==(TheoryAtom<true> const &a, TheoryAtom<true> const &b) -> bool;
+    friend auto operator==(TheoryAtom<false> const &a, TheoryAtom<false> const &b) -> bool;
     friend auto operator<(TheoryAtom<true> const &a, TheoryAtom<true> const &b) -> bool;
+    friend auto operator<(TheoryAtom<false> const &a, TheoryAtom<false> const &b) -> bool;
     friend struct Util::value_hasher<TheoryAtom<true>>;
+    friend struct Util::value_hasher<TheoryAtom<false>>;
 
     Location loc_;
     Term name_;
@@ -331,12 +374,22 @@ using BodyTheoryAtom = TheoryAtom<true>;
 //! Compare two theory atoms.
 //!
 //! @related TheoryAtom
-template <bool HasSign> auto operator==(TheoryAtom<HasSign> const &a, TheoryAtom<HasSign> const &b) -> bool;
+auto operator==(TheoryAtom<true> const &a, TheoryAtom<true> const &b) -> bool;
 
 //! Compare two theory atoms.
 //!
 //! @related TheoryAtom
-template <bool HasSign> auto operator<(TheoryAtom<HasSign> const &a, TheoryAtom<HasSign> const &b) -> bool;
+auto operator==(TheoryAtom<false> const &a, TheoryAtom<false> const &b) -> bool;
+
+//! Compare two theory atoms.
+//!
+//! @related TheoryAtom
+auto operator<(TheoryAtom<true> const &a, TheoryAtom<true> const &b) -> bool;
+
+//! Compare two theory atoms.
+//!
+//! @related TheoryAtom
+auto operator<(TheoryAtom<false> const &a, TheoryAtom<false> const &b) -> bool;
 
 //! @}
 

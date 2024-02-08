@@ -1519,7 +1519,7 @@ template <bool head>
             res_tuple = TheoryTermVec{};
         }
     }
-    return {state_elem, elem.update(std::nullopt, std::move(res_tuple), std::move(res_cond))};
+    return {state_elem, elem.opt_update(std::nullopt, std::move(res_tuple), std::move(res_cond))};
 }
 
 //! Simplify a theory atom.

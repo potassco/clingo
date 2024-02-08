@@ -748,7 +748,7 @@ auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<
         TYPE(term_variable, TermVariable,
             ATTR(anonymous, is_anonymous))
         TYPE(theory_term_variable, TheoryTermVariable,
-            ATTR_OLD(anonymous, is_anonymous_))
+            ATTR(anonymous, is_anonymous))
         TYPE(term_function, TermFunction,
             ATTR(external, external))
         TYPE(term_unary_operation, TermUnary,
@@ -756,7 +756,7 @@ auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<
         TYPE(term_binary_operation, TermBinary,
             ATTR(operator_type, op))
         TYPE(theory_term_tuple, TheoryTermTuple,
-            ATTR_OLD(tuple_type, type_))
+            ATTR(tuple_type, type))
         TYPE(literal_boolean, LiteralBoolean,
             ATTR_OLD(sign, sign_)
             ATTR_OLD(value, value_))
@@ -820,7 +820,7 @@ auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<
         TYPE(term_symbolic, TermSymbol,
             ATTR(symbol, value))
         TYPE(theory_term_symbolic, TheoryTermSymbol,
-            ATTR_OLD(symbol, value_)))
+            ATTR(symbol, value)))
     // clang-format on
 }
 
@@ -841,11 +841,11 @@ auto clingo_ast::get_string(clingo_ast_attribute_t attr) const -> std::optional<
         TYPE(term_variable, TermVariable,
             ATTR(name, name))
         TYPE(theory_term_variable, TheoryTermVariable,
-            ATTR_OLD(name, name_))
+            ATTR(name, name))
         TYPE(term_function, TermFunction,
             ATTR(name, name))
         TYPE(theory_term_function, TheoryTermFunction,
-            ATTR_OLD(name, name_))
+            ATTR(name, name))
         TYPE(theory_right_guard, TheoryRGuard::value_type,
             ATTR_OLD(theory_operator, first))
         TYPE(theory_operator_definition, TheoryOpDefinition,
@@ -941,11 +941,11 @@ auto clingo_ast::get_ast(clingo_ast_attribute_t attr) const -> std::optional<std
         TYPE(head_aggregate_element, HeadAggregate::Element,
             ATTR_OLD(literal, lit_))
         TYPE(body_theory_atom, BodyTheoryAtom,
-            ATTR_OLD(name, name_)
-            ATTR_OLD(right, rhs_))
+            ATTR(name, name)
+            ATTR(right, rhs))
         TYPE(head_theory_atom, HeadTheoryAtom,
-            ATTR_OLD(name, name_)
-            ATTR_OLD(right, rhs_))
+            ATTR(name, name)
+            ATTR(right, rhs))
         TYPE(head_set_aggregate, HeadSetAggregate,
             ATTR_OLD(left, lhs_)
             ATTR_OLD(right, rhs_))
@@ -1012,11 +1012,11 @@ auto clingo_ast::get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional
         TYPE(term_function, TermFunction,
             ATTR(pool, pool))
         TYPE(theory_term_tuple, TheoryTermTuple,
-            ATTR_OLD(arguments, elems_))
+            ATTR(arguments, elems))
         TYPE(theory_term_function, TheoryTermFunction,
-            ATTR_OLD(arguments, args_))
+            ATTR(arguments, args))
         TYPE(theory_term_unparsed, TheoryTermUnparsed,
-            ATTR_OLD(elements, elems_))
+            ATTR(elements, elems))
         TYPE(literal_comparison, LiteralRelation,
             ATTR_OLD(right, rhs_))
         TYPE(head_conditional_literal, ConditionalLiteral,
@@ -1026,8 +1026,8 @@ auto clingo_ast::get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional
         TYPE(set_aggregate_element, SetAggregateElement,
             ATTR_OLD(condition, cond_))
         TYPE(theory_atom_element, TheoryElement,
-            ATTR_OLD(tuple, tuple_)
-            ATTR_OLD(condition, cond_))
+            ATTR(tuple, tuple)
+            ATTR(condition, cond))
         TYPE(head_aggregate_element, HeadAggregate::Element,
             ATTR_OLD(tuple, tuple_)
             ATTR_OLD(condition, cond_))
@@ -1037,9 +1037,9 @@ auto clingo_ast::get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional
         TYPE(head_disjunction, Disjunction,
             ATTR_OLD(elements, elems_))
         TYPE(body_theory_atom, BodyTheoryAtom,
-            ATTR_OLD(elements, elems_))
+            ATTR(elements, elems))
         TYPE(head_theory_atom, HeadTheoryAtom,
-            ATTR_OLD(elements, elems_))
+            ATTR(elements, elems))
         TYPE(head_set_aggregate, HeadSetAggregate,
             ATTR_OLD(elements, elems_))
         TYPE(head_aggregate, HeadAggregate,

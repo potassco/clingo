@@ -38,19 +38,19 @@ auto operator<(TheoryElement const &a, TheoryElement const &b) -> bool {
     return std::tie(a.tuple_, a.cond_) < std::tie(b.tuple_, b.cond_);
 }
 
-template <> auto operator==(TheoryAtom<true> const &a, TheoryAtom<true> const &b) -> bool {
+auto operator==(TheoryAtom<true> const &a, TheoryAtom<true> const &b) -> bool {
     return std::tie(a.sign_, a.name_, a.elems_, a.rhs_) == std::tie(b.sign_, b.name_, b.elems_, b.rhs_);
 }
 
-template <> auto operator<(TheoryAtom<true> const &a, TheoryAtom<true> const &b) -> bool {
+auto operator<(TheoryAtom<true> const &a, TheoryAtom<true> const &b) -> bool {
     return std::tie(a.sign_, a.name_, a.elems_, a.rhs_) < std::tie(b.sign_, b.name_, b.elems_, b.rhs_);
 }
 
-template <> auto operator==(TheoryAtom<false> const &a, TheoryAtom<false> const &b) -> bool {
+auto operator==(TheoryAtom<false> const &a, TheoryAtom<false> const &b) -> bool {
     return std::tie(a.name_, a.elems_, a.rhs_) == std::tie(b.name_, b.elems_, b.rhs_);
 }
 
-template <> auto operator<(TheoryAtom<false> const &a, TheoryAtom<false> const &b) -> bool {
+auto operator<(TheoryAtom<false> const &a, TheoryAtom<false> const &b) -> bool {
     return std::tie(a.name_, a.elems_, a.rhs_) < std::tie(b.name_, b.elems_, b.rhs_);
 }
 

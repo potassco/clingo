@@ -29,7 +29,7 @@ struct VisitVariables : Visitor<VisitVariables> {
 
     // theory terms
 
-    void accept(TheoryTermVariable const &term) const { fun(term.loc(), term.name_); }
+    void accept(TheoryTermVariable const &term) const { fun(term.loc(), term.name()); }
 
     // conditional literal
 
@@ -54,9 +54,9 @@ struct VisitVariables : Visitor<VisitVariables> {
 
     template <bool HasSign> void accept(TheoryAtom<HasSign> const &atom) const {
         if (ctx == VariableContext::all) {
-            visit(atom.elems_);
+            visit(atom.elems());
         }
-        visit(atom.name_, atom.rhs_);
+        visit(atom.name(), atom.rhs());
     }
 
     // head literal

@@ -13,7 +13,8 @@ namespace Detail {
 
 template <class T, class F> using transform_result = std::optional<std::remove_cv_t<std::invoke_result_t<F, T>>>;
 
-template <class T, class F> using and_then_result = std::remove_cvref_t<std::invoke_result_t<F, T>>;
+template <class T, class F>
+using and_then_result = std::remove_cv_t<std::remove_reference_t<std::invoke_result_t<F, T>>>;
 
 template <class T, class F>
 using transform_vec_result = std::optional<std::vector<typename transform_result<T, F>::value_type>>;
@@ -70,7 +71,7 @@ template <class T, class F> constexpr auto and_then(std::optional<T> &x, F &&f) 
     if (x) {
         return std::invoke(std::forward<F>(f), *x);
     }
-    return std::remove_cvref_t<std::invoke_result_t<F, T &>>{};
+    return std::remove_cv_t<std::remove_reference_t<std::invoke_result_t<F, T &>>>{};
 }
 
 //! Implemenatation of std::optional<T>::and_then.
@@ -79,7 +80,7 @@ constexpr auto and_then(std::optional<T> const &x, F &&f) -> Detail::and_then_re
     if (x) {
         return std::invoke(std::forward<F>(f), *x);
     }
-    return std::remove_cvref_t<std::invoke_result_t<F, T const &>>{};
+    return std::remove_cv_t<std::remove_reference_t<std::invoke_result_t<F, T const &>>>{};
 }
 
 //! Implemenatation of std::optional<T>::and_then.
@@ -87,7 +88,7 @@ template <class T, class F> constexpr auto and_then(std::optional<T> &&x, F &&f)
     if (x) {
         return std::invoke(std::forward<F>(f), *std::move(x));
     }
-    return std::remove_cvref_t<std::invoke_result_t<F, T>>{};
+    return std::remove_cv_t<std::remove_reference_t<std::invoke_result_t<F, T>>>{};
 }
 
 //! Implemenatation of std::optional<T>::and_then.
@@ -96,7 +97,7 @@ constexpr auto and_then(std::optional<T> const &&x, F &&f) -> Detail::and_then_r
     if (x) {
         return std::invoke(std::forward<F>(f), *std::move(x));
     }
-    return std::remove_cvref_t<std::invoke_result_t<F, T const>>{};
+    return std::remove_cv_t<std::remove_reference_t<std::invoke_result_t<F, T const>>>{};
 }
 
 //! Map the given predicate over an optional vector.
@@ -226,7 +227,7 @@ template <class T> class ResultVec {
     //! This returns a reference to the old vector if it does not have a new one.
     [[nodiscard]] auto value() const & -> Span { return result_ ? Span{*result_} : source_; }
     //! Move out the new vector or return a copy of the old one.
-    [[nodiscard]] auto value() && -> std::vector<T> {
+    [[nodiscard]] auto value() && -> Vector {
         if (result_) {
             return *std::move(result_);
         }
@@ -242,9 +243,9 @@ template <class T> class ResultVec {
     //! Get a const reference to the current vector.
     //!
     //! This returns a reference to the old vector if it does not have a new one.
-    [[nodiscard]] auto operator*() const & -> std::vector<T> const & { return value(); }
+    [[nodiscard]] auto operator*() const & -> Span { return value(); }
     //! Move out the new vector or return a copy of the old one.
-    [[nodiscard]] auto operator*() && -> std::vector<T> { return value(); }
+    [[nodiscard]] auto operator*() && -> std::vector<T> { return std::move(*this).value(); }
     //! Check if the old vector has been updated.
     explicit operator bool() const { return has_value(); }
     //! Check if all elements have been processed.

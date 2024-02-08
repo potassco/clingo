@@ -113,11 +113,11 @@ template <class T> class Visitor {
 
     void accept_(TheoryTermVariable const &term) const { static_cast<void>(term); }
 
-    void accept_(TheoryTermTuple const &term) const { visit(term.elems_); }
+    void accept_(TheoryTermTuple const &term) const { visit(term.elems()); }
 
-    void accept_(TheoryTermFunction const &term) const { visit(term.args_); }
+    void accept_(TheoryTermFunction const &term) const { visit(term.args()); }
 
-    void accept_(TheoryTermUnparsed const &term) const { visit(term.elems_); }
+    void accept_(TheoryTermUnparsed const &term) const { visit(term.elems()); }
 
     // literals
 
@@ -142,10 +142,10 @@ template <class T> class Visitor {
 
     // theory
 
-    void accept_(TheoryElement const &elem) const { visit(elem.tuple_, elem.cond_); }
+    void accept_(TheoryElement const &elem) const { visit(elem.tuple(), elem.cond()); }
 
     template <bool HasSign> void accept_(TheoryAtom<HasSign> const &atom) const {
-        visit(atom.name_, atom.elems_, atom.rhs_);
+        visit(atom.name(), atom.elems(), atom.rhs());
     }
 
     // head literal
