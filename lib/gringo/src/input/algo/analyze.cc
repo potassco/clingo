@@ -250,7 +250,7 @@ struct IsAtom {
         return false;
     }
 
-    auto operator()(LiteralSymbolic const &lit) const -> bool { return lit.sign_ == Sign::none; }
+    auto operator()(LiteralSymbolic const &lit) const -> bool { return lit.sign() == Sign::none; }
 
     // conditional literals
 
@@ -336,7 +336,7 @@ struct IsClassical {
             return std::visit(
                 [](auto const &lit) {
                     GRINGO_MATCH(lit, Literal) { return !is_atom(lit); }
-                    GRINGO_MATCH(lit, ConditionalLiteral) { return !is_atom(lit.lit_); }
+                    GRINGO_MATCH(lit, ConditionalLiteral) { return !is_atom(lit.lit()); }
                 },
                 elem);
         });
@@ -504,8 +504,8 @@ auto is_classical(HeadLiteral const &lit) -> bool { return IsClassical{}(lit); }
 
 auto is_fact(SymbolStore &store, Rule const &rule) -> std::optional<Symbol> {
     if (auto const *head = std::get_if<SimpleHeadLiteral>(&rule.head_); head != nullptr && rule.body_.empty()) {
-        if (auto const *lit = std::get_if<LiteralSymbolic>(&head->lit_); lit != nullptr && lit->sign_ == Sign::none) {
-            return IsFact{store}(lit->term_);
+        if (auto const *lit = std::get_if<LiteralSymbolic>(&head->lit_); lit != nullptr && lit->sign() == Sign::none) {
+            return IsFact{store}(lit->term());
         }
     }
     return std::nullopt;

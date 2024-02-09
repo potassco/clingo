@@ -74,8 +74,8 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
     }
 
     [[nodiscard]] auto accept(LiteralSymbolic const &lit) const -> std::optional<Literal> {
-        if (lit.sign_ != Sign::none) {
-            return transform_construct<LiteralSymbolic>(lit.loc(), lit.sign_, tr(lit.term_));
+        if (lit.sign() != Sign::none) {
+            return transform_construct<LiteralSymbolic>(lit.loc(), lit.sign(), tr(lit.term()));
         }
         return std::nullopt;
     }

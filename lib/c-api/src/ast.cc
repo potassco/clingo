@@ -761,9 +761,9 @@ auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<
             ATTR(sign, sign)
             ATTR(value, value))
         TYPE(literal_symbolic, LiteralSymbolic,
-            ATTR_OLD(sign, sign_))
+            ATTR(sign, sign))
         TYPE(literal_comparison, LiteralRelation,
-            ATTR_OLD(sign, sign_))
+            ATTR(sign, sign))
         TYPE(left_guard, LGuard::value_type,
             ATTR_OLD(relation, second))
         TYPE(right_guard, RGuard::value_type,
@@ -919,17 +919,17 @@ auto clingo_ast::get_ast(clingo_ast_attribute_t attr) const -> std::optional<std
         TYPE(unparsed_element, TheoryTermUnparsed::Element,
             ATTR_OLD(term, second))
         TYPE(literal_comparison, LiteralRelation,
-            ATTR_OLD(left, lhs_))
+            ATTR(left, lhs))
         TYPE(literal_symbolic, LiteralSymbolic,
-            ATTR_OLD(atom, term_))
+            ATTR(atom, term))
         TYPE(head_simple_literal, SimpleHeadLiteral,
             ATTR_OLD(literal, lit_))
         TYPE(body_simple_literal, SimpleBodyLiteral,
             ATTR_OLD(literal, lit_))
         TYPE(head_conditional_literal, ConditionalLiteral,
-            ATTR_OLD(literal, lit_))
+            ATTR(literal, lit))
         TYPE(body_conditional_literal, Conjunction,
-            ATTR_OLD(literal, lit_.lit_))
+            ATTR(literal, lit_.lit))
         TYPE(left_guard, LGuard::value_type,
             ATTR_OLD(term, first))
         TYPE(right_guard, RGuard::value_type,
@@ -1018,11 +1018,11 @@ auto clingo_ast::get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional
         TYPE(theory_term_unparsed, TheoryTermUnparsed,
             ATTR(elements, elems))
         TYPE(literal_comparison, LiteralRelation,
-            ATTR_OLD(right, rhs_))
+            ATTR(right, rhs))
         TYPE(head_conditional_literal, ConditionalLiteral,
-            ATTR_OLD(condition, cond_))
+            ATTR(condition, cond))
         TYPE(body_conditional_literal, Conjunction,
-            ATTR_OLD(condition, lit_.cond_))
+            ATTR(condition, lit_.cond))
         TYPE(set_aggregate_element, SetAggregateElement,
             ATTR_OLD(condition, cond_))
         TYPE(theory_atom_element, TheoryElement,

@@ -48,7 +48,7 @@ struct LiteralToTuple {
         std::vector<Term> res;
         res.reserve(2);
         int i = 0;
-        switch (lit.sign_) {
+        switch (lit.sign()) {
             case Sign::none: {
                 i = 0;
                 break;
@@ -63,7 +63,7 @@ struct LiteralToTuple {
             }
         }
         res.emplace_back(TermSymbol{lit.loc(), store.num(i)});
-        res.emplace_back(lit.term_);
+        res.emplace_back(lit.term());
         return res;
     }
 
@@ -217,14 +217,14 @@ struct Unpool {
     auto operator()(LiteralRelation const &lit) const -> std::optional<std::vector<Literal>> {
         return unpool_crossproducts(
             [&lit](auto lhs, auto rhs) -> Literal {
-                return LiteralRelation{lit.loc(), lit.sign_, std::move(lhs), std::move(rhs)};
+                return LiteralRelation{lit.loc(), lit.sign(), std::move(lhs), std::move(rhs)};
             },
-            *this, lit.lhs_, lit.rhs_);
+            *this, lit.lhs(), lit.rhs());
     }
 
     auto operator()(LiteralSymbolic const &lit) const -> std::optional<std::vector<Literal>> {
-        return Util::transform_vec(operator()(lit.term_), [&lit](auto term) -> Literal {
-            return LiteralSymbolic{lit.loc(), lit.sign_, std::move(term)};
+        return Util::transform_vec(operator()(lit.term()), [&lit](auto term) -> Literal {
+            return LiteralSymbolic{lit.loc(), lit.sign(), std::move(term)};
         });
     }
 
@@ -386,7 +386,7 @@ struct Unpool {
                     auto build = [clit](auto lit, auto elem) -> Disjunction::Element {
                         return ConditionalLiteral{clit->loc(), std::move(lit), std::move(elem)};
                     };
-                    auto res_clit = unpool_crossproducts(build, *this, clit->lit_, clit->cond_);
+                    auto res_clit = unpool_crossproducts(build, *this, clit->lit(), clit->cond());
                     if (res_clit) {
                         res_elems.remove();
                         res_elems.extend(std::make_move_iterator(res_clit->begin()),
@@ -466,7 +466,7 @@ struct Unpool {
                     auto build = [conj](auto lit, auto elem) -> BodyLiteral {
                         return Conjunction{ConditionalLiteral{conj->lit_.loc(), std::move(lit), std::move(elem)}};
                     };
-                    auto res_conj = unpool_crossproducts(build, *this, conj->lit_.lit_, conj->lit_.cond_);
+                    auto res_conj = unpool_crossproducts(build, *this, conj->lit_.lit(), conj->lit_.cond());
                     if (res_conj) {
                         res_lits.remove();
                         res_lits.extend(std::make_move_iterator(res_conj->begin()),

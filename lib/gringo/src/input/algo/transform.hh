@@ -254,17 +254,17 @@ template <class T> class Transformer {
     }
 
     [[nodiscard]] auto accept_(LiteralRelation const &lit) const -> std::optional<Literal> {
-        return transform_construct<LiteralRelation>(lit.loc(), lit.sign_, tr(lit.lhs_), tr(lit.rhs_));
+        return transform_construct<LiteralRelation>(lit.loc(), lit.sign(), tr(lit.lhs()), tr(lit.rhs()));
     }
 
     [[nodiscard]] auto accept_(LiteralSymbolic const &lit) const -> std::optional<Literal> {
-        return transform_construct<LiteralSymbolic>(lit.loc(), lit.sign_, tr(lit.term_));
+        return transform_construct<LiteralSymbolic>(lit.loc(), lit.sign(), tr(lit.term()));
     }
 
     // conditional literal
 
     [[nodiscard]] auto accept_(ConditionalLiteral const &lit) const -> std::optional<ConditionalLiteral> {
-        return transform_construct<ConditionalLiteral>(lit.loc(), tr(lit.lit_), tr(lit.cond_));
+        return transform_construct<ConditionalLiteral>(lit.loc(), tr(lit.lit()), tr(lit.cond()));
     }
 
     // set aggregate

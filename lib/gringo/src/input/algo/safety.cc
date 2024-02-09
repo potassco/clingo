@@ -98,13 +98,13 @@ template <class CB> struct MakeNode {
         auto add = [this, &lit](bool lhs, bool rhs) {
             StringVec provide;
             StringVec depend;
-            GetDep{provided, provide, depend}(lit.lhs_, lhs);
-            GetDep{provided, provide, depend}(lit.rhs_.front().second, rhs);
+            GetDep{provided, provide, depend}(lit.lhs(), lhs);
+            GetDep{provided, provide, depend}(lit.rhs().front().second, rhs);
             if (!rhs || !provide.empty()) {
                 std::invoke(cb, std::move(provide), std::move(depend), rhs);
             }
         };
-        if (lit.rhs_.front().first == Relation::equal && can_provide) {
+        if (lit.rhs().front().first == Relation::equal && can_provide) {
             add(true, false);
             add(false, true);
         } else {
@@ -115,7 +115,7 @@ template <class CB> struct MakeNode {
     void operator()(LiteralSymbolic const &lit, bool can_provide) {
         StringVec provide;
         StringVec depend;
-        GetDep{provided, provide, depend}(lit.term_, can_provide && lit.sign_ == Sign::none);
+        GetDep{provided, provide, depend}(lit.term(), can_provide && lit.sign() == Sign::none);
         std::invoke(cb, std::move(provide), std::move(depend), false);
     }
 
@@ -204,9 +204,9 @@ template <class Lit> using NodeVec = std::vector<Node<Lit>>;
 
 [[nodiscard]] auto flip(Literal const &lit) -> Literal {
     auto const &rel = std::get<LiteralRelation>(lit);
-    auto const &[sym, rhs] = rel.rhs_.front();
-    assert(sym == Relation::equal && rel.rhs_.size() == 1);
-    return LiteralRelation{rel.loc(), rel.sign_, rhs, Util::make_vec<Guard>(Guard{sym, rel.lhs_})};
+    auto const &[sym, rhs] = rel.rhs().front();
+    assert(sym == Relation::equal && rel.rhs().size() == 1);
+    return LiteralRelation{rel.loc(), rel.sign(), rhs, Util::make_vec<Guard>(Guard{sym, rel.lhs()})};
 }
 
 [[nodiscard]] auto flip(BodyLiteral const &lit) -> BodyLiteral { return flip(std::get<SimpleBodyLiteral>(lit).lit_); }
@@ -347,13 +347,13 @@ struct CheckLocal {
         auto res_elems = Util::ResultVec{hlit.elems_};
         for (auto const &elem : hlit.elems_) {
             if (auto const *clit = std::get_if<ConditionalLiteral>(&elem); clit != nullptr) {
-                auto [res_cond, provided] = prepare_lits(log, clit->cond_, VariableSet{}, bound);
-                if (!res_cond.complete() || !check_provided(bound, provided, clit->lit_)) {
+                auto [res_cond, provided] = prepare_lits(log, clit->cond(), VariableSet{}, bound);
+                if (!res_cond.complete() || !check_provided(bound, provided, clit->lit())) {
                     report_local(log, bound, provided, *clit);
                     return {false};
                 }
                 if (res_cond) {
-                    res_elems.replace(ConditionalLiteral{clit->loc(), clit->lit_, res_cond.value()});
+                    res_elems.replace(ConditionalLiteral{clit->loc(), clit->lit(), res_cond.value()});
                 } else {
                     res_elems.keep();
                 }
@@ -411,15 +411,15 @@ struct CheckLocal {
     }
 
     auto operator()(Conjunction const &blit) -> Util::ResultState<BodyLiteral> {
-        auto [res_cond, provided] = prepare_lits(log, blit.lit_.cond_, VariableSet{}, bound);
-        if (!res_cond.complete() || !check_provided(bound, provided, blit.lit_.lit_)) {
+        auto [res_cond, provided] = prepare_lits(log, blit.lit_.cond(), VariableSet{}, bound);
+        if (!res_cond.complete() || !check_provided(bound, provided, blit.lit_.lit())) {
             report_local(log, bound, provided, blit.lit_);
             return {false};
         }
 
         if (res_cond) {
             return {true,
-                    Conjunction{ConditionalLiteral{blit.lit_.loc(), blit.lit_.lit_, std::move(res_cond).value()}}};
+                    Conjunction{ConditionalLiteral{blit.lit_.loc(), blit.lit_.lit(), std::move(res_cond).value()}}};
         }
         return {true};
     }

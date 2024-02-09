@@ -115,16 +115,21 @@ class LiteralRelation {
 
     //! The location of the literal.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The sign of the literal.
+    [[nodiscard]] auto sign() const -> Sign { return sign_; }
+    //! The term on the left hand side.
+    [[nodiscard]] auto lhs() const -> Term const & { return lhs_; }
+    //! The guards on the right hand side.
+    [[nodiscard]] auto rhs() const -> GuardVec const & { return rhs_; }
 
   private:
-    Location loc_;
+    friend auto operator==(LiteralRelation const &a, LiteralRelation const &b) -> bool;
+    friend auto operator<(LiteralRelation const &a, LiteralRelation const &b) -> bool;
+    friend struct Util::value_hasher<LiteralRelation>;
 
-  public:
-    //! The sign of the literal.
+    Location loc_;
     Sign sign_;
-    //! The term on the left hand side.
     Term lhs_;
-    //! The guards on the right hand side.
     GuardVec rhs_;
 };
 
@@ -149,14 +154,18 @@ class LiteralSymbolic {
 
     //! The location of the literal.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The sign of the literal.
+    [[nodiscard]] auto sign() const -> Sign { return sign_; }
+    //! The term representing the atom.
+    [[nodiscard]] auto term() const -> Term const & { return term_; }
 
   private:
-    Location loc_;
+    friend auto operator==(LiteralSymbolic const &a, LiteralSymbolic const &b) -> bool;
+    friend auto operator<(LiteralSymbolic const &a, LiteralSymbolic const &b) -> bool;
+    friend struct Util::value_hasher<LiteralSymbolic>;
 
-  public:
-    //! The sign of the literal.
+    Location loc_;
     Sign sign_;
-    //! The term representing the atom.
     Term term_;
 };
 
@@ -187,14 +196,18 @@ class ConditionalLiteral {
         : loc_{std::move(loc)}, lit_{std::move(lit)}, cond_{std::move(cond)} {}
     //! The location of the literal.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The literals on the left-hand-side.
+    [[nodiscard]] auto lit() const -> Literal const & { return lit_; }
+    //! The literals on the right-hand-side.
+    [[nodiscard]] auto cond() const -> LiteralVec const & { return cond_; }
 
   private:
-    Location loc_;
+    friend auto operator==(ConditionalLiteral const &a, ConditionalLiteral const &b) -> bool;
+    friend auto operator<(ConditionalLiteral const &a, ConditionalLiteral const &b) -> bool;
+    friend struct Util::value_hasher<ConditionalLiteral>;
 
-  public:
-    //! The literals on the left-hand-side.
+    Location loc_;
     Literal lit_;
-    //! The literals on the right-hand-side.
     LiteralVec cond_;
 };
 

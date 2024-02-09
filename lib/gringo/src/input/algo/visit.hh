@@ -123,13 +123,13 @@ template <class T> class Visitor {
 
     void accept_(LiteralBoolean const &lit) const { static_cast<void>(lit); }
 
-    void accept_(LiteralRelation const &lit) const { visit(lit.lhs_, lit.rhs_); }
+    void accept_(LiteralRelation const &lit) const { visit(lit.lhs(), lit.rhs()); }
 
-    void accept_(LiteralSymbolic const &lit) const { visit(lit.term_); }
+    void accept_(LiteralSymbolic const &lit) const { visit(lit.term()); }
 
     // conditional literal
 
-    void accept_(ConditionalLiteral const &cond_lit) const { visit(cond_lit.lit_, cond_lit.cond_); }
+    void accept_(ConditionalLiteral const &cond_lit) const { visit(cond_lit.lit(), cond_lit.cond()); }
 
     // aggregate
 

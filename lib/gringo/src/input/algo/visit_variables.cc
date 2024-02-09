@@ -35,7 +35,7 @@ struct VisitVariables : Visitor<VisitVariables> {
 
     void accept(ConditionalLiteral const &cond_lit) const {
         if (ctx == VariableContext::all) {
-            visit(cond_lit.cond_, cond_lit.lit_);
+            visit(cond_lit.cond(), cond_lit.lit());
         }
     }
 

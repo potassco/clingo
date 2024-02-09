@@ -85,8 +85,8 @@ struct Project : Transformer<Project> {
     }
 
     [[nodiscard]] auto accept(LiteralSymbolic const &lit) const -> std::optional<Literal> {
-        if (lit.sign_ == Sign::none) {
-            return transform_construct<LiteralSymbolic>(lit.loc(), lit.sign_, tr(lit.term_));
+        if (lit.sign() == Sign::none) {
+            return transform_construct<LiteralSymbolic>(lit.loc(), lit.sign(), tr(lit.term()));
         }
         return std::nullopt;
     }
@@ -94,23 +94,23 @@ struct Project : Transformer<Project> {
     // conditional literal
 
     [[nodiscard]] auto accept(ConditionalLiteral const &elem) const -> std::optional<ConditionalLiteral> {
-        bool project_cond = in_classical_scope || !is_atom(elem.lit_);
+        bool project_cond = in_classical_scope || !is_atom(elem.lit());
         // add counts of local variables
         auto counts = get_counts(project, elem);
         auto sub_project = Project{ProjectionMap{project.mode(), counts}};
         // project conclusion
         auto res_lit = std::optional<Literal>{};
         if (project_lits) {
-            res_lit = sub_project.transform(elem.lit_);
+            res_lit = sub_project.transform(elem.lit());
         }
         // project premise
         std::optional<LiteralVec> res_cond = std::nullopt;
         if (project_cond) {
-            res_cond = sub_project.transform(elem.cond_);
+            res_cond = sub_project.transform(elem.cond());
         }
         if (res_lit || res_cond) {
-            return ConditionalLiteral{elem.loc(), std::move(res_lit).value_or(elem.lit_),
-                                      std::move(res_cond).value_or(elem.cond_)};
+            return ConditionalLiteral{elem.loc(), std::move(res_lit).value_or(elem.lit()),
+                                      std::move(res_cond).value_or(elem.cond())};
         }
         return std::nullopt;
     }

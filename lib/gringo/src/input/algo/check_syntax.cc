@@ -172,15 +172,15 @@ struct CheckSyntax {
 
     auto operator()(LiteralRelation const &lit, SyntaxCheck check) const -> bool {
         static_cast<void>(check);
-        return operator()(lit.lhs_) &&
-               std::all_of(lit.rhs_.begin(), lit.rhs_.end(), [this](auto &guard) { return operator()(guard.second); });
+        return operator()(lit.lhs()) && std::all_of(lit.rhs().begin(), lit.rhs().end(),
+                                                    [this](auto &guard) { return operator()(guard.second); });
     }
 
     auto operator()(LiteralSymbolic const &lit, SyntaxCheck check) const -> bool {
-        if (lit.sign_ != Sign::none) {
+        if (lit.sign() != Sign::none) {
             check = SyntaxCheck::project | SyntaxCheck::project_tuple;
         }
-        return operator()(lit.term_, check);
+        return operator()(lit.term(), check);
     }
 
     // conditional literal
@@ -193,7 +193,7 @@ struct CheckSyntax {
 
     auto operator()(ConditionalLiteral const &lit,
                     SyntaxCheck check = SyntaxCheck::project | SyntaxCheck::project_tuple) const -> bool {
-        return this->operator()(lit.lit_, check) && operator()(lit.cond_);
+        return this->operator()(lit.lit(), check) && operator()(lit.cond());
     }
 
     // aggregate

@@ -17,14 +17,15 @@ struct NegateLiteral {
         return LiteralBoolean{lit.loc(), lit.sign(), !lit.value()};
     }
     auto operator()(LiteralRelation const &lit) const -> Literal {
-        if (lit.rhs_.size() == 1) {
-            auto const &[rel, rhs] = lit.rhs_.front();
-            return LiteralRelation{lit.loc(), lit.sign_, lit.lhs_, Util::make_vec<Guard>(Guard{complement(rel), rhs})};
+        if (lit.rhs().size() == 1) {
+            auto const &[rel, rhs] = lit.rhs().front();
+            return LiteralRelation{lit.loc(), lit.sign(), lit.lhs(),
+                                   Util::make_vec<Guard>(Guard{complement(rel), rhs})};
         }
-        return LiteralRelation{lit.loc(), lit.sign_ + Sign::once, lit.lhs_, lit.rhs_};
+        return LiteralRelation{lit.loc(), lit.sign() + Sign::once, lit.lhs(), lit.rhs()};
     }
     auto operator()(LiteralSymbolic const &lit) const -> Literal {
-        return LiteralSymbolic{lit.loc(), lit.sign_ + Sign::once, lit.term_};
+        return LiteralSymbolic{lit.loc(), lit.sign() + Sign::once, lit.term()};
     }
 };
 
@@ -55,7 +56,7 @@ auto shift(auto const &lit, auto &lits, bool negate) -> std::optional<Literal> {
         append_conjunctive(lits, negate ? NegateLiteral{}(*rel) : Literal{*rel});
         return LiteralBoolean{location(lit), Sign::none, !negate};
     }
-    if (auto const *sym = std::get_if<LiteralSymbolic>(&lit); sym != nullptr && sym->sign_ != Sign::none) {
+    if (auto const *sym = std::get_if<LiteralSymbolic>(&lit); sym != nullptr && sym->sign() != Sign::none) {
         append_conjunctive(lits, negate ? NegateLiteral{}(*sym) : Literal{*sym});
         return LiteralBoolean{location(lit), Sign::none, !negate};
     }
@@ -109,27 +110,27 @@ struct ShiftHead {
                         }
                     }
                     GRINGO_MATCH(x, ConditionalLiteral) {
-                        auto res_cond = unpool_conjunctive(x.cond_);
-                        auto res_lit = shift(x.lit_, res_cond, false);
+                        auto res_cond = unpool_conjunctive(x.cond());
+                        auto res_lit = shift(x.lit(), res_cond, false);
                         if (res_lit || res_cond) {
-                            auto clit = ConditionalLiteral{x.loc(), std::move(res_lit).value_or(x.lit_),
+                            auto clit = ConditionalLiteral{x.loc(), std::move(res_lit).value_or(x.lit()),
                                                            std::move(res_cond).value()};
-                            if (auto *blit = std::get_if<LiteralBoolean>(&clit.lit_); blit != nullptr) {
+                            if (const auto *blit = std::get_if<LiteralBoolean>(&clit.lit()); blit != nullptr) {
                                 res_elems.remove();
                                 assert(blit->sign() == Sign::none);
                                 if (blit->value()) {
                                     body.append(Conjunction{
-                                        ConditionalLiteral{clit.loc(), NegateLiteral{}(*blit), clit.cond_}});
+                                        ConditionalLiteral{clit.loc(), NegateLiteral{}(*blit), clit.cond()}});
                                 }
                             } else {
                                 res_elems.replace(std::move(clit));
                             }
 
-                        } else if (auto *blit = std::get_if<LiteralBoolean>(&x.lit_); blit != nullptr) {
+                        } else if (auto *blit = std::get_if<LiteralBoolean>(&x.lit()); blit != nullptr) {
                             res_elems.remove();
                             assert(blit->sign() == Sign::none);
                             if (blit->value()) {
-                                body.append(Conjunction{ConditionalLiteral{x.loc(), NegateLiteral{}(*blit), x.cond_}});
+                                body.append(Conjunction{ConditionalLiteral{x.loc(), NegateLiteral{}(*blit), x.cond()}});
                             }
                         } else {
                             res_elems.keep();
@@ -198,10 +199,10 @@ struct ShiftBody {
     }
 
     void operator()(Conjunction const &lit) const {
-        auto res_cond = unpool_conjunctive(lit.lit_.cond_);
-        auto res_lit = shift(lit.lit_.lit_, res_cond, true);
+        auto res_cond = unpool_conjunctive(lit.lit_.cond());
+        auto res_lit = shift(lit.lit_.lit(), res_cond, true);
         if (res_lit || res_cond) {
-            body.replace(ConditionalLiteral{lit.lit_.loc(), std::move(res_lit).value_or(lit.lit_.lit_),
+            body.replace(ConditionalLiteral{lit.lit_.loc(), std::move(res_lit).value_or(lit.lit_.lit()),
                                             std::move(res_cond).value()});
         } else {
             body.keep();
@@ -319,9 +320,9 @@ struct UnpoolHeadBody {
                     GRINGO_MATCH(elem, Literal) { return std::nullopt; }
                     GRINGO_MATCH(elem, ConditionalLiteral) {
                         auto build = [&elem](auto lits) -> Disjunction::Element {
-                            return ConditionalLiteral{elem.loc(), elem.lit_, std::move(lits)};
+                            return ConditionalLiteral{elem.loc(), elem.lit(), std::move(lits)};
                         };
-                        return unpool_crossproducts(build, unpool_disjunctive, elem.cond_);
+                        return unpool_crossproducts(build, unpool_disjunctive, elem.cond());
                     }
                 },
                 elem);
@@ -362,9 +363,9 @@ struct UnpoolHeadBody {
 
     auto operator()(Conjunction const &lit) const -> std::optional<std::vector<BodyLiteral>> {
         auto build = [&lit](auto cond) -> BodyLiteral {
-            return Conjunction{ConditionalLiteral{lit.lit_.loc(), lit.lit_.lit_, std::move(cond)}};
+            return Conjunction{ConditionalLiteral{lit.lit_.loc(), lit.lit_.lit(), std::move(cond)}};
         };
-        return unpool_crossproducts(build, unpool_disjunctive, lit.lit_.cond_);
+        return unpool_crossproducts(build, unpool_disjunctive, lit.lit_.cond());
     }
 
     auto operator()(BodyAggregate const &lit) const -> std::optional<std::vector<BodyLiteral>> {
@@ -523,11 +524,11 @@ struct UnpoolStatement {
 
 [[nodiscard]] auto unpool_relations(Literal const &lit, bool conjunctive) -> std::optional<LiteralVec> {
     auto const *rel = std::get_if<LiteralRelation>(&lit);
-    if (rel != nullptr && rel->rhs_.size() > 1 && conjunctive == (rel->sign_ != Sign::once)) {
-        auto const *lhs = &rel->lhs_;
+    if (rel != nullptr && rel->rhs().size() > 1 && conjunctive == (rel->sign() != Sign::once)) {
+        auto const *lhs = &rel->lhs();
         std::vector<Literal> res;
-        for (auto const &rhs : rel->rhs_) {
-            auto cmp = rel->sign_ != Sign::once ? rhs.first : complement(rhs.first);
+        for (auto const &rhs : rel->rhs()) {
+            auto cmp = rel->sign() != Sign::once ? rhs.first : complement(rhs.first);
             res.emplace_back(
                 LiteralRelation{rel->loc(), Sign::none, *lhs, Util::make_vec<Guard>(Guard{cmp, rhs.second})});
             lhs = &rhs.second;

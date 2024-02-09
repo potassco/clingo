@@ -890,10 +890,10 @@ struct SimplifyLiteral {
         bool head = test(flags, SimplifyLiteralFlags::head);
         // whether the elements of the relation are disjunctive or conjunctive
         // (after applying the sign)
-        bool disjunctive = head != (lit.sign_ == Sign::once);
+        bool disjunctive = head != (lit.sign() == Sign::once);
 
         auto fixed_flags = SimplifyTermFlags::none;
-        if (lit.rhs_.size() > 1 && disjunctive) {
+        if (lit.rhs().size() > 1 && disjunctive) {
             // ensure that unpooling preserves terms that can fail
             fixed_flags = SimplifyTermFlags::matchable | SimplifyTermFlags::unfailable;
         }
@@ -915,25 +915,25 @@ struct SimplifyLiteral {
         };
 
         // the truth value of the relation literal if all (signed) comparisions are true
-        auto state = lit.sign_ != Sign::once ? TruthValue::top : TruthValue::bot;
+        auto state = lit.sign() != Sign::once ? TruthValue::top : TruthValue::bot;
         // the truth value of the literal fixed by one of the  comparisons
-        auto state_fixed = lit.sign_ != Sign::once ? TruthValue::bot : TruthValue::top;
+        auto state_fixed = lit.sign() != Sign::once ? TruthValue::bot : TruthValue::top;
         // the truth value if evaluation of a term fails
         auto state_fail = head ? TruthValue::top : TruthValue::bot;
 
         // simplify lhs
         auto match_flags = SimplifyTermFlags::none;
-        if (lit.rhs_.front().first == assign) {
+        if (lit.rhs().front().first == assign) {
             match_flags = SimplifyTermFlags::matchable | SimplifyTermFlags::nested_matchable;
         }
 
         // binary assignment
-        if (lit.rhs_.size() == 1 && lit.rhs_.front().first == assign) {
+        if (lit.rhs().size() == 1 && lit.rhs().front().first == assign) {
             // Note: in theory the left hand side could even be a more complex term that
             // is made machable (but not nested matchable).
-            if (!is_variable(lit.lhs_) && is_variable(lit.rhs_.front().second)) {
-                auto inv = LiteralRelation{lit.loc(), lit.sign_, lit.rhs_.front().second,
-                                           Util::make_vec<Guard>(Guard{assign, lit.lhs_})};
+            if (!is_variable(lit.lhs()) && is_variable(lit.rhs().front().second)) {
+                auto inv = LiteralRelation{lit.loc(), lit.sign(), lit.rhs().front().second,
+                                           Util::make_vec<Guard>(Guard{assign, lit.lhs()})};
                 auto res = operator()(inv, flags);
                 if (!res.value.has_value()) {
                     res.value = std::move(inv);
@@ -941,21 +941,21 @@ struct SimplifyLiteral {
                 return res;
             }
 
-            if (lit.rhs_.size() == 1 && lit.rhs_.front().first == assign && is_variable(lit.lhs_)) {
+            if (lit.rhs().size() == 1 && lit.rhs().front().first == assign && is_variable(lit.lhs())) {
                 fixed_flags |= SimplifyTermFlags::preserve_toplevel;
             }
         }
 
-        auto [succeeded, res_lhs] = simplify(fixed_flags | match_flags, ctx, lit.lhs_);
+        auto [succeeded, res_lhs] = simplify(fixed_flags | match_flags, ctx, lit.lhs());
 
         // simplify rhs
-        auto res_rhs = Util::ResultVec{lit.rhs_};
-        auto prev_symbol = get_constant(lit.lhs_, res_lhs);
+        auto res_rhs = Util::ResultVec{lit.rhs()};
+        auto prev_symbol = get_constant(lit.lhs(), res_lhs);
         size_t n = 0;
-        for (auto const &[rel, term] : lit.rhs_) {
+        for (auto const &[rel, term] : lit.rhs()) {
             ++n;
             match_flags = SimplifyTermFlags::none;
-            if (rel == assign || (n < lit.rhs_.size() && lit.rhs_[n].first == assign)) {
+            if (rel == assign || (n < lit.rhs().size() && lit.rhs()[n].first == assign)) {
                 match_flags = SimplifyTermFlags::matchable | SimplifyTermFlags::nested_matchable;
             }
             auto [state_term, res_term] = simplify(fixed_flags | match_flags, ctx, term);
@@ -986,9 +986,9 @@ struct SimplifyLiteral {
         if (state != TruthValue::unknown) {
             return {state, make_constant(lit.loc(), state == TruthValue::top)};
         }
-        if (res_lhs.has_value() || res_rhs.has_value() || lit.sign_ == Sign::twice) {
-            auto sign = lit.sign_ == Sign::twice ? Sign::none : lit.sign_;
-            return {TruthValue::unknown, LiteralRelation{lit.loc(), sign, std::move(res_lhs).value_or(lit.lhs_),
+        if (res_lhs.has_value() || res_rhs.has_value() || lit.sign() == Sign::twice) {
+            auto sign = lit.sign() == Sign::twice ? Sign::none : lit.sign();
+            return {TruthValue::unknown, LiteralRelation{lit.loc(), sign, std::move(res_lhs).value_or(lit.lhs()),
                                                          std::move(res_rhs).value()}};
         }
         return {TruthValue::unknown};
@@ -1005,15 +1005,15 @@ struct SimplifyLiteral {
 
         if (test(flags, SimplifyLiteralFlags::unfailable)) {
             sub_flags |= SimplifyTermFlags::matchable | SimplifyTermFlags::unfailable;
-        } else if (test(flags, SimplifyLiteralFlags::matchable) && (!head && lit.sign_ == Sign::none)) {
+        } else if (test(flags, SimplifyLiteralFlags::matchable) && (!head && lit.sign() == Sign::none)) {
             sub_flags |= SimplifyTermFlags::matchable;
         }
-        auto [state, res] = simplify(sub_flags, ctx, lit.term_);
+        auto [state, res] = simplify(sub_flags, ctx, lit.term());
         if (!state) {
             return {head ? TruthValue::top : TruthValue::bot, make_constant(lit.loc(), head)};
         }
         return {TruthValue::unknown, Util::transform(std::move(res), [&](auto term) {
-                    return LiteralSymbolic{lit.loc(), lit.sign_, std::move(term)};
+                    return LiteralSymbolic{lit.loc(), lit.sign(), std::move(term)};
                 })};
     }
 
@@ -1046,7 +1046,7 @@ struct LiteralToTuple {
         std::vector<Term> res;
         res.reserve(2);
         int i = 0;
-        switch (lit.sign_) {
+        switch (lit.sign()) {
             case Sign::none: {
                 i = 0;
                 break;
@@ -1061,7 +1061,7 @@ struct LiteralToTuple {
             }
         }
         res.emplace_back(TermSymbol{lit.loc(), store.num(i)});
-        res.emplace_back(lit.term_);
+        res.emplace_back(lit.term());
         return res;
     }
 
@@ -1134,8 +1134,8 @@ struct LiteralToTuple {
     -> SimplifyResult<ConditionalLiteral> {
     auto guard = ctx.push();
     auto [state_lit, res_lit] =
-        simplify(conjunctive ? SimplifyLiteralFlags::head : SimplifyLiteralFlags::matchable, ctx, lit.lit_);
-    auto [state_cond, res_cond] = simplify_litvec(ctx, lit.cond_);
+        simplify(conjunctive ? SimplifyLiteralFlags::head : SimplifyLiteralFlags::matchable, ctx, lit.lit());
+    auto [state_cond, res_cond] = simplify_litvec(ctx, lit.cond());
 
     auto state_fixed = conjunctive ? TruthValue::top : TruthValue::bot;
     auto state = TruthValue::unknown;
@@ -1143,7 +1143,7 @@ struct LiteralToTuple {
     // elements of *junctions can be removed if their conclusion is neutral
     if (state_lit == state_fixed) {
         // ensure result: "#true/#false:"
-        if (!lit.cond_.empty()) {
+        if (!lit.cond().empty()) {
             res_cond = LiteralVec{};
         }
         state = state_fixed;
@@ -1158,8 +1158,8 @@ struct LiteralToTuple {
     }
 
     if (res_lit || res_cond) {
-        return {state, ConditionalLiteral{lit.loc(), std::move(res_lit).value_or(lit.lit_),
-                                          std::move(res_cond).value_or(lit.cond_)}};
+        return {state, ConditionalLiteral{lit.loc(), std::move(res_lit).value_or(lit.lit()),
+                                          std::move(res_cond).value_or(lit.cond())}};
     }
     return {state};
 }

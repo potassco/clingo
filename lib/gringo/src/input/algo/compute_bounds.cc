@@ -192,19 +192,19 @@ struct ExtractInequalities {
     void operator()(auto const &lit) const { static_cast<void>(lit); }
 
     void operator()(LiteralRelation const &lit) const {
-        assert(lit.sign_ == Sign::none);
-        auto const &rhs = lit.rhs_.front();
+        assert(lit.sign() == Sign::none);
+        auto const &rhs = lit.rhs().front();
         int bound = 0;
         // handle intervals
         //   X = u..t -> X - u >= 0
         //               t - X >= 0
-        if (is_variable(lit.lhs_) && is_interval(rhs.second)) {
+        if (is_variable(lit.lhs()) && is_interval(rhs.second)) {
             auto const &u = *std::get<TermBinary>(rhs.second).lhs();
             auto const &t = *std::get<TermBinary>(rhs.second).rhs();
-            if (IETermVec terms; ExtractTerms{terms, true}(lit.lhs_) && ExtractTerms{terms, false}(u)) {
+            if (IETermVec terms; ExtractTerms{terms, true}(lit.lhs()) && ExtractTerms{terms, false}(u)) {
                 slv.add(IE{std::move(terms), bound});
             }
-            if (IETermVec terms; ExtractTerms{terms, false}(lit.lhs_) && ExtractTerms{terms, true}(t)) {
+            if (IETermVec terms; ExtractTerms{terms, false}(lit.lhs()) && ExtractTerms{terms, true}(t)) {
                 slv.add(IE{std::move(terms), bound});
             }
             return;
@@ -223,7 +223,7 @@ struct ExtractInequalities {
                 [[fallthrough]];
             }
             case Relation::greater_equal: {
-                if (IETermVec terms; ExtractTerms{terms, true}(lit.lhs_) && ExtractTerms{terms, false}(rhs.second)) {
+                if (IETermVec terms; ExtractTerms{terms, true}(lit.lhs()) && ExtractTerms{terms, false}(rhs.second)) {
                     slv.add(IE{std::move(terms), bound});
                 }
                 break;
@@ -233,16 +233,16 @@ struct ExtractInequalities {
                 [[fallthrough]];
             }
             case Relation::less_equal: {
-                if (IETermVec terms; ExtractTerms{terms, false}(lit.lhs_) && ExtractTerms{terms, true}(rhs.second)) {
+                if (IETermVec terms; ExtractTerms{terms, false}(lit.lhs()) && ExtractTerms{terms, true}(rhs.second)) {
                     slv.add(IE{std::move(terms), bound});
                 }
                 break;
             }
             case Relation::equal: {
-                if (IETermVec terms; ExtractTerms{terms, true}(lit.lhs_) && ExtractTerms{terms, false}(rhs.second)) {
+                if (IETermVec terms; ExtractTerms{terms, true}(lit.lhs()) && ExtractTerms{terms, false}(rhs.second)) {
                     slv.add(IE{std::move(terms), bound});
                 }
-                if (IETermVec terms; ExtractTerms{terms, false}(lit.lhs_) && ExtractTerms{terms, true}(rhs.second)) {
+                if (IETermVec terms; ExtractTerms{terms, false}(lit.lhs()) && ExtractTerms{terms, true}(rhs.second)) {
                     slv.add(IE{std::move(terms), bound});
                 }
                 break;
@@ -277,8 +277,8 @@ struct ApplyBounds {
     }
 
     auto operator()(LiteralRelation const &lit) const -> Util::ResultState<Literal> {
-        assert(lit.sign_ == Sign::none);
-        auto const &rhs = lit.rhs_.front();
+        assert(lit.sign() == Sign::none);
+        auto const &rhs = lit.rhs().front();
         auto make_symbol = [this](TermSymbol const &sym, auto &&bound) {
             if (sym.value().num() == bound) {
                 return sym;
@@ -299,8 +299,8 @@ struct ApplyBounds {
                                               Guard{Relation::equal, TermBinary{std::move(loc), std::move(u),
                                                                                 BinaryOperator::dots, std::move(v)}})}};
         };
-        if (is_variable(lit.lhs_) && is_interval(rhs.second)) {
-            auto const *var = std::get_if<TermVariable>(&lit.lhs_);
+        if (is_variable(lit.lhs()) && is_interval(rhs.second)) {
+            auto const *var = std::get_if<TermVariable>(&lit.lhs());
             auto it = dom.find(var->name());
             if (it == dom.end()) {
                 return {true};
@@ -326,7 +326,7 @@ struct ApplyBounds {
                 res_t = make_symbol(*t, it->second.value(IEInterval::Upper));
             }
             if (res_u || res_t) {
-                return make_interval(lit.lhs_, location(rhs.second), std::move(res_u).value_or(*u),
+                return make_interval(lit.lhs(), location(rhs.second), std::move(res_u).value_or(*u),
                                      std::move(res_t).value_or(*t));
             }
             return {true};
@@ -393,10 +393,10 @@ struct ApplyBounds {
             }
             return {true};
         };
-        if (auto res = update_bound(lit.lhs_, rhs.first, rhs.second); !res.state || res.value) {
+        if (auto res = update_bound(lit.lhs(), rhs.first, rhs.second); !res.state || res.value) {
             return res;
         }
-        return update_bound(rhs.second, flip(rhs.first), lit.lhs_);
+        return update_bound(rhs.second, flip(rhs.first), lit.lhs());
     }
 
     IEDomain const &dom;
@@ -570,8 +570,8 @@ struct ComputeBounds {
         auto res_elems = Util::ResultVec{lit.elems_};
         for (auto const &elem : lit.elems_) {
             if (auto const *clit = std::get_if<ConditionalLiteral>(&elem)) {
-                compute_bounds_elem(clit->loc(), res_elems, clit->cond_, std::in_place_type<ConditionalLiteral>,
-                                    clit->loc(), clit->lit_, rt);
+                compute_bounds_elem(clit->loc(), res_elems, clit->cond(), std::in_place_type<ConditionalLiteral>,
+                                    clit->loc(), clit->lit(), rt);
             }
         }
         if (res_elems) {
@@ -602,13 +602,13 @@ struct ComputeBounds {
 
     auto operator()(Conjunction const &conj) -> Util::ResultState<BodyLiteral> {
         auto sub_slv = IESolver{&slv};
-        auto [state_cond, res_cond] = compute_bounds(sub_slv, conj.lit_.loc(), conj.lit_.cond_);
+        auto [state_cond, res_cond] = compute_bounds(sub_slv, conj.lit_.loc(), conj.lit_.cond());
         if (!state_cond) {
             return {false, SimpleBodyLiteral{LiteralBoolean{conj.lit_.loc(), Sign::none, false}}};
         }
         if (res_cond) {
             return {true,
-                    Conjunction{ConditionalLiteral{conj.lit_.loc(), conj.lit_.lit_, std::move(res_cond).value()}}};
+                    Conjunction{ConditionalLiteral{conj.lit_.loc(), conj.lit_.lit(), std::move(res_cond).value()}}};
         }
         return {true};
     }

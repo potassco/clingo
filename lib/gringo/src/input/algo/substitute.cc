@@ -188,8 +188,8 @@ struct MapParams : Transformer<MapParams> {
     // literal
 
     [[nodiscard]] auto accept(LiteralSymbolic const &lit) const -> std::optional<Literal> {
-        if (!is_identifier(lit.term_)) {
-            return transform_construct<LiteralSymbolic>(lit.loc(), lit.sign_, tr(lit.term_));
+        if (!is_identifier(lit.term())) {
+            return transform_construct<LiteralSymbolic>(lit.loc(), lit.sign(), tr(lit.term()));
         }
         return std::nullopt;
     }
@@ -304,8 +304,8 @@ struct Collect : Visitor<Collect> {
     // literal
 
     void accept(LiteralSymbolic const &lit) const {
-        if (!is_identifier(lit.term_)) {
-            visit(lit.term_);
+        if (!is_identifier(lit.term())) {
+            visit(lit.term());
         }
     }
 

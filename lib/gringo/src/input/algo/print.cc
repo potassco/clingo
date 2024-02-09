@@ -344,22 +344,22 @@ struct Print {
     void operator()(LiteralBoolean const &lit) const { out << lit.sign() << (lit.value() ? "#true" : "#false"); }
 
     void operator()(LiteralRelation const &lit) const {
-        out << lit.sign_ << lit.lhs_;
-        for (auto const &[rel, term] : lit.rhs_) {
+        out << lit.sign() << lit.lhs();
+        for (auto const &[rel, term] : lit.rhs()) {
             out << rel << term;
         }
     }
 
-    void operator()(LiteralSymbolic const &lit) const { out << lit.sign_ << lit.term_; }
+    void operator()(LiteralSymbolic const &lit) const { out << lit.sign() << lit.term(); }
 
     // conditional literal
 
     void operator()(LiteralVec const &lits) const { visit_range(lits, ", "); }
 
     void operator()(ConditionalLiteral const &lit) const {
-        operator()(lit.lit_);
+        operator()(lit.lit());
         out << ": ";
-        operator()(lit.cond_);
+        operator()(lit.cond());
     }
 
     void operator()(SetAggregateElement const &elem) const {
