@@ -546,7 +546,7 @@ struct ComputeBounds {
         if constexpr (Body) {
             if (res_elems) {
                 return {true,
-                        BodyTheoryAtom{lit.loc(), lit.sign_, lit.name(), std::move(res_elems).value(), lit.rhs()}};
+                        BodyTheoryAtom{lit.loc(), lit.sign(), lit.name(), std::move(res_elems).value(), lit.rhs()}};
             }
             return {true};
         } else {

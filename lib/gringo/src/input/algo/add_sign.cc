@@ -10,7 +10,7 @@ struct AddSign {
     auto operator()(Literal const &lit) const -> Literal { return std::visit(*this, lit); }
 
     auto operator()(LiteralBoolean const &lit) const -> Literal {
-        return LiteralBoolean{lit.loc() + pos, lit.sign_ + sign, lit.value_};
+        return LiteralBoolean{lit.loc() + pos, lit.sign() + sign, lit.value()};
     }
     auto operator()(LiteralRelation const &lit) const -> Literal {
         return LiteralRelation{lit.loc() + pos, lit.sign_ + sign, lit.lhs_, lit.rhs_};
@@ -31,10 +31,10 @@ struct AddSign {
         return BodyAggregate{lit.loc() + pos, lit.sign_ + sign, lit.lhs_, lit.fun_, lit.elems_, lit.rhs_};
     }
     auto operator()(BodySetAggregate const &lit) const -> BodyLiteral {
-        return BodySetAggregate{lit.loc() + pos, lit.sign_ + sign, lit.lhs_, lit.elems_, lit.rhs_};
+        return BodySetAggregate{lit.loc() + pos, lit.sign() + sign, lit.lhs_, lit.elems_, lit.rhs_};
     }
     auto operator()(BodyTheoryAtom const &lit) const -> BodyLiteral {
-        return BodyTheoryAtom{lit.loc() + pos, lit.sign_ + sign, lit.name(),
+        return BodyTheoryAtom{lit.loc() + pos, lit.sign() + sign, lit.name(),
                               TheoryElementVec{lit.elems().begin(), lit.elems().end()}, lit.rhs()};
     }
 

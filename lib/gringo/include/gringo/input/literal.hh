@@ -28,10 +28,23 @@ auto operator+=(Sign &a, Sign b) -> Sign &;
 //! Simple class with a sign.
 class Signed {
   public:
+    //! Construct with the given sign.
     explicit Signed(Sign sign) : sign_{sign} {}
     //! The sign of the class.
+    [[nodiscard]] auto sign() const -> Sign { return sign_; };
+
+  private:
+    friend auto operator==(Signed const &a, Signed const &b) -> bool;
+    friend auto operator<(Signed const &a, Signed const &b) -> bool;
+
     Sign sign_;
 };
+
+//! Compare the signs.
+auto operator==(Signed const &a, Signed const &b) -> bool;
+
+//! Compare the signs.
+auto operator<(Signed const &a, Signed const &b) -> bool;
 
 //! Simple class without a sign.
 class Unsigned {};
@@ -66,14 +79,18 @@ class LiteralBoolean {
 
     //! The location of the literal.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The sign of the literal.
+    [[nodiscard]] auto sign() const -> Sign { return sign_; }
+    //! The Boolean value.
+    [[nodiscard]] auto value() const -> bool { return value_; }
 
   private:
-    Location loc_;
+    friend auto operator==(LiteralBoolean const &a, LiteralBoolean const &b) -> bool;
+    friend auto operator<(LiteralBoolean const &a, LiteralBoolean const &b) -> bool;
+    friend struct Util::value_hasher<LiteralBoolean>;
 
-  public:
-    //! The sign of the literal.
+    Location loc_;
     Sign sign_;
-    //! The Boolean value.
     bool value_;
 };
 

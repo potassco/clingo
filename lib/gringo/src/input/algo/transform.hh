@@ -319,7 +319,7 @@ template <class T> class Transformer {
     }
 
     [[nodiscard]] auto accept_(BodySetAggregate const &lit) const -> std::optional<BodyLiteral> {
-        return transform_construct<BodySetAggregate>(lit.loc(), lit.sign_, tr(lit.lhs_), tr(lit.elems_), tr(lit.rhs_));
+        return transform_construct<BodySetAggregate>(lit.loc(), lit.sign(), tr(lit.lhs_), tr(lit.elems_), tr(lit.rhs_));
     }
 
     [[nodiscard]] auto accept_(BodyAggregate::Element const &elem) const -> std::optional<BodyAggregate::Element> {
@@ -332,7 +332,7 @@ template <class T> class Transformer {
     }
 
     [[nodiscard]] auto accept_(BodyTheoryAtom const &lit) const -> std::optional<BodyLiteral> {
-        return transform_construct<BodyTheoryAtom>(lit.loc(), lit.sign_, tr(lit.name()), tr(lit.elems()),
+        return transform_construct<BodyTheoryAtom>(lit.loc(), lit.sign(), tr(lit.name()), tr(lit.elems()),
                                                    tr(lit.rhs()));
     }
 

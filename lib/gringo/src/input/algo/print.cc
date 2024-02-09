@@ -341,7 +341,7 @@ struct Print {
 
     void operator()(Literal const &lit) const { std::visit(*this, lit); }
 
-    void operator()(LiteralBoolean const &lit) const { out << lit.sign_ << (lit.value_ ? "#true" : "#false"); }
+    void operator()(LiteralBoolean const &lit) const { out << lit.sign() << (lit.value() ? "#true" : "#false"); }
 
     void operator()(LiteralRelation const &lit) const {
         out << lit.sign_ << lit.lhs_;
@@ -372,7 +372,7 @@ struct Print {
 
     template <bool HasSign> void operator()(SetAggregate<HasSign> const &aggr) const {
         if constexpr (HasSign) {
-            out << aggr.sign_;
+            out << aggr.sign();
         }
         if (aggr.lhs_.has_value()) {
             out << aggr.lhs_->first << " " << aggr.lhs_->second << " ";
@@ -395,7 +395,7 @@ struct Print {
 
     template <bool HasSign> void operator()(TheoryAtom<HasSign> const &atom) const {
         if constexpr (HasSign) {
-            out << atom.sign_;
+            out << atom.sign();
         }
         out << "&" << atom.name();
         auto const &elems = atom.elems();

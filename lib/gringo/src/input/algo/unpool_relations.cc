@@ -14,7 +14,7 @@ namespace {
 struct NegateLiteral {
     auto operator()(Literal const &lit) const -> Literal { return std::visit(*this, lit); }
     auto operator()(LiteralBoolean const &lit) const -> Literal {
-        return LiteralBoolean{lit.loc(), lit.sign_, !lit.value_};
+        return LiteralBoolean{lit.loc(), lit.sign(), !lit.value()};
     }
     auto operator()(LiteralRelation const &lit) const -> Literal {
         if (lit.rhs_.size() == 1) {
@@ -116,10 +116,10 @@ struct ShiftHead {
                                                            std::move(res_cond).value()};
                             if (auto *blit = std::get_if<LiteralBoolean>(&clit.lit_); blit != nullptr) {
                                 res_elems.remove();
-                                assert(blit->sign_ == Sign::none);
-                                if (blit->value_) {
-                                    blit->value_ = false;
-                                    body.append(Conjunction{std::move(clit)});
+                                assert(blit->sign() == Sign::none);
+                                if (blit->value()) {
+                                    body.append(Conjunction{
+                                        ConditionalLiteral{clit.loc(), NegateLiteral{}(*blit), clit.cond_}});
                                 }
                             } else {
                                 res_elems.replace(std::move(clit));
@@ -127,8 +127,8 @@ struct ShiftHead {
 
                         } else if (auto *blit = std::get_if<LiteralBoolean>(&x.lit_); blit != nullptr) {
                             res_elems.remove();
-                            assert(blit->sign_ == Sign::none);
-                            if (blit->value_) {
+                            assert(blit->sign() == Sign::none);
+                            if (blit->value()) {
                                 body.append(Conjunction{ConditionalLiteral{x.loc(), NegateLiteral{}(*blit), x.cond_}});
                             }
                         } else {
@@ -240,7 +240,8 @@ struct ShiftBody {
     }
 
     void operator()(BodyTheoryAtom const &atom) const {
-        body.update(Util::update<BodyTheoryAtom>(atom.loc(), atom.sign_, atom.name(), shift(atom.elems()), atom.rhs()));
+        body.update(
+            Util::update<BodyTheoryAtom>(atom.loc(), atom.sign(), atom.name(), shift(atom.elems()), atom.rhs()));
     }
 
     Util::ResultVec<BodyLiteral> &body;
@@ -289,7 +290,7 @@ struct UnpoolHeadBody {
         auto res_elems = unpool_union(atom.elems(), unpool_elem);
         auto res = std::optional<TheoryAtom<HasSign>>{std::nullopt};
         if constexpr (HasSign) {
-            res = Util::update<BodyTheoryAtom>(atom.loc(), atom.sign_, atom.name(),
+            res = Util::update<BodyTheoryAtom>(atom.loc(), atom.sign(), atom.name(),
                                                UPA{atom.elems(), std::move(res_elems)}, atom.rhs());
         } else {
             res = Util::update<HeadTheoryAtom>(atom.loc(), atom.name(), UPA{atom.elems(), std::move(res_elems)},

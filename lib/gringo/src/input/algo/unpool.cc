@@ -305,7 +305,7 @@ struct Unpool {
                 unpool_elem<HasSign>(to_tuple, elem, elems);
             }
             if constexpr (HasSign) {
-                return BodyLiteral{BodyAggregate{aggr.loc(), aggr.sign_, std::move(lhs), AggregateFunction::count,
+                return BodyLiteral{BodyAggregate{aggr.loc(), aggr.sign(), std::move(lhs), AggregateFunction::count,
                                                  std::move(elems), std::move(rhs)}};
             } else {
                 return HeadLiteral{HeadAggregate{aggr.loc(), std::move(lhs), AggregateFunction::count, std::move(elems),
@@ -342,7 +342,7 @@ struct Unpool {
             [&atom](auto name, auto elems) {
                 if constexpr (HasSign) {
                     return BodyLiteral{
-                        BodyTheoryAtom{atom.loc(), atom.sign_, std::move(name), std::move(elems), atom.rhs()}};
+                        BodyTheoryAtom{atom.loc(), atom.sign(), std::move(name), std::move(elems), atom.rhs()}};
                 } else {
                     return HeadLiteral{HeadTheoryAtom{atom.loc(), std::move(name), std::move(elems), atom.rhs()}};
                 }

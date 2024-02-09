@@ -457,7 +457,7 @@ struct CheckLocal {
         }
         if (res_elems) {
             return {true,
-                    BodyTheoryAtom{blit.loc(), blit.sign_, blit.name(), std::move(res_elems).value(), blit.rhs()}};
+                    BodyTheoryAtom{blit.loc(), blit.sign(), blit.name(), std::move(res_elems).value(), blit.rhs()}};
         }
         return {true};
     }

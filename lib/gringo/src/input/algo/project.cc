@@ -203,11 +203,11 @@ struct Project : Transformer<Project> {
     }
 
     [[nodiscard]] auto accept(BodySetAggregate const &lit) const -> std::optional<BodyLiteral> {
-        if (lit.sign_ == Sign::none && !in_classical_scope &&
+        if (lit.sign() == Sign::none && !in_classical_scope &&
             reduct_is_nonmonotone(lit.lhs_, AggregateFunction::count, lit.rhs_)) {
             return std::nullopt;
         }
-        return transform_construct<BodySetAggregate>(lit.loc(), lit.sign_, lit.lhs_, tr(lit.elems_), lit.rhs_);
+        return transform_construct<BodySetAggregate>(lit.loc(), lit.sign(), lit.lhs_, tr(lit.elems_), lit.rhs_);
     }
 
     [[nodiscard]] static auto accept(BodyTheoryAtom const &lit) -> std::optional<BodyLiteral> {

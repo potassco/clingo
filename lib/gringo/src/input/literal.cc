@@ -85,6 +85,10 @@ auto complement(Relation rel) -> Relation {
     return Relation::greater;
 }
 
+auto operator==(Signed const &a, Signed const &b) -> bool { return a.sign_ == b.sign_; }
+
+auto operator<(Signed const &a, Signed const &b) -> bool { return a.sign_ < b.sign_; }
+
 auto operator==(LiteralBoolean const &a, LiteralBoolean const &b) -> bool {
     return std::tie(a.sign_, a.value_) == std::tie(b.sign_, b.value_);
 }

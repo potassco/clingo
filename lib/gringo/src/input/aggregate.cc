@@ -11,11 +11,13 @@ auto operator<(SetAggregateElement const &a, SetAggregateElement const &b) -> bo
 }
 
 template <> auto operator==(SetAggregate<true> const &a, SetAggregate<true> const &b) -> bool {
-    return std::tie(a.sign_, a.lhs_, a.elems_, a.rhs_) == std::tie(b.sign_, b.lhs_, b.elems_, b.rhs_);
+    return std::tie(static_cast<Signed const &>(a), a.lhs_, a.elems_, a.rhs_) ==
+           std::tie(static_cast<Signed const &>(b), b.lhs_, b.elems_, b.rhs_);
 }
 
 template <> auto operator<(SetAggregate<true> const &a, SetAggregate<true> const &b) -> bool {
-    return std::tie(a.sign_, a.lhs_, a.elems_, a.rhs_) < std::tie(b.sign_, b.lhs_, b.elems_, b.rhs_);
+    return std::tie(static_cast<Signed const &>(a), a.lhs_, a.elems_, a.rhs_) <
+           std::tie(static_cast<Signed const &>(b), b.lhs_, b.elems_, b.rhs_);
 }
 
 template <> auto operator==(SetAggregate<false> const &a, SetAggregate<false> const &b) -> bool {
@@ -37,7 +39,7 @@ auto value_hasher<Gringo::Input::SetAggregateElement>::operator()(Gringo::Input:
 
 auto value_hasher<Gringo::Input::SetAggregate<true>>::operator()(Gringo::Input::SetAggregate<true> const &x) const
     -> size_t {
-    return Gringo::Util::value_hash(typeid(Gringo::Input::SetAggregate<true>), x.sign_, x.lhs_, x.elems_, x.rhs_);
+    return Gringo::Util::value_hash(typeid(Gringo::Input::SetAggregate<true>), x.sign(), x.lhs_, x.elems_, x.rhs_);
 }
 
 auto value_hasher<Gringo::Input::SetAggregate<false>>::operator()(Gringo::Input::SetAggregate<false> const &x) const

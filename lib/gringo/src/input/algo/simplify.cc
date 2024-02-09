@@ -834,10 +834,10 @@ struct SimplifyLiteral {
     //! Ensures that the literal is either true or false.
     auto operator()(LiteralBoolean const &lit, SimplifyLiteralFlags flags) const -> SimplifyResult<Literal> {
         static_cast<void>(flags);
-        auto value = (lit.sign_ != Sign::once) == lit.value_;
+        auto value = (lit.sign() != Sign::once) == lit.value();
         auto state = value ? TruthValue::top : TruthValue::bot;
 
-        if (lit.sign_ != Sign::none) {
+        if (lit.sign() != Sign::none) {
             return {state, make_constant(lit.loc(), value)};
         }
         return {state};
@@ -1549,7 +1549,7 @@ auto simplify_theory_atom(RewriteContext &ctx, TheoryAtom<HasSign> const &lit) -
                                                                   std::move(res_elems), lit.rhs())};
     } else {
         return {TruthValue::unknown,
-                Util::update<BodyTheoryAtom>(lit.loc(), lit.sign_, UPA{lit.name(), std::move(res_name)},
+                Util::update<BodyTheoryAtom>(lit.loc(), lit.sign(), UPA{lit.name(), std::move(res_name)},
                                              std::move(res_elems), lit.rhs())};
     }
 }

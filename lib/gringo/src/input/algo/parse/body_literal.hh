@@ -20,7 +20,7 @@ inline auto construct_body_aggr(Term term, Relation rel, BodyAggregate aggr) -> 
 }
 
 inline auto construct_body_aggr(Term term, Relation rel, BodySetAggregate aggr) -> BodySetAggregate {
-    return BodySetAggregate{location(term).begin + aggr.loc(), aggr.sign_, LGuard::value_type{std::move(term), rel},
+    return BodySetAggregate{location(term).begin + aggr.loc(), aggr.sign(), LGuard::value_type{std::move(term), rel},
                             std::move(aggr.elems_), aggr.rhs_};
 }
 

@@ -758,8 +758,8 @@ auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<
         TYPE(theory_term_tuple, TheoryTermTuple,
             ATTR(tuple_type, type))
         TYPE(literal_boolean, LiteralBoolean,
-            ATTR_OLD(sign, sign_)
-            ATTR_OLD(value, value_))
+            ATTR(sign, sign)
+            ATTR(value, value))
         TYPE(literal_symbolic, LiteralSymbolic,
             ATTR_OLD(sign, sign_))
         TYPE(literal_comparison, LiteralRelation,
@@ -769,9 +769,9 @@ auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<
         TYPE(right_guard, RGuard::value_type,
             ATTR_OLD(relation, first))
         TYPE(body_theory_atom, BodyTheoryAtom,
-            ATTR_OLD(sign, sign_))
+            ATTR(sign, sign))
         TYPE(body_set_aggregate, BodySetAggregate,
-            ATTR_OLD(sign, sign_))
+            ATTR(sign, sign))
         TYPE(head_aggregate, HeadAggregate,
             ATTR_OLD(function, fun_))
         TYPE(body_aggregate, BodyAggregate,

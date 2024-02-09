@@ -109,13 +109,13 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
     }
 
     [[nodiscard]] auto accept(BodySetAggregate const &lit) const -> std::optional<BodyLiteral> {
-        return transform_construct<BodySetAggregate>(lit.loc(), lit.sign_, lit.lhs_, tr(lit.elems_), lit.rhs_);
+        return transform_construct<BodySetAggregate>(lit.loc(), lit.sign(), lit.lhs_, tr(lit.elems_), lit.rhs_);
     }
 
     // theory
 
     [[nodiscard]] auto accept(BodyTheoryAtom const &lit) const -> std::optional<BodyLiteral> {
-        return transform_construct<BodyTheoryAtom>(lit.loc(), lit.sign_, lit.name(), tr(lit.elems()), lit.rhs());
+        return transform_construct<BodyTheoryAtom>(lit.loc(), lit.sign(), lit.name(), tr(lit.elems()), lit.rhs());
     }
 
     // statement

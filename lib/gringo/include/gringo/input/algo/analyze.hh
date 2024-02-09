@@ -76,7 +76,7 @@ auto check_type(Term const &term, TermCheckType type, CheckTypeResult *res = nul
 //! Get the truth value of a literal, in case it is a Boolean constant.
 [[nodiscard]] inline auto is_fixed(Literal const &lit) -> std::optional<bool> {
     if (auto const *blit = std::get_if<LiteralBoolean>(&lit); blit != nullptr) {
-        return blit->value_ == (blit->sign_ != Sign::once);
+        return blit->value() == (blit->sign() != Sign::once);
     }
     return std::nullopt;
 }
@@ -99,7 +99,7 @@ auto is_atom(BodyLiteral const &lit) -> bool;
 //! Check if a literal is a boolean constant.
 inline auto is_boolean(Literal const &lit) -> std::optional<bool> {
     if (auto const *lb = std::get_if<LiteralBoolean>(&lit); lb != nullptr) {
-        return lb->value_ == (lb->sign_ != Sign::once);
+        return lb->value() == (lb->sign() != Sign::once);
     }
     return std::nullopt;
 }

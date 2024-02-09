@@ -39,11 +39,13 @@ auto operator<(TheoryElement const &a, TheoryElement const &b) -> bool {
 }
 
 auto operator==(TheoryAtom<true> const &a, TheoryAtom<true> const &b) -> bool {
-    return std::tie(a.sign_, a.name_, a.elems_, a.rhs_) == std::tie(b.sign_, b.name_, b.elems_, b.rhs_);
+    return std::tie(static_cast<Signed const &>(a), a.name_, a.elems_, a.rhs_) ==
+           std::tie(static_cast<Signed const &>(b), b.name_, b.elems_, b.rhs_);
 }
 
 auto operator<(TheoryAtom<true> const &a, TheoryAtom<true> const &b) -> bool {
-    return std::tie(a.sign_, a.name_, a.elems_, a.rhs_) < std::tie(b.sign_, b.name_, b.elems_, b.rhs_);
+    return std::tie(static_cast<Signed const &>(a), a.name_, a.elems_, a.rhs_) <
+           std::tie(static_cast<Signed const &>(b), b.name_, b.elems_, b.rhs_);
 }
 
 auto operator==(TheoryAtom<false> const &a, TheoryAtom<false> const &b) -> bool {
@@ -88,7 +90,7 @@ auto value_hasher<Gringo::Input::TheoryElement>::operator()(Gringo::Input::Theor
 
 auto value_hasher<Gringo::Input::TheoryAtom<true>>::operator()(Gringo::Input::TheoryAtom<true> const &x) const
     -> size_t {
-    return Gringo::Util::value_hash(typeid(Gringo::Input::TheoryAtom<true>), x.sign_, x.name_, x.elems_, x.rhs_);
+    return Gringo::Util::value_hash(typeid(Gringo::Input::TheoryAtom<true>), x.sign(), x.name_, x.elems_, x.rhs_);
 }
 
 auto value_hasher<Gringo::Input::TheoryAtom<false>>::operator()(Gringo::Input::TheoryAtom<false> const &x) const
