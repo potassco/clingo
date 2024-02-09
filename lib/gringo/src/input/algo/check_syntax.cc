@@ -112,12 +112,12 @@ struct CheckSyntax {
                 break;
             }
         }
-        return operator()(term.rhs(), check);
+        return operator()(*term.rhs(), check);
     }
 
     auto operator()(TermBinary const &term, SyntaxCheck check) const -> bool {
         static_cast<void>(check);
-        return operator()(term.lhs()) && operator()(term.rhs());
+        return operator()(*term.lhs()) && operator()(*term.rhs());
     }
 
     // theory terms
@@ -185,9 +185,7 @@ struct CheckSyntax {
 
     // conditional literal
 
-    auto operator()(LiteralVec const &lits) const -> bool { return operator()(tcb::make_span(lits)); }
-
-    auto operator()(LiteralSpan lits) const -> bool {
+    auto operator()(LiteralVec const &lits) const -> bool {
         return std::all_of(lits.begin(), lits.end(), [this](auto const &lit) {
             return operator()(lit, SyntaxCheck::project | SyntaxCheck::project_tuple);
         });

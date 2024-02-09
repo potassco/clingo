@@ -240,8 +240,7 @@ struct ShiftBody {
     }
 
     void operator()(BodyTheoryAtom const &atom) const {
-        body.update(
-            atom.opt_update(std::nullopt, std::nullopt, std::nullopt, shift(atom.elems()).as_optional(), std::nullopt));
+        body.update(Util::update<BodyTheoryAtom>(atom.loc(), atom.sign_, atom.name(), shift(atom.elems()), atom.rhs()));
     }
 
     Util::ResultVec<BodyLiteral> &body;
@@ -279,18 +278,22 @@ struct UnpoolHeadBody {
 
     template <bool HasSign>
     auto operator()(TheoryAtom<HasSign> const &atom) const -> std::optional<HBLitVecVec<!HasSign>> {
+        using Util::UPA;
+
         auto unpool_elem = [](TheoryElement const &elem) {
             auto build = [&elem](auto lits) -> TheoryElement {
-                return elem.update(std::nullopt, std::nullopt, std::move(lits));
+                return TheoryElement{elem.loc(), elem.tuple(), std::move(lits)};
             };
             return unpool_crossproducts(build, unpool_disjunctive, elem.cond());
         };
         auto res_elems = unpool_union(atom.elems(), unpool_elem);
         auto res = std::optional<TheoryAtom<HasSign>>{std::nullopt};
         if constexpr (HasSign) {
-            res = atom.opt_update(std::nullopt, std::nullopt, std::nullopt, std::move(res_elems), std::nullopt);
+            res = Util::update<BodyTheoryAtom>(atom.loc(), atom.sign_, atom.name(),
+                                               UPA{atom.elems(), std::move(res_elems)}, atom.rhs());
         } else {
-            res = atom.opt_update(std::nullopt, std::nullopt, std::move(res_elems), std::nullopt);
+            res = Util::update<HeadTheoryAtom>(atom.loc(), atom.name(), UPA{atom.elems(), std::move(res_elems)},
+                                               atom.rhs());
         }
         if (res) {
             return Util::make_vec<std::conditional_t<HasSign, BodyLiteral, HeadLiteral>>(*std::move(res));

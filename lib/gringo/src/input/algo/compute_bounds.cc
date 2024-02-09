@@ -118,7 +118,7 @@ struct ExtractTerms {
 
     auto operator()(TermUnary const &term) const -> bool {
         if (term.op() == UnaryOperator::negate) {
-            return ExtractTerms{terms, !add}(term.rhs());
+            return ExtractTerms{terms, !add}(*term.rhs());
         }
         return false;
     }
@@ -126,18 +126,18 @@ struct ExtractTerms {
     auto operator()(TermBinary const &term) const -> bool {
         switch (term.op()) {
             case BinaryOperator::minus: {
-                return operator()(term.lhs()) && ExtractTerms{terms, !add}(term.rhs());
+                return operator()(*term.lhs()) && ExtractTerms{terms, !add}(*term.rhs());
             }
             case BinaryOperator::plus: {
-                return operator()(term.lhs()) && operator()(term.rhs());
+                return operator()(*term.lhs()) && operator()(*term.rhs());
             }
             case BinaryOperator::times: {
                 IETermVec lhs;
                 IETermVec rhs;
                 auto fixed_lhs = Number{0};
                 auto fixed_rhs = Number{0};
-                auto ret_lhs = ExtractTerms{lhs, true}(term.lhs());
-                auto ret_rhs = ExtractTerms{rhs, true}(term.rhs());
+                auto ret_lhs = ExtractTerms{lhs, true}(*term.lhs());
+                auto ret_rhs = ExtractTerms{rhs, true}(*term.rhs());
                 if (!ret_lhs && !ret_rhs) {
                     return false;
                 }
@@ -199,8 +199,8 @@ struct ExtractInequalities {
         //   X = u..t -> X - u >= 0
         //               t - X >= 0
         if (is_variable(lit.lhs_) && is_interval(rhs.second)) {
-            auto const &u = std::get<TermBinary>(rhs.second).lhs();
-            auto const &t = std::get<TermBinary>(rhs.second).rhs();
+            auto const &u = *std::get<TermBinary>(rhs.second).lhs();
+            auto const &t = *std::get<TermBinary>(rhs.second).rhs();
             if (IETermVec terms; ExtractTerms{terms, true}(lit.lhs_) && ExtractTerms{terms, false}(u)) {
                 slv.add(IE{std::move(terms), bound});
             }
@@ -305,8 +305,8 @@ struct ApplyBounds {
             if (it == dom.end()) {
                 return {true};
             }
-            auto const *u = std::get_if<TermSymbol>(&std::get<TermBinary>(rhs.second).lhs());
-            auto const *t = std::get_if<TermSymbol>(&std::get<TermBinary>(rhs.second).rhs());
+            auto const *u = std::get_if<TermSymbol>(std::get<TermBinary>(rhs.second).lhs().get());
+            auto const *t = std::get_if<TermSymbol>(std::get<TermBinary>(rhs.second).rhs().get());
             // Note: in theory the lower/upper bounds could be refined even if only one of them is a number
             if (u == nullptr || t == nullptr || u->value().type() != SymbolType::number ||
                 t->value().type() != SymbolType::number) {

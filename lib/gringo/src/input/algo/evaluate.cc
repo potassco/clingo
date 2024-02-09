@@ -73,11 +73,11 @@ struct BuildDep {
         }
     }
 
-    void operator()(TermUnary const &term) const { operator()(term.rhs()); }
+    void operator()(TermUnary const &term) const { operator()(*term.rhs()); }
 
     void operator()(TermBinary const &term) const {
-        operator()(term.lhs());
-        operator()(term.rhs());
+        operator()(*term.lhs());
+        operator()(*term.rhs());
     }
 
     //! Add a dependency to the graph.
@@ -272,7 +272,7 @@ struct Evaluate {
     }
 
     auto operator()(TermUnary const &term) const -> std::optional<Symbol> {
-        auto rhs = operator()(term.rhs());
+        auto rhs = operator()(*term.rhs());
         if (!rhs.has_value()) {
             return std::nullopt;
         }
@@ -292,8 +292,8 @@ struct Evaluate {
     }
 
     auto operator()(TermBinary const &term) const -> std::optional<Symbol> {
-        auto lhs = operator()(term.lhs());
-        auto rhs = operator()(term.rhs());
+        auto lhs = operator()(*term.lhs());
+        auto rhs = operator()(*term.rhs());
         if (term.op() == BinaryOperator::dots || !lhs.has_value() || !rhs.has_value()) {
             return std::nullopt;
         }
@@ -319,7 +319,7 @@ struct Evaluate {
     StatementConst const *root;
 };
 
-auto evaluate(Logger &log, SymbolStore &store, ConstMap const &map, StatementConst const &stm)
+[[maybe_unused]] auto evaluate(Logger &log, SymbolStore &store, ConstMap const &map, StatementConst const &stm)
     -> std::optional<Symbol> {
     return std::visit(Evaluate{log, store, map, &stm}, stm.value_);
 }

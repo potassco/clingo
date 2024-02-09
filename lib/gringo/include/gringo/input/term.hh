@@ -49,7 +49,6 @@ using Term = std::variant<TermVariable, TermSymbol, TermTuple, TermFunction, Ter
 
 //! A vector of terms.
 using TermVec = Util::immutable_array<Term>;
-using TermSpan = tcb::span<Term const>;
 
 //! Indicate a projected position.
 class Projection {
@@ -83,19 +82,12 @@ class ArgumentTuple {
     using Element = std::variant<Projection, Term>;
     //! A tuple of terms or positions to project.
     using ElementVec = Util::immutable_array<Element>;
-    //! A tuple of terms or positions to project.
-    using ElementSpan = tcb::span<Element const>;
 
     //! Construct an argument tuple.
     ArgumentTuple(ElementVec elems);
 
-    //! Update tuple.
-    [[nodiscard]] auto update(std::optional<ElementVec> elems) const -> ArgumentTuple;
-    //! Update tuple.
-    [[nodiscard]] auto opt_update(std::optional<ElementVec> elems) const -> std::optional<ArgumentTuple>;
-
     //! The elements of the tuple.
-    [[nodiscard]] auto elems() const -> ElementSpan;
+    [[nodiscard]] auto elems() const -> ElementVec const &;
 
   private:
     friend auto operator==(ArgumentTuple const &a, ArgumentTuple const &b) -> bool;
@@ -117,8 +109,6 @@ auto operator<(ArgumentTuple const &a, ArgumentTuple const &b) -> bool;
 
 //! A vector of tuples used as function or predicate arguments.
 using PoolVec = Util::immutable_array<ArgumentTuple>;
-//! A span of tuples used as function or predicate arguments.
-using PoolSpan = tcb::span<ArgumentTuple const>;
 
 //! Term representing a variable.
 //!
@@ -128,25 +118,6 @@ class TermVariable {
     //! Construct a variable.
     explicit TermVariable(Location loc, String name, bool is_anonymous = false)
         : loc_{std::move(loc)}, name_{std::move(name)}, is_anonymous_{is_anonymous} {}
-
-    //! Update term.
-    [[nodiscard]] auto update(std::optional<Location> loc, std::optional<String> name,
-                              std::optional<bool> is_anonymous) const -> TermVariable;
-    //! Update term.
-    [[nodiscard]] auto opt_update(std::optional<Location> loc, std::optional<String> name,
-                                  std::optional<bool> is_anonymous) const -> std::optional<TermVariable>;
-
-    // could as well be something like:
-    //   update<TermVariable>(term.loc(), uv(opt, term.name()), term.is_anonymous())
-    //   opt_update<TermVariable>(term.loc(), uv(opt, term.name()), term.is_anonymous())
-    // for immutable value:
-    //   update<TermUnary>(term.loc(), uv(opt, term.rhs_raw()))
-    // for immutable array:
-    //   just return the array and get rid of span
-    // struct uv {
-    //   N opt_new;
-    //   O const &old;
-    // }
 
     //! The location of the variable.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
@@ -183,12 +154,6 @@ class TermSymbol {
     //! Construct term with the given symbol.
     explicit TermSymbol(Location loc, Symbol value) : loc_{std::move(loc)}, value_{std::move(value)} {}
 
-    //! Update term.
-    [[nodiscard]] auto update(std::optional<Location> loc, std::optional<Symbol> value) const -> TermSymbol;
-    //! Update term.
-    [[nodiscard]] auto opt_update(std::optional<Location> loc, std::optional<Symbol> value) const
-        -> std::optional<TermSymbol>;
-
     //! The location of the symbol.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The associated symbol.
@@ -222,22 +187,14 @@ class TermTuple {
     using Element = std::variant<ArgumentTuple, Term>;
     //! A vector of tuple elements.
     using ElementVec = Util::immutable_array<Element>;
-    //! A span of tuple elements.
-    using ElementSpan = tcb::span<Element const>;
 
     //! Construct a  tuple.
     explicit TermTuple(Location loc, ElementVec pool);
 
-    //! Update term.
-    [[nodiscard]] auto update(std::optional<Location> loc, std::optional<ElementVec> pool) const -> TermTuple;
-    //! Update term.
-    [[nodiscard]] auto opt_update(std::optional<Location> loc, std::optional<ElementVec> pool) const
-        -> std::optional<TermTuple>;
-
     //! The location of the tuple.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The argument pool of the tuple.
-    [[nodiscard]] auto pool() const -> ElementSpan;
+    [[nodiscard]] auto pool() const -> ElementVec const &;
 
   private:
     friend auto operator==(TermTuple const &a, TermTuple const &b) -> bool;
@@ -269,19 +226,12 @@ class TermFunction {
     //! Term::unpool().
     explicit TermFunction(Location loc, String name, PoolVec pool, bool external);
 
-    //! Update term.
-    [[nodiscard]] auto update(std::optional<Location> loc, std::optional<String> name, std::optional<PoolVec> pool,
-                              std::optional<bool> external) const -> TermFunction;
-    //! Update term.
-    [[nodiscard]] auto opt_update(std::optional<Location> loc, std::optional<String> name, std::optional<PoolVec> pool,
-                                  std::optional<bool> external) const -> std::optional<TermFunction>;
-
     //! The location of the function.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The name of the function.
     [[nodiscard]] auto name() const -> String { return name_; }
     //! The argument pool of the function.
-    [[nodiscard]] auto pool() const -> PoolSpan { return pool_; }
+    [[nodiscard]] auto pool() const -> PoolVec const & { return pool_; }
     //! Whether this is an external function.
     [[nodiscard]] auto external() const -> bool { return external_; }
 
@@ -316,16 +266,10 @@ class TermAbs {
     //! The term has a pool of arguments, which will be reduced to a single element after calling Term::unpool().
     explicit TermAbs(Location loc, TermVec pool);
 
-    //! Update term.
-    [[nodiscard]] auto update(std::optional<Location> loc, std::optional<TermVec> pool) const -> TermAbs;
-    //! Update term.
-    [[nodiscard]] auto opt_update(std::optional<Location> loc, std::optional<TermVec> pool) const
-        -> std::optional<TermAbs>;
-
     //! The location of the function.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The argument pool of the absolute term.
-    [[nodiscard]] auto pool() const -> TermSpan;
+    [[nodiscard]] auto pool() const -> TermVec const &;
 
   private:
     friend auto operator==(TermAbs const &a, TermAbs const &b) -> bool;
@@ -358,23 +302,14 @@ enum class UnaryOperator : int {
 class TermUnary {
   public:
     //! Construct a term for an unary operation.
-    explicit TermUnary(Location loc, UnaryOperator op, Term rhs);
-    //! Construct a term for an unary operation.
     explicit TermUnary(Location loc, UnaryOperator op, Util::immutable_value<Term> rhs);
-
-    //! Update term.
-    [[nodiscard]] auto update(std::optional<Location> loc, std::optional<UnaryOperator> op,
-                              std::optional<Term> rhs) const -> TermUnary;
-    //! Update term.
-    [[nodiscard]] auto opt_update(std::optional<Location> loc, std::optional<UnaryOperator> op,
-                                  std::optional<Term> rhs) const -> std::optional<TermUnary>;
 
     //! The location of the function.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The operation.
     [[nodiscard]] auto op() const -> UnaryOperator { return op_; }
     //! The right-hand-side.
-    [[nodiscard]] auto rhs() const -> Term const &;
+    [[nodiscard]] auto rhs() const -> Util::immutable_value<Term> const &;
 
   private:
     friend auto operator==(TermUnary const &a, TermUnary const &b) -> bool;
@@ -416,25 +351,15 @@ enum class BinaryOperator : int {
 class TermBinary {
   public:
     //! Construct a term for an binary operation.
-    explicit TermBinary(Location loc, Term lhs, BinaryOperator op, Term rhs);
-    //! Construct a term for an binary operation.
     explicit TermBinary(Location loc, Util::immutable_value<Term> lhs, BinaryOperator op,
                         Util::immutable_value<Term> rhs);
-
-    //! Update term.
-    [[nodiscard]] auto update(std::optional<Location> loc, std::optional<Term> lhs, std::optional<BinaryOperator> op,
-                              std::optional<Term> rhs) const -> TermBinary;
-    //! Update term.
-    [[nodiscard]] auto opt_update(std::optional<Location> loc, std::optional<Term> lhs,
-                                  std::optional<BinaryOperator> op, std::optional<Term> rhs) const
-        -> std::optional<TermBinary>;
 
     //! The location of the function.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The left-hand-side.
-    [[nodiscard]] auto lhs() const -> Term const &;
+    [[nodiscard]] auto lhs() const -> Util::immutable_value<Term> const &;
     //! The right-hand-side.
-    [[nodiscard]] auto rhs() const -> Term const &;
+    [[nodiscard]] auto rhs() const -> Util::immutable_value<Term> const &;
     //! The operation.
     [[nodiscard]] auto op() const -> BinaryOperator { return op_; }
 
@@ -466,143 +391,31 @@ auto operator<(TermBinary const &a, TermBinary const &b) -> bool;
 
 inline ArgumentTuple::ArgumentTuple(ElementVec elems) : elems_{std::move(elems)} {}
 
-inline auto ArgumentTuple::update(std::optional<ElementVec> elems) const -> ArgumentTuple {
-    return {Util::update_value(std::move(elems), elems_)};
-}
-
-inline auto ArgumentTuple::opt_update(std::optional<ElementVec> elems) const -> std::optional<ArgumentTuple> {
-    if (!elems) {
-        return std::nullopt;
-    }
-    return update(std::move(elems));
-}
-
-inline auto ArgumentTuple::elems() const -> ElementSpan { return elems_; }
-
-inline auto TermVariable::update(std::optional<Location> loc, std::optional<String> name,
-                                 std::optional<bool> is_anonymous) const -> TermVariable {
-    return TermVariable(std::move(loc).value_or(loc_), std::move(name).value_or(name_),
-                        Util::update_value(std::move(is_anonymous), is_anonymous_));
-}
-
-inline auto TermVariable::opt_update(std::optional<Location> loc, std::optional<String> name,
-                                     std::optional<bool> is_anonymous) const -> std::optional<TermVariable> {
-    if (!loc && !name && !is_anonymous) {
-        return std::nullopt;
-    }
-    return update(std::move(loc), std::move(name), std::move(is_anonymous));
-}
-
-inline auto TermSymbol::update(std::optional<Location> loc, std::optional<Symbol> value) const -> TermSymbol {
-    return TermSymbol(std::move(loc).value_or(loc_), std::move(value).value_or(value_));
-}
-
-inline auto TermSymbol::opt_update(std::optional<Location> loc, std::optional<Symbol> value) const
-    -> std::optional<TermSymbol> {
-    if (!loc && !value) {
-        return std::nullopt;
-    }
-    return update(std::move(loc), std::move(value));
-}
+inline auto ArgumentTuple::elems() const -> ElementVec const & { return elems_; }
 
 inline TermTuple::TermTuple(Location loc, ElementVec pool) : loc_{std::move(loc)}, pool_{std::move(pool)} {}
 
-inline auto TermTuple::pool() const -> TermTuple::ElementSpan { return tcb::make_span(pool_); }
-
-inline auto TermTuple::update(std::optional<Location> loc, std::optional<ElementVec> pool) const -> TermTuple {
-    return TermTuple(std::move(loc).value_or(loc_), Util::update_value(std::move(pool), pool_));
-}
-
-inline auto TermTuple::opt_update(std::optional<Location> loc, std::optional<ElementVec> pool) const
-    -> std::optional<TermTuple> {
-    if (!loc && !pool) {
-        return std::nullopt;
-    }
-    return update(std::move(loc), std::move(pool));
-}
+inline auto TermTuple::pool() const -> TermTuple::ElementVec const & { return pool_; }
 
 inline TermFunction::TermFunction(Location loc, String name, PoolVec pool, bool external)
     : loc_{std::move(loc)}, name_(std::move(name)), pool_{std::move(pool)}, external_{external} {}
 
-inline auto TermFunction::update(std::optional<Location> loc, std::optional<String> name, std::optional<PoolVec> pool,
-                                 std::optional<bool> external) const -> TermFunction {
-    return TermFunction(std::move(loc).value_or(loc_), std::move(name).value_or(name_),
-                        Util::update_value(std::move(pool), pool_), std::move(external).value_or(external_));
-}
-
-inline auto TermFunction::opt_update(std::optional<Location> loc, std::optional<String> name,
-                                     std::optional<PoolVec> pool, std::optional<bool> external) const
-    -> std::optional<TermFunction> {
-    if (!loc && !name && !pool && !external) {
-        return std::nullopt;
-    }
-    return update(std::move(loc), std::move(name), std::move(pool), std::move(external));
-}
-
 inline TermAbs::TermAbs(Location loc, TermVec pool) : loc_{std::move(loc)}, pool_{std::move(pool)} {}
 
-inline auto TermAbs::update(std::optional<Location> loc, std::optional<TermVec> pool) const -> TermAbs {
-    return TermAbs(std::move(loc).value_or(loc_), Util::update_value(std::move(pool), pool_));
-}
-
-inline auto TermAbs::opt_update(std::optional<Location> loc, std::optional<TermVec> pool) const
-    -> std::optional<TermAbs> {
-    if (!loc && !pool) {
-        return std::nullopt;
-    }
-    return update(std::move(loc), std::move(pool));
-}
-
-inline auto TermAbs::pool() const -> TermSpan { return tcb::make_span(pool_); }
-
-inline TermUnary::TermUnary(Location loc, UnaryOperator op, Term rhs)
-    : loc_{std::move(loc)}, op_{op}, rhs_{Util::make_immutable<Term>(std::move(rhs))} {}
+inline auto TermAbs::pool() const -> TermVec const & { return pool_; }
 
 inline TermUnary::TermUnary(Location loc, UnaryOperator op, Util::immutable_value<Term> rhs)
     : loc_{std::move(loc)}, op_{op}, rhs_{std::move(rhs)} {}
 
-inline auto TermUnary::update(std::optional<Location> loc, std::optional<UnaryOperator> op,
-                              std::optional<Term> rhs) const -> TermUnary {
-    return TermUnary(std::move(loc).value_or(loc_), std::move(op).value_or(op_),
-                     Util::update_value(std::move(rhs), rhs_));
-}
-
-inline auto TermUnary::opt_update(std::optional<Location> loc, std::optional<UnaryOperator> op,
-                                  std::optional<Term> rhs) const -> std::optional<TermUnary> {
-    if (!loc && !op && !rhs) {
-        return std::nullopt;
-    }
-    return update(std::move(loc), std::move(op), std::move(rhs));
-}
-
-inline auto TermUnary::rhs() const -> Term const & { return *rhs_; }
-
-inline TermBinary::TermBinary(Location loc, Term lhs, BinaryOperator op, Term rhs)
-    : loc_{std::move(loc)}, lhs_{Util::make_immutable<Term>(std::move(lhs))},
-      rhs_{Util::make_immutable<Term>(std::move(rhs))}, op_{op} {}
+inline auto TermUnary::rhs() const -> Util::immutable_value<Term> const & { return rhs_; }
 
 inline TermBinary::TermBinary(Location loc, Util::immutable_value<Term> lhs, BinaryOperator op,
                               Util::immutable_value<Term> rhs)
     : loc_{std::move(loc)}, lhs_{std::move(lhs)}, rhs_{std::move(rhs)}, op_{op} {}
 
-inline auto TermBinary::update(std::optional<Location> loc, std::optional<Term> lhs, std::optional<BinaryOperator> op,
-                               std::optional<Term> rhs) const -> TermBinary {
-    return TermBinary(std::move(loc).value_or(loc_), Util::update_value(std::move(lhs), lhs_),
-                      std::move(op).value_or(op_), Util::update_value(std::move(rhs), rhs_));
-}
+inline auto TermBinary::lhs() const -> Util::immutable_value<Term> const & { return lhs_; }
 
-inline auto TermBinary::opt_update(std::optional<Location> loc, std::optional<Term> lhs,
-                                   std::optional<BinaryOperator> op, std::optional<Term> rhs) const
-    -> std::optional<TermBinary> {
-    if (!loc && !lhs && !op && !rhs) {
-        return std::nullopt;
-    }
-    return update(std::move(loc), std::move(lhs), std::move(op), std::move(rhs));
-}
-
-inline auto TermBinary::lhs() const -> Term const & { return *lhs_; }
-
-inline auto TermBinary::rhs() const -> Term const & { return *rhs_; }
+inline auto TermBinary::rhs() const -> Util::immutable_value<Term> const & { return rhs_; }
 
 } // namespace Gringo::Input
 

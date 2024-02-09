@@ -176,7 +176,7 @@ struct Unpool {
     }
 
     auto operator()(TermUnary const &term) const -> std::optional<std::vector<Term>> {
-        return Util::transform_vec(operator()(term.rhs()), [&term](auto rhs) -> Term {
+        return Util::transform_vec(operator()(*term.rhs()), [&term](auto rhs) -> Term {
             return TermUnary{term.loc(), term.op(), std::move(rhs)};
         });
     }
@@ -186,7 +186,7 @@ struct Unpool {
             [&term](auto lhs, auto rhs) -> Term {
                 return TermBinary{term.loc(), std::move(lhs), term.op(), std::move(rhs)};
             },
-            *this, term.lhs(), term.rhs());
+            *this, *term.lhs(), *term.rhs());
     }
 
     auto operator()(GuardVec const &guards) const -> std::optional<std::vector<GuardVec>> {
@@ -203,11 +203,6 @@ struct Unpool {
     // literal
 
     auto operator()(Literal const &lit) const -> std::optional<std::vector<Literal>> { return std::visit(*this, lit); }
-
-    auto operator()(LiteralSpan lits) const -> std::optional<std::vector<LiteralVec>> {
-        return Util::transform_vec(unpool_crossproduct(lits, *this),
-                                   [](auto vec) { return LiteralVec{std::move(vec)}; });
-    }
 
     auto operator()(LiteralVec const &lits) const -> std::optional<std::vector<LiteralVec>> {
         return Util::transform_vec(unpool_crossproduct(lits, *this),
@@ -329,11 +324,13 @@ struct Unpool {
 
     auto operator()(TheoryElement const &elem) const -> std::optional<std::vector<TheoryElement>> {
         return unpool_crossproducts(
-            [&elem](auto cond) { return elem.update(std::nullopt, std::nullopt, std::move(cond)); }, *this,
-            elem.cond());
+            [&elem](auto cond) {
+                return TheoryElement{elem.loc(), elem.tuple(), std::move(cond)};
+            },
+            *this, elem.cond());
     }
 
-    auto operator()(TheoryElementSpan const &elems) const -> std::optional<std::vector<TheoryElementVec>> {
+    auto operator()(TheoryElementVec const &elems) const -> std::optional<std::vector<TheoryElementVec>> {
         return Util::transform(unpool_union(elems, *this),
                                [](auto elems) { return Util::make_vec<TheoryElementVec>(std::move(elems)); });
     }
@@ -345,9 +342,9 @@ struct Unpool {
             [&atom](auto name, auto elems) {
                 if constexpr (HasSign) {
                     return BodyLiteral{
-                        atom.update(std::nullopt, std::nullopt, std::move(name), std::move(elems), std::nullopt)};
+                        BodyTheoryAtom{atom.loc(), atom.sign_, std::move(name), std::move(elems), atom.rhs()}};
                 } else {
-                    return HeadLiteral{atom.update(std::nullopt, std::move(name), std::move(elems), std::nullopt)};
+                    return HeadLiteral{HeadTheoryAtom{atom.loc(), std::move(name), std::move(elems), atom.rhs()}};
                 }
             },
             *this, atom.name(), atom.elems());

@@ -261,7 +261,7 @@ struct Print {
             rp = ")";
         }
         out << lp << op;
-        std::visit(Print{out, OperatorPosition::none, priority(op), true}, term.rhs());
+        std::visit(Print{out, OperatorPosition::none, priority(op), true}, *term.rhs());
         out << rp;
     }
 
@@ -277,9 +277,9 @@ struct Print {
             lhs_no_leading_op = false;
         }
         out << lp;
-        std::visit(Print{out, OperatorPosition::left, priority(op), lhs_no_leading_op}, term.lhs());
+        std::visit(Print{out, OperatorPosition::left, priority(op), lhs_no_leading_op}, *term.lhs());
         out << op;
-        std::visit(Print{out, OperatorPosition::right, priority(op), true}, term.rhs());
+        std::visit(Print{out, OperatorPosition::right, priority(op), true}, *term.rhs());
         out << rp;
     }
 

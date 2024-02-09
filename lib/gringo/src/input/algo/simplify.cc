@@ -172,7 +172,7 @@ struct VarToLinear {
             return TermResultLinear{term, Number(1), Number(0)};
         }
         auto const *term_unary = std::get_if<TermUnary>(&term);
-        if (term_unary != nullptr && std::holds_alternative<TermVariable>(term_unary->rhs())) {
+        if (term_unary != nullptr && std::holds_alternative<TermVariable>(*term_unary->rhs())) {
             return TermResultLinear{term_unary->rhs(), Number(-1), Number(0)};
         }
         return res;
@@ -184,7 +184,7 @@ struct VarToLinear {
             return TermResultLinear{std::move(res.term), Number(1), Number(0)};
         }
         auto const *term_unary = std::get_if<TermUnary>(&res.term);
-        if (term_unary != nullptr && std::holds_alternative<TermVariable>(term_unary->rhs())) {
+        if (term_unary != nullptr && std::holds_alternative<TermVariable>(*term_unary->rhs())) {
             return TermResultLinear{term_unary->rhs(), Number(-1), Number(0)};
         }
         return res;
@@ -218,7 +218,7 @@ auto result_as_symbol_vec(TupleResultChanged args_tuple) -> std::vector<Symbol> 
 //! Convert the given simplified arguments to term tuple.
 auto result_as_tuple(ArgumentTuple const &tuple, TupleResultChanged args_tuple) -> ArgumentTuple {
     std::vector<ArgumentTuple::Element> args;
-    auto const *it = tuple.elems().begin();
+    auto it = tuple.elems().begin();
     args.reserve(tuple.elems().size());
     for (auto &arg : args_tuple) {
         std::visit(
@@ -515,7 +515,7 @@ struct SimplifyTerm {
                 if (type == TermType::symbolic) {
                     return TermResultChanged{type, rhs_unary->rhs()};
                 }
-                auto const *rhs_rhs_unary = std::get_if<TermUnary>(&rhs_unary->rhs());
+                auto const *rhs_rhs_unary = std::get_if<TermUnary>(rhs_unary->rhs().get());
                 if (rhs_rhs_unary == nullptr || rhs_rhs_unary->op() != UnaryOperator::negate) {
                     return std::nullopt;
                 }
@@ -547,7 +547,7 @@ struct SimplifyTerm {
                 return TermResultChanged{type.value(), TermUnary{term.loc(), term.op(), std::move(res.term)}};
             }
         };
-        return std::visit(simplify, operator()(term.rhs(), flags));
+        return std::visit(simplify, operator()(*term.rhs(), flags));
     }
 
     //! Simplify the given binary term.
@@ -585,7 +585,7 @@ struct SimplifyTerm {
                 }
                 return TermResultChanged{TermType::numeric, std::move(var)};
             };
-            return std::visit(simplify, operator()(term.lhs(), flags), operator()(term.rhs(), flags));
+            return std::visit(simplify, operator()(*term.lhs(), flags), operator()(*term.rhs(), flags));
         }
         flags &= ~SimplifyTermFlags::preserve_toplevel;
 
@@ -678,8 +678,8 @@ struct SimplifyTerm {
         };
 
         // construct result
-        return std::visit(simplify, std::visit(VarToLinear{term.lhs()}, operator()(term.lhs(), flags)),
-                          std::visit(VarToLinear{term.rhs()}, operator()(term.rhs(), flags)));
+        return std::visit(simplify, std::visit(VarToLinear{term.lhs()}, operator()(*term.lhs(), flags)),
+                          std::visit(VarToLinear{term.rhs()}, operator()(*term.rhs(), flags)));
     }
 
     RewriteContext &ctx; //!< Context used during simplification.
@@ -794,12 +794,12 @@ struct MakeMatchableTerm {
             // The goal here is to avoid adding additional assignments for auxiliary variables
             // that correspond to variables having a numeric value.
             if (test(flags, SimplifyTermFlags::unfailable)) {
-                const auto &n = std::get<TermSymbol>(term.rhs());
-                const auto &mx = std::get<TermBinary>(term.lhs());
-                const auto &m = std::get<TermSymbol>(mx.lhs());
+                const auto &n = std::get<TermSymbol>(*term.rhs());
+                const auto &mx = std::get<TermBinary>(*term.lhs());
+                const auto &m = std::get<TermSymbol>(*mx.lhs());
                 if (*n.value().num() == 0 && *m.value().num() == 1) {
                     for (auto &[lhs, rhs] : ctx.aux()) {
-                        if (mx.rhs() == lhs) {
+                        if (*mx.rhs() == lhs) {
                             if (always_numeric(rhs)) {
                                 return mx.rhs();
                             }
@@ -1502,6 +1502,8 @@ template <bool head>
 
 //! Simplify a theory atom element.
 [[nodiscard]] auto simplify_element(RewriteContext &ctx, TheoryElement const &elem) -> SimplifyResult<TheoryElement> {
+    using Util::UPA;
+
     auto guard = ctx.push();
     auto res_tuple = std::optional<TheoryTermVec>{};
     auto [state_cond, res_cond] = simplify_litvec(ctx, elem.cond());
@@ -1519,12 +1521,15 @@ template <bool head>
             res_tuple = TheoryTermVec{};
         }
     }
-    return {state_elem, elem.opt_update(std::nullopt, std::move(res_tuple), std::move(res_cond))};
+    return {state_elem, Util::update<TheoryElement>(elem.loc(), UPA{elem.tuple(), std::move(res_tuple)},
+                                                    UPA{elem.cond(), std::move(res_cond)})};
 }
 
 //! Simplify a theory atom.
 template <bool HasSign>
 auto simplify_theory_atom(RewriteContext &ctx, TheoryAtom<HasSign> const &lit) -> SimplifyResult<HBLiteral<!HasSign>> {
+    using Util::UPA;
+
     constexpr auto head = !HasSign;
     auto [state_name, res_name] = simplify(SimplifyTermFlags::none, ctx, lit.name());
     auto res_elems = Util::ResultVec{lit.elems()};
@@ -1539,16 +1544,14 @@ auto simplify_theory_atom(RewriteContext &ctx, TheoryAtom<HasSign> const &lit) -
     if (!state_name) {
         return {head ? TruthValue::top : TruthValue::bot, SimpleHBLiteral<head>{make_constant(location(lit), head)}};
     }
-    auto value = std::optional<TheoryAtom<HasSign>>{};
-    if (res_name.has_value() || res_elems.has_value()) {
-        auto name = std::move(res_name).value_or(lit.name());
-        if constexpr (head) {
-            value = HeadTheoryAtom{lit.loc(), std::move(name), std::move(res_elems).value(), lit.rhs()};
-        } else {
-            value = BodyTheoryAtom{lit.loc(), lit.sign_, std::move(name), std::move(res_elems).value(), lit.rhs()};
-        }
+    if constexpr (head) {
+        return {TruthValue::unknown, Util::update<HeadTheoryAtom>(lit.loc(), UPA{lit.name(), std::move(res_name)},
+                                                                  std::move(res_elems), lit.rhs())};
+    } else {
+        return {TruthValue::unknown,
+                Util::update<BodyTheoryAtom>(lit.loc(), lit.sign_, UPA{lit.name(), std::move(res_name)},
+                                             std::move(res_elems), lit.rhs())};
     }
-    return {TruthValue::unknown, std::move(value)};
 }
 
 //! Simplify head literals.

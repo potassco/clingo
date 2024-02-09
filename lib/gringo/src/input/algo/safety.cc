@@ -62,15 +62,15 @@ struct GetDep {
     }
 
     void operator()(TermUnary const &term, bool can_provide) const {
-        operator()(term.rhs(), can_provide && term.op() == UnaryOperator::negate);
+        operator()(*term.rhs(), can_provide && term.op() == UnaryOperator::negate);
     }
 
     void operator()(TermBinary const &term, bool can_provide) const {
         if (auto var = is_linear(term); can_provide && var && !ignore.contains(*var)) {
             provide.emplace_back(*var);
         } else {
-            operator()(term.lhs(), false);
-            operator()(term.rhs(), false);
+            operator()(*term.lhs(), false);
+            operator()(*term.rhs(), false);
         }
     }
 

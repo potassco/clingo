@@ -21,21 +21,12 @@ using transform_vec_result = std::optional<std::vector<typename transform_result
 
 } // namespace Detail
 
-//! Helper to update a value.
+//! Helper to update attributes of a record.
 //!
 //! A shortcut for <tt>opt ? static_cast<O>(*std::move(opt)) : old</tt>.
-template <class N, class O> auto update_value(std::optional<N> opt, O const &old) -> O {
+template <class N, class O> auto upa(O const &old, std::optional<N> opt) -> O {
     if (opt) {
         return *std::move(opt);
-    }
-    return old;
-}
-
-//! Overloaded helper to update an immutable value.
-template <class N, class O>
-auto update_value(std::optional<N> opt, immutable_value<O> const &old) -> immutable_value<O> {
-    if (opt) {
-        return make_immutable<O>(*std::move(opt));
     }
     return old;
 }
@@ -265,5 +256,40 @@ template <class T> class ResultVec {
     std::optional<Vector> result_;
     typename Span::iterator current_;
 };
+
+template <class O, class N> struct UPA {
+    O const &old;
+    N opt;
+};
+
+namespace Detail {
+
+template <class T> auto upa_has_value_(T const &x) -> bool {
+    static_cast<void>(x);
+    return false;
+}
+
+template <class T> auto upa_has_value_(ResultVec<T> const &x) -> bool {
+    static_cast<void>(x);
+    return x.has_value();
+}
+
+template <class O, class N> auto upa_has_value_(UPA<O, N> const &x) -> bool { return x.opt.has_value(); }
+
+template <class T> auto upa_get_value_(T &&x) -> decltype(auto) { return std::forward<T>(x); }
+
+template <class O, class N> auto upa_get_value_(UPA<O, N> x) { return upa(x.old, std::move(x.opt)); }
+
+template <class T> auto upa_get_value_(ResultVec<T> x) { return std::move(x).value(); }
+
+} // namespace Detail
+
+//! Helper to update attributes of a record.
+template <class T, class... Args> auto update(Args &&...args) -> std::optional<T> {
+    if ((Detail::upa_has_value_(args) || ...)) {
+        return T{Detail::upa_get_value_(std::forward<Args>(args))...};
+    }
+    return std::nullopt;
+}
 
 } // namespace Gringo::Util

@@ -83,10 +83,10 @@ struct CheckType {
 
     auto operator()(TermUnary const &term) const -> bool {
         if (type == TermCheckType::atom) {
-            return term.op() == UnaryOperator::negate && std::visit(*this, term.rhs());
+            return term.op() == UnaryOperator::negate && std::visit(*this, *term.rhs());
         }
         if (type == TermCheckType::signed_identifier && term.op() == UnaryOperator::negate &&
-            std::visit(CheckType{TermCheckType::identifier, res}, term.rhs())) {
+            std::visit(CheckType{TermCheckType::identifier, res}, *term.rhs())) {
             if (res != nullptr) {
                 res->has_sign = true;
             }
@@ -98,8 +98,8 @@ struct CheckType {
     auto operator()(TermBinary const &term) const -> bool {
         if (type == TermCheckType::sig) {
             return term.op() == BinaryOperator::div &&
-                   std::visit(CheckType{TermCheckType::signed_identifier, res}, term.lhs()) &&
-                   std::visit(CheckType{TermCheckType::pos_number, res}, term.rhs());
+                   std::visit(CheckType{TermCheckType::signed_identifier, res}, *term.lhs()) &&
+                   std::visit(CheckType{TermCheckType::pos_number, res}, *term.rhs());
         }
         return false;
     }
@@ -135,7 +135,7 @@ struct AlwaysNumeric {
     }
 
     auto operator()(TermUnary const &term) const -> bool {
-        return term.op() == UnaryOperator::invert || std::visit(*this, term.rhs());
+        return term.op() == UnaryOperator::invert || std::visit(*this, *term.rhs());
     }
 
     auto operator()(TermBinary const &term) const -> bool {
@@ -171,7 +171,7 @@ struct NeverNumeric {
     }
 
     auto operator()(TermUnary const &term) const -> bool {
-        return term.op() == UnaryOperator::negate && std::visit(*this, term.rhs());
+        return term.op() == UnaryOperator::negate && std::visit(*this, *term.rhs());
     }
 
     auto operator()(TermBinary const &term) const -> bool {
@@ -412,7 +412,7 @@ struct IsFact {
     }
 
     auto operator()(TermUnary const &term) const -> std::optional<Symbol> {
-        if (auto rhs = operator()(term.rhs()); rhs) {
+        if (auto rhs = operator()(*term.rhs()); rhs) {
             return evaluate(store, term.op(), rhs.value());
         }
         return std::nullopt;
@@ -422,7 +422,7 @@ struct IsFact {
         if (term.op() == BinaryOperator::dots) {
             return std::nullopt;
         }
-        if (auto lhs = operator()(term.lhs()), rhs = operator()(term.rhs()); lhs && rhs) {
+        if (auto lhs = operator()(*term.lhs()), rhs = operator()(*term.rhs()); lhs && rhs) {
             return evaluate(store, *lhs, term.op(), *rhs);
         }
         return std::nullopt;
@@ -450,19 +450,19 @@ auto check_type(Term const &term, TermCheckType type, CheckTypeResult *res) -> b
     if (term.op() != BinaryOperator::plus) {
         return std::nullopt;
     }
-    auto const *mul = std::get_if<TermBinary>(&term.lhs());
+    auto const *mul = std::get_if<TermBinary>(term.lhs().get());
     if (mul == nullptr || mul->op() != BinaryOperator::times) {
         return std::nullopt;
     }
-    auto const *n = std::get_if<TermSymbol>(&term.rhs());
+    auto const *n = std::get_if<TermSymbol>(term.rhs().get());
     if (n == nullptr || n->value().type() != SymbolType::number) {
         return std::nullopt;
     }
-    auto const *m = std::get_if<TermSymbol>(&mul->lhs());
+    auto const *m = std::get_if<TermSymbol>(mul->lhs().get());
     if (m == nullptr || m->value().type() != SymbolType::number || *m->value().num() == 0) {
         return std::nullopt;
     }
-    auto const *v = std::get_if<TermVariable>(&mul->rhs());
+    auto const *v = std::get_if<TermVariable>(mul->rhs().get());
     if (v == nullptr) {
         return std::nullopt;
     }

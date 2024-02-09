@@ -34,6 +34,12 @@ template <typename T> class immutable_value {
     //! Explicitly construct a null pointer.
     constexpr immutable_value(std::nullptr_t) noexcept : data_{nullptr} {}
 
+    //! Construct a value.
+    template <class U> immutable_value(U &&value);
+
+    //! Construct a value in place.
+    template <class... Args> immutable_value(std::in_place_t tag, Args &&...args);
+
     //! Copy a immutable value.
     immutable_value(immutable_value const &other) noexcept : data_{other.data_} { inc_(); }
 
@@ -71,6 +77,9 @@ template <typename T> class immutable_value {
     //! Get the member of pointer.
     auto operator->() const noexcept -> element_type const * { return get(); }
 
+    //! Conversion operator.
+    [[nodiscard]] operator T const &() const noexcept { return *get(); }
+
     //! Decrement reference count and delete contained pointer if zero.
     ~immutable_value() noexcept { dec_(); }
 
@@ -81,10 +90,6 @@ template <typename T> class immutable_value {
         element_type value;
     };
 
-    template <typename U, typename... Args> friend auto make_immutable(Args &&...args);
-
-    template <typename... Args> static auto construct_(Args &&...args) -> immutable_value;
-
     immutable_value(data_type *data) noexcept : data_{data} {}
 
     void inc_() noexcept;
@@ -93,18 +98,23 @@ template <typename T> class immutable_value {
     data_type *data_;
 };
 
-//! Construct a immutable value.
-//!
-//! @related immutable_value
-template <typename U, typename... Args> auto make_immutable(Args &&...args) {
+//! Construct an immutable value.
+template <typename U, typename... Args> auto make_immutable(Args &&...args) -> immutable_value<U> {
     static_assert(std::is_constructible_v<U, Args...>);
-    return immutable_value<U>::construct_(std::forward<Args>(args)...);
+    return immutable_value<U>{std::in_place, std::forward<Args>(args)...};
 }
 
 #ifndef __clang_analyzer__
 
-template <class T> template <typename... Args> auto immutable_value<T>::construct_(Args &&...args) -> immutable_value {
-    return {new data_type(std::forward<Args>(args)...)};
+template <class T>
+template <class U>
+immutable_value<T>::immutable_value(U &&value) : immutable_value{new data_type(std::forward<U>(value))} {}
+
+template <class T>
+template <class... Args>
+immutable_value<T>::immutable_value(std::in_place_t tag, Args &&...args)
+    : immutable_value{new data_type(std::forward<Args>(args)...)} {
+    static_cast<void>(tag);
 }
 
 template <class T> void immutable_value<T>::inc_() noexcept {
