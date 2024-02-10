@@ -24,12 +24,23 @@ using transform_vec_result = std::optional<std::vector<typename transform_result
 //! Helper to update attributes of a record.
 //!
 //! A shortcut for <tt>opt ? static_cast<O>(*std::move(opt)) : old</tt>.
-template <class N, class O> auto upa(O const &old, std::optional<N> opt) -> O {
+template <class N, class O> auto upa(O const &old, std::optional<N> &opt) -> O {
     if (opt) {
         return *std::move(opt);
     }
     return old;
 }
+
+//! Helper to update attributes of a record.
+template <class N, class O> auto upa(O const &old, std::optional<N> &&opt) -> O {
+    if (opt) {
+        return *std::move(opt);
+    }
+    return old;
+}
+
+//! Helper to update attributes of a record.
+template <class N, class O> auto upa(O const &old, std::optional<N> const &opt) -> O = delete;
 
 //! Implemenatation of std::optional<T>::transform.
 template <class T, class F> constexpr auto transform(std::optional<T> &x, F &&f) -> Detail::transform_result<T &, F> {
@@ -299,7 +310,7 @@ template <class O, class N> auto upa_has_value_(UPA<O, N> const &x) -> bool { re
 
 template <class T> auto upa_get_value_(T &&x) -> decltype(auto) { return std::forward<T>(x); }
 
-template <class O, class N> auto upa_get_value_(UPA<O, N> x) { return upa(x.old, std::move(x.opt)); }
+template <class O, class N> auto upa_get_value_(UPA<O, N> x) { return upa(x.old, x.opt); }
 
 template <class T, bool S> auto upa_get_value_(ResultVec<T, S> x) { return std::move(x).value(); }
 
