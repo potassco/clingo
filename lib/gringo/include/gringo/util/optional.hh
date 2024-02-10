@@ -276,6 +276,9 @@ template <class T> ResultVec(tcb::span<T const> const &) -> ResultVec<T, true>;
 template <class T> ResultVec(immutable_array<T> const &) -> ResultVec<T, false>;
 
 template <class O, class N> struct UPA {
+    UPA(O const &old, N &&opt) : old{old}, opt{std::move(opt)} {}
+    UPA(O const &old, N &opt) : old{old}, opt{std::move(opt)} {}
+    UPA(O const &old, N const &opt) = delete;
     O const &old;
     N opt;
 };

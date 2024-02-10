@@ -281,7 +281,6 @@ struct UnpoolHeadBody {
     template <bool HasSign>
     auto operator()(TheoryAtom<HasSign> const &atom) const -> std::optional<HBLitVecVec<!HasSign>> {
         using Util::UPA;
-
         auto unpool_elem = [](TheoryElement const &elem) {
             auto build = [&elem](auto lits) -> TheoryElement {
                 return TheoryElement{elem.loc(), elem.tuple(), std::move(lits)};
@@ -291,11 +290,10 @@ struct UnpoolHeadBody {
         auto res_elems = unpool_union(atom.elems(), unpool_elem);
         auto res = std::optional<TheoryAtom<HasSign>>{std::nullopt};
         if constexpr (HasSign) {
-            res = Util::update<BodyTheoryAtom>(atom.loc(), atom.sign(), atom.name(),
-                                               UPA{atom.elems(), std::move(res_elems)}, atom.rhs());
-        } else {
-            res = Util::update<HeadTheoryAtom>(atom.loc(), atom.name(), UPA{atom.elems(), std::move(res_elems)},
+            res = Util::update<BodyTheoryAtom>(atom.loc(), atom.sign(), atom.name(), UPA{atom.elems(), res_elems},
                                                atom.rhs());
+        } else {
+            res = Util::update<HeadTheoryAtom>(atom.loc(), atom.name(), UPA{atom.elems(), res_elems}, atom.rhs());
         }
         if (res) {
             return Util::make_vec<std::conditional_t<HasSign, BodyLiteral, HeadLiteral>>(*std::move(res));
