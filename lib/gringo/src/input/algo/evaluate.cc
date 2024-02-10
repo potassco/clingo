@@ -321,7 +321,7 @@ struct Evaluate {
 
 [[maybe_unused]] auto evaluate(Logger &log, SymbolStore &store, ConstMap const &map, StatementConst const &stm)
     -> std::optional<Symbol> {
-    return std::visit(Evaluate{log, store, map, &stm}, stm.value_);
+    return std::visit(Evaluate{log, store, map, &stm}, stm.value());
 }
 
 } // namespace
@@ -416,12 +416,12 @@ void evaluate_const(Logger &log, SymbolStore &store, std::vector<StatementConst>
     Util::ordered_map<String, size_t> map;
     size_t id_stm = 0;
     for (auto const &stm_a : stms) {
-        auto res = map.try_emplace(stm_a.name_, id_stm);
+        auto res = map.try_emplace(stm_a.name(), id_stm);
         if (!res.second) {
             auto const &stm_b = stms[res.first->second];
-            if (stm_b.type_ < stm_a.type_) {
+            if (stm_b.type() < stm_a.type()) {
                 res.first.value() = id_stm;
-            } else if (stm_b.type_ == stm_a.type_) {
+            } else if (stm_b.type() == stm_a.type()) {
                 GRINGO_REPORT_LOC(log, error, location(stm_a))
                     << "redefinition of constant:\n"
                     << "  " << stm_a << "\n"
@@ -435,19 +435,19 @@ void evaluate_const(Logger &log, SymbolStore &store, std::vector<StatementConst>
     Graph dep;
     dep.ensure_size(id_stm);
     for (const auto &[name, id_stm] : map) {
-        BuildDep{map, dep, id_stm}(stms[id_stm].value_);
+        BuildDep{map, dep, id_stm}(stms[id_stm].value());
     }
     // evaluate const statements
     dep.tarjan([&log, &store, &stms, &map, &res](auto const &scc) {
         if (scc.size() == 1) {
             auto const &stm = stms[scc.front()];
-            if (map[stm.name_] == scc.front()) {
+            if (map[stm.name()] == scc.front()) {
                 if (auto value = evaluate(log, store, res, stm); value) {
-                    auto [it, ins] = res.try_emplace(stm.name_, stm, *value);
+                    auto [it, ins] = res.try_emplace(stm.name(), stm, *value);
                     if (!ins) {
-                        if (it->second.first.type_ < stm.type_) {
+                        if (it->second.first.type() < stm.type()) {
                             it.value() = std::make_pair(stm, *value);
-                        } else if (it->second.first.type_ == stm.type_) {
+                        } else if (it->second.first.type() == stm.type()) {
                             GRINGO_REPORT_LOC(log, error, location(stm))
                                 << "redefinition of constant:\n"
                                 << "  " << stm << "\n"

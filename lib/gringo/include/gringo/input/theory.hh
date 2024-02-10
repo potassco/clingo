@@ -1,6 +1,5 @@
 #pragma once
 
-#include "gringo/util/optional.hh"
 #include <gringo/input/literal.hh>
 #include <gringo/input/term.hh>
 
@@ -298,12 +297,9 @@ template <bool HasSign> class TheoryAtom : public std::conditional_t<HasSign, Si
     [[nodiscard]] auto rhs() const -> TheoryRGuard const & { return rhs_; }
 
   private:
-    friend auto operator==(TheoryAtom<true> const &a, TheoryAtom<true> const &b) -> bool;
-    friend auto operator==(TheoryAtom<false> const &a, TheoryAtom<false> const &b) -> bool;
-    friend auto operator<(TheoryAtom<true> const &a, TheoryAtom<true> const &b) -> bool;
-    friend auto operator<(TheoryAtom<false> const &a, TheoryAtom<false> const &b) -> bool;
-    friend struct Util::value_hasher<TheoryAtom<true>>;
-    friend struct Util::value_hasher<TheoryAtom<false>>;
+    friend auto operator==(TheoryAtom<HasSign> const &a, TheoryAtom<HasSign> const &b) -> bool;
+    friend auto operator<(TheoryAtom<HasSign> const &a, TheoryAtom<HasSign> const &b) -> bool;
+    friend struct Util::value_hasher<TheoryAtom<HasSign>>;
 
     Location loc_;
     Term name_;

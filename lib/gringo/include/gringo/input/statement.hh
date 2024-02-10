@@ -23,14 +23,18 @@ class Rule {
 
     //! The location of the rule.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The head.
+    [[nodiscard]] auto head() const -> HeadLiteral const & { return head_; }
+    //! The body.
+    [[nodiscard]] auto body() const -> BodyLiteralVec const & { return body_; }
 
   private:
-    Location loc_;
+    friend auto operator==(Rule const &a, Rule const &b) -> bool;
+    friend auto operator<(Rule const &a, Rule const &b) -> bool;
+    friend struct Util::value_hasher<Rule>;
 
-  public:
-    //! The head.
+    Location loc_;
     HeadLiteral head_;
-    //! The body.
     BodyLiteralVec body_;
 };
 
@@ -60,16 +64,21 @@ class TheoryOpDefinition {
 
     //! The location of the definition.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The representation of the operator.
+    [[nodiscard]] auto op() const -> String { return op_; }
+    //! The priority of the operator.
+    [[nodiscard]] auto prio() const -> int { return prio_; }
+    //! The type of the operator.
+    [[nodiscard]] auto type() const -> TheoryOpType { return type_; }
 
   private:
-    Location loc_;
+    friend auto operator==(TheoryOpDefinition const &a, TheoryOpDefinition const &b) -> bool;
+    friend auto operator<(TheoryOpDefinition const &a, TheoryOpDefinition const &b) -> bool;
+    friend struct Util::value_hasher<TheoryOpDefinition>;
 
-  public:
-    //! The representation of the operator.
+    Location loc_;
     String op_;
-    //! The priority of the operator.
     int prio_;
-    //! The type of the operator.
     TheoryOpType type_;
 };
 
@@ -93,14 +102,18 @@ class TheoryTermDefinition {
 
     //! The location of the definition.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The name of the definition.
+    [[nodiscard]] auto name() const -> String { return name_; }
+    //! The associated operator definitions.
+    [[nodiscard]] auto op_defs() const -> Util::immutable_array<TheoryOpDefinition> const & { return op_defs_; }
 
   private:
-    Location loc_;
+    friend auto operator==(TheoryTermDefinition const &a, TheoryTermDefinition const &b) -> bool;
+    friend auto operator<(TheoryTermDefinition const &a, TheoryTermDefinition const &b) -> bool;
+    friend struct Util::value_hasher<TheoryTermDefinition>;
 
-  public:
-    //! The name of the definition.
+    Location loc_;
     String name_;
-    //! The associated operator definitions.
     Util::immutable_array<TheoryOpDefinition> op_defs_;
 };
 
@@ -140,20 +153,27 @@ class TheoryAtomDefinition {
 
     //! The location of the definition.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The name of the atom.
+    [[nodiscard]] auto name() const -> String { return name_; }
+    //! The arity of the atom.
+    [[nodiscard]] auto arity() const -> int { return arity_; }
+    //! The name of the term definition used in elements.
+    [[nodiscard]] auto term() const -> String { return term_; }
+    //! The definition for the right hand side of the atom.
+    [[nodiscard]] auto rhs() const -> std::optional<TheoryRGuardDefinition> const & { return rhs_; }
+    //! The type of the atom.
+    [[nodiscard]] auto type() const -> TheoryAtomType { return type_; }
 
   private:
-    Location loc_;
+    friend auto operator==(TheoryAtomDefinition const &a, TheoryAtomDefinition const &b) -> bool;
+    friend auto operator<(TheoryAtomDefinition const &a, TheoryAtomDefinition const &b) -> bool;
+    friend struct Util::value_hasher<TheoryAtomDefinition>;
 
-  public:
-    //! The name of the atom.
+    Location loc_;
     String name_;
-    //! The arity of the atom.
     int arity_;
-    //! The name of the term definition used in elements.
     String term_;
-    //! The definition for the right hand side of the atom.
     std::optional<TheoryRGuardDefinition> rhs_;
-    //! The type of the atom.
     TheoryAtomType type_;
 };
 
@@ -178,16 +198,21 @@ class TheoryDefinition {
 
     //! The location of the definition.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The name of the definition.
+    [[nodiscard]] auto name() const -> String { return name_; }
+    //! The theory term definitions.
+    [[nodiscard]] auto term_defs() const -> TheoryTermDefinitionVec const & { return term_defs_; }
+    //! The theory atom definitions.
+    [[nodiscard]] auto atom_defs() const -> TheoryAtomDefinitionVec const & { return atom_defs_; }
 
   private:
-    Location loc_;
+    friend auto operator==(TheoryDefinition const &a, TheoryDefinition const &b) -> bool;
+    friend auto operator<(TheoryDefinition const &a, TheoryDefinition const &b) -> bool;
+    friend struct Util::value_hasher<TheoryDefinition>;
 
-  public:
-    //! The name of the definition.
+    Location loc_;
     String name_;
-    //! The theory term definitions.
     TheoryTermDefinitionVec term_defs_;
-    //! The theory atom definitions.
     TheoryAtomDefinitionVec atom_defs_;
 };
 
@@ -212,11 +237,21 @@ class StatementOptimize {
       public:
         explicit Tuple(Term weight, std::optional<Term> priority, TermVec terms)
             : weight_{std::move(weight)}, priority_{std::move(priority)}, terms_{std::move(terms)} {}
+
         //! The weight.
-        Term weight_;
+        [[nodiscard]] auto weight() const -> Term const & { return weight_; }
         //! The optional priority.
-        std::optional<Term> priority_;
+        [[nodiscard]] auto priority() const -> std::optional<Term> const & { return priority_; }
         //! The remaining terms.
+        [[nodiscard]] auto terms() const -> TermVec const & { return terms_; }
+
+      private:
+        friend auto operator==(Tuple const &a, Tuple const &b) -> bool;
+        friend auto operator<(Tuple const &a, Tuple const &b) -> bool;
+        friend struct Util::value_hasher<Tuple>;
+
+        Term weight_;
+        std::optional<Term> priority_;
         TermVec terms_;
     };
     //! An element.
@@ -230,14 +265,18 @@ class StatementOptimize {
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The type of the statement.
+    [[nodiscard]] auto type() const -> OptimizeType { return type_; }
+    //! The elements of the statement.
+    [[nodiscard]] auto elems() const -> ElementVec const & { return elems_; }
 
   private:
-    Location loc_;
+    friend auto operator==(StatementOptimize const &a, StatementOptimize const &b) -> bool;
+    friend auto operator<(StatementOptimize const &a, StatementOptimize const &b) -> bool;
+    friend struct Util::value_hasher<StatementOptimize>;
 
-  public:
-    //! The type of the statement.
+    Location loc_;
     OptimizeType type_;
-    //! The elements of the statement.
     ElementVec elems_;
 };
 
@@ -267,14 +306,18 @@ class StatementWeakConstraint {
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The body of the constraint.
+    [[nodiscard]] auto body() const -> BodyLiteralVec const & { return body_; }
+    //! The tuple of the constraint.
+    [[nodiscard]] auto tuple() const -> Tuple const & { return tuple_; }
 
   private:
-    Location loc_;
+    friend auto operator==(StatementWeakConstraint const &a, StatementWeakConstraint const &b) -> bool;
+    friend auto operator<(StatementWeakConstraint const &a, StatementWeakConstraint const &b) -> bool;
+    friend struct Util::value_hasher<StatementWeakConstraint>;
 
-  public:
-    //! The body of the constraint.
+    Location loc_;
     BodyLiteralVec body_;
-    //! The tuple of the constraint.
     Tuple tuple_;
 };
 
@@ -295,14 +338,18 @@ class StatementShow {
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The term to show.
+    [[nodiscard]] auto term() const -> Term const & { return term_; }
+    //! The body.
+    [[nodiscard]] auto body() const -> BodyLiteralVec const & { return body_; }
 
   private:
-    Location loc_;
+    friend auto operator==(StatementShow const &a, StatementShow const &b) -> bool;
+    friend auto operator<(StatementShow const &a, StatementShow const &b) -> bool;
+    friend struct Util::value_hasher<StatementShow>;
 
-  public:
-    //! The term to show.
+    Location loc_;
     Term term_;
-    //! The body.
     BodyLiteralVec body_;
 };
 
@@ -323,16 +370,21 @@ class StatementShowSig {
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! Whether the signature is negative.
+    [[nodiscard]] auto has_sign() const -> bool { return has_sign_; }
+    //! The name.
+    [[nodiscard]] auto name() const -> String { return name_; }
+    //! The arity.
+    [[nodiscard]] auto arity() const -> int { return arity_; }
 
   private:
-    Location loc_;
+    friend auto operator==(StatementShowSig const &a, StatementShowSig const &b) -> bool;
+    friend auto operator<(StatementShowSig const &a, StatementShowSig const &b) -> bool;
+    friend struct Util::value_hasher<StatementShowSig>;
 
-  public:
-    //! Whether the signature is negative.
+    Location loc_;
     bool has_sign_;
-    //! The name.
     String name_;
-    //! The arity.
     int arity_;
 };
 
@@ -353,14 +405,18 @@ class StatementProject {
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The term representing the atom to project.
+    [[nodiscard]] auto term() const -> Term const & { return term_; }
+    //! The body.
+    [[nodiscard]] auto body() const -> BodyLiteralVec const & { return body_; }
 
   private:
-    Location loc_;
+    friend auto operator==(StatementProject const &a, StatementProject const &b) -> bool;
+    friend auto operator<(StatementProject const &a, StatementProject const &b) -> bool;
+    friend struct Util::value_hasher<StatementProject>;
 
-  public:
-    //! The term representing the atom to project.
+    Location loc_;
     Term term_;
-    //! The body.
     BodyLiteralVec body_;
 };
 
@@ -381,16 +437,21 @@ class StatementProjectSig {
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! Whether the signature is negative.
+    [[nodiscard]] auto has_sign() const -> bool { return has_sign_; }
+    //! The name.
+    [[nodiscard]] auto name() const -> String { return name_; }
+    //! The arity.
+    [[nodiscard]] auto arity() const -> int { return arity_; }
 
   private:
-    Location loc_;
+    friend auto operator==(StatementProjectSig const &a, StatementProjectSig const &b) -> bool;
+    friend auto operator<(StatementProjectSig const &a, StatementProjectSig const &b) -> bool;
+    friend struct Util::value_hasher<StatementProjectSig>;
 
-  public:
-    //! Whether the signature is negative.
+    Location loc_;
     bool has_sign_;
-    //! The name.
     String name_;
-    //! The arity.
     int arity_;
 };
 
@@ -411,11 +472,19 @@ class StatementDefined {
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! Whether the signature is negative.
+    [[nodiscard]] auto has_sign() const -> bool { return has_sign_; }
+    //! The name.
+    [[nodiscard]] auto name() const -> String { return name_; }
+    //! The arity.
+    [[nodiscard]] auto arity() const -> int { return arity_; }
 
   private:
-    Location loc_;
+    friend auto operator==(StatementDefined const &a, StatementDefined const &b) -> bool;
+    friend auto operator<(StatementDefined const &a, StatementDefined const &b) -> bool;
+    friend struct Util::value_hasher<StatementDefined>;
 
-  public:
+    Location loc_;
     //! Whether the signature is negative.
     bool has_sign_;
     //! The name.
@@ -441,16 +510,21 @@ class StatementExternal {
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The term representing the atom to project.
+    [[nodiscard]] auto term() const -> Term const & { return term_; }
+    //! The body.
+    [[nodiscard]] auto body() const -> BodyLiteralVec const & { return body_; }
+    //! The type of the statement.
+    [[nodiscard]] auto type() const -> std::optional<Term> const & { return type_; }
 
   private:
-    Location loc_;
+    friend auto operator==(StatementExternal const &a, StatementExternal const &b) -> bool;
+    friend auto operator<(StatementExternal const &a, StatementExternal const &b) -> bool;
+    friend struct Util::value_hasher<StatementExternal>;
 
-  public:
-    //! The term representing the atom to project.
+    Location loc_;
     Term term_;
-    //! The body.
     BodyLiteralVec body_;
-    //! The type of the statement.
     std::optional<Term> type_;
 };
 
@@ -469,6 +543,17 @@ class StatementEdge {
     class Edge {
       public:
         explicit Edge(Term u, Term v) : u_{std::move(u)}, v_{std::move(v)} {}
+
+        //! The source vertex.
+        [[nodiscard]] auto u() const -> Term const & { return u_; }
+        //! The target vertex.
+        [[nodiscard]] auto v() const -> Term const & { return v_; }
+
+      private:
+        friend auto operator==(Edge const &a, Edge const &b) -> bool;
+        friend auto operator<(Edge const &a, Edge const &b) -> bool;
+        friend struct Util::value_hasher<Edge>;
+
         //! The source vertex.
         Term u_;
         //! The target vertex.
@@ -483,14 +568,18 @@ class StatementEdge {
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The pool of edges.
+    [[nodiscard]] auto edges() const -> EdgeVec const & { return edges_; }
+    //! The body.
+    [[nodiscard]] auto body() const -> BodyLiteralVec const & { return body_; }
 
   private:
-    Location loc_;
+    friend auto operator==(StatementEdge const &a, StatementEdge const &b) -> bool;
+    friend auto operator<(StatementEdge const &a, StatementEdge const &b) -> bool;
+    friend struct Util::value_hasher<StatementEdge>;
 
-  public:
-    //! The pool of edges.
+    Location loc_;
     EdgeVec edges_;
-    //! The body.
     BodyLiteralVec body_;
 };
 
@@ -528,20 +617,27 @@ class StatementHeuristic {
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The atom to modify.
+    [[nodiscard]] auto atom() const -> Term const & { return atom_; }
+    //! The body.
+    [[nodiscard]] auto body() const -> BodyLiteralVec const & { return body_; }
+    //! The type.
+    [[nodiscard]] auto type() const -> Term const & { return type_; }
+    //! The optional priority.
+    [[nodiscard]] auto prio() const -> std::optional<Term> const & { return prio_; }
+    //! The modifier.
+    [[nodiscard]] auto mod() const -> Term const & { return mod_; }
 
   private:
-    Location loc_;
+    friend auto operator==(StatementHeuristic const &a, StatementHeuristic const &b) -> bool;
+    friend auto operator<(StatementHeuristic const &a, StatementHeuristic const &b) -> bool;
+    friend struct Util::value_hasher<StatementHeuristic>;
 
-  public:
-    //! The atom to modify.
+    Location loc_;
     Term atom_;
-    //! The body.
     BodyLiteralVec body_;
-    //! The type.
     Term type_;
-    //! The optional priority.
     std::optional<Term> prio_;
-    //! The modifier.
     Term mod_;
 };
 
@@ -562,14 +658,18 @@ class StatementScript {
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The code type.
+    [[nodiscard]] auto type() const -> String { return type_; }
+    //! The code.
+    [[nodiscard]] auto content() const -> std::string const & { return content_; }
 
   private:
-    Location loc_;
+    friend auto operator==(StatementScript const &a, StatementScript const &b) -> bool;
+    friend auto operator<(StatementScript const &a, StatementScript const &b) -> bool;
+    friend struct Util::value_hasher<StatementScript>;
 
-  public:
-    //! The code type.
+    Location loc_;
     String type_;
-    //! The code.
     std::string content_;
 };
 
@@ -598,14 +698,18 @@ class StatementInclude {
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The include type.
+    [[nodiscard]] auto type() const -> IncludeType { return type_; }
+    //! The path.
+    [[nodiscard]] auto path() const -> std::string const & { return path_; }
 
   private:
-    Location loc_;
+    friend auto operator==(StatementInclude const &a, StatementInclude const &b) -> bool;
+    friend auto operator<(StatementInclude const &a, StatementInclude const &b) -> bool;
+    friend struct Util::value_hasher<StatementInclude>;
 
-  public:
-    //! The include type.
+    Location loc_;
     IncludeType type_;
-    //! The path.
     std::string path_;
 };
 
@@ -626,14 +730,18 @@ class StatementProgram {
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The name of the program.
+    [[nodiscard]] auto name() const -> String const & { return name_; }
+    //! The arguments of the program.
+    [[nodiscard]] auto args() const -> Util::immutable_array<String> const & { return args_; }
 
   private:
-    Location loc_;
+    friend auto operator==(StatementProgram const &a, StatementProgram const &b) -> bool;
+    friend auto operator<(StatementProgram const &a, StatementProgram const &b) -> bool;
+    friend struct Util::value_hasher<StatementProgram>;
 
-  public:
-    //! The name of the program.
+    Location loc_;
     String name_;
-    //! The arguments of the program.
     Util::immutable_array<String> args_;
 };
 
@@ -662,16 +770,21 @@ class StatementConst {
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The type of the statement.
+    [[nodiscard]] auto type() const -> ConstType const & { return type_; }
+    //! The name of the constant.
+    [[nodiscard]] auto name() const -> String const & { return name_; }
+    //! The value of the constant
+    [[nodiscard]] auto value() const -> Term const & { return value_; }
 
   private:
-    Location loc_;
+    friend auto operator==(StatementConst const &a, StatementConst const &b) -> bool;
+    friend auto operator<(StatementConst const &a, StatementConst const &b) -> bool;
+    friend struct Util::value_hasher<StatementConst>;
 
-  public:
-    //! The type of the statement.
+    Location loc_;
     ConstType type_;
-    //! The name of the constant.
     String name_;
-    //! The value of the constant
     Term value_;
 };
 
@@ -700,14 +813,18 @@ class Comment {
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The type of the comment.
+    [[nodiscard]] auto type() const -> CommentType { return type_; }
+    //! The content of the comment including comment markers.
+    [[nodiscard]] auto value() const -> std::string const & { return value_; }
 
   private:
-    Location loc_;
+    friend auto operator==(Comment const &a, Comment const &b) -> bool;
+    friend auto operator<(Comment const &a, Comment const &b) -> bool;
+    friend struct Util::value_hasher<Comment>;
 
-  public:
-    //! The type of the comment.
+    Location loc_;
     CommentType type_;
-    //! The content of the comment including comment markers.
     std::string value_;
 };
 

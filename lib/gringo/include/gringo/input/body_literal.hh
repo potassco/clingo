@@ -21,6 +21,13 @@ class SimpleBodyLiteral {
     //! The location of the literal.
     [[nodiscard]] auto loc() const -> Location const & { return location(lit_); }
     //! The literal.
+    [[nodiscard]] auto lit() const -> Literal const & { return lit_; }
+
+  private:
+    friend auto operator==(SimpleBodyLiteral const &a, SimpleBodyLiteral const &b) -> bool;
+    friend auto operator<(SimpleBodyLiteral const &a, SimpleBodyLiteral const &b) -> bool;
+    friend struct Util::value_hasher<SimpleBodyLiteral>;
+
     Literal lit_;
 };
 
@@ -42,6 +49,13 @@ class Conjunction {
     //! Get the location of the literal.
     [[nodiscard]] auto loc() const -> Location const & { return lit_.loc(); }
     //! The conditional literal representing the elements of the conjunction.
+    [[nodiscard]] auto lit() const -> ConditionalLiteral const & { return lit_; }
+
+  private:
+    friend auto operator==(Conjunction const &a, Conjunction const &b) -> bool;
+    friend auto operator<(Conjunction const &a, Conjunction const &b) -> bool;
+    friend struct Util::value_hasher<Conjunction>;
+
     ConditionalLiteral lit_;
 };
 
@@ -67,14 +81,18 @@ class BodyAggregate {
             : loc_{loc}, tuple_{std::move(tuple)}, cond_{std::move(cond)} {}
         //! The location of the element.
         [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+        //! The tuple of the element.
+        [[nodiscard]] auto tuple() const -> TermVec const & { return tuple_; }
+        //! The condition of the element.
+        [[nodiscard]] auto cond() const -> LiteralVec const & { return cond_; }
 
       private:
-        Location loc_;
+        friend auto operator==(Element const &a, Element const &b) -> bool;
+        friend auto operator<(Element const &a, Element const &b) -> bool;
+        friend struct Util::value_hasher<Element>;
 
-      public:
-        //! The tuple of the element.
+        Location loc_;
         TermVec tuple_;
-        //! The condition of the element.
         LiteralVec cond_;
     };
     //! A vector of aggregate elements.
@@ -87,20 +105,27 @@ class BodyAggregate {
 
     //! The location of the literal.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The sign of the literal.
+    [[nodiscard]] auto sign() const -> Sign { return sign_; }
+    //! The aggregate function.
+    [[nodiscard]] auto fun() const -> AggregateFunction { return fun_; }
+    //! The vector of elements.
+    [[nodiscard]] auto elems() const -> ElementVec const & { return elems_; }
+    //! An optional left guard.
+    [[nodiscard]] auto lhs() const -> LGuard const & { return lhs_; }
+    //! An optional right guard.
+    [[nodiscard]] auto rhs() const -> RGuard const & { return rhs_; }
 
   private:
-    Location loc_;
+    friend auto operator==(BodyAggregate const &a, BodyAggregate const &b) -> bool;
+    friend auto operator<(BodyAggregate const &a, BodyAggregate const &b) -> bool;
+    friend struct Util::value_hasher<BodyAggregate>;
 
-  public:
-    //! The sign of the literal.
+    Location loc_;
     Sign sign_;
-    //! The aggregate function.
     AggregateFunction fun_;
-    //! The vector of elements.
     ElementVec elems_;
-    //! An optional left guard.
     LGuard lhs_;
-    //! An optional right guard.
     RGuard rhs_;
 };
 

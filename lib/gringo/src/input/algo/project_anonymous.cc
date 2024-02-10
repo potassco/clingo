@@ -83,15 +83,15 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
     // head literal
 
     [[nodiscard]] auto accept(HeadAggregate::Element const &elem) const -> std::optional<HeadAggregate::Element> {
-        return transform_construct<HeadAggregate::Element>(elem.loc(), elem.tuple_, tr(elem.lit_), tr(elem.cond_));
+        return transform_construct<HeadAggregate::Element>(elem.loc(), elem.tuple(), tr(elem.lit()), tr(elem.cond()));
     }
 
     [[nodiscard]] auto accept(HeadAggregate const &lit) const -> std::optional<HeadLiteral> {
-        return transform_construct<HeadAggregate>(lit.loc(), lit.lhs_, lit.fun_, tr(lit.elems_), lit.rhs_);
+        return transform_construct<HeadAggregate>(lit.loc(), lit.lhs(), lit.fun(), tr(lit.elems()), lit.rhs());
     }
 
     [[nodiscard]] auto accept(HeadSetAggregate const &lit) const -> std::optional<HeadLiteral> {
-        return transform_construct<HeadSetAggregate>(lit.loc(), lit.lhs_, tr(lit.elems_), lit.rhs_);
+        return transform_construct<HeadSetAggregate>(lit.loc(), lit.lhs(), tr(lit.elems()), lit.rhs());
     }
 
     [[nodiscard]] auto accept(HeadTheoryAtom const &lit) const -> std::optional<HeadLiteral> {
@@ -101,15 +101,16 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
     // body literal
 
     [[nodiscard]] auto accept(BodyAggregate::Element const &elem) const -> std::optional<BodyAggregate::Element> {
-        return transform_construct<BodyAggregate::Element>(elem.loc(), elem.tuple_, tr(elem.cond_));
+        return transform_construct<BodyAggregate::Element>(elem.loc(), elem.tuple(), tr(elem.cond()));
     }
 
     [[nodiscard]] auto accept(BodyAggregate const &lit) const -> std::optional<BodyLiteral> {
-        return transform_construct<BodyAggregate>(lit.loc(), lit.sign_, lit.lhs_, lit.fun_, tr(lit.elems_), lit.rhs_);
+        return transform_construct<BodyAggregate>(lit.loc(), lit.sign(), lit.lhs(), lit.fun(), tr(lit.elems()),
+                                                  lit.rhs());
     }
 
     [[nodiscard]] auto accept(BodySetAggregate const &lit) const -> std::optional<BodyLiteral> {
-        return transform_construct<BodySetAggregate>(lit.loc(), lit.sign(), lit.lhs_, tr(lit.elems_), lit.rhs_);
+        return transform_construct<BodySetAggregate>(lit.loc(), lit.sign(), lit.lhs(), tr(lit.elems()), lit.rhs());
     }
 
     // theory
@@ -126,28 +127,28 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
     }
 
     [[nodiscard]] auto accept(StatementWeakConstraint const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementWeakConstraint>(stm.loc(), tr(stm.body_), stm.tuple_);
+        return transform_construct<StatementWeakConstraint>(stm.loc(), tr(stm.body()), stm.tuple());
     }
 
     [[nodiscard]] auto accept(StatementShow const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementShow>(stm.loc(), stm.term_, tr(stm.body_));
+        return transform_construct<StatementShow>(stm.loc(), stm.term(), tr(stm.body()));
     }
 
     [[nodiscard]] auto accept(StatementProject const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementProject>(stm.loc(), stm.term_, tr(stm.body_));
+        return transform_construct<StatementProject>(stm.loc(), stm.term(), tr(stm.body()));
     }
 
     [[nodiscard]] auto accept(StatementExternal const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementExternal>(stm.loc(), stm.term_, tr(stm.body_), stm.type_);
+        return transform_construct<StatementExternal>(stm.loc(), stm.term(), tr(stm.body()), stm.type());
     }
 
     [[nodiscard]] auto accept(StatementEdge const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementEdge>(stm.loc(), stm.edges_, tr(stm.body_));
+        return transform_construct<StatementEdge>(stm.loc(), stm.edges(), tr(stm.body()));
     }
 
     [[nodiscard]] auto accept(StatementHeuristic const &stm) const -> std::optional<Statement> {
-        return transform_construct<StatementHeuristic>(stm.loc(), stm.atom_, tr(stm.body_), stm.type_, stm.prio_,
-                                                       stm.mod_);
+        return transform_construct<StatementHeuristic>(stm.loc(), stm.atom(), tr(stm.body()), stm.type(), stm.prio(),
+                                                       stm.mod());
     }
 };
 

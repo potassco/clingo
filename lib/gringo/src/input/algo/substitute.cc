@@ -197,26 +197,26 @@ struct MapParams : Transformer<MapParams> {
     // statement
 
     [[nodiscard]] auto accept(StatementProject const &stm) const -> std::optional<Statement> {
-        if (!is_identifier(stm.term_)) {
-            return transform_construct<StatementProject>(stm.loc(), tr(stm.term_), tr(stm.body_));
+        if (!is_identifier(stm.term())) {
+            return transform_construct<StatementProject>(stm.loc(), tr(stm.term()), tr(stm.body()));
         }
-        return transform_construct<StatementProject>(stm.loc(), stm.term_, tr(stm.body_));
+        return transform_construct<StatementProject>(stm.loc(), stm.term(), tr(stm.body()));
     }
 
     [[nodiscard]] auto accept(StatementExternal const &stm) const -> std::optional<Statement> {
-        if (!is_identifier(stm.term_)) {
-            return transform_construct<StatementExternal>(stm.loc(), tr(stm.term_), tr(stm.body_), tr(stm.type_));
+        if (!is_identifier(stm.term())) {
+            return transform_construct<StatementExternal>(stm.loc(), tr(stm.term()), tr(stm.body()), tr(stm.type()));
         }
-        return transform_construct<StatementExternal>(stm.loc(), stm.term_, tr(stm.body_), tr(stm.type_));
+        return transform_construct<StatementExternal>(stm.loc(), stm.term(), tr(stm.body()), tr(stm.type()));
     }
 
     [[nodiscard]] auto accept(StatementHeuristic const &stm) const -> std::optional<Statement> {
-        if (!is_identifier(stm.atom_)) {
-            return transform_construct<StatementHeuristic>(stm.loc(), tr(stm.atom_), tr(stm.body_), tr(stm.type_),
-                                                           tr(stm.prio_), tr(stm.mod_));
+        if (!is_identifier(stm.atom())) {
+            return transform_construct<StatementHeuristic>(stm.loc(), tr(stm.atom()), tr(stm.body()), tr(stm.type()),
+                                                           tr(stm.prio()), tr(stm.mod()));
         }
-        return transform_construct<StatementHeuristic>(stm.loc(), stm.atom_, tr(stm.body_), tr(stm.type_),
-                                                       tr(stm.prio_), tr(stm.mod_));
+        return transform_construct<StatementHeuristic>(stm.loc(), stm.atom(), tr(stm.body()), tr(stm.type()),
+                                                       tr(stm.prio()), tr(stm.mod()));
     }
 
     RewriteContext &ctx;
@@ -312,24 +312,24 @@ struct Collect : Visitor<Collect> {
     // statement
 
     void accept(StatementProject const &stm) const {
-        if (!is_identifier(stm.term_)) {
-            visit(stm.term_);
+        if (!is_identifier(stm.term())) {
+            visit(stm.term());
         }
-        visit(stm.body_);
+        visit(stm.body());
     }
 
     void accept(StatementExternal const &stm) const {
-        if (!is_identifier(stm.term_)) {
-            visit(stm.term_);
+        if (!is_identifier(stm.term())) {
+            visit(stm.term());
         }
-        visit(stm.body_, stm.type_);
+        visit(stm.body(), stm.type());
     }
 
     void accept(StatementHeuristic const &stm) const {
-        if (!is_identifier(stm.atom_)) {
-            visit(stm.atom_);
+        if (!is_identifier(stm.atom())) {
+            visit(stm.atom());
         }
-        visit(stm.body_, stm.type_, stm.prio_, stm.mod_);
+        visit(stm.body(), stm.type(), stm.prio(), stm.mod());
     }
 
     StringSet &ids;

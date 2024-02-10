@@ -21,6 +21,13 @@ class SimpleHeadLiteral {
     //! The location of the literal.
     [[nodiscard]] auto loc() const -> Location const & { return location(lit_); }
     //! The literal.
+    [[nodiscard]] auto lit() const -> Literal const & { return lit_; }
+
+  private:
+    friend auto operator==(SimpleHeadLiteral const &a, SimpleHeadLiteral const &b) -> bool;
+    friend auto operator<(SimpleHeadLiteral const &a, SimpleHeadLiteral const &b) -> bool;
+    friend struct Util::value_hasher<SimpleHeadLiteral>;
+
     Literal lit_;
 };
 
@@ -45,12 +52,15 @@ class Disjunction {
     explicit Disjunction(Location loc, ElementVec elems) : loc_{loc}, elems_{std::move(elems)} {}
     //! The location of the disjunction.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The elements of the disjunction.
+    [[nodiscard]] auto elems() const -> ElementVec const & { return elems_; }
 
   private:
-    Location loc_;
+    friend auto operator==(Disjunction const &a, Disjunction const &b) -> bool;
+    friend auto operator<(Disjunction const &a, Disjunction const &b) -> bool;
+    friend struct Util::value_hasher<Disjunction>;
 
-  public:
-    //! The elements of the disjunction.
+    Location loc_;
     ElementVec elems_;
 };
 
@@ -76,16 +86,21 @@ class HeadAggregate {
             : loc_{loc}, tuple_{std::move(tuple)}, lit_{std::move(lit)}, cond_{std::move(cond)} {}
         //! The location of the element.
         [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+        //! The tuple of the element.
+        [[nodiscard]] auto tuple() const -> TermVec const & { return tuple_; }
+        //! The distinguished head literal of the element.
+        [[nodiscard]] auto lit() const -> Literal const & { return lit_; }
+        //! The condition of the element.
+        [[nodiscard]] auto cond() const -> LiteralVec const & { return cond_; }
 
       private:
-        Location loc_;
+        friend auto operator==(Element const &a, Element const &b) -> bool;
+        friend auto operator<(Element const &a, Element const &b) -> bool;
+        friend struct Util::value_hasher<Element>;
 
-      public:
-        //! The tuple of the element.
+        Location loc_;
         TermVec tuple_;
-        //! The distinguished head literal of the element.
         Literal lit_;
-        //! The condition of the element.
         LiteralVec cond_;
     };
     //! A vector of head aggregate elements.
@@ -103,18 +118,24 @@ class HeadAggregate {
 
     //! The location of the aggregate.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The aggregate function.
+    [[nodiscard]] auto fun() const -> AggregateFunction { return fun_; }
+    //! The vector of elements.
+    [[nodiscard]] auto elems() const -> ElementVec const & { return elems_; }
+    //! An optional left guard.
+    [[nodiscard]] auto lhs() const -> LGuard const & { return lhs_; }
+    //! An optional right guard.
+    [[nodiscard]] auto rhs() const -> RGuard const & { return rhs_; }
 
   private:
-    Location loc_;
+    friend auto operator==(HeadAggregate const &a, HeadAggregate const &b) -> bool;
+    friend auto operator<(HeadAggregate const &a, HeadAggregate const &b) -> bool;
+    friend struct Util::value_hasher<HeadAggregate>;
 
-  public:
-    //! The aggregate function.
+    Location loc_;
     AggregateFunction fun_;
-    //! The vector of elements.
     ElementVec elems_;
-    //! An optional left guard.
     LGuard lhs_;
-    //! An optional right guard.
     RGuard rhs_;
 };
 

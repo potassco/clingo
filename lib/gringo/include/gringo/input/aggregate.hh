@@ -48,14 +48,18 @@ class SetAggregateElement {
         : loc_{loc}, lit_{std::move(lit)}, cond_{std::move(cond)} {}
     //! The location of the element.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The literal.
+    [[nodiscard]] auto lit() const -> Literal const & { return lit_; }
+    //! The condition.
+    [[nodiscard]] auto cond() const -> LiteralVec const & { return cond_; }
 
   private:
-    Location loc_;
+    friend auto operator==(SetAggregateElement const &a, SetAggregateElement const &b) -> bool;
+    friend auto operator<(SetAggregateElement const &a, SetAggregateElement const &b) -> bool;
+    friend struct Util::value_hasher<SetAggregateElement>;
 
-  public:
-    //! The literal.
+    Location loc_;
     Literal lit_;
-    //! The condition.
     LiteralVec cond_;
 };
 
@@ -91,16 +95,21 @@ template <bool HasSign> class SetAggregate : public std::conditional_t<HasSign, 
 
     //! The location of the aggregate.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The elements of the set aggregate.
+    [[nodiscard]] auto elems() const -> SetAggregateElementVec const & { return elems_; }
+    //! The optional right guard of the aggregate.
+    [[nodiscard]] auto lhs() const -> LGuard const & { return lhs_; }
+    //! The optional left guard of the aggregate.
+    [[nodiscard]] auto rhs() const -> RGuard const & { return rhs_; }
 
   private:
-    Location loc_;
+    friend auto operator==(SetAggregate<HasSign> const &a, SetAggregate<HasSign> const &b) -> bool;
+    friend auto operator<(SetAggregate<HasSign> const &a, SetAggregate<HasSign> const &b) -> bool;
+    friend struct Util::value_hasher<SetAggregate<HasSign>>;
 
-  public:
-    //! The elements of the set aggregate.
+    Location loc_;
     SetAggregateElementVec elems_;
-    //! The optional right guard of the aggregate.
     LGuard lhs_;
-    //! The optional left guard of the aggregate.
     RGuard rhs_;
 };
 
@@ -113,12 +122,22 @@ using BodySetAggregate = SetAggregate<true>;
 //! Compare two set aggregates.
 //!
 //! @related SetAggregate
-template <bool HasSign> auto operator==(SetAggregate<HasSign> const &a, SetAggregate<HasSign> const &b) -> bool;
+auto operator==(HeadSetAggregate const &a, HeadSetAggregate const &b) -> bool;
 
 //! Compare two set aggregates.
 //!
 //! @related SetAggregate
-template <bool HasSign> auto operator<(SetAggregate<HasSign> const &a, SetAggregate<HasSign> const &b) -> bool;
+auto operator<(HeadSetAggregate const &a, HeadSetAggregate const &b) -> bool;
+
+//! Compare two set aggregates.
+//!
+//! @related SetAggregate
+auto operator==(BodySetAggregate const &a, BodySetAggregate const &b) -> bool;
+
+//! Compare two set aggregates.
+//!
+//! @related SetAggregate
+auto operator<(BodySetAggregate const &a, BodySetAggregate const &b) -> bool;
 
 //! @}
 

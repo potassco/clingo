@@ -22,16 +22,16 @@ struct AddSign {
     auto operator()(BodyLiteral const &lit) const -> BodyLiteral { return std::visit(*this, lit); }
 
     auto operator()(SimpleBodyLiteral const &lit) const -> BodyLiteral {
-        return SimpleBodyLiteral{operator()(lit.lit_)};
+        return SimpleBodyLiteral{operator()(lit.lit())};
     }
     auto operator()(Conjunction const &lit) const -> BodyLiteral {
-        return Conjunction{ConditionalLiteral{pos + lit.lit_.loc(), operator()(lit.lit_.lit()), lit.lit_.cond()}};
+        return Conjunction{ConditionalLiteral{pos + lit.lit().loc(), operator()(lit.lit().lit()), lit.lit().cond()}};
     }
     auto operator()(BodyAggregate const &lit) const -> BodyLiteral {
-        return BodyAggregate{lit.loc() + pos, lit.sign_ + sign, lit.lhs_, lit.fun_, lit.elems_, lit.rhs_};
+        return BodyAggregate{lit.loc() + pos, lit.sign() + sign, lit.lhs(), lit.fun(), lit.elems(), lit.rhs()};
     }
     auto operator()(BodySetAggregate const &lit) const -> BodyLiteral {
-        return BodySetAggregate{lit.loc() + pos, lit.sign() + sign, lit.lhs_, lit.elems_, lit.rhs_};
+        return BodySetAggregate{lit.loc() + pos, lit.sign() + sign, lit.lhs(), lit.elems(), lit.rhs()};
     }
     auto operator()(BodyTheoryAtom const &lit) const -> BodyLiteral {
         return BodyTheoryAtom{lit.loc() + pos, lit.sign() + sign, lit.name(),

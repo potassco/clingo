@@ -1194,9 +1194,9 @@ struct LiteralToTuple {
 [[nodiscard]] auto simplify_element(RewriteContext &ctx, HeadAggregate::Element const &elem)
     -> SimplifyResult<HeadAggregate::Element> {
     auto guard = ctx.push();
-    auto [state_tuple, res_tuple] = simplify_termvec(ctx, elem.tuple_);
-    auto [state_lit, res_lit] = simplify(SimplifyLiteralFlags::none, ctx, elem.lit_);
-    auto [state_cond, res_cond] = simplify_litvec(ctx, elem.cond_);
+    auto [state_tuple, res_tuple] = simplify_termvec(ctx, elem.tuple());
+    auto [state_lit, res_lit] = simplify(SimplifyLiteralFlags::none, ctx, elem.lit());
+    auto [state_cond, res_cond] = simplify_litvec(ctx, elem.cond());
 
     if (!state_tuple) {
         state_cond = TruthValue::bot;
@@ -1204,37 +1204,37 @@ struct LiteralToTuple {
 
     auto state_elem = TruthValue::unknown;
     if (state_lit == TruthValue::top && state_cond == TruthValue::top) {
-        auto const &tuple = res_tuple ? *res_tuple : elem.tuple_;
+        auto const &tuple = res_tuple ? *res_tuple : elem.tuple();
         state_elem = all_symbol(tuple) ? TruthValue::top : TruthValue::unknown;
-        if (!elem.cond_.empty()) {
+        if (!elem.cond().empty()) {
             res_cond = LiteralVec{};
         }
     }
     if (state_lit == TruthValue::bot || state_cond == TruthValue::bot) {
         state_elem = TruthValue::bot;
-        if (!elem.tuple_.empty()) {
+        if (!elem.tuple().empty()) {
             res_tuple = TermVec{};
         }
-        if (!elem.cond_.empty()) {
+        if (!elem.cond().empty()) {
             res_cond = LiteralVec{};
         }
         if (state_lit != TruthValue::bot) {
-            res_lit = LiteralBoolean{location(elem.lit_), Sign::none, false};
+            res_lit = LiteralBoolean{location(elem.lit()), Sign::none, false};
         }
     }
-    auto const *rel_lit = std::get_if<LiteralRelation>(res_lit ? &*res_lit : &elem.lit_);
+    auto const *rel_lit = std::get_if<LiteralRelation>(res_lit ? &*res_lit : &elem.lit());
     if (rel_lit != nullptr) {
         assert(state_cond != TruthValue::bot);
         if (!res_cond.has_value()) {
-            res_cond = elem.cond_;
+            res_cond = elem.cond();
         }
-        res_cond->emplace_back(std::move(res_lit).value_or(elem.lit_));
-        res_lit = make_constant(location(elem.lit_), true);
+        res_cond->emplace_back(std::move(res_lit).value_or(elem.lit()));
+        res_lit = make_constant(location(elem.lit()), true);
     }
     if (res_tuple.has_value() || res_lit.has_value() || res_cond.has_value()) {
-        return {state_elem, HeadAggregate::Element{elem.loc(), std::move(res_tuple).value_or(elem.tuple_),
-                                                   std::move(res_lit).value_or(elem.lit_),
-                                                   std::move(res_cond).value_or(elem.cond_)}};
+        return {state_elem, HeadAggregate::Element{elem.loc(), std::move(res_tuple).value_or(elem.tuple()),
+                                                   std::move(res_lit).value_or(elem.lit()),
+                                                   std::move(res_cond).value_or(elem.cond())}};
     }
     return {state_elem};
 }
@@ -1243,8 +1243,8 @@ struct LiteralToTuple {
 [[nodiscard]] auto simplify_element(RewriteContext &ctx, BodyAggregate::Element const &elem)
     -> SimplifyResult<BodyAggregate::Element> {
     auto guard = ctx.push();
-    auto [state_tuple, res_tuple] = simplify_termvec(ctx, elem.tuple_);
-    auto [state_cond, res_cond] = simplify_litvec(ctx, elem.cond_);
+    auto [state_tuple, res_tuple] = simplify_termvec(ctx, elem.tuple());
+    auto [state_cond, res_cond] = simplify_litvec(ctx, elem.cond());
 
     if (!state_tuple) {
         state_cond = TruthValue::bot;
@@ -1252,21 +1252,21 @@ struct LiteralToTuple {
 
     auto state_elem = TruthValue::unknown;
     if (state_cond == TruthValue::top) {
-        auto const &tuple = res_tuple ? *res_tuple : elem.tuple_;
+        auto const &tuple = res_tuple ? *res_tuple : elem.tuple();
         state_elem = all_symbol(tuple) ? TruthValue::top : TruthValue::unknown;
-        if (!elem.cond_.empty()) {
+        if (!elem.cond().empty()) {
             res_cond = LiteralVec{};
         }
     }
     if (state_cond == TruthValue::bot) {
         state_elem = TruthValue::bot;
-        if (!elem.tuple_.empty()) {
+        if (!elem.tuple().empty()) {
             res_tuple = TermVec{};
         }
     }
     if (res_tuple.has_value() || res_cond.has_value()) {
-        return {state_elem, BodyAggregate::Element{elem.loc(), std::move(res_tuple).value_or(elem.tuple_),
-                                                   std::move(res_cond).value_or(elem.cond_)}};
+        return {state_elem, BodyAggregate::Element{elem.loc(), std::move(res_tuple).value_or(elem.tuple()),
+                                                   std::move(res_cond).value_or(elem.cond())}};
     }
     return {state_elem};
 }
@@ -1403,7 +1403,7 @@ template <bool head> using SimpleHBLiteral = std::conditional_t<head, SimpleHead
 //! Check if the given relation forms an assignment together with the aggregate.
 template <bool head> [[nodiscard]] auto is_assignment(HBAggregate<head> const &lit, Relation rel) -> bool {
     if constexpr (!head) {
-        return lit.sign_ == Sign::once ? rel == Relation::inequal : rel == Relation::equal;
+        return lit.sign() == Sign::once ? rel == Relation::inequal : rel == Relation::equal;
     }
     return false;
 }
@@ -1413,17 +1413,17 @@ template <bool head>
 [[nodiscard]] auto simplify_aggregate(RewriteContext &ctx, HBAggregate<head> const &lit)
     -> SimplifyResult<HBLiteral<head>> {
     auto [state_lhs, res_lhs] =
-        simplify_guard(ctx, lit.lhs_, lit.lhs_.has_value() && is_assignment<head>(lit, lit.lhs_->second));
+        simplify_guard(ctx, lit.lhs(), lit.lhs().has_value() && is_assignment<head>(lit, lit.lhs()->second));
     auto [state_rhs, res_rhs] =
-        simplify_guard(ctx, lit.rhs_, lit.rhs_.has_value() && is_assignment<head>(lit, lit.rhs_->first));
-    auto res_elems = Util::ResultVec{lit.elems_};
+        simplify_guard(ctx, lit.rhs(), lit.rhs().has_value() && is_assignment<head>(lit, lit.rhs()->first));
+    auto res_elems = Util::ResultVec{lit.elems()};
     bool constant = true;
-    auto value = neutral_value(lit.fun_);
+    auto value = neutral_value(lit.fun());
     auto tuples = Util::unordered_set<TermVec, Util::value_hasher<TermVec>>{};
-    for (auto const &elem : lit.elems_) {
+    for (auto const &elem : lit.elems()) {
         auto [state_elem, res_elem] = simplify_element(ctx, elem);
-        auto const &tuple = (res_elem ? *res_elem : elem).tuple_;
-        if (state_elem == TruthValue::bot || !check_tuple(lit.fun_, tuple)) {
+        auto const &tuple = (res_elem ? *res_elem : elem).tuple();
+        if (state_elem == TruthValue::bot || !check_tuple(lit.fun(), tuple)) {
             if (state_elem != TruthValue::bot) {
                 GRINGO_REPORT_LOC(ctx.logger(), info_operation_undefined, elem.loc())
                     << "aggregate function undefined for tuple:\n"
@@ -1437,7 +1437,7 @@ template <bool head>
         } else if (tuples.emplace(tuple).second) {
             if (!tuple.empty()) {
             }
-            accumulate(lit.fun_, tuple, value);
+            accumulate(lit.fun(), tuple, value);
         }
         res_elems.update(std::move(res_elem));
     }
@@ -1447,18 +1447,18 @@ template <bool head>
     // Note: value also gives a lower bound for the aggregate, which could be used to detect true/false aggregates
     // (unlikely to be relevant in practice)
     if constexpr (!head) {
-        if (!lit.lhs_.has_value() && !lit.rhs_.has_value()) {
-            return {TruthValue::top, SimpleHBLiteral<head>{make_constant(lit.loc(), lit.sign_ != Sign::once)}};
+        if (!lit.lhs().has_value() && !lit.rhs().has_value()) {
+            return {TruthValue::top, SimpleHBLiteral<head>{make_constant(lit.loc(), lit.sign() != Sign::once)}};
         }
     }
     if (constant) {
         auto sign = Sign::none;
         if constexpr (head) {
-            if (!lit.lhs_.has_value() && !lit.rhs_.has_value()) {
+            if (!lit.lhs().has_value() && !lit.rhs().has_value()) {
                 return {TruthValue::top, SimpleHBLiteral<head>{make_constant(lit.loc(), true)}};
             }
         } else {
-            sign = lit.sign_;
+            sign = lit.sign();
         }
         auto lhs = Term{TermSymbol{lit.loc(), std::visit(
                                                   [&ctx](auto &&value) {
@@ -1469,16 +1469,16 @@ template <bool head>
                                                   },
                                                   value)}};
         auto guards = std::vector<Guard>{};
-        if (lit.lhs_.has_value()) {
-            guards.emplace_back(lit.lhs_->second, std::move(lhs));
+        if (lit.lhs().has_value()) {
+            guards.emplace_back(lit.lhs()->second, std::move(lhs));
             lhs = Util::transform(std::move(res_lhs), [](auto guard) {
                       return std::move(guard).first;
-                  }).value_or(lit.lhs_->first);
+                  }).value_or(lit.lhs()->first);
         }
-        if (lit.rhs_.has_value()) {
-            guards.emplace_back(lit.rhs_->first, Util::transform(std::move(res_rhs), [](auto guard) {
-                                                     return std::move(guard).second;
-                                                 }).value_or(lit.rhs_->second));
+        if (lit.rhs().has_value()) {
+            guards.emplace_back(lit.rhs()->first, Util::transform(std::move(res_rhs), [](auto guard) {
+                                                      return std::move(guard).second;
+                                                  }).value_or(lit.rhs()->second));
         }
         auto rel_lit = SimpleHBLiteral<head>{LiteralRelation{lit.loc(), sign, std::move(lhs), std::move(guards)}};
         auto [state_lit, res_lit] = simplify(ctx, rel_lit);
@@ -1486,14 +1486,14 @@ template <bool head>
     }
     if (res_lhs.has_value() || res_rhs.has_value() || res_elems.has_value()) {
         auto lhs =
-            Util::transform(lit.lhs_, [&res_lhs](auto const &orig) { return std::move(res_lhs).value_or(orig); });
+            Util::transform(lit.lhs(), [&res_lhs](auto const &orig) { return std::move(res_lhs).value_or(orig); });
         auto rhs =
-            Util::transform(lit.rhs_, [&res_rhs](auto const &orig) { return std::move(res_rhs).value_or(orig); });
+            Util::transform(lit.rhs(), [&res_rhs](auto const &orig) { return std::move(res_rhs).value_or(orig); });
         if constexpr (head) {
             return {TruthValue::unknown,
-                    HeadAggregate{lit.loc(), std::move(lhs), lit.fun_, std::move(res_elems).value(), std::move(rhs)}};
+                    HeadAggregate{lit.loc(), std::move(lhs), lit.fun(), std::move(res_elems).value(), std::move(rhs)}};
         } else {
-            return {TruthValue::unknown, BodyAggregate{lit.loc(), lit.sign_, std::move(lhs), lit.fun_,
+            return {TruthValue::unknown, BodyAggregate{lit.loc(), lit.sign(), std::move(lhs), lit.fun(),
                                                        std::move(res_elems).value(), std::move(rhs)}};
         }
     }
@@ -1561,7 +1561,7 @@ struct SimplifyHeadLiteral {
     auto operator()(HeadLiteral const &lit) const -> SimplifyResult<HeadLiteral> { return std::visit(*this, lit); }
 
     auto operator()(SimpleHeadLiteral const &lit) const -> SimplifyResult<HeadLiteral> {
-        auto [state, res] = simplify(SimplifyLiteralFlags::head, ctx, lit.lit_);
+        auto [state, res] = simplify(SimplifyLiteralFlags::head, ctx, lit.lit());
         return {state, Util::transform(std::move(res), [](auto &&res) { return SimpleHeadLiteral{GRINGO_FWD(res)}; })};
     }
 
@@ -1570,8 +1570,8 @@ struct SimplifyHeadLiteral {
         auto state_empty = TruthValue::bot;
         auto state_elems = state_empty;
 
-        auto res_elems = Util::ResultVec{lit.elems_};
-        for (auto const &elem : lit.elems_) {
+        auto res_elems = Util::ResultVec{lit.elems()};
+        for (auto const &elem : lit.elems()) {
             std::visit(
                 [&, this](auto const &elem) {
                     auto [state, res_elem] = [&, this]() {
@@ -1589,7 +1589,7 @@ struct SimplifyHeadLiteral {
                         state_elems = TruthValue::unknown;
                         res_elems.update(std::move(res_elem));
                     } else if (state == state_fixed) {
-                        if (lit.elems_.size() != 1 || res_elem) {
+                        if (lit.elems().size() != 1 || res_elem) {
                             res_elems.as_optional() =
                                 Util::make_vec<Disjunction::Element>(std::move(res_elem).value_or(elem));
                         }
@@ -1628,12 +1628,12 @@ struct SimplifyBodyLiteral {
     auto operator()(BodyLiteral const &lit) const -> SimplifyResult<BodyLiteral> { return std::visit(*this, lit); }
 
     auto operator()(SimpleBodyLiteral const &lit) const -> SimplifyResult<BodyLiteral> {
-        auto [state, res] = simplify(SimplifyLiteralFlags::matchable, ctx, lit.lit_);
+        auto [state, res] = simplify(SimplifyLiteralFlags::matchable, ctx, lit.lit());
         return {state, Util::transform(std::move(res), [](auto &&res) { return SimpleBodyLiteral{GRINGO_FWD(res)}; })};
     }
 
     auto operator()(Conjunction const &lit) const -> SimplifyResult<BodyLiteral> {
-        return simplify_condlit(ctx, lit.lit_, true);
+        return simplify_condlit(ctx, lit.lit(), true);
     }
 
     auto operator()(BodySetAggregate const &lit) const -> SimplifyResult<BodyLiteral> {
@@ -1690,12 +1690,12 @@ struct SimplifyStatement {
     auto operator()(Statement const &stm) const -> SimplifyResult<Statement> { return std::visit(*this, stm); }
 
     auto operator()(Rule const &stm) const -> SimplifyResult<Statement> {
-        auto [state_head, res_head] = simplify(ctx, stm.head_);
-        auto [state_body, res_body] = simplify_body(ctx, stm.body_);
+        auto [state_head, res_head] = simplify(ctx, stm.head());
+        auto [state_body, res_body] = simplify_body(ctx, stm.body());
         auto state = TruthValue::unknown;
         if (state_head == TruthValue::top || state_body == TruthValue::bot) {
-            if (!stm.body_.empty()) {
-                res_head = make_constant(location(stm.head_), true);
+            if (!stm.body().empty()) {
+                res_head = make_constant(location(stm.head()), true);
                 res_body = BodyLiteralVec{};
             }
             state = TruthValue::top;
@@ -1704,8 +1704,8 @@ struct SimplifyStatement {
             state = TruthValue::bot;
         }
         if (res_head.has_value() || res_body.has_value()) {
-            return {state,
-                    Rule{stm.loc(), std::move(res_head).value_or(stm.head_), std::move(res_body).value_or(stm.body_)}};
+            return {state, Rule{stm.loc(), std::move(res_head).value_or(stm.head()),
+                                std::move(res_body).value_or(stm.body())}};
         }
         return {state};
     }
@@ -1721,26 +1721,26 @@ struct SimplifyStatement {
     }
 
     auto operator()(StatementWeakConstraint const &stm) const -> SimplifyResult<Statement> {
-        auto [state_weight, res_weight] = simplify(SimplifyTermFlags::none, ctx, stm.tuple_.weight_);
-        auto [state_prio, res_prio] = stm.tuple_.priority_
-                                          ? simplify(SimplifyTermFlags::none, ctx, *stm.tuple_.priority_)
+        auto [state_weight, res_weight] = simplify(SimplifyTermFlags::none, ctx, stm.tuple().weight());
+        auto [state_prio, res_prio] = stm.tuple().priority()
+                                          ? simplify(SimplifyTermFlags::none, ctx, *stm.tuple().priority())
                                           : SimplifyTermResult{true};
-        auto [state_terms, res_terms] = simplify_termvec(ctx, stm.tuple_.terms_);
-        auto [state_body, res_body] = simplify_body(ctx, stm.body_);
+        auto [state_terms, res_terms] = simplify_termvec(ctx, stm.tuple().terms());
+        auto [state_body, res_body] = simplify_body(ctx, stm.body());
 
         if (!state_weight || state_body == TruthValue::bot || !state_prio || !state_terms) {
             return {TruthValue::top, Rule{stm.loc(), make_constant(location(stm), true), {}}};
         }
         auto state = TruthValue::unknown;
         if (res_weight.has_value() || res_body.has_value() || res_prio.has_value() || res_terms.has_value()) {
-            if (!res_prio && stm.tuple_.priority_) {
-                res_prio = stm.tuple_.priority_;
+            if (!res_prio && stm.tuple().priority()) {
+                res_prio = stm.tuple().priority();
             }
             return {state, StatementWeakConstraint{
-                               stm.loc(), std::move(res_body).value_or(stm.body_),
-                               StatementWeakConstraint::Tuple{std::move(res_weight).value_or(stm.tuple_.weight_),
+                               stm.loc(), std::move(res_body).value_or(stm.body()),
+                               StatementWeakConstraint::Tuple{std::move(res_weight).value_or(stm.tuple().weight()),
                                                               std::move(res_prio),
-                                                              std::move(res_terms).value_or(stm.tuple_.terms_)}
+                                                              std::move(res_terms).value_or(stm.tuple().terms())}
 
                            }};
         }
@@ -1748,15 +1748,15 @@ struct SimplifyStatement {
     }
 
     auto operator()(StatementShow const &stm) const -> SimplifyResult<Statement> {
-        auto [state_term, res_term] = simplify(SimplifyTermFlags::none, ctx, stm.term_);
-        auto [state_body, res_body] = simplify_body(ctx, stm.body_);
+        auto [state_term, res_term] = simplify(SimplifyTermFlags::none, ctx, stm.term());
+        auto [state_body, res_body] = simplify_body(ctx, stm.body());
         if (!state_term || state_body == TruthValue::bot) {
-            return {TruthValue::top, Rule{stm.loc(), make_constant(location(stm.term_), true), {}}};
+            return {TruthValue::top, Rule{stm.loc(), make_constant(location(stm.term()), true), {}}};
         }
         auto state = TruthValue::unknown;
         if (res_term.has_value() || res_body.has_value()) {
-            return {state, StatementShow{stm.loc(), std::move(res_term).value_or(stm.term_),
-                                         std::move(res_body).value_or(stm.body_)}};
+            return {state, StatementShow{stm.loc(), std::move(res_term).value_or(stm.term()),
+                                         std::move(res_body).value_or(stm.body())}};
         }
         return {state};
     }
@@ -1767,15 +1767,15 @@ struct SimplifyStatement {
     }
 
     auto operator()(StatementProject const &stm) const -> SimplifyResult<Statement> {
-        auto [state_term, res_term] = simplify(SimplifyTermFlags::matchable, ctx, stm.term_);
-        auto [state_body, res_body] = simplify_body(ctx, stm.body_);
+        auto [state_term, res_term] = simplify(SimplifyTermFlags::matchable, ctx, stm.term());
+        auto [state_body, res_body] = simplify_body(ctx, stm.body());
         if (!state_term || state_body == TruthValue::bot) {
-            return {TruthValue::top, Rule{stm.loc(), make_constant(location(stm.term_), true), {}}};
+            return {TruthValue::top, Rule{stm.loc(), make_constant(location(stm.term()), true), {}}};
         }
         auto state = TruthValue::unknown;
         if (res_term.has_value() || res_body.has_value()) {
-            return {state, StatementProject{stm.loc(), std::move(res_term).value_or(stm.term_),
-                                            std::move(res_body).value_or(stm.body_)}};
+            return {state, StatementProject{stm.loc(), std::move(res_term).value_or(stm.term()),
+                                            std::move(res_body).value_or(stm.body())}};
         }
         return {state};
     }
@@ -1791,32 +1791,32 @@ struct SimplifyStatement {
     }
 
     auto operator()(StatementExternal const &stm) const -> SimplifyResult<Statement> {
-        auto [state_term, res_term] = simplify(SimplifyTermFlags::matchable, ctx, stm.term_);
+        auto [state_term, res_term] = simplify(SimplifyTermFlags::matchable, ctx, stm.term());
         auto [state_type, res_type] =
-            stm.type_ ? simplify(SimplifyTermFlags::matchable, ctx, *stm.type_) : SimplifyTermResult{true};
-        auto [state_body, res_body] = simplify_body(ctx, stm.body_);
+            stm.type() ? simplify(SimplifyTermFlags::matchable, ctx, *stm.type()) : SimplifyTermResult{true};
+        auto [state_body, res_body] = simplify_body(ctx, stm.body());
         if (!state_term || !state_type || state_body == TruthValue::bot) {
-            return {TruthValue::top, Rule{stm.loc(), make_constant(location(stm.term_), true), {}}};
+            return {TruthValue::top, Rule{stm.loc(), make_constant(location(stm.term()), true), {}}};
         }
         auto state = TruthValue::unknown;
         if (res_term.has_value() || res_type.has_value() || res_body.has_value()) {
-            if (stm.type_ && !res_type) {
-                res_type = stm.type_;
+            if (stm.type() && !res_type) {
+                res_type = stm.type();
             }
-            return {state, StatementExternal{stm.loc(), std::move(res_term).value_or(stm.term_),
-                                             std::move(res_body).value_or(stm.body_), std::move(res_type)}};
+            return {state, StatementExternal{stm.loc(), std::move(res_term).value_or(stm.term()),
+                                             std::move(res_body).value_or(stm.body()), std::move(res_type)}};
         }
         return {state};
     }
 
     auto operator()(StatementEdge const &stm) const -> SimplifyResult<Statement> {
-        if (stm.edges_.size() != 1) {
+        if (stm.edges().size() != 1) {
             throw std::runtime_error("edge directives must be unpooled before simplifying");
         }
-        auto edge = stm.edges_.front();
-        auto [state_u, res_u] = simplify(SimplifyTermFlags::none, ctx, edge.u_);
-        auto [state_v, res_v] = simplify(SimplifyTermFlags::none, ctx, edge.v_);
-        auto [state_body, res_body] = simplify_body(ctx, stm.body_);
+        auto edge = stm.edges().front();
+        auto [state_u, res_u] = simplify(SimplifyTermFlags::none, ctx, edge.u());
+        auto [state_v, res_v] = simplify(SimplifyTermFlags::none, ctx, edge.v());
+        auto [state_body, res_body] = simplify_body(ctx, stm.body());
         if (!state_u || !state_v || state_body == TruthValue::bot) {
             return {TruthValue::top, Rule{stm.loc(), make_constant(stm.loc(), true), {}}};
         }
@@ -1824,19 +1824,19 @@ struct SimplifyStatement {
         if (res_u.has_value() || res_v.has_value() || res_body.has_value()) {
             return {state, StatementEdge{stm.loc(),
                                          Util::make_vec<StatementEdge::Edge>(StatementEdge::Edge{
-                                             std::move(res_u).value_or(edge.u_), std::move(res_v).value_or(edge.v_)}),
-                                         std::move(res_body).value_or(stm.body_)}};
+                                             std::move(res_u).value_or(edge.u()), std::move(res_v).value_or(edge.v())}),
+                                         std::move(res_body).value_or(stm.body())}};
         }
         return {state};
     }
 
     auto operator()(StatementHeuristic const &stm) const -> SimplifyResult<Statement> {
-        auto [state_atom, res_atom] = simplify(SimplifyTermFlags::matchable, ctx, stm.atom_);
-        auto [state_mod, res_mod] = simplify(SimplifyTermFlags::none, ctx, stm.mod_);
-        auto [state_type, res_type] = simplify(SimplifyTermFlags::none, ctx, stm.type_);
+        auto [state_atom, res_atom] = simplify(SimplifyTermFlags::matchable, ctx, stm.atom());
+        auto [state_mod, res_mod] = simplify(SimplifyTermFlags::none, ctx, stm.mod());
+        auto [state_type, res_type] = simplify(SimplifyTermFlags::none, ctx, stm.type());
         auto [state_prio, res_prio] =
-            stm.prio_ ? simplify(SimplifyTermFlags::none, ctx, *stm.prio_) : SimplifyTermResult{true};
-        auto [state_body, res_body] = simplify_body(ctx, stm.body_);
+            stm.prio() ? simplify(SimplifyTermFlags::none, ctx, *stm.prio()) : SimplifyTermResult{true};
+        auto [state_body, res_body] = simplify_body(ctx, stm.body());
 
         if (!state_atom || !state_mod || !state_type || !state_prio || state_body == TruthValue::bot) {
             return {TruthValue::top, Rule{stm.loc(), make_constant(stm.loc(), true), {}}};
@@ -1844,13 +1844,13 @@ struct SimplifyStatement {
         auto state = TruthValue::unknown;
         if (res_atom.has_value() || res_mod.has_value() || res_type.has_value() || res_prio.has_value() ||
             res_body.has_value()) {
-            if (!res_prio && stm.prio_) {
-                res_prio = stm.prio_;
+            if (!res_prio && stm.prio()) {
+                res_prio = stm.prio();
             }
-            return {state,
-                    StatementHeuristic{stm.loc(), std::move(res_atom).value_or(stm.atom_),
-                                       std::move(res_body).value_or(stm.body_), std::move(res_type).value_or(stm.type_),
-                                       std::move(res_prio), std::move(res_mod).value_or(stm.mod_)}};
+            return {state, StatementHeuristic{stm.loc(), std::move(res_atom).value_or(stm.atom()),
+                                              std::move(res_body).value_or(stm.body()),
+                                              std::move(res_type).value_or(stm.type()), std::move(res_prio),
+                                              std::move(res_mod).value_or(stm.mod())}};
         }
         return {state};
     }

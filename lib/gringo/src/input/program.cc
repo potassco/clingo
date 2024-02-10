@@ -54,9 +54,9 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
     }
 
     for (auto &[program_stm, stms, facts] : prg.parts) {
-        auto part = parts_.try_emplace(Signature{program_stm.name_, program_stm.args_.size()}, program_stm);
+        auto part = parts_.try_emplace(Signature{program_stm.name(), program_stm.args().size()}, program_stm);
         ParamMap param_map;
-        param_map.insert(program_stm.args_.begin(), program_stm.args_.end());
+        param_map.insert(program_stm.args().begin(), program_stm.args().end());
         auto &res_part = part.first.value();
 
         // process facts
@@ -93,7 +93,7 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
 [[nodiscard]] auto Program::param_map_(SymbolStore &store, ProgramPart const &part)
     -> Util::ordered_map<String, String> {
     Util::ordered_map<String, String> res;
-    if (!part.part.args_.empty()) {
+    if (!part.part.args().empty()) {
         StringSet ids;
         for (auto const &facts : part.facts) {
             collect_ids(facts, ids);
@@ -103,7 +103,7 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
         }
         auto gen = NameGen{store, std::move(ids), "__p_"};
         size_t i = 0;
-        for (auto const &id : part.part.args_) {
+        for (auto const &id : part.part.args()) {
             auto var = store.string("$" + std::to_string(i));
             res.emplace(var, gen.add_name(id) ? id : gen.new_name());
             ++i;

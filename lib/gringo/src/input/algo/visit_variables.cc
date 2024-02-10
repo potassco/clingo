@@ -41,13 +41,13 @@ struct VisitVariables : Visitor<VisitVariables> {
 
     // aggregate
 
-    void accept(SetAggregateElement const &elem) const { visit(elem.lit_, elem.cond_); }
+    void accept(SetAggregateElement const &elem) const { visit(elem.lit(), elem.cond()); }
 
     template <bool HasSign> void accept(SetAggregate<HasSign> const &lit) const {
         if (ctx == VariableContext::all) {
-            visit(lit.elems_);
+            visit(lit.elems());
         }
-        visit(lit.lhs_, lit.rhs_);
+        visit(lit.lhs(), lit.rhs());
     }
 
     // theory
@@ -63,25 +63,25 @@ struct VisitVariables : Visitor<VisitVariables> {
 
     void accept(HeadAggregate const &lit) const {
         if (ctx == VariableContext::all) {
-            visit(lit.elems_);
+            visit(lit.elems());
         }
-        visit(lit.lhs_, lit.rhs_);
+        visit(lit.lhs(), lit.rhs());
     }
 
     // body literal
 
     void accept(BodyAggregate const &lit) const {
         if (ctx == VariableContext::all) {
-            visit(lit.elems_);
+            visit(lit.elems());
         }
-        visit(lit.lhs_, lit.rhs_);
+        visit(lit.lhs(), lit.rhs());
     }
 
     // statement
 
     void accept(StatementOptimize const &stm) const {
         if (ctx == VariableContext::all) {
-            visit(stm.elems_);
+            visit(stm.elems());
         }
     }
 

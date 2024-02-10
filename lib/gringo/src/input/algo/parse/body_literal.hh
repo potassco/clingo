@@ -11,17 +11,14 @@ namespace Gringo::Input::Grammar {
 namespace Detail {
 
 inline auto construct_body_aggr(Term term, Relation rel, BodyAggregate aggr) -> BodyAggregate {
-    return BodyAggregate{location(term).begin + aggr.loc(),
-                         aggr.sign_,
-                         LGuard::value_type{std::move(term), rel},
-                         aggr.fun_,
-                         std::move(aggr.elems_),
-                         aggr.rhs_};
+    return BodyAggregate{
+        location(term).begin + aggr.loc(), aggr.sign(), LGuard::value_type{std::move(term), rel}, aggr.fun(),
+        std::move(aggr.elems()),           aggr.rhs()};
 }
 
 inline auto construct_body_aggr(Term term, Relation rel, BodySetAggregate aggr) -> BodySetAggregate {
     return BodySetAggregate{location(term).begin + aggr.loc(), aggr.sign(), LGuard::value_type{std::move(term), rel},
-                            std::move(aggr.elems_), aggr.rhs_};
+                            std::move(aggr.elems()), aggr.rhs()};
 }
 
 auto construct_conjunction(Literal lit, std::optional<std::vector<Literal>> cond, Position end) -> BodyLiteral {

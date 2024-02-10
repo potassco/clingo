@@ -208,7 +208,7 @@ struct IsTest {
 
     auto operator()(BodyLiteral const &lit) const -> bool { return std::visit(*this, lit); }
 
-    auto operator()(SimpleBodyLiteral const &lit) const -> bool { return operator()(lit.lit_); }
+    auto operator()(SimpleBodyLiteral const &lit) const -> bool { return operator()(lit.lit()); }
 
     auto operator()(Conjunction const &lit) const -> bool {
         static_cast<void>(lit);
@@ -263,13 +263,13 @@ struct IsAtom {
 
     auto operator()(HeadLiteral const &lit) const -> bool { return std::visit(*this, lit); }
 
-    auto operator()(SimpleHeadLiteral const &lit) const -> bool { return operator()(lit.lit_); }
+    auto operator()(SimpleHeadLiteral const &lit) const -> bool { return operator()(lit.lit()); }
 
     auto operator()(Disjunction const &lit) const -> bool {
-        if (lit.elems_.size() != 1) {
+        if (lit.elems().size() != 1) {
             return false;
         }
-        auto const *front = std::get_if<Literal>(&lit.elems_.front());
+        auto const *front = std::get_if<Literal>(&lit.elems().front());
         return front != nullptr && operator()(*front);
     }
 
@@ -287,7 +287,7 @@ struct IsAtom {
 
     auto operator()(BodyLiteral const &lit) const -> bool { return std::visit(*this, lit); }
 
-    auto operator()(SimpleBodyLiteral const &lit) const -> bool { return operator()(lit.lit_); }
+    auto operator()(SimpleBodyLiteral const &lit) const -> bool { return operator()(lit.lit()); }
 
     auto operator()(Conjunction const &lit) const -> bool {
         static_cast<void>(lit);
@@ -314,7 +314,7 @@ struct IsClassical {
 
     auto operator()(HeadLiteral const &lit) const -> bool { return std::visit(*this, lit); }
 
-    auto operator()(SimpleHeadLiteral const &lit) const -> bool { return !is_atom(lit.lit_); }
+    auto operator()(SimpleHeadLiteral const &lit) const -> bool { return !is_atom(lit.lit()); }
 
     auto operator()(HeadAggregate const &lit) const -> bool {
         static_cast<void>(lit);
@@ -332,7 +332,7 @@ struct IsClassical {
     }
 
     auto operator()(Disjunction const &lit) const -> bool {
-        return std::all_of(lit.elems_.begin(), lit.elems_.end(), [](auto const &elem) {
+        return std::all_of(lit.elems().begin(), lit.elems().end(), [](auto const &elem) {
             return std::visit(
                 [](auto const &lit) {
                     GRINGO_MATCH(lit, Literal) { return !is_atom(lit); }
@@ -503,8 +503,8 @@ auto is_test(BodyLiteral const &lit) -> bool { return IsTest{}(lit); }
 auto is_classical(HeadLiteral const &lit) -> bool { return IsClassical{}(lit); }
 
 auto is_fact(SymbolStore &store, Rule const &rule) -> std::optional<Symbol> {
-    if (auto const *head = std::get_if<SimpleHeadLiteral>(&rule.head_); head != nullptr && rule.body_.empty()) {
-        if (auto const *lit = std::get_if<LiteralSymbolic>(&head->lit_); lit != nullptr && lit->sign() == Sign::none) {
+    if (auto const *head = std::get_if<SimpleHeadLiteral>(&rule.head()); head != nullptr && rule.body().empty()) {
+        if (auto const *lit = std::get_if<LiteralSymbolic>(&head->lit()); lit != nullptr && lit->sign() == Sign::none) {
             return IsFact{store}(lit->term());
         }
     }
