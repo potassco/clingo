@@ -38,7 +38,7 @@ template <typename T> class immutable_array {
 
     auto operator=(immutable_array &&other) noexcept -> immutable_array & = default;
 
-    operator std::vector<T> const &() const noexcept { return vector(); }
+    operator std::vector<T> const &() const noexcept { return vector_(); }
 
     immutable_array(tcb::span<T> span) : immutable_array{span.begin(), span.end()} {}
 
@@ -78,20 +78,15 @@ template <typename T> class immutable_array {
 
     [[nodiscard]] auto back() const -> const_reference { return vec_->back(); }
 
-    // TODO: ideally only the span method would be used
-    [[nodiscard]] auto vector() const -> std::vector<T> const & { return vec_ ? *vec_ : empty_(); }
+    [[nodiscard]] auto data() const -> T const * { return vector_().data(); }
 
-    [[nodiscard]] auto span() const -> tcb::span<T const &> { return {vec_ ? *vec_ : empty_()}; }
+    [[nodiscard]] auto begin() const noexcept -> const_iterator { return vector_().begin(); }
 
-    [[nodiscard]] auto data() const -> T const * { return vector().data(); }
+    [[nodiscard]] auto end() const noexcept -> const_iterator { return vector_().end(); }
 
-    [[nodiscard]] auto begin() const noexcept -> const_iterator { return vector().begin(); }
+    [[nodiscard]] auto empty() const noexcept -> bool { return vector_().empty(); }
 
-    [[nodiscard]] auto end() const noexcept -> const_iterator { return vector().end(); }
-
-    [[nodiscard]] auto empty() const noexcept -> bool { return vector().empty(); }
-
-    [[nodiscard]] auto size() const noexcept -> size_type { return vector().size(); }
+    [[nodiscard]] auto size() const noexcept -> size_type { return vector_().size(); }
 
     void swap(immutable_array &other) noexcept { swap(other.vec_, vec_); }
 
@@ -112,6 +107,8 @@ template <typename T> class immutable_array {
     friend auto operator>=(immutable_array const &lhs, immutable_array const &rhs) -> bool { return !(lhs < rhs); }
 
   private:
+    [[nodiscard]] auto vector_() const -> std::vector<T> const & { return vec_ ? *vec_ : empty_(); }
+
     static auto empty_() -> std::vector<T> const & {
         static std::vector<T> res;
         return res;

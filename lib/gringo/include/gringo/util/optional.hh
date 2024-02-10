@@ -166,7 +166,7 @@ template <class T> class ResultVec {
     //! Construct a result vec to track changes to the given source.
     ResultVec(Vector const &source) : source_{source}, current_{source_.begin()} {}
     //! Construct a result vec to track changes to the given source.
-    ResultVec(Array const &source) : source_{source.vector()}, current_{source_.begin()} {}
+    ResultVec(Array const &source) : source_{source}, current_{source_.begin()} {}
 
     //! Get current element.
     [[nodiscard]] auto current() const -> T const & { return *current_; }

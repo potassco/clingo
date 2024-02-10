@@ -271,17 +271,11 @@ template <class Span>
 
 void vv_(auto const &x, VarVisitFun fun) { visit_variables(x, std::move(fun)); }
 
-template <class T> void vv_(tcb::span<T const> span, VarVisitFun fun) {
-    for (auto const &term : span) {
+template <class T> void vv_(Util::immutable_array<T> const &vec, VarVisitFun fun) {
+    for (auto const &term : vec) {
         vv_(term, fun);
     }
 }
-
-template <class T> void vv_(std::vector<T> const &vec, VarVisitFun fun) {
-    return vv_(tcb::make_span(vec), std::move(fun));
-}
-
-template <class T> void vv_(Util::immutable_array<T> const &vec, VarVisitFun fun) { vv_(vec.vector(), std::move(fun)); }
 
 auto check_provided(VariableSet const &bound, VariableSet const &provided, auto &&...args) -> bool {
     VariableVec depend;
