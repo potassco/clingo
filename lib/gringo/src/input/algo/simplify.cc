@@ -16,24 +16,17 @@ namespace Gringo::Input {
 namespace {
 
 //! Extend the contained vector with the given assignements.
-template <class T> void extend(Util::ResultVec<T> &res, AuxTermVec &aux, bool conjunctive = true) {
+template <class R> void extend(R &res, AuxTermVec &aux, bool conjunctive = true) {
     for (auto &[lhs, rhs] : aux) {
         auto loc = location(lhs);
         auto rel = conjunctive ? Relation::equal : Relation::inequal;
         auto lit = LiteralRelation{loc, Sign::none, std::move(lhs), Util::make_vec<Guard>(Guard{rel, std::move(rhs)})};
-        if constexpr (std::is_same_v<T, Literal>) {
+        if constexpr (std::is_same_v<typename R::ValueType, Literal>) {
             res.append(std::move(lit));
         } else {
             res.append(SimpleBodyLiteral{std::move(lit)});
         }
     }
-}
-
-template <class O, class T> auto opt_vector_or(O &&vec, T span) -> std::decay_t<O>::value_type {
-    if (vec) {
-        return *std::forward<O>(vec);
-    }
-    return {span.begin(), span.end()};
 }
 
 //! Return a Boolean literal with the given location and truth value.

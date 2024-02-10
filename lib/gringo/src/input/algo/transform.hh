@@ -27,11 +27,6 @@ template <class U> struct TranslateArgument {
     std::optional<U> transformed = std::nullopt;
 };
 
-template <class U> struct TranslateArgument<tcb::span<U>> {
-    tcb::span<U> orig;
-    std::optional<std::vector<std::remove_const_t<U>>> transformed = std::nullopt;
-};
-
 template <class T> class Transformer {
   public:
     template <class U> auto tr(U const &arg) const { return TranslateArgument<U>{arg}; }
@@ -115,13 +110,13 @@ template <class T> class Transformer {
             var);
     }
 
-    template <class U> auto accept_(tcb::span<U> span) const -> std::optional<std::vector<std::remove_const_t<U>>> {
+    template <class U> auto accept_(Util::immutable_array<U> const &vec) const -> std::optional<std::vector<U>> {
         size_t n = 0;
         std::optional<std::vector<std::remove_const_t<U>>> ret;
-        for (auto const &elem : span) {
+        for (auto const &elem : vec) {
             auto transformed = transform(elem);
             if (transformed && !ret.has_value()) {
-                ret = Util::copy_n(span, n);
+                ret = Util::copy_n(vec, n);
             }
             if (ret.has_value()) {
                 ret->emplace_back(std::move(transformed).value_or(elem));
@@ -131,31 +126,12 @@ template <class T> class Transformer {
         return ret;
     }
 
-    // TODO: remove
-    template <class U> auto accept_(std::vector<U> const &vec) const -> std::optional<std::vector<U>> {
-        return accept_(tcb::make_span(vec));
-    }
-
-    // TODO: remove
-    template <class U>
-    auto accept_(Util::immutable_array<U> const &vec) const -> std::optional<Util::immutable_array<U>> {
-        return accept_(tcb::make_span(vec));
-    }
-
     template <class U> auto apply_(TranslateArgument<U> &arg) const { return arg.transformed = transform(arg.orig); }
 
     template <class U> auto apply_(U const &arg) const { static_cast<void>(arg); }
 
     template <class U> auto get_value_(TranslateArgument<U> &&arg) const {
         return std::move(arg.transformed).value_or(arg.orig);
-    }
-
-    template <class U>
-    auto get_value_(TranslateArgument<tcb::span<U>> &&arg) const -> std::vector<std::remove_const_t<U>> {
-        if (arg.transformed) {
-            return *std::move(arg.transformed);
-        }
-        return {arg.orig.begin(), arg.orig.end()};
     }
 
     template <class U> auto get_value_(U const &arg) const { return arg; }

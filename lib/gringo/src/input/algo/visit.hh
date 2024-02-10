@@ -71,15 +71,11 @@ template <class T> class Visitor {
         return std::visit([this](auto const &elem) { this->visit(elem); }, var);
     }
 
-    template <class U> void accept_(tcb::span<U> const &span) const {
-        for (auto &elem : span) {
+    template <class U> void accept_(Util::immutable_array<U> const &vec) const {
+        for (auto &elem : vec) {
             visit(elem);
         }
     }
-
-    template <class U> void accept_(std::vector<U> const &vec) const { visit(tcb::make_span(vec)); }
-
-    template <class U> void accept_(Util::immutable_array<U> const &vec) const { visit(tcb::make_span(vec)); }
 
     // igonre
 

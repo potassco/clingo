@@ -155,21 +155,24 @@ template <class E, class S = bool> struct ResultState {
 };
 
 //! Helper to update a vector of elements.
-template <class T> class ResultVec {
+//!
+//! Flag UseSpan can be set to false when using an immutable_array.
+//! This uses the efficient copying of the array in case there was no change.
+template <class T, bool UseSpan = true> class ResultVec {
   public:
-    using Span = tcb::span<T const>;
-    using Vector = std::vector<T>;
-    using Array = Util::immutable_array<T>;
+    using ValueType = T;
+    using Span = tcb::span<ValueType const>;
+    using Array = Util::immutable_array<ValueType>;
+    using Source = std::conditional_t<UseSpan, Span, Array const &>;
+    using Iterator = std::conditional_t<UseSpan, typename Span::iterator, typename Array::const_iterator>;
+    using Vector = std::vector<ValueType>;
+    using Result = std::conditional_t<UseSpan, Vector, Array>;
 
     //! Construct a result vec to track changes to the given source.
-    ResultVec(Span source) : source_{source}, current_{source_.begin()} {}
-    //! Construct a result vec to track changes to the given source.
-    ResultVec(Vector const &source) : source_{source}, current_{source_.begin()} {}
-    //! Construct a result vec to track changes to the given source.
-    ResultVec(Array const &source) : source_{source}, current_{source_.begin()} {}
+    ResultVec(Source source) : source_{source}, current_{source_.begin()} {}
 
     //! Get current element.
-    [[nodiscard]] auto current() const -> T const & { return *current_; }
+    [[nodiscard]] auto current() const -> ValueType const & { return *current_; }
 
     //! Keep the current element.
     void keep() {
@@ -201,7 +204,7 @@ template <class T> class ResultVec {
         ++current_;
     }
     //! Update the current alement given the optional value.
-    void update(std::optional<T> value) {
+    void update(std::optional<ValueType> value) {
         if (!value.has_value()) {
             keep();
         } else {
@@ -225,37 +228,52 @@ template <class T> class ResultVec {
     //! Get a const reference to the current vector.
     //!
     //! This returns a reference to the old vector if it does not have a new one.
-    [[nodiscard]] auto value() const & -> Span { return result_ ? Span{*result_} : source_; }
+    [[nodiscard]] auto value() const & -> Span {
+        if (result_) {
+            return *result_;
+        }
+        return source_;
+    }
     //! Move out the new vector or return a copy of the old one.
-    [[nodiscard]] auto value() && -> Vector {
+    [[nodiscard]] auto value() && -> Result {
         if (result_) {
             return *std::move(result_);
         }
-        return {source_.begin(), source_.end()};
+        if constexpr (UseSpan) {
+            return {source_.begin(), source_.end()};
+        } else {
+            return source_;
+        }
     }
     //! Check if the old vector has been updated.
     [[nodiscard]] auto has_value() const -> bool { return result_.has_value(); }
     //! Return a reference to the updated vector if there was a change.
-    [[nodiscard]] auto as_optional() & -> std::optional<std::vector<T>> & { return result_; }
+    [[nodiscard]] auto as_optional() & -> std::optional<Vector> & { return result_; }
     //! Move out the updated vector.
-    [[nodiscard]] auto as_optional() && -> std::optional<std::vector<T>> { return std::move(result_); }
+    [[nodiscard]] auto as_optional() && -> std::optional<Vector> { return std::move(result_); }
 
     //! Get a const reference to the current vector.
     //!
     //! This returns a reference to the old vector if it does not have a new one.
     [[nodiscard]] auto operator*() const & -> Span { return value(); }
     //! Move out the new vector or return a copy of the old one.
-    [[nodiscard]] auto operator*() && -> std::vector<T> { return std::move(*this).value(); }
+    [[nodiscard]] auto operator*() && -> Result { return std::move(*this).value(); }
     //! Check if the old vector has been updated.
     explicit operator bool() const { return has_value(); }
     //! Check if all elements have been processed.
     [[nodiscard]] auto complete() const { return current_ == source_.end(); }
 
   private:
-    Span source_;
+    Source source_;
     std::optional<Vector> result_;
-    typename Span::iterator current_;
+    Iterator current_;
 };
+
+template <class T> ResultVec(std::vector<T> const &) -> ResultVec<T, true>;
+
+template <class T> ResultVec(tcb::span<T const> const &) -> ResultVec<T, true>;
+
+template <class T> ResultVec(immutable_array<T> const &) -> ResultVec<T, false>;
 
 template <class O, class N> struct UPA {
     O const &old;
@@ -269,7 +287,7 @@ template <class T> auto upa_has_value_(T const &x) -> bool {
     return false;
 }
 
-template <class T> auto upa_has_value_(ResultVec<T> const &x) -> bool {
+template <class T, bool S> auto upa_has_value_(ResultVec<T, S> const &x) -> bool {
     static_cast<void>(x);
     return x.has_value();
 }
@@ -280,7 +298,7 @@ template <class T> auto upa_get_value_(T &&x) -> decltype(auto) { return std::fo
 
 template <class O, class N> auto upa_get_value_(UPA<O, N> x) { return upa(x.old, std::move(x.opt)); }
 
-template <class T> auto upa_get_value_(ResultVec<T> x) { return std::move(x).value(); }
+template <class T, bool S> auto upa_get_value_(ResultVec<T, S> x) { return std::move(x).value(); }
 
 } // namespace Detail
 

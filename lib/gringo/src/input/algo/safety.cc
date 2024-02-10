@@ -216,12 +216,12 @@ template <class Lit> using NodeVec = std::vector<Node<Lit>>;
                        [&provided](auto const &var) { return var.starts_with("$") || provided.contains(var); });
 }
 
-template <class T> using PrepareResult = std::pair<Util::ResultVec<T>, VariableSet>;
+template <class Span> using PrepareResult = std::pair<decltype(Util::ResultVec{std::declval<Span>()}), VariableSet>;
 
 template <class Span>
 [[nodiscard]] auto prepare_lits(Logger &log, Span const &lits, VariableSet const &global, VariableSet const &bound,
-                                VariableSet const &extra = VariableSet{}) -> PrepareResult<typename Span::value_type> {
-    auto res = PrepareResult<typename Span::value_type>{lits, VariableSet{}};
+                                VariableSet const &extra = VariableSet{}) -> PrepareResult<Span> {
+    auto res = PrepareResult<Span>{lits, VariableSet{}};
 
     auto &[res_body, provided] = res;
     auto nodes = NodeVec<typename std::decay_t<decltype(lits)>::value_type>{};

@@ -408,7 +408,7 @@ struct ComputeBounds {
     //! Compute bounds given a set of literals/body literals.
     template <class Span>
     auto compute_bounds(IESolver &slv, Location const &loc, Span const &lits)
-        -> std::pair<bool, Util::ResultVec<typename Span::value_type>> {
+        -> std::pair<bool, decltype(Util::ResultVec{lits})> {
 
         auto res_lits = Util::ResultVec{lits};
 
@@ -512,15 +512,13 @@ struct ComputeBounds {
     }
 
     //! Helper to compute bounds for a set of elements.
-    template <class T, class LS, class... A>
-    auto compute_bounds_elem(Location const &loc, Util::ResultVec<T> &elems, LS const &lits, A const &...args) {
+    template <class R, class LS, class... A>
+    auto compute_bounds_elem(Location const &loc, R &elems, LS const &lits, A const &...args) {
         auto sub_slv = IESolver{&slv};
         auto [state_lits, res_lits] = compute_bounds(sub_slv, loc, lits);
         if (!state_lits) {
             elems.remove();
         } else if (res_lits) {
-            // Gringo::Util::ResultVec<Gringo::Input::TheoryElement>::replace<Gringo::Input::Location,
-            // tcb::span<TheoryTerm const>, std::vector<Literal>>
             elems.replace(map_rt(args, res_lits)...);
         } else {
             elems.keep();
@@ -538,7 +536,6 @@ struct ComputeBounds {
     }
 
     template <bool Body> auto operator()(TheoryAtom<Body> const &lit) -> HBRes<Body> {
-        // TODO: the result vec has to use a span!!!
         auto res_elems = Util::ResultVec{lit.elems()};
         for (auto const &elem : lit.elems()) {
             compute_bounds_elem(lit.loc(), res_elems, elem.cond(), elem.loc(), elem.tuple(), rt);

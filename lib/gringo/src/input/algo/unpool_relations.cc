@@ -29,7 +29,7 @@ struct NegateLiteral {
     }
 };
 
-auto unpool_conjunctive(LiteralVec const &lits) -> Util::ResultVec<Literal> {
+auto unpool_conjunctive(LiteralVec const &lits) {
     auto res_lits = Util::ResultVec{lits};
     for (auto const &lit : lits) {
         if (auto res = unpool_relations(lit, true); res) {
@@ -63,7 +63,7 @@ auto shift(auto const &lit, auto &lits, bool negate) -> std::optional<Literal> {
     return std::nullopt;
 }
 
-auto shift(TheoryElementVec const &elems) -> Util::ResultVec<TheoryElement> {
+auto shift(TheoryElementVec const &elems) {
     auto res_elems = Util::ResultVec{elems};
     for (auto const &elem : elems) {
         if (auto res_cond = unpool_conjunctive(elem.cond()); res_cond) {
@@ -178,7 +178,7 @@ struct ShiftHead {
         return std::nullopt;
     }
 
-    Util::ResultVec<BodyLiteral> &body;
+    Util::ResultVec<BodyLiteral, false> &body;
 };
 
 struct ShiftBody {
@@ -245,10 +245,10 @@ struct ShiftBody {
             Util::update<BodyTheoryAtom>(atom.loc(), atom.sign(), atom.name(), shift(atom.elems()), atom.rhs()));
     }
 
-    Util::ResultVec<BodyLiteral> &body;
+    Util::ResultVec<BodyLiteral, false> &body;
 };
 
-auto shift_body(BodyLiteralVec const &body) -> Util::ResultVec<BodyLiteral> {
+auto shift_body(BodyLiteralVec const &body) {
     auto res_body = Util::ResultVec{body};
     for (auto const &lit : body) {
         ShiftBody{res_body}(lit);
