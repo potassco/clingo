@@ -981,12 +981,9 @@ struct SimplifyLiteral {
         if (state != TruthValue::unknown) {
             return {state, make_constant(lit.loc(), state == TruthValue::top)};
         }
-        if (res_lhs.has_value() || res_rhs.has_value() || lit.sign() == Sign::twice) {
-            auto sign = lit.sign() == Sign::twice ? Sign::none : lit.sign();
-            return {TruthValue::unknown, LiteralRelation{lit.loc(), sign, std::move(res_lhs).value_or(lit.lhs()),
-                                                         std::move(res_rhs).value()}};
-        }
-        return {TruthValue::unknown};
+        auto res_sign = lit.sign() == Sign::twice ? std::make_optional(Sign::none) : std::optional<Sign>();
+        return {TruthValue::unknown, Util::update<LiteralRelation>(lit.loc(), UPA{lit.sign(), res_sign},
+                                                                   UPA{lit.lhs(), res_lhs}, std::move(res_rhs))};
     }
 
     //! Simplify symbolic literals.
@@ -1152,11 +1149,7 @@ struct LiteralToTuple {
         state = state_lit;
     }
 
-    if (res_lit || res_cond) {
-        return {state, ConditionalLiteral{lit.loc(), std::move(res_lit).value_or(lit.lit()),
-                                          std::move(res_cond).value_or(lit.cond())}};
-    }
-    return {state};
+    return {state, Util::update<ConditionalLiteral>(lit.loc(), UPA{lit.lit(), res_lit}, UPA{lit.cond(), res_cond})};
 }
 
 //! Simplify the left guard of an aggregate.
@@ -1226,12 +1219,8 @@ struct LiteralToTuple {
         res_cond->emplace_back(std::move(res_lit).value_or(elem.lit()));
         res_lit = make_constant(location(elem.lit()), true);
     }
-    if (res_tuple.has_value() || res_lit.has_value() || res_cond.has_value()) {
-        return {state_elem, HeadAggregate::Element{elem.loc(), std::move(res_tuple).value_or(elem.tuple()),
-                                                   std::move(res_lit).value_or(elem.lit()),
-                                                   std::move(res_cond).value_or(elem.cond())}};
-    }
-    return {state_elem};
+    return {state_elem, Util::update<HeadAggregate::Element>(elem.loc(), UPA{elem.tuple(), res_tuple},
+                                                             UPA{elem.lit(), res_lit}, UPA{elem.cond(), res_cond})};
 }
 
 //! Simplify a body aggregate element.
@@ -1259,11 +1248,8 @@ struct LiteralToTuple {
             res_tuple = TermVec{};
         }
     }
-    if (res_tuple.has_value() || res_cond.has_value()) {
-        return {state_elem, BodyAggregate::Element{elem.loc(), std::move(res_tuple).value_or(elem.tuple()),
-                                                   std::move(res_cond).value_or(elem.cond())}};
-    }
-    return {state_elem};
+    return {state_elem,
+            Util::update<BodyAggregate::Element>(elem.loc(), UPA{elem.tuple(), res_tuple}, UPA{elem.cond(), res_cond})};
 }
 
 //! Get the neutral value of the given aggregate.
@@ -1479,20 +1465,14 @@ template <bool head>
         auto [state_lit, res_lit] = simplify(ctx, rel_lit);
         return {state_lit, std::move(res_lit).value_or(std::move(rel_lit))};
     }
-    if (res_lhs.has_value() || res_rhs.has_value() || res_elems.has_value()) {
-        auto lhs =
-            Util::transform(lit.lhs(), [&res_lhs](auto const &orig) { return std::move(res_lhs).value_or(orig); });
-        auto rhs =
-            Util::transform(lit.rhs(), [&res_rhs](auto const &orig) { return std::move(res_rhs).value_or(orig); });
-        if constexpr (head) {
-            return {TruthValue::unknown,
-                    HeadAggregate{lit.loc(), std::move(lhs), lit.fun(), std::move(res_elems).value(), std::move(rhs)}};
-        } else {
-            return {TruthValue::unknown, BodyAggregate{lit.loc(), lit.sign(), std::move(lhs), lit.fun(),
-                                                       std::move(res_elems).value(), std::move(rhs)}};
-        }
+    if constexpr (head) {
+        return {TruthValue::unknown, Util::update<HeadAggregate>(lit.loc(), UPA{lit.lhs(), res_lhs}, lit.fun(),
+                                                                 std::move(res_elems), UPA{lit.rhs(), res_rhs})};
+    } else {
+        return {TruthValue::unknown,
+                Util::update<BodyAggregate>(lit.loc(), lit.sign(), UPA{lit.lhs(), res_lhs}, lit.fun(),
+                                            std::move(res_elems), UPA{lit.rhs(), res_rhs})};
     }
-    return {TruthValue::unknown};
 }
 
 //! Simplify a theory atom element.
