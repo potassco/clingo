@@ -13,6 +13,8 @@
 
 namespace Gringo::Input {
 
+using Util::UPA;
+
 namespace {
 
 //! Extend the contained vector with the given assignements.
@@ -1495,7 +1497,6 @@ template <bool head>
 
 //! Simplify a theory atom element.
 [[nodiscard]] auto simplify_element(RewriteContext &ctx, TheoryElement const &elem) -> SimplifyResult<TheoryElement> {
-    using Util::UPA;
     auto guard = ctx.push();
     auto res_tuple = std::optional<TheoryTermVec>{};
     auto [state_cond, res_cond] = simplify_litvec(ctx, elem.cond());
@@ -1520,7 +1521,6 @@ template <bool head>
 //! Simplify a theory atom.
 template <bool HasSign>
 auto simplify_theory_atom(RewriteContext &ctx, TheoryAtom<HasSign> const &lit) -> SimplifyResult<HBLiteral<!HasSign>> {
-    using Util::UPA;
     constexpr auto head = !HasSign;
     auto [state_name, res_name] = simplify(SimplifyTermFlags::none, ctx, lit.name());
     auto res_elems = Util::ResultVec{lit.elems()};
@@ -1689,15 +1689,10 @@ struct SimplifyStatement {
                 res_body = BodyLiteralVec{};
             }
             state = TruthValue::top;
-        }
-        if (state_head == TruthValue::bot && state_body == TruthValue::top) {
+        } else if (state_head == TruthValue::bot && state_body == TruthValue::top) {
             state = TruthValue::bot;
         }
-        if (res_head.has_value() || res_body.has_value()) {
-            return {state, Rule{stm.loc(), std::move(res_head).value_or(stm.head()),
-                                std::move(res_body).value_or(stm.body())}};
-        }
-        return {state};
+        return {state, Util::update<Rule>(stm.loc(), UPA{stm.head(), res_head}, UPA{stm.body(), res_body})};
     }
 
     auto operator()(TheoryDefinition const &stm) const -> SimplifyResult<Statement> {
@@ -1711,34 +1706,22 @@ struct SimplifyStatement {
     }
 
     auto operator()(StatementWeakConstraint const &stm) const -> SimplifyResult<Statement> {
-        auto [state_weight, res_weight] = simplify(SimplifyTermFlags::none, ctx, stm.tuple().weight());
-        auto [state_prio, res_prio] = stm.tuple().priority()
-                                          ? simplify(SimplifyTermFlags::none, ctx, *stm.tuple().priority())
-                                          : SimplifyTermResult{true};
-        auto [state_terms, res_terms] = simplify_termvec(ctx, stm.tuple().terms());
+        auto const &tuple = stm.tuple();
+        auto [state_weight, res_weight] = simplify(SimplifyTermFlags::none, ctx, tuple.weight());
+        auto [state_prio, res_prio] =
+            tuple.priority() ? simplify(SimplifyTermFlags::none, ctx, *tuple.priority()) : SimplifyTermResult{true};
+        auto [state_terms, res_terms] = simplify_termvec(ctx, tuple.terms());
         auto [state_body, res_body] = simplify_body(ctx, stm.body());
-
         if (!state_weight || state_body == TruthValue::bot || !state_prio || !state_terms) {
             return {TruthValue::top, Rule{stm.loc(), make_constant(location(stm), true), {}}};
         }
-        auto state = TruthValue::unknown;
-        if (res_weight.has_value() || res_body.has_value() || res_prio.has_value() || res_terms.has_value()) {
-            if (!res_prio && stm.tuple().priority()) {
-                res_prio = stm.tuple().priority();
-            }
-            return {state, StatementWeakConstraint{
-                               stm.loc(), std::move(res_body).value_or(stm.body()),
-                               StatementWeakConstraint::Tuple{std::move(res_weight).value_or(stm.tuple().weight()),
-                                                              std::move(res_prio),
-                                                              std::move(res_terms).value_or(stm.tuple().terms())}
-
-                           }};
-        }
-        return {state};
+        auto res_tuple = Util::update<StatementWeakConstraint::Tuple>(
+            UPA{tuple.weight(), res_weight}, UPA{tuple.priority(), res_prio}, UPA{tuple.terms(), res_terms});
+        return {TruthValue::unknown,
+                Util::update<StatementWeakConstraint>(stm.loc(), UPA{stm.body(), res_body}, UPA{tuple, res_tuple})};
     }
 
     auto operator()(StatementShow const &stm) const -> SimplifyResult<Statement> {
-        using Util::UPA;
         auto [state_term, res_term] = simplify(SimplifyTermFlags::none, ctx, stm.term());
         auto [state_body, res_body] = simplify_body(ctx, stm.body());
         if (!state_term || state_body == TruthValue::bot) {
@@ -1754,7 +1737,6 @@ struct SimplifyStatement {
     }
 
     auto operator()(StatementProject const &stm) const -> SimplifyResult<Statement> {
-        using Util::UPA;
         auto [state_term, res_term] = simplify(SimplifyTermFlags::matchable, ctx, stm.term());
         auto [state_body, res_body] = simplify_body(ctx, stm.body());
         if (!state_term || state_body == TruthValue::bot) {
@@ -1782,15 +1764,9 @@ struct SimplifyStatement {
         if (!state_term || !state_type || state_body == TruthValue::bot) {
             return {TruthValue::top, Rule{stm.loc(), make_constant(location(stm.term()), true), {}}};
         }
-        auto state = TruthValue::unknown;
-        if (res_term.has_value() || res_type.has_value() || res_body.has_value()) {
-            if (stm.type() && !res_type) {
-                res_type = stm.type();
-            }
-            return {state, StatementExternal{stm.loc(), std::move(res_term).value_or(stm.term()),
-                                             std::move(res_body).value_or(stm.body()), std::move(res_type)}};
-        }
-        return {state};
+        return {TruthValue::unknown,
+                Util::update<StatementExternal>(stm.loc(), UPA{stm.term(), res_term}, UPA{stm.body(), res_body},
+                                                UPA{stm.type(), res_type})};
     }
 
     auto operator()(StatementEdge const &stm) const -> SimplifyResult<Statement> {
@@ -1804,14 +1780,11 @@ struct SimplifyStatement {
         if (!state_u || !state_v || state_body == TruthValue::bot) {
             return {TruthValue::top, Rule{stm.loc(), make_constant(stm.loc(), true), {}}};
         }
-        auto state = TruthValue::unknown;
-        if (res_u.has_value() || res_v.has_value() || res_body.has_value()) {
-            return {state, StatementEdge{stm.loc(),
-                                         Util::make_vec<StatementEdge::Edge>(StatementEdge::Edge{
-                                             std::move(res_u).value_or(edge.u()), std::move(res_v).value_or(edge.v())}),
-                                         std::move(res_body).value_or(stm.body())}};
-        }
-        return {state};
+        auto res_edge = Util::update<StatementEdge::Edge>(UPA{edge.u(), res_u}, UPA{edge.v(), res_v});
+        auto res_edges = Util::transform(
+            std::move(res_edge), [](auto &&edge) { return Util::make_vec<StatementEdge::Edge>(GRINGO_FWD(edge)); });
+        return {TruthValue::unknown,
+                Util::update<StatementEdge>(stm.loc(), UPA{stm.edges(), res_edges}, UPA{stm.body(), res_body})};
     }
 
     auto operator()(StatementHeuristic const &stm) const -> SimplifyResult<Statement> {
@@ -1821,22 +1794,13 @@ struct SimplifyStatement {
         auto [state_prio, res_prio] =
             stm.prio() ? simplify(SimplifyTermFlags::none, ctx, *stm.prio()) : SimplifyTermResult{true};
         auto [state_body, res_body] = simplify_body(ctx, stm.body());
-
         if (!state_atom || !state_mod || !state_type || !state_prio || state_body == TruthValue::bot) {
             return {TruthValue::top, Rule{stm.loc(), make_constant(stm.loc(), true), {}}};
         }
-        auto state = TruthValue::unknown;
-        if (res_atom.has_value() || res_mod.has_value() || res_type.has_value() || res_prio.has_value() ||
-            res_body.has_value()) {
-            if (!res_prio && stm.prio()) {
-                res_prio = stm.prio();
-            }
-            return {state, StatementHeuristic{stm.loc(), std::move(res_atom).value_or(stm.atom()),
-                                              std::move(res_body).value_or(stm.body()),
-                                              std::move(res_type).value_or(stm.type()), std::move(res_prio),
-                                              std::move(res_mod).value_or(stm.mod())}};
-        }
-        return {state};
+        return {TruthValue::unknown,
+                Util::update<StatementHeuristic>(stm.loc(), UPA{stm.atom(), res_atom}, UPA{stm.body(), res_body},
+                                                 UPA{stm.type(), res_type}, UPA{stm.prio(), res_prio},
+                                                 UPA{stm.mod(), res_mod})};
     }
 
     auto operator()(StatementScript const &stm) const -> SimplifyResult<Statement> {
