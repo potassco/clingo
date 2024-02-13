@@ -2,6 +2,8 @@
 #include <optional>
 #include <utility>
 
+#include <iostream>
+
 namespace Gringo::Util::Record {
 
 constexpr auto max_attributes = 64U;
@@ -30,12 +32,14 @@ template <bool Opt, class A, typename M, typename T, typename... Ts>
 constexpr auto select(A const &x, M const &mem, T &arg, Ts &...args) -> decltype(auto) {
     if constexpr (T::Id == A::Id) {
         if constexpr (Opt) {
+            std::cerr << "debug here:" << std::endl;
+            std::cerr << __PRETTY_FUNCTION__ << std::endl;
             return *std::move(arg.attr);
         } else {
             return std::forward<typename T::Value>(arg.attr);
         }
     } else {
-        return select(x, mem, args...);
+        return select<Opt>(x, mem, args...);
     }
 }
 

@@ -1149,7 +1149,7 @@ struct LiteralToTuple {
         state = state_lit;
     }
 
-    return {state, Util::update<ConditionalLiteral>(lit.loc(), UPA{lit.lit(), res_lit}, UPA{lit.cond(), res_cond})};
+    return {state, lit.rewrite(a_lit = std::move(res_lit), a_cond = std::move(res_cond))};
 }
 
 //! Simplify the left guard of an aggregate.
