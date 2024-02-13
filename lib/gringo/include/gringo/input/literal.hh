@@ -84,6 +84,18 @@ class LiteralBoolean {
     //! The Boolean value.
     [[nodiscard]] auto value() const -> bool { return value_; }
 
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        check(Types{a_loc, a_sign, a_value}, Types{args...});
+        return LiteralBoolean{select<Opt>(a_loc, loc_, args...), select<Opt>(a_sign, sign_, args...),
+                              select<Opt>(a_value, value_, args...)};
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
+
   private:
     friend auto operator==(LiteralBoolean const &a, LiteralBoolean const &b) -> bool;
     friend auto operator<(LiteralBoolean const &a, LiteralBoolean const &b) -> bool;
@@ -122,6 +134,18 @@ class LiteralRelation {
     //! The guards on the right hand side.
     [[nodiscard]] auto rhs() const -> GuardVec const & { return rhs_; }
 
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        check(Types{a_loc, a_sign, a_lhs, a_rhs}, Types{args...});
+        return LiteralRelation{select<Opt>(a_loc, loc_, args...), select<Opt>(a_sign, sign_, args...),
+                               select<Opt>(a_lhs, lhs_, args...), select<Opt>(a_rhs, rhs_, args...)};
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
+
   private:
     friend auto operator==(LiteralRelation const &a, LiteralRelation const &b) -> bool;
     friend auto operator<(LiteralRelation const &a, LiteralRelation const &b) -> bool;
@@ -158,6 +182,18 @@ class LiteralSymbolic {
     [[nodiscard]] auto sign() const -> Sign { return sign_; }
     //! The term representing the atom.
     [[nodiscard]] auto term() const -> Term const & { return term_; }
+
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        check(Types{a_loc, a_sign, a_term}, Types{args...});
+        return LiteralSymbolic{select<Opt>(a_loc, loc_, args...), select<Opt>(a_sign, sign_, args...),
+                               select<Opt>(a_term, term_, args...)};
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
 
   private:
     friend auto operator==(LiteralSymbolic const &a, LiteralSymbolic const &b) -> bool;
@@ -200,6 +236,18 @@ class ConditionalLiteral {
     [[nodiscard]] auto lit() const -> Literal const & { return lit_; }
     //! The literals on the right-hand-side.
     [[nodiscard]] auto cond() const -> LiteralVec const & { return cond_; }
+
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        check(Types{a_loc, a_lit, a_cond}, Types{args...});
+        return ConditionalLiteral{select<Opt>(a_loc, loc_, args...), select<Opt>(a_lit, lit_, args...),
+                                  select<Opt>(a_cond, cond_, args...)};
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
 
   private:
     friend auto operator==(ConditionalLiteral const &a, ConditionalLiteral const &b) -> bool;

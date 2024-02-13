@@ -53,6 +53,18 @@ class SetAggregateElement {
     //! The condition.
     [[nodiscard]] auto cond() const -> LiteralVec const & { return cond_; }
 
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        check(Types{a_loc, a_lit, a_cond}, Types{args...});
+        return SetAggregateElement{select<Opt>(a_loc, loc_, args...), select<Opt>(a_lit, lit_, args...),
+                                   select<Opt>(a_cond, cond_, args...)};
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
+
   private:
     friend auto operator==(SetAggregateElement const &a, SetAggregateElement const &b) -> bool;
     friend auto operator<(SetAggregateElement const &a, SetAggregateElement const &b) -> bool;
@@ -101,6 +113,25 @@ template <bool HasSign> class SetAggregate : public std::conditional_t<HasSign, 
     [[nodiscard]] auto lhs() const -> LGuard const & { return lhs_; }
     //! The optional left guard of the aggregate.
     [[nodiscard]] auto rhs() const -> RGuard const & { return rhs_; }
+
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        if constexpr (HasSign) {
+            check(Types{a_loc, a_sign, a_lhs, a_elems, a_rhs}, Types{args...});
+            return SetAggregateElement{select<Opt>(a_loc, loc_, args...), select<Opt>(a_sign, this->sign(), args...),
+                                       select<Opt>(a_lhs, lhs_, args...), select<Opt>(a_elems, elems_, args...),
+                                       select<Opt>(a_rhs, rhs_, args...)};
+        } else {
+            check(Types{a_loc, a_lhs, a_elems, a_rhs}, Types{args...});
+            return SetAggregate{select<Opt>(a_loc, loc_, args...), select<Opt>(a_lhs, lhs_, args...),
+                                select<Opt>(a_elems, elems_, args...), select<Opt>(a_rhs, rhs_, args...)};
+        }
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
 
   private:
     friend auto operator==(SetAggregate<HasSign> const &a, SetAggregate<HasSign> const &b) -> bool;
