@@ -52,7 +52,7 @@ namespace Detail {
 
 template <class T, class U>
 T cast(U u) {
-    return reinterpret_cast<T>(u); // NOLINT
+    return reinterpret_cast<T>(u); // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
 }
 
 template <class T, class... U>
@@ -82,7 +82,7 @@ struct VariantHolder<n> {
     void print(std::ostream &out) const {
         static_cast<void>(out);
     }
-    void swap(VariantHolder &other) {
+    void swap(VariantHolder &other) noexcept {
         std::swap(type_, other.type_);
         std::swap(data_, other.data_);
     }
@@ -139,7 +139,7 @@ struct VariantHolder<n, T, U...> : VariantHolder<n+1, U...>{
     template <class V, class... Args>
     auto accept_(V &&visitor, Args &&... args) -> CLINGO_VARIANT_RETURN(T) {
         assert(n == type_);
-        return visitor.visit(*static_cast<T*>(data_), std::forward<Args>(args)...);
+        return std::forward<V>(visitor).visit(*static_cast<T*>(data_), std::forward<Args>(args)...);
     }
     template <class V, class... Args>
     auto accept(V &&visitor, Args &&... args) -> CLINGO_VARIANT_RETURN(T) {
@@ -156,7 +156,7 @@ struct VariantHolder<n, T, U...> : VariantHolder<n+1, U...>{
     template <class V, class... Args>
     auto accept_(V &&visitor, Args &&... args) const -> CLINGO_VARIANT_RETURN(T const) {
         assert(n == type_);
-        return visitor.visit(*static_cast<T const *>(data_), std::forward<Args>(args)...);
+        return std::forward<V>(visitor).visit(*static_cast<T const *>(data_), std::forward<Args>(args)...);
     }
     template <class V, class... Args>
     auto accept(V &&visitor, Args &&... args) const -> CLINGO_VARIANT_RETURN(T const) {
@@ -182,7 +182,7 @@ public:
     ~Optional() = default;
     Optional(T const &x) : data_(new T(x)) { }
     Optional(T &x) : data_(new T(x)) { }
-    Optional(T &&x) noexcept : data_(new T(std::move(x))) { }
+    Optional(T &&x) noexcept : data_(std::make_unique<T>(std::move(x))) { }
     template <class... Args>
     Optional(Args&&... x) : data_(new T{std::forward<Args>(x)...}) { }
     Optional(Optional &&opt) noexcept : data_(opt.data_.release()) { }
@@ -238,17 +238,17 @@ public:
     Variant(Variant const &other) : Variant(other.data_) { }
     Variant(Variant &&other) noexcept { data_.swap(other.data_); }
     template <class U>
-    Variant(U &&u, typename std::enable_if<Detail::TypeInList<U, T...>::value>::type *t = nullptr) {
+    Variant(U &&u, std::enable_if_t<Detail::TypeInList<U, T...>::value> *t = nullptr) {
         static_cast<void>(t);
         emplace2<U>(std::forward<U>(u));
     }
     template <class U>
-    Variant(U &u, typename std::enable_if<Detail::TypeInList<U, T...>::value>::type *t = nullptr) {
+    Variant(U &u, std::enable_if_t<Detail::TypeInList<U, T...>::value> *t = nullptr) {
         static_cast<void>(t);
         emplace2<U>(u);
     }
     template <class U>
-    Variant(U const &u, typename std::enable_if<Detail::TypeInList<U, T...>::value>::type *t = nullptr) { emplace2<U>(u); }
+    Variant(U const &u, typename std::enable_if_t<Detail::TypeInList<U, T...>::value> *t = nullptr) { emplace2<U>(u); }
     template <class U, class... Args>
     static Variant make(Args&& ...args) {
         Variant<T...> x;
@@ -297,7 +297,7 @@ public:
     }
     template <class U>
     bool is() const { return data_.check_type(static_cast<U*>(nullptr)); }
-    void swap(Variant &other) { data_.swap(other.data_); }
+    void swap(Variant &other) noexcept { data_.swap(other.data_); }
     template <class V, class... Args>
     typename Holder::template Ret_<V, Args...> accept(V &&visitor, Args &&... args) {
         return data_.accept(std::forward<V>(visitor), std::forward<Args>(args)...);
@@ -321,7 +321,7 @@ private:
         data_.swap(x.data_);
         return *this;
     }
-    Variant &operator=(Holder &&data) noexcept {
+    Variant &operator=(Holder &&data) noexcept { // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)
         Holder x;
         x.swap(data);
         // Destroy the old data_ only after securing the new data
@@ -411,7 +411,7 @@ public:
     friend difference_type operator-(ArrayIterator a, ArrayIterator b)  { return a.index_ - b.index_; }
     reference operator*() { return arr_->operator[](index_); }
     pointer operator->() { return arr_->at(index_); }
-    friend void swap(ArrayIterator& lhs, ArrayIterator& rhs) {
+    friend void swap(ArrayIterator& lhs, ArrayIterator& rhs) noexcept {
         std::swap(lhs.arr_, rhs.arr_);
         std::swap(lhs.index_, rhs.index_);
     }
@@ -435,9 +435,9 @@ template <class T, class I = ToIterator<T>>
 class Span : private I {
 public:
 #if __cplusplus >= 201703L
-    using IteratorType = typename std::invoke_result<I, T const *>::type;
+    using IteratorType = typename std::invoke_result_t<I, T const *>;
 #else
-    using IteratorType = typename std::result_of<I(T const *)>::type;
+    using IteratorType = std::result_of_t<I(T const *)>;
 #endif
     using ReferenceType = decltype(*std::declval<IteratorType>());
     Span(I to_it = I())
@@ -745,7 +745,7 @@ public:
     friend difference_type operator-(TheoryIterator a, TheoryIterator b)  { return a.id_ - b.id_; }
     T operator*() { return elem_ = *id_; }
     T *operator->() { return &(elem_ = *id_); }
-    friend void swap(TheoryIterator& lhs, TheoryIterator& rhs) {
+    friend void swap(TheoryIterator& lhs, TheoryIterator& rhs) noexcept {
         std::swap(lhs.id_, rhs.id_);
         std::swap(lhs.elem_, rhs.elem_);
     }
@@ -889,7 +889,7 @@ public:
     friend difference_type operator-(TheoryAtomIterator a, TheoryAtomIterator b)  { return a.id() - b.id(); }
     TheoryAtom operator*() { return *this; }
     TheoryAtom *operator->() { return this; }
-    friend void swap(TheoryAtomIterator& lhs, TheoryAtomIterator& rhs) {
+    friend void swap(TheoryAtomIterator& lhs, TheoryAtomIterator& rhs) noexcept {
         std::swap(lhs.atoms(), rhs.atoms());
         std::swap(lhs.id(), rhs.id());
     }
@@ -949,7 +949,7 @@ public:
     friend IndexIterator operator-(IndexIterator it, difference_type n) { return IndexIterator{it.con_, it.index_ - n}; }
     friend difference_type operator-(IndexIterator a, IndexIterator b)  { return a.index_ - b.index_; }
     value_type operator*() { return con_->at(index_); }
-    friend void swap(IndexIterator& lhs, IndexIterator& rhs) {
+    friend void swap(IndexIterator& lhs, IndexIterator& rhs) noexcept {
         std::swap(lhs.con_, rhs.con_);
         std::swap(lhs.index_, rhs.index_);
     }
@@ -987,7 +987,7 @@ private:
 
 class Assignment {
 public:
-    using iterator = IndexIterator<Assignment const, size_t, std::make_signed<size_t>::type>;
+    using iterator = IndexIterator<Assignment const, size_t, std::make_signed_t<size_t>>;
     using value_type = literal_t;
     explicit Assignment(clingo_assignment_t const *ass)
     : ass_(ass) { }
@@ -1481,7 +1481,8 @@ public:
     Backend(Backend &&backend) noexcept;
     Backend &operator=(Backend const &backend) = delete;
     Backend &operator=(Backend &&backend) noexcept;
-    ~Backend(); // NOLINT
+    ~Backend() noexcept(false);
+    void close();
 
     void rule(bool choice, AtomSpan head, LiteralSpan body);
     void weight_rule(bool choice, AtomSpan head, weight_t lower, WeightedLiteralSpan body);
@@ -1505,7 +1506,7 @@ public:
     atom_t theory_atom(id_t atom_id_or_zero, id_t term_id, IdSpan elements, char const *operator_name, id_t right_hand_side_id);
     clingo_backend_t *to_c() const { return backend_; }
 private:
-    clingo_backend_t *backend_;
+    clingo_backend_t *backend_ = nullptr;
 };
 
 // {{{1 statistics
@@ -1542,7 +1543,7 @@ public:
     friend difference_type operator-(KeyIterator a, KeyIterator b)  { return a.index_ - b.index_; }
     reference operator*() { return map_->key_name(index_); }
     pointer operator->() { return pointer(**this); }
-    friend void swap(KeyIterator& lhs, KeyIterator& rhs) {
+    friend void swap(KeyIterator& lhs, KeyIterator& rhs)  noexcept {
         std::swap(lhs.map_, rhs.map_);
         std::swap(lhs.index_, rhs.index_);
     }
@@ -1567,7 +1568,7 @@ template <bool constant>
 class StatisticsBase {
     friend class KeyIterator<StatisticsBase>;
 public:
-    using statistics_t = typename std::conditional<constant, clingo_statistics_t const *, clingo_statistics_t*>::type;
+    using statistics_t =  std::conditional_t<constant, clingo_statistics_t const *, clingo_statistics_t*>;
     using KeyIteratorT = KeyIterator<StatisticsBase>;
     using ArrayIteratorT = ArrayIterator<StatisticsBase, StatisticsBase const *>;
     using KeyRangeT = IteratorRange<KeyIteratorT>;
@@ -1653,7 +1654,9 @@ public:
     SolveHandle(SolveHandle const &) = delete;
     SolveHandle &operator=(SolveHandle &&it) noexcept;
     SolveHandle &operator=(SolveHandle const &) = delete;
-    clingo_solve_handle_t *to_c() const { return iter_; }
+    ~SolveHandle() noexcept(false);
+    void close();
+
     void resume();
     void wait();
     bool wait(double timeout);
@@ -1662,7 +1665,7 @@ public:
     LiteralSpan core();
     SolveResult get();
     void cancel();
-    ~SolveHandle(); // NOLINT
+    clingo_solve_handle_t *to_c() const { return iter_; }
 private:
     Model model_{nullptr};
     clingo_solve_handle_t *iter_{nullptr};
@@ -2151,7 +2154,8 @@ public:
     ProgramBuilder(ProgramBuilder &&builder) noexcept;
     ProgramBuilder &operator=(ProgramBuilder const &builder) = delete;
     ProgramBuilder &operator=(ProgramBuilder &&builder) noexcept;
-    ~ProgramBuilder(); // NOLINT
+    ~ProgramBuilder() noexcept(false);
+    void close();
 
     void add(Node const &ast);
     clingo_program_builder_t *to_c() const { return builder_; }
@@ -2199,13 +2203,13 @@ class ClingoOptions {
 public:
     explicit ClingoOptions(clingo_options_t *options, Detail::ParserList &parsers)
     : options_{options}
-    , parsers_{parsers} { }
+    , parsers_{&parsers} { }
     clingo_options_t *to_c() const { return options_; }
     void add(char const *group, char const *option, char const *description, std::function<bool (char const *value)> parser, bool multi = false, char const *argument = nullptr);
     void add_flag(char const *group, char const *option, char const *description, bool &target);
 private:
     clingo_options_t *options_;
-    Detail::ParserList &parsers_;
+    Detail::ParserList *parsers_;
 };
 
 struct Application {
@@ -2312,7 +2316,7 @@ inline void handle_cxx_error() {
     catch (std::bad_alloc const &e)     { clingo_set_error(clingo_error_bad_alloc, e.what()); return; }
     catch (std::runtime_error const &e) { clingo_set_error(clingo_error_runtime, e.what()); return; }
     catch (std::logic_error const &e)   { clingo_set_error(clingo_error_logic, e.what()); return; }
-    catch (...)                         { }
+    catch (...)                         { } // NOLINT(bugprone-empty-catch)
     clingo_set_error(clingo_error_unknown, "unknown error");
 }
 
@@ -2323,7 +2327,7 @@ std::string to_string(S size, P print, Args ...args) {
     Detail::handle_error(size(std::forward<Args>(args)..., &n));
     ret.resize(n);
     Detail::handle_error(print(std::forward<Args>(args)..., ret.data(), n));
-    return std::string(ret.begin(), ret.end()-1);
+    return {ret.begin(), ret.end()-1};
 }
 
 } // namespace Detail
@@ -3107,14 +3111,20 @@ inline void SolveHandle::cancel() {
     Detail::handle_error(clingo_solve_handle_cancel(iter_), *exception_);
 }
 
-inline SolveHandle::~SolveHandle() { // NOLINT
-    if (iter_ != nullptr) { Detail::handle_error(clingo_solve_handle_close(iter_), *exception_); }
+inline SolveHandle::~SolveHandle() noexcept(false) {
+    close();
+}
+
+inline void SolveHandle::close() {
+    if (iter_ != nullptr) {
+        Detail::handle_error(clingo_solve_handle_close(iter_), *exception_);
+        iter_ = nullptr;
+    }
 }
 
 // {{{2 backend
 
-inline Backend::Backend(Backend &&backend) noexcept
-: backend_{nullptr} {
+inline Backend::Backend(Backend &&backend) noexcept {
     *this = std::move(backend);
 }
 
@@ -3128,9 +3138,14 @@ inline Backend::Backend(clingo_backend_t *backend)
     Detail::handle_error(clingo_backend_begin(backend_));
 }
 
-inline Backend::~Backend() { // NOLINT
+inline Backend::~Backend() noexcept(false) {
+    close();
+}
+
+inline void Backend::close() {
     if (backend_ != nullptr) {
         Detail::handle_error(clingo_backend_end(backend_));
+        backend_ = nullptr;
     }
 }
 
@@ -3399,7 +3414,7 @@ inline std::string Configuration::value() const {
     Detail::handle_error(clingo_configuration_value_get_size(conf_, key_, &n));
     std::vector<char> ret(n);
     Detail::handle_error(clingo_configuration_value_get(conf_, key_, ret.data(), n));
-    return std::string(ret.begin(), ret.end() - 1);
+    return {ret.begin(), ret.end() - 1};
 }
 
 inline Configuration &Configuration::operator=(char const *value) {
@@ -3524,7 +3539,7 @@ struct ASTVisitor {
             }
         }
     }
-    V &v;
+    V &v; // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
 };
 
 } // namespace ASTDetail
@@ -3713,29 +3728,31 @@ inline void Node::set(Attribute attribute, NodeValue value) {
 
 template <class Visitor>
 inline void Node::visit_attribute(Visitor &&visitor) const {
+    auto visit = std::forward<Visitor>(visitor);
     auto const &cons = g_clingo_ast_constructors.constructors[static_cast<size_t>(type())]; // NOLINT
     for (auto const &x : make_span(cons.arguments, cons.size)) {
         auto attr = static_cast<Attribute>(x.attribute);
-        visitor(attr, get(attr));
+        visit(attr, get(attr));
     }
 }
 
 template <class Visitor>
 inline void Node::visit_ast(Visitor &&visitor) const {
     ASTDetail::ASTVisitor<Visitor> v{visitor};
-    if (visitor(*this)) {
+    if (std::forward<Visitor>(visitor)(*this)) {
         visit_attribute(v);
     }
 }
 
 template <class Transformer>
 Node Node::transform_ast(Transformer &&visitor) const {
+    auto visit = std::forward<Transformer>(visitor);
     std::vector<std::pair<Attribute, Variant<Node, Optional<Node>, std::vector<Node>>>> result;
     visit_attribute([&](Attribute attr, NodeValue value) {
         if (value.is<Node>()) {
             auto &ast = value.get<Node>();
             auto *ptr = ast.to_c();
-            auto tra = visitor(ast);
+            auto tra = visit(ast);
             if (tra.to_c() != ptr) {
                 result.emplace_back(attr, std::move(tra));
             }
@@ -3744,7 +3761,7 @@ Node Node::transform_ast(Transformer &&visitor) const {
             auto *ast = value.get<Optional<Node>>().get();
             if (ast != nullptr) {
                 auto *ptr = ast->to_c();
-                auto tra = visitor(*ast);
+                auto tra = visit(*ast);
                 if (tra.to_c() != ptr) {
                     result.emplace_back(attr, Optional<Node>{std::move(tra)});
                 }
@@ -3757,7 +3774,7 @@ Node Node::transform_ast(Transformer &&visitor) const {
             for (auto it = ast_vec.begin(), ie = ast_vec.end(); it != ie; ++it) {
                 Node ast = *it;
                 auto *ptr = ast.to_c();
-                auto tra = visitor(*it);
+                auto tra = visit(*it);
                 if (tra.to_c() != ptr && !changed) {
                     changed = true;
                     vec.reserve(ast_vec.size());
@@ -3814,7 +3831,7 @@ inline std::vector<Node> Node::unpool(bool other, bool condition) const {
     Detail::handle_error(clingo_ast_unpool(ast_, type, [](clingo_ast_t *ast, void *data) -> bool {
         auto &d = *static_cast<Data*>(data);
         clingo_ast_acquire(ast);
-        CLINGO_CALLBACK_TRY { d.first.emplace_back(Node{ast}); }
+        CLINGO_CALLBACK_TRY { d.first.emplace_back(ast); }
         CLINGO_CALLBACK_CATCH(d.second);
     }, &data));
     return std::move(data.first);
@@ -3866,7 +3883,7 @@ inline NodeRef::NodeRef(NodeVector *vec, size_t index)
 , index_{index} { }
 
 inline NodeRef &NodeRef::operator=(Node const &ast) {
-    vec_->set(vec_->begin() + index_, ast);
+    vec_->set(vec_->begin() + static_cast<NodeVector::iterator::difference_type>(index_), ast);
     return *this;
 }
 
@@ -3969,7 +3986,7 @@ inline StringRef::StringRef(StringVector *vec, size_t index)
 , index_{index} { }
 
 inline StringRef &StringRef::operator=(char const *str) {
-    vec_->set(vec_->begin() + index_, str);
+    vec_->set(vec_->begin() + static_cast<StringVector::iterator::difference_type>(index_), str);
     return *this;
 }
 
@@ -4081,10 +4098,15 @@ inline ProgramBuilder::ProgramBuilder(ProgramBuilder &&builder) noexcept
     std::swap(builder_, builder.builder_);
 }
 
-inline ProgramBuilder::~ProgramBuilder() { // NOLINT
+inline void ProgramBuilder::close() {
     if (builder_ != nullptr) {
         Detail::handle_error(clingo_program_builder_end(builder_));
+        builder_ = nullptr;
     }
+}
+
+inline ProgramBuilder::~ProgramBuilder() noexcept(false) {
+    close();
 }
 
 inline void ProgramBuilder::add(Node const &ast) {
@@ -4097,8 +4119,8 @@ namespace ASTDetail {
 
 template <class Callback>
 inline void parse_string(char const *program, Callback &&cb, clingo_control_t *control, Logger logger, unsigned message_limit) {
-    using Data = std::pair<Callback&, std::exception_ptr>;
-    Data data(cb, nullptr);
+    using Data = std::pair<Callback, std::exception_ptr>;
+    auto data = Data(std::forward<Callback>(cb), nullptr);
     Detail::handle_error(clingo_ast_parse_string(program, [](clingo_ast_t *ast, void *data) -> bool {
         auto &d = *static_cast<Data*>(data);
         clingo_ast_acquire(ast);
@@ -4106,14 +4128,14 @@ inline void parse_string(char const *program, Callback &&cb, clingo_control_t *c
         CLINGO_CALLBACK_CATCH(d.second);
     }, &data, nullptr, [](clingo_warning_t code, char const *msg, void *data) {
         try { (*static_cast<Logger*>(data))(static_cast<WarningCode>(code), msg); }
-        catch (...) { }
+        catch (...) { } // NOLINT
     }, &logger, message_limit), data.second);
 }
 
 template <class Callback>
 inline void parse_files(StringSpan files, Callback &&cb, clingo_control_t *control, Logger logger, unsigned message_limit) {
-    using Data = std::pair<Callback&, std::exception_ptr>;
-    Data data(cb, nullptr);
+    using Data = std::pair<Callback, std::exception_ptr>;
+    auto data = Data(std::forward<Callback>(cb), nullptr);
     Detail::handle_error(clingo_ast_parse_files(files.begin(), files.size(), [](clingo_ast_t *ast, void *data) -> bool {
         auto &d = *static_cast<Data*>(data);
         clingo_ast_acquire(ast);
@@ -4121,7 +4143,7 @@ inline void parse_files(StringSpan files, Callback &&cb, clingo_control_t *contr
         CLINGO_CALLBACK_CATCH(d.second);
     }, &data, nullptr, [](clingo_warning_t code, char const *msg, void *data) {
         try { (*static_cast<Logger*>(data))(static_cast<WarningCode>(code), msg); }
-        catch (...) { }
+        catch (...) { } // NOLINT
     }, &logger, message_limit), data.second);
 }
 
@@ -4129,22 +4151,22 @@ inline void parse_files(StringSpan files, Callback &&cb, clingo_control_t *contr
 
 template <class Callback>
 inline void parse_string(char const *program, Callback &&cb, Logger logger, unsigned message_limit) {
-    ASTDetail::parse_string(program, cb, nullptr, logger, message_limit);
+    ASTDetail::parse_string(program, std::forward<Callback>(cb), nullptr, logger, message_limit);
 }
 
 template <class Callback>
 inline void parse_string(char const *program, Callback &&cb, Control &control, Logger logger, unsigned message_limit) {
-    ASTDetail::parse_string(program, cb, control.to_c(), logger, message_limit);
+    ASTDetail::parse_string(program, std::forward<Callback>(cb), control.to_c(), logger, message_limit);
 }
 
 template <class Callback>
 inline void parse_files(StringSpan files, Callback &&cb, Logger logger, unsigned message_limit) {
-    ASTDetail::parse_files(files, cb, nullptr, logger, message_limit);
+    ASTDetail::parse_files(files, std::forward<Callback>(cb), nullptr, logger, message_limit);
 }
 
 template <class Callback>
 inline void parse_files(StringSpan files, Callback &&cb, Control &control, Logger logger, unsigned message_limit) {
-    ASTDetail::parse_files(files, cb, control.to_c(), logger, message_limit);
+    ASTDetail::parse_files(files, std::forward<Callback>(cb), control.to_c(), logger, message_limit);
 }
 
 } // namespace AST
@@ -4184,7 +4206,7 @@ inline Clingo::Control::Control(StringSpan args, Logger logger, unsigned message
 {
     clingo_logger_t f = [](clingo_warning_t code, char const *msg, void *data) {
         try { (*static_cast<Logger*>(data))(static_cast<WarningCode>(code), msg); }
-        catch (...) { }
+        catch (...) { } // NOLINT(bugprone-empty-catch)
     };
     Detail::handle_error(clingo_control_new(args.begin(), args.size(), impl_->logger ? f : nullptr, impl_->logger ? &impl_->logger : nullptr, message_limit, &impl_->ctl));
 }
@@ -4260,7 +4282,7 @@ inline SolveHandle Control::solve(LiteralSpan assumptions, SolveEventHandler *ha
     impl_->ptr.reset();
     clingo_solve_event_callback_t on_event = [](clingo_solve_event_type_t type, void *event, void *pdata, bool *goon) {
         Impl &data = *static_cast<Impl*>(pdata);
-        switch (type) {
+        switch (static_cast<clingo_solve_event_type_e>(type)) {
             case clingo_solve_event_type_model: {
                 CLINGO_CALLBACK_TRY {
                     Model m{static_cast<clingo_model_t*>(event)};
@@ -4627,12 +4649,12 @@ inline Statistics Control::statistics() const {
 // {{{2 clingo application
 
 inline void ClingoOptions::add(char const *group, char const *option, char const *description, std::function<bool (char const *value)> parse, bool multi, char const *argument) {
-    parsers_.emplace_front(std::move(parse));
+    parsers_->emplace_front(std::move(parse));
     Detail::handle_error(clingo_options_add(to_c(), group, option, description, [](char const *value, void *data) {
         auto& p = *static_cast<Detail::ParserList::value_type*>(data);
         try         { return p(value); }
         catch (...) { return false; }
-    }, &parsers_.front(), multi, argument));
+    }, &parsers_->front(), multi, argument));
 }
 
 inline void ClingoOptions::add_flag(char const *group, char const *option, char const *description, bool &target) { // NOLINT
@@ -4666,43 +4688,43 @@ inline void Application::validate_options() {
 namespace Detail {
 
 struct ApplicationData {
-    Application &app;
+    Application *app;
     ParserList parsers;
 };
 
 inline static unsigned g_message_limit(void *adata) {
     ApplicationData &data = *static_cast<ApplicationData*>(adata);
-    return data.app.message_limit();
+    return data.app->message_limit();
 }
 
 inline static char const *g_program_name(void *adata) {
     ApplicationData &data = *static_cast<ApplicationData*>(adata);
-    return data.app.program_name();
+    return data.app->program_name();
 }
 
 inline static char const *g_version(void *adata) {
     ApplicationData &data = *static_cast<ApplicationData*>(adata);
-    return data.app.version();
+    return data.app->version();
 }
 
 inline static bool g_main(clingo_control_t *control, char const *const * files, size_t size, void *adata) {
     ApplicationData &data = *static_cast<ApplicationData*>(adata);
     CLINGO_TRY {
         Control ctl{control, false};
-        data.app.main(ctl, {files, size});
+        data.app->main(ctl, {files, size});
     }
     CLINGO_CATCH;
 }
 
 inline static void g_logger(clingo_warning_t code, char const *message, void *adata) {
     ApplicationData &data = *static_cast<ApplicationData*>(adata);
-    return data.app.log(static_cast<WarningCode>(code), message);
+    return data.app->log(static_cast<WarningCode>(code), message);
 }
 
 inline static bool g_model_printer(clingo_model_t const *model, clingo_default_model_printer_t printer, void *printer_data, void *data) {
     ApplicationData &app_data = *static_cast<ApplicationData*>(data);
     CLINGO_TRY {
-        app_data.app.print_model(Model(const_cast<clingo_model_t*>(model)), [&]() { // NOLINT
+        app_data.app->print_model(Model(const_cast<clingo_model_t*>(model)), [&]() { // NOLINT
             Detail::handle_error(printer(printer_data));
         });
     }
@@ -4713,14 +4735,14 @@ inline static bool g_register_options(clingo_options_t *options, void *adata) {
     ApplicationData &data = *static_cast<ApplicationData*>(adata);
     CLINGO_TRY {
         ClingoOptions opts{options, data.parsers};
-        data.app.register_options(opts);
+        data.app->register_options(opts);
     }
     CLINGO_CATCH;
 }
 
 inline static bool g_validate_options(void *adata) {
     ApplicationData &data = *static_cast<ApplicationData*>(adata);
-    CLINGO_TRY { data.app.validate_options(); }
+    CLINGO_TRY { data.app->validate_options(); }
     CLINGO_CATCH;
 }
 
@@ -4732,7 +4754,7 @@ inline Symbol parse_term(char const *str, Logger logger, unsigned message_limit)
     clingo_symbol_t ret = 0;
     Detail::handle_error(clingo_parse_term(str, [](clingo_warning_t code, char const *msg, void *data) {
         try { (*static_cast<Logger*>(data))(static_cast<WarningCode>(code), msg); }
-        catch (...) { }
+        catch (...) { } // NOLINT(bugprone-empty-catch)
     }, &logger, message_limit, &ret));
     return Symbol(ret);
 }
@@ -4750,7 +4772,7 @@ inline std::tuple<int, int, int> version() {
 }
 
 inline int clingo_main(Application &application, StringSpan arguments) {
-    Detail::ApplicationData data{application, Detail::ParserList{}};
+    Detail::ApplicationData data{&application, Detail::ParserList{}};
     static clingo_application_t g_app = {
         Detail::g_program_name,
         Detail::g_version,
