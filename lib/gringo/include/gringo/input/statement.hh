@@ -227,40 +227,41 @@ auto operator<(TheoryDefinition const &a, TheoryDefinition const &b) -> bool;
 //! @related StatementOptimize
 enum class OptimizeType { minimize, maximize };
 
+//! The tuple of a minimize element.
+class OptimizeTuple {
+  public:
+    explicit OptimizeTuple(Term weight, std::optional<Term> priority, TermVec terms)
+        : weight_{std::move(weight)}, priority_{std::move(priority)}, terms_{std::move(terms)} {}
+
+    //! The weight.
+    [[nodiscard]] auto weight() const -> Term const & { return weight_; }
+    //! The optional priority.
+    [[nodiscard]] auto priority() const -> std::optional<Term> const & { return priority_; }
+    //! The remaining terms.
+    [[nodiscard]] auto terms() const -> TermVec const & { return terms_; }
+
+  private:
+    friend auto operator==(OptimizeTuple const &a, OptimizeTuple const &b) -> bool;
+    friend auto operator<(OptimizeTuple const &a, OptimizeTuple const &b) -> bool;
+    friend struct Util::value_hasher<OptimizeTuple>;
+
+    Term weight_;
+    std::optional<Term> priority_;
+    TermVec terms_;
+};
+
+//! An element.
+using OptimizeElement = std::pair<OptimizeTuple, LiteralVec>;
+//! A vector of elements.
+using OptimizeElementVec = Util::immutable_array<OptimizeElement>;
+
 //! An optimization statement.
 //!
 //! For example: <tt>\#minimize { 1@0,X: p(X) }</tt>.
 class StatementOptimize {
   public:
-    //! The tuple of a minimize element.
-    class Tuple {
-      public:
-        explicit Tuple(Term weight, std::optional<Term> priority, TermVec terms)
-            : weight_{std::move(weight)}, priority_{std::move(priority)}, terms_{std::move(terms)} {}
-
-        //! The weight.
-        [[nodiscard]] auto weight() const -> Term const & { return weight_; }
-        //! The optional priority.
-        [[nodiscard]] auto priority() const -> std::optional<Term> const & { return priority_; }
-        //! The remaining terms.
-        [[nodiscard]] auto terms() const -> TermVec const & { return terms_; }
-
-      private:
-        friend auto operator==(Tuple const &a, Tuple const &b) -> bool;
-        friend auto operator<(Tuple const &a, Tuple const &b) -> bool;
-        friend struct Util::value_hasher<Tuple>;
-
-        Term weight_;
-        std::optional<Term> priority_;
-        TermVec terms_;
-    };
-    //! An element.
-    using Element = std::pair<Tuple, LiteralVec>;
-    //! A vector of elements.
-    using ElementVec = Util::immutable_array<Element>;
-
     //! Construct a weak constraint.
-    explicit StatementOptimize(Location loc, OptimizeType type, ElementVec elems)
+    explicit StatementOptimize(Location loc, OptimizeType type, OptimizeElementVec elems)
         : loc_{std::move(loc)}, type_{type}, elems_{std::move(elems)} {}
 
     //! The location of the statement.
@@ -268,7 +269,7 @@ class StatementOptimize {
     //! The type of the statement.
     [[nodiscard]] auto type() const -> OptimizeType { return type_; }
     //! The elements of the statement.
-    [[nodiscard]] auto elems() const -> ElementVec const & { return elems_; }
+    [[nodiscard]] auto elems() const -> OptimizeElementVec const & { return elems_; }
 
   private:
     friend auto operator==(StatementOptimize const &a, StatementOptimize const &b) -> bool;
@@ -277,14 +278,14 @@ class StatementOptimize {
 
     Location loc_;
     OptimizeType type_;
-    ElementVec elems_;
+    OptimizeElementVec elems_;
 };
 
 //! Compare two tuples.
-auto operator==(StatementOptimize::Tuple const &a, StatementOptimize::Tuple const &b) -> bool;
+auto operator==(OptimizeTuple const &a, OptimizeTuple const &b) -> bool;
 
 //! Compare two optimization tuples.
-auto operator<(StatementOptimize::Tuple const &a, StatementOptimize::Tuple const &b) -> bool;
+auto operator<(OptimizeTuple const &a, OptimizeTuple const &b) -> bool;
 
 //! Compare two optimization statements.
 auto operator==(StatementOptimize const &a, StatementOptimize const &b) -> bool;
@@ -297,11 +298,8 @@ auto operator<(StatementOptimize const &a, StatementOptimize const &b) -> bool;
 //! For example: <tt>:~ p(X). [1@0,X]</tt>.
 class StatementWeakConstraint {
   public:
-    //! A weak constraint uses the same tuple as an optimize statement.
-    using Tuple = StatementOptimize::Tuple;
-
     //! Construct a weak constraint.
-    explicit StatementWeakConstraint(Location loc, BodyLiteralVec body, Tuple tuple)
+    explicit StatementWeakConstraint(Location loc, BodyLiteralVec body, OptimizeTuple tuple)
         : loc_{std::move(loc)}, body_{std::move(body)}, tuple_{std::move(tuple)} {}
 
     //! The location of the statement.
@@ -309,7 +307,7 @@ class StatementWeakConstraint {
     //! The body of the constraint.
     [[nodiscard]] auto body() const -> BodyLiteralVec const & { return body_; }
     //! The tuple of the constraint.
-    [[nodiscard]] auto tuple() const -> Tuple const & { return tuple_; }
+    [[nodiscard]] auto tuple() const -> OptimizeTuple const & { return tuple_; }
 
   private:
     friend auto operator==(StatementWeakConstraint const &a, StatementWeakConstraint const &b) -> bool;
@@ -318,7 +316,7 @@ class StatementWeakConstraint {
 
     Location loc_;
     BodyLiteralVec body_;
-    Tuple tuple_;
+    OptimizeTuple tuple_;
 };
 
 //! Compare two weak constraints.
@@ -534,34 +532,34 @@ auto operator==(StatementExternal const &a, StatementExternal const &b) -> bool;
 //! Compare two external statements.
 auto operator<(StatementExternal const &a, StatementExternal const &b) -> bool;
 
+//! An directed edge.
+class Edge {
+  public:
+    explicit Edge(Term u, Term v) : u_{std::move(u)}, v_{std::move(v)} {}
+
+    //! The source vertex.
+    [[nodiscard]] auto u() const -> Term const & { return u_; }
+    //! The target vertex.
+    [[nodiscard]] auto v() const -> Term const & { return v_; }
+
+  private:
+    friend auto operator==(Edge const &a, Edge const &b) -> bool;
+    friend auto operator<(Edge const &a, Edge const &b) -> bool;
+    friend struct Util::value_hasher<Edge>;
+
+    //! The source vertex.
+    Term u_;
+    //! The target vertex.
+    Term v_;
+};
+//! A vector of edges.
+using EdgeVec = Util::immutable_array<Edge>;
+
 //! An edge statement.
 //!
 //! Example: <tt>\#edge (X,Y): connected(X,Y).</tt>.
 class StatementEdge {
   public:
-    //! An directed edge.
-    class Edge {
-      public:
-        explicit Edge(Term u, Term v) : u_{std::move(u)}, v_{std::move(v)} {}
-
-        //! The source vertex.
-        [[nodiscard]] auto u() const -> Term const & { return u_; }
-        //! The target vertex.
-        [[nodiscard]] auto v() const -> Term const & { return v_; }
-
-      private:
-        friend auto operator==(Edge const &a, Edge const &b) -> bool;
-        friend auto operator<(Edge const &a, Edge const &b) -> bool;
-        friend struct Util::value_hasher<Edge>;
-
-        //! The source vertex.
-        Term u_;
-        //! The target vertex.
-        Term v_;
-    };
-    //! A vector of edges.
-    using EdgeVec = Util::immutable_array<Edge>;
-
     //! Construct an edge statement.
     explicit StatementEdge(Location loc, EdgeVec edges, BodyLiteralVec body = {})
         : loc_{std::move(loc)}, edges_{std::move(edges)}, body_{std::move(body)} {}
@@ -584,10 +582,10 @@ class StatementEdge {
 };
 
 //! Compare two edges.
-auto operator==(StatementEdge::Edge const &a, StatementEdge::Edge const &b) -> bool;
+auto operator==(Edge const &a, Edge const &b) -> bool;
 
 //! Compare two edges.
-auto operator<(StatementEdge::Edge const &a, StatementEdge::Edge const &b) -> bool;
+auto operator<(Edge const &a, Edge const &b) -> bool;
 
 //! Compare two edge statements.
 auto operator==(StatementEdge const &a, StatementEdge const &b) -> bool;
@@ -852,8 +850,8 @@ GRINGO_HASH_PROTO(Gringo::Input::TheoryOpDefinition);
 GRINGO_HASH_PROTO(Gringo::Input::TheoryTermDefinition);
 GRINGO_HASH_PROTO(Gringo::Input::TheoryAtomDefinition);
 GRINGO_HASH_PROTO(Gringo::Input::TheoryDefinition);
-GRINGO_HASH_PROTO(Gringo::Input::StatementOptimize::Tuple);
-GRINGO_HASH_PROTO(Gringo::Input::StatementEdge::Edge);
+GRINGO_HASH_PROTO(Gringo::Input::OptimizeTuple);
+GRINGO_HASH_PROTO(Gringo::Input::Edge);
 GRINGO_HASH_PROTO(Gringo::Input::Rule);
 GRINGO_HASH_PROTO(Gringo::Input::StatementOptimize);
 GRINGO_HASH_PROTO(Gringo::Input::StatementWeakConstraint);

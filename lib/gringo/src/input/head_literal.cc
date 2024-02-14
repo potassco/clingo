@@ -10,11 +10,11 @@ auto operator==(Disjunction const &a, Disjunction const &b) -> bool { return a.e
 
 auto operator<(Disjunction const &a, Disjunction const &b) -> bool { return a.elems_ < b.elems_; }
 
-auto operator==(HeadAggregate::Element const &a, HeadAggregate::Element const &b) -> bool {
+auto operator==(HeadAggregateElement const &a, HeadAggregateElement const &b) -> bool {
     return std::tie(a.tuple_, a.lit_, a.cond_) == std::tie(b.tuple_, b.lit_, b.cond_);
 }
 
-auto operator<(HeadAggregate::Element const &a, HeadAggregate::Element const &b) -> bool {
+auto operator<(HeadAggregateElement const &a, HeadAggregateElement const &b) -> bool {
     return std::tie(a.tuple_, a.lit_, a.cond_) < std::tie(b.tuple_, b.lit_, b.cond_);
 }
 
@@ -39,9 +39,9 @@ auto value_hasher<Gringo::Input::Disjunction>::operator()(Gringo::Input::Disjunc
     return Gringo::Util::value_hash(typeid(Gringo::Input::Disjunction), x.elems_);
 }
 
-auto value_hasher<Gringo::Input::HeadAggregate::Element>::operator()(
-    Gringo::Input::HeadAggregate::Element const &x) const -> size_t {
-    return Gringo::Util::value_hash(typeid(Gringo::Input::HeadAggregate::Element), x.tuple_, x.cond_);
+auto value_hasher<Gringo::Input::HeadAggregateElement>::operator()(Gringo::Input::HeadAggregateElement const &x) const
+    -> size_t {
+    return Gringo::Util::value_hash(typeid(Gringo::Input::HeadAggregateElement), x.tuple_, x.cond_);
 }
 
 auto value_hasher<Gringo::Input::HeadAggregate>::operator()(Gringo::Input::HeadAggregate const &x) const -> size_t {

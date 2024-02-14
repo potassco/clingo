@@ -255,9 +255,9 @@ template <class T> class Transformer {
         return transform(lit.lit());
     }
 
-    [[nodiscard]] auto accept_(Disjunction::Element const &elem) const -> std::optional<Disjunction::Element> {
+    [[nodiscard]] auto accept_(DisjunctionElement const &elem) const -> std::optional<DisjunctionElement> {
         return std::visit(
-            [this](auto const &elem) -> std::optional<Disjunction::Element> { return this->transform(elem); }, elem);
+            [this](auto const &elem) -> std::optional<DisjunctionElement> { return this->transform(elem); }, elem);
     }
 
     [[nodiscard]] auto accept_(Disjunction const &lit) const -> std::optional<HeadLiteral> {
@@ -268,9 +268,8 @@ template <class T> class Transformer {
         return transform_construct<HeadSetAggregate>(lit.loc(), tr(lit.lhs()), tr(lit.elems()), tr(lit.rhs()));
     }
 
-    [[nodiscard]] auto accept_(HeadAggregate::Element const &elem) const -> std::optional<HeadAggregate::Element> {
-        return transform_construct<HeadAggregate::Element>(elem.loc(), tr(elem.tuple()), tr(elem.lit()),
-                                                           tr(elem.cond()));
+    [[nodiscard]] auto accept_(HeadAggregateElement const &elem) const -> std::optional<HeadAggregateElement> {
+        return transform_construct<HeadAggregateElement>(elem.loc(), tr(elem.tuple()), tr(elem.lit()), tr(elem.cond()));
     }
 
     [[nodiscard]] auto accept_(HeadAggregate const &lit) const -> std::optional<HeadLiteral> {
@@ -300,8 +299,8 @@ template <class T> class Transformer {
                                                      tr(lit.rhs()));
     }
 
-    [[nodiscard]] auto accept_(BodyAggregate::Element const &elem) const -> std::optional<BodyAggregate::Element> {
-        return transform_construct<BodyAggregate::Element>(elem.loc(), tr(elem.tuple()), tr(elem.cond()));
+    [[nodiscard]] auto accept_(BodyAggregateElement const &elem) const -> std::optional<BodyAggregateElement> {
+        return transform_construct<BodyAggregateElement>(elem.loc(), tr(elem.tuple()), tr(elem.cond()));
     }
 
     [[nodiscard]] auto accept_(BodyAggregate const &lit) const -> std::optional<BodyLiteral> {
@@ -325,13 +324,12 @@ template <class T> class Transformer {
         return std::nullopt;
     }
 
-    [[nodiscard]] auto accept_(StatementOptimize::Tuple const &elem) const -> std::optional<StatementOptimize::Tuple> {
-        return transform_construct<StatementOptimize::Tuple>(tr(elem.weight()), tr(elem.priority()), tr(elem.terms()));
+    [[nodiscard]] auto accept_(OptimizeTuple const &elem) const -> std::optional<OptimizeTuple> {
+        return transform_construct<OptimizeTuple>(tr(elem.weight()), tr(elem.priority()), tr(elem.terms()));
     }
 
-    [[nodiscard]] auto accept_(StatementOptimize::Element const &elem) const
-        -> std::optional<StatementOptimize::Element> {
-        return transform_construct<StatementOptimize::Element>(tr(elem.first), tr(elem.second));
+    [[nodiscard]] auto accept_(OptimizeElement const &elem) const -> std::optional<OptimizeElement> {
+        return transform_construct<OptimizeElement>(tr(elem.first), tr(elem.second));
     }
 
     [[nodiscard]] auto accept_(StatementOptimize const &stm) const -> std::optional<Statement> {
@@ -369,8 +367,8 @@ template <class T> class Transformer {
         return transform_construct<StatementExternal>(stm.loc(), tr(stm.term()), tr(stm.body()), tr(stm.type()));
     }
 
-    [[nodiscard]] auto accept_(StatementEdge::Edge const &edge) const -> std::optional<StatementEdge::Edge> {
-        return transform_construct<StatementEdge::Edge>(tr(edge.u()), tr(edge.v()));
+    [[nodiscard]] auto accept_(Edge const &edge) const -> std::optional<Edge> {
+        return transform_construct<Edge>(tr(edge.u()), tr(edge.v()));
     }
 
     [[nodiscard]] auto accept_(StatementEdge const &stm) const -> std::optional<Statement> {

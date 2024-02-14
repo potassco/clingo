@@ -206,7 +206,7 @@ struct Print {
 
     void operator()(Projection const &x) const { out << x; }
 
-    void operator()(ArgumentTuple::Element const &elem) const { std::visit(*this, elem); }
+    void operator()(Argument const &elem) const { std::visit(*this, elem); }
 
     void operator()(TermTuple const &term) const {
         auto const &pool = term.pool();
@@ -420,7 +420,7 @@ struct Print {
         apply_to_range_with(lit.elems(), "; ", [this](auto const &elem) { std::visit(*this, elem); });
     }
 
-    void operator()(HeadAggregate::Element const &elem) const {
+    void operator()(HeadAggregateElement const &elem) const {
         visit_range(elem.tuple());
         out << ": ";
         operator()(elem.lit());
@@ -452,7 +452,7 @@ struct Print {
 
     void operator()(Conjunction const &lit) const { operator()(lit.lit()); }
 
-    void operator()(BodyAggregate::Element const &elem) const {
+    void operator()(BodyAggregateElement const &elem) const {
         visit_range(elem.tuple());
         if (!elem.cond().empty()) {
             out << ": ";
@@ -565,7 +565,7 @@ struct Print {
         out << "}.";
     }
 
-    void operator()(StatementOptimize::Tuple const &tuple) const {
+    void operator()(OptimizeTuple const &tuple) const {
         out << tuple.weight();
         if (tuple.priority()) {
             out << "@";
@@ -577,7 +577,7 @@ struct Print {
         }
     }
 
-    void operator()(StatementOptimize::Element const &elem) const {
+    void operator()(OptimizeElement const &elem) const {
         operator()(elem.first);
         if (!elem.second.empty()) {
             out << ": ";
@@ -645,7 +645,7 @@ struct Print {
         }
     }
 
-    void operator()(StatementEdge::Edge const &edge) const {
+    void operator()(Edge const &edge) const {
         operator()(edge.u());
         out << ",";
         operator()(edge.v());
@@ -947,12 +947,12 @@ auto operator<<(std::ostream &out, TheoryElement const &elem) -> std::ostream & 
     return out;
 }
 
-auto operator<<(std::ostream &out, HeadAggregate::Element const &elem) -> std::ostream & {
+auto operator<<(std::ostream &out, HeadAggregateElement const &elem) -> std::ostream & {
     Print{out}(elem);
     return out;
 }
 
-auto operator<<(std::ostream &out, BodyAggregate::Element const &elem) -> std::ostream & {
+auto operator<<(std::ostream &out, BodyAggregateElement const &elem) -> std::ostream & {
     Print{out}(elem);
     return out;
 }
@@ -1045,12 +1045,12 @@ auto operator<<(std::ostream &out, BodyLiteral const &lit) -> std::ostream & {
 
 // statement elements
 
-auto operator<<(std::ostream &out, StatementOptimize::Tuple const &tuple) -> std::ostream & {
+auto operator<<(std::ostream &out, OptimizeTuple const &tuple) -> std::ostream & {
     Print{out}(tuple);
     return out;
 }
 
-auto operator<<(std::ostream &out, StatementOptimize::Element const &elem) -> std::ostream & {
+auto operator<<(std::ostream &out, OptimizeElement const &elem) -> std::ostream & {
     Print{out}(elem);
     return out;
 }
@@ -1075,7 +1075,7 @@ auto operator<<(std::ostream &out, TheoryAtomDefinition const &def) -> std::ostr
     return out;
 }
 
-auto operator<<(std::ostream &out, StatementEdge::Edge const &edge) -> std::ostream & {
+auto operator<<(std::ostream &out, Edge const &edge) -> std::ostream & {
     Print{out}(edge);
     return out;
 }

@@ -41,14 +41,13 @@ struct Project : Transformer<Project> {
 
     // term
 
-    [[nodiscard]] auto accept(ArgumentTuple::Element const &elem) const -> std::optional<ArgumentTuple::Element> {
+    [[nodiscard]] auto accept(Argument const &elem) const -> std::optional<Argument> {
         if (auto const *term = std::get_if<Term>(&elem); projectable(project, term)) {
             return {Projection{location(*term)}};
         }
         return std::visit(
-            [this](auto const &x) -> std::optional<ArgumentTuple::Element> {
-                return Util::transform(transform(x),
-                                       [](auto &&y) -> ArgumentTuple::Element { return {GRINGO_FWD(y)}; });
+            [this](auto const &x) -> std::optional<Argument> {
+                return Util::transform(transform(x), [](auto &&y) -> Argument { return {GRINGO_FWD(y)}; });
             },
             elem);
     };
@@ -133,9 +132,9 @@ struct Project : Transformer<Project> {
         return std::nullopt;
     }
 
-    [[nodiscard]] auto accept(Disjunction::Element const &elem) const -> std::optional<Disjunction::Element> {
+    [[nodiscard]] auto accept(DisjunctionElement const &elem) const -> std::optional<DisjunctionElement> {
         return std::visit(
-            [this](auto const &elem) -> std::optional<Disjunction::Element> {
+            [this](auto const &elem) -> std::optional<DisjunctionElement> {
                 GRINGO_MATCH(elem, Literal) {
                     if (!project_lits) {
                         return std::nullopt;
@@ -156,14 +155,14 @@ struct Project : Transformer<Project> {
         return std::nullopt;
     }
 
-    [[nodiscard]] auto accept(HeadAggregate::Element const &elem) const -> std::optional<HeadAggregate::Element> {
+    [[nodiscard]] auto accept(HeadAggregateElement const &elem) const -> std::optional<HeadAggregateElement> {
         // counts of local variables
         auto counts = get_counts(project, elem);
         auto sub_project = Project{ProjectionMap{project.mode(), counts}};
 
         // project literals in condition
-        return sub_project.transform_construct<HeadAggregate::Element>(elem.loc(), elem.tuple(), elem.lit(),
-                                                                       tr(elem.cond()));
+        return sub_project.transform_construct<HeadAggregateElement>(elem.loc(), elem.tuple(), elem.lit(),
+                                                                     tr(elem.cond()));
     }
 
     [[nodiscard]] auto accept(HeadAggregate const &lit) const -> std::optional<HeadLiteral> {
@@ -185,13 +184,13 @@ struct Project : Transformer<Project> {
         auto sub_project = Project{project, in_classical_scope, true};
         return sub_project.transform_construct<ConditionalLiteral>(tr(lit.lit()));
     }
-    [[nodiscard]] auto accept(BodyAggregate::Element const &elem) const -> std::optional<BodyAggregate::Element> {
+    [[nodiscard]] auto accept(BodyAggregateElement const &elem) const -> std::optional<BodyAggregateElement> {
         // counts of local variables
         auto counts = get_counts(project, elem);
         auto sub_project = Project{ProjectionMap{project.mode(), counts}};
 
         // project literals in condition
-        return sub_project.transform_construct<BodyAggregate::Element>(elem.loc(), elem.tuple(), tr(elem.cond()));
+        return sub_project.transform_construct<BodyAggregateElement>(elem.loc(), elem.tuple(), tr(elem.cond()));
     }
 
     [[nodiscard]] auto accept(BodyAggregate const &lit) const -> std::optional<BodyLiteral> {
@@ -237,11 +236,10 @@ struct Project : Transformer<Project> {
         return sub_project.transform_construct<Rule>(stm.loc(), tr(stm.head()), tr(stm.body()));
     }
 
-    [[nodiscard]] auto accept(StatementOptimize::Element const &elem) const
-        -> std::optional<StatementOptimize::Element> {
+    [[nodiscard]] auto accept(OptimizeElement const &elem) const -> std::optional<OptimizeElement> {
         auto counts = get_counts(project, elem);
         auto sub_project = Project{ProjectionMap{project.mode(), counts}};
-        return sub_project.transform_construct<StatementOptimize::Element>(elem.first, tr(elem.second));
+        return sub_project.transform_construct<OptimizeElement>(elem.first, tr(elem.second));
     }
 
     [[nodiscard]] auto accept(StatementWeakConstraint const &stm) const -> std::optional<Statement> {

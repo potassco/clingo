@@ -52,7 +52,7 @@ struct CheckSyntax {
         return true;
     }
 
-    auto operator()(ArgumentTuple::Element const &elem, SyntaxCheck check) const -> bool {
+    auto operator()(Argument const &elem, SyntaxCheck check) const -> bool {
         return std::visit(*this, elem, std::variant<SyntaxCheck>{check});
     }
 
@@ -61,7 +61,7 @@ struct CheckSyntax {
                            [this, check](auto const &project_or_term) { return operator()(project_or_term, check); });
     }
 
-    auto operator()(TermTuple::Element const &elem, SyntaxCheck check) const -> bool {
+    auto operator()(TupleElement const &elem, SyntaxCheck check) const -> bool {
         if (!test(check, project_tuple)) {
             check &= ~SyntaxCheck::project;
         }
@@ -279,7 +279,7 @@ struct CheckSyntax {
         return true;
     }
 
-    auto operator()(StatementOptimize::Tuple const &tuple) const -> bool {
+    auto operator()(OptimizeTuple const &tuple) const -> bool {
         return operator()(tuple.weight()) && operator()(tuple.terms()) && operator()(tuple.priority());
     }
 
@@ -317,9 +317,7 @@ struct CheckSyntax {
         return operator()(stm.term()) && operator()(stm.body()) && operator()(stm.type());
     }
 
-    auto operator()(StatementEdge::Edge const &edge) const -> bool {
-        return operator()(edge.u()) && operator()(edge.v());
-    }
+    auto operator()(Edge const &edge) const -> bool { return operator()(edge.u()) && operator()(edge.v()); }
 
     auto operator()(StatementEdge const &stm) const -> bool {
         return std::all_of(stm.edges().begin(), stm.edges().end(), *this) && operator()(stm.body());

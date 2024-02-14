@@ -23,6 +23,17 @@ class SimpleBodyLiteral {
     //! The literal.
     [[nodiscard]] auto lit() const -> Literal const & { return lit_; }
 
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        check(Types{a_lit}, Types{args...});
+        return SimpleBodyLiteral{select<Opt>(a_lit, lit_, args...)};
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
+
   private:
     friend auto operator==(SimpleBodyLiteral const &a, SimpleBodyLiteral const &b) -> bool;
     friend auto operator<(SimpleBodyLiteral const &a, SimpleBodyLiteral const &b) -> bool;
@@ -51,6 +62,17 @@ class Conjunction {
     //! The conditional literal representing the elements of the conjunction.
     [[nodiscard]] auto lit() const -> ConditionalLiteral const & { return lit_; }
 
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        check(Types{a_lit}, Types{args...});
+        return Conjunction{select<Opt>(a_lit, lit_, args...)};
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
+
   private:
     friend auto operator==(Conjunction const &a, Conjunction const &b) -> bool;
     friend auto operator<(Conjunction const &a, Conjunction const &b) -> bool;
@@ -69,37 +91,50 @@ auto operator==(Conjunction const &a, Conjunction const &b) -> bool;
 //! @related Conjunction
 auto operator<(Conjunction const &a, Conjunction const &b) -> bool;
 
+//! A body aggregate element.
+class BodyAggregateElement {
+  public:
+    explicit BodyAggregateElement(Location loc, TermVec tuple, LiteralVec cond)
+        : loc_{loc}, tuple_{std::move(tuple)}, cond_{std::move(cond)} {}
+    //! The location of the element.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The tuple of the element.
+    [[nodiscard]] auto tuple() const -> TermVec const & { return tuple_; }
+    //! The condition of the element.
+    [[nodiscard]] auto cond() const -> LiteralVec const & { return cond_; }
+
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        check(Types{a_loc, a_tuple, a_cond}, Types{args...});
+        return BodyAggregateElement{select<Opt>(a_loc, loc_, args...), select<Opt>(a_tuple, tuple_, args...),
+                                    select<Opt>(a_cond, cond_, args...)};
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
+
+  private:
+    friend auto operator==(BodyAggregateElement const &a, BodyAggregateElement const &b) -> bool;
+    friend auto operator<(BodyAggregateElement const &a, BodyAggregateElement const &b) -> bool;
+    friend struct Util::value_hasher<BodyAggregateElement>;
+
+    Location loc_;
+    TermVec tuple_;
+    LiteralVec cond_;
+};
+//! A vector of aggregate elements.
+using BodyAggregateElementVec = Util::immutable_array<BodyAggregateElement>;
+
 //! A body aggregate.
 //!
 //! For example: <tt>\#count { X: q(X) } = 1</tt>
 class BodyAggregate {
   public:
-    //! An aggregate element.
-    class Element {
-      public:
-        explicit Element(Location loc, TermVec tuple, LiteralVec cond)
-            : loc_{loc}, tuple_{std::move(tuple)}, cond_{std::move(cond)} {}
-        //! The location of the element.
-        [[nodiscard]] auto loc() const -> Location const & { return loc_; }
-        //! The tuple of the element.
-        [[nodiscard]] auto tuple() const -> TermVec const & { return tuple_; }
-        //! The condition of the element.
-        [[nodiscard]] auto cond() const -> LiteralVec const & { return cond_; }
-
-      private:
-        friend auto operator==(Element const &a, Element const &b) -> bool;
-        friend auto operator<(Element const &a, Element const &b) -> bool;
-        friend struct Util::value_hasher<Element>;
-
-        Location loc_;
-        TermVec tuple_;
-        LiteralVec cond_;
-    };
-    //! A vector of aggregate elements.
-    using ElementVec = Util::immutable_array<Element>;
-
     //! Construct a body aggregate.
-    explicit BodyAggregate(Location loc, Sign sign, LGuard lhs, AggregateFunction fun, ElementVec elems, RGuard rhs)
+    explicit BodyAggregate(Location loc, Sign sign, LGuard lhs, AggregateFunction fun, BodyAggregateElementVec elems,
+                           RGuard rhs)
         : loc_{std::move(loc)}, sign_{sign}, fun_(fun), elems_(std::move(elems)), lhs_{std::move(lhs)},
           rhs_{std::move(rhs)} {}
 
@@ -110,11 +145,24 @@ class BodyAggregate {
     //! The aggregate function.
     [[nodiscard]] auto fun() const -> AggregateFunction { return fun_; }
     //! The vector of elements.
-    [[nodiscard]] auto elems() const -> ElementVec const & { return elems_; }
+    [[nodiscard]] auto elems() const -> BodyAggregateElementVec const & { return elems_; }
     //! An optional left guard.
     [[nodiscard]] auto lhs() const -> LGuard const & { return lhs_; }
     //! An optional right guard.
     [[nodiscard]] auto rhs() const -> RGuard const & { return rhs_; }
+
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        check(Types{a_loc, a_sign, a_fun, a_lhs, a_elems, a_rhs}, Types{args...});
+        return BodyAggregate{select<Opt>(a_loc, loc_, args...),     select<Opt>(a_sign, sign_, args...),
+                             select<Opt>(a_lhs, lhs_, args...),     select<Opt>(a_fun, fun_, args...),
+                             select<Opt>(a_elems, elems_, args...), select<Opt>(a_rhs, rhs_, args...)};
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
 
   private:
     friend auto operator==(BodyAggregate const &a, BodyAggregate const &b) -> bool;
@@ -124,7 +172,7 @@ class BodyAggregate {
     Location loc_;
     Sign sign_;
     AggregateFunction fun_;
-    ElementVec elems_;
+    BodyAggregateElementVec elems_;
     LGuard lhs_;
     RGuard rhs_;
 };
@@ -132,12 +180,12 @@ class BodyAggregate {
 //! Compare two body aggregates elements.
 //!
 //! @related BodyAggregate
-auto operator==(BodyAggregate::Element const &a, BodyAggregate::Element const &b) -> bool;
+auto operator==(BodyAggregateElement const &a, BodyAggregateElement const &b) -> bool;
 
 //! Compare two body aggregates elements.
 //!
 //! @related BodyAggregate
-auto operator<(BodyAggregate::Element const &a, BodyAggregate::Element const &b) -> bool;
+auto operator<(BodyAggregateElement const &a, BodyAggregateElement const &b) -> bool;
 
 //! Compare two body aggregates.
 //!
@@ -165,7 +213,7 @@ using BodyLiteralVec = Util::immutable_array<BodyLiteral>;
 
 GRINGO_HASH_PROTO(Gringo::Input::SimpleBodyLiteral);
 GRINGO_HASH_PROTO(Gringo::Input::Conjunction);
-GRINGO_HASH_PROTO(Gringo::Input::BodyAggregate::Element);
+GRINGO_HASH_PROTO(Gringo::Input::BodyAggregateElement);
 GRINGO_HASH_PROTO(Gringo::Input::BodyAggregate);
 
 #endif

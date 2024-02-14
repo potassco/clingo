@@ -36,7 +36,7 @@ struct BuildDep {
 
     void operator()(Projection const &pro) const { static_cast<void>(pro); }
 
-    void operator()(ArgumentTuple::Element const &elem) const { std::visit(*this, elem); };
+    void operator()(Argument const &elem) const { std::visit(*this, elem); };
 
     void operator()(ArgumentTuple const &tuple) const {
         for (auto const &elem : tuple.elems()) {
@@ -183,9 +183,7 @@ struct Evaluate {
         return std::nullopt;
     }
 
-    auto operator()(ArgumentTuple::Element const &elem) const -> std::optional<Symbol> {
-        return std::visit(*this, elem);
-    };
+    auto operator()(Argument const &elem) const -> std::optional<Symbol> { return std::visit(*this, elem); };
 
     [[nodiscard]] auto eval_(ArgumentTuple const &tuple) const -> std::optional<std::vector<Symbol>> {
         std::vector<Symbol> args;

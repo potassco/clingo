@@ -64,7 +64,7 @@ struct MapParams : Transformer<MapParams> {
             }
             return tuple;
         }
-        auto tuple = std::vector<ArgumentTuple::Element>{};
+        auto tuple = std::vector<Argument>{};
         tuple.reserve(res_args->size());
         for (auto &&arg : *res_args) {
             tuple.emplace_back(std::visit(
@@ -132,7 +132,7 @@ struct MapParams : Transformer<MapParams> {
                         [this, &loc](auto &&tuple) -> std::variant<Term, Symbol> {
                             GRINGO_MATCH(tuple, SymbolVec) { return ctx.store().tup(std::move(tuple)); }
                             GRINGO_MATCH(tuple, ArgumentTuple) {
-                                return TermTuple{loc, Util::make_vec<TermTuple::Element>(std::move(tuple))};
+                                return TermTuple{loc, Util::make_vec<TupleElement>(std::move(tuple))};
                             }
                         },
                         std::move(res_args).value());

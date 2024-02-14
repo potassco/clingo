@@ -37,15 +37,15 @@ void visit_variables(ConditionalLiteral const &lit, VarVisitFun fun);
 //! Visit variables with the given function.
 void visit_variables(SetAggregateElement const &elem, VarVisitFun fun);
 //! Visit variables with the given function.
-void visit_variables(HeadAggregate::Element const &elem, VarVisitFun fun);
+void visit_variables(HeadAggregateElement const &elem, VarVisitFun fun);
 //! Visit variables in the given scope with the given function.
 void visit_variables(HeadLiteral const &lit, VarVisitFun fun, VariableContext ctx);
 //! Visit variables with the given function.
-void visit_variables(BodyAggregate::Element const &elem, VarVisitFun fun);
+void visit_variables(BodyAggregateElement const &elem, VarVisitFun fun);
 //! Visit variables in the given scope with the given function.
 void visit_variables(BodyLiteral const &lit, VarVisitFun fun, VariableContext ctx);
 //! Visit variables with the given function.
-void visit_variables(StatementOptimize::Element const &elem, VarVisitFun fun);
+void visit_variables(OptimizeElement const &elem, VarVisitFun fun);
 //! Visit variables in the given scope with the given function.
 void visit_variables(Statement const &stm, VarVisitFun fun, VariableContext ctx);
 

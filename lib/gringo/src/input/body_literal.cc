@@ -10,11 +10,11 @@ auto operator==(Conjunction const &a, Conjunction const &b) -> bool { return a.l
 
 auto operator<(Conjunction const &a, Conjunction const &b) -> bool { return a.lit_ < b.lit_; }
 
-auto operator==(BodyAggregate::Element const &a, BodyAggregate::Element const &b) -> bool {
+auto operator==(BodyAggregateElement const &a, BodyAggregateElement const &b) -> bool {
     return std::tie(a.tuple_, a.cond_) == std::tie(b.tuple_, b.cond_);
 }
 
-auto operator<(BodyAggregate::Element const &a, BodyAggregate::Element const &b) -> bool {
+auto operator<(BodyAggregateElement const &a, BodyAggregateElement const &b) -> bool {
     return std::tie(a.tuple_, a.cond_) < std::tie(b.tuple_, b.cond_);
 }
 
@@ -39,9 +39,9 @@ auto value_hasher<Gringo::Input::Conjunction>::operator()(Gringo::Input::Conjunc
     return Gringo::Util::value_hash(typeid(Gringo::Input::Conjunction), x.lit_);
 }
 
-auto value_hasher<Gringo::Input::BodyAggregate::Element>::operator()(
-    Gringo::Input::BodyAggregate::Element const &x) const -> size_t {
-    return Gringo::Util::value_hash(typeid(Gringo::Input::BodyAggregate::Element), x.tuple_, x.cond_);
+auto value_hasher<Gringo::Input::BodyAggregateElement>::operator()(Gringo::Input::BodyAggregateElement const &x) const
+    -> size_t {
+    return Gringo::Util::value_hash(typeid(Gringo::Input::BodyAggregateElement), x.tuple_, x.cond_);
 }
 
 auto value_hasher<Gringo::Input::BodyAggregate>::operator()(Gringo::Input::BodyAggregate const &x) const -> size_t {

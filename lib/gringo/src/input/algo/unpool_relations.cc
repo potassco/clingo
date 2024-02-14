@@ -159,7 +159,7 @@ struct ShiftHead {
             auto res_cond = unpool_conjunctive(elem.cond());
             auto res_lit = shift(elem.lit(), res_cond, false);
             if (res_lit || res_cond) {
-                res_elems.replace(HeadAggregate::Element{
+                res_elems.replace(HeadAggregateElement{
                     elem.loc(), elem.tuple(), std::move(res_lit).value_or(elem.lit()), std::move(res_cond).value()});
             } else {
                 res_elems.keep();
@@ -218,7 +218,7 @@ struct ShiftBody {
         auto res_elems = Util::ResultVec{lit.elems()};
         for (auto const &elem : lit.elems()) {
             if (auto res_cond = unpool_conjunctive(elem.cond()); res_cond) {
-                res_elems.replace(BodyAggregate::Element{elem.loc(), elem.tuple(), *std::move(res_cond)});
+                res_elems.replace(BodyAggregateElement{elem.loc(), elem.tuple(), *std::move(res_cond)});
             } else {
                 res_elems.keep();
             }
@@ -240,10 +240,7 @@ struct ShiftBody {
         }
     }
 
-    void operator()(BodyTheoryAtom const &atom) const {
-        body.update(
-            Util::update<BodyTheoryAtom>(atom.loc(), atom.sign(), atom.name(), shift(atom.elems()), atom.rhs()));
-    }
+    void operator()(BodyTheoryAtom const &atom) const { body.update(atom.rewrite(a_elems = shift(atom.elems()))); }
 
     Util::ResultVec<BodyLiteral, false> &body;
 };
@@ -287,15 +284,7 @@ struct UnpoolHeadBody {
             };
             return unpool_crossproducts(build, unpool_disjunctive, elem.cond());
         };
-        auto res_elems = unpool_union(atom.elems(), unpool_elem);
-        auto res = std::optional<TheoryAtom<HasSign>>{std::nullopt};
-        if constexpr (HasSign) {
-            res = Util::update<BodyTheoryAtom>(atom.loc(), atom.sign(), atom.name(), UPA{atom.elems(), res_elems},
-                                               atom.rhs());
-        } else {
-            res = Util::update<HeadTheoryAtom>(atom.loc(), atom.name(), UPA{atom.elems(), res_elems}, atom.rhs());
-        }
-        if (res) {
+        if (auto res = atom.rewrite(a_elems = unpool_union(atom.elems(), unpool_elem)); res) {
             return Util::make_vec<std::conditional_t<HasSign, BodyLiteral, HeadLiteral>>(*std::move(res));
         }
         return std::nullopt;
@@ -312,12 +301,12 @@ struct UnpoolHeadBody {
     }
 
     auto operator()(Disjunction const &lit) const -> std::optional<HeadLiteralVec> {
-        auto unpool_elem = [](Disjunction::Element const &elem) {
+        auto unpool_elem = [](DisjunctionElement const &elem) {
             return std::visit(
-                [](auto const &elem) -> std::optional<Disjunction::ElementVec> {
+                [](auto const &elem) -> std::optional<DisjunctionElementVec> {
                     GRINGO_MATCH(elem, Literal) { return std::nullopt; }
                     GRINGO_MATCH(elem, ConditionalLiteral) {
-                        auto build = [&elem](auto lits) -> Disjunction::Element {
+                        auto build = [&elem](auto lits) -> DisjunctionElement {
                             return ConditionalLiteral{elem.loc(), elem.lit(), std::move(lits)};
                         };
                         return unpool_crossproducts(build, unpool_disjunctive, elem.cond());
@@ -333,9 +322,9 @@ struct UnpoolHeadBody {
     }
 
     auto operator()(HeadAggregate const &lit) const -> std::optional<HeadLiteralVec> {
-        auto unpool_elem = [](HeadAggregate::Element const &elem) {
+        auto unpool_elem = [](HeadAggregateElement const &elem) {
             auto build = [&elem](auto cond) {
-                return HeadAggregate::Element{elem.loc(), elem.tuple(), elem.lit(), std::move(cond)};
+                return HeadAggregateElement{elem.loc(), elem.tuple(), elem.lit(), std::move(cond)};
             };
             return unpool_crossproducts(build, unpool_disjunctive, elem.cond());
         };
@@ -367,10 +356,8 @@ struct UnpoolHeadBody {
     }
 
     auto operator()(BodyAggregate const &lit) const -> std::optional<std::vector<BodyLiteral>> {
-        auto unpool_elem = [](BodyAggregate::Element const &elem) {
-            auto build = [&elem](auto cond) {
-                return BodyAggregate::Element{elem.loc(), elem.tuple(), std::move(cond)};
-            };
+        auto unpool_elem = [](BodyAggregateElement const &elem) {
+            auto build = [&elem](auto cond) { return BodyAggregateElement{elem.loc(), elem.tuple(), std::move(cond)}; };
             return unpool_crossproducts(build, unpool_disjunctive, elem.cond());
         };
         auto res_elems = unpool_union(lit.elems(), unpool_elem);

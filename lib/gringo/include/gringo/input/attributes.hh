@@ -21,5 +21,6 @@ constexpr auto a_cond = Util::Record::AttributeName<14>{};
 constexpr auto a_type = Util::Record::AttributeName<15>{};
 constexpr auto a_args = Util::Record::AttributeName<16>{};
 constexpr auto a_tuple = Util::Record::AttributeName<17>{};
+constexpr auto a_fun = Util::Record::AttributeName<18>{};
 
 } // namespace Gringo::Input

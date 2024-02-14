@@ -110,10 +110,10 @@ auto operator<<(std::ostream &out, TheoryElement const &elem) -> std::ostream &;
 auto operator<<(std::ostream &out, SetAggregateElement const &elem) -> std::ostream &;
 
 //! Output the head aggregate element to the given stream.
-auto operator<<(std::ostream &out, HeadAggregate::Element const &elem) -> std::ostream &;
+auto operator<<(std::ostream &out, HeadAggregateElement const &elem) -> std::ostream &;
 
 //! Output the head aggregate element to the given stream.
-auto operator<<(std::ostream &out, BodyAggregate::Element const &elem) -> std::ostream &;
+auto operator<<(std::ostream &out, BodyAggregateElement const &elem) -> std::ostream &;
 
 //! @}
 
@@ -193,13 +193,13 @@ auto operator<<(std::ostream &out, TheoryRGuardDefinition const &def) -> std::os
 auto operator<<(std::ostream &out, TheoryAtomDefinition const &def) -> std::ostream &;
 
 //! Output the optimize tuple to the given stream.
-auto operator<<(std::ostream &out, StatementOptimize::Tuple const &tuple) -> std::ostream &;
+auto operator<<(std::ostream &out, OptimizeTuple const &tuple) -> std::ostream &;
 
 //! Output the optimize element to the given stream.
-auto operator<<(std::ostream &out, StatementOptimize::Element const &elem) -> std::ostream &;
+auto operator<<(std::ostream &out, OptimizeElement const &elem) -> std::ostream &;
 
 //! Output the edge to the given stream.
-auto operator<<(std::ostream &out, StatementEdge::Edge const &edge) -> std::ostream &;
+auto operator<<(std::ostream &out, Edge const &edge) -> std::ostream &;
 
 //! @}
 

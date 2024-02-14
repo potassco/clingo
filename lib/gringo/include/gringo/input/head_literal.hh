@@ -23,6 +23,17 @@ class SimpleHeadLiteral {
     //! The literal.
     [[nodiscard]] auto lit() const -> Literal const & { return lit_; }
 
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        check(Types{a_lit}, Types{args...});
+        return SimpleHeadLiteral{select<Opt>(a_lit, lit_, args...)};
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
+
   private:
     friend auto operator==(SimpleHeadLiteral const &a, SimpleHeadLiteral const &b) -> bool;
     friend auto operator<(SimpleHeadLiteral const &a, SimpleHeadLiteral const &b) -> bool;
@@ -41,19 +52,31 @@ auto operator==(SimpleHeadLiteral const &a, SimpleHeadLiteral const &b) -> bool;
 //! @related SimpleHeadLiteral
 auto operator<(SimpleHeadLiteral const &a, SimpleHeadLiteral const &b) -> bool;
 
+//! An element of a disjunction.
+using DisjunctionElement = std::variant<Literal, ConditionalLiteral>;
+//! A vector of elements.
+using DisjunctionElementVec = Util::immutable_array<DisjunctionElement>;
+
 //! A disjunction of conditional literals.
 class Disjunction {
   public:
-    //! An element of a disjunction.
-    using Element = std::variant<Literal, ConditionalLiteral>;
-    //! A vector of elements.
-    using ElementVec = Util::immutable_array<Element>;
     //! Wrap a literal in a head literal.
-    explicit Disjunction(Location loc, ElementVec elems) : loc_{loc}, elems_{std::move(elems)} {}
+    explicit Disjunction(Location loc, DisjunctionElementVec elems) : loc_{loc}, elems_{std::move(elems)} {}
     //! The location of the disjunction.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The elements of the disjunction.
-    [[nodiscard]] auto elems() const -> ElementVec const & { return elems_; }
+    [[nodiscard]] auto elems() const -> DisjunctionElementVec const & { return elems_; }
+
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        check(Types{a_loc, a_elems}, Types{args...});
+        return Disjunction{select<Opt>(a_loc, loc_, args...), select<Opt>(a_elems, elems_, args...)};
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
 
   private:
     friend auto operator==(Disjunction const &a, Disjunction const &b) -> bool;
@@ -61,7 +84,7 @@ class Disjunction {
     friend struct Util::value_hasher<Disjunction>;
 
     Location loc_;
-    ElementVec elems_;
+    DisjunctionElementVec elems_;
 };
 
 //! Compare two head disjunctions.
@@ -74,46 +97,58 @@ auto operator==(Disjunction const &a, Disjunction const &b) -> bool;
 //! @related Disjunction
 auto operator<(Disjunction const &a, Disjunction const &b) -> bool;
 
+//! An element of a head aggregate.
+class HeadAggregateElement {
+  public:
+    explicit HeadAggregateElement(Location loc, TermVec tuple, Literal lit, LiteralVec cond)
+        : loc_{loc}, tuple_{std::move(tuple)}, lit_{std::move(lit)}, cond_{std::move(cond)} {}
+    //! The location of the element.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+    //! The tuple of the element.
+    [[nodiscard]] auto tuple() const -> TermVec const & { return tuple_; }
+    //! The distinguished head literal of the element.
+    [[nodiscard]] auto lit() const -> Literal const & { return lit_; }
+    //! The condition of the element.
+    [[nodiscard]] auto cond() const -> LiteralVec const & { return cond_; }
+
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        check(Types{a_loc, a_tuple, a_lit, a_cond}, Types{args...});
+        return HeadAggregateElement{select<Opt>(a_loc, loc_, args...), select<Opt>(a_tuple, tuple_, args...),
+                                    select<Opt>(a_lit, lit_, args...), select<Opt>(a_cond, cond_, args...)};
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
+
+  private:
+    friend auto operator==(HeadAggregateElement const &a, HeadAggregateElement const &b) -> bool;
+    friend auto operator<(HeadAggregateElement const &a, HeadAggregateElement const &b) -> bool;
+    friend struct Util::value_hasher<HeadAggregateElement>;
+
+    Location loc_;
+    TermVec tuple_;
+    Literal lit_;
+    LiteralVec cond_;
+};
+//! A vector of head aggregate elements.
+using HeadAggregateElementVec = Util::immutable_array<HeadAggregateElement>;
+
 //! A head aggregate.
 //!
 //! For example: <tt>\#count { X: p(X): q(X) } = 1</tt>
 class HeadAggregate {
   public:
-    //! An element of a head aggregate.
-    class Element {
-      public:
-        explicit Element(Location loc, TermVec tuple, Literal lit, LiteralVec cond)
-            : loc_{loc}, tuple_{std::move(tuple)}, lit_{std::move(lit)}, cond_{std::move(cond)} {}
-        //! The location of the element.
-        [[nodiscard]] auto loc() const -> Location const & { return loc_; }
-        //! The tuple of the element.
-        [[nodiscard]] auto tuple() const -> TermVec const & { return tuple_; }
-        //! The distinguished head literal of the element.
-        [[nodiscard]] auto lit() const -> Literal const & { return lit_; }
-        //! The condition of the element.
-        [[nodiscard]] auto cond() const -> LiteralVec const & { return cond_; }
-
-      private:
-        friend auto operator==(Element const &a, Element const &b) -> bool;
-        friend auto operator<(Element const &a, Element const &b) -> bool;
-        friend struct Util::value_hasher<Element>;
-
-        Location loc_;
-        TermVec tuple_;
-        Literal lit_;
-        LiteralVec cond_;
-    };
-    //! A vector of head aggregate elements.
-    using ElementVec = Util::immutable_array<Element>;
-
     //! Construct a head set aggregate.
-    explicit HeadAggregate(Location loc, LGuard lhs, AggregateFunction fun, ElementVec elems, RGuard rhs)
+    explicit HeadAggregate(Location loc, LGuard lhs, AggregateFunction fun, HeadAggregateElementVec elems, RGuard rhs)
         : loc_{std::move(loc)}, fun_(fun), elems_(std::move(elems)), lhs_{std::move(lhs)}, rhs_{std::move(rhs)} {}
     //! Construct a head set aggregate.
-    explicit HeadAggregate(Location loc, AggregateFunction fun, ElementVec elems)
+    explicit HeadAggregate(Location loc, AggregateFunction fun, HeadAggregateElementVec elems)
         : HeadAggregate{std::move(loc), std::nullopt, fun, std::move(elems), std::nullopt} {}
     //! Construct a head set aggregate.
-    explicit HeadAggregate(Location loc, AggregateFunction fun, ElementVec elems, Relation rel, Term rhs)
+    explicit HeadAggregate(Location loc, AggregateFunction fun, HeadAggregateElementVec elems, Relation rel, Term rhs)
         : HeadAggregate{std::move(loc), std::nullopt, fun, std::move(elems), std::make_pair(rel, rhs)} {}
 
     //! The location of the aggregate.
@@ -121,11 +156,24 @@ class HeadAggregate {
     //! The aggregate function.
     [[nodiscard]] auto fun() const -> AggregateFunction { return fun_; }
     //! The vector of elements.
-    [[nodiscard]] auto elems() const -> ElementVec const & { return elems_; }
+    [[nodiscard]] auto elems() const -> HeadAggregateElementVec const & { return elems_; }
     //! An optional left guard.
     [[nodiscard]] auto lhs() const -> LGuard const & { return lhs_; }
     //! An optional right guard.
     [[nodiscard]] auto rhs() const -> RGuard const & { return rhs_; }
+
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        check(Types{a_loc, a_fun, a_lhs, a_elems, a_rhs}, Types{args...});
+        return HeadAggregate{select<Opt>(a_loc, loc_, args...), select<Opt>(a_lhs, lhs_, args...),
+                             select<Opt>(a_fun, fun_, args...), select<Opt>(a_elems, elems_, args...),
+                             select<Opt>(a_rhs, rhs_, args...)};
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
 
   private:
     friend auto operator==(HeadAggregate const &a, HeadAggregate const &b) -> bool;
@@ -134,7 +182,7 @@ class HeadAggregate {
 
     Location loc_;
     AggregateFunction fun_;
-    ElementVec elems_;
+    HeadAggregateElementVec elems_;
     LGuard lhs_;
     RGuard rhs_;
 };
@@ -142,12 +190,12 @@ class HeadAggregate {
 //! Compare two head aggregates elements.
 //!
 //! @related HeadAggregate
-auto operator==(HeadAggregate::Element const &a, HeadAggregate::Element const &b) -> bool;
+auto operator==(HeadAggregateElement const &a, HeadAggregateElement const &b) -> bool;
 
 //! Compare two head aggregates elements.
 //!
 //! @related HeadAggregate
-auto operator<(HeadAggregate::Element const &a, HeadAggregate::Element const &b) -> bool;
+auto operator<(HeadAggregateElement const &a, HeadAggregateElement const &b) -> bool;
 
 //! Compare two head aggregates.
 //!
@@ -172,7 +220,7 @@ using HeadLiteralVec = Util::immutable_array<HeadLiteral>;
 
 GRINGO_HASH_PROTO(Gringo::Input::SimpleHeadLiteral);
 GRINGO_HASH_PROTO(Gringo::Input::Disjunction);
-GRINGO_HASH_PROTO(Gringo::Input::HeadAggregate::Element);
+GRINGO_HASH_PROTO(Gringo::Input::HeadAggregateElement);
 GRINGO_HASH_PROTO(Gringo::Input::HeadAggregate);
 
 #endif

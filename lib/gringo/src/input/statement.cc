@@ -42,11 +42,11 @@ auto operator==(Rule const &a, Rule const &b) -> bool {
 
 auto operator<(Rule const &a, Rule const &b) -> bool { return std::tie(a.head_, a.body_) < std::tie(b.head_, b.body_); }
 
-auto operator==(StatementOptimize::Tuple const &a, StatementOptimize::Tuple const &b) -> bool {
+auto operator==(OptimizeTuple const &a, OptimizeTuple const &b) -> bool {
     return std::tie(a.weight_, a.terms_, a.priority_) == std::tie(b.weight_, b.terms_, b.priority_);
 }
 
-auto operator<(StatementOptimize::Tuple const &a, StatementOptimize::Tuple const &b) -> bool {
+auto operator<(OptimizeTuple const &a, OptimizeTuple const &b) -> bool {
     return std::tie(a.weight_, a.terms_, a.priority_) < std::tie(b.weight_, b.terms_, b.priority_);
 }
 
@@ -114,13 +114,9 @@ auto operator<(StatementExternal const &a, StatementExternal const &b) -> bool {
     return std::tie(a.term_, a.body_, a.type_) < std::tie(b.term_, b.body_, b.type_);
 }
 
-auto operator==(StatementEdge::Edge const &a, StatementEdge::Edge const &b) -> bool {
-    return std::tie(a.u_, a.v_) == std::tie(b.u_, b.v_);
-}
+auto operator==(Edge const &a, Edge const &b) -> bool { return std::tie(a.u_, a.v_) == std::tie(b.u_, b.v_); }
 
-auto operator<(StatementEdge::Edge const &a, StatementEdge::Edge const &b) -> bool {
-    return std::tie(a.u_, a.v_) < std::tie(b.u_, b.v_);
-}
+auto operator<(Edge const &a, Edge const &b) -> bool { return std::tie(a.u_, a.v_) < std::tie(b.u_, b.v_); }
 
 auto operator==(StatementEdge const &a, StatementEdge const &b) -> bool {
     return std::tie(a.edges_, a.body_) == std::tie(b.edges_, b.body_);
@@ -207,14 +203,12 @@ auto value_hasher<Gringo::Input::Rule>::operator()(Gringo::Input::Rule const &x)
     return Gringo::Util::value_hash(typeid(Gringo::Input::Rule), x.head_, x.body_);
 }
 
-auto value_hasher<Gringo::Input::StatementOptimize::Tuple>::operator()(
-    Gringo::Input::StatementOptimize::Tuple const &x) const -> size_t {
-    return Gringo::Util::value_hash(typeid(Gringo::Input::StatementOptimize::Tuple), x.weight_, x.priority_, x.terms_);
+auto value_hasher<Gringo::Input::OptimizeTuple>::operator()(Gringo::Input::OptimizeTuple const &x) const -> size_t {
+    return Gringo::Util::value_hash(typeid(Gringo::Input::OptimizeTuple), x.weight_, x.priority_, x.terms_);
 }
 
-auto value_hasher<Gringo::Input::StatementEdge::Edge>::operator()(Gringo::Input::StatementEdge::Edge const &x) const
-    -> size_t {
-    return Gringo::Util::value_hash(typeid(Gringo::Input::StatementEdge::Edge), x.u_, x.v_);
+auto value_hasher<Gringo::Input::Edge>::operator()(Gringo::Input::Edge const &x) const -> size_t {
+    return Gringo::Util::value_hash(typeid(Gringo::Input::Edge), x.u_, x.v_);
 }
 
 auto value_hasher<Gringo::Input::StatementOptimize>::operator()(Gringo::Input::StatementOptimize const &x) const

@@ -162,8 +162,7 @@ struct theory_term_root {
 struct theory_term_unparsed_guards {
     static constexpr char const *name = "theory term guards";
     static constexpr auto rule = dsl::list(dsl::p<theory_ops> >> dsl::p<theory_term_root>);
-    static constexpr auto value =
-        lexy::collect<std::vector<TheoryTermUnparsed::Element>>(lexy::construct<TheoryTermUnparsed::Element>);
+    static constexpr auto value = lexy::collect<std::vector<UnparsedElement>>(lexy::construct<UnparsedElement>);
 };
 
 struct theory_term_unparsed : lexy::transparent_production {
@@ -177,13 +176,13 @@ struct theory_term_unparsed : lexy::transparent_production {
             return term;
         },
         [](auto &state, auto begin, std::vector<String> ops, TheoryTerm term,
-           std::vector<TheoryTermUnparsed::Element> guards = {}) {
-            guards.insert(guards.begin(), TheoryTermUnparsed::Element{std::move(ops), std::move(term)});
+           std::vector<UnparsedElement> guards = {}) {
+            guards.insert(guards.begin(), UnparsedElement{std::move(ops), std::move(term)});
             auto loc = Location{state.pos(begin), location(guards.back().second).end};
             return TheoryTermUnparsed{std::move(loc), std::move(guards)};
         },
-        [](auto &state, auto begin, TheoryTerm term, std::vector<TheoryTermUnparsed::Element> guards) {
-            guards.insert(guards.begin(), TheoryTermUnparsed::Element{{}, std::move(term)});
+        [](auto &state, auto begin, TheoryTerm term, std::vector<UnparsedElement> guards) {
+            guards.insert(guards.begin(), UnparsedElement{{}, std::move(term)});
             auto loc = Location{state.pos(begin), location(guards.back().second).end};
             return TheoryTermUnparsed{std::move(loc), std::move(guards)};
         });

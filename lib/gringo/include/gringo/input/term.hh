@@ -88,18 +88,18 @@ auto operator==(Projection const &a, Projection const &b) -> bool;
 //! @related Projection
 auto operator<(Projection const &a, Projection const &b) -> bool;
 
+//! A variant capturing either a term or a position that is to be projected.
+using Argument = std::variant<Projection, Term>;
+//! A tuple of terms or positions to project.
+using ArgumentVec = Util::immutable_array<Argument>;
+
 class ArgumentTuple {
   public:
-    //! A variant capturing either a term or a position that is to be projected.
-    using Element = std::variant<Projection, Term>;
-    //! A tuple of terms or positions to project.
-    using ElementVec = Util::immutable_array<Element>;
-
     //! Construct an argument tuple.
-    ArgumentTuple(ElementVec elems);
+    ArgumentTuple(ArgumentVec elems);
 
     //! The elements of the tuple.
-    [[nodiscard]] auto elems() const -> ElementVec const &;
+    [[nodiscard]] auto elems() const -> ArgumentVec const &;
 
     //! Record update.
     template <bool Opt, class... Args> auto update(Args... args) const {
@@ -117,7 +117,7 @@ class ArgumentTuple {
     friend auto operator<(ArgumentTuple const &a, ArgumentTuple const &b) -> bool;
     friend struct Util::value_hasher<ArgumentTuple>;
 
-    ElementVec elems_;
+    ArgumentVec elems_;
 };
 
 //! Compare two argument tuples.
@@ -224,23 +224,23 @@ auto operator==(TermSymbol const &a, TermSymbol const &b) -> bool;
 //! @related TermSymbol
 auto operator<(TermSymbol const &a, TermSymbol const &b) -> bool;
 
+//! A tuple element.
+using TupleElement = std::variant<ArgumentTuple, Term>;
+//! A vector of tuple elements.
+using TupleElementVec = Util::immutable_array<TupleElement>;
+
 //! Term representing a tuple.
 //!
 //! For example <tt>(a,b;c)</tt>.
 class TermTuple {
   public:
-    //! A tuple element.
-    using Element = std::variant<ArgumentTuple, Term>;
-    //! A vector of tuple elements.
-    using ElementVec = Util::immutable_array<Element>;
-
     //! Construct a  tuple.
-    explicit TermTuple(Location loc, ElementVec pool);
+    explicit TermTuple(Location loc, TupleElementVec pool);
 
     //! The location of the tuple.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The argument pool of the tuple.
-    [[nodiscard]] auto pool() const -> ElementVec const &;
+    [[nodiscard]] auto pool() const -> TupleElementVec const &;
 
     //! Record update.
     template <bool Opt, class... Args> auto update(Args... args) const {
@@ -259,7 +259,7 @@ class TermTuple {
     friend struct Util::value_hasher<TermTuple>;
 
     Location loc_;
-    ElementVec pool_;
+    TupleElementVec pool_;
 };
 
 //! Compare two tuple terms.
@@ -493,13 +493,13 @@ auto operator<(TermBinary const &a, TermBinary const &b) -> bool;
 // Note that constructors are defined here because at this point all types are
 // complete.
 
-inline ArgumentTuple::ArgumentTuple(ElementVec elems) : elems_{std::move(elems)} {}
+inline ArgumentTuple::ArgumentTuple(ArgumentVec elems) : elems_{std::move(elems)} {}
 
-inline auto ArgumentTuple::elems() const -> ElementVec const & { return elems_; }
+inline auto ArgumentTuple::elems() const -> ArgumentVec const & { return elems_; }
 
-inline TermTuple::TermTuple(Location loc, ElementVec pool) : loc_{std::move(loc)}, pool_{std::move(pool)} {}
+inline TermTuple::TermTuple(Location loc, TupleElementVec pool) : loc_{std::move(loc)}, pool_{std::move(pool)} {}
 
-inline auto TermTuple::pool() const -> TermTuple::ElementVec const & { return pool_; }
+inline auto TermTuple::pool() const -> TupleElementVec const & { return pool_; }
 
 inline TermFunction::TermFunction(Location loc, String name, PoolVec pool, bool external)
     : loc_{std::move(loc)}, name_(std::move(name)), pool_{std::move(pool)}, external_{external} {}

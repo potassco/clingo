@@ -23,14 +23,13 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
 
     // term
 
-    [[nodiscard]] auto accept(ArgumentTuple::Element const &elem) const -> std::optional<ArgumentTuple::Element> {
+    [[nodiscard]] auto accept(Argument const &elem) const -> std::optional<Argument> {
         if (auto const *term = std::get_if<Term>(&elem); is_anonymous(term)) {
             return {Projection{location(*term)}};
         }
         return std::visit(
-            [this](auto const &x) -> std::optional<ArgumentTuple::Element> {
-                return Util::transform(transform(x),
-                                       [](auto &&y) -> ArgumentTuple::Element { return {GRINGO_FWD(y)}; });
+            [this](auto const &x) -> std::optional<Argument> {
+                return Util::transform(transform(x), [](auto &&y) -> Argument { return {GRINGO_FWD(y)}; });
             },
             elem);
     };
@@ -82,8 +81,8 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
 
     // head literal
 
-    [[nodiscard]] auto accept(HeadAggregate::Element const &elem) const -> std::optional<HeadAggregate::Element> {
-        return transform_construct<HeadAggregate::Element>(elem.loc(), elem.tuple(), tr(elem.lit()), tr(elem.cond()));
+    [[nodiscard]] auto accept(HeadAggregateElement const &elem) const -> std::optional<HeadAggregateElement> {
+        return transform_construct<HeadAggregateElement>(elem.loc(), elem.tuple(), tr(elem.lit()), tr(elem.cond()));
     }
 
     [[nodiscard]] auto accept(HeadAggregate const &lit) const -> std::optional<HeadLiteral> {
@@ -100,8 +99,8 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
 
     // body literal
 
-    [[nodiscard]] auto accept(BodyAggregate::Element const &elem) const -> std::optional<BodyAggregate::Element> {
-        return transform_construct<BodyAggregate::Element>(elem.loc(), elem.tuple(), tr(elem.cond()));
+    [[nodiscard]] auto accept(BodyAggregateElement const &elem) const -> std::optional<BodyAggregateElement> {
+        return transform_construct<BodyAggregateElement>(elem.loc(), elem.tuple(), tr(elem.cond()));
     }
 
     [[nodiscard]] auto accept(BodyAggregate const &lit) const -> std::optional<BodyLiteral> {
@@ -121,9 +120,8 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
 
     // statement
 
-    [[nodiscard]] auto accept(StatementOptimize::Element const &elem) const
-        -> std::optional<StatementOptimize::Element> {
-        return transform_construct<StatementOptimize::Element>(elem.first, tr(elem.second));
+    [[nodiscard]] auto accept(OptimizeElement const &elem) const -> std::optional<OptimizeElement> {
+        return transform_construct<OptimizeElement>(elem.first, tr(elem.second));
     }
 
     [[nodiscard]] auto accept(StatementWeakConstraint const &stm) const -> std::optional<Statement> {

@@ -36,12 +36,12 @@ struct body_aggregate_element {
         auto peek = dsl::peek_not(LEXY_LIT(":"));
         return Detail::location(dsl::if_(peek >> dsl::p<term_list>) + dsl::p<if_condition>);
     }();
-    static constexpr auto value = lexy::callback<BodyAggregate::Element>(
+    static constexpr auto value = lexy::callback<BodyAggregateElement>(
         [](Location loc, std::vector<Literal> cond) {
-            return BodyAggregate::Element{std::move(loc), TermVec{}, std::move(cond)};
+            return BodyAggregateElement{std::move(loc), TermVec{}, std::move(cond)};
         },
         [](Location loc, TermVec tuple, std::vector<Literal> cond) {
-            return BodyAggregate::Element{std::move(loc), std::move(tuple), std::move(cond)};
+            return BodyAggregateElement{std::move(loc), std::move(tuple), std::move(cond)};
         });
 };
 
@@ -52,7 +52,7 @@ struct body_aggregate_elements {
         auto elems = dsl::list(dsl::p<body_aggregate_element>, dsl::sep(LEXY_LIT(";")));
         return LEXY_LIT("{") + dsl::opt(peek >> elems) + LEXY_LIT("}");
     }();
-    static constexpr auto value = lexy::as_list<std::vector<BodyAggregate::Element>>;
+    static constexpr auto value = lexy::as_list<std::vector<BodyAggregateElement>>;
 };
 
 struct body_aggregate {
@@ -60,15 +60,15 @@ struct body_aggregate {
     static constexpr auto rule =
         Detail::location(dsl::p<aggregate_function> >> dsl::p<body_aggregate_elements> + aggregate_right_guard);
     static constexpr auto value = lexy::callback<BodyAggregate>(
-        [](Location loc, AggregateFunction fun, BodyAggregate::ElementVec elems) {
+        [](Location loc, AggregateFunction fun, BodyAggregateElementVec elems) {
             return BodyAggregate{std::move(loc), Sign::none, std::nullopt, fun, std::move(elems), std::nullopt};
         },
-        [](Location loc, AggregateFunction fun, BodyAggregate::ElementVec elems, Relation rel, Term rhs) {
+        [](Location loc, AggregateFunction fun, BodyAggregateElementVec elems, Relation rel, Term rhs) {
             return BodyAggregate{std::move(loc),   Sign::none,
                                  std::nullopt,     fun,
                                  std::move(elems), RGuard::value_type{rel, std::move(rhs)}};
         },
-        [](Location loc, AggregateFunction fun, BodyAggregate::ElementVec elems, Term rhs) {
+        [](Location loc, AggregateFunction fun, BodyAggregateElementVec elems, Term rhs) {
             return BodyAggregate{std::move(loc),   Sign::none,
                                  std::nullopt,     fun,
                                  std::move(elems), RGuard::value_type{Relation::less_equal, std::move(rhs)}};

@@ -6,7 +6,6 @@
 #include <optional>
 #include <tuple>
 #include <variant>
-#include <vector>
 
 #include <gringo/input/program.hh>
 
@@ -150,7 +149,7 @@ template <class T> class Visitor {
 
     void accept_(Disjunction const &lit) const { visit(lit.elems()); }
 
-    void accept_(HeadAggregate::Element const &elem) const { visit(elem.tuple(), elem.lit(), elem.cond()); }
+    void accept_(HeadAggregateElement const &elem) const { visit(elem.tuple(), elem.lit(), elem.cond()); }
 
     void accept_(HeadAggregate const &lit) const { visit(lit.lhs(), lit.elems(), lit.rhs()); }
 
@@ -160,7 +159,7 @@ template <class T> class Visitor {
 
     void accept_(Conjunction const &lit) const { visit(lit.lit()); }
 
-    void accept_(BodyAggregate::Element const &elem) const { visit(elem.tuple(), elem.cond()); }
+    void accept_(BodyAggregateElement const &elem) const { visit(elem.tuple(), elem.cond()); }
 
     void accept_(BodyAggregate const &lit) const { visit(lit.lhs(), lit.elems(), lit.rhs()); }
 
@@ -170,9 +169,7 @@ template <class T> class Visitor {
 
     void accept_(TheoryDefinition const &stm) const { static_cast<void>(stm); }
 
-    void accept_(StatementOptimize::Tuple const &tuple) const {
-        visit(tuple.weight(), tuple.priority(), tuple.terms());
-    }
+    void accept_(OptimizeTuple const &tuple) const { visit(tuple.weight(), tuple.priority(), tuple.terms()); }
 
     void accept_(StatementOptimize const &stm) const { visit(stm.elems()); }
 
@@ -190,7 +187,7 @@ template <class T> class Visitor {
 
     void accept_(StatementExternal const &stm) const { visit(stm.term(), stm.body(), stm.type()); }
 
-    void accept_(StatementEdge::Edge const &edge) const { visit(edge.u(), edge.v()); }
+    void accept_(Edge const &edge) const { visit(edge.u(), edge.v()); }
 
     void accept_(StatementEdge const &stm) const { visit(stm.edges(), stm.body()); }
 

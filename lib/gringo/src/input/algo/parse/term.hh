@@ -14,7 +14,7 @@ template <bool external> struct construct_function {
     using return_type = TermFunction;
 
     auto operator()(Location loc, auto name) const {
-        return TermFunction{std::move(loc), name, PoolVec{ArgumentTuple{ArgumentTuple::ElementVec{}}}, external};
+        return TermFunction{std::move(loc), name, PoolVec{ArgumentTuple{ArgumentVec{}}}, external};
     }
 
     auto operator()(Location loc, auto name, auto args) const {
@@ -28,7 +28,7 @@ class tuple_trail {
     void push_front(Projection p) { vec_.emplace(vec_.begin(), std::move(p)); }
     void push_back(Term term) { vec_.emplace_back(std::move(term)); }
     template <typename Reader> void push_back(lexy::lexeme<Reader> /* unused */) { trail_ = true; }
-    auto to_tuple() -> TermTuple::Element {
+    auto to_tuple() -> TupleElement {
         if (vec_.size() == 1 && !trail_ && std::holds_alternative<Term>(vec_.back())) {
             return std::get<Term>(std::move(vec_.back()));
         }
@@ -36,7 +36,7 @@ class tuple_trail {
     }
 
   private:
-    std::vector<ArgumentTuple::Element> vec_;
+    std::vector<Argument> vec_;
     bool trail_ = false;
 };
 
@@ -184,7 +184,7 @@ struct term_list {
 struct term_function_tuple {
     static constexpr char const *name = "list of terms";
     static constexpr auto rule = dsl::list(dsl::p<projection> | dsl::else_ >> dsl::p<term>, dsl::sep(dsl::comma));
-    static constexpr auto value = lexy::as_list<std::vector<ArgumentTuple::Element>>;
+    static constexpr auto value = lexy::as_list<std::vector<Argument>>;
 };
 
 struct term_function_pool {
@@ -196,7 +196,7 @@ struct term_function_pool {
         return dsl::list(item, sep);
     }();
     static constexpr auto value = lexy::collect<std::vector<ArgumentTuple>>(
-        lexy::callback<ArgumentTuple>([](lexy::nullopt) { return ArgumentTuple{ArgumentTuple::ElementVec{}}; },
+        lexy::callback<ArgumentTuple>([](lexy::nullopt) { return ArgumentTuple{ArgumentVec{}}; },
                                       [](auto &&tuple) { return ArgumentTuple{GRINGO_FWD(tuple)}; }));
 };
 
@@ -224,13 +224,13 @@ struct term_tuple_element {
     }();
     static constexpr auto
         value = lexy::as_list<Detail::tuple_trail> >>
-                lexy::callback<TermTuple::Element>([]() { return ArgumentTuple{{}}; },
-                                                   [](Projection p) { return ArgumentTuple{{std::move(p)}}; },
-                                                   [](Projection p, Detail::tuple_trail elem) {
-                                                       elem.push_front(std::move(p));
-                                                       return elem.to_tuple();
-                                                   },
-                                                   [](Detail::tuple_trail elem) { return elem.to_tuple(); });
+                lexy::callback<TupleElement>([]() { return ArgumentTuple{{}}; },
+                                             [](Projection p) { return ArgumentTuple{{std::move(p)}}; },
+                                             [](Projection p, Detail::tuple_trail elem) {
+                                                 elem.push_front(std::move(p));
+                                                 return elem.to_tuple();
+                                             },
+                                             [](Detail::tuple_trail elem) { return elem.to_tuple(); });
 };
 
 struct term_tuple {
@@ -238,8 +238,8 @@ struct term_tuple {
     // Note: dsl::parenthesized.list tries to be too clever.
     static constexpr auto rule = Detail::location(
         LEXY_LIT("(") >> dsl::list(dsl::p<term_tuple_element>, dsl::sep(dsl::semicolon)) + LEXY_LIT(")"));
-    static constexpr auto value = lexy::as_list<std::vector<TermTuple::Element>> >>
-                                  lexy::callback<Term>([](Location loc, TermTuple::ElementVec elem) -> Term {
+    static constexpr auto value = lexy::as_list<std::vector<TupleElement>> >>
+                                  lexy::callback<Term>([](Location loc, TupleElementVec elem) -> Term {
                                       if (elem.size() == 1 && std::holds_alternative<Term>(elem.front())) {
                                           return std::move(std::get<Term>(elem.front()));
                                       }

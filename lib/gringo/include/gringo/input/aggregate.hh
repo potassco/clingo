@@ -119,9 +119,9 @@ template <bool HasSign> class SetAggregate : public std::conditional_t<HasSign, 
         using namespace Gringo::Util::Record;
         if constexpr (HasSign) {
             check(Types{a_loc, a_sign, a_lhs, a_elems, a_rhs}, Types{args...});
-            return SetAggregateElement{select<Opt>(a_loc, loc_, args...), select<Opt>(a_sign, this->sign(), args...),
-                                       select<Opt>(a_lhs, lhs_, args...), select<Opt>(a_elems, elems_, args...),
-                                       select<Opt>(a_rhs, rhs_, args...)};
+            return SetAggregate{select<Opt>(a_loc, loc_, args...), select<Opt>(a_sign, this->sign(), args...),
+                                select<Opt>(a_lhs, lhs_, args...), select<Opt>(a_elems, elems_, args...),
+                                select<Opt>(a_rhs, rhs_, args...)};
         } else {
             check(Types{a_loc, a_lhs, a_elems, a_rhs}, Types{args...});
             return SetAggregate{select<Opt>(a_loc, loc_, args...), select<Opt>(a_lhs, lhs_, args...),

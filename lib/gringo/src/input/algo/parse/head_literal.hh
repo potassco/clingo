@@ -8,7 +8,7 @@ namespace Gringo::Input::Grammar {
 
 namespace Detail {
 
-inline auto construct_disj_elem(auto loc, auto lit, auto cond) -> Disjunction::Element {
+inline auto construct_disj_elem(auto loc, auto lit, auto cond) -> DisjunctionElement {
     if (!cond) {
         return lit;
     }
@@ -32,7 +32,7 @@ static constexpr auto disjunction_sep = LEXY_ASCII_ONE_OF(",;|");
 struct disjunction_element {
     static constexpr char const *name = "conditional literal";
     static constexpr auto rule = Detail::location(dsl::p<literal> + dsl::p<opt_condition>);
-    static constexpr auto value = lexy::callback<Disjunction::Element>([](auto &&loc, auto &&lit, auto &&cond) {
+    static constexpr auto value = lexy::callback<DisjunctionElement>([](auto &&loc, auto &&lit, auto &&cond) {
         return Detail::construct_disj_elem(GRINGO_FWD(loc), GRINGO_FWD(lit), GRINGO_FWD(cond));
     });
 };
@@ -40,23 +40,22 @@ struct disjunction_element {
 struct disjunction_elements {
     static constexpr char const *name = "disjunction element";
     static constexpr auto rule = dsl::opt(dsl::list(disjunction_sep >> dsl::p<disjunction_element>));
-    static constexpr auto value = lexy::as_list<std::vector<Disjunction::Element>>;
+    static constexpr auto value = lexy::as_list<std::vector<DisjunctionElement>>;
 };
 
 struct disjunction {
     static constexpr char const *name = "disjunction";
     static constexpr auto rule = dsl::list(dsl::p<disjunction_element>, dsl::sep(disjunction_sep));
-    static constexpr auto
-        value = lexy::as_list<std::vector<Disjunction::Element>> >>
-                lexy::callback<HeadLiteral>([](std::vector<Disjunction::Element> elems) -> HeadLiteral {
-                    auto loc = location(elems.front()) + location(elems.back());
-                    if (elems.size() == 1) {
-                        if (auto const *lit = std::get_if<Literal>(&elems.front())) {
-                            return SimpleHeadLiteral{*lit};
-                        }
-                    }
-                    return Disjunction{std::move(loc), std::move(elems)};
-                });
+    static constexpr auto value = lexy::as_list<std::vector<DisjunctionElement>> >>
+                                  lexy::callback<HeadLiteral>([](std::vector<DisjunctionElement> elems) -> HeadLiteral {
+                                      auto loc = location(elems.front()) + location(elems.back());
+                                      if (elems.size() == 1) {
+                                          if (auto const *lit = std::get_if<Literal>(&elems.front())) {
+                                              return SimpleHeadLiteral{*lit};
+                                          }
+                                      }
+                                      return Disjunction{std::move(loc), std::move(elems)};
+                                  });
 };
 
 struct head_aggregate_element {
@@ -65,12 +64,12 @@ struct head_aggregate_element {
         auto tuple = dsl::if_(dsl::peek_not(LEXY_LIT(":")) >> dsl::p<term_list>);
         return Detail::location(tuple + LEXY_LIT(":") + dsl::p<literal> + dsl::p<if_condition>);
     }();
-    static constexpr auto value = lexy::callback<HeadAggregate::Element>(
+    static constexpr auto value = lexy::callback<HeadAggregateElement>(
         [](Location loc, Literal lit, std::vector<Literal> cond) {
-            return HeadAggregate::Element{std::move(loc), TermVec{}, std::move(lit), std::move(cond)};
+            return HeadAggregateElement{std::move(loc), TermVec{}, std::move(lit), std::move(cond)};
         },
         [](Location loc, TermVec tuple, Literal lit, std::vector<Literal> cond) {
-            return HeadAggregate::Element{std::move(loc), std::move(tuple), std::move(lit), std::move(cond)};
+            return HeadAggregateElement{std::move(loc), std::move(tuple), std::move(lit), std::move(cond)};
         });
 };
 
@@ -81,7 +80,7 @@ struct head_aggregate_elements {
         auto elems = dsl::list(dsl::p<head_aggregate_element>, dsl::sep(LEXY_LIT(";")));
         return LEXY_LIT("{") + dsl::opt(peek >> elems) + LEXY_LIT("}");
     }();
-    static constexpr auto value = lexy::as_list<std::vector<HeadAggregate::Element>>;
+    static constexpr auto value = lexy::as_list<std::vector<HeadAggregateElement>>;
 };
 
 struct head_aggregate {
@@ -89,14 +88,14 @@ struct head_aggregate {
     static constexpr auto rule =
         Detail::location(dsl::p<aggregate_function> >> dsl::p<head_aggregate_elements> + aggregate_right_guard);
     static constexpr auto value = lexy::callback<HeadAggregate>(
-        [](Location loc, AggregateFunction fun, std::vector<HeadAggregate::Element> elems) {
+        [](Location loc, AggregateFunction fun, std::vector<HeadAggregateElement> elems) {
             return HeadAggregate(std::move(loc), std::nullopt, fun, std::move(elems), std::nullopt);
         },
-        [](Location loc, AggregateFunction fun, std::vector<HeadAggregate::Element> elems, Relation rel, Term rhs) {
+        [](Location loc, AggregateFunction fun, std::vector<HeadAggregateElement> elems, Relation rel, Term rhs) {
             return HeadAggregate(std::move(loc), std::nullopt, fun, std::move(elems),
                                  RGuard::value_type{rel, std::move(rhs)});
         },
-        [](Location loc, AggregateFunction fun, std::vector<HeadAggregate::Element> elems, Term rhs) {
+        [](Location loc, AggregateFunction fun, std::vector<HeadAggregateElement> elems, Term rhs) {
             return HeadAggregate(std::move(loc), std::nullopt, fun, std::move(elems),
                                  RGuard::value_type{Relation::less_equal, std::move(rhs)});
         });
@@ -147,7 +146,7 @@ struct head_literal {
         },
         [](Term lhs, Relation rel, Term rhs, std::optional<std::vector<Guard>> opt_guards,
            std::optional<std::vector<Literal>> cond, Position end,
-           std::vector<Disjunction::Element> elems) -> HeadLiteral {
+           std::vector<DisjunctionElement> elems) -> HeadLiteral {
             std::vector<Guard> guards;
             if (opt_guards.has_value()) {
                 guards = std::move(opt_guards).value();
@@ -164,7 +163,7 @@ struct head_literal {
             return Disjunction{location(elems.front()) + location(elems.back()), std::move(elems)};
         },
         [](Term term, std::optional<std::vector<Literal>> cond, Position end,
-           std::vector<Disjunction::Element> elems) -> HeadLiteral {
+           std::vector<DisjunctionElement> elems) -> HeadLiteral {
             auto sym_lit = LiteralSymbolic{location(term), Sign::none, std::move(term)};
             if (elems.empty() && !cond) {
                 return SimpleHeadLiteral{std::move(sym_lit)};

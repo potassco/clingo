@@ -151,26 +151,24 @@ struct statement_optimize_tuple {
         auto terms = dsl::opt(dsl::list(dsl::comma >> dsl::p<term>));
         return dsl::p<term> + prio + terms;
     }();
-    static constexpr auto
-        value = lexy::as_list<std::vector<Term>> >>
-                lexy::callback<StatementOptimize::Tuple>(
-                    [](Term weight, std::optional<std::vector<Term>> terms) {
-                        return StatementOptimize::Tuple{std::move(weight), std::nullopt,
-                                                        std::move(terms).value_or(std::vector<Term>{})};
-                    },
-                    [](Term weight, Term priority, std::optional<std::vector<Term>> terms) {
-                        return StatementOptimize::Tuple{std::move(weight), std::move(priority),
-                                                        std::move(terms).value_or(std::vector<Term>{})};
-                    });
+    static constexpr auto value =
+        lexy::as_list<std::vector<Term>> >>
+        lexy::callback<OptimizeTuple>(
+            [](Term weight, std::optional<std::vector<Term>> terms) {
+                return OptimizeTuple{std::move(weight), std::nullopt, std::move(terms).value_or(std::vector<Term>{})};
+            },
+            [](Term weight, Term priority, std::optional<std::vector<Term>> terms) {
+                return OptimizeTuple{std::move(weight), std::move(priority),
+                                     std::move(terms).value_or(std::vector<Term>{})};
+            });
 };
 
 struct statement_optimize_element {
     static constexpr char const *name = "optimize element";
     static constexpr auto rule = dsl::p<statement_optimize_tuple> + dsl::p<if_condition>;
-    static constexpr auto value =
-        lexy::callback<StatementOptimize::Element>([](StatementOptimize::Tuple tuple, LiteralVec cond) {
-            return StatementOptimize::Element{std::move(tuple), std::move(cond)};
-        });
+    static constexpr auto value = lexy::callback<OptimizeElement>([](OptimizeTuple tuple, LiteralVec cond) {
+        return OptimizeElement{std::move(tuple), std::move(cond)};
+    });
 };
 
 constexpr auto square_bracketed_end =
@@ -190,14 +188,13 @@ struct statement_optimize {
         auto weak = LEXY_LIT(":~") >> dsl::p<statement_body> + eos + tuple;
         return Detail::location(opt | weak);
     }();
-    static constexpr auto value =
-        lexy::as_list<std::vector<StatementOptimize::Element>> >>
-        lexy::callback<Statement>(
-            [](Location loc, OptimizeType type, std::optional<StatementOptimize::ElementVec> elems) -> Statement {
-                return StatementOptimize{std::move(loc), type,
-                                         std::move(elems).value_or(StatementOptimize::ElementVec{})};
-            },
-            Detail::construct_v<StatementWeakConstraint, Statement>);
+    static constexpr auto
+        value = lexy::as_list<std::vector<OptimizeElement>> >>
+                lexy::callback<Statement>(
+                    [](Location loc, OptimizeType type, std::optional<OptimizeElementVec> elems) -> Statement {
+                        return StatementOptimize{std::move(loc), type, std::move(elems).value_or(OptimizeElementVec{})};
+                    },
+                    Detail::construct_v<StatementWeakConstraint, Statement>);
 };
 
 struct is_signature : control {
@@ -267,7 +264,7 @@ struct statement_edge {
         return Detail::location(kw >> edge + dsl::p<statement_opt_body> + eos);
     }();
     static constexpr auto value = []() {
-        auto sink = lexy::collect<std::vector<StatementEdge::Edge>>(lexy::construct<StatementEdge::Edge>);
+        auto sink = lexy::collect<std::vector<Edge>>(lexy::construct<Edge>);
         auto cb = Detail::construct_v<StatementEdge, Statement>;
         return sink >> cb;
     }();
@@ -308,8 +305,8 @@ struct statement_project {
             return StatementProject{std::move(loc), std::move(atom), std::move(body)};
         },
         [](Location loc, Location loc_term, bool has_sign, Position begin_name, String name, BodyLiteralVec body) {
-            Term atom = TermFunction{std::move(begin_name) + loc_term, name,
-                                     PoolVec{ArgumentTuple{ArgumentTuple::ElementVec{}}}, false};
+            Term atom =
+                TermFunction{std::move(begin_name) + loc_term, name, PoolVec{ArgumentTuple{ArgumentVec{}}}, false};
             if (has_sign) {
                 atom = TermUnary{std::move(loc_term), UnaryOperator::negate, std::move(atom)};
             }

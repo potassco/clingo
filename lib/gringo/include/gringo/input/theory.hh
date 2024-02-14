@@ -220,6 +220,16 @@ auto operator==(TheoryTermFunction const &a, TheoryTermFunction const &b) -> boo
 //! @related TheoryTermFunction
 auto operator<(TheoryTermFunction const &a, TheoryTermFunction const &b) -> bool;
 
+using StringArray = Util::immutable_array<String>;
+
+//! An element having the form of a right guard.
+using UnparsedElement = std::pair<StringArray, TheoryTerm>;
+//! A vector of elements.
+//!
+//! In this context, it has to have at least length one.
+//! Furthermore, all but the first element must have at least one operator.
+using UnparsedElementVec = Util::immutable_array<UnparsedElement>;
+
 //! An unparsed theory term.
 //!
 //! The priorities and associativities of the operators have not yet been applied.
@@ -228,23 +238,13 @@ auto operator<(TheoryTermFunction const &a, TheoryTermFunction const &b) -> bool
 //! For example: <tt>- X ++ Y << Z</tt>.
 class TheoryTermUnparsed {
   public:
-    //! A vector of operators.
-    using OpVec = Util::immutable_array<String>;
-    //! An element having the form of a right guard.
-    using Element = std::pair<OpVec, TheoryTerm>;
-    //! A vector of elements.
-    //!
-    //! In this context, it has to have at least length one.
-    //! Furthermore, all but the first element must have at least one operator.
-    using ElementVec = Util::immutable_array<Element>;
-
     //! Construct an unparsed theory term.
-    explicit TheoryTermUnparsed(Location loc, ElementVec elems);
+    explicit TheoryTermUnparsed(Location loc, UnparsedElementVec elems);
 
     //! The location of the symbol.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The vector of elements.
-    [[nodiscard]] auto elems() const -> ElementVec const &;
+    [[nodiscard]] auto elems() const -> UnparsedElementVec const &;
 
     //! Record update.
     template <bool Opt, class... Args> auto update(Args... args) const {
@@ -263,7 +263,7 @@ class TheoryTermUnparsed {
     friend struct Util::value_hasher<TheoryTermUnparsed>;
 
     Location loc_;
-    ElementVec elems_;
+    UnparsedElementVec elems_;
 };
 
 //! Compare two theory terms.
@@ -282,12 +282,12 @@ inline TheoryTermFunction::TheoryTermFunction(Location loc, String name)
     : TheoryTermFunction{std::move(loc), name, {}} {}
 inline TheoryTermFunction::TheoryTermFunction(Location loc, String name, TheoryTermVec args)
     : loc_{std::move(loc)}, name_(name), args_{std::move(args)} {}
-inline TheoryTermUnparsed::TheoryTermUnparsed(Location loc, ElementVec elems)
+inline TheoryTermUnparsed::TheoryTermUnparsed(Location loc, UnparsedElementVec elems)
     : loc_{std::move(loc)}, elems_{std::move(elems)} {}
 
 inline auto TheoryTermTuple::elems() const -> TheoryTermVec const & { return elems_; }
 inline auto TheoryTermFunction::args() const -> TheoryTermVec const & { return args_; }
-inline auto TheoryTermUnparsed::elems() const -> ElementVec const & { return elems_; }
+inline auto TheoryTermUnparsed::elems() const -> UnparsedElementVec const & { return elems_; }
 
 //! The optional right guard of the theory atom.
 using TheoryRGuard = std::optional<std::pair<String, TheoryTerm>>;
