@@ -22,5 +22,12 @@ constexpr auto a_type = Util::Record::AttributeName<15>{};
 constexpr auto a_args = Util::Record::AttributeName<16>{};
 constexpr auto a_tuple = Util::Record::AttributeName<17>{};
 constexpr auto a_fun = Util::Record::AttributeName<18>{};
+constexpr auto a_head = Util::Record::AttributeName<19>{};
+constexpr auto a_body = Util::Record::AttributeName<20>{};
+constexpr auto a_prio = Util::Record::AttributeName<21>{};
+constexpr auto a_op_defs = Util::Record::AttributeName<21>{};
+constexpr auto a_term_defs = Util::Record::AttributeName<22>{};
+constexpr auto a_atom_defs = Util::Record::AttributeName<23>{};
+constexpr auto a_arity = Util::Record::AttributeName<24>{};
 
 } // namespace Gringo::Input

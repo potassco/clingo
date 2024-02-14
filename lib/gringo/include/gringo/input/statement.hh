@@ -28,6 +28,18 @@ class Rule {
     //! The body.
     [[nodiscard]] auto body() const -> BodyLiteralVec const & { return body_; }
 
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        check(Types{a_loc, a_head, a_body}, Types{args...});
+        return Rule{select<Opt>(a_loc, loc_, args...), select<Opt>(a_head, head_, args...),
+                    select<Opt>(a_body, body_, args...)};
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
+
   private:
     friend auto operator==(Rule const &a, Rule const &b) -> bool;
     friend auto operator<(Rule const &a, Rule const &b) -> bool;
@@ -71,6 +83,18 @@ class TheoryOpDefinition {
     //! The type of the operator.
     [[nodiscard]] auto type() const -> TheoryOpType { return type_; }
 
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        check(Types{a_loc, a_op, a_prio, a_type}, Types{args...});
+        return TheoryOpDefinition{select<Opt>(a_loc, loc_, args...), select<Opt>(a_op, op_, args...),
+                                  select<Opt>(a_prio, prio_, args...), select<Opt>(a_type, type_, args...)};
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
+
   private:
     friend auto operator==(TheoryOpDefinition const &a, TheoryOpDefinition const &b) -> bool;
     friend auto operator<(TheoryOpDefinition const &a, TheoryOpDefinition const &b) -> bool;
@@ -106,6 +130,18 @@ class TheoryTermDefinition {
     [[nodiscard]] auto name() const -> String { return name_; }
     //! The associated operator definitions.
     [[nodiscard]] auto op_defs() const -> Util::immutable_array<TheoryOpDefinition> const & { return op_defs_; }
+
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        check(Types{a_loc, a_name, a_op_defs}, Types{args...});
+        return TheoryTermDefinition{select<Opt>(a_loc, loc_, args...), select<Opt>(a_name, name_, args...),
+                                    select<Opt>(a_op_defs, op_defs_, args...)};
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
 
   private:
     friend auto operator==(TheoryTermDefinition const &a, TheoryTermDefinition const &b) -> bool;
@@ -164,6 +200,19 @@ class TheoryAtomDefinition {
     //! The type of the atom.
     [[nodiscard]] auto type() const -> TheoryAtomType { return type_; }
 
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        check(Types{a_loc, a_name, a_arity, a_term, a_rhs, a_type}, Types{args...});
+        return TheoryAtomDefinition{select<Opt>(a_loc, loc_, args...),     select<Opt>(a_name, name_, args...),
+                                    select<Opt>(a_arity, arity_, args...), select<Opt>(a_term, term_, args...),
+                                    select<Opt>(a_rhs, rhs_, args...),     select<Opt>(a_type, type_, args...)};
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
+
   private:
     friend auto operator==(TheoryAtomDefinition const &a, TheoryAtomDefinition const &b) -> bool;
     friend auto operator<(TheoryAtomDefinition const &a, TheoryAtomDefinition const &b) -> bool;
@@ -204,6 +253,19 @@ class TheoryDefinition {
     [[nodiscard]] auto term_defs() const -> TheoryTermDefinitionVec const & { return term_defs_; }
     //! The theory atom definitions.
     [[nodiscard]] auto atom_defs() const -> TheoryAtomDefinitionVec const & { return atom_defs_; }
+
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        check(Types{a_loc, a_name, a_term_defs, a_atom_defs}, Types{args...});
+        return TheoryDefinition{select<Opt>(a_loc, loc_, args...), select<Opt>(a_name, name_, args...),
+                                select<Opt>(a_term_defs, term_defs_, args...),
+                                select<Opt>(a_atom_defs, atom_defs_, args...)};
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
 
   private:
     friend auto operator==(TheoryDefinition const &a, TheoryDefinition const &b) -> bool;
