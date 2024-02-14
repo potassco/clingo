@@ -17,13 +17,11 @@ struct NegateLiteral {
     auto operator()(LitComparison const &lit) const -> Lit {
         if (lit.rhs().size() == 1) {
             auto const &[rel, rhs] = lit.rhs().front();
-            return LitComparison{lit.loc(), lit.sign(), lit.lhs(), Util::make_vec<Guard>(Guard{complement(rel), rhs})};
+            return lit.update(a_rhs = Util::make_vec<Guard>(Guard{complement(rel), rhs}));
         }
-        return LitComparison{lit.loc(), lit.sign() + Sign::once, lit.lhs(), lit.rhs()};
+        return lit.update(a_sign = lit.sign() + Sign::once);
     }
-    auto operator()(LitSymbolic const &lit) const -> Lit {
-        return LitSymbolic{lit.loc(), lit.sign() + Sign::once, lit.term()};
-    }
+    auto operator()(LitSymbolic const &lit) const -> Lit { return lit.update(a_sign = lit.sign() + Sign::once); }
 };
 
 auto unpool_conjunctive(LitArray const &lits) {
@@ -63,11 +61,7 @@ auto shift(auto const &lit, auto &lits, bool negate) -> std::optional<Lit> {
 auto shift(TheoryElementArray const &elems) {
     auto res_elems = Util::ResultVec{elems};
     for (auto const &elem : elems) {
-        if (auto res_cond = unpool_conjunctive(elem.cond()); res_cond) {
-            res_elems.replace(TheoryElement{elem.loc(), elem.tuple(), std::move(res_cond).value()});
-        } else {
-            res_elems.keep();
-        }
+        res_elems.update(elem.rewrite(a_cond = unpool_conjunctive(elem.cond())));
     }
     return res_elems;
 }
@@ -98,7 +92,7 @@ struct ShiftHead {
             std::visit(
                 [this, &res_elems](auto const &x) {
                     GRINGO_MATCH(x, Lit) {
-                        if (auto res_lit = shift(x, body, true); res_lit) {
+                        if (shift(x, body, true)) {
                             res_elems.remove();
                         } else {
                             res_elems.keep();
@@ -107,28 +101,12 @@ struct ShiftHead {
                     GRINGO_MATCH(x, CondLit) {
                         auto res_cond = unpool_conjunctive(x.cond());
                         auto res_lit = shift(x.lit(), res_cond, false);
-                        if (res_lit || res_cond) {
-                            auto clit =
-                                CondLit{x.loc(), std::move(res_lit).value_or(x.lit()), std::move(res_cond).value()};
-                            if (const auto *blit = std::get_if<LitBool>(&clit.lit()); blit != nullptr) {
-                                res_elems.remove();
-                                assert(blit->sign() == Sign::none);
-                                if (blit->value()) {
-                                    body.append(
-                                        BdLitConjunction{CondLit{clit.loc(), NegateLiteral{}(*blit), clit.cond()}});
-                                }
-                            } else {
-                                res_elems.replace(std::move(clit));
-                            }
-
-                        } else if (auto *blit = std::get_if<LitBool>(&x.lit()); blit != nullptr) {
+                        if (const auto *blit = std::get_if<LitBool>(res_lit ? &*res_lit : &x.lit()); blit != nullptr) {
                             res_elems.remove();
-                            assert(blit->sign() == Sign::none);
-                            if (blit->value()) {
-                                body.append(BdLitConjunction{CondLit{x.loc(), NegateLiteral{}(*blit), x.cond()}});
-                            }
+                            body.append(BdLitConjunction{
+                                x.update(a_lit = NegateLiteral{}(*blit), a_cond = *std::move(res_cond))});
                         } else {
-                            res_elems.keep();
+                            res_elems.update(x.rewrite(a_lit = std::move(res_lit), a_cond = std::move(res_cond)));
                         }
                     }
                 },
@@ -137,10 +115,7 @@ struct ShiftHead {
         if (res_elems.value().empty()) {
             return HdLitSimple{LitBool{lit.loc(), Sign::none, false}};
         }
-        if (res_elems) {
-            return HdLitDisjunction{lit.loc(), std::move(res_elems).value()};
-        }
-        return std::nullopt;
+        return lit.rewrite(a_elems = std::move(res_elems));
     }
 
     auto operator()(HdLitSetAggregate const &lit) const -> std::optional<HdLit> {
@@ -153,28 +128,19 @@ struct ShiftHead {
         for (auto const &elem : lit.elems()) {
             auto res_cond = unpool_conjunctive(elem.cond());
             auto res_lit = shift(elem.lit(), res_cond, false);
-            if (res_lit || res_cond) {
-                res_elems.replace(HdLitAggregateElement{
-                    elem.loc(), elem.tuple(), std::move(res_lit).value_or(elem.lit()), std::move(res_cond).value()});
-            } else {
-                res_elems.keep();
-            }
+            res_elems.update(elem.rewrite(a_lit = std::move(res_lit), a_cond = std::move(res_cond)));
         }
-        if (res_elems) {
-            return HdLitAggregate{lit.loc(), lit.lhs(), lit.fun(), *std::move(res_elems), lit.rhs()};
-        }
-        return std::nullopt;
+        return lit.rewrite(a_elems = std::move(res_elems));
     }
 
     auto operator()(HdLitTheoryAtom const &atom) const -> std::optional<HdLit> {
-        if (auto res_elems = shift(atom.elems()); res_elems) {
-            return HdLitTheoryAtom{atom.loc(), atom.name(), *std::move(res_elems), atom.rhs()};
-        }
-        return std::nullopt;
+        return atom.rewrite(a_elems = shift(atom.elems()));
     }
 
     Util::ResultVec<BdLit, false> &body;
 };
+
+// TODO: consider refactoring here!!!
 
 struct ShiftBody {
     // protect ourselves -> no unintended overloads
