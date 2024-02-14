@@ -187,36 +187,36 @@ struct MapParams : Transformer<MapParams> {
 
     // literal
 
-    [[nodiscard]] auto accept(LiteralSymbolic const &lit) const -> std::optional<Literal> {
+    [[nodiscard]] auto accept(LitSymbolic const &lit) const -> std::optional<Lit> {
         if (!is_identifier(lit.term())) {
-            return transform_construct<LiteralSymbolic>(lit.loc(), lit.sign(), tr(lit.term()));
+            return transform_construct<LitSymbolic>(lit.loc(), lit.sign(), tr(lit.term()));
         }
         return std::nullopt;
     }
 
     // statement
 
-    [[nodiscard]] auto accept(StatementProject const &stm) const -> std::optional<Statement> {
+    [[nodiscard]] auto accept(StmProject const &stm) const -> std::optional<Stm> {
         if (!is_identifier(stm.term())) {
-            return transform_construct<StatementProject>(stm.loc(), tr(stm.term()), tr(stm.body()));
+            return transform_construct<StmProject>(stm.loc(), tr(stm.term()), tr(stm.body()));
         }
-        return transform_construct<StatementProject>(stm.loc(), stm.term(), tr(stm.body()));
+        return transform_construct<StmProject>(stm.loc(), stm.term(), tr(stm.body()));
     }
 
-    [[nodiscard]] auto accept(StatementExternal const &stm) const -> std::optional<Statement> {
+    [[nodiscard]] auto accept(StmExternal const &stm) const -> std::optional<Stm> {
         if (!is_identifier(stm.term())) {
-            return transform_construct<StatementExternal>(stm.loc(), tr(stm.term()), tr(stm.body()), tr(stm.type()));
+            return transform_construct<StmExternal>(stm.loc(), tr(stm.term()), tr(stm.body()), tr(stm.type()));
         }
-        return transform_construct<StatementExternal>(stm.loc(), stm.term(), tr(stm.body()), tr(stm.type()));
+        return transform_construct<StmExternal>(stm.loc(), stm.term(), tr(stm.body()), tr(stm.type()));
     }
 
-    [[nodiscard]] auto accept(StatementHeuristic const &stm) const -> std::optional<Statement> {
+    [[nodiscard]] auto accept(StmHeuristic const &stm) const -> std::optional<Stm> {
         if (!is_identifier(stm.atom())) {
-            return transform_construct<StatementHeuristic>(stm.loc(), tr(stm.atom()), tr(stm.body()), tr(stm.type()),
-                                                           tr(stm.prio()), tr(stm.mod()));
+            return transform_construct<StmHeuristic>(stm.loc(), tr(stm.atom()), tr(stm.body()), tr(stm.weight()),
+                                                     tr(stm.prio()), tr(stm.type()));
         }
-        return transform_construct<StatementHeuristic>(stm.loc(), stm.atom(), tr(stm.body()), tr(stm.type()),
-                                                       tr(stm.prio()), tr(stm.mod()));
+        return transform_construct<StmHeuristic>(stm.loc(), stm.atom(), tr(stm.body()), tr(stm.weight()),
+                                                 tr(stm.prio()), tr(stm.type()));
     }
 
     RewriteContext &ctx;
@@ -303,7 +303,7 @@ struct Collect : Visitor<Collect> {
 
     // literal
 
-    void accept(LiteralSymbolic const &lit) const {
+    void accept(LitSymbolic const &lit) const {
         if (!is_identifier(lit.term())) {
             visit(lit.term());
         }
@@ -311,25 +311,25 @@ struct Collect : Visitor<Collect> {
 
     // statement
 
-    void accept(StatementProject const &stm) const {
+    void accept(StmProject const &stm) const {
         if (!is_identifier(stm.term())) {
             visit(stm.term());
         }
         visit(stm.body());
     }
 
-    void accept(StatementExternal const &stm) const {
+    void accept(StmExternal const &stm) const {
         if (!is_identifier(stm.term())) {
             visit(stm.term());
         }
         visit(stm.body(), stm.type());
     }
 
-    void accept(StatementHeuristic const &stm) const {
+    void accept(StmHeuristic const &stm) const {
         if (!is_identifier(stm.atom())) {
             visit(stm.atom());
         }
-        visit(stm.body(), stm.type(), stm.prio(), stm.mod());
+        visit(stm.body(), stm.weight(), stm.prio(), stm.type());
     }
 
     StringSet &ids;
@@ -344,28 +344,28 @@ struct Collect : Visitor<Collect> {
     return std::nullopt;
 }
 
-[[nodiscard]] auto map_params(RewriteContext &ctx, Literal const &lit) -> std::optional<Literal> {
+[[nodiscard]] auto map_params(RewriteContext &ctx, Lit const &lit) -> std::optional<Lit> {
     if (ctx.has_params()) {
         return MapParams{ctx}.transform(lit);
     }
     return std::nullopt;
 }
 
-[[nodiscard]] auto map_params(RewriteContext &ctx, HeadLiteral const &lit) -> std::optional<HeadLiteral> {
+[[nodiscard]] auto map_params(RewriteContext &ctx, HdLit const &lit) -> std::optional<HdLit> {
     if (ctx.has_params()) {
         return MapParams{ctx}.transform(lit);
     }
     return std::nullopt;
 }
 
-[[nodiscard]] auto map_params(RewriteContext &ctx, BodyLiteral const &lit) -> std::optional<BodyLiteral> {
+[[nodiscard]] auto map_params(RewriteContext &ctx, BdLit const &lit) -> std::optional<BdLit> {
     if (ctx.has_params()) {
         return MapParams{ctx}.transform(lit);
     }
     return std::nullopt;
 }
 
-[[nodiscard]] auto map_params(RewriteContext &ctx, Statement const &stm) -> std::optional<Statement> {
+[[nodiscard]] auto map_params(RewriteContext &ctx, Stm const &stm) -> std::optional<Stm> {
     if (ctx.has_params()) {
         return MapParams{ctx}.transform(stm);
     }
@@ -373,17 +373,17 @@ struct Collect : Visitor<Collect> {
 }
 
 [[nodiscard]] auto map_params(RewriteContext &ctx, Location const &loc, Symbol const &sym)
-    -> std::variant<Symbol, Statement> {
+    -> std::variant<Symbol, Stm> {
     if (!ctx.has_params() || (sym.type() == SymbolType::function && sym.args().empty())) {
         return sym;
     }
     if (auto res_sym = MapParams{ctx}.accept(loc, sym); res_sym) {
         return std::visit(
-            [&loc](auto &&x) -> std::variant<Symbol, Statement> {
+            [&loc](auto &&x) -> std::variant<Symbol, Stm> {
                 GRINGO_MATCH(x, Symbol) { return x; }
                 GRINGO_MATCH(x, Term) {
-                    return Rule{loc, SimpleHeadLiteral{LiteralSymbolic{loc, Sign::none, std::move(x)}},
-                                Util::make_vec<BodyLiteral>()};
+                    return StmRule{loc, HdLitSimple{LitSymbolic{loc, Sign::none, std::move(x)}},
+                                   Util::make_vec<BdLit>()};
                 }
             },
             std::move(res_sym).value());
@@ -391,8 +391,8 @@ struct Collect : Visitor<Collect> {
     return sym;
 }
 
-[[nodiscard]] auto unmap_params(SymbolStore &store, Util::ordered_map<String, String> const &map, Statement const &stm)
-    -> std::optional<Statement> {
+[[nodiscard]] auto unmap_params(SymbolStore &store, Util::ordered_map<String, String> const &map, Stm const &stm)
+    -> std::optional<Stm> {
     if (!map.empty()) {
         return UnmapParams{store, map}.transform(stm);
     }
@@ -405,6 +405,6 @@ void collect_ids(Symbol const &sym, StringSet &ids) {
     }
 }
 
-void collect_ids(Statement const &stm, StringSet &ids) { Collect{ids}(stm); }
+void collect_ids(Stm const &stm, StringSet &ids) { Collect{ids}(stm); }
 
 } // namespace Gringo::Input

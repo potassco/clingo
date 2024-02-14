@@ -7,35 +7,33 @@ namespace {
 struct AddSign {
     template <class T> void operator()(T const &lit) const = delete;
 
-    auto operator()(Literal const &lit) const -> Literal { return std::visit(*this, lit); }
+    auto operator()(Lit const &lit) const -> Lit { return std::visit(*this, lit); }
 
-    auto operator()(LiteralBoolean const &lit) const -> Literal {
-        return LiteralBoolean{lit.loc() + pos, lit.sign() + sign, lit.value()};
+    auto operator()(LitBool const &lit) const -> Lit {
+        return LitBool{lit.loc() + pos, lit.sign() + sign, lit.value()};
     }
-    auto operator()(LiteralRelation const &lit) const -> Literal {
-        return LiteralRelation{lit.loc() + pos, lit.sign() + sign, lit.lhs(), lit.rhs()};
+    auto operator()(LitComparison const &lit) const -> Lit {
+        return LitComparison{lit.loc() + pos, lit.sign() + sign, lit.lhs(), lit.rhs()};
     }
-    auto operator()(LiteralSymbolic const &lit) const -> Literal {
-        return LiteralSymbolic{lit.loc() + pos, lit.sign() + sign, lit.term()};
+    auto operator()(LitSymbolic const &lit) const -> Lit {
+        return LitSymbolic{lit.loc() + pos, lit.sign() + sign, lit.term()};
     }
 
-    auto operator()(BodyLiteral const &lit) const -> BodyLiteral { return std::visit(*this, lit); }
+    auto operator()(BdLit const &lit) const -> BdLit { return std::visit(*this, lit); }
 
-    auto operator()(SimpleBodyLiteral const &lit) const -> BodyLiteral {
-        return SimpleBodyLiteral{operator()(lit.lit())};
+    auto operator()(BdLitSimple const &lit) const -> BdLit { return BdLitSimple{operator()(lit.lit())}; }
+    auto operator()(BdLitConjunction const &lit) const -> BdLit {
+        return BdLitConjunction{CondLit{pos + lit.lit().loc(), operator()(lit.lit().lit()), lit.lit().cond()}};
     }
-    auto operator()(Conjunction const &lit) const -> BodyLiteral {
-        return Conjunction{ConditionalLiteral{pos + lit.lit().loc(), operator()(lit.lit().lit()), lit.lit().cond()}};
+    auto operator()(BdLitAggregate const &lit) const -> BdLit {
+        return BdLitAggregate{lit.loc() + pos, lit.sign() + sign, lit.lhs(), lit.fun(), lit.elems(), lit.rhs()};
     }
-    auto operator()(BodyAggregate const &lit) const -> BodyLiteral {
-        return BodyAggregate{lit.loc() + pos, lit.sign() + sign, lit.lhs(), lit.fun(), lit.elems(), lit.rhs()};
+    auto operator()(BdLitSetAggregate const &lit) const -> BdLit {
+        return BdLitSetAggregate{lit.loc() + pos, lit.sign() + sign, lit.lhs(), lit.elems(), lit.rhs()};
     }
-    auto operator()(BodySetAggregate const &lit) const -> BodyLiteral {
-        return BodySetAggregate{lit.loc() + pos, lit.sign() + sign, lit.lhs(), lit.elems(), lit.rhs()};
-    }
-    auto operator()(BodyTheoryAtom const &lit) const -> BodyLiteral {
-        return BodyTheoryAtom{lit.loc() + pos, lit.sign() + sign, lit.name(),
-                              TheoryElementVec{lit.elems().begin(), lit.elems().end()}, lit.rhs()};
+    auto operator()(BdLitTheoryAtom const &lit) const -> BdLit {
+        return BdLitTheoryAtom{lit.loc() + pos, lit.sign() + sign, lit.name(),
+                               TheoryElementArray{lit.elems().begin(), lit.elems().end()}, lit.rhs()};
     }
 
     Sign sign;
@@ -44,14 +42,14 @@ struct AddSign {
 
 } // namespace
 
-auto add_sign(Literal const &lit, Sign sign, std::optional<Position> pos) -> std::optional<Literal> {
+auto add_sign(Lit const &lit, Sign sign, std::optional<Position> pos) -> std::optional<Lit> {
     if (sign != Sign::none) {
         return AddSign{sign, std::move(pos)}(lit);
     }
     return std::nullopt;
 }
 
-auto add_sign(BodyLiteral const &lit, Sign sign, std::optional<Position> pos) -> std::optional<BodyLiteral> {
+auto add_sign(BdLit const &lit, Sign sign, std::optional<Position> pos) -> std::optional<BdLit> {
     if (sign != Sign::none) {
         return AddSign{sign, std::move(pos)}(lit);
     }

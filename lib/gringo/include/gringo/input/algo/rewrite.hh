@@ -15,8 +15,8 @@ namespace Gringo::Input {
 //!
 //! This functions pulls together all the different rewriting steps.
 //! There are some optional rewriting steps that can be configured via options.
-void rewrite(Logger &log, SymbolStore &store, ParamMap &param_map, ConstMap &const_map, Statement const &stm,
-             RewriteOptions opts, StatementVec &stms);
+void rewrite(Logger &log, SymbolStore &store, ParamMap &param_map, ConstMap &const_map, Stm const &stm,
+             RewriteOptions opts, StmVec &stms);
 
 //! @}
 

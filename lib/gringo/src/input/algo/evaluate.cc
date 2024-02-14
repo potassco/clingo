@@ -13,9 +13,9 @@ namespace Gringo::Input {
 namespace {
 
 struct StateDep {
-    StateDep(StatementConst stm) : stm{std::move(stm)} {}
+    StateDep(StmConst stm) : stm{std::move(stm)} {}
     //! The const directive at hand.
-    StatementConst stm;
+    StmConst stm;
     //! The constants that depend on this directive.
     std::vector<String> rev;
     //! The number of constants this directive depends on.
@@ -244,7 +244,7 @@ struct Evaluate {
             }
             return out;
         }
-        StatementConst const *root;
+        StmConst const *root;
     };
 
     auto operator()(TermAbs const &term) const -> std::optional<Symbol> {
@@ -314,10 +314,10 @@ struct Evaluate {
     Logger &log;
     SymbolStore &store;
     ConstMap const &map;
-    StatementConst const *root;
+    StmConst const *root;
 };
 
-[[maybe_unused]] auto evaluate(Logger &log, SymbolStore &store, ConstMap const &map, StatementConst const &stm)
+[[maybe_unused]] auto evaluate(Logger &log, SymbolStore &store, ConstMap const &map, StmConst const &stm)
     -> std::optional<Symbol> {
     return std::visit(Evaluate{log, store, map, &stm}, stm.value());
 }
@@ -409,7 +409,7 @@ auto evaluate(SymbolStore &store, Symbol lhs, BinaryOperator op, Symbol rhs) -> 
     throw std::runtime_error("cannot evaluate intervals");
 }
 
-void evaluate_const(Logger &log, SymbolStore &store, std::vector<StatementConst> const &stms, ConstMap &res) {
+void evaluate_const(Logger &log, SymbolStore &store, std::vector<StmConst> const &stms, ConstMap &res) {
     // build map
     Util::ordered_map<String, size_t> map;
     size_t id_stm = 0;

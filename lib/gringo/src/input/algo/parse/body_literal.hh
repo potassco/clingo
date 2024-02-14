@@ -10,22 +10,22 @@ namespace Gringo::Input::Grammar {
 
 namespace Detail {
 
-inline auto construct_body_aggr(Term term, Relation rel, BodyAggregate aggr) -> BodyAggregate {
-    return BodyAggregate{
+inline auto construct_body_aggr(Term term, Relation rel, BdLitAggregate aggr) -> BdLitAggregate {
+    return BdLitAggregate{
         location(term).begin + aggr.loc(), aggr.sign(), LGuard::value_type{std::move(term), rel}, aggr.fun(),
         std::move(aggr.elems()),           aggr.rhs()};
 }
 
-inline auto construct_body_aggr(Term term, Relation rel, BodySetAggregate aggr) -> BodySetAggregate {
-    return BodySetAggregate{location(term).begin + aggr.loc(), aggr.sign(), LGuard::value_type{std::move(term), rel},
-                            std::move(aggr.elems()), aggr.rhs()};
+inline auto construct_body_aggr(Term term, Relation rel, BdLitSetAggregate aggr) -> BdLitSetAggregate {
+    return BdLitSetAggregate{location(term).begin + aggr.loc(), aggr.sign(), LGuard::value_type{std::move(term), rel},
+                             std::move(aggr.elems()), aggr.rhs()};
 }
 
-auto construct_conjunction(Literal lit, std::optional<std::vector<Literal>> cond, Position end) -> BodyLiteral {
+auto construct_conjunction(Lit lit, std::optional<std::vector<Lit>> cond, Position end) -> BdLit {
     if (!cond) {
         return lit;
     }
-    return Conjunction{ConditionalLiteral{location(lit) + std::move(end), std::move(lit), std::move(cond).value()}};
+    return BdLitConjunction{CondLit{location(lit) + std::move(end), std::move(lit), std::move(cond).value()}};
 }
 
 } // namespace Detail
@@ -36,12 +36,12 @@ struct body_aggregate_element {
         auto peek = dsl::peek_not(LEXY_LIT(":"));
         return Detail::location(dsl::if_(peek >> dsl::p<term_list>) + dsl::p<if_condition>);
     }();
-    static constexpr auto value = lexy::callback<BodyAggregateElement>(
-        [](Location loc, std::vector<Literal> cond) {
-            return BodyAggregateElement{std::move(loc), TermVec{}, std::move(cond)};
+    static constexpr auto value = lexy::callback<BdLitAggregateElement>(
+        [](Location loc, std::vector<Lit> cond) {
+            return BdLitAggregateElement{std::move(loc), TermArray{}, std::move(cond)};
         },
-        [](Location loc, TermVec tuple, std::vector<Literal> cond) {
-            return BodyAggregateElement{std::move(loc), std::move(tuple), std::move(cond)};
+        [](Location loc, TermArray tuple, std::vector<Lit> cond) {
+            return BdLitAggregateElement{std::move(loc), std::move(tuple), std::move(cond)};
         });
 };
 
@@ -52,26 +52,26 @@ struct body_aggregate_elements {
         auto elems = dsl::list(dsl::p<body_aggregate_element>, dsl::sep(LEXY_LIT(";")));
         return LEXY_LIT("{") + dsl::opt(peek >> elems) + LEXY_LIT("}");
     }();
-    static constexpr auto value = lexy::as_list<std::vector<BodyAggregateElement>>;
+    static constexpr auto value = lexy::as_list<std::vector<BdLitAggregateElement>>;
 };
 
 struct body_aggregate {
     static constexpr char const *name = "body aggregate";
     static constexpr auto rule =
         Detail::location(dsl::p<aggregate_function> >> dsl::p<body_aggregate_elements> + aggregate_right_guard);
-    static constexpr auto value = lexy::callback<BodyAggregate>(
-        [](Location loc, AggregateFunction fun, BodyAggregateElementVec elems) {
-            return BodyAggregate{std::move(loc), Sign::none, std::nullopt, fun, std::move(elems), std::nullopt};
+    static constexpr auto value = lexy::callback<BdLitAggregate>(
+        [](Location loc, AggregateFunction fun, BdLitAggregateElementArray elems) {
+            return BdLitAggregate{std::move(loc), Sign::none, std::nullopt, fun, std::move(elems), std::nullopt};
         },
-        [](Location loc, AggregateFunction fun, BodyAggregateElementVec elems, Relation rel, Term rhs) {
-            return BodyAggregate{std::move(loc),   Sign::none,
-                                 std::nullopt,     fun,
-                                 std::move(elems), RGuard::value_type{rel, std::move(rhs)}};
+        [](Location loc, AggregateFunction fun, BdLitAggregateElementArray elems, Relation rel, Term rhs) {
+            return BdLitAggregate{std::move(loc),   Sign::none,
+                                  std::nullopt,     fun,
+                                  std::move(elems), RGuard::value_type{rel, std::move(rhs)}};
         },
-        [](Location loc, AggregateFunction fun, BodyAggregateElementVec elems, Term rhs) {
-            return BodyAggregate{std::move(loc),   Sign::none,
-                                 std::nullopt,     fun,
-                                 std::move(elems), RGuard::value_type{Relation::less_equal, std::move(rhs)}};
+        [](Location loc, AggregateFunction fun, BdLitAggregateElementArray elems, Term rhs) {
+            return BdLitAggregate{std::move(loc),   Sign::none,
+                                  std::nullopt,     fun,
+                                  std::move(elems), RGuard::value_type{Relation::less_equal, std::move(rhs)}};
         });
 };
 
@@ -107,31 +107,31 @@ struct body_atom : lexy::transparent_production {
                dsl::p<atom_bool> >> dsl::p<opt_condition> + Detail::post_position |             //
                dsl::else_ >> is_atom.create() + dsl::scan + with_term;
     }();
-    static constexpr auto value = lexy::callback<BodyLiteral>(
-        lexy::construct<BodyLiteral>,
+    static constexpr auto value = lexy::callback<BdLit>(
+        lexy::construct<BdLit>,
         [](Term term, auto aggr) {
             return Detail::construct_body_aggr(std::move(term), Relation::less_equal, std::move(aggr));
         },
         [](Term term, Relation rel, auto aggr) {
             return Detail::construct_body_aggr(std::move(term), rel, std::move(aggr));
         },
-        [](Term lhs, Relation rel, Term rhs, std::optional<GuardVec> opt_guards,
-           std::optional<std::vector<Literal>> cond, Position end) {
+        [](Term lhs, Relation rel, Term rhs, std::optional<GuardArray> opt_guards, std::optional<std::vector<Lit>> cond,
+           Position end) {
             std::vector<Guard> guards;
             if (opt_guards.has_value()) {
                 guards = std::move(opt_guards).value();
             }
             guards.insert(guards.begin(), Guard{rel, std::move(rhs)});
             auto loc = location(lhs) + location(guards.back().second);
-            auto lit = LiteralRelation{loc, Sign::none, std::move(lhs), std::move(guards)};
+            auto lit = LitComparison{loc, Sign::none, std::move(lhs), std::move(guards)};
             return Detail::construct_conjunction(std::move(lit), std::move(cond), std::move(end));
         },
-        [](Literal lit, std::optional<std::vector<Literal>> cond, Position end) -> BodyLiteral {
+        [](Lit lit, std::optional<std::vector<Lit>> cond, Position end) -> BdLit {
             return Detail::construct_conjunction(std::move(lit), std::move(cond), std::move(end));
         },
-        [](Term term, std::optional<std::vector<Literal>> cond, Position end) {
+        [](Term term, std::optional<std::vector<Lit>> cond, Position end) {
             auto loc = location(term);
-            auto lit = LiteralSymbolic{loc, Sign::none, std::move(term)};
+            auto lit = LitSymbolic{loc, Sign::none, std::move(term)};
             return Detail::construct_conjunction(std::move(lit), std::move(cond), std::move(end));
         });
 };
@@ -139,11 +139,10 @@ struct body_atom : lexy::transparent_production {
 struct body_literal {
     static constexpr char const *name = "body literal";
     static constexpr auto rule = dsl::p<naf_sign> + dsl::p<body_atom>;
-    static constexpr auto value =
-        lexy::callback<BodyLiteral>(lexy::forward<BodyLiteral>, [](auto sign, BodyLiteral lit) {
-            auto res = add_sign(lit, sign.second);
-            return std::move(res).value_or(std::move(lit));
-        });
+    static constexpr auto value = lexy::callback<BdLit>(lexy::forward<BdLit>, [](auto sign, BdLit lit) {
+        auto res = add_sign(lit, sign.second);
+        return std::move(res).value_or(std::move(lit));
+    });
 };
 
 } // namespace Gringo::Input::Grammar

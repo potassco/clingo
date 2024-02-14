@@ -199,10 +199,10 @@ struct theory_atom_element {
     static constexpr auto rule =
         Detail::location(dsl::p<condition> | dsl::else_ >> dsl::p<theory_atom_element_tuple> + dsl::p<if_condition>);
     static constexpr auto value = lexy::callback<TheoryElement>(
-        [](Location loc, std::vector<TheoryTerm> tuple, std::vector<Literal> cond) {
+        [](Location loc, std::vector<TheoryTerm> tuple, std::vector<Lit> cond) {
             return TheoryElement{std::move(loc), std::move(tuple), std::move(cond)};
         },
-        [](Location loc, std::vector<Literal> cond) {
+        [](Location loc, std::vector<Lit> cond) {
             return TheoryElement{std::move(loc), std::vector<TheoryTerm>{}, std::move(cond)};
         });
 };

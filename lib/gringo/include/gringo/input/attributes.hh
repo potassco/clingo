@@ -29,5 +29,11 @@ constexpr auto a_op_defs = Util::Record::AttributeName<21>{};
 constexpr auto a_term_defs = Util::Record::AttributeName<22>{};
 constexpr auto a_atom_defs = Util::Record::AttributeName<23>{};
 constexpr auto a_arity = Util::Record::AttributeName<24>{};
+constexpr auto a_weight = Util::Record::AttributeName<25>{};
+constexpr auto a_terms = Util::Record::AttributeName<26>{};
+constexpr auto a_src = Util::Record::AttributeName<27>{};
+constexpr auto a_dst = Util::Record::AttributeName<28>{};
+constexpr auto a_edges = Util::Record::AttributeName<29>{};
+constexpr auto a_atom = Util::Record::AttributeName<30>{};
 
 } // namespace Gringo::Input

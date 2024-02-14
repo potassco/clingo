@@ -14,7 +14,7 @@ template <bool external> struct construct_function {
     using return_type = TermFunction;
 
     auto operator()(Location loc, auto name) const {
-        return TermFunction{std::move(loc), name, PoolVec{ArgumentTuple{ArgumentVec{}}}, external};
+        return TermFunction{std::move(loc), name, PoolArray{ArgumentTuple{ArgumentArray{}}}, external};
     }
 
     auto operator()(Location loc, auto name, auto args) const {
@@ -196,7 +196,7 @@ struct term_function_pool {
         return dsl::list(item, sep);
     }();
     static constexpr auto value = lexy::collect<std::vector<ArgumentTuple>>(
-        lexy::callback<ArgumentTuple>([](lexy::nullopt) { return ArgumentTuple{ArgumentVec{}}; },
+        lexy::callback<ArgumentTuple>([](lexy::nullopt) { return ArgumentTuple{ArgumentArray{}}; },
                                       [](auto &&tuple) { return ArgumentTuple{GRINGO_FWD(tuple)}; }));
 };
 
@@ -239,7 +239,7 @@ struct term_tuple {
     static constexpr auto rule = Detail::location(
         LEXY_LIT("(") >> dsl::list(dsl::p<term_tuple_element>, dsl::sep(dsl::semicolon)) + LEXY_LIT(")"));
     static constexpr auto value = lexy::as_list<std::vector<TupleElement>> >>
-                                  lexy::callback<Term>([](Location loc, TupleElementVec elem) -> Term {
+                                  lexy::callback<Term>([](Location loc, TupleElementArray elem) -> Term {
                                       if (elem.size() == 1 && std::holds_alternative<Term>(elem.front())) {
                                           return std::move(std::get<Term>(elem.front()));
                                       }

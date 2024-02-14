@@ -14,13 +14,13 @@ using SL = std::initializer_list<Symbol>;
 
 class ConstHelper : public ParseHelper {
   public:
-    auto const_def(std::string_view str) -> StatementConst {
+    auto const_def(std::string_view str) -> StmConst {
         reset();
         using Gringo::Input::parse_statement;
         auto stm = parse_statement(*this, *this, str);
         REQUIRE(stm.has_value());
-        REQUIRE(std::holds_alternative<StatementConst>(*stm));
-        return std::move(std::get<StatementConst>(*stm));
+        REQUIRE(std::holds_alternative<StmConst>(*stm));
+        return std::move(std::get<StmConst>(*stm));
     }
 };
 
@@ -100,7 +100,7 @@ TEST_CASE("evaluate_binary") {
 
 TEST_CASE("evaluate_const") {
     ConstHelper ch;
-    auto stms = std::vector<StatementConst>{};
+    auto stms = std::vector<StmConst>{};
 
     SECTION("cycle") {
         stms.emplace_back(ch.const_def("#const a = b."));

@@ -15,25 +15,25 @@ namespace Gringo::Input {
 //! A rule.
 //!
 //! For example: <tt>p(X) :- q(X)</tt>.
-class Rule {
+class StmRule {
   public:
     //! Construct a rule.
-    explicit Rule(Location loc, HeadLiteral head, BodyLiteralVec body)
+    explicit StmRule(Location loc, HdLit head, BdLitArray body)
         : loc_{std::move(loc)}, head_{std::move(head)}, body_{std::move(body)} {}
 
     //! The location of the rule.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The head.
-    [[nodiscard]] auto head() const -> HeadLiteral const & { return head_; }
+    [[nodiscard]] auto head() const -> HdLit const & { return head_; }
     //! The body.
-    [[nodiscard]] auto body() const -> BodyLiteralVec const & { return body_; }
+    [[nodiscard]] auto body() const -> BdLitArray const & { return body_; }
 
     //! Update the record.
     template <bool Opt = false, class... Args> auto update(Args &&...args) const {
         using namespace Gringo::Util::Record;
         check(Types{a_loc, a_head, a_body}, Types{args...});
-        return Rule{select<Opt>(a_loc, loc_, args...), select<Opt>(a_head, head_, args...),
-                    select<Opt>(a_body, body_, args...)};
+        return StmRule{select<Opt>(a_loc, loc_, args...), select<Opt>(a_head, head_, args...),
+                       select<Opt>(a_body, body_, args...)};
     }
     //! Rewrite the record.
     template <class... Args> auto rewrite(Args &&...args) const {
@@ -41,20 +41,20 @@ class Rule {
     }
 
   private:
-    friend auto operator==(Rule const &a, Rule const &b) -> bool;
-    friend auto operator<(Rule const &a, Rule const &b) -> bool;
-    friend struct Util::value_hasher<Rule>;
+    friend auto operator==(StmRule const &a, StmRule const &b) -> bool;
+    friend auto operator<(StmRule const &a, StmRule const &b) -> bool;
+    friend struct Util::value_hasher<StmRule>;
 
     Location loc_;
-    HeadLiteral head_;
-    BodyLiteralVec body_;
+    HdLit head_;
+    BdLitArray body_;
 };
 
 //! Compare two rules.
-auto operator==(Rule const &a, Rule const &b) -> bool;
+auto operator==(StmRule const &a, StmRule const &b) -> bool;
 
 //! Compare two rules.
-auto operator<(Rule const &a, Rule const &b) -> bool;
+auto operator<(StmRule const &a, StmRule const &b) -> bool;
 
 //! The type of a theory operator.
 //!
@@ -113,7 +113,7 @@ auto operator==(TheoryOpDefinition const &a, TheoryOpDefinition const &b) -> boo
 auto operator<(TheoryOpDefinition const &a, TheoryOpDefinition const &b) -> bool;
 
 //! A vector of theory operator definitions.
-using TheoryOpDefinitionVec = Util::immutable_array<TheoryOpDefinition>;
+using TheoryOpDefinitionArray = Util::immutable_array<TheoryOpDefinition>;
 
 //! A theory term definition.
 //!
@@ -121,7 +121,7 @@ using TheoryOpDefinitionVec = Util::immutable_array<TheoryOpDefinition>;
 class TheoryTermDefinition {
   public:
     //! Construct a theory term definition.
-    explicit TheoryTermDefinition(Location loc, String name, TheoryOpDefinitionVec op_defs)
+    explicit TheoryTermDefinition(Location loc, String name, TheoryOpDefinitionArray op_defs)
         : loc_{std::move(loc)}, name_{name}, op_defs_{std::move(op_defs)} {}
 
     //! The location of the definition.
@@ -129,7 +129,7 @@ class TheoryTermDefinition {
     //! The name of the definition.
     [[nodiscard]] auto name() const -> String { return name_; }
     //! The associated operator definitions.
-    [[nodiscard]] auto op_defs() const -> Util::immutable_array<TheoryOpDefinition> const & { return op_defs_; }
+    [[nodiscard]] auto op_defs() const -> TheoryOpDefinitionArray const & { return op_defs_; }
 
     //! Update the record.
     template <bool Opt = false, class... Args> auto update(Args &&...args) const {
@@ -150,11 +150,11 @@ class TheoryTermDefinition {
 
     Location loc_;
     String name_;
-    Util::immutable_array<TheoryOpDefinition> op_defs_;
+    TheoryOpDefinitionArray op_defs_;
 };
 
 //! A vector of theory term definitions.
-using TheoryTermDefinitionVec = Util::immutable_array<TheoryTermDefinition>;
+using TheoryTermDefinitionArray = Util::immutable_array<TheoryTermDefinition>;
 
 //! Compare two theory term definitions.
 auto operator==(TheoryTermDefinition const &a, TheoryTermDefinition const &b) -> bool;
@@ -175,7 +175,7 @@ enum class TheoryAtomType {
 //! An optional definition for the right-hand-side of a theory atom.
 //!
 //! It consists of a list of possible operators and a name of a term definition.
-using TheoryRGuardDefinition = std::pair<Util::immutable_array<String>, String>;
+using TheoryRGuardDefinition = std::pair<StringArray, String>;
 
 //! A theory atom definition.
 //!
@@ -227,7 +227,7 @@ class TheoryAtomDefinition {
 };
 
 //! A vector of theory atom definitions.
-using TheoryAtomDefinitionVec = Util::immutable_array<TheoryAtomDefinition>;
+using TheoryAtomDefinitionArray = Util::immutable_array<TheoryAtomDefinition>;
 
 //! Compare two theory atom definitions.
 auto operator==(TheoryAtomDefinition const &a, TheoryAtomDefinition const &b) -> bool;
@@ -238,11 +238,11 @@ auto operator<(TheoryAtomDefinition const &a, TheoryAtomDefinition const &b) -> 
 //! A theory definition.
 //!
 //! For example: <tt>\#theory name { term { - : 0, unary }; name/2: term, any }</tt>.
-class TheoryDefinition {
+class StmTheory {
   public:
     //! Construct a theory definition.
-    explicit TheoryDefinition(Location loc, String name, TheoryTermDefinitionVec term_defs,
-                              TheoryAtomDefinitionVec atom_defs)
+    explicit StmTheory(Location loc, String name, TheoryTermDefinitionArray term_defs,
+                       TheoryAtomDefinitionArray atom_defs)
         : loc_{std::move(loc)}, name_{name}, term_defs_{std::move(term_defs)}, atom_defs_{std::move(atom_defs)} {}
 
     //! The location of the definition.
@@ -250,17 +250,16 @@ class TheoryDefinition {
     //! The name of the definition.
     [[nodiscard]] auto name() const -> String { return name_; }
     //! The theory term definitions.
-    [[nodiscard]] auto term_defs() const -> TheoryTermDefinitionVec const & { return term_defs_; }
+    [[nodiscard]] auto term_defs() const -> TheoryTermDefinitionArray const & { return term_defs_; }
     //! The theory atom definitions.
-    [[nodiscard]] auto atom_defs() const -> TheoryAtomDefinitionVec const & { return atom_defs_; }
+    [[nodiscard]] auto atom_defs() const -> TheoryAtomDefinitionArray const & { return atom_defs_; }
 
     //! Update the record.
     template <bool Opt = false, class... Args> auto update(Args &&...args) const {
         using namespace Gringo::Util::Record;
         check(Types{a_loc, a_name, a_term_defs, a_atom_defs}, Types{args...});
-        return TheoryDefinition{select<Opt>(a_loc, loc_, args...), select<Opt>(a_name, name_, args...),
-                                select<Opt>(a_term_defs, term_defs_, args...),
-                                select<Opt>(a_atom_defs, atom_defs_, args...)};
+        return StmTheory{select<Opt>(a_loc, loc_, args...), select<Opt>(a_name, name_, args...),
+                         select<Opt>(a_term_defs, term_defs_, args...), select<Opt>(a_atom_defs, atom_defs_, args...)};
     }
     //! Rewrite the record.
     template <class... Args> auto rewrite(Args &&...args) const {
@@ -268,21 +267,21 @@ class TheoryDefinition {
     }
 
   private:
-    friend auto operator==(TheoryDefinition const &a, TheoryDefinition const &b) -> bool;
-    friend auto operator<(TheoryDefinition const &a, TheoryDefinition const &b) -> bool;
-    friend struct Util::value_hasher<TheoryDefinition>;
+    friend auto operator==(StmTheory const &a, StmTheory const &b) -> bool;
+    friend auto operator<(StmTheory const &a, StmTheory const &b) -> bool;
+    friend struct Util::value_hasher<StmTheory>;
 
     Location loc_;
     String name_;
-    TheoryTermDefinitionVec term_defs_;
-    TheoryAtomDefinitionVec atom_defs_;
+    TheoryTermDefinitionArray term_defs_;
+    TheoryAtomDefinitionArray atom_defs_;
 };
 
 //! Compare two theory definitions.
-auto operator==(TheoryDefinition const &a, TheoryDefinition const &b) -> bool;
+auto operator==(StmTheory const &a, StmTheory const &b) -> bool;
 
 //! Compare two theory definitions.
-auto operator<(TheoryDefinition const &a, TheoryDefinition const &b) -> bool;
+auto operator<(StmTheory const &a, StmTheory const &b) -> bool;
 
 //! Enumeration of optimization statement types.
 //!
@@ -292,15 +291,27 @@ enum class OptimizeType { minimize, maximize };
 //! The tuple of a minimize element.
 class OptimizeTuple {
   public:
-    explicit OptimizeTuple(Term weight, std::optional<Term> priority, TermVec terms)
-        : weight_{std::move(weight)}, priority_{std::move(priority)}, terms_{std::move(terms)} {}
+    explicit OptimizeTuple(Term weight, std::optional<Term> priority, TermArray terms)
+        : weight_{std::move(weight)}, prio_{std::move(priority)}, terms_{std::move(terms)} {}
 
     //! The weight.
     [[nodiscard]] auto weight() const -> Term const & { return weight_; }
     //! The optional priority.
-    [[nodiscard]] auto priority() const -> std::optional<Term> const & { return priority_; }
+    [[nodiscard]] auto prio() const -> std::optional<Term> const & { return prio_; }
     //! The remaining terms.
-    [[nodiscard]] auto terms() const -> TermVec const & { return terms_; }
+    [[nodiscard]] auto terms() const -> TermArray const & { return terms_; }
+
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        check(Types{a_weight, a_prio, a_terms}, Types{args...});
+        return OptimizeTuple{select<Opt>(a_weight, weight_, args...), select<Opt>(a_prio, prio_, args...),
+                             select<Opt>(a_terms, terms_, args...)};
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
 
   private:
     friend auto operator==(OptimizeTuple const &a, OptimizeTuple const &b) -> bool;
@@ -308,22 +319,22 @@ class OptimizeTuple {
     friend struct Util::value_hasher<OptimizeTuple>;
 
     Term weight_;
-    std::optional<Term> priority_;
-    TermVec terms_;
+    std::optional<Term> prio_;
+    TermArray terms_;
 };
 
 //! An element.
-using OptimizeElement = std::pair<OptimizeTuple, LiteralVec>;
+using OptimizeElement = std::pair<OptimizeTuple, LitArray>;
 //! A vector of elements.
-using OptimizeElementVec = Util::immutable_array<OptimizeElement>;
+using OptimizeElementArray = Util::immutable_array<OptimizeElement>;
 
 //! An optimization statement.
 //!
 //! For example: <tt>\#minimize { 1@0,X: p(X) }</tt>.
-class StatementOptimize {
+class StmOptimize {
   public:
     //! Construct a weak constraint.
-    explicit StatementOptimize(Location loc, OptimizeType type, OptimizeElementVec elems)
+    explicit StmOptimize(Location loc, OptimizeType type, OptimizeElementArray elems)
         : loc_{std::move(loc)}, type_{type}, elems_{std::move(elems)} {}
 
     //! The location of the statement.
@@ -331,16 +342,28 @@ class StatementOptimize {
     //! The type of the statement.
     [[nodiscard]] auto type() const -> OptimizeType { return type_; }
     //! The elements of the statement.
-    [[nodiscard]] auto elems() const -> OptimizeElementVec const & { return elems_; }
+    [[nodiscard]] auto elems() const -> OptimizeElementArray const & { return elems_; }
+
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        check(Types{a_loc, a_type, a_elems}, Types{args...});
+        return StmOptimize{select<Opt>(a_loc, loc_, args...), select<Opt>(a_type, type_, args...),
+                           select<Opt>(a_elems, elems_, args...)};
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
 
   private:
-    friend auto operator==(StatementOptimize const &a, StatementOptimize const &b) -> bool;
-    friend auto operator<(StatementOptimize const &a, StatementOptimize const &b) -> bool;
-    friend struct Util::value_hasher<StatementOptimize>;
+    friend auto operator==(StmOptimize const &a, StmOptimize const &b) -> bool;
+    friend auto operator<(StmOptimize const &a, StmOptimize const &b) -> bool;
+    friend struct Util::value_hasher<StmOptimize>;
 
     Location loc_;
     OptimizeType type_;
-    OptimizeElementVec elems_;
+    OptimizeElementArray elems_;
 };
 
 //! Compare two tuples.
@@ -350,50 +373,62 @@ auto operator==(OptimizeTuple const &a, OptimizeTuple const &b) -> bool;
 auto operator<(OptimizeTuple const &a, OptimizeTuple const &b) -> bool;
 
 //! Compare two optimization statements.
-auto operator==(StatementOptimize const &a, StatementOptimize const &b) -> bool;
+auto operator==(StmOptimize const &a, StmOptimize const &b) -> bool;
 
 //! Compare two optimization statements.
-auto operator<(StatementOptimize const &a, StatementOptimize const &b) -> bool;
+auto operator<(StmOptimize const &a, StmOptimize const &b) -> bool;
 
 //! A weak constraint.
 //!
 //! For example: <tt>:~ p(X). [1@0,X]</tt>.
-class StatementWeakConstraint {
+class StmWeakConstraint {
   public:
     //! Construct a weak constraint.
-    explicit StatementWeakConstraint(Location loc, BodyLiteralVec body, OptimizeTuple tuple)
+    explicit StmWeakConstraint(Location loc, BdLitArray body, OptimizeTuple tuple)
         : loc_{std::move(loc)}, body_{std::move(body)}, tuple_{std::move(tuple)} {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The body of the constraint.
-    [[nodiscard]] auto body() const -> BodyLiteralVec const & { return body_; }
+    [[nodiscard]] auto body() const -> BdLitArray const & { return body_; }
     //! The tuple of the constraint.
     [[nodiscard]] auto tuple() const -> OptimizeTuple const & { return tuple_; }
 
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        check(Types{a_loc, a_body, a_tuple}, Types{args...});
+        return StmWeakConstraint{select<Opt>(a_loc, loc_, args...), select<Opt>(a_body, body_, args...),
+                                 select<Opt>(a_tuple, tuple_, args...)};
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
+
   private:
-    friend auto operator==(StatementWeakConstraint const &a, StatementWeakConstraint const &b) -> bool;
-    friend auto operator<(StatementWeakConstraint const &a, StatementWeakConstraint const &b) -> bool;
-    friend struct Util::value_hasher<StatementWeakConstraint>;
+    friend auto operator==(StmWeakConstraint const &a, StmWeakConstraint const &b) -> bool;
+    friend auto operator<(StmWeakConstraint const &a, StmWeakConstraint const &b) -> bool;
+    friend struct Util::value_hasher<StmWeakConstraint>;
 
     Location loc_;
-    BodyLiteralVec body_;
+    BdLitArray body_;
     OptimizeTuple tuple_;
 };
 
 //! Compare two weak constraints.
-auto operator==(StatementWeakConstraint const &a, StatementWeakConstraint const &b) -> bool;
+auto operator==(StmWeakConstraint const &a, StmWeakConstraint const &b) -> bool;
 
 //! Compare two weak constraints.
-auto operator<(StatementWeakConstraint const &a, StatementWeakConstraint const &b) -> bool;
+auto operator<(StmWeakConstraint const &a, StmWeakConstraint const &b) -> bool;
 
 //! A show statement.
 //!
 //! Example: <tt>\#show p(X): q(X)</tt>.
-class StatementShow {
+class StmShow {
   public:
     //! Construct a show statement.
-    explicit StatementShow(Location loc, Term term, BodyLiteralVec body)
+    explicit StmShow(Location loc, Term term, BdLitArray body)
         : loc_{std::move(loc)}, term_(std::move(term)), body_(std::move(body)) {}
 
     //! The location of the statement.
@@ -401,66 +436,90 @@ class StatementShow {
     //! The term to show.
     [[nodiscard]] auto term() const -> Term const & { return term_; }
     //! The body.
-    [[nodiscard]] auto body() const -> BodyLiteralVec const & { return body_; }
+    [[nodiscard]] auto body() const -> BdLitArray const & { return body_; }
+
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        check(Types{a_loc, a_term, a_body}, Types{args...});
+        return StmShow{select<Opt>(a_loc, loc_, args...), select<Opt>(a_term, term_, args...),
+                       select<Opt>(a_body, body_, args...)};
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
 
   private:
-    friend auto operator==(StatementShow const &a, StatementShow const &b) -> bool;
-    friend auto operator<(StatementShow const &a, StatementShow const &b) -> bool;
-    friend struct Util::value_hasher<StatementShow>;
+    friend auto operator==(StmShow const &a, StmShow const &b) -> bool;
+    friend auto operator<(StmShow const &a, StmShow const &b) -> bool;
+    friend struct Util::value_hasher<StmShow>;
 
     Location loc_;
     Term term_;
-    BodyLiteralVec body_;
+    BdLitArray body_;
 };
 
 //! Compare two show statements.
-auto operator==(StatementShow const &a, StatementShow const &b) -> bool;
+auto operator==(StmShow const &a, StmShow const &b) -> bool;
 
 //! Compare two show statements.
-auto operator<(StatementShow const &a, StatementShow const &b) -> bool;
+auto operator<(StmShow const &a, StmShow const &b) -> bool;
 
 //! A show signature statement.
 //!
 //! Example: <tt>\#show p/2</tt>.
-class StatementShowSig {
+class StmShowSig {
   public:
     //! Construct a show signature statement.
-    explicit StatementShowSig(Location loc, bool has_sign, String name, int arity)
-        : loc_{std::move(loc)}, has_sign_{has_sign}, name_{name}, arity_{arity} {}
+    explicit StmShowSig(Location loc, bool sign, String name, int arity)
+        : loc_{std::move(loc)}, name_{name}, arity_{arity}, sign_{sign} {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! Whether the signature is negative.
-    [[nodiscard]] auto has_sign() const -> bool { return has_sign_; }
+    [[nodiscard]] auto sign() const -> bool { return sign_; }
     //! The name.
     [[nodiscard]] auto name() const -> String { return name_; }
     //! The arity.
     [[nodiscard]] auto arity() const -> int { return arity_; }
 
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        check(Types{a_loc, a_sign, a_name, a_arity}, Types{args...});
+        return StmShowSig{select<Opt>(a_loc, loc_, args...), select<Opt>(a_sign, sign_, args...),
+                          select<Opt>(a_name, name_, args...), select<Opt>(a_arity, arity_, args...)};
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
+
   private:
-    friend auto operator==(StatementShowSig const &a, StatementShowSig const &b) -> bool;
-    friend auto operator<(StatementShowSig const &a, StatementShowSig const &b) -> bool;
-    friend struct Util::value_hasher<StatementShowSig>;
+    friend auto operator==(StmShowSig const &a, StmShowSig const &b) -> bool;
+    friend auto operator<(StmShowSig const &a, StmShowSig const &b) -> bool;
+    friend struct Util::value_hasher<StmShowSig>;
 
     Location loc_;
-    bool has_sign_;
     String name_;
     int arity_;
+    bool sign_;
 };
 
 //! Compare two show statements.
-auto operator==(StatementShowSig const &a, StatementShowSig const &b) -> bool;
+auto operator==(StmShowSig const &a, StmShowSig const &b) -> bool;
 
 //! Compare two show statements.
-auto operator<(StatementShowSig const &a, StatementShowSig const &b) -> bool;
+auto operator<(StmShowSig const &a, StmShowSig const &b) -> bool;
 
 //! A project statement.
 //!
 //! Example: <tt>\#project p(X): q(X)</tt>.
-class StatementProject {
+class StmProject {
   public:
     //! Construct a project statement.
-    explicit StatementProject(Location loc, Term term, BodyLiteralVec body)
+    explicit StmProject(Location loc, Term term, BdLitArray body)
         : loc_{std::move(loc)}, term_(std::move(term)), body_(std::move(body)) {}
 
     //! The location of the statement.
@@ -468,85 +527,121 @@ class StatementProject {
     //! The term representing the atom to project.
     [[nodiscard]] auto term() const -> Term const & { return term_; }
     //! The body.
-    [[nodiscard]] auto body() const -> BodyLiteralVec const & { return body_; }
+    [[nodiscard]] auto body() const -> BdLitArray const & { return body_; }
+
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        check(Types{a_loc, a_term, a_body}, Types{args...});
+        return StmProject{select<Opt>(a_loc, loc_, args...), select<Opt>(a_term, term_, args...),
+                          select<Opt>(a_body, body_, args...)};
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
 
   private:
-    friend auto operator==(StatementProject const &a, StatementProject const &b) -> bool;
-    friend auto operator<(StatementProject const &a, StatementProject const &b) -> bool;
-    friend struct Util::value_hasher<StatementProject>;
+    friend auto operator==(StmProject const &a, StmProject const &b) -> bool;
+    friend auto operator<(StmProject const &a, StmProject const &b) -> bool;
+    friend struct Util::value_hasher<StmProject>;
 
     Location loc_;
     Term term_;
-    BodyLiteralVec body_;
+    BdLitArray body_;
 };
 
 //! Compare two project statements.
-auto operator==(StatementProject const &a, StatementProject const &b) -> bool;
+auto operator==(StmProject const &a, StmProject const &b) -> bool;
 
 //! Compare two project statements.
-auto operator<(StatementProject const &a, StatementProject const &b) -> bool;
+auto operator<(StmProject const &a, StmProject const &b) -> bool;
 
 //! A project signature statement.
 //!
 //! Example: <tt>\#project p/2</tt>.
-class StatementProjectSig {
+class StmProjectSig {
   public:
     //! Construct a project signature statement.
-    explicit StatementProjectSig(Location loc, bool has_sign, String name, int arity)
-        : loc_{std::move(loc)}, has_sign_{has_sign}, name_{name}, arity_{arity} {}
+    explicit StmProjectSig(Location loc, bool sign, String name, int arity)
+        : loc_{std::move(loc)}, sign_{sign}, name_{name}, arity_{arity} {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! Whether the signature is negative.
-    [[nodiscard]] auto has_sign() const -> bool { return has_sign_; }
+    [[nodiscard]] auto sign() const -> bool { return sign_; }
     //! The name.
     [[nodiscard]] auto name() const -> String { return name_; }
     //! The arity.
     [[nodiscard]] auto arity() const -> int { return arity_; }
 
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        check(Types{a_loc, a_sign, a_name, a_arity}, Types{args...});
+        return StmProjectSig{select<Opt>(a_loc, loc_, args...), select<Opt>(a_sign, sign_, args...),
+                             select<Opt>(a_name, name_, args...), select<Opt>(a_arity, arity_, args...)};
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
+
   private:
-    friend auto operator==(StatementProjectSig const &a, StatementProjectSig const &b) -> bool;
-    friend auto operator<(StatementProjectSig const &a, StatementProjectSig const &b) -> bool;
-    friend struct Util::value_hasher<StatementProjectSig>;
+    friend auto operator==(StmProjectSig const &a, StmProjectSig const &b) -> bool;
+    friend auto operator<(StmProjectSig const &a, StmProjectSig const &b) -> bool;
+    friend struct Util::value_hasher<StmProjectSig>;
 
     Location loc_;
-    bool has_sign_;
+    bool sign_;
     String name_;
     int arity_;
 };
 
 //! Compare two project statements.
-auto operator==(StatementProjectSig const &a, StatementProjectSig const &b) -> bool;
+auto operator==(StmProjectSig const &a, StmProjectSig const &b) -> bool;
 
 //! Compare two project statements.
-auto operator<(StatementProjectSig const &a, StatementProjectSig const &b) -> bool;
+auto operator<(StmProjectSig const &a, StmProjectSig const &b) -> bool;
 
 //! A defined statement.
 //!
 //! Example: <tt>\#defined p/2</tt>.
-class StatementDefined {
+class StmDefined {
   public:
     //! Construct a defined statement.
-    explicit StatementDefined(Location loc, bool has_sign, String name, int arity)
-        : loc_{std::move(loc)}, has_sign_{has_sign}, name_{name}, arity_{arity} {}
+    explicit StmDefined(Location loc, bool sign, String name, int arity)
+        : loc_{std::move(loc)}, sign_{sign}, name_{name}, arity_{arity} {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! Whether the signature is negative.
-    [[nodiscard]] auto has_sign() const -> bool { return has_sign_; }
+    [[nodiscard]] auto sign() const -> bool { return sign_; }
     //! The name.
     [[nodiscard]] auto name() const -> String { return name_; }
     //! The arity.
     [[nodiscard]] auto arity() const -> int { return arity_; }
 
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        check(Types{a_loc, a_sign, a_name, a_arity}, Types{args...});
+        return StmDefined{select<Opt>(a_loc, loc_, args...), select<Opt>(a_sign, sign_, args...),
+                          select<Opt>(a_name, name_, args...), select<Opt>(a_arity, arity_, args...)};
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
+
   private:
-    friend auto operator==(StatementDefined const &a, StatementDefined const &b) -> bool;
-    friend auto operator<(StatementDefined const &a, StatementDefined const &b) -> bool;
-    friend struct Util::value_hasher<StatementDefined>;
+    friend auto operator==(StmDefined const &a, StmDefined const &b) -> bool;
+    friend auto operator<(StmDefined const &a, StmDefined const &b) -> bool;
+    friend struct Util::value_hasher<StmDefined>;
 
     Location loc_;
     //! Whether the signature is negative.
-    bool has_sign_;
+    bool sign_;
     //! The name.
     String name_;
     //! The arity.
@@ -554,18 +649,18 @@ class StatementDefined {
 };
 
 //! Compare two defined statements.
-auto operator==(StatementDefined const &a, StatementDefined const &b) -> bool;
+auto operator==(StmDefined const &a, StmDefined const &b) -> bool;
 
 //! Compare two defined statements.
-auto operator<(StatementDefined const &a, StatementDefined const &b) -> bool;
+auto operator<(StmDefined const &a, StmDefined const &b) -> bool;
 
 //! An external statement.
 //!
 //! Example: <tt>\#external p(X): q(X)</tt>.
-class StatementExternal {
+class StmExternal {
   public:
     //! Construct an external statement.
-    explicit StatementExternal(Location loc, Term term, BodyLiteralVec body, std::optional<Term> type = std::nullopt)
+    explicit StmExternal(Location loc, Term term, BdLitArray body, std::optional<Term> type = std::nullopt)
         : loc_{std::move(loc)}, term_(std::move(term)), body_(std::move(body)), type_{std::move(type)} {}
 
     //! The location of the statement.
@@ -573,36 +668,59 @@ class StatementExternal {
     //! The term representing the atom to project.
     [[nodiscard]] auto term() const -> Term const & { return term_; }
     //! The body.
-    [[nodiscard]] auto body() const -> BodyLiteralVec const & { return body_; }
+    [[nodiscard]] auto body() const -> BdLitArray const & { return body_; }
     //! The type of the statement.
     [[nodiscard]] auto type() const -> std::optional<Term> const & { return type_; }
 
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        check(Types{a_loc, a_term, a_body, a_type}, Types{args...});
+        return StmExternal{select<Opt>(a_loc, loc_, args...), select<Opt>(a_term, term_, args...),
+                           select<Opt>(a_body, body_, args...), select<Opt>(a_type, type_, args...)};
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
+
   private:
-    friend auto operator==(StatementExternal const &a, StatementExternal const &b) -> bool;
-    friend auto operator<(StatementExternal const &a, StatementExternal const &b) -> bool;
-    friend struct Util::value_hasher<StatementExternal>;
+    friend auto operator==(StmExternal const &a, StmExternal const &b) -> bool;
+    friend auto operator<(StmExternal const &a, StmExternal const &b) -> bool;
+    friend struct Util::value_hasher<StmExternal>;
 
     Location loc_;
     Term term_;
-    BodyLiteralVec body_;
+    BdLitArray body_;
     std::optional<Term> type_;
 };
 
 //! Compare two external statements.
-auto operator==(StatementExternal const &a, StatementExternal const &b) -> bool;
+auto operator==(StmExternal const &a, StmExternal const &b) -> bool;
 
 //! Compare two external statements.
-auto operator<(StatementExternal const &a, StatementExternal const &b) -> bool;
+auto operator<(StmExternal const &a, StmExternal const &b) -> bool;
 
 //! An directed edge.
 class Edge {
   public:
-    explicit Edge(Term u, Term v) : u_{std::move(u)}, v_{std::move(v)} {}
+    explicit Edge(Term src, Term dst) : src_{std::move(src)}, dst_{std::move(dst)} {}
 
     //! The source vertex.
-    [[nodiscard]] auto u() const -> Term const & { return u_; }
+    [[nodiscard]] auto src() const -> Term const & { return src_; }
     //! The target vertex.
-    [[nodiscard]] auto v() const -> Term const & { return v_; }
+    [[nodiscard]] auto dst() const -> Term const & { return dst_; }
+
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        check(Types{a_src, a_dst}, Types{args...});
+        return Edge{select<Opt>(a_src, src_, args...), select<Opt>(a_dst, dst_, args...)};
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
 
   private:
     friend auto operator==(Edge const &a, Edge const &b) -> bool;
@@ -610,37 +728,49 @@ class Edge {
     friend struct Util::value_hasher<Edge>;
 
     //! The source vertex.
-    Term u_;
+    Term src_;
     //! The target vertex.
-    Term v_;
+    Term dst_;
 };
 //! A vector of edges.
-using EdgeVec = Util::immutable_array<Edge>;
+using EdgeArray = Util::immutable_array<Edge>;
 
 //! An edge statement.
 //!
 //! Example: <tt>\#edge (X,Y): connected(X,Y).</tt>.
-class StatementEdge {
+class StmEdge {
   public:
     //! Construct an edge statement.
-    explicit StatementEdge(Location loc, EdgeVec edges, BodyLiteralVec body = {})
+    explicit StmEdge(Location loc, EdgeArray edges, BdLitArray body = {})
         : loc_{std::move(loc)}, edges_{std::move(edges)}, body_{std::move(body)} {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The pool of edges.
-    [[nodiscard]] auto edges() const -> EdgeVec const & { return edges_; }
+    [[nodiscard]] auto edges() const -> EdgeArray const & { return edges_; }
     //! The body.
-    [[nodiscard]] auto body() const -> BodyLiteralVec const & { return body_; }
+    [[nodiscard]] auto body() const -> BdLitArray const & { return body_; }
+
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        check(Types{a_loc, a_edges, a_body}, Types{args...});
+        return StmEdge{select<Opt>(a_loc, loc_, args...), select<Opt>(a_edges, edges_, args...),
+                       select<Opt>(a_body, body_, args...)};
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
 
   private:
-    friend auto operator==(StatementEdge const &a, StatementEdge const &b) -> bool;
-    friend auto operator<(StatementEdge const &a, StatementEdge const &b) -> bool;
-    friend struct Util::value_hasher<StatementEdge>;
+    friend auto operator==(StmEdge const &a, StmEdge const &b) -> bool;
+    friend auto operator<(StmEdge const &a, StmEdge const &b) -> bool;
+    friend struct Util::value_hasher<StmEdge>;
 
     Location loc_;
-    EdgeVec edges_;
-    BodyLiteralVec body_;
+    EdgeArray edges_;
+    BdLitArray body_;
 };
 
 //! Compare two edges.
@@ -650,94 +780,118 @@ auto operator==(Edge const &a, Edge const &b) -> bool;
 auto operator<(Edge const &a, Edge const &b) -> bool;
 
 //! Compare two edge statements.
-auto operator==(StatementEdge const &a, StatementEdge const &b) -> bool;
+auto operator==(StmEdge const &a, StmEdge const &b) -> bool;
 
 //! Compare two edge statements.
-auto operator<(StatementEdge const &a, StatementEdge const &b) -> bool;
+auto operator<(StmEdge const &a, StmEdge const &b) -> bool;
 
 //! A heuristic statement.
 //!
 //! Example: <tt>\#heuristic p(X). [sign,false]</tt>.
-class StatementHeuristic {
+class StmHeuristic {
   public:
     //! Construct a heuristic statement.
-    explicit StatementHeuristic(Location loc, Term atom, BodyLiteralVec body, Term type, std::optional<Term> prio,
-                                Term mod)
-        : loc_{std::move(loc)}, atom_{std::move(atom)}, body_{std::move(body)}, type_(std::move(type)),
-          prio_(std::move(prio)), mod_(std::move(mod)) {}
+    explicit StmHeuristic(Location loc, Term atom, BdLitArray body, Term type, std::optional<Term> prio, Term weight)
+        : loc_{std::move(loc)}, atom_{std::move(atom)}, body_{std::move(body)}, weight_(std::move(type)),
+          prio_(std::move(prio)), type_(std::move(weight)) {}
     //! Construct a heuristic statement.
-    explicit StatementHeuristic(Location loc, Term atom, BodyLiteralVec body, Term type, Term prio, Term mod)
-        : StatementHeuristic{
+    explicit StmHeuristic(Location loc, Term atom, BdLitArray body, Term type, Term prio, Term mod)
+        : StmHeuristic{
               std::move(loc), std::move(atom), std::move(body), std::move(type), std::make_optional(std::move(prio)),
               std::move(mod)} {}
     //! Construct a heuristic statement.
-    explicit StatementHeuristic(Location loc, Term atom, BodyLiteralVec body, Term type, Term mod)
-        : StatementHeuristic{std::move(loc),  std::move(atom), std::move(body),
-                             std::move(type), std::nullopt,    std::move(mod)} {}
+    explicit StmHeuristic(Location loc, Term atom, BdLitArray body, Term type, Term mod)
+        : StmHeuristic{std::move(loc),  std::move(atom), std::move(body),
+                       std::move(type), std::nullopt,    std::move(mod)} {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The atom to modify.
     [[nodiscard]] auto atom() const -> Term const & { return atom_; }
     //! The body.
-    [[nodiscard]] auto body() const -> BodyLiteralVec const & { return body_; }
-    //! The type.
-    [[nodiscard]] auto type() const -> Term const & { return type_; }
+    [[nodiscard]] auto body() const -> BdLitArray const & { return body_; }
+    //! The weight.
+    [[nodiscard]] auto weight() const -> Term const & { return weight_; }
     //! The optional priority.
     [[nodiscard]] auto prio() const -> std::optional<Term> const & { return prio_; }
-    //! The modifier.
-    [[nodiscard]] auto mod() const -> Term const & { return mod_; }
+    //! The type of the heuristic modification.
+    [[nodiscard]] auto type() const -> Term const & { return type_; }
+
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        check(Types{a_loc, a_atom, a_body, a_weight, a_prio, a_type}, Types{args...});
+        return StmHeuristic{select<Opt>(a_loc, loc_, args...),   select<Opt>(a_atom, atom_, args...),
+                            select<Opt>(a_body, body_, args...), select<Opt>(a_weight, weight_, args...),
+                            select<Opt>(a_prio, prio_, args...), select<Opt>(a_type, type_, args...)};
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
 
   private:
-    friend auto operator==(StatementHeuristic const &a, StatementHeuristic const &b) -> bool;
-    friend auto operator<(StatementHeuristic const &a, StatementHeuristic const &b) -> bool;
-    friend struct Util::value_hasher<StatementHeuristic>;
+    friend auto operator==(StmHeuristic const &a, StmHeuristic const &b) -> bool;
+    friend auto operator<(StmHeuristic const &a, StmHeuristic const &b) -> bool;
+    friend struct Util::value_hasher<StmHeuristic>;
 
     Location loc_;
     Term atom_;
-    BodyLiteralVec body_;
-    Term type_;
+    BdLitArray body_;
+    Term weight_;
     std::optional<Term> prio_;
-    Term mod_;
+    Term type_;
 };
 
 //! Compare two heuristic statements.
-auto operator==(StatementHeuristic const &a, StatementHeuristic const &b) -> bool;
+auto operator==(StmHeuristic const &a, StmHeuristic const &b) -> bool;
 
 //! Compare two heuristic statements.
-auto operator<(StatementHeuristic const &a, StatementHeuristic const &b) -> bool;
+auto operator<(StmHeuristic const &a, StmHeuristic const &b) -> bool;
 
 //! A script statement.
 //!
 //! For example: <tt>\#script(python) some code \#end</tt>.
-class StatementScript {
+class StmScript {
   public:
     //! Construct a script statement.
-    explicit StatementScript(Location loc, String type, std::string content)
-        : loc_{std::move(loc)}, type_(type), content_(std::move(content)) {}
+    explicit StmScript(Location loc, String type, std::string value)
+        : loc_{std::move(loc)}, type_(type), value_(std::move(value)) {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The code type.
     [[nodiscard]] auto type() const -> String { return type_; }
     //! The code.
-    [[nodiscard]] auto content() const -> std::string const & { return content_; }
+    [[nodiscard]] auto value() const -> std::string const & { return value_; }
+
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        check(Types{a_loc, a_type, a_value}, Types{args...});
+        return StmScript{select<Opt>(a_loc, loc_, args...), select<Opt>(a_type, type_, args...),
+                         select<Opt>(a_value, value_, args...)};
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
 
   private:
-    friend auto operator==(StatementScript const &a, StatementScript const &b) -> bool;
-    friend auto operator<(StatementScript const &a, StatementScript const &b) -> bool;
-    friend struct Util::value_hasher<StatementScript>;
+    friend auto operator==(StmScript const &a, StmScript const &b) -> bool;
+    friend auto operator<(StmScript const &a, StmScript const &b) -> bool;
+    friend struct Util::value_hasher<StmScript>;
 
     Location loc_;
     String type_;
-    std::string content_;
+    std::string value_;
 };
 
 //! Compare two script statements.
-auto operator==(StatementScript const &a, StatementScript const &b) -> bool;
+auto operator==(StmScript const &a, StmScript const &b) -> bool;
 
 //! Compare two script statements.
-auto operator<(StatementScript const &a, StatementScript const &b) -> bool;
+auto operator<(StmScript const &a, StmScript const &b) -> bool;
 
 //! Enumeration of include types.
 //!
@@ -750,42 +904,54 @@ enum class IncludeType {
 //! An include statement.
 //!
 //! For example: <tt>\#include "encoding.lp"</tt>.
-class StatementInclude {
+class StmInclude {
   public:
     //! Construct an include statement.
-    explicit StatementInclude(Location loc, IncludeType type, std::string path)
-        : loc_{std::move(loc)}, type_(type), path_(std::move(path)) {}
+    explicit StmInclude(Location loc, IncludeType type, std::string value)
+        : loc_{std::move(loc)}, type_(type), value_(std::move(value)) {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The include type.
     [[nodiscard]] auto type() const -> IncludeType { return type_; }
     //! The path.
-    [[nodiscard]] auto path() const -> std::string const & { return path_; }
+    [[nodiscard]] auto value() const -> std::string const & { return value_; }
+
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        check(Types{a_loc, a_type, a_value}, Types{args...});
+        return StmInclude{select<Opt>(a_loc, loc_, args...), select<Opt>(a_type, type_, args...),
+                          select<Opt>(a_value, value_, args...)};
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
 
   private:
-    friend auto operator==(StatementInclude const &a, StatementInclude const &b) -> bool;
-    friend auto operator<(StatementInclude const &a, StatementInclude const &b) -> bool;
-    friend struct Util::value_hasher<StatementInclude>;
+    friend auto operator==(StmInclude const &a, StmInclude const &b) -> bool;
+    friend auto operator<(StmInclude const &a, StmInclude const &b) -> bool;
+    friend struct Util::value_hasher<StmInclude>;
 
     Location loc_;
     IncludeType type_;
-    std::string path_;
+    std::string value_;
 };
 
 //! Compare two include statements.
-auto operator==(StatementInclude const &a, StatementInclude const &b) -> bool;
+auto operator==(StmInclude const &a, StmInclude const &b) -> bool;
 
 //! Compare two include statements.
-auto operator<(StatementInclude const &a, StatementInclude const &b) -> bool;
+auto operator<(StmInclude const &a, StmInclude const &b) -> bool;
 
 //! A program statement.
 //!
 //! For example: <tt>\#program check(t)"</tt>.
-class StatementProgram {
+class StmProgram {
   public:
     //! Construct an program statement.
-    explicit StatementProgram(Location loc, String name, Util::immutable_array<String> args)
+    explicit StmProgram(Location loc, String name, StringArray args)
         : loc_{std::move(loc)}, name_(name), args_(std::move(args)) {}
 
     //! The location of the statement.
@@ -793,23 +959,35 @@ class StatementProgram {
     //! The name of the program.
     [[nodiscard]] auto name() const -> String const & { return name_; }
     //! The arguments of the program.
-    [[nodiscard]] auto args() const -> Util::immutable_array<String> const & { return args_; }
+    [[nodiscard]] auto args() const -> StringArray const & { return args_; }
+
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        check(Types{a_loc, a_name, a_args}, Types{args...});
+        return StmProgram{select<Opt>(a_loc, loc_, args...), select<Opt>(a_name, name_, args...),
+                          select<Opt>(a_args, args_, args...)};
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
 
   private:
-    friend auto operator==(StatementProgram const &a, StatementProgram const &b) -> bool;
-    friend auto operator<(StatementProgram const &a, StatementProgram const &b) -> bool;
-    friend struct Util::value_hasher<StatementProgram>;
+    friend auto operator==(StmProgram const &a, StmProgram const &b) -> bool;
+    friend auto operator<(StmProgram const &a, StmProgram const &b) -> bool;
+    friend struct Util::value_hasher<StmProgram>;
 
     Location loc_;
     String name_;
-    Util::immutable_array<String> args_;
+    StringArray args_;
 };
 
 //! Compare two program statements.
-auto operator==(StatementProgram const &a, StatementProgram const &b) -> bool;
+auto operator==(StmProgram const &a, StmProgram const &b) -> bool;
 
 //! Compare two program statements.
-auto operator<(StatementProgram const &a, StatementProgram const &b) -> bool;
+auto operator<(StmProgram const &a, StmProgram const &b) -> bool;
 
 //! Enumeration of constant statement types.
 //!
@@ -822,10 +1000,10 @@ enum class ConstType {
 //! A const statement.
 //!
 //! For example: <tt>\#const n=42</tt>.
-class StatementConst {
+class StmConst {
   public:
     //! Construct a const statement.
-    explicit StatementConst(Location loc, ConstType type, String name, Term value)
+    explicit StmConst(Location loc, ConstType type, String name, Term value)
         : loc_{std::move(loc)}, type_(type), name_(name), value_(std::move(value)) {}
 
     //! The location of the statement.
@@ -837,10 +1015,22 @@ class StatementConst {
     //! The value of the constant
     [[nodiscard]] auto value() const -> Term const & { return value_; }
 
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        check(Types{a_loc, a_type, a_name, a_value}, Types{args...});
+        return StmConst{select<Opt>(a_loc, loc_, args...), select<Opt>(a_type, type_, args...),
+                        select<Opt>(a_name, name_, args...), select<Opt>(a_value, value_, args...)};
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
+
   private:
-    friend auto operator==(StatementConst const &a, StatementConst const &b) -> bool;
-    friend auto operator<(StatementConst const &a, StatementConst const &b) -> bool;
-    friend struct Util::value_hasher<StatementConst>;
+    friend auto operator==(StmConst const &a, StmConst const &b) -> bool;
+    friend auto operator<(StmConst const &a, StmConst const &b) -> bool;
+    friend struct Util::value_hasher<StmConst>;
 
     Location loc_;
     ConstType type_;
@@ -849,10 +1039,10 @@ class StatementConst {
 };
 
 //! Compare two const statements.
-auto operator==(StatementConst const &a, StatementConst const &b) -> bool;
+auto operator==(StmConst const &a, StmConst const &b) -> bool;
 
 //! Compare two const statements.
-auto operator<(StatementConst const &a, StatementConst const &b) -> bool;
+auto operator<(StmConst const &a, StmConst const &b) -> bool;
 
 //! Enumeration of comment types.
 //!
@@ -865,10 +1055,10 @@ enum class CommentType {
 //! A commment.
 //!
 //! For example: <tt>%* comment *%</tt>
-class Comment {
+class StmComment {
   public:
     //! Construct a comment.
-    explicit Comment(Location loc, CommentType type, std::string value)
+    explicit StmComment(Location loc, CommentType type, std::string value)
         : loc_{std::move(loc)}, type_{type}, value_{std::move(value)} {}
 
     //! The location of the statement.
@@ -878,10 +1068,22 @@ class Comment {
     //! The content of the comment including comment markers.
     [[nodiscard]] auto value() const -> std::string const & { return value_; }
 
+    //! Update the record.
+    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
+        using namespace Gringo::Util::Record;
+        check(Types{a_loc, a_type, a_value}, Types{args...});
+        return StmComment{select<Opt>(a_loc, loc_, args...), select<Opt>(a_type, type_, args...),
+                          select<Opt>(a_value, value_, args...)};
+    }
+    //! Rewrite the record.
+    template <class... Args> auto rewrite(Args &&...args) const {
+        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
+    }
+
   private:
-    friend auto operator==(Comment const &a, Comment const &b) -> bool;
-    friend auto operator<(Comment const &a, Comment const &b) -> bool;
-    friend struct Util::value_hasher<Comment>;
+    friend auto operator==(StmComment const &a, StmComment const &b) -> bool;
+    friend auto operator<(StmComment const &a, StmComment const &b) -> bool;
+    friend struct Util::value_hasher<StmComment>;
 
     Location loc_;
     CommentType type_;
@@ -889,18 +1091,17 @@ class Comment {
 };
 
 //! Compare two comments.
-auto operator==(Comment const &a, Comment const &b) -> bool;
+auto operator==(StmComment const &a, StmComment const &b) -> bool;
 
 //! Compare two comments.
-auto operator<(Comment const &a, Comment const &b) -> bool;
+auto operator<(StmComment const &a, StmComment const &b) -> bool;
 
 //! Variant of available statements.
-using Statement =
-    std::variant<Rule, TheoryDefinition, StatementOptimize, StatementWeakConstraint, StatementShow, StatementShowSig,
-                 StatementProject, StatementProjectSig, StatementDefined, StatementExternal, StatementEdge,
-                 StatementHeuristic, StatementScript, StatementInclude, StatementProgram, StatementConst, Comment>;
+using Stm = std::variant<StmRule, StmTheory, StmOptimize, StmWeakConstraint, StmShow, StmShowSig, StmProject,
+                         StmProjectSig, StmDefined, StmExternal, StmEdge, StmHeuristic, StmScript, StmInclude,
+                         StmProgram, StmConst, StmComment>;
 //! A vector of statements.
-using StatementVec = std::vector<Statement>;
+using StmVec = std::vector<Stm>;
 
 //! @}
 
@@ -911,24 +1112,24 @@ using StatementVec = std::vector<Statement>;
 GRINGO_HASH_PROTO(Gringo::Input::TheoryOpDefinition);
 GRINGO_HASH_PROTO(Gringo::Input::TheoryTermDefinition);
 GRINGO_HASH_PROTO(Gringo::Input::TheoryAtomDefinition);
-GRINGO_HASH_PROTO(Gringo::Input::TheoryDefinition);
+GRINGO_HASH_PROTO(Gringo::Input::StmTheory);
 GRINGO_HASH_PROTO(Gringo::Input::OptimizeTuple);
 GRINGO_HASH_PROTO(Gringo::Input::Edge);
-GRINGO_HASH_PROTO(Gringo::Input::Rule);
-GRINGO_HASH_PROTO(Gringo::Input::StatementOptimize);
-GRINGO_HASH_PROTO(Gringo::Input::StatementWeakConstraint);
-GRINGO_HASH_PROTO(Gringo::Input::StatementShow);
-GRINGO_HASH_PROTO(Gringo::Input::StatementShowSig);
-GRINGO_HASH_PROTO(Gringo::Input::StatementProject);
-GRINGO_HASH_PROTO(Gringo::Input::StatementProjectSig);
-GRINGO_HASH_PROTO(Gringo::Input::StatementDefined);
-GRINGO_HASH_PROTO(Gringo::Input::StatementExternal);
-GRINGO_HASH_PROTO(Gringo::Input::StatementEdge);
-GRINGO_HASH_PROTO(Gringo::Input::StatementHeuristic);
-GRINGO_HASH_PROTO(Gringo::Input::StatementScript);
-GRINGO_HASH_PROTO(Gringo::Input::StatementInclude);
-GRINGO_HASH_PROTO(Gringo::Input::StatementProgram);
-GRINGO_HASH_PROTO(Gringo::Input::StatementConst);
-GRINGO_HASH_PROTO(Gringo::Input::Comment);
+GRINGO_HASH_PROTO(Gringo::Input::StmRule);
+GRINGO_HASH_PROTO(Gringo::Input::StmOptimize);
+GRINGO_HASH_PROTO(Gringo::Input::StmWeakConstraint);
+GRINGO_HASH_PROTO(Gringo::Input::StmShow);
+GRINGO_HASH_PROTO(Gringo::Input::StmShowSig);
+GRINGO_HASH_PROTO(Gringo::Input::StmProject);
+GRINGO_HASH_PROTO(Gringo::Input::StmProjectSig);
+GRINGO_HASH_PROTO(Gringo::Input::StmDefined);
+GRINGO_HASH_PROTO(Gringo::Input::StmExternal);
+GRINGO_HASH_PROTO(Gringo::Input::StmEdge);
+GRINGO_HASH_PROTO(Gringo::Input::StmHeuristic);
+GRINGO_HASH_PROTO(Gringo::Input::StmScript);
+GRINGO_HASH_PROTO(Gringo::Input::StmInclude);
+GRINGO_HASH_PROTO(Gringo::Input::StmProgram);
+GRINGO_HASH_PROTO(Gringo::Input::StmConst);
+GRINGO_HASH_PROTO(Gringo::Input::StmComment);
 
 #endif

@@ -14,8 +14,8 @@
 
 namespace Gringo::Input {
 
-void rewrite(Logger &log, SymbolStore &store, ParamMap &param_map, ConstMap &const_map, Statement const &stm,
-             RewriteOptions opts, StatementVec &stms) {
+void rewrite(Logger &log, SymbolStore &store, ParamMap &param_map, ConstMap &const_map, Stm const &stm,
+             RewriteOptions opts, StmVec &stms) {
     RewriteContext ctx{log, store, param_map, const_map, select_variables(stm, VariableContext::all), "__A_"};
     GRINGO_REPORT(log, debug) << "rewrite: " << stm;
     auto opt = rewrite_anonymous(store, stm);
@@ -24,8 +24,8 @@ void rewrite(Logger &log, SymbolStore &store, ParamMap &param_map, ConstMap &con
     }
     auto res = std::move(opt).value_or(stm);
 
-    auto rewrite_unpooled = [&opts, &stms, &ctx](Statement stm, char const *indent) {
-        auto rewrite_unpooled = [&stms, &ctx, indent](Statement stm, char const *sub_indent) {
+    auto rewrite_unpooled = [&opts, &stms, &ctx](Stm stm, char const *indent) {
+        auto rewrite_unpooled = [&stms, &ctx, indent](Stm stm, char const *sub_indent) {
             auto [state_cb, res_cb] = compute_bounds(ctx, stm);
             if (res_cb) {
                 GRINGO_REPORT(ctx.logger(), debug) << indent << sub_indent << "compute bounds: " << *res_cb;

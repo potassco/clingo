@@ -29,22 +29,22 @@ class ParseHelper {
         return Gringo::Input::parse_term(log_, default_store(), str);
     }
 
-    auto literal(std::string_view str) -> std::optional<Literal> {
+    auto literal(std::string_view str) -> std::optional<Lit> {
         reset();
         return Gringo::Input::parse_literal(log_, default_store(), str);
     }
 
-    auto head_literal(std::string_view str) -> std::optional<HeadLiteral> {
+    auto head_literal(std::string_view str) -> std::optional<HdLit> {
         reset();
         return Gringo::Input::parse_head_literal(log_, default_store(), str);
     }
 
-    auto body_literal(std::string_view str) -> std::optional<BodyLiteral> {
+    auto body_literal(std::string_view str) -> std::optional<BdLit> {
         reset();
         return Gringo::Input::parse_body_literal(log_, default_store(), str);
     }
 
-    auto statement(std::string_view str) -> std::optional<Statement> {
+    auto statement(std::string_view str) -> std::optional<Stm> {
         reset();
         return Gringo::Input::parse_statement(log_, default_store(), str);
     }

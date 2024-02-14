@@ -187,45 +187,45 @@ struct IsTest {
 
     // literals
 
-    auto operator()(Literal const &lit) const -> bool { return std::visit(*this, lit); }
+    auto operator()(Lit const &lit) const -> bool { return std::visit(*this, lit); }
 
-    auto operator()(LiteralBoolean const &lit) const -> bool {
+    auto operator()(LitBool const &lit) const -> bool {
         static_cast<void>(lit);
         return true;
     }
 
-    auto operator()(LiteralRelation const &lit) const -> bool {
+    auto operator()(LitComparison const &lit) const -> bool {
         static_cast<void>(lit);
         return true;
     }
 
-    auto operator()(LiteralSymbolic const &lit) const -> bool {
+    auto operator()(LitSymbolic const &lit) const -> bool {
         static_cast<void>(lit);
         return false;
     }
 
     // body literal
 
-    auto operator()(BodyLiteral const &lit) const -> bool { return std::visit(*this, lit); }
+    auto operator()(BdLit const &lit) const -> bool { return std::visit(*this, lit); }
 
-    auto operator()(SimpleBodyLiteral const &lit) const -> bool { return operator()(lit.lit()); }
+    auto operator()(BdLitSimple const &lit) const -> bool { return operator()(lit.lit()); }
 
-    auto operator()(Conjunction const &lit) const -> bool {
+    auto operator()(BdLitConjunction const &lit) const -> bool {
         static_cast<void>(lit);
         return false;
     }
 
-    auto operator()(BodySetAggregate const &lit) const -> bool {
+    auto operator()(BdLitSetAggregate const &lit) const -> bool {
         static_cast<void>(lit);
         return false;
     }
 
-    auto operator()(BodyAggregate const &lit) const -> bool {
+    auto operator()(BdLitAggregate const &lit) const -> bool {
         static_cast<void>(lit);
         return false;
     }
 
-    auto operator()(BodyTheoryAtom const &lit) const -> bool {
+    auto operator()(BdLitTheoryAtom const &lit) const -> bool {
         static_cast<void>(lit);
         return false;
     }
@@ -238,19 +238,19 @@ struct IsAtom {
 
     // literal
 
-    auto operator()(Literal const &lit) const -> bool { return std::visit(*this, lit); }
+    auto operator()(Lit const &lit) const -> bool { return std::visit(*this, lit); }
 
-    auto operator()(LiteralBoolean const &lit) const -> bool {
+    auto operator()(LitBool const &lit) const -> bool {
         static_cast<void>(lit);
         return false;
     }
 
-    auto operator()(LiteralRelation const &lit) const -> bool {
+    auto operator()(LitComparison const &lit) const -> bool {
         static_cast<void>(lit);
         return false;
     }
 
-    auto operator()(LiteralSymbolic const &lit) const -> bool { return lit.sign() == Sign::none; }
+    auto operator()(LitSymbolic const &lit) const -> bool { return lit.sign() == Sign::none; }
 
     // conditional literals
 
@@ -261,45 +261,45 @@ struct IsAtom {
 
     // head literal
 
-    auto operator()(HeadLiteral const &lit) const -> bool { return std::visit(*this, lit); }
+    auto operator()(HdLit const &lit) const -> bool { return std::visit(*this, lit); }
 
-    auto operator()(SimpleHeadLiteral const &lit) const -> bool { return operator()(lit.lit()); }
+    auto operator()(HdLitSimple const &lit) const -> bool { return operator()(lit.lit()); }
 
-    auto operator()(Disjunction const &lit) const -> bool {
+    auto operator()(HdLitDisjunction const &lit) const -> bool {
         if (lit.elems().size() != 1) {
             return false;
         }
-        auto const *front = std::get_if<Literal>(&lit.elems().front());
+        auto const *front = std::get_if<Lit>(&lit.elems().front());
         return front != nullptr && operator()(*front);
     }
 
-    auto operator()(HeadAggregate const &lit) const -> bool {
+    auto operator()(HdLitAggregate const &lit) const -> bool {
         static_cast<void>(lit);
         return false;
     }
 
-    auto operator()(HeadTheoryAtom const &lit) const -> bool {
+    auto operator()(HdLitTheoryAtom const &lit) const -> bool {
         static_cast<void>(lit);
         return false;
     }
 
     // body literal
 
-    auto operator()(BodyLiteral const &lit) const -> bool { return std::visit(*this, lit); }
+    auto operator()(BdLit const &lit) const -> bool { return std::visit(*this, lit); }
 
-    auto operator()(SimpleBodyLiteral const &lit) const -> bool { return operator()(lit.lit()); }
+    auto operator()(BdLitSimple const &lit) const -> bool { return operator()(lit.lit()); }
 
-    auto operator()(Conjunction const &lit) const -> bool {
+    auto operator()(BdLitConjunction const &lit) const -> bool {
         static_cast<void>(lit);
         return false;
     }
 
-    auto operator()(BodyAggregate const &lit) const -> bool {
+    auto operator()(BdLitAggregate const &lit) const -> bool {
         static_cast<void>(lit);
         return false;
     }
 
-    auto operator()(BodyTheoryAtom const &lit) const -> bool {
+    auto operator()(BdLitTheoryAtom const &lit) const -> bool {
         static_cast<void>(lit);
         return false;
     }
@@ -312,31 +312,31 @@ struct IsClassical {
 
     // head literal
 
-    auto operator()(HeadLiteral const &lit) const -> bool { return std::visit(*this, lit); }
+    auto operator()(HdLit const &lit) const -> bool { return std::visit(*this, lit); }
 
-    auto operator()(SimpleHeadLiteral const &lit) const -> bool { return !is_atom(lit.lit()); }
+    auto operator()(HdLitSimple const &lit) const -> bool { return !is_atom(lit.lit()); }
 
-    auto operator()(HeadAggregate const &lit) const -> bool {
+    auto operator()(HdLitAggregate const &lit) const -> bool {
         static_cast<void>(lit);
         return false;
     }
 
-    auto operator()(HeadSetAggregate const &lit) const -> bool {
+    auto operator()(HdLitSetAggregate const &lit) const -> bool {
         static_cast<void>(lit);
         return false;
     }
 
-    auto operator()(HeadTheoryAtom const &lit) const -> bool {
+    auto operator()(HdLitTheoryAtom const &lit) const -> bool {
         static_cast<void>(lit);
         return false;
     }
 
-    auto operator()(Disjunction const &lit) const -> bool {
+    auto operator()(HdLitDisjunction const &lit) const -> bool {
         return std::all_of(lit.elems().begin(), lit.elems().end(), [](auto const &elem) {
             return std::visit(
                 [](auto const &lit) {
-                    GRINGO_MATCH(lit, Literal) { return !is_atom(lit); }
-                    GRINGO_MATCH(lit, ConditionalLiteral) { return !is_atom(lit.lit()); }
+                    GRINGO_MATCH(lit, Lit) { return !is_atom(lit); }
+                    GRINGO_MATCH(lit, CondLit) { return !is_atom(lit.lit()); }
                 },
                 elem);
         });
@@ -488,37 +488,37 @@ auto check_type(Term const &term, TermCheckType type, CheckTypeResult *res) -> b
 
 [[nodiscard]] auto never_numeric(Term const &term) -> bool { return NeverNumeric{}(term); }
 
-auto is_atom(Literal const &lit) -> bool { return IsAtom{}(lit); }
+auto is_atom(Lit const &lit) -> bool { return IsAtom{}(lit); }
 
-auto is_atom(HeadLiteral const &lit) -> bool { return IsAtom{}(lit); }
+auto is_atom(HdLit const &lit) -> bool { return IsAtom{}(lit); }
 
-auto is_atom(BodyLiteral const &lit) -> bool { return IsAtom{}(lit); }
+auto is_atom(BdLit const &lit) -> bool { return IsAtom{}(lit); }
 
-auto is_test(Literal const &lit) -> bool { return IsTest{}(lit); }
+auto is_test(Lit const &lit) -> bool { return IsTest{}(lit); }
 
 // auto is_test(HeadLiteral const &lit) -> bool { return IsTest{}(lit); }
 
-auto is_test(BodyLiteral const &lit) -> bool { return IsTest{}(lit); }
+auto is_test(BdLit const &lit) -> bool { return IsTest{}(lit); }
 
-auto is_classical(HeadLiteral const &lit) -> bool { return IsClassical{}(lit); }
+auto is_classical(HdLit const &lit) -> bool { return IsClassical{}(lit); }
 
-auto is_fact(SymbolStore &store, Rule const &rule) -> std::optional<Symbol> {
-    if (auto const *head = std::get_if<SimpleHeadLiteral>(&rule.head()); head != nullptr && rule.body().empty()) {
-        if (auto const *lit = std::get_if<LiteralSymbolic>(&head->lit()); lit != nullptr && lit->sign() == Sign::none) {
+auto is_fact(SymbolStore &store, StmRule const &rule) -> std::optional<Symbol> {
+    if (auto const *head = std::get_if<HdLitSimple>(&rule.head()); head != nullptr && rule.body().empty()) {
+        if (auto const *lit = std::get_if<LitSymbolic>(&head->lit()); lit != nullptr && lit->sign() == Sign::none) {
             return IsFact{store}(lit->term());
         }
     }
     return std::nullopt;
 }
 
-auto is_fact(SymbolStore &store, Statement const &stm) -> std::optional<Symbol> {
-    if (auto const *rule = std::get_if<Rule>(&stm); rule != nullptr) {
+auto is_fact(SymbolStore &store, Stm const &stm) -> std::optional<Symbol> {
+    if (auto const *rule = std::get_if<StmRule>(&stm); rule != nullptr) {
         return is_fact(store, *rule);
     }
     return std::nullopt;
 }
 
-auto check_global(Logger &log, VariableSet const &global, Statement const &stm) -> bool {
+auto check_global(Logger &log, VariableSet const &global, Stm const &stm) -> bool {
     VariableSet new_global = select_variables(stm, VariableContext::global, global.size());
     std::vector<String> unsafe;
     visit_variables(

@@ -33,7 +33,7 @@ class Scanner {
     ~Scanner() noexcept;
 
     //! Scan the next statement.
-    auto scan() -> std::optional<Statement>;
+    auto scan() -> std::optional<Stm>;
 
   private:
     Scanner(std::unique_ptr<ScannerImpl> impl);
@@ -46,13 +46,13 @@ auto parse_term(Logger &log, SymbolStore &store, std::string_view str) -> std::o
 //! Parse a theory term.
 auto parse_theory_term(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<TheoryTerm>;
 //! Parse a literal.
-auto parse_literal(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<Literal>;
+auto parse_literal(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<Lit>;
 //! Parse a head literal.
-auto parse_head_literal(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<HeadLiteral>;
+auto parse_head_literal(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<HdLit>;
 //! Parse a body literal.
-auto parse_body_literal(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<BodyLiteral>;
+auto parse_body_literal(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<BdLit>;
 //! Parse a statement.
-auto parse_statement(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<Statement>;
+auto parse_statement(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<Stm>;
 
 //! Return a scanner to parse statements one by one.
 auto scan_stream(Logger &log, SymbolStore &store, std::istream &in) -> Scanner;

@@ -7,7 +7,7 @@
 namespace Gringo::Input::Grammar {
 
 namespace Detail {
-template <bool HasSign> static auto construct_set_aggregate(Location loc, SetAggregateElementVec elems, RGuard rhs) {
+template <bool HasSign> static auto construct_set_aggregate(Location loc, SetAggregateElementArray elems, RGuard rhs) {
     if constexpr (HasSign) {
         return SetAggregate<HasSign>{std::move(loc), Sign::none, std::nullopt, std::move(elems), std::move(rhs)};
     } else {
@@ -38,28 +38,27 @@ struct condition {
         auto peek = dsl::peek_not(LEXY_ASCII_ONE_OF(".;}"));
         return colon >> dsl::opt(peek >> dsl::list(dsl::p<literal>, dsl::sep(LEXY_LIT(","))));
     }();
-    static constexpr auto value = lexy::as_list<std::vector<Literal>>;
+    static constexpr auto value = lexy::as_list<std::vector<Lit>>;
 };
 
 struct if_condition {
     static constexpr char const *name = "condition";
     static constexpr auto rule = dsl::if_(dsl::p<condition>);
-    static constexpr auto value = lexy::construct<std::vector<Literal>>;
+    static constexpr auto value = lexy::construct<std::vector<Lit>>;
 };
 
 struct opt_condition {
     static constexpr char const *name = "condition";
     static constexpr auto rule = dsl::if_(dsl::p<condition>);
-    static constexpr auto value = lexy::construct<std::optional<std::vector<Literal>>>;
+    static constexpr auto value = lexy::construct<std::optional<std::vector<Lit>>>;
 };
 
 struct set_aggregate_element {
     static constexpr char const *name = "conditional literal";
     static constexpr auto rule = Detail::location(dsl::p<literal> + dsl::p<if_condition>);
-    static constexpr auto value =
-        lexy::callback<SetAggregateElement>([](Location loc, Literal lit, std::vector<Literal> cond) {
-            return SetAggregateElement{std::move(loc), std::move(lit), std::move(cond)};
-        });
+    static constexpr auto value = lexy::callback<SetAggregateElement>([](Location loc, Lit lit, std::vector<Lit> cond) {
+        return SetAggregateElement{std::move(loc), std::move(lit), std::move(cond)};
+    });
 };
 
 static constexpr auto aggregate_right_guard = []() {
@@ -80,14 +79,14 @@ template <bool HasSign> struct set_aggregate {
     static constexpr auto rule =
         Detail::location(LEXY_LIT("{") >> dsl::p<set_aggregate_elements> >> LEXY_LIT("}") + aggregate_right_guard);
     static constexpr auto value = lexy::callback<SetAggregate<HasSign>>(
-        [](Location loc, SetAggregateElementVec elems) {
+        [](Location loc, SetAggregateElementArray elems) {
             return Detail::construct_set_aggregate<HasSign>(std::move(loc), std::move(elems), std::nullopt);
         },
-        [](Location loc, SetAggregateElementVec elems, Term rhs) {
+        [](Location loc, SetAggregateElementArray elems, Term rhs) {
             return Detail::construct_set_aggregate<HasSign>(std::move(loc), std::move(elems),
                                                             RGuard::value_type{Relation::less_equal, std::move(rhs)});
         },
-        [](Location loc, SetAggregateElementVec elems, Relation rel, Term rhs) {
+        [](Location loc, SetAggregateElementArray elems, Relation rel, Term rhs) {
             return Detail::construct_set_aggregate<HasSign>(std::move(loc), std::move(elems),
                                                             RGuard::value_type{rel, std::move(rhs)});
         });

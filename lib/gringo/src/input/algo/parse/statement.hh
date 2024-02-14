@@ -114,17 +114,17 @@ struct statement_theory {
         return Detail::location(kw_theory >>
                                 dsl::p<identifier> + dsl::curly_bracketed.opt(dsl::p<theory_definitions>) + eos);
     }();
-    static constexpr auto value = lexy::callback<Statement>(
+    static constexpr auto value = lexy::callback<Stm>(
         // Note: called during error recovery if the expression between the
         // parenthesis did not match.
         [](Location loc, String name) {
-            return TheoryDefinition{std::move(loc), name, TheoryTermDefinitionVec{}, TheoryAtomDefinitionVec{}};
+            return StmTheory{std::move(loc), name, TheoryTermDefinitionArray{}, TheoryAtomDefinitionArray{}};
         },
         [](Location loc, String name, lexy::nullopt) {
-            return TheoryDefinition{std::move(loc), name, TheoryTermDefinitionVec{}, TheoryAtomDefinitionVec{}};
+            return StmTheory{std::move(loc), name, TheoryTermDefinitionArray{}, TheoryAtomDefinitionArray{}};
         },
         [](Location loc, String name, theory_definitions::value_type defs) {
-            return TheoryDefinition{std::move(loc), name, std::move(defs.term_defs), std::move(defs.atom_defs)};
+            return StmTheory{std::move(loc), name, std::move(defs.term_defs), std::move(defs.atom_defs)};
         });
 };
 
@@ -135,13 +135,13 @@ struct statement_body {
         auto sep = dsl::sep(dsl::comma / dsl::semicolon);
         return dsl::opt(peek >> dsl::list(dsl::p<body_literal>, sep));
     }();
-    static constexpr auto value = lexy::as_list<std::vector<BodyLiteral>>;
+    static constexpr auto value = lexy::as_list<std::vector<BdLit>>;
 };
 
 struct statement_opt_body {
     static constexpr char const *name = "body";
     static constexpr auto rule = dsl::if_(dsl::colon >> dsl::p<statement_body>);
-    static constexpr auto value = lexy::construct<std::vector<BodyLiteral>>;
+    static constexpr auto value = lexy::construct<std::vector<BdLit>>;
 };
 
 struct statement_optimize_tuple {
@@ -166,7 +166,7 @@ struct statement_optimize_tuple {
 struct statement_optimize_element {
     static constexpr char const *name = "optimize element";
     static constexpr auto rule = dsl::p<statement_optimize_tuple> + dsl::p<if_condition>;
-    static constexpr auto value = lexy::callback<OptimizeElement>([](OptimizeTuple tuple, LiteralVec cond) {
+    static constexpr auto value = lexy::callback<OptimizeElement>([](OptimizeTuple tuple, LitArray cond) {
         return OptimizeElement{std::move(tuple), std::move(cond)};
     });
 };
@@ -190,11 +190,11 @@ struct statement_optimize {
     }();
     static constexpr auto
         value = lexy::as_list<std::vector<OptimizeElement>> >>
-                lexy::callback<Statement>(
-                    [](Location loc, OptimizeType type, std::optional<OptimizeElementVec> elems) -> Statement {
-                        return StatementOptimize{std::move(loc), type, std::move(elems).value_or(OptimizeElementVec{})};
+                lexy::callback<Stm>(
+                    [](Location loc, OptimizeType type, std::optional<OptimizeElementArray> elems) -> Stm {
+                        return StmOptimize{std::move(loc), type, std::move(elems).value_or(OptimizeElementArray{})};
                     },
-                    Detail::construct_v<StatementWeakConstraint, Statement>);
+                    Detail::construct_v<StmWeakConstraint, Stm>);
 };
 
 struct is_signature : control {
@@ -208,8 +208,8 @@ struct statement_show {
         auto opt_body = dsl::opt(LEXY_LIT(":") >> dsl::p<statement_body>);
         return Detail::location(show >> dsl::position + dsl::p<term> + dsl::position + opt_body + eos);
     }();
-    static constexpr auto value = lexy::callback<Statement>(
-        [](Location loc, auto begin, Term term, auto end, lexy::nullopt) -> Statement {
+    static constexpr auto value = lexy::callback<Stm>(
+        [](Location loc, auto begin, Term term, auto end, lexy::nullopt) -> Stm {
             CheckTypeResult res;
             if (check_type(term, TermCheckType::sig, &res)) {
                 // Note that parsing via the range input does not pass the state
@@ -217,16 +217,16 @@ struct statement_show {
                 auto input = lexy::range_input<encoding, decltype(begin)>{begin, end};
                 if (lexy::match<is_signature>(input)) {
                     if (auto num = res.pos_number->as_int(); num.has_value()) {
-                        return StatementShowSig{std::move(loc), res.has_sign, res.identifier, *num};
+                        return StmShowSig{std::move(loc), res.has_sign, res.identifier, *num};
                     }
                 }
             }
-            return StatementShow{std::move(loc), std::move(term), BodyLiteralVec{}};
+            return StmShow{std::move(loc), std::move(term), BdLitArray{}};
         },
-        [](Location loc, auto begin, Term term, auto end, BodyLiteralVec body) -> Statement {
+        [](Location loc, auto begin, Term term, auto end, BdLitArray body) -> Stm {
             static_cast<void>(begin);
             static_cast<void>(end);
-            return StatementShow{std::move(loc), std::move(term), std::move(body)};
+            return StmShow{std::move(loc), std::move(term), std::move(body)};
         });
 };
 
@@ -252,7 +252,7 @@ struct statement_defined {
         auto def = LEXY_KEYWORD("#defined", keyword_base);
         return Detail::location(def >> dsl::p<sign_classical> + dsl::p<identifier> + dsl::slash + smallint + eos);
     }();
-    static constexpr auto value = Detail::construct_v<StatementDefined, Statement>;
+    static constexpr auto value = Detail::construct_v<StmDefined, Stm>;
 };
 
 struct statement_edge {
@@ -265,7 +265,7 @@ struct statement_edge {
     }();
     static constexpr auto value = []() {
         auto sink = lexy::collect<std::vector<Edge>>(lexy::construct<Edge>);
-        auto cb = Detail::construct_v<StatementEdge, Statement>;
+        auto cb = Detail::construct_v<StmEdge, Stm>;
         return sink >> cb;
     }();
 };
@@ -278,7 +278,7 @@ struct statement_heuristic {
             square_bracketed_end(dsl::p<term> + dsl::if_(dsl::at_sign >> dsl::p<term>) + dsl::comma + dsl::p<term>);
         return Detail::location(kw >> dsl::p<symbolic_atom> + dsl::p<statement_opt_body> + eos + tuple);
     }();
-    static constexpr auto value = Detail::construct_v<StatementHeuristic, Statement>;
+    static constexpr auto value = Detail::construct_v<StmHeuristic, Stm>;
 };
 
 struct statement_project {
@@ -290,27 +290,27 @@ struct statement_project {
         auto name = dsl::p<sign_classical> + Detail::position(dsl::p<identifier>);
         return Detail::location(kw >> Detail::location(name + (arity | dsl::else_ >> pool)) + eos);
     }();
-    static constexpr auto value = lexy::callback<Statement>(
+    static constexpr auto value = lexy::callback<Stm>(
         [](Location loc, Location loc_term, bool has_sign, Position begin_name, String name, int arity) {
             static_cast<void>(loc_term);
             static_cast<void>(begin_name);
-            return StatementProjectSig{std::move(loc), has_sign, name, arity};
+            return StmProjectSig{std::move(loc), has_sign, name, arity};
         },
-        [](Location loc, Location loc_term, bool has_sign, Position begin_name, String name, PoolVec pool,
-           BodyLiteralVec body) {
+        [](Location loc, Location loc_term, bool has_sign, Position begin_name, String name, PoolArray pool,
+           BdLitArray body) {
             Term atom = TermFunction{std::move(begin_name) + loc_term, name, std::move(pool), false};
             if (has_sign) {
                 atom = TermUnary{std::move(loc_term), UnaryOperator::negate, std::move(atom)};
             }
-            return StatementProject{std::move(loc), std::move(atom), std::move(body)};
+            return StmProject{std::move(loc), std::move(atom), std::move(body)};
         },
-        [](Location loc, Location loc_term, bool has_sign, Position begin_name, String name, BodyLiteralVec body) {
+        [](Location loc, Location loc_term, bool has_sign, Position begin_name, String name, BdLitArray body) {
             Term atom =
-                TermFunction{std::move(begin_name) + loc_term, name, PoolVec{ArgumentTuple{ArgumentVec{}}}, false};
+                TermFunction{std::move(begin_name) + loc_term, name, PoolArray{ArgumentTuple{ArgumentArray{}}}, false};
             if (has_sign) {
                 atom = TermUnary{std::move(loc_term), UnaryOperator::negate, std::move(atom)};
             }
-            return StatementProject{std::move(loc), std::move(atom), std::move(body)};
+            return StmProject{std::move(loc), std::move(atom), std::move(body)};
         });
 };
 
@@ -324,7 +324,7 @@ struct statement_script {
         auto end = LEXY_KEYWORD("#end", keyword_base);
         return Detail::location(script >> open + type + dsl::delimited(close, end)(dsl::code_point) + eos);
     }();
-    static constexpr auto value = Detail::as_string >> Detail::construct_v<StatementScript, Statement>;
+    static constexpr auto value = Detail::as_string >> Detail::construct_v<StmScript, Stm>;
 };
 
 struct statement_external {
@@ -336,11 +336,11 @@ struct statement_external {
                                 atom + dsl::p<statement_opt_body> + eos + dsl::if_(square_bracketed_end(dsl::p<term>)));
     }();
     static constexpr auto value =
-        lexy::callback<Statement>([](Location loc, Location loc_atom, bool has_sign, Term atom, auto &&...args) {
+        lexy::callback<Stm>([](Location loc, Location loc_atom, bool has_sign, Term atom, auto &&...args) {
             if (has_sign) {
                 atom = TermUnary{std::move(loc_atom), UnaryOperator::negate, std::move(atom)};
             }
-            return StatementExternal{std::move(loc), std::move(atom), std::forward<decltype(args)>(args)...};
+            return StmExternal{std::move(loc), std::move(atom), std::forward<decltype(args)>(args)...};
         });
 };
 
@@ -352,15 +352,14 @@ struct statement_include {
         auto sys = dsl::delimited(LEXY_LIT("<"), LEXY_LIT(">"))(dsl::ascii::alpha_digit_underscore);
         return Detail::location(kw >> (string | sys >> dsl::nullopt | dsl::error<expected_path>)+eos);
     }();
-    static constexpr auto
-        value = Detail::as_string >>
-                lexy::callback<Statement>(
-                    [](Location loc, std::string path) {
-                        return StatementInclude{std::move(loc), IncludeType::system, std::move(path)};
-                    },
-                    [](Location loc, std::string path, lexy::nullopt) {
-                        return StatementInclude{std::move(loc), IncludeType::inbuild, std::move(path)};
-                    });
+    static constexpr auto value = Detail::as_string >>
+                                  lexy::callback<Stm>(
+                                      [](Location loc, std::string path) {
+                                          return StmInclude{std::move(loc), IncludeType::system, std::move(path)};
+                                      },
+                                      [](Location loc, std::string path, lexy::nullopt) {
+                                          return StmInclude{std::move(loc), IncludeType::inbuild, std::move(path)};
+                                      });
 };
 
 struct statement_program {
@@ -371,12 +370,12 @@ struct statement_program {
         return Detail::location(kw >> id + dsl::opt(dsl::round_bracketed.opt_list(id, dsl::sep(dsl::comma))) + eos);
     }();
     static constexpr auto value = lexy::as_list<std::vector<String>> >>
-                                  lexy::callback<Statement>(
+                                  lexy::callback<Stm>(
                                       [](Location loc, String name, std::vector<String> args) {
-                                          return StatementProgram{std::move(loc), name, std::move(args)};
+                                          return StmProgram{std::move(loc), name, std::move(args)};
                                       },
                                       [](Location loc, String name, lexy::nullopt) {
-                                          return StatementProgram{std::move(loc), name, std::vector<String>{}};
+                                          return StmProgram{std::move(loc), name, std::vector<String>{}};
                                       });
 };
 
@@ -392,12 +391,12 @@ struct statement_const {
         // Note: we overparse here to avoid duplicating code
         return Detail::location(kw >> id + dsl::equal_sign + dsl::p<term> + eos + type);
     }();
-    static constexpr auto value = lexy::callback<Statement>(
+    static constexpr auto value = lexy::callback<Stm>(
         [](Location loc, String name, Term value) {
-            return StatementConst{std::move(loc), ConstType::default_, name, std::move(value)};
+            return StmConst{std::move(loc), ConstType::default_, name, std::move(value)};
         },
         [](Location loc, String name, Term value, ConstType type) {
-            return StatementConst{std::move(loc), type, name, std::move(value)};
+            return StmConst{std::move(loc), type, name, std::move(value)};
         });
 };
 
@@ -407,17 +406,17 @@ struct statement_rule {
         auto if_body = LEXY_LIT(":-") >> dsl::p<statement_body>;
         return Detail::location((if_body | dsl::else_ >> dsl::p<head_literal> + dsl::if_(if_body)) + eos);
     }();
-    static constexpr auto value = lexy::callback<Statement>(
-        [](Location loc, HeadLiteral head, BodyLiteralVec body) {
-            return Rule{std::move(loc), std::move(head), std::move(body)};
+    static constexpr auto value = lexy::callback<Stm>(
+        [](Location loc, HdLit head, BdLitArray body) {
+            return StmRule{std::move(loc), std::move(head), std::move(body)};
         },
-        [](Location loc, HeadLiteral head) {
-            return Rule{std::move(loc), std::move(head), BodyLiteralVec{}};
+        [](Location loc, HdLit head) {
+            return StmRule{std::move(loc), std::move(head), BdLitArray{}};
         },
-        [](Location loc, BodyLiteralVec body) {
+        [](Location loc, BdLitArray body) {
             auto loc_head = loc + loc.begin;
-            return Rule{std::move(loc), SimpleHeadLiteral{LiteralBoolean{std::move(loc_head), Sign::none, false}},
-                        std::move(body)};
+            return StmRule{std::move(loc), HdLitSimple{LitBool{std::move(loc_head), Sign::none, false}},
+                           std::move(body)};
         });
 };
 
@@ -428,7 +427,7 @@ struct statement {
                                  dsl::p<statement_project> | dsl::p<statement_script> | dsl::p<statement_external> |
                                  dsl::p<statement_include> | dsl::p<statement_program> | dsl::p<statement_const> |
                                  dsl::else_ >> dsl::p<statement_rule>;
-    static constexpr auto value = lexy::forward<Statement>;
+    static constexpr auto value = lexy::forward<Stm>;
 };
 
 } // namespace Gringo::Input::Grammar

@@ -101,7 +101,7 @@ auto operator<<(std::ostream &out, TheoryTerm const &term) -> std::ostream &;
 //! @{
 
 //! Output the condititional literal to the given stream.
-auto operator<<(std::ostream &out, ConditionalLiteral const &lit) -> std::ostream &;
+auto operator<<(std::ostream &out, CondLit const &lit) -> std::ostream &;
 
 //! Output the theory atom element to the given stream.
 auto operator<<(std::ostream &out, TheoryElement const &elem) -> std::ostream &;
@@ -110,10 +110,10 @@ auto operator<<(std::ostream &out, TheoryElement const &elem) -> std::ostream &;
 auto operator<<(std::ostream &out, SetAggregateElement const &elem) -> std::ostream &;
 
 //! Output the head aggregate element to the given stream.
-auto operator<<(std::ostream &out, HeadAggregateElement const &elem) -> std::ostream &;
+auto operator<<(std::ostream &out, HdLitAggregateElement const &elem) -> std::ostream &;
 
 //! Output the head aggregate element to the given stream.
-auto operator<<(std::ostream &out, BodyAggregateElement const &elem) -> std::ostream &;
+auto operator<<(std::ostream &out, BdLitAggregateElement const &elem) -> std::ostream &;
 
 //! @}
 
@@ -121,16 +121,16 @@ auto operator<<(std::ostream &out, BodyAggregateElement const &elem) -> std::ost
 //! @{
 
 //! Output the literal to the given stream.
-auto operator<<(std::ostream &out, LiteralBoolean const &lit) -> std::ostream &;
+auto operator<<(std::ostream &out, LitBool const &lit) -> std::ostream &;
 
 //! Output the literal to the given stream.
-auto operator<<(std::ostream &out, LiteralRelation const &lit) -> std::ostream &;
+auto operator<<(std::ostream &out, LitComparison const &lit) -> std::ostream &;
 
 //! Output the literal to the given stream.
-auto operator<<(std::ostream &out, LiteralSymbolic const &lit) -> std::ostream &;
+auto operator<<(std::ostream &out, LitSymbolic const &lit) -> std::ostream &;
 
 //! Output the literal to the given stream.
-auto operator<<(std::ostream &out, Literal const &lit) -> std::ostream &;
+auto operator<<(std::ostream &out, Lit const &lit) -> std::ostream &;
 
 //! @}
 
@@ -138,19 +138,19 @@ auto operator<<(std::ostream &out, Literal const &lit) -> std::ostream &;
 //! @{
 
 //! Output the head literal to the given stream.
-auto operator<<(std::ostream &out, SimpleHeadLiteral const &lit) -> std::ostream &;
+auto operator<<(std::ostream &out, HdLitSimple const &lit) -> std::ostream &;
 
 //! Output the head literal to the given stream.
-auto operator<<(std::ostream &out, Disjunction const &lit) -> std::ostream &;
+auto operator<<(std::ostream &out, HdLitDisjunction const &lit) -> std::ostream &;
 
 //! Output the head literal to the given stream.
-auto operator<<(std::ostream &out, HeadAggregate const &lit) -> std::ostream &;
+auto operator<<(std::ostream &out, HdLitAggregate const &lit) -> std::ostream &;
 
 //! Output the head literal to the given stream.
-auto operator<<(std::ostream &out, HeadSetAggregate const &lit) -> std::ostream &;
+auto operator<<(std::ostream &out, HdLitSetAggregate const &lit) -> std::ostream &;
 
 //! Output the head literal to the given stream.
-auto operator<<(std::ostream &out, HeadLiteral const &lit) -> std::ostream &;
+auto operator<<(std::ostream &out, HdLit const &lit) -> std::ostream &;
 
 //! @}
 
@@ -158,22 +158,22 @@ auto operator<<(std::ostream &out, HeadLiteral const &lit) -> std::ostream &;
 //! @{
 
 //! Output the body literal to the given stream.
-auto operator<<(std::ostream &out, SimpleBodyLiteral const &lit) -> std::ostream &;
+auto operator<<(std::ostream &out, BdLitSimple const &lit) -> std::ostream &;
 
 //! Output the body literal to the given stream.
-auto operator<<(std::ostream &out, Conjunction const &lit) -> std::ostream &;
+auto operator<<(std::ostream &out, BdLitConjunction const &lit) -> std::ostream &;
 
 //! Output the body literal to the given stream.
-auto operator<<(std::ostream &out, BodyAggregate const &lit) -> std::ostream &;
+auto operator<<(std::ostream &out, BdLitAggregate const &lit) -> std::ostream &;
 
 //! Output the body literal to the given stream.
-auto operator<<(std::ostream &out, BodySetAggregate const &lit) -> std::ostream &;
+auto operator<<(std::ostream &out, BdLitSetAggregate const &lit) -> std::ostream &;
 
 //! Output the body literal to the given stream.
-auto operator<<(std::ostream &out, BodyTheoryAtom const &lit) -> std::ostream &;
+auto operator<<(std::ostream &out, BdLitTheoryAtom const &lit) -> std::ostream &;
 
 //! Output the body literal to the given stream.
-auto operator<<(std::ostream &out, BodyLiteral const &lit) -> std::ostream &;
+auto operator<<(std::ostream &out, BdLit const &lit) -> std::ostream &;
 
 //! @}
 
@@ -206,58 +206,58 @@ auto operator<<(std::ostream &out, Edge const &edge) -> std::ostream &;
 //! @name Statements
 //! @{
 
-auto operator<<(std::ostream &out, Rule const &stm) -> std::ostream &;
+auto operator<<(std::ostream &out, StmRule const &stm) -> std::ostream &;
 
 //! Output the statement to the given stream.
-auto operator<<(std::ostream &out, TheoryDefinition const &stm) -> std::ostream &;
+auto operator<<(std::ostream &out, StmTheory const &stm) -> std::ostream &;
 
 //! Output the statement to the given stream.
-auto operator<<(std::ostream &out, StatementOptimize const &stm) -> std::ostream &;
+auto operator<<(std::ostream &out, StmOptimize const &stm) -> std::ostream &;
 
 //! Output the statement to the given stream.
-auto operator<<(std::ostream &out, StatementWeakConstraint const &stm) -> std::ostream &;
+auto operator<<(std::ostream &out, StmWeakConstraint const &stm) -> std::ostream &;
 
 //! Output the statement to the given stream.
-auto operator<<(std::ostream &out, StatementShow const &stm) -> std::ostream &;
+auto operator<<(std::ostream &out, StmShow const &stm) -> std::ostream &;
 
 //! Output the statement to the given stream.
-auto operator<<(std::ostream &out, StatementShowSig const &stm) -> std::ostream &;
+auto operator<<(std::ostream &out, StmShowSig const &stm) -> std::ostream &;
 
 //! Output the statement to the given stream.
-auto operator<<(std::ostream &out, StatementProject const &stm) -> std::ostream &;
+auto operator<<(std::ostream &out, StmProject const &stm) -> std::ostream &;
 
 //! Output the statement to the given stream.
-auto operator<<(std::ostream &out, StatementProjectSig const &stm) -> std::ostream &;
+auto operator<<(std::ostream &out, StmProjectSig const &stm) -> std::ostream &;
 
 //! Output the statement to the given stream.
-auto operator<<(std::ostream &out, StatementDefined const &stm) -> std::ostream &;
+auto operator<<(std::ostream &out, StmDefined const &stm) -> std::ostream &;
 
 //! Output the statement to the given stream.
-auto operator<<(std::ostream &out, StatementExternal const &stm) -> std::ostream &;
+auto operator<<(std::ostream &out, StmExternal const &stm) -> std::ostream &;
 
 //! Output the statement to the given stream.
-auto operator<<(std::ostream &out, StatementEdge const &stm) -> std::ostream &;
+auto operator<<(std::ostream &out, StmEdge const &stm) -> std::ostream &;
 
 //! Output the statement to the given stream.
-auto operator<<(std::ostream &out, StatementHeuristic const &stm) -> std::ostream &;
+auto operator<<(std::ostream &out, StmHeuristic const &stm) -> std::ostream &;
 
 //! Output the statement to the given stream.
-auto operator<<(std::ostream &out, StatementScript const &stm) -> std::ostream &;
+auto operator<<(std::ostream &out, StmScript const &stm) -> std::ostream &;
 
 //! Output the statement to the given stream.
-auto operator<<(std::ostream &out, StatementInclude const &stm) -> std::ostream &;
+auto operator<<(std::ostream &out, StmInclude const &stm) -> std::ostream &;
 
 //! Output the statement to the given stream.
-auto operator<<(std::ostream &out, StatementProgram const &stm) -> std::ostream &;
+auto operator<<(std::ostream &out, StmProgram const &stm) -> std::ostream &;
 
 //! Output the statement to the given stream.
-auto operator<<(std::ostream &out, StatementConst const &stm) -> std::ostream &;
+auto operator<<(std::ostream &out, StmConst const &stm) -> std::ostream &;
 
 //! Output the statement to the given stream.
-auto operator<<(std::ostream &out, Comment const &stm) -> std::ostream &;
+auto operator<<(std::ostream &out, StmComment const &stm) -> std::ostream &;
 
 //! Output the statement to the given stream.
-auto operator<<(std::ostream &out, Statement const &stm) -> std::ostream &;
+auto operator<<(std::ostream &out, Stm const &stm) -> std::ostream &;
 
 //! @}
 
@@ -268,16 +268,16 @@ auto to_string(Term const &term) -> std::string;
 auto to_string(TheoryTerm const &term) -> std::string;
 
 //! Convert the given literal into a string.
-auto to_string(Literal const &lit) -> std::string;
+auto to_string(Lit const &lit) -> std::string;
 
 //! Convert the given head literal into a string.
-auto to_string(HeadLiteral const &lit) -> std::string;
+auto to_string(HdLit const &lit) -> std::string;
 
 //! Convert the given head literal into a string.
-auto to_string(BodyLiteral const &lit) -> std::string;
+auto to_string(BdLit const &lit) -> std::string;
 
 //! Convert the given head literal into a string.
-auto to_string(Statement const &stm) -> std::string;
+auto to_string(Stm const &stm) -> std::string;
 
 //! @}
 

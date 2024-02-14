@@ -15,7 +15,7 @@ template <auto id, class V> struct AttributeValue {
 };
 
 template <auto id> struct AttributeName {
-    static_assert(id < max_attributes, "only 32 attributes");
+    static_assert(id < max_attributes, "only 64 attributes");
     static constexpr auto Id = static_cast<uint64_t>(1) << id;
 
     template <class V> constexpr auto operator=(V &&attr) const { return AttributeValue<Id, V>{std::forward<V>(attr)}; }

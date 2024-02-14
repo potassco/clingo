@@ -13,7 +13,7 @@ namespace Gringo::Input {
 //!
 //! Literals in bodies and conditions are brought into a groundable order.
 //! The function returns the rewritten statement if this leads to changes.
-[[nodiscard]] auto check_safety(Logger &log, Statement const &stm) -> Util::ResultState<Statement>;
+[[nodiscard]] auto check_safety(Logger &log, Stm const &stm) -> Util::ResultState<Stm>;
 
 //! @}
 

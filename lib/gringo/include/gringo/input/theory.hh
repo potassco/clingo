@@ -22,7 +22,7 @@ class TheoryTermUnparsed;
 using TheoryTerm =
     std::variant<TheoryTermSymbol, TheoryTermVariable, TheoryTermTuple, TheoryTermFunction, TheoryTermUnparsed>;
 //! A vector of theory terms.
-using TheoryTermVec = Util::immutable_array<TheoryTerm>;
+using TheoryTermArray = Util::immutable_array<TheoryTerm>;
 
 //! A symbolic theory term.
 //!
@@ -130,14 +130,14 @@ enum class TheoryTermTupleType {
 class TheoryTermTuple {
   public:
     //! Construct a tuple theory term.
-    explicit TheoryTermTuple(Location loc, TheoryTermTupleType type, TheoryTermVec elems);
+    explicit TheoryTermTuple(Location loc, TheoryTermTupleType type, TheoryTermArray elems);
 
     //! The location of the symbol.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The type of the term.
     [[nodiscard]] auto type() const -> TheoryTermTupleType { return type_; }
     //! The elements of the tuple.
-    [[nodiscard]] auto elems() const -> TheoryTermVec const &;
+    [[nodiscard]] auto elems() const -> TheoryTermArray const &;
 
     //! Record update.
     template <bool Opt, class... Args> auto update(Args... args) const {
@@ -158,7 +158,7 @@ class TheoryTermTuple {
 
     Location loc_;
     TheoryTermTupleType type_;
-    TheoryTermVec elems_;
+    TheoryTermArray elems_;
 };
 
 //! Compare two theory terms.
@@ -179,14 +179,14 @@ class TheoryTermFunction {
     //! Construct a function theory term.
     explicit TheoryTermFunction(Location loc, String name);
     //! Construct a function theory term.
-    explicit TheoryTermFunction(Location loc, String name, TheoryTermVec args);
+    explicit TheoryTermFunction(Location loc, String name, TheoryTermArray args);
 
     //! The location of the symbol.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The name of the function.
     [[nodiscard]] auto name() const -> String { return name_; }
     //! The arguments of the function.
-    [[nodiscard]] auto args() const -> TheoryTermVec const &;
+    [[nodiscard]] auto args() const -> TheoryTermArray const &;
 
     //! Record update.
     template <bool Opt, class... Args> auto update(Args... args) const {
@@ -207,7 +207,7 @@ class TheoryTermFunction {
 
     Location loc_;
     String name_;
-    TheoryTermVec args_;
+    TheoryTermArray args_;
 };
 
 //! Compare two theory terms.
@@ -220,15 +220,13 @@ auto operator==(TheoryTermFunction const &a, TheoryTermFunction const &b) -> boo
 //! @related TheoryTermFunction
 auto operator<(TheoryTermFunction const &a, TheoryTermFunction const &b) -> bool;
 
-using StringArray = Util::immutable_array<String>;
-
 //! An element having the form of a right guard.
 using UnparsedElement = std::pair<StringArray, TheoryTerm>;
 //! A vector of elements.
 //!
 //! In this context, it has to have at least length one.
 //! Furthermore, all but the first element must have at least one operator.
-using UnparsedElementVec = Util::immutable_array<UnparsedElement>;
+using UnparsedElementArray = Util::immutable_array<UnparsedElement>;
 
 //! An unparsed theory term.
 //!
@@ -239,12 +237,12 @@ using UnparsedElementVec = Util::immutable_array<UnparsedElement>;
 class TheoryTermUnparsed {
   public:
     //! Construct an unparsed theory term.
-    explicit TheoryTermUnparsed(Location loc, UnparsedElementVec elems);
+    explicit TheoryTermUnparsed(Location loc, UnparsedElementArray elems);
 
     //! The location of the symbol.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The vector of elements.
-    [[nodiscard]] auto elems() const -> UnparsedElementVec const &;
+    [[nodiscard]] auto elems() const -> UnparsedElementArray const &;
 
     //! Record update.
     template <bool Opt, class... Args> auto update(Args... args) const {
@@ -263,7 +261,7 @@ class TheoryTermUnparsed {
     friend struct Util::value_hasher<TheoryTermUnparsed>;
 
     Location loc_;
-    UnparsedElementVec elems_;
+    UnparsedElementArray elems_;
 };
 
 //! Compare two theory terms.
@@ -276,18 +274,18 @@ auto operator==(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> boo
 //! @related TheoryTermUnparsed
 auto operator<(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> bool;
 
-inline TheoryTermTuple::TheoryTermTuple(Location loc, TheoryTermTupleType type, TheoryTermVec elems)
+inline TheoryTermTuple::TheoryTermTuple(Location loc, TheoryTermTupleType type, TheoryTermArray elems)
     : loc_{std::move(loc)}, type_(type), elems_{std::move(elems)} {}
 inline TheoryTermFunction::TheoryTermFunction(Location loc, String name)
     : TheoryTermFunction{std::move(loc), name, {}} {}
-inline TheoryTermFunction::TheoryTermFunction(Location loc, String name, TheoryTermVec args)
+inline TheoryTermFunction::TheoryTermFunction(Location loc, String name, TheoryTermArray args)
     : loc_{std::move(loc)}, name_(name), args_{std::move(args)} {}
-inline TheoryTermUnparsed::TheoryTermUnparsed(Location loc, UnparsedElementVec elems)
+inline TheoryTermUnparsed::TheoryTermUnparsed(Location loc, UnparsedElementArray elems)
     : loc_{std::move(loc)}, elems_{std::move(elems)} {}
 
-inline auto TheoryTermTuple::elems() const -> TheoryTermVec const & { return elems_; }
-inline auto TheoryTermFunction::args() const -> TheoryTermVec const & { return args_; }
-inline auto TheoryTermUnparsed::elems() const -> UnparsedElementVec const & { return elems_; }
+inline auto TheoryTermTuple::elems() const -> TheoryTermArray const & { return elems_; }
+inline auto TheoryTermFunction::args() const -> TheoryTermArray const & { return args_; }
+inline auto TheoryTermUnparsed::elems() const -> UnparsedElementArray const & { return elems_; }
 
 //! The optional right guard of the theory atom.
 using TheoryRGuard = std::optional<std::pair<String, TheoryTerm>>;
@@ -296,15 +294,15 @@ using TheoryRGuard = std::optional<std::pair<String, TheoryTerm>>;
 class TheoryElement {
   public:
     //! Construct a theory element.
-    explicit TheoryElement(Location loc, TheoryTermVec tuple, LiteralVec cond)
+    explicit TheoryElement(Location loc, TheoryTermArray tuple, LitArray cond)
         : loc_{loc}, tuple_{std::move(tuple)}, cond_{std::move(cond)} {}
 
     //! The location of the theory element.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The tuple of the theory element.
-    [[nodiscard]] auto tuple() const -> TheoryTermVec const & { return tuple_; }
+    [[nodiscard]] auto tuple() const -> TheoryTermArray const & { return tuple_; }
     //! The condition of the theory element.
-    [[nodiscard]] auto cond() const -> LiteralVec const & { return cond_; }
+    [[nodiscard]] auto cond() const -> LitArray const & { return cond_; }
 
     //! Record update.
     template <bool Opt, class... Args> auto update(Args... args) const {
@@ -324,11 +322,11 @@ class TheoryElement {
     friend struct Util::value_hasher<TheoryElement>;
 
     Location loc_;
-    TheoryTermVec tuple_;
-    LiteralVec cond_;
+    TheoryTermArray tuple_;
+    LitArray cond_;
 };
 //! A vector of theory atom elements.
-using TheoryElementVec = Util::immutable_array<TheoryElement>;
+using TheoryElementArray = Util::immutable_array<TheoryElement>;
 
 //! Compare two theory elements.
 //!
@@ -346,13 +344,13 @@ auto operator<(TheoryElement const &a, TheoryElement const &b) -> bool;
 template <bool HasSign> class TheoryAtom : public std::conditional_t<HasSign, Signed, Unsigned> {
   public:
     //! Construct a theory atom.
-    explicit TheoryAtom(Location loc, Term name, TheoryElementVec elems, TheoryRGuard rhs)
+    explicit TheoryAtom(Location loc, Term name, TheoryElementArray elems, TheoryRGuard rhs)
         : loc_{std::move(loc)}, name_{std::move(name)}, elems_{std::move(elems)}, rhs_{std::move(rhs)} {
         static_assert(!HasSign);
     }
 
     //! Construct a theory atom.
-    explicit TheoryAtom(Location loc, Sign sign, Term name, TheoryElementVec elems, TheoryRGuard rhs)
+    explicit TheoryAtom(Location loc, Sign sign, Term name, TheoryElementArray elems, TheoryRGuard rhs)
         : Signed{sign}, loc_{std::move(loc)}, name_{std::move(name)}, elems_{std::move(elems)}, rhs_{std::move(rhs)} {
         static_assert(HasSign);
     }
@@ -362,7 +360,7 @@ template <bool HasSign> class TheoryAtom : public std::conditional_t<HasSign, Si
     //! The name of the atom.
     [[nodiscard]] auto name() const -> Term const & { return name_; }
     //! The elements of the atom.
-    [[nodiscard]] auto elems() const -> TheoryElementVec const & { return elems_; }
+    [[nodiscard]] auto elems() const -> TheoryElementArray const & { return elems_; }
     //! The optional right guard of the atom.
     [[nodiscard]] auto rhs() const -> TheoryRGuard const & { return rhs_; }
 
@@ -392,15 +390,15 @@ template <bool HasSign> class TheoryAtom : public std::conditional_t<HasSign, Si
 
     Location loc_;
     Term name_;
-    TheoryElementVec elems_;
+    TheoryElementArray elems_;
     TheoryRGuard rhs_;
 };
 
 //! A head theory atom.
-using HeadTheoryAtom = TheoryAtom<false>;
+using HdLitTheoryAtom = TheoryAtom<false>;
 
 //! A body theory atom.
-using BodyTheoryAtom = TheoryAtom<true>;
+using BdLitTheoryAtom = TheoryAtom<true>;
 
 //! Compare two theory atoms.
 //!
@@ -434,7 +432,7 @@ GRINGO_HASH_PROTO(Gringo::Input::TheoryTermFunction);
 GRINGO_HASH_PROTO(Gringo::Input::TheoryTermTuple);
 GRINGO_HASH_PROTO(Gringo::Input::TheoryTermUnparsed);
 GRINGO_HASH_PROTO(Gringo::Input::TheoryElement);
-GRINGO_HASH_PROTO(Gringo::Input::HeadTheoryAtom);
-GRINGO_HASH_PROTO(Gringo::Input::BodyTheoryAtom);
+GRINGO_HASH_PROTO(Gringo::Input::HdLitTheoryAtom);
+GRINGO_HASH_PROTO(Gringo::Input::BdLitTheoryAtom);
 
 #endif

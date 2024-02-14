@@ -32,10 +32,13 @@ namespace Gringo::Input {
 //!
 //! @{
 
+//! An array of strings.
+using StringArray = Util::immutable_array<String>;
+
 //! A set of variable names.
 using VariableSet = StringSet;
 //! A vector of variable names.
-using VariableVec = std::vector<String>;
+using VariableVec = StringVec;
 
 class TermVariable;
 class TermSymbol;
@@ -49,7 +52,7 @@ class TermBinary;
 using Term = std::variant<TermVariable, TermSymbol, TermTuple, TermFunction, TermAbs, TermUnary, TermBinary>;
 
 //! A vector of terms.
-using TermVec = Util::immutable_array<Term>;
+using TermArray = Util::immutable_array<Term>;
 
 //! Indicate a projected position.
 class Projection {
@@ -91,15 +94,15 @@ auto operator<(Projection const &a, Projection const &b) -> bool;
 //! A variant capturing either a term or a position that is to be projected.
 using Argument = std::variant<Projection, Term>;
 //! A tuple of terms or positions to project.
-using ArgumentVec = Util::immutable_array<Argument>;
+using ArgumentArray = Util::immutable_array<Argument>;
 
 class ArgumentTuple {
   public:
     //! Construct an argument tuple.
-    ArgumentTuple(ArgumentVec elems);
+    ArgumentTuple(ArgumentArray elems);
 
     //! The elements of the tuple.
-    [[nodiscard]] auto elems() const -> ArgumentVec const &;
+    [[nodiscard]] auto elems() const -> ArgumentArray const &;
 
     //! Record update.
     template <bool Opt, class... Args> auto update(Args... args) const {
@@ -117,7 +120,7 @@ class ArgumentTuple {
     friend auto operator<(ArgumentTuple const &a, ArgumentTuple const &b) -> bool;
     friend struct Util::value_hasher<ArgumentTuple>;
 
-    ArgumentVec elems_;
+    ArgumentArray elems_;
 };
 
 //! Compare two argument tuples.
@@ -131,7 +134,7 @@ auto operator==(ArgumentTuple const &a, ArgumentTuple const &b) -> bool;
 auto operator<(ArgumentTuple const &a, ArgumentTuple const &b) -> bool;
 
 //! A vector of tuples used as function or predicate arguments.
-using PoolVec = Util::immutable_array<ArgumentTuple>;
+using PoolArray = Util::immutable_array<ArgumentTuple>;
 
 //! Term representing a variable.
 //!
@@ -227,7 +230,7 @@ auto operator<(TermSymbol const &a, TermSymbol const &b) -> bool;
 //! A tuple element.
 using TupleElement = std::variant<ArgumentTuple, Term>;
 //! A vector of tuple elements.
-using TupleElementVec = Util::immutable_array<TupleElement>;
+using TupleElementArray = Util::immutable_array<TupleElement>;
 
 //! Term representing a tuple.
 //!
@@ -235,12 +238,12 @@ using TupleElementVec = Util::immutable_array<TupleElement>;
 class TermTuple {
   public:
     //! Construct a  tuple.
-    explicit TermTuple(Location loc, TupleElementVec pool);
+    explicit TermTuple(Location loc, TupleElementArray pool);
 
     //! The location of the tuple.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The argument pool of the tuple.
-    [[nodiscard]] auto pool() const -> TupleElementVec const &;
+    [[nodiscard]] auto pool() const -> TupleElementArray const &;
 
     //! Record update.
     template <bool Opt, class... Args> auto update(Args... args) const {
@@ -259,7 +262,7 @@ class TermTuple {
     friend struct Util::value_hasher<TermTuple>;
 
     Location loc_;
-    TupleElementVec pool_;
+    TupleElementArray pool_;
 };
 
 //! Compare two tuple terms.
@@ -281,14 +284,14 @@ class TermFunction {
     //!
     //! The function takes a pool of term tuples, which will be reduced to a single element after calling
     //! Term::unpool().
-    explicit TermFunction(Location loc, String name, PoolVec pool, bool external);
+    explicit TermFunction(Location loc, String name, PoolArray pool, bool external);
 
     //! The location of the function.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The name of the function.
     [[nodiscard]] auto name() const -> String { return name_; }
     //! The argument pool of the function.
-    [[nodiscard]] auto pool() const -> PoolVec const & { return pool_; }
+    [[nodiscard]] auto pool() const -> PoolArray const & { return pool_; }
     //! Whether this is an external function.
     [[nodiscard]] auto external() const -> bool { return external_; }
 
@@ -311,7 +314,7 @@ class TermFunction {
 
     Location loc_;
     String name_;
-    PoolVec pool_;
+    PoolArray pool_;
     bool external_;
 };
 
@@ -333,12 +336,12 @@ class TermAbs {
     //! Construct an absolute term.
     //!
     //! The term has a pool of arguments, which will be reduced to a single element after calling Term::unpool().
-    explicit TermAbs(Location loc, TermVec pool);
+    explicit TermAbs(Location loc, TermArray pool);
 
     //! The location of the function.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The argument pool of the absolute term.
-    [[nodiscard]] auto pool() const -> TermVec const &;
+    [[nodiscard]] auto pool() const -> TermArray const &;
 
     //! Record update.
     template <bool Opt, class... Args> auto update(Args... args) const {
@@ -357,7 +360,7 @@ class TermAbs {
     friend struct Util::value_hasher<TermAbs>;
 
     Location loc_;
-    TermVec pool_;
+    TermArray pool_;
 };
 
 //! Compare two absolute terms.
@@ -493,20 +496,20 @@ auto operator<(TermBinary const &a, TermBinary const &b) -> bool;
 // Note that constructors are defined here because at this point all types are
 // complete.
 
-inline ArgumentTuple::ArgumentTuple(ArgumentVec elems) : elems_{std::move(elems)} {}
+inline ArgumentTuple::ArgumentTuple(ArgumentArray elems) : elems_{std::move(elems)} {}
 
-inline auto ArgumentTuple::elems() const -> ArgumentVec const & { return elems_; }
+inline auto ArgumentTuple::elems() const -> ArgumentArray const & { return elems_; }
 
-inline TermTuple::TermTuple(Location loc, TupleElementVec pool) : loc_{std::move(loc)}, pool_{std::move(pool)} {}
+inline TermTuple::TermTuple(Location loc, TupleElementArray pool) : loc_{std::move(loc)}, pool_{std::move(pool)} {}
 
-inline auto TermTuple::pool() const -> TupleElementVec const & { return pool_; }
+inline auto TermTuple::pool() const -> TupleElementArray const & { return pool_; }
 
-inline TermFunction::TermFunction(Location loc, String name, PoolVec pool, bool external)
+inline TermFunction::TermFunction(Location loc, String name, PoolArray pool, bool external)
     : loc_{std::move(loc)}, name_(std::move(name)), pool_{std::move(pool)}, external_{external} {}
 
-inline TermAbs::TermAbs(Location loc, TermVec pool) : loc_{std::move(loc)}, pool_{std::move(pool)} {}
+inline TermAbs::TermAbs(Location loc, TermArray pool) : loc_{std::move(loc)}, pool_{std::move(pool)} {}
 
-inline auto TermAbs::pool() const -> TermVec const & { return pool_; }
+inline auto TermAbs::pool() const -> TermArray const & { return pool_; }
 
 inline TermUnary::TermUnary(Location loc, UnaryOperator op, Util::immutable_value<Term> rhs)
     : loc_{std::move(loc)}, op_{op}, rhs_{std::move(rhs)} {}

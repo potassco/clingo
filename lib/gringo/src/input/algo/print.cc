@@ -339,24 +339,24 @@ struct Print {
 
     // literals
 
-    void operator()(Literal const &lit) const { std::visit(*this, lit); }
+    void operator()(Lit const &lit) const { std::visit(*this, lit); }
 
-    void operator()(LiteralBoolean const &lit) const { out << lit.sign() << (lit.value() ? "#true" : "#false"); }
+    void operator()(LitBool const &lit) const { out << lit.sign() << (lit.value() ? "#true" : "#false"); }
 
-    void operator()(LiteralRelation const &lit) const {
+    void operator()(LitComparison const &lit) const {
         out << lit.sign() << lit.lhs();
         for (auto const &[rel, term] : lit.rhs()) {
             out << rel << term;
         }
     }
 
-    void operator()(LiteralSymbolic const &lit) const { out << lit.sign() << lit.term(); }
+    void operator()(LitSymbolic const &lit) const { out << lit.sign() << lit.term(); }
 
     // conditional literal
 
-    void operator()(LiteralVec const &lits) const { visit_range(lits, ", "); }
+    void operator()(LitArray const &lits) const { visit_range(lits, ", "); }
 
-    void operator()(ConditionalLiteral const &lit) const {
+    void operator()(CondLit const &lit) const {
         operator()(lit.lit());
         out << ": ";
         operator()(lit.cond());
@@ -412,15 +412,15 @@ struct Print {
 
     // head literals
 
-    void operator()(HeadLiteral const &lit) const { std::visit(*this, lit); }
+    void operator()(HdLit const &lit) const { std::visit(*this, lit); }
 
-    void operator()(SimpleHeadLiteral const &lit) const { operator()(lit.lit()); }
+    void operator()(HdLitSimple const &lit) const { operator()(lit.lit()); }
 
-    void operator()(Disjunction const &lit) const {
+    void operator()(HdLitDisjunction const &lit) const {
         apply_to_range_with(lit.elems(), "; ", [this](auto const &elem) { std::visit(*this, elem); });
     }
 
-    void operator()(HeadAggregateElement const &elem) const {
+    void operator()(HdLitAggregateElement const &elem) const {
         visit_range(elem.tuple());
         out << ": ";
         operator()(elem.lit());
@@ -430,7 +430,7 @@ struct Print {
         }
     }
 
-    void operator()(HeadAggregate const &lit) const {
+    void operator()(HdLitAggregate const &lit) const {
         auto const &lhs = lit.lhs();
         auto const &rhs = lit.rhs();
         if (lhs.has_value()) {
@@ -446,13 +446,13 @@ struct Print {
 
     // body literals
 
-    void operator()(BodyLiteral const &lit) const { std::visit(*this, lit); }
+    void operator()(BdLit const &lit) const { std::visit(*this, lit); }
 
-    void operator()(SimpleBodyLiteral const &lit) const { operator()(lit.lit()); }
+    void operator()(BdLitSimple const &lit) const { operator()(lit.lit()); }
 
-    void operator()(Conjunction const &lit) const { operator()(lit.lit()); }
+    void operator()(BdLitConjunction const &lit) const { operator()(lit.lit()); }
 
-    void operator()(BodyAggregateElement const &elem) const {
+    void operator()(BdLitAggregateElement const &elem) const {
         visit_range(elem.tuple());
         if (!elem.cond().empty()) {
             out << ": ";
@@ -460,7 +460,7 @@ struct Print {
         }
     }
 
-    void operator()(BodyAggregate const &lit) const {
+    void operator()(BdLitAggregate const &lit) const {
         out << lit.sign();
         if (lit.lhs().has_value()) {
             out << lit.lhs()->first << " " << lit.lhs()->second << " ";
@@ -475,13 +475,13 @@ struct Print {
 
     // visit statements
 
-    void operator()(Statement const &stm) const { std::visit(*this, stm); }
+    void operator()(Stm const &stm) const { std::visit(*this, stm); }
 
-    void operator()(Rule const &stm) const {
+    void operator()(StmRule const &stm) const {
         bool empty_head = std::visit(
             [](auto const &head) {
-                GRINGO_MATCH(head, Disjunction) { return head.elems().empty(); }
-                GRINGO_MATCH(head, SimpleHeadLiteral) {
+                GRINGO_MATCH(head, HdLitDisjunction) { return head.elems().empty(); }
+                GRINGO_MATCH(head, HdLitSimple) {
                     auto val = is_boolean(head.lit());
                     return val && !*val;
                 }
@@ -549,7 +549,7 @@ struct Print {
         out << def.type();
     }
 
-    void operator()(TheoryDefinition const &stm) const {
+    void operator()(StmTheory const &stm) const {
         out << "#theory " << stm.name() << (stm.term_defs().empty() && stm.atom_defs().empty() ? " { " : " {\n");
         apply_to_range(stm.term_defs(), ";\n");
         if (!stm.term_defs().empty()) {
@@ -567,9 +567,9 @@ struct Print {
 
     void operator()(OptimizeTuple const &tuple) const {
         out << tuple.weight();
-        if (tuple.priority()) {
+        if (tuple.prio()) {
             out << "@";
-            operator()(*tuple.priority());
+            operator()(*tuple.prio());
         }
         if (!tuple.terms().empty()) {
             out << ",";
@@ -585,19 +585,19 @@ struct Print {
         }
     }
 
-    void operator()(StatementOptimize const &stm) const {
+    void operator()(StmOptimize const &stm) const {
         out << stm.type() << " { ";
         apply_to_range(stm.elems(), "; ");
         out << (stm.elems().empty() ? "}" : " }") << ".";
     }
 
-    void operator()(StatementWeakConstraint const &stm) const {
+    void operator()(StmWeakConstraint const &stm) const {
         auto const &tuple = stm.tuple();
         out << " :~ ";
         visit_range(stm.body(), "; ");
         out << ". [" << tuple.weight();
-        if (tuple.priority()) {
-            out << "@" << *tuple.priority();
+        if (tuple.prio()) {
+            out << "@" << *tuple.prio();
         }
         if (!tuple.terms().empty()) {
             out << ",";
@@ -606,7 +606,7 @@ struct Print {
         out << "]";
     }
 
-    void operator()(StatementShow const &stm) const {
+    void operator()(StmShow const &stm) const {
         char const *lp = "";
         char const *rp = "";
         if (check_type(stm.term(), TermCheckType::sig, nullptr)) {
@@ -618,25 +618,25 @@ struct Print {
         out << ".";
     }
 
-    void operator()(StatementShowSig const &stm) const {
-        out << "#show " << (stm.has_sign() ? "-" : "") << stm.name() << "/" << stm.arity() << ".";
+    void operator()(StmShowSig const &stm) const {
+        out << "#show " << (stm.sign() ? "-" : "") << stm.name() << "/" << stm.arity() << ".";
     }
 
-    void operator()(StatementProject const &stm) const {
+    void operator()(StmProject const &stm) const {
         out << "#project " << stm.term() << (stm.body().empty() ? "" : ": ");
         visit_range(stm.body(), "; ");
         out << ".";
     }
 
-    void operator()(StatementProjectSig const &stm) const {
-        out << "#project " << (stm.has_sign() ? "-" : "") << stm.name() << "/" << stm.arity() << ".";
+    void operator()(StmProjectSig const &stm) const {
+        out << "#project " << (stm.sign() ? "-" : "") << stm.name() << "/" << stm.arity() << ".";
     }
 
-    void operator()(StatementDefined const &stm) const {
-        out << "#defined " << (stm.has_sign() ? "-" : "") << stm.name() << "/" << stm.arity() << ".";
+    void operator()(StmDefined const &stm) const {
+        out << "#defined " << (stm.sign() ? "-" : "") << stm.name() << "/" << stm.arity() << ".";
     }
 
-    void operator()(StatementExternal const &stm) const {
+    void operator()(StmExternal const &stm) const {
         out << "#external " << stm.term() << (stm.body().empty() ? "" : ": ");
         visit_range(stm.body(), "; ");
         out << ".";
@@ -646,12 +646,12 @@ struct Print {
     }
 
     void operator()(Edge const &edge) const {
-        operator()(edge.u());
+        operator()(edge.src());
         out << ",";
-        operator()(edge.v());
+        operator()(edge.dst());
     }
 
-    void operator()(StatementEdge const &stm) const {
+    void operator()(StmEdge const &stm) const {
         out << "#edge (";
         apply_to_range(stm.edges(), ";");
         out << ")" << (stm.body().empty() ? "" : ": ");
@@ -659,31 +659,29 @@ struct Print {
         out << ".";
     }
 
-    void operator()(StatementHeuristic const &stm) const {
+    void operator()(StmHeuristic const &stm) const {
         out << "#heuristic " << stm.atom() << (stm.body().empty() ? "" : ": ");
         visit_range(stm.body(), "; ");
-        out << ". [" << stm.type();
+        out << ". [" << stm.weight();
         if (stm.prio().has_value()) {
             out << "@" << stm.prio().value();
         }
-        out << "," << stm.mod() << "]";
+        out << "," << stm.type() << "]";
     }
 
-    void operator()(StatementScript const &stm) const {
-        out << "#script (" << stm.type() << ")" << stm.content() << "#end.";
-    }
+    void operator()(StmScript const &stm) const { out << "#script (" << stm.type() << ")" << stm.value() << "#end."; }
 
-    void operator()(StatementInclude const &stm) const {
+    void operator()(StmInclude const &stm) const {
         if (stm.type() == IncludeType::inbuild) {
-            out << "#include <" << stm.path() << ">.";
+            out << "#include <" << stm.value() << ">.";
         } else {
             out << "#include ";
-            Util::print_quoted(out, stm.path());
+            Util::print_quoted(out, stm.value());
             out << ".";
         }
     }
 
-    void operator()(StatementProgram const &stm) const {
+    void operator()(StmProgram const &stm) const {
         out << "#program " << stm.name();
         if (!stm.args().empty()) {
             out << "(";
@@ -693,13 +691,13 @@ struct Print {
         out << ".";
     }
 
-    void operator()(StatementConst const &stm) const {
+    void operator()(StmConst const &stm) const {
         out << "#const " << stm.name() << "=";
         operator()(stm.value());
         out << ". [" << stm.type() << "]";
     }
 
-    void operator()(Comment const &stm) const { out << stm.value(); }
+    void operator()(StmComment const &stm) const { out << stm.value(); }
 
     std::ostream &out;
     OperatorPosition pos = OperatorPosition::none;
@@ -932,7 +930,7 @@ auto operator<<(std::ostream &out, TheoryTerm const &term) -> std::ostream & {
 
 // aggregates
 
-auto operator<<(std::ostream &out, ConditionalLiteral const &lit) -> std::ostream & {
+auto operator<<(std::ostream &out, CondLit const &lit) -> std::ostream & {
     Print{out}(lit);
     return out;
 }
@@ -947,98 +945,98 @@ auto operator<<(std::ostream &out, TheoryElement const &elem) -> std::ostream & 
     return out;
 }
 
-auto operator<<(std::ostream &out, HeadAggregateElement const &elem) -> std::ostream & {
+auto operator<<(std::ostream &out, HdLitAggregateElement const &elem) -> std::ostream & {
     Print{out}(elem);
     return out;
 }
 
-auto operator<<(std::ostream &out, BodyAggregateElement const &elem) -> std::ostream & {
+auto operator<<(std::ostream &out, BdLitAggregateElement const &elem) -> std::ostream & {
     Print{out}(elem);
     return out;
 }
 
 // literals
 
-auto operator<<(std::ostream &out, LiteralBoolean const &lit) -> std::ostream & {
+auto operator<<(std::ostream &out, LitBool const &lit) -> std::ostream & {
     Print{out}(lit);
     return out;
 }
 
-auto operator<<(std::ostream &out, LiteralRelation const &lit) -> std::ostream & {
+auto operator<<(std::ostream &out, LitComparison const &lit) -> std::ostream & {
     Print{out}(lit);
     return out;
 }
 
-auto operator<<(std::ostream &out, LiteralSymbolic const &lit) -> std::ostream & {
+auto operator<<(std::ostream &out, LitSymbolic const &lit) -> std::ostream & {
     Print{out}(lit);
     return out;
 }
 
-auto operator<<(std::ostream &out, Literal const &lit) -> std::ostream & {
+auto operator<<(std::ostream &out, Lit const &lit) -> std::ostream & {
     Print{out}(lit);
     return out;
 }
 
 // head literals
 
-auto operator<<(std::ostream &out, SimpleHeadLiteral const &lit) -> std::ostream & {
+auto operator<<(std::ostream &out, HdLitSimple const &lit) -> std::ostream & {
     Print{out}(lit);
     return out;
 }
 
-auto operator<<(std::ostream &out, Disjunction const &lit) -> std::ostream & {
+auto operator<<(std::ostream &out, HdLitDisjunction const &lit) -> std::ostream & {
     Print{out}(lit);
     return out;
 }
 
-auto operator<<(std::ostream &out, HeadSetAggregate const &lit) -> std::ostream & {
+auto operator<<(std::ostream &out, HdLitSetAggregate const &lit) -> std::ostream & {
     Print{out}(lit);
     return out;
 }
 
-auto operator<<(std::ostream &out, HeadAggregate const &lit) -> std::ostream & {
+auto operator<<(std::ostream &out, HdLitAggregate const &lit) -> std::ostream & {
     Print{out}(lit);
     return out;
 }
 
-auto operator<<(std::ostream &out, HeadTheoryAtom const &lit) -> std::ostream & {
+auto operator<<(std::ostream &out, HdLitTheoryAtom const &lit) -> std::ostream & {
     Print{out}(lit);
     return out;
 }
 
-auto operator<<(std::ostream &out, HeadLiteral const &lit) -> std::ostream & {
+auto operator<<(std::ostream &out, HdLit const &lit) -> std::ostream & {
     Print{out}(lit);
     return out;
 }
 
 // body literals
 
-auto operator<<(std::ostream &out, SimpleBodyLiteral const &lit) -> std::ostream & {
+auto operator<<(std::ostream &out, BdLitSimple const &lit) -> std::ostream & {
     Print{out}(lit);
     return out;
 }
 
-auto operator<<(std::ostream &out, Conjunction const &lit) -> std::ostream & {
+auto operator<<(std::ostream &out, BdLitConjunction const &lit) -> std::ostream & {
     Print{out}(lit);
     return out;
 }
 
-auto operator<<(std::ostream &out, BodySetAggregate const &lit) -> std::ostream & {
+auto operator<<(std::ostream &out, BdLitSetAggregate const &lit) -> std::ostream & {
     Print{out}(lit);
     return out;
 }
 
-auto operator<<(std::ostream &out, BodyAggregate const &lit) -> std::ostream & {
+auto operator<<(std::ostream &out, BdLitAggregate const &lit) -> std::ostream & {
     Print{out}(lit);
     return out;
 }
 
-auto operator<<(std::ostream &out, BodyTheoryAtom const &lit) -> std::ostream & {
+auto operator<<(std::ostream &out, BdLitTheoryAtom const &lit) -> std::ostream & {
     Print{out}(lit);
     return out;
 }
 
-auto operator<<(std::ostream &out, BodyLiteral const &lit) -> std::ostream & {
+auto operator<<(std::ostream &out, BdLit const &lit) -> std::ostream & {
     Print{out}(lit);
     return out;
 }
@@ -1082,92 +1080,92 @@ auto operator<<(std::ostream &out, Edge const &edge) -> std::ostream & {
 
 // statements
 
-auto operator<<(std::ostream &out, Rule const &stm) -> std::ostream & {
+auto operator<<(std::ostream &out, StmRule const &stm) -> std::ostream & {
     Print{out}(stm);
     return out;
 }
 
-auto operator<<(std::ostream &out, TheoryDefinition const &stm) -> std::ostream & {
+auto operator<<(std::ostream &out, StmTheory const &stm) -> std::ostream & {
     Print{out}(stm);
     return out;
 }
 
-auto operator<<(std::ostream &out, StatementOptimize const &stm) -> std::ostream & {
+auto operator<<(std::ostream &out, StmOptimize const &stm) -> std::ostream & {
     Print{out}(stm);
     return out;
 }
 
-auto operator<<(std::ostream &out, StatementWeakConstraint const &stm) -> std::ostream & {
+auto operator<<(std::ostream &out, StmWeakConstraint const &stm) -> std::ostream & {
     Print{out}(stm);
     return out;
 }
 
-auto operator<<(std::ostream &out, StatementShow const &stm) -> std::ostream & {
+auto operator<<(std::ostream &out, StmShow const &stm) -> std::ostream & {
     Print{out}(stm);
     return out;
 }
 
-auto operator<<(std::ostream &out, StatementShowSig const &stm) -> std::ostream & {
+auto operator<<(std::ostream &out, StmShowSig const &stm) -> std::ostream & {
     Print{out}(stm);
     return out;
 }
 
-auto operator<<(std::ostream &out, StatementProject const &stm) -> std::ostream & {
+auto operator<<(std::ostream &out, StmProject const &stm) -> std::ostream & {
     Print{out}(stm);
     return out;
 }
 
-auto operator<<(std::ostream &out, StatementProjectSig const &stm) -> std::ostream & {
+auto operator<<(std::ostream &out, StmProjectSig const &stm) -> std::ostream & {
     Print{out}(stm);
     return out;
 }
 
-auto operator<<(std::ostream &out, StatementDefined const &stm) -> std::ostream & {
+auto operator<<(std::ostream &out, StmDefined const &stm) -> std::ostream & {
     Print{out}(stm);
     return out;
 }
 
-auto operator<<(std::ostream &out, StatementExternal const &stm) -> std::ostream & {
+auto operator<<(std::ostream &out, StmExternal const &stm) -> std::ostream & {
     Print{out}(stm);
     return out;
 }
 
-auto operator<<(std::ostream &out, StatementEdge const &stm) -> std::ostream & {
+auto operator<<(std::ostream &out, StmEdge const &stm) -> std::ostream & {
     Print{out}(stm);
     return out;
 }
 
-auto operator<<(std::ostream &out, StatementHeuristic const &stm) -> std::ostream & {
+auto operator<<(std::ostream &out, StmHeuristic const &stm) -> std::ostream & {
     Print{out}(stm);
     return out;
 }
 
-auto operator<<(std::ostream &out, StatementScript const &stm) -> std::ostream & {
+auto operator<<(std::ostream &out, StmScript const &stm) -> std::ostream & {
     Print{out}(stm);
     return out;
 }
 
-auto operator<<(std::ostream &out, StatementInclude const &stm) -> std::ostream & {
+auto operator<<(std::ostream &out, StmInclude const &stm) -> std::ostream & {
     Print{out}(stm);
     return out;
 }
 
-auto operator<<(std::ostream &out, StatementProgram const &stm) -> std::ostream & {
+auto operator<<(std::ostream &out, StmProgram const &stm) -> std::ostream & {
     Print{out}(stm);
     return out;
 }
 
-auto operator<<(std::ostream &out, StatementConst const &stm) -> std::ostream & {
+auto operator<<(std::ostream &out, StmConst const &stm) -> std::ostream & {
     Print{out}(stm);
     return out;
 }
 
-auto operator<<(std::ostream &out, Comment const &stm) -> std::ostream & {
+auto operator<<(std::ostream &out, StmComment const &stm) -> std::ostream & {
     Print{out}(stm);
     return out;
 }
 
-auto operator<<(std::ostream &out, Statement const &stm) -> std::ostream & {
+auto operator<<(std::ostream &out, Stm const &stm) -> std::ostream & {
     Print{out}(stm);
     return out;
 }
@@ -1184,25 +1182,25 @@ auto to_string(TheoryTerm const &term) -> std::string {
     return oss.str();
 }
 
-auto to_string(Literal const &lit) -> std::string {
+auto to_string(Lit const &lit) -> std::string {
     std::ostringstream oss;
     oss << lit;
     return oss.str();
 }
 
-auto to_string(HeadLiteral const &lit) -> std::string {
+auto to_string(HdLit const &lit) -> std::string {
     std::ostringstream out;
     out << lit;
     return out.str();
 }
 
-auto to_string(BodyLiteral const &lit) -> std::string {
+auto to_string(BdLit const &lit) -> std::string {
     std::ostringstream out;
     out << lit;
     return out.str();
 }
 
-auto to_string(Statement const &stm) -> std::string {
+auto to_string(Stm const &stm) -> std::string {
     std::ostringstream out;
     out << stm;
     return out.str();

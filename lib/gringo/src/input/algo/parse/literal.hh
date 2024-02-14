@@ -41,8 +41,8 @@ struct atom_bool : lexy::token_production {
                                              .map<LEXY_SYMBOL("#true")>(true)
                                              .map<LEXY_SYMBOL("#false")>(false);
     static constexpr auto rule = Detail::location(dsl::symbol<bool_symbols>(keyword_base));
-    static constexpr auto value = lexy::callback<Literal>([](Location loc, bool value) {
-        return LiteralBoolean{std::move(loc), Sign::none, value};
+    static constexpr auto value = lexy::callback<Lit>([](Location loc, bool value) {
+        return LitBool{std::move(loc), Sign::none, value};
     });
 };
 
@@ -68,15 +68,15 @@ struct atom {
         auto rel_or_sym_atom = is_atom.create() + dsl::scan + cont;
         return dsl::p<atom_bool> | dsl::else_ >> rel_or_sym_atom;
     }();
-    static constexpr auto value = lexy::callback<Literal>(
-        lexy::forward<Literal>,
+    static constexpr auto value = lexy::callback<Lit>(
+        lexy::forward<Lit>,
         [](auto term) {
             auto loc = location(term);
-            return LiteralSymbolic{std::move(loc), Sign::none, std::move(term)};
+            return LitSymbolic{std::move(loc), Sign::none, std::move(term)};
         },
         [](auto lhs, auto rhs) {
             auto loc = location(lhs) + location(rhs.back().second);
-            return LiteralRelation{std::move(loc), Sign::none, std::move(lhs), std::move(rhs)};
+            return LitComparison{std::move(loc), Sign::none, std::move(lhs), std::move(rhs)};
         });
 };
 
@@ -92,7 +92,7 @@ struct naf_sign {
 struct literal {
     static constexpr char const *name = "literal";
     static constexpr auto rule = dsl::p<naf_sign> + dsl::p<atom>;
-    static constexpr auto value = lexy::callback<Literal>([](auto sign, Literal lit) {
+    static constexpr auto value = lexy::callback<Lit>([](auto sign, Lit lit) {
         auto res = add_sign(lit, sign.second, std::move(sign.first));
         return std::move(res).value_or(std::move(lit));
     });

@@ -41,7 +41,7 @@ struct RewriteOptions {
 using AuxTermVec = std::vector<std::pair<Term, Term>>;
 
 //! Map from identifiers to constants.
-using ConstMap = Util::ordered_map<String, std::pair<StatementConst, Symbol>>;
+using ConstMap = Util::ordered_map<String, std::pair<StmConst, Symbol>>;
 
 //! Map from identifiers to constants.
 using ParamMap = Util::ordered_set<String>;
@@ -119,28 +119,28 @@ class RewriteContext {
 //! A program part.
 struct ProgramPart {
     //! The (first) program part statement that introduced the part.
-    StatementProgram part;
+    StmProgram part;
     //! The facts in the program part.
     SymbolVec facts;
     //! The statements in the program part.
-    StatementVec stms;
+    StmVec stms;
 };
 
 //! Program grouping unprocessed statements.
 struct UnprocessedProgram {
     //! Statements as input grouped by parts.
-    using PartVec = std::vector<std::tuple<StatementProgram, StatementVec, SymbolVec>>;
+    using PartVec = std::vector<std::tuple<StmProgram, StmVec, SymbolVec>>;
 
     //! Unprocessed statemtents.
     PartVec parts;
     //! Unprocessed const statements.
-    std::vector<StatementConst> const_stms;
+    std::vector<StmConst> const_stms;
     //! Meta statements.
-    std::vector<Statement> meta_stms;
+    std::vector<Stm> meta_stms;
 };
 
 //! Add a statement.
-void add(SymbolStore &store, Statement stm, UnprocessedProgram &prg);
+void add(SymbolStore &store, Stm stm, UnprocessedProgram &prg);
 
 //! A program consisting of parts.
 class Program {
@@ -159,8 +159,8 @@ class Program {
     //! See the notes regarding const statements above.
     template <class F> void visit_stms(SymbolStore &store, F fun) const {
         for (auto const &[id, sym] : const_map_) {
-            fun(Statement{StatementConst{sym.first.loc(), sym.first.type(), sym.first.name(),
-                                         TermSymbol{location(sym.first.value()), sym.second}}});
+            fun(Stm{StmConst{sym.first.loc(), sym.first.type(), sym.first.name(),
+                             TermSymbol{location(sym.first.value()), sym.second}}});
         }
         for (auto const &stm : meta_stms_) {
             fun(stm);
@@ -171,10 +171,9 @@ class Program {
             StringVec ids;
             ids.reserve(sig.second);
             std::transform(pum.begin(), pum.end(), std::back_inserter(ids), [](auto x) { return x.second; });
-            fun(StatementProgram{loc, sig.first, std::move(ids)});
+            fun(StmProgram{loc, sig.first, std::move(ids)});
             for (auto const &fact : part.facts) {
-                fun(Statement{Rule{loc, SimpleHeadLiteral{LiteralSymbolic{loc, Sign::none, TermSymbol{loc, fact}}},
-                                   BodyLiteralVec{}}});
+                fun(Stm{StmRule{loc, HdLitSimple{LitSymbolic{loc, Sign::none, TermSymbol{loc, fact}}}, BdLitArray{}}});
             }
             for (auto const &stm : part.stms) {
                 if (auto unmapped = unmap_(store, pum, stm); unmapped) {
@@ -200,13 +199,12 @@ class Program {
     [[nodiscard]] static auto param_map_(SymbolStore &store, ProgramPart const &part)
         -> Util::ordered_map<String, String>;
     //! Replace all bound paramets in a statement by parsable ids.
-    [[nodiscard]] static auto unmap_(SymbolStore &store, ParamUnmap const &pum, Statement const &stm)
-        -> std::optional<Statement>;
+    [[nodiscard]] static auto unmap_(SymbolStore &store, ParamUnmap const &pum, Stm const &stm) -> std::optional<Stm>;
 
     //! The rewrite level of the program.
     RewriteOptions opts_;
     //! The meta statements in the program.
-    StatementVec meta_stms_;
+    StmVec meta_stms_;
     //! The map of program parts.
     PartMap parts_;
     //! The constants and their values.

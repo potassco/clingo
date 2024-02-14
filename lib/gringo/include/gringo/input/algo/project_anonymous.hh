@@ -11,16 +11,16 @@ namespace Gringo::Input {
 [[nodiscard]] auto project_anonymous(Term const &term) -> std::optional<Term>;
 
 //! Project anonymous variables in negated symbolic literals.
-[[nodiscard]] auto project_anonymous(Literal const &lit) -> std::optional<Literal>;
+[[nodiscard]] auto project_anonymous(Lit const &lit) -> std::optional<Lit>;
 
 //! Project anonymous variables in (nested) negated symbolic literals.
-[[nodiscard]] auto project_anonymous(HeadLiteral const &lit) -> std::optional<HeadLiteral>;
+[[nodiscard]] auto project_anonymous(HdLit const &lit) -> std::optional<HdLit>;
 
 //! Project anonymous variables in (nested) negated symbolic literals.
-[[nodiscard]] auto project_anonymous(BodyLiteral const &lit) -> std::optional<BodyLiteral>;
+[[nodiscard]] auto project_anonymous(BdLit const &lit) -> std::optional<BdLit>;
 
 //! Project anonymous variables in (nested) negated symbolic literals.
-[[nodiscard]] auto project_anonymous(Statement const &stm) -> std::optional<Statement>;
+[[nodiscard]] auto project_anonymous(Stm const &stm) -> std::optional<Stm>;
 
 //! @}
 

@@ -86,15 +86,15 @@ template <class CB> struct MakeNode {
 
     // literals
 
-    void operator()(Literal const &lit, bool can_provide) { std::visit(*this, lit, std::variant<bool>{can_provide}); }
+    void operator()(Lit const &lit, bool can_provide) { std::visit(*this, lit, std::variant<bool>{can_provide}); }
 
-    void operator()(LiteralBoolean const &lit, bool can_provide) {
+    void operator()(LitBool const &lit, bool can_provide) {
         static_cast<void>(lit);
         static_cast<void>(can_provide);
         std::invoke(cb, StringVec{}, StringVec{}, false);
     }
 
-    void operator()(LiteralRelation const &lit, bool can_provide) {
+    void operator()(LitComparison const &lit, bool can_provide) {
         auto add = [this, &lit](bool lhs, bool rhs) {
             StringVec provide;
             StringVec depend;
@@ -112,7 +112,7 @@ template <class CB> struct MakeNode {
         }
     }
 
-    void operator()(LiteralSymbolic const &lit, bool can_provide) {
+    void operator()(LitSymbolic const &lit, bool can_provide) {
         StringVec provide;
         StringVec depend;
         GetDep{provided, provide, depend}(lit.term(), can_provide && lit.sign() == Sign::none);
@@ -121,13 +121,11 @@ template <class CB> struct MakeNode {
 
     // body literals
 
-    void operator()(BodyLiteral const &lit, bool can_provide) {
-        std::visit(*this, lit, std::variant<bool>{can_provide});
-    }
+    void operator()(BdLit const &lit, bool can_provide) { std::visit(*this, lit, std::variant<bool>{can_provide}); }
 
-    void operator()(SimpleBodyLiteral const &lit, bool can_provide) { operator()(lit.lit(), can_provide); }
+    void operator()(BdLitSimple const &lit, bool can_provide) { operator()(lit.lit(), can_provide); }
 
-    void operator()(Conjunction const &lit, bool can_provide) {
+    void operator()(BdLitConjunction const &lit, bool can_provide) {
         static_cast<void>(can_provide);
         VariableVec depend;
         visit_variables(
@@ -142,7 +140,7 @@ template <class CB> struct MakeNode {
         std::invoke(cb, StringVec{}, std::move(depend), false);
     }
 
-    void operator()(BodyAggregate const &lit, bool can_provide) {
+    void operator()(BdLitAggregate const &lit, bool can_provide) {
         VariableVec provide;
         VariableVec depend;
         // TODO: aggregate has to be brought into this form in unpool_relations
@@ -165,13 +163,13 @@ template <class CB> struct MakeNode {
         std::invoke(cb, std::move(provide), std::move(depend), false);
     }
 
-    void operator()(BodySetAggregate const &lit, bool can_provide) {
+    void operator()(BdLitSetAggregate const &lit, bool can_provide) {
         static_cast<void>(lit);
         static_cast<void>(can_provide);
         throw std::runtime_error("unpool must be called before safety checking");
     }
 
-    void operator()(BodyTheoryAtom const &lit, bool can_provide) {
+    void operator()(BdLitTheoryAtom const &lit, bool can_provide) {
         static_cast<void>(can_provide);
         VariableVec depend;
         visit_variables(
@@ -202,14 +200,14 @@ template <class Lit> struct Node {
 };
 template <class Lit> using NodeVec = std::vector<Node<Lit>>;
 
-[[nodiscard]] auto flip(Literal const &lit) -> Literal {
-    auto const &rel = std::get<LiteralRelation>(lit);
+[[nodiscard]] auto flip(Lit const &lit) -> Lit {
+    auto const &rel = std::get<LitComparison>(lit);
     auto const &[sym, rhs] = rel.rhs().front();
     assert(sym == Relation::equal && rel.rhs().size() == 1);
-    return LiteralRelation{rel.loc(), rel.sign(), rhs, Util::make_vec<Guard>(Guard{sym, rel.lhs()})};
+    return LitComparison{rel.loc(), rel.sign(), rhs, Util::make_vec<Guard>(Guard{sym, rel.lhs()})};
 }
 
-[[nodiscard]] auto flip(BodyLiteral const &lit) -> BodyLiteral { return flip(std::get<SimpleBodyLiteral>(lit).lit()); }
+[[nodiscard]] auto flip(BdLit const &lit) -> BdLit { return flip(std::get<BdLitSimple>(lit).lit()); }
 
 [[nodiscard]] auto is_provided(VariableSet const &provided, auto const &vars) {
     return std::all_of(vars.begin(), vars.end(),
@@ -313,7 +311,7 @@ auto report_local(Logger &log, VariableSet const &global, VariableSet const &bou
 
 //! Check safety of local variables.
 struct CheckLocal {
-    auto operator()(TheoryElementVec const &elems) {
+    auto operator()(TheoryElementArray const &elems) {
         auto res_elems = Util::ResultVec{elems};
         for (auto const &elem : elems) {
             auto [res_cond, provided] = prepare_lits(log, elem.cond(), VariableSet{}, bound);
@@ -330,24 +328,24 @@ struct CheckLocal {
         return res_elems;
     }
 
-    auto operator()(HeadLiteral const &hlit) -> Util::ResultState<HeadLiteral> { return std::visit(*this, hlit); }
+    auto operator()(HdLit const &hlit) -> Util::ResultState<HdLit> { return std::visit(*this, hlit); }
 
-    auto operator()(SimpleHeadLiteral const &hlit) -> Util::ResultState<HeadLiteral> {
+    auto operator()(HdLitSimple const &hlit) -> Util::ResultState<HdLit> {
         static_cast<void>(hlit);
         return {true};
     }
 
-    auto operator()(Disjunction const &hlit) -> Util::ResultState<HeadLiteral> {
+    auto operator()(HdLitDisjunction const &hlit) -> Util::ResultState<HdLit> {
         auto res_elems = Util::ResultVec{hlit.elems()};
         for (auto const &elem : hlit.elems()) {
-            if (auto const *clit = std::get_if<ConditionalLiteral>(&elem); clit != nullptr) {
+            if (auto const *clit = std::get_if<CondLit>(&elem); clit != nullptr) {
                 auto [res_cond, provided] = prepare_lits(log, clit->cond(), VariableSet{}, bound);
                 if (!res_cond.complete() || !check_provided(bound, provided, clit->lit())) {
                     report_local(log, bound, provided, *clit);
                     return {false};
                 }
                 if (res_cond) {
-                    res_elems.replace(ConditionalLiteral{clit->loc(), clit->lit(), res_cond.value()});
+                    res_elems.replace(CondLit{clit->loc(), clit->lit(), res_cond.value()});
                 } else {
                     res_elems.keep();
                 }
@@ -356,12 +354,12 @@ struct CheckLocal {
             }
         }
         if (res_elems) {
-            return {true, Disjunction{hlit.loc(), std::move(res_elems).value()}};
+            return {true, HdLitDisjunction{hlit.loc(), std::move(res_elems).value()}};
         }
         return {true};
     }
 
-    auto operator()(HeadAggregate const &hlit) -> Util::ResultState<HeadLiteral> {
+    auto operator()(HdLitAggregate const &hlit) -> Util::ResultState<HdLit> {
         auto res_elems = Util::ResultVec{hlit.elems()};
         for (auto const &elem : hlit.elems()) {
             auto [res_cond, provided] = prepare_lits(log, elem.cond(), VariableSet{}, bound);
@@ -376,35 +374,35 @@ struct CheckLocal {
             }
         }
         if (res_elems) {
-            return {true, HeadAggregate{hlit.loc(), hlit.lhs(), hlit.fun(), std::move(res_elems).value(), hlit.rhs()}};
+            return {true, HdLitAggregate{hlit.loc(), hlit.lhs(), hlit.fun(), std::move(res_elems).value(), hlit.rhs()}};
         }
         return {true};
     }
 
-    auto operator()(HeadSetAggregate const &hlit) -> Util::ResultState<HeadLiteral> {
+    auto operator()(HdLitSetAggregate const &hlit) -> Util::ResultState<HdLit> {
         static_cast<void>(hlit);
         throw std::runtime_error("unpool must be called before checking safety");
     }
 
-    auto operator()(HeadTheoryAtom const &hlit) -> Util::ResultState<HeadLiteral> {
+    auto operator()(HdLitTheoryAtom const &hlit) -> Util::ResultState<HdLit> {
         auto res_elems = operator()(hlit.elems());
         if (!res_elems.complete()) {
             return {false};
         }
         if (res_elems) {
-            return {true, HeadTheoryAtom{hlit.loc(), hlit.name(), std::move(res_elems).value(), hlit.rhs()}};
+            return {true, HdLitTheoryAtom{hlit.loc(), hlit.name(), std::move(res_elems).value(), hlit.rhs()}};
         }
         return {true};
     }
 
-    auto operator()(BodyLiteral const &blit) -> Util::ResultState<BodyLiteral> { return std::visit(*this, blit); }
+    auto operator()(BdLit const &blit) -> Util::ResultState<BdLit> { return std::visit(*this, blit); }
 
-    auto operator()(SimpleBodyLiteral const &blit) -> Util::ResultState<BodyLiteral> {
+    auto operator()(BdLitSimple const &blit) -> Util::ResultState<BdLit> {
         static_cast<void>(blit);
         return {true};
     }
 
-    auto operator()(Conjunction const &blit) -> Util::ResultState<BodyLiteral> {
+    auto operator()(BdLitConjunction const &blit) -> Util::ResultState<BdLit> {
         auto [res_cond, provided] = prepare_lits(log, blit.lit().cond(), VariableSet{}, bound);
         if (!res_cond.complete() || !check_provided(bound, provided, blit.lit().lit())) {
             report_local(log, bound, provided, blit.lit());
@@ -412,13 +410,12 @@ struct CheckLocal {
         }
 
         if (res_cond) {
-            return {true,
-                    Conjunction{ConditionalLiteral{blit.lit().loc(), blit.lit().lit(), std::move(res_cond).value()}}};
+            return {true, BdLitConjunction{CondLit{blit.lit().loc(), blit.lit().lit(), std::move(res_cond).value()}}};
         }
         return {true};
     }
 
-    auto operator()(BodyAggregate const &blit) -> Util::ResultState<BodyLiteral> {
+    auto operator()(BdLitAggregate const &blit) -> Util::ResultState<BdLit> {
         auto res_elems = Util::ResultVec{blit.elems()};
         for (auto const &elem : blit.elems()) {
             auto [res_cond, provided] = prepare_lits(log, elem.cond(), VariableSet{}, bound);
@@ -433,25 +430,25 @@ struct CheckLocal {
             }
         }
         if (res_elems) {
-            return {true, BodyAggregate{blit.loc(), blit.sign(), blit.lhs(), blit.fun(), std::move(res_elems).value(),
-                                        blit.rhs()}};
+            return {true, BdLitAggregate{blit.loc(), blit.sign(), blit.lhs(), blit.fun(), std::move(res_elems).value(),
+                                         blit.rhs()}};
         }
         return {true};
     }
 
-    auto operator()(BodySetAggregate const &blit) -> Util::ResultState<BodyLiteral> {
+    auto operator()(BdLitSetAggregate const &blit) -> Util::ResultState<BdLit> {
         static_cast<void>(blit);
         throw std::runtime_error("unpool must be called before checking safety");
     }
 
-    auto operator()(BodyTheoryAtom const &blit) -> Util::ResultState<BodyLiteral> {
+    auto operator()(BdLitTheoryAtom const &blit) -> Util::ResultState<BdLit> {
         auto res_elems = operator()(blit.elems());
         if (!res_elems.complete()) {
             return {false};
         }
         if (res_elems) {
             return {true,
-                    BodyTheoryAtom{blit.loc(), blit.sign(), blit.name(), std::move(res_elems).value(), blit.rhs()}};
+                    BdLitTheoryAtom{blit.loc(), blit.sign(), blit.name(), std::move(res_elems).value(), blit.rhs()}};
         }
         return {true};
     }
@@ -462,7 +459,7 @@ struct CheckLocal {
 
 struct CheckGlobal {
     template <bool pass_intermediate = false, class F>
-    auto check_body(auto const &stm, F build, Term const *atom = nullptr) -> Util::ResultState<Statement> {
+    auto check_body(auto const &stm, F build, Term const *atom = nullptr) -> Util::ResultState<Stm> {
         // check body
         VariableSet extra;
         if (atom != nullptr) {
@@ -496,10 +493,10 @@ struct CheckGlobal {
         }
     }
 
-    auto operator()(Statement const &stm) -> Util::ResultState<Statement> { return std::visit(*this, stm); }
+    auto operator()(Stm const &stm) -> Util::ResultState<Stm> { return std::visit(*this, stm); }
 
-    auto operator()(Rule const &stm) -> Util::ResultState<Statement> {
-        return check_body<true>(stm, [this, &stm](auto &provided, auto res_body) -> Util::ResultState<Statement> {
+    auto operator()(StmRule const &stm) -> Util::ResultState<Stm> {
+        return check_body<true>(stm, [this, &stm](auto &provided, auto res_body) -> Util::ResultState<Stm> {
             // check nested head
             auto [state_head, res_head] = CheckLocal{log, provided}(stm.head());
             if (!state_head) {
@@ -508,96 +505,97 @@ struct CheckGlobal {
 
             // construct new rule if necessary
             if (res_body || res_head) {
-                return {true, Rule{stm.loc(), std::move(res_head).value_or(stm.head()), std::move(res_body).value()}};
+                return {true,
+                        StmRule{stm.loc(), std::move(res_head).value_or(stm.head()), std::move(res_body).value()}};
             }
             return {true};
         });
     }
 
-    auto operator()(TheoryDefinition const &stm) -> Util::ResultState<Statement> {
+    auto operator()(StmTheory const &stm) -> Util::ResultState<Stm> {
         static_cast<void>(stm);
         return {true};
     }
 
-    auto operator()(StatementOptimize const &stm) -> Util::ResultState<Statement> {
+    auto operator()(StmOptimize const &stm) -> Util::ResultState<Stm> {
         static_cast<void>(stm);
         throw std::runtime_error("unpool must be called before safety checking");
     }
 
-    auto operator()(StatementWeakConstraint const &stm) -> Util::ResultState<Statement> {
+    auto operator()(StmWeakConstraint const &stm) -> Util::ResultState<Stm> {
         return check_body(stm, [&stm](auto body) {
-            return StatementWeakConstraint{stm.loc(), std::move(body), stm.tuple()};
+            return StmWeakConstraint{stm.loc(), std::move(body), stm.tuple()};
         });
     }
 
-    auto operator()(StatementShow const &stm) -> Util::ResultState<Statement> {
-        return check_body(stm, [&stm](auto body) { return StatementShow{stm.loc(), stm.term(), std::move(body)}; });
+    auto operator()(StmShow const &stm) -> Util::ResultState<Stm> {
+        return check_body(stm, [&stm](auto body) { return StmShow{stm.loc(), stm.term(), std::move(body)}; });
     }
 
-    auto operator()(StatementShowSig const &stm) -> Util::ResultState<Statement> {
+    auto operator()(StmShowSig const &stm) -> Util::ResultState<Stm> {
         static_cast<void>(stm);
         return {true};
     }
 
-    auto operator()(StatementProject const &stm) -> Util::ResultState<Statement> {
+    auto operator()(StmProject const &stm) -> Util::ResultState<Stm> {
         return check_body(
             stm,
             [&stm](auto body) {
-                return StatementProject{stm.loc(), stm.term(), std::move(body)};
+                return StmProject{stm.loc(), stm.term(), std::move(body)};
             },
             &stm.term());
     }
 
-    auto operator()(StatementProjectSig const &stm) -> Util::ResultState<Statement> {
+    auto operator()(StmProjectSig const &stm) -> Util::ResultState<Stm> {
         static_cast<void>(stm);
         return {true};
     }
 
-    auto operator()(StatementDefined const &stm) -> Util::ResultState<Statement> {
+    auto operator()(StmDefined const &stm) -> Util::ResultState<Stm> {
         static_cast<void>(stm);
         return {true};
     }
 
-    auto operator()(StatementExternal const &stm) -> Util::ResultState<Statement> {
+    auto operator()(StmExternal const &stm) -> Util::ResultState<Stm> {
         return check_body(stm, [&stm](auto body) {
-            return StatementExternal{stm.loc(), stm.term(), std::move(body), stm.type()};
+            return StmExternal{stm.loc(), stm.term(), std::move(body), stm.type()};
         });
     }
 
-    auto operator()(StatementEdge const &stm) -> Util::ResultState<Statement> {
-        return check_body(stm, [&stm](auto body) { return StatementEdge{stm.loc(), stm.edges(), std::move(body)}; });
+    auto operator()(StmEdge const &stm) -> Util::ResultState<Stm> {
+        return check_body(stm, [&stm](auto body) { return StmEdge{stm.loc(), stm.edges(), std::move(body)}; });
     }
 
-    auto operator()(StatementHeuristic const &stm) -> Util::ResultState<Statement> {
+    auto operator()(StmHeuristic const &stm) -> Util::ResultState<Stm> {
         return check_body(
             stm,
             [&stm](auto body) {
-                return StatementHeuristic{stm.loc(), stm.atom(), std::move(body), stm.type(), stm.prio(), stm.mod()};
+                return StmHeuristic{stm.loc(), stm.atom(), std::move(body), stm.weight(), stm.prio(), stm.type()};
             },
             &stm.atom());
     }
 
-    auto operator()(StatementScript const &stm) -> Util::ResultState<Statement> {
+    auto operator()(StmScript const &stm) -> Util::ResultState<Stm> {
         static_cast<void>(stm);
         return {true};
     }
 
-    auto operator()(StatementInclude const &stm) -> Util::ResultState<Statement> {
+    auto operator()(StmInclude const &stm) -> Util::ResultState<Stm> {
         static_cast<void>(stm);
         return {true};
     }
 
-    auto operator()(StatementProgram const &stm) -> Util::ResultState<Statement> {
+    auto operator()(StmProgram const &stm) -> Util::ResultState<Stm> {
         static_cast<void>(stm);
         return {true};
     }
 
-    auto operator()(StatementConst const &stm) -> Util::ResultState<Statement> {
+    auto operator()(StmConst const &stm) -> Util::ResultState<Stm> {
         static_cast<void>(stm);
         return {true};
     }
 
-    auto operator()(Comment const &stm) -> Util::ResultState<Statement> {
+    auto operator()(StmComment const &stm) -> Util::ResultState<Stm> {
         static_cast<void>(stm);
         return {true};
     }
@@ -608,7 +606,7 @@ struct CheckGlobal {
 
 } // namespace
 
-auto check_safety(Logger &log, Statement const &stm) -> Util::ResultState<Statement> {
+auto check_safety(Logger &log, Stm const &stm) -> Util::ResultState<Stm> {
     VariableSet global = select_variables(stm, VariableContext::global);
     return CheckGlobal{log, global}(stm);
 }

@@ -45,19 +45,19 @@ struct RewriteAnonymous : Transformer<RewriteAnonymous> {
     return RewriteAnonymous{gen}.transform(term);
 }
 
-[[nodiscard]] auto rewrite_anonymous(Literal const &lit, NameGen &gen) -> std::optional<Literal> {
+[[nodiscard]] auto rewrite_anonymous(Lit const &lit, NameGen &gen) -> std::optional<Lit> {
     return RewriteAnonymous{gen}.transform(lit);
 }
 
-[[nodiscard]] auto rewrite_anonymous(HeadLiteral const &lit, NameGen &gen) -> std::optional<HeadLiteral> {
+[[nodiscard]] auto rewrite_anonymous(HdLit const &lit, NameGen &gen) -> std::optional<HdLit> {
     return RewriteAnonymous{gen}.transform(lit);
 }
 
-[[nodiscard]] auto rewrite_anonymous(BodyLiteral const &lit, NameGen &gen) -> std::optional<BodyLiteral> {
+[[nodiscard]] auto rewrite_anonymous(BdLit const &lit, NameGen &gen) -> std::optional<BdLit> {
     return RewriteAnonymous{gen}.transform(lit);
 }
 
-[[nodiscard]] auto rewrite_anonymous(SymbolStore &store, Statement const &stm) -> std::optional<Statement> {
+[[nodiscard]] auto rewrite_anonymous(SymbolStore &store, Stm const &stm) -> std::optional<Stm> {
     auto gen = NameGen{store, select_variables(stm, VariableContext::all), "__A_"};
     return RewriteAnonymous{gen}.transform(stm);
 }

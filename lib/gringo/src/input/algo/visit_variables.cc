@@ -33,7 +33,7 @@ struct VisitVariables : Visitor<VisitVariables> {
 
     // conditional literal
 
-    void accept(ConditionalLiteral const &cond_lit) const {
+    void accept(CondLit const &cond_lit) const {
         if (ctx == VariableContext::all) {
             visit(cond_lit.cond(), cond_lit.lit());
         }
@@ -61,7 +61,7 @@ struct VisitVariables : Visitor<VisitVariables> {
 
     // head literal
 
-    void accept(HeadAggregate const &lit) const {
+    void accept(HdLitAggregate const &lit) const {
         if (ctx == VariableContext::all) {
             visit(lit.elems());
         }
@@ -70,7 +70,7 @@ struct VisitVariables : Visitor<VisitVariables> {
 
     // body literal
 
-    void accept(BodyAggregate const &lit) const {
+    void accept(BdLitAggregate const &lit) const {
         if (ctx == VariableContext::all) {
             visit(lit.elems());
         }
@@ -79,13 +79,13 @@ struct VisitVariables : Visitor<VisitVariables> {
 
     // statement
 
-    void accept(StatementOptimize const &stm) const {
+    void accept(StmOptimize const &stm) const {
         if (ctx == VariableContext::all) {
             visit(stm.elems());
         }
     }
 
-    static void accept(StatementConst const &stm) { static_cast<void>(stm); }
+    static void accept(StmConst const &stm) { static_cast<void>(stm); }
 
     VarVisitFun fun;
     VariableContext ctx;
@@ -99,27 +99,27 @@ void visit_variables(TheoryTerm const &term, VarVisitFun fun) { VisitVariables{s
 
 void visit_variables(TheoryElement const &term, VarVisitFun fun) { VisitVariables{std::move(fun)}.visit(term); }
 
-void visit_variables(Literal const &lit, VarVisitFun fun) { VisitVariables{std::move(fun)}.visit(lit); }
+void visit_variables(Lit const &lit, VarVisitFun fun) { VisitVariables{std::move(fun)}.visit(lit); }
 
-void visit_variables(ConditionalLiteral const &lit, VarVisitFun fun) { VisitVariables{std::move(fun)}.visit(lit); }
+void visit_variables(CondLit const &lit, VarVisitFun fun) { VisitVariables{std::move(fun)}.visit(lit); }
 
 void visit_variables(SetAggregateElement const &elem, VarVisitFun fun) { VisitVariables{std::move(fun)}.visit(elem); }
 
-void visit_variables(HeadAggregateElement const &elem, VarVisitFun fun) { VisitVariables{std::move(fun)}.visit(elem); }
+void visit_variables(HdLitAggregateElement const &elem, VarVisitFun fun) { VisitVariables{std::move(fun)}.visit(elem); }
 
-void visit_variables(HeadLiteral const &lit, VarVisitFun fun, VariableContext ctx) {
+void visit_variables(HdLit const &lit, VarVisitFun fun, VariableContext ctx) {
     VisitVariables{std::move(fun), ctx}.visit(lit);
 }
 
-void visit_variables(BodyAggregateElement const &elem, VarVisitFun fun) { VisitVariables{std::move(fun)}.visit(elem); }
+void visit_variables(BdLitAggregateElement const &elem, VarVisitFun fun) { VisitVariables{std::move(fun)}.visit(elem); }
 
-void visit_variables(BodyLiteral const &lit, VarVisitFun fun, VariableContext ctx) {
+void visit_variables(BdLit const &lit, VarVisitFun fun, VariableContext ctx) {
     VisitVariables{std::move(fun), ctx}.visit(lit);
 }
 
 void visit_variables(OptimizeElement const &elem, VarVisitFun fun) { VisitVariables{std::move(fun)}.visit(elem); }
 
-void visit_variables(Statement const &stm, VarVisitFun fun, VariableContext ctx) {
+void visit_variables(Stm const &stm, VarVisitFun fun, VariableContext ctx) {
     VisitVariables{std::move(fun), ctx}.visit(stm);
 }
 

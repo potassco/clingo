@@ -31,23 +31,23 @@ void visit_variables(TheoryTerm const &term, VarVisitFun fun);
 //! Visit variables with the given function.
 void visit_variables(TheoryElement const &term, VarVisitFun fun);
 //! Visit variables with the given function.
-void visit_variables(Literal const &lit, VarVisitFun fun);
+void visit_variables(Lit const &lit, VarVisitFun fun);
 //! Visit variables with the given function.
-void visit_variables(ConditionalLiteral const &lit, VarVisitFun fun);
+void visit_variables(CondLit const &lit, VarVisitFun fun);
 //! Visit variables with the given function.
 void visit_variables(SetAggregateElement const &elem, VarVisitFun fun);
 //! Visit variables with the given function.
-void visit_variables(HeadAggregateElement const &elem, VarVisitFun fun);
+void visit_variables(HdLitAggregateElement const &elem, VarVisitFun fun);
 //! Visit variables in the given scope with the given function.
-void visit_variables(HeadLiteral const &lit, VarVisitFun fun, VariableContext ctx);
+void visit_variables(HdLit const &lit, VarVisitFun fun, VariableContext ctx);
 //! Visit variables with the given function.
-void visit_variables(BodyAggregateElement const &elem, VarVisitFun fun);
+void visit_variables(BdLitAggregateElement const &elem, VarVisitFun fun);
 //! Visit variables in the given scope with the given function.
-void visit_variables(BodyLiteral const &lit, VarVisitFun fun, VariableContext ctx);
+void visit_variables(BdLit const &lit, VarVisitFun fun, VariableContext ctx);
 //! Visit variables with the given function.
 void visit_variables(OptimizeElement const &elem, VarVisitFun fun);
 //! Visit variables in the given scope with the given function.
-void visit_variables(Statement const &stm, VarVisitFun fun, VariableContext ctx);
+void visit_variables(Stm const &stm, VarVisitFun fun, VariableContext ctx);
 
 //! Get all variables in an expression.
 template <class T> [[nodiscard]] inline auto select_variables(T const &x, size_t size_hint = 0) -> VariableSet {

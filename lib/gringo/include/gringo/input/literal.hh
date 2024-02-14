@@ -62,7 +62,7 @@ enum class Relation {
 //! The right-hand-side of a relation atom including the symbol.
 using Guard = std::pair<Relation, Term>;
 //! A vector of guards.
-using GuardVec = Util::immutable_array<Guard>;
+using GuardArray = Util::immutable_array<Guard>;
 
 //! Return the equivalent relation when arguments are flipped.
 [[nodiscard]] auto flip(Relation rel) -> Relation;
@@ -72,10 +72,10 @@ using GuardVec = Util::immutable_array<Guard>;
 //! Literal representing a Boolean constant.
 //!
 //! For example <tt>\#true</tt>.
-class LiteralBoolean {
+class LitBool {
   public:
     //! Construct a Boolean literal.
-    explicit LiteralBoolean(Location loc, Sign sign, bool value) : loc_{std::move(loc)}, sign_(sign), value_(value) {}
+    explicit LitBool(Location loc, Sign sign, bool value) : loc_{std::move(loc)}, sign_(sign), value_(value) {}
 
     //! The location of the literal.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
@@ -88,8 +88,8 @@ class LiteralBoolean {
     template <bool Opt = false, class... Args> auto update(Args &&...args) const {
         using namespace Gringo::Util::Record;
         check(Types{a_loc, a_sign, a_value}, Types{args...});
-        return LiteralBoolean{select<Opt>(a_loc, loc_, args...), select<Opt>(a_sign, sign_, args...),
-                              select<Opt>(a_value, value_, args...)};
+        return LitBool{select<Opt>(a_loc, loc_, args...), select<Opt>(a_sign, sign_, args...),
+                       select<Opt>(a_value, value_, args...)};
     }
     //! Rewrite the record.
     template <class... Args> auto rewrite(Args &&...args) const {
@@ -97,9 +97,9 @@ class LiteralBoolean {
     }
 
   private:
-    friend auto operator==(LiteralBoolean const &a, LiteralBoolean const &b) -> bool;
-    friend auto operator<(LiteralBoolean const &a, LiteralBoolean const &b) -> bool;
-    friend struct Util::value_hasher<LiteralBoolean>;
+    friend auto operator==(LitBool const &a, LitBool const &b) -> bool;
+    friend auto operator<(LitBool const &a, LitBool const &b) -> bool;
+    friend struct Util::value_hasher<LitBool>;
 
     Location loc_;
     Sign sign_;
@@ -109,20 +109,20 @@ class LiteralBoolean {
 //! Check whether two Boolean literals are equivalent.
 //!
 //! \related LiteralBoolean
-auto operator==(LiteralBoolean const &a, LiteralBoolean const &b) -> bool;
+auto operator==(LitBool const &a, LitBool const &b) -> bool;
 
 //! Compare two Boolean literals.
 //!
 //! \related LiteralBoolean
-auto operator<(LiteralBoolean const &a, LiteralBoolean const &b) -> bool;
+auto operator<(LitBool const &a, LitBool const &b) -> bool;
 
 //! Literal representing a relation literal.
 //!
 //! For example <tt>1 <= X <= 10</tt>.
-class LiteralRelation {
+class LitComparison {
   public:
     //! Construct a relation literal.
-    explicit LiteralRelation(Location loc, Sign sign, Term lhs, GuardVec rhs)
+    explicit LitComparison(Location loc, Sign sign, Term lhs, GuardArray rhs)
         : loc_{std::move(loc)}, sign_(sign), lhs_(std::move(lhs)), rhs_(std::move(rhs)) {}
 
     //! The location of the literal.
@@ -132,14 +132,14 @@ class LiteralRelation {
     //! The term on the left hand side.
     [[nodiscard]] auto lhs() const -> Term const & { return lhs_; }
     //! The guards on the right hand side.
-    [[nodiscard]] auto rhs() const -> GuardVec const & { return rhs_; }
+    [[nodiscard]] auto rhs() const -> GuardArray const & { return rhs_; }
 
     //! Update the record.
     template <bool Opt = false, class... Args> auto update(Args &&...args) const {
         using namespace Gringo::Util::Record;
         check(Types{a_loc, a_sign, a_lhs, a_rhs}, Types{args...});
-        return LiteralRelation{select<Opt>(a_loc, loc_, args...), select<Opt>(a_sign, sign_, args...),
-                               select<Opt>(a_lhs, lhs_, args...), select<Opt>(a_rhs, rhs_, args...)};
+        return LitComparison{select<Opt>(a_loc, loc_, args...), select<Opt>(a_sign, sign_, args...),
+                             select<Opt>(a_lhs, lhs_, args...), select<Opt>(a_rhs, rhs_, args...)};
     }
     //! Rewrite the record.
     template <class... Args> auto rewrite(Args &&...args) const {
@@ -147,33 +147,33 @@ class LiteralRelation {
     }
 
   private:
-    friend auto operator==(LiteralRelation const &a, LiteralRelation const &b) -> bool;
-    friend auto operator<(LiteralRelation const &a, LiteralRelation const &b) -> bool;
-    friend struct Util::value_hasher<LiteralRelation>;
+    friend auto operator==(LitComparison const &a, LitComparison const &b) -> bool;
+    friend auto operator<(LitComparison const &a, LitComparison const &b) -> bool;
+    friend struct Util::value_hasher<LitComparison>;
 
     Location loc_;
     Sign sign_;
     Term lhs_;
-    GuardVec rhs_;
+    GuardArray rhs_;
 };
 
 //! Check whether two relation literals are equivalent.
 //!
 //! \related LiteralRelation
-auto operator==(LiteralRelation const &a, LiteralRelation const &b) -> bool;
+auto operator==(LitComparison const &a, LitComparison const &b) -> bool;
 
 //! Compare two relation literals.
 //!
 //! \related LiteralRelation
-auto operator<(LiteralRelation const &a, LiteralRelation const &b) -> bool;
+auto operator<(LitComparison const &a, LitComparison const &b) -> bool;
 
 //! Literal representing a symbolic literal.
 //!
 //! For example <tt>not p(X)</tt>.
-class LiteralSymbolic {
+class LitSymbolic {
   public:
     //! Construct a symbolic literal.
-    explicit LiteralSymbolic(Location loc, Sign sign, Term term)
+    explicit LitSymbolic(Location loc, Sign sign, Term term)
         : loc_{std::move(loc)}, sign_(sign), term_(std::move(term)) {}
 
     //! The location of the literal.
@@ -187,8 +187,8 @@ class LiteralSymbolic {
     template <bool Opt = false, class... Args> auto update(Args &&...args) const {
         using namespace Gringo::Util::Record;
         check(Types{a_loc, a_sign, a_term}, Types{args...});
-        return LiteralSymbolic{select<Opt>(a_loc, loc_, args...), select<Opt>(a_sign, sign_, args...),
-                               select<Opt>(a_term, term_, args...)};
+        return LitSymbolic{select<Opt>(a_loc, loc_, args...), select<Opt>(a_sign, sign_, args...),
+                           select<Opt>(a_term, term_, args...)};
     }
     //! Rewrite the record.
     template <class... Args> auto rewrite(Args &&...args) const {
@@ -196,9 +196,9 @@ class LiteralSymbolic {
     }
 
   private:
-    friend auto operator==(LiteralSymbolic const &a, LiteralSymbolic const &b) -> bool;
-    friend auto operator<(LiteralSymbolic const &a, LiteralSymbolic const &b) -> bool;
-    friend struct Util::value_hasher<LiteralSymbolic>;
+    friend auto operator==(LitSymbolic const &a, LitSymbolic const &b) -> bool;
+    friend auto operator<(LitSymbolic const &a, LitSymbolic const &b) -> bool;
+    friend struct Util::value_hasher<LitSymbolic>;
 
     Location loc_;
     Sign sign_;
@@ -208,41 +208,38 @@ class LiteralSymbolic {
 //! Check whether two symbolic literals are equivalent.
 //!
 //! \related LiteralSymbolic
-auto operator==(LiteralSymbolic const &a, LiteralSymbolic const &b) -> bool;
+auto operator==(LitSymbolic const &a, LitSymbolic const &b) -> bool;
 
 //! Compare two symbolic literals.
 //!
 //! \related LiteralSymbolic
-auto operator<(LiteralSymbolic const &a, LiteralSymbolic const &b) -> bool;
+auto operator<(LitSymbolic const &a, LitSymbolic const &b) -> bool;
 
 //! Variant holding the different literal types.
-using Literal = std::variant<LiteralBoolean, LiteralRelation, LiteralSymbolic>;
+using Lit = std::variant<LitBool, LitComparison, LitSymbolic>;
 
 //! A vector of literals.
-using LiteralVec = Util::immutable_array<Literal>;
-
-//! A vector of literal vectors.
-using LiteralVecVec = Util::immutable_array<LiteralVec>;
+using LitArray = Util::immutable_array<Lit>;
 
 //! A conditional literal.
-class ConditionalLiteral {
+class CondLit {
   public:
     //! Construct a conditional literal.
-    explicit ConditionalLiteral(Location loc, Literal lit, LiteralVec cond)
+    explicit CondLit(Location loc, Lit lit, LitArray cond)
         : loc_{std::move(loc)}, lit_{std::move(lit)}, cond_{std::move(cond)} {}
     //! The location of the literal.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The literals on the left-hand-side.
-    [[nodiscard]] auto lit() const -> Literal const & { return lit_; }
+    [[nodiscard]] auto lit() const -> Lit const & { return lit_; }
     //! The literals on the right-hand-side.
-    [[nodiscard]] auto cond() const -> LiteralVec const & { return cond_; }
+    [[nodiscard]] auto cond() const -> LitArray const & { return cond_; }
 
     //! Update the record.
     template <bool Opt = false, class... Args> auto update(Args &&...args) const {
         using namespace Gringo::Util::Record;
         check(Types{a_loc, a_lit, a_cond}, Types{args...});
-        return ConditionalLiteral{select<Opt>(a_loc, loc_, args...), select<Opt>(a_lit, lit_, args...),
-                                  select<Opt>(a_cond, cond_, args...)};
+        return CondLit{select<Opt>(a_loc, loc_, args...), select<Opt>(a_lit, lit_, args...),
+                       select<Opt>(a_cond, cond_, args...)};
     }
     //! Rewrite the record.
     template <class... Args> auto rewrite(Args &&...args) const {
@@ -250,24 +247,24 @@ class ConditionalLiteral {
     }
 
   private:
-    friend auto operator==(ConditionalLiteral const &a, ConditionalLiteral const &b) -> bool;
-    friend auto operator<(ConditionalLiteral const &a, ConditionalLiteral const &b) -> bool;
-    friend struct Util::value_hasher<ConditionalLiteral>;
+    friend auto operator==(CondLit const &a, CondLit const &b) -> bool;
+    friend auto operator<(CondLit const &a, CondLit const &b) -> bool;
+    friend struct Util::value_hasher<CondLit>;
 
     Location loc_;
-    Literal lit_;
-    LiteralVec cond_;
+    Lit lit_;
+    LitArray cond_;
 };
 
 //! Check whether two symbolic literals are equivalent.
 //!
 //! \related LiteralSymbolic
-auto operator==(ConditionalLiteral const &a, ConditionalLiteral const &b) -> bool;
+auto operator==(CondLit const &a, CondLit const &b) -> bool;
 
 //! Compare two symbolic literals.
 //!
 //! \related LiteralSymbolic
-auto operator<(ConditionalLiteral const &a, ConditionalLiteral const &b) -> bool;
+auto operator<(CondLit const &a, CondLit const &b) -> bool;
 
 //! @}
 
@@ -275,9 +272,9 @@ auto operator<(ConditionalLiteral const &a, ConditionalLiteral const &b) -> bool
 
 #ifndef GRINGO_DOXYGEN_SKIP
 
-GRINGO_HASH_PROTO(Gringo::Input::LiteralBoolean)
-GRINGO_HASH_PROTO(Gringo::Input::LiteralRelation)
-GRINGO_HASH_PROTO(Gringo::Input::LiteralSymbolic)
-GRINGO_HASH_PROTO(Gringo::Input::ConditionalLiteral)
+GRINGO_HASH_PROTO(Gringo::Input::LitBool)
+GRINGO_HASH_PROTO(Gringo::Input::LitComparison)
+GRINGO_HASH_PROTO(Gringo::Input::LitSymbolic)
+GRINGO_HASH_PROTO(Gringo::Input::CondLit)
 
 #endif

@@ -11,24 +11,23 @@ namespace Gringo::Input {
 
 #define ISINST GRINGO_IS_INSTANCE
 
-void add(SymbolStore &store, Statement stm, UnprocessedProgram &prg) {
+void add(SymbolStore &store, Stm stm, UnprocessedProgram &prg) {
     std::visit(
         [&](auto &&stm) {
-            if constexpr (ISINST(stm, StatementShowSig) || ISINST(stm, StatementProjectSig) ||
-                          ISINST(stm, StatementScript) || ISINST(stm, StatementDefined)) {
+            if constexpr (ISINST(stm, StmShowSig) || ISINST(stm, StmProjectSig) || ISINST(stm, StmScript) ||
+                          ISINST(stm, StmDefined)) {
                 prg.meta_stms.emplace_back(std::move(stm));
-            } else if constexpr (ISINST(stm, StatementInclude) || ISINST(stm, Comment)) {
+            } else if constexpr (ISINST(stm, StmInclude) || ISINST(stm, StmComment)) {
                 // ignore
-            } else if constexpr (ISINST(stm, StatementConst)) {
+            } else if constexpr (ISINST(stm, StmConst)) {
                 prg.const_stms.emplace_back(std::move(stm));
-            } else if constexpr (ISINST(stm, StatementProgram)) {
-                prg.parts.emplace_back(stm, StatementVec{}, SymbolVec{});
+            } else if constexpr (ISINST(stm, StmProgram)) {
+                prg.parts.emplace_back(stm, StmVec{}, SymbolVec{});
             } else {
                 if (prg.parts.empty()) {
-                    prg.parts.emplace_back(StatementProgram{location(stm), store.string("base"), {}}, StatementVec{},
-                                           SymbolVec{});
+                    prg.parts.emplace_back(StmProgram{location(stm), store.string("base"), {}}, StmVec{}, SymbolVec{});
                 }
-                if constexpr (ISINST(stm, Rule)) {
+                if constexpr (ISINST(stm, StmRule)) {
                     if (auto fact = is_fact(store, stm); fact) {
                         std::get<2>(prg.parts.back()).emplace_back(std::move(fact).value());
                         return;
@@ -65,7 +64,7 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
             std::visit(
                 [&part](auto &&x) {
                     GRINGO_MATCH(x, Symbol) { part.first.value().facts.emplace_back(x); }
-                    GRINGO_MATCH(x, Statement) { part.first.value().stms.emplace_back(std::move(x)); }
+                    GRINGO_MATCH(x, Stm) { part.first.value().stms.emplace_back(std::move(x)); }
                 },
                 map_params(ctx, res_part.part.loc(), fact));
         }
@@ -112,8 +111,7 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
     return res;
 }
 
-[[nodiscard]] auto Program::unmap_(SymbolStore &store, ParamUnmap const &pum, Statement const &stm)
-    -> std::optional<Statement> {
+[[nodiscard]] auto Program::unmap_(SymbolStore &store, ParamUnmap const &pum, Stm const &stm) -> std::optional<Stm> {
     if (!pum.empty()) {
         return unmap_params(store, pum, stm);
     }

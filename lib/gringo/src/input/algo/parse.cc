@@ -119,7 +119,7 @@ template <class It> class State {
     [[nodiscard]] auto empty() const -> bool { return mark_ == 0; }
 
     //! Pop the last comment.
-    auto pop() -> Comment {
+    auto pop() -> StmComment {
         assert(mark_ > 0);
         auto ret = std::move(comments_.front());
         comments_.pop();
@@ -166,7 +166,7 @@ template <class It> class State {
     //! (that is, all code points in between are represented by a single byte).
     std::vector<std::tuple<size_t, size_t, size_t>> positions_;
     //! A queue of comments.
-    std::queue<Comment> comments_;
+    std::queue<StmComment> comments_;
     //! A marker for comments that can be popped.
     size_t mark_ = 0;
 };
@@ -230,10 +230,10 @@ template <class T, class F> auto check(Gringo::Logger &log, std::optional<T> exp
 class ScannerImpl {
   public:
     virtual ~ScannerImpl() noexcept = default;
-    virtual auto scan() -> std::optional<Statement> = 0;
+    virtual auto scan() -> std::optional<Stm> = 0;
     virtual auto logger() -> Logger & = 0;
 
-    static auto scan_(auto &self) -> std::optional<Statement> {
+    static auto scan_(auto &self) -> std::optional<Stm> {
         // skip leading whitespace
         if (self.init_) {
             self.scanner_.parse(lexy::dsl::whitespace(Grammar::control::whitespace));
@@ -282,14 +282,14 @@ Scanner::~Scanner() noexcept = default;
 Scanner::Scanner(Scanner &&other) noexcept = default;
 auto Scanner::operator=(Scanner &&other) noexcept -> Scanner & = default;
 
-auto Scanner::scan() -> std::optional<Statement> { return check(impl_->logger(), impl_->scan(), check_statement); }
+auto Scanner::scan() -> std::optional<Stm> { return check(impl_->logger(), impl_->scan(), check_statement); }
 
 class StreamScanner : public ScannerImpl {
   public:
     StreamScanner(Logger &log, SymbolStore &store, std::istream &in)
         : log_{log}, base_input_{in}, state_{store, store.string("<stream>"), base_input_.reader().position()},
           input_{base_input_, state_}, scanner_{lexy::scan<Grammar::control>(input_, state_, report_error{log})} {}
-    auto scan() -> std::optional<Statement> override { return scan_(*this); }
+    auto scan() -> std::optional<Stm> override { return scan_(*this); }
     auto logger() -> Logger & override { return log_; }
 
   private:
@@ -303,7 +303,7 @@ class StreamScanner : public ScannerImpl {
                                                           std::declval<report_error>()));
 
     Logger &log_;
-    std::optional<Statement> res_;
+    std::optional<Stm> res_;
     BaseInput base_input_;
     State state_;
     Input input_;
@@ -317,7 +317,7 @@ class FileScanner : public ScannerImpl {
         : log_{log}, handle_{lexy::read_file<Grammar::encoding>(path)}, base_input_{handle_.buffer()},
           state_{store, store.string(path), base_input_.reader().position()}, input_{base_input_, state_},
           scanner_{lexy::scan<Grammar::control>(input_, state_, report_error{log})} {}
-    auto scan() -> std::optional<Statement> override { return scan_(*this); }
+    auto scan() -> std::optional<Stm> override { return scan_(*this); }
     auto logger() -> Logger & override { return log_; }
 
   private:
@@ -332,7 +332,7 @@ class FileScanner : public ScannerImpl {
         std::declval<Input &>(), std::declval<State &>(), std::declval<report_error>()))>;
 
     Logger &log_;
-    std::optional<Statement> res_;
+    std::optional<Stm> res_;
     FileHandle handle_;
     BaseInput base_input_;
     State state_;
@@ -346,7 +346,7 @@ class StringScanner : public ScannerImpl {
     StringScanner(Logger &log, SymbolStore &store, std::string_view content)
         : log_{log}, base_input_{content}, state_{store, store.string("<string>"), base_input_.reader().position()},
           input_{base_input_, state_}, scanner_{lexy::scan<Grammar::control>(input_, state_, report_error{log})} {}
-    auto scan() -> std::optional<Statement> override { return scan_(*this); }
+    auto scan() -> std::optional<Stm> override { return scan_(*this); }
     auto logger() -> Logger & override { return log_; }
 
   private:
@@ -360,7 +360,7 @@ class StringScanner : public ScannerImpl {
                                                           std::declval<report_error>()));
 
     Logger &log_;
-    std::optional<Statement> res_;
+    std::optional<Stm> res_;
     BaseInput base_input_;
     State state_;
     Input input_;
@@ -388,19 +388,19 @@ auto parse_theory_term(Logger &log, SymbolStore &store, std::string_view str) ->
     return parse<Grammar::theory_term>(log, store, str);
 }
 
-auto parse_literal(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<Literal> {
+auto parse_literal(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<Lit> {
     return check(log, parse<Grammar::literal>(log, store, str), check_literal);
 }
 
-auto parse_head_literal(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<HeadLiteral> {
+auto parse_head_literal(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<HdLit> {
     return check(log, parse<Grammar::head_literal>(log, store, str), check_head_literal);
 }
 
-auto parse_body_literal(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<BodyLiteral> {
+auto parse_body_literal(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<BdLit> {
     return check(log, parse<Grammar::body_literal>(log, store, str), check_body_literal);
 }
 
-auto parse_statement(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<Statement> {
+auto parse_statement(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<Stm> {
     return check(log, parse<Grammar::statement>(log, store, str), check_statement);
 }
 

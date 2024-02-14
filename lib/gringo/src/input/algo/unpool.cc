@@ -16,11 +16,11 @@ namespace Gringo::Input {
 namespace {
 
 struct LiteralToTuple {
-    auto operator()(Literal const &orig, Literal const &lit) -> std::vector<Term> {
-        return std::visit(*this, std::variant<std::reference_wrapper<Literal const>>{orig}, lit);
+    auto operator()(Lit const &orig, Lit const &lit) -> std::vector<Term> {
+        return std::visit(*this, std::variant<std::reference_wrapper<Lit const>>{orig}, lit);
     }
 
-    auto tuple_from_vars(Literal const &orig) -> std::vector<Term> {
+    auto tuple_from_vars(Lit const &orig) -> std::vector<Term> {
         auto var_set = select_variables(orig);
         auto var_vec = VariableVec(var_set.begin(), var_set.end());
         std::sort(var_vec.begin(), var_vec.end());
@@ -33,17 +33,17 @@ struct LiteralToTuple {
         return res;
     }
 
-    auto operator()(Literal const &orig, LiteralBoolean const &lit) -> std::vector<Term> {
+    auto operator()(Lit const &orig, LitBool const &lit) -> std::vector<Term> {
         static_cast<void>(lit);
         return tuple_from_vars(orig);
     }
 
-    auto operator()(Literal const &orig, LiteralRelation const &lit) -> std::vector<Term> {
+    auto operator()(Lit const &orig, LitComparison const &lit) -> std::vector<Term> {
         static_cast<void>(lit);
         return tuple_from_vars(orig);
     }
 
-    auto operator()(Literal const &orig, LiteralSymbolic const &lit) -> std::vector<Term> {
+    auto operator()(Lit const &orig, LitSymbolic const &lit) -> std::vector<Term> {
         static_cast<void>(orig);
         std::vector<Term> res;
         res.reserve(2);
@@ -89,7 +89,7 @@ struct Unpool {
         });
     }
 
-    auto operator()(TermVec const &terms) const -> std::optional<std::vector<std::vector<Term>>> {
+    auto operator()(TermArray const &terms) const -> std::optional<std::vector<std::vector<Term>>> {
         return unpool_crossproduct(terms, *this);
     }
 
@@ -114,9 +114,9 @@ struct Unpool {
             elem);
     }
 
-    auto operator()(TupleElement const &tuple_or_term) const -> std::optional<TupleElementVec> {
+    auto operator()(TupleElement const &tuple_or_term) const -> std::optional<TupleElementArray> {
         return std::visit(
-            [this](auto const &x) -> std::optional<TupleElementVec> {
+            [this](auto const &x) -> std::optional<TupleElementArray> {
                 GRINGO_MATCH(x, Term) {
                     return Util::transform_vec(operator()(x), [](auto term) { return TupleElement{std::move(term)}; });
                 }
@@ -154,12 +154,12 @@ struct Unpool {
         });
 
         if (!elems.has_value() && term.pool().size() != 1) {
-            elems = PoolVec(term.pool().begin(), term.pool().end());
+            elems = PoolArray(term.pool().begin(), term.pool().end());
         }
 
         return Util::transform_vec(std::move(elems), [&term](auto elem) -> Term {
             // turn individual elements into function terms
-            return TermFunction{term.loc(), term.name(), PoolVec{std::move(elem)}, term.external()};
+            return TermFunction{term.loc(), term.name(), PoolArray{std::move(elem)}, term.external()};
         });
     }
 
@@ -169,7 +169,7 @@ struct Unpool {
             unpooled = std::vector<Term>(term.pool().begin(), term.pool().end());
         }
         return Util::transform_vec(std::move(unpooled), [&term](auto arg) -> Term {
-            return TermAbs{term.loc(), TermVec{std::move(arg)}};
+            return TermAbs{term.loc(), TermArray{std::move(arg)}};
         });
     }
 
@@ -187,7 +187,7 @@ struct Unpool {
             *this, *term.lhs(), *term.rhs());
     }
 
-    auto operator()(GuardVec const &guards) const -> std::optional<std::vector<GuardVec>> {
+    auto operator()(GuardArray const &guards) const -> std::optional<std::vector<GuardArray>> {
         return Util::transform_vec(
             unpool_crossproduct(guards,
                                 [this](Guard const &guard) {
@@ -195,34 +195,33 @@ struct Unpool {
                                         return Guard{guard.first, std::move(term)};
                                     });
                                 }),
-            [](auto vec) { return GuardVec{std::move(vec)}; });
+            [](auto vec) { return GuardArray{std::move(vec)}; });
     }
 
     // literal
 
-    auto operator()(Literal const &lit) const -> std::optional<std::vector<Literal>> { return std::visit(*this, lit); }
+    auto operator()(Lit const &lit) const -> std::optional<std::vector<Lit>> { return std::visit(*this, lit); }
 
-    auto operator()(LiteralVec const &lits) const -> std::optional<std::vector<LiteralVec>> {
-        return Util::transform_vec(unpool_crossproduct(lits, *this),
-                                   [](auto vec) { return LiteralVec{std::move(vec)}; });
+    auto operator()(LitArray const &lits) const -> std::optional<std::vector<LitArray>> {
+        return Util::transform_vec(unpool_crossproduct(lits, *this), [](auto vec) { return LitArray{std::move(vec)}; });
     }
 
-    auto operator()(LiteralBoolean const &lit) const -> std::optional<std::vector<Literal>> {
+    auto operator()(LitBool const &lit) const -> std::optional<std::vector<Lit>> {
         static_cast<void>(lit);
         return std::nullopt;
     }
 
-    auto operator()(LiteralRelation const &lit) const -> std::optional<std::vector<Literal>> {
+    auto operator()(LitComparison const &lit) const -> std::optional<std::vector<Lit>> {
         return unpool_crossproducts(
-            [&lit](auto lhs, auto rhs) -> Literal {
-                return LiteralRelation{lit.loc(), lit.sign(), std::move(lhs), std::move(rhs)};
+            [&lit](auto lhs, auto rhs) -> Lit {
+                return LitComparison{lit.loc(), lit.sign(), std::move(lhs), std::move(rhs)};
             },
             *this, lit.lhs(), lit.rhs());
     }
 
-    auto operator()(LiteralSymbolic const &lit) const -> std::optional<std::vector<Literal>> {
-        return Util::transform_vec(operator()(lit.term()), [&lit](auto term) -> Literal {
-            return LiteralSymbolic{lit.loc(), lit.sign(), std::move(term)};
+    auto operator()(LitSymbolic const &lit) const -> std::optional<std::vector<Lit>> {
+        return Util::transform_vec(operator()(lit.term()), [&lit](auto term) -> Lit {
+            return LitSymbolic{lit.loc(), lit.sign(), std::move(term)};
         });
     }
 
@@ -252,7 +251,7 @@ struct Unpool {
     template <bool HasSign>
     void
     unpool_elem(LiteralToTuple &to_tuple, SetAggregateElement const &elem,
-                std::vector<std::conditional_t<HasSign, BodyAggregateElement, HeadAggregateElement>> &elems) const {
+                std::vector<std::conditional_t<HasSign, BdLitAggregateElement, HdLitAggregateElement>> &elems) const {
         auto set_elems = unpool_crossproducts(
             [&elem](auto lit, auto cond) {
                 return SetAggregateElement{elem.loc(), std::move(lit), std::move(cond)};
@@ -270,8 +269,8 @@ struct Unpool {
             res_cond.keep_all();
             for (auto &[lhs, rhs] : ctx.aux()) {
                 auto loc = location(lhs);
-                auto rel = LiteralRelation{loc, Sign::none, std::move(lhs),
-                                           Util::make_vec<Guard>(Guard{Relation::equal, std::move(rhs)})};
+                auto rel = LitComparison{loc, Sign::none, std::move(lhs),
+                                         Util::make_vec<Guard>(Guard{Relation::equal, std::move(rhs)})};
 
                 res_cond.append(std::move(rel));
             }
@@ -294,25 +293,25 @@ struct Unpool {
 
     template <bool HasSign>
     auto operator()(SetAggregate<HasSign> const &aggr) const
-        -> std::optional<std::vector<std::conditional_t<HasSign, BodyLiteral, HeadLiteral>>> {
+        -> std::optional<std::vector<std::conditional_t<HasSign, BdLit, HdLit>>> {
         auto convert = [this, &aggr](auto lhs, auto rhs) {
-            std::vector<std::conditional_t<HasSign, BodyAggregateElement, HeadAggregateElement>> elems;
+            std::vector<std::conditional_t<HasSign, BdLitAggregateElement, HdLitAggregateElement>> elems;
             LiteralToTuple to_tuple{ctx.store()};
             for (auto &elem : aggr.elems()) {
                 to_tuple.next();
                 unpool_elem<HasSign>(to_tuple, elem, elems);
             }
             if constexpr (HasSign) {
-                return BodyLiteral{BodyAggregate{aggr.loc(), aggr.sign(), std::move(lhs), AggregateFunction::count,
-                                                 std::move(elems), std::move(rhs)}};
+                return BdLit{BdLitAggregate{aggr.loc(), aggr.sign(), std::move(lhs), AggregateFunction::count,
+                                            std::move(elems), std::move(rhs)}};
             } else {
-                return HeadLiteral{HeadAggregate{aggr.loc(), std::move(lhs), AggregateFunction::count, std::move(elems),
-                                                 std::move(rhs)}};
+                return HdLit{HdLitAggregate{aggr.loc(), std::move(lhs), AggregateFunction::count, std::move(elems),
+                                            std::move(rhs)}};
             }
         };
         auto ret = unpool_crossproducts(convert, *this, aggr.lhs(), aggr.rhs());
         if (!ret.has_value()) {
-            ret = std::vector<std::conditional_t<HasSign, BodyLiteral, HeadLiteral>>{};
+            ret = std::vector<std::conditional_t<HasSign, BdLit, HdLit>>{};
             ret->emplace_back(convert(aggr.lhs(), aggr.rhs()));
         }
         return ret;
@@ -328,21 +327,21 @@ struct Unpool {
             *this, elem.cond());
     }
 
-    auto operator()(TheoryElementVec const &elems) const -> std::optional<std::vector<TheoryElementVec>> {
+    auto operator()(TheoryElementArray const &elems) const -> std::optional<std::vector<TheoryElementArray>> {
         return Util::transform(unpool_union(elems, *this),
-                               [](auto elems) { return Util::make_vec<TheoryElementVec>(std::move(elems)); });
+                               [](auto elems) { return Util::make_vec<TheoryElementArray>(std::move(elems)); });
     }
 
     template <bool HasSign>
     auto operator()(TheoryAtom<HasSign> const &atom) const
-        -> std::optional<std::vector<std::conditional_t<HasSign, BodyLiteral, HeadLiteral>>> {
+        -> std::optional<std::vector<std::conditional_t<HasSign, BdLit, HdLit>>> {
         return unpool_crossproducts(
             [&atom](auto name, auto elems) {
                 if constexpr (HasSign) {
-                    return BodyLiteral{
-                        BodyTheoryAtom{atom.loc(), atom.sign(), std::move(name), std::move(elems), atom.rhs()}};
+                    return BdLit{
+                        BdLitTheoryAtom{atom.loc(), atom.sign(), std::move(name), std::move(elems), atom.rhs()}};
                 } else {
-                    return HeadLiteral{HeadTheoryAtom{atom.loc(), std::move(name), std::move(elems), atom.rhs()}};
+                    return HdLit{HdLitTheoryAtom{atom.loc(), std::move(name), std::move(elems), atom.rhs()}};
                 }
             },
             *this, atom.name(), atom.elems());
@@ -350,20 +349,18 @@ struct Unpool {
 
     // head literal
 
-    auto operator()(HeadLiteral const &lit) const -> std::optional<std::vector<HeadLiteral>> {
-        return std::visit(*this, lit);
-    }
+    auto operator()(HdLit const &lit) const -> std::optional<std::vector<HdLit>> { return std::visit(*this, lit); }
 
-    auto operator()(SimpleHeadLiteral const &lit) const -> std::optional<std::vector<HeadLiteral>> {
+    auto operator()(HdLitSimple const &lit) const -> std::optional<std::vector<HdLit>> {
         return Util::transform_vec(operator()(lit.lit()),
-                                   [](auto lit) -> HeadLiteral { return SimpleHeadLiteral{std::move(lit)}; });
+                                   [](auto lit) -> HdLit { return HdLitSimple{std::move(lit)}; });
     }
 
-    auto operator()(DisjunctionElement const &elem) const -> std::optional<DisjunctionElementVec> {
+    auto operator()(HdLitDisjunctionElement const &elem) const -> std::optional<HdLitDisjunctionElementArray> {
         return std::visit(
-            [this](auto const &elem) -> std::optional<std::vector<DisjunctionElement>> {
-                GRINGO_MATCH(elem, Literal) {
-                    return unpool_crossproducts([](auto lit) { return DisjunctionElement{std::move(lit)}; }, *this,
+            [this](auto const &elem) -> std::optional<std::vector<HdLitDisjunctionElement>> {
+                GRINGO_MATCH(elem, Lit) {
+                    return unpool_crossproducts([](auto lit) { return HdLitDisjunctionElement{std::move(lit)}; }, *this,
                                                 elem);
                 }
                 return std::nullopt;
@@ -371,18 +368,19 @@ struct Unpool {
             elem);
     }
 
-    auto operator()(DisjunctionElementVec const &elems) const -> std::optional<std::vector<DisjunctionElementVec>> {
+    auto operator()(HdLitDisjunctionElementArray const &elems) const
+        -> std::optional<std::vector<HdLitDisjunctionElementArray>> {
         return Util::transform_vec(unpool_crossproduct(elems, *this),
-                                   [](auto vec) { return DisjunctionElementVec{std::move(vec)}; });
+                                   [](auto vec) { return HdLitDisjunctionElementArray{std::move(vec)}; });
     }
 
-    auto operator()(Disjunction const &lit) const -> std::optional<std::vector<HeadLiteral>> {
+    auto operator()(HdLitDisjunction const &lit) const -> std::optional<std::vector<HdLit>> {
         auto unpool = [this](auto const &elems) {
             auto res_elems = Util::ResultVec{elems};
             for (auto const &elem : elems) {
-                if (auto const *clit = std::get_if<ConditionalLiteral>(&elem); clit != nullptr) {
-                    auto build = [clit](auto lit, auto elem) -> DisjunctionElement {
-                        return ConditionalLiteral{clit->loc(), std::move(lit), std::move(elem)};
+                if (auto const *clit = std::get_if<CondLit>(&elem); clit != nullptr) {
+                    auto build = [clit](auto lit, auto elem) -> HdLitDisjunctionElement {
+                        return CondLit{clit->loc(), std::move(lit), std::move(elem)};
                     };
                     auto res_clit = unpool_crossproducts(build, *this, clit->lit(), clit->cond());
                     if (res_clit) {
@@ -399,69 +397,68 @@ struct Unpool {
             return res_elems;
         };
         auto res_pool = unpool_crossproducts(
-            [&lit](auto elems) -> HeadLiteral {
-                return Disjunction{lit.loc(), std::move(elems)};
+            [&lit](auto elems) -> HdLit {
+                return HdLitDisjunction{lit.loc(), std::move(elems)};
             },
             *this, lit.elems());
         if (res_pool) {
             for (auto &lit : res_pool.value()) {
-                auto const &disj = std::get<Disjunction>(lit);
+                auto const &disj = std::get<HdLitDisjunction>(lit);
                 if (auto res_elems = unpool(disj.elems()); res_elems) {
-                    lit = Disjunction{disj.loc(), std::move(res_elems).value()};
+                    lit = HdLitDisjunction{disj.loc(), std::move(res_elems).value()};
                 }
             }
             return res_pool;
         }
         if (auto res_elems = unpool(lit.elems()); res_elems) {
-            return Util::make_vec<HeadLiteral>(Disjunction{lit.loc(), std::move(res_elems).value()});
+            return Util::make_vec<HdLit>(HdLitDisjunction{lit.loc(), std::move(res_elems).value()});
         }
         return std::nullopt;
     }
 
-    auto operator()(HeadAggregateElement const &elem) const -> std::optional<HeadAggregateElementVec> {
+    auto operator()(HdLitAggregateElement const &elem) const -> std::optional<HdLitAggregateElementArray> {
         return unpool_crossproducts(
             [&elem](auto tuple, auto lit, auto cond) {
-                return HeadAggregateElement{elem.loc(), std::move(tuple), std::move(lit), std::move(cond)};
+                return HdLitAggregateElement{elem.loc(), std::move(tuple), std::move(lit), std::move(cond)};
             },
             *this, elem.tuple(), elem.lit(), elem.cond());
     }
 
-    auto operator()(HeadAggregateElementVec const &elems) const -> std::optional<std::vector<HeadAggregateElementVec>> {
+    auto operator()(HdLitAggregateElementArray const &elems) const
+        -> std::optional<std::vector<HdLitAggregateElementArray>> {
         return Util::transform(unpool_union(elems, *this),
-                               [](auto elems) { return Util::make_vec<HeadAggregateElementVec>(std::move(elems)); });
+                               [](auto elems) { return Util::make_vec<HdLitAggregateElementArray>(std::move(elems)); });
     }
 
-    auto operator()(HeadAggregate const &lit) const -> std::optional<std::vector<HeadLiteral>> {
+    auto operator()(HdLitAggregate const &lit) const -> std::optional<std::vector<HdLit>> {
         return unpool_crossproducts(
-            [&lit](auto lhs, auto elems, auto rhs) -> HeadLiteral {
-                return HeadAggregate{lit.loc(), std::move(lhs), lit.fun(), std::move(elems), std::move(rhs)};
+            [&lit](auto lhs, auto elems, auto rhs) -> HdLit {
+                return HdLitAggregate{lit.loc(), std::move(lhs), lit.fun(), std::move(elems), std::move(rhs)};
             },
             *this, lit.lhs(), lit.elems(), lit.rhs());
     }
 
     // body literal
 
-    auto operator()(BodyLiteral const &lit) const -> std::optional<std::vector<BodyLiteral>> {
-        return std::visit(*this, lit);
-    }
+    auto operator()(BdLit const &lit) const -> std::optional<std::vector<BdLit>> { return std::visit(*this, lit); }
 
-    auto operator()(SimpleBodyLiteral const &lit) const -> std::optional<std::vector<BodyLiteral>> {
+    auto operator()(BdLitSimple const &lit) const -> std::optional<std::vector<BdLit>> {
         return Util::transform_vec(operator()(lit.lit()),
-                                   [](auto lit) -> BodyLiteral { return SimpleBodyLiteral{std::move(lit)}; });
+                                   [](auto lit) -> BdLit { return BdLitSimple{std::move(lit)}; });
     }
 
-    auto operator()(Conjunction const &lit) const -> std::optional<std::vector<BodyLiteral>> {
+    auto operator()(BdLitConjunction const &lit) const -> std::optional<std::vector<BdLit>> {
         static_cast<void>(lit);
         return std::nullopt;
     }
 
-    auto operator()(BodyLiteralVec const &lits) const -> std::optional<std::vector<BodyLiteralVec>> {
+    auto operator()(BdLitArray const &lits) const -> std::optional<std::vector<BdLitArray>> {
         auto unpool = [this](auto const &lits) {
             auto res_lits = Util::ResultVec{lits};
             for (auto const &lit : lits) {
-                if (auto const *conj = std::get_if<Conjunction>(&lit); conj != nullptr) {
-                    auto build = [conj](auto lit, auto elem) -> BodyLiteral {
-                        return Conjunction{ConditionalLiteral{conj->lit().loc(), std::move(lit), std::move(elem)}};
+                if (auto const *conj = std::get_if<BdLitConjunction>(&lit); conj != nullptr) {
+                    auto build = [conj](auto lit, auto elem) -> BdLit {
+                        return BdLitConjunction{CondLit{conj->lit().loc(), std::move(lit), std::move(elem)}};
                     };
                     auto res_conj = unpool_crossproducts(build, *this, conj->lit().lit(), conj->lit().cond());
                     if (res_conj) {
@@ -483,60 +480,61 @@ struct Unpool {
                     lits = std::move(res_lits).value();
                 }
             }
-            return std::vector<BodyLiteralVec>{std::make_move_iterator(res_pool->begin()),
-                                               std::make_move_iterator(res_pool->end())};
+            return std::vector<BdLitArray>{std::make_move_iterator(res_pool->begin()),
+                                           std::make_move_iterator(res_pool->end())};
         }
         if (auto res_lits = unpool(lits); res_lits) {
-            return Util::make_vec<BodyLiteralVec>(std::move(res_lits).value());
+            return Util::make_vec<BdLitArray>(std::move(res_lits).value());
         }
         return std::nullopt;
     }
 
-    auto operator()(BodyAggregateElement const &elem) const -> std::optional<BodyAggregateElementVec> {
+    auto operator()(BdLitAggregateElement const &elem) const -> std::optional<BdLitAggregateElementArray> {
         return unpool_crossproducts(
             [&elem](auto tuple, auto cond) {
-                return BodyAggregateElement{elem.loc(), std::move(tuple), std::move(cond)};
+                return BdLitAggregateElement{elem.loc(), std::move(tuple), std::move(cond)};
             },
             *this, elem.tuple(), elem.cond());
     }
 
-    auto operator()(BodyAggregateElementVec const &elems) const -> std::optional<std::vector<BodyAggregateElementVec>> {
+    auto operator()(BdLitAggregateElementArray const &elems) const
+        -> std::optional<std::vector<BdLitAggregateElementArray>> {
         return Util::transform(unpool_union(elems, *this),
-                               [](auto elems) { return Util::make_vec<BodyAggregateElementVec>(std::move(elems)); });
+                               [](auto elems) { return Util::make_vec<BdLitAggregateElementArray>(std::move(elems)); });
     }
 
-    auto operator()(BodyAggregate const &aggr) const -> std::optional<std::vector<BodyLiteral>> {
+    auto operator()(BdLitAggregate const &aggr) const -> std::optional<std::vector<BdLit>> {
         return unpool_crossproducts(
-            [&aggr](auto lhs, auto elems, auto rhs) -> BodyLiteral {
-                return BodyAggregate{aggr.loc(), aggr.sign(),      std::move(lhs),
-                                     aggr.fun(), std::move(elems), std::move(rhs)};
+            [&aggr](auto lhs, auto elems, auto rhs) -> BdLit {
+                return BdLitAggregate{aggr.loc(), aggr.sign(),      std::move(lhs),
+                                      aggr.fun(), std::move(elems), std::move(rhs)};
             },
             *this, aggr.lhs(), aggr.elems(), aggr.rhs());
     }
 
     // statement
 
-    auto operator()(Statement const &stm) const -> std::optional<StatementVec> { return std::visit(*this, stm); }
+    auto operator()(Stm const &stm) const -> std::optional<StmVec> { return std::visit(*this, stm); }
 
-    auto operator()(Edge const &edge) const -> std::optional<EdgeVec> {
+    auto operator()(Edge const &edge) const -> std::optional<EdgeArray> {
         return unpool_crossproducts(
             [](auto u, auto v) {
                 return Edge{std::move(u), std::move(v)};
             },
-            *this, edge.u(), edge.v());
+            *this, edge.src(), edge.dst());
     }
 
-    auto operator()(EdgeVec const &edges) const { return unpool_union(edges, *this); }
+    auto operator()(EdgeArray const &edges) const { return unpool_union(edges, *this); }
 
-    auto operator()(Rule const &stm) const -> std::optional<StatementVec> {
+    auto operator()(StmRule const &stm) const -> std::optional<StmVec> {
         return unpool_crossproducts(
-            [&stm](auto head, auto body) -> Statement {
-                return Rule{stm.loc(), std::move(head), std::move(body)};
+            [&stm](auto head, auto body) -> Stm {
+                return StmRule{stm.loc(), std::move(head), std::move(body)};
             },
             *this, stm.head(), stm.body());
     }
 
-    auto operator()(TheoryDefinition const &stm) const -> std::optional<StatementVec> {
+    auto operator()(StmTheory const &stm) const -> std::optional<StmVec> {
         static_cast<void>(stm);
         return std::nullopt;
     }
@@ -546,24 +544,24 @@ struct Unpool {
             [](auto weight, auto prio, auto terms) {
                 return OptimizeTuple{std::move(weight), std::move(prio), std::move(terms)};
             },
-            *this, tuple.weight(), tuple.priority(), tuple.terms());
+            *this, tuple.weight(), tuple.prio(), tuple.terms());
     }
 
-    auto operator()(StatementOptimize const &stm) const -> std::optional<StatementVec> {
-        StatementVec stms;
+    auto operator()(StmOptimize const &stm) const -> std::optional<StmVec> {
+        StmVec stms;
         stms.reserve(stm.elems().size());
         for (auto const &elem : stm.elems()) {
-            auto body = std::vector<BodyLiteral>{};
+            auto body = std::vector<BdLit>{};
             body.reserve(elem.second.size());
             for (auto const &lit : elem.second) {
-                body.emplace_back(SimpleBodyLiteral{lit});
+                body.emplace_back(BdLitSimple{lit});
             }
             auto tuple = stm.type() == OptimizeType::minimize
                              ? elem.first
                              : OptimizeTuple{TermUnary{location(elem.first.weight()), UnaryOperator::negate,
                                                        std::move(elem.first.weight())},
-                                             elem.first.priority(), elem.first.terms()};
-            auto cons = StatementWeakConstraint{stm.loc(), std::move(body), std::move(tuple)};
+                                             elem.first.prio(), elem.first.terms()};
+            auto cons = StmWeakConstraint{stm.loc(), std::move(body), std::move(tuple)};
             if (auto opt_stms = operator()(cons); opt_stms.has_value()) {
                 stms.insert(stms.end(), std::make_move_iterator(opt_stms->begin()),
                             std::make_move_iterator(opt_stms->end()));
@@ -574,61 +572,61 @@ struct Unpool {
         return stms;
     }
 
-    auto operator()(StatementWeakConstraint const &stm) const -> std::optional<StatementVec> {
+    auto operator()(StmWeakConstraint const &stm) const -> std::optional<StmVec> {
         return unpool_crossproducts(
-            [&stm](auto body, auto tuple) -> Statement {
-                return StatementWeakConstraint{stm.loc(), std::move(body), std::move(tuple)};
+            [&stm](auto body, auto tuple) -> Stm {
+                return StmWeakConstraint{stm.loc(), std::move(body), std::move(tuple)};
             },
             *this, stm.body(), stm.tuple());
     }
 
-    auto operator()(StatementShow const &stm) const -> std::optional<StatementVec> {
+    auto operator()(StmShow const &stm) const -> std::optional<StmVec> {
         return unpool_crossproducts(
-            [&stm](auto term, auto body) -> Statement {
-                return StatementShow{stm.loc(), std::move(term), std::move(body)};
+            [&stm](auto term, auto body) -> Stm {
+                return StmShow{stm.loc(), std::move(term), std::move(body)};
             },
             *this, stm.term(), stm.body());
     }
 
-    auto operator()(StatementShowSig const &stm) const -> std::optional<StatementVec> {
+    auto operator()(StmShowSig const &stm) const -> std::optional<StmVec> {
         static_cast<void>(stm);
         return std::nullopt;
     }
 
-    auto operator()(StatementProject const &stm) const -> std::optional<StatementVec> {
+    auto operator()(StmProject const &stm) const -> std::optional<StmVec> {
         return unpool_crossproducts(
-            [&stm](auto term, auto body) -> Statement {
-                return StatementProject{stm.loc(), std::move(term), std::move(body)};
+            [&stm](auto term, auto body) -> Stm {
+                return StmProject{stm.loc(), std::move(term), std::move(body)};
             },
             *this, stm.term(), stm.body());
     }
 
-    auto operator()(StatementProjectSig const &stm) const -> std::optional<StatementVec> {
+    auto operator()(StmProjectSig const &stm) const -> std::optional<StmVec> {
         static_cast<void>(stm);
         return std::nullopt;
     }
 
-    auto operator()(StatementDefined const &stm) const -> std::optional<StatementVec> {
+    auto operator()(StmDefined const &stm) const -> std::optional<StmVec> {
         static_cast<void>(stm);
         return std::nullopt;
     }
 
-    auto operator()(StatementExternal const &stm) const -> std::optional<StatementVec> {
+    auto operator()(StmExternal const &stm) const -> std::optional<StmVec> {
         return unpool_crossproducts(
-            [&stm](auto term, auto body, auto type) -> Statement {
-                return StatementExternal{stm.loc(), std::move(term), std::move(body), std::move(type)};
+            [&stm](auto term, auto body, auto type) -> Stm {
+                return StmExternal{stm.loc(), std::move(term), std::move(body), std::move(type)};
             },
             *this, stm.term(), stm.body(), stm.type());
     }
 
-    auto operator()(StatementEdge const &stm) const -> std::optional<StatementVec> {
+    auto operator()(StmEdge const &stm) const -> std::optional<StmVec> {
         auto edges = operator()(stm.edges());
         auto bodies = operator()(stm.body());
         if (stm.edges().size() != 1 || edges.has_value() || bodies.has_value()) {
-            StatementVec ret;
-            for (auto &body : bodies.value_or(Util::make_vec<BodyLiteralVec>(stm.body()))) {
+            StmVec ret;
+            for (auto &body : bodies.value_or(Util::make_vec<BdLitArray>(stm.body()))) {
                 for (auto &edge : edges.value_or(stm.edges())) {
-                    ret.emplace_back(StatementEdge{stm.loc(), Util::make_vec<Edge>(edge), body});
+                    ret.emplace_back(StmEdge{stm.loc(), Util::make_vec<Edge>(edge), body});
                 }
             }
             return ret;
@@ -636,34 +634,34 @@ struct Unpool {
         return std::nullopt;
     }
 
-    auto operator()(StatementHeuristic const &stm) const -> std::optional<StatementVec> {
+    auto operator()(StmHeuristic const &stm) const -> std::optional<StmVec> {
         return unpool_crossproducts(
-            [&stm](auto atom, auto body, auto type, auto prio, auto mod) -> Statement {
-                return StatementHeuristic{stm.loc(),       std::move(atom), std::move(body),
-                                          std::move(type), std::move(prio), std::move(mod)};
+            [&stm](auto atom, auto body, auto type, auto prio, auto mod) -> Stm {
+                return StmHeuristic{stm.loc(),       std::move(atom), std::move(body),
+                                    std::move(type), std::move(prio), std::move(mod)};
             },
-            *this, stm.atom(), stm.body(), stm.type(), stm.prio(), stm.mod());
+            *this, stm.atom(), stm.body(), stm.weight(), stm.prio(), stm.type());
     }
 
-    auto operator()(StatementScript const &stm) const -> std::optional<StatementVec> {
+    auto operator()(StmScript const &stm) const -> std::optional<StmVec> {
         static_cast<void>(stm);
         return std::nullopt;
     }
 
-    auto operator()(StatementInclude const &stm) const -> std::optional<StatementVec> {
+    auto operator()(StmInclude const &stm) const -> std::optional<StmVec> {
         static_cast<void>(stm);
         return std::nullopt;
     }
 
-    auto operator()(StatementProgram const &stm) const -> std::optional<StatementVec> {
+    auto operator()(StmProgram const &stm) const -> std::optional<StmVec> {
         static_cast<void>(stm);
         return std::nullopt;
     }
 
-    auto operator()(StatementConst const &stm) const -> std::optional<StatementVec> {
+    auto operator()(StmConst const &stm) const -> std::optional<StmVec> {
         auto ret = unpool_crossproducts(
-            [&stm](auto value) -> Statement {
-                return StatementConst{stm.loc(), stm.type(), stm.name(), std::move(value)};
+            [&stm](auto value) -> Stm {
+                return StmConst{stm.loc(), stm.type(), stm.name(), std::move(value)};
             },
             *this, stm.value());
         if (ret.has_value() && ret->size() != 1) {
@@ -672,7 +670,7 @@ struct Unpool {
         return ret;
     }
 
-    auto operator()(Comment const &stm) const -> std::optional<StatementVec> {
+    auto operator()(StmComment const &stm) const -> std::optional<StmVec> {
         static_cast<void>(stm);
         return std::nullopt;
     }
@@ -684,15 +682,11 @@ struct Unpool {
 
 auto unpool(RewriteContext &ctx, Term const &term) -> std::optional<std::vector<Term>> { return Unpool{ctx}(term); }
 
-auto unpool(RewriteContext &ctx, Literal const &lit) -> std::optional<std::vector<Literal>> { return Unpool{ctx}(lit); }
+auto unpool(RewriteContext &ctx, Lit const &lit) -> std::optional<std::vector<Lit>> { return Unpool{ctx}(lit); }
 
-auto unpool(RewriteContext &ctx, HeadLiteral const &lit) -> std::optional<std::vector<HeadLiteral>> {
-    return Unpool{ctx}(lit);
-}
+auto unpool(RewriteContext &ctx, HdLit const &lit) -> std::optional<std::vector<HdLit>> { return Unpool{ctx}(lit); }
 
-auto unpool(RewriteContext &ctx, BodyLiteral const &lit) -> std::optional<std::vector<BodyLiteral>> {
-    return Unpool{ctx}(lit);
-}
+auto unpool(RewriteContext &ctx, BdLit const &lit) -> std::optional<std::vector<BdLit>> { return Unpool{ctx}(lit); }
 
 template <class F> struct print {
     print(F const &f) : f{f} {}
@@ -703,17 +697,17 @@ template <class F> struct print {
     F const &f;
 };
 
-auto unpool(RewriteContext &ctx, Statement const &stm) -> std::optional<StatementVec> {
+auto unpool(RewriteContext &ctx, Stm const &stm) -> std::optional<StmVec> {
     auto stms = Unpool{ctx}(stm);
     // Note: minimize statements are rewritten into weak constraints here. This
     // makes all their (local) variables global. Hence, the test below will
     // fail and we must skip it. Another alternative implemenation could
     // perform the rewriting in a follow up step.
-    if (stms.has_value() && !std::holds_alternative<StatementOptimize>(stm)) {
+    if (stms.has_value() && !std::holds_alternative<StmOptimize>(stm)) {
         VariableSet global = select_variables(stm, VariableContext::global);
         for (auto const &unpooled : stms.value()) {
             if (!check_global(ctx.logger(), global, unpooled)) {
-                return StatementVec{};
+                return StmVec{};
             }
         }
     }

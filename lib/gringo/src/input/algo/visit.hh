@@ -116,15 +116,15 @@ template <class T> class Visitor {
 
     // literals
 
-    void accept_(LiteralBoolean const &lit) const { static_cast<void>(lit); }
+    void accept_(LitBool const &lit) const { static_cast<void>(lit); }
 
-    void accept_(LiteralRelation const &lit) const { visit(lit.lhs(), lit.rhs()); }
+    void accept_(LitComparison const &lit) const { visit(lit.lhs(), lit.rhs()); }
 
-    void accept_(LiteralSymbolic const &lit) const { visit(lit.term()); }
+    void accept_(LitSymbolic const &lit) const { visit(lit.term()); }
 
     // conditional literal
 
-    void accept_(ConditionalLiteral const &cond_lit) const { visit(cond_lit.lit(), cond_lit.cond()); }
+    void accept_(CondLit const &cond_lit) const { visit(cond_lit.lit(), cond_lit.cond()); }
 
     // aggregate
 
@@ -145,65 +145,63 @@ template <class T> class Visitor {
 
     // head literal
 
-    void accept_(SimpleHeadLiteral const &lit) const { visit(lit.lit()); }
+    void accept_(HdLitSimple const &lit) const { visit(lit.lit()); }
 
-    void accept_(Disjunction const &lit) const { visit(lit.elems()); }
+    void accept_(HdLitDisjunction const &lit) const { visit(lit.elems()); }
 
-    void accept_(HeadAggregateElement const &elem) const { visit(elem.tuple(), elem.lit(), elem.cond()); }
+    void accept_(HdLitAggregateElement const &elem) const { visit(elem.tuple(), elem.lit(), elem.cond()); }
 
-    void accept_(HeadAggregate const &lit) const { visit(lit.lhs(), lit.elems(), lit.rhs()); }
+    void accept_(HdLitAggregate const &lit) const { visit(lit.lhs(), lit.elems(), lit.rhs()); }
 
     // body literal
 
-    void accept_(SimpleBodyLiteral const &lit) const { visit(lit.lit()); }
+    void accept_(BdLitSimple const &lit) const { visit(lit.lit()); }
 
-    void accept_(Conjunction const &lit) const { visit(lit.lit()); }
+    void accept_(BdLitConjunction const &lit) const { visit(lit.lit()); }
 
-    void accept_(BodyAggregateElement const &elem) const { visit(elem.tuple(), elem.cond()); }
+    void accept_(BdLitAggregateElement const &elem) const { visit(elem.tuple(), elem.cond()); }
 
-    void accept_(BodyAggregate const &lit) const { visit(lit.lhs(), lit.elems(), lit.rhs()); }
+    void accept_(BdLitAggregate const &lit) const { visit(lit.lhs(), lit.elems(), lit.rhs()); }
 
     // statement
 
-    void accept_(Rule const &stm) const { visit(stm.head(), stm.body()); }
+    void accept_(StmRule const &stm) const { visit(stm.head(), stm.body()); }
 
-    void accept_(TheoryDefinition const &stm) const { static_cast<void>(stm); }
+    void accept_(StmTheory const &stm) const { static_cast<void>(stm); }
 
-    void accept_(OptimizeTuple const &tuple) const { visit(tuple.weight(), tuple.priority(), tuple.terms()); }
+    void accept_(OptimizeTuple const &tuple) const { visit(tuple.weight(), tuple.prio(), tuple.terms()); }
 
-    void accept_(StatementOptimize const &stm) const { visit(stm.elems()); }
+    void accept_(StmOptimize const &stm) const { visit(stm.elems()); }
 
-    void accept_(StatementWeakConstraint const &stm) const { visit(stm.body(), stm.tuple()); }
+    void accept_(StmWeakConstraint const &stm) const { visit(stm.body(), stm.tuple()); }
 
-    void accept_(StatementShow const &stm) const { visit(stm.term(), stm.body()); }
+    void accept_(StmShow const &stm) const { visit(stm.term(), stm.body()); }
 
-    void accept_(StatementShowSig const &stm) const { static_cast<void>(stm); }
+    void accept_(StmShowSig const &stm) const { static_cast<void>(stm); }
 
-    void accept_(StatementProject const &stm) const { visit(stm.term(), stm.body()); }
+    void accept_(StmProject const &stm) const { visit(stm.term(), stm.body()); }
 
-    void accept_(StatementProjectSig const &stm) const { static_cast<void>(stm); }
+    void accept_(StmProjectSig const &stm) const { static_cast<void>(stm); }
 
-    void accept_(StatementDefined const &stm) const { static_cast<void>(stm); }
+    void accept_(StmDefined const &stm) const { static_cast<void>(stm); }
 
-    void accept_(StatementExternal const &stm) const { visit(stm.term(), stm.body(), stm.type()); }
+    void accept_(StmExternal const &stm) const { visit(stm.term(), stm.body(), stm.type()); }
 
-    void accept_(Edge const &edge) const { visit(edge.u(), edge.v()); }
+    void accept_(Edge const &edge) const { visit(edge.src(), edge.dst()); }
 
-    void accept_(StatementEdge const &stm) const { visit(stm.edges(), stm.body()); }
+    void accept_(StmEdge const &stm) const { visit(stm.edges(), stm.body()); }
 
-    void accept_(StatementHeuristic const &stm) const {
-        visit(stm.atom(), stm.body(), stm.type(), stm.prio(), stm.mod());
-    }
+    void accept_(StmHeuristic const &stm) const { visit(stm.atom(), stm.body(), stm.weight(), stm.prio(), stm.type()); }
 
-    void accept_(StatementScript const &stm) const { static_cast<void>(stm); }
+    void accept_(StmScript const &stm) const { static_cast<void>(stm); }
 
-    void accept_(StatementInclude const &stm) const { static_cast<void>(stm); }
+    void accept_(StmInclude const &stm) const { static_cast<void>(stm); }
 
-    void accept_(StatementProgram const &stm) const { static_cast<void>(stm); }
+    void accept_(StmProgram const &stm) const { static_cast<void>(stm); }
 
-    void accept_(StatementConst const &stm) const { visit(stm.value()); }
+    void accept_(StmConst const &stm) const { visit(stm.value()); }
 
-    void accept_(Comment const &stm) const { static_cast<void>(stm); }
+    void accept_(StmComment const &stm) const { static_cast<void>(stm); }
 };
 
 } // namespace Gringo::Input

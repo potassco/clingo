@@ -21,27 +21,6 @@ using transform_vec_result = std::optional<std::vector<typename transform_result
 
 } // namespace Detail
 
-//! Helper to update attributes of a record.
-//!
-//! A shortcut for <tt>opt ? static_cast<O>(*std::move(opt)) : old</tt>.
-template <class N, class O> auto upa(O const &old, std::optional<N> &opt) -> O {
-    if (opt) {
-        return *std::move(opt);
-    }
-    return old;
-}
-
-//! Helper to update attributes of a record.
-template <class N, class O> auto upa(O const &old, std::optional<N> &&opt) -> O {
-    if (opt) {
-        return *std::move(opt);
-    }
-    return old;
-}
-
-//! Helper to update attributes of a record.
-template <class N, class O> auto upa(O const &old, std::optional<N> const &opt) -> O = delete;
-
 //! Implemenatation of std::optional<T>::transform.
 template <class T, class F> constexpr auto transform(std::optional<T> &x, F &&f) -> Detail::transform_result<T &, F> {
     if (x.has_value()) {
@@ -285,43 +264,5 @@ template <class T> ResultVec(std::vector<T> const &) -> ResultVec<T, true>;
 template <class T> ResultVec(tcb::span<T const> const &) -> ResultVec<T, true>;
 
 template <class T> ResultVec(immutable_array<T> const &) -> ResultVec<T, false>;
-
-template <class O, class N> struct UPA {
-    UPA(O const &old, N &&opt) : old{old}, opt{std::move(opt)} {}
-    UPA(O const &old, N &opt) : old{old}, opt{std::move(opt)} {}
-    UPA(O const &old, N const &opt) = delete;
-    O const &old;
-    N opt;
-};
-
-namespace Detail {
-
-template <class T> auto upa_has_value_(T const &x) -> bool {
-    static_cast<void>(x);
-    return false;
-}
-
-template <class T, bool S> auto upa_has_value_(ResultVec<T, S> const &x) -> bool {
-    static_cast<void>(x);
-    return x.has_value();
-}
-
-template <class O, class N> auto upa_has_value_(UPA<O, N> const &x) -> bool { return x.opt.has_value(); }
-
-template <class T> auto upa_get_value_(T &&x) -> decltype(auto) { return std::forward<T>(x); }
-
-template <class O, class N> auto upa_get_value_(UPA<O, N> x) { return upa(x.old, x.opt); }
-
-template <class T, bool S> auto upa_get_value_(ResultVec<T, S> x) { return std::move(x).value(); }
-
-} // namespace Detail
-
-//! Helper to update attributes of a record.
-template <class T, class... Args> auto update(Args &&...args) -> std::optional<T> {
-    if ((Detail::upa_has_value_(args) || ...)) {
-        return T{Detail::upa_get_value_(std::forward<Args>(args))...};
-    }
-    return std::nullopt;
-}
 
 } // namespace Gringo::Util

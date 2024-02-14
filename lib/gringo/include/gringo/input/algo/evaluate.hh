@@ -28,7 +28,7 @@ namespace Gringo::Input {
 //! Evaluate the given const statements storing the result in the given map.
 //!
 //! Note that this will fail if the const statements contain variables or external functions.
-void evaluate_const(Logger &log, SymbolStore &store, std::vector<StatementConst> const &stms, ConstMap &res);
+void evaluate_const(Logger &log, SymbolStore &store, std::vector<StmConst> const &stms, ConstMap &res);
 
 //! @}
 

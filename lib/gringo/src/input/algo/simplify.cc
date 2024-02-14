@@ -13,8 +13,6 @@
 
 namespace Gringo::Input {
 
-using Util::UPA;
-
 namespace {
 
 //! Extend the contained vector with the given assignements.
@@ -22,17 +20,17 @@ template <class R> void extend(R &res, AuxTermVec &aux, bool conjunctive = true)
     for (auto &[lhs, rhs] : aux) {
         auto loc = location(lhs);
         auto rel = conjunctive ? Relation::equal : Relation::inequal;
-        auto lit = LiteralRelation{loc, Sign::none, std::move(lhs), Util::make_vec<Guard>(Guard{rel, std::move(rhs)})};
-        if constexpr (std::is_same_v<typename R::ValueType, Literal>) {
+        auto lit = LitComparison{loc, Sign::none, std::move(lhs), Util::make_vec<Guard>(Guard{rel, std::move(rhs)})};
+        if constexpr (std::is_same_v<typename R::ValueType, Lit>) {
             res.append(std::move(lit));
         } else {
-            res.append(SimpleBodyLiteral{std::move(lit)});
+            res.append(BdLitSimple{std::move(lit)});
         }
     }
 }
 
 //! Return a Boolean literal with the given location and truth value.
-[[nodiscard]] auto make_constant(Location loc, bool truth) -> Literal { return LiteralBoolean{loc, Sign::none, truth}; }
+[[nodiscard]] auto make_constant(Location loc, bool truth) -> Lit { return LitBool{loc, Sign::none, truth}; }
 
 //! Ensure that the term only matches numbers.
 [[nodiscard]] auto as_linear_term(SymbolStore &store, Term term) -> Term {
@@ -52,7 +50,7 @@ template <class R> void extend(R &res, AuxTermVec &aux, bool conjunctive = true)
 }
 
 //! Simplify a term vector.
-[[nodiscard]] auto simplify_termvec(RewriteContext &ctx, TermVec const &terms) -> Util::ResultState<TermVec> {
+[[nodiscard]] auto simplify_termvec(RewriteContext &ctx, TermArray const &terms) -> Util::ResultState<TermArray> {
     auto state_terms = true;
     auto res_terms = Util::ResultVec{terms};
     for (auto const &term : terms) {
@@ -68,7 +66,7 @@ template <class R> void extend(R &res, AuxTermVec &aux, bool conjunctive = true)
     return {true, std::move(res_terms).as_optional()};
 }
 
-[[nodiscard]] auto all_symbol(TermVec const &terms) -> bool {
+[[nodiscard]] auto all_symbol(TermArray const &terms) -> bool {
     return std::all_of(terms.begin(), terms.end(), is_symbol);
 }
 
@@ -820,14 +818,14 @@ struct MakeMatchableTerm {
 //! Does not return a value if the literal did not change.
 struct SimplifyLiteral {
     //! Simplify literals dispatching based on type stored in variant.
-    auto operator()(Literal const &lit, SimplifyLiteralFlags flags) const -> SimplifyResult<Literal> {
+    auto operator()(Lit const &lit, SimplifyLiteralFlags flags) const -> SimplifyResult<Lit> {
         return std::visit(*this, lit, std::variant<SimplifyLiteralFlags>{flags});
     }
 
     //! Simplify Boolean literals.
     //!
     //! Ensures that the literal is either true or false.
-    auto operator()(LiteralBoolean const &lit, SimplifyLiteralFlags flags) const -> SimplifyResult<Literal> {
+    auto operator()(LitBool const &lit, SimplifyLiteralFlags flags) const -> SimplifyResult<Lit> {
         static_cast<void>(flags);
         auto value = (lit.sign() != Sign::once) == lit.value();
         auto state = value ? TruthValue::top : TruthValue::bot;
@@ -880,7 +878,7 @@ struct SimplifyLiteral {
     //! (This does not apply to nested terms.)
     //!
     //! Assignments of form t=X are replaced by X=t if t is not a variable.
-    auto operator()(LiteralRelation const &lit, SimplifyLiteralFlags flags) const -> SimplifyResult<Literal> {
+    auto operator()(LitComparison const &lit, SimplifyLiteralFlags flags) const -> SimplifyResult<Lit> {
         // whether pools are treated disjunctively or conjunctively
         bool head = test(flags, SimplifyLiteralFlags::head);
         // whether the elements of the relation are disjunctive or conjunctive
@@ -927,8 +925,8 @@ struct SimplifyLiteral {
             // Note: in theory the left hand side could even be a more complex term that
             // is made machable (but not nested matchable).
             if (!is_variable(lit.lhs()) && is_variable(lit.rhs().front().second)) {
-                auto inv = LiteralRelation{lit.loc(), lit.sign(), lit.rhs().front().second,
-                                           Util::make_vec<Guard>(Guard{assign, lit.lhs()})};
+                auto inv = LitComparison{lit.loc(), lit.sign(), lit.rhs().front().second,
+                                         Util::make_vec<Guard>(Guard{assign, lit.lhs()})};
                 auto res = operator()(inv, flags);
                 if (!res.value.has_value()) {
                     res.value = std::move(inv);
@@ -991,7 +989,7 @@ struct SimplifyLiteral {
     //! The function ensures the following properties:
     //! (1) the literal is matchable if the corresponding flag has been set,
     //! (2) projection is accepted if the corresponding flag has been set.
-    auto operator()(LiteralSymbolic const &lit, SimplifyLiteralFlags flags) const -> SimplifyResult<Literal> {
+    auto operator()(LitSymbolic const &lit, SimplifyLiteralFlags flags) const -> SimplifyResult<Lit> {
         bool head = test(flags, SimplifyLiteralFlags::head);
         auto sub_flags = SimplifyTermFlags::none;
 
@@ -1005,7 +1003,7 @@ struct SimplifyLiteral {
             return {head ? TruthValue::top : TruthValue::bot, make_constant(lit.loc(), head)};
         }
         return {TruthValue::unknown, Util::transform(std::move(res), [&](auto term) {
-                    return LiteralSymbolic{lit.loc(), lit.sign(), std::move(term)};
+                    return LitSymbolic{lit.loc(), lit.sign(), std::move(term)};
                 })};
     }
 
@@ -1013,14 +1011,14 @@ struct SimplifyLiteral {
 };
 
 struct LiteralToTuple {
-    auto operator()(Literal const &lit) -> TermVec { return std::visit(*this, lit); }
+    auto operator()(Lit const &lit) -> TermArray { return std::visit(*this, lit); }
 
-    auto operator()(LiteralBoolean const &lit) -> TermVec {
+    auto operator()(LitBool const &lit) -> TermArray {
         ++n;
         return Util::make_vec<Term>(TermSymbol{lit.loc(), store.num(n)});
     }
 
-    auto operator()(LiteralRelation const &lit) -> TermVec {
+    auto operator()(LitComparison const &lit) -> TermArray {
         ++n;
         auto var_set = select_variables(lit);
         auto var_vec = VariableVec(var_set.begin(), var_set.end());
@@ -1034,7 +1032,7 @@ struct LiteralToTuple {
         return res;
     }
 
-    auto operator()(LiteralSymbolic const &lit) -> TermVec {
+    auto operator()(LitSymbolic const &lit) -> TermArray {
         std::vector<Term> res;
         res.reserve(2);
         int i = 0;
@@ -1067,8 +1065,8 @@ struct LiteralToTuple {
 //! In the disjunctive case empty pools evaluate conjunctively, and the result is top.
 //!
 //! @note The automatic extension with the aux elements makes for a somewhat awkward interface.
-[[nodiscard]] auto simplify_litvec(RewriteContext &ctx, LiteralVec const &lits, bool conjunctive = true)
-    -> SimplifyResult<std::vector<Literal>> {
+[[nodiscard]] auto simplify_litvec(RewriteContext &ctx, LitArray const &lits, bool conjunctive = true)
+    -> SimplifyResult<std::vector<Lit>> {
     auto state_fixed = conjunctive ? TruthValue::bot : TruthValue::top;
     auto state_empty = conjunctive ? TruthValue::top : TruthValue::bot;
     auto state_lits = state_empty;
@@ -1081,7 +1079,7 @@ struct LiteralToTuple {
         }
         if (state == state_fixed) {
             if (lits.size() != 1 || value.has_value()) {
-                res_lits.as_optional() = Util::make_vec<Literal>(std::move(value).value_or(lit));
+                res_lits.as_optional() = Util::make_vec<Lit>(std::move(value).value_or(lit));
             }
             state_lits = state_fixed;
         } else if (state == state_empty) {
@@ -1122,8 +1120,8 @@ struct LiteralToTuple {
 //! - case: A+B is undefined
 //!   - p :- q(X,Z): r(Z).
 //!   - this is the same as obtained from 1.1.1
-[[nodiscard]] auto simplify_condlit(RewriteContext &ctx, ConditionalLiteral const &lit, bool conjunctive)
-    -> SimplifyResult<ConditionalLiteral> {
+[[nodiscard]] auto simplify_condlit(RewriteContext &ctx, CondLit const &lit, bool conjunctive)
+    -> SimplifyResult<CondLit> {
     auto guard = ctx.push();
     auto [state_lit, res_lit] =
         simplify(conjunctive ? SimplifyLiteralFlags::head : SimplifyLiteralFlags::matchable, ctx, lit.lit());
@@ -1136,14 +1134,14 @@ struct LiteralToTuple {
     if (state_lit == state_fixed) {
         // ensure result: "#true/#false:"
         if (!lit.cond().empty()) {
-            res_cond = LiteralVec{};
+            res_cond = LitArray{};
         }
         state = state_fixed;
     }
     // elements of *junctions can be removed if their condition is false
     else if (state_cond == TruthValue::bot) {
         // ensure result: ":#false"
-        res_lit = LiteralBoolean{lit.loc(), Sign::none, conjunctive};
+        res_lit = LitBool{lit.loc(), Sign::none, conjunctive};
         state = state_fixed;
     } else if (state_cond == TruthValue::top && state_lit != TruthValue::unknown) {
         state = state_lit;
@@ -1179,8 +1177,8 @@ struct LiteralToTuple {
 }
 
 //! Simplify a head aggregate element.
-[[nodiscard]] auto simplify_element(RewriteContext &ctx, HeadAggregateElement const &elem)
-    -> SimplifyResult<HeadAggregateElement> {
+[[nodiscard]] auto simplify_element(RewriteContext &ctx, HdLitAggregateElement const &elem)
+    -> SimplifyResult<HdLitAggregateElement> {
     auto guard = ctx.push();
     auto [state_tuple, res_tuple] = simplify_termvec(ctx, elem.tuple());
     auto [state_lit, res_lit] = simplify(SimplifyLiteralFlags::none, ctx, elem.lit());
@@ -1195,22 +1193,22 @@ struct LiteralToTuple {
         auto const &tuple = res_tuple ? *res_tuple : elem.tuple();
         state_elem = all_symbol(tuple) ? TruthValue::top : TruthValue::unknown;
         if (!elem.cond().empty()) {
-            res_cond = LiteralVec{};
+            res_cond = LitArray{};
         }
     }
     if (state_lit == TruthValue::bot || state_cond == TruthValue::bot) {
         state_elem = TruthValue::bot;
         if (!elem.tuple().empty()) {
-            res_tuple = TermVec{};
+            res_tuple = TermArray{};
         }
         if (!elem.cond().empty()) {
-            res_cond = LiteralVec{};
+            res_cond = LitArray{};
         }
         if (state_lit != TruthValue::bot) {
-            res_lit = LiteralBoolean{location(elem.lit()), Sign::none, false};
+            res_lit = LitBool{location(elem.lit()), Sign::none, false};
         }
     }
-    auto const *rel_lit = std::get_if<LiteralRelation>(res_lit ? &*res_lit : &elem.lit());
+    auto const *rel_lit = std::get_if<LitComparison>(res_lit ? &*res_lit : &elem.lit());
     if (rel_lit != nullptr) {
         assert(state_cond != TruthValue::bot);
         if (!res_cond.has_value()) {
@@ -1224,8 +1222,8 @@ struct LiteralToTuple {
 }
 
 //! Simplify a body aggregate element.
-[[nodiscard]] auto simplify_element(RewriteContext &ctx, BodyAggregateElement const &elem)
-    -> SimplifyResult<BodyAggregateElement> {
+[[nodiscard]] auto simplify_element(RewriteContext &ctx, BdLitAggregateElement const &elem)
+    -> SimplifyResult<BdLitAggregateElement> {
     auto guard = ctx.push();
     auto [state_tuple, res_tuple] = simplify_termvec(ctx, elem.tuple());
     auto [state_cond, res_cond] = simplify_litvec(ctx, elem.cond());
@@ -1239,13 +1237,13 @@ struct LiteralToTuple {
         auto const &tuple = res_tuple ? *res_tuple : elem.tuple();
         state_elem = all_symbol(tuple) ? TruthValue::top : TruthValue::unknown;
         if (!elem.cond().empty()) {
-            res_cond = LiteralVec{};
+            res_cond = LitArray{};
         }
     }
     if (state_cond == TruthValue::bot) {
         state_elem = TruthValue::bot;
         if (!elem.tuple().empty()) {
-            res_tuple = TermVec{};
+            res_tuple = TermArray{};
         }
     }
     return {state_elem, elem.rewrite(a_tuple = std::move(res_tuple), a_cond = std::move(res_cond))};
@@ -1272,7 +1270,7 @@ auto neutral_value(AggregateFunction fun) -> std::variant<Number, Symbol> {
 }
 
 //! Get the weight of a tuple (if it has one).
-auto value(TermVec const &tuple) -> std::optional<Symbol> {
+auto value(TermArray const &tuple) -> std::optional<Symbol> {
     if (!tuple.empty()) {
         return std::get<TermSymbol>(tuple.front()).value();
     }
@@ -1280,7 +1278,7 @@ auto value(TermVec const &tuple) -> std::optional<Symbol> {
 }
 
 //! Get the weight of a tuple as a number (zero if it has none).
-auto weight(TermVec const &tuple) -> NumberRef {
+auto weight(TermArray const &tuple) -> NumberRef {
     if (!tuple.empty()) {
         auto const &sym = std::get<TermSymbol>(tuple.front());
         if (sym.value().type() == SymbolType::number) {
@@ -1293,7 +1291,7 @@ auto weight(TermVec const &tuple) -> NumberRef {
 //! Accumulate the given symbol to res.
 //!
 //! For count aggregates this should simply be one.
-void accumulate(AggregateFunction fun, TermVec const &tuple, std::variant<Number, Symbol> &res) {
+void accumulate(AggregateFunction fun, TermArray const &tuple, std::variant<Number, Symbol> &res) {
     switch (fun) {
         case AggregateFunction::sum: {
             std::get<Number>(res) += weight(tuple);
@@ -1328,7 +1326,7 @@ void accumulate(AggregateFunction fun, TermVec const &tuple, std::variant<Number
 }
 
 //! Check if the given tuple is relevant for the aggregate function.
-[[nodiscard]] auto check_tuple(AggregateFunction fun, TermVec const &tuple) -> bool {
+[[nodiscard]] auto check_tuple(AggregateFunction fun, TermArray const &tuple) -> bool {
     if (fun == AggregateFunction::count) {
         return true;
     }
@@ -1374,11 +1372,11 @@ void accumulate(AggregateFunction fun, TermVec const &tuple, std::variant<Number
 }
 
 //! Shortcut for head/body aggregates.
-template <bool head> using HBAggregate = std::conditional_t<head, HeadAggregate, BodyAggregate>;
+template <bool head> using HBAggregate = std::conditional_t<head, HdLitAggregate, BdLitAggregate>;
 //! Shortcut for head/body literals.
-template <bool head> using HBLiteral = std::conditional_t<head, HeadLiteral, BodyLiteral>;
+template <bool head> using HBLiteral = std::conditional_t<head, HdLit, BdLit>;
 //! Shortcut for simple head/body literals.
-template <bool head> using SimpleHBLiteral = std::conditional_t<head, SimpleHeadLiteral, SimpleBodyLiteral>;
+template <bool head> using SimpleHBLiteral = std::conditional_t<head, HdLitSimple, BdLitSimple>;
 
 //! Check if the given relation forms an assignment together with the aggregate.
 template <bool head> [[nodiscard]] auto is_assignment(HBAggregate<head> const &lit, Relation rel) -> bool {
@@ -1399,7 +1397,7 @@ template <bool head>
     auto res_elems = Util::ResultVec{lit.elems()};
     bool constant = true;
     auto value = neutral_value(lit.fun());
-    auto tuples = Util::unordered_set<TermVec, Util::value_hasher<TermVec>>{};
+    auto tuples = Util::unordered_set<TermArray, Util::value_hasher<TermArray>>{};
     for (auto const &elem : lit.elems()) {
         auto [state_elem, res_elem] = simplify_element(ctx, elem);
         auto const &tuple = (res_elem ? *res_elem : elem).tuple();
@@ -1460,7 +1458,7 @@ template <bool head>
                                                       return std::move(guard).second;
                                                   }).value_or(lit.rhs()->second));
         }
-        auto rel_lit = SimpleHBLiteral<head>{LiteralRelation{lit.loc(), sign, std::move(lhs), std::move(guards)}};
+        auto rel_lit = SimpleHBLiteral<head>{LitComparison{lit.loc(), sign, std::move(lhs), std::move(guards)}};
         auto [state_lit, res_lit] = simplify(ctx, rel_lit);
         return {state_lit, std::move(res_lit).value_or(std::move(rel_lit))};
     }
@@ -1471,20 +1469,20 @@ template <bool head>
 //! Simplify a theory atom element.
 [[nodiscard]] auto simplify_element(RewriteContext &ctx, TheoryElement const &elem) -> SimplifyResult<TheoryElement> {
     auto guard = ctx.push();
-    auto res_tuple = std::optional<TheoryTermVec>{};
+    auto res_tuple = std::optional<TheoryTermArray>{};
     auto [state_cond, res_cond] = simplify_litvec(ctx, elem.cond());
 
     auto state_elem = TruthValue::unknown;
     if (state_cond == TruthValue::top) {
         state_elem = TruthValue::unknown;
         if (!elem.cond().empty()) {
-            res_cond = LiteralVec{};
+            res_cond = LitArray{};
         }
     }
     if (state_cond == TruthValue::bot) {
         state_elem = TruthValue::bot;
         if (!elem.tuple().empty()) {
-            res_tuple = TheoryTermVec{};
+            res_tuple = TheoryTermArray{};
         }
     }
     return {state_elem, elem.rewrite(a_tuple = std::move(res_tuple), a_cond = std::move(res_cond))};
@@ -1512,16 +1510,16 @@ auto simplify_theory_atom(RewriteContext &ctx, TheoryAtom<HasSign> const &lit) -
 
 //! Simplify head literals.
 struct SimplifyHeadLiteral {
-    auto operator()(auto const &lit) const -> SimplifyResult<HeadLiteral> = delete;
+    auto operator()(auto const &lit) const -> SimplifyResult<HdLit> = delete;
 
-    auto operator()(HeadLiteral const &lit) const -> SimplifyResult<HeadLiteral> { return std::visit(*this, lit); }
+    auto operator()(HdLit const &lit) const -> SimplifyResult<HdLit> { return std::visit(*this, lit); }
 
-    auto operator()(SimpleHeadLiteral const &lit) const -> SimplifyResult<HeadLiteral> {
+    auto operator()(HdLitSimple const &lit) const -> SimplifyResult<HdLit> {
         auto [state, res] = simplify(SimplifyLiteralFlags::head, ctx, lit.lit());
-        return {state, Util::transform(std::move(res), [](auto &&res) { return SimpleHeadLiteral{GRINGO_FWD(res)}; })};
+        return {state, Util::transform(std::move(res), [](auto &&res) { return HdLitSimple{GRINGO_FWD(res)}; })};
     }
 
-    auto operator()(Disjunction const &lit) const -> SimplifyResult<HeadLiteral> {
+    auto operator()(HdLitDisjunction const &lit) const -> SimplifyResult<HdLit> {
         auto state_fixed = TruthValue::top;
         auto state_empty = TruthValue::bot;
         auto state_elems = state_empty;
@@ -1531,7 +1529,7 @@ struct SimplifyHeadLiteral {
             std::visit(
                 [&, this](auto const &elem) {
                     auto [state, res_elem] = [&, this]() {
-                        GRINGO_MATCH(elem, ConditionalLiteral) { return simplify_condlit(ctx, elem, false); }
+                        GRINGO_MATCH(elem, CondLit) { return simplify_condlit(ctx, elem, false); }
                         else {
                             return simplify(SimplifyLiteralFlags::head, ctx, elem);
                         }
@@ -1547,7 +1545,7 @@ struct SimplifyHeadLiteral {
                     } else if (state == state_fixed) {
                         if (lit.elems().size() != 1 || res_elem) {
                             res_elems.as_optional() =
-                                Util::make_vec<DisjunctionElement>(std::move(res_elem).value_or(elem));
+                                Util::make_vec<HdLitDisjunctionElement>(std::move(res_elem).value_or(elem));
                         }
                         state_elems = state_fixed;
                     }
@@ -1555,22 +1553,22 @@ struct SimplifyHeadLiteral {
                 elem);
         }
         if (state_elems != TruthValue::unknown) {
-            return {state_elems, SimpleHeadLiteral{make_constant(lit.loc(), state_elems == TruthValue::top)}};
+            return {state_elems, HdLitSimple{make_constant(lit.loc(), state_elems == TruthValue::top)}};
         }
         return {state_elems, Util::transform(std::move(res_elems).as_optional(), [&](auto value) {
-                    return Disjunction{lit.loc(), std::move(value)};
+                    return HdLitDisjunction{lit.loc(), std::move(value)};
                 })};
     }
-    auto operator()(HeadSetAggregate const &lit) const -> SimplifyResult<HeadLiteral> {
+    auto operator()(HdLitSetAggregate const &lit) const -> SimplifyResult<HdLit> {
         static_cast<void>(lit);
         throw std::runtime_error("set aggregates must be unpooled before simplifying");
     }
 
-    auto operator()(HeadAggregate const &lit) const -> SimplifyResult<HeadLiteral> {
+    auto operator()(HdLitAggregate const &lit) const -> SimplifyResult<HdLit> {
         return simplify_aggregate<true>(ctx, lit);
     }
 
-    auto operator()(HeadTheoryAtom const &lit) const -> SimplifyResult<HeadLiteral> {
+    auto operator()(HdLitTheoryAtom const &lit) const -> SimplifyResult<HdLit> {
         return simplify_theory_atom(ctx, lit);
     }
 
@@ -1579,29 +1577,29 @@ struct SimplifyHeadLiteral {
 
 //! Simplify body literals.
 struct SimplifyBodyLiteral {
-    auto operator()(auto const &lit) const -> SimplifyResult<BodyLiteral> = delete;
+    auto operator()(auto const &lit) const -> SimplifyResult<BdLit> = delete;
 
-    auto operator()(BodyLiteral const &lit) const -> SimplifyResult<BodyLiteral> { return std::visit(*this, lit); }
+    auto operator()(BdLit const &lit) const -> SimplifyResult<BdLit> { return std::visit(*this, lit); }
 
-    auto operator()(SimpleBodyLiteral const &lit) const -> SimplifyResult<BodyLiteral> {
+    auto operator()(BdLitSimple const &lit) const -> SimplifyResult<BdLit> {
         auto [state, res] = simplify(SimplifyLiteralFlags::matchable, ctx, lit.lit());
-        return {state, Util::transform(std::move(res), [](auto &&res) { return SimpleBodyLiteral{GRINGO_FWD(res)}; })};
+        return {state, Util::transform(std::move(res), [](auto &&res) { return BdLitSimple{GRINGO_FWD(res)}; })};
     }
 
-    auto operator()(Conjunction const &lit) const -> SimplifyResult<BodyLiteral> {
+    auto operator()(BdLitConjunction const &lit) const -> SimplifyResult<BdLit> {
         return simplify_condlit(ctx, lit.lit(), true);
     }
 
-    auto operator()(BodySetAggregate const &lit) const -> SimplifyResult<BodyLiteral> {
+    auto operator()(BdLitSetAggregate const &lit) const -> SimplifyResult<BdLit> {
         static_cast<void>(lit);
         throw std::runtime_error("set aggregates must be unpooled before simplifying");
     }
 
-    auto operator()(BodyAggregate const &lit) const -> SimplifyResult<BodyLiteral> {
+    auto operator()(BdLitAggregate const &lit) const -> SimplifyResult<BdLit> {
         return simplify_aggregate<false>(ctx, lit);
     }
 
-    auto operator()(BodyTheoryAtom const &lit) const -> SimplifyResult<BodyLiteral> {
+    auto operator()(BdLitTheoryAtom const &lit) const -> SimplifyResult<BdLit> {
         return simplify_theory_atom(ctx, lit);
     }
 
@@ -1609,7 +1607,7 @@ struct SimplifyBodyLiteral {
 };
 
 //! Simplify a vector of body literals.
-[[nodiscard]] auto simplify_body(RewriteContext &ctx, BodyLiteralVec const &body) -> SimplifyResult<BodyLiteralVec> {
+[[nodiscard]] auto simplify_body(RewriteContext &ctx, BdLitArray const &body) -> SimplifyResult<BdLitArray> {
     auto res_body = Util::ResultVec{body};
     auto state_body = TruthValue::top;
     for (auto const &lit : body) {
@@ -1625,8 +1623,7 @@ struct SimplifyBodyLiteral {
         }
         if (state_lit == TruthValue::bot) {
             if (body.size() != 1) {
-                res_body.as_optional() =
-                    Util::make_vec<BodyLiteral>(SimpleBodyLiteral{LiteralBoolean{location(lit), Sign::none, false}});
+                res_body.as_optional() = Util::make_vec<BdLit>(BdLitSimple{LitBool{location(lit), Sign::none, false}});
             }
             state_body = TruthValue::bot;
         } else if (state_lit == TruthValue::unknown) {
@@ -1641,155 +1638,149 @@ struct SimplifyBodyLiteral {
 
 //! Simplify statements.
 struct SimplifyStatement {
-    auto operator()(auto const &lit) const -> SimplifyResult<Statement> = delete;
+    auto operator()(auto const &lit) const -> SimplifyResult<Stm> = delete;
 
-    auto operator()(Statement const &stm) const -> SimplifyResult<Statement> { return std::visit(*this, stm); }
+    auto operator()(Stm const &stm) const -> SimplifyResult<Stm> { return std::visit(*this, stm); }
 
-    auto operator()(Rule const &stm) const -> SimplifyResult<Statement> {
+    auto operator()(StmRule const &stm) const -> SimplifyResult<Stm> {
         auto [state_head, res_head] = simplify(ctx, stm.head());
         auto [state_body, res_body] = simplify_body(ctx, stm.body());
         auto state = TruthValue::unknown;
         if (state_head == TruthValue::top || state_body == TruthValue::bot) {
             if (!stm.body().empty()) {
                 res_head = make_constant(location(stm.head()), true);
-                res_body = BodyLiteralVec{};
+                res_body = BdLitArray{};
             }
             state = TruthValue::top;
         } else if (state_head == TruthValue::bot && state_body == TruthValue::top) {
             state = TruthValue::bot;
         }
-        return {state, Util::update<Rule>(stm.loc(), UPA{stm.head(), res_head}, UPA{stm.body(), res_body})};
+        return {state, stm.rewrite(a_head = std::move(res_head), a_body = std::move(res_body))};
     }
 
-    auto operator()(TheoryDefinition const &stm) const -> SimplifyResult<Statement> {
+    auto operator()(StmTheory const &stm) const -> SimplifyResult<Stm> {
         static_cast<void>(stm);
         return {TruthValue::unknown};
     }
 
-    auto operator()(StatementOptimize const &stm) const -> SimplifyResult<Statement> {
+    auto operator()(StmOptimize const &stm) const -> SimplifyResult<Stm> {
         static_cast<void>(stm);
         throw std::runtime_error("optimize statements must be unpooled first");
     }
 
-    auto operator()(StatementWeakConstraint const &stm) const -> SimplifyResult<Statement> {
+    auto operator()(StmWeakConstraint const &stm) const -> SimplifyResult<Stm> {
         auto const &tuple = stm.tuple();
         auto [state_weight, res_weight] = simplify(SimplifyTermFlags::none, ctx, tuple.weight());
         auto [state_prio, res_prio] =
-            tuple.priority() ? simplify(SimplifyTermFlags::none, ctx, *tuple.priority()) : SimplifyTermResult{true};
+            tuple.prio() ? simplify(SimplifyTermFlags::none, ctx, *tuple.prio()) : SimplifyTermResult{true};
         auto [state_terms, res_terms] = simplify_termvec(ctx, tuple.terms());
         auto [state_body, res_body] = simplify_body(ctx, stm.body());
         if (!state_weight || state_body == TruthValue::bot || !state_prio || !state_terms) {
-            return {TruthValue::top, Rule{stm.loc(), make_constant(location(stm), true), {}}};
+            return {TruthValue::top, StmRule{stm.loc(), make_constant(location(stm), true), {}}};
         }
-        auto res_tuple = Util::update<OptimizeTuple>(UPA{tuple.weight(), res_weight}, UPA{tuple.priority(), res_prio},
-                                                     UPA{tuple.terms(), res_terms});
-        return {TruthValue::unknown,
-                Util::update<StatementWeakConstraint>(stm.loc(), UPA{stm.body(), res_body}, UPA{tuple, res_tuple})};
+        auto res_tuple = tuple.rewrite(a_weight = std::move(res_weight), a_prio = std::move(res_prio),
+                                       a_terms = std::move(res_terms));
+        return {TruthValue::unknown, stm.rewrite(a_body = std::move(res_body), a_tuple = std::move(res_tuple))};
     }
 
-    auto operator()(StatementShow const &stm) const -> SimplifyResult<Statement> {
+    auto operator()(StmShow const &stm) const -> SimplifyResult<Stm> {
         auto [state_term, res_term] = simplify(SimplifyTermFlags::none, ctx, stm.term());
         auto [state_body, res_body] = simplify_body(ctx, stm.body());
         if (!state_term || state_body == TruthValue::bot) {
-            return {TruthValue::top, Rule{stm.loc(), make_constant(location(stm.term()), true), {}}};
+            return {TruthValue::top, StmRule{stm.loc(), make_constant(location(stm.term()), true), {}}};
         }
-        return {TruthValue::unknown, Util::update<StatementShow>(stm.loc(), UPA{stm.term(), std::move(res_term)},
-                                                                 UPA{stm.body(), res_body})};
+        return {TruthValue::unknown, stm.rewrite(a_term = std::move(res_term), a_body = std::move(res_body))};
     }
 
-    auto operator()(StatementShowSig const &stm) const -> SimplifyResult<Statement> {
+    auto operator()(StmShowSig const &stm) const -> SimplifyResult<Stm> {
         static_cast<void>(stm);
         return {TruthValue::unknown};
     }
 
-    auto operator()(StatementProject const &stm) const -> SimplifyResult<Statement> {
+    auto operator()(StmProject const &stm) const -> SimplifyResult<Stm> {
         auto [state_term, res_term] = simplify(SimplifyTermFlags::matchable, ctx, stm.term());
         auto [state_body, res_body] = simplify_body(ctx, stm.body());
         if (!state_term || state_body == TruthValue::bot) {
-            return {TruthValue::top, Rule{stm.loc(), make_constant(location(stm.term()), true), {}}};
+            return {TruthValue::top, StmRule{stm.loc(), make_constant(location(stm.term()), true), {}}};
         }
-        return {TruthValue::unknown,
-                Util::update<StatementProject>(stm.loc(), UPA{stm.term(), res_term}, UPA{stm.body(), res_body})};
+        return {TruthValue::unknown, stm.rewrite(a_term = std::move(res_term), a_body = std::move(res_body))};
     }
 
-    auto operator()(StatementProjectSig const &stm) const -> SimplifyResult<Statement> {
+    auto operator()(StmProjectSig const &stm) const -> SimplifyResult<Stm> {
         static_cast<void>(stm);
         return {TruthValue::unknown};
     }
 
-    auto operator()(StatementDefined const &stm) const -> SimplifyResult<Statement> {
+    auto operator()(StmDefined const &stm) const -> SimplifyResult<Stm> {
         static_cast<void>(stm);
         return {TruthValue::unknown};
     }
 
-    auto operator()(StatementExternal const &stm) const -> SimplifyResult<Statement> {
+    auto operator()(StmExternal const &stm) const -> SimplifyResult<Stm> {
         auto [state_term, res_term] = simplify(SimplifyTermFlags::matchable, ctx, stm.term());
         auto [state_type, res_type] =
             stm.type() ? simplify(SimplifyTermFlags::matchable, ctx, *stm.type()) : SimplifyTermResult{true};
         auto [state_body, res_body] = simplify_body(ctx, stm.body());
         if (!state_term || !state_type || state_body == TruthValue::bot) {
-            return {TruthValue::top, Rule{stm.loc(), make_constant(location(stm.term()), true), {}}};
+            return {TruthValue::top, StmRule{stm.loc(), make_constant(location(stm.term()), true), {}}};
         }
         return {TruthValue::unknown,
-                Util::update<StatementExternal>(stm.loc(), UPA{stm.term(), res_term}, UPA{stm.body(), res_body},
-                                                UPA{stm.type(), res_type})};
+                stm.rewrite(a_term = std::move(res_term), a_body = std::move(res_body), a_type = std::move(res_type))};
     }
 
-    auto operator()(StatementEdge const &stm) const -> SimplifyResult<Statement> {
+    auto operator()(StmEdge const &stm) const -> SimplifyResult<Stm> {
         if (stm.edges().size() != 1) {
             throw std::runtime_error("edge directives must be unpooled before simplifying");
         }
         auto edge = stm.edges().front();
-        auto [state_u, res_u] = simplify(SimplifyTermFlags::none, ctx, edge.u());
-        auto [state_v, res_v] = simplify(SimplifyTermFlags::none, ctx, edge.v());
+        auto [state_src, res_src] = simplify(SimplifyTermFlags::none, ctx, edge.src());
+        auto [state_dst, res_dst] = simplify(SimplifyTermFlags::none, ctx, edge.dst());
         auto [state_body, res_body] = simplify_body(ctx, stm.body());
-        if (!state_u || !state_v || state_body == TruthValue::bot) {
-            return {TruthValue::top, Rule{stm.loc(), make_constant(stm.loc(), true), {}}};
+        if (!state_src || !state_dst || state_body == TruthValue::bot) {
+            return {TruthValue::top, StmRule{stm.loc(), make_constant(stm.loc(), true), {}}};
         }
-        auto res_edge = Util::update<Edge>(UPA{edge.u(), res_u}, UPA{edge.v(), res_v});
+        auto res_edge = edge.rewrite(a_src = std::move(res_src), a_dst = std::move(res_dst));
         auto res_edges =
             Util::transform(std::move(res_edge), [](auto &&edge) { return Util::make_vec<Edge>(GRINGO_FWD(edge)); });
-        return {TruthValue::unknown,
-                Util::update<StatementEdge>(stm.loc(), UPA{stm.edges(), res_edges}, UPA{stm.body(), res_body})};
+        return {TruthValue::unknown, stm.rewrite(a_edges = std::move(res_edges), a_body = std::move(res_body))};
     }
 
-    auto operator()(StatementHeuristic const &stm) const -> SimplifyResult<Statement> {
+    auto operator()(StmHeuristic const &stm) const -> SimplifyResult<Stm> {
         auto [state_atom, res_atom] = simplify(SimplifyTermFlags::matchable, ctx, stm.atom());
-        auto [state_mod, res_mod] = simplify(SimplifyTermFlags::none, ctx, stm.mod());
         auto [state_type, res_type] = simplify(SimplifyTermFlags::none, ctx, stm.type());
+        auto [state_weight, res_weight] = simplify(SimplifyTermFlags::none, ctx, stm.weight());
         auto [state_prio, res_prio] =
             stm.prio() ? simplify(SimplifyTermFlags::none, ctx, *stm.prio()) : SimplifyTermResult{true};
         auto [state_body, res_body] = simplify_body(ctx, stm.body());
-        if (!state_atom || !state_mod || !state_type || !state_prio || state_body == TruthValue::bot) {
-            return {TruthValue::top, Rule{stm.loc(), make_constant(stm.loc(), true), {}}};
+        if (!state_atom || !state_type || !state_weight || !state_prio || state_body == TruthValue::bot) {
+            return {TruthValue::top, StmRule{stm.loc(), make_constant(stm.loc(), true), {}}};
         }
-        return {TruthValue::unknown,
-                Util::update<StatementHeuristic>(stm.loc(), UPA{stm.atom(), res_atom}, UPA{stm.body(), res_body},
-                                                 UPA{stm.type(), res_type}, UPA{stm.prio(), res_prio},
-                                                 UPA{stm.mod(), res_mod})};
+        return {TruthValue::unknown, stm.rewrite(a_atom = std::move(res_atom), a_body = std::move(res_body),
+                                                 a_weight = std::move(res_weight), a_prio = std::move(res_prio),
+                                                 a_type = std::move(res_type))};
     }
 
-    auto operator()(StatementScript const &stm) const -> SimplifyResult<Statement> {
+    auto operator()(StmScript const &stm) const -> SimplifyResult<Stm> {
         static_cast<void>(stm);
         return {TruthValue::unknown};
     }
 
-    auto operator()(StatementInclude const &stm) const -> SimplifyResult<Statement> {
+    auto operator()(StmInclude const &stm) const -> SimplifyResult<Stm> {
         static_cast<void>(stm);
         return {TruthValue::unknown};
     }
 
-    auto operator()(StatementProgram const &stm) const -> SimplifyResult<Statement> {
+    auto operator()(StmProgram const &stm) const -> SimplifyResult<Stm> {
         static_cast<void>(stm);
         return {TruthValue::unknown};
     }
 
-    auto operator()(StatementConst const &stm) const -> SimplifyResult<Statement> {
+    auto operator()(StmConst const &stm) const -> SimplifyResult<Stm> {
         static_cast<void>(stm);
         throw std::runtime_error("const statementments must be extracted first");
     }
 
-    auto operator()(Comment const &stm) const -> SimplifyResult<Statement> {
+    auto operator()(StmComment const &stm) const -> SimplifyResult<Stm> {
         static_cast<void>(stm);
         return {TruthValue::unknown};
     }
@@ -1828,20 +1819,19 @@ struct SimplifyStatement {
         SimplifyTerm{ctx}(term, flags));
 }
 
-[[nodiscard]] auto simplify(SimplifyLiteralFlags flags, RewriteContext &ctx, Literal const &lit)
-    -> SimplifyResult<Literal> {
+[[nodiscard]] auto simplify(SimplifyLiteralFlags flags, RewriteContext &ctx, Lit const &lit) -> SimplifyResult<Lit> {
     return SimplifyLiteral{ctx}(lit, flags);
 }
 
-[[nodiscard]] auto simplify(RewriteContext &ctx, HeadLiteral const &lit) -> SimplifyResult<HeadLiteral> {
+[[nodiscard]] auto simplify(RewriteContext &ctx, HdLit const &lit) -> SimplifyResult<HdLit> {
     return SimplifyHeadLiteral{ctx}(lit);
 }
 
-[[nodiscard]] auto simplify(RewriteContext &ctx, BodyLiteral const &lit) -> SimplifyResult<BodyLiteral> {
+[[nodiscard]] auto simplify(RewriteContext &ctx, BdLit const &lit) -> SimplifyResult<BdLit> {
     return SimplifyBodyLiteral{ctx}(lit);
 }
 
-[[nodiscard]] auto simplify(RewriteContext &ctx, Statement const &stm) -> SimplifyResult<Statement> {
+[[nodiscard]] auto simplify(RewriteContext &ctx, Stm const &stm) -> SimplifyResult<Stm> {
     auto guard = ctx.push();
     return SimplifyStatement{ctx}(stm);
 }

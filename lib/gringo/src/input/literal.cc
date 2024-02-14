@@ -89,35 +89,35 @@ auto operator==(Signed const &a, Signed const &b) -> bool { return a.sign_ == b.
 
 auto operator<(Signed const &a, Signed const &b) -> bool { return a.sign_ < b.sign_; }
 
-auto operator==(LiteralBoolean const &a, LiteralBoolean const &b) -> bool {
+auto operator==(LitBool const &a, LitBool const &b) -> bool {
     return std::tie(a.sign_, a.value_) == std::tie(b.sign_, b.value_);
 }
 
-auto operator==(LiteralRelation const &a, LiteralRelation const &b) -> bool {
+auto operator==(LitComparison const &a, LitComparison const &b) -> bool {
     return std::tie(a.sign_, a.lhs_, a.rhs_) == std::tie(b.sign_, b.lhs_, b.rhs_);
 }
 
-auto operator==(LiteralSymbolic const &a, LiteralSymbolic const &b) -> bool {
+auto operator==(LitSymbolic const &a, LitSymbolic const &b) -> bool {
     return std::tie(a.sign_, a.term_) == std::tie(b.sign_, b.term_);
 }
 
-auto operator==(ConditionalLiteral const &a, ConditionalLiteral const &b) -> bool {
+auto operator==(CondLit const &a, CondLit const &b) -> bool {
     return std::tie(a.lit_, a.cond_) == std::tie(b.lit_, b.cond_);
 }
 
-auto operator<(LiteralBoolean const &a, LiteralBoolean const &b) -> bool {
+auto operator<(LitBool const &a, LitBool const &b) -> bool {
     return std::tie(a.sign_, a.value_) < std::tie(b.sign_, b.value_);
 }
 
-auto operator<(LiteralRelation const &a, LiteralRelation const &b) -> bool {
+auto operator<(LitComparison const &a, LitComparison const &b) -> bool {
     return std::tie(a.sign_, a.lhs_, a.rhs_) < std::tie(b.sign_, b.lhs_, b.rhs_);
 }
 
-auto operator<(LiteralSymbolic const &a, LiteralSymbolic const &b) -> bool {
+auto operator<(LitSymbolic const &a, LitSymbolic const &b) -> bool {
     return std::tie(a.sign_, a.term_) < std::tie(b.sign_, b.term_);
 }
 
-auto operator<(ConditionalLiteral const &a, ConditionalLiteral const &b) -> bool {
+auto operator<(CondLit const &a, CondLit const &b) -> bool {
     return std::tie(a.lit_, a.cond_) < std::tie(b.lit_, b.cond_);
 }
 
@@ -125,21 +125,20 @@ auto operator<(ConditionalLiteral const &a, ConditionalLiteral const &b) -> bool
 
 namespace Gringo::Util {
 
-auto value_hasher<Gringo::Input::LiteralBoolean>::operator()(Gringo::Input::LiteralBoolean const &x) const -> size_t {
-    return Gringo::Util::value_hash(typeid(Gringo::Input::LiteralBoolean), x.sign_, x.value_);
+auto value_hasher<Gringo::Input::LitBool>::operator()(Gringo::Input::LitBool const &x) const -> size_t {
+    return Gringo::Util::value_hash(typeid(Gringo::Input::LitBool), x.sign_, x.value_);
 }
 
-auto value_hasher<Gringo::Input::LiteralRelation>::operator()(Gringo::Input::LiteralRelation const &x) const -> size_t {
-    return Gringo::Util::value_hash(typeid(Gringo::Input::LiteralRelation), x.sign_, x.lhs_, x.rhs_);
+auto value_hasher<Gringo::Input::LitComparison>::operator()(Gringo::Input::LitComparison const &x) const -> size_t {
+    return Gringo::Util::value_hash(typeid(Gringo::Input::LitComparison), x.sign_, x.lhs_, x.rhs_);
 }
 
-auto value_hasher<Gringo::Input::LiteralSymbolic>::operator()(Gringo::Input::LiteralSymbolic const &x) const -> size_t {
-    return Gringo::Util::value_hash(typeid(Gringo::Input::LiteralSymbolic), x.sign_, x.term_);
+auto value_hasher<Gringo::Input::LitSymbolic>::operator()(Gringo::Input::LitSymbolic const &x) const -> size_t {
+    return Gringo::Util::value_hash(typeid(Gringo::Input::LitSymbolic), x.sign_, x.term_);
 }
 
-auto value_hasher<Gringo::Input::ConditionalLiteral>::operator()(Gringo::Input::ConditionalLiteral const &x) const
-    -> size_t {
-    return Gringo::Util::value_hash(typeid(Gringo::Input::ConditionalLiteral), x.lit_, x.cond_);
+auto value_hasher<Gringo::Input::CondLit>::operator()(Gringo::Input::CondLit const &x) const -> size_t {
+    return Gringo::Util::value_hash(typeid(Gringo::Input::CondLit), x.lit_, x.cond_);
 }
 
 } // namespace Gringo::Util

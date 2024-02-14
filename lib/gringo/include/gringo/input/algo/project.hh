@@ -35,23 +35,21 @@ class ProjectionMap {
 [[nodiscard]] auto project(Term const &term, ProjectionMap project) -> std::optional<Term>;
 
 //! Project variables according to given projection mode.
-[[nodiscard]] auto project(Literal const &lit, ProjectionMap project) -> std::optional<Literal>;
+[[nodiscard]] auto project(Lit const &lit, ProjectionMap project) -> std::optional<Lit>;
 
 //! Project variables according to given projection mode.
-[[nodiscard]] auto project(HeadLiteral const &lit, ProjectionMap project) -> std::optional<HeadLiteral>;
+[[nodiscard]] auto project(HdLit const &lit, ProjectionMap project) -> std::optional<HdLit>;
 
 //! Project variables according to given projection mode and scope.
 //!
 //! Some literal occurrences cannot be projected preserving equivalence.
 //! For example, variables in nonmonotone aggregates are only projected in classical scope.
-[[nodiscard]] auto project(BodyLiteral const &lit, ProjectionMap project, bool in_classical_scope)
-    -> std::optional<BodyLiteral>;
+[[nodiscard]] auto project(BdLit const &lit, ProjectionMap project, bool in_classical_scope) -> std::optional<BdLit>;
 
 //! Project variables according to given projection mode.
 //!
 //! Optionally, project anonymous variables in negative scope (deprecated).
-[[nodiscard]] auto project(Statement const &stm, ProjectionMode mode, bool project_anonymous)
-    -> std::optional<Statement>;
+[[nodiscard]] auto project(Stm const &stm, ProjectionMode mode, bool project_anonymous) -> std::optional<Stm>;
 
 //! @}
 

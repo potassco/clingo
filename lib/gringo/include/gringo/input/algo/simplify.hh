@@ -58,8 +58,7 @@ using SimplifyTermResult = Util::ResultState<Term, bool>;
 //!
 //! Only the matchable and head flags apply to literals.
 //! The remaining ones are simply cleared.
-[[nodiscard]] auto simplify(SimplifyLiteralFlags flags, RewriteContext &ctx, Literal const &lit)
-    -> SimplifyResult<Literal>;
+[[nodiscard]] auto simplify(SimplifyLiteralFlags flags, RewriteContext &ctx, Lit const &lit) -> SimplifyResult<Lit>;
 
 //! Simplifies the given head literal.
 //!
@@ -67,7 +66,7 @@ using SimplifyTermResult = Util::ResultState<Term, bool>;
 //! The literal is simplified to \#true/\#false for truth values true/false.
 //!
 //! Terms that are replaced during simplification by auxiliary variables are added to the given context.
-[[nodiscard]] auto simplify(RewriteContext &ctx, HeadLiteral const &lit) -> SimplifyResult<HeadLiteral>;
+[[nodiscard]] auto simplify(RewriteContext &ctx, HdLit const &lit) -> SimplifyResult<HdLit>;
 
 //! Simplifies the given body literal.
 //!
@@ -75,13 +74,13 @@ using SimplifyTermResult = Util::ResultState<Term, bool>;
 //! The literal is simplified to \#true/\#false for truth values true/false.
 //!
 //! Terms that are replaced during simplification by auxiliary variables are added to the given context.
-[[nodiscard]] auto simplify(RewriteContext &ctx, BodyLiteral const &lit) -> SimplifyResult<BodyLiteral>;
+[[nodiscard]] auto simplify(RewriteContext &ctx, BdLit const &lit) -> SimplifyResult<BdLit>;
 
 //! Simplifies the given statement.
 //!
 //! The result consists of a truth value and an optional statement in case of change.
 //! The statement is simplified to \#true/\#false for truth values true/false.
-[[nodiscard]] auto simplify(RewriteContext &ctx, Statement const &stm) -> SimplifyResult<Statement>;
+[[nodiscard]] auto simplify(RewriteContext &ctx, Stm const &stm) -> SimplifyResult<Stm>;
 
 //! @}
 

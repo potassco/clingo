@@ -22,7 +22,7 @@ template <class F, class T> auto simplify_str_(ParseHelper &ph, std::optional<T>
         ConstMap const_map;
         ParamMap param_map;
         auto ctx = RewriteContext{ph, ph, param_map, const_map, {}, "__A_"};
-        auto guard = std::is_same_v<T, Statement> ? nullptr : ctx.push();
+        auto guard = std::is_same_v<T, Stm> ? nullptr : ctx.push();
         auto ures = unpool(ctx, value.value());
         bool changed = ures.has_value();
         if (!changed) {

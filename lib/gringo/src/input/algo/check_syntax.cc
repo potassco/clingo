@@ -160,23 +160,23 @@ struct CheckSyntax {
 
     // literals
 
-    auto operator()(Literal const &lit, SyntaxCheck check) const -> bool {
+    auto operator()(Lit const &lit, SyntaxCheck check) const -> bool {
         return std::visit(*this, lit, std::variant<SyntaxCheck>{check});
     }
 
-    auto operator()(LiteralBoolean const &lit, SyntaxCheck check) const -> bool {
+    auto operator()(LitBool const &lit, SyntaxCheck check) const -> bool {
         static_cast<void>(lit);
         static_cast<void>(check);
         return true;
     }
 
-    auto operator()(LiteralRelation const &lit, SyntaxCheck check) const -> bool {
+    auto operator()(LitComparison const &lit, SyntaxCheck check) const -> bool {
         static_cast<void>(check);
         return operator()(lit.lhs()) && std::all_of(lit.rhs().begin(), lit.rhs().end(),
                                                     [this](auto &guard) { return operator()(guard.second); });
     }
 
-    auto operator()(LiteralSymbolic const &lit, SyntaxCheck check) const -> bool {
+    auto operator()(LitSymbolic const &lit, SyntaxCheck check) const -> bool {
         if (lit.sign() != Sign::none) {
             check = SyntaxCheck::project | SyntaxCheck::project_tuple;
         }
@@ -185,14 +185,14 @@ struct CheckSyntax {
 
     // conditional literal
 
-    auto operator()(LiteralVec const &lits) const -> bool {
+    auto operator()(LitArray const &lits) const -> bool {
         return std::all_of(lits.begin(), lits.end(), [this](auto const &lit) {
             return operator()(lit, SyntaxCheck::project | SyntaxCheck::project_tuple);
         });
     }
 
-    auto operator()(ConditionalLiteral const &lit,
-                    SyntaxCheck check = SyntaxCheck::project | SyntaxCheck::project_tuple) const -> bool {
+    auto operator()(CondLit const &lit, SyntaxCheck check = SyntaxCheck::project | SyntaxCheck::project_tuple) const
+        -> bool {
         return this->operator()(lit.lit(), check) && operator()(lit.cond());
     }
 
@@ -202,7 +202,7 @@ struct CheckSyntax {
 
     auto operator()(RGuard guard) const -> bool { return !guard.has_value() || operator()(guard->second); }
 
-    auto operator()(TermVec const &terms) const -> bool {
+    auto operator()(TermArray const &terms) const -> bool {
         return std::all_of(terms.begin(), terms.end(), [this](auto const &term) { return operator()(term); });
     }
 
@@ -227,17 +227,17 @@ struct CheckSyntax {
 
     // head literal
 
-    auto operator()(HeadLiteral const &lit) const -> bool { return std::visit(*this, lit); }
+    auto operator()(HdLit const &lit) const -> bool { return std::visit(*this, lit); }
 
-    auto operator()(SimpleHeadLiteral const &lit) const -> bool { return operator()(lit.lit(), SyntaxCheck::none); }
+    auto operator()(HdLitSimple const &lit) const -> bool { return operator()(lit.lit(), SyntaxCheck::none); }
 
-    auto operator()(Disjunction const &lit) const -> bool {
+    auto operator()(HdLitDisjunction const &lit) const -> bool {
         return std::all_of(lit.elems().begin(), lit.elems().end(), [this](auto const &elem) {
             return std::visit([this](auto const &elem) { return this->operator()(elem, SyntaxCheck::none); }, elem);
         });
     }
 
-    auto operator()(HeadAggregate const &lit) const -> bool {
+    auto operator()(HdLitAggregate const &lit) const -> bool {
         return std::all_of(lit.elems().begin(), lit.elems().end(),
                            [this](auto const &elem) {
                                return operator()(elem.tuple()) && operator()(elem.lit(), SyntaxCheck::none) &&
@@ -248,15 +248,15 @@ struct CheckSyntax {
 
     // body literal
 
-    auto operator()(BodyLiteral const &lit) const -> bool { return std::visit(*this, lit); }
+    auto operator()(BdLit const &lit) const -> bool { return std::visit(*this, lit); }
 
-    auto operator()(SimpleBodyLiteral const &lit) const -> bool {
+    auto operator()(BdLitSimple const &lit) const -> bool {
         return operator()(lit.lit(), SyntaxCheck::project | SyntaxCheck::project_tuple);
     }
 
-    auto operator()(Conjunction const &lit) const -> bool { return operator()(lit.lit()); }
+    auto operator()(BdLitConjunction const &lit) const -> bool { return operator()(lit.lit()); }
 
-    auto operator()(BodyAggregate const &lit) const -> bool {
+    auto operator()(BdLitAggregate const &lit) const -> bool {
         return std::all_of(lit.elems().begin(), lit.elems().end(),
                            [this](auto const &elem) { return operator()(elem.tuple()) && operator()(elem.cond()); }) &&
                operator()(lit.lhs()) && operator()(lit.rhs());
@@ -266,86 +266,84 @@ struct CheckSyntax {
 
     auto operator()(std::optional<Term> const &term) const -> bool { return (!term || operator()(*term)); }
 
-    auto operator()(BodyLiteralVec const &lits) const -> bool { return std::all_of(lits.begin(), lits.end(), *this); }
+    auto operator()(BdLitArray const &lits) const -> bool { return std::all_of(lits.begin(), lits.end(), *this); }
 
-    auto operator()(Statement const &stm) const -> bool { return std::visit(*this, stm); }
+    auto operator()(Stm const &stm) const -> bool { return std::visit(*this, stm); }
 
-    auto operator()(Rule const &stm) const -> bool {
+    auto operator()(StmRule const &stm) const -> bool {
         return operator()(stm.head()) && std::all_of(stm.body().begin(), stm.body().end(), *this);
     }
 
-    auto operator()(TheoryDefinition const &stm) const -> bool {
+    auto operator()(StmTheory const &stm) const -> bool {
         static_cast<void>(stm);
         return true;
     }
 
     auto operator()(OptimizeTuple const &tuple) const -> bool {
-        return operator()(tuple.weight()) && operator()(tuple.terms()) && operator()(tuple.priority());
+        return operator()(tuple.weight()) && operator()(tuple.terms()) && operator()(tuple.prio());
     }
 
-    auto operator()(StatementOptimize const &stm) const -> bool {
+    auto operator()(StmOptimize const &stm) const -> bool {
         return std::all_of(stm.elems().begin(), stm.elems().end(),
                            [this](auto const &elem) { return operator()(elem.first) && operator()(elem.second); });
     }
 
-    auto operator()(StatementWeakConstraint const &stm) const -> bool {
+    auto operator()(StmWeakConstraint const &stm) const -> bool {
         return std::all_of(stm.body().begin(), stm.body().end(), *this) && operator()(stm.tuple());
     }
 
-    auto operator()(StatementShow const &stm) const -> bool { return operator()(stm.term()) && operator()(stm.body()); }
+    auto operator()(StmShow const &stm) const -> bool { return operator()(stm.term()) && operator()(stm.body()); }
 
-    auto operator()(StatementShowSig const &stm) const -> bool {
+    auto operator()(StmShowSig const &stm) const -> bool {
         static_cast<void>(stm);
         return true;
     }
 
-    auto operator()(StatementProject const &stm) const -> bool {
-        return operator()(stm.term()) && operator()(stm.body());
-    }
+    auto operator()(StmProject const &stm) const -> bool { return operator()(stm.term()) && operator()(stm.body()); }
 
-    auto operator()(StatementProjectSig const &stm) const -> bool {
+    auto operator()(StmProjectSig const &stm) const -> bool {
         static_cast<void>(stm);
         return true;
     }
 
-    auto operator()(StatementDefined const &stm) const -> bool {
+    auto operator()(StmDefined const &stm) const -> bool {
         static_cast<void>(stm);
         return true;
     }
 
-    auto operator()(StatementExternal const &stm) const -> bool {
+    auto operator()(StmExternal const &stm) const -> bool {
         return operator()(stm.term()) && operator()(stm.body()) && operator()(stm.type());
     }
 
-    auto operator()(Edge const &edge) const -> bool { return operator()(edge.u()) && operator()(edge.v()); }
+    auto operator()(Edge const &edge) const -> bool { return operator()(edge.src()) && operator()(edge.dst()); }
 
-    auto operator()(StatementEdge const &stm) const -> bool {
+    auto operator()(StmEdge const &stm) const -> bool {
         return std::all_of(stm.edges().begin(), stm.edges().end(), *this) && operator()(stm.body());
     }
 
-    auto operator()(StatementHeuristic const &stm) const -> bool {
-        return operator()(stm.atom()) && operator()(stm.body()) && operator()(stm.mod()) && operator()(stm.prio()) &&
-                                                                                            operator()(stm.type());
+    auto operator()(StmHeuristic const &stm) const -> bool {
+        return operator()(stm.atom()) && operator()(stm.body()) && operator()(stm.type()) && operator()(stm.prio()) &&
+                                                                                             operator()(stm.weight());
     }
 
-    auto operator()(StatementScript const &stm) const -> bool {
+    auto operator()(StmScript const &stm) const -> bool {
         static_cast<void>(stm);
         return true;
     }
 
-    auto operator()(StatementInclude const &stm) const -> bool {
+    auto operator()(StmInclude const &stm) const -> bool {
         static_cast<void>(stm);
         return true;
     }
 
-    auto operator()(StatementProgram const &stm) const -> bool {
+    auto operator()(StmProgram const &stm) const -> bool {
         static_cast<void>(stm);
         return true;
     }
 
-    auto operator()(StatementConst const &stm) const -> bool { return operator()(stm.value(), SyntaxCheck::is_const); }
+    auto operator()(StmConst const &stm) const -> bool { return operator()(stm.value(), SyntaxCheck::is_const); }
 
-    auto operator()(Comment const &stm) const -> bool {
+    auto operator()(StmComment const &stm) const -> bool {
         static_cast<void>(stm);
         return true;
     }
@@ -357,14 +355,14 @@ struct CheckSyntax {
 
 auto check_term(Logger &log, Term const &term) -> bool { return CheckSyntax{log}(term); }
 
-auto check_literal(Logger &log, Literal const &lit) -> bool {
+auto check_literal(Logger &log, Lit const &lit) -> bool {
     return CheckSyntax{log}(lit, SyntaxCheck::project | SyntaxCheck::project_tuple);
 }
 
-auto check_head_literal(Logger &log, HeadLiteral const &lit) -> bool { return CheckSyntax{log}(lit); }
+auto check_head_literal(Logger &log, HdLit const &lit) -> bool { return CheckSyntax{log}(lit); }
 
-auto check_body_literal(Logger &log, BodyLiteral const &lit) -> bool { return CheckSyntax{log}(lit); }
+auto check_body_literal(Logger &log, BdLit const &lit) -> bool { return CheckSyntax{log}(lit); }
 
-auto check_statement(Logger &log, Statement const &stm) -> bool { return CheckSyntax{log}(stm); }
+auto check_statement(Logger &log, Stm const &stm) -> bool { return CheckSyntax{log}(stm); }
 
 } // namespace Gringo::Input
