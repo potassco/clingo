@@ -38,7 +38,7 @@ class TheoryTermSymbol {
     [[nodiscard]] auto value() const -> Symbol { return value_; }
 
     //! Record update.
-    template <bool Opt, class... Args> auto update(Args... args) const {
+    template <bool Opt = false, class... Args> auto update(Args... args) const {
         using namespace Gringo::Util::Record;
         check(Types{a_loc, a_value}, Types{args...});
         return TheoryTermSymbol{select<Opt>(a_loc, loc_, args...), select<Opt>(a_value, value_, args...)};
@@ -84,7 +84,7 @@ class TheoryTermVariable {
     [[nodiscard]] auto is_anonymous() const -> bool { return is_anonymous_; }
 
     //! Record update.
-    template <bool Opt, class... Args> auto update(Args... args) const {
+    template <bool Opt = false, class... Args> auto update(Args... args) const {
         using namespace Gringo::Util::Record;
         check(Types{a_loc, a_name, a_anonymous}, Types{args...});
         return TheoryTermVariable{select<Opt>(a_loc, loc_, args...), select<Opt>(a_name, name_, args...),
@@ -140,7 +140,7 @@ class TheoryTermTuple {
     [[nodiscard]] auto elems() const -> TheoryTermArray const &;
 
     //! Record update.
-    template <bool Opt, class... Args> auto update(Args... args) const {
+    template <bool Opt = false, class... Args> auto update(Args... args) const {
         using namespace Gringo::Util::Record;
         check(Types{a_loc, a_type, a_elems}, Types{args...});
         return TheoryTermTuple{select<Opt>(a_loc, loc_, args...), select<Opt>(a_type, type_, args...),
@@ -189,7 +189,7 @@ class TheoryTermFunction {
     [[nodiscard]] auto args() const -> TheoryTermArray const &;
 
     //! Record update.
-    template <bool Opt, class... Args> auto update(Args... args) const {
+    template <bool Opt = false, class... Args> auto update(Args... args) const {
         using namespace Gringo::Util::Record;
         check(Types{a_loc, a_name, a_args}, Types{args...});
         return TheoryTermFunction{select<Opt>(a_loc, loc_, args...), select<Opt>(a_name, name_, args...),
@@ -245,7 +245,7 @@ class TheoryTermUnparsed {
     [[nodiscard]] auto elems() const -> UnparsedElementArray const &;
 
     //! Record update.
-    template <bool Opt, class... Args> auto update(Args... args) const {
+    template <bool Opt = false, class... Args> auto update(Args... args) const {
         using namespace Gringo::Util::Record;
         check(Types{a_loc, a_elems}, Types{args...});
         return TheoryTermUnparsed{select<Opt>(a_loc, loc_, args...), select<Opt>(a_elems, elems_, args...)};
@@ -305,7 +305,7 @@ class TheoryElement {
     [[nodiscard]] auto cond() const -> LitArray const & { return cond_; }
 
     //! Record update.
-    template <bool Opt, class... Args> auto update(Args... args) const {
+    template <bool Opt = false, class... Args> auto update(Args... args) const {
         using namespace Gringo::Util::Record;
         check(Types{a_loc, a_tuple, a_cond}, Types{args...});
         return TheoryElement{select<Opt>(a_loc, loc_, args...), select<Opt>(a_tuple, tuple_, args...),

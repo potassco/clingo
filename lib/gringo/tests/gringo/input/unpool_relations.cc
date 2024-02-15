@@ -83,12 +83,12 @@ TEST_CASE("unpool_relations_body") {
     REQUIRE(unpool_statement("h :- #sum { 1,X: not 1<=X<=Y } >= 2.") == "[h :- #sum { 1,X: 1>X; 1,X: X>Y } >= 2.]");
     REQUIRE(unpool_statement("h :- #sum { 1,X: 1<=X<=Y, not 1<=A<=B } >= 2.") ==
             "[h :- #sum { 1,X: 1<=X, X<=Y, 1>A; 1,X: 1<=X, X<=Y, A>B } >= 2.]");
-    REQUIRE(unpool_statement("h :- X = #sum { } >= 2.") == "[h :- X = #sum { }; 2 >= #sum { }.]");
+    REQUIRE(unpool_statement("h :- X = #sum { } >= 2.") == "[h :- X = #sum { }; 2 <= #sum { }.]");
     REQUIRE(unpool_statement("h :- 2 <= #sum { } = X.") == "[h :- 2 <= #sum { }; X = #sum { }.]");
     REQUIRE(unpool_statement("h :- #sum { } = X.") == "[h :- X = #sum { }.]");
     REQUIRE(unpool_statement("h :- X = #sum { } = Y.") == "[h :- X = #sum { }; Y = #sum { }.]");
     REQUIRE(unpool_statement("h :- X = #sum { Y: not 1 <= Y <= 3 } >= 2.") ==
-            "[h :- X = #sum { Y: 1>Y; Y: Y>3 }; 2 >= #sum { Y: 1>Y; Y: Y>3 }.]");
+            "[h :- X = #sum { Y: 1>Y; Y: Y>3 }; 2 <= #sum { Y: 1>Y; Y: Y>3 }.]");
     REQUIRE(unpool_statement("h :- not X != #sum { } >= 2.") == "[h :- not X != #sum { } >= 2.]");
 }
 
