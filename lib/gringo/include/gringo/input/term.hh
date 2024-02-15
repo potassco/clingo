@@ -105,7 +105,7 @@ class ArgumentTuple {
     [[nodiscard]] auto elems() const -> ArgumentArray const &;
 
     //! Record update.
-    template <bool Opt, class... Args> auto update(Args... args) const {
+    template <bool Opt = false, class... Args> auto update(Args... args) const {
         using namespace Gringo::Util::Record;
         check(Types{a_elems}, Types{args...});
         return ArgumentTuple{select<Opt>(a_elems, elems_, args...)};
@@ -143,21 +143,21 @@ class TermVariable {
   public:
     //! Construct a variable.
     explicit TermVariable(Location loc, String name, bool is_anonymous = false)
-        : loc_{std::move(loc)}, name_{std::move(name)}, is_anonymous_{is_anonymous} {}
+        : loc_{std::move(loc)}, name_{std::move(name)}, anonymous_{is_anonymous} {}
 
     //! The location of the variable.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The name of the variable.
     [[nodiscard]] auto name() const -> String { return name_; }
     //! Whether the variable is anonymous.
-    [[nodiscard]] auto is_anonymous() const -> bool { return is_anonymous_; }
+    [[nodiscard]] auto anonymous() const -> bool { return anonymous_; }
 
     //! Record update.
-    template <bool Opt, class... Args> auto update(Args... args) const {
+    template <bool Opt = false, class... Args> auto update(Args... args) const {
         using namespace Gringo::Util::Record;
         check(Types{a_loc, a_name, a_anonymous}, Types{args...});
         return TermVariable{select<Opt>(a_loc, loc_, args...), select<Opt>(a_name, name_, args...),
-                            select<Opt>(a_anonymous, is_anonymous_, args...)};
+                            select<Opt>(a_anonymous, anonymous_, args...)};
     }
     //! Rewrite the record.
     template <class... Args> auto rewrite(Args &&...args) const {
@@ -171,7 +171,7 @@ class TermVariable {
 
     Location loc_;
     String name_;
-    bool is_anonymous_;
+    bool anonymous_;
 };
 
 //! Compare two variables.
@@ -198,7 +198,7 @@ class TermSymbol {
     [[nodiscard]] auto value() const -> Symbol { return value_; }
 
     //! Record update.
-    template <bool Opt, class... Args> auto update(Args... args) const {
+    template <bool Opt = false, class... Args> auto update(Args... args) const {
         using namespace Gringo::Util::Record;
         check(Types{a_loc, a_value}, Types{args...});
         return TermSymbol{select<Opt>(a_loc, loc_, args...), select<Opt>(a_value, value_, args...)};
@@ -246,7 +246,7 @@ class TermTuple {
     [[nodiscard]] auto pool() const -> TupleElementArray const &;
 
     //! Record update.
-    template <bool Opt, class... Args> auto update(Args... args) const {
+    template <bool Opt = false, class... Args> auto update(Args... args) const {
         using namespace Gringo::Util::Record;
         check(Types{a_loc, a_pool}, Types{args...});
         return TermTuple{select<Opt>(a_loc, loc_, args...), select<Opt>(a_pool, pool_, args...)};
@@ -296,7 +296,7 @@ class TermFunction {
     [[nodiscard]] auto external() const -> bool { return external_; }
 
     //! Record update.
-    template <bool Opt, class... Args> auto update(Args... args) const {
+    template <bool Opt = false, class... Args> auto update(Args... args) const {
         using namespace Gringo::Util::Record;
         check(Types{a_loc, a_name, a_pool, a_exteral}, Types{args...});
         return TermFunction{select<Opt>(a_loc, loc_, args...), select<Opt>(a_name, name_, args...),
@@ -344,7 +344,7 @@ class TermAbs {
     [[nodiscard]] auto pool() const -> TermArray const &;
 
     //! Record update.
-    template <bool Opt, class... Args> auto update(Args... args) const {
+    template <bool Opt = false, class... Args> auto update(Args... args) const {
         using namespace Gringo::Util::Record;
         check(Types{a_loc, a_pool}, Types{args...});
         return TermAbs{select<Opt>(a_loc, loc_, args...), select<Opt>(a_pool, pool_, args...)};
@@ -395,9 +395,9 @@ class TermUnary {
     [[nodiscard]] auto rhs() const -> Util::immutable_value<Term> const &;
 
     //! Record update.
-    template <bool Opt, class... Args> auto update(Args... args) const {
+    template <bool Opt = false, class... Args> auto update(Args... args) const {
         using namespace Gringo::Util::Record;
-        check(Types{a_loc}, Types{args...});
+        check(Types{a_loc, a_op, a_rhs}, Types{args...});
         return TermUnary{select<Opt>(a_loc, loc_, args...), select<Opt>(a_op, op_, args...),
                          select<Opt>(a_rhs, rhs_, args...)};
     }
@@ -459,9 +459,9 @@ class TermBinary {
     [[nodiscard]] auto op() const -> BinaryOperator { return op_; }
 
     //! Record update.
-    template <bool Opt, class... Args> auto update(Args... args) const {
+    template <bool Opt = false, class... Args> auto update(Args... args) const {
         using namespace Gringo::Util::Record;
-        check(Types{a_loc}, Types{args...});
+        check(Types{a_loc, a_lhs, a_op, a_rhs}, Types{args...});
         return TermBinary{select<Opt>(a_loc, loc_, args...), select<Opt>(a_lhs, lhs_, args...),
                           select<Opt>(a_op, op_, args...), select<Opt>(a_rhs, rhs_, args...)};
     }

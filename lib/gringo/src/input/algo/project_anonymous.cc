@@ -12,7 +12,7 @@ auto is_anonymous(Term const *term) -> bool {
         return false;
     }
     auto const *var = std::get_if<TermVariable>(term);
-    return var != nullptr && var->is_anonymous();
+    return var != nullptr && var->anonymous();
 }
 
 struct ProjectAnonymous : Transformer<ProjectAnonymous> {

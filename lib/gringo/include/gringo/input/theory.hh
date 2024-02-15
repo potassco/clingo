@@ -74,21 +74,21 @@ class TheoryTermVariable {
   public:
     //! Construct a variable theory term.
     explicit TheoryTermVariable(Location loc, String name, bool is_anonymous = false)
-        : loc_{std::move(loc)}, name_{name}, is_anonymous_{is_anonymous} {}
+        : loc_{std::move(loc)}, name_{name}, anonymous_{is_anonymous} {}
 
     //! The location of the variable.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The name of the variable.
     [[nodiscard]] auto name() const -> String { return name_; }
     //! Whether the variable is anonymous.
-    [[nodiscard]] auto is_anonymous() const -> bool { return is_anonymous_; }
+    [[nodiscard]] auto anonymous() const -> bool { return anonymous_; }
 
     //! Record update.
     template <bool Opt = false, class... Args> auto update(Args... args) const {
         using namespace Gringo::Util::Record;
         check(Types{a_loc, a_name, a_anonymous}, Types{args...});
         return TheoryTermVariable{select<Opt>(a_loc, loc_, args...), select<Opt>(a_name, name_, args...),
-                                  select<Opt>(a_anonymous, is_anonymous_, args...)};
+                                  select<Opt>(a_anonymous, anonymous_, args...)};
     }
     //! Rewrite the record.
     template <class... Args> auto rewrite(Args &&...args) const {
@@ -102,7 +102,7 @@ class TheoryTermVariable {
 
     Location loc_;
     String name_;
-    bool is_anonymous_;
+    bool anonymous_;
 };
 
 //! Compare two theory terms.
@@ -384,9 +384,9 @@ template <bool HasSign> class TheoryAtom : public std::conditional_t<HasSign, Si
     }
 
   private:
-    friend auto operator==(TheoryAtom<HasSign> const &a, TheoryAtom<HasSign> const &b) -> bool;
-    friend auto operator<(TheoryAtom<HasSign> const &a, TheoryAtom<HasSign> const &b) -> bool;
-    friend struct Util::value_hasher<TheoryAtom<HasSign>>;
+    friend auto operator==(TheoryAtom const &a, TheoryAtom const &b) -> bool;
+    friend auto operator<(TheoryAtom const &a, TheoryAtom const &b) -> bool;
+    friend struct Util::value_hasher<TheoryAtom>;
 
     Location loc_;
     Term name_;

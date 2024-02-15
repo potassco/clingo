@@ -16,7 +16,7 @@ auto projectable(ProjectionMap project, Term const *term) -> bool {
         return false;
     }
     auto const *var = std::get_if<TermVariable>(term);
-    return var != nullptr && project.projectable(var->name(), var->is_anonymous());
+    return var != nullptr && project.projectable(var->name(), var->anonymous());
 }
 
 auto get_counts(ProjectionMap project, auto const &elem) {

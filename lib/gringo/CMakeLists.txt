@@ -34,7 +34,7 @@ target_include_directories(gringo PUBLIC "include")
 set_property(TARGET gringo lexy_core lexy_file PROPERTY POSITION_INDEPENDENT_CODE ON)
 # for lexy using >> and + in combination
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    target_compile_options(gringo PUBLIC "-Wno-parentheses")
+    target_compile_options(gringo PUBLIC "-Wno-parentheses" "$<$<COMPILE_LANGUAGE:CXX>:-Wno-non-template-friend>")
 endif()
 
 if (PARSER_BUILD_TESTS)

@@ -734,9 +734,9 @@ auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<
     // clang-format off
     SWITCH(
         TYPE(term_variable, TermVariable,
-            ATTR(anonymous, is_anonymous()))
+            ATTR(anonymous, anonymous()))
         TYPE(theory_term_variable, TheoryTermVariable,
-            ATTR(anonymous, is_anonymous()))
+            ATTR(anonymous, anonymous()))
         TYPE(term_function, TermFunction,
             ATTR(external, external()))
         TYPE(term_unary_operation, TermUnary,

@@ -134,9 +134,9 @@ template <bool HasSign> class SetAggregate : public std::conditional_t<HasSign, 
     }
 
   private:
-    friend auto operator==(SetAggregate<HasSign> const &a, SetAggregate<HasSign> const &b) -> bool;
-    friend auto operator<(SetAggregate<HasSign> const &a, SetAggregate<HasSign> const &b) -> bool;
-    friend struct Util::value_hasher<SetAggregate<HasSign>>;
+    friend auto operator==(SetAggregate const &a, SetAggregate const &b) -> bool;
+    friend auto operator<(SetAggregate const &a, SetAggregate const &b) -> bool;
+    friend struct Util::value_hasher<SetAggregate>;
 
     Location loc_;
     SetAggregateElementArray elems_;
