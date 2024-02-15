@@ -1,3 +1,5 @@
+#include "gringo/util/type_traits.hh"
+
 #include "add_sign.hh"
 
 namespace Gringo::Input {
@@ -7,34 +9,28 @@ namespace {
 struct AddSign {
     template <class T> void operator()(T const &lit) const = delete;
 
+    template <class L>
+        requires Util::is_among_v<L, LitBool, LitComparison, LitSymbolic>
+    auto operator()(L const &lit) const -> Lit {
+        return lit.update(a_loc = lit.loc() + pos, a_sign = lit.sign() + sign);
+    }
+
     auto operator()(Lit const &lit) const -> Lit { return std::visit(*this, lit); }
 
-    auto operator()(LitBool const &lit) const -> Lit {
-        return LitBool{lit.loc() + pos, lit.sign() + sign, lit.value()};
+    auto operator()(BdLitSimple const &lit) const -> BdLit { return BdLitSimple{operator()(lit.lit())}; }
+
+    auto operator()(BdLitConjunction const &lit) const -> BdLit {
+        auto const &clit = lit.lit();
+        return BdLitConjunction{clit.update(a_loc = pos + clit.loc(), a_lit = operator()(clit.lit()))};
     }
-    auto operator()(LitComparison const &lit) const -> Lit {
-        return LitComparison{lit.loc() + pos, lit.sign() + sign, lit.lhs(), lit.rhs()};
-    }
-    auto operator()(LitSymbolic const &lit) const -> Lit {
-        return LitSymbolic{lit.loc() + pos, lit.sign() + sign, lit.term()};
+
+    template <class L>
+        requires Util::is_among_v<L, BdLitAggregate, BdLitSetAggregate, BdLitTheoryAtom>
+    auto operator()(L const &lit) const -> BdLit {
+        return lit.update(a_loc = lit.loc() + pos, a_sign = lit.sign() + sign);
     }
 
     auto operator()(BdLit const &lit) const -> BdLit { return std::visit(*this, lit); }
-
-    auto operator()(BdLitSimple const &lit) const -> BdLit { return BdLitSimple{operator()(lit.lit())}; }
-    auto operator()(BdLitConjunction const &lit) const -> BdLit {
-        return BdLitConjunction{CondLit{pos + lit.lit().loc(), operator()(lit.lit().lit()), lit.lit().cond()}};
-    }
-    auto operator()(BdLitAggregate const &lit) const -> BdLit {
-        return BdLitAggregate{lit.loc() + pos, lit.sign() + sign, lit.lhs(), lit.fun(), lit.elems(), lit.rhs()};
-    }
-    auto operator()(BdLitSetAggregate const &lit) const -> BdLit {
-        return BdLitSetAggregate{lit.loc() + pos, lit.sign() + sign, lit.lhs(), lit.elems(), lit.rhs()};
-    }
-    auto operator()(BdLitTheoryAtom const &lit) const -> BdLit {
-        return BdLitTheoryAtom{lit.loc() + pos, lit.sign() + sign, lit.name(),
-                               TheoryElementArray{lit.elems().begin(), lit.elems().end()}, lit.rhs()};
-    }
 
     Sign sign;
     std::optional<Position> pos;

@@ -2,6 +2,7 @@
 #include <cstdarg>
 #include <cstring>
 #include <forward_list>
+#include <span>
 
 #include "lib.hh"
 #include "streams.hh"
@@ -51,7 +52,7 @@ auto make_ast(Owner const &owner, Gringo::Input::OptimizeTuple const &tuple) -> 
 auto make_ast(Owner const &owner, Gringo::Input::OptimizeElement const &elem) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::Edge const &edge) -> std::unique_ptr<clingo_ast_t>;
 
-template <class T> auto make_ast_vec(Owner const &owner, tcb::span<T> vec) -> ASTVec;
+template <class T> auto make_ast_vec(Owner const &owner, std::span<T> vec) -> ASTVec;
 template <class T> auto make_ast_vec(Owner const &owner, std::vector<T> const &vec) -> ASTVec;
 template <class T> auto make_ast_vec(Owner const &owner, Gringo::Util::immutable_array<T> const &vec) -> ASTVec;
 
@@ -91,7 +92,7 @@ struct clingo_ast {
     [[nodiscard]] auto get_location(clingo_ast_attribute_t attr) const -> std::optional<clingo_location_t>;
     [[nodiscard]] auto get_string(clingo_ast_attribute_t attr) const -> std::optional<char const *>;
     [[nodiscard]] auto get_string_vec(clingo_ast_attribute_t attr) const
-        -> std::optional<tcb::span<Gringo::String const>>;
+        -> std::optional<std::span<Gringo::String const>>;
     [[nodiscard]] auto get_ast(clingo_ast_attribute_t attr) const -> std::optional<std::unique_ptr<clingo_ast_t>>;
     [[nodiscard]] auto get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional<ASTVec>;
 
@@ -178,7 +179,7 @@ class ASTVec {
     size_t size_ = 0;
 };
 
-template <class T> auto make_ast_vec(Owner const &owner, tcb::span<T> vec) -> ASTVec {
+template <class T> auto make_ast_vec(Owner const &owner, std::span<T> vec) -> ASTVec {
     ASTVec res{vec.size()};
     size_t i = 0;
     for (auto const &elem : vec) {
@@ -189,11 +190,11 @@ template <class T> auto make_ast_vec(Owner const &owner, tcb::span<T> vec) -> AS
 }
 
 template <class T> auto make_ast_vec(Owner const &owner, std::vector<T> const &vec) -> ASTVec {
-    return make_ast_vec(owner, tcb::make_span(vec));
+    return make_ast_vec(owner, std::span{vec});
 }
 
 template <class T> auto make_ast_vec(Owner const &owner, Gringo::Util::immutable_array<T> const &vec) -> ASTVec {
-    return make_ast_vec(owner, tcb::make_span(vec));
+    return make_ast_vec(owner, std::span{vec});
 }
 
 template <class T> auto convert_ast_opt(clingo_ast const *ast) -> std::optional<T> {
@@ -860,10 +861,10 @@ auto clingo_ast::get_string(clingo_ast_attribute_t attr) const -> std::optional<
 #undef ATTR
 #define ATTR(attr, value)                                                                                              \
     case clingo_ast_attribute_##attr: {                                                                                \
-        return tcb::make_span(cast<Type>().value);                                                                     \
+        return std::span{cast<Type>().value};                                                                          \
     }
 
-auto clingo_ast::get_string_vec(clingo_ast_attribute_t attr) const -> std::optional<tcb::span<Gringo::String const>> {
+auto clingo_ast::get_string_vec(clingo_ast_attribute_t attr) const -> std::optional<std::span<Gringo::String const>> {
     // clang-format off
     SWITCH(
         TYPE(unparsed_element, UnparsedElement,
@@ -2487,7 +2488,7 @@ extern "C" auto clingo_ast_scan_files(clingo_lib_t *lib, char const *const *file
             throw std::invalid_argument("invalid arguments");
         }
         auto res = std::make_unique<clingo_ast_scanner>(lib);
-        auto span = tcb::span(files, size);
+        auto span = std::span(files, size);
         if (span.empty()) {
             res->scan_file("-");
         } else {

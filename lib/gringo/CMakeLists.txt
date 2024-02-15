@@ -29,7 +29,7 @@ add_library(gringo
     "src/symbol.cc"
     )
 
-target_link_libraries(gringo PUBLIC tcb::span gsl::gsl tsl::hopscotch_map tsl::ordered_map PRIVATE foonathan::lexy::core foonathan::lexy::file imath::imath)
+target_link_libraries(gringo PUBLIC tsl::hopscotch_map tsl::ordered_map PRIVATE foonathan::lexy::core foonathan::lexy::file imath::imath)
 target_include_directories(gringo PUBLIC "include")
 set_property(TARGET gringo lexy_core lexy_file PROPERTY POSITION_INDEPENDENT_CODE ON)
 # for lexy using >> and + in combination

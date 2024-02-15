@@ -1,11 +1,10 @@
 #pragma once
 
-#include <optional>
+#include <span>
 #include <stdexcept>
 #include <vector>
 
 #include <gringo/util/immutable_value.hh>
-#include <tcb/span.hpp>
 
 namespace Gringo::Util {
 
@@ -40,9 +39,9 @@ template <typename T> class immutable_array {
 
     operator std::vector<T> const &() const noexcept { return vector_(); }
 
-    immutable_array(tcb::span<T> span) : immutable_array{span.begin(), span.end()} {}
+    immutable_array(std::span<T> span) : immutable_array{span.begin(), span.end()} {}
 
-    immutable_array(tcb::span<T const> span) : immutable_array{span.begin(), span.end()} {}
+    immutable_array(std::span<T const> span) : immutable_array{span.begin(), span.end()} {}
 
     immutable_array(std::vector<T> &&vec) {
         if (!vec.empty()) {

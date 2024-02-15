@@ -305,13 +305,13 @@ struct UnpoolHeadBody {
         return std::nullopt;
     }
 
-    auto operator()(tcb::span<BdLit const> body) const -> std::optional<std::vector<BdLitArray>> {
+    auto operator()(std::span<BdLit const> body) const -> std::optional<std::vector<BdLitArray>> {
         return Util::transform_vec(unpool_crossproduct(body, *this),
                                    [](auto vec) { return BdLitArray{std::move(vec)}; });
     }
 
     auto operator()(BdLitArray const &body) const -> std::optional<std::vector<BdLitArray>> {
-        return operator()(tcb::make_span(body));
+        return operator()(std::span{body});
     }
 
     RewriteContext const &ctx;

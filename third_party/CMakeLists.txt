@@ -8,14 +8,6 @@ add_library(ordered_map INTERFACE)
 target_include_directories(ordered_map INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/ordered-map/include>)
 add_library(tsl::ordered_map ALIAS ordered_map)
 
-add_library(gsl INTERFACE)
-target_include_directories(gsl INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/gsl/include>)
-add_library(gsl::gsl ALIAS gsl)
-
-add_library(span INTERFACE)
-target_include_directories(span INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/span/include>)
-add_library(tcb::span ALIAS span)
-
 add_library(imath INTERFACE)
 target_sources(imath INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/imath/imath.c

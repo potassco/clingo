@@ -151,7 +151,7 @@ template <class E, class S = bool> struct ResultState {
 template <class T, bool UseSpan = true> class ResultVec {
   public:
     using ValueType = T;
-    using Span = tcb::span<ValueType const>;
+    using Span = std::span<ValueType const>;
     using Array = Util::immutable_array<ValueType>;
     using Source = std::conditional_t<UseSpan, Span, Array const &>;
     using Iterator = std::conditional_t<UseSpan, typename Span::iterator, typename Array::const_iterator>;
@@ -261,7 +261,7 @@ template <class T, bool UseSpan = true> class ResultVec {
 
 template <class T> ResultVec(std::vector<T> const &) -> ResultVec<T, true>;
 
-template <class T> ResultVec(tcb::span<T const> const &) -> ResultVec<T, true>;
+template <class T> ResultVec(std::span<T const> const &) -> ResultVec<T, true>;
 
 template <class T> ResultVec(immutable_array<T> const &) -> ResultVec<T, false>;
 

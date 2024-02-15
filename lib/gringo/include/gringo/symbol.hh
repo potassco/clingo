@@ -1,8 +1,7 @@
 #pragma once
 
 #include <ostream>
-
-#include <tcb/span.hpp>
+#include <span>
 
 #include <gringo/number.hh>
 
@@ -105,7 +104,7 @@ enum class SymbolType { number, sup, inf, string, tuple, function };
 
 class Symbol;
 //! A span of symbols.
-using SymbolSpan = tcb::span<Symbol const>;
+using SymbolSpan = std::span<Symbol const>;
 
 //! Variant-like class to store symbols.
 class Symbol {
