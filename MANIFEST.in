@@ -21,5 +21,12 @@ recursive-include third_party/optional/include *
 recursive-include third_party/ordered-map/include *
 recursive-include third_party/sparse-map/include *
 recursive-include third_party/variant/include *
+recursive-include third_party/wide-integer/math *
+include third_party/hopscotch-map/LICENSE
+include third_party/optional/COPYING
+include third_party/ordered-map/LICENSE
+include third_party/sparse-map/LICENSE
+include third_party/variant/LICENSE.md
+include third_party/wide-integer/LICENSE_1_0.txt
 prune _skbuild
 global-exclude *.py[cod]
