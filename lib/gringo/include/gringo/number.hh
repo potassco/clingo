@@ -55,48 +55,24 @@ class Number {
 
     //! Compare to numbers returning a comparator.
     friend auto compare(Number const &a, Number const &b) -> int;
+    //! Compare to numbers returning a comparator.
+    friend auto compare(Number const &a, int32_t b) -> int;
+    //! Compare to numbers returning a comparator.
+    friend auto compare(int32_t a, Number const &b) -> int;
 
     //! Equality compare two numbers.
-    friend auto operator==(Number const &a, Number const &b) -> bool;
+    friend auto operator==(Number const &a, Number const &b) { return compare(a, b) == 0; }
     //! Equality compare two numbers.
-    friend auto operator==(int32_t a, Number const &b) -> bool;
+    friend auto operator==(int32_t a, Number const &b) -> bool { return compare(a, b) == 0; }
     //! Equality compare two numbers.
-    friend auto operator==(Number const &a, int32_t b) -> bool;
+    friend auto operator==(Number const &a, int32_t b) -> bool { return compare(a, b) == 0; }
 
-    //! Inequality compare two numbers.
-    friend auto operator!=(Number const &a, Number const &b) -> bool;
-    //! Inequality compare two numbers.
-    friend auto operator!=(int32_t a, Number const &b) -> bool;
-    //! Inequality compare two numbers.
-    friend auto operator!=(Number const &a, int32_t b) -> bool;
-
-    //! Less than compare two numbers.
-    friend auto operator<(Number const &a, Number const &b) -> bool;
-    //! Less than compare two numbers.
-    friend auto operator<(int32_t a, Number const &b) -> bool;
-    //! Less than compare two numbers.
-    friend auto operator<(Number const &a, int32_t b) -> bool;
-
-    //! Less equal compare two numbers.
-    friend auto operator<=(Number const &a, Number const &b) -> bool;
-    //! Less equal compare two numbers.
-    friend auto operator<=(int32_t a, Number const &b) -> bool;
-    //! Less equal compare two numbers.
-    friend auto operator<=(Number const &a, int32_t b) -> bool;
-
-    //! Greater than compare two numbers.
-    friend auto operator>(Number const &a, Number const &b) -> bool;
-    //! Greater than compare two numbers.
-    friend auto operator>(int32_t a, Number const &b) -> bool;
-    //! Greater than compare two numbers.
-    friend auto operator>(Number const &a, int32_t b) -> bool;
-
-    //! Greater equal compare two numbers.
-    friend auto operator>=(Number const &a, Number const &b) -> bool;
-    //! Greater equal compare two numbers.
-    friend auto operator>=(int32_t a, Number const &b) -> bool;
-    //! Greater equal compare two numbers.
-    friend auto operator>=(Number const &a, int32_t b) -> bool;
+    //! Compare two numbers.
+    friend auto operator<=>(Number const &a, Number const &b) { return compare(a, b) <=> 0; }
+    //! Compare two numbers.
+    friend auto operator<=>(int32_t a, Number const &b) { return compare(a, b) <=> 0; }
+    //! Compare two numbers.
+    friend auto operator<=>(Number const &a, int32_t b) { return compare(a, b) <=> 0; }
 
     // addition
 

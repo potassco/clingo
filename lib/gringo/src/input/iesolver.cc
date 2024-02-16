@@ -59,19 +59,6 @@ auto operator<<(std::ostream &out, IETerm const &term) -> std::ostream & {
     return out;
 }
 
-auto operator==(IEInterval const &a, IEInterval const &b) -> bool {
-    return a.lower_ == b.lower_ && a.upper_ == b.upper_;
-}
-
-auto operator!=(IEInterval const &a, IEInterval const &b) -> bool { return !(a == b); }
-
-auto operator<(IETerm const &a, IETerm const &b) -> bool {
-    if (a.variable != b.variable) {
-        return a.variable < b.variable;
-    }
-    return a.coefficient < b.coefficient;
-}
-
 auto IEInterval::has_value(Type type) const -> bool { return type == Lower ? lower_.has_value() : upper_.has_value(); }
 
 auto IEInterval::value(Type type) const -> Number const & { return type == Lower ? *lower_ : *upper_; }

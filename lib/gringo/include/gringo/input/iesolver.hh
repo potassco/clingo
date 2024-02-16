@@ -10,8 +10,12 @@ namespace Gringo::Input {
 struct IETerm {
     //! Operator to print terms.
     friend auto operator<<(std::ostream &out, IETerm const &term) -> std::ostream &;
-    //! Less than compare to terms.
-    friend auto operator<(IETerm const &a, IETerm const &b) -> bool;
+    //! Equality compare two terms.
+    friend auto operator==(IETerm const &a, IETerm const &b) -> bool = default;
+    //! Compare two terms.
+    friend auto operator<=>(IETerm const &a, IETerm const &b) {
+        return std::tie(a.variable, a.coefficient) <=> std::tie(b.variable, b.coefficient);
+    }
 
     //! The integer coefficient of the term.
     Number coefficient;
@@ -73,9 +77,9 @@ class IEInterval {
     //! Operator to print intervals.
     friend auto operator<<(std::ostream &out, IEInterval const &bound) -> std::ostream &;
     //! Equality compare two terms.
-    friend auto operator==(IEInterval const &a, IEInterval const &b) -> bool;
+    friend auto operator==(IEInterval const &a, IEInterval const &b) -> bool = default;
     //! Inequality compare two terms.
-    friend auto operator!=(IEInterval const &a, IEInterval const &b) -> bool;
+    friend auto operator!=(IEInterval const &a, IEInterval const &b) -> bool = default;
 
   private:
     //! The lower bound of the interval.

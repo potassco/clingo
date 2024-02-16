@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <istream>
+#include <tuple>
 #include <vector>
 
 #include <lexy/input_location.hpp>
@@ -195,30 +196,13 @@ class StreamInput {
         }
 
         //! Equality compare two iterators.
-        auto operator==(iterator other) const -> bool { return offset_ == other.offset_ && buffer_ == other.buffer_; }
+        friend auto operator==(iterator a, iterator b) -> bool = default;
 
-        //! Inequality compare two iterators.
-        auto operator!=(iterator other) const -> bool { return !(*this == other); }
-
-        //! Less than compare two iterators.
-        auto operator<(iterator other) const -> bool {
-            if (buffer_ == nullptr) {
-                return false;
-            }
-            if (other.buffer_ == nullptr) {
-                return true;
-            }
-            return offset_ < other.offset_;
+        //! Compare two iterators.
+        friend auto operator<=>(iterator a, iterator b) {
+            assert(a.buffer_ == nullptr || b.buffer_ == nullptr || a.buffer_ == b.buffer_);
+            return std::tie(b.buffer_, a.offset_) <=> std::tie(a.buffer_, b.offset_);
         }
-
-        //! Greater than compare two iterators.
-        auto operator>(iterator other) const -> bool { return other < *this; }
-
-        //! Less equal compare two iterators.
-        auto operator<=(iterator other) const -> bool { return !(other < *this); }
-
-        //! Greater equal compare two iterators.
-        auto operator>=(iterator other) const -> bool { return !(*this < other); }
 
         //! Dereference the iterator.
         auto operator*() const -> char_type {
