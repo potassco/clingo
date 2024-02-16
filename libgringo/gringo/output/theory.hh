@@ -199,7 +199,7 @@ class TheoryData : private Potassco::TheoryData::Visitor {
         bool operator()(std::pair<IdSpan, LitSpan> const &x, std::pair<IdSpan, LitSpan> const &y) const {
             return x.first.size == y.first.size &&
                    x.second.size == y.second.size &&
-                   std::equal(begin(x.first), end(x.first), begin(y.first));
+                   std::equal(begin(x.first), end(x.first), begin(y.first)) &&
                    std::equal(begin(x.second), end(x.second), begin(y.second));
         }
 
