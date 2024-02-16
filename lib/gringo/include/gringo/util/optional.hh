@@ -21,6 +21,21 @@ using transform_vec_result = std::optional<std::vector<typename transform_result
 
 } // namespace Detail
 
+//! Turn a weak ordering into a strong one.
+
+constexpr auto make_strong_ordering(std::weak_ordering order) {
+    if (order == std::weak_ordering::equivalent) {
+        return std::strong_ordering::equivalent;
+    }
+    if (order == std::weak_ordering::less) {
+        return std::strong_ordering::less;
+    }
+    if (order == std::weak_ordering::greater) {
+        return std::strong_ordering::greater;
+    }
+    return std::strong_ordering::equal;
+}
+
 //! Implemenatation of std::optional<T>::transform.
 template <class T, class F> constexpr auto transform(std::optional<T> &x, F &&f) -> Detail::transform_result<T &, F> {
     if (x.has_value()) {

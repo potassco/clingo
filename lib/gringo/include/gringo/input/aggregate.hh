@@ -65,25 +65,22 @@ class SetAggregateElement {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Equality compare two set aggregate elements.
+    friend auto operator==(SetAggregateElement const &a, SetAggregateElement const &b) -> bool {
+        return std::tie(a.lit_, a.cond_) == std::tie(a.lit_, b.cond_);
+    }
+    //! Equality compare two set aggregates.
+    friend auto operator<=>(SetAggregateElement const &a, SetAggregateElement const &b) -> std::strong_ordering {
+        return std::tie(a.lit_, a.cond_) <=> std::tie(a.lit_, b.cond_);
+    }
+
   private:
-    friend auto operator==(SetAggregateElement const &a, SetAggregateElement const &b) -> bool;
-    friend auto operator<(SetAggregateElement const &a, SetAggregateElement const &b) -> bool;
     friend struct Util::value_hasher<SetAggregateElement>;
 
     Location loc_;
     Lit lit_;
     LitArray cond_;
 };
-
-//! Compare two set aggregate elements.
-//!
-//! @related SetAggregateElement
-auto operator==(SetAggregateElement const &a, SetAggregateElement const &b) -> bool;
-
-//! Compare two set aggregate elements.
-//!
-//! @related SetAggregateElement
-auto operator<(SetAggregateElement const &a, SetAggregateElement const &b) -> bool;
 
 //! A vector of set aggregate elements.
 using SetAggregateElementArray = Util::immutable_array<SetAggregateElement>;
@@ -93,6 +90,8 @@ using SetAggregateElementArray = Util::immutable_array<SetAggregateElement>;
 //! For example: <tt>{ p(X): q(X) } = 1</tt>.
 template <bool HasSign> class SetAggregate : public std::conditional_t<HasSign, Signed, Unsigned> {
   public:
+    using Base = std::conditional_t<HasSign, Signed, Unsigned>;
+
     //! Construct a set aggregate.
     explicit SetAggregate(Location loc, LGuard lhs, SetAggregateElementArray elems, RGuard rhs)
         : loc_{std::move(loc)}, elems_{std::move(elems)}, lhs_(std::move(lhs)), rhs_(std::move(rhs)) {
@@ -133,9 +132,19 @@ template <bool HasSign> class SetAggregate : public std::conditional_t<HasSign, 
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Equality compare two set aggregates.
+    friend auto operator==(SetAggregate const &a, SetAggregate const &b) -> bool {
+        return std::tie(static_cast<Base const &>(a), a.lhs_, a.elems_, a.rhs_) ==
+               std::tie(static_cast<Base const &>(b), b.lhs_, b.elems_, b.rhs_);
+    }
+    //! Compare two set aggregates.
+    friend auto operator<=>(SetAggregate const &a, SetAggregate const &b) -> std::strong_ordering {
+        // Note: std::optional does not produce a strong_ordering - bug???
+        return Util::make_strong_ordering(std::tie(static_cast<Base const &>(a), a.lhs_, a.elems_, a.rhs_) <=>
+                                          std::tie(static_cast<Base const &>(b), b.lhs_, b.elems_, b.rhs_));
+    }
+
   private:
-    friend auto operator==(SetAggregate const &a, SetAggregate const &b) -> bool;
-    friend auto operator<(SetAggregate const &a, SetAggregate const &b) -> bool;
     friend struct Util::value_hasher<SetAggregate>;
 
     Location loc_;
@@ -149,26 +158,6 @@ using HdLitSetAggregate = SetAggregate<false>;
 
 //! A body set aggregate.
 using BdLitSetAggregate = SetAggregate<true>;
-
-//! Compare two set aggregates.
-//!
-//! @related SetAggregate
-auto operator==(HdLitSetAggregate const &a, HdLitSetAggregate const &b) -> bool;
-
-//! Compare two set aggregates.
-//!
-//! @related SetAggregate
-auto operator<(HdLitSetAggregate const &a, HdLitSetAggregate const &b) -> bool;
-
-//! Compare two set aggregates.
-//!
-//! @related SetAggregate
-auto operator==(BdLitSetAggregate const &a, BdLitSetAggregate const &b) -> bool;
-
-//! Compare two set aggregates.
-//!
-//! @related SetAggregate
-auto operator<(BdLitSetAggregate const &a, BdLitSetAggregate const &b) -> bool;
 
 //! @}
 

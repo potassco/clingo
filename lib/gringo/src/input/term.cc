@@ -1,65 +1,7 @@
 #include <gringo/input/term.hh>
 #include <gringo/util/algorithm.hh>
 
-namespace Gringo::Input {
-
-auto operator==(ArgumentTuple const &a, ArgumentTuple const &b) -> bool { return a.elems_ == b.elems_; }
-
-auto operator<(ArgumentTuple const &a, ArgumentTuple const &b) -> bool { return a.elems_ < b.elems_; }
-
-auto operator==(TermVariable const &a, TermVariable const &b) -> bool { return a.name_ == b.name_; }
-
-auto operator<(TermVariable const &a, TermVariable const &b) -> bool { return a.name_ < b.name_; }
-
-auto operator==(TermSymbol const &a, TermSymbol const &b) -> bool { return a.value_ == b.value_; }
-
-auto operator<(TermSymbol const &a, TermSymbol const &b) -> bool { return a.value_ < b.value_; }
-
-auto operator==(TermTuple const &a, TermTuple const &b) -> bool { return a.pool_ == b.pool_; }
-
-auto operator<(TermTuple const &a, TermTuple const &b) -> bool { return a.pool_ < b.pool_; }
-
-auto operator==(TermFunction const &a, TermFunction const &b) -> bool {
-    return std::tie(a.name_, a.pool_, a.external_) == std::tie(b.name_, b.pool_, b.external_);
-}
-
-auto operator<(TermFunction const &a, TermFunction const &b) -> bool {
-    return std::tie(a.name_, a.pool_, a.external_) < std::tie(b.name_, b.pool_, b.external_);
-}
-
-auto operator==(TermAbs const &a, TermAbs const &b) -> bool { return a.pool_ == b.pool_; }
-
-auto operator<(TermAbs const &a, TermAbs const &b) -> bool { return a.pool_ < b.pool_; }
-
-auto operator==(TermUnary const &a, TermUnary const &b) -> bool {
-    return std::tie(a.op_, a.rhs_) == std::tie(b.op_, b.rhs_);
-};
-
-auto operator<(TermUnary const &a, TermUnary const &b) -> bool {
-    return std::tie(a.op_, a.rhs_) < std::tie(b.op_, b.rhs_);
-}
-
-auto operator==(TermBinary const &a, TermBinary const &b) -> bool {
-    return std::tie(*a.lhs_, a.op_, a.rhs_) == std::tie(*b.lhs_, b.op_, b.rhs_);
-};
-
-auto operator<(TermBinary const &a, TermBinary const &b) -> bool {
-    return std::tie(*a.lhs_, a.op_, a.rhs_) < std::tie(*b.lhs_, b.op_, b.rhs_);
-}
-
-auto operator==(Projection const &a, Projection const &b) -> bool {
-    static_cast<void>(a);
-    static_cast<void>(b);
-    return true;
-};
-
-auto operator<(Projection const &a, Projection const &b) -> bool {
-    static_cast<void>(a);
-    static_cast<void>(b);
-    return false;
-}
-
-} // namespace Gringo::Input
+namespace Gringo::Input {} // namespace Gringo::Input
 
 namespace Gringo::Util {
 

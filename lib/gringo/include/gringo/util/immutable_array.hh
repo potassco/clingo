@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <span>
 #include <stdexcept>
 #include <vector>
@@ -7,6 +8,24 @@
 #include <gringo/util/immutable_value.hh>
 
 namespace Gringo::Util {
+
+template <class It, class Jt, class Cmp>
+constexpr auto lexicographical_compare_three_way(It it, It ie, Jt jt, Jt je, Cmp comp) -> decltype(comp(*it, *jt)) {
+    using ret_t = decltype(comp(*it, *jt));
+    static_assert(std::disjunction_v<std::is_same<ret_t, std::strong_ordering>, std::is_same<ret_t, std::weak_ordering>,
+                                     std::is_same<ret_t, std::partial_ordering>>,
+                  "The return type must be a comparison category type.");
+
+    bool end_i = (it == ie);
+    bool end_j = (jt == je);
+    for (; !end_i && !end_j; end_i = (++it == ie), end_j = (++jt == je)) {
+        if (auto c = comp(*it, *jt); c != 0) {
+            return c;
+        }
+    }
+
+    return !end_i ? std::strong_ordering::greater : !end_j ? std::strong_ordering::less : std::strong_ordering::equal;
+}
 
 //! @addtogroup core_immutable
 //! @{
@@ -90,20 +109,13 @@ template <typename T> class immutable_array {
     void swap(immutable_array &other) noexcept { swap(other.vec_, vec_); }
 
     friend auto operator==(immutable_array const &lhs, immutable_array const &rhs) -> bool {
-        return lhs.size() == rhs.size() && std::equal(lhs.begin(), lhs.end(), rhs.begin());
+        return lhs.vector_() == rhs.vector_();
     }
 
-    friend auto operator!=(immutable_array const &lhs, immutable_array const &rhs) -> bool { return !(lhs == rhs); }
-
-    friend auto operator<(immutable_array const &lhs, immutable_array const &rhs) -> bool {
-        return std::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+    friend auto operator<=>(immutable_array const &lhs, immutable_array const &rhs) {
+        return lexicographical_compare_three_way(lhs.begin(), lhs.end(), rhs.begin(), rhs.end(),
+                                                 std::compare_three_way{});
     }
-
-    friend auto operator<=(immutable_array const &lhs, immutable_array const &rhs) -> bool { return !(rhs < lhs); }
-
-    friend auto operator>(immutable_array const &lhs, immutable_array const &rhs) -> bool { return (rhs < lhs); }
-
-    friend auto operator>=(immutable_array const &lhs, immutable_array const &rhs) -> bool { return !(lhs < rhs); }
 
   private:
     [[nodiscard]] auto vector_() const -> std::vector<T> const & { return vec_ ? *vec_ : empty_(); }

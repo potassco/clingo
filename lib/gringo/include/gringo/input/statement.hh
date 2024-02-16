@@ -40,21 +40,22 @@ class StmRule {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Compare two rules.
+    friend auto operator==(StmRule const &a, StmRule const &b) -> bool {
+        return std::tie(a.head_, a.body_) == std::tie(b.head_, b.body_);
+    }
+    //! Compare two rules.
+    friend auto operator<=>(StmRule const &a, StmRule const &b) -> std::strong_ordering {
+        return std::tie(a.head_, a.body_) <=> std::tie(b.head_, b.body_);
+    }
+
   private:
-    friend auto operator==(StmRule const &a, StmRule const &b) -> bool;
-    friend auto operator<(StmRule const &a, StmRule const &b) -> bool;
     friend struct Util::value_hasher<StmRule>;
 
     Location loc_;
     HdLit head_;
     BdLitArray body_;
 };
-
-//! Compare two rules.
-auto operator==(StmRule const &a, StmRule const &b) -> bool;
-
-//! Compare two rules.
-auto operator<(StmRule const &a, StmRule const &b) -> bool;
 
 //! The type of a theory operator.
 //!
@@ -95,9 +96,16 @@ class TheoryOpDefinition {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Compare two theory operator definitions.
+    friend auto operator==(TheoryOpDefinition const &a, TheoryOpDefinition const &b) -> bool {
+        return std::tie(a.op_, a.prio_, a.type_) == std::tie(b.op_, b.prio_, b.type_);
+    }
+    //! Compare two theory operator definitions.
+    friend auto operator<=>(TheoryOpDefinition const &a, TheoryOpDefinition const &b) -> std::strong_ordering {
+        return std::tie(a.op_, a.prio_, a.type_) <=> std::tie(b.op_, b.prio_, b.type_);
+    }
+
   private:
-    friend auto operator==(TheoryOpDefinition const &a, TheoryOpDefinition const &b) -> bool;
-    friend auto operator<(TheoryOpDefinition const &a, TheoryOpDefinition const &b) -> bool;
     friend struct Util::value_hasher<TheoryOpDefinition>;
 
     Location loc_;
@@ -105,12 +113,6 @@ class TheoryOpDefinition {
     int prio_;
     TheoryOpType type_;
 };
-
-//! Compare two theory operator definitions.
-auto operator==(TheoryOpDefinition const &a, TheoryOpDefinition const &b) -> bool;
-
-//! Compare two theory operator definitions.
-auto operator<(TheoryOpDefinition const &a, TheoryOpDefinition const &b) -> bool;
 
 //! A vector of theory operator definitions.
 using TheoryOpDefinitionArray = Util::immutable_array<TheoryOpDefinition>;
@@ -143,9 +145,16 @@ class TheoryTermDefinition {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Compare two theory term definitions.
+    friend auto operator==(TheoryTermDefinition const &a, TheoryTermDefinition const &b) -> bool {
+        return std::tie(a.name_, a.op_defs_) == std::tie(b.name_, b.op_defs_);
+    }
+    //! Compare two theory term definitions.
+    friend auto operator<=>(TheoryTermDefinition const &a, TheoryTermDefinition const &b) -> std::strong_ordering {
+        return std::tie(a.name_, a.op_defs_) <=> std::tie(b.name_, b.op_defs_);
+    }
+
   private:
-    friend auto operator==(TheoryTermDefinition const &a, TheoryTermDefinition const &b) -> bool;
-    friend auto operator<(TheoryTermDefinition const &a, TheoryTermDefinition const &b) -> bool;
     friend struct Util::value_hasher<TheoryTermDefinition>;
 
     Location loc_;
@@ -155,12 +164,6 @@ class TheoryTermDefinition {
 
 //! A vector of theory term definitions.
 using TheoryTermDefinitionArray = Util::immutable_array<TheoryTermDefinition>;
-
-//! Compare two theory term definitions.
-auto operator==(TheoryTermDefinition const &a, TheoryTermDefinition const &b) -> bool;
-
-//! Compare two theory term definitions.
-auto operator<(TheoryTermDefinition const &a, TheoryTermDefinition const &b) -> bool;
 
 //! Enumeration of theory atom types.
 //!
@@ -213,9 +216,18 @@ class TheoryAtomDefinition {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Compare two theory atom definitions.
+    friend auto operator==(TheoryAtomDefinition const &a, TheoryAtomDefinition const &b) -> bool {
+        return std::tie(a.name_, a.arity_, a.term_, a.type_, a.rhs_) ==
+               std::tie(b.name_, b.arity_, b.term_, b.type_, b.rhs_);
+    }
+    //! Compare two theory atom definitions.
+    friend auto operator<=>(TheoryAtomDefinition const &a, TheoryAtomDefinition const &b) -> std::strong_ordering {
+        return Util::make_strong_ordering(std::tie(a.name_, a.arity_, a.term_, a.type_, a.rhs_) <=>
+                                          std::tie(b.name_, b.arity_, b.term_, b.type_, b.rhs_));
+    }
+
   private:
-    friend auto operator==(TheoryAtomDefinition const &a, TheoryAtomDefinition const &b) -> bool;
-    friend auto operator<(TheoryAtomDefinition const &a, TheoryAtomDefinition const &b) -> bool;
     friend struct Util::value_hasher<TheoryAtomDefinition>;
 
     Location loc_;
@@ -228,12 +240,6 @@ class TheoryAtomDefinition {
 
 //! A vector of theory atom definitions.
 using TheoryAtomDefinitionArray = Util::immutable_array<TheoryAtomDefinition>;
-
-//! Compare two theory atom definitions.
-auto operator==(TheoryAtomDefinition const &a, TheoryAtomDefinition const &b) -> bool;
-
-//! Compare two theory atom definitions.
-auto operator<(TheoryAtomDefinition const &a, TheoryAtomDefinition const &b) -> bool;
 
 //! A theory definition.
 //!
@@ -267,8 +273,12 @@ class StmTheory {
     }
 
   private:
-    friend auto operator==(StmTheory const &a, StmTheory const &b) -> bool;
-    friend auto operator<(StmTheory const &a, StmTheory const &b) -> bool;
+    friend auto operator==(StmTheory const &a, StmTheory const &b) -> bool {
+        return std::tie(a.name_, a.term_defs_, a.atom_defs_) == std::tie(b.name_, b.term_defs_, b.atom_defs_);
+    }
+    friend auto operator<=>(StmTheory const &a, StmTheory const &b) -> std::strong_ordering {
+        return std::tie(a.name_, a.term_defs_, a.atom_defs_) <=> std::tie(b.name_, b.term_defs_, b.atom_defs_);
+    }
     friend struct Util::value_hasher<StmTheory>;
 
     Location loc_;
@@ -276,12 +286,6 @@ class StmTheory {
     TheoryTermDefinitionArray term_defs_;
     TheoryAtomDefinitionArray atom_defs_;
 };
-
-//! Compare two theory definitions.
-auto operator==(StmTheory const &a, StmTheory const &b) -> bool;
-
-//! Compare two theory definitions.
-auto operator<(StmTheory const &a, StmTheory const &b) -> bool;
 
 //! Enumeration of optimization statement types.
 //!
@@ -313,9 +317,17 @@ class OptimizeTuple {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Compare two optimize tuples.
+    friend auto operator==(OptimizeTuple const &a, OptimizeTuple const &b) -> bool {
+        return std::tie(a.weight_, a.terms_, a.prio_) == std::tie(b.weight_, b.terms_, b.prio_);
+    }
+    //! Compare two optimize tuples.
+    friend auto operator<=>(OptimizeTuple const &a, OptimizeTuple const &b) -> std::strong_ordering {
+        return Util::make_strong_ordering(std::tie(a.weight_, a.terms_, a.prio_) <=>
+                                          std::tie(b.weight_, b.terms_, b.prio_));
+    }
+
   private:
-    friend auto operator==(OptimizeTuple const &a, OptimizeTuple const &b) -> bool;
-    friend auto operator<(OptimizeTuple const &a, OptimizeTuple const &b) -> bool;
     friend struct Util::value_hasher<OptimizeTuple>;
 
     Term weight_;
@@ -356,27 +368,22 @@ class StmOptimize {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Compare two optimization statements.
+    friend auto operator==(StmOptimize const &a, StmOptimize const &b) -> bool {
+        return std::tie(a.type_, a.elems_) == std::tie(b.type_, b.elems_);
+    }
+    //! Compare two optimization statements.
+    friend auto operator<=>(StmOptimize const &a, StmOptimize const &b) -> std::strong_ordering {
+        return std::tie(a.type_, a.elems_) <=> std::tie(b.type_, b.elems_);
+    }
+
   private:
-    friend auto operator==(StmOptimize const &a, StmOptimize const &b) -> bool;
-    friend auto operator<(StmOptimize const &a, StmOptimize const &b) -> bool;
     friend struct Util::value_hasher<StmOptimize>;
 
     Location loc_;
     OptimizeType type_;
     OptimizeElementArray elems_;
 };
-
-//! Compare two tuples.
-auto operator==(OptimizeTuple const &a, OptimizeTuple const &b) -> bool;
-
-//! Compare two optimization tuples.
-auto operator<(OptimizeTuple const &a, OptimizeTuple const &b) -> bool;
-
-//! Compare two optimization statements.
-auto operator==(StmOptimize const &a, StmOptimize const &b) -> bool;
-
-//! Compare two optimization statements.
-auto operator<(StmOptimize const &a, StmOptimize const &b) -> bool;
 
 //! A weak constraint.
 //!
@@ -406,21 +413,22 @@ class StmWeakConstraint {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Compare two weak constraints.
+    friend auto operator==(StmWeakConstraint const &a, StmWeakConstraint const &b) -> bool {
+        return std::tie(a.body_, a.tuple_) == std::tie(b.body_, b.tuple_);
+    }
+    //! Compare two weak constraints.
+    friend auto operator<=>(StmWeakConstraint const &a, StmWeakConstraint const &b) -> std::strong_ordering {
+        return std::tie(a.body_, a.tuple_) <=> std::tie(b.body_, b.tuple_);
+    }
+
   private:
-    friend auto operator==(StmWeakConstraint const &a, StmWeakConstraint const &b) -> bool;
-    friend auto operator<(StmWeakConstraint const &a, StmWeakConstraint const &b) -> bool;
     friend struct Util::value_hasher<StmWeakConstraint>;
 
     Location loc_;
     BdLitArray body_;
     OptimizeTuple tuple_;
 };
-
-//! Compare two weak constraints.
-auto operator==(StmWeakConstraint const &a, StmWeakConstraint const &b) -> bool;
-
-//! Compare two weak constraints.
-auto operator<(StmWeakConstraint const &a, StmWeakConstraint const &b) -> bool;
 
 //! A show statement.
 //!
@@ -450,21 +458,22 @@ class StmShow {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Compare two show statements.
+    friend auto operator==(StmShow const &a, StmShow const &b) -> bool {
+        return std::tie(a.term_, a.body_) == std::tie(b.term_, b.body_);
+    }
+    //! Compare two show statements.
+    friend auto operator<=>(StmShow const &a, StmShow const &b) -> std::strong_ordering {
+        return std::tie(a.term_, a.body_) <=> std::tie(b.term_, b.body_);
+    }
+
   private:
-    friend auto operator==(StmShow const &a, StmShow const &b) -> bool;
-    friend auto operator<(StmShow const &a, StmShow const &b) -> bool;
     friend struct Util::value_hasher<StmShow>;
 
     Location loc_;
     Term term_;
     BdLitArray body_;
 };
-
-//! Compare two show statements.
-auto operator==(StmShow const &a, StmShow const &b) -> bool;
-
-//! Compare two show statements.
-auto operator<(StmShow const &a, StmShow const &b) -> bool;
 
 //! A show signature statement.
 //!
@@ -496,9 +505,17 @@ class StmShowSig {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Compare two show signature statements.
+    friend auto operator==(StmShowSig const &a, StmShowSig const &b) -> bool {
+        return std::tie(a.name_, a.arity_, a.sign_) == std::tie(b.name_, b.arity_, b.sign_);
+    }
+
+    //! Compare two show signature statements.
+    friend auto operator<=>(StmShowSig const &a, StmShowSig const &b) -> std::strong_ordering {
+        return std::tie(a.name_, a.arity_, a.sign_) <=> std::tie(b.name_, b.arity_, b.sign_);
+    }
+
   private:
-    friend auto operator==(StmShowSig const &a, StmShowSig const &b) -> bool;
-    friend auto operator<(StmShowSig const &a, StmShowSig const &b) -> bool;
     friend struct Util::value_hasher<StmShowSig>;
 
     Location loc_;
@@ -506,12 +523,6 @@ class StmShowSig {
     int arity_;
     bool sign_;
 };
-
-//! Compare two show statements.
-auto operator==(StmShowSig const &a, StmShowSig const &b) -> bool;
-
-//! Compare two show statements.
-auto operator<(StmShowSig const &a, StmShowSig const &b) -> bool;
 
 //! A project statement.
 //!
@@ -541,21 +552,22 @@ class StmProject {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Compare two project statements.
+    friend auto operator==(StmProject const &a, StmProject const &b) -> bool {
+        return std::tie(a.term_, a.body_) == std::tie(b.term_, b.body_);
+    }
+    //! Compare two project statements.
+    friend auto operator<=>(StmProject const &a, StmProject const &b) -> std::strong_ordering {
+        return std::tie(a.term_, a.body_) <=> std::tie(b.term_, b.body_);
+    }
+
   private:
-    friend auto operator==(StmProject const &a, StmProject const &b) -> bool;
-    friend auto operator<(StmProject const &a, StmProject const &b) -> bool;
     friend struct Util::value_hasher<StmProject>;
 
     Location loc_;
     Term term_;
     BdLitArray body_;
 };
-
-//! Compare two project statements.
-auto operator==(StmProject const &a, StmProject const &b) -> bool;
-
-//! Compare two project statements.
-auto operator<(StmProject const &a, StmProject const &b) -> bool;
 
 //! A project signature statement.
 //!
@@ -587,9 +599,17 @@ class StmProjectSig {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Compare two project signature statements.
+    friend auto operator==(StmProjectSig const &a, StmProjectSig const &b) -> bool {
+        return std::tie(a.name_, a.arity_, a.sign_) == std::tie(b.name_, b.arity_, b.sign_);
+    }
+
+    //! Compare two project signature statements.
+    friend auto operator<=>(StmProjectSig const &a, StmProjectSig const &b) -> std::strong_ordering {
+        return std::tie(a.name_, a.arity_, a.sign_) <=> std::tie(b.name_, b.arity_, b.sign_);
+    }
+
   private:
-    friend auto operator==(StmProjectSig const &a, StmProjectSig const &b) -> bool;
-    friend auto operator<(StmProjectSig const &a, StmProjectSig const &b) -> bool;
     friend struct Util::value_hasher<StmProjectSig>;
 
     Location loc_;
@@ -597,12 +617,6 @@ class StmProjectSig {
     String name_;
     int arity_;
 };
-
-//! Compare two project statements.
-auto operator==(StmProjectSig const &a, StmProjectSig const &b) -> bool;
-
-//! Compare two project statements.
-auto operator<(StmProjectSig const &a, StmProjectSig const &b) -> bool;
 
 //! A defined statement.
 //!
@@ -634,9 +648,17 @@ class StmDefined {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Compare two defined statements.
+    friend auto operator==(StmDefined const &a, StmDefined const &b) -> bool {
+        return std::tie(a.name_, a.arity_, a.sign_) == std::tie(b.name_, b.arity_, b.sign_);
+    }
+
+    //! Compare two defined statements.
+    friend auto operator<=>(StmDefined const &a, StmDefined const &b) -> std::strong_ordering {
+        return std::tie(a.name_, a.arity_, a.sign_) <=> std::tie(b.name_, b.arity_, b.sign_);
+    }
+
   private:
-    friend auto operator==(StmDefined const &a, StmDefined const &b) -> bool;
-    friend auto operator<(StmDefined const &a, StmDefined const &b) -> bool;
     friend struct Util::value_hasher<StmDefined>;
 
     Location loc_;
@@ -647,12 +669,6 @@ class StmDefined {
     //! The arity.
     int arity_;
 };
-
-//! Compare two defined statements.
-auto operator==(StmDefined const &a, StmDefined const &b) -> bool;
-
-//! Compare two defined statements.
-auto operator<(StmDefined const &a, StmDefined const &b) -> bool;
 
 //! An external statement.
 //!
@@ -684,9 +700,16 @@ class StmExternal {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Compare two external statements.
+    friend auto operator==(StmExternal const &a, StmExternal const &b) -> bool {
+        return std::tie(a.term_, a.body_, a.type_) == std::tie(b.term_, b.body_, b.type_);
+    }
+    //! Compare two external statements.
+    friend auto operator<=>(StmExternal const &a, StmExternal const &b) -> std::strong_ordering {
+        return Util::make_strong_ordering(std::tie(a.term_, a.body_, a.type_) <=> std::tie(b.term_, b.body_, b.type_));
+    }
+
   private:
-    friend auto operator==(StmExternal const &a, StmExternal const &b) -> bool;
-    friend auto operator<(StmExternal const &a, StmExternal const &b) -> bool;
     friend struct Util::value_hasher<StmExternal>;
 
     Location loc_;
@@ -694,12 +717,6 @@ class StmExternal {
     BdLitArray body_;
     std::optional<Term> type_;
 };
-
-//! Compare two external statements.
-auto operator==(StmExternal const &a, StmExternal const &b) -> bool;
-
-//! Compare two external statements.
-auto operator<(StmExternal const &a, StmExternal const &b) -> bool;
 
 //! An directed edge.
 class Edge {
@@ -722,9 +739,16 @@ class Edge {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Compare two edges.
+    friend auto operator==(Edge const &a, Edge const &b) -> bool {
+        return std::tie(a.src_, a.dst_) == std::tie(b.src_, b.dst_);
+    }
+    //! Compare two edges.
+    friend auto operator<=>(Edge const &a, Edge const &b) -> std::strong_ordering {
+        return std::tie(a.src_, a.dst_) <=> std::tie(b.src_, b.dst_);
+    }
+
   private:
-    friend auto operator==(Edge const &a, Edge const &b) -> bool;
-    friend auto operator<(Edge const &a, Edge const &b) -> bool;
     friend struct Util::value_hasher<Edge>;
 
     //! The source vertex.
@@ -763,27 +787,22 @@ class StmEdge {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Compare two edge statements.
+    friend auto operator==(StmEdge const &a, StmEdge const &b) -> bool {
+        return std::tie(a.edges_, a.body_) == std::tie(b.edges_, b.body_);
+    }
+    //! Compare two edge statements.
+    friend auto operator<=>(StmEdge const &a, StmEdge const &b) -> std::strong_ordering {
+        return std::tie(a.edges_, a.body_) <=> std::tie(b.edges_, b.body_);
+    }
+
   private:
-    friend auto operator==(StmEdge const &a, StmEdge const &b) -> bool;
-    friend auto operator<(StmEdge const &a, StmEdge const &b) -> bool;
     friend struct Util::value_hasher<StmEdge>;
 
     Location loc_;
     EdgeArray edges_;
     BdLitArray body_;
 };
-
-//! Compare two edges.
-auto operator==(Edge const &a, Edge const &b) -> bool;
-
-//! Compare two edges.
-auto operator<(Edge const &a, Edge const &b) -> bool;
-
-//! Compare two edge statements.
-auto operator==(StmEdge const &a, StmEdge const &b) -> bool;
-
-//! Compare two edge statements.
-auto operator<(StmEdge const &a, StmEdge const &b) -> bool;
 
 //! A heuristic statement.
 //!
@@ -830,9 +849,18 @@ class StmHeuristic {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Compare two heuristic statements.
+    friend auto operator==(StmHeuristic const &a, StmHeuristic const &b) -> bool {
+        return std::tie(a.atom_, a.body_, a.type_, a.prio_, a.weight_) ==
+               std::tie(b.atom_, b.body_, b.type_, b.prio_, b.weight_);
+    }
+    //! Compare two heuristic statements.
+    friend auto operator<=>(StmHeuristic const &a, StmHeuristic const &b) -> std::strong_ordering {
+        return Util::make_strong_ordering(std::tie(a.atom_, a.body_, a.type_, a.prio_, a.weight_) <=>
+                                          std::tie(b.atom_, b.body_, b.type_, b.prio_, b.weight_));
+    }
+
   private:
-    friend auto operator==(StmHeuristic const &a, StmHeuristic const &b) -> bool;
-    friend auto operator<(StmHeuristic const &a, StmHeuristic const &b) -> bool;
     friend struct Util::value_hasher<StmHeuristic>;
 
     Location loc_;
@@ -842,12 +870,6 @@ class StmHeuristic {
     std::optional<Term> prio_;
     Term type_;
 };
-
-//! Compare two heuristic statements.
-auto operator==(StmHeuristic const &a, StmHeuristic const &b) -> bool;
-
-//! Compare two heuristic statements.
-auto operator<(StmHeuristic const &a, StmHeuristic const &b) -> bool;
 
 //! A script statement.
 //!
@@ -877,21 +899,22 @@ class StmScript {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Compare two script statements.
+    friend auto operator==(StmScript const &a, StmScript const &b) -> bool {
+        return std::tie(a.value_, a.type_) == std::tie(b.value_, b.type_);
+    }
+    //! Compare two script statements.
+    friend auto operator<=>(StmScript const &a, StmScript const &b) -> std::strong_ordering {
+        return std::tie(a.value_, a.type_) <=> std::tie(b.value_, b.type_);
+    }
+
   private:
-    friend auto operator==(StmScript const &a, StmScript const &b) -> bool;
-    friend auto operator<(StmScript const &a, StmScript const &b) -> bool;
     friend struct Util::value_hasher<StmScript>;
 
     Location loc_;
     String type_;
     std::string value_;
 };
-
-//! Compare two script statements.
-auto operator==(StmScript const &a, StmScript const &b) -> bool;
-
-//! Compare two script statements.
-auto operator<(StmScript const &a, StmScript const &b) -> bool;
 
 //! Enumeration of include types.
 //!
@@ -929,21 +952,22 @@ class StmInclude {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Compare two include statements.
+    friend auto operator==(StmInclude const &a, StmInclude const &b) -> bool {
+        return std::tie(a.value_, a.type_) == std::tie(b.value_, b.type_);
+    }
+    //! Compare two include statements.
+    friend auto operator<=>(StmInclude const &a, StmInclude const &b) -> std::strong_ordering {
+        return std::tie(a.value_, a.type_) <=> std::tie(b.value_, b.type_);
+    }
+
   private:
-    friend auto operator==(StmInclude const &a, StmInclude const &b) -> bool;
-    friend auto operator<(StmInclude const &a, StmInclude const &b) -> bool;
     friend struct Util::value_hasher<StmInclude>;
 
     Location loc_;
     IncludeType type_;
     std::string value_;
 };
-
-//! Compare two include statements.
-auto operator==(StmInclude const &a, StmInclude const &b) -> bool;
-
-//! Compare two include statements.
-auto operator<(StmInclude const &a, StmInclude const &b) -> bool;
 
 //! A program statement.
 //!
@@ -973,21 +997,22 @@ class StmProgram {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Compare two program statements.
+    friend auto operator==(StmProgram const &a, StmProgram const &b) -> bool {
+        return std::tie(a.name_, a.args_) == std::tie(b.name_, b.args_);
+    }
+    //! Compare two program statements.
+    friend auto operator<=>(StmProgram const &a, StmProgram const &b) -> std::strong_ordering {
+        return std::tie(a.name_, a.args_) <=> std::tie(b.name_, b.args_);
+    }
+
   private:
-    friend auto operator==(StmProgram const &a, StmProgram const &b) -> bool;
-    friend auto operator<(StmProgram const &a, StmProgram const &b) -> bool;
     friend struct Util::value_hasher<StmProgram>;
 
     Location loc_;
     String name_;
     StringArray args_;
 };
-
-//! Compare two program statements.
-auto operator==(StmProgram const &a, StmProgram const &b) -> bool;
-
-//! Compare two program statements.
-auto operator<(StmProgram const &a, StmProgram const &b) -> bool;
 
 //! Enumeration of constant statement types.
 //!
@@ -1027,9 +1052,16 @@ class StmConst {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Compare two const statements.
+    friend auto operator==(StmConst const &a, StmConst const &b) -> bool {
+        return std::tie(a.name_, a.value_, a.type_) == std::tie(b.name_, b.value_, b.type_);
+    }
+    //! Compare two const statements.
+    friend auto operator<=>(StmConst const &a, StmConst const &b) -> std::strong_ordering {
+        return std::tie(a.name_, a.value_, a.type_) <=> std::tie(b.name_, b.value_, b.type_);
+    }
+
   private:
-    friend auto operator==(StmConst const &a, StmConst const &b) -> bool;
-    friend auto operator<(StmConst const &a, StmConst const &b) -> bool;
     friend struct Util::value_hasher<StmConst>;
 
     Location loc_;
@@ -1037,12 +1069,6 @@ class StmConst {
     String name_;
     Term value_;
 };
-
-//! Compare two const statements.
-auto operator==(StmConst const &a, StmConst const &b) -> bool;
-
-//! Compare two const statements.
-auto operator<(StmConst const &a, StmConst const &b) -> bool;
 
 //! Enumeration of comment types.
 //!
@@ -1080,21 +1106,23 @@ class StmComment {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Compare two comments.
+    friend auto operator==(StmComment const &a, StmComment const &b) -> bool {
+        return std::tie(a.value_, a.type_) == std::tie(b.value_, b.type_);
+    }
+
+    //! Compare two comments.
+    friend auto operator<=>(StmComment const &a, StmComment const &b) -> std::strong_ordering {
+        return std::tie(a.value_, a.type_) <=> std::tie(b.value_, b.type_);
+    }
+
   private:
-    friend auto operator==(StmComment const &a, StmComment const &b) -> bool;
-    friend auto operator<(StmComment const &a, StmComment const &b) -> bool;
     friend struct Util::value_hasher<StmComment>;
 
     Location loc_;
     CommentType type_;
     std::string value_;
 };
-
-//! Compare two comments.
-auto operator==(StmComment const &a, StmComment const &b) -> bool;
-
-//! Compare two comments.
-auto operator<(StmComment const &a, StmComment const &b) -> bool;
 
 //! Variant of available statements.
 using Stm = std::variant<StmRule, StmTheory, StmOptimize, StmWeakConstraint, StmShow, StmShowSig, StmProject,

@@ -57,11 +57,11 @@ class String {
     friend auto operator==(std::string_view a, String b) -> bool { return a == b.view(); }
 
     //! Less than compare two strings.
-    friend auto operator<(String a, String b) -> bool { return a.view() < b.view(); }
+    friend auto operator<=>(String a, String b) -> std::strong_ordering { return a.view() <=> b.view(); }
     //! Less than compare a string view and a string.
-    friend auto operator<(std::string_view a, String b) -> bool { return a < b.view(); }
+    friend auto operator<=>(std::string_view a, String b) -> std::strong_ordering { return a <=> b.view(); }
     //! Less than compare a string and a string view.
-    friend auto operator<(String a, std::string_view b) -> bool { return a.view() < b; }
+    friend auto operator<=>(String a, std::string_view b) -> std::strong_ordering { return a.view() <=> b; }
 
     //! Convert a string to its representation.
     static auto to_rep(String str) noexcept -> uint64_t { return static_cast<uint64_t>(str.rep_); }
@@ -130,23 +130,14 @@ class Symbol {
     //! Returns true for negated functions.
     [[nodiscard]] auto has_classical_sign() const -> bool;
 
-    //! Equality compare two symbols.
-    friend auto operator==(Symbol a, Symbol b) -> bool { return a.rep_ == b.rep_; }
-    //! Inequality compare two symbols.
-    friend auto operator!=(Symbol a, Symbol b) -> bool { return a.rep_ != b.rep_; }
-
     //! Compare two symbols.
     friend auto compare(Symbol a, Symbol b) -> int;
 
-    //! Less than compare two symbols.
-    friend auto operator<(Symbol a, Symbol b) -> bool { return compare(a, b) < 0; }
-    //! Less equal compare two symbols.
-    friend auto operator<=(Symbol a, Symbol b) -> bool { return compare(a, b) <= 0; }
+    //! Equality compare two symbols.
+    friend auto operator==(Symbol a, Symbol b) -> bool { return a.rep_ == b.rep_; }
 
-    //! Greater than compare two symbols.
-    friend auto operator>(Symbol a, Symbol b) -> bool { return compare(a, b) > 0; }
-    //! Greater equal compare two symbols.
-    friend auto operator>=(Symbol a, Symbol b) -> bool { return compare(a, b) >= 0; }
+    //! Less than compare two symbols.
+    friend auto operator<=>(Symbol a, Symbol b) -> std::strong_ordering { return compare(a, b) <=> 0; }
 
     //! Get the representation of the symbol.
     static auto to_rep(Symbol sym) noexcept -> uint64_t { return sym.rep_; }

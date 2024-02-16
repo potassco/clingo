@@ -139,7 +139,7 @@ template <class T> void immutable_value<T>::dec_() noexcept {
 //!
 //! @related immutable_value
 template <class X, class Y>
-[[nodiscard]] auto operator==(const immutable_value<X> &lhs, const immutable_value<Y> &rhs) noexcept -> bool {
+[[nodiscard]] auto operator==(const immutable_value<X> &lhs, const immutable_value<Y> &rhs) -> bool {
     if (lhs && rhs) {
         return *lhs == *rhs;
     }
@@ -150,11 +150,11 @@ template <class X, class Y>
 //!
 //! @related immutable_value
 template <class X, class Y>
-[[nodiscard]] auto operator<(const immutable_value<X> &lhs, const immutable_value<Y> &rhs) noexcept -> bool {
+[[nodiscard]] auto operator<=>(const immutable_value<X> &lhs, const immutable_value<Y> &rhs) {
     if (lhs && rhs) {
-        return *lhs < *rhs;
+        return *lhs <=> *rhs;
     }
-    return lhs.get() < rhs.get();
+    return lhs.get() <=> rhs.get();
 }
 
 //! @}

@@ -33,21 +33,22 @@ class Signed {
     //! The sign of the class.
     [[nodiscard]] auto sign() const -> Sign { return sign_; };
 
-  private:
-    friend auto operator==(Signed const &a, Signed const &b) -> bool;
-    friend auto operator<(Signed const &a, Signed const &b) -> bool;
+    //! Compare the signs.
+    friend auto operator==(Signed const &a, Signed const &b) -> bool = default;
+    //! Compare the signs.
+    friend auto operator<=>(Signed const &a, Signed const &b) -> std::strong_ordering = default;
 
+  private:
     Sign sign_;
 };
 
-//! Compare the signs.
-auto operator==(Signed const &a, Signed const &b) -> bool;
-
-//! Compare the signs.
-auto operator<(Signed const &a, Signed const &b) -> bool;
-
 //! Simple class without a sign.
-class Unsigned {};
+class Unsigned {
+    //! Compare the signs.
+    friend auto operator==(Unsigned const &a, Unsigned const &b) -> bool = default;
+    //! Compare the signs.
+    friend auto operator<=>(Unsigned const &a, Unsigned const &b) -> std::strong_ordering = default;
+};
 
 //! Enumeration of relation symbols.
 enum class Relation {
@@ -97,24 +98,20 @@ class LitBool {
     }
 
   private:
-    friend auto operator==(LitBool const &a, LitBool const &b) -> bool;
-    friend auto operator<(LitBool const &a, LitBool const &b) -> bool;
+    //! Check whether two Boolean literals are equivalent.
+    friend auto operator==(LitBool const &a, LitBool const &b) -> bool {
+        return std::tie(a.sign_, a.value_) == std::tie(b.sign_, b.value_);
+    }
+    //! Compare two Boolean literals.
+    friend auto operator<=>(LitBool const &a, LitBool const &b) -> std::strong_ordering {
+        return std::tie(a.sign_, a.value_) <=> std::tie(b.sign_, b.value_);
+    }
     friend struct Util::value_hasher<LitBool>;
 
     Location loc_;
     Sign sign_;
     bool value_;
 };
-
-//! Check whether two Boolean literals are equivalent.
-//!
-//! \related LiteralBoolean
-auto operator==(LitBool const &a, LitBool const &b) -> bool;
-
-//! Compare two Boolean literals.
-//!
-//! \related LiteralBoolean
-auto operator<(LitBool const &a, LitBool const &b) -> bool;
 
 //! Literal representing a relation literal.
 //!
@@ -146,9 +143,16 @@ class LitComparison {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Check whether two relation literals are equivalent.
+    friend auto operator==(LitComparison const &a, LitComparison const &b) -> bool {
+        return std::tie(a.sign_, a.lhs_, a.rhs_) == std::tie(b.sign_, b.lhs_, b.rhs_);
+    }
+    //! Compare two relation literals.
+    friend auto operator<=>(LitComparison const &a, LitComparison const &b) -> std::strong_ordering {
+        return std::tie(a.sign_, a.lhs_, a.rhs_) <=> std::tie(b.sign_, b.lhs_, b.rhs_);
+    }
+
   private:
-    friend auto operator==(LitComparison const &a, LitComparison const &b) -> bool;
-    friend auto operator<(LitComparison const &a, LitComparison const &b) -> bool;
     friend struct Util::value_hasher<LitComparison>;
 
     Location loc_;
@@ -156,16 +160,6 @@ class LitComparison {
     Term lhs_;
     GuardArray rhs_;
 };
-
-//! Check whether two relation literals are equivalent.
-//!
-//! \related LiteralRelation
-auto operator==(LitComparison const &a, LitComparison const &b) -> bool;
-
-//! Compare two relation literals.
-//!
-//! \related LiteralRelation
-auto operator<(LitComparison const &a, LitComparison const &b) -> bool;
 
 //! Literal representing a symbolic literal.
 //!
@@ -195,25 +189,22 @@ class LitSymbolic {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Check whether two symbolic literals are equivalent.
+    friend auto operator==(LitSymbolic const &a, LitSymbolic const &b) -> bool {
+        return std::tie(a.sign_, a.term_) == std::tie(b.sign_, b.term_);
+    }
+    //! Compare two symbolic literals.
+    friend auto operator<=>(LitSymbolic const &a, LitSymbolic const &b) -> std::strong_ordering {
+        return std::tie(a.sign_, a.term_) <=> std::tie(b.sign_, b.term_);
+    }
+
   private:
-    friend auto operator==(LitSymbolic const &a, LitSymbolic const &b) -> bool;
-    friend auto operator<(LitSymbolic const &a, LitSymbolic const &b) -> bool;
     friend struct Util::value_hasher<LitSymbolic>;
 
     Location loc_;
     Sign sign_;
     Term term_;
 };
-
-//! Check whether two symbolic literals are equivalent.
-//!
-//! \related LiteralSymbolic
-auto operator==(LitSymbolic const &a, LitSymbolic const &b) -> bool;
-
-//! Compare two symbolic literals.
-//!
-//! \related LiteralSymbolic
-auto operator<(LitSymbolic const &a, LitSymbolic const &b) -> bool;
 
 //! Variant holding the different literal types.
 using Lit = std::variant<LitBool, LitComparison, LitSymbolic>;
@@ -246,25 +237,22 @@ class CondLit {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Check whether two conditional literals are equivalent.
+    friend auto operator==(CondLit const &a, CondLit const &b) -> bool {
+        return std::tie(a.lit_, a.cond_) == std::tie(b.lit_, b.cond_);
+    }
+    //! Compare two conditional literals.
+    friend auto operator<=>(CondLit const &a, CondLit const &b) -> std::strong_ordering {
+        return std::tie(a.lit_, a.cond_) <=> std::tie(b.lit_, b.cond_);
+    }
+
   private:
-    friend auto operator==(CondLit const &a, CondLit const &b) -> bool;
-    friend auto operator<(CondLit const &a, CondLit const &b) -> bool;
     friend struct Util::value_hasher<CondLit>;
 
     Location loc_;
     Lit lit_;
     LitArray cond_;
 };
-
-//! Check whether two symbolic literals are equivalent.
-//!
-//! \related LiteralSymbolic
-auto operator==(CondLit const &a, CondLit const &b) -> bool;
-
-//! Compare two symbolic literals.
-//!
-//! \related LiteralSymbolic
-auto operator<(CondLit const &a, CondLit const &b) -> bool;
 
 //! @}
 

@@ -1,7 +1,7 @@
 #pragma once
 
-#include <variant>
-#include <vector>
+#include <gringo/input/attributes.hh>
+#include <gringo/input/location.hh>
 
 #include <gringo/symbol.hh>
 
@@ -10,8 +10,7 @@
 #include <gringo/util/immutable_value.hh>
 #include <gringo/util/optional.hh>
 
-#include <gringo/input/attributes.hh>
-#include <gringo/input/location.hh>
+#include <variant>
 
 namespace Gringo::Input {
 
@@ -75,7 +74,7 @@ class Projection {
 
   private:
     friend auto operator==(Projection const &a, Projection const &b) -> bool;
-    friend auto operator<(Projection const &a, Projection const &b) -> bool;
+    friend auto operator<=>(Projection const &a, Projection const &b) -> std::strong_ordering;
     friend struct Util::value_hasher<Projection>;
 
     Location loc_;
@@ -89,7 +88,7 @@ auto operator==(Projection const &a, Projection const &b) -> bool;
 //! Compare two projected positions.
 //!
 //! @related Projection
-auto operator<(Projection const &a, Projection const &b) -> bool;
+auto operator<=>(Projection const &a, Projection const &b) -> std::strong_ordering;
 
 //! A variant capturing either a term or a position that is to be projected.
 using Argument = std::variant<Projection, Term>;
@@ -117,7 +116,7 @@ class ArgumentTuple {
 
   private:
     friend auto operator==(ArgumentTuple const &a, ArgumentTuple const &b) -> bool;
-    friend auto operator<(ArgumentTuple const &a, ArgumentTuple const &b) -> bool;
+    friend auto operator<=>(ArgumentTuple const &a, ArgumentTuple const &b) -> std::strong_ordering;
     friend struct Util::value_hasher<ArgumentTuple>;
 
     ArgumentArray elems_;
@@ -131,7 +130,7 @@ auto operator==(ArgumentTuple const &a, ArgumentTuple const &b) -> bool;
 //! Compare two argument tuples.
 //!
 //! @related ArgumentTuple
-auto operator<(ArgumentTuple const &a, ArgumentTuple const &b) -> bool;
+auto operator<=>(ArgumentTuple const &a, ArgumentTuple const &b) -> std::strong_ordering;
 
 //! A vector of tuples used as function or predicate arguments.
 using PoolArray = Util::immutable_array<ArgumentTuple>;
@@ -166,7 +165,7 @@ class TermVariable {
 
   private:
     friend auto operator==(TermVariable const &a, TermVariable const &b) -> bool;
-    friend auto operator<(TermVariable const &a, TermVariable const &b) -> bool;
+    friend auto operator<=>(TermVariable const &a, TermVariable const &b) -> std::strong_ordering;
     friend struct Util::value_hasher<TermVariable>;
 
     Location loc_;
@@ -182,7 +181,7 @@ auto operator==(TermVariable const &a, TermVariable const &b) -> bool;
 //! Compare two variables.
 //!
 //! @related TermVariable
-auto operator<(TermVariable const &a, TermVariable const &b) -> bool;
+auto operator<=>(TermVariable const &a, TermVariable const &b) -> std::strong_ordering;
 
 //! Term representing a symbol.
 //!
@@ -210,7 +209,7 @@ class TermSymbol {
 
   private:
     friend auto operator==(TermSymbol const &a, TermSymbol const &b) -> bool;
-    friend auto operator<(TermSymbol const &a, TermSymbol const &b) -> bool;
+    friend auto operator<=>(TermSymbol const &a, TermSymbol const &b) -> std::strong_ordering;
     friend struct Util::value_hasher<TermSymbol>;
 
     Location loc_;
@@ -225,7 +224,7 @@ auto operator==(TermSymbol const &a, TermSymbol const &b) -> bool;
 //! Compare two symbols.
 //!
 //! @related TermSymbol
-auto operator<(TermSymbol const &a, TermSymbol const &b) -> bool;
+auto operator<=>(TermSymbol const &a, TermSymbol const &b) -> std::strong_ordering;
 
 //! A tuple element.
 using TupleElement = std::variant<ArgumentTuple, Term>;
@@ -258,7 +257,7 @@ class TermTuple {
 
   private:
     friend auto operator==(TermTuple const &a, TermTuple const &b) -> bool;
-    friend auto operator<(TermTuple const &a, TermTuple const &b) -> bool;
+    friend auto operator<=>(TermTuple const &a, TermTuple const &b) -> std::strong_ordering;
     friend struct Util::value_hasher<TermTuple>;
 
     Location loc_;
@@ -273,7 +272,7 @@ auto operator==(TermTuple const &a, TermTuple const &b) -> bool;
 //! Compare two tuple terms.
 //!
 //! @related TermTuple
-auto operator<(TermTuple const &a, TermTuple const &b) -> bool;
+auto operator<=>(TermTuple const &a, TermTuple const &b) -> std::strong_ordering;
 
 //! Term representing a symbolic or external function.
 //!
@@ -309,7 +308,7 @@ class TermFunction {
 
   private:
     friend auto operator==(TermFunction const &a, TermFunction const &b) -> bool;
-    friend auto operator<(TermFunction const &a, TermFunction const &b) -> bool;
+    friend auto operator<=>(TermFunction const &a, TermFunction const &b) -> std::strong_ordering;
     friend struct Util::value_hasher<TermFunction>;
 
     Location loc_;
@@ -326,7 +325,7 @@ auto operator==(TermFunction const &a, TermFunction const &b) -> bool;
 //! Compare two function terms.
 //!
 //! @related TermFunction
-auto operator<(TermFunction const &a, TermFunction const &b) -> bool;
+auto operator<=>(TermFunction const &a, TermFunction const &b) -> std::strong_ordering;
 
 //! Term representing the absolute function.
 //!
@@ -356,7 +355,7 @@ class TermAbs {
 
   private:
     friend auto operator==(TermAbs const &a, TermAbs const &b) -> bool;
-    friend auto operator<(TermAbs const &a, TermAbs const &b) -> bool;
+    friend auto operator<=>(TermAbs const &a, TermAbs const &b) -> std::strong_ordering;
     friend struct Util::value_hasher<TermAbs>;
 
     Location loc_;
@@ -371,7 +370,7 @@ auto operator==(TermAbs const &a, TermAbs const &b) -> bool;
 //! Compare two absolute terms.
 //!
 //! @related TermAbs
-auto operator<(TermAbs const &a, TermAbs const &b) -> bool;
+auto operator<=>(TermAbs const &a, TermAbs const &b) -> std::strong_ordering;
 
 //! Enumeration of available unary operators.
 enum class UnaryOperator : int {
@@ -408,7 +407,7 @@ class TermUnary {
 
   private:
     friend auto operator==(TermUnary const &a, TermUnary const &b) -> bool;
-    friend auto operator<(TermUnary const &a, TermUnary const &b) -> bool;
+    friend auto operator<=>(TermUnary const &a, TermUnary const &b) -> std::strong_ordering;
     friend struct Util::value_hasher<TermUnary>;
 
     Location loc_;
@@ -424,7 +423,7 @@ auto operator==(TermUnary const &a, TermUnary const &b) -> bool;
 //! Compare two unary terms.
 //!
 //! @related TermUnary
-auto operator<(TermUnary const &a, TermUnary const &b) -> bool;
+auto operator<=>(TermUnary const &a, TermUnary const &b) -> std::strong_ordering;
 
 //! Enumeration of available binary operators.
 enum class BinaryOperator : int {
@@ -472,7 +471,7 @@ class TermBinary {
 
   private:
     friend auto operator==(TermBinary const &a, TermBinary const &b) -> bool;
-    friend auto operator<(TermBinary const &a, TermBinary const &b) -> bool;
+    friend auto operator<=>(TermBinary const &a, TermBinary const &b) -> std::strong_ordering;
     friend struct Util::value_hasher<TermBinary>;
 
     Location loc_;
@@ -489,7 +488,7 @@ auto operator==(TermBinary const &a, TermBinary const &b) -> bool;
 //! Compare two binary terms.
 //!
 //! @related TermBinary
-auto operator<(TermBinary const &a, TermBinary const &b) -> bool;
+auto operator<=>(TermBinary const &a, TermBinary const &b) -> std::strong_ordering;
 
 //! @}
 
@@ -511,10 +510,22 @@ inline TermAbs::TermAbs(Location loc, TermArray pool) : loc_{std::move(loc)}, po
 
 inline auto TermAbs::pool() const -> TermArray const & { return pool_; }
 
+// TermUnary
+
 inline TermUnary::TermUnary(Location loc, UnaryOperator op, Util::immutable_value<Term> rhs)
     : loc_{std::move(loc)}, op_{op}, rhs_{std::move(rhs)} {}
 
 inline auto TermUnary::rhs() const -> Util::immutable_value<Term> const & { return rhs_; }
+
+inline auto operator==(TermUnary const &a, TermUnary const &b) -> bool {
+    return std::tie(a.op_, a.rhs_) == std::tie(b.op_, b.rhs_);
+};
+
+inline auto operator<=>(TermUnary const &a, TermUnary const &b) -> std::strong_ordering {
+    return std::tie(a.op_, a.rhs_) <=> std::tie(b.op_, b.rhs_);
+}
+
+// TermBinary
 
 inline TermBinary::TermBinary(Location loc, Util::immutable_value<Term> lhs, BinaryOperator op,
                               Util::immutable_value<Term> rhs)
@@ -523,6 +534,62 @@ inline TermBinary::TermBinary(Location loc, Util::immutable_value<Term> lhs, Bin
 inline auto TermBinary::lhs() const -> Util::immutable_value<Term> const & { return lhs_; }
 
 inline auto TermBinary::rhs() const -> Util::immutable_value<Term> const & { return rhs_; }
+
+inline auto operator==(TermBinary const &a, TermBinary const &b) -> bool {
+    return std::tie(*a.lhs_, a.op_, a.rhs_) == std::tie(*b.lhs_, b.op_, b.rhs_);
+};
+
+inline auto operator<=>(TermBinary const &a, TermBinary const &b) -> std::strong_ordering {
+    return std::tie(*a.lhs_, a.op_, a.rhs_) <=> std::tie(*b.lhs_, b.op_, b.rhs_);
+}
+
+// TODO...
+
+inline auto operator==(Projection const &a, Projection const &b) -> bool {
+    static_cast<void>(a);
+    static_cast<void>(b);
+    return true;
+};
+
+inline auto operator<=>(Projection const &a, Projection const &b) -> std::strong_ordering {
+    static_cast<void>(a);
+    static_cast<void>(b);
+    return 1 <=> 1;
+}
+
+inline auto operator==(ArgumentTuple const &a, ArgumentTuple const &b) -> bool { return a.elems_ == b.elems_; }
+
+inline auto operator<=>(ArgumentTuple const &a, ArgumentTuple const &b) -> std::strong_ordering {
+    return a.elems_ <=> b.elems_;
+}
+
+inline auto operator==(TermVariable const &a, TermVariable const &b) -> bool { return a.name_ == b.name_; }
+
+inline auto operator<=>(TermVariable const &a, TermVariable const &b) -> std::strong_ordering {
+    return a.name_ <=> b.name_;
+}
+
+inline auto operator==(TermSymbol const &a, TermSymbol const &b) -> bool { return a.value_ == b.value_; }
+
+inline auto operator<=>(TermSymbol const &a, TermSymbol const &b) -> std::strong_ordering {
+    return a.value_ <=> b.value_;
+}
+
+inline auto operator==(TermTuple const &a, TermTuple const &b) -> bool { return a.pool_ == b.pool_; }
+
+inline auto operator<=>(TermTuple const &a, TermTuple const &b) -> std::strong_ordering { return a.pool_ <=> b.pool_; }
+
+inline auto operator==(TermFunction const &a, TermFunction const &b) -> bool {
+    return std::tie(a.name_, a.pool_, a.external_) == std::tie(b.name_, b.pool_, b.external_);
+}
+
+inline auto operator<=>(TermFunction const &a, TermFunction const &b) -> std::strong_ordering {
+    return std::tie(a.name_, a.pool_, a.external_) <=> std::tie(b.name_, b.pool_, b.external_);
+}
+
+inline auto operator==(TermAbs const &a, TermAbs const &b) -> bool { return a.pool_ == b.pool_; }
+
+inline auto operator<=>(TermAbs const &a, TermAbs const &b) -> std::strong_ordering { return a.pool_ <=> b.pool_; }
 
 } // namespace Gringo::Input
 

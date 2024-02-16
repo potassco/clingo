@@ -85,42 +85,6 @@ auto complement(Relation rel) -> Relation {
     return Relation::greater;
 }
 
-auto operator==(Signed const &a, Signed const &b) -> bool { return a.sign_ == b.sign_; }
-
-auto operator<(Signed const &a, Signed const &b) -> bool { return a.sign_ < b.sign_; }
-
-auto operator==(LitBool const &a, LitBool const &b) -> bool {
-    return std::tie(a.sign_, a.value_) == std::tie(b.sign_, b.value_);
-}
-
-auto operator==(LitComparison const &a, LitComparison const &b) -> bool {
-    return std::tie(a.sign_, a.lhs_, a.rhs_) == std::tie(b.sign_, b.lhs_, b.rhs_);
-}
-
-auto operator==(LitSymbolic const &a, LitSymbolic const &b) -> bool {
-    return std::tie(a.sign_, a.term_) == std::tie(b.sign_, b.term_);
-}
-
-auto operator==(CondLit const &a, CondLit const &b) -> bool {
-    return std::tie(a.lit_, a.cond_) == std::tie(b.lit_, b.cond_);
-}
-
-auto operator<(LitBool const &a, LitBool const &b) -> bool {
-    return std::tie(a.sign_, a.value_) < std::tie(b.sign_, b.value_);
-}
-
-auto operator<(LitComparison const &a, LitComparison const &b) -> bool {
-    return std::tie(a.sign_, a.lhs_, a.rhs_) < std::tie(b.sign_, b.lhs_, b.rhs_);
-}
-
-auto operator<(LitSymbolic const &a, LitSymbolic const &b) -> bool {
-    return std::tie(a.sign_, a.term_) < std::tie(b.sign_, b.term_);
-}
-
-auto operator<(CondLit const &a, CondLit const &b) -> bool {
-    return std::tie(a.lit_, a.cond_) < std::tie(b.lit_, b.cond_);
-}
-
 } // namespace Gringo::Input
 
 namespace Gringo::Util {

@@ -34,23 +34,16 @@ class BdLitSimple {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Compare two literals.
+    friend auto operator==(BdLitSimple const &a, BdLitSimple const &b) -> bool = default;
+    //! Compare two literals.
+    friend auto operator<=>(BdLitSimple const &a, BdLitSimple const &b) -> std::strong_ordering = default;
+
   private:
-    friend auto operator==(BdLitSimple const &a, BdLitSimple const &b) -> bool;
-    friend auto operator<(BdLitSimple const &a, BdLitSimple const &b) -> bool;
     friend struct Util::value_hasher<BdLitSimple>;
 
     Lit lit_;
 };
-
-//! Compare two literals.
-//!
-//! @related SimpleBodyLiteral
-auto operator==(BdLitSimple const &a, BdLitSimple const &b) -> bool;
-
-//! Compare two literals.
-//!
-//! @related SimpleBodyLiteral
-auto operator<(BdLitSimple const &a, BdLitSimple const &b) -> bool;
 
 //! A conditional literal in a rule body.
 class BdLitConjunction {
@@ -73,23 +66,16 @@ class BdLitConjunction {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Compare two body conjunctions.
+    friend auto operator==(BdLitConjunction const &a, BdLitConjunction const &b) -> bool = default;
+    //! Compare two body conjunctions.
+    friend auto operator<=>(BdLitConjunction const &a, BdLitConjunction const &b) -> std::strong_ordering = default;
+
   private:
-    friend auto operator==(BdLitConjunction const &a, BdLitConjunction const &b) -> bool;
-    friend auto operator<(BdLitConjunction const &a, BdLitConjunction const &b) -> bool;
     friend struct Util::value_hasher<BdLitConjunction>;
 
     CondLit lit_;
 };
-
-//! Compare two body conjunctions.
-//!
-//! @related Conjunction
-auto operator==(BdLitConjunction const &a, BdLitConjunction const &b) -> bool;
-
-//! Compare two body conjunction.
-//!
-//! @related Conjunction
-auto operator<(BdLitConjunction const &a, BdLitConjunction const &b) -> bool;
 
 //! A body aggregate element.
 class BdLitAggregateElement {
@@ -115,9 +101,16 @@ class BdLitAggregateElement {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Compare two body aggregates elements.
+    friend auto operator==(BdLitAggregateElement const &a, BdLitAggregateElement const &b) -> bool {
+        return std::tie(a.tuple_, a.cond_) == std::tie(b.tuple_, b.cond_);
+    }
+    //! Compare two body aggregates elements.
+    friend auto operator<=>(BdLitAggregateElement const &a, BdLitAggregateElement const &b) -> std::strong_ordering {
+        return std::tie(a.tuple_, a.cond_) <=> std::tie(b.tuple_, b.cond_);
+    }
+
   private:
-    friend auto operator==(BdLitAggregateElement const &a, BdLitAggregateElement const &b) -> bool;
-    friend auto operator<(BdLitAggregateElement const &a, BdLitAggregateElement const &b) -> bool;
     friend struct Util::value_hasher<BdLitAggregateElement>;
 
     Location loc_;
@@ -164,9 +157,19 @@ class BdLitAggregate {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Compare two body aggregates.
+    friend auto operator==(BdLitAggregate const &a, BdLitAggregate const &b) -> bool {
+        return std::tie(a.sign_, a.fun_, a.lhs_, a.elems_, a.rhs_) ==
+               std::tie(b.sign_, b.fun_, b.lhs_, b.elems_, b.rhs_);
+    }
+    //! Compare two body aggregates.
+    friend auto operator<=>(BdLitAggregate const &a, BdLitAggregate const &b) -> std::strong_ordering {
+        // Note: std::optional does not produce a strong_ordering - bug???
+        return Util::make_strong_ordering(std::tie(a.sign_, a.fun_, a.lhs_, a.elems_, a.rhs_) <=>
+                                          std::tie(b.sign_, b.fun_, b.lhs_, b.elems_, b.rhs_));
+    }
+
   private:
-    friend auto operator==(BdLitAggregate const &a, BdLitAggregate const &b) -> bool;
-    friend auto operator<(BdLitAggregate const &a, BdLitAggregate const &b) -> bool;
     friend struct Util::value_hasher<BdLitAggregate>;
 
     Location loc_;
@@ -176,26 +179,6 @@ class BdLitAggregate {
     LGuard lhs_;
     RGuard rhs_;
 };
-
-//! Compare two body aggregates elements.
-//!
-//! @related BodyAggregate
-auto operator==(BdLitAggregateElement const &a, BdLitAggregateElement const &b) -> bool;
-
-//! Compare two body aggregates elements.
-//!
-//! @related BodyAggregate
-auto operator<(BdLitAggregateElement const &a, BdLitAggregateElement const &b) -> bool;
-
-//! Compare two body aggregates.
-//!
-//! @related BodyAggregate
-auto operator==(BdLitAggregate const &a, BdLitAggregate const &b) -> bool;
-
-//! Compare two body aggregates.
-//!
-//! @related BodyAggregate
-auto operator<(BdLitAggregate const &a, BdLitAggregate const &b) -> bool;
 
 //! A body literal.
 using BdLit = std::variant<BdLitSimple, BdLitConjunction, BdLitAggregate, BdLitSetAggregate, BdLitTheoryAtom>;

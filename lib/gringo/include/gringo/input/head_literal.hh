@@ -34,23 +34,16 @@ class HdLitSimple {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Compare two literals.
+    friend auto operator==(HdLitSimple const &a, HdLitSimple const &b) -> bool = default;
+    //! Compare two literals.
+    friend auto operator<=>(HdLitSimple const &a, HdLitSimple const &b) = default;
+
   private:
-    friend auto operator==(HdLitSimple const &a, HdLitSimple const &b) -> bool;
-    friend auto operator<(HdLitSimple const &a, HdLitSimple const &b) -> bool;
     friend struct Util::value_hasher<HdLitSimple>;
 
     Lit lit_;
 };
-
-//! Compare two literals.
-//!
-//! @related SimpleHeadLiteral
-auto operator==(HdLitSimple const &a, HdLitSimple const &b) -> bool;
-
-//! Compare two literals.
-//!
-//! @related SimpleHeadLiteral
-auto operator<(HdLitSimple const &a, HdLitSimple const &b) -> bool;
 
 //! An element of a disjunction.
 using HdLitDisjunctionElement = std::variant<Lit, CondLit>;
@@ -78,24 +71,21 @@ class HdLitDisjunction {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Compare two disjunctions.
+    friend auto operator==(HdLitDisjunction const &a, HdLitDisjunction const &b) -> bool {
+        return a.elems_ == b.elems_;
+    }
+    //! Compare two disjunctions.
+    friend auto operator<=>(HdLitDisjunction const &a, HdLitDisjunction const &b) -> std::strong_ordering {
+        return a.elems_ <=> b.elems_;
+    }
+
   private:
-    friend auto operator==(HdLitDisjunction const &a, HdLitDisjunction const &b) -> bool;
-    friend auto operator<(HdLitDisjunction const &a, HdLitDisjunction const &b) -> bool;
     friend struct Util::value_hasher<HdLitDisjunction>;
 
     Location loc_;
     HdLitDisjunctionElementArray elems_;
 };
-
-//! Compare two head disjunctions.
-//!
-//! @related Disjunction
-auto operator==(HdLitDisjunction const &a, HdLitDisjunction const &b) -> bool;
-
-//! Compare two head disjunctions.
-//!
-//! @related Disjunction
-auto operator<(HdLitDisjunction const &a, HdLitDisjunction const &b) -> bool;
 
 //! An element of a head aggregate.
 class HdLitAggregateElement {
@@ -123,9 +113,16 @@ class HdLitAggregateElement {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Compare two head aggregate elements.
+    friend auto operator==(HdLitAggregateElement const &a, HdLitAggregateElement const &b) -> bool {
+        return std::tie(a.tuple_, a.lit_, a.cond_) == std::tie(b.tuple_, b.lit_, b.cond_);
+    }
+    //! Compare two head aggregate elements.
+    friend auto operator<=>(HdLitAggregateElement const &a, HdLitAggregateElement const &b) -> std::strong_ordering {
+        return std::tie(a.tuple_, a.lit_, a.cond_) <=> std::tie(b.tuple_, b.lit_, b.cond_);
+    }
+
   private:
-    friend auto operator==(HdLitAggregateElement const &a, HdLitAggregateElement const &b) -> bool;
-    friend auto operator<(HdLitAggregateElement const &a, HdLitAggregateElement const &b) -> bool;
     friend struct Util::value_hasher<HdLitAggregateElement>;
 
     Location loc_;
@@ -177,9 +174,18 @@ class HdLitAggregate {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Compare two head aggregates.
+    friend auto operator==(HdLitAggregate const &a, HdLitAggregate const &b) -> bool {
+        return std::tie(a.fun_, a.lhs_, a.elems_, a.rhs_) == std::tie(b.fun_, b.lhs_, b.elems_, b.rhs_);
+    }
+    //! Compare two head aggregates.
+    friend auto operator<=>(HdLitAggregate const &a, HdLitAggregate const &b) -> std::strong_ordering {
+        // Note: std::optional does not produce a strong_ordering - bug???
+        return Util::make_strong_ordering(std::tie(a.fun_, a.lhs_, a.elems_, a.rhs_) <=>
+                                          std::tie(b.fun_, b.lhs_, b.elems_, b.rhs_));
+    }
+
   private:
-    friend auto operator==(HdLitAggregate const &a, HdLitAggregate const &b) -> bool;
-    friend auto operator<(HdLitAggregate const &a, HdLitAggregate const &b) -> bool;
     friend struct Util::value_hasher<HdLitAggregate>;
 
     Location loc_;
@@ -188,26 +194,6 @@ class HdLitAggregate {
     LGuard lhs_;
     RGuard rhs_;
 };
-
-//! Compare two head aggregates elements.
-//!
-//! @related HeadAggregate
-auto operator==(HdLitAggregateElement const &a, HdLitAggregateElement const &b) -> bool;
-
-//! Compare two head aggregates elements.
-//!
-//! @related HeadAggregate
-auto operator<(HdLitAggregateElement const &a, HdLitAggregateElement const &b) -> bool;
-
-//! Compare two head aggregates.
-//!
-//! @related HeadAggregate
-auto operator==(HdLitAggregate const &a, HdLitAggregate const &b) -> bool;
-
-//! Compare two head aggregates.
-//!
-//! @related HeadAggregate
-auto operator<(HdLitAggregate const &a, HdLitAggregate const &b) -> bool;
 
 //! A head literal.
 using HdLit = std::variant<HdLitSimple, HdLitDisjunction, HdLitAggregate, HdLitSetAggregate, HdLitTheoryAtom>;

@@ -1,33 +1,5 @@
 #include <gringo/input/head_literal.hh>
 
-namespace Gringo::Input {
-
-auto operator==(HdLitSimple const &a, HdLitSimple const &b) -> bool { return a.lit_ == b.lit_; }
-
-auto operator<(HdLitSimple const &a, HdLitSimple const &b) -> bool { return a.lit_ < b.lit_; }
-
-auto operator==(HdLitDisjunction const &a, HdLitDisjunction const &b) -> bool { return a.elems_ == b.elems_; }
-
-auto operator<(HdLitDisjunction const &a, HdLitDisjunction const &b) -> bool { return a.elems_ < b.elems_; }
-
-auto operator==(HdLitAggregateElement const &a, HdLitAggregateElement const &b) -> bool {
-    return std::tie(a.tuple_, a.lit_, a.cond_) == std::tie(b.tuple_, b.lit_, b.cond_);
-}
-
-auto operator<(HdLitAggregateElement const &a, HdLitAggregateElement const &b) -> bool {
-    return std::tie(a.tuple_, a.lit_, a.cond_) < std::tie(b.tuple_, b.lit_, b.cond_);
-}
-
-auto operator==(HdLitAggregate const &a, HdLitAggregate const &b) -> bool {
-    return std::tie(a.fun_, a.lhs_, a.elems_, a.rhs_) == std::tie(b.fun_, b.lhs_, b.elems_, b.rhs_);
-}
-
-auto operator<(HdLitAggregate const &a, HdLitAggregate const &b) -> bool {
-    return std::tie(a.fun_, a.lhs_, a.elems_, a.rhs_) < std::tie(b.fun_, b.lhs_, b.elems_, b.rhs_);
-}
-
-} // namespace Gringo::Input
-
 namespace Gringo::Util {
 
 auto value_hasher<Gringo::Input::HdLitSimple>::operator()(Gringo::Input::HdLitSimple const &x) const -> size_t {

@@ -48,24 +48,21 @@ class TheoryTermSymbol {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Compare two theory terms.
+    friend auto operator==(TheoryTermSymbol const &a, TheoryTermSymbol const &b) -> bool {
+        return a.value_ == b.value_;
+    }
+    //! Compare two theory terms.
+    friend auto operator<=>(TheoryTermSymbol const &a, TheoryTermSymbol const &b) -> std::strong_ordering {
+        return a.value_ <=> b.value_;
+    }
+
   private:
-    friend auto operator==(TheoryTermSymbol const &a, TheoryTermSymbol const &b) -> bool;
-    friend auto operator<(TheoryTermSymbol const &a, TheoryTermSymbol const &b) -> bool;
     friend struct Util::value_hasher<TheoryTermSymbol>;
 
     Location loc_;
     Symbol value_;
 };
-
-//! Compare two theory terms.
-//!
-//! @related TheoryTermSymbol
-auto operator==(TheoryTermSymbol const &a, TheoryTermSymbol const &b) -> bool;
-
-//! Compare two theory terms.
-//!
-//! @related TheoryTermSymbol
-auto operator<(TheoryTermSymbol const &a, TheoryTermSymbol const &b) -> bool;
 
 //! A variable theory term.
 //!
@@ -95,25 +92,22 @@ class TheoryTermVariable {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Compare two theory terms.
+    friend auto operator==(TheoryTermVariable const &a, TheoryTermVariable const &b) -> bool {
+        return a.name_ == b.name_;
+    }
+    //! Compare two theory terms.
+    friend auto operator<=>(TheoryTermVariable const &a, TheoryTermVariable const &b) -> std::strong_ordering {
+        return a.name_ <=> b.name_;
+    }
+
   private:
-    friend auto operator==(TheoryTermVariable const &a, TheoryTermVariable const &b) -> bool;
-    friend auto operator<(TheoryTermVariable const &a, TheoryTermVariable const &b) -> bool;
     friend struct Util::value_hasher<TheoryTermVariable>;
 
     Location loc_;
     String name_;
     bool anonymous_;
 };
-
-//! Compare two theory terms.
-//!
-//! @related TheoryTermVariable
-auto operator==(TheoryTermVariable const &a, TheoryTermVariable const &b) -> bool;
-
-//! Compare two theory terms.
-//!
-//! @related TheoryTermVariable
-auto operator<(TheoryTermVariable const &a, TheoryTermVariable const &b) -> bool;
 
 //! Enumeration of theory term tuple types.
 //!
@@ -137,7 +131,7 @@ class TheoryTermTuple {
     //! The type of the term.
     [[nodiscard]] auto type() const -> TheoryTermTupleType { return type_; }
     //! The elements of the tuple.
-    [[nodiscard]] auto elems() const -> TheoryTermArray const &;
+    [[nodiscard]] auto elems() const -> TheoryTermArray const & { return elems_; }
 
     //! Record update.
     template <bool Opt = false, class... Args> auto update(Args... args) const {
@@ -151,25 +145,18 @@ class TheoryTermTuple {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
-  private:
+    //! Compare two theory terms.
     friend auto operator==(TheoryTermTuple const &a, TheoryTermTuple const &b) -> bool;
-    friend auto operator<(TheoryTermTuple const &a, TheoryTermTuple const &b) -> bool;
+    //! Compare two theory terms.
+    friend auto operator<=>(TheoryTermTuple const &a, TheoryTermTuple const &b) -> std::strong_ordering;
+
+  private:
     friend struct Util::value_hasher<TheoryTermTuple>;
 
     Location loc_;
     TheoryTermTupleType type_;
     TheoryTermArray elems_;
 };
-
-//! Compare two theory terms.
-//!
-//! @related TheoryTermTuple
-auto operator==(TheoryTermTuple const &a, TheoryTermTuple const &b) -> bool;
-
-//! Compare two theory terms.
-//!
-//! @related TheoryTermTuple
-auto operator<(TheoryTermTuple const &a, TheoryTermTuple const &b) -> bool;
 
 //! A tuple (set or list) theory term.
 //!
@@ -186,7 +173,7 @@ class TheoryTermFunction {
     //! The name of the function.
     [[nodiscard]] auto name() const -> String { return name_; }
     //! The arguments of the function.
-    [[nodiscard]] auto args() const -> TheoryTermArray const &;
+    [[nodiscard]] auto args() const -> TheoryTermArray const & { return args_; }
 
     //! Record update.
     template <bool Opt = false, class... Args> auto update(Args... args) const {
@@ -200,25 +187,18 @@ class TheoryTermFunction {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
-  private:
+    //! Compare two theory terms.
     friend auto operator==(TheoryTermFunction const &a, TheoryTermFunction const &b) -> bool;
-    friend auto operator<(TheoryTermFunction const &a, TheoryTermFunction const &b) -> bool;
+    //! Compare two theory terms.
+    friend auto operator<=>(TheoryTermFunction const &a, TheoryTermFunction const &b) -> std::strong_ordering;
+
+  private:
     friend struct Util::value_hasher<TheoryTermFunction>;
 
     Location loc_;
     String name_;
     TheoryTermArray args_;
 };
-
-//! Compare two theory terms.
-//!
-//! @related TheoryTermFunction
-auto operator==(TheoryTermFunction const &a, TheoryTermFunction const &b) -> bool;
-
-//! Compare two theory terms.
-//!
-//! @related TheoryTermFunction
-auto operator<(TheoryTermFunction const &a, TheoryTermFunction const &b) -> bool;
 
 //! An element having the form of a right guard.
 using UnparsedElement = std::pair<StringArray, TheoryTerm>;
@@ -242,7 +222,7 @@ class TheoryTermUnparsed {
     //! The location of the symbol.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The vector of elements.
-    [[nodiscard]] auto elems() const -> UnparsedElementArray const &;
+    [[nodiscard]] auto elems() const -> UnparsedElementArray const & { return elems_; }
 
     //! Record update.
     template <bool Opt = false, class... Args> auto update(Args... args) const {
@@ -255,37 +235,17 @@ class TheoryTermUnparsed {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
-  private:
+    //! Compare two theory terms.
     friend auto operator==(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> bool;
-    friend auto operator<(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> bool;
+    //! Compare two theory terms.
+    friend auto operator<=>(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> std::strong_ordering;
+
+  private:
     friend struct Util::value_hasher<TheoryTermUnparsed>;
 
     Location loc_;
     UnparsedElementArray elems_;
 };
-
-//! Compare two theory terms.
-//!
-//! @related TheoryTermUnparsed
-auto operator==(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> bool;
-
-//! Compare two theory terms.
-//!
-//! @related TheoryTermUnparsed
-auto operator<(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> bool;
-
-inline TheoryTermTuple::TheoryTermTuple(Location loc, TheoryTermTupleType type, TheoryTermArray elems)
-    : loc_{std::move(loc)}, type_(type), elems_{std::move(elems)} {}
-inline TheoryTermFunction::TheoryTermFunction(Location loc, String name)
-    : TheoryTermFunction{std::move(loc), name, {}} {}
-inline TheoryTermFunction::TheoryTermFunction(Location loc, String name, TheoryTermArray args)
-    : loc_{std::move(loc)}, name_(name), args_{std::move(args)} {}
-inline TheoryTermUnparsed::TheoryTermUnparsed(Location loc, UnparsedElementArray elems)
-    : loc_{std::move(loc)}, elems_{std::move(elems)} {}
-
-inline auto TheoryTermTuple::elems() const -> TheoryTermArray const & { return elems_; }
-inline auto TheoryTermFunction::args() const -> TheoryTermArray const & { return args_; }
-inline auto TheoryTermUnparsed::elems() const -> UnparsedElementArray const & { return elems_; }
 
 //! The optional right guard of the theory atom.
 using TheoryRGuard = std::optional<std::pair<String, TheoryTerm>>;
@@ -316,9 +276,16 @@ class TheoryElement {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Compare two theory elements.
+    friend auto operator==(TheoryElement const &a, TheoryElement const &b) -> bool {
+        return std::tie(a.tuple_, a.cond_) == std::tie(b.tuple_, b.cond_);
+    }
+    //! Compare two theory elements.
+    friend auto operator<=>(TheoryElement const &a, TheoryElement const &b) -> std::strong_ordering {
+        return std::tie(a.tuple_, a.cond_) <=> std::tie(b.tuple_, b.cond_);
+    }
+
   private:
-    friend auto operator==(TheoryElement const &a, TheoryElement const &b) -> bool;
-    friend auto operator<(TheoryElement const &a, TheoryElement const &b) -> bool;
     friend struct Util::value_hasher<TheoryElement>;
 
     Location loc_;
@@ -328,21 +295,13 @@ class TheoryElement {
 //! A vector of theory atom elements.
 using TheoryElementArray = Util::immutable_array<TheoryElement>;
 
-//! Compare two theory elements.
-//!
-//! @related TheoryElement
-auto operator==(TheoryElement const &a, TheoryElement const &b) -> bool;
-
-//! Compare two theory elements.
-//!
-//! @related TheoryElement
-auto operator<(TheoryElement const &a, TheoryElement const &b) -> bool;
-
 //! A theory atom.
 //!
 //! For example: <tt>&sum { X+Y: p(X), q(Y) } >= 0</tt>.
 template <bool HasSign> class TheoryAtom : public std::conditional_t<HasSign, Signed, Unsigned> {
   public:
+    using Base = std::conditional_t<HasSign, Signed, Unsigned>;
+
     //! Construct a theory atom.
     explicit TheoryAtom(Location loc, Term name, TheoryElementArray elems, TheoryRGuard rhs)
         : loc_{std::move(loc)}, name_{std::move(name)}, elems_{std::move(elems)}, rhs_{std::move(rhs)} {
@@ -383,9 +342,19 @@ template <bool HasSign> class TheoryAtom : public std::conditional_t<HasSign, Si
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
+    //! Compare two theory atoms.
+    friend auto operator==(TheoryAtom const &a, TheoryAtom const &b) -> bool {
+        return std::tie(static_cast<Base const &>(a), a.name_, a.elems_, a.rhs_) ==
+               std::tie(static_cast<Base const &>(b), b.name_, b.elems_, b.rhs_);
+    }
+    //! Compare two theory atoms.
+    friend auto operator<=>(TheoryAtom const &a, TheoryAtom const &b) -> std::strong_ordering {
+        // Note: std::optional does not produce a strong_ordering - bug???
+        return Util::make_strong_ordering(std::tie(static_cast<Base const &>(a), a.name_, a.elems_, a.rhs_) <=>
+                                          std::tie(static_cast<Base const &>(b), b.name_, b.elems_, b.rhs_));
+    }
+
   private:
-    friend auto operator==(TheoryAtom const &a, TheoryAtom const &b) -> bool;
-    friend auto operator<(TheoryAtom const &a, TheoryAtom const &b) -> bool;
     friend struct Util::value_hasher<TheoryAtom>;
 
     Location loc_;
@@ -400,25 +369,41 @@ using HdLitTheoryAtom = TheoryAtom<false>;
 //! A body theory atom.
 using BdLitTheoryAtom = TheoryAtom<true>;
 
-//! Compare two theory atoms.
-//!
-//! @related TheoryAtom
-auto operator==(TheoryAtom<true> const &a, TheoryAtom<true> const &b) -> bool;
+inline TheoryTermTuple::TheoryTermTuple(Location loc, TheoryTermTupleType type, TheoryTermArray elems)
+    : loc_{std::move(loc)}, type_(type), elems_{std::move(elems)} {}
 
-//! Compare two theory atoms.
-//!
-//! @related TheoryAtom
-auto operator==(TheoryAtom<false> const &a, TheoryAtom<false> const &b) -> bool;
+inline auto operator==(TheoryTermTuple const &a, TheoryTermTuple const &b) -> bool {
+    return std::tie(a.type_, a.elems_) == std::tie(b.type_, b.elems_);
+}
 
-//! Compare two theory atoms.
-//!
-//! @related TheoryAtom
-auto operator<(TheoryAtom<true> const &a, TheoryAtom<true> const &b) -> bool;
+inline auto operator<=>(TheoryTermTuple const &a, TheoryTermTuple const &b) -> std::strong_ordering {
+    return std::tie(a.type_, a.elems_) <=> std::tie(b.type_, b.elems_);
+}
 
-//! Compare two theory atoms.
-//!
-//! @related TheoryAtom
-auto operator<(TheoryAtom<false> const &a, TheoryAtom<false> const &b) -> bool;
+inline TheoryTermFunction::TheoryTermFunction(Location loc, String name)
+    : TheoryTermFunction{std::move(loc), name, {}} {}
+
+inline auto operator==(TheoryTermFunction const &a, TheoryTermFunction const &b) -> bool {
+    return std::tie(a.name_, a.args_) == std::tie(b.name_, b.args_);
+}
+
+inline auto operator<=>(TheoryTermFunction const &a, TheoryTermFunction const &b) -> std::strong_ordering {
+    return std::tie(a.name_, a.args_) <=> std::tie(b.name_, b.args_);
+}
+
+inline TheoryTermFunction::TheoryTermFunction(Location loc, String name, TheoryTermArray args)
+    : loc_{std::move(loc)}, name_(name), args_{std::move(args)} {}
+
+inline TheoryTermUnparsed::TheoryTermUnparsed(Location loc, UnparsedElementArray elems)
+    : loc_{std::move(loc)}, elems_{std::move(elems)} {}
+
+inline auto operator==(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> bool {
+    return a.elems_ == b.elems_;
+}
+
+inline auto operator<=>(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> std::strong_ordering {
+    return a.elems_ <=> b.elems_;
+}
 
 //! @}
 
