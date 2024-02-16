@@ -1,5 +1,11 @@
 # Changes
 
+## clingo 5.7.1
+
+  * fix comparison of theory elements (#485)
+  * fix manifest (#484)
+  * update cibw to also produce Python 3.12 wheels
+
 ## clingo 5.7.0
 
   * add AST node for comments (#417)
