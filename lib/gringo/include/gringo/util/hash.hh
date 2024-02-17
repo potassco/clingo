@@ -46,9 +46,14 @@ template <class T, class H = std::hash<T>> struct mix_hasher : private H {
 };
 
 //! Compute a hash using std::hash.
-template <class T> struct value_hasher : std::hash<T> {
+template <class T> struct value_hasher : std::hash<T> {};
+
+//! Compute a hash using std::hash.
+template <class T>
+    requires requires(T x) { x.hash(); }
+struct value_hasher<T> {
     //! Compute the hash of the given value.
-    auto operator()(T const &x) const -> size_t { return std::hash<T>::operator()(x); }
+    auto operator()(T const &x) const -> size_t { return x.hash(); }
 };
 
 //! Recursively compute a hash for pointers, optionals, pairs, tuples, variants, and vectors.
@@ -63,7 +68,9 @@ template <> struct value_hasher<std::type_info> {
 //!
 //! This hasher will additionally perturb values.
 //! The idea is to improve hash quality in case the STL just static casts the value.
-template <class T> struct value_hasher<std::enable_if<std::is_arithmetic_v<T> || std::is_enum_v<T>, T>> {
+template <class T>
+    requires std::is_arithmetic_v<T> || std::is_enum_v<T>
+struct value_hasher<T> {
     //! Operator to compute the hash.
     auto operator()(T value) const -> size_t { return hash_mix(std::hash<T>{}(value)); }
 };
@@ -75,7 +82,7 @@ template <class T> struct value_hasher<std::enable_if<std::is_arithmetic_v<T> ||
 template <class T> struct value_hasher<T const *> {
     //! Operator to compute the hash.
     auto operator()(T const *value) const -> size_t {
-        return hash_combine(typeid(T *).hash_code(), value_hasher<T>{}(value));
+        return hash_combine(typeid(T *).hash_code(), value_hasher<T>{}(*value));
     }
 };
 
@@ -94,7 +101,10 @@ template <class T> struct value_hasher<std::optional<T>> {
 template <class T> struct value_hasher<std::unique_ptr<T>> {
     //! Operator to compute the hash.
     auto operator()(std::unique_ptr<T> const &value) const -> size_t {
-        return hash_combine(typeid(std::unique_ptr<T>).hash_code(), value_hasher<T>{}(*value));
+        if (value) {
+            return hash_combine(typeid(std::unique_ptr<T>).hash_code(), value_hasher<T>{}(*value));
+        }
+        return typeid(std::unique_ptr<T>).hash_code();
     }
 };
 
@@ -102,7 +112,10 @@ template <class T> struct value_hasher<std::unique_ptr<T>> {
 template <class T> struct value_hasher<immutable_value<T>> {
     //! Operator to compute the hash.
     auto operator()(immutable_value<T> const &value) const -> size_t {
-        return hash_combine(typeid(immutable_value<T>).hash_code(), value_hasher<T>{}(*value));
+        if (value) {
+            return hash_combine(typeid(immutable_value<T>).hash_code(), value_hasher<T>{}(*value));
+        }
+        return typeid(Util::immutable_value<T>).hash_code();
     }
 };
 

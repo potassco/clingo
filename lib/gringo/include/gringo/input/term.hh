@@ -72,23 +72,27 @@ class Projection {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
-  private:
-    friend auto operator==(Projection const &a, Projection const &b) -> bool;
-    friend auto operator<=>(Projection const &a, Projection const &b) -> std::strong_ordering;
-    friend struct Util::value_hasher<Projection>;
+    //! Compare two projected positions.
+    friend auto operator==(Projection const &a, Projection const &b) -> bool {
+        static_cast<void>(a);
+        static_cast<void>(b);
+        return true;
+    }
+    //! Compare two projected positions.
+    friend auto operator<=>(Projection const &a, Projection const &b) -> std::strong_ordering {
+        static_cast<void>(a);
+        static_cast<void>(b);
+        return 1 <=> 1;
+    }
+    //! Compute hash of projection.
+    [[nodiscard]] auto hash() const -> size_t { // NOLINT(readability-convert-member-functions-to-static)
+        return Gringo::Util::value_hash(typeid(Gringo::Input::Projection));
+    }
+    [[nodiscard]] friend auto value_hash(Projection const &x) -> size_t { return Gringo::Util::value_hash(typeid(x)); }
 
+  private:
     Location loc_;
 };
-
-//! Compare two projected positions.
-//!
-//! @related Projection
-auto operator==(Projection const &a, Projection const &b) -> bool;
-
-//! Compare two projected positions.
-//!
-//! @related Projection
-auto operator<=>(Projection const &a, Projection const &b) -> std::strong_ordering;
 
 //! A variant capturing either a term or a position that is to be projected.
 using Argument = std::variant<Projection, Term>;
@@ -114,11 +118,14 @@ class ArgumentTuple {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
-  private:
+    //! Compare two argument tuples.
     friend auto operator==(ArgumentTuple const &a, ArgumentTuple const &b) -> bool;
+    //! Compare two argument tuples.
     friend auto operator<=>(ArgumentTuple const &a, ArgumentTuple const &b) -> std::strong_ordering;
-    friend struct Util::value_hasher<ArgumentTuple>;
+    //! Compute hash of the argument tuple.
+    [[nodiscard]] auto hash() const -> size_t;
 
+  private:
     ArgumentArray elems_;
 };
 
@@ -306,26 +313,19 @@ class TermFunction {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
-  private:
+    //! Compare two function terms.
     friend auto operator==(TermFunction const &a, TermFunction const &b) -> bool;
+    //! Compare two function terms.
     friend auto operator<=>(TermFunction const &a, TermFunction const &b) -> std::strong_ordering;
-    friend struct Util::value_hasher<TermFunction>;
+    //! Compute hash for function term.
+    [[nodiscard]] auto hash() const -> size_t;
 
+  private:
     Location loc_;
     String name_;
     PoolArray pool_;
     bool external_;
 };
-
-//! Compare two function terms.
-//!
-//! @related TermFunction
-auto operator==(TermFunction const &a, TermFunction const &b) -> bool;
-
-//! Compare two function terms.
-//!
-//! @related TermFunction
-auto operator<=>(TermFunction const &a, TermFunction const &b) -> std::strong_ordering;
 
 //! Term representing the absolute function.
 //!
@@ -543,24 +543,14 @@ inline auto operator<=>(TermBinary const &a, TermBinary const &b) -> std::strong
     return std::tie(*a.lhs_, a.op_, a.rhs_) <=> std::tie(*b.lhs_, b.op_, b.rhs_);
 }
 
-// TODO...
-
-inline auto operator==(Projection const &a, Projection const &b) -> bool {
-    static_cast<void>(a);
-    static_cast<void>(b);
-    return true;
-};
-
-inline auto operator<=>(Projection const &a, Projection const &b) -> std::strong_ordering {
-    static_cast<void>(a);
-    static_cast<void>(b);
-    return 1 <=> 1;
-}
-
 inline auto operator==(ArgumentTuple const &a, ArgumentTuple const &b) -> bool { return a.elems_ == b.elems_; }
 
 inline auto operator<=>(ArgumentTuple const &a, ArgumentTuple const &b) -> std::strong_ordering {
     return a.elems_ <=> b.elems_;
+}
+
+inline auto ArgumentTuple::hash() const -> size_t {
+    return Gringo::Util::value_hash(typeid(Gringo::Input::ArgumentTuple), elems_);
 }
 
 inline auto operator==(TermVariable const &a, TermVariable const &b) -> bool { return a.name_ == b.name_; }
@@ -587,6 +577,10 @@ inline auto operator<=>(TermFunction const &a, TermFunction const &b) -> std::st
     return std::tie(a.name_, a.pool_, a.external_) <=> std::tie(b.name_, b.pool_, b.external_);
 }
 
+inline auto TermFunction::hash() const -> size_t {
+    return Gringo::Util::value_hash(typeid(Gringo::Input::TermFunction), name_, pool_, external_);
+}
+
 inline auto operator==(TermAbs const &a, TermAbs const &b) -> bool { return a.pool_ == b.pool_; }
 
 inline auto operator<=>(TermAbs const &a, TermAbs const &b) -> std::strong_ordering { return a.pool_ <=> b.pool_; }
@@ -595,14 +589,11 @@ inline auto operator<=>(TermAbs const &a, TermAbs const &b) -> std::strong_order
 
 #ifndef GRINGO_DOXYGEN_SKIP
 
-GRINGO_HASH_PROTO(Gringo::Input::ArgumentTuple);
 GRINGO_HASH_PROTO(Gringo::Input::TermVariable);
 GRINGO_HASH_PROTO(Gringo::Input::TermSymbol);
-GRINGO_HASH_PROTO(Gringo::Input::TermFunction);
 GRINGO_HASH_PROTO(Gringo::Input::TermTuple);
 GRINGO_HASH_PROTO(Gringo::Input::TermAbs);
 GRINGO_HASH_PROTO(Gringo::Input::TermUnary);
 GRINGO_HASH_PROTO(Gringo::Input::TermBinary);
-GRINGO_HASH_PROTO(Gringo::Input::Projection);
 
 #endif
