@@ -86,23 +86,3 @@ auto complement(Relation rel) -> Relation {
 }
 
 } // namespace Gringo::Input
-
-namespace Gringo::Util {
-
-auto value_hasher<Gringo::Input::LitBool>::operator()(Gringo::Input::LitBool const &x) const -> size_t {
-    return Gringo::Util::value_hash(typeid(Gringo::Input::LitBool), x.sign_, x.value_);
-}
-
-auto value_hasher<Gringo::Input::LitComparison>::operator()(Gringo::Input::LitComparison const &x) const -> size_t {
-    return Gringo::Util::value_hash(typeid(Gringo::Input::LitComparison), x.sign_, x.lhs_, x.rhs_);
-}
-
-auto value_hasher<Gringo::Input::LitSymbolic>::operator()(Gringo::Input::LitSymbolic const &x) const -> size_t {
-    return Gringo::Util::value_hash(typeid(Gringo::Input::LitSymbolic), x.sign_, x.term_);
-}
-
-auto value_hasher<Gringo::Input::CondLit>::operator()(Gringo::Input::CondLit const &x) const -> size_t {
-    return Gringo::Util::value_hash(typeid(Gringo::Input::CondLit), x.lit_, x.cond_);
-}
-
-} // namespace Gringo::Util

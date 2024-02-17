@@ -97,7 +97,6 @@ class LitBool {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
-  private:
     //! Check whether two Boolean literals are equivalent.
     friend auto operator==(LitBool const &a, LitBool const &b) -> bool {
         return std::tie(a.sign_, a.value_) == std::tie(b.sign_, b.value_);
@@ -106,8 +105,13 @@ class LitBool {
     friend auto operator<=>(LitBool const &a, LitBool const &b) -> std::strong_ordering {
         return std::tie(a.sign_, a.value_) <=> std::tie(b.sign_, b.value_);
     }
-    friend struct Util::value_hasher<LitBool>;
+    //! Compute hash value.
+    friend auto value_hash_new(LitBool const &x) -> size_t {
+        using Gringo::Util::value_hash_new;
+        return value_hash_new(typeid(LitBool), x.sign_, x.value_);
+    }
 
+  private:
     Location loc_;
     Sign sign_;
     bool value_;
@@ -151,10 +155,13 @@ class LitComparison {
     friend auto operator<=>(LitComparison const &a, LitComparison const &b) -> std::strong_ordering {
         return std::tie(a.sign_, a.lhs_, a.rhs_) <=> std::tie(b.sign_, b.lhs_, b.rhs_);
     }
+    //! Compute hash value.
+    friend auto value_hash_new(LitComparison const &x) -> size_t {
+        using Gringo::Util::value_hash_new;
+        return value_hash_new(typeid(LitComparison), x.sign_, x.lhs_, x.rhs_);
+    }
 
   private:
-    friend struct Util::value_hasher<LitComparison>;
-
     Location loc_;
     Sign sign_;
     Term lhs_;
@@ -197,10 +204,13 @@ class LitSymbolic {
     friend auto operator<=>(LitSymbolic const &a, LitSymbolic const &b) -> std::strong_ordering {
         return std::tie(a.sign_, a.term_) <=> std::tie(b.sign_, b.term_);
     }
+    //! Compute hash value.
+    friend auto value_hash_new(LitSymbolic const &x) -> size_t {
+        using Gringo::Util::value_hash_new;
+        return value_hash_new(typeid(LitSymbolic), x.sign_, x.term_);
+    }
 
   private:
-    friend struct Util::value_hasher<LitSymbolic>;
-
     Location loc_;
     Sign sign_;
     Term term_;
@@ -245,10 +255,13 @@ class CondLit {
     friend auto operator<=>(CondLit const &a, CondLit const &b) -> std::strong_ordering {
         return std::tie(a.lit_, a.cond_) <=> std::tie(b.lit_, b.cond_);
     }
+    //! Compute hash value.
+    friend auto value_hash_new(CondLit const &x) -> size_t {
+        using Gringo::Util::value_hash_new;
+        return value_hash_new(typeid(CondLit), x.lit_, x.cond_);
+    }
 
   private:
-    friend struct Util::value_hasher<CondLit>;
-
     Location loc_;
     Lit lit_;
     LitArray cond_;
@@ -257,12 +270,3 @@ class CondLit {
 //! @}
 
 } // namespace Gringo::Input
-
-#ifndef GRINGO_DOXYGEN_SKIP
-
-GRINGO_HASH_PROTO(Gringo::Input::LitBool)
-GRINGO_HASH_PROTO(Gringo::Input::LitComparison)
-GRINGO_HASH_PROTO(Gringo::Input::LitSymbolic)
-GRINGO_HASH_PROTO(Gringo::Input::CondLit)
-
-#endif
