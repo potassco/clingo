@@ -191,7 +191,7 @@ class Program {
     //! (Parameters are numbered from 1 to n.)
     using Signature = std::pair<String, size_t>;
     //! Map from signatures to actual program parts.
-    using PartMap = Util::ordered_map<Signature, ProgramPart, Util::value_hasher<Signature>>;
+    using PartMap = Util::ordered_map<Signature, ProgramPart>;
     //! Map from parameters to their replacements.
     using ParamUnmap = Util::ordered_map<String, String>;
 

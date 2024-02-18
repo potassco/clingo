@@ -163,9 +163,9 @@ extern "C" auto clingo_location_equal(clingo_location_t const *a, clingo_locatio
 }
 
 extern "C" auto clingo_location_hash(clingo_location_t const *loc) -> size_t {
-    return Gringo::Util::value_hash(typeid(clingo_location_t).hash_code(), reinterpret_cast<uintptr_t>(loc->begin_file),
-                                    reinterpret_cast<uintptr_t>(loc->end_file), loc->begin_line, loc->end_line,
-                                    loc->begin_column, loc->end_column);
+    return Gringo::Util::hash_mix(Gringo::Util::value_hash_record<clingo_location_t>(
+        reinterpret_cast<uintptr_t>(loc->begin_file), reinterpret_cast<uintptr_t>(loc->end_file), loc->begin_line,
+        loc->end_line, loc->begin_column, loc->end_column));
 }
 
 extern "C" auto clingo_location_to_string_size(clingo_location_t location, size_t *size) -> bool {

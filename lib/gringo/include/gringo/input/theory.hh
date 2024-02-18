@@ -57,9 +57,8 @@ class TheoryTermSymbol {
         return a.value_ <=> b.value_;
     }
     //! Compute hash value.
-    friend auto value_hash_new(TheoryTermSymbol const &x) -> size_t {
-        using Gringo::Util::value_hash_new;
-        return value_hash_new(typeid(TheoryTermSymbol), x.value_);
+    friend auto value_hash(TheoryTermSymbol const &x) -> size_t {
+        return Gringo::Util::value_hash_record<TheoryTermSymbol>(x.value_);
     }
 
   private:
@@ -104,9 +103,8 @@ class TheoryTermVariable {
         return a.name_ <=> b.name_;
     }
     //! Compute hash value.
-    friend auto value_hash_new(TheoryTermVariable const &x) -> size_t {
-        using Gringo::Util::value_hash_new;
-        return value_hash_new(typeid(TheoryTermVariable), x.name_);
+    friend auto value_hash(TheoryTermVariable const &x) -> size_t {
+        return Gringo::Util::value_hash_record<TheoryTermVariable>(x.name_);
     }
 
   private:
@@ -156,7 +154,7 @@ class TheoryTermTuple {
     //! Compare two theory terms.
     friend auto operator<=>(TheoryTermTuple const &a, TheoryTermTuple const &b) -> std::strong_ordering;
     //! Compute hash value.
-    friend auto value_hash_new(TheoryTermTuple const &x) -> size_t;
+    friend auto value_hash(TheoryTermTuple const &x) -> size_t;
 
   private:
     Location loc_;
@@ -198,7 +196,7 @@ class TheoryTermFunction {
     //! Compare two theory terms.
     friend auto operator<=>(TheoryTermFunction const &a, TheoryTermFunction const &b) -> std::strong_ordering;
     //! Compute hash value.
-    friend auto value_hash_new(TheoryTermFunction const &x) -> size_t;
+    friend auto value_hash(TheoryTermFunction const &x) -> size_t;
 
   private:
     Location loc_;
@@ -246,7 +244,7 @@ class TheoryTermUnparsed {
     //! Compare two theory terms.
     friend auto operator<=>(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> std::strong_ordering;
     //! Compute hash value.
-    friend auto value_hash_new(TheoryTermUnparsed const &x) -> size_t;
+    friend auto value_hash(TheoryTermUnparsed const &x) -> size_t;
 
   private:
     Location loc_;
@@ -291,9 +289,8 @@ class TheoryElement {
         return std::tie(a.tuple_, a.cond_) <=> std::tie(b.tuple_, b.cond_);
     }
     //! Compute hash value.
-    friend auto value_hash_new(TheoryElement const &x) -> size_t {
-        using Gringo::Util::value_hash_new;
-        return value_hash_new(typeid(TheoryElement), x.tuple_, x.cond_);
+    friend auto value_hash(TheoryElement const &x) -> size_t {
+        return Gringo::Util::value_hash_record<TheoryElement>(x.tuple_, x.cond_);
     }
 
   private:
@@ -363,13 +360,9 @@ template <bool HasSign> class TheoryAtom : public std::conditional_t<HasSign, Si
                                           std::tie(static_cast<Base const &>(b), b.name_, b.elems_, b.rhs_));
     }
     //! Compute hash value.
-    friend auto value_hash_new(TheoryAtom const &x) -> size_t {
-        using Gringo::Util::value_hash_new;
-        if constexpr (HasSign) {
-            return value_hash_new(typeid(TheoryAtom<true>), x.sign(), x.name_, x.elems_, x.rhs_);
-        } else {
-            return value_hash_new(typeid(TheoryAtom<true>), x.name_, x.elems_, x.rhs_);
-        }
+    friend auto value_hash(TheoryAtom const &x) -> size_t {
+        using Gringo::Util::value_hash;
+        return Gringo::Util::value_hash_record<TheoryAtom>(static_cast<Base const &>(x), x.name_, x.elems_, x.rhs_);
     }
 
   private:
@@ -400,9 +393,8 @@ inline auto operator<=>(TheoryTermTuple const &a, TheoryTermTuple const &b) -> s
     return std::tie(a.type_, a.elems_) <=> std::tie(b.type_, b.elems_);
 }
 
-inline auto value_hash_new(TheoryTermTuple const &x) -> size_t {
-    using Gringo::Util::value_hash_new;
-    return value_hash_new(typeid(TheoryTermTuple), x.type_, x.elems_);
+inline auto value_hash(TheoryTermTuple const &x) -> size_t {
+    return Gringo::Util::value_hash_record<TheoryTermTuple>(x.type_, x.elems_);
 }
 
 // TheoryTermFunction
@@ -421,9 +413,8 @@ inline auto operator<=>(TheoryTermFunction const &a, TheoryTermFunction const &b
     return std::tie(a.name_, a.args_) <=> std::tie(b.name_, b.args_);
 }
 
-inline auto value_hash_new(TheoryTermFunction const &x) -> size_t {
-    using Gringo::Util::value_hash_new;
-    return value_hash_new(typeid(TheoryTermFunction), x.name_, x.args_);
+inline auto value_hash(TheoryTermFunction const &x) -> size_t {
+    return Gringo::Util::value_hash_record<TheoryTermFunction>(x.name_, x.args_);
 }
 
 // TheoryTermUnparsed
@@ -439,9 +430,8 @@ inline auto operator<=>(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b
     return a.elems_ <=> b.elems_;
 }
 
-inline auto value_hash_new(TheoryTermUnparsed const &x) -> size_t {
-    using Gringo::Util::value_hash_new;
-    return value_hash_new(typeid(TheoryTermUnparsed), x.elems_);
+inline auto value_hash(TheoryTermUnparsed const &x) -> size_t {
+    return Gringo::Util::value_hash_record<TheoryTermUnparsed>(x.elems_);
 }
 
 } // namespace Gringo::Input

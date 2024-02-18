@@ -38,10 +38,12 @@ class HdLitSimple {
     friend auto operator==(HdLitSimple const &a, HdLitSimple const &b) -> bool = default;
     //! Compare two literals.
     friend auto operator<=>(HdLitSimple const &a, HdLitSimple const &b) = default;
+    //! Compute hash value.
+    friend auto value_hash(HdLitSimple const &x) -> size_t {
+        return Gringo::Util::value_hash_record<HdLitSimple>(x.lit_);
+    }
 
   private:
-    friend struct Util::value_hasher<HdLitSimple>;
-
     Lit lit_;
 };
 
@@ -79,10 +81,12 @@ class HdLitDisjunction {
     friend auto operator<=>(HdLitDisjunction const &a, HdLitDisjunction const &b) -> std::strong_ordering {
         return a.elems_ <=> b.elems_;
     }
+    //! Compute hash value.
+    friend auto value_hash(HdLitDisjunction const &x) -> size_t {
+        return Gringo::Util::value_hash_record<HdLitDisjunction>(x.elems_);
+    }
 
   private:
-    friend struct Util::value_hasher<HdLitDisjunction>;
-
     Location loc_;
     HdLitDisjunctionElementArray elems_;
 };
@@ -121,10 +125,12 @@ class HdLitAggregateElement {
     friend auto operator<=>(HdLitAggregateElement const &a, HdLitAggregateElement const &b) -> std::strong_ordering {
         return std::tie(a.tuple_, a.lit_, a.cond_) <=> std::tie(b.tuple_, b.lit_, b.cond_);
     }
+    //! Compute hash value.
+    friend auto value_hash(HdLitAggregateElement const &x) -> size_t {
+        return Gringo::Util::value_hash_record<HdLitAggregateElement>(x.tuple_, x.lit_, x.cond_);
+    }
 
   private:
-    friend struct Util::value_hasher<HdLitAggregateElement>;
-
     Location loc_;
     TermArray tuple_;
     Lit lit_;
@@ -184,10 +190,12 @@ class HdLitAggregate {
         return Util::make_strong_ordering(std::tie(a.fun_, a.lhs_, a.elems_, a.rhs_) <=>
                                           std::tie(b.fun_, b.lhs_, b.elems_, b.rhs_));
     }
+    //! Compute hash value.
+    friend auto value_hash(HdLitAggregate const &x) -> size_t {
+        return Gringo::Util::value_hash_record<HdLitAggregate>(x.fun_, x.elems_, x.lhs_, x.rhs_);
+    }
 
   private:
-    friend struct Util::value_hasher<HdLitAggregate>;
-
     Location loc_;
     AggregateFunction fun_;
     HdLitAggregateElementArray elems_;
@@ -203,12 +211,3 @@ using HdLitArray = Util::immutable_array<HdLit>;
 //! @}
 
 } // namespace Gringo::Input
-
-#ifndef GRINGO_DOXYGEN_SKIP
-
-GRINGO_HASH_PROTO(Gringo::Input::HdLitSimple);
-GRINGO_HASH_PROTO(Gringo::Input::HdLitDisjunction);
-GRINGO_HASH_PROTO(Gringo::Input::HdLitAggregateElement);
-GRINGO_HASH_PROTO(Gringo::Input::HdLitAggregate);
-
-#endif

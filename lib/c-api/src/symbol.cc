@@ -189,7 +189,7 @@ extern "C" auto clingo_symbol_is_less_than(clingo_symbol_t a, clingo_symbol_t b)
 }
 
 extern "C" auto clingo_symbol_hash(clingo_symbol_t symbol) -> size_t {
-    return Gringo::Util::value_hash(Gringo::Symbol::from_rep(symbol));
+    return Gringo::Util::hash_mix(Gringo::Util::value_hash_record<clingo_symbol_t>(Gringo::Symbol::from_rep(symbol)));
 }
 
 extern "C" auto clingo_parse_term(clingo_lib_t *lib, char const *string, clingo_symbol_t *symbol) -> bool {

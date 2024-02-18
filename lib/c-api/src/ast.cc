@@ -1087,7 +1087,8 @@ void clingo_ast::print(std::ostream &out) const {
 
 auto clingo_ast::hash() const -> size_t {
     using namespace Gringo::Input;
-    return visit([this](auto &x) { return Gringo::Util::value_hash(type_, x); });
+    return visit(
+        [this](auto &x) { return Gringo::Util::hash_mix(Gringo::Util::value_hash_record<clingo_ast>(type_, x)); });
 }
 
 auto clingo_ast::equal_to(clingo_ast_t const &other) const -> bool {

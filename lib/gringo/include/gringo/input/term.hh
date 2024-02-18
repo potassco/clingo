@@ -85,9 +85,9 @@ class Projection {
         return 1 <=> 1;
     }
     //! Compute hash of projection.
-    [[nodiscard]] friend auto value_hash_new(Projection const &x) -> size_t {
+    [[nodiscard]] friend auto value_hash(Projection const &x) -> size_t {
         using namespace Gringo::Util;
-        return value_hash_new(typeid(x));
+        return value_hash(typeid(x));
     }
 
   private:
@@ -123,7 +123,7 @@ class ArgumentTuple {
     //! Compare two argument tuples.
     friend auto operator<=>(ArgumentTuple const &a, ArgumentTuple const &b) -> std::strong_ordering;
     //! Compute hash of the argument tuple.
-    friend auto value_hash_new(ArgumentTuple const &x) -> size_t;
+    friend auto value_hash(ArgumentTuple const &x) -> size_t;
 
   private:
     ArgumentArray elems_;
@@ -167,9 +167,8 @@ class TermVariable {
         return a.name_ <=> b.name_;
     }
     //! Compute hash of variable term.
-    friend auto value_hash_new(TermVariable const &x) -> size_t {
-        using Gringo::Util::value_hash_new;
-        return value_hash_new(typeid(TermVariable), x.name_);
+    friend auto value_hash(TermVariable const &x) -> size_t {
+        return Gringo::Util::value_hash_record<TermVariable>(x.name_);
     }
 
   private:
@@ -209,9 +208,8 @@ class TermSymbol {
         return a.value_ <=> b.value_;
     }
     //! Compute hash of symbol.
-    friend auto value_hash_new(TermSymbol const &x) -> size_t {
-        using Gringo::Util::value_hash_new;
-        return value_hash_new(typeid(TermSymbol), x.value_);
+    friend auto value_hash(TermSymbol const &x) -> size_t {
+        return Gringo::Util::value_hash_record<TermSymbol>(x.value_);
     }
 
   private:
@@ -253,7 +251,7 @@ class TermTuple {
     //! Compare two tuple terms.
     friend auto operator<=>(TermTuple const &a, TermTuple const &b) -> std::strong_ordering;
     //! Compute hash of tuple term.
-    friend auto value_hash_new(TermTuple const &x) -> size_t;
+    friend auto value_hash(TermTuple const &x) -> size_t;
 
   private:
     Location loc_;
@@ -297,7 +295,7 @@ class TermFunction {
     //! Compare two function terms.
     friend auto operator<=>(TermFunction const &a, TermFunction const &b) -> std::strong_ordering;
     //! Compute hash for function term.
-    friend auto value_hash_new(TermFunction const &x) -> size_t;
+    friend auto value_hash(TermFunction const &x) -> size_t;
 
   private:
     Location loc_;
@@ -337,7 +335,7 @@ class TermAbs {
     //! Compare two absolute terms.
     friend auto operator<=>(TermAbs const &a, TermAbs const &b) -> std::strong_ordering;
     //! Compute hash of absolute term.
-    friend auto value_hash_new(TermAbs const &x) -> size_t;
+    friend auto value_hash(TermAbs const &x) -> size_t;
 
   private:
     Location loc_;
@@ -382,7 +380,7 @@ class TermUnary {
     //! Compare two unary terms.
     friend auto operator<=>(TermUnary const &a, TermUnary const &b) -> std::strong_ordering;
     //! Compute hash of unary term.
-    friend auto value_hash_new(TermUnary const &x) -> size_t;
+    friend auto value_hash(TermUnary const &x) -> size_t;
 
   private:
     Location loc_;
@@ -439,7 +437,7 @@ class TermBinary {
     //! Compare two binary terms.
     friend auto operator<=>(TermBinary const &a, TermBinary const &b) -> std::strong_ordering;
     //! Compute hash of binary term.
-    friend auto value_hash_new(TermBinary const &x) -> size_t;
+    friend auto value_hash(TermBinary const &x) -> size_t;
 
   private:
     Location loc_;
@@ -460,9 +458,8 @@ inline auto operator<=>(ArgumentTuple const &a, ArgumentTuple const &b) -> std::
     return a.elems_ <=> b.elems_;
 }
 
-inline auto value_hash_new(ArgumentTuple const &x) -> size_t {
-    using Gringo::Util::value_hash_new;
-    return value_hash_new(typeid(ArgumentTuple), x.elems_);
+inline auto value_hash(ArgumentTuple const &x) -> size_t {
+    return Gringo::Util::value_hash_record<ArgumentTuple>(x.elems_);
 }
 
 // TermTuple
@@ -473,10 +470,7 @@ inline auto operator==(TermTuple const &a, TermTuple const &b) -> bool { return 
 
 inline auto operator<=>(TermTuple const &a, TermTuple const &b) -> std::strong_ordering { return a.pool_ <=> b.pool_; }
 
-inline auto value_hash_new(TermTuple const &x) -> size_t {
-    using Gringo::Util::value_hash_new;
-    return value_hash_new(typeid(TermTuple), x.pool_);
-}
+inline auto value_hash(TermTuple const &x) -> size_t { return Gringo::Util::value_hash_record<TermTuple>(x.pool_); }
 
 // TermFunction
 
@@ -491,9 +485,8 @@ inline auto operator<=>(TermFunction const &a, TermFunction const &b) -> std::st
     return std::tie(a.name_, a.pool_, a.external_) <=> std::tie(b.name_, b.pool_, b.external_);
 }
 
-inline auto value_hash_new(TermFunction const &x) -> size_t {
-    using Gringo::Util::value_hash_new;
-    return value_hash_new(typeid(TermFunction), x.name_, x.pool_, x.external_);
+inline auto value_hash(TermFunction const &x) -> size_t {
+    return Gringo::Util::value_hash_record<TermFunction>(x.name_, x.pool_, x.external_);
 }
 
 // TermAbs
@@ -504,10 +497,7 @@ inline auto operator==(TermAbs const &a, TermAbs const &b) -> bool { return a.po
 
 inline auto operator<=>(TermAbs const &a, TermAbs const &b) -> std::strong_ordering { return a.pool_ <=> b.pool_; }
 
-inline auto value_hash_new(TermAbs const &x) -> size_t {
-    using Gringo::Util::value_hash_new;
-    return value_hash_new(typeid(TermAbs), x.pool_);
-}
+inline auto value_hash(TermAbs const &x) -> size_t { return Gringo::Util::value_hash_record<TermAbs>(x.pool_); }
 
 // TermUnary
 
@@ -522,9 +512,8 @@ inline auto operator<=>(TermUnary const &a, TermUnary const &b) -> std::strong_o
     return std::tie(a.op_, a.rhs_) <=> std::tie(b.op_, b.rhs_);
 }
 
-inline auto value_hash_new(TermUnary const &x) -> size_t {
-    using Gringo::Util::value_hash_new;
-    return value_hash_new(typeid(TermUnary), x.op_, x.rhs_);
+inline auto value_hash(TermUnary const &x) -> size_t {
+    return Gringo::Util::value_hash_record<TermUnary>(x.op_, x.rhs_);
 }
 
 // TermBinary
@@ -541,9 +530,8 @@ inline auto operator<=>(TermBinary const &a, TermBinary const &b) -> std::strong
     return std::tie(*a.lhs_, a.op_, a.rhs_) <=> std::tie(*b.lhs_, b.op_, b.rhs_);
 }
 
-inline auto value_hash_new(TermBinary const &x) -> size_t {
-    using Gringo::Util::value_hash_new;
-    return value_hash_new(typeid(TermBinary), x.op_, x.lhs_, x.rhs_);
+inline auto value_hash(TermBinary const &x) -> size_t {
+    return Gringo::Util::value_hash_record<TermBinary>(x.op_, x.lhs_, x.rhs_);
 }
 
 } // namespace Gringo::Input

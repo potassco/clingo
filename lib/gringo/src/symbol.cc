@@ -283,8 +283,10 @@ class SymbolArray {
 struct SymbolArrayHash {
     auto operator()(SymbolSpan fun) const -> size_t { return operator()(std::make_pair(fun.front(), fun.subspan(1))); }
     auto operator()(std::pair<Symbol, SymbolSpan> fun) const -> size_t {
-        return Util::value_hash(fun.first, std::string_view{reinterpret_cast<char const *>(fun.second.data()),
-                                                            fun.second.size() * sizeof(Symbol)});
+        using Gringo::Util::value_hash;
+        return Util::hash_mix(Util::hash_combine(
+            value_hash(fun.first), value_hash(std::string_view{reinterpret_cast<char const *>(fun.second.data()),
+                                                               fun.second.size() * sizeof(Symbol)})));
     }
 
     auto operator()(SymbolArray const &fun) const -> size_t {
@@ -341,7 +343,9 @@ struct CharArrayEqual {
 
 struct CharArrayHash {
     auto operator()(CharArray a) const -> size_t { return operator()(a.view()); }
-    auto operator()(std::string_view a) const -> size_t { return std::hash<std::string_view>{}(a); }
+    auto operator()(std::string_view a) const -> size_t {
+        return Gringo::Util::hash_mix(std::hash<std::string_view>{}(a));
+    }
 };
 
 template <class Allocator> class DefaultSymbolStore : public SymbolStore {
@@ -405,7 +409,7 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
     ~DefaultSymbolStore() noexcept override { clear(); }
 
   private:
-    using NumberSet = Util::unordered_set<Number, Util::value_hasher<Number>>;
+    using NumberSet = Util::unordered_set<Number>;
     using StringSet = Util::unordered_set<CharArray, CharArrayHash, CharArrayEqual>;
     using TupleSet = Util::unordered_set<SymbolArray, SymbolArrayHash, SymbolArrayEqual>;
 

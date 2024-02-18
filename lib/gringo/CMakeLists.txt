@@ -1,5 +1,4 @@
 add_library(gringo
-    "src/input/aggregate.cc"
     "src/input/algo/add_sign.cc"
     "src/input/algo/analyze.cc"
     "src/input/algo/check_syntax.cc"
@@ -17,12 +16,9 @@ add_library(gringo
     "src/input/algo/unpool.cc"
     "src/input/algo/unpool_relations.cc"
     "src/input/algo/visit_variables.cc"
-    "src/input/body_literal.cc"
-    "src/input/head_literal.cc"
     "src/input/iesolver.cc"
     "src/input/literal.cc"
     "src/input/program.cc"
-    "src/input/statement.cc"
     "src/number.cc"
     "src/symbol.cc"
     )

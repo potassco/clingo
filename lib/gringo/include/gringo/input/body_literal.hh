@@ -38,10 +38,12 @@ class BdLitSimple {
     friend auto operator==(BdLitSimple const &a, BdLitSimple const &b) -> bool = default;
     //! Compare two literals.
     friend auto operator<=>(BdLitSimple const &a, BdLitSimple const &b) -> std::strong_ordering = default;
+    //! Compute hash value.
+    friend auto value_hash(BdLitSimple const &x) -> size_t {
+        return Gringo::Util::value_hash_record<BdLitSimple>(x.lit_);
+    }
 
   private:
-    friend struct Util::value_hasher<BdLitSimple>;
-
     Lit lit_;
 };
 
@@ -70,10 +72,12 @@ class BdLitConjunction {
     friend auto operator==(BdLitConjunction const &a, BdLitConjunction const &b) -> bool = default;
     //! Compare two body conjunctions.
     friend auto operator<=>(BdLitConjunction const &a, BdLitConjunction const &b) -> std::strong_ordering = default;
+    //! Compute hash value.
+    friend auto value_hash(BdLitConjunction const &x) -> size_t {
+        return Gringo::Util::value_hash_record<BdLitConjunction>(x.lit_);
+    }
 
   private:
-    friend struct Util::value_hasher<BdLitConjunction>;
-
     CondLit lit_;
 };
 
@@ -109,10 +113,12 @@ class BdLitAggregateElement {
     friend auto operator<=>(BdLitAggregateElement const &a, BdLitAggregateElement const &b) -> std::strong_ordering {
         return std::tie(a.tuple_, a.cond_) <=> std::tie(b.tuple_, b.cond_);
     }
+    //! Compute hash value.
+    friend auto value_hash(BdLitAggregateElement const &x) -> size_t {
+        return Gringo::Util::value_hash_record<BdLitAggregateElement>(x.tuple_, x.cond_);
+    }
 
   private:
-    friend struct Util::value_hasher<BdLitAggregateElement>;
-
     Location loc_;
     TermArray tuple_;
     LitArray cond_;
@@ -168,10 +174,12 @@ class BdLitAggregate {
         return Util::make_strong_ordering(std::tie(a.sign_, a.fun_, a.lhs_, a.elems_, a.rhs_) <=>
                                           std::tie(b.sign_, b.fun_, b.lhs_, b.elems_, b.rhs_));
     }
+    //! Compute hash value.
+    friend auto value_hash(BdLitAggregate const &x) -> size_t {
+        return Gringo::Util::value_hash_record<BdLitAggregate>(x.sign_, x.fun_, x.lhs_, x.elems_, x.rhs_);
+    }
 
   private:
-    friend struct Util::value_hasher<BdLitAggregate>;
-
     Location loc_;
     Sign sign_;
     AggregateFunction fun_;
@@ -188,12 +196,3 @@ using BdLitArray = Util::immutable_array<BdLit>;
 //! @}
 
 } // namespace Gringo::Input
-
-#ifndef GRINGO_DOXYGEN_SKIP
-
-GRINGO_HASH_PROTO(Gringo::Input::BdLitSimple);
-GRINGO_HASH_PROTO(Gringo::Input::BdLitConjunction);
-GRINGO_HASH_PROTO(Gringo::Input::BdLitAggregateElement);
-GRINGO_HASH_PROTO(Gringo::Input::BdLitAggregate);
-
-#endif

@@ -1395,7 +1395,7 @@ template <bool head>
     auto res_elems = Util::ResultVec{lit.elems()};
     bool constant = true;
     auto value = neutral_value(lit.fun());
-    auto tuples = Util::unordered_set<TermArray, Util::value_hasher<TermArray>>{};
+    auto tuples = Util::unordered_set<TermArray>{};
     for (auto const &elem : lit.elems()) {
         auto [state_elem, res_elem] = simplify_element(ctx, elem);
         auto const &tuple = (res_elem ? *res_elem : elem).tuple();

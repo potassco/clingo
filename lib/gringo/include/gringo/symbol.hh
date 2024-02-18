@@ -160,7 +160,7 @@ namespace std {
 template <> struct hash<Gringo::Symbol> {
     //! Compute hash of symbol.
     auto operator()(Gringo::Symbol sym) const -> size_t {
-        return Gringo::Util::value_hash(Gringo::Symbol::to_rep(sym));
+        return Gringo::Util::value_hash_record<Gringo::Symbol>(Gringo::Symbol::to_rep(sym));
     }
 };
 

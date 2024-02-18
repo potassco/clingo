@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <numeric>
 #include <optional>
 #include <string_view>
 #include <typeinfo>
@@ -19,14 +20,6 @@ namespace Gringo::Util {
 //!
 //! @{
 
-//! Helper to declare the value hash struct for a type.
-#define GRINGO_HASH_PROTO(T)                                                                                           \
-    namespace Gringo::Util {                                                                                           \
-    template <> struct value_hasher<T> {                                                                               \
-        auto operator()(T const &x) const -> size_t;                                                                   \
-    };                                                                                                                 \
-    }
-
 //! Combine the given seeds.
 inline auto hash_combine(std::initializer_list<size_t> list) -> size_t {
     return std::hash<std::string_view>{}(
@@ -39,53 +32,53 @@ template <class... Args> inline auto hash_combine(Args... args) -> size_t { retu
 //! Perturb the given seed.
 inline auto hash_mix(size_t a) -> size_t { return hash_combine({a}); }
 
-//! Function object producing perturbed hash values.
-template <class T, class H = std::hash<T>> struct mix_hasher : private H {
-    //! Compute the hash of the given vale and perturb it.
-    auto operator()(T const &x) const -> size_t { return hash_mix(H::operator()(x)); }
-};
-
 //! Compute a hash for type_info.
-auto value_hash_new(std::type_info const &x) -> size_t;
+auto value_hash(std::type_info const &x) -> size_t;
 
 //! Compute a hash using std::hash.
-template <class T> auto value_hash_new(T const &x) -> size_t;
+template <class T> auto value_hash(T const &x) -> size_t;
 
 //! Compute hash for pointers.
-template <class T> auto value_hash_new(T const *x) -> size_t;
+template <class T> auto value_hash(T const *x) -> size_t;
 
 //! Compute hash for optionals.
-template <class T> auto value_hash_new(std::optional<T> const &x) -> size_t;
+template <class T> auto value_hash(std::optional<T> const &x) -> size_t;
 
 //! Compute hash for unique_ptr.
-template <class T> auto value_hash_new(std::unique_ptr<T> const &x) -> size_t;
+template <class T> auto value_hash(std::unique_ptr<T> const &x) -> size_t;
 
 //! Compute hash for immutable_value.
-template <class T> auto value_hash_new(immutable_value<T> const &x) -> size_t;
+template <class T> auto value_hash(immutable_value<T> const &x) -> size_t;
 
 //! Compute the hash of a pair.
-template <class T, class U> auto value_hash_new(std::pair<T, U> const &x) -> size_t;
+template <class T, class U> auto value_hash(std::pair<T, U> const &x) -> size_t;
 
 //! Compute the hash of a tuple.
-template <class... T> auto value_hash_new(std::tuple<T...> const &x) -> size_t;
+template <class... T> auto value_hash(std::tuple<T...> const &x) -> size_t;
 
 //! Compute the hash of a variant.
-template <class... T> auto value_hash_new(std::variant<T...> const &x) -> size_t;
+template <class... T> auto value_hash(std::variant<T...> const &x) -> size_t;
 
 //! Compute the hash of a vector.
-template <class T> auto value_hash_new(std::vector<T> const &x) -> size_t;
+template <class T> auto value_hash(std::vector<T> const &x) -> size_t;
 
 //! Compute the hash of an immutable array.
-template <class T> auto value_hash_new(Util::immutable_array<T> const &x) -> size_t;
+template <class T> auto value_hash(Util::immutable_array<T> const &x) -> size_t;
 
-//! Compute the hash of a range of value hashables.
-template <class... Args> auto value_hash_new(Args const &...x) -> size_t;
+//! Compute and compbine the hashes of the given arguments.
+template <class T, class... Args> auto value_hash_record(Args const &...x) -> size_t;
 
-// Implementation of value_hash_new
+//! Compute a hash using std::hash.
+struct value_hasher {
+    //! Compute the hash of the given value.
+    template <class T> auto operator()(T const &x) const -> size_t { return hash_mix(value_hash(x)); }
+};
 
-inline auto value_hash_new(std::type_info const &x) -> size_t { return x.hash_code(); }
+// Implementation of value_hash
 
-template <class T> auto value_hash_new(T const &x) -> size_t {
+inline auto value_hash(std::type_info const &x) -> size_t { return x.hash_code(); }
+
+template <class T> auto value_hash(T const &x) -> size_t {
     if constexpr (std::is_arithmetic_v<T> || std::is_enum_v<T>) {
         return hash_mix(std::hash<T>{}(x));
     } else {
@@ -93,210 +86,67 @@ template <class T> auto value_hash_new(T const &x) -> size_t {
     }
 }
 
-template <class T> auto value_hash_new(T const *x) -> size_t {
+template <class T> auto value_hash(T const *x) -> size_t {
     if (x) {
-        return hash_combine(typeid(T *).hash_code(), value_hash_new(*x));
+        return hash_combine({typeid(T *).hash_code(), value_hash(*x)});
     }
     return typeid(T *).hash_code();
 }
 
-template <class T> auto value_hash_new(std::optional<T> const &x) -> size_t {
+template <class T> auto value_hash(std::optional<T> const &x) -> size_t {
     if (x) {
-        return hash_combine(typeid(std::optional<T>).hash_code(), value_hash_new(*x));
+        return hash_combine({typeid(std::optional<T>).hash_code(), value_hash(*x)});
     }
     return typeid(std::optional<T>).hash_code();
 }
 
-template <class T> auto value_hash_new(std::unique_ptr<T> const &x) -> size_t {
+template <class T> auto value_hash(std::unique_ptr<T> const &x) -> size_t {
     if (x) {
-        return hash_combine(typeid(std::unique_ptr<T>).hash_code(), value_hash_new(*x));
+        return hash_combine({typeid(std::unique_ptr<T>).hash_code(), value_hash(*x)});
     }
     return typeid(std::unique_ptr<T>).hash_code();
 }
 
-template <class T> auto value_hash_new(immutable_value<T> const &x) -> size_t {
+template <class T> auto value_hash(immutable_value<T> const &x) -> size_t {
     if (x) {
-        return hash_combine(typeid(immutable_value<T>).hash_code(), value_hash_new(*x));
+        return hash_combine({typeid(immutable_value<T>).hash_code(), value_hash(*x)});
     }
     return typeid(immutable_value<T>).hash_code();
 }
 
-template <class T, class U> auto value_hash_new(std::pair<T, U> const &x) -> size_t {
-    return hash_combine({typeid(std::pair<T, U>).hash_code(), value_hash_new(x.first), value_hash_new(x.second)});
+template <class T, class U> auto value_hash(std::pair<T, U> const &x) -> size_t {
+    return hash_combine({typeid(std::pair<T, U>).hash_code(), value_hash(x.first), value_hash(x.second)});
 }
 
-template <class... T> auto value_hash_new(std::tuple<T...> const &x) -> size_t {
+template <class... T> auto value_hash(std::tuple<T...> const &x) -> size_t {
     return [&x]<size_t... Indices>(std::index_sequence<Indices...> indices) -> size_t {
         static_cast<void>(indices);
-        return hash_combine({typeid(std::tuple<T...>).hash_code(), value_hash_new(std::get<Indices>(x))...});
+        return hash_combine({typeid(std::tuple<T...>).hash_code(), value_hash(std::get<Indices>(x))...});
     }(std::index_sequence_for<T...>{});
 }
 
-template <class... T> auto value_hash_new(std::variant<T...> const &x) -> size_t {
+template <class... T> auto value_hash(std::variant<T...> const &x) -> size_t {
     return std::visit(
         [](auto &&arg) {
-            return hash_combine({typeid(std::variant<T...>).hash_code(), value_hash_new(arg)});
+            return hash_combine({typeid(std::variant<T...>).hash_code(), value_hash(arg)});
         },
         x);
 }
 
-template <class T> auto value_hash_new(std::vector<T> const &x) -> size_t {
-    size_t hash = typeid(std::vector<T>).hash_code();
-    for (auto const &elem : x) {
-        hash = hash_combine({hash, value_hash_new(elem)});
-    }
-    return hash;
+template <class T> auto value_hash(std::vector<T> const &x) -> size_t {
+    return std::accumulate(x.begin(), x.end(), typeid(std::vector<T>).hash_code(), [](auto const &seed, auto const &x) {
+        return hash_combine({seed, value_hash(x)});
+    });
 }
 
-template <class T> auto value_hash_new(Util::immutable_array<T> const &x) -> size_t {
-    size_t hash = typeid(Util::immutable_array<T>).hash_code();
-    for (auto const &elem : x) {
-        hash = hash_combine({hash, value_hash_new(elem)});
-    }
-    return hash;
+template <class T> auto value_hash(Util::immutable_array<T> const &x) -> size_t {
+    return std::accumulate(x.begin(), x.end(), typeid(std::vector<T>).hash_code(), [](auto const &seed, auto const &x) {
+        return hash_combine({seed, value_hash(x)});
+    });
 }
 
-template <class... Args> auto value_hash_new(Args const &...x) -> size_t { return hash_combine(value_hash_new(x)...); }
-
-// TODO: <<<<<<<<<<<<<<<<<<<<<<<<<<<<<< REMOVE
-
-//! Compute a hash using std::hash.
-template <class T> struct value_hasher {
-    //! Compute the hash of the given value.
-    auto operator()(T const &x) const -> size_t { return value_hash_new(x); }
-};
-
-//! Recursively compute a hash for pointers, optionals, pairs, tuples, variants, and vectors.
-//!
-//! More specialization can be added.
-template <> struct value_hasher<std::type_info> {
-    //! Operator to compute the hash.
-    auto operator()(std::type_info const &value) const -> size_t { return hash_mix(value.hash_code()); }
-};
-
-//! Hasher for arithmetic and enumeration types.
-//!
-//! This hasher will additionally perturb values.
-//! The idea is to improve hash quality in case the STL just static casts the value.
-template <class T>
-    requires std::is_arithmetic_v<T> || std::is_enum_v<T>
-struct value_hasher<T> {
-    //! Operator to compute the hash.
-    auto operator()(T value) const -> size_t { return hash_mix(std::hash<T>{}(value)); }
-};
-
-//! Hasher for pointers.
-//!
-//! The hash of the defenced pointer is used.
-//! This function assumes that the pointer is not null.
-template <class T> struct value_hasher<T const *> {
-    //! Operator to compute the hash.
-    auto operator()(T const *value) const -> size_t {
-        return hash_combine(typeid(T *).hash_code(), value_hasher<T>{}(*value));
-    }
-};
-
-//! Value hasher for optionals.
-template <class T> struct value_hasher<std::optional<T>> {
-    //! Operator to compute the hash.
-    auto operator()(std::optional<T> const &value) const -> size_t {
-        if (value) {
-            return hash_combine(typeid(std::optional<T>).hash_code(), value_hasher<T>{}(*value));
-        }
-        return typeid(std::optional<T>).hash_code();
-    }
-};
-
-//! See value_hasher<T const *>.
-template <class T> struct value_hasher<std::unique_ptr<T>> {
-    //! Operator to compute the hash.
-    auto operator()(std::unique_ptr<T> const &value) const -> size_t {
-        if (value) {
-            return hash_combine(typeid(std::unique_ptr<T>).hash_code(), value_hasher<T>{}(*value));
-        }
-        return typeid(std::unique_ptr<T>).hash_code();
-    }
-};
-
-//! See value_hasher<T const *>.
-template <class T> struct value_hasher<immutable_value<T>> {
-    //! Operator to compute the hash.
-    auto operator()(immutable_value<T> const &value) const -> size_t {
-        if (value) {
-            return hash_combine(typeid(immutable_value<T>).hash_code(), value_hasher<T>{}(*value));
-        }
-        return typeid(Util::immutable_value<T>).hash_code();
-    }
-};
-
-//! Compute the hash of a pair.
-template <class T, class U> struct value_hasher<std::pair<T, U>> {
-    //! Operator to compute the hash.
-    auto operator()(std::pair<T, U> const &value) const -> size_t {
-        return hash_combine(
-            {typeid(std::pair<T, U>).hash_code(), value_hasher<T>{}(value.first), value_hasher<U>{}(value.second)});
-    }
-};
-
-//! Compute the hash of a tuple.
-template <class... T> struct value_hasher<std::tuple<T...>> {
-    //! Operator to compute the hash.
-    auto operator()(std::tuple<T...> const &value) const -> size_t {
-        return value_hash_tuple(value, std::index_sequence_for<T...>{});
-    }
-
-  private:
-    template <size_t... Indices>
-    inline auto value_hash_tuple(std::tuple<T...> const &value, std::index_sequence<Indices...> indices) const
-        -> size_t {
-        static_cast<void>(indices);
-        return hash_combine({typeid(std::tuple<T...>).hash_code(), value_hasher<T>{}(std::get<Indices>(value))...});
-    }
-};
-
-//! Compute the hash of a variant.
-template <class... T> struct value_hasher<std::variant<T...>> {
-    //! Operator to compute the hash.
-    auto operator()(std::variant<T...> const &value) const -> size_t {
-        return std::visit(
-            [](auto &&arg) {
-                using U = std::decay_t<decltype(arg)>;
-                return hash_combine({typeid(std::variant<T...>).hash_code(), value_hasher<U>{}(arg)});
-            },
-            value);
-    }
-};
-
-//! Compute the hash of a vector.
-template <class T> struct value_hasher<std::vector<T>> {
-    //! Operator to compute the hash.
-    auto operator()(std::vector<T> const &value) const -> size_t {
-        size_t hash = typeid(std::vector<T>).hash_code();
-        for (auto const &elem : value) {
-            hash = hash_combine({hash, value_hasher<T>{}(elem)});
-        }
-        return hash;
-    }
-};
-
-//! Compute the hash of a vector.
-template <class T> struct value_hasher<Util::immutable_array<T>> {
-    //! Operator to compute the hash.
-    auto operator()(Util::immutable_array<T> const &value) const -> size_t {
-        size_t hash = typeid(Util::immutable_array<T>).hash_code();
-        for (auto const &elem : value) {
-            hash = hash_combine({hash, value_hasher<T>{}(elem)});
-        }
-        return hash;
-    }
-};
-
-//! Compute and combine the hashes for the given values.
-//!
-//! The value_hasher is used to compute the hashes,
-//! which are combined using hash_combine().
-template <class... Args> inline auto value_hash(Args const &...value) -> size_t {
-    return hash_combine(value_hasher<Args>{}(value)...);
+template <class T, class... Args> auto value_hash_record(Args const &...x) -> size_t {
+    return hash_combine({typeid(T).hash_code(), value_hash(x)...});
 }
 
 //! @}

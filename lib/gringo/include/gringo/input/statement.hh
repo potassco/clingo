@@ -48,10 +48,12 @@ class StmRule {
     friend auto operator<=>(StmRule const &a, StmRule const &b) -> std::strong_ordering {
         return std::tie(a.head_, a.body_) <=> std::tie(b.head_, b.body_);
     }
+    //! Compute hash value.
+    friend auto value_hash(StmRule const &x) -> size_t {
+        return Gringo::Util::value_hash_record<StmRule>(x.head_, x.body_);
+    }
 
   private:
-    friend struct Util::value_hasher<StmRule>;
-
     Location loc_;
     HdLit head_;
     BdLitArray body_;
@@ -104,10 +106,12 @@ class TheoryOpDefinition {
     friend auto operator<=>(TheoryOpDefinition const &a, TheoryOpDefinition const &b) -> std::strong_ordering {
         return std::tie(a.op_, a.prio_, a.type_) <=> std::tie(b.op_, b.prio_, b.type_);
     }
+    //! Compute hash value.
+    friend auto value_hash(TheoryOpDefinition const &x) -> size_t {
+        return Gringo::Util::value_hash_record<TheoryOpDefinition>(x.op_, x.prio_, x.type_);
+    }
 
   private:
-    friend struct Util::value_hasher<TheoryOpDefinition>;
-
     Location loc_;
     String op_;
     int prio_;
@@ -153,10 +157,12 @@ class TheoryTermDefinition {
     friend auto operator<=>(TheoryTermDefinition const &a, TheoryTermDefinition const &b) -> std::strong_ordering {
         return std::tie(a.name_, a.op_defs_) <=> std::tie(b.name_, b.op_defs_);
     }
+    //! Compute hash value.
+    friend auto value_hash(TheoryTermDefinition const &x) -> size_t {
+        return Gringo::Util::value_hash_record<TheoryTermDefinition>(x.name_, x.op_defs_);
+    }
 
   private:
-    friend struct Util::value_hasher<TheoryTermDefinition>;
-
     Location loc_;
     String name_;
     TheoryOpDefinitionArray op_defs_;
@@ -226,10 +232,12 @@ class TheoryAtomDefinition {
         return Util::make_strong_ordering(std::tie(a.name_, a.arity_, a.term_, a.type_, a.rhs_) <=>
                                           std::tie(b.name_, b.arity_, b.term_, b.type_, b.rhs_));
     }
+    //! Compute hash value.
+    friend auto value_hash(TheoryAtomDefinition const &x) -> size_t {
+        return Gringo::Util::value_hash_record<TheoryAtomDefinition>(x.name_, x.arity_, x.term_, x.rhs_, x.type_);
+    }
 
   private:
-    friend struct Util::value_hasher<TheoryAtomDefinition>;
-
     Location loc_;
     String name_;
     int arity_;
@@ -272,15 +280,20 @@ class StmTheory {
         return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
     }
 
-  private:
+    //! Compare two theory statements.
     friend auto operator==(StmTheory const &a, StmTheory const &b) -> bool {
         return std::tie(a.name_, a.term_defs_, a.atom_defs_) == std::tie(b.name_, b.term_defs_, b.atom_defs_);
     }
+    //! Compare two theory statements.
     friend auto operator<=>(StmTheory const &a, StmTheory const &b) -> std::strong_ordering {
         return std::tie(a.name_, a.term_defs_, a.atom_defs_) <=> std::tie(b.name_, b.term_defs_, b.atom_defs_);
     }
-    friend struct Util::value_hasher<StmTheory>;
+    //! Compute hash value.
+    friend auto value_hash(StmTheory const &x) -> size_t {
+        return Gringo::Util::value_hash_record<StmTheory>(x.name_, x.term_defs_, x.atom_defs_);
+    }
 
+  private:
     Location loc_;
     String name_;
     TheoryTermDefinitionArray term_defs_;
@@ -326,10 +339,12 @@ class OptimizeTuple {
         return Util::make_strong_ordering(std::tie(a.weight_, a.terms_, a.prio_) <=>
                                           std::tie(b.weight_, b.terms_, b.prio_));
     }
+    //! Compute hash value.
+    friend auto value_hash(OptimizeTuple const &x) -> size_t {
+        return Gringo::Util::value_hash_record<OptimizeTuple>(x.weight_, x.prio_, x.terms_);
+    }
 
   private:
-    friend struct Util::value_hasher<OptimizeTuple>;
-
     Term weight_;
     std::optional<Term> prio_;
     TermArray terms_;
@@ -376,10 +391,12 @@ class StmOptimize {
     friend auto operator<=>(StmOptimize const &a, StmOptimize const &b) -> std::strong_ordering {
         return std::tie(a.type_, a.elems_) <=> std::tie(b.type_, b.elems_);
     }
+    //! Compute hash value.
+    friend auto value_hash(StmOptimize const &x) -> size_t {
+        return Gringo::Util::value_hash_record<StmOptimize>(x.type_, x.elems_);
+    }
 
   private:
-    friend struct Util::value_hasher<StmOptimize>;
-
     Location loc_;
     OptimizeType type_;
     OptimizeElementArray elems_;
@@ -421,10 +438,12 @@ class StmWeakConstraint {
     friend auto operator<=>(StmWeakConstraint const &a, StmWeakConstraint const &b) -> std::strong_ordering {
         return std::tie(a.body_, a.tuple_) <=> std::tie(b.body_, b.tuple_);
     }
+    //! Compute hash value.
+    friend auto value_hash(StmWeakConstraint const &x) -> size_t {
+        return Gringo::Util::value_hash_record<StmWeakConstraint>(x.body_, x.tuple_);
+    }
 
   private:
-    friend struct Util::value_hasher<StmWeakConstraint>;
-
     Location loc_;
     BdLitArray body_;
     OptimizeTuple tuple_;
@@ -466,10 +485,12 @@ class StmShow {
     friend auto operator<=>(StmShow const &a, StmShow const &b) -> std::strong_ordering {
         return std::tie(a.term_, a.body_) <=> std::tie(b.term_, b.body_);
     }
+    //! Compute hash value.
+    friend auto value_hash(StmShow const &x) -> size_t {
+        return Gringo::Util::value_hash_record<StmShow>(x.term_, x.body_);
+    }
 
   private:
-    friend struct Util::value_hasher<StmShow>;
-
     Location loc_;
     Term term_;
     BdLitArray body_;
@@ -509,15 +530,16 @@ class StmShowSig {
     friend auto operator==(StmShowSig const &a, StmShowSig const &b) -> bool {
         return std::tie(a.name_, a.arity_, a.sign_) == std::tie(b.name_, b.arity_, b.sign_);
     }
-
     //! Compare two show signature statements.
     friend auto operator<=>(StmShowSig const &a, StmShowSig const &b) -> std::strong_ordering {
         return std::tie(a.name_, a.arity_, a.sign_) <=> std::tie(b.name_, b.arity_, b.sign_);
     }
+    //! Compute hash value.
+    friend auto value_hash(StmShowSig const &x) -> size_t {
+        return Gringo::Util::value_hash_record<StmShowSig>(x.name_, x.arity_, x.sign_);
+    }
 
   private:
-    friend struct Util::value_hasher<StmShowSig>;
-
     Location loc_;
     String name_;
     int arity_;
@@ -560,10 +582,12 @@ class StmProject {
     friend auto operator<=>(StmProject const &a, StmProject const &b) -> std::strong_ordering {
         return std::tie(a.term_, a.body_) <=> std::tie(b.term_, b.body_);
     }
+    //! Compute hash value.
+    friend auto value_hash(StmProject const &x) -> size_t {
+        return Gringo::Util::value_hash_record<StmProject>(x.term_, x.body_);
+    }
 
   private:
-    friend struct Util::value_hasher<StmProject>;
-
     Location loc_;
     Term term_;
     BdLitArray body_;
@@ -603,15 +627,16 @@ class StmProjectSig {
     friend auto operator==(StmProjectSig const &a, StmProjectSig const &b) -> bool {
         return std::tie(a.name_, a.arity_, a.sign_) == std::tie(b.name_, b.arity_, b.sign_);
     }
-
     //! Compare two project signature statements.
     friend auto operator<=>(StmProjectSig const &a, StmProjectSig const &b) -> std::strong_ordering {
         return std::tie(a.name_, a.arity_, a.sign_) <=> std::tie(b.name_, b.arity_, b.sign_);
     }
+    //! Compute hash value.
+    friend auto value_hash(StmProjectSig const &x) -> size_t {
+        return Gringo::Util::value_hash_record<StmProjectSig>(x.name_, x.arity_, x.sign_);
+    }
 
   private:
-    friend struct Util::value_hasher<StmProjectSig>;
-
     Location loc_;
     bool sign_;
     String name_;
@@ -652,15 +677,16 @@ class StmDefined {
     friend auto operator==(StmDefined const &a, StmDefined const &b) -> bool {
         return std::tie(a.name_, a.arity_, a.sign_) == std::tie(b.name_, b.arity_, b.sign_);
     }
-
     //! Compare two defined statements.
     friend auto operator<=>(StmDefined const &a, StmDefined const &b) -> std::strong_ordering {
         return std::tie(a.name_, a.arity_, a.sign_) <=> std::tie(b.name_, b.arity_, b.sign_);
     }
+    //! Compute hash value.
+    friend auto value_hash(StmDefined const &x) -> size_t {
+        return Gringo::Util::value_hash_record<StmDefined>(x.name_, x.arity_, x.sign_);
+    }
 
   private:
-    friend struct Util::value_hasher<StmDefined>;
-
     Location loc_;
     //! Whether the signature is negative.
     bool sign_;
@@ -708,10 +734,12 @@ class StmExternal {
     friend auto operator<=>(StmExternal const &a, StmExternal const &b) -> std::strong_ordering {
         return Util::make_strong_ordering(std::tie(a.term_, a.body_, a.type_) <=> std::tie(b.term_, b.body_, b.type_));
     }
+    //! Compute hash value.
+    friend auto value_hash(StmExternal const &x) -> size_t {
+        return Gringo::Util::value_hash_record<StmExternal>(x.term_, x.body_, x.type_);
+    }
 
   private:
-    friend struct Util::value_hasher<StmExternal>;
-
     Location loc_;
     Term term_;
     BdLitArray body_;
@@ -740,20 +768,14 @@ class Edge {
     }
 
     //! Compare two edges.
-    friend auto operator==(Edge const &a, Edge const &b) -> bool {
-        return std::tie(a.src_, a.dst_) == std::tie(b.src_, b.dst_);
-    }
+    friend auto operator==(Edge const &a, Edge const &b) -> bool = default;
     //! Compare two edges.
-    friend auto operator<=>(Edge const &a, Edge const &b) -> std::strong_ordering {
-        return std::tie(a.src_, a.dst_) <=> std::tie(b.src_, b.dst_);
-    }
+    friend auto operator<=>(Edge const &a, Edge const &b) -> std::strong_ordering = default;
+    //! Compute hash value.
+    friend auto value_hash(Edge const &x) -> size_t { return Gringo::Util::value_hash_record<Edge>(x.src_, x.dst_); }
 
   private:
-    friend struct Util::value_hasher<Edge>;
-
-    //! The source vertex.
     Term src_;
-    //! The target vertex.
     Term dst_;
 };
 //! A vector of edges.
@@ -795,10 +817,12 @@ class StmEdge {
     friend auto operator<=>(StmEdge const &a, StmEdge const &b) -> std::strong_ordering {
         return std::tie(a.edges_, a.body_) <=> std::tie(b.edges_, b.body_);
     }
+    //! Compute hash value.
+    friend auto value_hash(StmEdge const &x) -> size_t {
+        return Gringo::Util::value_hash_record<StmEdge>(x.edges_, x.body_);
+    }
 
   private:
-    friend struct Util::value_hasher<StmEdge>;
-
     Location loc_;
     EdgeArray edges_;
     BdLitArray body_;
@@ -859,10 +883,12 @@ class StmHeuristic {
         return Util::make_strong_ordering(std::tie(a.atom_, a.body_, a.type_, a.prio_, a.weight_) <=>
                                           std::tie(b.atom_, b.body_, b.type_, b.prio_, b.weight_));
     }
+    //! Compute hash value.
+    friend auto value_hash(StmHeuristic const &x) -> size_t {
+        return Gringo::Util::value_hash_record<StmHeuristic>(x.atom_, x.body_, x.weight_, x.prio_, x.type_);
+    }
 
   private:
-    friend struct Util::value_hasher<StmHeuristic>;
-
     Location loc_;
     Term atom_;
     BdLitArray body_;
@@ -907,10 +933,12 @@ class StmScript {
     friend auto operator<=>(StmScript const &a, StmScript const &b) -> std::strong_ordering {
         return std::tie(a.value_, a.type_) <=> std::tie(b.value_, b.type_);
     }
+    //! Compute hash value.
+    friend auto value_hash(StmScript const &x) -> size_t {
+        return Gringo::Util::value_hash_record<StmScript>(x.type_, x.value_);
+    }
 
   private:
-    friend struct Util::value_hasher<StmScript>;
-
     Location loc_;
     String type_;
     std::string value_;
@@ -960,10 +988,12 @@ class StmInclude {
     friend auto operator<=>(StmInclude const &a, StmInclude const &b) -> std::strong_ordering {
         return std::tie(a.value_, a.type_) <=> std::tie(b.value_, b.type_);
     }
+    //! Compute hash value.
+    friend auto value_hash(StmInclude const &x) -> size_t {
+        return Gringo::Util::value_hash_record<StmInclude>(x.type_, x.value_);
+    }
 
   private:
-    friend struct Util::value_hasher<StmInclude>;
-
     Location loc_;
     IncludeType type_;
     std::string value_;
@@ -1005,10 +1035,12 @@ class StmProgram {
     friend auto operator<=>(StmProgram const &a, StmProgram const &b) -> std::strong_ordering {
         return std::tie(a.name_, a.args_) <=> std::tie(b.name_, b.args_);
     }
+    //! Compute hash value.
+    friend auto value_hash(StmProgram const &x) -> size_t {
+        return Gringo::Util::value_hash_record<StmProgram>(x.name_, x.args_);
+    }
 
   private:
-    friend struct Util::value_hasher<StmProgram>;
-
     Location loc_;
     String name_;
     StringArray args_;
@@ -1060,10 +1092,12 @@ class StmConst {
     friend auto operator<=>(StmConst const &a, StmConst const &b) -> std::strong_ordering {
         return std::tie(a.name_, a.value_, a.type_) <=> std::tie(b.name_, b.value_, b.type_);
     }
+    //! Compute hash value.
+    friend auto value_hash(StmConst const &x) -> size_t {
+        return Gringo::Util::value_hash_record<StmConst>(x.type_, x.name_, x.value_);
+    }
 
   private:
-    friend struct Util::value_hasher<StmConst>;
-
     Location loc_;
     ConstType type_;
     String name_;
@@ -1110,15 +1144,16 @@ class StmComment {
     friend auto operator==(StmComment const &a, StmComment const &b) -> bool {
         return std::tie(a.value_, a.type_) == std::tie(b.value_, b.type_);
     }
-
     //! Compare two comments.
     friend auto operator<=>(StmComment const &a, StmComment const &b) -> std::strong_ordering {
         return std::tie(a.value_, a.type_) <=> std::tie(b.value_, b.type_);
     }
+    //! Compute hash value.
+    friend auto value_hash(StmComment const &x) -> size_t {
+        return Gringo::Util::value_hash_record<StmComment>(x.type_, x.value_);
+    }
 
   private:
-    friend struct Util::value_hasher<StmComment>;
-
     Location loc_;
     CommentType type_;
     std::string value_;
@@ -1134,30 +1169,3 @@ using StmVec = std::vector<Stm>;
 //! @}
 
 } // namespace Gringo::Input
-
-#ifndef GRINGO_DOXYGEN_SKIP
-
-GRINGO_HASH_PROTO(Gringo::Input::TheoryOpDefinition);
-GRINGO_HASH_PROTO(Gringo::Input::TheoryTermDefinition);
-GRINGO_HASH_PROTO(Gringo::Input::TheoryAtomDefinition);
-GRINGO_HASH_PROTO(Gringo::Input::StmTheory);
-GRINGO_HASH_PROTO(Gringo::Input::OptimizeTuple);
-GRINGO_HASH_PROTO(Gringo::Input::Edge);
-GRINGO_HASH_PROTO(Gringo::Input::StmRule);
-GRINGO_HASH_PROTO(Gringo::Input::StmOptimize);
-GRINGO_HASH_PROTO(Gringo::Input::StmWeakConstraint);
-GRINGO_HASH_PROTO(Gringo::Input::StmShow);
-GRINGO_HASH_PROTO(Gringo::Input::StmShowSig);
-GRINGO_HASH_PROTO(Gringo::Input::StmProject);
-GRINGO_HASH_PROTO(Gringo::Input::StmProjectSig);
-GRINGO_HASH_PROTO(Gringo::Input::StmDefined);
-GRINGO_HASH_PROTO(Gringo::Input::StmExternal);
-GRINGO_HASH_PROTO(Gringo::Input::StmEdge);
-GRINGO_HASH_PROTO(Gringo::Input::StmHeuristic);
-GRINGO_HASH_PROTO(Gringo::Input::StmScript);
-GRINGO_HASH_PROTO(Gringo::Input::StmInclude);
-GRINGO_HASH_PROTO(Gringo::Input::StmProgram);
-GRINGO_HASH_PROTO(Gringo::Input::StmConst);
-GRINGO_HASH_PROTO(Gringo::Input::StmComment);
-
-#endif

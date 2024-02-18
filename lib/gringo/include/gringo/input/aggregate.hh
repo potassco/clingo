@@ -73,10 +73,12 @@ class SetAggregateElement {
     friend auto operator<=>(SetAggregateElement const &a, SetAggregateElement const &b) -> std::strong_ordering {
         return std::tie(a.lit_, a.cond_) <=> std::tie(a.lit_, b.cond_);
     }
+    //! Compute hash value.
+    friend auto value_hash(SetAggregateElement const &x) -> size_t {
+        return Gringo::Util::value_hash_record<SetAggregateElement>(x.lit_, x.cond_);
+    }
 
   private:
-    friend struct Util::value_hasher<SetAggregateElement>;
-
     Location loc_;
     Lit lit_;
     LitArray cond_;
@@ -143,10 +145,12 @@ template <bool HasSign> class SetAggregate : public std::conditional_t<HasSign, 
         return Util::make_strong_ordering(std::tie(static_cast<Base const &>(a), a.lhs_, a.elems_, a.rhs_) <=>
                                           std::tie(static_cast<Base const &>(b), b.lhs_, b.elems_, b.rhs_));
     }
+    //! Compute hash value.
+    friend auto value_hash(SetAggregate const &x) -> size_t {
+        return Gringo::Util::value_hash_record<SetAggregate>(static_cast<Base const &>(x), x.lhs_, x.elems_, x.rhs_);
+    }
 
   private:
-    friend struct Util::value_hasher<SetAggregate>;
-
     Location loc_;
     SetAggregateElementArray elems_;
     LGuard lhs_;
@@ -162,11 +166,3 @@ using BdLitSetAggregate = SetAggregate<true>;
 //! @}
 
 } // namespace Gringo::Input
-
-#ifndef GRINGO_DOXYGEN_SKIP
-
-GRINGO_HASH_PROTO(Gringo::Input::SetAggregateElement);
-GRINGO_HASH_PROTO(Gringo::Input::HdLitSetAggregate);
-GRINGO_HASH_PROTO(Gringo::Input::BdLitSetAggregate);
-
-#endif
