@@ -23,6 +23,11 @@ struct Position {
     size_t line;
     //! The column number.
     size_t column;
+
+    //! Compare two positions.
+    friend auto operator==(Position const &a, Position const &b) -> bool = default;
+    //! Compare two positions.
+    friend auto operator<=>(Position const &a, Position const &b) = default;
 };
 
 //! The Location of an expression in an input source.
@@ -64,27 +69,32 @@ struct Location {
         }
         return a;
     }
+
+    //! Compare two positions.
+    friend auto operator==(Location const &a, Location const &b) -> bool = default;
+    //! Compare two positions.
+    friend auto operator<=>(Location const &a, Location const &b) = default;
+
     //! The position where the expression starts.
     Position begin;
     //! The position where the expression ends.
     Position end;
 };
 
-namespace Detail {
-template <typename T, typename V = void> static constexpr bool has_loc = false;
-template <typename T> static constexpr bool has_loc<T, std::void_t<decltype(std::declval<T>().loc())>> = true;
-}; // namespace Detail
-
 //! Create a location from the given two positions.
 inline auto operator+(Position a, Position b) -> Location { return {std::move(a), std::move(b)}; }
 
 //! Get the location of an expression.
-template <class T> auto location(T const &x) -> std::enable_if_t<Detail::has_loc<T>, Location const &> {
+template <class T>
+    requires requires(T const &x) { x.loc(); }
+auto location(T const &x) -> Location const & {
     return x.loc();
 }
 
 //! Get the location of an expression stored in a variant.
-template <class... T> auto location(std::variant<T...> const &x) -> Location const & {
+template <class... T>
+    requires requires(T const &...x) { (location(x), ...); }
+auto location(std::variant<T...> const &x) -> Location const & {
     return std::visit([](auto const &y) -> Location const & { return location(y); }, x);
 }
 

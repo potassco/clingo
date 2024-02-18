@@ -17,7 +17,8 @@ namespace Gringo {
 
 //! Check if s of type S can be casted to T without loss.
 template <class T, class S>
-inline auto check_cast(S in) -> std::enable_if_t<std::is_signed_v<T> && std::is_signed_v<S>, bool> {
+    requires std::is_signed_v<T> && std::is_signed_v<S>
+auto check_cast(S in) -> bool {
     return sizeof(T) >= sizeof(S) || (in >= std::numeric_limits<T>::min() && in <= std::numeric_limits<T>::max());
 }
 
@@ -35,7 +36,9 @@ inline auto check_add(int32_t a, int32_t b) -> std::optional<int32_t> {
 //! Add two integers checking overflows.
 //!
 //! Fallback for the general case.
-template <class S> inline auto check_add(S a, S b) -> std::enable_if_t<std::is_signed_v<S>, std::optional<S>> {
+template <class S>
+    requires std::is_signed_v<S>
+auto check_add(S a, S b) -> std::optional<S> {
     using U = std::make_unsigned_t<S>;
     S tmp = static_cast<S>(static_cast<U>(a) + static_cast<U>(b));
     if ((a >= 0 && b >= 0 && tmp < a) || (a < 0 && b < 0 && tmp > a)) {
@@ -46,7 +49,8 @@ template <class S> inline auto check_add(S a, S b) -> std::enable_if_t<std::is_s
 
 //! Prevent adding arithmetic types not explicitly handled.
 template <class S, class T>
-inline auto check_add(S a, T b) -> std::enable_if_t<std::is_arithmetic_v<S> && std::is_arithmetic_v<T>> = delete;
+    requires std::is_arithmetic_v<S> && std::is_arithmetic_v<T>
+auto check_add(S a, T b) = delete;
 
 // Subtraction
 
@@ -62,7 +66,9 @@ inline auto check_sub(int32_t a, int32_t b) -> std::optional<int32_t> {
 //! Subtract two integers checking overflows.
 //!
 //! Fallback for the general case.
-template <class S> inline auto check_sub(S a, S b) -> std::enable_if_t<std::is_signed_v<S>, std::optional<S>> {
+template <class S>
+    requires std::is_signed_v<S>
+auto check_sub(S a, S b) -> std::optional<S> {
     using U = std::make_unsigned_t<S>;
     S tmp = static_cast<S>(static_cast<U>(a) - static_cast<U>(b));
     if ((a >= 0 && b < 0 && tmp < a) || (b >= 0 && tmp > a)) {
@@ -73,12 +79,15 @@ template <class S> inline auto check_sub(S a, S b) -> std::enable_if_t<std::is_s
 
 //! Prevent subtracting arithmetic types not explicitly handled.
 template <class S, class T>
-inline auto check_sub(S a, T b) -> std::enable_if_t<std::is_arithmetic_v<S> && std::is_arithmetic_v<T>> = delete;
+    requires std::is_arithmetic_v<S> && std::is_arithmetic_v<T>
+auto check_sub(S a, T b) = delete;
 
 // Unary Minus
 
 //! Negate an integer checking overflows.
-template <class S> inline auto check_neg(S a) -> std::enable_if_t<std::is_signed_v<S>, std::optional<S>> {
+template <class S>
+    requires std::is_signed_v<S>
+auto check_neg(S a) -> std::optional<S> {
     if (a == std::numeric_limits<S>::min()) {
         return std::nullopt;
     }
@@ -88,7 +97,9 @@ template <class S> inline auto check_neg(S a) -> std::enable_if_t<std::is_signed
 // Absolute
 
 //! The absolute of an integer checking overflows.
-template <class S> inline auto check_abs(S a) -> std::enable_if_t<std::is_signed_v<S>, std::optional<S>> {
+template <class S>
+    requires std::is_signed_v<S>
+auto check_abs(S a) -> std::optional<S> {
     if (a == std::numeric_limits<S>::min()) {
         return std::nullopt;
     }
@@ -109,7 +120,9 @@ inline auto check_mul(int32_t a, int32_t b) -> std::optional<int32_t> {
 //! Multiply two integers checking overflows.
 //!
 //! Fallback for the general case.
-template <class S> inline auto check_mul(S a, S b) -> std::enable_if_t<std::is_signed_v<S>, std::optional<S>> {
+template <class S>
+    requires std::is_signed_v<S>
+auto check_mul(S a, S b) -> std::optional<S> {
 #ifdef __GNUC__
     S c;
     if (!__builtin_mul_overflow(a, b, &c)) {
@@ -135,12 +148,15 @@ template <class S> inline auto check_mul(S a, S b) -> std::enable_if_t<std::is_s
 
 //! Prevent multiplying arithmetic types not explicitly handled.
 template <class S, class T>
-inline auto check_mul(S a, T b) -> std::enable_if_t<std::is_arithmetic_v<S> && std::is_arithmetic_v<T>> = delete;
+    requires std::is_arithmetic_v<S> && std::is_arithmetic_v<T>
+auto check_mul(S a, T b) = delete;
 
 // Division
 
 //! Divide two integers checking overflows (truncating toward negative infinity).
-template <class S> inline auto check_div(S a, S b) -> std::enable_if_t<std::is_signed_v<S>, std::optional<S>> {
+template <class S>
+    requires std::is_signed_v<S>
+auto check_div(S a, S b) -> std::optional<S> {
     if (b == 0 || (b == -1 && a == std::numeric_limits<S>::min())) {
         return std::nullopt;
     }
@@ -155,12 +171,15 @@ template <class S> inline auto check_div(S a, S b) -> std::enable_if_t<std::is_s
 
 //! Prevent dividing arithmetic types not explicitly handled.
 template <class S, class T>
-inline auto check_div(S a, T b) -> std::enable_if_t<std::is_arithmetic_v<S> && std::is_arithmetic_v<T>> = delete;
+    requires std::is_arithmetic_v<S> && std::is_arithmetic_v<T>
+auto check_div(S a, T b) = delete;
 
 // Modulo
 
 //! Modulo of two integers checking overflows (truncating toward negative infinity).
-template <class S> inline auto check_mod(S a, S b) -> std::enable_if_t<std::is_signed_v<S>, std::optional<S>> {
+template <class S>
+    requires std::is_signed_v<S>
+auto check_mod(S a, S b) -> std::optional<S> {
     if (b == 0) {
         return std::nullopt;
     }
@@ -177,14 +196,17 @@ template <class S> inline auto check_mod(S a, S b) -> std::enable_if_t<std::is_s
 
 //! Modulo of arithmetic types not explicitly handled.
 template <class S, class T>
-inline auto check_mod(S a, T b) -> std::enable_if_t<std::is_arithmetic_v<S> && std::is_arithmetic_v<T>> = delete;
+    requires std::is_arithmetic_v<S> && std::is_arithmetic_v<T>
+auto check_mod(S a, T b) = delete;
 
 // Power
 
 //! Power of the given integers checking overflows.
 //!
 //! Note that <tt>a^0 = 1</tt> for all values of <tt>a</tt> and <tt>a^b=0</tt> whenever <tt>b<tt> is less than zero.
-template <class S> inline auto check_pow(S a, S b) -> std::enable_if_t<std::is_signed_v<S>, std::optional<S>> {
+template <class S>
+    requires std::is_signed_v<S>
+auto check_pow(S a, S b) -> std::optional<S> {
     if (b < 0) {
         return std::nullopt;
     }

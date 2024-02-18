@@ -318,9 +318,6 @@ struct UnpoolHeadBody {
 };
 
 struct UnpoolStatement {
-    template <class S, class... L>
-    using enable_for = std::enable_if_t<Util::is_among_v<S, L...>, std::optional<StmVec>>;
-
     template <class S> [[nodiscard]] auto rewrite_with_body(S const &stm) const -> std::optional<StmVec> {
         auto build = [&stm](auto body) -> Stm { return stm.update(a_body = std::move(body)); };
         auto unpool = UnpoolHeadBody{ctx};
@@ -355,15 +352,15 @@ struct UnpoolStatement {
     }
 
     template <class S>
-    constexpr auto operator()(S const &stm) const
-        -> enable_for<S, StmWeakConstraint, StmShow, StmProject, StmExternal, StmEdge, StmHeuristic> {
+        requires Util::is_among_v<S, StmWeakConstraint, StmShow, StmProject, StmExternal, StmEdge, StmHeuristic>
+    constexpr auto operator()(S const &stm) const -> std::optional<StmVec> {
         return rewrite_with_body(stm);
     }
 
     template <class S>
-    constexpr auto operator()(S const &stm) const
-        -> enable_for<S, StmTheory, StmShowSig, StmProjectSig, StmDefined, StmScript, StmInclude, StmProgram, StmConst,
-                      StmComment> {
+        requires Util::is_among_v<S, StmTheory, StmShowSig, StmProjectSig, StmDefined, StmScript, StmInclude,
+                                  StmProgram, StmConst, StmComment>
+    constexpr auto operator()(S const &stm) const -> std::optional<StmVec> {
         static_cast<void>(stm);
         return std::nullopt;
     }

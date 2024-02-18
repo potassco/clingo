@@ -700,8 +700,8 @@ auto clingo_ast::get_location(clingo_ast_attribute_t attr) const -> std::optiona
     if (attr != clingo_ast_attribute_location) {
         return std::nullopt;
     }
-    return visit([](auto &x) -> std::optional<clingo_location_t> {
-        if constexpr (Detail::has_loc<std::decay_t<decltype(x)>>) {
+    return visit([]<class T>(T const &x) -> std::optional<clingo_location_t> {
+        if constexpr (requires(T const &x) { x.loc(); }) {
             return make_loc(x.loc());
         }
         return std::nullopt;

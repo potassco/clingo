@@ -37,8 +37,8 @@ template <typename T, typename R> struct construct_v_ {
     using return_type = R;
 
     template <typename... Args>
-    constexpr auto operator()(Args &&...args) const
-        -> std::enable_if_t<std::is_constructible_v<T, Args &&...>, return_type> {
+        requires std::is_constructible_v<T, Args &&...>
+    constexpr auto operator()(Args &&...args) const -> return_type {
         return T{std::forward<Args>(args)...};
     }
 };
