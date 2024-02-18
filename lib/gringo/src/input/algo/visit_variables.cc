@@ -6,16 +6,6 @@ namespace Gringo::Input {
 
 namespace {
 
-struct CollectVariables : Visitor<CollectVariables> {
-    CollectVariables(VariableSet &vars) : vars{vars} {}
-    ~CollectVariables() { vars.clear(); }
-
-    template <class T> void accept(T const &x) const = delete;
-    void accept(TermVariable const &term) const { vars.emplace(term.name()); }
-
-    VariableSet &vars;
-};
-
 struct VisitVariables : Visitor<VisitVariables> {
     VisitVariables(VarVisitFun fun, VariableContext ctx = VariableContext::all) : fun{std::move(fun)}, ctx{ctx} {}
 

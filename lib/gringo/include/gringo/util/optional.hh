@@ -22,7 +22,6 @@ using transform_vec_result = std::optional<std::vector<typename transform_result
 } // namespace Detail
 
 //! Turn a weak ordering into a strong one.
-
 constexpr auto make_strong_ordering(std::weak_ordering order) {
     if (order == std::weak_ordering::equivalent) {
         return std::strong_ordering::equivalent;

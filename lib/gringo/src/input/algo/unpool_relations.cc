@@ -14,7 +14,7 @@ namespace {
 
 struct NegateLiteral {
     auto operator()(Lit const &lit) const -> Lit { return std::visit(*this, lit); }
-    auto operator()(LitBool const &lit) const -> Lit { return LitBool{lit.loc(), lit.sign(), !lit.value()}; }
+    auto operator()(LitBool const &lit) const -> Lit { return lit.update(a_value = !lit.value()); }
     auto operator()(LitComparison const &lit) const -> Lit {
         if (lit.rhs().size() == 1) {
             auto const &[rel, rhs] = lit.rhs().front();

@@ -144,4 +144,8 @@ auto unpool_crossproducts(auto build, auto unpool, auto const &...args) {
                                         std::index_sequence_for<decltype(args)...>());
 }
 
+template <class R, class T, class... Args> constexpr auto builder(T const &x, Args const &...args) {
+    return [&]<class... V>(V &&...vals) -> R { return x.update((args = std::forward<V>(vals))...); };
+}
+
 } // namespace Gringo::Input
