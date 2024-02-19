@@ -68,10 +68,6 @@ class SetAggregateElement : public Gringo::Util::Record::Base<SetAggregateElemen
     friend auto operator<=>(SetAggregateElement const &a, SetAggregateElement const &b) -> std::strong_ordering {
         return std::tie(a.lit_, a.cond_) <=> std::tie(a.lit_, b.cond_);
     }
-    //! Compute hash value.
-    friend auto value_hash(SetAggregateElement const &x) -> size_t {
-        return Gringo::Util::value_hash_record<SetAggregateElement>(x.lit_, x.cond_);
-    }
 
   private:
     Location loc_;
@@ -133,10 +129,6 @@ class SetAggregate : public std::conditional_t<HasSign, Signed, Unsigned>,
         // Note: std::optional does not produce a strong_ordering - bug???
         return Util::make_strong_ordering(std::tie(static_cast<Base const &>(a), a.lhs_, a.elems_, a.rhs_) <=>
                                           std::tie(static_cast<Base const &>(b), b.lhs_, b.elems_, b.rhs_));
-    }
-    //! Compute hash value.
-    friend auto value_hash(SetAggregate const &x) -> size_t {
-        return Gringo::Util::value_hash_record<SetAggregate>(static_cast<Base const &>(x), x.lhs_, x.elems_, x.rhs_);
     }
 
   private:

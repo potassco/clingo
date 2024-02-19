@@ -48,31 +48,6 @@ template <class T> class Transformer {
     }
 
   private:
-    template <class... U, size_t... I>
-    auto accept_(std::tuple<U...> const &tup, std::index_sequence<I...> indices, std::optional<U>... transfomed) const
-        -> std::optional<std::tuple<U...>> {
-        static_cast<void>(indices);
-        if ((transfomed.has_value() || ...)) {
-            return {std::move(transfomed).value_or(std::get<I>(tup))...};
-        }
-        return std::nullopt;
-    }
-
-    template <size_t i, class... U, class... Args>
-    auto accept_(std::tuple<U...> const &tup, Args &&...args) const -> std::optional<std::tuple<U...>> {
-        // Note: we have to use the complicated recursive version because the
-        // C++ standard leaves the order of argument evaluation unspecified.
-        if constexpr (i == sizeof...(U)) {
-            return accept_(tup, std::forward<Args>(args)..., std::index_sequence_for<U...>{});
-        } else {
-            return accept_(tup, std::forward<Args>(args)..., transform(std::get<i>(tup)));
-        }
-    }
-
-    template <class... U> auto accept_(std::tuple<U...> const &tup) const -> std::optional<std::tuple<U...>> {
-        return accept_<0>(tup);
-    }
-
     template <class U> auto accept_(std::optional<U> const &opt) const -> std::optional<std::optional<U>> {
         if (opt.has_value()) {
             // Note that the transformer will never remove an optional. If this
@@ -97,6 +72,17 @@ template <class T> class Transformer {
             return std::pair<U, V>{std::move(first).value_or(pair.first), std::move(second).value_or(pair.second)};
         }
         return std::nullopt;
+    }
+
+    template <class... Args>
+    auto accept_(std::tuple<Args...> const &tuple) const -> std::optional<std::tuple<Args...>> {
+        return [&, this]<size_t... Indices>(std::index_sequence<Indices...>) -> std::optional<std::tuple<Args...>> {
+            auto res = std::tuple{this->transform(std::get<Indices>(tuple))...};
+            if ((std::get<Indices>(res).has_value() || ...)) {
+                return std::tuple<Args...>{std::move(std::get<Indices>(res)).value_or(std::get<Indices>(tuple))...};
+            }
+            return std::nullopt;
+        }(std::index_sequence_for<Args...>());
     }
 
     template <class... U> auto accept_(std::variant<U...> const &var) const -> std::optional<std::variant<U...>> {

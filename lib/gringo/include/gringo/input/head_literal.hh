@@ -30,10 +30,6 @@ class HdLitSimple : public Gringo::Util::Record::Base<HdLitSimple> {
     friend auto operator==(HdLitSimple const &a, HdLitSimple const &b) -> bool = default;
     //! Compare two literals.
     friend auto operator<=>(HdLitSimple const &a, HdLitSimple const &b) = default;
-    //! Compute hash value.
-    friend auto value_hash(HdLitSimple const &x) -> size_t {
-        return Gringo::Util::value_hash_record<HdLitSimple>(x.lit_);
-    }
 
   private:
     Lit lit_;
@@ -66,10 +62,6 @@ class HdLitDisjunction : public Gringo::Util::Record::Base<HdLitDisjunction> {
     //! Compare two disjunctions.
     friend auto operator<=>(HdLitDisjunction const &a, HdLitDisjunction const &b) -> std::strong_ordering {
         return a.elems_ <=> b.elems_;
-    }
-    //! Compute hash value.
-    friend auto value_hash(HdLitDisjunction const &x) -> size_t {
-        return Gringo::Util::value_hash_record<HdLitDisjunction>(x.elems_);
     }
 
   private:
@@ -105,10 +97,6 @@ class HdLitAggregateElement : public Gringo::Util::Record::Base<HdLitAggregateEl
     //! Compare two head aggregate elements.
     friend auto operator<=>(HdLitAggregateElement const &a, HdLitAggregateElement const &b) -> std::strong_ordering {
         return std::tie(a.tuple_, a.lit_, a.cond_) <=> std::tie(b.tuple_, b.lit_, b.cond_);
-    }
-    //! Compute hash value.
-    friend auto value_hash(HdLitAggregateElement const &x) -> size_t {
-        return Gringo::Util::value_hash_record<HdLitAggregateElement>(x.tuple_, x.lit_, x.cond_);
     }
 
   private:
@@ -163,10 +151,6 @@ class HdLitAggregate : public Gringo::Util::Record::Base<HdLitAggregate> {
         // Note: std::optional does not produce a strong_ordering - bug???
         return Util::make_strong_ordering(std::tie(a.fun_, a.lhs_, a.elems_, a.rhs_) <=>
                                           std::tie(b.fun_, b.lhs_, b.elems_, b.rhs_));
-    }
-    //! Compute hash value.
-    friend auto value_hash(HdLitAggregate const &x) -> size_t {
-        return Gringo::Util::value_hash_record<HdLitAggregate>(x.fun_, x.elems_, x.lhs_, x.rhs_);
     }
 
   private:

@@ -37,8 +37,6 @@ class Signed {
     friend auto operator==(Signed const &a, Signed const &b) -> bool = default;
     //! Compare the signs.
     friend auto operator<=>(Signed const &a, Signed const &b) -> std::strong_ordering = default;
-    //! Compute hash value.
-    friend auto value_hash(Signed const &x) -> size_t { return Gringo::Util::value_hash_record<Signed>(x.sign_); }
 
   private:
     Sign sign_;
@@ -50,11 +48,6 @@ class Unsigned {
     friend auto operator==(Unsigned const &a, Unsigned const &b) -> bool = default;
     //! Compare the signs.
     friend auto operator<=>(Unsigned const &a, Unsigned const &b) -> std::strong_ordering = default;
-    //! Compute hash value.
-    friend auto value_hash(Unsigned const &x) -> size_t {
-        static_cast<void>(x);
-        return Gringo::Util::value_hash_record<Unsigned>();
-    }
 };
 
 //! Enumeration of relation symbols.
@@ -105,10 +98,6 @@ class LitBool : public Gringo::Util::Record::Base<LitBool> {
     friend auto operator<=>(LitBool const &a, LitBool const &b) -> std::strong_ordering {
         return std::tie(a.sign_, a.value_) <=> std::tie(b.sign_, b.value_);
     }
-    //! Compute hash value.
-    friend auto value_hash(LitBool const &x) -> size_t {
-        return Gringo::Util::value_hash_record<LitBool>(x.sign_, x.value_);
-    }
 
   private:
     Location loc_;
@@ -148,10 +137,6 @@ class LitComparison : public Gringo::Util::Record::Base<LitComparison> {
     friend auto operator<=>(LitComparison const &a, LitComparison const &b) -> std::strong_ordering {
         return std::tie(a.sign_, a.lhs_, a.rhs_) <=> std::tie(b.sign_, b.lhs_, b.rhs_);
     }
-    //! Compute hash value.
-    friend auto value_hash(LitComparison const &x) -> size_t {
-        return Gringo::Util::value_hash_record<LitComparison>(x.sign_, x.lhs_, x.rhs_);
-    }
 
   private:
     Location loc_;
@@ -188,10 +173,6 @@ class LitSymbolic : public Gringo::Util::Record::Base<LitSymbolic> {
     //! Compare two symbolic literals.
     friend auto operator<=>(LitSymbolic const &a, LitSymbolic const &b) -> std::strong_ordering {
         return std::tie(a.sign_, a.term_) <=> std::tie(b.sign_, b.term_);
-    }
-    //! Compute hash value.
-    friend auto value_hash(LitSymbolic const &x) -> size_t {
-        return Gringo::Util::value_hash_record<LitSymbolic>(x.sign_, x.term_);
     }
 
   private:
@@ -231,10 +212,6 @@ class CondLit : public Gringo::Util::Record::Base<CondLit> {
     //! Compare two conditional literals.
     friend auto operator<=>(CondLit const &a, CondLit const &b) -> std::strong_ordering {
         return std::tie(a.lit_, a.cond_) <=> std::tie(b.lit_, b.cond_);
-    }
-    //! Compute hash value.
-    friend auto value_hash(CondLit const &x) -> size_t {
-        return Gringo::Util::value_hash_record<CondLit>(x.lit_, x.cond_);
     }
 
   private:

@@ -41,10 +41,6 @@ class StmRule : public Gringo::Util::Record::Base<StmRule> {
     friend auto operator<=>(StmRule const &a, StmRule const &b) -> std::strong_ordering {
         return std::tie(a.head_, a.body_) <=> std::tie(b.head_, b.body_);
     }
-    //! Compute hash value.
-    friend auto value_hash(StmRule const &x) -> size_t {
-        return Gringo::Util::value_hash_record<StmRule>(x.head_, x.body_);
-    }
 
   private:
     Location loc_;
@@ -93,10 +89,6 @@ class TheoryOpDefinition : public Gringo::Util::Record::Base<TheoryOpDefinition>
     friend auto operator<=>(TheoryOpDefinition const &a, TheoryOpDefinition const &b) -> std::strong_ordering {
         return std::tie(a.op_, a.prio_, a.type_) <=> std::tie(b.op_, b.prio_, b.type_);
     }
-    //! Compute hash value.
-    friend auto value_hash(TheoryOpDefinition const &x) -> size_t {
-        return Gringo::Util::value_hash_record<TheoryOpDefinition>(x.op_, x.prio_, x.type_);
-    }
 
   private:
     Location loc_;
@@ -137,10 +129,6 @@ class TheoryTermDefinition : public Gringo::Util::Record::Base<TheoryTermDefinit
     //! Compare two theory term definitions.
     friend auto operator<=>(TheoryTermDefinition const &a, TheoryTermDefinition const &b) -> std::strong_ordering {
         return std::tie(a.name_, a.op_defs_) <=> std::tie(b.name_, b.op_defs_);
-    }
-    //! Compute hash value.
-    friend auto value_hash(TheoryTermDefinition const &x) -> size_t {
-        return Gringo::Util::value_hash_record<TheoryTermDefinition>(x.name_, x.op_defs_);
     }
 
   private:
@@ -207,10 +195,6 @@ class TheoryAtomDefinition : public Gringo::Util::Record::Base<TheoryAtomDefinit
         return Util::make_strong_ordering(std::tie(a.name_, a.arity_, a.term_, a.type_, a.rhs_) <=>
                                           std::tie(b.name_, b.arity_, b.term_, b.type_, b.rhs_));
     }
-    //! Compute hash value.
-    friend auto value_hash(TheoryAtomDefinition const &x) -> size_t {
-        return Gringo::Util::value_hash_record<TheoryAtomDefinition>(x.name_, x.arity_, x.term_, x.rhs_, x.type_);
-    }
 
   private:
     Location loc_;
@@ -257,10 +241,6 @@ class StmTheory : public Gringo::Util::Record::Base<StmTheory> {
     friend auto operator<=>(StmTheory const &a, StmTheory const &b) -> std::strong_ordering {
         return std::tie(a.name_, a.term_defs_, a.atom_defs_) <=> std::tie(b.name_, b.term_defs_, b.atom_defs_);
     }
-    //! Compute hash value.
-    friend auto value_hash(StmTheory const &x) -> size_t {
-        return Gringo::Util::value_hash_record<StmTheory>(x.name_, x.term_defs_, x.atom_defs_);
-    }
 
   private:
     Location loc_;
@@ -301,10 +281,6 @@ class OptimizeTuple : public Gringo::Util::Record::Base<OptimizeTuple> {
     friend auto operator<=>(OptimizeTuple const &a, OptimizeTuple const &b) -> std::strong_ordering {
         return Util::make_strong_ordering(std::tie(a.weight_, a.terms_, a.prio_) <=>
                                           std::tie(b.weight_, b.terms_, b.prio_));
-    }
-    //! Compute hash value.
-    friend auto value_hash(OptimizeTuple const &x) -> size_t {
-        return Gringo::Util::value_hash_record<OptimizeTuple>(x.weight_, x.prio_, x.terms_);
     }
 
   private:
@@ -347,10 +323,6 @@ class StmOptimize : public Gringo::Util::Record::Base<StmOptimize> {
     friend auto operator<=>(StmOptimize const &a, StmOptimize const &b) -> std::strong_ordering {
         return std::tie(a.type_, a.elems_) <=> std::tie(b.type_, b.elems_);
     }
-    //! Compute hash value.
-    friend auto value_hash(StmOptimize const &x) -> size_t {
-        return Gringo::Util::value_hash_record<StmOptimize>(x.type_, x.elems_);
-    }
 
   private:
     Location loc_;
@@ -388,10 +360,6 @@ class StmWeakConstraint : public Gringo::Util::Record::Base<StmWeakConstraint> {
     friend auto operator<=>(StmWeakConstraint const &a, StmWeakConstraint const &b) -> std::strong_ordering {
         return std::tie(a.body_, a.tuple_) <=> std::tie(b.body_, b.tuple_);
     }
-    //! Compute hash value.
-    friend auto value_hash(StmWeakConstraint const &x) -> size_t {
-        return Gringo::Util::value_hash_record<StmWeakConstraint>(x.body_, x.tuple_);
-    }
 
   private:
     Location loc_;
@@ -427,10 +395,6 @@ class StmShow : public Gringo::Util::Record::Base<StmShow> {
     //! Compare two show statements.
     friend auto operator<=>(StmShow const &a, StmShow const &b) -> std::strong_ordering {
         return std::tie(a.term_, a.body_) <=> std::tie(b.term_, b.body_);
-    }
-    //! Compute hash value.
-    friend auto value_hash(StmShow const &x) -> size_t {
-        return Gringo::Util::value_hash_record<StmShow>(x.term_, x.body_);
     }
 
   private:
@@ -471,10 +435,6 @@ class StmShowSig : public Gringo::Util::Record::Base<StmShowSig> {
     friend auto operator<=>(StmShowSig const &a, StmShowSig const &b) -> std::strong_ordering {
         return std::tie(a.name_, a.arity_, a.sign_) <=> std::tie(b.name_, b.arity_, b.sign_);
     }
-    //! Compute hash value.
-    friend auto value_hash(StmShowSig const &x) -> size_t {
-        return Gringo::Util::value_hash_record<StmShowSig>(x.name_, x.arity_, x.sign_);
-    }
 
   private:
     Location loc_;
@@ -511,10 +471,6 @@ class StmProject : public Gringo::Util::Record::Base<StmProject> {
     //! Compare two project statements.
     friend auto operator<=>(StmProject const &a, StmProject const &b) -> std::strong_ordering {
         return std::tie(a.term_, a.body_) <=> std::tie(b.term_, b.body_);
-    }
-    //! Compute hash value.
-    friend auto value_hash(StmProject const &x) -> size_t {
-        return Gringo::Util::value_hash_record<StmProject>(x.term_, x.body_);
     }
 
   private:
@@ -555,10 +511,6 @@ class StmProjectSig : public Gringo::Util::Record::Base<StmProjectSig> {
     friend auto operator<=>(StmProjectSig const &a, StmProjectSig const &b) -> std::strong_ordering {
         return std::tie(a.name_, a.arity_, a.sign_) <=> std::tie(b.name_, b.arity_, b.sign_);
     }
-    //! Compute hash value.
-    friend auto value_hash(StmProjectSig const &x) -> size_t {
-        return Gringo::Util::value_hash_record<StmProjectSig>(x.name_, x.arity_, x.sign_);
-    }
 
   private:
     Location loc_;
@@ -598,10 +550,6 @@ class StmDefined : public Gringo::Util::Record::Base<StmDefined> {
     //! Compare two defined statements.
     friend auto operator<=>(StmDefined const &a, StmDefined const &b) -> std::strong_ordering {
         return std::tie(a.name_, a.arity_, a.sign_) <=> std::tie(b.name_, b.arity_, b.sign_);
-    }
-    //! Compute hash value.
-    friend auto value_hash(StmDefined const &x) -> size_t {
-        return Gringo::Util::value_hash_record<StmDefined>(x.name_, x.arity_, x.sign_);
     }
 
   private:
@@ -646,10 +594,6 @@ class StmExternal : public Gringo::Util::Record::Base<StmExternal> {
     friend auto operator<=>(StmExternal const &a, StmExternal const &b) -> std::strong_ordering {
         return Util::make_strong_ordering(std::tie(a.term_, a.body_, a.type_) <=> std::tie(b.term_, b.body_, b.type_));
     }
-    //! Compute hash value.
-    friend auto value_hash(StmExternal const &x) -> size_t {
-        return Gringo::Util::value_hash_record<StmExternal>(x.term_, x.body_, x.type_);
-    }
 
   private:
     Location loc_;
@@ -675,8 +619,6 @@ class Edge : public Gringo::Util::Record::Base<Edge> {
     friend auto operator==(Edge const &a, Edge const &b) -> bool = default;
     //! Compare two edges.
     friend auto operator<=>(Edge const &a, Edge const &b) -> std::strong_ordering = default;
-    //! Compute hash value.
-    friend auto value_hash(Edge const &x) -> size_t { return Gringo::Util::value_hash_record<Edge>(x.src_, x.dst_); }
 
   private:
     Term src_;
@@ -713,10 +655,6 @@ class StmEdge : public Gringo::Util::Record::Base<StmEdge> {
     //! Compare two edge statements.
     friend auto operator<=>(StmEdge const &a, StmEdge const &b) -> std::strong_ordering {
         return std::tie(a.edges_, a.body_) <=> std::tie(b.edges_, b.body_);
-    }
-    //! Compute hash value.
-    friend auto value_hash(StmEdge const &x) -> size_t {
-        return Gringo::Util::value_hash_record<StmEdge>(x.edges_, x.body_);
     }
 
   private:
@@ -774,10 +712,6 @@ class StmHeuristic : public Gringo::Util::Record::Base<StmHeuristic> {
         return Util::make_strong_ordering(std::tie(a.atom_, a.body_, a.type_, a.prio_, a.weight_) <=>
                                           std::tie(b.atom_, b.body_, b.type_, b.prio_, b.weight_));
     }
-    //! Compute hash value.
-    friend auto value_hash(StmHeuristic const &x) -> size_t {
-        return Gringo::Util::value_hash_record<StmHeuristic>(x.atom_, x.body_, x.weight_, x.prio_, x.type_);
-    }
 
   private:
     Location loc_;
@@ -816,10 +750,6 @@ class StmScript : public Gringo::Util::Record::Base<StmScript> {
     //! Compare two script statements.
     friend auto operator<=>(StmScript const &a, StmScript const &b) -> std::strong_ordering {
         return std::tie(a.value_, a.type_) <=> std::tie(b.value_, b.type_);
-    }
-    //! Compute hash value.
-    friend auto value_hash(StmScript const &x) -> size_t {
-        return Gringo::Util::value_hash_record<StmScript>(x.type_, x.value_);
     }
 
   private:
@@ -865,10 +795,6 @@ class StmInclude : public Gringo::Util::Record::Base<StmInclude> {
     friend auto operator<=>(StmInclude const &a, StmInclude const &b) -> std::strong_ordering {
         return std::tie(a.value_, a.type_) <=> std::tie(b.value_, b.type_);
     }
-    //! Compute hash value.
-    friend auto value_hash(StmInclude const &x) -> size_t {
-        return Gringo::Util::value_hash_record<StmInclude>(x.type_, x.value_);
-    }
 
   private:
     Location loc_;
@@ -904,10 +830,6 @@ class StmProgram : public Gringo::Util::Record::Base<StmProgram> {
     //! Compare two program statements.
     friend auto operator<=>(StmProgram const &a, StmProgram const &b) -> std::strong_ordering {
         return std::tie(a.name_, a.args_) <=> std::tie(b.name_, b.args_);
-    }
-    //! Compute hash value.
-    friend auto value_hash(StmProgram const &x) -> size_t {
-        return Gringo::Util::value_hash_record<StmProgram>(x.name_, x.args_);
     }
 
   private:
@@ -956,10 +878,6 @@ class StmConst : public Gringo::Util::Record::Base<StmConst> {
     friend auto operator<=>(StmConst const &a, StmConst const &b) -> std::strong_ordering {
         return std::tie(a.name_, a.value_, a.type_) <=> std::tie(b.name_, b.value_, b.type_);
     }
-    //! Compute hash value.
-    friend auto value_hash(StmConst const &x) -> size_t {
-        return Gringo::Util::value_hash_record<StmConst>(x.type_, x.name_, x.value_);
-    }
 
   private:
     Location loc_;
@@ -1004,10 +922,6 @@ class StmComment : public Gringo::Util::Record::Base<StmComment> {
     //! Compare two comments.
     friend auto operator<=>(StmComment const &a, StmComment const &b) -> std::strong_ordering {
         return std::tie(a.value_, a.type_) <=> std::tie(b.value_, b.type_);
-    }
-    //! Compute hash value.
-    friend auto value_hash(StmComment const &x) -> size_t {
-        return Gringo::Util::value_hash_record<StmComment>(x.type_, x.value_);
     }
 
   private:

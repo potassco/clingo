@@ -79,7 +79,9 @@ struct value_hasher {
 inline auto value_hash(std::type_info const &x) -> size_t { return x.hash_code(); }
 
 template <class T> auto value_hash(T const &x) -> size_t {
-    if constexpr (std::is_arithmetic_v<T> || std::is_enum_v<T>) {
+    if constexpr (requires { x.hash(); }) {
+        return x.hash();
+    } else if constexpr (std::is_arithmetic_v<T> || std::is_enum_v<T>) {
         return hash_mix(std::hash<T>{}(x));
     } else {
         return std::hash<T>{}(x);
