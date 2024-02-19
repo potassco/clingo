@@ -14,25 +14,17 @@ namespace Gringo::Input {
 //! @{
 
 //! A single literal in a rule body.
-class BdLitSimple {
+class BdLitSimple : public Gringo::Util::Record::Base<BdLitSimple> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() { return std::tuple{a_lit = &BdLitSimple::lit_}; }
+
     //! Wrap a literal in a body literal.
     BdLitSimple(Lit lit) : lit_{std::move(lit)} {}
     //! The location of the literal.
     [[nodiscard]] auto loc() const -> Location const & { return location(lit_); }
     //! The literal.
     [[nodiscard]] auto lit() const -> Lit const & { return lit_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_lit}, Types{args...});
-        return BdLitSimple{select<Opt>(a_lit, lit_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two literals.
     friend auto operator==(BdLitSimple const &a, BdLitSimple const &b) -> bool = default;
@@ -48,25 +40,17 @@ class BdLitSimple {
 };
 
 //! A conditional literal in a rule body.
-class BdLitConjunction {
+class BdLitConjunction : public Gringo::Util::Record::Base<BdLitConjunction> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() { return std::tuple{a_lit = &BdLitConjunction::lit_}; }
+
     //! Construct a conjunction.
     BdLitConjunction(CondLit lit) : lit_{std::move(lit)} {}
     //! Get the location of the literal.
     [[nodiscard]] auto loc() const -> Location const & { return lit_.loc(); }
     //! The conditional literal representing the elements of the conjunction.
     [[nodiscard]] auto lit() const -> CondLit const & { return lit_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_lit}, Types{args...});
-        return BdLitConjunction{select<Opt>(a_lit, lit_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two body conjunctions.
     friend auto operator==(BdLitConjunction const &a, BdLitConjunction const &b) -> bool = default;
@@ -82,8 +66,14 @@ class BdLitConjunction {
 };
 
 //! A body aggregate element.
-class BdLitAggregateElement {
+class BdLitAggregateElement : public Gringo::Util::Record::Base<BdLitAggregateElement> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &BdLitAggregateElement::loc_, a_tuple = &BdLitAggregateElement::tuple_,
+                          a_cond = &BdLitAggregateElement::cond_};
+    }
+
     explicit BdLitAggregateElement(Location loc, TermArray tuple, LitArray cond)
         : loc_{loc}, tuple_{std::move(tuple)}, cond_{std::move(cond)} {}
     //! The location of the element.
@@ -92,18 +82,6 @@ class BdLitAggregateElement {
     [[nodiscard]] auto tuple() const -> TermArray const & { return tuple_; }
     //! The condition of the element.
     [[nodiscard]] auto cond() const -> LitArray const & { return cond_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_tuple, a_cond}, Types{args...});
-        return BdLitAggregateElement{select<Opt>(a_loc, loc_, args...), select<Opt>(a_tuple, tuple_, args...),
-                                     select<Opt>(a_cond, cond_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two body aggregates elements.
     friend auto operator==(BdLitAggregateElement const &a, BdLitAggregateElement const &b) -> bool {
@@ -129,8 +107,15 @@ using BdLitAggregateElementArray = Util::immutable_array<BdLitAggregateElement>;
 //! A body aggregate.
 //!
 //! For example: <tt>\#count { X: q(X) } = 1</tt>
-class BdLitAggregate {
+class BdLitAggregate : public Gringo::Util::Record::Base<BdLitAggregate> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &BdLitAggregate::loc_,     a_sign = &BdLitAggregate::sign_,
+                          a_lhs = &BdLitAggregate::lhs_,     a_fun = &BdLitAggregate::fun_,
+                          a_elems = &BdLitAggregate::elems_, a_rhs = &BdLitAggregate::rhs_};
+    }
+
     //! Construct a body aggregate.
     explicit BdLitAggregate(Location loc, Sign sign, LGuard lhs, AggregateFunction fun,
                             BdLitAggregateElementArray elems, RGuard rhs)
@@ -149,19 +134,6 @@ class BdLitAggregate {
     [[nodiscard]] auto lhs() const -> LGuard const & { return lhs_; }
     //! An optional right guard.
     [[nodiscard]] auto rhs() const -> RGuard const & { return rhs_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_sign, a_fun, a_lhs, a_elems, a_rhs}, Types{args...});
-        return BdLitAggregate{select<Opt>(a_loc, loc_, args...),     select<Opt>(a_sign, sign_, args...),
-                              select<Opt>(a_lhs, lhs_, args...),     select<Opt>(a_fun, fun_, args...),
-                              select<Opt>(a_elems, elems_, args...), select<Opt>(a_rhs, rhs_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two body aggregates.
     friend auto operator==(BdLitAggregate const &a, BdLitAggregate const &b) -> bool {

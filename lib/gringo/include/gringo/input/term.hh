@@ -54,23 +54,15 @@ using Term = std::variant<TermVariable, TermSymbol, TermTuple, TermFunction, Ter
 using TermArray = Util::immutable_array<Term>;
 
 //! Indicate a projected position.
-class Projection {
+class Projection : public Gringo::Util::Record::Base<Projection> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() { return std::tuple{a_loc = &Projection::loc_}; }
+
     //! Construct a projection indicator.
     explicit Projection(Location loc) : loc_{loc} {}
     //! The location of the projected position.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc}, Types{args...});
-        return Projection{select<Opt>(a_loc, loc_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two projected positions.
     friend auto operator==(Projection const &a, Projection const &b) -> bool {
@@ -99,24 +91,16 @@ using Argument = std::variant<Projection, Term>;
 //! A tuple of terms or positions to project.
 using ArgumentArray = Util::immutable_array<Argument>;
 
-class ArgumentTuple {
+class ArgumentTuple : public Gringo::Util::Record::Base<ArgumentTuple> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() { return std::tuple{a_elems = &ArgumentTuple::elems_}; }
+
     //! Construct an argument tuple.
     ArgumentTuple(ArgumentArray elems);
 
     //! The elements of the tuple.
     [[nodiscard]] auto elems() const -> ArgumentArray const & { return elems_; }
-
-    //! Record update.
-    template <bool Opt = false, class... Args> auto update(Args... args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_elems}, Types{args...});
-        return ArgumentTuple{select<Opt>(a_elems, elems_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two argument tuples.
     friend auto operator==(ArgumentTuple const &a, ArgumentTuple const &b) -> bool;
@@ -135,8 +119,14 @@ using PoolArray = Util::immutable_array<ArgumentTuple>;
 //! Term representing a variable.
 //!
 //! For example <tt>X</tt>.
-class TermVariable {
+class TermVariable : public Gringo::Util::Record::Base<TermVariable> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &TermVariable::loc_, a_name = &TermVariable::name_,
+                          a_anonymous = &TermVariable::anonymous_};
+    }
+
     //! Construct a variable.
     explicit TermVariable(Location loc, String name, bool is_anonymous = false)
         : loc_{std::move(loc)}, name_{std::move(name)}, anonymous_{is_anonymous} {}
@@ -147,18 +137,6 @@ class TermVariable {
     [[nodiscard]] auto name() const -> String { return name_; }
     //! Whether the variable is anonymous.
     [[nodiscard]] auto anonymous() const -> bool { return anonymous_; }
-
-    //! Record update.
-    template <bool Opt = false, class... Args> auto update(Args... args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_name, a_anonymous}, Types{args...});
-        return TermVariable{select<Opt>(a_loc, loc_, args...), select<Opt>(a_name, name_, args...),
-                            select<Opt>(a_anonymous, anonymous_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two variables.
     friend auto operator==(TermVariable const &a, TermVariable const &b) -> bool { return a.name_ == b.name_; }
@@ -180,8 +158,11 @@ class TermVariable {
 //! Term representing a symbol.
 //!
 //! For example <tt>1</tt>.
-class TermSymbol {
+class TermSymbol : public Gringo::Util::Record::Base<TermSymbol> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() { return std::tuple{a_loc = &TermSymbol::loc_, a_value = &TermSymbol::value_}; }
+
     //! Construct term with the given symbol.
     explicit TermSymbol(Location loc, Symbol value) : loc_{std::move(loc)}, value_{std::move(value)} {}
 
@@ -189,17 +170,6 @@ class TermSymbol {
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The associated symbol.
     [[nodiscard]] auto value() const -> Symbol { return value_; }
-
-    //! Record update.
-    template <bool Opt = false, class... Args> auto update(Args... args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_value}, Types{args...});
-        return TermSymbol{select<Opt>(a_loc, loc_, args...), select<Opt>(a_value, value_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two symbols.
     friend auto operator==(TermSymbol const &a, TermSymbol const &b) -> bool { return a.value_ == b.value_; }
@@ -225,8 +195,11 @@ using TupleElementArray = Util::immutable_array<TupleElement>;
 //! Term representing a tuple.
 //!
 //! For example <tt>(a,b;c)</tt>.
-class TermTuple {
+class TermTuple : public Gringo::Util::Record::Base<TermTuple> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() { return std::tuple{a_loc = &TermTuple::loc_, a_pool = &TermTuple::pool_}; }
+
     //! Construct a  tuple.
     explicit TermTuple(Location loc, TupleElementArray pool);
 
@@ -234,17 +207,6 @@ class TermTuple {
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The argument pool of the tuple.
     [[nodiscard]] auto pool() const -> TupleElementArray const & { return pool_; }
-
-    //! Record update.
-    template <bool Opt = false, class... Args> auto update(Args... args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_pool}, Types{args...});
-        return TermTuple{select<Opt>(a_loc, loc_, args...), select<Opt>(a_pool, pool_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two tuple terms.
     friend auto operator==(TermTuple const &a, TermTuple const &b) -> bool;
@@ -261,8 +223,14 @@ class TermTuple {
 //! Term representing a symbolic or external function.
 //!
 //! For example <tt>f(a,b;c)</tt>.
-class TermFunction {
+class TermFunction : public Gringo::Util::Record::Base<TermFunction> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &TermFunction::loc_, a_name = &TermFunction::name_, a_pool = &TermFunction::pool_,
+                          a_exteral = &TermFunction::external_};
+    }
+
     //! Construct a symbolic function.
     //!
     //! The function takes a pool of term tuples, which will be reduced to a single element after calling
@@ -277,18 +245,6 @@ class TermFunction {
     [[nodiscard]] auto pool() const -> PoolArray const & { return pool_; }
     //! Whether this is an external function.
     [[nodiscard]] auto external() const -> bool { return external_; }
-
-    //! Record update.
-    template <bool Opt = false, class... Args> auto update(Args... args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_name, a_pool, a_exteral}, Types{args...});
-        return TermFunction{select<Opt>(a_loc, loc_, args...), select<Opt>(a_name, name_, args...),
-                            select<Opt>(a_pool, pool_, args...), select<Opt>(a_exteral, external_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two function terms.
     friend auto operator==(TermFunction const &a, TermFunction const &b) -> bool;
@@ -307,8 +263,11 @@ class TermFunction {
 //! Term representing the absolute function.
 //!
 //! For example <tt>|-X|</tt>.
-class TermAbs {
+class TermAbs : public Gringo::Util::Record::Base<TermAbs> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() { return std::tuple{a_loc = &TermAbs::loc_, a_pool = &TermAbs::pool_}; }
+
     //! Construct an absolute term.
     //!
     //! The term has a pool of arguments, which will be reduced to a single element after calling Term::unpool().
@@ -318,17 +277,6 @@ class TermAbs {
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The argument pool of the absolute term.
     [[nodiscard]] auto pool() const -> TermArray const & { return pool_; }
-
-    //! Record update.
-    template <bool Opt = false, class... Args> auto update(Args... args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_pool}, Types{args...});
-        return TermAbs{select<Opt>(a_loc, loc_, args...), select<Opt>(a_pool, pool_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two absolute terms.
     friend auto operator==(TermAbs const &a, TermAbs const &b) -> bool;
@@ -351,8 +299,13 @@ enum class UnaryOperator : int {
 //! Term representing an unary operation.
 //!
 //! For example <tt>-X</tt>.
-class TermUnary {
+class TermUnary : public Gringo::Util::Record::Base<TermUnary> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &TermUnary::loc_, a_op = &TermUnary::op_, a_rhs = &TermUnary::rhs_};
+    }
+
     //! Construct a term for an unary operation.
     explicit TermUnary(Location loc, UnaryOperator op, Util::immutable_value<Term> rhs);
 
@@ -362,18 +315,6 @@ class TermUnary {
     [[nodiscard]] auto op() const -> UnaryOperator { return op_; }
     //! The right-hand-side.
     [[nodiscard]] auto rhs() const -> Util::immutable_value<Term> const & { return rhs_; }
-
-    //! Record update.
-    template <bool Opt = false, class... Args> auto update(Args... args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_op, a_rhs}, Types{args...});
-        return TermUnary{select<Opt>(a_loc, loc_, args...), select<Opt>(a_op, op_, args...),
-                         select<Opt>(a_rhs, rhs_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two unary terms.
     friend auto operator==(TermUnary const &a, TermUnary const &b) -> bool;
@@ -405,8 +346,14 @@ enum class BinaryOperator : int {
 //! Term representing a binary operation.
 //!
 //! For example <tt>X-Y</tt>.
-class TermBinary {
+class TermBinary : public Gringo::Util::Record::Base<TermBinary> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &TermBinary::loc_, a_lhs = &TermBinary::lhs_, a_op = &TermBinary::op_,
+                          a_rhs = &TermBinary::rhs_};
+    }
+
     //! Construct a term for an binary operation.
     explicit TermBinary(Location loc, Util::immutable_value<Term> lhs, BinaryOperator op,
                         Util::immutable_value<Term> rhs);
@@ -419,18 +366,6 @@ class TermBinary {
     [[nodiscard]] auto rhs() const -> Util::immutable_value<Term> const & { return rhs_; }
     //! The operation.
     [[nodiscard]] auto op() const -> BinaryOperator { return op_; }
-
-    //! Record update.
-    template <bool Opt = false, class... Args> auto update(Args... args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_lhs, a_op, a_rhs}, Types{args...});
-        return TermBinary{select<Opt>(a_loc, loc_, args...), select<Opt>(a_lhs, lhs_, args...),
-                          select<Opt>(a_op, op_, args...), select<Opt>(a_rhs, rhs_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two binary terms.
     friend auto operator==(TermBinary const &a, TermBinary const &b) -> bool;

@@ -15,8 +15,13 @@ namespace Gringo::Input {
 //! A rule.
 //!
 //! For example: <tt>p(X) :- q(X)</tt>.
-class StmRule {
+class StmRule : public Gringo::Util::Record::Base<StmRule> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &StmRule::loc_, a_head = &StmRule::head_, a_body = &StmRule::body_};
+    }
+
     //! Construct a rule.
     explicit StmRule(Location loc, HdLit head, BdLitArray body)
         : loc_{std::move(loc)}, head_{std::move(head)}, body_{std::move(body)} {}
@@ -27,18 +32,6 @@ class StmRule {
     [[nodiscard]] auto head() const -> HdLit const & { return head_; }
     //! The body.
     [[nodiscard]] auto body() const -> BdLitArray const & { return body_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_head, a_body}, Types{args...});
-        return StmRule{select<Opt>(a_loc, loc_, args...), select<Opt>(a_head, head_, args...),
-                       select<Opt>(a_body, body_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two rules.
     friend auto operator==(StmRule const &a, StmRule const &b) -> bool {
@@ -71,8 +64,14 @@ enum class TheoryOpType {
 //! A theory operator definition.
 //!
 //! For example: <tt>- : 0, unary</tt>.
-class TheoryOpDefinition {
+class TheoryOpDefinition : public Gringo::Util::Record::Base<TheoryOpDefinition> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &TheoryOpDefinition::loc_, a_op = &TheoryOpDefinition::op_,
+                          a_prio = &TheoryOpDefinition::prio_, a_type = &TheoryOpDefinition::type_};
+    }
+
     //! Construct a theory operator definition.
     explicit TheoryOpDefinition(Location loc, String op, int prio, TheoryOpType type)
         : loc_{std::move(loc)}, op_{op}, prio_{prio}, type_{type} {}
@@ -85,18 +84,6 @@ class TheoryOpDefinition {
     [[nodiscard]] auto prio() const -> int { return prio_; }
     //! The type of the operator.
     [[nodiscard]] auto type() const -> TheoryOpType { return type_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_op, a_prio, a_type}, Types{args...});
-        return TheoryOpDefinition{select<Opt>(a_loc, loc_, args...), select<Opt>(a_op, op_, args...),
-                                  select<Opt>(a_prio, prio_, args...), select<Opt>(a_type, type_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two theory operator definitions.
     friend auto operator==(TheoryOpDefinition const &a, TheoryOpDefinition const &b) -> bool {
@@ -124,8 +111,14 @@ using TheoryOpDefinitionArray = Util::immutable_array<TheoryOpDefinition>;
 //! A theory term definition.
 //!
 //! For example: <tt>term { - : 0, unary }</tt>.
-class TheoryTermDefinition {
+class TheoryTermDefinition : public Gringo::Util::Record::Base<TheoryTermDefinition> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &TheoryTermDefinition::loc_, a_name = &TheoryTermDefinition::name_,
+                          a_op_defs = &TheoryTermDefinition::op_defs_};
+    }
+
     //! Construct a theory term definition.
     explicit TheoryTermDefinition(Location loc, String name, TheoryOpDefinitionArray op_defs)
         : loc_{std::move(loc)}, name_{name}, op_defs_{std::move(op_defs)} {}
@@ -136,18 +129,6 @@ class TheoryTermDefinition {
     [[nodiscard]] auto name() const -> String { return name_; }
     //! The associated operator definitions.
     [[nodiscard]] auto op_defs() const -> TheoryOpDefinitionArray const & { return op_defs_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_name, a_op_defs}, Types{args...});
-        return TheoryTermDefinition{select<Opt>(a_loc, loc_, args...), select<Opt>(a_name, name_, args...),
-                                    select<Opt>(a_op_defs, op_defs_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two theory term definitions.
     friend auto operator==(TheoryTermDefinition const &a, TheoryTermDefinition const &b) -> bool {
@@ -189,8 +170,15 @@ using TheoryRGuardDefinition = std::pair<StringArray, String>;
 //! A theory atom definition.
 //!
 //! For example: <tt>name/2: term, any</tt>.
-class TheoryAtomDefinition {
+class TheoryAtomDefinition : public Gringo::Util::Record::Base<TheoryAtomDefinition> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &TheoryAtomDefinition::loc_,     a_name = &TheoryAtomDefinition::name_,
+                          a_arity = &TheoryAtomDefinition::arity_, a_term = &TheoryAtomDefinition::term_,
+                          a_rhs = &TheoryAtomDefinition::rhs_,     a_type = &TheoryAtomDefinition::type_};
+    }
+
     //! Construct a theory atom definition.
     explicit TheoryAtomDefinition(Location loc, String name, int arity, String term,
                                   std::optional<TheoryRGuardDefinition> rhs, TheoryAtomType type)
@@ -208,19 +196,6 @@ class TheoryAtomDefinition {
     [[nodiscard]] auto rhs() const -> std::optional<TheoryRGuardDefinition> const & { return rhs_; }
     //! The type of the atom.
     [[nodiscard]] auto type() const -> TheoryAtomType { return type_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_name, a_arity, a_term, a_rhs, a_type}, Types{args...});
-        return TheoryAtomDefinition{select<Opt>(a_loc, loc_, args...),     select<Opt>(a_name, name_, args...),
-                                    select<Opt>(a_arity, arity_, args...), select<Opt>(a_term, term_, args...),
-                                    select<Opt>(a_rhs, rhs_, args...),     select<Opt>(a_type, type_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two theory atom definitions.
     friend auto operator==(TheoryAtomDefinition const &a, TheoryAtomDefinition const &b) -> bool {
@@ -252,8 +227,14 @@ using TheoryAtomDefinitionArray = Util::immutable_array<TheoryAtomDefinition>;
 //! A theory definition.
 //!
 //! For example: <tt>\#theory name { term { - : 0, unary }; name/2: term, any }</tt>.
-class StmTheory {
+class StmTheory : public Gringo::Util::Record::Base<StmTheory> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &StmTheory::loc_, a_name = &StmTheory::name_, a_term_defs = &StmTheory::term_defs_,
+                          a_atom_defs = &StmTheory::atom_defs};
+    }
+
     //! Construct a theory definition.
     explicit StmTheory(Location loc, String name, TheoryTermDefinitionArray term_defs,
                        TheoryAtomDefinitionArray atom_defs)
@@ -267,18 +248,6 @@ class StmTheory {
     [[nodiscard]] auto term_defs() const -> TheoryTermDefinitionArray const & { return term_defs_; }
     //! The theory atom definitions.
     [[nodiscard]] auto atom_defs() const -> TheoryAtomDefinitionArray const & { return atom_defs_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_name, a_term_defs, a_atom_defs}, Types{args...});
-        return StmTheory{select<Opt>(a_loc, loc_, args...), select<Opt>(a_name, name_, args...),
-                         select<Opt>(a_term_defs, term_defs_, args...), select<Opt>(a_atom_defs, atom_defs_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two theory statements.
     friend auto operator==(StmTheory const &a, StmTheory const &b) -> bool {
@@ -306,8 +275,14 @@ class StmTheory {
 enum class OptimizeType { minimize, maximize };
 
 //! The tuple of a minimize element.
-class OptimizeTuple {
+class OptimizeTuple : public Gringo::Util::Record::Base<OptimizeTuple> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_weight = &OptimizeTuple::weight_, a_prio = &OptimizeTuple::prio_,
+                          a_terms = &OptimizeTuple::terms_};
+    }
+
     explicit OptimizeTuple(Term weight, std::optional<Term> priority, TermArray terms)
         : weight_{std::move(weight)}, prio_{std::move(priority)}, terms_{std::move(terms)} {}
 
@@ -317,18 +292,6 @@ class OptimizeTuple {
     [[nodiscard]] auto prio() const -> std::optional<Term> const & { return prio_; }
     //! The remaining terms.
     [[nodiscard]] auto terms() const -> TermArray const & { return terms_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_weight, a_prio, a_terms}, Types{args...});
-        return OptimizeTuple{select<Opt>(a_weight, weight_, args...), select<Opt>(a_prio, prio_, args...),
-                             select<Opt>(a_terms, terms_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two optimize tuples.
     friend auto operator==(OptimizeTuple const &a, OptimizeTuple const &b) -> bool {
@@ -358,8 +321,13 @@ using OptimizeElementArray = Util::immutable_array<OptimizeElement>;
 //! An optimization statement.
 //!
 //! For example: <tt>\#minimize { 1@0,X: p(X) }</tt>.
-class StmOptimize {
+class StmOptimize : public Gringo::Util::Record::Base<StmOptimize> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &StmOptimize::loc_, a_type = &StmOptimize::type_, a_elems = &StmOptimize::elems_};
+    }
+
     //! Construct a weak constraint.
     explicit StmOptimize(Location loc, OptimizeType type, OptimizeElementArray elems)
         : loc_{std::move(loc)}, type_{type}, elems_{std::move(elems)} {}
@@ -370,18 +338,6 @@ class StmOptimize {
     [[nodiscard]] auto type() const -> OptimizeType { return type_; }
     //! The elements of the statement.
     [[nodiscard]] auto elems() const -> OptimizeElementArray const & { return elems_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_type, a_elems}, Types{args...});
-        return StmOptimize{select<Opt>(a_loc, loc_, args...), select<Opt>(a_type, type_, args...),
-                           select<Opt>(a_elems, elems_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two optimization statements.
     friend auto operator==(StmOptimize const &a, StmOptimize const &b) -> bool {
@@ -405,8 +361,14 @@ class StmOptimize {
 //! A weak constraint.
 //!
 //! For example: <tt>:~ p(X). [1@0,X]</tt>.
-class StmWeakConstraint {
+class StmWeakConstraint : public Gringo::Util::Record::Base<StmWeakConstraint> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &StmWeakConstraint::loc_, a_body = &StmWeakConstraint::body_,
+                          a_tuple = &StmWeakConstraint::tuple_};
+    }
+
     //! Construct a weak constraint.
     explicit StmWeakConstraint(Location loc, BdLitArray body, OptimizeTuple tuple)
         : loc_{std::move(loc)}, body_{std::move(body)}, tuple_{std::move(tuple)} {}
@@ -417,18 +379,6 @@ class StmWeakConstraint {
     [[nodiscard]] auto body() const -> BdLitArray const & { return body_; }
     //! The tuple of the constraint.
     [[nodiscard]] auto tuple() const -> OptimizeTuple const & { return tuple_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_body, a_tuple}, Types{args...});
-        return StmWeakConstraint{select<Opt>(a_loc, loc_, args...), select<Opt>(a_body, body_, args...),
-                                 select<Opt>(a_tuple, tuple_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two weak constraints.
     friend auto operator==(StmWeakConstraint const &a, StmWeakConstraint const &b) -> bool {
@@ -452,8 +402,13 @@ class StmWeakConstraint {
 //! A show statement.
 //!
 //! Example: <tt>\#show p(X): q(X)</tt>.
-class StmShow {
+class StmShow : public Gringo::Util::Record::Base<StmShow> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &StmShow::loc_, a_term = &StmShow::term_, a_body = &StmShow::body_};
+    }
+
     //! Construct a show statement.
     explicit StmShow(Location loc, Term term, BdLitArray body)
         : loc_{std::move(loc)}, term_(std::move(term)), body_(std::move(body)) {}
@@ -464,18 +419,6 @@ class StmShow {
     [[nodiscard]] auto term() const -> Term const & { return term_; }
     //! The body.
     [[nodiscard]] auto body() const -> BdLitArray const & { return body_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_term, a_body}, Types{args...});
-        return StmShow{select<Opt>(a_loc, loc_, args...), select<Opt>(a_term, term_, args...),
-                       select<Opt>(a_body, body_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two show statements.
     friend auto operator==(StmShow const &a, StmShow const &b) -> bool {
@@ -499,8 +442,14 @@ class StmShow {
 //! A show signature statement.
 //!
 //! Example: <tt>\#show p/2</tt>.
-class StmShowSig {
+class StmShowSig : public Gringo::Util::Record::Base<StmShowSig> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &StmShowSig::loc_, a_name = &StmShowSig::name_, a_sign = &StmShowSig::sign_,
+                          a_arity = &StmShowSig::arity_};
+    }
+
     //! Construct a show signature statement.
     explicit StmShowSig(Location loc, bool sign, String name, int arity)
         : loc_{std::move(loc)}, name_{name}, arity_{arity}, sign_{sign} {}
@@ -513,18 +462,6 @@ class StmShowSig {
     [[nodiscard]] auto name() const -> String { return name_; }
     //! The arity.
     [[nodiscard]] auto arity() const -> int { return arity_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_sign, a_name, a_arity}, Types{args...});
-        return StmShowSig{select<Opt>(a_loc, loc_, args...), select<Opt>(a_sign, sign_, args...),
-                          select<Opt>(a_name, name_, args...), select<Opt>(a_arity, arity_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two show signature statements.
     friend auto operator==(StmShowSig const &a, StmShowSig const &b) -> bool {
@@ -549,8 +486,13 @@ class StmShowSig {
 //! A project statement.
 //!
 //! Example: <tt>\#project p(X): q(X)</tt>.
-class StmProject {
+class StmProject : public Gringo::Util::Record::Base<StmProject> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &StmProject::loc_, a_term = &StmProject::term_, a_body = &StmProject::body_};
+    }
+
     //! Construct a project statement.
     explicit StmProject(Location loc, Term term, BdLitArray body)
         : loc_{std::move(loc)}, term_(std::move(term)), body_(std::move(body)) {}
@@ -561,18 +503,6 @@ class StmProject {
     [[nodiscard]] auto term() const -> Term const & { return term_; }
     //! The body.
     [[nodiscard]] auto body() const -> BdLitArray const & { return body_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_term, a_body}, Types{args...});
-        return StmProject{select<Opt>(a_loc, loc_, args...), select<Opt>(a_term, term_, args...),
-                          select<Opt>(a_body, body_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two project statements.
     friend auto operator==(StmProject const &a, StmProject const &b) -> bool {
@@ -596,8 +526,14 @@ class StmProject {
 //! A project signature statement.
 //!
 //! Example: <tt>\#project p/2</tt>.
-class StmProjectSig {
+class StmProjectSig : public Gringo::Util::Record::Base<StmProjectSig> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &StmProjectSig::loc_, a_name = &StmProjectSig::name_, a_sign = &StmProjectSig::sign_,
+                          a_arity = &StmProjectSig::arity_};
+    }
+
     //! Construct a project signature statement.
     explicit StmProjectSig(Location loc, bool sign, String name, int arity)
         : loc_{std::move(loc)}, sign_{sign}, name_{name}, arity_{arity} {}
@@ -610,18 +546,6 @@ class StmProjectSig {
     [[nodiscard]] auto name() const -> String { return name_; }
     //! The arity.
     [[nodiscard]] auto arity() const -> int { return arity_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_sign, a_name, a_arity}, Types{args...});
-        return StmProjectSig{select<Opt>(a_loc, loc_, args...), select<Opt>(a_sign, sign_, args...),
-                             select<Opt>(a_name, name_, args...), select<Opt>(a_arity, arity_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two project signature statements.
     friend auto operator==(StmProjectSig const &a, StmProjectSig const &b) -> bool {
@@ -646,8 +570,14 @@ class StmProjectSig {
 //! A defined statement.
 //!
 //! Example: <tt>\#defined p/2</tt>.
-class StmDefined {
+class StmDefined : public Gringo::Util::Record::Base<StmDefined> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &StmDefined::loc_, a_name = &StmDefined::name_, a_sign = &StmDefined::sign_,
+                          a_arity = &StmDefined::arity_};
+    }
+
     //! Construct a defined statement.
     explicit StmDefined(Location loc, bool sign, String name, int arity)
         : loc_{std::move(loc)}, sign_{sign}, name_{name}, arity_{arity} {}
@@ -660,18 +590,6 @@ class StmDefined {
     [[nodiscard]] auto name() const -> String { return name_; }
     //! The arity.
     [[nodiscard]] auto arity() const -> int { return arity_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_sign, a_name, a_arity}, Types{args...});
-        return StmDefined{select<Opt>(a_loc, loc_, args...), select<Opt>(a_sign, sign_, args...),
-                          select<Opt>(a_name, name_, args...), select<Opt>(a_arity, arity_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two defined statements.
     friend auto operator==(StmDefined const &a, StmDefined const &b) -> bool {
@@ -699,8 +617,14 @@ class StmDefined {
 //! An external statement.
 //!
 //! Example: <tt>\#external p(X): q(X)</tt>.
-class StmExternal {
+class StmExternal : public Gringo::Util::Record::Base<StmExternal> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &StmExternal::loc_, a_term = &StmExternal::term_, a_body = &StmExternal::body_,
+                          a_type = &StmExternal::type_};
+    }
+
     //! Construct an external statement.
     explicit StmExternal(Location loc, Term term, BdLitArray body, std::optional<Term> type = std::nullopt)
         : loc_{std::move(loc)}, term_(std::move(term)), body_(std::move(body)), type_{std::move(type)} {}
@@ -713,18 +637,6 @@ class StmExternal {
     [[nodiscard]] auto body() const -> BdLitArray const & { return body_; }
     //! The type of the statement.
     [[nodiscard]] auto type() const -> std::optional<Term> const & { return type_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_term, a_body, a_type}, Types{args...});
-        return StmExternal{select<Opt>(a_loc, loc_, args...), select<Opt>(a_term, term_, args...),
-                           select<Opt>(a_body, body_, args...), select<Opt>(a_type, type_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two external statements.
     friend auto operator==(StmExternal const &a, StmExternal const &b) -> bool {
@@ -747,25 +659,17 @@ class StmExternal {
 };
 
 //! An directed edge.
-class Edge {
+class Edge : public Gringo::Util::Record::Base<Edge> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() { return std::tuple{a_src = &Edge::src_, a_dst = &Edge::dst_}; }
+
     explicit Edge(Term src, Term dst) : src_{std::move(src)}, dst_{std::move(dst)} {}
 
     //! The source vertex.
     [[nodiscard]] auto src() const -> Term const & { return src_; }
     //! The target vertex.
     [[nodiscard]] auto dst() const -> Term const & { return dst_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_src, a_dst}, Types{args...});
-        return Edge{select<Opt>(a_src, src_, args...), select<Opt>(a_dst, dst_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two edges.
     friend auto operator==(Edge const &a, Edge const &b) -> bool = default;
@@ -784,8 +688,13 @@ using EdgeArray = Util::immutable_array<Edge>;
 //! An edge statement.
 //!
 //! Example: <tt>\#edge (X,Y): connected(X,Y).</tt>.
-class StmEdge {
+class StmEdge : public Gringo::Util::Record::Base<StmEdge> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &StmEdge::loc_, a_edges = &StmEdge::edges_, a_body = &StmEdge::body_};
+    }
+
     //! Construct an edge statement.
     explicit StmEdge(Location loc, EdgeArray edges, BdLitArray body = {})
         : loc_{std::move(loc)}, edges_{std::move(edges)}, body_{std::move(body)} {}
@@ -796,18 +705,6 @@ class StmEdge {
     [[nodiscard]] auto edges() const -> EdgeArray const & { return edges_; }
     //! The body.
     [[nodiscard]] auto body() const -> BdLitArray const & { return body_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_edges, a_body}, Types{args...});
-        return StmEdge{select<Opt>(a_loc, loc_, args...), select<Opt>(a_edges, edges_, args...),
-                       select<Opt>(a_body, body_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two edge statements.
     friend auto operator==(StmEdge const &a, StmEdge const &b) -> bool {
@@ -831,21 +728,28 @@ class StmEdge {
 //! A heuristic statement.
 //!
 //! Example: <tt>\#heuristic p(X). [sign,false]</tt>.
-class StmHeuristic {
+class StmHeuristic : public Gringo::Util::Record::Base<StmHeuristic> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &StmHeuristic::loc_,   a_atom = &StmHeuristic::atom_,
+                          a_body = &StmHeuristic::body_, a_weight = &StmHeuristic::weight_,
+                          a_prio = &StmHeuristic::prio_, a_type = &StmHeuristic::type_};
+    }
+
     //! Construct a heuristic statement.
-    explicit StmHeuristic(Location loc, Term atom, BdLitArray body, Term type, std::optional<Term> prio, Term weight)
-        : loc_{std::move(loc)}, atom_{std::move(atom)}, body_{std::move(body)}, weight_(std::move(type)),
-          prio_(std::move(prio)), type_(std::move(weight)) {}
+    explicit StmHeuristic(Location loc, Term atom, BdLitArray body, Term weight, std::optional<Term> prio, Term type)
+        : loc_{std::move(loc)}, atom_{std::move(atom)}, body_{std::move(body)}, weight_(std::move(weight)),
+          prio_(std::move(prio)), type_(std::move(type)) {}
     //! Construct a heuristic statement.
-    explicit StmHeuristic(Location loc, Term atom, BdLitArray body, Term type, Term prio, Term mod)
+    explicit StmHeuristic(Location loc, Term atom, BdLitArray body, Term weight, Term prio, Term type)
         : StmHeuristic{
-              std::move(loc), std::move(atom), std::move(body), std::move(type), std::make_optional(std::move(prio)),
-              std::move(mod)} {}
+              std::move(loc), std::move(atom), std::move(body), std::move(weight), std::make_optional(std::move(prio)),
+              std::move(type)} {}
     //! Construct a heuristic statement.
-    explicit StmHeuristic(Location loc, Term atom, BdLitArray body, Term type, Term mod)
-        : StmHeuristic{std::move(loc),  std::move(atom), std::move(body),
-                       std::move(type), std::nullopt,    std::move(mod)} {}
+    explicit StmHeuristic(Location loc, Term atom, BdLitArray body, Term weight, Term type)
+        : StmHeuristic{std::move(loc),    std::move(atom), std::move(body),
+                       std::move(weight), std::nullopt,    std::move(type)} {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
@@ -859,19 +763,6 @@ class StmHeuristic {
     [[nodiscard]] auto prio() const -> std::optional<Term> const & { return prio_; }
     //! The type of the heuristic modification.
     [[nodiscard]] auto type() const -> Term const & { return type_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_atom, a_body, a_weight, a_prio, a_type}, Types{args...});
-        return StmHeuristic{select<Opt>(a_loc, loc_, args...),   select<Opt>(a_atom, atom_, args...),
-                            select<Opt>(a_body, body_, args...), select<Opt>(a_weight, weight_, args...),
-                            select<Opt>(a_prio, prio_, args...), select<Opt>(a_type, type_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two heuristic statements.
     friend auto operator==(StmHeuristic const &a, StmHeuristic const &b) -> bool {
@@ -900,8 +791,13 @@ class StmHeuristic {
 //! A script statement.
 //!
 //! For example: <tt>\#script(python) some code \#end</tt>.
-class StmScript {
+class StmScript : public Gringo::Util::Record::Base<StmScript> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &StmScript::loc_, a_type = &StmScript::type_, a_value = &StmScript::value_};
+    }
+
     //! Construct a script statement.
     explicit StmScript(Location loc, String type, std::string value)
         : loc_{std::move(loc)}, type_(type), value_(std::move(value)) {}
@@ -912,18 +808,6 @@ class StmScript {
     [[nodiscard]] auto type() const -> String { return type_; }
     //! The code.
     [[nodiscard]] auto value() const -> std::string const & { return value_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_type, a_value}, Types{args...});
-        return StmScript{select<Opt>(a_loc, loc_, args...), select<Opt>(a_type, type_, args...),
-                         select<Opt>(a_value, value_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two script statements.
     friend auto operator==(StmScript const &a, StmScript const &b) -> bool {
@@ -955,8 +839,13 @@ enum class IncludeType {
 //! An include statement.
 //!
 //! For example: <tt>\#include "encoding.lp"</tt>.
-class StmInclude {
+class StmInclude : public Gringo::Util::Record::Base<StmInclude> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &StmInclude::loc_, a_type = &StmInclude::type_, a_value = &StmInclude::value_};
+    }
+
     //! Construct an include statement.
     explicit StmInclude(Location loc, IncludeType type, std::string value)
         : loc_{std::move(loc)}, type_(type), value_(std::move(value)) {}
@@ -967,18 +856,6 @@ class StmInclude {
     [[nodiscard]] auto type() const -> IncludeType { return type_; }
     //! The path.
     [[nodiscard]] auto value() const -> std::string const & { return value_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_type, a_value}, Types{args...});
-        return StmInclude{select<Opt>(a_loc, loc_, args...), select<Opt>(a_type, type_, args...),
-                          select<Opt>(a_value, value_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two include statements.
     friend auto operator==(StmInclude const &a, StmInclude const &b) -> bool {
@@ -1002,8 +879,13 @@ class StmInclude {
 //! A program statement.
 //!
 //! For example: <tt>\#program check(t)"</tt>.
-class StmProgram {
+class StmProgram : public Gringo::Util::Record::Base<StmProgram> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &StmProgram::loc_, a_name = &StmProgram::name_, a_args = &StmProgram::args_};
+    }
+
     //! Construct an program statement.
     explicit StmProgram(Location loc, String name, StringArray args)
         : loc_{std::move(loc)}, name_(name), args_(std::move(args)) {}
@@ -1014,18 +896,6 @@ class StmProgram {
     [[nodiscard]] auto name() const -> String const & { return name_; }
     //! The arguments of the program.
     [[nodiscard]] auto args() const -> StringArray const & { return args_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_name, a_args}, Types{args...});
-        return StmProgram{select<Opt>(a_loc, loc_, args...), select<Opt>(a_name, name_, args...),
-                          select<Opt>(a_args, args_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two program statements.
     friend auto operator==(StmProgram const &a, StmProgram const &b) -> bool {
@@ -1057,8 +927,14 @@ enum class ConstType {
 //! A const statement.
 //!
 //! For example: <tt>\#const n=42</tt>.
-class StmConst {
+class StmConst : public Gringo::Util::Record::Base<StmConst> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &StmConst::loc_, a_type = &StmConst::type_, a_name = &StmConst::name_,
+                          a_value = &StmConst::value_};
+    }
+
     //! Construct a const statement.
     explicit StmConst(Location loc, ConstType type, String name, Term value)
         : loc_{std::move(loc)}, type_(type), name_(name), value_(std::move(value)) {}
@@ -1071,18 +947,6 @@ class StmConst {
     [[nodiscard]] auto name() const -> String const & { return name_; }
     //! The value of the constant
     [[nodiscard]] auto value() const -> Term const & { return value_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_type, a_name, a_value}, Types{args...});
-        return StmConst{select<Opt>(a_loc, loc_, args...), select<Opt>(a_type, type_, args...),
-                        select<Opt>(a_name, name_, args...), select<Opt>(a_value, value_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two const statements.
     friend auto operator==(StmConst const &a, StmConst const &b) -> bool {
@@ -1115,8 +979,13 @@ enum class CommentType {
 //! A commment.
 //!
 //! For example: <tt>%* comment *%</tt>
-class StmComment {
+class StmComment : public Gringo::Util::Record::Base<StmComment> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &StmComment::loc_, a_type = &StmComment::type_, a_value = &StmComment::value_};
+    }
+
     //! Construct a comment.
     explicit StmComment(Location loc, CommentType type, std::string value)
         : loc_{std::move(loc)}, type_{type}, value_{std::move(value)} {}
@@ -1127,18 +996,6 @@ class StmComment {
     [[nodiscard]] auto type() const -> CommentType { return type_; }
     //! The content of the comment including comment markers.
     [[nodiscard]] auto value() const -> std::string const & { return value_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_type, a_value}, Types{args...});
-        return StmComment{select<Opt>(a_loc, loc_, args...), select<Opt>(a_type, type_, args...),
-                          select<Opt>(a_value, value_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two comments.
     friend auto operator==(StmComment const &a, StmComment const &b) -> bool {

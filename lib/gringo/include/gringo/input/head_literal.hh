@@ -14,25 +14,17 @@ namespace Gringo::Input {
 //! @{
 
 //! A single literal in a rule head.
-class HdLitSimple {
+class HdLitSimple : public Gringo::Util::Record::Base<HdLitSimple> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() { return std::tuple{a_lit = &HdLitSimple::lit_}; }
+
     //! Wrap a literal in a head literal.
     HdLitSimple(Lit lit) : lit_{std::move(lit)} {}
     //! The location of the literal.
     [[nodiscard]] auto loc() const -> Location const & { return location(lit_); }
     //! The literal.
     [[nodiscard]] auto lit() const -> Lit const & { return lit_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_lit}, Types{args...});
-        return HdLitSimple{select<Opt>(a_lit, lit_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two literals.
     friend auto operator==(HdLitSimple const &a, HdLitSimple const &b) -> bool = default;
@@ -53,25 +45,19 @@ using HdLitDisjunctionElement = std::variant<Lit, CondLit>;
 using HdLitDisjunctionElementArray = Util::immutable_array<HdLitDisjunctionElement>;
 
 //! A disjunction of conditional literals.
-class HdLitDisjunction {
+class HdLitDisjunction : public Gringo::Util::Record::Base<HdLitDisjunction> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &HdLitDisjunction::loc_, a_elems = &HdLitDisjunction::elems_};
+    }
+
     //! Wrap a literal in a head literal.
     explicit HdLitDisjunction(Location loc, HdLitDisjunctionElementArray elems) : loc_{loc}, elems_{std::move(elems)} {}
     //! The location of the disjunction.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The elements of the disjunction.
     [[nodiscard]] auto elems() const -> HdLitDisjunctionElementArray const & { return elems_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_elems}, Types{args...});
-        return HdLitDisjunction{select<Opt>(a_loc, loc_, args...), select<Opt>(a_elems, elems_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two disjunctions.
     friend auto operator==(HdLitDisjunction const &a, HdLitDisjunction const &b) -> bool {
@@ -92,8 +78,15 @@ class HdLitDisjunction {
 };
 
 //! An element of a head aggregate.
-class HdLitAggregateElement {
+class HdLitAggregateElement : public Gringo::Util::Record::Base<HdLitAggregateElement> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &HdLitAggregateElement::loc_, a_tuple = &HdLitAggregateElement::tuple_,
+                          a_lit = &HdLitAggregateElement::lit_, a_cond = &HdLitAggregateElement::cond_};
+    }
+
+    //! Construct a head aggregate element.
     explicit HdLitAggregateElement(Location loc, TermArray tuple, Lit lit, LitArray cond)
         : loc_{loc}, tuple_{std::move(tuple)}, lit_{std::move(lit)}, cond_{std::move(cond)} {}
     //! The location of the element.
@@ -104,18 +97,6 @@ class HdLitAggregateElement {
     [[nodiscard]] auto lit() const -> Lit const & { return lit_; }
     //! The condition of the element.
     [[nodiscard]] auto cond() const -> LitArray const & { return cond_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_tuple, a_lit, a_cond}, Types{args...});
-        return HdLitAggregateElement{select<Opt>(a_loc, loc_, args...), select<Opt>(a_tuple, tuple_, args...),
-                                     select<Opt>(a_lit, lit_, args...), select<Opt>(a_cond, cond_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two head aggregate elements.
     friend auto operator==(HdLitAggregateElement const &a, HdLitAggregateElement const &b) -> bool {
@@ -142,8 +123,14 @@ using HdLitAggregateElementArray = Util::immutable_array<HdLitAggregateElement>;
 //! A head aggregate.
 //!
 //! For example: <tt>\#count { X: p(X): q(X) } = 1</tt>
-class HdLitAggregate {
+class HdLitAggregate : public Gringo::Util::Record::Base<HdLitAggregate> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &HdLitAggregate::loc_, a_lhs = &HdLitAggregate::lhs_, a_fun = &HdLitAggregate::fun_,
+                          a_elems = &HdLitAggregate::elems_, a_rhs = &HdLitAggregate::rhs_};
+    }
+
     //! Construct a head set aggregate.
     explicit HdLitAggregate(Location loc, LGuard lhs, AggregateFunction fun, HdLitAggregateElementArray elems,
                             RGuard rhs)
@@ -166,19 +153,6 @@ class HdLitAggregate {
     [[nodiscard]] auto lhs() const -> LGuard const & { return lhs_; }
     //! An optional right guard.
     [[nodiscard]] auto rhs() const -> RGuard const & { return rhs_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_fun, a_lhs, a_elems, a_rhs}, Types{args...});
-        return HdLitAggregate{select<Opt>(a_loc, loc_, args...), select<Opt>(a_lhs, lhs_, args...),
-                              select<Opt>(a_fun, fun_, args...), select<Opt>(a_elems, elems_, args...),
-                              select<Opt>(a_rhs, rhs_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two head aggregates.
     friend auto operator==(HdLitAggregate const &a, HdLitAggregate const &b) -> bool {

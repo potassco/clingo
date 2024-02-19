@@ -27,8 +27,13 @@ using TheoryTermArray = Util::immutable_array<TheoryTerm>;
 //! A symbolic theory term.
 //!
 //! For example: <tt>1</tt>.
-class TheoryTermSymbol {
+class TheoryTermSymbol : public Gringo::Util::Record::Base<TheoryTermSymbol> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &TheoryTermSymbol::loc_, a_value = &TheoryTermSymbol::value_};
+    }
+
     //! Construct a symbolic theory term.
     explicit TheoryTermSymbol(Location loc, Symbol value) : loc_{std::move(loc)}, value_{std::move(value)} {}
 
@@ -36,17 +41,6 @@ class TheoryTermSymbol {
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The symbol.
     [[nodiscard]] auto value() const -> Symbol { return value_; }
-
-    //! Record update.
-    template <bool Opt = false, class... Args> auto update(Args... args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_value}, Types{args...});
-        return TheoryTermSymbol{select<Opt>(a_loc, loc_, args...), select<Opt>(a_value, value_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two theory terms.
     friend auto operator==(TheoryTermSymbol const &a, TheoryTermSymbol const &b) -> bool {
@@ -69,8 +63,14 @@ class TheoryTermSymbol {
 //! A variable theory term.
 //!
 //! For example: <tt>X</tt>.
-class TheoryTermVariable {
+class TheoryTermVariable : public Gringo::Util::Record::Base<TheoryTermVariable> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &TheoryTermVariable::loc_, a_name = &TheoryTermVariable::name_,
+                          a_anonymous = &TheoryTermVariable::anonymous_};
+    }
+
     //! Construct a variable theory term.
     explicit TheoryTermVariable(Location loc, String name, bool is_anonymous = false)
         : loc_{std::move(loc)}, name_{name}, anonymous_{is_anonymous} {}
@@ -81,18 +81,6 @@ class TheoryTermVariable {
     [[nodiscard]] auto name() const -> String { return name_; }
     //! Whether the variable is anonymous.
     [[nodiscard]] auto anonymous() const -> bool { return anonymous_; }
-
-    //! Record update.
-    template <bool Opt = false, class... Args> auto update(Args... args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_name, a_anonymous}, Types{args...});
-        return TheoryTermVariable{select<Opt>(a_loc, loc_, args...), select<Opt>(a_name, name_, args...),
-                                  select<Opt>(a_anonymous, anonymous_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two theory terms.
     friend auto operator==(TheoryTermVariable const &a, TheoryTermVariable const &b) -> bool {
@@ -125,8 +113,14 @@ enum class TheoryTermTupleType {
 //! A tuple (set or list) theory term.
 //!
 //! For example: <tt>f(X,y)</tt>.
-class TheoryTermTuple {
+class TheoryTermTuple : public Gringo::Util::Record::Base<TheoryTermTuple> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &TheoryTermTuple::loc_, a_type = &TheoryTermTuple::type_,
+                          a_elems = &TheoryTermTuple::elems_};
+    }
+
     //! Construct a tuple theory term.
     explicit TheoryTermTuple(Location loc, TheoryTermTupleType type, TheoryTermArray elems);
 
@@ -136,18 +130,6 @@ class TheoryTermTuple {
     [[nodiscard]] auto type() const -> TheoryTermTupleType { return type_; }
     //! The elements of the tuple.
     [[nodiscard]] auto elems() const -> TheoryTermArray const & { return elems_; }
-
-    //! Record update.
-    template <bool Opt = false, class... Args> auto update(Args... args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_type, a_elems}, Types{args...});
-        return TheoryTermTuple{select<Opt>(a_loc, loc_, args...), select<Opt>(a_type, type_, args...),
-                               select<Opt>(a_elems, elems_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two theory terms.
     friend auto operator==(TheoryTermTuple const &a, TheoryTermTuple const &b) -> bool;
@@ -165,8 +147,14 @@ class TheoryTermTuple {
 //! A tuple (set or list) theory term.
 //!
 //! For example: <tt>{f(X,y), Z}</tt>.
-class TheoryTermFunction {
+class TheoryTermFunction : public Gringo::Util::Record::Base<TheoryTermFunction> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &TheoryTermFunction::loc_, a_name = &TheoryTermFunction::name_,
+                          a_args = &TheoryTermFunction::args_};
+    }
+
     //! Construct a function theory term.
     explicit TheoryTermFunction(Location loc, String name);
     //! Construct a function theory term.
@@ -178,18 +166,6 @@ class TheoryTermFunction {
     [[nodiscard]] auto name() const -> String { return name_; }
     //! The arguments of the function.
     [[nodiscard]] auto args() const -> TheoryTermArray const & { return args_; }
-
-    //! Record update.
-    template <bool Opt = false, class... Args> auto update(Args... args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_name, a_args}, Types{args...});
-        return TheoryTermFunction{select<Opt>(a_loc, loc_, args...), select<Opt>(a_name, name_, args...),
-                                  select<Opt>(a_args, args_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two theory terms.
     friend auto operator==(TheoryTermFunction const &a, TheoryTermFunction const &b) -> bool;
@@ -218,8 +194,13 @@ using UnparsedElementArray = Util::immutable_array<UnparsedElement>;
 //! They are simply stored as a list.
 //!
 //! For example: <tt>- X ++ Y << Z</tt>.
-class TheoryTermUnparsed {
+class TheoryTermUnparsed : public Gringo::Util::Record::Base<TheoryTermUnparsed> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &TheoryTermUnparsed::loc_, a_elems = &TheoryTermUnparsed::elems_};
+    }
+
     //! Construct an unparsed theory term.
     explicit TheoryTermUnparsed(Location loc, UnparsedElementArray elems);
 
@@ -227,17 +208,6 @@ class TheoryTermUnparsed {
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The vector of elements.
     [[nodiscard]] auto elems() const -> UnparsedElementArray const & { return elems_; }
-
-    //! Record update.
-    template <bool Opt = false, class... Args> auto update(Args... args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_elems}, Types{args...});
-        return TheoryTermUnparsed{select<Opt>(a_loc, loc_, args...), select<Opt>(a_elems, elems_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two theory terms.
     friend auto operator==(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> bool;
@@ -255,8 +225,14 @@ class TheoryTermUnparsed {
 using TheoryRGuard = std::optional<std::pair<String, TheoryTerm>>;
 
 //! An element of the theory atom.
-class TheoryElement {
+class TheoryElement : public Gringo::Util::Record::Base<TheoryElement> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &TheoryElement::loc_, a_tuple = &TheoryElement::tuple_,
+                          a_cond = &TheoryElement::cond_};
+    }
+
     //! Construct a theory element.
     explicit TheoryElement(Location loc, TheoryTermArray tuple, LitArray cond)
         : loc_{loc}, tuple_{std::move(tuple)}, cond_{std::move(cond)} {}
@@ -267,18 +243,6 @@ class TheoryElement {
     [[nodiscard]] auto tuple() const -> TheoryTermArray const & { return tuple_; }
     //! The condition of the theory element.
     [[nodiscard]] auto cond() const -> LitArray const & { return cond_; }
-
-    //! Record update.
-    template <bool Opt = false, class... Args> auto update(Args... args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_tuple, a_cond}, Types{args...});
-        return TheoryElement{select<Opt>(a_loc, loc_, args...), select<Opt>(a_tuple, tuple_, args...),
-                             select<Opt>(a_cond, cond_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two theory elements.
     friend auto operator==(TheoryElement const &a, TheoryElement const &b) -> bool {
@@ -304,9 +268,22 @@ using TheoryElementArray = Util::immutable_array<TheoryElement>;
 //! A theory atom.
 //!
 //! For example: <tt>&sum { X+Y: p(X), q(Y) } >= 0</tt>.
-template <bool HasSign> class TheoryAtom : public std::conditional_t<HasSign, Signed, Unsigned> {
+template <bool HasSign>
+class TheoryAtom : public std::conditional_t<HasSign, Signed, Unsigned>,
+                   public Gringo::Util::Record::Base<TheoryAtom<HasSign>> {
   public:
     using Base = std::conditional_t<HasSign, Signed, Unsigned>;
+
+    //! The record attributes.
+    static constexpr auto attributes() {
+        if constexpr (HasSign) {
+            return std::tuple{a_loc = &TheoryAtom::loc_, a_sign = &Signed::sign, a_name = &TheoryAtom::name_,
+                              a_elems = &TheoryAtom::elems_, a_rhs = &TheoryAtom::rhs_};
+        } else {
+            return std::tuple{a_loc = &TheoryAtom::loc_, a_name = &TheoryAtom::name_, a_elems = &TheoryAtom::elems_,
+                              a_rhs = &TheoryAtom::rhs_};
+        }
+    }
 
     //! Construct a theory atom.
     explicit TheoryAtom(Location loc, Term name, TheoryElementArray elems, TheoryRGuard rhs)
@@ -328,25 +305,6 @@ template <bool HasSign> class TheoryAtom : public std::conditional_t<HasSign, Si
     [[nodiscard]] auto elems() const -> TheoryElementArray const & { return elems_; }
     //! The optional right guard of the atom.
     [[nodiscard]] auto rhs() const -> TheoryRGuard const & { return rhs_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        if constexpr (HasSign) {
-            check(Types{a_loc, a_sign, a_name, a_elems, a_rhs}, Types{args...});
-            return TheoryAtom{select<Opt>(a_loc, loc_, args...), select<Opt>(a_sign, this->sign(), args...),
-                              select<Opt>(a_name, name_, args...), select<Opt>(a_elems, elems_, args...),
-                              select<Opt>(a_rhs, rhs_, args...)};
-        } else {
-            check(Types{a_loc, a_name, a_elems, a_rhs}, Types{args...});
-            return TheoryAtom{select<Opt>(a_loc, loc_, args...), select<Opt>(a_name, name_, args...),
-                              select<Opt>(a_elems, elems_, args...), select<Opt>(a_rhs, rhs_, args...)};
-        }
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Compare two theory atoms.
     friend auto operator==(TheoryAtom const &a, TheoryAtom const &b) -> bool {

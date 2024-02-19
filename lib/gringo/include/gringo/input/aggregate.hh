@@ -42,8 +42,15 @@ inline auto reduct_is_nonmonotone(LGuard const &lhs, AggregateFunction fun, RGua
 }
 
 //! An element of a set aggregate.
-class SetAggregateElement {
+class SetAggregateElement : public Gringo::Util::Record::Base<SetAggregateElement> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &SetAggregateElement::loc_, a_lit = &SetAggregateElement::lit_,
+                          a_cond = &SetAggregateElement::cond_};
+    }
+
+    //! Construct a set aggregate element.
     explicit SetAggregateElement(Location loc, Lit lit, LitArray cond)
         : loc_{loc}, lit_{std::move(lit)}, cond_{std::move(cond)} {}
     //! The location of the element.
@@ -52,18 +59,6 @@ class SetAggregateElement {
     [[nodiscard]] auto lit() const -> Lit const & { return lit_; }
     //! The condition.
     [[nodiscard]] auto cond() const -> LitArray const & { return cond_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_lit, a_cond}, Types{args...});
-        return SetAggregateElement{select<Opt>(a_loc, loc_, args...), select<Opt>(a_lit, lit_, args...),
-                                   select<Opt>(a_cond, cond_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Equality compare two set aggregate elements.
     friend auto operator==(SetAggregateElement const &a, SetAggregateElement const &b) -> bool {
@@ -90,9 +85,22 @@ using SetAggregateElementArray = Util::immutable_array<SetAggregateElement>;
 //! A set aggregate.
 //!
 //! For example: <tt>{ p(X): q(X) } = 1</tt>.
-template <bool HasSign> class SetAggregate : public std::conditional_t<HasSign, Signed, Unsigned> {
+template <bool HasSign>
+class SetAggregate : public std::conditional_t<HasSign, Signed, Unsigned>,
+                     public Gringo::Util::Record::Base<SetAggregate<HasSign>> {
   public:
     using Base = std::conditional_t<HasSign, Signed, Unsigned>;
+
+    //! The record attributes.
+    static constexpr auto attributes() {
+        if constexpr (HasSign) {
+            return std::tuple{a_loc = &SetAggregate::loc_, a_sign = &Signed::sign, a_lhs = &SetAggregate::lhs_,
+                              a_elems = &SetAggregate::elems_, a_rhs = &SetAggregate::rhs_};
+        } else {
+            return std::tuple{a_loc = &SetAggregate::loc_, a_lhs = &SetAggregate::lhs_, a_elems = &SetAggregate::elems_,
+                              a_rhs = &SetAggregate::rhs_};
+        }
+    }
 
     //! Construct a set aggregate.
     explicit SetAggregate(Location loc, LGuard lhs, SetAggregateElementArray elems, RGuard rhs)
@@ -114,25 +122,6 @@ template <bool HasSign> class SetAggregate : public std::conditional_t<HasSign, 
     [[nodiscard]] auto lhs() const -> LGuard const & { return lhs_; }
     //! The optional left guard of the aggregate.
     [[nodiscard]] auto rhs() const -> RGuard const & { return rhs_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        if constexpr (HasSign) {
-            check(Types{a_loc, a_sign, a_lhs, a_elems, a_rhs}, Types{args...});
-            return SetAggregate{select<Opt>(a_loc, loc_, args...), select<Opt>(a_sign, this->sign(), args...),
-                                select<Opt>(a_lhs, lhs_, args...), select<Opt>(a_elems, elems_, args...),
-                                select<Opt>(a_rhs, rhs_, args...)};
-        } else {
-            check(Types{a_loc, a_lhs, a_elems, a_rhs}, Types{args...});
-            return SetAggregate{select<Opt>(a_loc, loc_, args...), select<Opt>(a_lhs, lhs_, args...),
-                                select<Opt>(a_elems, elems_, args...), select<Opt>(a_rhs, rhs_, args...)};
-        }
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Equality compare two set aggregates.
     friend auto operator==(SetAggregate const &a, SetAggregate const &b) -> bool {

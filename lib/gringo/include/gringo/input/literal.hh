@@ -80,8 +80,13 @@ using GuardArray = Util::immutable_array<Guard>;
 //! Literal representing a Boolean constant.
 //!
 //! For example <tt>\#true</tt>.
-class LitBool {
+class LitBool : public Gringo::Util::Record::Base<LitBool> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &LitBool::loc_, a_sign = &LitBool::sign_, a_value = &LitBool::value_};
+    }
+
     //! Construct a Boolean literal.
     explicit LitBool(Location loc, Sign sign, bool value) : loc_{std::move(loc)}, sign_(sign), value_(value) {}
 
@@ -91,18 +96,6 @@ class LitBool {
     [[nodiscard]] auto sign() const -> Sign { return sign_; }
     //! The Boolean value.
     [[nodiscard]] auto value() const -> bool { return value_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_sign, a_value}, Types{args...});
-        return LitBool{select<Opt>(a_loc, loc_, args...), select<Opt>(a_sign, sign_, args...),
-                       select<Opt>(a_value, value_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Check whether two Boolean literals are equivalent.
     friend auto operator==(LitBool const &a, LitBool const &b) -> bool {
@@ -126,8 +119,14 @@ class LitBool {
 //! Literal representing a relation literal.
 //!
 //! For example <tt>1 <= X <= 10</tt>.
-class LitComparison {
+class LitComparison : public Gringo::Util::Record::Base<LitComparison> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &LitComparison::loc_, a_sign = &LitComparison::sign_, a_lhs = &LitComparison::lhs_,
+                          a_rhs = &LitComparison::rhs_};
+    }
+
     //! Construct a relation literal.
     explicit LitComparison(Location loc, Sign sign, Term lhs, GuardArray rhs)
         : loc_{std::move(loc)}, sign_(sign), lhs_(std::move(lhs)), rhs_(std::move(rhs)) {}
@@ -140,18 +139,6 @@ class LitComparison {
     [[nodiscard]] auto lhs() const -> Term const & { return lhs_; }
     //! The guards on the right hand side.
     [[nodiscard]] auto rhs() const -> GuardArray const & { return rhs_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_sign, a_lhs, a_rhs}, Types{args...});
-        return LitComparison{select<Opt>(a_loc, loc_, args...), select<Opt>(a_sign, sign_, args...),
-                             select<Opt>(a_lhs, lhs_, args...), select<Opt>(a_rhs, rhs_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Check whether two relation literals are equivalent.
     friend auto operator==(LitComparison const &a, LitComparison const &b) -> bool {
@@ -176,8 +163,13 @@ class LitComparison {
 //! Literal representing a symbolic literal.
 //!
 //! For example <tt>not p(X)</tt>.
-class LitSymbolic {
+class LitSymbolic : public Gringo::Util::Record::Base<LitSymbolic> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &LitSymbolic::loc_, a_sign = &LitSymbolic::sign_, a_term = &LitSymbolic::term_};
+    }
+
     //! Construct a symbolic literal.
     explicit LitSymbolic(Location loc, Sign sign, Term term)
         : loc_{std::move(loc)}, sign_(sign), term_(std::move(term)) {}
@@ -188,18 +180,6 @@ class LitSymbolic {
     [[nodiscard]] auto sign() const -> Sign { return sign_; }
     //! The term representing the atom.
     [[nodiscard]] auto term() const -> Term const & { return term_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_sign, a_term}, Types{args...});
-        return LitSymbolic{select<Opt>(a_loc, loc_, args...), select<Opt>(a_sign, sign_, args...),
-                           select<Opt>(a_term, term_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Check whether two symbolic literals are equivalent.
     friend auto operator==(LitSymbolic const &a, LitSymbolic const &b) -> bool {
@@ -227,8 +207,13 @@ using Lit = std::variant<LitBool, LitComparison, LitSymbolic>;
 using LitArray = Util::immutable_array<Lit>;
 
 //! A conditional literal.
-class CondLit {
+class CondLit : public Gringo::Util::Record::Base<CondLit> {
   public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_loc = &CondLit::loc_, a_lit = &CondLit::lit_, a_cond = &CondLit::cond_};
+    }
+
     //! Construct a conditional literal.
     explicit CondLit(Location loc, Lit lit, LitArray cond)
         : loc_{std::move(loc)}, lit_{std::move(lit)}, cond_{std::move(cond)} {}
@@ -238,18 +223,6 @@ class CondLit {
     [[nodiscard]] auto lit() const -> Lit const & { return lit_; }
     //! The literals on the right-hand-side.
     [[nodiscard]] auto cond() const -> LitArray const & { return cond_; }
-
-    //! Update the record.
-    template <bool Opt = false, class... Args> auto update(Args &&...args) const {
-        using namespace Gringo::Util::Record;
-        check(Types{a_loc, a_lit, a_cond}, Types{args...});
-        return CondLit{select<Opt>(a_loc, loc_, args...), select<Opt>(a_lit, lit_, args...),
-                       select<Opt>(a_cond, cond_, args...)};
-    }
-    //! Rewrite the record.
-    template <class... Args> auto rewrite(Args &&...args) const {
-        return Gringo::Util::Record::rewrite(*this, std::forward<Args>(args)...);
-    }
 
     //! Check whether two conditional literals are equivalent.
     friend auto operator==(CondLit const &a, CondLit const &b) -> bool {
