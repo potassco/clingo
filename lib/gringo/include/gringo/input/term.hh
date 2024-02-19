@@ -47,6 +47,20 @@ class TermAbs;
 class TermUnary;
 class TermBinary;
 
+template <class T> class Expression : public Gringo::Util::Record::Base<T> {
+  public:
+    friend auto operator==(T const &a, T const &b) -> bool { return a.comparison_tuple() == b.comparison_tuple(); }
+    friend auto operator<=>(T const &a, T const &b) -> std::strong_ordering {
+        return a.comparison_tuple() <=> b.comparison_tuple();
+    }
+};
+
+template <class T> class RecursiveExpression : public Gringo::Util::Record::Base<T> {
+  public:
+    friend auto operator==(T const &a, T const &b) -> bool;
+    friend auto operator<=>(T const &a, T const &b) -> std::strong_ordering;
+};
+
 //! Variant holding the different term types.
 using Term = std::variant<TermVariable, TermSymbol, TermTuple, TermFunction, TermAbs, TermUnary, TermBinary>;
 
@@ -54,7 +68,7 @@ using Term = std::variant<TermVariable, TermSymbol, TermTuple, TermFunction, Ter
 using TermArray = Util::immutable_array<Term>;
 
 //! Indicate a projected position.
-class Projection : public Gringo::Util::Record::Base<Projection> {
+class Projection : public Expression<Projection> {
   public:
     //! The record attributes.
     static constexpr auto attributes() { return std::tuple{a_loc = &Projection::loc_}; }
@@ -63,19 +77,6 @@ class Projection : public Gringo::Util::Record::Base<Projection> {
     explicit Projection(Location loc) : loc_{loc} {}
     //! The location of the projected position.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
-
-    //! Compare two projected positions.
-    friend auto operator==(Projection const &a, Projection const &b) -> bool {
-        static_cast<void>(a);
-        static_cast<void>(b);
-        return true;
-    }
-    //! Compare two projected positions.
-    friend auto operator<=>(Projection const &a, Projection const &b) -> std::strong_ordering {
-        static_cast<void>(a);
-        static_cast<void>(b);
-        return 1 <=> 1;
-    }
 
   private:
     Location loc_;
@@ -86,7 +87,7 @@ using Argument = std::variant<Projection, Term>;
 //! A tuple of terms or positions to project.
 using ArgumentArray = Util::immutable_array<Argument>;
 
-class ArgumentTuple : public Gringo::Util::Record::Base<ArgumentTuple> {
+class ArgumentTuple : public RecursiveExpression<ArgumentTuple> {
   public:
     //! The record attributes.
     static constexpr auto attributes() { return std::tuple{a_elems = &ArgumentTuple::elems_}; }
@@ -96,11 +97,6 @@ class ArgumentTuple : public Gringo::Util::Record::Base<ArgumentTuple> {
 
     //! The elements of the tuple.
     [[nodiscard]] auto elems() const -> ArgumentArray const & { return elems_; }
-
-    //! Compare two argument tuples.
-    friend auto operator==(ArgumentTuple const &a, ArgumentTuple const &b) -> bool;
-    //! Compare two argument tuples.
-    friend auto operator<=>(ArgumentTuple const &a, ArgumentTuple const &b) -> std::strong_ordering;
 
   private:
     ArgumentArray elems_;
@@ -112,7 +108,7 @@ using PoolArray = Util::immutable_array<ArgumentTuple>;
 //! Term representing a variable.
 //!
 //! For example <tt>X</tt>.
-class TermVariable : public Gringo::Util::Record::Base<TermVariable> {
+class TermVariable : public Expression<TermVariable> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -131,13 +127,6 @@ class TermVariable : public Gringo::Util::Record::Base<TermVariable> {
     //! Whether the variable is anonymous.
     [[nodiscard]] auto anonymous() const -> bool { return anonymous_; }
 
-    //! Compare two variables.
-    friend auto operator==(TermVariable const &a, TermVariable const &b) -> bool { return a.name_ == b.name_; }
-    //! Compare two variables.
-    friend auto operator<=>(TermVariable const &a, TermVariable const &b) -> std::strong_ordering {
-        return a.name_ <=> b.name_;
-    }
-
   private:
     Location loc_;
     String name_;
@@ -147,7 +136,7 @@ class TermVariable : public Gringo::Util::Record::Base<TermVariable> {
 //! Term representing a symbol.
 //!
 //! For example <tt>1</tt>.
-class TermSymbol : public Gringo::Util::Record::Base<TermSymbol> {
+class TermSymbol : public Expression<TermSymbol> {
   public:
     //! The record attributes.
     static constexpr auto attributes() { return std::tuple{a_loc = &TermSymbol::loc_, a_value = &TermSymbol::value_}; }
@@ -159,13 +148,6 @@ class TermSymbol : public Gringo::Util::Record::Base<TermSymbol> {
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The associated symbol.
     [[nodiscard]] auto value() const -> Symbol { return value_; }
-
-    //! Compare two symbols.
-    friend auto operator==(TermSymbol const &a, TermSymbol const &b) -> bool { return a.value_ == b.value_; }
-    //! Compare two symbols.
-    friend auto operator<=>(TermSymbol const &a, TermSymbol const &b) -> std::strong_ordering {
-        return a.value_ <=> b.value_;
-    }
 
   private:
     Location loc_;
@@ -180,7 +162,7 @@ using TupleElementArray = Util::immutable_array<TupleElement>;
 //! Term representing a tuple.
 //!
 //! For example <tt>(a,b;c)</tt>.
-class TermTuple : public Gringo::Util::Record::Base<TermTuple> {
+class TermTuple : public RecursiveExpression<TermTuple> {
   public:
     //! The record attributes.
     static constexpr auto attributes() { return std::tuple{a_loc = &TermTuple::loc_, a_pool = &TermTuple::pool_}; }
@@ -193,11 +175,6 @@ class TermTuple : public Gringo::Util::Record::Base<TermTuple> {
     //! The argument pool of the tuple.
     [[nodiscard]] auto pool() const -> TupleElementArray const & { return pool_; }
 
-    //! Compare two tuple terms.
-    friend auto operator==(TermTuple const &a, TermTuple const &b) -> bool;
-    //! Compare two tuple terms.
-    friend auto operator<=>(TermTuple const &a, TermTuple const &b) -> std::strong_ordering;
-
   private:
     Location loc_;
     TupleElementArray pool_;
@@ -206,7 +183,7 @@ class TermTuple : public Gringo::Util::Record::Base<TermTuple> {
 //! Term representing a symbolic or external function.
 //!
 //! For example <tt>f(a,b;c)</tt>.
-class TermFunction : public Gringo::Util::Record::Base<TermFunction> {
+class TermFunction : public RecursiveExpression<TermFunction> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -229,11 +206,6 @@ class TermFunction : public Gringo::Util::Record::Base<TermFunction> {
     //! Whether this is an external function.
     [[nodiscard]] auto external() const -> bool { return external_; }
 
-    //! Compare two function terms.
-    friend auto operator==(TermFunction const &a, TermFunction const &b) -> bool;
-    //! Compare two function terms.
-    friend auto operator<=>(TermFunction const &a, TermFunction const &b) -> std::strong_ordering;
-
   private:
     Location loc_;
     String name_;
@@ -244,7 +216,7 @@ class TermFunction : public Gringo::Util::Record::Base<TermFunction> {
 //! Term representing the absolute function.
 //!
 //! For example <tt>|-X|</tt>.
-class TermAbs : public Gringo::Util::Record::Base<TermAbs> {
+class TermAbs : public RecursiveExpression<TermAbs> {
   public:
     //! The record attributes.
     static constexpr auto attributes() { return std::tuple{a_loc = &TermAbs::loc_, a_pool = &TermAbs::pool_}; }
@@ -278,7 +250,7 @@ enum class UnaryOperator : int {
 //! Term representing an unary operation.
 //!
 //! For example <tt>-X</tt>.
-class TermUnary : public Gringo::Util::Record::Base<TermUnary> {
+class TermUnary : public RecursiveExpression<TermUnary> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -294,11 +266,6 @@ class TermUnary : public Gringo::Util::Record::Base<TermUnary> {
     [[nodiscard]] auto op() const -> UnaryOperator { return op_; }
     //! The right-hand-side.
     [[nodiscard]] auto rhs() const -> Util::immutable_value<Term> const & { return rhs_; }
-
-    //! Compare two unary terms.
-    friend auto operator==(TermUnary const &a, TermUnary const &b) -> bool;
-    //! Compare two unary terms.
-    friend auto operator<=>(TermUnary const &a, TermUnary const &b) -> std::strong_ordering;
 
   private:
     Location loc_;
@@ -323,7 +290,7 @@ enum class BinaryOperator : int {
 //! Term representing a binary operation.
 //!
 //! For example <tt>X-Y</tt>.
-class TermBinary : public Gringo::Util::Record::Base<TermBinary> {
+class TermBinary : public RecursiveExpression<TermBinary> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -343,11 +310,6 @@ class TermBinary : public Gringo::Util::Record::Base<TermBinary> {
     [[nodiscard]] auto rhs() const -> Util::immutable_value<Term> const & { return rhs_; }
     //! The operation.
     [[nodiscard]] auto op() const -> BinaryOperator { return op_; }
-
-    //! Compare two binary terms.
-    friend auto operator==(TermBinary const &a, TermBinary const &b) -> bool;
-    //! Compare two binary terms.
-    friend auto operator<=>(TermBinary const &a, TermBinary const &b) -> std::strong_ordering;
 
   private:
     Location loc_;
@@ -414,7 +376,7 @@ inline TermUnary::TermUnary(Location loc, UnaryOperator op, Util::immutable_valu
 
 inline auto operator==(TermUnary const &a, TermUnary const &b) -> bool {
     return a.comparison_tuple() == b.comparison_tuple();
-};
+}
 
 inline auto operator<=>(TermUnary const &a, TermUnary const &b) -> std::strong_ordering {
     return a.comparison_tuple() <=> b.comparison_tuple();
@@ -428,7 +390,7 @@ inline TermBinary::TermBinary(Location loc, Util::immutable_value<Term> lhs, Bin
 
 inline auto operator==(TermBinary const &a, TermBinary const &b) -> bool {
     return a.comparison_tuple() == b.comparison_tuple();
-};
+}
 
 inline auto operator<=>(TermBinary const &a, TermBinary const &b) -> std::strong_ordering {
     return a.comparison_tuple() <=> b.comparison_tuple();

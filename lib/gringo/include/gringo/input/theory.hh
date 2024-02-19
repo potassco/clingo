@@ -27,7 +27,7 @@ using TheoryTermArray = Util::immutable_array<TheoryTerm>;
 //! A symbolic theory term.
 //!
 //! For example: <tt>1</tt>.
-class TheoryTermSymbol : public Gringo::Util::Record::Base<TheoryTermSymbol> {
+class TheoryTermSymbol : public Expression<TheoryTermSymbol> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -42,15 +42,6 @@ class TheoryTermSymbol : public Gringo::Util::Record::Base<TheoryTermSymbol> {
     //! The symbol.
     [[nodiscard]] auto value() const -> Symbol { return value_; }
 
-    //! Compare two theory terms.
-    friend auto operator==(TheoryTermSymbol const &a, TheoryTermSymbol const &b) -> bool {
-        return a.value_ == b.value_;
-    }
-    //! Compare two theory terms.
-    friend auto operator<=>(TheoryTermSymbol const &a, TheoryTermSymbol const &b) -> std::strong_ordering {
-        return a.value_ <=> b.value_;
-    }
-
   private:
     Location loc_;
     Symbol value_;
@@ -59,7 +50,7 @@ class TheoryTermSymbol : public Gringo::Util::Record::Base<TheoryTermSymbol> {
 //! A variable theory term.
 //!
 //! For example: <tt>X</tt>.
-class TheoryTermVariable : public Gringo::Util::Record::Base<TheoryTermVariable> {
+class TheoryTermVariable : public Expression<TheoryTermVariable> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -77,15 +68,6 @@ class TheoryTermVariable : public Gringo::Util::Record::Base<TheoryTermVariable>
     [[nodiscard]] auto name() const -> String { return name_; }
     //! Whether the variable is anonymous.
     [[nodiscard]] auto anonymous() const -> bool { return anonymous_; }
-
-    //! Compare two theory terms.
-    friend auto operator==(TheoryTermVariable const &a, TheoryTermVariable const &b) -> bool {
-        return a.name_ == b.name_;
-    }
-    //! Compare two theory terms.
-    friend auto operator<=>(TheoryTermVariable const &a, TheoryTermVariable const &b) -> std::strong_ordering {
-        return a.name_ <=> b.name_;
-    }
 
   private:
     Location loc_;
@@ -105,7 +87,7 @@ enum class TheoryTermTupleType {
 //! A tuple (set or list) theory term.
 //!
 //! For example: <tt>f(X,y)</tt>.
-class TheoryTermTuple : public Gringo::Util::Record::Base<TheoryTermTuple> {
+class TheoryTermTuple : public RecursiveExpression<TheoryTermTuple> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -123,11 +105,6 @@ class TheoryTermTuple : public Gringo::Util::Record::Base<TheoryTermTuple> {
     //! The elements of the tuple.
     [[nodiscard]] auto elems() const -> TheoryTermArray const & { return elems_; }
 
-    //! Compare two theory terms.
-    friend auto operator==(TheoryTermTuple const &a, TheoryTermTuple const &b) -> bool;
-    //! Compare two theory terms.
-    friend auto operator<=>(TheoryTermTuple const &a, TheoryTermTuple const &b) -> std::strong_ordering;
-
   private:
     Location loc_;
     TheoryTermTupleType type_;
@@ -137,7 +114,7 @@ class TheoryTermTuple : public Gringo::Util::Record::Base<TheoryTermTuple> {
 //! A tuple (set or list) theory term.
 //!
 //! For example: <tt>{f(X,y), Z}</tt>.
-class TheoryTermFunction : public Gringo::Util::Record::Base<TheoryTermFunction> {
+class TheoryTermFunction : public RecursiveExpression<TheoryTermFunction> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -156,11 +133,6 @@ class TheoryTermFunction : public Gringo::Util::Record::Base<TheoryTermFunction>
     [[nodiscard]] auto name() const -> String { return name_; }
     //! The arguments of the function.
     [[nodiscard]] auto args() const -> TheoryTermArray const & { return args_; }
-
-    //! Compare two theory terms.
-    friend auto operator==(TheoryTermFunction const &a, TheoryTermFunction const &b) -> bool;
-    //! Compare two theory terms.
-    friend auto operator<=>(TheoryTermFunction const &a, TheoryTermFunction const &b) -> std::strong_ordering;
 
   private:
     Location loc_;
@@ -182,7 +154,7 @@ using UnparsedElementArray = Util::immutable_array<UnparsedElement>;
 //! They are simply stored as a list.
 //!
 //! For example: <tt>- X ++ Y << Z</tt>.
-class TheoryTermUnparsed : public Gringo::Util::Record::Base<TheoryTermUnparsed> {
+class TheoryTermUnparsed : public RecursiveExpression<TheoryTermUnparsed> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -197,11 +169,6 @@ class TheoryTermUnparsed : public Gringo::Util::Record::Base<TheoryTermUnparsed>
     //! The vector of elements.
     [[nodiscard]] auto elems() const -> UnparsedElementArray const & { return elems_; }
 
-    //! Compare two theory terms.
-    friend auto operator==(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> bool;
-    //! Compare two theory terms.
-    friend auto operator<=>(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> std::strong_ordering;
-
   private:
     Location loc_;
     UnparsedElementArray elems_;
@@ -211,7 +178,7 @@ class TheoryTermUnparsed : public Gringo::Util::Record::Base<TheoryTermUnparsed>
 using TheoryRGuard = std::optional<std::pair<String, TheoryTerm>>;
 
 //! An element of the theory atom.
-class TheoryElement : public Gringo::Util::Record::Base<TheoryElement> {
+class TheoryElement : public Expression<TheoryElement> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -230,15 +197,6 @@ class TheoryElement : public Gringo::Util::Record::Base<TheoryElement> {
     //! The condition of the theory element.
     [[nodiscard]] auto cond() const -> LitArray const & { return cond_; }
 
-    //! Compare two theory elements.
-    friend auto operator==(TheoryElement const &a, TheoryElement const &b) -> bool {
-        return std::tie(a.tuple_, a.cond_) == std::tie(b.tuple_, b.cond_);
-    }
-    //! Compare two theory elements.
-    friend auto operator<=>(TheoryElement const &a, TheoryElement const &b) -> std::strong_ordering {
-        return std::tie(a.tuple_, a.cond_) <=> std::tie(b.tuple_, b.cond_);
-    }
-
   private:
     Location loc_;
     TheoryTermArray tuple_;
@@ -251,8 +209,7 @@ using TheoryElementArray = Util::immutable_array<TheoryElement>;
 //!
 //! For example: <tt>&sum { X+Y: p(X), q(Y) } >= 0</tt>.
 template <bool HasSign>
-class TheoryAtom : public std::conditional_t<HasSign, Signed, Unsigned>,
-                   public Gringo::Util::Record::Base<TheoryAtom<HasSign>> {
+class TheoryAtom : public std::conditional_t<HasSign, Signed, Unsigned>, public Expression<TheoryAtom<HasSign>> {
   public:
     using Base = std::conditional_t<HasSign, Signed, Unsigned>;
 
@@ -288,18 +245,6 @@ class TheoryAtom : public std::conditional_t<HasSign, Signed, Unsigned>,
     //! The optional right guard of the atom.
     [[nodiscard]] auto rhs() const -> TheoryRGuard const & { return rhs_; }
 
-    //! Compare two theory atoms.
-    friend auto operator==(TheoryAtom const &a, TheoryAtom const &b) -> bool {
-        return std::tie(static_cast<Base const &>(a), a.name_, a.elems_, a.rhs_) ==
-               std::tie(static_cast<Base const &>(b), b.name_, b.elems_, b.rhs_);
-    }
-    //! Compare two theory atoms.
-    friend auto operator<=>(TheoryAtom const &a, TheoryAtom const &b) -> std::strong_ordering {
-        // Note: std::optional does not produce a strong_ordering - bug???
-        return Util::make_strong_ordering(std::tie(static_cast<Base const &>(a), a.name_, a.elems_, a.rhs_) <=>
-                                          std::tie(static_cast<Base const &>(b), b.name_, b.elems_, b.rhs_));
-    }
-
   private:
     Location loc_;
     Term name_;
@@ -321,11 +266,11 @@ inline TheoryTermTuple::TheoryTermTuple(Location loc, TheoryTermTupleType type, 
     : loc_{std::move(loc)}, type_(type), elems_{std::move(elems)} {}
 
 inline auto operator==(TheoryTermTuple const &a, TheoryTermTuple const &b) -> bool {
-    return std::tie(a.type_, a.elems_) == std::tie(b.type_, b.elems_);
+    return a.comparison_tuple() == b.comparison_tuple();
 }
 
 inline auto operator<=>(TheoryTermTuple const &a, TheoryTermTuple const &b) -> std::strong_ordering {
-    return std::tie(a.type_, a.elems_) <=> std::tie(b.type_, b.elems_);
+    return a.comparison_tuple() <=> b.comparison_tuple();
 }
 
 // TheoryTermFunction
@@ -337,11 +282,11 @@ inline TheoryTermFunction::TheoryTermFunction(Location loc, String name)
     : TheoryTermFunction{std::move(loc), name, {}} {}
 
 inline auto operator==(TheoryTermFunction const &a, TheoryTermFunction const &b) -> bool {
-    return std::tie(a.name_, a.args_) == std::tie(b.name_, b.args_);
+    return a.comparison_tuple() == b.comparison_tuple();
 }
 
 inline auto operator<=>(TheoryTermFunction const &a, TheoryTermFunction const &b) -> std::strong_ordering {
-    return std::tie(a.name_, a.args_) <=> std::tie(b.name_, b.args_);
+    return a.comparison_tuple() <=> b.comparison_tuple();
 }
 
 // TheoryTermUnparsed
@@ -350,11 +295,11 @@ inline TheoryTermUnparsed::TheoryTermUnparsed(Location loc, UnparsedElementArray
     : loc_{std::move(loc)}, elems_{std::move(elems)} {}
 
 inline auto operator==(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> bool {
-    return a.elems_ == b.elems_;
+    return a.comparison_tuple() == b.comparison_tuple();
 }
 
 inline auto operator<=>(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> std::strong_ordering {
-    return a.elems_ <=> b.elems_;
+    return a.comparison_tuple() <=> b.comparison_tuple();
 }
 
 } // namespace Gringo::Input

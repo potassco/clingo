@@ -73,7 +73,7 @@ using GuardArray = Util::immutable_array<Guard>;
 //! Literal representing a Boolean constant.
 //!
 //! For example <tt>\#true</tt>.
-class LitBool : public Gringo::Util::Record::Base<LitBool> {
+class LitBool : public Expression<LitBool> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -90,15 +90,6 @@ class LitBool : public Gringo::Util::Record::Base<LitBool> {
     //! The Boolean value.
     [[nodiscard]] auto value() const -> bool { return value_; }
 
-    //! Check whether two Boolean literals are equivalent.
-    friend auto operator==(LitBool const &a, LitBool const &b) -> bool {
-        return std::tie(a.sign_, a.value_) == std::tie(b.sign_, b.value_);
-    }
-    //! Compare two Boolean literals.
-    friend auto operator<=>(LitBool const &a, LitBool const &b) -> std::strong_ordering {
-        return std::tie(a.sign_, a.value_) <=> std::tie(b.sign_, b.value_);
-    }
-
   private:
     Location loc_;
     Sign sign_;
@@ -108,7 +99,7 @@ class LitBool : public Gringo::Util::Record::Base<LitBool> {
 //! Literal representing a relation literal.
 //!
 //! For example <tt>1 <= X <= 10</tt>.
-class LitComparison : public Gringo::Util::Record::Base<LitComparison> {
+class LitComparison : public Expression<LitComparison> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -129,15 +120,6 @@ class LitComparison : public Gringo::Util::Record::Base<LitComparison> {
     //! The guards on the right hand side.
     [[nodiscard]] auto rhs() const -> GuardArray const & { return rhs_; }
 
-    //! Check whether two relation literals are equivalent.
-    friend auto operator==(LitComparison const &a, LitComparison const &b) -> bool {
-        return std::tie(a.sign_, a.lhs_, a.rhs_) == std::tie(b.sign_, b.lhs_, b.rhs_);
-    }
-    //! Compare two relation literals.
-    friend auto operator<=>(LitComparison const &a, LitComparison const &b) -> std::strong_ordering {
-        return std::tie(a.sign_, a.lhs_, a.rhs_) <=> std::tie(b.sign_, b.lhs_, b.rhs_);
-    }
-
   private:
     Location loc_;
     Sign sign_;
@@ -148,7 +130,7 @@ class LitComparison : public Gringo::Util::Record::Base<LitComparison> {
 //! Literal representing a symbolic literal.
 //!
 //! For example <tt>not p(X)</tt>.
-class LitSymbolic : public Gringo::Util::Record::Base<LitSymbolic> {
+class LitSymbolic : public Expression<LitSymbolic> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -166,15 +148,6 @@ class LitSymbolic : public Gringo::Util::Record::Base<LitSymbolic> {
     //! The term representing the atom.
     [[nodiscard]] auto term() const -> Term const & { return term_; }
 
-    //! Check whether two symbolic literals are equivalent.
-    friend auto operator==(LitSymbolic const &a, LitSymbolic const &b) -> bool {
-        return std::tie(a.sign_, a.term_) == std::tie(b.sign_, b.term_);
-    }
-    //! Compare two symbolic literals.
-    friend auto operator<=>(LitSymbolic const &a, LitSymbolic const &b) -> std::strong_ordering {
-        return std::tie(a.sign_, a.term_) <=> std::tie(b.sign_, b.term_);
-    }
-
   private:
     Location loc_;
     Sign sign_;
@@ -188,7 +161,7 @@ using Lit = std::variant<LitBool, LitComparison, LitSymbolic>;
 using LitArray = Util::immutable_array<Lit>;
 
 //! A conditional literal.
-class CondLit : public Gringo::Util::Record::Base<CondLit> {
+class CondLit : public Expression<CondLit> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -204,15 +177,6 @@ class CondLit : public Gringo::Util::Record::Base<CondLit> {
     [[nodiscard]] auto lit() const -> Lit const & { return lit_; }
     //! The literals on the right-hand-side.
     [[nodiscard]] auto cond() const -> LitArray const & { return cond_; }
-
-    //! Check whether two conditional literals are equivalent.
-    friend auto operator==(CondLit const &a, CondLit const &b) -> bool {
-        return std::tie(a.lit_, a.cond_) == std::tie(b.lit_, b.cond_);
-    }
-    //! Compare two conditional literals.
-    friend auto operator<=>(CondLit const &a, CondLit const &b) -> std::strong_ordering {
-        return std::tie(a.lit_, a.cond_) <=> std::tie(b.lit_, b.cond_);
-    }
 
   private:
     Location loc_;

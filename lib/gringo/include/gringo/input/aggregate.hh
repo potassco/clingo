@@ -42,7 +42,7 @@ inline auto reduct_is_nonmonotone(LGuard const &lhs, AggregateFunction fun, RGua
 }
 
 //! An element of a set aggregate.
-class SetAggregateElement : public Gringo::Util::Record::Base<SetAggregateElement> {
+class SetAggregateElement : public Expression<SetAggregateElement> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -60,15 +60,6 @@ class SetAggregateElement : public Gringo::Util::Record::Base<SetAggregateElemen
     //! The condition.
     [[nodiscard]] auto cond() const -> LitArray const & { return cond_; }
 
-    //! Equality compare two set aggregate elements.
-    friend auto operator==(SetAggregateElement const &a, SetAggregateElement const &b) -> bool {
-        return std::tie(a.lit_, a.cond_) == std::tie(a.lit_, b.cond_);
-    }
-    //! Equality compare two set aggregates.
-    friend auto operator<=>(SetAggregateElement const &a, SetAggregateElement const &b) -> std::strong_ordering {
-        return std::tie(a.lit_, a.cond_) <=> std::tie(a.lit_, b.cond_);
-    }
-
   private:
     Location loc_;
     Lit lit_;
@@ -82,8 +73,7 @@ using SetAggregateElementArray = Util::immutable_array<SetAggregateElement>;
 //!
 //! For example: <tt>{ p(X): q(X) } = 1</tt>.
 template <bool HasSign>
-class SetAggregate : public std::conditional_t<HasSign, Signed, Unsigned>,
-                     public Gringo::Util::Record::Base<SetAggregate<HasSign>> {
+class SetAggregate : public std::conditional_t<HasSign, Signed, Unsigned>, public Expression<SetAggregate<HasSign>> {
   public:
     using Base = std::conditional_t<HasSign, Signed, Unsigned>;
 
@@ -118,18 +108,6 @@ class SetAggregate : public std::conditional_t<HasSign, Signed, Unsigned>,
     [[nodiscard]] auto lhs() const -> LGuard const & { return lhs_; }
     //! The optional left guard of the aggregate.
     [[nodiscard]] auto rhs() const -> RGuard const & { return rhs_; }
-
-    //! Equality compare two set aggregates.
-    friend auto operator==(SetAggregate const &a, SetAggregate const &b) -> bool {
-        return std::tie(static_cast<Base const &>(a), a.lhs_, a.elems_, a.rhs_) ==
-               std::tie(static_cast<Base const &>(b), b.lhs_, b.elems_, b.rhs_);
-    }
-    //! Compare two set aggregates.
-    friend auto operator<=>(SetAggregate const &a, SetAggregate const &b) -> std::strong_ordering {
-        // Note: std::optional does not produce a strong_ordering - bug???
-        return Util::make_strong_ordering(std::tie(static_cast<Base const &>(a), a.lhs_, a.elems_, a.rhs_) <=>
-                                          std::tie(static_cast<Base const &>(b), b.lhs_, b.elems_, b.rhs_));
-    }
 
   private:
     Location loc_;
