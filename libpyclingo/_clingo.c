@@ -612,7 +612,8 @@ extern "C" {
 
    * _cffi_call_python_org, which on CPython is actually part of the
      _cffi_exports[] array, is the function pointer copied from
-     _cffi_backend.
+     _cffi_backend.  If _cffi_start_python() fails, then this is set
+     to NULL; otherwise, it should never be NULL.
 
    After initialization is complete, both are equal.  However, the
    first one remains equal to &_cffi_start_and_call_python until the
@@ -962,7 +963,7 @@ static int _cffi_initialize_python(void)
 
         if (f != NULL && f != Py_None) {
             PyFile_WriteString("\nFrom: " _CFFI_MODULE_NAME
-                               "\ncompiled with cffi version: 1.15.0"
+                               "\ncompiled with cffi version: 1.16.0"
                                "\n_cffi_backend module: ", f);
             modules = PyImport_GetModuleDict();
             mod = PyDict_GetItemString(modules, "_cffi_backend");
@@ -1020,6 +1021,15 @@ static int _cffi_carefully_make_gil(void)
        Python < 3.8 because someone might use a mixture of cffi
        embedded modules, some of which were compiled before this file
        changed.
+
+       In Python >= 3.12, this stopped working because that particular
+       tp_version_tag gets modified during interpreter startup.  It's
+       arguably a bad idea before 3.12 too, but again we can't change
+       that because someone might use a mixture of cffi embedded
+       modules, and no-one reported a bug so far.  In Python >= 3.12
+       we go instead for PyCapsuleType.tp_as_buffer, which is supposed
+       to always be NULL.  We write to it temporarily a pointer to
+       a struct full of NULLs, which is semantically the same.
     */
 
 #ifdef WITH_THREAD
@@ -1044,19 +1054,32 @@ static int _cffi_carefully_make_gil(void)
         }
     }
 # else
+#  if PY_VERSION_HEX < 0x030C0000
     int volatile *lock = (int volatile *)&PyCapsule_Type.tp_version_tag;
-    int old_value, locked_value;
+    int old_value, locked_value = -42;
     assert(!(PyCapsule_Type.tp_flags & Py_TPFLAGS_HAVE_VERSION_TAG));
+#  else
+    static struct ebp_s { PyBufferProcs buf; int mark; } empty_buffer_procs;
+    empty_buffer_procs.mark = -42;
+    PyBufferProcs *volatile *lock = (PyBufferProcs *volatile *)
+        &PyCapsule_Type.tp_as_buffer;
+    PyBufferProcs *old_value, *locked_value = &empty_buffer_procs.buf;
+#  endif
 
     while (1) {    /* spin loop */
         old_value = *lock;
-        locked_value = -42;
         if (old_value == 0) {
             if (cffi_compare_and_swap(lock, old_value, locked_value))
                 break;
         }
         else {
+#  if PY_VERSION_HEX < 0x030C0000
             assert(old_value == locked_value);
+#  else
+            /* The pointer should point to a possibly different
+               empty_buffer_procs from another C extension module */
+            assert(((struct ebp_s *)old_value)->mark == -42);
+#  endif
             /* should ideally do a spin loop instruction here, but
                hard to do it portably and doesn't really matter I
                think: PyEval_InitThreads() should be very fast, and
