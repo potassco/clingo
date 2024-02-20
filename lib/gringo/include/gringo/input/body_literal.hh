@@ -14,7 +14,7 @@ namespace Gringo::Input {
 //! @{
 
 //! A single literal in a rule body.
-class BdLitSimple : public Gringo::Util::Record::Base<BdLitSimple> {
+class BdLitSimple : public Expression<BdLitSimple> {
   public:
     //! The record attributes.
     static constexpr auto attributes() { return std::tuple{a_lit = &BdLitSimple::lit_}; }
@@ -26,17 +26,12 @@ class BdLitSimple : public Gringo::Util::Record::Base<BdLitSimple> {
     //! The literal.
     [[nodiscard]] auto lit() const -> Lit const & { return lit_; }
 
-    //! Compare two literals.
-    friend auto operator==(BdLitSimple const &a, BdLitSimple const &b) -> bool = default;
-    //! Compare two literals.
-    friend auto operator<=>(BdLitSimple const &a, BdLitSimple const &b) -> std::strong_ordering = default;
-
   private:
     Lit lit_;
 };
 
 //! A conditional literal in a rule body.
-class BdLitConjunction : public Gringo::Util::Record::Base<BdLitConjunction> {
+class BdLitConjunction : public Expression<BdLitConjunction> {
   public:
     //! The record attributes.
     static constexpr auto attributes() { return std::tuple{a_lit = &BdLitConjunction::lit_}; }
@@ -48,17 +43,12 @@ class BdLitConjunction : public Gringo::Util::Record::Base<BdLitConjunction> {
     //! The conditional literal representing the elements of the conjunction.
     [[nodiscard]] auto lit() const -> CondLit const & { return lit_; }
 
-    //! Compare two body conjunctions.
-    friend auto operator==(BdLitConjunction const &a, BdLitConjunction const &b) -> bool = default;
-    //! Compare two body conjunctions.
-    friend auto operator<=>(BdLitConjunction const &a, BdLitConjunction const &b) -> std::strong_ordering = default;
-
   private:
     CondLit lit_;
 };
 
 //! A body aggregate element.
-class BdLitAggregateElement : public Gringo::Util::Record::Base<BdLitAggregateElement> {
+class BdLitAggregateElement : public Expression<BdLitAggregateElement> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -75,15 +65,6 @@ class BdLitAggregateElement : public Gringo::Util::Record::Base<BdLitAggregateEl
     //! The condition of the element.
     [[nodiscard]] auto cond() const -> LitArray const & { return cond_; }
 
-    //! Compare two body aggregates elements.
-    friend auto operator==(BdLitAggregateElement const &a, BdLitAggregateElement const &b) -> bool {
-        return std::tie(a.tuple_, a.cond_) == std::tie(b.tuple_, b.cond_);
-    }
-    //! Compare two body aggregates elements.
-    friend auto operator<=>(BdLitAggregateElement const &a, BdLitAggregateElement const &b) -> std::strong_ordering {
-        return std::tie(a.tuple_, a.cond_) <=> std::tie(b.tuple_, b.cond_);
-    }
-
   private:
     Location loc_;
     TermArray tuple_;
@@ -95,7 +76,7 @@ using BdLitAggregateElementArray = Util::immutable_array<BdLitAggregateElement>;
 //! A body aggregate.
 //!
 //! For example: <tt>\#count { X: q(X) } = 1</tt>
-class BdLitAggregate : public Gringo::Util::Record::Base<BdLitAggregate> {
+class BdLitAggregate : public Expression<BdLitAggregate> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -122,18 +103,6 @@ class BdLitAggregate : public Gringo::Util::Record::Base<BdLitAggregate> {
     [[nodiscard]] auto lhs() const -> LGuard const & { return lhs_; }
     //! An optional right guard.
     [[nodiscard]] auto rhs() const -> RGuard const & { return rhs_; }
-
-    //! Compare two body aggregates.
-    friend auto operator==(BdLitAggregate const &a, BdLitAggregate const &b) -> bool {
-        return std::tie(a.sign_, a.fun_, a.lhs_, a.elems_, a.rhs_) ==
-               std::tie(b.sign_, b.fun_, b.lhs_, b.elems_, b.rhs_);
-    }
-    //! Compare two body aggregates.
-    friend auto operator<=>(BdLitAggregate const &a, BdLitAggregate const &b) -> std::strong_ordering {
-        // Note: std::optional does not produce a strong_ordering - bug???
-        return Util::make_strong_ordering(std::tie(a.sign_, a.fun_, a.lhs_, a.elems_, a.rhs_) <=>
-                                          std::tie(b.sign_, b.fun_, b.lhs_, b.elems_, b.rhs_));
-    }
 
   private:
     Location loc_;

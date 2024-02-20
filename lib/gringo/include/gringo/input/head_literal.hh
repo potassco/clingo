@@ -14,7 +14,7 @@ namespace Gringo::Input {
 //! @{
 
 //! A single literal in a rule head.
-class HdLitSimple : public Gringo::Util::Record::Base<HdLitSimple> {
+class HdLitSimple : public Expression<HdLitSimple> {
   public:
     //! The record attributes.
     static constexpr auto attributes() { return std::tuple{a_lit = &HdLitSimple::lit_}; }
@@ -26,11 +26,6 @@ class HdLitSimple : public Gringo::Util::Record::Base<HdLitSimple> {
     //! The literal.
     [[nodiscard]] auto lit() const -> Lit const & { return lit_; }
 
-    //! Compare two literals.
-    friend auto operator==(HdLitSimple const &a, HdLitSimple const &b) -> bool = default;
-    //! Compare two literals.
-    friend auto operator<=>(HdLitSimple const &a, HdLitSimple const &b) = default;
-
   private:
     Lit lit_;
 };
@@ -41,7 +36,7 @@ using HdLitDisjunctionElement = std::variant<Lit, CondLit>;
 using HdLitDisjunctionElementArray = Util::immutable_array<HdLitDisjunctionElement>;
 
 //! A disjunction of conditional literals.
-class HdLitDisjunction : public Gringo::Util::Record::Base<HdLitDisjunction> {
+class HdLitDisjunction : public Expression<HdLitDisjunction> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -55,22 +50,13 @@ class HdLitDisjunction : public Gringo::Util::Record::Base<HdLitDisjunction> {
     //! The elements of the disjunction.
     [[nodiscard]] auto elems() const -> HdLitDisjunctionElementArray const & { return elems_; }
 
-    //! Compare two disjunctions.
-    friend auto operator==(HdLitDisjunction const &a, HdLitDisjunction const &b) -> bool {
-        return a.elems_ == b.elems_;
-    }
-    //! Compare two disjunctions.
-    friend auto operator<=>(HdLitDisjunction const &a, HdLitDisjunction const &b) -> std::strong_ordering {
-        return a.elems_ <=> b.elems_;
-    }
-
   private:
     Location loc_;
     HdLitDisjunctionElementArray elems_;
 };
 
 //! An element of a head aggregate.
-class HdLitAggregateElement : public Gringo::Util::Record::Base<HdLitAggregateElement> {
+class HdLitAggregateElement : public Expression<HdLitAggregateElement> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -90,15 +76,6 @@ class HdLitAggregateElement : public Gringo::Util::Record::Base<HdLitAggregateEl
     //! The condition of the element.
     [[nodiscard]] auto cond() const -> LitArray const & { return cond_; }
 
-    //! Compare two head aggregate elements.
-    friend auto operator==(HdLitAggregateElement const &a, HdLitAggregateElement const &b) -> bool {
-        return std::tie(a.tuple_, a.lit_, a.cond_) == std::tie(b.tuple_, b.lit_, b.cond_);
-    }
-    //! Compare two head aggregate elements.
-    friend auto operator<=>(HdLitAggregateElement const &a, HdLitAggregateElement const &b) -> std::strong_ordering {
-        return std::tie(a.tuple_, a.lit_, a.cond_) <=> std::tie(b.tuple_, b.lit_, b.cond_);
-    }
-
   private:
     Location loc_;
     TermArray tuple_;
@@ -111,7 +88,7 @@ using HdLitAggregateElementArray = Util::immutable_array<HdLitAggregateElement>;
 //! A head aggregate.
 //!
 //! For example: <tt>\#count { X: p(X): q(X) } = 1</tt>
-class HdLitAggregate : public Gringo::Util::Record::Base<HdLitAggregate> {
+class HdLitAggregate : public Expression<HdLitAggregate> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -141,17 +118,6 @@ class HdLitAggregate : public Gringo::Util::Record::Base<HdLitAggregate> {
     [[nodiscard]] auto lhs() const -> LGuard const & { return lhs_; }
     //! An optional right guard.
     [[nodiscard]] auto rhs() const -> RGuard const & { return rhs_; }
-
-    //! Compare two head aggregates.
-    friend auto operator==(HdLitAggregate const &a, HdLitAggregate const &b) -> bool {
-        return std::tie(a.fun_, a.lhs_, a.elems_, a.rhs_) == std::tie(b.fun_, b.lhs_, b.elems_, b.rhs_);
-    }
-    //! Compare two head aggregates.
-    friend auto operator<=>(HdLitAggregate const &a, HdLitAggregate const &b) -> std::strong_ordering {
-        // Note: std::optional does not produce a strong_ordering - bug???
-        return Util::make_strong_ordering(std::tie(a.fun_, a.lhs_, a.elems_, a.rhs_) <=>
-                                          std::tie(b.fun_, b.lhs_, b.elems_, b.rhs_));
-    }
 
   private:
     Location loc_;

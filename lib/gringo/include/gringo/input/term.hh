@@ -47,20 +47,6 @@ class TermAbs;
 class TermUnary;
 class TermBinary;
 
-template <class T> class Expression : public Gringo::Util::Record::Base<T> {
-  public:
-    friend auto operator==(T const &a, T const &b) -> bool { return a.comparison_tuple() == b.comparison_tuple(); }
-    friend auto operator<=>(T const &a, T const &b) -> std::strong_ordering {
-        return a.comparison_tuple() <=> b.comparison_tuple();
-    }
-};
-
-template <class T> class RecursiveExpression : public Gringo::Util::Record::Base<T> {
-  public:
-    friend auto operator==(T const &a, T const &b) -> bool;
-    friend auto operator<=>(T const &a, T const &b) -> std::strong_ordering;
-};
-
 //! Variant holding the different term types.
 using Term = std::variant<TermVariable, TermSymbol, TermTuple, TermFunction, TermAbs, TermUnary, TermBinary>;
 

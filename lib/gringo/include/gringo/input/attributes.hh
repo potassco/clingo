@@ -36,4 +36,18 @@ constexpr auto a_dst = Util::Record::AttributeName<28>{};
 constexpr auto a_edges = Util::Record::AttributeName<29>{};
 constexpr auto a_atom = Util::Record::AttributeName<30>{};
 
+template <class T> class Expression : public Gringo::Util::Record::Base<T> {
+  public:
+    friend auto operator==(T const &a, T const &b) -> bool { return a.comparison_tuple() == b.comparison_tuple(); }
+    friend auto operator<=>(T const &a, T const &b) -> std::strong_ordering {
+        return a.comparison_tuple() <=> b.comparison_tuple();
+    }
+};
+
+template <class T> class RecursiveExpression : public Gringo::Util::Record::Base<T> {
+  public:
+    friend auto operator==(T const &a, T const &b) -> bool;
+    friend auto operator<=>(T const &a, T const &b) -> std::strong_ordering;
+};
+
 } // namespace Gringo::Input

@@ -15,7 +15,7 @@ namespace Gringo::Input {
 //! A rule.
 //!
 //! For example: <tt>p(X) :- q(X)</tt>.
-class StmRule : public Gringo::Util::Record::Base<StmRule> {
+class StmRule : public Expression<StmRule> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -32,15 +32,6 @@ class StmRule : public Gringo::Util::Record::Base<StmRule> {
     [[nodiscard]] auto head() const -> HdLit const & { return head_; }
     //! The body.
     [[nodiscard]] auto body() const -> BdLitArray const & { return body_; }
-
-    //! Compare two rules.
-    friend auto operator==(StmRule const &a, StmRule const &b) -> bool {
-        return std::tie(a.head_, a.body_) == std::tie(b.head_, b.body_);
-    }
-    //! Compare two rules.
-    friend auto operator<=>(StmRule const &a, StmRule const &b) -> std::strong_ordering {
-        return std::tie(a.head_, a.body_) <=> std::tie(b.head_, b.body_);
-    }
 
   private:
     Location loc_;
@@ -60,7 +51,7 @@ enum class TheoryOpType {
 //! A theory operator definition.
 //!
 //! For example: <tt>- : 0, unary</tt>.
-class TheoryOpDefinition : public Gringo::Util::Record::Base<TheoryOpDefinition> {
+class TheoryOpDefinition : public Expression<TheoryOpDefinition> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -81,15 +72,6 @@ class TheoryOpDefinition : public Gringo::Util::Record::Base<TheoryOpDefinition>
     //! The type of the operator.
     [[nodiscard]] auto type() const -> TheoryOpType { return type_; }
 
-    //! Compare two theory operator definitions.
-    friend auto operator==(TheoryOpDefinition const &a, TheoryOpDefinition const &b) -> bool {
-        return std::tie(a.op_, a.prio_, a.type_) == std::tie(b.op_, b.prio_, b.type_);
-    }
-    //! Compare two theory operator definitions.
-    friend auto operator<=>(TheoryOpDefinition const &a, TheoryOpDefinition const &b) -> std::strong_ordering {
-        return std::tie(a.op_, a.prio_, a.type_) <=> std::tie(b.op_, b.prio_, b.type_);
-    }
-
   private:
     Location loc_;
     String op_;
@@ -103,7 +85,7 @@ using TheoryOpDefinitionArray = Util::immutable_array<TheoryOpDefinition>;
 //! A theory term definition.
 //!
 //! For example: <tt>term { - : 0, unary }</tt>.
-class TheoryTermDefinition : public Gringo::Util::Record::Base<TheoryTermDefinition> {
+class TheoryTermDefinition : public Expression<TheoryTermDefinition> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -121,15 +103,6 @@ class TheoryTermDefinition : public Gringo::Util::Record::Base<TheoryTermDefinit
     [[nodiscard]] auto name() const -> String { return name_; }
     //! The associated operator definitions.
     [[nodiscard]] auto op_defs() const -> TheoryOpDefinitionArray const & { return op_defs_; }
-
-    //! Compare two theory term definitions.
-    friend auto operator==(TheoryTermDefinition const &a, TheoryTermDefinition const &b) -> bool {
-        return std::tie(a.name_, a.op_defs_) == std::tie(b.name_, b.op_defs_);
-    }
-    //! Compare two theory term definitions.
-    friend auto operator<=>(TheoryTermDefinition const &a, TheoryTermDefinition const &b) -> std::strong_ordering {
-        return std::tie(a.name_, a.op_defs_) <=> std::tie(b.name_, b.op_defs_);
-    }
 
   private:
     Location loc_;
@@ -158,7 +131,7 @@ using TheoryRGuardDefinition = std::pair<StringArray, String>;
 //! A theory atom definition.
 //!
 //! For example: <tt>name/2: term, any</tt>.
-class TheoryAtomDefinition : public Gringo::Util::Record::Base<TheoryAtomDefinition> {
+class TheoryAtomDefinition : public Expression<TheoryAtomDefinition> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -185,17 +158,6 @@ class TheoryAtomDefinition : public Gringo::Util::Record::Base<TheoryAtomDefinit
     //! The type of the atom.
     [[nodiscard]] auto type() const -> TheoryAtomType { return type_; }
 
-    //! Compare two theory atom definitions.
-    friend auto operator==(TheoryAtomDefinition const &a, TheoryAtomDefinition const &b) -> bool {
-        return std::tie(a.name_, a.arity_, a.term_, a.type_, a.rhs_) ==
-               std::tie(b.name_, b.arity_, b.term_, b.type_, b.rhs_);
-    }
-    //! Compare two theory atom definitions.
-    friend auto operator<=>(TheoryAtomDefinition const &a, TheoryAtomDefinition const &b) -> std::strong_ordering {
-        return Util::make_strong_ordering(std::tie(a.name_, a.arity_, a.term_, a.type_, a.rhs_) <=>
-                                          std::tie(b.name_, b.arity_, b.term_, b.type_, b.rhs_));
-    }
-
   private:
     Location loc_;
     String name_;
@@ -211,7 +173,7 @@ using TheoryAtomDefinitionArray = Util::immutable_array<TheoryAtomDefinition>;
 //! A theory definition.
 //!
 //! For example: <tt>\#theory name { term { - : 0, unary }; name/2: term, any }</tt>.
-class StmTheory : public Gringo::Util::Record::Base<StmTheory> {
+class StmTheory : public Expression<StmTheory> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -233,15 +195,6 @@ class StmTheory : public Gringo::Util::Record::Base<StmTheory> {
     //! The theory atom definitions.
     [[nodiscard]] auto atom_defs() const -> TheoryAtomDefinitionArray const & { return atom_defs_; }
 
-    //! Compare two theory statements.
-    friend auto operator==(StmTheory const &a, StmTheory const &b) -> bool {
-        return std::tie(a.name_, a.term_defs_, a.atom_defs_) == std::tie(b.name_, b.term_defs_, b.atom_defs_);
-    }
-    //! Compare two theory statements.
-    friend auto operator<=>(StmTheory const &a, StmTheory const &b) -> std::strong_ordering {
-        return std::tie(a.name_, a.term_defs_, a.atom_defs_) <=> std::tie(b.name_, b.term_defs_, b.atom_defs_);
-    }
-
   private:
     Location loc_;
     String name_;
@@ -255,7 +208,7 @@ class StmTheory : public Gringo::Util::Record::Base<StmTheory> {
 enum class OptimizeType { minimize, maximize };
 
 //! The tuple of a minimize element.
-class OptimizeTuple : public Gringo::Util::Record::Base<OptimizeTuple> {
+class OptimizeTuple : public Expression<OptimizeTuple> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -273,16 +226,6 @@ class OptimizeTuple : public Gringo::Util::Record::Base<OptimizeTuple> {
     //! The remaining terms.
     [[nodiscard]] auto terms() const -> TermArray const & { return terms_; }
 
-    //! Compare two optimize tuples.
-    friend auto operator==(OptimizeTuple const &a, OptimizeTuple const &b) -> bool {
-        return std::tie(a.weight_, a.terms_, a.prio_) == std::tie(b.weight_, b.terms_, b.prio_);
-    }
-    //! Compare two optimize tuples.
-    friend auto operator<=>(OptimizeTuple const &a, OptimizeTuple const &b) -> std::strong_ordering {
-        return Util::make_strong_ordering(std::tie(a.weight_, a.terms_, a.prio_) <=>
-                                          std::tie(b.weight_, b.terms_, b.prio_));
-    }
-
   private:
     Term weight_;
     std::optional<Term> prio_;
@@ -297,7 +240,7 @@ using OptimizeElementArray = Util::immutable_array<OptimizeElement>;
 //! An optimization statement.
 //!
 //! For example: <tt>\#minimize { 1@0,X: p(X) }</tt>.
-class StmOptimize : public Gringo::Util::Record::Base<StmOptimize> {
+class StmOptimize : public Expression<StmOptimize> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -315,15 +258,6 @@ class StmOptimize : public Gringo::Util::Record::Base<StmOptimize> {
     //! The elements of the statement.
     [[nodiscard]] auto elems() const -> OptimizeElementArray const & { return elems_; }
 
-    //! Compare two optimization statements.
-    friend auto operator==(StmOptimize const &a, StmOptimize const &b) -> bool {
-        return std::tie(a.type_, a.elems_) == std::tie(b.type_, b.elems_);
-    }
-    //! Compare two optimization statements.
-    friend auto operator<=>(StmOptimize const &a, StmOptimize const &b) -> std::strong_ordering {
-        return std::tie(a.type_, a.elems_) <=> std::tie(b.type_, b.elems_);
-    }
-
   private:
     Location loc_;
     OptimizeType type_;
@@ -333,7 +267,7 @@ class StmOptimize : public Gringo::Util::Record::Base<StmOptimize> {
 //! A weak constraint.
 //!
 //! For example: <tt>:~ p(X). [1@0,X]</tt>.
-class StmWeakConstraint : public Gringo::Util::Record::Base<StmWeakConstraint> {
+class StmWeakConstraint : public Expression<StmWeakConstraint> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -352,15 +286,6 @@ class StmWeakConstraint : public Gringo::Util::Record::Base<StmWeakConstraint> {
     //! The tuple of the constraint.
     [[nodiscard]] auto tuple() const -> OptimizeTuple const & { return tuple_; }
 
-    //! Compare two weak constraints.
-    friend auto operator==(StmWeakConstraint const &a, StmWeakConstraint const &b) -> bool {
-        return std::tie(a.body_, a.tuple_) == std::tie(b.body_, b.tuple_);
-    }
-    //! Compare two weak constraints.
-    friend auto operator<=>(StmWeakConstraint const &a, StmWeakConstraint const &b) -> std::strong_ordering {
-        return std::tie(a.body_, a.tuple_) <=> std::tie(b.body_, b.tuple_);
-    }
-
   private:
     Location loc_;
     BdLitArray body_;
@@ -370,7 +295,7 @@ class StmWeakConstraint : public Gringo::Util::Record::Base<StmWeakConstraint> {
 //! A show statement.
 //!
 //! Example: <tt>\#show p(X): q(X)</tt>.
-class StmShow : public Gringo::Util::Record::Base<StmShow> {
+class StmShow : public Expression<StmShow> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -388,15 +313,6 @@ class StmShow : public Gringo::Util::Record::Base<StmShow> {
     //! The body.
     [[nodiscard]] auto body() const -> BdLitArray const & { return body_; }
 
-    //! Compare two show statements.
-    friend auto operator==(StmShow const &a, StmShow const &b) -> bool {
-        return std::tie(a.term_, a.body_) == std::tie(b.term_, b.body_);
-    }
-    //! Compare two show statements.
-    friend auto operator<=>(StmShow const &a, StmShow const &b) -> std::strong_ordering {
-        return std::tie(a.term_, a.body_) <=> std::tie(b.term_, b.body_);
-    }
-
   private:
     Location loc_;
     Term term_;
@@ -406,7 +322,7 @@ class StmShow : public Gringo::Util::Record::Base<StmShow> {
 //! A show signature statement.
 //!
 //! Example: <tt>\#show p/2</tt>.
-class StmShowSig : public Gringo::Util::Record::Base<StmShowSig> {
+class StmShowSig : public Expression<StmShowSig> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -427,15 +343,6 @@ class StmShowSig : public Gringo::Util::Record::Base<StmShowSig> {
     //! The arity.
     [[nodiscard]] auto arity() const -> int { return arity_; }
 
-    //! Compare two show signature statements.
-    friend auto operator==(StmShowSig const &a, StmShowSig const &b) -> bool {
-        return std::tie(a.name_, a.arity_, a.sign_) == std::tie(b.name_, b.arity_, b.sign_);
-    }
-    //! Compare two show signature statements.
-    friend auto operator<=>(StmShowSig const &a, StmShowSig const &b) -> std::strong_ordering {
-        return std::tie(a.name_, a.arity_, a.sign_) <=> std::tie(b.name_, b.arity_, b.sign_);
-    }
-
   private:
     Location loc_;
     String name_;
@@ -446,7 +353,7 @@ class StmShowSig : public Gringo::Util::Record::Base<StmShowSig> {
 //! A project statement.
 //!
 //! Example: <tt>\#project p(X): q(X)</tt>.
-class StmProject : public Gringo::Util::Record::Base<StmProject> {
+class StmProject : public Expression<StmProject> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -464,15 +371,6 @@ class StmProject : public Gringo::Util::Record::Base<StmProject> {
     //! The body.
     [[nodiscard]] auto body() const -> BdLitArray const & { return body_; }
 
-    //! Compare two project statements.
-    friend auto operator==(StmProject const &a, StmProject const &b) -> bool {
-        return std::tie(a.term_, a.body_) == std::tie(b.term_, b.body_);
-    }
-    //! Compare two project statements.
-    friend auto operator<=>(StmProject const &a, StmProject const &b) -> std::strong_ordering {
-        return std::tie(a.term_, a.body_) <=> std::tie(b.term_, b.body_);
-    }
-
   private:
     Location loc_;
     Term term_;
@@ -482,7 +380,7 @@ class StmProject : public Gringo::Util::Record::Base<StmProject> {
 //! A project signature statement.
 //!
 //! Example: <tt>\#project p/2</tt>.
-class StmProjectSig : public Gringo::Util::Record::Base<StmProjectSig> {
+class StmProjectSig : public Expression<StmProjectSig> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -503,15 +401,6 @@ class StmProjectSig : public Gringo::Util::Record::Base<StmProjectSig> {
     //! The arity.
     [[nodiscard]] auto arity() const -> int { return arity_; }
 
-    //! Compare two project signature statements.
-    friend auto operator==(StmProjectSig const &a, StmProjectSig const &b) -> bool {
-        return std::tie(a.name_, a.arity_, a.sign_) == std::tie(b.name_, b.arity_, b.sign_);
-    }
-    //! Compare two project signature statements.
-    friend auto operator<=>(StmProjectSig const &a, StmProjectSig const &b) -> std::strong_ordering {
-        return std::tie(a.name_, a.arity_, a.sign_) <=> std::tie(b.name_, b.arity_, b.sign_);
-    }
-
   private:
     Location loc_;
     bool sign_;
@@ -522,7 +411,7 @@ class StmProjectSig : public Gringo::Util::Record::Base<StmProjectSig> {
 //! A defined statement.
 //!
 //! Example: <tt>\#defined p/2</tt>.
-class StmDefined : public Gringo::Util::Record::Base<StmDefined> {
+class StmDefined : public Expression<StmDefined> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -543,15 +432,6 @@ class StmDefined : public Gringo::Util::Record::Base<StmDefined> {
     //! The arity.
     [[nodiscard]] auto arity() const -> int { return arity_; }
 
-    //! Compare two defined statements.
-    friend auto operator==(StmDefined const &a, StmDefined const &b) -> bool {
-        return std::tie(a.name_, a.arity_, a.sign_) == std::tie(b.name_, b.arity_, b.sign_);
-    }
-    //! Compare two defined statements.
-    friend auto operator<=>(StmDefined const &a, StmDefined const &b) -> std::strong_ordering {
-        return std::tie(a.name_, a.arity_, a.sign_) <=> std::tie(b.name_, b.arity_, b.sign_);
-    }
-
   private:
     Location loc_;
     //! Whether the signature is negative.
@@ -565,7 +445,7 @@ class StmDefined : public Gringo::Util::Record::Base<StmDefined> {
 //! An external statement.
 //!
 //! Example: <tt>\#external p(X): q(X)</tt>.
-class StmExternal : public Gringo::Util::Record::Base<StmExternal> {
+class StmExternal : public Expression<StmExternal> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -586,15 +466,6 @@ class StmExternal : public Gringo::Util::Record::Base<StmExternal> {
     //! The type of the statement.
     [[nodiscard]] auto type() const -> std::optional<Term> const & { return type_; }
 
-    //! Compare two external statements.
-    friend auto operator==(StmExternal const &a, StmExternal const &b) -> bool {
-        return std::tie(a.term_, a.body_, a.type_) == std::tie(b.term_, b.body_, b.type_);
-    }
-    //! Compare two external statements.
-    friend auto operator<=>(StmExternal const &a, StmExternal const &b) -> std::strong_ordering {
-        return Util::make_strong_ordering(std::tie(a.term_, a.body_, a.type_) <=> std::tie(b.term_, b.body_, b.type_));
-    }
-
   private:
     Location loc_;
     Term term_;
@@ -603,7 +474,7 @@ class StmExternal : public Gringo::Util::Record::Base<StmExternal> {
 };
 
 //! An directed edge.
-class Edge : public Gringo::Util::Record::Base<Edge> {
+class Edge : public Expression<Edge> {
   public:
     //! The record attributes.
     static constexpr auto attributes() { return std::tuple{a_src = &Edge::src_, a_dst = &Edge::dst_}; }
@@ -615,11 +486,6 @@ class Edge : public Gringo::Util::Record::Base<Edge> {
     //! The target vertex.
     [[nodiscard]] auto dst() const -> Term const & { return dst_; }
 
-    //! Compare two edges.
-    friend auto operator==(Edge const &a, Edge const &b) -> bool = default;
-    //! Compare two edges.
-    friend auto operator<=>(Edge const &a, Edge const &b) -> std::strong_ordering = default;
-
   private:
     Term src_;
     Term dst_;
@@ -630,7 +496,7 @@ using EdgeArray = Util::immutable_array<Edge>;
 //! An edge statement.
 //!
 //! Example: <tt>\#edge (X,Y): connected(X,Y).</tt>.
-class StmEdge : public Gringo::Util::Record::Base<StmEdge> {
+class StmEdge : public Expression<StmEdge> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -648,15 +514,6 @@ class StmEdge : public Gringo::Util::Record::Base<StmEdge> {
     //! The body.
     [[nodiscard]] auto body() const -> BdLitArray const & { return body_; }
 
-    //! Compare two edge statements.
-    friend auto operator==(StmEdge const &a, StmEdge const &b) -> bool {
-        return std::tie(a.edges_, a.body_) == std::tie(b.edges_, b.body_);
-    }
-    //! Compare two edge statements.
-    friend auto operator<=>(StmEdge const &a, StmEdge const &b) -> std::strong_ordering {
-        return std::tie(a.edges_, a.body_) <=> std::tie(b.edges_, b.body_);
-    }
-
   private:
     Location loc_;
     EdgeArray edges_;
@@ -666,7 +523,7 @@ class StmEdge : public Gringo::Util::Record::Base<StmEdge> {
 //! A heuristic statement.
 //!
 //! Example: <tt>\#heuristic p(X). [sign,false]</tt>.
-class StmHeuristic : public Gringo::Util::Record::Base<StmHeuristic> {
+class StmHeuristic : public Expression<StmHeuristic> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -702,17 +559,6 @@ class StmHeuristic : public Gringo::Util::Record::Base<StmHeuristic> {
     //! The type of the heuristic modification.
     [[nodiscard]] auto type() const -> Term const & { return type_; }
 
-    //! Compare two heuristic statements.
-    friend auto operator==(StmHeuristic const &a, StmHeuristic const &b) -> bool {
-        return std::tie(a.atom_, a.body_, a.type_, a.prio_, a.weight_) ==
-               std::tie(b.atom_, b.body_, b.type_, b.prio_, b.weight_);
-    }
-    //! Compare two heuristic statements.
-    friend auto operator<=>(StmHeuristic const &a, StmHeuristic const &b) -> std::strong_ordering {
-        return Util::make_strong_ordering(std::tie(a.atom_, a.body_, a.type_, a.prio_, a.weight_) <=>
-                                          std::tie(b.atom_, b.body_, b.type_, b.prio_, b.weight_));
-    }
-
   private:
     Location loc_;
     Term atom_;
@@ -725,7 +571,7 @@ class StmHeuristic : public Gringo::Util::Record::Base<StmHeuristic> {
 //! A script statement.
 //!
 //! For example: <tt>\#script(python) some code \#end</tt>.
-class StmScript : public Gringo::Util::Record::Base<StmScript> {
+class StmScript : public Expression<StmScript> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -742,15 +588,6 @@ class StmScript : public Gringo::Util::Record::Base<StmScript> {
     [[nodiscard]] auto type() const -> String { return type_; }
     //! The code.
     [[nodiscard]] auto value() const -> std::string const & { return value_; }
-
-    //! Compare two script statements.
-    friend auto operator==(StmScript const &a, StmScript const &b) -> bool {
-        return std::tie(a.value_, a.type_) == std::tie(b.value_, b.type_);
-    }
-    //! Compare two script statements.
-    friend auto operator<=>(StmScript const &a, StmScript const &b) -> std::strong_ordering {
-        return std::tie(a.value_, a.type_) <=> std::tie(b.value_, b.type_);
-    }
 
   private:
     Location loc_;
@@ -769,7 +606,7 @@ enum class IncludeType {
 //! An include statement.
 //!
 //! For example: <tt>\#include "encoding.lp"</tt>.
-class StmInclude : public Gringo::Util::Record::Base<StmInclude> {
+class StmInclude : public Expression<StmInclude> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -787,15 +624,6 @@ class StmInclude : public Gringo::Util::Record::Base<StmInclude> {
     //! The path.
     [[nodiscard]] auto value() const -> std::string const & { return value_; }
 
-    //! Compare two include statements.
-    friend auto operator==(StmInclude const &a, StmInclude const &b) -> bool {
-        return std::tie(a.value_, a.type_) == std::tie(b.value_, b.type_);
-    }
-    //! Compare two include statements.
-    friend auto operator<=>(StmInclude const &a, StmInclude const &b) -> std::strong_ordering {
-        return std::tie(a.value_, a.type_) <=> std::tie(b.value_, b.type_);
-    }
-
   private:
     Location loc_;
     IncludeType type_;
@@ -805,7 +633,7 @@ class StmInclude : public Gringo::Util::Record::Base<StmInclude> {
 //! A program statement.
 //!
 //! For example: <tt>\#program check(t)"</tt>.
-class StmProgram : public Gringo::Util::Record::Base<StmProgram> {
+class StmProgram : public Expression<StmProgram> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -822,15 +650,6 @@ class StmProgram : public Gringo::Util::Record::Base<StmProgram> {
     [[nodiscard]] auto name() const -> String const & { return name_; }
     //! The arguments of the program.
     [[nodiscard]] auto args() const -> StringArray const & { return args_; }
-
-    //! Compare two program statements.
-    friend auto operator==(StmProgram const &a, StmProgram const &b) -> bool {
-        return std::tie(a.name_, a.args_) == std::tie(b.name_, b.args_);
-    }
-    //! Compare two program statements.
-    friend auto operator<=>(StmProgram const &a, StmProgram const &b) -> std::strong_ordering {
-        return std::tie(a.name_, a.args_) <=> std::tie(b.name_, b.args_);
-    }
 
   private:
     Location loc_;
@@ -849,7 +668,7 @@ enum class ConstType {
 //! A const statement.
 //!
 //! For example: <tt>\#const n=42</tt>.
-class StmConst : public Gringo::Util::Record::Base<StmConst> {
+class StmConst : public Expression<StmConst> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -870,15 +689,6 @@ class StmConst : public Gringo::Util::Record::Base<StmConst> {
     //! The value of the constant
     [[nodiscard]] auto value() const -> Term const & { return value_; }
 
-    //! Compare two const statements.
-    friend auto operator==(StmConst const &a, StmConst const &b) -> bool {
-        return std::tie(a.name_, a.value_, a.type_) == std::tie(b.name_, b.value_, b.type_);
-    }
-    //! Compare two const statements.
-    friend auto operator<=>(StmConst const &a, StmConst const &b) -> std::strong_ordering {
-        return std::tie(a.name_, a.value_, a.type_) <=> std::tie(b.name_, b.value_, b.type_);
-    }
-
   private:
     Location loc_;
     ConstType type_;
@@ -897,7 +707,7 @@ enum class CommentType {
 //! A commment.
 //!
 //! For example: <tt>%* comment *%</tt>
-class StmComment : public Gringo::Util::Record::Base<StmComment> {
+class StmComment : public Expression<StmComment> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
@@ -914,15 +724,6 @@ class StmComment : public Gringo::Util::Record::Base<StmComment> {
     [[nodiscard]] auto type() const -> CommentType { return type_; }
     //! The content of the comment including comment markers.
     [[nodiscard]] auto value() const -> std::string const & { return value_; }
-
-    //! Compare two comments.
-    friend auto operator==(StmComment const &a, StmComment const &b) -> bool {
-        return std::tie(a.value_, a.type_) == std::tie(b.value_, b.type_);
-    }
-    //! Compare two comments.
-    friend auto operator<=>(StmComment const &a, StmComment const &b) -> std::strong_ordering {
-        return std::tie(a.value_, a.type_) <=> std::tie(b.value_, b.type_);
-    }
 
   private:
     Location loc_;
