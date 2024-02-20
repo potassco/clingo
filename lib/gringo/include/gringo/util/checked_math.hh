@@ -25,62 +25,50 @@ auto check_cast(S in) -> bool {
 // Addition
 
 //! Add two integers checking overflows.
-inline auto check_add(int32_t a, int32_t b) -> std::optional<int32_t> {
-    int64_t tmp = static_cast<int64_t>(a) + b;
-    if (check_cast<int32_t>(tmp)) {
-        return tmp;
-    }
-    return std::nullopt;
-}
-
-//! Add two integers checking overflows.
 //!
 //! Fallback for the general case.
-template <class S>
-    requires std::is_signed_v<S>
-auto check_add(S a, S b) -> std::optional<S> {
-    using U = std::make_unsigned_t<S>;
-    S tmp = static_cast<S>(static_cast<U>(a) + static_cast<U>(b));
-    if ((a >= 0 && b >= 0 && tmp < a) || (a < 0 && b < 0 && tmp > a)) {
-        return std::nullopt;
-    }
-    return tmp;
-}
-
-//! Prevent adding arithmetic types not explicitly handled.
 template <class S, class T>
-    requires std::is_arithmetic_v<S> && std::is_arithmetic_v<T>
-auto check_add(S a, T b) = delete;
+    requires std::is_signed_v<S> && std::is_integral_v<S> && std::is_same_v<S, T>
+auto check_add(S a, T b) -> std::optional<S> {
+    if constexpr (std::is_same_v<S, int32_t>) {
+        int64_t tmp = static_cast<int64_t>(a) + b;
+        if (check_cast<int32_t>(tmp)) {
+            return tmp;
+        }
+        return std::nullopt;
+    } else {
+        using U = std::make_unsigned_t<S>;
+        S tmp = static_cast<S>(static_cast<U>(a) + static_cast<U>(b));
+        if ((a >= 0 && b >= 0 && tmp < a) || (a < 0 && b < 0 && tmp > a)) {
+            return std::nullopt;
+        }
+        return tmp;
+    }
+}
 
 // Subtraction
 
 //! Subtract two integers checking overflows.
-inline auto check_sub(int32_t a, int32_t b) -> std::optional<int32_t> {
-    int64_t tmp = static_cast<int64_t>(a) - b;
-    if (check_cast<int32_t>(tmp)) {
-        return tmp;
-    }
-    return std::nullopt;
-}
-
-//! Subtract two integers checking overflows.
 //!
 //! Fallback for the general case.
-template <class S>
-    requires std::is_signed_v<S>
-auto check_sub(S a, S b) -> std::optional<S> {
-    using U = std::make_unsigned_t<S>;
-    S tmp = static_cast<S>(static_cast<U>(a) - static_cast<U>(b));
-    if ((a >= 0 && b < 0 && tmp < a) || (b >= 0 && tmp > a)) {
-        return std::nullopt;
-    }
-    return tmp;
-}
-
-//! Prevent subtracting arithmetic types not explicitly handled.
 template <class S, class T>
-    requires std::is_arithmetic_v<S> && std::is_arithmetic_v<T>
-auto check_sub(S a, T b) = delete;
+    requires std::is_signed_v<S> && std::is_integral_v<S> && std::is_same_v<S, T>
+auto check_sub(S a, T b) -> std::optional<S> {
+    if constexpr (std::is_same_v<S, int32_t>) {
+        int64_t tmp = static_cast<int64_t>(a) - b;
+        if (check_cast<int32_t>(tmp)) {
+            return tmp;
+        }
+        return std::nullopt;
+    } else {
+        using U = std::make_unsigned_t<S>;
+        S tmp = static_cast<S>(static_cast<U>(a) - static_cast<U>(b));
+        if ((a >= 0 && b < 0 && tmp < a) || (b >= 0 && tmp > a)) {
+            return std::nullopt;
+        }
+        return tmp;
+    }
+}
 
 // Unary Minus
 
@@ -109,54 +97,48 @@ auto check_abs(S a) -> std::optional<S> {
 // Multiplication
 
 //! Multiply two integers checking overflows.
-inline auto check_mul(int32_t a, int32_t b) -> std::optional<int32_t> {
-    int64_t tmp = static_cast<int64_t>(a) * b;
-    if (check_cast<int32_t>(tmp)) {
-        return tmp;
-    }
-    return std::nullopt;
-}
-
-//! Multiply two integers checking overflows.
 //!
 //! Fallback for the general case.
-template <class S>
-    requires std::is_signed_v<S>
-auto check_mul(S a, S b) -> std::optional<S> {
-#ifdef __GNUC__
-    S c;
-    if (!__builtin_mul_overflow(a, b, &c)) {
-        return std::nullopt;
-    }
-    return c;
-#else
-    if (a > 0 && b > 0 && a > std::numeric_limits<S>::max() / b) {
-        return std::nullopt;
-    }
-    if (a > 0 && b < 0 && b < std::numeric_limits<S>::min() / a) {
-        return std::nullopt;
-    }
-    if (a < 0 && b > 0 && a < std::numeric_limits<S>::min() / b) {
-        return std::nullopt;
-    }
-    if (a < 0 && b < 0 && b < std::numeric_limits<S>::max() / a) {
-        return std::nullopt;
-    }
-    return a * b;
-#endif
-}
-
-//! Prevent multiplying arithmetic types not explicitly handled.
 template <class S, class T>
-    requires std::is_arithmetic_v<S> && std::is_arithmetic_v<T>
-auto check_mul(S a, T b) = delete;
+    requires std::is_signed_v<S> && std::is_integral_v<S> && std::is_same_v<S, T>
+auto check_mul(S a, T b) -> std::optional<S> {
+    if constexpr (std::is_same_v<S, int32_t>) {
+        int64_t tmp = static_cast<int64_t>(a) * b;
+        if (check_cast<int32_t>(tmp)) {
+            return tmp;
+        }
+        return std::nullopt;
+    } else {
+#ifdef __GNUC__
+        S c;
+        if (!__builtin_mul_overflow(a, b, &c)) {
+            return std::nullopt;
+        }
+        return c;
+#else
+        if (a > 0 && b > 0 && a > std::numeric_limits<S>::max() / b) {
+            return std::nullopt;
+        }
+        if (a > 0 && b < 0 && b < std::numeric_limits<S>::min() / a) {
+            return std::nullopt;
+        }
+        if (a < 0 && b > 0 && a < std::numeric_limits<S>::min() / b) {
+            return std::nullopt;
+        }
+        if (a < 0 && b < 0 && b < std::numeric_limits<S>::max() / a) {
+            return std::nullopt;
+        }
+        return a * b;
+#endif
+    }
+}
 
 // Division
 
 //! Divide two integers checking overflows (truncating toward negative infinity).
-template <class S>
-    requires std::is_signed_v<S>
-auto check_div(S a, S b) -> std::optional<S> {
+template <class S, class T>
+    requires std::is_signed_v<S> && std::is_integral_v<S> && std::is_same_v<S, T>
+auto check_div(S a, T b) -> std::optional<S> {
     if (b == 0 || (b == -1 && a == std::numeric_limits<S>::min())) {
         return std::nullopt;
     }
@@ -169,17 +151,12 @@ auto check_div(S a, S b) -> std::optional<S> {
     return d;
 }
 
-//! Prevent dividing arithmetic types not explicitly handled.
-template <class S, class T>
-    requires std::is_arithmetic_v<S> && std::is_arithmetic_v<T>
-auto check_div(S a, T b) = delete;
-
 // Modulo
 
 //! Modulo of two integers checking overflows (truncating toward negative infinity).
-template <class S>
-    requires std::is_signed_v<S>
-auto check_mod(S a, S b) -> std::optional<S> {
+template <class S, class T>
+    requires std::is_signed_v<S> && std::is_integral_v<S> && std::is_same_v<S, T>
+auto check_mod(S a, T b) -> std::optional<S> {
     if (b == 0) {
         return std::nullopt;
     }
@@ -193,11 +170,6 @@ auto check_mod(S a, S b) -> std::optional<S> {
     }
     return r;
 }
-
-//! Modulo of arithmetic types not explicitly handled.
-template <class S, class T>
-    requires std::is_arithmetic_v<S> && std::is_arithmetic_v<T>
-auto check_mod(S a, T b) = delete;
 
 // Power
 
