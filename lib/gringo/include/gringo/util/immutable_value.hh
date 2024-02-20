@@ -29,10 +29,10 @@ template <typename T> class immutable_value {
     using element_type = T;
 
     //! Construct a null pointer.
-    constexpr immutable_value() noexcept : data_{nullptr} {}
+    constexpr immutable_value() noexcept = default;
 
     //! Explicitly construct a null pointer.
-    constexpr immutable_value(std::nullptr_t) noexcept : data_{nullptr} {}
+    constexpr immutable_value(std::nullptr_t) noexcept {}
 
     //! Construct a value.
     template <class U> immutable_value(U &&value);
@@ -95,7 +95,7 @@ template <typename T> class immutable_value {
     void inc_() noexcept;
     void dec_() noexcept;
 
-    data_type *data_;
+    data_type *data_ = nullptr;
 };
 
 //! Construct an immutable value.

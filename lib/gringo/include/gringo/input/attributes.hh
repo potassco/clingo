@@ -38,10 +38,8 @@ constexpr auto a_atom = Util::Record::AttributeName<30>{};
 
 template <class T> class Expression : public Gringo::Util::Record::Base<T> {
   public:
-    friend auto operator==(T const &a, T const &b) -> bool { return a.comparison_tuple() == b.comparison_tuple(); }
-    friend auto operator<=>(T const &a, T const &b) -> std::strong_ordering {
-        return a.comparison_tuple() <=> b.comparison_tuple();
-    }
+    friend auto operator==(T const &a, T const &b) -> bool { return a.equal(b); }
+    friend auto operator<=>(T const &a, T const &b) -> std::strong_ordering { return a.compare(b); }
 };
 
 template <class T> class RecursiveExpression : public Gringo::Util::Record::Base<T> {

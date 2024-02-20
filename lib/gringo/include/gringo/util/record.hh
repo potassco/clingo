@@ -118,9 +118,15 @@ template <class Rec> class Base {
     [[nodiscard]] auto rewrite(Args &&...args) const {
         return rewrite_record(*static_cast<Rec const *>(this), std::forward<Args>(args)...);
     }
-    [[nodiscard]] auto comparison_tuple() const {
+
+    [[nodiscard]] auto equal(Base const &other) const -> bool {
         return [&]<auto... Tags>(std::index_sequence<Tags...>) {
-            return std::forward_as_tuple(get_value<Tags>()...);
+            return ((get_value<Tags>() == other.get_value<Tags>()) && ...);
+        }(comparison_sequence<Rec, 0>());
+    }
+    [[nodiscard]] auto compare(Base const &other) const -> std::strong_ordering {
+        return [&]<auto... Tags>(std::index_sequence<Tags...>) {
+            return std::forward_as_tuple(get_value<Tags>()...) <=> std::forward_as_tuple(other.get_value<Tags>()...);
         }(comparison_sequence<Rec, 0>());
     }
     [[nodiscard]] auto hash() const -> size_t {
@@ -128,9 +134,6 @@ template <class Rec> class Base {
             return value_hash_record<Rec>(get_value<Tags>()...);
         }(comparison_sequence<Rec, 0>());
     }
-
-    friend auto operator==(Base const &a, Base const &b) -> bool = default;
-    friend auto operator<=>(Base const &a, Base const &b) -> std::strong_ordering = default;
 };
 
 } // namespace Gringo::Util::Record
