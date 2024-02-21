@@ -1,5 +1,9 @@
 # Changes
 
+## clingo 5.7.2
+
+  * fix cffi issues with python 3.12
+
 ## clingo 5.7.1
 
   * fix comparison of theory elements (#485)
