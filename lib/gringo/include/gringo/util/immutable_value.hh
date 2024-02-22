@@ -48,11 +48,9 @@ template <typename T> class immutable_value {
 
     //! Copy assign a immutable value.
     auto operator=(immutable_value const &other) noexcept -> immutable_value & {
-        if (data_ != other.data_) {
-            dec_();
-            data_ = other.data_;
-            inc_();
-        }
+        other.inc_();
+        dec_();
+        data_ = other.data_;
         return *this;
     }
 
@@ -92,7 +90,7 @@ template <typename T> class immutable_value {
 
     immutable_value(data_type *data) noexcept : data_{data} {}
 
-    void inc_() noexcept;
+    void inc_() const noexcept;
     void dec_() noexcept;
 
     data_type *data_ = nullptr;
@@ -103,8 +101,6 @@ template <typename U, typename... Args> auto make_immutable(Args &&...args) -> i
     static_assert(std::is_constructible_v<U, Args...>);
     return immutable_value<U>{std::in_place, std::forward<Args>(args)...};
 }
-
-#ifndef __clang_analyzer__
 
 template <class T>
 template <class U>
@@ -117,7 +113,7 @@ immutable_value<T>::immutable_value(std::in_place_t tag, Args &&...args)
     static_cast<void>(tag);
 }
 
-template <class T> void immutable_value<T>::inc_() noexcept {
+template <class T> void immutable_value<T>::inc_() const noexcept {
     if (data_ != nullptr) {
         ++data_->refs;
     }
@@ -132,8 +128,6 @@ template <class T> void immutable_value<T>::dec_() noexcept {
         data_ = nullptr;
     }
 }
-
-#endif
 
 //! Compare two immutable values.
 //!
