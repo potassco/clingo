@@ -28,6 +28,7 @@
 #include "clingo.h"
 #include <potassco/basic_types.h>
 #include <clingo/control.hh>
+#include <clingo/gringo_options.hh>
 #include <clingo/scripts.hh>
 #include <clingo/astv2.hh>
 #include <gringo/output/output.hh>
@@ -42,7 +43,6 @@
 #include <clasp/clingo.h>
 #include <clasp/cli/clasp_options.h>
 #include <potassco/application.h>
-#include <potassco/string_convert.h>
 #include <mutex>
 #include <cstdlib>
 
@@ -82,81 +82,7 @@ private:
 };
 
 // {{{1 declaration of ClingoOptions
-
-struct ClingoOptions {
-    using SigVec = std::vector<Sig>;
-    std::vector<std::string>      defines;
-    Output::OutputOptions outputOptions;
-    Output::OutputFormat  outputFormat          = Output::OutputFormat::INTERMEDIATE;
-    bool                          verbose               = false;
-    bool                          wNoOperationUndefined = false;
-    bool                          wNoAtomUndef          = false;
-    bool                          wNoFileIncluded       = false;
-    bool                          wNoGlobalVariable     = false;
-    bool                          wNoOther              = false;
-    bool                          rewriteMinimize       = false;
-    bool                          keepFacts             = false;
-    bool                          singleShot            = false;
-    SigVec                        sigvec;
-};
-
-inline void enableAll(ClingoOptions& out, bool enable) {
-    out.wNoAtomUndef          = !enable;
-    out.wNoFileIncluded       = !enable;
-    out.wNoOperationUndefined = !enable;
-    out.wNoGlobalVariable     = !enable;
-    out.wNoOther              = !enable;
-}
-
-inline bool parseWarning(const std::string& str, ClingoOptions& out) {
-    if (str == "none")                     { enableAll(out, false);             return true; }
-    if (str == "all")                      { enableAll(out, true);              return true; }
-    if (str == "no-atom-undefined")        { out.wNoAtomUndef          = true;  return true; }
-    if (str ==    "atom-undefined")        { out.wNoAtomUndef          = false; return true; }
-    if (str == "no-file-included")         { out.wNoFileIncluded       = true;  return true; }
-    if (str ==    "file-included")         { out.wNoFileIncluded       = false; return true; }
-    if (str == "no-operation-undefined")   { out.wNoOperationUndefined = true;  return true; }
-    if (str ==    "operation-undefined")   { out.wNoOperationUndefined = false; return true; }
-    if (str == "no-global-variable")       { out.wNoGlobalVariable     = true;  return true; }
-    if (str ==    "global-variable")       { out.wNoGlobalVariable     = false; return true; }
-    if (str == "no-other")                 { out.wNoOther              = true;  return true; }
-    if (str ==    "other")                 { out.wNoOther              = false; return true; }
-    return false;
-}
-
-inline bool parsePreserveFacts(const std::string& str, ClingoOptions& out) {
-    if (str == "none")   { out.keepFacts = false; out.outputOptions.preserveFacts = false; return true; }
-    if (str == "body")   { out.keepFacts = true;  out.outputOptions.preserveFacts = false; return true; }
-    if (str == "symtab") { out.keepFacts = false; out.outputOptions.preserveFacts = true;  return true; }
-    if (str == "all")    { out.keepFacts = true;  out.outputOptions.preserveFacts = true;  return true; }
-    return false;
-}
-
-inline std::vector<std::string> split(std::string const &source, char const *delimiter = " ", bool keepEmpty = false) {
-    std::vector<std::string> results;
-    size_t prev = 0;
-    size_t next = 0;
-    while ((next = source.find_first_of(delimiter, prev)) != std::string::npos) {
-        if (keepEmpty || (next - prev != 0)) { results.push_back(source.substr(prev, next - prev)); }
-        prev = next + 1;
-    }
-    if (prev < source.size()) { results.push_back(source.substr(prev)); }
-    return results;
-}
-
-inline bool parseSigVec(const std::string& str, ClingoOptions::SigVec& sigvec) {
-    for (auto &x : split(str, ",")) {
-        auto y = split(x, "/");
-        if (y.size() != 2) { return false; }
-        unsigned a;
-        if (!Potassco::string_cast<unsigned>(y[1], a)) { return false; }
-        bool sign = !y[0].empty() && y[0][0] == '-';
-        if (sign) { y[0] = y[0].substr(1); }
-        sigvec.emplace_back(y[0].c_str(), a, sign);
-    }
-    return true;
-}
-
+using ClingoOptions = GringoOptions;
 // {{{1 declaration of ClingoControl
 
 class ClingoPropagatorLock : public Clasp::ClingoPropagatorLock {
@@ -271,7 +197,6 @@ public:
     ClingoControl(Scripts &scripts, bool clingoMode, Clasp::ClaspFacade *clasp, Clasp::Cli::ClaspCliConfig &claspConfig, PostGroundFunc pgf, PreSolveFunc psf, Logger::Printer printer, unsigned messageLimit);
     ~ClingoControl() noexcept override;
     void prepare(Assumptions ass);
-    void commitExternals();
     void parse();
     void parse(const StringVec& files, const ClingoOptions& opts, Clasp::Asp::LogicProgram* out, bool addStdIn = true);
     void main(IClingoApp &app, StringVec const &files, const ClingoOptions& opts, Clasp::Asp::LogicProgram* out);

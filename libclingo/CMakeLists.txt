@@ -9,6 +9,7 @@ set(header-group-clingo
     "${CMAKE_CURRENT_SOURCE_DIR}/clingo/clingo_app.hh"
     "${CMAKE_CURRENT_SOURCE_DIR}/clingo/clingocontrol.hh"
     "${CMAKE_CURRENT_SOURCE_DIR}/clingo/control.hh"
+    "${CMAKE_CURRENT_SOURCE_DIR}/clingo/gringo_options.hh"
     "${CMAKE_CURRENT_SOURCE_DIR}/clingo/incmode.hh"
     "${CMAKE_CURRENT_SOURCE_DIR}/clingo/scripts.hh")
 source_group("${ide_header_group}\\clingo" FILES ${header-group-clingo})
@@ -28,6 +29,7 @@ set(source-group
     "${CMAKE_CURRENT_SOURCE_DIR}/src/clingocontrol.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/control.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/gringo_app.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/gringo_options.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/incmode.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/scripts.cc")
 source_group("${ide_source_group}" FILES ${source-group})
