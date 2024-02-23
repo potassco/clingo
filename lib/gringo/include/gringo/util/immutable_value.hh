@@ -35,18 +35,21 @@ template <typename T> class immutable_value {
     constexpr immutable_value(std::nullptr_t) noexcept {}
 
     //! Construct a value.
-    template <class U> immutable_value(U &&value);
+    template <class U> immutable_value(U &&value) : immutable_value{std::in_place, std::forward<U>(value)} {}
 
     //! Construct a value in place.
-    template <class... Args> immutable_value(std::in_place_t tag, Args &&...args);
+    template <class... Args>
+    immutable_value(std::in_place_t tag, Args &&...args) : data_{new data_type(std::forward<Args>(args)...)} {
+        static_cast<void>(tag);
+    }
 
-    //! Copy a immutable value.
+    //! Copy an immutable value.
     immutable_value(immutable_value const &other) noexcept : data_{other.data_} { inc_(); }
 
-    //! Move construct a immutable value.
-    immutable_value(immutable_value &&other) noexcept : data_{other.data_} { other.data_ = nullptr; }
+    //! Move construct an immutable value.
+    immutable_value(immutable_value &&other) noexcept : data_{std::exchange(other.data_, nullptr)} {}
 
-    //! Copy assign a immutable value.
+    //! Copy assign an immutable value.
     auto operator=(immutable_value const &other) noexcept -> immutable_value & {
         other.inc_();
         dec_();
@@ -54,29 +57,30 @@ template <typename T> class immutable_value {
         return *this;
     }
 
-    //! Move assign a immutable value.
+    //! Move assign an immutable value.
     auto operator=(immutable_value &&other) noexcept -> immutable_value & {
-        std::swap(data_, other.data_);
+        dec_();
+        data_ = std::exchange(other.data_, nullptr);
         return *this;
     }
 
-    //! Check if the immutable value is null.
-    [[nodiscard]] explicit operator bool() const noexcept { return data_ != nullptr; }
+    //! Check if the value is engaged.
+    [[nodiscard]] auto has_value() const noexcept -> bool { return data_ != nullptr; }
 
-    //! Get the reference count of the immutable value.
-    [[nodiscard]] auto use_count() const noexcept -> size_t { return data_->refs; }
+    //! Check if the value is engaged.
+    [[nodiscard]] explicit operator bool() const noexcept { return has_value(); }
 
-    //! Get the raw pointer.
-    [[nodiscard]] auto get() const noexcept -> element_type const * { return &data_->value; }
+    //! Get the value.
+    [[nodiscard]] auto get() const noexcept -> element_type const & { return data_->value; }
 
-    //! Dereference the pointer.
-    [[nodiscard]] auto operator*() const noexcept -> element_type const & { return *get(); }
+    //! Get the value.
+    [[nodiscard]] auto operator*() const noexcept -> element_type const & { return get(); }
 
     //! Get the member of pointer.
-    auto operator->() const noexcept -> element_type const * { return get(); }
+    auto operator->() const noexcept -> element_type const * { return &get(); }
 
     //! Conversion operator.
-    [[nodiscard]] operator T const &() const noexcept { return *get(); }
+    [[nodiscard]] operator T const &() const noexcept { return get(); }
 
     //! Decrement reference count and delete contained pointer if zero.
     ~immutable_value() noexcept { dec_(); }
@@ -88,10 +92,21 @@ template <typename T> class immutable_value {
         element_type value;
     };
 
-    immutable_value(data_type *data) noexcept : data_{data} {}
+    void inc_() const noexcept {
+        if (data_ != nullptr) {
+            ++data_->refs;
+        }
+    }
 
-    void inc_() const noexcept;
-    void dec_() noexcept;
+    void dec_() noexcept {
+        if (data_ != nullptr) {
+            --data_->refs;
+            if (data_->refs == 0) {
+                delete data_;
+            }
+            data_ = nullptr;
+        }
+    }
 
     data_type *data_ = nullptr;
 };
@@ -100,33 +115,6 @@ template <typename T> class immutable_value {
 template <typename U, typename... Args> auto make_immutable(Args &&...args) -> immutable_value<U> {
     static_assert(std::is_constructible_v<U, Args...>);
     return immutable_value<U>{std::in_place, std::forward<Args>(args)...};
-}
-
-template <class T>
-template <class U>
-immutable_value<T>::immutable_value(U &&value) : immutable_value{new data_type(std::forward<U>(value))} {}
-
-template <class T>
-template <class... Args>
-immutable_value<T>::immutable_value(std::in_place_t tag, Args &&...args)
-    : immutable_value{new data_type(std::forward<Args>(args)...)} {
-    static_cast<void>(tag);
-}
-
-template <class T> void immutable_value<T>::inc_() const noexcept {
-    if (data_ != nullptr) {
-        ++data_->refs;
-    }
-}
-
-template <class T> void immutable_value<T>::dec_() noexcept {
-    if (data_ != nullptr) {
-        --data_->refs;
-        if (data_->refs == 0) {
-            delete data_;
-        }
-        data_ = nullptr;
-    }
 }
 
 //! Compare two immutable values.

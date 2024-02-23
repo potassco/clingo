@@ -507,7 +507,7 @@ struct SimplifyTerm {
                 if (type == TermType::symbolic) {
                     return TermResultChanged{type, rhs_unary->rhs()};
                 }
-                auto const *rhs_rhs_unary = std::get_if<TermUnary>(rhs_unary->rhs().get());
+                auto const *rhs_rhs_unary = std::get_if<TermUnary>(&rhs_unary->rhs().get());
                 if (rhs_rhs_unary == nullptr || rhs_rhs_unary->op() != UnaryOperator::negate) {
                     return std::nullopt;
                 }

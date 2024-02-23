@@ -305,8 +305,8 @@ struct ApplyBounds {
             if (it == dom.end()) {
                 return {true};
             }
-            auto const *u = std::get_if<TermSymbol>(std::get<TermBinary>(rhs.second).lhs().get());
-            auto const *t = std::get_if<TermSymbol>(std::get<TermBinary>(rhs.second).rhs().get());
+            auto const *u = std::get_if<TermSymbol>(&std::get<TermBinary>(rhs.second).lhs().get());
+            auto const *t = std::get_if<TermSymbol>(&std::get<TermBinary>(rhs.second).rhs().get());
             // Note: in theory the lower/upper bounds could be refined even if only one of them is a number
             if (u == nullptr || t == nullptr || u->value().type() != SymbolType::number ||
                 t->value().type() != SymbolType::number) {

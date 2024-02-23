@@ -450,19 +450,19 @@ auto check_type(Term const &term, TermCheckType type, CheckTypeResult *res) -> b
     if (term.op() != BinaryOperator::plus) {
         return std::nullopt;
     }
-    auto const *mul = std::get_if<TermBinary>(term.lhs().get());
+    auto const *mul = std::get_if<TermBinary>(&term.lhs().get());
     if (mul == nullptr || mul->op() != BinaryOperator::times) {
         return std::nullopt;
     }
-    auto const *n = std::get_if<TermSymbol>(term.rhs().get());
+    auto const *n = std::get_if<TermSymbol>(&term.rhs().get());
     if (n == nullptr || n->value().type() != SymbolType::number) {
         return std::nullopt;
     }
-    auto const *m = std::get_if<TermSymbol>(mul->lhs().get());
+    auto const *m = std::get_if<TermSymbol>(&mul->lhs().get());
     if (m == nullptr || m->value().type() != SymbolType::number || *m->value().num() == 0) {
         return std::nullopt;
     }
-    auto const *v = std::get_if<TermVariable>(mul->rhs().get());
+    auto const *v = std::get_if<TermVariable>(&mul->rhs().get());
     if (v == nullptr) {
         return std::nullopt;
     }

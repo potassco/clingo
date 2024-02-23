@@ -497,7 +497,7 @@ auto make_ast(Owner const &owner, Gringo::Input::Stm const &term) -> std::unique
 
 template <class T, class... A> auto construct_ast(clingo_ast_type_t type, A &&...args) -> clingo_ast * {
     auto owner = Gringo::Util::make_immutable<std::any>(T{std::forward<A>(args)...});
-    auto *ptr = std::any_cast<T>(owner.get());
+    auto *ptr = std::any_cast<T>(&owner.get());
     return new clingo_ast{std::move(owner), static_cast<clingo_ast_type_e>(type), ptr};
 }
 
@@ -2366,7 +2366,7 @@ extern "C" auto clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_
                     throw std::runtime_error("parsing term failed");
                 }
                 auto owner = Gringo::Util::make_immutable<std::any>(std::move(term).value());
-                auto const *ptr = std::any_cast<Gringo::Input::Term>(owner.get());
+                auto const *ptr = std::any_cast<Gringo::Input::Term>(&owner.get());
                 *ast = make_ast(owner, *ptr).release();
                 break;
             }
@@ -2377,7 +2377,7 @@ extern "C" auto clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_
                     throw std::runtime_error("parsing theory term failed");
                 }
                 auto owner = Gringo::Util::make_immutable<std::any>(std::move(term).value());
-                auto const *ptr = std::any_cast<Gringo::Input::TheoryTerm>(owner.get());
+                auto const *ptr = std::any_cast<Gringo::Input::TheoryTerm>(&owner.get());
                 *ast = make_ast(owner, *ptr).release();
                 break;
             }
@@ -2388,7 +2388,7 @@ extern "C" auto clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_
                     throw std::runtime_error("parsing literal failed");
                 }
                 auto owner = Gringo::Util::make_immutable<std::any>(std::move(lit).value());
-                auto const *ptr = std::any_cast<Gringo::Input::Lit>(owner.get());
+                auto const *ptr = std::any_cast<Gringo::Input::Lit>(&owner.get());
                 *ast = make_ast(owner, *ptr).release();
                 break;
             }
@@ -2399,7 +2399,7 @@ extern "C" auto clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_
                     throw std::runtime_error("parsing head literal failed");
                 }
                 auto owner = Gringo::Util::make_immutable<std::any>(std::move(lit).value());
-                auto const *ptr = std::any_cast<Gringo::Input::HdLit>(owner.get());
+                auto const *ptr = std::any_cast<Gringo::Input::HdLit>(&owner.get());
                 *ast = make_ast(owner, *ptr).release();
                 break;
             }
@@ -2410,7 +2410,7 @@ extern "C" auto clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_
                     throw std::runtime_error("parsing body literal failed");
                 }
                 auto owner = Gringo::Util::make_immutable<std::any>(std::move(lit).value());
-                auto const *ptr = std::any_cast<Gringo::Input::BdLit>(owner.get());
+                auto const *ptr = std::any_cast<Gringo::Input::BdLit>(&owner.get());
                 *ast = make_ast(owner, *ptr).release();
                 break;
             }
@@ -2421,7 +2421,7 @@ extern "C" auto clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_
                     throw std::runtime_error("parsing statement failed");
                 }
                 auto owner = Gringo::Util::make_immutable<std::any>(std::move(lit).value());
-                auto const *ptr = std::any_cast<Gringo::Input::Stm>(owner.get());
+                auto const *ptr = std::any_cast<Gringo::Input::Stm>(&owner.get());
                 *ast = make_ast(owner, *ptr).release();
                 break;
             }
@@ -2441,7 +2441,7 @@ struct clingo_ast_scanner {
             auto stm = scanners_.front().scan();
             if (stm) {
                 auto owner = Gringo::Util::make_immutable<std::any>(*std::move(stm));
-                auto const *ptr = std::any_cast<Gringo::Input::Stm>(owner.get());
+                auto const *ptr = std::any_cast<Gringo::Input::Stm>(&owner.get());
                 return make_ast(owner, *ptr);
             }
             scanners_.pop_front();
@@ -2551,7 +2551,7 @@ extern "C" auto clingo_ast_rewrite(clingo_lib_t *lib, clingo_ast_t *statement,
                 stm = *std::move(res_stm);
             }
             auto owner = Gringo::Util::make_immutable<std::any>(std::move(stm));
-            auto const *ptr = std::any_cast<Gringo::Input::Stm>(owner.get());
+            auto const *ptr = std::any_cast<Gringo::Input::Stm>(&owner.get());
             res[i] = make_ast(owner, *ptr).release();
             ++i;
         }

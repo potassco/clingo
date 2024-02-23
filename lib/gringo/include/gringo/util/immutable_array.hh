@@ -53,15 +53,11 @@ template <typename T> class immutable_array {
 
     immutable_array(std::vector<T> const &vec) : immutable_array{vec.begin(), vec.end()} {}
 
+    immutable_array(std::initializer_list<T> init) : immutable_array(init.begin(), init.end()) {}
+
     template <class It> immutable_array(It first, It last) {
         if (first != last) {
             vec_ = Util::make_immutable<vector_type>(first, last);
-        }
-    }
-
-    immutable_array(std::initializer_list<T> init) {
-        if (init.size() > 0) {
-            vec_ = Util::make_immutable<vector_type>(std::move(init));
         }
     }
 
