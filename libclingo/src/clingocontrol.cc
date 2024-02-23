@@ -899,51 +899,10 @@ ClingoLib::ClingoLib(Scripts &scripts, int argc, char const * const *argv, Logge
     parse({}, grOpts_, lp, false);
 }
 
-
-static bool parseConst(const std::string& str, std::vector<std::string>& out) {
-    out.push_back(str);
-    return true;
-}
-
 void ClingoLib::initOptions(Potassco::ProgramOptions::OptionContext& root) {
     using namespace Potassco::ProgramOptions;
-    grOpts_.defines.clear();
-    grOpts_.verbose = false;
     OptionGroup gringo("Gringo Options");
-    gringo.addOptions()
-        ("verbose,V"                , flag(grOpts_.verbose = false), "Enable verbose output")
-        ("const,c"                  , storeTo(grOpts_.defines, parseConst)->composing()->arg("<id>=<term>"), "Replace term occurrences of <id> with <term>")
-        ("output-debug"             , storeTo(grOpts_.outputOptions.debug = Output::OutputDebug::NONE, values<Output::OutputDebug>()
-          ("none", Output::OutputDebug::NONE)
-          ("text", Output::OutputDebug::TEXT)
-          ("translate", Output::OutputDebug::TRANSLATE)
-          ("all", Output::OutputDebug::ALL)),
-         "Print debug information during output:\n"
-         "      none     : no additional info\n"
-         "      text     : print rules as plain text (prefix %%)\n"
-         "      translate: print translated rules as plain text (prefix %%%%)\n"
-         "      all      : combines text and translate")
-        ("warn,W"                   , storeTo(grOpts_, parseWarning)->arg("<warn>")->composing(),
-         "Enable/disable warnings:\n"
-         "      none                    : disable all warnings\n"
-         "      all                     : enable all warnings\n"
-         "      [no-]atom-undefined     : a :- b.\n"
-         "      [no-]file-included      : #include \"a.lp\". #include \"a.lp\".\n"
-         "      [no-]operation-undefined: p(1/0).\n"
-         "      [no-]global-variable    : :- #count { X } = 1, X = 1.\n"
-         "      [no-]other              : clasp related and uncategorized warnings")
-        ("rewrite-minimize"         , flag(grOpts_.rewriteMinimize = false), "Rewrite minimize constraints into rules")
-        // for backward compatibility
-        ("keep-facts"               , flag(grOpts_.keepFacts = false), "Preserve facts in rule bodies")
-        ("preserve-facts"           , storeTo(grOpts_, parsePreserveFacts),
-         "Preserve facts in output:\n"
-         "      none  : do not preserve\n"
-         "      body  : do not preserve\n"
-         "      symtab: do not preserve\n"
-         "      all   : preserve all facts")
-        ("single-shot"              , flag(grOpts_.singleShot = false), "Force single-shot solving mode")
-        ("show-preds"               , storeTo(grOpts_.sigvec, parseSigVec), "Show the given signatures")
-        ;
+    registerOptions(gringo, grOpts_, GringoOptions::AppType::Lib);
     root.add(gringo);
     claspConfig_.addOptions(root);
 }
