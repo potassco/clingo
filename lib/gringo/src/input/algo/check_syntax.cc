@@ -25,7 +25,7 @@ struct CheckSyntax {
     static constexpr auto ignore1 = Util::is_among_v<T, StmScript, StmInclude, StmProgram, StmComment, StmShowSig,
                                                      StmTheory, StmDefined, StmProjectSig>;
 
-    template <class T> static constexpr auto ignore2 = Util::is_among_v<T, LitBool, TheoryTerm>;
+    template <class T> static constexpr auto ignore2 = Util::is_among_v<T, LitBool, TheoryTerm, TermSymbol>;
 
     template <class T> auto operator()(T const &x) const -> bool {
         static_cast<void>(x);
@@ -44,12 +44,6 @@ struct CheckSyntax {
 
     auto operator()(Term const &term, SyntaxCheck check = SyntaxCheck::none) const -> bool {
         return std::visit(*this, term, std::variant<SyntaxCheck>{check});
-    }
-
-    auto operator()(TermSymbol const &term, SyntaxCheck check) const -> bool {
-        static_cast<void>(term);
-        static_cast<void>(check);
-        return true;
     }
 
     auto operator()(TermVariable const &term, SyntaxCheck check) const -> bool {

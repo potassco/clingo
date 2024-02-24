@@ -3,6 +3,8 @@
 
 #include <gringo/input/iesolver.hh>
 
+#include <gringo/util/type_traits.hh>
+
 namespace Gringo::Input {
 
 using Util::TruthValue;
@@ -496,32 +498,14 @@ struct ComputeBounds {
         return {true, res_lits};
     }
 
-    //! Helper a la std::placeholders to map to literals.
-    struct RT {};
-    static auto constexpr rt = RT{};
-
-    //! Map to literals.
-    static auto map_rt(RT const &x, auto &elems) {
-        static_cast<void>(x);
-        return std::move(elems).value();
-    }
-    //! Map to value.
-    static auto map_rt(auto const &x, auto &elems) {
-        static_cast<void>(elems);
-        return x;
-    }
-
     //! Helper to compute bounds for a set of elements.
-    template <class R, class LS, class... A>
-    auto compute_bounds_elem(Location const &loc, R &elems, LS const &lits, A const &...args) {
+    template <class E, class R> auto compute_bounds_elem(E const &elem, R &elems) {
         auto sub_slv = IESolver{&slv};
-        auto [state_lits, res_lits] = compute_bounds(sub_slv, loc, lits);
+        auto [state_lits, res_lits] = compute_bounds(sub_slv, elem.loc(), elem.cond());
         if (!state_lits) {
             elems.remove();
-        } else if (res_lits) {
-            elems.replace(map_rt(args, res_lits)...);
         } else {
-            elems.keep();
+            elems.update(elem.rewrite(a_cond = std::move(res_lits)));
         }
     }
 
@@ -537,19 +521,12 @@ struct ComputeBounds {
     template <bool Body> auto operator()(TheoryAtom<Body> const &lit) -> HBRes<Body> {
         auto res_elems = Util::ResultVec{lit.elems()};
         for (auto const &elem : lit.elems()) {
-            compute_bounds_elem(lit.loc(), res_elems, elem.cond(), elem.loc(), elem.tuple(), rt);
+            compute_bounds_elem(elem, res_elems);
         }
         if constexpr (Body) {
-            if (res_elems) {
-                return {true,
-                        BdLitTheoryAtom{lit.loc(), lit.sign(), lit.name(), std::move(res_elems).value(), lit.rhs()}};
-            }
-            return {true};
+            return {true, lit.rewrite(a_elems = std::move(res_elems))};
         } else {
-            if (res_elems) {
-                return HdLitTheoryAtom{lit.loc(), lit.name(), std::move(res_elems).value(), lit.rhs()};
-            }
-            return std::nullopt;
+            return lit.rewrite(a_elems = std::move(res_elems));
         }
     }
 
@@ -566,25 +543,18 @@ struct ComputeBounds {
         auto res_elems = Util::ResultVec{lit.elems()};
         for (auto const &elem : lit.elems()) {
             if (auto const *clit = std::get_if<CondLit>(&elem)) {
-                compute_bounds_elem(clit->loc(), res_elems, clit->cond(), std::in_place_type<CondLit>, clit->loc(),
-                                    clit->lit(), rt);
+                compute_bounds_elem(*clit, res_elems);
             }
         }
-        if (res_elems) {
-            return HdLitDisjunction{lit.loc(), std::move(res_elems).value()};
-        }
-        return std::nullopt;
+        return lit.rewrite(a_elems = std::move(res_elems));
     }
 
     auto operator()(HdLitAggregate const &lit) -> std::optional<HdLit> {
         auto res_elems = Util::ResultVec{lit.elems()};
         for (auto const &elem : lit.elems()) {
-            compute_bounds_elem(elem.loc(), res_elems, elem.cond(), elem.loc(), elem.tuple(), elem.lit(), rt);
+            compute_bounds_elem(elem, res_elems);
         }
-        if (res_elems) {
-            return HdLitAggregate{lit.loc(), lit.lhs(), lit.fun(), std::move(res_elems).value(), lit.rhs()};
-        }
-        return std::nullopt;
+        return lit.rewrite(a_elems = std::move(res_elems));
     }
 
     // body literals
@@ -602,31 +572,24 @@ struct ComputeBounds {
         if (!state_cond) {
             return {false, BdLitSimple{LitBool{conj.lit().loc(), Sign::none, false}}};
         }
-        if (res_cond) {
-            return {true, BdLitConjunction{CondLit{conj.lit().loc(), conj.lit().lit(), std::move(res_cond).value()}}};
-        }
-        return {true};
+        return {true, conj.lit().rewrite(a_cond = std::move(res_cond))};
     }
 
     auto operator()(BdLitAggregate const &lit) -> Util::ResultState<BdLit> {
         auto res_elems = Util::ResultVec{lit.elems()};
         for (auto const &elem : lit.elems()) {
-            compute_bounds_elem(elem.loc(), res_elems, elem.cond(), elem.loc(), elem.tuple(), rt);
+            compute_bounds_elem(elem, res_elems);
         }
-        if (res_elems) {
-            return {true, BdLitAggregate{lit.loc(), lit.sign(), lit.lhs(), lit.fun(), std::move(res_elems).value(),
-                                         lit.rhs()}};
-        }
-        return {true};
+        return {true, lit.rewrite(a_elems = std::move(res_elems))};
     }
 
     // statements
 
-    auto compute_bounds_body(auto const &loc, auto const &body, auto &&fun) -> Util::ResultState<Stm> {
+    template <class T, class F> auto compute_bounds_body(T const &stm, F &&fun) -> Util::ResultState<Stm> {
         // compute bounds
-        auto [state_body, res_body] = compute_bounds(slv, loc, body);
+        auto [state_body, res_body] = compute_bounds(slv, stm.loc(), stm.body());
         if (!state_body) {
-            return {false, StmRule{loc, HdLitSimple{LitBool{loc, Sign::none, true}}, {}}};
+            return {false, StmRule{stm.loc(), HdLitSimple{LitBool{stm.loc(), Sign::none, true}}, {}}};
         }
 
         // refine bounds in nested contexts
@@ -636,40 +599,22 @@ struct ComputeBounds {
             if (auto res_lit = operator()(lit); res_lit.state) {
                 res_body_nested.update(std::move(res_lit).value);
             } else {
-                return {false, StmRule{loc, HdLitSimple{LitBool{loc, Sign::none, true}}, {}}};
+                return {false, StmRule{stm.loc(), HdLitSimple{LitBool{stm.loc(), Sign::none, true}}, {}}};
             }
         }
         if (res_body_nested) {
             res_body.as_optional() = std::move(res_body_nested).as_optional();
         }
 
-        return fun(std::move(res_body));
-    }
-    auto compute_bounds_body(auto const &loc, auto const &body, auto const &...args) -> Util::ResultState<Stm> {
-        return compute_bounds_body(loc, body, [&](auto res_body) -> Util::ResultState<Stm> {
-            if (res_body) {
-                return {true, Stm{map_rt(args, res_body)...}};
-            }
-            return {true};
-        });
+        return {true, std::invoke(std::forward<F>(fun), std::move(res_body))};
     }
 
     auto operator()(Stm const &stm) -> Util::ResultState<Stm> { return std::visit(*this, stm); }
 
     auto operator()(StmRule const &stm) -> Util::ResultState<Stm> {
-        return compute_bounds_body(stm.loc(), stm.body(), [&](auto res_body) -> Util::ResultState<Stm> {
-            auto res_head = operator()(stm.head());
-            if (res_head || res_body) {
-                return {true,
-                        StmRule{stm.loc(), std::move(res_head).value_or(stm.head()), std::move(res_body).value()}};
-            }
-            return {true};
+        return compute_bounds_body(stm, [&](auto res_body) -> std::optional<Stm> {
+            return stm.rewrite(a_head = operator()(stm.head()), a_body = std::move(res_body));
         });
-    }
-
-    auto operator()(StmTheory const &stm) -> Util::ResultState<Stm> {
-        static_cast<void>(stm);
-        return {true};
     }
 
     auto operator()(StmOptimize const &stm) -> Util::ResultState<Stm> {
@@ -677,69 +622,17 @@ struct ComputeBounds {
         throw std::runtime_error("unpool must be called before computing bounds");
     }
 
-    auto operator()(StmWeakConstraint const &stm) -> Util::ResultState<Stm> {
-        return compute_bounds_body(stm.loc(), stm.body(), std::in_place_type<StmWeakConstraint>, stm.loc(), rt,
-                                   stm.tuple());
+    template <class T>
+        requires Util::is_among_v<T, StmWeakConstraint, StmShow, StmProject, StmExternal, StmEdge, StmHeuristic>
+    auto operator()(T const &stm) -> Util::ResultState<Stm> {
+        return compute_bounds_body(
+            stm, [&](auto res_body) -> std::optional<Stm> { return stm.rewrite(a_body = std::move(res_body)); });
     }
 
-    auto operator()(StmShow const &stm) -> Util::ResultState<Stm> {
-        return compute_bounds_body(stm.loc(), stm.body(), std::in_place_type<StmShow>, stm.loc(), stm.term(), rt);
-    }
-
-    auto operator()(StmShowSig const &stm) -> Util::ResultState<Stm> {
-        static_cast<void>(stm);
-        return {true};
-    }
-
-    auto operator()(StmProject const &stm) -> Util::ResultState<Stm> {
-        return compute_bounds_body(stm.loc(), stm.body(), std::in_place_type<StmProject>, stm.loc(), stm.term(), rt);
-    }
-
-    auto operator()(StmProjectSig const &stm) -> Util::ResultState<Stm> {
-        static_cast<void>(stm);
-        return {true};
-    }
-
-    auto operator()(StmDefined const &stm) -> Util::ResultState<Stm> {
-        static_cast<void>(stm);
-        return {true};
-    }
-
-    auto operator()(StmExternal const &stm) -> Util::ResultState<Stm> {
-        return compute_bounds_body(stm.loc(), stm.body(), std::in_place_type<StmExternal>, stm.loc(), stm.term(), rt,
-                                   stm.type());
-    }
-
-    auto operator()(StmEdge const &stm) -> Util::ResultState<Stm> {
-        return compute_bounds_body(stm.loc(), stm.body(), std::in_place_type<StmEdge>, stm.loc(), stm.edges(), rt);
-    }
-
-    auto operator()(StmHeuristic const &stm) -> Util::ResultState<Stm> {
-        return compute_bounds_body(stm.loc(), stm.body(), std::in_place_type<StmHeuristic>, stm.loc(), stm.atom(), rt,
-                                   stm.weight(), stm.prio(), stm.type());
-    }
-
-    auto operator()(StmScript const &stm) -> Util::ResultState<Stm> {
-        static_cast<void>(stm);
-        return {true};
-    }
-
-    auto operator()(StmInclude const &stm) -> Util::ResultState<Stm> {
-        static_cast<void>(stm);
-        return {true};
-    }
-
-    auto operator()(StmProgram const &stm) -> Util::ResultState<Stm> {
-        static_cast<void>(stm);
-        return {true};
-    }
-
-    auto operator()(StmConst const &stm) -> Util::ResultState<Stm> {
-        static_cast<void>(stm);
-        return {true};
-    }
-
-    auto operator()(StmComment const &stm) -> Util::ResultState<Stm> {
+    template <class T>
+        requires Util::is_among_v<T, StmTheory, StmProjectSig, StmDefined, StmShowSig, StmScript, StmInclude,
+                                  StmProgram, StmConst, StmComment>
+    auto operator()(auto const &stm) -> Util::ResultState<Stm> {
         static_cast<void>(stm);
         return {true};
     }
