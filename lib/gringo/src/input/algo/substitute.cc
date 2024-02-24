@@ -167,7 +167,7 @@ struct MapParams : Transformer<MapParams> {
             throw std::runtime_error("unpool has to be called before substituting parameters");
         }
         if (!term.pool().front().elems().empty() || term.external()) {
-            return transform_construct2(term, a_pool);
+            return rewrite(term, a_pool);
         }
         if (auto param = ctx.is_param(term.name()); param) {
             return TermVariable{term.loc(), ctx.store().string("$" + std::to_string(param.value()))};
@@ -189,7 +189,7 @@ struct MapParams : Transformer<MapParams> {
 
     [[nodiscard]] auto accept(LitSymbolic const &lit) const -> std::optional<Lit> {
         if (!is_identifier(lit.term())) {
-            return transform_construct2(lit, a_term);
+            return rewrite(lit, a_term);
         }
         return std::nullopt;
     }
@@ -198,23 +198,23 @@ struct MapParams : Transformer<MapParams> {
 
     [[nodiscard]] auto accept(StmProject const &stm) const -> std::optional<Stm> {
         if (!is_identifier(stm.term())) {
-            return transform_construct2(stm, a_term, a_body);
+            return rewrite(stm, a_term, a_body);
         }
-        return transform_construct2(stm, a_body);
+        return rewrite(stm, a_body);
     }
 
     [[nodiscard]] auto accept(StmExternal const &stm) const -> std::optional<Stm> {
         if (!is_identifier(stm.term())) {
-            return transform_construct2(stm, a_term, a_body, a_type);
+            return rewrite(stm, a_term, a_body, a_type);
         }
-        return transform_construct2(stm, a_body, a_type);
+        return rewrite(stm, a_body, a_type);
     }
 
     [[nodiscard]] auto accept(StmHeuristic const &stm) const -> std::optional<Stm> {
         if (!is_identifier(stm.atom())) {
-            return transform_construct2(stm, a_atom, a_body, a_weight, a_prio, a_type);
+            return rewrite(stm, a_atom, a_body, a_weight, a_prio, a_type);
         }
-        return transform_construct2(stm, a_body, a_weight, a_prio, a_type);
+        return rewrite(stm, a_body, a_weight, a_prio, a_type);
     }
 
     RewriteContext &ctx;

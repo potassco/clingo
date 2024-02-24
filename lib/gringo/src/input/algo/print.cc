@@ -580,10 +580,10 @@ struct Print {
     }
 
     void operator()(OptimizeElement const &elem) const {
-        operator()(elem.first);
-        if (!elem.second.empty()) {
+        operator()(elem.tuple());
+        if (!elem.cond().empty()) {
             out << ": ";
-            visit_range(elem.second, ", ");
+            visit_range(elem.cond(), ", ");
         }
     }
 

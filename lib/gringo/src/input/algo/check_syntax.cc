@@ -248,7 +248,7 @@ struct CheckSyntax {
 
     auto operator()(StmOptimize const &stm) const -> bool {
         return std::all_of(stm.elems().begin(), stm.elems().end(),
-                           [this](auto const &elem) { return operator()(elem.first) && operator()(elem.second); });
+                           [this](auto const &elem) { return operator()(elem.tuple()) && operator()(elem.cond()); });
     }
 
     auto operator()(StmWeakConstraint const &stm) const -> bool {

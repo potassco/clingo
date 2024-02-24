@@ -171,6 +171,8 @@ template <class T> class Visitor {
 
     void accept_(OptimizeTuple const &tuple) const { visit(tuple.weight(), tuple.prio(), tuple.terms()); }
 
+    void accept_(OptimizeElement const &stm) const { visit(stm.tuple(), stm.cond()); }
+
     void accept_(StmOptimize const &stm) const { visit(stm.elems()); }
 
     void accept_(StmWeakConstraint const &stm) const { visit(stm.body(), stm.tuple()); }

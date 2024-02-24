@@ -501,15 +501,15 @@ struct Unpool {
         stms.reserve(stm.elems().size());
         for (auto const &elem : stm.elems()) {
             auto body = std::vector<BdLit>{};
-            body.reserve(elem.second.size());
-            for (auto const &lit : elem.second) {
+            body.reserve(elem.cond().size());
+            for (auto const &lit : elem.cond()) {
                 body.emplace_back(BdLitSimple{lit});
             }
             auto tuple = stm.type() == OptimizeType::minimize
-                             ? elem.first
-                             : OptimizeTuple{TermUnary{location(elem.first.weight()), UnaryOperator::negate,
-                                                       std::move(elem.first.weight())},
-                                             elem.first.prio(), elem.first.terms()};
+                             ? elem.tuple()
+                             : OptimizeTuple{TermUnary{location(elem.tuple().weight()), UnaryOperator::negate,
+                                                       std::move(elem.tuple().weight())},
+                                             elem.tuple().prio(), elem.tuple().terms()};
             auto cons = StmWeakConstraint{stm.loc(), std::move(body), std::move(tuple)};
             if (auto opt_stms = operator()(cons); opt_stms.has_value()) {
                 stms.insert(stms.end(), std::make_move_iterator(opt_stms->begin()),

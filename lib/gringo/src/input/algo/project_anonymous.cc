@@ -38,7 +38,7 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
         if (term.external()) {
             return std::nullopt;
         }
-        return transform_construct2(term, a_pool);
+        return rewrite(term, a_pool);
     }
 
     [[nodiscard]] static auto accept(TermAbs const &term) -> std::optional<Term> {
@@ -48,7 +48,7 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
 
     [[nodiscard]] auto accept(TermUnary const &term) const -> std::optional<Term> {
         if (check_type(term, TermCheckType::atom, nullptr)) {
-            return transform_construct2(term, a_rhs);
+            return rewrite(term, a_rhs);
         }
         return std::nullopt;
     }
@@ -74,7 +74,7 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
 
     [[nodiscard]] auto accept(LitSymbolic const &lit) const -> std::optional<Lit> {
         if (lit.sign() != Sign::none) {
-            return transform_construct2(lit, a_term);
+            return rewrite(lit, a_term);
         }
         return std::nullopt;
     }
@@ -82,70 +82,54 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
     // head literal
 
     [[nodiscard]] auto accept(HdLitAggregateElement const &elem) const -> std::optional<HdLitAggregateElement> {
-        return transform_construct2(elem, a_lit, a_cond);
+        return rewrite(elem, a_lit, a_cond);
     }
 
-    [[nodiscard]] auto accept(HdLitAggregate const &lit) const -> std::optional<HdLit> {
-        return transform_construct2(lit, a_elems);
-    }
+    [[nodiscard]] auto accept(HdLitAggregate const &lit) const -> std::optional<HdLit> { return rewrite(lit, a_elems); }
 
     [[nodiscard]] auto accept(HdLitSetAggregate const &lit) const -> std::optional<HdLit> {
-        return transform_construct2(lit, a_elems);
+        return rewrite(lit, a_elems);
     }
 
     [[nodiscard]] auto accept(HdLitTheoryAtom const &lit) const -> std::optional<HdLit> {
-        return transform_construct2(lit, a_elems);
+        return rewrite(lit, a_elems);
     }
 
     // body literal
 
     [[nodiscard]] auto accept(BdLitAggregateElement const &elem) const -> std::optional<BdLitAggregateElement> {
-        return transform_construct2(elem, a_cond);
+        return rewrite(elem, a_cond);
     }
 
-    [[nodiscard]] auto accept(BdLitAggregate const &lit) const -> std::optional<BdLit> {
-        return transform_construct2(lit, a_elems);
-    }
+    [[nodiscard]] auto accept(BdLitAggregate const &lit) const -> std::optional<BdLit> { return rewrite(lit, a_elems); }
 
     [[nodiscard]] auto accept(BdLitSetAggregate const &lit) const -> std::optional<BdLit> {
-        return transform_construct2(lit, a_elems);
+        return rewrite(lit, a_elems);
     }
 
     // theory
 
     [[nodiscard]] auto accept(BdLitTheoryAtom const &lit) const -> std::optional<BdLit> {
-        return transform_construct2(lit, a_elems);
+        return rewrite(lit, a_elems);
     }
 
     // statement
 
     [[nodiscard]] auto accept(OptimizeElement const &elem) const -> std::optional<OptimizeElement> {
-        return transform_construct<OptimizeElement>(elem.first, tr(elem.second));
+        return rewrite(elem, a_cond);
     }
 
-    [[nodiscard]] auto accept(StmWeakConstraint const &stm) const -> std::optional<Stm> {
-        return transform_construct2(stm, a_body);
-    }
+    [[nodiscard]] auto accept(StmWeakConstraint const &stm) const -> std::optional<Stm> { return rewrite(stm, a_body); }
 
-    [[nodiscard]] auto accept(StmShow const &stm) const -> std::optional<Stm> {
-        return transform_construct2(stm, a_body);
-    }
+    [[nodiscard]] auto accept(StmShow const &stm) const -> std::optional<Stm> { return rewrite(stm, a_body); }
 
-    [[nodiscard]] auto accept(StmProject const &stm) const -> std::optional<Stm> {
-        return transform_construct2(stm, a_body);
-    }
+    [[nodiscard]] auto accept(StmProject const &stm) const -> std::optional<Stm> { return rewrite(stm, a_body); }
 
-    [[nodiscard]] auto accept(StmExternal const &stm) const -> std::optional<Stm> {
-        return transform_construct2(stm, a_body);
-    }
+    [[nodiscard]] auto accept(StmExternal const &stm) const -> std::optional<Stm> { return rewrite(stm, a_body); }
 
-    [[nodiscard]] auto accept(StmEdge const &stm) const -> std::optional<Stm> {
-        return transform_construct2(stm, a_body);
-    }
+    [[nodiscard]] auto accept(StmEdge const &stm) const -> std::optional<Stm> { return rewrite(stm, a_body); }
 
-    [[nodiscard]] auto accept(StmHeuristic const &stm) const -> std::optional<Stm> {
-        return transform_construct2(stm, a_body);
-    }
+    [[nodiscard]] auto accept(StmHeuristic const &stm) const -> std::optional<Stm> { return rewrite(stm, a_body); }
 };
 
 } // namespace

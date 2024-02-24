@@ -232,9 +232,26 @@ class OptimizeTuple : public Expression<OptimizeTuple> {
     TermArray terms_;
 };
 
-//! An element.
-using OptimizeElement = std::pair<OptimizeTuple, LitArray>;
-//! A vector of elements.
+//! An optimize element.
+class OptimizeElement : public Expression<OptimizeElement> {
+  public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_tuple = &OptimizeElement::tuple_, a_cond = &OptimizeElement::cond_};
+    }
+
+    explicit OptimizeElement(OptimizeTuple tuple, LitArray cond) : tuple_{std::move(tuple)}, cond_{std::move(cond)} {}
+
+    //! The weight.
+    [[nodiscard]] auto tuple() const -> OptimizeTuple const & { return tuple_; }
+    //! The condition.
+    [[nodiscard]] auto cond() const -> LitArray const & { return cond_; }
+
+  private:
+    OptimizeTuple tuple_;
+    LitArray cond_;
+};
+//! A vector of optimize elements.
 using OptimizeElementArray = Util::immutable_array<OptimizeElement>;
 
 //! An optimization statement.

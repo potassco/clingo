@@ -940,7 +940,7 @@ auto clingo_ast::get_ast(clingo_ast_attribute_t attr) const -> std::optional<std
             ATTR(weight, weight())
             ATTR(priority, prio()))
         TYPE(optimize_element, OptimizeElement,
-            ATTR(tuple, first))
+            ATTR(tuple, tuple()))
         TYPE(statement_weak_constraint, StmWeakConstraint,
             ATTR(tuple, tuple()))
         TYPE(statement_show, StmShow,
@@ -1027,7 +1027,7 @@ auto clingo_ast::get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional
         TYPE(optimize_tuple, OptimizeTuple,
             ATTR(terms, terms()))
         TYPE(optimize_element, OptimizeElement,
-            ATTR(condition, second))
+            ATTR(condition, cond()))
         TYPE(statement_optimize, StmOptimize,
             ATTR(elements, elems()))
         TYPE(statement_weak_constraint, StmWeakConstraint,
