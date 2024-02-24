@@ -38,7 +38,7 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
         if (term.external()) {
             return std::nullopt;
         }
-        return transform_construct<TermFunction>(term.loc(), term.name(), tr(term.pool()), term.external());
+        return transform_construct2(term, a_pool);
     }
 
     [[nodiscard]] static auto accept(TermAbs const &term) -> std::optional<Term> {
@@ -48,7 +48,7 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
 
     [[nodiscard]] auto accept(TermUnary const &term) const -> std::optional<Term> {
         if (check_type(term, TermCheckType::atom, nullptr)) {
-            return transform_construct<TermUnary>(term.loc(), term.op(), tr(term.rhs()));
+            return transform_construct2(term, a_rhs);
         }
         return std::nullopt;
     }
@@ -74,7 +74,7 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
 
     [[nodiscard]] auto accept(LitSymbolic const &lit) const -> std::optional<Lit> {
         if (lit.sign() != Sign::none) {
-            return transform_construct<LitSymbolic>(lit.loc(), lit.sign(), tr(lit.term()));
+            return transform_construct2(lit, a_term);
         }
         return std::nullopt;
     }
@@ -82,40 +82,39 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
     // head literal
 
     [[nodiscard]] auto accept(HdLitAggregateElement const &elem) const -> std::optional<HdLitAggregateElement> {
-        return transform_construct<HdLitAggregateElement>(elem.loc(), elem.tuple(), tr(elem.lit()), tr(elem.cond()));
+        return transform_construct2(elem, a_lit, a_cond);
     }
 
     [[nodiscard]] auto accept(HdLitAggregate const &lit) const -> std::optional<HdLit> {
-        return transform_construct<HdLitAggregate>(lit.loc(), lit.lhs(), lit.fun(), tr(lit.elems()), lit.rhs());
+        return transform_construct2(lit, a_elems);
     }
 
     [[nodiscard]] auto accept(HdLitSetAggregate const &lit) const -> std::optional<HdLit> {
-        return transform_construct<HdLitSetAggregate>(lit.loc(), lit.lhs(), tr(lit.elems()), lit.rhs());
+        return transform_construct2(lit, a_elems);
     }
 
     [[nodiscard]] auto accept(HdLitTheoryAtom const &lit) const -> std::optional<HdLit> {
-        return transform_construct<HdLitTheoryAtom>(lit.loc(), lit.name(), tr(lit.elems()), lit.rhs());
+        return transform_construct2(lit, a_elems);
     }
 
     // body literal
 
     [[nodiscard]] auto accept(BdLitAggregateElement const &elem) const -> std::optional<BdLitAggregateElement> {
-        return transform_construct<BdLitAggregateElement>(elem.loc(), elem.tuple(), tr(elem.cond()));
+        return transform_construct2(elem, a_cond);
     }
 
     [[nodiscard]] auto accept(BdLitAggregate const &lit) const -> std::optional<BdLit> {
-        return transform_construct<BdLitAggregate>(lit.loc(), lit.sign(), lit.lhs(), lit.fun(), tr(lit.elems()),
-                                                   lit.rhs());
+        return transform_construct2(lit, a_elems);
     }
 
     [[nodiscard]] auto accept(BdLitSetAggregate const &lit) const -> std::optional<BdLit> {
-        return transform_construct<BdLitSetAggregate>(lit.loc(), lit.sign(), lit.lhs(), tr(lit.elems()), lit.rhs());
+        return transform_construct2(lit, a_elems);
     }
 
     // theory
 
     [[nodiscard]] auto accept(BdLitTheoryAtom const &lit) const -> std::optional<BdLit> {
-        return transform_construct<BdLitTheoryAtom>(lit.loc(), lit.sign(), lit.name(), tr(lit.elems()), lit.rhs());
+        return transform_construct2(lit, a_elems);
     }
 
     // statement
@@ -125,28 +124,27 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
     }
 
     [[nodiscard]] auto accept(StmWeakConstraint const &stm) const -> std::optional<Stm> {
-        return transform_construct<StmWeakConstraint>(stm.loc(), tr(stm.body()), stm.tuple());
+        return transform_construct2(stm, a_body);
     }
 
     [[nodiscard]] auto accept(StmShow const &stm) const -> std::optional<Stm> {
-        return transform_construct<StmShow>(stm.loc(), stm.term(), tr(stm.body()));
+        return transform_construct2(stm, a_body);
     }
 
     [[nodiscard]] auto accept(StmProject const &stm) const -> std::optional<Stm> {
-        return transform_construct<StmProject>(stm.loc(), stm.term(), tr(stm.body()));
+        return transform_construct2(stm, a_body);
     }
 
     [[nodiscard]] auto accept(StmExternal const &stm) const -> std::optional<Stm> {
-        return transform_construct<StmExternal>(stm.loc(), stm.term(), tr(stm.body()), stm.type());
+        return transform_construct2(stm, a_body);
     }
 
     [[nodiscard]] auto accept(StmEdge const &stm) const -> std::optional<Stm> {
-        return transform_construct<StmEdge>(stm.loc(), stm.edges(), tr(stm.body()));
+        return transform_construct2(stm, a_body);
     }
 
     [[nodiscard]] auto accept(StmHeuristic const &stm) const -> std::optional<Stm> {
-        return transform_construct<StmHeuristic>(stm.loc(), stm.atom(), tr(stm.body()), stm.weight(), stm.prio(),
-                                                 stm.type());
+        return transform_construct2(stm, a_body);
     }
 };
 

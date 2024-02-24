@@ -216,9 +216,10 @@ struct Print {
             out << "(";
             apply_to_range_with(pool, ";", [this](auto const &term_or_tuple) {
                 std::visit(
-                    [this](auto const &x) {
-                        GRINGO_MATCH(x, Term) { Print{out}(x); }
-                        GRINGO_MATCH(x, ArgumentTuple) {
+                    [this]<class T>(T const &x) {
+                        if constexpr (std::is_same_v<T, Term>) {
+                            Print{out}(x);
+                        } else if constexpr (std::is_same_v<T, ArgumentTuple>) {
                             Print{out}.apply_to_range(x.elems());
                             if (x.elems().size() == 1) {
                                 out << ",";
@@ -479,9 +480,10 @@ struct Print {
 
     void operator()(StmRule const &stm) const {
         bool empty_head = std::visit(
-            [](auto const &head) {
-                GRINGO_MATCH(head, HdLitDisjunction) { return head.elems().empty(); }
-                GRINGO_MATCH(head, HdLitSimple) {
+            []<class T>(T const &head) {
+                if constexpr (std::is_same_v<T, HdLitDisjunction>) {
+                    return head.elems().empty();
+                } else if constexpr (std::is_same_v<T, HdLitSimple>) {
                     auto val = is_boolean(head.lit());
                     return val && !*val;
                 }

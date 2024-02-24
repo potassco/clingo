@@ -47,6 +47,17 @@ template <class T> class Transformer {
         return std::nullopt;
     }
 
+    template <class U, class... Attr>
+    auto transform_construct2(U const &expr, Attr... attrs) const -> std::optional<U> {
+        return [&]<size_t... Indices>(std::index_sequence<Indices...> seq) {
+            static_cast<void>(seq);
+            auto args =
+                std::make_tuple(std::optional<std::decay_t<decltype(expr.template get_value<Attr::tag>())>>{}...);
+            ((std::get<Indices>(args) = transform(expr.template get_value<Attr::tag>())), ...);
+            return expr.rewrite((attrs = std::move(get<Indices>(args)))...);
+        }(std::index_sequence_for<Attr...>());
+    }
+
   private:
     template <class U> auto accept_(std::optional<U> const &opt) const -> std::optional<std::optional<U>> {
         if (opt.has_value()) {
@@ -151,7 +162,7 @@ template <class T> class Transformer {
     // term
 
     [[nodiscard]] auto accept_(ArgumentTuple const &tuple) const -> std::optional<ArgumentTuple> {
-        return transform_construct<ArgumentTuple>(tr(tuple.elems()));
+        return transform_construct2(tuple, a_elems);
     }
 
     [[nodiscard]] auto accept_(TermSymbol const &term) const -> std::optional<Term> {
@@ -165,29 +176,29 @@ template <class T> class Transformer {
     }
 
     [[nodiscard]] auto accept_(TermFunction const &term) const -> std::optional<Term> {
-        return transform_construct<TermFunction>(term.loc(), term.name(), tr(term.pool()), term.external());
+        return transform_construct2(term, a_pool);
     }
 
     [[nodiscard]] auto accept_(TermTuple const &term) const -> std::optional<Term> {
-        return transform_construct<TermTuple>(term.loc(), tr(term.pool()));
+        return transform_construct2(term, a_pool);
     }
 
     [[nodiscard]] auto accept_(TermAbs const &term) const -> std::optional<Term> {
-        return transform_construct<TermAbs>(term.loc(), tr(term.pool()));
+        return transform_construct2(term, a_pool);
     }
 
     [[nodiscard]] auto accept_(TermUnary const &term) const -> std::optional<Term> {
-        return transform_construct<TermUnary>(term.loc(), term.op(), tr(term.rhs()));
+        return transform_construct2(term, a_rhs);
     }
 
     [[nodiscard]] auto accept_(TermBinary const &term) const -> std::optional<Term> {
-        return transform_construct<TermBinary>(term.loc(), tr(term.lhs()), term.op(), tr(term.rhs()));
+        return transform_construct2(term, a_lhs, a_rhs);
     }
 
     // theory
 
     [[nodiscard]] auto accept_(TheoryTermUnparsed const &term) const -> std::optional<TheoryTerm> {
-        return transform_construct<TheoryTermUnparsed>(term.loc(), tr(term.elems()));
+        return transform_construct2(term, a_elems);
     }
 
     [[nodiscard]] auto accept_(TheoryTermSymbol const &term) const -> std::optional<TheoryTerm> {
@@ -201,11 +212,11 @@ template <class T> class Transformer {
     }
 
     [[nodiscard]] auto accept_(TheoryTermTuple const &term) const -> std::optional<TheoryTerm> {
-        return transform_construct<TheoryTermTuple>(term.loc(), term.type(), tr(term.elems()));
+        return transform_construct2(term, a_elems);
     }
 
     [[nodiscard]] auto accept_(TheoryTermFunction const &term) const -> std::optional<TheoryTerm> {
-        return transform_construct<TheoryTermFunction>(term.loc(), term.name(), tr(term.args()));
+        return transform_construct2(term, a_args);
     }
 
     // literal
@@ -216,57 +227,51 @@ template <class T> class Transformer {
     }
 
     [[nodiscard]] auto accept_(LitComparison const &lit) const -> std::optional<Lit> {
-        return transform_construct<LitComparison>(lit.loc(), lit.sign(), tr(lit.lhs()), tr(lit.rhs()));
+        return transform_construct2(lit, a_lhs, a_rhs);
     }
 
     [[nodiscard]] auto accept_(LitSymbolic const &lit) const -> std::optional<Lit> {
-        return transform_construct<LitSymbolic>(lit.loc(), lit.sign(), tr(lit.term()));
+        return transform_construct2(lit, a_term);
     }
 
     // conditional literal
 
     [[nodiscard]] auto accept_(CondLit const &lit) const -> std::optional<CondLit> {
-        return transform_construct<CondLit>(lit.loc(), tr(lit.lit()), tr(lit.cond()));
+        return transform_construct2(lit, a_lit, a_cond);
     }
 
     // set aggregate
 
     [[nodiscard]] auto accept_(SetAggregateElement const &elem) const -> std::optional<SetAggregateElement> {
-        return transform_construct<SetAggregateElement>(elem.loc(), tr(elem.lit()), tr(elem.cond()));
+        return transform_construct2(elem, a_lit, a_cond);
     }
 
     // head literal
 
     [[nodiscard]] auto accept_(HdLitSimple const &lit) const -> std::optional<HdLit> { return transform(lit.lit()); }
 
-    [[nodiscard]] auto accept_(HdLitDisjunctionElement const &elem) const -> std::optional<HdLitDisjunctionElement> {
-        return std::visit(
-            [this](auto const &elem) -> std::optional<HdLitDisjunctionElement> { return this->transform(elem); }, elem);
-    }
-
     [[nodiscard]] auto accept_(HdLitDisjunction const &lit) const -> std::optional<HdLit> {
-        return transform_construct<HdLitDisjunction>(lit.loc(), tr(lit.elems()));
+        return transform_construct2(lit, a_elems);
     }
 
     [[nodiscard]] auto accept_(HdLitSetAggregate const &lit) const -> std::optional<HdLit> {
-        return transform_construct<HdLitSetAggregate>(lit.loc(), tr(lit.lhs()), tr(lit.elems()), tr(lit.rhs()));
+        return transform_construct2(lit, a_lhs, a_elems, a_rhs);
     }
 
     [[nodiscard]] auto accept_(HdLitAggregateElement const &elem) const -> std::optional<HdLitAggregateElement> {
-        return transform_construct<HdLitAggregateElement>(elem.loc(), tr(elem.tuple()), tr(elem.lit()),
-                                                          tr(elem.cond()));
+        return transform_construct2(elem, a_tuple, a_lit, a_cond);
     }
 
     [[nodiscard]] auto accept_(HdLitAggregate const &lit) const -> std::optional<HdLit> {
-        return transform_construct<HdLitAggregate>(lit.loc(), tr(lit.lhs()), lit.fun(), tr(lit.elems()), tr(lit.rhs()));
+        return transform_construct2(lit, a_lhs, a_elems, a_rhs);
     }
 
     [[nodiscard]] auto accept_(TheoryElement const elem) const -> std::optional<TheoryElement> {
-        return transform_construct<TheoryElement>(elem.loc(), tr(elem.tuple()), tr(elem.cond()));
+        return transform_construct2(elem, a_tuple, a_cond);
     }
 
     [[nodiscard]] auto accept_(HdLitTheoryAtom const &lit) const -> std::optional<HdLit> {
-        return transform_construct<HdLitTheoryAtom>(lit.loc(), tr(lit.name()), tr(lit.elems()), tr(lit.rhs()));
+        return transform_construct2(lit, a_name, a_elems, a_rhs);
     }
 
     // body literal
@@ -278,28 +283,25 @@ template <class T> class Transformer {
     }
 
     [[nodiscard]] auto accept_(BdLitSetAggregate const &lit) const -> std::optional<BdLit> {
-        return transform_construct<BdLitSetAggregate>(lit.loc(), lit.sign(), tr(lit.lhs()), tr(lit.elems()),
-                                                      tr(lit.rhs()));
+        return transform_construct2(lit, a_lhs, a_elems, a_rhs);
     }
 
     [[nodiscard]] auto accept_(BdLitAggregateElement const &elem) const -> std::optional<BdLitAggregateElement> {
-        return transform_construct<BdLitAggregateElement>(elem.loc(), tr(elem.tuple()), tr(elem.cond()));
+        return transform_construct2(elem, a_tuple, a_cond);
     }
 
     [[nodiscard]] auto accept_(BdLitAggregate const &lit) const -> std::optional<BdLit> {
-        return transform_construct<BdLitAggregate>(lit.loc(), lit.sign(), tr(lit.lhs()), lit.fun(), tr(lit.elems()),
-                                                   tr(lit.rhs()));
+        return transform_construct2(lit, a_lhs, a_elems, a_rhs);
     }
 
     [[nodiscard]] auto accept_(BdLitTheoryAtom const &lit) const -> std::optional<BdLit> {
-        return transform_construct<BdLitTheoryAtom>(lit.loc(), lit.sign(), tr(lit.name()), tr(lit.elems()),
-                                                    tr(lit.rhs()));
+        return transform_construct2(lit, a_name, a_elems, a_rhs);
     }
 
     // statement
 
     [[nodiscard]] auto accept_(StmRule const &stm) const -> std::optional<Stm> {
-        return transform_construct<StmRule>(stm.loc(), tr(stm.head()), tr(stm.body()));
+        return transform_construct2(stm, a_head, a_body);
     }
 
     [[nodiscard]] auto accept_(StmTheory const &stm) const -> std::optional<Stm> {
@@ -308,23 +310,19 @@ template <class T> class Transformer {
     }
 
     [[nodiscard]] auto accept_(OptimizeTuple const &elem) const -> std::optional<OptimizeTuple> {
-        return transform_construct<OptimizeTuple>(tr(elem.weight()), tr(elem.prio()), tr(elem.terms()));
-    }
-
-    [[nodiscard]] auto accept_(OptimizeElement const &elem) const -> std::optional<OptimizeElement> {
-        return transform_construct<OptimizeElement>(tr(elem.first), tr(elem.second));
+        return transform_construct2(elem, a_weight, a_prio, a_terms);
     }
 
     [[nodiscard]] auto accept_(StmOptimize const &stm) const -> std::optional<Stm> {
-        return transform_construct<StmOptimize>(stm.loc(), stm.type(), tr(stm.elems()));
+        return transform_construct2(stm, a_elems);
     }
 
     [[nodiscard]] auto accept_(StmWeakConstraint const &stm) const -> std::optional<Stm> {
-        return transform_construct<StmWeakConstraint>(stm.loc(), tr(stm.body()), tr(stm.tuple()));
+        return transform_construct2(stm, a_body, a_tuple);
     }
 
     [[nodiscard]] auto accept_(StmShow const &stm) const -> std::optional<Stm> {
-        return transform_construct<StmShow>(stm.loc(), tr(stm.term()), tr(stm.body()));
+        return transform_construct2(stm, a_term, a_body);
     }
 
     [[nodiscard]] auto accept_(StmShowSig const &stm) const -> std::optional<Stm> {
@@ -333,7 +331,7 @@ template <class T> class Transformer {
     }
 
     [[nodiscard]] auto accept_(StmProject const &stm) const -> std::optional<Stm> {
-        return transform_construct<StmProject>(stm.loc(), tr(stm.term()), tr(stm.body()));
+        return transform_construct2(stm, a_term, a_body);
     }
 
     [[nodiscard]] auto accept_(StmProjectSig const &stm) const -> std::optional<Stm> {
@@ -347,20 +345,19 @@ template <class T> class Transformer {
     }
 
     [[nodiscard]] auto accept_(StmExternal const &stm) const -> std::optional<Stm> {
-        return transform_construct<StmExternal>(stm.loc(), tr(stm.term()), tr(stm.body()), tr(stm.type()));
+        return transform_construct2(stm, a_term, a_body, a_type);
     }
 
     [[nodiscard]] auto accept_(Edge const &edge) const -> std::optional<Edge> {
-        return transform_construct<Edge>(tr(edge.src()), tr(edge.dst()));
+        return transform_construct2(edge, a_src, a_dst);
     }
 
     [[nodiscard]] auto accept_(StmEdge const &stm) const -> std::optional<Stm> {
-        return transform_construct<StmEdge>(stm.loc(), tr(stm.edges()), tr(stm.body()));
+        return transform_construct2(stm, a_edges, a_body);
     }
 
     [[nodiscard]] auto accept_(StmHeuristic const &stm) const -> std::optional<Stm> {
-        return transform_construct<StmHeuristic>(stm.loc(), tr(stm.atom()), tr(stm.body()), tr(stm.weight()),
-                                                 tr(stm.prio()), tr(stm.type()));
+        return transform_construct2(stm, a_atom, a_body, a_weight, a_prio, a_type);
     }
 
     [[nodiscard]] auto accept_(StmScript const &stm) const -> std::optional<Stm> {
