@@ -39,19 +39,6 @@ template <class Vec, class Pred> auto erase_if(Vec &vec, Pred pred) -> size_t {
     return n;
 }
 
-//! Helper template to ease using std::visit.
-#define GRINGO_IS_INSTANCE(x, T) std::is_same_v<std::decay_t<decltype(x)>, T>
-
-//! Helper template to ease using std::visit.
-#define GRINGO_MATCH(x, T) if constexpr (std::is_same_v<std::decay_t<decltype(x)>, T>)
-
-//! Helper template to ease using std::visit.
-#define GRINGO_MATCH2(x, T, y, U)                                                                                      \
-    if constexpr (std::is_same_v<std::decay_t<decltype(x)>, T> && std::is_same_v<std::decay_t<decltype(y)>, U>)
-
-//! Helper to simplify forwarding of auto types.
-#define GRINGO_FWD(x) std::forward<decltype(x)>(x)
-
 //! @}
 
 } // namespace Gringo::Util

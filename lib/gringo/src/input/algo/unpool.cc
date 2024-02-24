@@ -105,22 +105,24 @@ struct Unpool {
 
     auto operator()(Argument const &elem) const -> std::optional<std::vector<Argument>> {
         return std::visit(
-            [this](auto const &x) -> std::optional<std::vector<Argument>> {
-                GRINGO_MATCH(x, Term) {
+            [this]<class T>(T const &x) -> std::optional<std::vector<Argument>> {
+                if constexpr (std::is_same_v<T, Term>) {
                     return Util::transform_vec(operator()(x), [](auto term) { return Argument{std::move(term)}; });
                 }
-                GRINGO_MATCH(x, Projection) { return std::nullopt; }
+                if constexpr (std::is_same_v<T, Projection>) {
+                    return std::nullopt;
+                }
             },
             elem);
     }
 
     auto operator()(TupleElement const &tuple_or_term) const -> std::optional<TupleElementArray> {
         return std::visit(
-            [this](auto const &x) -> std::optional<TupleElementArray> {
-                GRINGO_MATCH(x, Term) {
+            [this]<class T>(T const &x) -> std::optional<TupleElementArray> {
+                if constexpr (std::is_same_v<T, Term>) {
                     return Util::transform_vec(operator()(x), [](auto term) { return TupleElement{std::move(term)}; });
                 }
-                GRINGO_MATCH(x, ArgumentTuple) {
+                if constexpr (std::is_same_v<T, ArgumentTuple>) {
                     return Util::transform_vec(unpool_crossproduct(x.elems(), *this), [](auto tuple) {
                         return TupleElement{ArgumentTuple{std::move(tuple)}};
                     });
@@ -139,9 +141,13 @@ struct Unpool {
         }
         return Util::transform_vec(std::move(elems), [&term](auto elem) -> Term {
             return std::visit(
-                [&term](auto x) -> Term {
-                    GRINGO_MATCH(x, Term) { return x; }
-                    GRINGO_MATCH(x, ArgumentTuple) { return TermTuple{term.loc(), {ArgumentTuple{std::move(x)}}}; }
+                [&term]<class T>(T x) -> Term {
+                    if constexpr (std::is_same_v<T, Term>) {
+                        return x;
+                    }
+                    if constexpr (std::is_same_v<T, ArgumentTuple>) {
+                        return TermTuple{term.loc(), {ArgumentTuple{std::move(x)}}};
+                    }
                 },
                 std::move(elem));
         });
@@ -339,8 +345,8 @@ struct Unpool {
 
     auto operator()(HdLitDisjunctionElement const &elem) const -> std::optional<HdLitDisjunctionElementArray> {
         return std::visit(
-            [this](auto const &elem) -> std::optional<std::vector<HdLitDisjunctionElement>> {
-                GRINGO_MATCH(elem, Lit) {
+            [this]<class T>(T const &elem) -> std::optional<std::vector<HdLitDisjunctionElement>> {
+                if constexpr (std::is_same_v<T, Lit>) {
                     return unpool_crossproducts([](auto lit) { return HdLitDisjunctionElement{std::move(lit)}; }, *this,
                                                 elem);
                 }

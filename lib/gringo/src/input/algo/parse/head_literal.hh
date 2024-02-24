@@ -32,8 +32,8 @@ static constexpr auto disjunction_sep = LEXY_ASCII_ONE_OF(",;|");
 struct disjunction_element {
     static constexpr char const *name = "conditional literal";
     static constexpr auto rule = Detail::location(dsl::p<literal> + dsl::p<opt_condition>);
-    static constexpr auto value = lexy::callback<HdLitDisjunctionElement>([](auto &&loc, auto &&lit, auto &&cond) {
-        return Detail::construct_disj_elem(GRINGO_FWD(loc), GRINGO_FWD(lit), GRINGO_FWD(cond));
+    static constexpr auto value = lexy::callback<HdLitDisjunctionElement>([](auto loc, auto lit, auto cond) {
+        return Detail::construct_disj_elem(std::move(loc), std::move(lit), std::move(cond));
     });
 };
 

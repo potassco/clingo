@@ -281,11 +281,11 @@ struct ApplyBounds {
     auto operator()(LitComparison const &lit) const -> Util::ResultState<Lit> {
         assert(lit.sign() == Sign::none);
         auto const &rhs = lit.rhs().front();
-        auto make_symbol = [this](TermSymbol const &sym, auto &&bound) {
+        auto make_symbol = [this](TermSymbol const &sym, auto const &bound) {
             if (sym.value().num() == bound) {
                 return sym;
             }
-            return TermSymbol{sym.loc(), store.num(GRINGO_FWD(bound))};
+            return TermSymbol{sym.loc(), store.num(bound)};
         };
         auto make_relation = [this, &lit](auto const &lhs, Relation rel, Location loc, auto const &bound) {
             return LitComparison{lit.loc(), Sign::none, lhs,

@@ -91,15 +91,15 @@ struct ShiftHead {
         auto res_elems = Util::ResultVec{lit.elems()};
         for (auto const &elem : lit.elems()) {
             std::visit(
-                [this, &res_elems](auto const &x) {
-                    GRINGO_MATCH(x, Lit) {
+                [this, &res_elems]<class T>(T const &x) {
+                    if constexpr (std::is_same_v<T, Lit>) {
                         if (shift(x, body, true)) {
                             res_elems.remove();
                         } else {
                             res_elems.keep();
                         }
                     }
-                    GRINGO_MATCH(x, CondLit) {
+                    if constexpr (std::is_same_v<T, CondLit>) {
                         auto res_cond = unpool_conjunctive(x.cond());
                         auto res_lit = shift(x.lit(), res_cond, false);
                         if (const auto *blit = std::get_if<LitBool>(res_lit ? &*res_lit : &x.lit()); blit != nullptr) {
@@ -249,9 +249,11 @@ struct UnpoolHeadBody {
     auto operator()(HdLitDisjunction const &lit) const -> std::optional<HdLitArray> {
         auto unpool_elem = [](HdLitDisjunctionElement const &elem) {
             return std::visit(
-                [](auto const &elem) -> std::optional<HdLitDisjunctionElementArray> {
-                    GRINGO_MATCH(elem, Lit) { return std::nullopt; }
-                    GRINGO_MATCH(elem, CondLit) {
+                []<class T>(T const &elem) -> std::optional<HdLitDisjunctionElementArray> {
+                    if constexpr (std::is_same_v<T, Lit>) {
+                        return std::nullopt;
+                    }
+                    if constexpr (std::is_same_v<T, CondLit>) {
                         auto build = [&elem](auto lits) -> HdLitDisjunctionElement {
                             return elem.update(a_cond = std::move(lits));
                         };

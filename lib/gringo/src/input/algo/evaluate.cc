@@ -146,27 +146,31 @@ struct Evaluate {
                     return rep;
                 }
                 return std::visit(
-                    [this, sym](auto res) -> std::optional<Symbol> {
-                        GRINGO_MATCH(res, bool) {
+                    [this, sym]<class T>(T res) -> std::optional<Symbol> {
+                        if constexpr (std::is_same_v<T, bool>) {
                             if (res) {
                                 return sym;
                             }
                             return std::nullopt;
                         }
-                        GRINGO_MATCH(res, std::vector<Symbol>) { return store.fun(sym.name(), res, sym.has_sign()); }
+                        if constexpr (std::is_same_v<T, std::vector<Symbol>>) {
+                            return store.fun(sym.name(), res, sym.has_sign());
+                        }
                     },
                     eval_args_(args));
             }
             case SymbolType::tuple: {
                 return std::visit(
-                    [this, sym](auto res) -> std::optional<Symbol> {
-                        GRINGO_MATCH(res, bool) {
+                    [this, sym]<class T>(T res) -> std::optional<Symbol> {
+                        if constexpr (std::is_same_v<T, bool>) {
                             if (res) {
                                 return sym;
                             }
                             return std::nullopt;
                         }
-                        GRINGO_MATCH(res, std::vector<Symbol>) { return store.tup(res); }
+                        if constexpr (std::is_same_v<T, std::vector<Symbol>>) {
+                            return store.tup(res);
+                        }
                     },
                     eval_args_(sym.args()));
             }

@@ -47,7 +47,7 @@ struct Project : Transformer<Project> {
         }
         return std::visit(
             [this](auto const &x) -> std::optional<Argument> {
-                return Util::transform(transform(x), [](auto &&y) -> Argument { return {GRINGO_FWD(y)}; });
+                return Util::transform(transform(x), []<class Y>(Y &&y) -> Argument { return {std::forward<Y>(y)}; });
             },
             elem);
     };
@@ -134,8 +134,8 @@ struct Project : Transformer<Project> {
 
     [[nodiscard]] auto accept(HdLitDisjunctionElement const &elem) const -> std::optional<HdLitDisjunctionElement> {
         return std::visit(
-            [this](auto const &elem) -> std::optional<HdLitDisjunctionElement> {
-                GRINGO_MATCH(elem, Lit) {
+            [this]<class T>(T const &elem) -> std::optional<HdLitDisjunctionElement> {
+                if constexpr (std::is_same_v<T, Lit>) {
                     if (!project_lits) {
                         return std::nullopt;
                     }

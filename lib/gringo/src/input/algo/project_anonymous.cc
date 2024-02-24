@@ -29,7 +29,7 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
         }
         return std::visit(
             [this](auto const &x) -> std::optional<Argument> {
-                return Util::transform(transform(x), [](auto &&y) -> Argument { return {GRINGO_FWD(y)}; });
+                return Util::transform(transform(x), [](auto y) -> Argument { return {std::move(y)}; });
             },
             elem);
     };

@@ -334,9 +334,13 @@ struct IsClassical {
     auto operator()(HdLitDisjunction const &lit) const -> bool {
         return std::all_of(lit.elems().begin(), lit.elems().end(), [](auto const &elem) {
             return std::visit(
-                [](auto const &lit) {
-                    GRINGO_MATCH(lit, Lit) { return !is_atom(lit); }
-                    GRINGO_MATCH(lit, CondLit) { return !is_atom(lit.lit()); }
+                []<class T>(T const &lit) {
+                    if constexpr (std::is_same_v<T, Lit>) {
+                        return !is_atom(lit);
+                    }
+                    if constexpr (std::is_same_v<T, CondLit>) {
+                        return !is_atom(lit.lit());
+                    }
                 },
                 elem);
         });
@@ -389,9 +393,11 @@ struct IsFact {
             return std::nullopt;
         }
         return std::visit(
-            [this](auto &&x) -> std::optional<Symbol> {
-                GRINGO_MATCH(x, Term) { return operator()(x); }
-                GRINGO_MATCH(x, ArgumentTuple) {
+            [this]<class T>(T const &x) -> std::optional<Symbol> {
+                if constexpr (std::is_same_v<T, Term>) {
+                    return operator()(x);
+                }
+                if constexpr (std::is_same_v<T, ArgumentTuple>) {
                     if (auto tuple = operator()(x); tuple) {
                         return store.tup(*tuple);
                     }

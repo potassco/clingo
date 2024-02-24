@@ -250,26 +250,26 @@ auto make_ast(Owner const &owner, Gringo::Input::Projection const &projection) -
 
 auto make_ast(Owner const &owner, Gringo::Input::Term const &term) -> std::unique_ptr<clingo_ast_t> {
     return std::visit(
-        [&owner](auto const &x) {
-            GRINGO_MATCH(x, Gringo::Input::TermVariable) {
+        [&owner]<class T>(T const &x) {
+            if constexpr (std::is_same_v<T, Gringo::Input::TermVariable>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_term_variable, &x);
             }
-            GRINGO_MATCH(x, Gringo::Input::TermSymbol) {
+            if constexpr (std::is_same_v<T, Gringo::Input::TermSymbol>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_term_symbolic, &x);
             }
-            GRINGO_MATCH(x, Gringo::Input::TermTuple) {
+            if constexpr (std::is_same_v<T, Gringo::Input::TermTuple>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_term_tuple, &x);
             }
-            GRINGO_MATCH(x, Gringo::Input::TermFunction) {
+            if constexpr (std::is_same_v<T, Gringo::Input::TermFunction>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_term_function, &x);
             }
-            GRINGO_MATCH(x, Gringo::Input::TermAbs) {
+            if constexpr (std::is_same_v<T, Gringo::Input::TermAbs>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_term_absolute, &x);
             }
-            GRINGO_MATCH(x, Gringo::Input::TermUnary) {
+            if constexpr (std::is_same_v<T, Gringo::Input::TermUnary>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_term_unary_operation, &x);
             }
-            GRINGO_MATCH(x, Gringo::Input::TermBinary) {
+            if constexpr (std::is_same_v<T, Gringo::Input::TermBinary>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_term_binary_operation, &x);
             }
         },
@@ -278,20 +278,20 @@ auto make_ast(Owner const &owner, Gringo::Input::Term const &term) -> std::uniqu
 
 auto make_ast(Owner const &owner, Gringo::Input::TheoryTerm const &term) -> std::unique_ptr<clingo_ast_t> {
     return std::visit(
-        [&owner](auto const &x) {
-            GRINGO_MATCH(x, Gringo::Input::TheoryTermVariable) {
+        [&owner]<class T>(T const &x) {
+            if constexpr (std::is_same_v<T, Gringo::Input::TheoryTermVariable>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_theory_term_variable, &x);
             }
-            GRINGO_MATCH(x, Gringo::Input::TheoryTermSymbol) {
+            if constexpr (std::is_same_v<T, Gringo::Input::TheoryTermSymbol>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_theory_term_symbolic, &x);
             }
-            GRINGO_MATCH(x, Gringo::Input::TheoryTermTuple) {
+            if constexpr (std::is_same_v<T, Gringo::Input::TheoryTermTuple>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_theory_term_tuple, &x);
             }
-            GRINGO_MATCH(x, Gringo::Input::TheoryTermFunction) {
+            if constexpr (std::is_same_v<T, Gringo::Input::TheoryTermFunction>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_theory_term_function, &x);
             }
-            GRINGO_MATCH(x, Gringo::Input::TheoryTermUnparsed) {
+            if constexpr (std::is_same_v<T, Gringo::Input::TheoryTermUnparsed>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_theory_term_unparsed, &x);
             }
         },
@@ -308,9 +308,11 @@ auto make_ast(Owner const &owner, Gringo::Input::ArgumentTuple const &tuple) -> 
 
 auto make_ast(Owner const &owner, Gringo::Input::TupleElement const &elem) -> std::unique_ptr<clingo_ast_t> {
     return std::visit(
-        [&owner](auto const &x) {
-            GRINGO_MATCH(x, Gringo::Input::Term) { return make_ast(owner, x); }
-            GRINGO_MATCH(x, Gringo::Input::ArgumentTuple) {
+        [&owner]<class T>(T const &x) {
+            if constexpr (std::is_same_v<T, Gringo::Input::Term>) {
+                return make_ast(owner, x);
+            }
+            if constexpr (std::is_same_v<T, Gringo::Input::ArgumentTuple>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_argument_tuple, &x);
             }
         },
@@ -319,14 +321,14 @@ auto make_ast(Owner const &owner, Gringo::Input::TupleElement const &elem) -> st
 
 auto make_ast(Owner const &owner, Gringo::Input::Lit const &lit) -> std::unique_ptr<clingo_ast_t> {
     return std::visit(
-        [&owner](auto const &x) {
-            GRINGO_MATCH(x, Gringo::Input::LitBool) {
+        [&owner]<class T>(T const &x) {
+            if constexpr (std::is_same_v<T, Gringo::Input::LitBool>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_literal_boolean, &x);
             }
-            GRINGO_MATCH(x, Gringo::Input::LitSymbolic) {
+            if constexpr (std::is_same_v<T, Gringo::Input::LitSymbolic>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_literal_symbolic, &x);
             }
-            GRINGO_MATCH(x, Gringo::Input::LitComparison) {
+            if constexpr (std::is_same_v<T, Gringo::Input::LitComparison>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_literal_comparison, &x);
             }
         },
@@ -336,20 +338,20 @@ auto make_ast(Owner const &owner, Gringo::Input::Lit const &lit) -> std::unique_
 auto make_ast(Owner const &owner, Gringo::Input::HdLit const &lit) -> std::unique_ptr<clingo_ast_t> {
     using namespace Gringo::Input;
     return std::visit(
-        [&owner](auto &x) {
-            GRINGO_MATCH(x, HdLitSimple) {
+        [&owner]<class T>(T const &x) {
+            if constexpr (std::is_same_v<T, HdLitSimple>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_head_simple_literal, &x);
             }
-            GRINGO_MATCH(x, HdLitDisjunction) {
+            if constexpr (std::is_same_v<T, HdLitDisjunction>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_head_disjunction, &x);
             }
-            GRINGO_MATCH(x, HdLitSetAggregate) {
+            if constexpr (std::is_same_v<T, HdLitSetAggregate>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_head_set_aggregate, &x);
             }
-            GRINGO_MATCH(x, HdLitTheoryAtom) {
+            if constexpr (std::is_same_v<T, HdLitTheoryAtom>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_head_theory_atom, &x);
             }
-            GRINGO_MATCH(x, HdLitAggregate) {
+            if constexpr (std::is_same_v<T, HdLitAggregate>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_head_aggregate, &x);
             }
         },
@@ -359,20 +361,20 @@ auto make_ast(Owner const &owner, Gringo::Input::HdLit const &lit) -> std::uniqu
 auto make_ast(Owner const &owner, Gringo::Input::BdLit const &lit) -> std::unique_ptr<clingo_ast_t> {
     using namespace Gringo::Input;
     return std::visit(
-        [&owner](auto &x) {
-            GRINGO_MATCH(x, BdLitSimple) {
+        [&owner]<class T>(T const &x) {
+            if constexpr (std::is_same_v<T, BdLitSimple>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_body_simple_literal, &x);
             }
-            GRINGO_MATCH(x, BdLitConjunction) {
+            if constexpr (std::is_same_v<T, BdLitConjunction>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_body_conditional_literal, &x);
             }
-            GRINGO_MATCH(x, BdLitSetAggregate) {
+            if constexpr (std::is_same_v<T, BdLitSetAggregate>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_body_set_aggregate, &x);
             }
-            GRINGO_MATCH(x, BdLitTheoryAtom) {
+            if constexpr (std::is_same_v<T, BdLitTheoryAtom>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_body_theory_atom, &x);
             }
-            GRINGO_MATCH(x, BdLitAggregate) {
+            if constexpr (std::is_same_v<T, BdLitAggregate>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_body_aggregate, &x);
             }
         },
@@ -398,11 +400,10 @@ auto make_ast(Owner const &owner, Gringo::Input::HdLitAggregateElement const &el
 auto make_ast(Owner const &owner, Gringo::Input::HdLitDisjunctionElement const &elem) -> std::unique_ptr<clingo_ast_t> {
     using namespace Gringo::Input;
     return std::visit(
-        [&owner](auto const &x) {
-            GRINGO_MATCH(x, CondLit) {
+        [&owner]<class T>(T const &x) {
+            if constexpr (std::is_same_v<T, CondLit>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_head_conditional_literal, &x);
-            }
-            else {
+            } else {
                 return make_ast(owner, x);
             }
         },
@@ -439,56 +440,56 @@ auto make_ast(Owner const &owner, Gringo::Input::Edge const &edge) -> std::uniqu
 
 auto make_ast(Owner const &owner, Gringo::Input::Stm const &term) -> std::unique_ptr<clingo_ast_t> {
     return std::visit(
-        [&owner](auto const &x) {
-            GRINGO_MATCH(x, Gringo::Input::StmRule) {
+        [&owner]<class T>(T const &x) {
+            if constexpr (std::is_same_v<T, Gringo::Input::StmRule>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_rule, &x);
             }
-            GRINGO_MATCH(x, Gringo::Input::StmTheory) {
+            if constexpr (std::is_same_v<T, Gringo::Input::StmTheory>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_theory, &x);
             }
-            GRINGO_MATCH(x, Gringo::Input::StmOptimize) {
+            if constexpr (std::is_same_v<T, Gringo::Input::StmOptimize>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_optimize, &x);
             }
-            GRINGO_MATCH(x, Gringo::Input::StmWeakConstraint) {
+            if constexpr (std::is_same_v<T, Gringo::Input::StmWeakConstraint>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_weak_constraint, &x);
             }
-            GRINGO_MATCH(x, Gringo::Input::StmShow) {
+            if constexpr (std::is_same_v<T, Gringo::Input::StmShow>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_show, &x);
             }
-            GRINGO_MATCH(x, Gringo::Input::StmShowSig) {
+            if constexpr (std::is_same_v<T, Gringo::Input::StmShowSig>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_show_signature, &x);
             }
-            GRINGO_MATCH(x, Gringo::Input::StmProject) {
+            if constexpr (std::is_same_v<T, Gringo::Input::StmProject>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_project, &x);
             }
-            GRINGO_MATCH(x, Gringo::Input::StmProjectSig) {
+            if constexpr (std::is_same_v<T, Gringo::Input::StmProjectSig>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_project_signature, &x);
             }
-            GRINGO_MATCH(x, Gringo::Input::StmDefined) {
+            if constexpr (std::is_same_v<T, Gringo::Input::StmDefined>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_defined, &x);
             }
-            GRINGO_MATCH(x, Gringo::Input::StmExternal) {
+            if constexpr (std::is_same_v<T, Gringo::Input::StmExternal>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_external, &x);
             }
-            GRINGO_MATCH(x, Gringo::Input::StmEdge) {
+            if constexpr (std::is_same_v<T, Gringo::Input::StmEdge>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_edge, &x);
             }
-            GRINGO_MATCH(x, Gringo::Input::StmHeuristic) {
+            if constexpr (std::is_same_v<T, Gringo::Input::StmHeuristic>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_heuristic, &x);
             }
-            GRINGO_MATCH(x, Gringo::Input::StmScript) {
+            if constexpr (std::is_same_v<T, Gringo::Input::StmScript>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_script, &x);
             }
-            GRINGO_MATCH(x, Gringo::Input::StmInclude) {
+            if constexpr (std::is_same_v<T, Gringo::Input::StmInclude>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_include, &x);
             }
-            GRINGO_MATCH(x, Gringo::Input::StmProgram) {
+            if constexpr (std::is_same_v<T, Gringo::Input::StmProgram>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_program, &x);
             }
-            GRINGO_MATCH(x, Gringo::Input::StmConst) {
+            if constexpr (std::is_same_v<T, Gringo::Input::StmConst>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_const, &x);
             }
-            GRINGO_MATCH(x, Gringo::Input::StmComment) {
+            if constexpr (std::is_same_v<T, Gringo::Input::StmComment>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_comment, &x);
             }
         },
@@ -1054,15 +1055,15 @@ auto clingo_ast::copy() const -> std::unique_ptr<clingo_ast_t> { return std::mak
 
 void clingo_ast::print(std::ostream &out) const {
     using namespace Gringo::Input;
-    visit([&out](auto &x) {
-        GRINGO_MATCH(x, TheoryRGuard::value_type) { out << " " << x.first << " " << x.second; }
-        else GRINGO_MATCH(x, UnparsedElement) {
+    visit([&out]<class T>(T const &x) {
+        if constexpr (std::is_same_v<T, TheoryRGuard::value_type>) {
+            out << " " << x.first << " " << x.second;
+        } else if constexpr (std::is_same_v<T, UnparsedElement>) {
             for (auto const &op : x.first) {
                 out << op << " ";
             }
             out << x.second;
-        }
-        else GRINGO_MATCH(x, ArgumentTuple) {
+        } else if constexpr (std::is_same_v<T, ArgumentTuple>) {
             bool comma = false;
             for (auto const &elem : x.elems()) {
                 if (comma) {
@@ -1072,14 +1073,11 @@ void clingo_ast::print(std::ostream &out) const {
                 }
                 std::visit([&out](auto &x) { out << x; }, elem);
             }
-        }
-        else GRINGO_MATCH(x, LGuard::value_type) {
+        } else if constexpr (std::is_same_v<T, LGuard::value_type>) {
             out << x.first << " " << x.second << " ";
-        }
-        else GRINGO_MATCH(x, RGuard::value_type) {
+        } else if constexpr (std::is_same_v<T, RGuard::value_type>) {
             out << " " << x.first << " " << x.second;
-        }
-        else {
+        } else {
             out << x;
         }
     });

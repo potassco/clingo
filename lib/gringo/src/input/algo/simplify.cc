@@ -215,9 +215,10 @@ auto result_as_tuple(ArgumentTuple const &tuple, TupleResultChanged args_tuple) 
     args.reserve(tuple.elems().size());
     for (auto &arg : args_tuple) {
         std::visit(
-            [&](auto &&val) {
-                GRINGO_MATCH(val, Symbol) { args.emplace_back(TermSymbol{location(std::get<Term>(*it)), val}); }
-                else {
+            [&]<class T>(T val) {
+                if constexpr (std::is_same_v<T, Symbol>) {
+                    args.emplace_back(TermSymbol{location(std::get<Term>(*it)), val});
+                } else {
                     args.emplace_back(std::move(val));
                 }
             },
@@ -252,37 +253,40 @@ struct SimplifyTerm {
             return *res_changed;
         };
 
-        auto simplify = [&, this](auto &&arg) -> bool {
+        auto simplify = [&, this]<class T>(T const &arg) -> bool {
             // projected argument
-            GRINGO_MATCH(arg, Projection) {
+            if constexpr (std::is_same_v<T, Projection>) {
                 constant = false;
                 init().emplace_back(arg);
                 return true;
             }
             // term argument
-            GRINGO_MATCH(arg, Term) {
-                auto simplify = [&](auto &&res) -> bool {
+            if constexpr (std::is_same_v<T, Term>) {
+                auto simplify = [&]<class U>(U res) -> bool {
                     // evaluation of argument failed
-                    GRINGO_MATCH(res, TermResultFail) { return false; }
+                    if constexpr (std::is_same_v<U, TermResultFail>) {
+                        return false;
+                    }
                     // argument evaluated to symbol
-                    GRINGO_MATCH(res, TermResultSymbol) {
+                    if constexpr (std::is_same_v<U, TermResultSymbol>) {
                         // see note at check_change for function/tuple visitor
                         init().emplace_back(res);
-                    }
-                    else {
+                    } else {
                         constant = false;
                     }
-                    GRINGO_MATCH(res, TermResultLinear) {
+                    if constexpr (std::is_same_v<U, TermResultLinear>) {
                         init().emplace_back(linear_as_term(ctx, std::move(res), false));
                     }
                     // argument did not change
-                    GRINGO_MATCH(res, TermResultUnchanged) {
+                    if constexpr (std::is_same_v<U, TermResultUnchanged>) {
                         if (auto *res_changed = std::get_if<TupleResultChanged>(&res_tuple); res_changed != nullptr) {
                             res_changed->emplace_back(arg);
                         }
                     }
                     // argument changed
-                    GRINGO_MATCH(res, TermResultChanged) { init().emplace_back(std::move(res.term)); }
+                    if constexpr (std::is_same_v<U, TermResultChanged>) {
+                        init().emplace_back(std::move(res.term));
+                    }
                     return true;
                 };
                 return std::visit(simplify, operator()(arg, flags));
@@ -339,9 +343,11 @@ struct SimplifyTerm {
 
         // simplify arguments
         return std::visit(
-            [&, this](auto &&res) -> TermResult {
-                GRINGO_MATCH(res, TupleResultFail) { return TermResultFail{}; }
-                GRINGO_MATCH(res, TupleResultUnhanged) {
+            [&, this]<class T>(T res) -> TermResult {
+                if constexpr (std::is_same_v<T, TupleResultFail>) {
+                    return TermResultFail{};
+                }
+                if constexpr (std::is_same_v<T, TupleResultUnhanged>) {
                     if (term.external() && !preserve) {
                         return TermResultChanged{type, map_term(ctx, term)};
                     }
@@ -350,7 +356,7 @@ struct SimplifyTerm {
                     }
                     return ctx.store().fun(term.name(), {}, false);
                 }
-                GRINGO_MATCH(res, TupleResultChanged) {
+                if constexpr (std::is_same_v<T, TupleResultChanged>) {
                     if (!constant) {
                         auto fun = TermFunction{
                             term.loc(), term.name(), {result_as_tuple(tuple, std::move(res))}, term.external()};
@@ -381,16 +387,18 @@ struct SimplifyTerm {
 
         // simplify arguments
         return std::visit(
-            [&, this](auto &&res) -> TermResult {
-                GRINGO_MATCH(res, TupleResultFail) { return TermResultFail{}; }
-                GRINGO_MATCH(res, TupleResultUnhanged) {
+            [&, this]<class T>(T res) -> TermResult {
+                if constexpr (std::is_same_v<T, TupleResultFail>) {
+                    return TermResultFail{};
+                }
+                if constexpr (std::is_same_v<T, TupleResultUnhanged>) {
                     // unchanged term that did not evaluate to a symbol
                     if (!constant) {
                         return type;
                     }
                     return ctx.store().tup(result_as_symbol_vec({}));
                 }
-                GRINGO_MATCH(res, TupleResultChanged) {
+                if constexpr (std::is_same_v<T, TupleResultChanged>) {
                     // changed term that did not evaluate to a symbol
                     if (!constant) {
                         // Note: this is somewhat inefficient because the
@@ -414,11 +422,13 @@ struct SimplifyTerm {
 
         flags &= ~SimplifyTermFlags::preserve_toplevel;
 
-        auto simplify = [&term, this](auto &&res) -> TermResult {
+        auto simplify = [&term, this]<class T>(T res) -> TermResult {
             // evaluation of argument failed
-            GRINGO_MATCH(res, TermResultFail) { return {}; }
+            if constexpr (std::is_same_v<T, TermResultFail>) {
+                return {};
+            }
             // the argument evaluated to a symbol
-            GRINGO_MATCH(res, TermResultSymbol) {
+            if constexpr (std::is_same_v<T, TermResultSymbol>) {
                 if (res.type() != SymbolType::number) {
                     GRINGO_REPORT_LOC(ctx.logger(), info_operation_undefined, term.loc()) << "operation undefined:\n"
                                                                                           << "  " << term << "\n";
@@ -426,13 +436,13 @@ struct SimplifyTerm {
                 }
                 return ctx.store().num(abs(*res.num()));
             }
-            GRINGO_MATCH(res, TermResultLinear) {
+            if constexpr (std::is_same_v<T, TermResultLinear>) {
                 std::vector<Term> pool;
                 pool.emplace_back(linear_as_term(ctx, std::move(res)));
                 return check_change(TermType::numeric, term, TermAbs(term.loc(), std::move(pool)));
             }
             // the argument did not change
-            GRINGO_MATCH(res, TermResultUnchanged) {
+            if constexpr (std::is_same_v<T, TermResultUnchanged>) {
                 if (res == TermType::symbolic || res == TermType::tuple) {
                     GRINGO_REPORT_LOC(ctx.logger(), info_operation_undefined, term.loc()) << "operation undefined:\n"
                                                                                           << "  " << term << "\n";
@@ -441,7 +451,7 @@ struct SimplifyTerm {
                 return TermResultUnchanged{TermType::numeric};
             }
             // the argument changed
-            GRINGO_MATCH(res, TermResultChanged) {
+            if constexpr (std::is_same_v<T, TermResultChanged>) {
                 // handle invalid terms
                 if (res.type == TermType::symbolic || res.type == TermType::tuple) {
                     GRINGO_REPORT_LOC(ctx.logger(), info_operation_undefined, term.loc()) << "operation undefined:\n"
@@ -462,11 +472,13 @@ struct SimplifyTerm {
     auto operator()(TermUnary const &term, SimplifyTermFlags flags) const -> TermResult {
         flags &= ~SimplifyTermFlags::preserve_toplevel;
 
-        auto simplify = [&term, this](auto &&res) -> TermResult {
+        auto simplify = [&term, this]<class T>(T res) -> TermResult {
             // evaluation of argument failed
-            GRINGO_MATCH(res, TermResultFail) { return TermResultFail{}; }
+            if constexpr (std::is_same_v<T, TermResultFail>) {
+                return TermResultFail{};
+            }
             // the argument evaluated to a symbol
-            GRINGO_MATCH(res, TermResultSymbol) {
+            if constexpr (std::is_same_v<T, TermResultSymbol>) {
                 // we can always evaluate constants
                 auto opt_sym = evaluate(ctx.store(), term.op(), res);
                 if (!opt_sym.has_value()) {
@@ -476,7 +488,7 @@ struct SimplifyTerm {
                 }
                 return TermResultSymbol{opt_sym.value()};
             }
-            GRINGO_MATCH(res, TermResultLinear) {
+            if constexpr (std::is_same_v<T, TermResultLinear>) {
                 if (term.op() == UnaryOperator::negate) {
                     res.m = -std::move(res.m);
                     res.n = -std::move(res.n);
@@ -515,7 +527,7 @@ struct SimplifyTerm {
                 return TermResultChanged{type, rhs_unary->rhs()};
             };
             // the argument did not change
-            GRINGO_MATCH(res, TermType) {
+            if constexpr (std::is_same_v<T, TermType>) {
                 auto type = check_type(res);
                 if (!type.has_value()) {
                     return TermResultFail{};
@@ -527,7 +539,7 @@ struct SimplifyTerm {
                 return TermResultUnchanged{type.value()};
             }
             // the argument changed
-            GRINGO_MATCH(res, TermResultChanged) {
+            if constexpr (std::is_same_v<T, TermResultChanged>) {
                 auto type = check_type(res.type);
                 if (!type.has_value()) {
                     return TermResultFail{};
@@ -545,12 +557,22 @@ struct SimplifyTerm {
     //! Simplify the given binary term.
     auto operator()(TermBinary const &term, SimplifyTermFlags flags) const -> TermResult {
         // check if the result can evaluate to a number
-        auto is_numeric = [](auto const &res) -> bool {
-            GRINGO_MATCH(res, TermResultFail) { return false; }
-            GRINGO_MATCH(res, TermResultLinear) { return true; }
-            GRINGO_MATCH(res, TermResultUnchanged) { return res == TermType::any || res == TermType::numeric; }
-            GRINGO_MATCH(res, TermResultChanged) { return res.type == TermType::any || res.type == TermType::numeric; }
-            GRINGO_MATCH(res, TermResultSymbol) { return res.type() == SymbolType::number; }
+        auto is_numeric = []<class T>(T const &res) -> bool {
+            if constexpr (std::is_same_v<T, TermResultFail>) {
+                return false;
+            }
+            if constexpr (std::is_same_v<T, TermResultLinear>) {
+                return true;
+            }
+            if constexpr (std::is_same_v<T, TermResultUnchanged>) {
+                return res == TermType::any || res == TermType::numeric;
+            }
+            if constexpr (std::is_same_v<T, TermResultChanged>) {
+                return res.type == TermType::any || res.type == TermType::numeric;
+            }
+            if constexpr (std::is_same_v<T, TermResultSymbol>) {
+                return res.type() == SymbolType::number;
+            }
         };
 
         if (term.op() == BinaryOperator::dots) {
@@ -581,7 +603,7 @@ struct SimplifyTerm {
         }
         flags &= ~SimplifyTermFlags::preserve_toplevel;
 
-        auto simplify = [&, this](auto &&res_lhs, auto &&res_rhs) -> TermResult {
+        auto simplify = [&, this]<class T, class U>(T res_lhs, U res_rhs) -> TermResult {
             // check arguments
             if (!is_numeric(res_lhs) || !is_numeric(res_rhs)) {
                 GRINGO_REPORT_LOC(ctx.logger(), info_operation_undefined, term.loc()) << "operation undefined:\n"
@@ -590,7 +612,7 @@ struct SimplifyTerm {
             }
 
             // evaluate to symbol
-            GRINGO_MATCH2(res_lhs, Symbol, res_rhs, Symbol) {
+            if constexpr (std::is_same_v<T, Symbol> && std::is_same_v<U, Symbol>) {
                 auto res = evaluate(ctx.store(), res_lhs, term.op(), res_rhs);
                 if (!res.has_value()) {
                     GRINGO_REPORT_LOC(ctx.logger(), info_operation_undefined, term.loc()) << "operation undefined:\n"
@@ -599,7 +621,7 @@ struct SimplifyTerm {
                 }
                 return res.value();
             }
-            GRINGO_MATCH2(res_lhs, Symbol, res_rhs, TermResultLinear) {
+            if constexpr (std::is_same_v<T, Symbol> && std::is_same_v<U, TermResultLinear>) {
                 if (term.op() == BinaryOperator::plus) {
                     res_rhs.n += res_lhs.num();
                     return std::move(res_rhs);
@@ -618,7 +640,7 @@ struct SimplifyTerm {
                                     term.update(a_lhs = ResultAsTerm{ctx, term.lhs()}(std::move(res_lhs)),
                                                 a_rhs = ResultAsTerm{ctx, term.rhs()}(std::move(res_rhs))));
             }
-            GRINGO_MATCH2(res_lhs, TermResultLinear, res_rhs, Symbol) {
+            if constexpr (std::is_same_v<T, TermResultLinear> && std::is_same_v<U, Symbol>) {
                 if (term.op() == BinaryOperator::plus) {
                     res_lhs.n += res_rhs.num();
                     return std::move(res_lhs);
@@ -636,7 +658,7 @@ struct SimplifyTerm {
                                     term.update(a_lhs = ResultAsTerm{ctx, term.lhs()}(std::move(res_lhs)),
                                                 a_rhs = ResultAsTerm{ctx, term.rhs()}(std::move(res_rhs))));
             }
-            GRINGO_MATCH2(res_lhs, TermResultLinear, res_rhs, TermResultLinear) {
+            if constexpr (std::is_same_v<T, TermResultLinear> && std::is_same_v<U, TermResultLinear>) {
                 if (term.op() == BinaryOperator::plus) {
                     if (res_lhs.x == res_rhs.x) {
                         res_lhs.n += res_rhs.n;
@@ -661,7 +683,9 @@ struct SimplifyTerm {
             }
 
             // none of the arguments changed
-            GRINGO_MATCH2(res_lhs, TermType, res_rhs, TermType) { return TermType::numeric; }
+            if constexpr (std::is_same_v<T, TermType> && std::is_same_v<U, TermType>) {
+                return TermType::numeric;
+            }
 
             // at least one of the arguments changed
             return check_change(TermType::numeric, term,
@@ -700,15 +724,15 @@ struct MakeMatchableTerm {
             return *res_tuple;
         };
 
-        auto handle_argument = [&, this](auto &&arg) -> void {
+        auto handle_argument = [&, this]<class T>(T const &arg) -> void {
             // projected argument
-            GRINGO_MATCH(arg, Projection) {
+            if constexpr (std::is_same_v<T, Projection>) {
                 if (res_tuple.has_value()) {
                     init().emplace_back(arg);
                 }
             }
             // term argument
-            GRINGO_MATCH(arg, Term) {
+            if constexpr (std::is_same_v<T, Term>) {
                 if (auto res_arg = operator()(arg, flags & ~SimplifyTermFlags::nested_matchable);
                     res_arg.has_value() || res_tuple.has_value()) {
                     init().emplace_back(std::move(res_arg).value_or(arg));
@@ -770,8 +794,8 @@ struct MakeMatchableTerm {
     //! Make the given unary term matchable.
     auto operator()(TermUnary const &term, SimplifyTermFlags flags) const -> Result {
         if (!test(flags, SimplifyTermFlags::unfailable) && term.op() == UnaryOperator::negate) {
-            return Util::transform(operator()(term.rhs(), flags), [&term](auto &&arg) -> Term {
-                return TermUnary{term.loc(), term.op(), GRINGO_FWD(arg)};
+            return Util::transform(operator()(term.rhs(), flags), [&term](auto arg) -> Term {
+                return TermUnary{term.loc(), term.op(), std::move(arg)};
             });
         }
         if (!test(flags, SimplifyTermFlags::unfailable) && test(flags, SimplifyTermFlags::nested_matchable)) {
@@ -1437,13 +1461,15 @@ template <bool head>
             sign = lit.sign();
         }
         auto lhs = Term{TermSymbol{lit.loc(), std::visit(
-                                                  [&ctx](auto &&value) {
-                                                      GRINGO_MATCH(value, Number) {
-                                                          return ctx.store().num(GRINGO_FWD(value));
+                                                  [&ctx]<class T>(T value) {
+                                                      if constexpr (std::is_same_v<T, Number>) {
+                                                          return ctx.store().num(std::move(value));
                                                       }
-                                                      GRINGO_MATCH(value, Symbol) { return value; }
+                                                      if constexpr (std::is_same_v<T, Symbol>) {
+                                                          return value;
+                                                      }
                                                   },
-                                                  value)}};
+                                                  std::move(value))}};
         auto guards = std::vector<Guard>{};
         if (lit.lhs().has_value()) {
             guards.emplace_back(lit.lhs()->second, std::move(lhs));
@@ -1514,7 +1540,7 @@ struct SimplifyHeadLiteral {
 
     auto operator()(HdLitSimple const &lit) const -> SimplifyResult<HdLit> {
         auto [state, res] = simplify(SimplifyLiteralFlags::head, ctx, lit.lit());
-        return {state, Util::transform(std::move(res), [](auto &&res) { return HdLitSimple{GRINGO_FWD(res)}; })};
+        return {state, Util::transform(std::move(res), [](auto res) { return HdLitSimple{std::move(res)}; })};
     }
 
     auto operator()(HdLitDisjunction const &lit) const -> SimplifyResult<HdLit> {
@@ -1525,10 +1551,11 @@ struct SimplifyHeadLiteral {
         auto res_elems = Util::ResultVec{lit.elems()};
         for (auto const &elem : lit.elems()) {
             std::visit(
-                [&, this](auto const &elem) {
+                [&, this]<class T>(T const &elem) {
                     auto [state, res_elem] = [&, this]() {
-                        GRINGO_MATCH(elem, CondLit) { return simplify_condlit(ctx, elem, false); }
-                        else {
+                        if constexpr (std::is_same_v<T, CondLit>) {
+                            return simplify_condlit(ctx, elem, false);
+                        } else {
                             return simplify(SimplifyLiteralFlags::head, ctx, elem);
                         }
                     }();
@@ -1580,7 +1607,7 @@ struct SimplifyBodyLiteral {
 
     auto operator()(BdLitSimple const &lit) const -> SimplifyResult<BdLit> {
         auto [state, res] = simplify(SimplifyLiteralFlags::matchable, ctx, lit.lit());
-        return {state, Util::transform(std::move(res), [](auto &&res) { return BdLitSimple{GRINGO_FWD(res)}; })};
+        return {state, Util::transform(std::move(res), [](auto res) { return BdLitSimple{std::move(res)}; })};
     }
 
     auto operator()(BdLitConjunction const &lit) const -> SimplifyResult<BdLit> {
@@ -1738,7 +1765,7 @@ struct SimplifyStatement {
         }
         auto res_edge = edge.rewrite(a_src = std::move(res_src), a_dst = std::move(res_dst));
         auto res_edges =
-            Util::transform(std::move(res_edge), [](auto &&edge) { return Util::make_vec<Edge>(GRINGO_FWD(edge)); });
+            Util::transform(std::move(res_edge), [](auto edge) { return Util::make_vec<Edge>(std::move(edge)); });
         return {TruthValue::unknown, stm.rewrite(a_edges = std::move(res_edges), a_body = std::move(res_body))};
     }
 
@@ -1800,18 +1827,26 @@ struct SimplifyStatement {
         return {true};
     };
     return std::visit(
-        [&](auto &&res) -> SimplifyTermResult {
-            GRINGO_MATCH(res, TermResultFail) { return {false}; }
-            GRINGO_MATCH(res, TermResultUnchanged) { return make_matchable(term, false); }
-            GRINGO_MATCH(res, TermResultSymbol) {
+        [&]<class T>(T res) -> SimplifyTermResult {
+            if constexpr (std::is_same_v<T, TermResultFail>) {
+                return {false};
+            }
+            if constexpr (std::is_same_v<T, TermResultUnchanged>) {
+                return make_matchable(term, false);
+            }
+            if constexpr (std::is_same_v<T, TermResultSymbol>) {
                 auto sym = Term{TermSymbol{location(term), res}};
                 if (sym != term) {
                     return {true, std::move(sym)};
                 }
                 return {true};
             }
-            GRINGO_MATCH(res, TermResultChanged) { return make_matchable(res.term); }
-            GRINGO_MATCH(res, TermResultLinear) { return make_matchable(linear_as_term(ctx, std::move(res), false)); }
+            if constexpr (std::is_same_v<T, TermResultChanged>) {
+                return make_matchable(res.term);
+            }
+            if constexpr (std::is_same_v<T, TermResultLinear>) {
+                return make_matchable(linear_as_term(ctx, std::move(res), false));
+            }
         },
         SimplifyTerm{ctx}(term, flags));
 }

@@ -197,7 +197,7 @@ struct term_function_pool {
     }();
     static constexpr auto value = lexy::collect<std::vector<ArgumentTuple>>(
         lexy::callback<ArgumentTuple>([](lexy::nullopt) { return ArgumentTuple{ArgumentArray{}}; },
-                                      [](auto &&tuple) { return ArgumentTuple{GRINGO_FWD(tuple)}; }));
+                                      [](auto tuple) { return ArgumentTuple{std::move(tuple)}; }));
 };
 
 struct term_function {

@@ -1,4 +1,5 @@
 #include <gringo/util/algorithm.hh>
+#include <gringo/util/type_traits.hh>
 
 #include <gringo/input/program.hh>
 
@@ -9,25 +10,22 @@
 
 namespace Gringo::Input {
 
-#define ISINST GRINGO_IS_INSTANCE
-
 void add(SymbolStore &store, Stm stm, UnprocessedProgram &prg) {
     std::visit(
-        [&](auto &&stm) {
-            if constexpr (ISINST(stm, StmShowSig) || ISINST(stm, StmProjectSig) || ISINST(stm, StmScript) ||
-                          ISINST(stm, StmDefined)) {
+        [&]<class T>(T const &stm) {
+            if constexpr (Util::is_among_v<T, StmShowSig, StmProjectSig, StmScript, StmDefined>) {
                 prg.meta_stms.emplace_back(std::move(stm));
-            } else if constexpr (ISINST(stm, StmInclude) || ISINST(stm, StmComment)) {
+            } else if constexpr (Util::is_among_v<T, StmInclude, StmComment>) {
                 // ignore
-            } else if constexpr (ISINST(stm, StmConst)) {
+            } else if constexpr (std::is_same_v<T, StmConst>) {
                 prg.const_stms.emplace_back(std::move(stm));
-            } else if constexpr (ISINST(stm, StmProgram)) {
+            } else if constexpr (std::is_same_v<T, StmProgram>) {
                 prg.parts.emplace_back(stm, StmVec{}, SymbolVec{});
             } else {
                 if (prg.parts.empty()) {
                     prg.parts.emplace_back(StmProgram{location(stm), store.string("base"), {}}, StmVec{}, SymbolVec{});
                 }
-                if constexpr (ISINST(stm, StmRule)) {
+                if constexpr (std::is_same_v<T, StmRule>) {
                     if (auto fact = is_fact(store, stm); fact) {
                         std::get<2>(prg.parts.back()).emplace_back(std::move(fact).value());
                         return;
@@ -38,8 +36,6 @@ void add(SymbolStore &store, Stm stm, UnprocessedProgram &prg) {
         },
         stm);
 }
-
-#undef ISINST
 
 void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
     // process meta statements
@@ -62,9 +58,13 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
         auto ctx = RewriteContext{log, store, param_map, const_map_, {}, ""};
         for (auto &fact : facts) {
             std::visit(
-                [&part](auto &&x) {
-                    GRINGO_MATCH(x, Symbol) { part.first.value().facts.emplace_back(x); }
-                    GRINGO_MATCH(x, Stm) { part.first.value().stms.emplace_back(std::move(x)); }
+                [&part]<class T>(T &&x) {
+                    if constexpr (std::is_same_v<T, Symbol>) {
+                        part.first.value().facts.emplace_back(x);
+                    }
+                    if constexpr (std::is_same_v<T, Stm>) {
+                        part.first.value().stms.emplace_back(std::move(x));
+                    }
                 },
                 map_params(ctx, res_part.part.loc(), fact));
         }

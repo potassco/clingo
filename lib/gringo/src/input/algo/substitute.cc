@@ -68,9 +68,13 @@ struct MapParams : Transformer<MapParams> {
         tuple.reserve(res_args->size());
         for (auto &&arg : *res_args) {
             tuple.emplace_back(std::visit(
-                [&loc](auto &&x) -> Term {
-                    GRINGO_MATCH(x, Symbol) { return TermSymbol{loc, x}; }
-                    GRINGO_MATCH(x, Term) { return x; }
+                [&loc]<class T>(T x) -> Term {
+                    if constexpr (std::is_same_v<T, Symbol>) {
+                        return TermSymbol{loc, x};
+                    }
+                    if constexpr (std::is_same_v<T, Term>) {
+                        return x;
+                    }
                 },
                 std::move(arg)));
         }
@@ -110,11 +114,11 @@ struct MapParams : Transformer<MapParams> {
                 }
                 if (auto res_args = accept(loc, sym.args()); res_args) {
                     return std::visit(
-                        [this, &loc, &sym](auto &&tuple) -> std::variant<Term, Symbol> {
-                            GRINGO_MATCH(tuple, SymbolVec) {
+                        [this, &loc, &sym]<class T>(T tuple) -> std::variant<Term, Symbol> {
+                            if constexpr (std::is_same_v<T, SymbolVec>) {
                                 return ctx.store().fun(sym.name(), std::move(tuple), sym.has_sign());
                             }
-                            GRINGO_MATCH(tuple, ArgumentTuple) {
+                            if constexpr (std::is_same_v<T, ArgumentTuple>) {
                                 auto ret = Term{TermFunction{loc, sym.name(), {std::move(tuple)}, false}};
                                 if (sym.has_sign()) {
                                     ret = TermUnary{loc, UnaryOperator::negate, std::move(ret)};
@@ -129,9 +133,11 @@ struct MapParams : Transformer<MapParams> {
             case SymbolType::tuple: {
                 if (auto res_args = accept(loc, sym.args()); res_args) {
                     return std::visit(
-                        [this, &loc](auto &&tuple) -> std::variant<Term, Symbol> {
-                            GRINGO_MATCH(tuple, SymbolVec) { return ctx.store().tup(std::move(tuple)); }
-                            GRINGO_MATCH(tuple, ArgumentTuple) {
+                        [this, &loc]<class T>(T tuple) -> std::variant<Term, Symbol> {
+                            if constexpr (std::is_same_v<T, SymbolVec>) {
+                                return ctx.store().tup(std::move(tuple));
+                            }
+                            if constexpr (std::is_same_v<T, ArgumentTuple>) {
                                 return TermTuple{loc, Util::make_vec<TupleElement>(std::move(tuple))};
                             }
                         },
@@ -153,9 +159,13 @@ struct MapParams : Transformer<MapParams> {
         auto sym = accept(term.loc(), term.value());
         if (sym.has_value()) {
             return std::visit(
-                [&term](auto &&x) -> Term {
-                    GRINGO_MATCH(x, Symbol) { return TermSymbol{term.loc(), x}; }
-                    GRINGO_MATCH(x, Term) { return x; }
+                [&term]<class T>(T const &x) -> Term {
+                    if constexpr (std::is_same_v<T, Symbol>) {
+                        return TermSymbol{term.loc(), x};
+                    }
+                    if constexpr (std::is_same_v<T, Term>) {
+                        return x;
+                    }
                 },
                 sym.value());
         }
@@ -377,9 +387,11 @@ struct Collect : Visitor<Collect> {
     }
     if (auto res_sym = MapParams{ctx}.accept(loc, sym); res_sym) {
         return std::visit(
-            [&loc](auto &&x) -> std::variant<Symbol, Stm> {
-                GRINGO_MATCH(x, Symbol) { return x; }
-                GRINGO_MATCH(x, Term) {
+            [&loc]<class T>(T x) -> std::variant<Symbol, Stm> {
+                if constexpr (std::is_same_v<T, Symbol>) {
+                    return x;
+                }
+                if constexpr (std::is_same_v<T, Term>) {
                     return StmRule{loc, HdLitSimple{LitSymbolic{loc, Sign::none, std::move(x)}},
                                    Util::make_vec<BdLit>()};
                 }
