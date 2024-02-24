@@ -2,6 +2,7 @@
 
 #include <gringo/util/algorithm.hh>
 #include <gringo/util/enum.hh>
+#include <gringo/util/type_traits.hh>
 
 #include <gringo/input/algo/check_syntax.hh>
 #include <gringo/input/algo/print.hh>
@@ -20,9 +21,24 @@ enum SyntaxCheck : unsigned {
 GRINGO_ENUM_FLAGS(SyntaxCheck);
 
 struct CheckSyntax {
-    // protect ourselves -> no unintended overloads
+    template <class T>
+    static constexpr auto ignore1 = Util::is_among_v<T, StmScript, StmInclude, StmProgram, StmComment, StmShowSig,
+                                                     StmTheory, StmDefined, StmProjectSig>;
 
-    template <class T> auto operator()(T const &, SyntaxCheck check = SyntaxCheck::none) const -> bool = delete;
+    template <class T> static constexpr auto ignore2 = Util::is_among_v<T, LitBool, TheoryTerm>;
+
+    template <class T> auto operator()(T const &x) const -> bool {
+        static_cast<void>(x);
+        static_assert(ignore1<T>);
+        return true;
+    }
+
+    template <class T> auto operator()(T const &x, SyntaxCheck check) const -> bool {
+        static_cast<void>(x);
+        static_cast<void>(check);
+        static_assert(ignore2<T>);
+        return true;
+    }
 
     // terms
 
@@ -122,52 +138,10 @@ struct CheckSyntax {
 
     // theory terms
 
-    auto operator()(TheoryTerm const &term, SyntaxCheck check) const -> bool {
-        static_cast<void>(term);
-        static_cast<void>(check);
-        return true;
-    }
-
-    auto operator()(TheoryTermSymbol const &term, SyntaxCheck check) const -> bool {
-        static_cast<void>(term);
-        static_cast<void>(check);
-        return true;
-    }
-
-    auto operator()(TheoryTermVariable const &term, SyntaxCheck check) const -> bool {
-        static_cast<void>(term);
-        static_cast<void>(check);
-        return true;
-    }
-
-    auto operator()(TheoryTermTuple const &term, SyntaxCheck check) const -> bool {
-        static_cast<void>(term);
-        static_cast<void>(check);
-        return true;
-    }
-
-    auto operator()(TheoryTermFunction const &term, SyntaxCheck check) const -> bool {
-        static_cast<void>(term);
-        static_cast<void>(check);
-        return true;
-    }
-
-    auto operator()(TheoryTermUnparsed const &term, SyntaxCheck check) const -> bool {
-        static_cast<void>(term);
-        static_cast<void>(check);
-        return true;
-    }
-
     // literals
 
     auto operator()(Lit const &lit, SyntaxCheck check) const -> bool {
         return std::visit(*this, lit, std::variant<SyntaxCheck>{check});
-    }
-
-    auto operator()(LitBool const &lit, SyntaxCheck check) const -> bool {
-        static_cast<void>(lit);
-        static_cast<void>(check);
-        return true;
     }
 
     auto operator()(LitComparison const &lit, SyntaxCheck check) const -> bool {
@@ -274,11 +248,6 @@ struct CheckSyntax {
         return operator()(stm.head()) && std::all_of(stm.body().begin(), stm.body().end(), *this);
     }
 
-    auto operator()(StmTheory const &stm) const -> bool {
-        static_cast<void>(stm);
-        return true;
-    }
-
     auto operator()(OptimizeTuple const &tuple) const -> bool {
         return operator()(tuple.weight()) && operator()(tuple.terms()) && operator()(tuple.prio());
     }
@@ -294,22 +263,7 @@ struct CheckSyntax {
 
     auto operator()(StmShow const &stm) const -> bool { return operator()(stm.term()) && operator()(stm.body()); }
 
-    auto operator()(StmShowSig const &stm) const -> bool {
-        static_cast<void>(stm);
-        return true;
-    }
-
     auto operator()(StmProject const &stm) const -> bool { return operator()(stm.term()) && operator()(stm.body()); }
-
-    auto operator()(StmProjectSig const &stm) const -> bool {
-        static_cast<void>(stm);
-        return true;
-    }
-
-    auto operator()(StmDefined const &stm) const -> bool {
-        static_cast<void>(stm);
-        return true;
-    }
 
     auto operator()(StmExternal const &stm) const -> bool {
         return operator()(stm.term()) && operator()(stm.body()) && operator()(stm.type());
@@ -326,27 +280,7 @@ struct CheckSyntax {
                                                                                              operator()(stm.weight());
     }
 
-    auto operator()(StmScript const &stm) const -> bool {
-        static_cast<void>(stm);
-        return true;
-    }
-
-    auto operator()(StmInclude const &stm) const -> bool {
-        static_cast<void>(stm);
-        return true;
-    }
-
-    auto operator()(StmProgram const &stm) const -> bool {
-        static_cast<void>(stm);
-        return true;
-    }
-
     auto operator()(StmConst const &stm) const -> bool { return operator()(stm.value(), SyntaxCheck::is_const); }
-
-    auto operator()(StmComment const &stm) const -> bool {
-        static_cast<void>(stm);
-        return true;
-    }
 
     Logger &log;
 };

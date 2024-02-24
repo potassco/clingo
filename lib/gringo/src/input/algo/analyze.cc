@@ -431,15 +431,6 @@ struct IsFact {
     SymbolStore &store;
 };
 
-template <class F> struct print {
-    print(F const &f) : f{f} {}
-    friend auto operator<<(std::ostream &out, print const &p) -> std::ostream & {
-        p.f(out);
-        return out;
-    }
-    F const &f;
-};
-
 } // namespace
 
 auto check_type(Term const &term, TermCheckType type, CheckTypeResult *res) -> bool {
