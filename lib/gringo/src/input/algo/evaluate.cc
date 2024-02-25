@@ -39,9 +39,7 @@ struct BuildDep {
     void operator()(Argument const &elem) const { std::visit(*this, elem); };
 
     void operator()(ArgumentTuple const &tuple) const {
-        for (auto const &elem : tuple.elems()) {
-            std::visit(*this, elem);
-        }
+        std::for_each(tuple.elems().begin(), tuple.elems().end(), *this);
     }
 
     void operator()(TermVariable const &term) const { static_cast<void>(term); }
@@ -52,26 +50,18 @@ struct BuildDep {
         }
     }
 
-    void operator()(TermTuple const &term) const {
-        for (auto const &term_or_tuple : term.pool()) {
-            std::visit(*this, term_or_tuple);
-        }
-    }
+    void operator()(TupleElement const &elem) const { std::visit(*this, elem); }
+
+    void operator()(TermTuple const &term) const { std::for_each(term.pool().begin(), term.pool().end(), *this); }
 
     void operator()(TermFunction const &term) const {
         if (!term.external() && term.pool().size() == 1 && term.pool().front().elems().empty()) {
             add_(term.name());
         }
-        for (auto const &tuple : term.pool()) {
-            operator()(tuple);
-        }
+        std::for_each(term.pool().begin(), term.pool().end(), *this);
     }
 
-    void operator()(TermAbs const &term) const {
-        for (auto const &arg : term.pool()) {
-            operator()(arg);
-        }
-    }
+    void operator()(TermAbs const &term) const { std::for_each(term.pool().begin(), term.pool().end(), *this); }
 
     void operator()(TermUnary const &term) const { operator()(*term.rhs()); }
 
