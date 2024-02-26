@@ -129,7 +129,7 @@ struct Unpool {
 
         // turn the elements into individual tuple terms or terms
         if (!elems.has_value() && (term.pool().size() != 1 || std::holds_alternative<Term>(term.pool().front()))) {
-            elems = std::vector<TupleElement>(term.pool().begin(), term.pool().end());
+            elems.emplace(term.pool().begin(), term.pool().end());
         }
         return Util::transform_vec(std::move(elems), [&term](auto elem) -> Term {
             return std::visit(
@@ -138,7 +138,7 @@ struct Unpool {
                         return x;
                     }
                     if constexpr (std::is_same_v<T, ArgumentTuple>) {
-                        return term.update(a_pool = TupleElementArray{ArgumentTuple{std::move(x)}});
+                        return term.update(a_pool = Util::make_immutable_array<TupleElement>(std::move(x)));
                     }
                 },
                 std::move(elem));
@@ -152,22 +152,23 @@ struct Unpool {
         });
 
         if (!elems && term.pool().size() != 1) {
-            elems = PoolArray(term.pool().begin(), term.pool().end());
+            elems.emplace(term.pool().begin(), term.pool().end());
         }
 
         return Util::transform_vec(std::move(elems), [&term](auto elem) -> Term {
             // turn individual elements into function terms
-            return term.update(a_pool = PoolArray{std::move(elem)});
+            return term.update(a_pool = Util::make_immutable_array<ArgumentTuple>(std::move(elem)));
         });
     }
 
     auto operator()(TermAbs const &term) const -> std::optional<std::vector<Term>> {
         auto unpooled = unpool_union(term.pool(), *this);
         if (!unpooled.has_value() && term.pool().size() != 1) {
-            unpooled = std::vector<Term>(term.pool().begin(), term.pool().end());
+            unpooled.emplace(term.pool().begin(), term.pool().end());
         }
-        return Util::transform_vec(
-            std::move(unpooled), [&term](auto arg) -> Term { return term.update(a_pool = TermArray{std::move(arg)}); });
+        return Util::transform_vec(std::move(unpooled), [&term](auto arg) -> Term {
+            return term.update(a_pool = Util::make_immutable_array<Term>(std::move(arg)));
+        });
     }
 
     auto operator()(TermUnary const &term) const -> std::optional<std::vector<Term>> {
@@ -199,7 +200,7 @@ struct Unpool {
     auto operator()(Lit const &lit) const -> std::optional<std::vector<Lit>> { return std::visit(*this, lit); }
 
     auto operator()(LitArray const &lits) const -> std::optional<std::vector<LitArray>> {
-        return Util::transform_vec(unpool_crossproduct(lits, *this), [](auto vec) { return LitArray{std::move(vec)}; });
+        return Util::transform_vec(unpool_crossproduct(lits, *this), [](auto vec) { return LitArray(std::move(vec)); });
     }
 
     auto operator()([[maybe_unused]] LitBool const &lit) const -> std::optional<std::vector<Lit>> {
@@ -343,7 +344,7 @@ struct Unpool {
     auto operator()(HdLitDisjunctionElementArray const &elems) const
         -> std::optional<std::vector<HdLitDisjunctionElementArray>> {
         return Util::transform_vec(unpool_crossproduct(elems, *this),
-                                   [](auto vec) { return HdLitDisjunctionElementArray{std::move(vec)}; });
+                                   [](auto vec) { return HdLitDisjunctionElementArray(std::move(vec)); });
     }
 
     auto operator()(HdLitDisjunction const &lit) const -> std::optional<std::vector<HdLit>> {

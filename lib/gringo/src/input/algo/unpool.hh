@@ -16,6 +16,8 @@ namespace Gringo::Input {
 
 namespace Detail {
 
+// Note: in theory one could avoid passing the orginal values around here
+// and use the expression and argument tags here.
 template <size_t i, size_t n>
 auto unpool_crossproducts_build(auto &build, auto &vec, auto &orig, auto &unpooled, auto &&...cs) {
     if constexpr (i < n) {
