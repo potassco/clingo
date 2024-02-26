@@ -4,6 +4,7 @@
 #include <gringo/util/algorithm.hh>
 #include <gringo/util/checked_math.hh>
 #include <gringo/util/optional.hh>
+#include <gringo/util/type_traits.hh>
 
 #include <gringo/input/algo/analyze.hh>
 #include <gringo/input/algo/evaluate.hh>
@@ -794,9 +795,8 @@ struct MakeMatchableTerm {
     //! Make the given unary term matchable.
     auto operator()(TermUnary const &term, SimplifyTermFlags flags) const -> Result {
         if (!test(flags, SimplifyTermFlags::unfailable) && term.op() == UnaryOperator::negate) {
-            return Util::transform(operator()(term.rhs(), flags), [&term](auto arg) -> Term {
-                return TermUnary{term.loc(), term.op(), std::move(arg)};
-            });
+            return Util::transform(operator()(term.rhs(), flags),
+                                   [&term](auto arg) -> Term { return term.update(a_rhs = std::move(arg)); });
         }
         if (!test(flags, SimplifyTermFlags::unfailable) && test(flags, SimplifyTermFlags::nested_matchable)) {
             return std::nullopt;
@@ -1662,8 +1662,6 @@ struct SimplifyBodyLiteral {
 
 //! Simplify statements.
 struct SimplifyStatement {
-    auto operator()(auto const &lit) const -> SimplifyResult<Stm> = delete;
-
     auto operator()(Stm const &stm) const -> SimplifyResult<Stm> { return std::visit(*this, stm); }
 
     auto operator()(StmRule const &stm) const -> SimplifyResult<Stm> {
@@ -1680,11 +1678,6 @@ struct SimplifyStatement {
             state = TruthValue::bot;
         }
         return {state, stm.rewrite(a_head = std::move(res_head), a_body = std::move(res_body))};
-    }
-
-    auto operator()(StmTheory const &stm) const -> SimplifyResult<Stm> {
-        static_cast<void>(stm);
-        return {TruthValue::unknown};
     }
 
     auto operator()(StmOptimize const &stm) const -> SimplifyResult<Stm> {
@@ -1716,11 +1709,6 @@ struct SimplifyStatement {
         return {TruthValue::unknown, stm.rewrite(a_term = std::move(res_term), a_body = std::move(res_body))};
     }
 
-    auto operator()(StmShowSig const &stm) const -> SimplifyResult<Stm> {
-        static_cast<void>(stm);
-        return {TruthValue::unknown};
-    }
-
     auto operator()(StmProject const &stm) const -> SimplifyResult<Stm> {
         auto [state_term, res_term] = simplify(SimplifyTermFlags::matchable, ctx, stm.term());
         auto [state_body, res_body] = simplify_body(ctx, stm.body());
@@ -1728,16 +1716,6 @@ struct SimplifyStatement {
             return {TruthValue::top, StmRule{stm.loc(), make_constant(location(stm.term()), true), {}}};
         }
         return {TruthValue::unknown, stm.rewrite(a_term = std::move(res_term), a_body = std::move(res_body))};
-    }
-
-    auto operator()(StmProjectSig const &stm) const -> SimplifyResult<Stm> {
-        static_cast<void>(stm);
-        return {TruthValue::unknown};
-    }
-
-    auto operator()(StmDefined const &stm) const -> SimplifyResult<Stm> {
-        static_cast<void>(stm);
-        return {TruthValue::unknown};
     }
 
     auto operator()(StmExternal const &stm) const -> SimplifyResult<Stm> {
@@ -1784,28 +1762,10 @@ struct SimplifyStatement {
                                                  a_type = std::move(res_type))};
     }
 
-    auto operator()(StmScript const &stm) const -> SimplifyResult<Stm> {
+    template <class T> auto operator()(T const &stm) const -> SimplifyResult<Stm> {
         static_cast<void>(stm);
-        return {TruthValue::unknown};
-    }
-
-    auto operator()(StmInclude const &stm) const -> SimplifyResult<Stm> {
-        static_cast<void>(stm);
-        return {TruthValue::unknown};
-    }
-
-    auto operator()(StmProgram const &stm) const -> SimplifyResult<Stm> {
-        static_cast<void>(stm);
-        return {TruthValue::unknown};
-    }
-
-    auto operator()(StmConst const &stm) const -> SimplifyResult<Stm> {
-        static_cast<void>(stm);
-        throw std::runtime_error("const statementments must be extracted first");
-    }
-
-    auto operator()(StmComment const &stm) const -> SimplifyResult<Stm> {
-        static_cast<void>(stm);
+        static_assert(Util::is_among_v<T, StmTheory, StmShowSig, StmProjectSig, StmDefined, StmScript, StmInclude,
+                                       StmProgram, StmProgram, StmConst, StmComment>);
         return {TruthValue::unknown};
     }
 
