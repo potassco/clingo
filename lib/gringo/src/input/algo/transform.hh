@@ -7,6 +7,7 @@
 #include <gringo/util/algorithm.hh>
 #include <gringo/util/immutable_value.hh>
 #include <gringo/util/optional.hh>
+#include <gringo/util/type_traits.hh>
 
 #include <gringo/input/program.hh>
 
@@ -109,18 +110,9 @@ template <class T> class Transformer {
 
     // ignore
 
-    [[nodiscard]] auto accept_(Projection const &x) const -> std::optional<Projection> {
-        static_cast<void>(x);
-        return std::nullopt;
-    }
-
-    [[nodiscard]] auto accept_(String const &x) const -> std::optional<String> {
-        static_cast<void>(x);
-        return std::nullopt;
-    }
-
-    [[nodiscard]] auto accept_(Relation const &x) const -> std::optional<Relation> {
-        static_cast<void>(x);
+    template <class E>
+        requires Util::is_among_v<E, Projection, String, Relation>
+    [[nodiscard]] auto accept_([[maybe_unused]] E const &term) const -> std::optional<E> {
         return std::nullopt;
     }
 
@@ -130,21 +122,17 @@ template <class T> class Transformer {
         return rewrite(tuple, a_elems);
     }
 
-    [[nodiscard]] auto accept_(TermSymbol const &term) const -> std::optional<Term> {
-        static_cast<void>(term);
+    template <class E>
+        requires Util::is_among_v<E, TermSymbol, TermVariable>
+    [[nodiscard]] auto accept_([[maybe_unused]] E const &term) const -> std::optional<Term> {
         return std::nullopt;
     }
 
-    [[nodiscard]] auto accept_(TermVariable const &term) const -> std::optional<Term> {
-        static_cast<void>(term);
-        return std::nullopt;
+    template <class E>
+        requires Util::is_among_v<E, TermFunction, TermTuple, TermAbs>
+    [[nodiscard]] auto accept_([[maybe_unused]] E const &term) const -> std::optional<Term> {
+        return rewrite(term, a_pool);
     }
-
-    [[nodiscard]] auto accept_(TermFunction const &term) const -> std::optional<Term> { return rewrite(term, a_pool); }
-
-    [[nodiscard]] auto accept_(TermTuple const &term) const -> std::optional<Term> { return rewrite(term, a_pool); }
-
-    [[nodiscard]] auto accept_(TermAbs const &term) const -> std::optional<Term> { return rewrite(term, a_pool); }
 
     [[nodiscard]] auto accept_(TermUnary const &term) const -> std::optional<Term> { return rewrite(term, a_rhs); }
 
@@ -158,13 +146,9 @@ template <class T> class Transformer {
         return rewrite(term, a_elems);
     }
 
-    [[nodiscard]] auto accept_(TheoryTermSymbol const &term) const -> std::optional<TheoryTerm> {
-        static_cast<void>(term);
-        return std::nullopt;
-    }
-
-    [[nodiscard]] auto accept_(TheoryTermVariable const &term) const -> std::optional<TheoryTerm> {
-        static_cast<void>(term);
+    template <class E>
+        requires Util::is_among_v<E, TheoryTermSymbol, TheoryTermVariable>
+    [[nodiscard]] auto accept_([[maybe_unused]] E const &stm) const -> std::optional<TheoryTerm> {
         return std::nullopt;
     }
 
@@ -257,11 +241,6 @@ template <class T> class Transformer {
 
     [[nodiscard]] auto accept_(StmRule const &stm) const -> std::optional<Stm> { return rewrite(stm, a_head, a_body); }
 
-    [[nodiscard]] auto accept_(StmTheory const &stm) const -> std::optional<Stm> {
-        static_cast<void>(stm);
-        return std::nullopt;
-    }
-
     [[nodiscard]] auto accept_(OptimizeTuple const &elem) const -> std::optional<OptimizeTuple> {
         return rewrite(elem, a_weight, a_prio, a_terms);
     }
@@ -278,23 +257,8 @@ template <class T> class Transformer {
 
     [[nodiscard]] auto accept_(StmShow const &stm) const -> std::optional<Stm> { return rewrite(stm, a_term, a_body); }
 
-    [[nodiscard]] auto accept_(StmShowSig const &stm) const -> std::optional<Stm> {
-        static_cast<void>(stm);
-        return std::nullopt;
-    }
-
     [[nodiscard]] auto accept_(StmProject const &stm) const -> std::optional<Stm> {
         return rewrite(stm, a_atom, a_body);
-    }
-
-    [[nodiscard]] auto accept_(StmProjectSig const &stm) const -> std::optional<Stm> {
-        static_cast<void>(stm);
-        return std::nullopt;
-    }
-
-    [[nodiscard]] auto accept_(StmDefined const &stm) const -> std::optional<Stm> {
-        static_cast<void>(stm);
-        return std::nullopt;
     }
 
     [[nodiscard]] auto accept_(StmExternal const &stm) const -> std::optional<Stm> {
@@ -309,27 +273,10 @@ template <class T> class Transformer {
         return rewrite(stm, a_atom, a_body, a_weight, a_prio, a_type);
     }
 
-    [[nodiscard]] auto accept_(StmScript const &stm) const -> std::optional<Stm> {
-        static_cast<void>(stm);
-        return std::nullopt;
-    }
-
-    [[nodiscard]] auto accept_(StmInclude const &stm) const -> std::optional<Stm> {
-        static_cast<void>(stm);
-        return std::nullopt;
-    }
-
-    [[nodiscard]] auto accept_(StmProgram const &stm) const -> std::optional<Stm> {
-        static_cast<void>(stm);
-        return std::nullopt;
-    }
-
-    [[nodiscard]] auto accept_(StmConst const &stm) const -> std::optional<Stm> {
-        static_cast<void>(stm);
-        return std::nullopt;
-    }
-
-    [[nodiscard]] auto accept_(StmComment const &stm) const -> std::optional<Stm> {
+    template <class E>
+        requires Util::is_among_v<E, StmTheory, StmShowSig, StmProjectSig, StmDefined, StmScript, StmInclude,
+                                  StmProgram, StmConst, StmComment>
+    [[nodiscard]] auto accept_(E const &stm) const -> std::optional<Stm> {
         static_cast<void>(stm);
         return std::nullopt;
     }
