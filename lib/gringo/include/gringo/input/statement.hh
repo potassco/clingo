@@ -374,23 +374,23 @@ class StmProject : public Expression<StmProject> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
-        return std::tuple{a_loc = &StmProject::loc_, a_term = &StmProject::term_, a_body = &StmProject::body_};
+        return std::tuple{a_loc = &StmProject::loc_, a_atom = &StmProject::atom_, a_body = &StmProject::body_};
     }
 
     //! Construct a project statement.
-    explicit StmProject(Location loc, Term term, BdLitArray body)
-        : loc_{std::move(loc)}, term_(std::move(term)), body_(std::move(body)) {}
+    explicit StmProject(Location loc, Term atom, BdLitArray body)
+        : loc_{std::move(loc)}, atom_(std::move(atom)), body_(std::move(body)) {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The term representing the atom to project.
-    [[nodiscard]] auto term() const -> Term const & { return term_; }
+    [[nodiscard]] auto atom() const -> Term const & { return atom_; }
     //! The body.
     [[nodiscard]] auto body() const -> BdLitArray const & { return body_; }
 
   private:
     Location loc_;
-    Term term_;
+    Term atom_;
     BdLitArray body_;
 };
 
@@ -466,18 +466,18 @@ class StmExternal : public Expression<StmExternal> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
-        return std::tuple{a_loc = &StmExternal::loc_, a_term = &StmExternal::term_, a_body = &StmExternal::body_,
+        return std::tuple{a_loc = &StmExternal::loc_, a_atom = &StmExternal::atom_, a_body = &StmExternal::body_,
                           a_type = &StmExternal::type_};
     }
 
     //! Construct an external statement.
-    explicit StmExternal(Location loc, Term term, BdLitArray body, std::optional<Term> type = std::nullopt)
-        : loc_{std::move(loc)}, term_(std::move(term)), body_(std::move(body)), type_{std::move(type)} {}
+    explicit StmExternal(Location loc, Term atom, BdLitArray body, std::optional<Term> type = std::nullopt)
+        : loc_{std::move(loc)}, atom_(std::move(atom)), body_(std::move(body)), type_{std::move(type)} {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The term representing the atom to project.
-    [[nodiscard]] auto term() const -> Term const & { return term_; }
+    [[nodiscard]] auto atom() const -> Term const & { return atom_; }
     //! The body.
     [[nodiscard]] auto body() const -> BdLitArray const & { return body_; }
     //! The type of the statement.
@@ -485,7 +485,7 @@ class StmExternal : public Expression<StmExternal> {
 
   private:
     Location loc_;
-    Term term_;
+    Term atom_;
     BdLitArray body_;
     std::optional<Term> type_;
 };

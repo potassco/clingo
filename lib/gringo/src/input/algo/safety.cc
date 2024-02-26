@@ -1,5 +1,6 @@
 #include <gringo/util/algorithm.hh>
 #include <gringo/util/print.hh>
+#include <gringo/util/type_traits.hh>
 
 #include <gringo/input/algo/analyze.hh>
 #include <gringo/input/algo/print.hh>
@@ -458,8 +459,8 @@ struct CheckLocal {
 };
 
 struct CheckGlobal {
-    template <bool pass_intermediate = false, class F>
-    auto check_body(auto const &stm, F build, Term const *atom = nullptr) -> Util::ResultState<Stm> {
+    template <bool pass_intermediate = false, class S, class F>
+    auto check_body(S const &stm, F build, Term const *atom = nullptr) const -> Util::ResultState<Stm> {
         // check body
         VariableSet extra;
         if (atom != nullptr) {
@@ -493,9 +494,14 @@ struct CheckGlobal {
         }
     }
 
-    auto operator()(Stm const &stm) -> Util::ResultState<Stm> { return std::visit(*this, stm); }
+    template <class S> auto check_body(S const &stm, Term const *atom = nullptr) const -> Util::ResultState<Stm> {
+        return check_body(
+            stm, [&stm](auto body) { return stm.update(a_body = std::move(body)); }, atom);
+    }
 
-    auto operator()(StmRule const &stm) -> Util::ResultState<Stm> {
+    auto operator()(Stm const &stm) const -> Util::ResultState<Stm> { return std::visit(*this, stm); }
+
+    auto operator()(StmRule const &stm) const -> Util::ResultState<Stm> {
         return check_body<true>(stm, [this, &stm](auto &provided, auto res_body) -> Util::ResultState<Stm> {
             // check nested head
             auto [state_head, res_head] = CheckLocal{log, provided}(stm.head());
@@ -512,92 +518,21 @@ struct CheckGlobal {
         });
     }
 
-    auto operator()(StmTheory const &stm) -> Util::ResultState<Stm> {
-        static_cast<void>(stm);
-        return {true};
-    }
-
-    auto operator()(StmOptimize const &stm) -> Util::ResultState<Stm> {
+    auto operator()(StmOptimize const &stm) const -> Util::ResultState<Stm> {
         static_cast<void>(stm);
         throw std::runtime_error("unpool must be called before safety checking");
     }
 
-    auto operator()(StmWeakConstraint const &stm) -> Util::ResultState<Stm> {
-        return check_body(stm, [&stm](auto body) {
-            return StmWeakConstraint{stm.loc(), std::move(body), stm.tuple()};
-        });
-    }
-
-    auto operator()(StmShow const &stm) -> Util::ResultState<Stm> {
-        return check_body(stm, [&stm](auto body) { return StmShow{stm.loc(), stm.term(), std::move(body)}; });
-    }
-
-    auto operator()(StmShowSig const &stm) -> Util::ResultState<Stm> {
-        static_cast<void>(stm);
-        return {true};
-    }
-
-    auto operator()(StmProject const &stm) -> Util::ResultState<Stm> {
-        return check_body(
-            stm,
-            [&stm](auto body) {
-                return StmProject{stm.loc(), stm.term(), std::move(body)};
-            },
-            &stm.term());
-    }
-
-    auto operator()(StmProjectSig const &stm) -> Util::ResultState<Stm> {
-        static_cast<void>(stm);
-        return {true};
-    }
-
-    auto operator()(StmDefined const &stm) -> Util::ResultState<Stm> {
-        static_cast<void>(stm);
-        return {true};
-    }
-
-    auto operator()(StmExternal const &stm) -> Util::ResultState<Stm> {
-        return check_body(stm, [&stm](auto body) {
-            return StmExternal{stm.loc(), stm.term(), std::move(body), stm.type()};
-        });
-    }
-
-    auto operator()(StmEdge const &stm) -> Util::ResultState<Stm> {
-        return check_body(stm, [&stm](auto body) { return StmEdge{stm.loc(), stm.edges(), std::move(body)}; });
-    }
-
-    auto operator()(StmHeuristic const &stm) -> Util::ResultState<Stm> {
-        return check_body(
-            stm,
-            [&stm](auto body) {
-                return StmHeuristic{stm.loc(), stm.atom(), std::move(body), stm.weight(), stm.prio(), stm.type()};
-            },
-            &stm.atom());
-    }
-
-    auto operator()(StmScript const &stm) -> Util::ResultState<Stm> {
-        static_cast<void>(stm);
-        return {true};
-    }
-
-    auto operator()(StmInclude const &stm) -> Util::ResultState<Stm> {
-        static_cast<void>(stm);
-        return {true};
-    }
-
-    auto operator()(StmProgram const &stm) -> Util::ResultState<Stm> {
-        static_cast<void>(stm);
-        return {true};
-    }
-
-    auto operator()(StmConst const &stm) -> Util::ResultState<Stm> {
-        static_cast<void>(stm);
-        return {true};
-    }
-
-    auto operator()(StmComment const &stm) -> Util::ResultState<Stm> {
-        static_cast<void>(stm);
-        return {true};
+    template <class T> auto operator()(T const &stm) const -> Util::ResultState<Stm> {
+        if constexpr (Util::is_among_v<T, StmWeakConstraint, StmShow, StmExternal, StmEdge>) {
+            return check_body(stm);
+        } else if constexpr (Util::is_among_v<T, StmProject, StmHeuristic>) {
+            return check_body(stm, &stm.atom());
+        } else {
+            static_assert(Util::is_among_v<T, StmTheory, StmShowSig, StmProjectSig, StmDefined, StmScript, StmInclude,
+                                           StmProgram, StmConst, StmComment>);
+            return {true};
+        }
     }
 
     Logger &log;

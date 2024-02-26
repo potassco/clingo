@@ -257,10 +257,10 @@ struct CheckSyntax {
 
     auto operator()(StmShow const &stm) const -> bool { return operator()(stm.term()) && operator()(stm.body()); }
 
-    auto operator()(StmProject const &stm) const -> bool { return operator()(stm.term()) && operator()(stm.body()); }
+    auto operator()(StmProject const &stm) const -> bool { return operator()(stm.atom()) && operator()(stm.body()); }
 
     auto operator()(StmExternal const &stm) const -> bool {
-        return operator()(stm.term()) && operator()(stm.body()) && operator()(stm.type());
+        return operator()(stm.atom()) && operator()(stm.body()) && operator()(stm.type());
     }
 
     auto operator()(Edge const &edge) const -> bool { return operator()(edge.src()) && operator()(edge.dst()); }

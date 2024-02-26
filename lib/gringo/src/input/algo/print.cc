@@ -625,7 +625,7 @@ struct Print {
     }
 
     void operator()(StmProject const &stm) const {
-        out << "#project " << stm.term() << (stm.body().empty() ? "" : ": ");
+        out << "#project " << stm.atom() << (stm.body().empty() ? "" : ": ");
         visit_range(stm.body(), "; ");
         out << ".";
     }
@@ -639,7 +639,7 @@ struct Print {
     }
 
     void operator()(StmExternal const &stm) const {
-        out << "#external " << stm.term() << (stm.body().empty() ? "" : ": ");
+        out << "#external " << stm.atom() << (stm.body().empty() ? "" : ": ");
         visit_range(stm.body(), "; ");
         out << ".";
         if (stm.type().has_value()) {

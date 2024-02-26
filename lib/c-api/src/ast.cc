@@ -947,9 +947,9 @@ auto clingo_ast::get_ast(clingo_ast_attribute_t attr) const -> std::optional<std
         TYPE(statement_show, StmShow,
             ATTR(term, term()))
         TYPE(statement_project, StmProject,
-            ATTR(atom, term()))
+            ATTR(atom, atom()))
         TYPE(statement_external, StmExternal,
-            ATTR(atom, term())
+            ATTR(atom, atom())
             ATTR(external_type, type()))
         TYPE(edge, Edge,
             ATTR(u, src())

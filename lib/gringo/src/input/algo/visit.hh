@@ -181,13 +181,13 @@ template <class T> class Visitor {
 
     void accept_(StmShowSig const &stm) const { static_cast<void>(stm); }
 
-    void accept_(StmProject const &stm) const { visit(stm.term(), stm.body()); }
+    void accept_(StmProject const &stm) const { visit(stm.atom(), stm.body()); }
 
     void accept_(StmProjectSig const &stm) const { static_cast<void>(stm); }
 
     void accept_(StmDefined const &stm) const { static_cast<void>(stm); }
 
-    void accept_(StmExternal const &stm) const { visit(stm.term(), stm.body(), stm.type()); }
+    void accept_(StmExternal const &stm) const { visit(stm.atom(), stm.body(), stm.type()); }
 
     void accept_(Edge const &edge) const { visit(edge.src(), edge.dst()); }
 

@@ -12,7 +12,7 @@ struct RewriteAnonymous : Transformer<RewriteAnonymous> {
 
     // protect ourselves -> no unintended overloads
 
-    template <class T> [[nodiscard]] auto accept(T const &x) const -> std::optional<T> = delete;
+    template <class T> [[nodiscard]] auto accept(T const &x) const = delete;
 
     // term
 

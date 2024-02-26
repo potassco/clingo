@@ -541,7 +541,7 @@ struct Unpool {
     }
 
     auto operator()(StmProject const &stm) const -> std::optional<StmVec> {
-        return unpool_crossproducts(builder<Stm>(stm, a_term, a_body), *this, stm.term(), stm.body());
+        return unpool_crossproducts(builder<Stm>(stm, a_atom, a_body), *this, stm.atom(), stm.body());
     }
 
     auto operator()(StmProjectSig const &stm) const -> std::optional<StmVec> {
@@ -555,7 +555,7 @@ struct Unpool {
     }
 
     auto operator()(StmExternal const &stm) const -> std::optional<StmVec> {
-        return unpool_crossproducts(builder<Stm>(stm, a_term, a_body, a_type), *this, stm.term(), stm.body(),
+        return unpool_crossproducts(builder<Stm>(stm, a_atom, a_body, a_type), *this, stm.atom(), stm.body(),
                                     stm.type());
     }
 

@@ -1710,24 +1710,24 @@ struct SimplifyStatement {
     }
 
     auto operator()(StmProject const &stm) const -> SimplifyResult<Stm> {
-        auto [state_term, res_term] = simplify(SimplifyTermFlags::matchable, ctx, stm.term());
+        auto [state_atom, res_atom] = simplify(SimplifyTermFlags::matchable, ctx, stm.atom());
         auto [state_body, res_body] = simplify_body(ctx, stm.body());
-        if (!state_term || state_body == TruthValue::bot) {
-            return {TruthValue::top, StmRule{stm.loc(), make_constant(location(stm.term()), true), {}}};
+        if (!state_atom || state_body == TruthValue::bot) {
+            return {TruthValue::top, StmRule{stm.loc(), make_constant(location(stm.atom()), true), {}}};
         }
-        return {TruthValue::unknown, stm.rewrite(a_term = std::move(res_term), a_body = std::move(res_body))};
+        return {TruthValue::unknown, stm.rewrite(a_atom = std::move(res_atom), a_body = std::move(res_body))};
     }
 
     auto operator()(StmExternal const &stm) const -> SimplifyResult<Stm> {
-        auto [state_term, res_term] = simplify(SimplifyTermFlags::matchable, ctx, stm.term());
+        auto [state_atom, res_atom] = simplify(SimplifyTermFlags::matchable, ctx, stm.atom());
         auto [state_type, res_type] =
             stm.type() ? simplify(SimplifyTermFlags::matchable, ctx, *stm.type()) : SimplifyTermResult{true};
         auto [state_body, res_body] = simplify_body(ctx, stm.body());
-        if (!state_term || !state_type || state_body == TruthValue::bot) {
-            return {TruthValue::top, StmRule{stm.loc(), make_constant(location(stm.term()), true), {}}};
+        if (!state_atom || !state_type || state_body == TruthValue::bot) {
+            return {TruthValue::top, StmRule{stm.loc(), make_constant(location(stm.atom()), true), {}}};
         }
         return {TruthValue::unknown,
-                stm.rewrite(a_term = std::move(res_term), a_body = std::move(res_body), a_type = std::move(res_type))};
+                stm.rewrite(a_atom = std::move(res_atom), a_body = std::move(res_body), a_type = std::move(res_type))};
     }
 
     auto operator()(StmEdge const &stm) const -> SimplifyResult<Stm> {

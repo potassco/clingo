@@ -207,15 +207,15 @@ struct MapParams : Transformer<MapParams> {
     // statement
 
     [[nodiscard]] auto accept(StmProject const &stm) const -> std::optional<Stm> {
-        if (!is_identifier(stm.term())) {
-            return rewrite(stm, a_term, a_body);
+        if (!is_identifier(stm.atom())) {
+            return rewrite(stm, a_atom, a_body);
         }
         return rewrite(stm, a_body);
     }
 
     [[nodiscard]] auto accept(StmExternal const &stm) const -> std::optional<Stm> {
-        if (!is_identifier(stm.term())) {
-            return rewrite(stm, a_term, a_body, a_type);
+        if (!is_identifier(stm.atom())) {
+            return rewrite(stm, a_atom, a_body, a_type);
         }
         return rewrite(stm, a_body, a_type);
     }
@@ -320,15 +320,15 @@ struct Collect : Visitor<Collect> {
     // statement
 
     void accept(StmProject const &stm) const {
-        if (!is_identifier(stm.term())) {
-            visit(stm.term());
+        if (!is_identifier(stm.atom())) {
+            visit(stm.atom());
         }
         visit(stm.body());
     }
 
     void accept(StmExternal const &stm) const {
-        if (!is_identifier(stm.term())) {
-            visit(stm.term());
+        if (!is_identifier(stm.atom())) {
+            visit(stm.atom());
         }
         visit(stm.body(), stm.type());
     }

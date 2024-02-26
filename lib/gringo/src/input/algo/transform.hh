@@ -284,7 +284,7 @@ template <class T> class Transformer {
     }
 
     [[nodiscard]] auto accept_(StmProject const &stm) const -> std::optional<Stm> {
-        return rewrite(stm, a_term, a_body);
+        return rewrite(stm, a_atom, a_body);
     }
 
     [[nodiscard]] auto accept_(StmProjectSig const &stm) const -> std::optional<Stm> {
@@ -298,7 +298,7 @@ template <class T> class Transformer {
     }
 
     [[nodiscard]] auto accept_(StmExternal const &stm) const -> std::optional<Stm> {
-        return rewrite(stm, a_term, a_body, a_type);
+        return rewrite(stm, a_atom, a_body, a_type);
     }
 
     [[nodiscard]] auto accept_(Edge const &edge) const -> std::optional<Edge> { return rewrite(edge, a_src, a_dst); }
