@@ -139,13 +139,17 @@ auto unpool_union(Span const &elems, auto &&unpool = Unpooler{})
     return ret;
 }
 
-auto unpool_crossproducts(auto build, auto unpool, auto const &...args) {
-    return Detail::unpool_crossproducts(build, std::forward_as_tuple(args...), std::forward_as_tuple(unpool(args)...),
-                                        std::index_sequence_for<decltype(args)...>());
+template <class E, class B, class U, class... A>
+auto unpool_crossproducts(E const &expr, B build, U const &unpool, [[maybe_unused]] A... args) {
+    return Detail::unpool_crossproducts(build, std::forward_as_tuple(expr.template get_value<A::tag>()...),
+                                        std::forward_as_tuple(unpool(expr.template get_value<A::tag>())...),
+                                        std::index_sequence_for<A...>());
 }
 
-template <class R, class T, class... Args> constexpr auto builder(T const &x, Args const &...args) {
-    return [&]<class... V>(V &&...vals) -> R { return x.update((args = std::forward<V>(vals))...); };
+template <class T, class E, class U, class... A> auto unpool_rewrite(E const &expr, U const &unpool, A... args) {
+    return unpool_crossproducts(
+        expr, [&]<class... V>(V &&...vals) -> T { return expr.update((args = std::forward<V>(vals))...); }, unpool,
+        std::move(args)...);
 }
 
 } // namespace Gringo::Input

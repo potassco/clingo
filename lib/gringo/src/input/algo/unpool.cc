@@ -1,6 +1,7 @@
 #include <algorithm>
 
 #include <gringo/util/optional.hh>
+#include <gringo/util/type_traits.hh>
 
 #include <gringo/input/algo/analyze.hh>
 #include <gringo/input/algo/print.hh>
@@ -33,18 +34,15 @@ struct LiteralToTuple {
         return res;
     }
 
-    auto operator()(Lit const &orig, LitBool const &lit) -> std::vector<Term> {
-        static_cast<void>(lit);
+    auto operator()(Lit const &orig, [[maybe_unused]] LitBool const &lit) -> std::vector<Term> {
         return tuple_from_vars(orig);
     }
 
-    auto operator()(Lit const &orig, LitComparison const &lit) -> std::vector<Term> {
-        static_cast<void>(lit);
+    auto operator()(Lit const &orig, [[maybe_unused]] LitComparison const &lit) -> std::vector<Term> {
         return tuple_from_vars(orig);
     }
 
-    auto operator()(Lit const &orig, LitSymbolic const &lit) -> std::vector<Term> {
-        static_cast<void>(orig);
+    auto operator()([[maybe_unused]] Lit const &orig, LitSymbolic const &lit) -> std::vector<Term> {
         std::vector<Term> res;
         res.reserve(2);
         int i = 0;
@@ -75,10 +73,6 @@ struct LiteralToTuple {
 
 struct Unpool {
 
-    // protect ourselves -> no unintended overloads
-
-    template <class T> auto operator()(T const &x) const -> std::optional<std::vector<T>> = delete;
-
     // terms
 
     auto operator()(Term const &term) const -> std::optional<std::vector<Term>> { return std::visit(*this, term); }
@@ -93,13 +87,11 @@ struct Unpool {
         return unpool_crossproduct(terms, *this);
     }
 
-    auto operator()(TermSymbol const &term) const -> std::optional<std::vector<Term>> {
-        static_cast<void>(term);
+    auto operator()([[maybe_unused]] TermSymbol const &term) const -> std::optional<std::vector<Term>> {
         return std::nullopt;
     }
 
-    auto operator()(TermVariable const &term) const -> std::optional<std::vector<Term>> {
-        static_cast<void>(term);
+    auto operator()([[maybe_unused]] TermVariable const &term) const -> std::optional<std::vector<Term>> {
         return std::nullopt;
     }
 
@@ -146,7 +138,7 @@ struct Unpool {
                         return x;
                     }
                     if constexpr (std::is_same_v<T, ArgumentTuple>) {
-                        return TermTuple{term.loc(), {ArgumentTuple{std::move(x)}}};
+                        return term.update(a_pool = TupleElementArray{ArgumentTuple{std::move(x)}});
                     }
                 },
                 std::move(elem));
@@ -159,13 +151,13 @@ struct Unpool {
             return unpool_crossproduct(tuple.elems(), *this);
         });
 
-        if (!elems.has_value() && term.pool().size() != 1) {
+        if (!elems && term.pool().size() != 1) {
             elems = PoolArray(term.pool().begin(), term.pool().end());
         }
 
         return Util::transform_vec(std::move(elems), [&term](auto elem) -> Term {
             // turn individual elements into function terms
-            return TermFunction{term.loc(), term.name(), PoolArray{std::move(elem)}, term.external()};
+            return term.update(a_pool = PoolArray{std::move(elem)});
         });
     }
 
@@ -174,15 +166,13 @@ struct Unpool {
         if (!unpooled.has_value() && term.pool().size() != 1) {
             unpooled = std::vector<Term>(term.pool().begin(), term.pool().end());
         }
-        return Util::transform_vec(std::move(unpooled), [&term](auto arg) -> Term {
-            return TermAbs{term.loc(), TermArray{std::move(arg)}};
-        });
+        return Util::transform_vec(
+            std::move(unpooled), [&term](auto arg) -> Term { return term.update(a_pool = TermArray{std::move(arg)}); });
     }
 
     auto operator()(TermUnary const &term) const -> std::optional<std::vector<Term>> {
-        return Util::transform_vec(operator()(*term.rhs()), [&term](auto rhs) -> Term {
-            return TermUnary{term.loc(), term.op(), std::move(rhs)};
-        });
+        return Util::transform_vec(operator()(*term.rhs()),
+                                   [&term](auto rhs) -> Term { return term.update(a_rhs = std::move(rhs)); });
     }
 
     auto operator()(Util::immutable_value<Term> const &term) const -> std::optional<std::vector<Term>> {
@@ -190,7 +180,7 @@ struct Unpool {
     }
 
     auto operator()(TermBinary const &term) const -> std::optional<std::vector<Term>> {
-        return unpool_crossproducts(builder<Term>(term, a_lhs, a_rhs), *this, *term.lhs(), *term.rhs());
+        return unpool_rewrite<Term>(term, *this, a_lhs, a_rhs);
     }
 
     auto operator()(GuardArray const &guards) const -> std::optional<std::vector<GuardArray>> {
@@ -212,19 +202,17 @@ struct Unpool {
         return Util::transform_vec(unpool_crossproduct(lits, *this), [](auto vec) { return LitArray{std::move(vec)}; });
     }
 
-    auto operator()(LitBool const &lit) const -> std::optional<std::vector<Lit>> {
-        static_cast<void>(lit);
+    auto operator()([[maybe_unused]] LitBool const &lit) const -> std::optional<std::vector<Lit>> {
         return std::nullopt;
     }
 
     auto operator()(LitComparison const &lit) const -> std::optional<std::vector<Lit>> {
-        return unpool_crossproducts(builder<Lit>(lit, a_lhs, a_rhs), *this, lit.lhs(), lit.rhs());
+        return unpool_rewrite<Lit>(lit, *this, a_lhs, a_rhs);
     }
 
     auto operator()(LitSymbolic const &lit) const -> std::optional<std::vector<Lit>> {
-        return Util::transform_vec(operator()(lit.term()), [&lit](auto term) -> Lit {
-            return LitSymbolic{lit.loc(), lit.sign(), std::move(term)};
-        });
+        return Util::transform_vec(operator()(lit.term()),
+                                   [&lit](auto term) -> Lit { return lit.update(a_term = std::move(term)); });
     }
 
     // set aggregate
@@ -254,8 +242,7 @@ struct Unpool {
     void
     unpool_elem(LiteralToTuple &to_tuple, SetAggregateElement const &elem,
                 std::vector<std::conditional_t<HasSign, BdLitAggregateElement, HdLitAggregateElement>> &elems) const {
-        auto set_elems =
-            unpool_crossproducts(builder<SetAggregateElement>(elem, a_lit, a_cond), *this, elem.lit(), elem.cond());
+        auto set_elems = unpool_rewrite<SetAggregateElement>(elem, *this, a_lit, a_cond);
         auto simplify_lit = [this, &to_tuple, &elem, &elems](SetAggregateElement unpooled) {
             auto guard = ctx.push();
             auto res_subst = map_params(ctx, unpooled.lit());
@@ -293,7 +280,7 @@ struct Unpool {
     template <bool HasSign>
     auto operator()(SetAggregate<HasSign> const &aggr) const
         -> std::optional<std::vector<std::conditional_t<HasSign, BdLit, HdLit>>> {
-        auto convert = [this, &aggr](auto lhs, auto rhs) {
+        auto build = [this, &aggr](auto lhs, auto rhs) {
             std::vector<std::conditional_t<HasSign, BdLitAggregateElement, HdLitAggregateElement>> elems;
             LiteralToTuple to_tuple{ctx.store()};
             for (auto &elem : aggr.elems()) {
@@ -308,10 +295,9 @@ struct Unpool {
                                             std::move(rhs)}};
             }
         };
-        auto ret = unpool_crossproducts(convert, *this, aggr.lhs(), aggr.rhs());
+        auto ret = unpool_crossproducts(aggr, build, *this, a_lhs, a_rhs);
         if (!ret.has_value()) {
-            ret = std::vector<std::conditional_t<HasSign, BdLit, HdLit>>{};
-            ret->emplace_back(convert(aggr.lhs(), aggr.rhs()));
+            ret = Util::make_vec<std::conditional_t<HasSign, BdLit, HdLit>>(build(aggr.lhs(), aggr.rhs()));
         }
         return ret;
     }
@@ -319,7 +305,7 @@ struct Unpool {
     // theory
 
     auto operator()(TheoryElement const &elem) const -> std::optional<std::vector<TheoryElement>> {
-        return unpool_crossproducts(builder<TheoryElement>(elem, a_cond), *this, elem.cond());
+        return unpool_rewrite<TheoryElement>(elem, *this, a_cond);
     }
 
     auto operator()(TheoryElementArray const &elems) const -> std::optional<std::vector<TheoryElementArray>> {
@@ -330,8 +316,7 @@ struct Unpool {
     template <bool HasSign>
     auto operator()(TheoryAtom<HasSign> const &atom) const
         -> std::optional<std::vector<std::conditional_t<HasSign, BdLit, HdLit>>> {
-        return unpool_crossproducts(builder<std::conditional_t<HasSign, BdLit, HdLit>>(atom, a_name, a_elems), *this,
-                                    atom.name(), atom.elems());
+        return unpool_rewrite<std::conditional_t<HasSign, BdLit, HdLit>>(atom, *this, a_name, a_elems);
     }
 
     // head literal
@@ -347,8 +332,8 @@ struct Unpool {
         return std::visit(
             [this]<class T>(T const &elem) -> std::optional<std::vector<HdLitDisjunctionElement>> {
                 if constexpr (std::is_same_v<T, Lit>) {
-                    return unpool_crossproducts([](auto lit) { return HdLitDisjunctionElement{std::move(lit)}; }, *this,
-                                                elem);
+                    return Util::transform_vec(operator()(elem),
+                                               [](auto lit) { return HdLitDisjunctionElement{std::move(lit)}; });
                 }
                 return std::nullopt;
             },
@@ -366,8 +351,7 @@ struct Unpool {
             auto res_elems = Util::ResultVec{elems};
             for (auto const &elem : elems) {
                 if (auto const *clit = std::get_if<CondLit>(&elem); clit != nullptr) {
-                    if (auto res_clit = unpool_crossproducts(builder<HdLitDisjunctionElement>(*clit, a_lit, a_cond),
-                                                             *this, clit->lit(), clit->cond());
+                    if (auto res_clit = unpool_rewrite<HdLitDisjunctionElement>(*clit, *this, a_lit, a_cond);
                         res_clit) {
                         res_elems.remove();
                         res_elems.extend(std::make_move_iterator(res_clit->begin()),
@@ -382,7 +366,7 @@ struct Unpool {
             return res_elems;
         };
 
-        if (auto res_pool = unpool_crossproducts(builder<HdLit>(lit, a_elems), *this, lit.elems()); res_pool) {
+        if (auto res_pool = unpool_rewrite<HdLit>(lit, *this, a_elems); res_pool) {
             for (auto &lit : res_pool.value()) {
                 auto const &disj = std::get<HdLitDisjunction>(lit);
                 if (auto res_elems = unpool(disj.elems()); res_elems) {
@@ -398,8 +382,7 @@ struct Unpool {
     }
 
     auto operator()(HdLitAggregateElement const &elem) const -> std::optional<HdLitAggregateElementArray> {
-        return unpool_crossproducts(builder<HdLitAggregateElement>(elem, a_tuple, a_lit, a_cond), *this, elem.tuple(),
-                                    elem.lit(), elem.cond());
+        return unpool_rewrite<HdLitAggregateElement>(elem, *this, a_tuple, a_lit, a_cond);
     }
 
     auto operator()(HdLitAggregateElementArray const &elems) const
@@ -409,8 +392,7 @@ struct Unpool {
     }
 
     auto operator()(HdLitAggregate const &lit) const -> std::optional<std::vector<HdLit>> {
-        return unpool_crossproducts(builder<HdLit>(lit, a_lhs, a_elems, a_rhs), *this, lit.lhs(), lit.elems(),
-                                    lit.rhs());
+        return unpool_rewrite<HdLit>(lit, *this, a_lhs, a_elems, a_rhs);
     }
 
     // body literal
@@ -422,8 +404,7 @@ struct Unpool {
                                    [](auto lit) -> BdLit { return BdLitSimple{std::move(lit)}; });
     }
 
-    auto operator()(BdLitConjunction const &lit) const -> std::optional<std::vector<BdLit>> {
-        static_cast<void>(lit);
+    auto operator()([[maybe_unused]] BdLitConjunction const &lit) const -> std::optional<std::vector<BdLit>> {
         return std::nullopt;
     }
 
@@ -432,9 +413,7 @@ struct Unpool {
             auto res_lits = Util::ResultVec{lits};
             for (auto const &lit : lits) {
                 if (auto const *conj = std::get_if<BdLitConjunction>(&lit); conj != nullptr) {
-                    if (auto res_conj = unpool_crossproducts(builder<BdLitConjunction>(conj->lit(), a_lit, a_cond),
-                                                             *this, conj->lit().lit(), conj->lit().cond());
-                        res_conj) {
+                    if (auto res_conj = unpool_rewrite<BdLitConjunction>(conj->lit(), *this, a_lit, a_cond); res_conj) {
                         res_lits.remove();
                         res_lits.extend(std::make_move_iterator(res_conj->begin()),
                                         std::make_move_iterator(res_conj->end()));
@@ -463,8 +442,7 @@ struct Unpool {
     }
 
     auto operator()(BdLitAggregateElement const &elem) const -> std::optional<BdLitAggregateElementArray> {
-        return unpool_crossproducts(builder<BdLitAggregateElement>(elem, a_tuple, a_cond), *this, elem.tuple(),
-                                    elem.cond());
+        return unpool_rewrite<BdLitAggregateElement>(elem, *this, a_tuple, a_cond);
     }
 
     auto operator()(BdLitAggregateElementArray const &elems) const
@@ -474,8 +452,7 @@ struct Unpool {
     }
 
     auto operator()(BdLitAggregate const &aggr) const -> std::optional<std::vector<BdLit>> {
-        return unpool_crossproducts(builder<BdLit>(aggr, a_lhs, a_elems, a_rhs), *this, aggr.lhs(), aggr.elems(),
-                                    aggr.rhs());
+        return unpool_rewrite<BdLit>(aggr, *this, a_lhs, a_elems, a_rhs);
     }
 
     // statement
@@ -483,23 +460,17 @@ struct Unpool {
     auto operator()(Stm const &stm) const -> std::optional<StmVec> { return std::visit(*this, stm); }
 
     auto operator()(Edge const &edge) const -> std::optional<EdgeArray> {
-        return unpool_crossproducts(builder<Edge>(edge, a_src, a_dst), *this, edge.src(), edge.dst());
+        return unpool_rewrite<Edge>(edge, *this, a_src, a_dst);
     }
 
     auto operator()(EdgeArray const &edges) const { return unpool_union(edges, *this); }
 
     auto operator()(StmRule const &stm) const -> std::optional<StmVec> {
-        return unpool_crossproducts(builder<Stm>(stm, a_head, a_body), *this, stm.head(), stm.body());
-    }
-
-    auto operator()(StmTheory const &stm) const -> std::optional<StmVec> {
-        static_cast<void>(stm);
-        return std::nullopt;
+        return unpool_rewrite<Stm>(stm, *this, a_head, a_body);
     }
 
     auto operator()(OptimizeTuple const &tuple) const -> std::optional<std::vector<OptimizeTuple>> {
-        return unpool_crossproducts(builder<OptimizeTuple>(tuple, a_weight, a_prio, a_terms), *this, tuple.weight(),
-                                    tuple.prio(), tuple.terms());
+        return unpool_rewrite<OptimizeTuple>(tuple, *this, a_weight, a_prio, a_terms);
     }
 
     auto operator()(StmOptimize const &stm) const -> std::optional<StmVec> {
@@ -528,35 +499,19 @@ struct Unpool {
     }
 
     auto operator()(StmWeakConstraint const &stm) const -> std::optional<StmVec> {
-        return unpool_crossproducts(builder<Stm>(stm, a_body, a_tuple), *this, stm.body(), stm.tuple());
+        return unpool_rewrite<Stm>(stm, *this, a_body, a_tuple);
     }
 
     auto operator()(StmShow const &stm) const -> std::optional<StmVec> {
-        return unpool_crossproducts(builder<Stm>(stm, a_term, a_body), *this, stm.term(), stm.body());
-    }
-
-    auto operator()(StmShowSig const &stm) const -> std::optional<StmVec> {
-        static_cast<void>(stm);
-        return std::nullopt;
+        return unpool_rewrite<Stm>(stm, *this, a_term, a_body);
     }
 
     auto operator()(StmProject const &stm) const -> std::optional<StmVec> {
-        return unpool_crossproducts(builder<Stm>(stm, a_atom, a_body), *this, stm.atom(), stm.body());
-    }
-
-    auto operator()(StmProjectSig const &stm) const -> std::optional<StmVec> {
-        static_cast<void>(stm);
-        return std::nullopt;
-    }
-
-    auto operator()(StmDefined const &stm) const -> std::optional<StmVec> {
-        static_cast<void>(stm);
-        return std::nullopt;
+        return unpool_rewrite<Stm>(stm, *this, a_atom, a_body);
     }
 
     auto operator()(StmExternal const &stm) const -> std::optional<StmVec> {
-        return unpool_crossproducts(builder<Stm>(stm, a_atom, a_body, a_type), *this, stm.atom(), stm.body(),
-                                    stm.type());
+        return unpool_rewrite<Stm>(stm, *this, a_atom, a_body, a_type);
     }
 
     auto operator()(StmEdge const &stm) const -> std::optional<StmVec> {
@@ -566,7 +521,7 @@ struct Unpool {
             StmVec ret;
             for (auto &body : bodies.value_or(Util::make_vec<BdLitArray>(stm.body()))) {
                 for (auto &edge : edges.value_or(stm.edges())) {
-                    ret.emplace_back(StmEdge{stm.loc(), Util::make_vec<Edge>(edge), body});
+                    ret.emplace_back(stm.update(a_edges = Util::make_vec<Edge>(edge), a_body = body));
                 }
             }
             return ret;
@@ -575,35 +530,20 @@ struct Unpool {
     }
 
     auto operator()(StmHeuristic const &stm) const -> std::optional<StmVec> {
-        return unpool_crossproducts(builder<Stm>(stm, a_atom, a_body, a_weight, a_prio, a_type), *this, stm.atom(),
-                                    stm.body(), stm.weight(), stm.prio(), stm.type());
-    }
-
-    auto operator()(StmScript const &stm) const -> std::optional<StmVec> {
-        static_cast<void>(stm);
-        return std::nullopt;
-    }
-
-    auto operator()(StmInclude const &stm) const -> std::optional<StmVec> {
-        static_cast<void>(stm);
-        return std::nullopt;
-    }
-
-    auto operator()(StmProgram const &stm) const -> std::optional<StmVec> {
-        static_cast<void>(stm);
-        return std::nullopt;
+        return unpool_rewrite<Stm>(stm, *this, a_atom, a_body, a_weight, a_prio, a_type);
     }
 
     auto operator()(StmConst const &stm) const -> std::optional<StmVec> {
-        auto ret = unpool_crossproducts(builder<Stm>(stm, a_value), *this, stm.value());
+        auto ret = unpool_rewrite<Stm>(stm, *this, a_value);
         if (ret.has_value() && ret->size() != 1) {
             throw std::runtime_error("const statements must not contain pools");
         }
         return ret;
     }
 
-    auto operator()(StmComment const &stm) const -> std::optional<StmVec> {
-        static_cast<void>(stm);
+    template <class T> auto operator()([[maybe_unused]] T const &stm) const -> std::optional<StmVec> {
+        static_assert(Util::is_among_v<T, StmTheory, StmShowSig, StmProjectSig, StmDefined, StmScript, StmInclude,
+                                       StmProgram, StmComment>);
         return std::nullopt;
     }
 

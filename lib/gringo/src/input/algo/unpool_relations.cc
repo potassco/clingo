@@ -227,8 +227,7 @@ struct UnpoolHeadBody {
     template <bool HasSign>
     auto operator()(TheoryAtom<HasSign> const &atom) const -> std::optional<HBLitVecVec<!HasSign>> {
         auto unpool_elem = [](TheoryElement const &elem) {
-            auto build = [&elem](auto lits) -> TheoryElement { return elem.update(a_cond = std::move(lits)); };
-            return unpool_crossproducts(build, unpool_disjunctive, elem.cond());
+            return unpool_rewrite<TheoryElement>(elem, unpool_disjunctive, a_cond);
         };
         if (auto res = atom.rewrite(a_elems = unpool_union(atom.elems(), unpool_elem)); res) {
             return Util::make_vec<std::conditional_t<HasSign, BdLit, HdLit>>(*std::move(res));
@@ -254,10 +253,7 @@ struct UnpoolHeadBody {
                         return std::nullopt;
                     }
                     if constexpr (std::is_same_v<T, CondLit>) {
-                        auto build = [&elem](auto lits) -> HdLitDisjunctionElement {
-                            return elem.update(a_cond = std::move(lits));
-                        };
-                        return unpool_crossproducts(build, unpool_disjunctive, elem.cond());
+                        return unpool_rewrite<HdLitDisjunctionElement>(elem, unpool_disjunctive, a_cond);
                     }
                 },
                 elem);
@@ -270,8 +266,7 @@ struct UnpoolHeadBody {
 
     auto operator()(HdLitAggregate const &lit) const -> std::optional<HdLitArray> {
         auto unpool_elem = [](HdLitAggregateElement const &elem) {
-            auto build = [&elem](auto cond) { return elem.update(a_cond = std::move(cond)); };
-            return unpool_crossproducts(build, unpool_disjunctive, elem.cond());
+            return unpool_rewrite<HdLitAggregateElement>(elem, unpool_disjunctive, a_cond);
         };
         if (auto res_elems = unpool_union(lit.elems(), unpool_elem); res_elems) {
             return Util::make_vec<HdLit>(lit.update(a_elems = *std::move(res_elems)));
@@ -284,22 +279,17 @@ struct UnpoolHeadBody {
     auto operator()(BdLit const &lit) const -> std::optional<std::vector<BdLit>> { return std::visit(*this, lit); }
 
     auto operator()(BdLitSimple const &lit) const -> std::optional<std::vector<BdLit>> {
-        auto build = [](auto lit) -> BdLit { return BdLitSimple{std::move(lit)}; };
         auto unpool = [](auto const &lit) { return unpool_relations(lit, false); };
-        return unpool_crossproducts(build, unpool, lit.lit());
+        return unpool_rewrite<BdLit>(lit, unpool, a_lit);
     }
 
     auto operator()(BdLitConjunction const &lit) const -> std::optional<std::vector<BdLit>> {
-        auto build = [&lit](auto cond) -> BdLit {
-            return BdLitConjunction{lit.lit().update(a_cond = std::move(cond))};
-        };
-        return unpool_crossproducts(build, unpool_disjunctive, lit.lit().cond());
+        return unpool_rewrite<BdLit>(lit.lit(), unpool_disjunctive, a_cond);
     }
 
     auto operator()(BdLitAggregate const &lit) const -> std::optional<std::vector<BdLit>> {
         auto unpool_elem = [](BdLitAggregateElement const &elem) {
-            auto build = [&elem](auto cond) { return elem.update(a_cond = std::move(cond)); };
-            return unpool_crossproducts(build, unpool_disjunctive, elem.cond());
+            return unpool_rewrite<BdLitAggregateElement>(elem, unpool_disjunctive, a_cond);
         };
         if (auto res_elems = unpool_union(lit.elems(), unpool_elem); res_elems) {
             return Util::make_vec<BdLit>(lit.update(a_elems = *std::move(res_elems)));
@@ -322,30 +312,29 @@ struct UnpoolHeadBody {
 struct UnpoolStatement {
     template <class S> [[nodiscard]] auto rewrite_with_body(S const &stm) const -> std::optional<StmVec> {
         auto build = [&stm](auto body) -> Stm { return stm.update(a_body = std::move(body)); };
-        auto unpool = UnpoolHeadBody{ctx};
+        auto unpool = [this, &build](auto const &body) {
+            return Util::transform_vec(UnpoolHeadBody{ctx}(body), build);
+        };
         if (auto res_body = shift_body(stm.body()); res_body) {
-            if (auto res = unpool_crossproducts(build, unpool, res_body.value()); res) {
+            if (auto res = unpool(*res_body); res) {
                 return res;
             }
             return Util::make_vec<Stm>(build(*std::move(res_body)));
         }
-        return unpool_crossproducts(build, unpool, stm.body());
+        return unpool(stm.body());
     }
 
     auto operator()(StmRule const &stm) const -> std::optional<StmVec> {
         auto res_body = shift_body(stm.body());
         auto res_head = ShiftHead{res_body}(stm.head());
-        auto build = [&stm](auto head, auto body) -> Stm {
-            return stm.update(a_head = std::move(head), a_body = std::move(body));
-        };
-        auto unpool = UnpoolHeadBody{ctx};
+        auto unpool = [this](auto const &stm) { return unpool_rewrite<Stm>(stm, UnpoolHeadBody{ctx}, a_head, a_body); };
         if (auto res_shifted = stm.rewrite(a_head = std::move(res_head), a_body = std::move(res_body)); res_shifted) {
-            if (auto res = unpool_crossproducts(build, unpool, res_shifted->head(), res_shifted->body()); res) {
+            if (auto res = unpool(*res_shifted); res) {
                 return res;
             }
             return Util::make_vec<Stm>(*std::move(res_shifted));
         }
-        return unpool_crossproducts(build, unpool, stm.head(), stm.body());
+        return unpool(stm);
     }
 
     auto operator()(StmOptimize const &stm) const -> std::optional<StmVec> {
