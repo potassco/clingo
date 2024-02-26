@@ -312,7 +312,7 @@ struct SimplifyTerm {
     }
 
     //! Protect from calling unindented overloads.
-    auto operator()(auto const &term, SimplifyTermFlags flags) const -> TermResult = delete;
+    auto operator()(auto const &term, SimplifyTermFlags flags) const = delete;
 
     //! Simplify the given symbolic term.
     auto operator()(TermSymbol const &term, SimplifyTermFlags flags) const -> TermResult {
@@ -359,8 +359,7 @@ struct SimplifyTerm {
                 }
                 if constexpr (std::is_same_v<T, TupleResultChanged>) {
                     if (!constant) {
-                        auto fun = TermFunction{
-                            term.loc(), term.name(), {result_as_tuple(tuple, std::move(res))}, term.external()};
+                        auto fun = term.update(a_pool = PoolArray{result_as_tuple(tuple, std::move(res))});
                         if (term.external() && !preserve) {
                             return TermResultChanged{type, map_term(ctx, std::move(fun))};
                         }
@@ -440,7 +439,7 @@ struct SimplifyTerm {
             if constexpr (std::is_same_v<T, TermResultLinear>) {
                 std::vector<Term> pool;
                 pool.emplace_back(linear_as_term(ctx, std::move(res)));
-                return check_change(TermType::numeric, term, TermAbs(term.loc(), std::move(pool)));
+                return check_change(TermType::numeric, term, term.update(a_pool = std::move(pool)));
             }
             // the argument did not change
             if constexpr (std::is_same_v<T, TermResultUnchanged>) {
@@ -1601,7 +1600,7 @@ struct SimplifyHeadLiteral {
 
 //! Simplify body literals.
 struct SimplifyBodyLiteral {
-    auto operator()(auto const &lit) const -> SimplifyResult<BdLit> = delete;
+    auto operator()(auto const &lit) const = delete;
 
     auto operator()(BdLit const &lit) const -> SimplifyResult<BdLit> { return std::visit(*this, lit); }
 
