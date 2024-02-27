@@ -19,7 +19,7 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
 
     // protect ourselves -> no unintended overloads
 
-    template <class T> [[nodiscard]] auto accept(T const &) const -> std::optional<T> = delete;
+    template <class T> [[nodiscard]] auto accept(T const &expr) const = delete;
 
     // term
 
@@ -41,11 +41,6 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
         return rewrite(term, a_pool);
     }
 
-    [[nodiscard]] static auto accept(TermAbs const &term) -> std::optional<Term> {
-        static_cast<void>(term);
-        return std::nullopt;
-    }
-
     [[nodiscard]] auto accept(TermUnary const &term) const -> std::optional<Term> {
         if (check_type(term, TermCheckType::atom, nullptr)) {
             return rewrite(term, a_rhs);
@@ -53,22 +48,21 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
         return std::nullopt;
     }
 
-    [[nodiscard]] static auto accept(TermBinary const &term) -> std::optional<Term> {
-        static_cast<void>(term);
+    template <class T>
+        requires Util::is_among_v<T, TermAbs, TermBinary>
+    [[nodiscard]] static auto accept([[maybe_unused]] TermAbs const &term) -> std::optional<Term> {
         return std::nullopt;
     }
 
     // theory term
 
-    [[nodiscard]] static auto accept(TheoryTerm const &term) -> std::optional<TheoryTerm> {
-        static_cast<void>(term);
+    [[nodiscard]] static auto accept([[maybe_unused]] TheoryTerm const &term) -> std::optional<TheoryTerm> {
         return std::nullopt;
     }
 
     // literal
 
-    [[nodiscard]] static auto accept(LitComparison const &lit) -> std::optional<Lit> {
-        static_cast<void>(lit);
+    [[nodiscard]] static auto accept([[maybe_unused]] LitComparison const &lit) -> std::optional<Lit> {
         return std::nullopt;
     }
 
@@ -79,57 +73,41 @@ struct ProjectAnonymous : Transformer<ProjectAnonymous> {
         return std::nullopt;
     }
 
-    // head literal
+    // elements
+
+    template <class T>
+        requires Util::is_among_v<T, BdLitAggregateElement, OptimizeElement>
+    [[nodiscard]] auto accept(T const &elem) const -> std::optional<T> {
+        return rewrite(elem, a_cond);
+    }
 
     [[nodiscard]] auto accept(HdLitAggregateElement const &elem) const -> std::optional<HdLitAggregateElement> {
         return rewrite(elem, a_lit, a_cond);
     }
 
-    [[nodiscard]] auto accept(HdLitAggregate const &lit) const -> std::optional<HdLit> { return rewrite(lit, a_elems); }
+    // head literal
 
-    [[nodiscard]] auto accept(HdLitSetAggregate const &lit) const -> std::optional<HdLit> {
-        return rewrite(lit, a_elems);
-    }
-
-    [[nodiscard]] auto accept(HdLitTheoryAtom const &lit) const -> std::optional<HdLit> {
+    template <class T>
+        requires Util::is_among_v<T, HdLitAggregate, HdLitSetAggregate, HdLitTheoryAtom>
+    [[nodiscard]] auto accept(T const &lit) const -> std::optional<HdLit> {
         return rewrite(lit, a_elems);
     }
 
     // body literal
 
-    [[nodiscard]] auto accept(BdLitAggregateElement const &elem) const -> std::optional<BdLitAggregateElement> {
-        return rewrite(elem, a_cond);
-    }
-
-    [[nodiscard]] auto accept(BdLitAggregate const &lit) const -> std::optional<BdLit> { return rewrite(lit, a_elems); }
-
-    [[nodiscard]] auto accept(BdLitSetAggregate const &lit) const -> std::optional<BdLit> {
-        return rewrite(lit, a_elems);
-    }
-
-    // theory
-
-    [[nodiscard]] auto accept(BdLitTheoryAtom const &lit) const -> std::optional<BdLit> {
+    template <class T>
+        requires Util::is_among_v<T, BdLitAggregate, BdLitSetAggregate, BdLitTheoryAtom>
+    [[nodiscard]] auto accept(T const &lit) const -> std::optional<BdLit> {
         return rewrite(lit, a_elems);
     }
 
     // statement
 
-    [[nodiscard]] auto accept(OptimizeElement const &elem) const -> std::optional<OptimizeElement> {
-        return rewrite(elem, a_cond);
+    template <class T>
+        requires Util::is_among_v<T, StmWeakConstraint, StmShow, StmProject, StmExternal, StmEdge, StmHeuristic>
+    [[nodiscard]] auto accept(T const &stm) const -> std::optional<Stm> {
+        return rewrite(stm, a_body);
     }
-
-    [[nodiscard]] auto accept(StmWeakConstraint const &stm) const -> std::optional<Stm> { return rewrite(stm, a_body); }
-
-    [[nodiscard]] auto accept(StmShow const &stm) const -> std::optional<Stm> { return rewrite(stm, a_body); }
-
-    [[nodiscard]] auto accept(StmProject const &stm) const -> std::optional<Stm> { return rewrite(stm, a_body); }
-
-    [[nodiscard]] auto accept(StmExternal const &stm) const -> std::optional<Stm> { return rewrite(stm, a_body); }
-
-    [[nodiscard]] auto accept(StmEdge const &stm) const -> std::optional<Stm> { return rewrite(stm, a_body); }
-
-    [[nodiscard]] auto accept(StmHeuristic const &stm) const -> std::optional<Stm> { return rewrite(stm, a_body); }
 };
 
 } // namespace

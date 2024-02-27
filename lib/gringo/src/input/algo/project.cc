@@ -21,8 +21,7 @@ auto projectable(ProjectionMap project, Term const *term) -> bool {
 
 auto get_counts(ProjectionMap project, auto const &elem) {
     Util::unordered_map<String, size_t> counts;
-    visit_variables(elem, [&project, &counts](Location const &loc, String var) {
-        static_cast<void>(loc);
+    visit_variables(elem, [&project, &counts]([[maybe_unused]] Location const &loc, String var) {
         if (!project.counts().contains(var)) {
             ++counts[var];
         }
@@ -35,9 +34,9 @@ struct Project : Transformer<Project> {
     Project(ProjectionMap project, bool in_classical_scope = true, bool project_lits = true)
         : project{std::move(project)}, in_classical_scope{in_classical_scope}, project_lits{project_lits} {}
 
-    // protect ourselves -> no unintended overloads
+    // no unintended overloads
 
-    template <class T> [[nodiscard]] auto accept(T const &x) const -> std::optional<T> = delete;
+    template <class T> [[nodiscard]] auto accept(T const &expr) const = delete;
 
     // term
 
@@ -59,8 +58,9 @@ struct Project : Transformer<Project> {
         return rewrite(term, a_pool);
     }
 
-    [[nodiscard]] static auto accept(TermAbs const &term) -> std::optional<Term> {
-        static_cast<void>(term);
+    template <class T>
+        requires Util::is_among_v<T, TermAbs, TermBinary>
+    [[nodiscard]] auto accept([[maybe_unused]] T const &term) -> std::optional<Term> {
         return std::nullopt;
     }
 
@@ -71,15 +71,9 @@ struct Project : Transformer<Project> {
         return std::nullopt;
     }
 
-    [[nodiscard]] static auto accept(TermBinary const &term) -> std::optional<Term> {
-        static_cast<void>(term);
-        return std::nullopt;
-    }
-
     // literal
 
-    [[nodiscard]] static auto accept(LitComparison const &lit) -> std::optional<Lit> {
-        static_cast<void>(lit);
+    [[nodiscard]] static auto accept([[maybe_unused]] LitComparison const &lit) -> std::optional<Lit> {
         return std::nullopt;
     }
 
@@ -120,17 +114,11 @@ struct Project : Transformer<Project> {
         // add counts of local variables
         auto counts = get_counts(project, elem);
         auto sub_project = Project{ProjectionMap{project.mode(), counts}};
-
         // project literals in condition
         return sub_project.rewrite(elem, a_cond);
     }
 
     // head literal
-
-    [[nodiscard]] static auto accept(HdLitSimple const &lit) -> std::optional<HdLit> {
-        static_cast<void>(lit);
-        return std::nullopt;
-    }
 
     [[nodiscard]] auto accept(HdLitDisjunctionElement const &elem) const -> std::optional<HdLitDisjunctionElement> {
         return std::visit(
@@ -150,27 +138,27 @@ struct Project : Transformer<Project> {
         return sub_project.rewrite(lit, a_elems);
     }
 
-    [[nodiscard]] static auto accept(HdLitTheoryAtom const &lit) -> std::optional<HdLit> {
-        static_cast<void>(lit);
-        return std::nullopt;
-    }
-
     [[nodiscard]] auto accept(HdLitAggregateElement const &elem) const -> std::optional<HdLitAggregateElement> {
         // counts of local variables
         auto counts = get_counts(project, elem);
         auto sub_project = Project{ProjectionMap{project.mode(), counts}};
-
         // project literals in condition
         return sub_project.rewrite(elem, a_cond);
     }
 
-    [[nodiscard]] auto accept(HdLitAggregate const &lit) const -> std::optional<HdLit> { return rewrite(lit, a_elems); }
-
-    [[nodiscard]] auto accept(HdLitSetAggregate const &lit) const -> std::optional<HdLit> {
+    template <class T>
+        requires Util::is_among_v<T, HdLitAggregate, HdLitSetAggregate>
+    [[nodiscard]] auto accept(HdLitAggregate const &lit) const -> std::optional<HdLit> {
         // Note that we can always project in conditions. Semantic-wise a head
         // aggregate is a shortcut for a choice rule + a body aggregate in an
         // integrity constraint.
         return rewrite(lit, a_elems);
+    }
+
+    template <class T>
+        requires Util::is_among_v<T, HdLitSimple, HdLitTheoryAtom>
+    [[nodiscard]] auto accept([[maybe_unused]] T const &lit) const -> std::optional<HdLit> {
+        return std::nullopt;
     }
 
     // body literal
@@ -198,15 +186,14 @@ struct Project : Transformer<Project> {
     }
 
     [[nodiscard]] auto accept(BdLitSetAggregate const &lit) const -> std::optional<BdLit> {
-        if (lit.sign() == Sign::none && !in_classical_scope &&
-            reduct_is_nonmonotone(lit.lhs(), AggregateFunction::count, lit.rhs())) {
-            return std::nullopt;
+        if (lit.sign() != Sign::none || in_classical_scope ||
+            !reduct_is_nonmonotone(lit.lhs(), AggregateFunction::count, lit.rhs())) {
+            return rewrite(lit, a_elems);
         }
-        return rewrite(lit, a_elems);
+        return std::nullopt;
     }
 
-    [[nodiscard]] static auto accept(BdLitTheoryAtom const &lit) -> std::optional<BdLit> {
-        static_cast<void>(lit);
+    [[nodiscard]] static auto accept([[maybe_unused]] BdLitTheoryAtom const &lit) -> std::optional<BdLit> {
         return std::nullopt;
     }
 
@@ -238,17 +225,11 @@ struct Project : Transformer<Project> {
         return sub_project.rewrite(elem, a_cond);
     }
 
-    [[nodiscard]] auto accept(StmWeakConstraint const &stm) const -> std::optional<Stm> { return rewrite(stm, a_body); }
-
-    [[nodiscard]] auto accept(StmShow const &stm) const -> std::optional<Stm> { return rewrite(stm, a_body); }
-
-    [[nodiscard]] auto accept(StmProject const &stm) const -> std::optional<Stm> { return rewrite(stm, a_body); }
-
-    [[nodiscard]] auto accept(StmExternal const &stm) const -> std::optional<Stm> { return rewrite(stm, a_body); }
-
-    [[nodiscard]] auto accept(StmEdge const &stm) const -> std::optional<Stm> { return rewrite(stm, a_body); }
-
-    [[nodiscard]] auto accept(StmHeuristic const &stm) const -> std::optional<Stm> { return rewrite(stm, a_body); }
+    template <class T>
+        requires(Util::is_among_v<T, StmWeakConstraint, StmShow, StmProject, StmExternal, StmEdge, StmHeuristic>)
+    [[nodiscard]] auto accept(T const &stm) const -> std::optional<Stm> {
+        return rewrite(stm, a_body);
+    }
 
     ProjectionMap project;
     bool in_classical_scope;
@@ -294,8 +275,7 @@ auto project(Stm const &stm, ProjectionMode mode, bool project_anonymous) -> std
         counts.reserve(vars.size());
         visit_variables(
             stm,
-            [&vars, &counts](Location const &loc, String var) {
-                static_cast<void>(loc);
+            [&vars, &counts]([[maybe_unused]] Location const &loc, String var) {
                 if (vars.contains(var)) {
                     ++counts[var];
                 }
