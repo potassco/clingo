@@ -5525,9 +5525,11 @@ auto Projection::construct(Library &lib, clingo_location_t const &location) -> P
     return Projection::acquire(res_);
 }
 
-void Projection::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {}
+void Projection::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                       [[maybe_unused]] py::kwargs const &kwargs) {}
 
-auto Projection::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto Projection::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                           [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<Projection> {
     return std::nullopt;
 }
@@ -5692,9 +5694,11 @@ auto TermVariable::construct(Library &lib, clingo_location_t const &location, ch
     return TermVariable::acquire(res_);
 }
 
-void TermVariable::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {}
+void TermVariable::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                         [[maybe_unused]] py::kwargs const &kwargs) {}
 
-auto TermVariable::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto TermVariable::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                             [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<TermVariable> {
     return std::nullopt;
 }
@@ -5728,9 +5732,11 @@ auto TermSymbolic::construct(Library &lib, clingo_location_t const &location, Sy
     return TermSymbolic::acquire(res_);
 }
 
-void TermSymbolic::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {}
+void TermSymbolic::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                         [[maybe_unused]] py::kwargs const &kwargs) {}
 
-auto TermSymbolic::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto TermSymbolic::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                             [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<TermSymbolic> {
     return std::nullopt;
 }
@@ -5765,11 +5771,13 @@ auto TermAbsolute::construct(Library &lib, clingo_location_t const &location, Te
     return TermAbsolute::acquire(res_);
 }
 
-void TermAbsolute::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void TermAbsolute::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                         [[maybe_unused]] py::kwargs const &kwargs) {
     visit_array(ast_, clingo_ast_attribute_pool, visitor, args, kwargs, construct_term);
 }
 
-auto TermAbsolute::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto TermAbsolute::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                             [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<TermAbsolute> {
     auto [pool_value, pool_changed] = transform_array(pool(), transform, args, kwargs);
     if (pool_changed) {
@@ -5816,11 +5824,13 @@ auto TermUnaryOperation::construct(Library &lib, clingo_location_t const &locati
     return TermUnaryOperation::acquire(res_);
 }
 
-void TermUnaryOperation::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void TermUnaryOperation::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                               [[maybe_unused]] py::kwargs const &kwargs) {
     visitor(right(), *args, **kwargs);
 }
 
-auto TermUnaryOperation::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto TermUnaryOperation::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                   [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<TermUnaryOperation> {
     auto [right_value, right_changed] = transform_value(right(), transform, args, kwargs);
     if (right_changed) {
@@ -5876,12 +5886,14 @@ auto TermBinaryOperation::construct(Library &lib, clingo_location_t const &locat
     return TermBinaryOperation::acquire(res_);
 }
 
-void TermBinaryOperation::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void TermBinaryOperation::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                                [[maybe_unused]] py::kwargs const &kwargs) {
     visitor(left(), *args, **kwargs);
     visitor(right(), *args, **kwargs);
 }
 
-auto TermBinaryOperation::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto TermBinaryOperation::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                    [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<TermBinaryOperation> {
     auto [left_value, left_changed] = transform_value(left(), transform, args, kwargs);
     auto [right_value, right_changed] = transform_value(right(), transform, args, kwargs);
@@ -5924,11 +5936,13 @@ auto TermTuple::construct(Library &lib, clingo_location_t const &location, TermO
     return TermTuple::acquire(res_);
 }
 
-void TermTuple::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void TermTuple::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                      [[maybe_unused]] py::kwargs const &kwargs) {
     visit_array(ast_, clingo_ast_attribute_pool, visitor, args, kwargs, construct_term_or_argument_tuple);
 }
 
-auto TermTuple::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto TermTuple::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                          [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<TermTuple> {
     auto [pool_value, pool_changed] = transform_array(pool(), transform, args, kwargs);
     if (pool_changed) {
@@ -5984,11 +5998,13 @@ auto TermFunction::construct(Library &lib, clingo_location_t const &location, ch
     return TermFunction::acquire(res_);
 }
 
-void TermFunction::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void TermFunction::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                         [[maybe_unused]] py::kwargs const &kwargs) {
     visit_array(ast_, clingo_ast_attribute_pool, visitor, args, kwargs, ArgumentTuple::acquire);
 }
 
-auto TermFunction::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto TermFunction::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                             [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<TermFunction> {
     auto [pool_value, pool_changed] = transform_array(pool(), transform, args, kwargs);
     if (pool_changed) {
@@ -6021,11 +6037,13 @@ auto ArgumentTuple::construct(Library &lib, TermOrProjectionArray const &argumen
     return ArgumentTuple::acquire(res_);
 }
 
-void ArgumentTuple::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void ArgumentTuple::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                          [[maybe_unused]] py::kwargs const &kwargs) {
     visit_array(ast_, clingo_ast_attribute_arguments, visitor, args, kwargs, construct_term_or_projection);
 }
 
-auto ArgumentTuple::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto ArgumentTuple::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                              [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<ArgumentTuple> {
     auto [arguments_value, arguments_changed] = transform_array(arguments(), transform, args, kwargs);
     if (arguments_changed) {
@@ -6083,11 +6101,13 @@ auto LeftGuard::construct(Library &lib, Term const &term, Relation const &relati
     return LeftGuard::acquire(res_);
 }
 
-void LeftGuard::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void LeftGuard::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                      [[maybe_unused]] py::kwargs const &kwargs) {
     visitor(term(), *args, **kwargs);
 }
 
-auto LeftGuard::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto LeftGuard::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                          [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<LeftGuard> {
     auto [term_value, term_changed] = transform_value(term(), transform, args, kwargs);
     if (term_changed) {
@@ -6124,11 +6144,13 @@ auto RightGuard::construct(Library &lib, Relation const &relation, Term const &t
     return RightGuard::acquire(res_);
 }
 
-void RightGuard::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void RightGuard::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                       [[maybe_unused]] py::kwargs const &kwargs) {
     visitor(term(), *args, **kwargs);
 }
 
-auto RightGuard::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto RightGuard::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                           [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<RightGuard> {
     auto [term_value, term_changed] = transform_value(term(), transform, args, kwargs);
     if (term_changed) {
@@ -6191,9 +6213,11 @@ auto LiteralBoolean::construct(Library &lib, clingo_location_t const &location, 
     return LiteralBoolean::acquire(res_);
 }
 
-void LiteralBoolean::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {}
+void LiteralBoolean::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                           [[maybe_unused]] py::kwargs const &kwargs) {}
 
-auto LiteralBoolean::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto LiteralBoolean::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                               [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<LiteralBoolean> {
     return std::nullopt;
 }
@@ -6246,12 +6270,14 @@ auto LiteralComparison::construct(Library &lib, clingo_location_t const &locatio
     return LiteralComparison::acquire(res_);
 }
 
-void LiteralComparison::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void LiteralComparison::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                              [[maybe_unused]] py::kwargs const &kwargs) {
     visitor(left(), *args, **kwargs);
     visit_array(ast_, clingo_ast_attribute_right, visitor, args, kwargs, RightGuard::acquire);
 }
 
-auto LiteralComparison::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto LiteralComparison::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                  [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<LiteralComparison> {
     auto [left_value, left_changed] = transform_value(left(), transform, args, kwargs);
     auto [right_value, right_changed] = transform_array(right(), transform, args, kwargs);
@@ -6301,11 +6327,13 @@ auto LiteralSymbolic::construct(Library &lib, clingo_location_t const &location,
     return LiteralSymbolic::acquire(res_);
 }
 
-void LiteralSymbolic::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void LiteralSymbolic::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                            [[maybe_unused]] py::kwargs const &kwargs) {
     visitor(atom(), *args, **kwargs);
 }
 
-auto LiteralSymbolic::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto LiteralSymbolic::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<LiteralSymbolic> {
     auto [atom_value, atom_changed] = transform_value(atom(), transform, args, kwargs);
     if (atom_changed) {
@@ -6393,11 +6421,13 @@ auto UnparsedElement::construct(Library &lib, StringArray const &operators, Theo
     return UnparsedElement::acquire(res_);
 }
 
-void UnparsedElement::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void UnparsedElement::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                            [[maybe_unused]] py::kwargs const &kwargs) {
     visitor(term(), *args, **kwargs);
 }
 
-auto UnparsedElement::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto UnparsedElement::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<UnparsedElement> {
     auto [term_value, term_changed] = transform_value(term(), transform, args, kwargs);
     if (term_changed) {
@@ -6461,9 +6491,11 @@ auto TheoryTermVariable::construct(Library &lib, clingo_location_t const &locati
     return TheoryTermVariable::acquire(res_);
 }
 
-void TheoryTermVariable::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {}
+void TheoryTermVariable::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                               [[maybe_unused]] py::kwargs const &kwargs) {}
 
-auto TheoryTermVariable::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto TheoryTermVariable::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                   [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<TheoryTermVariable> {
     return std::nullopt;
 }
@@ -6499,9 +6531,11 @@ auto TheoryTermSymbolic::construct(Library &lib, clingo_location_t const &locati
     return TheoryTermSymbolic::acquire(res_);
 }
 
-void TheoryTermSymbolic::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {}
+void TheoryTermSymbolic::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                               [[maybe_unused]] py::kwargs const &kwargs) {}
 
-auto TheoryTermSymbolic::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto TheoryTermSymbolic::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                   [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<TheoryTermSymbolic> {
     return std::nullopt;
 }
@@ -6545,11 +6579,13 @@ auto TheoryTermTuple::construct(Library &lib, clingo_location_t const &location,
     return TheoryTermTuple::acquire(res_);
 }
 
-void TheoryTermTuple::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void TheoryTermTuple::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                            [[maybe_unused]] py::kwargs const &kwargs) {
     visit_array(ast_, clingo_ast_attribute_arguments, visitor, args, kwargs, construct_theory_term);
 }
 
-auto TheoryTermTuple::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto TheoryTermTuple::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<TheoryTermTuple> {
     auto [arguments_value, arguments_changed] = transform_array(arguments(), transform, args, kwargs);
     if (arguments_changed) {
@@ -6598,11 +6634,13 @@ auto TheoryTermFunction::construct(Library &lib, clingo_location_t const &locati
     return TheoryTermFunction::acquire(res_);
 }
 
-void TheoryTermFunction::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void TheoryTermFunction::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                               [[maybe_unused]] py::kwargs const &kwargs) {
     visit_array(ast_, clingo_ast_attribute_arguments, visitor, args, kwargs, construct_theory_term);
 }
 
-auto TheoryTermFunction::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto TheoryTermFunction::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                   [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<TheoryTermFunction> {
     auto [arguments_value, arguments_changed] = transform_array(arguments(), transform, args, kwargs);
     if (arguments_changed) {
@@ -6643,11 +6681,13 @@ auto TheoryTermUnparsed::construct(Library &lib, clingo_location_t const &locati
     return TheoryTermUnparsed::acquire(res_);
 }
 
-void TheoryTermUnparsed::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void TheoryTermUnparsed::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                               [[maybe_unused]] py::kwargs const &kwargs) {
     visit_array(ast_, clingo_ast_attribute_elements, visitor, args, kwargs, UnparsedElement::acquire);
 }
 
-auto TheoryTermUnparsed::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto TheoryTermUnparsed::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                   [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<TheoryTermUnparsed> {
     auto [elements_value, elements_changed] = transform_array(elements(), transform, args, kwargs);
     if (elements_changed) {
@@ -6686,11 +6726,13 @@ auto TheoryRightGuard::construct(Library &lib, char const *theory_operator, Theo
     return TheoryRightGuard::acquire(res_);
 }
 
-void TheoryRightGuard::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void TheoryRightGuard::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                             [[maybe_unused]] py::kwargs const &kwargs) {
     visitor(term(), *args, **kwargs);
 }
 
-auto TheoryRightGuard::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto TheoryRightGuard::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                 [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<TheoryRightGuard> {
     auto [term_value, term_changed] = transform_value(term(), transform, args, kwargs);
     if (term_changed) {
@@ -6755,12 +6797,14 @@ auto SetAggregateElement::construct(Library &lib, clingo_location_t const &locat
     return SetAggregateElement::acquire(res_);
 }
 
-void SetAggregateElement::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void SetAggregateElement::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                                [[maybe_unused]] py::kwargs const &kwargs) {
     visitor(literal(), *args, **kwargs);
     visit_array(ast_, clingo_ast_attribute_condition, visitor, args, kwargs, construct_literal);
 }
 
-auto SetAggregateElement::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto SetAggregateElement::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                    [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<SetAggregateElement> {
     auto [literal_value, literal_changed] = transform_value(literal(), transform, args, kwargs);
     auto [condition_value, condition_changed] = transform_array(condition(), transform, args, kwargs);
@@ -6829,12 +6873,14 @@ auto BodyAggregateElement::construct(Library &lib, clingo_location_t const &loca
     return BodyAggregateElement::acquire(res_);
 }
 
-void BodyAggregateElement::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void BodyAggregateElement::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                                 [[maybe_unused]] py::kwargs const &kwargs) {
     visit_array(ast_, clingo_ast_attribute_tuple, visitor, args, kwargs, construct_term);
     visit_array(ast_, clingo_ast_attribute_condition, visitor, args, kwargs, construct_literal);
 }
 
-auto BodyAggregateElement::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto BodyAggregateElement::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                     [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<BodyAggregateElement> {
     auto [tuple_value, tuple_changed] = transform_array(tuple(), transform, args, kwargs);
     auto [condition_value, condition_changed] = transform_array(condition(), transform, args, kwargs);
@@ -6903,12 +6949,14 @@ auto TheoryAtomElement::construct(Library &lib, clingo_location_t const &locatio
     return TheoryAtomElement::acquire(res_);
 }
 
-void TheoryAtomElement::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void TheoryAtomElement::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                              [[maybe_unused]] py::kwargs const &kwargs) {
     visit_array(ast_, clingo_ast_attribute_tuple, visitor, args, kwargs, construct_theory_term);
     visit_array(ast_, clingo_ast_attribute_condition, visitor, args, kwargs, construct_literal);
 }
 
-auto TheoryAtomElement::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto TheoryAtomElement::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                  [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<TheoryAtomElement> {
     auto [tuple_value, tuple_changed] = transform_array(tuple(), transform, args, kwargs);
     auto [condition_value, condition_changed] = transform_array(condition(), transform, args, kwargs);
@@ -7000,11 +7048,13 @@ auto BodySimpleLiteral::construct(Library &lib, Literal const &literal) -> BodyS
     return BodySimpleLiteral::acquire(res_);
 }
 
-void BodySimpleLiteral::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void BodySimpleLiteral::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                              [[maybe_unused]] py::kwargs const &kwargs) {
     visitor(literal(), *args, **kwargs);
 }
 
-auto BodySimpleLiteral::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto BodySimpleLiteral::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                  [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<BodySimpleLiteral> {
     auto [literal_value, literal_changed] = transform_value(literal(), transform, args, kwargs);
     if (literal_changed) {
@@ -7086,7 +7136,8 @@ auto BodyAggregate::construct(Library &lib, clingo_location_t const &location, S
     return BodyAggregate::acquire(res_);
 }
 
-void BodyAggregate::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void BodyAggregate::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                          [[maybe_unused]] py::kwargs const &kwargs) {
     if (auto opt = left()) {
         visitor(*opt, *args, **kwargs);
     }
@@ -7096,7 +7147,8 @@ void BodyAggregate::visit(py::handle visitor, py::args const &args, py::kwargs c
     }
 }
 
-auto BodyAggregate::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto BodyAggregate::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                              [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<BodyAggregate> {
     auto [left_value, left_changed] = transform_opt_value(left(), transform, args, kwargs);
     auto [elements_value, elements_changed] = transform_array(elements(), transform, args, kwargs);
@@ -7176,7 +7228,8 @@ auto BodySetAggregate::construct(Library &lib, clingo_location_t const &location
     return BodySetAggregate::acquire(res_);
 }
 
-void BodySetAggregate::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void BodySetAggregate::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                             [[maybe_unused]] py::kwargs const &kwargs) {
     if (auto opt = left()) {
         visitor(*opt, *args, **kwargs);
     }
@@ -7186,7 +7239,8 @@ void BodySetAggregate::visit(py::handle visitor, py::args const &args, py::kwarg
     }
 }
 
-auto BodySetAggregate::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto BodySetAggregate::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                 [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<BodySetAggregate> {
     auto [left_value, left_changed] = transform_opt_value(left(), transform, args, kwargs);
     auto [elements_value, elements_changed] = transform_array(elements(), transform, args, kwargs);
@@ -7261,7 +7315,8 @@ auto BodyTheoryAtom::construct(Library &lib, clingo_location_t const &location, 
     return BodyTheoryAtom::acquire(res_);
 }
 
-void BodyTheoryAtom::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void BodyTheoryAtom::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                           [[maybe_unused]] py::kwargs const &kwargs) {
     visitor(name(), *args, **kwargs);
     visit_array(ast_, clingo_ast_attribute_elements, visitor, args, kwargs, TheoryAtomElement::acquire);
     if (auto opt = right()) {
@@ -7269,7 +7324,8 @@ void BodyTheoryAtom::visit(py::handle visitor, py::args const &args, py::kwargs 
     }
 }
 
-auto BodyTheoryAtom::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto BodyTheoryAtom::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                               [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<BodyTheoryAtom> {
     auto [name_value, name_changed] = transform_value(name(), transform, args, kwargs);
     auto [elements_value, elements_changed] = transform_array(elements(), transform, args, kwargs);
@@ -7322,13 +7378,15 @@ auto BodyConditionalLiteral::construct(Library &lib, clingo_location_t const &lo
     return BodyConditionalLiteral::acquire(res_);
 }
 
-void BodyConditionalLiteral::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void BodyConditionalLiteral::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                                   [[maybe_unused]] py::kwargs const &kwargs) {
     visitor(literal(), *args, **kwargs);
     visit_array(ast_, clingo_ast_attribute_condition, visitor, args, kwargs, construct_literal);
 }
 
-auto BodyConditionalLiteral::transform(Library &lib, py::handle transform, py::args const &args,
-                                       py::kwargs const &kwargs) -> std::optional<BodyConditionalLiteral> {
+auto BodyConditionalLiteral::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                       [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<BodyConditionalLiteral> {
     auto [literal_value, literal_changed] = transform_value(literal(), transform, args, kwargs);
     auto [condition_value, condition_changed] = transform_array(condition(), transform, args, kwargs);
     if (literal_changed || condition_changed) {
@@ -7377,13 +7435,15 @@ auto HeadConditionalLiteral::construct(Library &lib, clingo_location_t const &lo
     return HeadConditionalLiteral::acquire(res_);
 }
 
-void HeadConditionalLiteral::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void HeadConditionalLiteral::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                                   [[maybe_unused]] py::kwargs const &kwargs) {
     visitor(literal(), *args, **kwargs);
     visit_array(ast_, clingo_ast_attribute_condition, visitor, args, kwargs, construct_literal);
 }
 
-auto HeadConditionalLiteral::transform(Library &lib, py::handle transform, py::args const &args,
-                                       py::kwargs const &kwargs) -> std::optional<HeadConditionalLiteral> {
+auto HeadConditionalLiteral::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                       [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<HeadConditionalLiteral> {
     auto [literal_value, literal_changed] = transform_value(literal(), transform, args, kwargs);
     auto [condition_value, condition_changed] = transform_array(condition(), transform, args, kwargs);
     if (literal_changed || condition_changed) {
@@ -7483,13 +7543,15 @@ auto HeadAggregateElement::construct(Library &lib, clingo_location_t const &loca
     return HeadAggregateElement::acquire(res_);
 }
 
-void HeadAggregateElement::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void HeadAggregateElement::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                                 [[maybe_unused]] py::kwargs const &kwargs) {
     visit_array(ast_, clingo_ast_attribute_tuple, visitor, args, kwargs, construct_term);
     visitor(literal(), *args, **kwargs);
     visit_array(ast_, clingo_ast_attribute_condition, visitor, args, kwargs, construct_literal);
 }
 
-auto HeadAggregateElement::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto HeadAggregateElement::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                     [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<HeadAggregateElement> {
     auto [tuple_value, tuple_changed] = transform_array(tuple(), transform, args, kwargs);
     auto [literal_value, literal_changed] = transform_value(literal(), transform, args, kwargs);
@@ -7566,11 +7628,13 @@ auto HeadSimpleLiteral::construct(Library &lib, Literal const &literal) -> HeadS
     return HeadSimpleLiteral::acquire(res_);
 }
 
-void HeadSimpleLiteral::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void HeadSimpleLiteral::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                              [[maybe_unused]] py::kwargs const &kwargs) {
     visitor(literal(), *args, **kwargs);
 }
 
-auto HeadSimpleLiteral::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto HeadSimpleLiteral::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                  [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<HeadSimpleLiteral> {
     auto [literal_value, literal_changed] = transform_value(literal(), transform, args, kwargs);
     if (literal_changed) {
@@ -7643,7 +7707,8 @@ auto HeadAggregate::construct(Library &lib, clingo_location_t const &location, O
     return HeadAggregate::acquire(res_);
 }
 
-void HeadAggregate::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void HeadAggregate::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                          [[maybe_unused]] py::kwargs const &kwargs) {
     if (auto opt = left()) {
         visitor(*opt, *args, **kwargs);
     }
@@ -7653,7 +7718,8 @@ void HeadAggregate::visit(py::handle visitor, py::args const &args, py::kwargs c
     }
 }
 
-auto HeadAggregate::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto HeadAggregate::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                              [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<HeadAggregate> {
     auto [left_value, left_changed] = transform_opt_value(left(), transform, args, kwargs);
     auto [elements_value, elements_changed] = transform_array(elements(), transform, args, kwargs);
@@ -7723,7 +7789,8 @@ auto HeadSetAggregate::construct(Library &lib, clingo_location_t const &location
     return HeadSetAggregate::acquire(res_);
 }
 
-void HeadSetAggregate::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void HeadSetAggregate::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                             [[maybe_unused]] py::kwargs const &kwargs) {
     if (auto opt = left()) {
         visitor(*opt, *args, **kwargs);
     }
@@ -7733,7 +7800,8 @@ void HeadSetAggregate::visit(py::handle visitor, py::args const &args, py::kwarg
     }
 }
 
-auto HeadSetAggregate::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto HeadSetAggregate::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                 [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<HeadSetAggregate> {
     auto [left_value, left_changed] = transform_opt_value(left(), transform, args, kwargs);
     auto [elements_value, elements_changed] = transform_array(elements(), transform, args, kwargs);
@@ -7798,7 +7866,8 @@ auto HeadTheoryAtom::construct(Library &lib, clingo_location_t const &location, 
     return HeadTheoryAtom::acquire(res_);
 }
 
-void HeadTheoryAtom::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void HeadTheoryAtom::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                           [[maybe_unused]] py::kwargs const &kwargs) {
     visitor(name(), *args, **kwargs);
     visit_array(ast_, clingo_ast_attribute_elements, visitor, args, kwargs, TheoryAtomElement::acquire);
     if (auto opt = right()) {
@@ -7806,7 +7875,8 @@ void HeadTheoryAtom::visit(py::handle visitor, py::args const &args, py::kwargs 
     }
 }
 
-auto HeadTheoryAtom::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto HeadTheoryAtom::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                               [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<HeadTheoryAtom> {
     auto [name_value, name_changed] = transform_value(name(), transform, args, kwargs);
     auto [elements_value, elements_changed] = transform_array(elements(), transform, args, kwargs);
@@ -7850,11 +7920,13 @@ auto HeadDisjunction::construct(Library &lib, clingo_location_t const &location,
     return HeadDisjunction::acquire(res_);
 }
 
-void HeadDisjunction::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void HeadDisjunction::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                            [[maybe_unused]] py::kwargs const &kwargs) {
     visit_array(ast_, clingo_ast_attribute_elements, visitor, args, kwargs, construct_disjunction_element);
 }
 
-auto HeadDisjunction::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto HeadDisjunction::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<HeadDisjunction> {
     auto [elements_value, elements_changed] = transform_array(elements(), transform, args, kwargs);
     if (elements_changed) {
@@ -7910,10 +7982,13 @@ auto TheoryOperatorDefinition::construct(Library &lib, clingo_location_t const &
     return TheoryOperatorDefinition::acquire(res_);
 }
 
-void TheoryOperatorDefinition::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {}
+void TheoryOperatorDefinition::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                                     [[maybe_unused]] py::kwargs const &kwargs) {}
 
-auto TheoryOperatorDefinition::transform(Library &lib, py::handle transform, py::args const &args,
-                                         py::kwargs const &kwargs) -> std::optional<TheoryOperatorDefinition> {
+auto TheoryOperatorDefinition::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                         [[maybe_unused]] py::args const &args,
+                                         [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<TheoryOperatorDefinition> {
     return std::nullopt;
 }
 
@@ -7975,11 +8050,13 @@ auto TheoryTermDefinition::construct(Library &lib, clingo_location_t const &loca
     return TheoryTermDefinition::acquire(res_);
 }
 
-void TheoryTermDefinition::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void TheoryTermDefinition::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                                 [[maybe_unused]] py::kwargs const &kwargs) {
     visit_array(ast_, clingo_ast_attribute_operators, visitor, args, kwargs, TheoryOperatorDefinition::acquire);
 }
 
-auto TheoryTermDefinition::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto TheoryTermDefinition::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                     [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<TheoryTermDefinition> {
     auto [operators_value, operators_changed] = transform_array(operators(), transform, args, kwargs);
     if (operators_changed) {
@@ -8041,10 +8118,12 @@ auto TheoryGuardDefinition::construct(Library &lib, StringArray const &operators
     return TheoryGuardDefinition::acquire(res_);
 }
 
-void TheoryGuardDefinition::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {}
+void TheoryGuardDefinition::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                                  [[maybe_unused]] py::kwargs const &kwargs) {}
 
-auto TheoryGuardDefinition::transform(Library &lib, py::handle transform, py::args const &args,
-                                      py::kwargs const &kwargs) -> std::optional<TheoryGuardDefinition> {
+auto TheoryGuardDefinition::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                      [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<TheoryGuardDefinition> {
     return std::nullopt;
 }
 
@@ -8115,13 +8194,15 @@ auto TheoryAtomDefinition::construct(Library &lib, clingo_location_t const &loca
     return TheoryAtomDefinition::acquire(res_);
 }
 
-void TheoryAtomDefinition::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void TheoryAtomDefinition::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                                 [[maybe_unused]] py::kwargs const &kwargs) {
     if (auto opt = guard()) {
         visitor(*opt, *args, **kwargs);
     }
 }
 
-auto TheoryAtomDefinition::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto TheoryAtomDefinition::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                     [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<TheoryAtomDefinition> {
     auto [guard_value, guard_changed] = transform_opt_value(guard(), transform, args, kwargs);
     if (guard_changed) {
@@ -8194,7 +8275,8 @@ auto OptimizeTuple::construct(Library &lib, Term const &weight, OptionalTerm con
     return OptimizeTuple::acquire(res_);
 }
 
-void OptimizeTuple::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void OptimizeTuple::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                          [[maybe_unused]] py::kwargs const &kwargs) {
     visitor(weight(), *args, **kwargs);
     if (auto opt = priority()) {
         visitor(*opt, *args, **kwargs);
@@ -8202,7 +8284,8 @@ void OptimizeTuple::visit(py::handle visitor, py::args const &args, py::kwargs c
     visit_array(ast_, clingo_ast_attribute_terms, visitor, args, kwargs, construct_term);
 }
 
-auto OptimizeTuple::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto OptimizeTuple::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                              [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<OptimizeTuple> {
     auto [weight_value, weight_changed] = transform_value(weight(), transform, args, kwargs);
     auto [priority_value, priority_changed] = transform_opt_value(priority(), transform, args, kwargs);
@@ -8244,12 +8327,14 @@ auto OptimizeElement::construct(Library &lib, OptimizeTuple const &tuple, Litera
     return OptimizeElement::acquire(res_);
 }
 
-void OptimizeElement::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void OptimizeElement::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                            [[maybe_unused]] py::kwargs const &kwargs) {
     visitor(tuple(), *args, **kwargs);
     visit_array(ast_, clingo_ast_attribute_condition, visitor, args, kwargs, construct_literal);
 }
 
-auto OptimizeElement::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto OptimizeElement::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<OptimizeElement> {
     auto [tuple_value, tuple_changed] = transform_value(tuple(), transform, args, kwargs);
     auto [condition_value, condition_changed] = transform_array(condition(), transform, args, kwargs);
@@ -8304,12 +8389,14 @@ auto Edge::construct(Library &lib, Term const &u, Term const &v) -> Edge {
     return Edge::acquire(res_);
 }
 
-void Edge::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void Edge::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                 [[maybe_unused]] py::kwargs const &kwargs) {
     visitor(u(), *args, **kwargs);
     visitor(v(), *args, **kwargs);
 }
 
-auto Edge::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto Edge::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                     [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<Edge> {
     auto [u_value, u_changed] = transform_value(u(), transform, args, kwargs);
     auto [v_value, v_changed] = transform_value(v(), transform, args, kwargs);
@@ -8437,12 +8524,14 @@ auto StatementRule::construct(Library &lib, clingo_location_t const &location, H
     return StatementRule::acquire(res_);
 }
 
-void StatementRule::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void StatementRule::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                          [[maybe_unused]] py::kwargs const &kwargs) {
     visitor(head(), *args, **kwargs);
     visit_array(ast_, clingo_ast_attribute_body, visitor, args, kwargs, construct_body_literal);
 }
 
-auto StatementRule::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto StatementRule::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                              [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<StatementRule> {
     auto [head_value, head_changed] = transform_value(head(), transform, args, kwargs);
     auto [body_value, body_changed] = transform_array(body(), transform, args, kwargs);
@@ -8502,12 +8591,14 @@ auto StatementTheory::construct(Library &lib, clingo_location_t const &location,
     return StatementTheory::acquire(res_);
 }
 
-void StatementTheory::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void StatementTheory::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                            [[maybe_unused]] py::kwargs const &kwargs) {
     visit_array(ast_, clingo_ast_attribute_terms, visitor, args, kwargs, TheoryTermDefinition::acquire);
     visit_array(ast_, clingo_ast_attribute_atoms, visitor, args, kwargs, TheoryAtomDefinition::acquire);
 }
 
-auto StatementTheory::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto StatementTheory::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<StatementTheory> {
     auto [terms_value, terms_changed] = transform_array(terms(), transform, args, kwargs);
     auto [atoms_value, atoms_changed] = transform_array(atoms(), transform, args, kwargs);
@@ -8558,11 +8649,13 @@ auto StatementOptimize::construct(Library &lib, clingo_location_t const &locatio
     return StatementOptimize::acquire(res_);
 }
 
-void StatementOptimize::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void StatementOptimize::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                              [[maybe_unused]] py::kwargs const &kwargs) {
     visit_array(ast_, clingo_ast_attribute_elements, visitor, args, kwargs, OptimizeElement::acquire);
 }
 
-auto StatementOptimize::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto StatementOptimize::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                  [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<StatementOptimize> {
     auto [elements_value, elements_changed] = transform_array(elements(), transform, args, kwargs);
     if (elements_changed) {
@@ -8611,13 +8704,16 @@ auto StatementWeakConstraint::construct(Library &lib, clingo_location_t const &l
     return StatementWeakConstraint::acquire(res_);
 }
 
-void StatementWeakConstraint::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void StatementWeakConstraint::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                                    [[maybe_unused]] py::kwargs const &kwargs) {
     visit_array(ast_, clingo_ast_attribute_body, visitor, args, kwargs, construct_body_literal);
     visitor(tuple(), *args, **kwargs);
 }
 
-auto StatementWeakConstraint::transform(Library &lib, py::handle transform, py::args const &args,
-                                        py::kwargs const &kwargs) -> std::optional<StatementWeakConstraint> {
+auto StatementWeakConstraint::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                        [[maybe_unused]] py::args const &args,
+                                        [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<StatementWeakConstraint> {
     auto [body_value, body_changed] = transform_array(body(), transform, args, kwargs);
     auto [tuple_value, tuple_changed] = transform_value(tuple(), transform, args, kwargs);
     if (body_changed || tuple_changed) {
@@ -8666,12 +8762,14 @@ auto StatementShow::construct(Library &lib, clingo_location_t const &location, T
     return StatementShow::acquire(res_);
 }
 
-void StatementShow::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void StatementShow::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                          [[maybe_unused]] py::kwargs const &kwargs) {
     visitor(term(), *args, **kwargs);
     visit_array(ast_, clingo_ast_attribute_body, visitor, args, kwargs, construct_body_literal);
 }
 
-auto StatementShow::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto StatementShow::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                              [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<StatementShow> {
     auto [term_value, term_changed] = transform_value(term(), transform, args, kwargs);
     auto [body_value, body_changed] = transform_array(body(), transform, args, kwargs);
@@ -8728,10 +8826,12 @@ auto StatementShowSignature::construct(Library &lib, clingo_location_t const &lo
     return StatementShowSignature::acquire(res_);
 }
 
-void StatementShowSignature::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {}
+void StatementShowSignature::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                                   [[maybe_unused]] py::kwargs const &kwargs) {}
 
-auto StatementShowSignature::transform(Library &lib, py::handle transform, py::args const &args,
-                                       py::kwargs const &kwargs) -> std::optional<StatementShowSignature> {
+auto StatementShowSignature::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                       [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<StatementShowSignature> {
     return std::nullopt;
 }
 
@@ -8776,12 +8876,14 @@ auto StatementProject::construct(Library &lib, clingo_location_t const &location
     return StatementProject::acquire(res_);
 }
 
-void StatementProject::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void StatementProject::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                             [[maybe_unused]] py::kwargs const &kwargs) {
     visitor(atom(), *args, **kwargs);
     visit_array(ast_, clingo_ast_attribute_body, visitor, args, kwargs, construct_body_literal);
 }
 
-auto StatementProject::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto StatementProject::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                 [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<StatementProject> {
     auto [atom_value, atom_changed] = transform_value(atom(), transform, args, kwargs);
     auto [body_value, body_changed] = transform_array(body(), transform, args, kwargs);
@@ -8838,10 +8940,13 @@ auto StatementProjectSignature::construct(Library &lib, clingo_location_t const 
     return StatementProjectSignature::acquire(res_);
 }
 
-void StatementProjectSignature::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {}
+void StatementProjectSignature::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                                      [[maybe_unused]] py::kwargs const &kwargs) {}
 
-auto StatementProjectSignature::transform(Library &lib, py::handle transform, py::args const &args,
-                                          py::kwargs const &kwargs) -> std::optional<StatementProjectSignature> {
+auto StatementProjectSignature::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                          [[maybe_unused]] py::args const &args,
+                                          [[maybe_unused]] py::kwargs const &kwargs)
+    -> std::optional<StatementProjectSignature> {
     return std::nullopt;
 }
 
@@ -8893,9 +8998,11 @@ auto StatementDefined::construct(Library &lib, clingo_location_t const &location
     return StatementDefined::acquire(res_);
 }
 
-void StatementDefined::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {}
+void StatementDefined::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                             [[maybe_unused]] py::kwargs const &kwargs) {}
 
-auto StatementDefined::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto StatementDefined::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                 [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<StatementDefined> {
     return std::nullopt;
 }
@@ -8954,7 +9061,8 @@ auto StatementExternal::construct(Library &lib, clingo_location_t const &locatio
     return StatementExternal::acquire(res_);
 }
 
-void StatementExternal::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void StatementExternal::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                              [[maybe_unused]] py::kwargs const &kwargs) {
     visitor(atom(), *args, **kwargs);
     visit_array(ast_, clingo_ast_attribute_body, visitor, args, kwargs, construct_body_literal);
     if (auto opt = external_type()) {
@@ -8962,7 +9070,8 @@ void StatementExternal::visit(py::handle visitor, py::args const &args, py::kwar
     }
 }
 
-auto StatementExternal::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto StatementExternal::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                  [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<StatementExternal> {
     auto [atom_value, atom_changed] = transform_value(atom(), transform, args, kwargs);
     auto [body_value, body_changed] = transform_array(body(), transform, args, kwargs);
@@ -9015,12 +9124,14 @@ auto StatementEdge::construct(Library &lib, clingo_location_t const &location, E
     return StatementEdge::acquire(res_);
 }
 
-void StatementEdge::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void StatementEdge::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                          [[maybe_unused]] py::kwargs const &kwargs) {
     visit_array(ast_, clingo_ast_attribute_pool, visitor, args, kwargs, Edge::acquire);
     visit_array(ast_, clingo_ast_attribute_body, visitor, args, kwargs, construct_body_literal);
 }
 
-auto StatementEdge::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto StatementEdge::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                              [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<StatementEdge> {
     auto [pool_value, pool_changed] = transform_array(pool(), transform, args, kwargs);
     auto [body_value, body_changed] = transform_array(body(), transform, args, kwargs);
@@ -9100,7 +9211,8 @@ auto StatementHeuristic::construct(Library &lib, clingo_location_t const &locati
     return StatementHeuristic::acquire(res_);
 }
 
-void StatementHeuristic::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void StatementHeuristic::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                               [[maybe_unused]] py::kwargs const &kwargs) {
     visitor(atom(), *args, **kwargs);
     visit_array(ast_, clingo_ast_attribute_body, visitor, args, kwargs, construct_body_literal);
     visitor(weight(), *args, **kwargs);
@@ -9110,7 +9222,8 @@ void StatementHeuristic::visit(py::handle visitor, py::args const &args, py::kwa
     }
 }
 
-auto StatementHeuristic::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto StatementHeuristic::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                   [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<StatementHeuristic> {
     auto [atom_value, atom_changed] = transform_value(atom(), transform, args, kwargs);
     auto [body_value, body_changed] = transform_array(body(), transform, args, kwargs);
@@ -9166,9 +9279,11 @@ auto StatementScript::construct(Library &lib, clingo_location_t const &location,
     return StatementScript::acquire(res_);
 }
 
-void StatementScript::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {}
+void StatementScript::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                            [[maybe_unused]] py::kwargs const &kwargs) {}
 
-auto StatementScript::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto StatementScript::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<StatementScript> {
     return std::nullopt;
 }
@@ -9212,9 +9327,11 @@ auto StatementInclude::construct(Library &lib, clingo_location_t const &location
     return StatementInclude::acquire(res_);
 }
 
-void StatementInclude::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {}
+void StatementInclude::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                             [[maybe_unused]] py::kwargs const &kwargs) {}
 
-auto StatementInclude::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto StatementInclude::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                 [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<StatementInclude> {
     return std::nullopt;
 }
@@ -9263,9 +9380,11 @@ auto StatementProgram::construct(Library &lib, clingo_location_t const &location
     return StatementProgram::acquire(res_);
 }
 
-void StatementProgram::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {}
+void StatementProgram::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                             [[maybe_unused]] py::kwargs const &kwargs) {}
 
-auto StatementProgram::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto StatementProgram::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                 [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<StatementProgram> {
     return std::nullopt;
 }
@@ -9317,11 +9436,13 @@ auto StatementConst::construct(Library &lib, clingo_location_t const &location, 
     return StatementConst::acquire(res_);
 }
 
-void StatementConst::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void StatementConst::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                           [[maybe_unused]] py::kwargs const &kwargs) {
     visitor(value(), *args, **kwargs);
 }
 
-auto StatementConst::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto StatementConst::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                               [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<StatementConst> {
     auto [value_value, value_changed] = transform_value(value(), transform, args, kwargs);
     if (value_changed) {
@@ -9370,9 +9491,11 @@ auto StatementComment::construct(Library &lib, clingo_location_t const &location
     return StatementComment::acquire(res_);
 }
 
-void StatementComment::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {}
+void StatementComment::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                             [[maybe_unused]] py::kwargs const &kwargs) {}
 
-auto StatementComment::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs)
+auto StatementComment::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                 [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs)
     -> std::optional<StatementComment> {
     return std::nullopt;
 }

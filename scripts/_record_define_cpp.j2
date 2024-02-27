@@ -111,7 +111,7 @@ auto {{ c_type_name }}::construct(Library &lib{% for argument_name, argument in 
     return {{ c_type_name }}::acquire(res_);
 }
 
-void {{ c_type_name }}::visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) {
+void {{ c_type_name }}::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs) {
 {%- for argument_name, argument in type.arguments.items() -%}
 {%-   if argument.type in types %}
 {%-     if types[argument.type].type in ('union', 'record') %}
@@ -128,7 +128,7 @@ void {{ c_type_name }}::visit(py::handle visitor, py::args const &args, py::kwar
 {%- endfor %}
 }
 
-auto {{ c_type_name }}::transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs) -> std::optional<{{ c_type_name }}> {
+auto {{ c_type_name }}::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform, [[maybe_unused]] py::args const &args, [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<{{ c_type_name }}> {
 {%- for argument_name, argument in type.arguments.items() -%}
 {%-   if argument.type in types %}
 {%-     if types[argument.type].type in ('union', 'record') %}
