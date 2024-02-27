@@ -486,7 +486,7 @@ struct SimplifyTerm {
                 if (term.op() == UnaryOperator::negate) {
                     res.m = -std::move(res.m);
                     res.n = -std::move(res.n);
-                    return std::move(res);
+                    return res;
                 }
                 return check_change(TermType::numeric, term, term.update(a_rhs = linear_as_term(ctx, std::move(res))));
             }
@@ -618,17 +618,17 @@ struct SimplifyTerm {
             if constexpr (std::is_same_v<T, Symbol> && std::is_same_v<U, TermResultLinear>) {
                 if (term.op() == BinaryOperator::plus) {
                     res_rhs.n += res_lhs.num();
-                    return std::move(res_rhs);
+                    return res_rhs;
                 }
                 if (term.op() == BinaryOperator::minus) {
                     res_rhs.m = -std::move(res_rhs.m);
                     res_rhs.n = res_lhs.num() - std::move(res_rhs.n);
-                    return std::move(res_rhs);
+                    return res_rhs;
                 }
                 if (term.op() == BinaryOperator::times && *res_lhs.num() != 0) {
                     res_rhs.m *= res_lhs.num();
                     res_rhs.n *= res_lhs.num();
-                    return std::move(res_rhs);
+                    return res_rhs;
                 }
                 return check_change(TermType::numeric, term,
                                     term.update(a_lhs = ResultAsTerm{ctx, term.lhs()}(std::move(res_lhs)),
@@ -637,16 +637,16 @@ struct SimplifyTerm {
             if constexpr (std::is_same_v<T, TermResultLinear> && std::is_same_v<U, Symbol>) {
                 if (term.op() == BinaryOperator::plus) {
                     res_lhs.n += res_rhs.num();
-                    return std::move(res_lhs);
+                    return res_lhs;
                 }
                 if (term.op() == BinaryOperator::minus) {
                     res_lhs.n -= res_rhs.num();
-                    return std::move(res_lhs);
+                    return res_lhs;
                 }
                 if (term.op() == BinaryOperator::times && *res_rhs.num() != 0) {
                     res_lhs.m *= res_rhs.num();
                     res_lhs.n *= res_rhs.num();
-                    return std::move(res_lhs);
+                    return res_lhs;
                 }
                 return check_change(TermType::numeric, term,
                                     term.update(a_lhs = ResultAsTerm{ctx, term.lhs()}(std::move(res_lhs)),
@@ -657,7 +657,7 @@ struct SimplifyTerm {
                     if (res_lhs.x == res_rhs.x) {
                         res_lhs.n += res_rhs.n;
                         res_lhs.m += res_rhs.m;
-                        return std::move(res_lhs);
+                        return res_lhs;
                     }
                     res_rhs.n += res_lhs.n;
                     res_lhs.n = Number(0);
@@ -666,7 +666,7 @@ struct SimplifyTerm {
                     if (res_lhs.x == res_rhs.x) {
                         res_lhs.n -= res_rhs.n;
                         res_lhs.m -= res_rhs.m;
-                        return std::move(res_lhs);
+                        return res_lhs;
                     }
                     res_rhs.n -= res_lhs.n;
                     res_lhs.n = Number(0);

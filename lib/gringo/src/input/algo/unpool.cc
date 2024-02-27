@@ -296,7 +296,7 @@ struct Unpool {
                                             std::move(rhs)}};
             }
         };
-        auto ret = unpool_crossproducts(aggr, build, *this, a_lhs, a_rhs);
+        auto ret = unpool_build(aggr, build, *this, a_lhs, a_rhs);
         if (!ret.has_value()) {
             ret = Util::make_vec<std::conditional_t<HasSign, BdLit, HdLit>>(build(aggr.lhs(), aggr.rhs()));
         }

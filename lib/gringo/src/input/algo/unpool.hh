@@ -16,51 +16,42 @@ namespace Gringo::Input {
 
 namespace Detail {
 
-// Note: in theory one could avoid passing the orginal values around here
-// and use the expression and argument tags here.
-template <size_t i, size_t n>
-auto unpool_crossproducts_build(auto &build, auto &vec, auto &orig, auto &unpooled, auto &&...cs) {
-    if constexpr (i < n) {
-        if (std::get<i>(unpooled).has_value()) {
-            for (auto &elem : std::get<i>(unpooled).value()) {
-                using elem_type = std::decay_t<decltype(elem)>;
-                unpool_crossproducts_build<i + 1, n>(build, vec, orig, unpooled, cs...,
-                                                     n == 1 ? std::move(elem) : static_cast<elem_type>(elem));
-            }
-        } else {
-            using orig_type = std::decay_t<decltype(std::get<i>(orig))>;
-            unpool_crossproducts_build<i + 1, n>(build, vec, orig, unpooled, cs...,
-                                                 static_cast<orig_type>(std::get<i>(orig)));
+template <class R, class E, class B, class... Ps>
+auto unpool_cross(R &res, [[maybe_unused]] E const &expr, B &build, Ps &&...pools) {
+    res.emplace_back(build(std::forward<Ps>(pools)...));
+}
+
+template <auto tag, auto... tags, class R, class E, class B, class P, class... Es>
+auto unpool_cross(R &res, E const &expr, B &build, P const &pool, Es const &...elems) {
+    if (pool) {
+        for (auto const &elem : *pool) {
+            unpool_cross<tags...>(res, expr, build, elems..., elem);
         }
-    }
-    if constexpr (i == n) {
-        vec.emplace_back(build(std::forward<decltype(cs)>(cs)...));
+    } else {
+        unpool_cross<tags...>(res, expr, build, elems..., expr.template get_value<tag>());
     }
 }
 
-template <class... As, size_t... Is>
-auto unpool_crossproducts(auto &build, std::tuple<As const &...> orig, auto unpooled, std::index_sequence<Is...> seq) {
-    using return_type = std::vector<std::decay_t<decltype(build(std::declval<As>()...))>>;
-    if ((std::get<Is>(unpooled).has_value() || ...)) {
-        return_type vec;
-        unpool_crossproducts_build<0, seq.size()>(build, vec, orig, unpooled);
-        return std::optional<return_type>(std::move(vec));
+template <class R, auto n, class B, class U, class E, class... Es>
+auto unpool_apply(B build, U const &unpool, E const &elem, Es const &...elems) -> std::optional<std::vector<R>> {
+    if constexpr (n == 0) {
+        if (elem || (elems || ...)) {
+            std::vector<R> res;
+            auto get_size = [](auto const &elem) { return elem ? elem->size() : 1; };
+            res.reserve((get_size(elem) * ... * get_size(elems)));
+            std::invoke(std::move(build), res, elem, elems...);
+            return res;
+        }
+        return std::nullopt;
+    } else {
+        return unpool_apply<R, n - 1>(std::forward<decltype(build)>(build), unpool, elems..., unpool(elem));
     }
-    return std::optional<return_type>(std::nullopt);
 }
 
 } // namespace Detail
 
-struct Unpooler {
-    template <class T>
-    auto operator()(Util::immutable_value<T> const &elem) const
-        -> std::optional<std::vector<Util::immutable_value<T>>> {
-        return elem->unpool();
-    }
-};
-
 template <typename Span>
-auto unpool_crossproduct(Span const &elems, auto &&unpool = Unpooler{})
+auto unpool_crossproduct(Span const &elems, auto unpool)
     -> std::optional<std::vector<std::vector<typename Span::value_type>>> {
     // setup values to unpool + offsets
     std::vector<std::tuple<size_t, size_t, size_t>> offsets;
@@ -118,8 +109,7 @@ auto unpool_crossproduct(Span const &elems, auto &&unpool = Unpooler{})
 }
 
 template <typename Span>
-auto unpool_union(Span const &elems, auto &&unpool = Unpooler{})
-    -> std::optional<std::vector<typename Span::value_type>> {
+auto unpool_union(Span const &elems, auto unpool) -> std::optional<std::vector<typename Span::value_type>> {
     size_t n = 0;
     std::optional<std::vector<typename Span::value_type>> ret;
     for (auto const &elem : elems) {
@@ -142,14 +132,15 @@ auto unpool_union(Span const &elems, auto &&unpool = Unpooler{})
 }
 
 template <class E, class B, class U, class... A>
-auto unpool_crossproducts(E const &expr, B build, U const &unpool, [[maybe_unused]] A... args) {
-    return Detail::unpool_crossproducts(build, std::forward_as_tuple(expr.template get_value<A::tag>()...),
-                                        std::forward_as_tuple(unpool(expr.template get_value<A::tag>())...),
-                                        std::index_sequence_for<A...>());
+auto unpool_build(E const &expr, B build, U const &unpool, [[maybe_unused]] A... args) {
+    using R = std::invoke_result_t<B, std::decay_t<decltype(expr.template get_value<A::tag>())>...>;
+    return Detail::unpool_apply<R, sizeof...(A)>(
+        [&](auto &res, auto const &...elems) { return Detail::unpool_cross<A::tag...>(res, expr, build, elems...); },
+        unpool, expr.template get_value<A::tag>()...);
 }
 
 template <class T, class E, class U, class... A> auto unpool_rewrite(E const &expr, U const &unpool, A... args) {
-    return unpool_crossproducts(
+    return unpool_build(
         expr, [&]<class... V>(V &&...vals) -> T { return expr.update((args = std::forward<V>(vals))...); }, unpool,
         std::move(args)...);
 }
