@@ -30,10 +30,7 @@ struct GetDep {
         }
     }
 
-    void operator()(TermSymbol const &term, bool can_provide) const {
-        static_cast<void>(term);
-        static_cast<void>(can_provide);
-    }
+    void operator()([[maybe_unused]] TermSymbol const &term, [[maybe_unused]] bool can_provide) const {}
 
     void operator()(ArgumentTuple const &tuple, bool can_provide) const {
         for (auto const &tuple_elem : tuple.elems()) {
@@ -55,8 +52,7 @@ struct GetDep {
         }
     }
 
-    void operator()(TermAbs const &term, bool can_provide) const {
-        static_cast<void>(can_provide);
+    void operator()(TermAbs const &term, [[maybe_unused]] bool can_provide) const {
         for (auto const &arg : term.pool()) {
             operator()(arg, false);
         }
@@ -89,9 +85,7 @@ template <class CB> struct MakeNode {
 
     void operator()(Lit const &lit, bool can_provide) { std::visit(*this, lit, std::variant<bool>{can_provide}); }
 
-    void operator()(LitBool const &lit, bool can_provide) {
-        static_cast<void>(lit);
-        static_cast<void>(can_provide);
+    void operator()([[maybe_unused]] LitBool const &lit, [[maybe_unused]] bool can_provide) {
         std::invoke(cb, StringVec{}, StringVec{}, false);
     }
 
@@ -126,13 +120,11 @@ template <class CB> struct MakeNode {
 
     void operator()(BdLitSimple const &lit, bool can_provide) { operator()(lit.lit(), can_provide); }
 
-    void operator()(BdLitConjunction const &lit, bool can_provide) {
-        static_cast<void>(can_provide);
+    void operator()(BdLitConjunction const &lit, [[maybe_unused]] bool can_provide) {
         VariableVec depend;
         visit_variables(
             lit,
-            [this, &depend](Location const &loc, auto const &var) {
-                static_cast<void>(loc);
+            [this, &depend]([[maybe_unused]] Location const &loc, auto const &var) {
                 if (global.contains(var)) {
                     depend.emplace_back(var);
                 }
@@ -144,7 +136,6 @@ template <class CB> struct MakeNode {
     void operator()(BdLitAggregate const &lit, bool can_provide) {
         VariableVec provide;
         VariableVec depend;
-        // TODO: aggregate has to be brought into this form in unpool_relations
         can_provide =
             can_provide && lit.sign() == Sign::none && !lit.rhs() && lit.lhs() && lit.lhs()->second == Relation::equal;
         if (lit.lhs()) {
@@ -154,8 +145,7 @@ template <class CB> struct MakeNode {
             GetDep{provided, provide, depend}(lit.rhs()->second, false);
         }
         for (auto const &elem : lit.elems()) {
-            visit_variables(elem, [this, &depend](Location const &loc, auto const &var) {
-                static_cast<void>(loc);
+            visit_variables(elem, [this, &depend]([[maybe_unused]] Location const &loc, auto const &var) {
                 if (global.contains(var)) {
                     depend.emplace_back(var);
                 }
@@ -164,19 +154,15 @@ template <class CB> struct MakeNode {
         std::invoke(cb, std::move(provide), std::move(depend), false);
     }
 
-    void operator()(BdLitSetAggregate const &lit, bool can_provide) {
-        static_cast<void>(lit);
-        static_cast<void>(can_provide);
+    void operator()([[maybe_unused]] BdLitSetAggregate const &lit, [[maybe_unused]] bool can_provide) {
         throw std::runtime_error("unpool must be called before safety checking");
     }
 
-    void operator()(BdLitTheoryAtom const &lit, bool can_provide) {
-        static_cast<void>(can_provide);
+    void operator()(BdLitTheoryAtom const &lit, [[maybe_unused]] bool can_provide) {
         VariableVec depend;
         visit_variables(
             lit,
-            [this, &depend](Location const &loc, auto const &var) {
-                static_cast<void>(loc);
+            [this, &depend]([[maybe_unused]] Location const &loc, auto const &var) {
                 if (global.contains(var)) {
                     depend.emplace_back(var);
                 }
@@ -279,8 +265,7 @@ template <class T> void vv_(Util::immutable_array<T> const &vec, VarVisitFun fun
 auto check_provided(VariableSet const &bound, VariableSet const &provided, auto &&...args) -> bool {
     VariableVec depend;
     (vv_(args,
-         [&bound, &depend](Location const &loc, auto const &var) {
-             static_cast<void>(loc);
+         [&bound, &depend]([[maybe_unused]] Location const &loc, auto const &var) {
              if (!bound.contains(var)) {
                  depend.emplace_back(var);
              }
@@ -312,146 +297,84 @@ auto report_local(Logger &log, VariableSet const &global, VariableSet const &bou
 
 //! Check safety of local variables.
 struct CheckLocal {
-    auto operator()(TheoryElementArray const &elems) {
-        auto res_elems = Util::ResultVec{elems};
-        for (auto const &elem : elems) {
-            auto [res_cond, provided] = prepare_lits(log, elem.cond(), VariableSet{}, bound);
-            if (!res_cond.complete() || !check_provided(bound, provided, elem.tuple())) {
-                report_local(log, bound, provided, elem);
-                break;
-            }
-            if (res_cond) {
-                res_elems.replace(elem.loc(), elem.tuple(), res_cond.value());
-            } else {
-                res_elems.keep();
+    [[nodiscard]] auto handle_cond(auto const &elem, auto fun, auto... attr) const {
+        auto [res_cond, provided] = prepare_lits(log, elem.cond(), VariableSet{}, bound);
+        if (!res_cond.complete() ||
+            !check_provided(bound, provided, elem.template get_value<decltype(attr)::tag>()...)) {
+            report_local(log, bound, provided, elem);
+            return fun(false, Util::ResultVec{elem.cond()});
+        }
+        return fun(true, std::move(res_cond));
+    }
+
+    [[nodiscard]] auto handle_elem(auto const &elem, auto &res_elems, auto... attr) const -> bool {
+        return handle_cond(
+            elem,
+            [&](bool res, auto res_cond) {
+                res_elems.update(elem.rewrite(a_cond = std::move(res_cond)));
+                return res;
+            },
+            std::move(attr)...);
+    }
+
+    template <class T> [[nodiscard]] auto handle_elems(auto const &lit, auto... attr) const -> Util::ResultState<T> {
+        auto res_elems = Util::ResultVec{lit.elems()};
+        for (auto const &elem : lit.elems()) {
+            if (!handle_elem(elem, res_elems, attr...)) {
+                return {false};
             }
         }
-        return res_elems;
+        return {true, lit.rewrite(a_elems = std::move(res_elems))};
     }
 
-    auto operator()(HdLit const &hlit) -> Util::ResultState<HdLit> { return std::visit(*this, hlit); }
+    auto operator()(HdLit const &lit) const -> Util::ResultState<HdLit> { return std::visit(*this, lit); }
 
-    auto operator()(HdLitSimple const &hlit) -> Util::ResultState<HdLit> {
-        static_cast<void>(hlit);
-        return {true};
-    }
+    auto operator()([[maybe_unused]] HdLitSimple const &lit) const -> Util::ResultState<HdLit> { return {true}; }
 
-    auto operator()(HdLitDisjunction const &hlit) -> Util::ResultState<HdLit> {
-        auto res_elems = Util::ResultVec{hlit.elems()};
-        for (auto const &elem : hlit.elems()) {
+    auto operator()(HdLitDisjunction const &lit) const -> Util::ResultState<HdLit> {
+        auto res_elems = Util::ResultVec{lit.elems()};
+        for (auto const &elem : lit.elems()) {
             if (auto const *clit = std::get_if<CondLit>(&elem); clit != nullptr) {
-                auto [res_cond, provided] = prepare_lits(log, clit->cond(), VariableSet{}, bound);
-                if (!res_cond.complete() || !check_provided(bound, provided, clit->lit())) {
-                    report_local(log, bound, provided, *clit);
+                if (!handle_elem(*clit, res_elems, a_lit)) {
                     return {false};
                 }
-                if (res_cond) {
-                    res_elems.replace(CondLit{clit->loc(), clit->lit(), res_cond.value()});
-                } else {
-                    res_elems.keep();
-                }
             } else {
                 res_elems.keep();
             }
         }
-        if (res_elems) {
-            return {true, HdLitDisjunction{hlit.loc(), std::move(res_elems).value()}};
-        }
-        return {true};
+        return {true, lit.rewrite(a_elems = std::move(res_elems))};
     }
 
-    auto operator()(HdLitAggregate const &hlit) -> Util::ResultState<HdLit> {
-        auto res_elems = Util::ResultVec{hlit.elems()};
-        for (auto const &elem : hlit.elems()) {
-            auto [res_cond, provided] = prepare_lits(log, elem.cond(), VariableSet{}, bound);
-            if (!res_cond.complete() || !check_provided(bound, provided, elem.tuple(), elem.lit())) {
-                report_local(log, bound, provided, elem);
-                return {false};
-            }
-            if (res_cond) {
-                res_elems.replace(elem.loc(), elem.tuple(), elem.lit(), res_cond.value());
-            } else {
-                res_elems.keep();
-            }
-        }
-        if (res_elems) {
-            return {true, HdLitAggregate{hlit.loc(), hlit.lhs(), hlit.fun(), std::move(res_elems).value(), hlit.rhs()}};
-        }
-        return {true};
+    auto operator()(HdLitAggregate const &lit) const -> Util::ResultState<HdLit> {
+        return handle_elems<HdLit>(lit, a_tuple, a_lit);
     }
 
-    auto operator()(HdLitSetAggregate const &hlit) -> Util::ResultState<HdLit> {
-        static_cast<void>(hlit);
+    auto operator()(BdLit const &lit) const -> Util::ResultState<BdLit> { return std::visit(*this, lit); }
+
+    auto operator()([[maybe_unused]] BdLitSimple const &lit) const -> Util::ResultState<BdLit> { return {true}; }
+
+    auto operator()(BdLitConjunction const &lit) const -> Util::ResultState<BdLit> {
+        return handle_cond(
+            lit.lit(),
+            [&lit](bool res, auto res_cond) -> Util::ResultState<BdLit> {
+                return {res, lit.lit().rewrite(a_cond = std::move(res_cond))};
+            },
+            a_lit);
+    }
+
+    auto operator()(BdLitAggregate const &lit) const -> Util::ResultState<BdLit> {
+        return handle_elems<BdLit>(lit, a_tuple);
+    }
+
+    template <bool sign>
+    auto operator()([[maybe_unused]] SetAggregate<sign> const &lit) const
+        -> Util::ResultState<std::conditional_t<sign, BdLit, HdLit>> {
         throw std::runtime_error("unpool must be called before checking safety");
     }
 
-    auto operator()(HdLitTheoryAtom const &hlit) -> Util::ResultState<HdLit> {
-        auto res_elems = operator()(hlit.elems());
-        if (!res_elems.complete()) {
-            return {false};
-        }
-        if (res_elems) {
-            return {true, HdLitTheoryAtom{hlit.loc(), hlit.name(), std::move(res_elems).value(), hlit.rhs()}};
-        }
-        return {true};
-    }
-
-    auto operator()(BdLit const &blit) -> Util::ResultState<BdLit> { return std::visit(*this, blit); }
-
-    auto operator()(BdLitSimple const &blit) -> Util::ResultState<BdLit> {
-        static_cast<void>(blit);
-        return {true};
-    }
-
-    auto operator()(BdLitConjunction const &blit) -> Util::ResultState<BdLit> {
-        auto [res_cond, provided] = prepare_lits(log, blit.lit().cond(), VariableSet{}, bound);
-        if (!res_cond.complete() || !check_provided(bound, provided, blit.lit().lit())) {
-            report_local(log, bound, provided, blit.lit());
-            return {false};
-        }
-
-        if (res_cond) {
-            return {true, BdLitConjunction{CondLit{blit.lit().loc(), blit.lit().lit(), std::move(res_cond).value()}}};
-        }
-        return {true};
-    }
-
-    auto operator()(BdLitAggregate const &blit) -> Util::ResultState<BdLit> {
-        auto res_elems = Util::ResultVec{blit.elems()};
-        for (auto const &elem : blit.elems()) {
-            auto [res_cond, provided] = prepare_lits(log, elem.cond(), VariableSet{}, bound);
-            if (!res_cond.complete() || !check_provided(bound, provided, elem.tuple())) {
-                report_local(log, bound, provided, elem);
-                return {false};
-            }
-            if (res_cond) {
-                res_elems.replace(elem.loc(), elem.tuple(), res_cond.value());
-            } else {
-                res_elems.keep();
-            }
-        }
-        if (res_elems) {
-            return {true, BdLitAggregate{blit.loc(), blit.sign(), blit.lhs(), blit.fun(), std::move(res_elems).value(),
-                                         blit.rhs()}};
-        }
-        return {true};
-    }
-
-    auto operator()(BdLitSetAggregate const &blit) -> Util::ResultState<BdLit> {
-        static_cast<void>(blit);
-        throw std::runtime_error("unpool must be called before checking safety");
-    }
-
-    auto operator()(BdLitTheoryAtom const &blit) -> Util::ResultState<BdLit> {
-        auto res_elems = operator()(blit.elems());
-        if (!res_elems.complete()) {
-            return {false};
-        }
-        if (res_elems) {
-            return {true,
-                    BdLitTheoryAtom{blit.loc(), blit.sign(), blit.name(), std::move(res_elems).value(), blit.rhs()}};
-        }
-        return {true};
+    template <bool sign>
+    auto operator()(TheoryAtom<sign> const &lit) const -> Util::ResultState<std::conditional_t<sign, BdLit, HdLit>> {
+        return handle_elems<std::conditional_t<sign, BdLit, HdLit>>(lit, a_tuple);
     }
 
     Logger &log;
@@ -459,8 +382,8 @@ struct CheckLocal {
 };
 
 struct CheckGlobal {
-    template <bool pass_intermediate = false, class S, class F>
-    auto check_body(S const &stm, F build, Term const *atom = nullptr) const -> Util::ResultState<Stm> {
+    template <class S, class F>
+    auto handle_body(S const &stm, F build, Term const *atom = nullptr) const -> Util::ResultState<Stm> {
         // check body
         VariableSet extra;
         if (atom != nullptr) {
@@ -484,50 +407,41 @@ struct CheckGlobal {
         if (res_body_nested) {
             res_body.as_optional() = std::move(res_body_nested).as_optional();
         }
-        if constexpr (pass_intermediate) {
-            return build(provided, std::move(res_body));
-        } else {
-            if (res_body) {
-                return {true, build(std::move(res_body).value())};
-            }
-            return {true};
-        }
+        return build(provided, std::move(res_body));
     }
 
-    template <class S> auto check_body(S const &stm, Term const *atom = nullptr) const -> Util::ResultState<Stm> {
-        return check_body(
-            stm, [&stm](auto body) { return stm.update(a_body = std::move(body)); }, atom);
+    template <class S> auto handle_body(S const &stm, Term const *atom = nullptr) const -> Util::ResultState<Stm> {
+        return handle_body(
+            stm,
+            [&stm]([[maybe_unused]] auto &provided, auto res_body) -> Util::ResultState<Stm> {
+                return {true, stm.rewrite(a_body = std::move(res_body))};
+            },
+            atom);
     }
 
     auto operator()(Stm const &stm) const -> Util::ResultState<Stm> { return std::visit(*this, stm); }
 
     auto operator()(StmRule const &stm) const -> Util::ResultState<Stm> {
-        return check_body<true>(stm, [this, &stm](auto &provided, auto res_body) -> Util::ResultState<Stm> {
+        return handle_body(stm, [this, &stm](auto &provided, auto res_body) -> Util::ResultState<Stm> {
             // check nested head
             auto [state_head, res_head] = CheckLocal{log, provided}(stm.head());
             if (!state_head) {
                 return {false};
             }
 
-            // construct new rule if necessary
-            if (res_body || res_head) {
-                return {true,
-                        StmRule{stm.loc(), std::move(res_head).value_or(stm.head()), std::move(res_body).value()}};
-            }
-            return {true};
+            return {true, stm.rewrite(a_head = std::move(res_head), a_body = std::move(res_body))};
         });
     }
 
-    auto operator()(StmOptimize const &stm) const -> Util::ResultState<Stm> {
-        static_cast<void>(stm);
+    auto operator()([[maybe_unused]] StmOptimize const &stm) const -> Util::ResultState<Stm> {
         throw std::runtime_error("unpool must be called before safety checking");
     }
 
     template <class T> auto operator()(T const &stm) const -> Util::ResultState<Stm> {
         if constexpr (Util::is_among_v<T, StmWeakConstraint, StmShow, StmExternal, StmEdge>) {
-            return check_body(stm);
+            return handle_body(stm);
         } else if constexpr (Util::is_among_v<T, StmProject, StmHeuristic>) {
-            return check_body(stm, &stm.atom());
+            return handle_body(stm, &stm.atom());
         } else {
             static_assert(Util::is_among_v<T, StmTheory, StmShowSig, StmProjectSig, StmDefined, StmScript, StmInclude,
                                            StmProgram, StmConst, StmComment>);

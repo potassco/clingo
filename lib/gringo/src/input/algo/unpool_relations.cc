@@ -119,8 +119,7 @@ struct ShiftHead {
         return lit.rewrite(a_elems = std::move(res_elems));
     }
 
-    auto operator()(HdLitSetAggregate const &lit) const -> std::optional<HdLit> {
-        static_cast<void>(lit);
+    auto operator()([[maybe_unused]] HdLitSetAggregate const &lit) const -> std::optional<HdLit> {
         throw std::runtime_error("simplify must be called before unpooling of relations");
     }
 
@@ -164,8 +163,7 @@ struct ShiftBody {
         body.update(lit.lit().rewrite(a_lit = std::move(res_lit), a_cond = std::move(res_cond)));
     }
 
-    void operator()(BdLitSetAggregate const &lit) const {
-        static_cast<void>(lit);
+    void operator()([[maybe_unused]] BdLitSetAggregate const &lit) const {
         throw std::runtime_error("simplify must be called before unpooling of relations");
     }
 
@@ -217,8 +215,7 @@ struct UnpoolHeadBody {
     template <bool head> using HBLitVecVec = std::conditional_t<head, HdLitArray, std::vector<BdLit>>;
 
     template <bool HasSign>
-    auto operator()(SetAggregate<HasSign> const &lit) const -> std::optional<HBLitVecVec<!HasSign>> {
-        static_cast<void>(lit);
+    auto operator()([[maybe_unused]] SetAggregate<HasSign> const &lit) const -> std::optional<HBLitVecVec<!HasSign>> {
         throw std::runtime_error("simplify must be called before unpooling of relations");
     }
 
@@ -239,9 +236,8 @@ struct UnpoolHeadBody {
 
     auto operator()(HdLit const &lit) const -> std::optional<HdLitArray> { return std::visit(*this, lit); }
 
-    auto operator()(HdLitSimple const &lit) const -> std::optional<HdLitArray> {
+    auto operator()([[maybe_unused]] HdLitSimple const &lit) const -> std::optional<HdLitArray> {
         // Note: anything that could be unpooled has been shifted
-        static_cast<void>(lit);
         return std::nullopt;
     }
 
@@ -337,8 +333,7 @@ struct UnpoolStatement {
         return unpool(stm);
     }
 
-    auto operator()(StmOptimize const &stm) const -> std::optional<StmVec> {
-        static_cast<void>(stm);
+    auto operator()([[maybe_unused]] StmOptimize const &stm) const -> std::optional<StmVec> {
         throw std::runtime_error("unpool must be called before unpooling relations");
     }
 
@@ -351,8 +346,7 @@ struct UnpoolStatement {
     template <class S>
         requires Util::is_among_v<S, StmTheory, StmShowSig, StmProjectSig, StmDefined, StmScript, StmInclude,
                                   StmProgram, StmConst, StmComment>
-    constexpr auto operator()(S const &stm) const -> std::optional<StmVec> {
-        static_cast<void>(stm);
+    constexpr auto operator()([[maybe_unused]] S const &stm) const -> std::optional<StmVec> {
         return std::nullopt;
     }
 

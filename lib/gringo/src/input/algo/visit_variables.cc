@@ -75,7 +75,7 @@ struct VisitVariables : Visitor<VisitVariables> {
         }
     }
 
-    static void accept(StmConst const &stm) { static_cast<void>(stm); }
+    static void accept([[maybe_unused]] StmConst const &stm) {}
 
     VarVisitFun fun;
     VariableContext ctx;

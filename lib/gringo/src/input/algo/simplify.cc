@@ -130,16 +130,12 @@ struct ResultAsTerm {
     }
 
     //! Convert a failed result.
-    [[nodiscard]] auto operator()(TermResultFail res) const -> Term {
-        static_cast<void>(res);
+    [[nodiscard]] auto operator()([[maybe_unused]] TermResultFail res) const -> Term {
         throw std::logic_error("cannot happen");
     }
 
     //! Convert an unchanged result.
-    [[nodiscard]] auto operator()(TermResultUnchanged res) const -> Term {
-        static_cast<void>(res);
-        return term;
-    }
+    [[nodiscard]] auto operator()([[maybe_unused]] TermResultUnchanged res) const -> Term { return term; }
 
     //! Convert a changed result.
     [[nodiscard]] auto operator()(TermResultChanged res) const -> Term { return std::move(res.term); }
@@ -315,15 +311,13 @@ struct SimplifyTerm {
     auto operator()(auto const &term, SimplifyTermFlags flags) const = delete;
 
     //! Simplify the given symbolic term.
-    auto operator()(TermSymbol const &term, SimplifyTermFlags flags) const -> TermResult {
-        static_cast<void>(flags);
+    auto operator()(TermSymbol const &term, [[maybe_unused]] SimplifyTermFlags flags) const -> TermResult {
         return term.value();
     }
 
     //! Simplify the given variable.
-    auto operator()(TermVariable const &term, SimplifyTermFlags flags) const -> TermResult {
-        static_cast<void>(term);
-        static_cast<void>(flags);
+    auto operator()([[maybe_unused]] TermVariable const &term, [[maybe_unused]] SimplifyTermFlags flags) const
+        -> TermResult {
         // a variable can represent any term
         return TermType::any;
     }
@@ -754,16 +748,13 @@ struct MakeMatchableTerm {
     }
 
     //! Make the given symbolic term matchable.
-    auto operator()(TermSymbol const &term, SimplifyTermFlags flags) const -> Result {
-        static_cast<void>(term);
-        static_cast<void>(flags);
+    auto operator()([[maybe_unused]] TermSymbol const &term, [[maybe_unused]] SimplifyTermFlags flags) const -> Result {
         return std::nullopt;
     }
 
     //! Make the given variable term matchable.
-    auto operator()(TermVariable const &term, SimplifyTermFlags flags) const -> Result {
-        static_cast<void>(term);
-        static_cast<void>(flags);
+    auto operator()([[maybe_unused]] TermVariable const &term, [[maybe_unused]] SimplifyTermFlags flags) const
+        -> Result {
         return std::nullopt;
     }
 
@@ -847,8 +838,7 @@ struct SimplifyLiteral {
     //! Simplify Boolean literals.
     //!
     //! Ensures that the literal is either true or false.
-    auto operator()(LitBool const &lit, SimplifyLiteralFlags flags) const -> SimplifyResult<Lit> {
-        static_cast<void>(flags);
+    auto operator()(LitBool const &lit, [[maybe_unused]] SimplifyLiteralFlags flags) const -> SimplifyResult<Lit> {
         auto value = (lit.sign() != Sign::once) == lit.value();
         auto state = value ? TruthValue::top : TruthValue::bot;
 
@@ -1582,8 +1572,7 @@ struct SimplifyHeadLiteral {
         return {state_elems, Util::transform(std::move(res_elems).as_optional(),
                                              [&lit](auto elems) { return lit.update(a_elems = std::move(elems)); })};
     }
-    auto operator()(HdLitSetAggregate const &lit) const -> SimplifyResult<HdLit> {
-        static_cast<void>(lit);
+    auto operator()([[maybe_unused]] HdLitSetAggregate const &lit) const -> SimplifyResult<HdLit> {
         throw std::runtime_error("set aggregates must be unpooled before simplifying");
     }
 
@@ -1613,8 +1602,7 @@ struct SimplifyBodyLiteral {
         return simplify_condlit(ctx, lit.lit(), true);
     }
 
-    auto operator()(BdLitSetAggregate const &lit) const -> SimplifyResult<BdLit> {
-        static_cast<void>(lit);
+    auto operator()([[maybe_unused]] BdLitSetAggregate const &lit) const -> SimplifyResult<BdLit> {
         throw std::runtime_error("set aggregates must be unpooled before simplifying");
     }
 
@@ -1679,8 +1667,7 @@ struct SimplifyStatement {
         return {state, stm.rewrite(a_head = std::move(res_head), a_body = std::move(res_body))};
     }
 
-    auto operator()(StmOptimize const &stm) const -> SimplifyResult<Stm> {
-        static_cast<void>(stm);
+    auto operator()([[maybe_unused]] StmOptimize const &stm) const -> SimplifyResult<Stm> {
         throw std::runtime_error("optimize statements must be unpooled first");
     }
 
@@ -1761,8 +1748,7 @@ struct SimplifyStatement {
                                                  a_type = std::move(res_type))};
     }
 
-    template <class T> auto operator()(T const &stm) const -> SimplifyResult<Stm> {
-        static_cast<void>(stm);
+    template <class T> auto operator()([[maybe_unused]] T const &stm) const -> SimplifyResult<Stm> {
         static_assert(Util::is_among_v<T, StmTheory, StmShowSig, StmProjectSig, StmDefined, StmScript, StmInclude,
                                        StmProgram, StmProgram, StmConst, StmComment>);
         return {TruthValue::unknown};

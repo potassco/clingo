@@ -161,7 +161,7 @@ struct MapParams : Transformer<MapParams> {
             return std::visit(
                 [&term]<class T>(T const &x) -> Term {
                     if constexpr (std::is_same_v<T, Symbol>) {
-                        return TermSymbol{term.loc(), x};
+                        return term.update(a_value = x);
                     }
                     if constexpr (std::is_same_v<T, Term>) {
                         return x;
@@ -190,8 +190,7 @@ struct MapParams : Transformer<MapParams> {
 
     // theory
 
-    [[nodiscard]] static auto accept(TheoryTerm const &term) -> std::optional<TheoryTerm> {
-        static_cast<void>(term);
+    [[nodiscard]] static auto accept([[maybe_unused]] TheoryTerm const &term) -> std::optional<TheoryTerm> {
         return std::nullopt;
     }
 
@@ -236,8 +235,7 @@ struct UnmapParams : Transformer<UnmapParams> {
 
     // protect ourselves -> no unintended overloads
 
-    // NOLINTNEXTLINE
-    template <class T> [[nodiscard]] auto accept(T const &x) const -> std::optional<T> = delete;
+    template <class T> [[nodiscard]] auto accept(T const &x) const = delete;
 
     // term
 
@@ -250,8 +248,7 @@ struct UnmapParams : Transformer<UnmapParams> {
 
     // theory
 
-    [[nodiscard]] static auto accept(TheoryTerm const &term) -> std::optional<TheoryTerm> {
-        static_cast<void>(term);
+    [[nodiscard]] static auto accept([[maybe_unused]] TheoryTerm const &term) -> std::optional<TheoryTerm> {
         return std::nullopt;
     }
 
@@ -307,7 +304,7 @@ struct Collect : Visitor<Collect> {
 
     // theory
 
-    static void accept(TheoryTerm const &term) { static_cast<void>(term); }
+    static void accept([[maybe_unused]] TheoryTerm const &term) {}
 
     // literal
 
