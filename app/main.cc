@@ -1,11 +1,11 @@
-#include <iostream>
-
-#include <CLI/CLI.hpp>
-
 #include <gringo/input/program.hh>
 
 #include <gringo/input/algo/parse.hh>
 #include <gringo/input/algo/print.hh>
+
+#include <CLI/CLI.hpp>
+
+#include <iostream>
 
 using namespace Gringo::Input;
 
