@@ -15,6 +15,7 @@ add_library(gringo
     "src/input/algo/safety.cc"
     "src/input/algo/simplify.cc"
     "src/input/algo/substitute.cc"
+    "src/input/algo/rewrite_theory.cc"
     "src/input/algo/unpool.cc"
     "src/input/algo/unpool_relations.cc"
     "src/input/algo/visit_variables.cc"
