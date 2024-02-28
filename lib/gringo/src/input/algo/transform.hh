@@ -34,8 +34,7 @@ template <class T> class Transformer {
     }
 
     template <class U, class... Attr> auto rewrite(U const &expr, Attr... attrs) const -> std::optional<U> {
-        return [&]<size_t... Indices>(std::index_sequence<Indices...> seq) {
-            static_cast<void>(seq);
+        return [&]<size_t... Indices>([[maybe_unused]] std::index_sequence<Indices...> seq) {
             auto args =
                 std::make_tuple(std::optional<std::decay_t<decltype(expr.template get_value<Attr::tag>())>>{}...);
             ((std::get<Indices>(args) = transform(expr.template get_value<Attr::tag>())), ...);
@@ -162,10 +161,7 @@ template <class T> class Transformer {
 
     // literal
 
-    [[nodiscard]] auto accept_(LitBool const &lit) const -> std::optional<Lit> {
-        static_cast<void>(lit);
-        return std::nullopt;
-    }
+    [[nodiscard]] auto accept_([[maybe_unused]] LitBool const &lit) const -> std::optional<Lit> { return std::nullopt; }
 
     [[nodiscard]] auto accept_(LitComparison const &lit) const -> std::optional<Lit> {
         return rewrite(lit, a_lhs, a_rhs);
@@ -276,8 +272,7 @@ template <class T> class Transformer {
     template <class E>
         requires Util::is_among_v<E, StmTheory, StmShowSig, StmProjectSig, StmDefined, StmScript, StmInclude,
                                   StmProgram, StmConst, StmComment>
-    [[nodiscard]] auto accept_(E const &stm) const -> std::optional<Stm> {
-        static_cast<void>(stm);
+    [[nodiscard]] auto accept_([[maybe_unused]] E const &stm) const -> std::optional<Stm> {
         return std::nullopt;
     }
 };

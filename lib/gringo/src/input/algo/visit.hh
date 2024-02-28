@@ -7,6 +7,8 @@
 #include <tuple>
 #include <variant>
 
+#include <gringo/util/type_traits.hh>
+
 #include <gringo/input/program.hh>
 
 namespace Gringo::Input {
@@ -56,14 +58,10 @@ template <class T> class Visitor {
         visit(pair.second);
     }
 
-    template <class... U, size_t... I>
-    void accept_(std::tuple<U...> const &tup, std::index_sequence<I...> indices) const {
-        static_cast<void>(indices);
-        (visit(std::get<I>(tup)), ...);
-    }
-
     template <class... U> void accept_(std::tuple<U...> const &tup) const {
-        return accept_(tup, std::index_sequence_for<U...>{});
+        return [&, this]<size_t... I>([[maybe_unused]] std::index_sequence<I...> indices) {
+            (this->visit(std::get<I>(tup)), ...);
+        }(std::index_sequence_for<U...>{});
     }
 
     template <class... U> void accept_(std::variant<U...> const &var) const {
@@ -78,19 +76,15 @@ template <class T> class Visitor {
 
     // igonre
 
-    void accept_(Projection const &x) const { static_cast<void>(x); }
-
-    void accept_(String const &x) const { static_cast<void>(x); }
-
-    void accept_(Relation const &x) const { static_cast<void>(x); }
+    template <class U>
+        requires Util::is_among_v<U, Projection, String, Relation, TermSymbol, TermVariable, TheoryTermSymbol,
+                                  TheoryTermVariable, LitBool, StmTheory, StmShowSig, StmProjectSig, StmDefined,
+                                  StmScript, StmInclude, StmProgram, StmComment>
+    void accept_([[maybe_unused]] U const &x) const {}
 
     // terms
 
     void accept_(ArgumentTuple const &tuple) const { visit(tuple.elems()); }
-
-    void accept_(TermSymbol const &term) const { static_cast<void>(term); }
-
-    void accept_(TermVariable const &term) const { static_cast<void>(term); }
 
     void accept_(TermTuple const &term) const { visit(term.pool()); }
 
@@ -104,10 +98,6 @@ template <class T> class Visitor {
 
     // theory terms
 
-    void accept_(TheoryTermSymbol const &term) const { static_cast<void>(term); }
-
-    void accept_(TheoryTermVariable const &term) const { static_cast<void>(term); }
-
     void accept_(TheoryTermTuple const &term) const { visit(term.elems()); }
 
     void accept_(TheoryTermFunction const &term) const { visit(term.args()); }
@@ -115,8 +105,6 @@ template <class T> class Visitor {
     void accept_(TheoryTermUnparsed const &term) const { visit(term.elems()); }
 
     // literals
-
-    void accept_(LitBool const &lit) const { static_cast<void>(lit); }
 
     void accept_(LitComparison const &lit) const { visit(lit.lhs(), lit.rhs()); }
 
@@ -167,8 +155,6 @@ template <class T> class Visitor {
 
     void accept_(StmRule const &stm) const { visit(stm.head(), stm.body()); }
 
-    void accept_(StmTheory const &stm) const { static_cast<void>(stm); }
-
     void accept_(OptimizeTuple const &tuple) const { visit(tuple.weight(), tuple.prio(), tuple.terms()); }
 
     void accept_(OptimizeElement const &stm) const { visit(stm.tuple(), stm.cond()); }
@@ -179,13 +165,7 @@ template <class T> class Visitor {
 
     void accept_(StmShow const &stm) const { visit(stm.term(), stm.body()); }
 
-    void accept_(StmShowSig const &stm) const { static_cast<void>(stm); }
-
     void accept_(StmProject const &stm) const { visit(stm.atom(), stm.body()); }
-
-    void accept_(StmProjectSig const &stm) const { static_cast<void>(stm); }
-
-    void accept_(StmDefined const &stm) const { static_cast<void>(stm); }
 
     void accept_(StmExternal const &stm) const { visit(stm.atom(), stm.body(), stm.type()); }
 
@@ -195,15 +175,7 @@ template <class T> class Visitor {
 
     void accept_(StmHeuristic const &stm) const { visit(stm.atom(), stm.body(), stm.weight(), stm.prio(), stm.type()); }
 
-    void accept_(StmScript const &stm) const { static_cast<void>(stm); }
-
-    void accept_(StmInclude const &stm) const { static_cast<void>(stm); }
-
-    void accept_(StmProgram const &stm) const { static_cast<void>(stm); }
-
     void accept_(StmConst const &stm) const { visit(stm.value()); }
-
-    void accept_(StmComment const &stm) const { static_cast<void>(stm); }
 };
 
 } // namespace Gringo::Input

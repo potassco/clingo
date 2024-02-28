@@ -12,8 +12,7 @@ auto call_simplify_(F flags, RewriteContext &ctx, T const &x) -> decltype(simpli
     return simplify(flags, ctx, x);
 }
 template <typename F, typename T>
-auto call_simplify_(F flags, RewriteContext &ctx, T const &x) -> decltype(simplify(ctx, x)) {
-    static_cast<void>(flags);
+auto call_simplify_([[maybe_unused]] F flags, RewriteContext &ctx, T const &x) -> decltype(simplify(ctx, x)) {
     return simplify(ctx, x);
 }
 

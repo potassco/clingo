@@ -208,10 +208,8 @@ template <typename Scanner> auto recover(Scanner &scanner) {
     std::move(recovery).finish();
 }
 
-template <typename Input, typename Scanner> void discard(Input &input, Scanner &scanner) {
-    static_cast<void>(input);
-    static_cast<void>(scanner);
-}
+template <typename Input, typename Scanner>
+void discard([[maybe_unused]] Input &input, [[maybe_unused]] Scanner &scanner) {}
 
 template <typename Encoding, typename Counting, typename Scanner>
 void discard(StreamInput<Encoding, Counting> &input, Scanner &scanner) {

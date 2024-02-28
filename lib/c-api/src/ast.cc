@@ -70,7 +70,7 @@ auto convert_string_array(clingo_lib_t *lib, char const **array, size_t size) ->
     return ret;
 }
 
-auto make_loc(Gringo::Input::Location const &loc) -> clingo_location_t {
+[[maybe_unused]] auto make_loc(Gringo::Input::Location const &loc) -> clingo_location_t {
     return {loc.begin.file.c_str(), loc.end.file.c_str(), loc.begin.line,
             loc.end.line,           loc.begin.column,     loc.end.column};
 }
@@ -695,8 +695,6 @@ auto clingo_ast::visit(V &&visit) const -> std::invoke_result_t<V, Gringo::Input
 auto clingo_ast::get_type() const -> clingo_ast_type_e { return type_; }
 
 auto clingo_ast::get_location(clingo_ast_attribute_t attr) const -> std::optional<clingo_location_t> {
-    // Note: to indicate that make_loc is used
-    static_cast<void>(&make_loc);
     using namespace Gringo::Input;
     if (attr != clingo_ast_attribute_location) {
         return std::nullopt;

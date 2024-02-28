@@ -91,8 +91,7 @@ template <typename Rule> struct position_rule_ : lexyd::_copy_base<Rule> {
 };
 
 struct postition_dsl_ : position_ {
-    template <typename Rule> constexpr auto operator()(Rule ph) const {
-        static_cast<void>(ph);
+    template <typename Rule> constexpr auto operator()([[maybe_unused]] Rule ph) const {
         return position_rule_<Rule>{};
     }
 };
@@ -116,15 +115,9 @@ struct post_position_dsl_ : post_position_ {
 template <typename Rule> struct location_rule_ : lexyd::_copy_base<Rule> {
     struct location_ {};
 
-    LEXY_PARSER_FUNC static auto map_location_(location_ ph, Location &loc) {
-        static_cast<void>(ph);
-        return std::move(loc);
-    }
+    LEXY_PARSER_FUNC static auto map_location_([[maybe_unused]] location_ ph, Location &loc) { return std::move(loc); }
 
-    template <class T> LEXY_PARSER_FUNC static auto map_location_(T arg, Location &loc) {
-        static_cast<void>(loc);
-        return arg;
-    }
+    template <class T> LEXY_PARSER_FUNC static auto map_location_(T arg, [[maybe_unused]] Location &loc) { return arg; }
 
     struct pp : lexyd::rule_base {
         template <typename NextParser> struct p {
@@ -178,10 +171,7 @@ constexpr auto position = postition_dsl_{};
 constexpr auto post_position = post_position_dsl_{};
 
 //! Produce a location for the given rule.
-template <typename Rule> constexpr auto location(Rule ph) {
-    static_cast<void>(ph);
-    return location_rule_<Rule>{};
-}
+template <typename Rule> constexpr auto location([[maybe_unused]] Rule ph) { return location_rule_<Rule>{}; }
 
 } // namespace Detail
 

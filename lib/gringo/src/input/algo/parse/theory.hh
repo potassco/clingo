@@ -170,11 +170,7 @@ struct theory_term_unparsed : lexy::transparent_production {
     static constexpr auto rule = Detail::position + dsl::if_(dsl::p<theory_ops>) + dsl::p<theory_term_root> +
                                  dsl::if_(dsl::p<theory_term_unparsed_guards>);
     static constexpr auto value = lexy::callback_with_state<TheoryTerm>(
-        [](auto &state, auto begin, TheoryTerm term) {
-            static_cast<void>(state);
-            static_cast<void>(begin);
-            return term;
-        },
+        []([[maybe_unused]] auto &state, [[maybe_unused]] auto begin, TheoryTerm term) { return term; },
         [](auto &state, auto begin, std::vector<String> ops, TheoryTerm term,
            std::vector<UnparsedElement> guards = {}) {
             guards.insert(guards.begin(), UnparsedElement{std::move(ops), std::move(term)});

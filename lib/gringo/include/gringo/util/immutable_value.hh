@@ -39,9 +39,8 @@ template <typename T> class immutable_value {
 
     //! Construct a value in place.
     template <class... Args>
-    immutable_value(std::in_place_t tag, Args &&...args) : data_{new data_type(std::forward<Args>(args)...)} {
-        static_cast<void>(tag);
-    }
+    immutable_value([[maybe_unused]] std::in_place_t tag, Args &&...args)
+        : data_{new data_type(std::forward<Args>(args)...)} {}
 
     //! Copy an immutable value.
     immutable_value(immutable_value const &other) noexcept : data_{other.data_} { inc_(); }

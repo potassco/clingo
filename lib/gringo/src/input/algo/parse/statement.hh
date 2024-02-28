@@ -223,9 +223,7 @@ struct statement_show {
             }
             return StmShow{std::move(loc), std::move(term), BdLitArray{}};
         },
-        [](Location loc, auto begin, Term term, auto end, BdLitArray body) -> Stm {
-            static_cast<void>(begin);
-            static_cast<void>(end);
+        [](Location loc, [[maybe_unused]] auto begin, Term term, [[maybe_unused]] auto end, BdLitArray body) -> Stm {
             return StmShow{std::move(loc), std::move(term), std::move(body)};
         });
 };
@@ -291,9 +289,8 @@ struct statement_project {
         return Detail::location(kw >> Detail::location(name + (arity | dsl::else_ >> pool)) + eos);
     }();
     static constexpr auto value = lexy::callback<Stm>(
-        [](Location loc, Location loc_term, bool has_sign, Position begin_name, String name, int arity) {
-            static_cast<void>(loc_term);
-            static_cast<void>(begin_name);
+        [](Location loc, [[maybe_unused]] Location loc_term, bool has_sign, [[maybe_unused]] Position begin_name,
+           String name, int arity) {
             return StmProjectSig{std::move(loc), has_sign, name, arity};
         },
         [](Location loc, Location loc_term, bool has_sign, Position begin_name, String name, PoolArray pool,

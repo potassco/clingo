@@ -121,8 +121,7 @@ template <class T, class U> auto value_hash(std::pair<T, U> const &x) -> size_t 
 }
 
 template <class... T> auto value_hash(std::tuple<T...> const &x) -> size_t {
-    return [&x]<size_t... Indices>(std::index_sequence<Indices...> indices) -> size_t {
-        static_cast<void>(indices);
+    return [&x]<size_t... Indices>([[maybe_unused]] std::index_sequence<Indices...> indices) -> size_t {
         return hash_combine({typeid(std::tuple<T...>).hash_code(), value_hash(std::get<Indices>(x))...});
     }(std::index_sequence_for<T...>{});
 }

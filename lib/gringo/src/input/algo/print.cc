@@ -72,10 +72,7 @@ auto priority(BinaryOperator op) -> unsigned int {
     return 8; // NOLINT
 }
 
-auto priority(UnaryOperator op) -> unsigned int {
-    static_cast<void>(op);
-    return priority(BinaryOperator::times) + 1;
-}
+auto priority([[maybe_unused]] UnaryOperator op) -> unsigned int { return priority(BinaryOperator::times) + 1; }
 
 auto operator<<(std::ostream &out, TheoryAtomType type) -> std::ostream & {
     switch (type) {
@@ -852,8 +849,7 @@ auto operator<<(std::ostream &out, Location const &loc) -> std::ostream & {
 
 // terms
 
-auto operator<<(std::ostream &out, Projection const &projection) -> std::ostream & {
-    static_cast<void>(projection);
+auto operator<<(std::ostream &out, [[maybe_unused]] Projection const &projection) -> std::ostream & {
     out << "*";
     return out;
 }

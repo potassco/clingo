@@ -55,10 +55,7 @@ template <class T> [[nodiscard]] inline auto select_variables(T const &x, size_t
     if (size_hint > 0) {
         vars.reserve(size_hint);
     }
-    visit_variables(x, [&](Location const &loc, String const &var) {
-        static_cast<void>(loc);
-        vars.emplace(var);
-    });
+    visit_variables(x, [&]([[maybe_unused]] Location const &loc, String const &var) { vars.emplace(var); });
     return vars;
 }
 
@@ -70,12 +67,7 @@ template <class T>
         vars.reserve(size_hint);
     }
     visit_variables(
-        x,
-        [&](Location const &loc, String const &var) {
-            static_cast<void>(loc);
-            vars.emplace(var);
-        },
-        context);
+        x, [&]([[maybe_unused]] Location const &loc, String const &var) { vars.emplace(var); }, context);
     return vars;
 }
 

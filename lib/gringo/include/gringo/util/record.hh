@@ -33,13 +33,12 @@ template <auto i, auto needle, auto tag, auto... tags> constexpr auto get_index_
     }
 }
 
-template <auto tag, class... Attrs> constexpr auto get_index(std::tuple<Attrs...> names) {
-    static_cast<void>(names);
+template <auto tag, class... Attrs> constexpr auto get_index([[maybe_unused]] std::tuple<Attrs...> names) {
     return get_index_<0, tag, Attrs::tag...>();
 }
 
-template <class Arg, class... Attrs> constexpr auto is_valid_argument(std::tuple<Attrs...> attrs) -> bool {
-    static_cast<void>(attrs);
+template <class Arg, class... Attrs>
+constexpr auto is_valid_argument([[maybe_unused]] std::tuple<Attrs...> attrs) -> bool {
     return ((Arg::tag == Attrs::tag) || ...);
 }
 
@@ -72,8 +71,7 @@ auto select_value(Rec const &rec, Arg &arg, Args &...args) -> decltype(auto) {
 }
 
 template <bool Opt = false, typename Rec, typename... Args> auto update_record(Rec const &x, Args &&...args) -> Rec {
-    return [&]<class... Attrs>(std::tuple<Attrs...> attrs) {
-        static_cast<void>(attrs);
+    return [&]<class... Attrs>([[maybe_unused]] std::tuple<Attrs...> attrs) {
         return Rec{select_value<Attrs::tag, Opt>(x, args...)...};
     }(Rec::attributes());
 }

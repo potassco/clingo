@@ -12,8 +12,7 @@ class CountBuf : public std::streambuf {
         count_++;
         return ch;
     }
-    auto xsputn(char_type const *c, std::streamsize count) -> std::streamsize override {
-        static_cast<void>(c);
+    auto xsputn([[maybe_unused]] char_type const *c, std::streamsize count) -> std::streamsize override {
         count_ += count;
         return count;
     }
