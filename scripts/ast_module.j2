@@ -1,21 +1,22 @@
-#pragma once
-
+#include "ast.hh"
 #include "core.hh"
 #include "symbol.hh"
 
 #include <pybind11/functional.h>
 #include <pybind11/operators.h>
-#include <pybind11/pybind11.h>
 
 #include <algorithm>
 
-// NOLINTBEGIN(readability-convert-member-functions-to-static,clang-diagnostic-unused-parameter)
+// NOLINTBEGIN(readability-convert-member-functions-to-static)
 
 namespace Clingo::AST {
 
 namespace py = pybind11;
 
 using Clingo::Symbol::Symbol;
+
+using Clingo::Core::Library;
+using Clingo::Core::handle_error;
 
 using StringArray = std::vector<std::string>;
 
@@ -56,7 +57,7 @@ template <class Value>
 auto transform_opt_value(Value opt, py::handle transform, py::args const &args, py::kwargs const &kwargs) -> std::pair<Value, bool>;
 
 template <class T, class F, class M>
-auto update_value(Clingo::Library &lib, F *self, M fun, py::kwargs const &kwargs, char const *attr) -> T;
+auto update_value(Library &lib, F *self, M fun, py::kwargs const &kwargs, char const *attr) -> T;
 
 enum class ProjectionMode {
     Disabled = clingo_projection_mode_disabled,
@@ -209,7 +210,7 @@ auto transform_opt_value(Value opt, py::handle transform, py::args const &args, 
 }
 
 template <class T, class F, class M>
-auto update_value(Clingo::Library &lib, F *self, M fun, py::kwargs const &kwargs, char const *attr) -> T {
+auto update_value(Library &lib, F *self, M fun, py::kwargs const &kwargs, char const *attr) -> T {
     if constexpr (std::is_same_v<T, char const *>) {
         if (kwargs.contains(attr)) {
             char const *res;
@@ -396,14 +397,11 @@ auto rewrite_statement(Library &lib, Statement &stm, std::vector<std::string> pa
 }
 
 void register_module(pybind11::module &m) {
-    auto ast = m.def_submodule("ast", doc(R"(
-This module provides functions to work with Abstract Syntax Trees of logic programs.
-)"));
+    auto ast = m.def_submodule("ast", R"doc(This module provides functions to work with Abstract Syntax Trees of logic programs.)doc");
 
-    ast.def("_type_info_yaml", &clingo_ast_type_info_yaml, doc(R"(
-Return a yaml description of the AST.
+    ast.def("_type_info_yaml", &clingo_ast_type_info_yaml, R"doc(Return a yaml description of the AST.
 
-This can be used to auto-generate most of the binding.)"));
+This can be used to auto-generate most of the binding.)doc");
 
     auto py_projection_mode =
         py::enum_<ProjectionMode>(ast, "ProjectionMode", R"doc(Available projection modes.)doc")
@@ -613,4 +611,4 @@ A list of rewritten statements.)doc");
 
 }
 
-// NOLINTEND(readability-convert-member-functions-to-static,clang-diagnostic-unused-parameter)
+// NOLINTEND(readability-convert-member-functions-to-static)

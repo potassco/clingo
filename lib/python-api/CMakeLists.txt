@@ -1,4 +1,9 @@
-pybind11_add_module(pyclingo src/clingo.cc)
+pybind11_add_module(pyclingo
+    src/ast.cc
+    src/clingo.cc
+    src/core.cc
+    src/symbol.cc
+    )
 set_target_properties(pyclingo PROPERTIES OUTPUT_NAME "clingo")
 target_link_libraries(pyclingo PRIVATE clingo)
 

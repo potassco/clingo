@@ -116,7 +116,7 @@ web:
 	$(MAKE) -C build_web test
 
 gen:
-	PYTHONPATH=build/lib/python-api python scripts/generate.py > lib/python-api/src/ast.hh
+	PYTHONPATH=build/lib/python-api python scripts/generate.py > lib/python-api/src/ast.cc
 
 format_yaml:
 	PYTHONPATH=build/lib/python-api python scripts/format_yaml.py
