@@ -1,7 +1,7 @@
+#include "transform.hh"
+
 #include <gringo/input/algo/rewrite_anonymous.hh>
 #include <gringo/input/algo/visit_variables.hh>
-
-#include "transform.hh"
 
 namespace Gringo::Input {
 

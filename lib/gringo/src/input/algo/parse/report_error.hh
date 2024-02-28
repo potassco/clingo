@@ -1,10 +1,10 @@
 #pragma once
 
-#include <sstream>
-
 #include <gringo/logger.hh>
 
 #include <lexy_ext/report_error.hpp>
+
+#include <sstream>
 
 namespace Gringo::Input {
 

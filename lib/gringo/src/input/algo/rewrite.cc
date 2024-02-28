@@ -1,5 +1,3 @@
-#include <gringo/logger.hh>
-
 #include <gringo/input/algo/compute_bounds.hh>
 #include <gringo/input/algo/print.hh>
 #include <gringo/input/algo/project.hh>
@@ -11,6 +9,8 @@
 #include <gringo/input/algo/unpool.hh>
 #include <gringo/input/algo/unpool_relations.hh>
 #include <gringo/input/algo/visit_variables.hh>
+
+#include <gringo/logger.hh>
 
 namespace Gringo::Input {
 

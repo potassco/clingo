@@ -1,11 +1,11 @@
 #pragma once
 
+#include "../add_sign.hh"
+#include "term.hh"
+
 #include <gringo/input/literal.hh>
 
 #include <gringo/input/algo/analyze.hh>
-
-#include "../add_sign.hh"
-#include "term.hh"
 
 namespace Gringo::Input::Grammar {
 

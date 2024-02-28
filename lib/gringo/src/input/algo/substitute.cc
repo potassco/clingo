@@ -1,7 +1,7 @@
-#include <gringo/input/program.hh>
-
 #include "transform.hh"
 #include "visit.hh"
+
+#include <gringo/input/program.hh>
 
 namespace Gringo::Input {
 

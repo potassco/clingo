@@ -1,12 +1,12 @@
-#include <gringo/util/algorithm.hh>
-#include <gringo/util/type_traits.hh>
-
 #include <gringo/input/program.hh>
 
 #include <gringo/input/algo/analyze.hh>
 #include <gringo/input/algo/evaluate.hh>
 #include <gringo/input/algo/rewrite.hh>
 #include <gringo/input/algo/substitute.hh>
+
+#include <gringo/util/algorithm.hh>
+#include <gringo/util/type_traits.hh>
 
 namespace Gringo::Input {
 

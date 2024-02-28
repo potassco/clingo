@@ -1,11 +1,11 @@
 #include <clingo.h>
 
+#include <gringo/logger.hh>
+#include <gringo/symbol.hh>
+
 #include <exception>
 #include <stdexcept>
 #include <string>
-
-#include <gringo/logger.hh>
-#include <gringo/symbol.hh>
 
 struct clingo_lib {
     Gringo::Logger::Printer prt;

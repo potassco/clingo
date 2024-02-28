@@ -1,15 +1,15 @@
-#include <algorithm>
+#include "parse/statement.hh"
+
+#include <gringo/input/algo/check_syntax.hh>
+#include <gringo/input/algo/parse.hh>
+#include <gringo/input/algo/rewrite.hh>
 
 #include <lexy/action/parse.hpp>
 #include <lexy/action/scan.hpp>
 #include <lexy/input/file.hpp>
 #include <lexy/input/string_input.hpp>
 
-#include <gringo/input/algo/check_syntax.hh>
-#include <gringo/input/algo/parse.hh>
-#include <gringo/input/algo/rewrite.hh>
-
-#include "parse/statement.hh"
+#include <algorithm>
 
 namespace Gringo::Input {
 

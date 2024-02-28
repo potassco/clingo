@@ -4,7 +4,6 @@
 #include <cstdio>
 #include <functional>
 #include <limits>
-#include <memory>
 #include <sstream>
 #include <stdexcept>
 #include <unistd.h>

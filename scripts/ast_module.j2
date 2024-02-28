@@ -1,13 +1,13 @@
 #pragma once
 
-#include <algorithm>
+#include "core.hh"
+#include "symbol.hh"
 
 #include <pybind11/functional.h>
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
 
-#include "core.hh"
-#include "symbol.hh"
+#include <algorithm>
 
 // NOLINTBEGIN(readability-convert-member-functions-to-static,clang-diagnostic-unused-parameter)
 

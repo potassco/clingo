@@ -1,8 +1,5 @@
 #pragma once
 
-#include <cassert>
-#include <queue>
-
 #include <gringo/input/statement.hh>
 
 namespace Gringo::Input {

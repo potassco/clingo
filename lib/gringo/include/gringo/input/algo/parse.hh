@@ -1,8 +1,8 @@
 #pragma once
 
-#include <gringo/logger.hh>
-
 #include <gringo/input/statement.hh>
+
+#include <gringo/logger.hh>
 
 namespace Gringo::Input {
 

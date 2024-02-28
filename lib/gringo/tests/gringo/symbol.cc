@@ -1,8 +1,8 @@
-#include <sstream>
+#include <gringo/symbol.hh>
 
 #include <catch2/catch_test_macros.hpp>
 
-#include <gringo/symbol.hh>
+#include <sstream>
 
 // NOLINTBEGIN(readability-magic-numbers)
 

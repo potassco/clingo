@@ -1,9 +1,9 @@
 #pragma once
 
+#include <gringo/input/program.hh>
+
 #include <gringo/util/enum.hh>
 #include <gringo/util/optional.hh>
-
-#include <gringo/input/program.hh>
 
 namespace Gringo::Input {
 

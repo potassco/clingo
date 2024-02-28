@@ -1,8 +1,8 @@
-#include <algorithm>
+#include "gringo/input/test.hh"
 
 #include <gringo/input/algo/visit_variables.hh>
 
-#include "gringo/input/test.hh"
+#include <algorithm>
 
 namespace Gringo::Input::Test {
 

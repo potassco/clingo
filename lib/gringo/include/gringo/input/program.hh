@@ -1,14 +1,14 @@
 #pragma once
 
-#include <stack>
-
-#include <gringo/logger.hh>
+#include <gringo/input/statement.hh>
 
 #include <gringo/util/ordered_map.hh>
 #include <gringo/util/ordered_set.hh>
 #include <gringo/util/unordered_map.hh>
 
-#include <gringo/input/statement.hh>
+#include <gringo/logger.hh>
+
+#include <stack>
 
 namespace Gringo::Input {
 

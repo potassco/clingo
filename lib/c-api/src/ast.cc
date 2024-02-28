@@ -1,20 +1,20 @@
-#include <any>
-#include <cstdarg>
-#include <cstring>
-#include <forward_list>
-#include <span>
-
 #include "lib.hh"
 #include "streams.hh"
-
-#include <gringo/util/algorithm.hh>
-#include <gringo/util/ordered_map.hh>
-#include <gringo/util/ordered_set.hh>
 
 #include <gringo/input/algo/parse.hh>
 #include <gringo/input/algo/print.hh>
 #include <gringo/input/algo/rewrite.hh>
 #include <gringo/input/algo/substitute.hh>
+
+#include <gringo/util/algorithm.hh>
+#include <gringo/util/ordered_map.hh>
+#include <gringo/util/ordered_set.hh>
+
+#include <any>
+#include <cstdarg>
+#include <cstring>
+#include <forward_list>
+#include <span>
 
 namespace {
 

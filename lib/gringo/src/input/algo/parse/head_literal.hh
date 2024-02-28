@@ -1,8 +1,8 @@
 #pragma once
 
-#include <gringo/input/head_literal.hh>
-
 #include "theory.hh"
+
+#include <gringo/input/head_literal.hh>
 
 namespace Gringo::Input::Grammar {
 

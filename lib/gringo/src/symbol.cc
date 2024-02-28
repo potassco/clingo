@@ -1,11 +1,11 @@
-#include <cstring>
-#include <mutex>
-#include <ostream>
-
 #include <gringo/symbol.hh>
 
 #include <gringo/util/print.hh>
 #include <gringo/util/unordered_set.hh>
+
+#include <cstring>
+#include <mutex>
+#include <ostream>
 
 // NOLINTBEGIN(readability-magic-numbers,modernize-avoid-c-arrays)
 

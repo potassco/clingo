@@ -1,12 +1,12 @@
 #pragma once
 
-#include <sstream>
+#include <clingo.h>
 
 #include <pybind11/functional.h>
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
 
-#include <clingo.h>
+#include <sstream>
 
 #define CLINGO_PY_TOTAL_ORDER                                                                                          \
     .def(py::self == py::self)                                                                                         \

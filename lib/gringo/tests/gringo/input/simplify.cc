@@ -1,7 +1,7 @@
+#include "gringo/input/test.hh"
+
 #include <gringo/input/algo/simplify.hh>
 #include <gringo/input/algo/unpool.hh>
-
-#include "gringo/input/test.hh"
 
 namespace Gringo::Input::Test {
 

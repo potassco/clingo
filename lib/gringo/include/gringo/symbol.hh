@@ -1,12 +1,12 @@
 #pragma once
 
-#include <ostream>
-#include <span>
-
 #include <gringo/number.hh>
 
 #include <gringo/util/hash.hh>
 #include <gringo/util/unordered_set.hh>
+
+#include <ostream>
+#include <span>
 
 namespace Gringo {
 

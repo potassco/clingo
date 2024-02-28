@@ -1,13 +1,13 @@
-#include <algorithm>
+#include <gringo/input/algo/analyze.hh>
+#include <gringo/input/algo/evaluate.hh>
+#include <gringo/input/algo/print.hh>
+#include <gringo/input/algo/visit_variables.hh>
 
 #include <gringo/util/algorithm.hh>
 #include <gringo/util/print.hh>
 #include <gringo/util/type_traits.hh>
 
-#include <gringo/input/algo/analyze.hh>
-#include <gringo/input/algo/evaluate.hh>
-#include <gringo/input/algo/print.hh>
-#include <gringo/input/algo/visit_variables.hh>
+#include <algorithm>
 
 namespace Gringo::Input {
 

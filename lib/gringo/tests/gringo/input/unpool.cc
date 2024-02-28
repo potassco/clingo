@@ -1,6 +1,6 @@
-#include <gringo/input/algo/unpool.hh>
-
 #include "gringo/input/test.hh"
+
+#include <gringo/input/algo/unpool.hh>
 
 namespace Gringo::Input::Test {
 

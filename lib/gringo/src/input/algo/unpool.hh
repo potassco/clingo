@@ -1,16 +1,15 @@
 #pragma once
 
+#include <gringo/util/algorithm.hh>
+#include <gringo/util/immutable_value.hh>
+
 #include <cstddef>
+#include <functional>
 #include <optional>
 #include <tuple>
 #include <type_traits>
 #include <utility>
 #include <vector>
-
-#include <gringo/util/algorithm.hh>
-#include <gringo/util/immutable_value.hh>
-
-#define FWD(x) std::forward<decltype(x)>(x)
 
 namespace Gringo::Input {
 

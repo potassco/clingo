@@ -1,6 +1,6 @@
-#include <gringo/input/algo/project.hh>
-
 #include "gringo/input/test.hh"
+
+#include <gringo/input/algo/project.hh>
 
 namespace Gringo::Input::Test {
 

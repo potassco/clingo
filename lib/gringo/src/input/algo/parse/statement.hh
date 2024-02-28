@@ -1,10 +1,10 @@
 #pragma once
 
-#include <gringo/input/statement.hh>
-
 #include "base.hh"
 #include "body_literal.hh"
 #include "head_literal.hh"
+
+#include <gringo/input/statement.hh>
 
 namespace Gringo::Input::Grammar {
 

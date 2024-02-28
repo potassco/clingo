@@ -1,11 +1,11 @@
 #pragma once
 
+#include <gringo/util/immutable_value.hh>
+
 #include <algorithm>
 #include <span>
 #include <stdexcept>
 #include <vector>
-
-#include <gringo/util/immutable_value.hh>
 
 namespace Gringo::Util {
 

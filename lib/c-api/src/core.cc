@@ -1,10 +1,10 @@
 #include "lib.hh"
 #include "streams.hh"
 
-#include <cstring>
-
 #include <gringo/input/algo/print.hh>
 #include <gringo/input/location.hh>
+
+#include <cstring>
 
 extern "C" void clingo_version(int *major, int *minor, int *revision) {
     *major = CLINGO_VERSION_MAJOR;

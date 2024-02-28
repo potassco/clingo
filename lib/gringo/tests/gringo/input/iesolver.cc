@@ -1,10 +1,8 @@
-#include <gringo/input/iesolver.hh>
-
 #include "gringo/input/test.hh"
 
-namespace Gringo::Input::Test {
+#include <gringo/input/iesolver.hh>
 
-namespace {}
+namespace Gringo::Input::Test {
 
 // NOLINTBEGIN(readability-magic-numbers)
 

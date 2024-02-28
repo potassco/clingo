@@ -1,8 +1,8 @@
-#include <cmath>
+#include "gringo/input/test.hh"
 
 #include <gringo/input/algo/evaluate.hh>
 
-#include "gringo/input/test.hh"
+#include <cmath>
 
 // NOLINTBEGIN(readability-magic-numbers)
 

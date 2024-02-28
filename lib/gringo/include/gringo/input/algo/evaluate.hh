@@ -1,8 +1,8 @@
+#include <gringo/input/program.hh>
+
 #include <gringo/logger.hh>
 
 #include <gringo/util/unordered_map.hh>
-
-#include <gringo/input/program.hh>
 
 namespace Gringo::Input {
 

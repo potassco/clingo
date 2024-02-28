@@ -1,11 +1,11 @@
 #pragma once
 
+#include <lexy/input_location.hpp>
+
 #include <cassert>
 #include <istream>
 #include <tuple>
 #include <vector>
-
-#include <lexy/input_location.hpp>
 
 namespace Gringo::Input {
 

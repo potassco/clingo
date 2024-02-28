@@ -1,5 +1,8 @@
 #pragma once
 
+#include <gringo/util/immutable_array.hh>
+#include <gringo/util/immutable_value.hh>
+
 #include <memory>
 #include <numeric>
 #include <optional>
@@ -7,9 +10,6 @@
 #include <typeinfo>
 #include <variant>
 #include <vector>
-
-#include <gringo/util/immutable_array.hh>
-#include <gringo/util/immutable_value.hh>
 
 namespace Gringo::Util {
 
@@ -149,6 +149,8 @@ template <class T> auto value_hash(Util::immutable_array<T> const &x) -> size_t 
 template <class T, class... Args> auto value_hash_record(Args const &...x) -> size_t {
     return hash_combine({typeid(T).hash_code(), value_hash(x)...});
 }
+
+static constexpr unsigned int default_neighborhood_size = 62;
 
 //! @}
 

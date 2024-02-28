@@ -1,11 +1,11 @@
-#include <memory>
-
-#include <imath.h>
-
 #include <gringo/number.hh>
 
 #include <gringo/util/checked_math.hh>
 #include <gringo/util/hash.hh>
+
+#include <imath.h>
+
+#include <memory>
 
 namespace Gringo {
 

@@ -1,11 +1,11 @@
 #pragma once
 
+#include <gringo/util/algorithm.hh>
+#include <gringo/util/immutable_array.hh>
+
 #include <functional>
 #include <optional>
 #include <vector>
-
-#include <gringo/util/algorithm.hh>
-#include <gringo/util/immutable_array.hh>
 
 namespace Gringo::Util {
 

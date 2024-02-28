@@ -1,12 +1,12 @@
 #pragma once
 
-#include <sstream>
+#include "core.hh"
 
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include "core.hh"
+#include <sstream>
 
 namespace Clingo::Symbol {
 

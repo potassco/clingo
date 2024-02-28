@@ -1,11 +1,11 @@
-#include <algorithm>
+#include <gringo/input/algo/check_syntax.hh>
+#include <gringo/input/algo/print.hh>
 
 #include <gringo/util/algorithm.hh>
 #include <gringo/util/enum.hh>
 #include <gringo/util/type_traits.hh>
 
-#include <gringo/input/algo/check_syntax.hh>
-#include <gringo/input/algo/print.hh>
+#include <algorithm>
 
 namespace Gringo::Input {
 

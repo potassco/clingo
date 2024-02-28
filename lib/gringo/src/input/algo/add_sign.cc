@@ -1,6 +1,6 @@
-#include "gringo/util/type_traits.hh"
-
 #include "add_sign.hh"
+
+#include "gringo/util/type_traits.hh"
 
 namespace Gringo::Input {
 

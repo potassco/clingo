@@ -1,10 +1,10 @@
 #pragma once
 
+#include <gringo/symbol.hh>
+
 #include <cstddef>
 #include <optional>
 #include <variant>
-
-#include <gringo/symbol.hh>
 
 namespace Gringo::Input {
 

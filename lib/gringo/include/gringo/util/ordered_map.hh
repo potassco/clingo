@@ -1,8 +1,8 @@
 #pragma once
 
-#include <tsl/ordered_map.h>
-
 #include <gringo/util/hash.hh>
+
+#include <tsl/ordered_map.h>
 
 namespace Gringo::Util {
 

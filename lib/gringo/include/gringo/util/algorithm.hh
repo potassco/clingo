@@ -1,7 +1,7 @@
 #pragma once
 
 #include <algorithm>
-#include <type_traits> // NOLINT(unused-includes)
+#include <type_traits>
 #include <vector>
 
 namespace Gringo::Util {

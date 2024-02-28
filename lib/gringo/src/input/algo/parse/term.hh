@@ -1,10 +1,10 @@
 #pragma once
 
-#include <lexy/dsl.hpp>
+#include "base.hh"
 
 #include <gringo/input/term.hh>
 
-#include "base.hh"
+#include <lexy/dsl.hpp>
 
 namespace Gringo::Input::Grammar {
 

@@ -1,17 +1,17 @@
 #pragma once
 
-#include <functional>
-#include <queue>
-#include <string>
+#include "report_error.hh"
+#include "stateful_input.hh"
+#include "stream_input.hh"
+
+#include <gringo/input/statement.hh>
 
 #include <lexy/callback.hpp>
 #include <lexy/dsl.hpp>
 
-#include <gringo/input/statement.hh>
-
-#include "report_error.hh"
-#include "stateful_input.hh"
-#include "stream_input.hh"
+#include <functional>
+#include <queue>
+#include <string>
 
 #define STRING_TAG(n, v)                                                                                               \
     struct expected_##n {                                                                                              \

@@ -1,8 +1,8 @@
-#include <gringo/logger.hh>
+#include "gringo/input/test.hh"
 
 #include <gringo/input/program.hh>
 
-#include "gringo/input/test.hh"
+#include <gringo/logger.hh>
 
 namespace Gringo::Input::Test {
 

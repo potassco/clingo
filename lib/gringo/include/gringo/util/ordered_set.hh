@@ -1,8 +1,8 @@
 #pragma once
 
-#include <tsl/ordered_set.h>
-
 #include <gringo/util/hash.hh>
+
+#include <tsl/ordered_set.h>
 
 namespace Gringo::Util {
 

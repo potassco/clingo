@@ -1,6 +1,6 @@
-#include <gringo/input/algo/visit_variables.hh>
-
 #include "visit.hh"
+
+#include <gringo/input/algo/visit_variables.hh>
 
 namespace Gringo::Input {
 

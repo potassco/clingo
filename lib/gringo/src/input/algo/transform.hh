@@ -1,15 +1,15 @@
 #pragma once
 
-#include <optional>
-#include <variant>
-#include <vector>
+#include <gringo/input/program.hh>
 
 #include <gringo/util/algorithm.hh>
 #include <gringo/util/immutable_value.hh>
 #include <gringo/util/optional.hh>
 #include <gringo/util/type_traits.hh>
 
-#include <gringo/input/program.hh>
+#include <optional>
+#include <variant>
+#include <vector>
 
 namespace Gringo::Input {
 

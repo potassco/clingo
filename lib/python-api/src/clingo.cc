@@ -1,8 +1,8 @@
-#include <pybind11/pybind11.h>
-
 #include "ast.hh"
 #include "core.hh"
 #include "symbol.hh"
+
+#include <pybind11/pybind11.h>
 
 PYBIND11_MODULE(clingo, m) {
     m.doc() = "the clingo python module";

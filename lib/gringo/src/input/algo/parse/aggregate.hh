@@ -1,8 +1,8 @@
 #pragma once
 
-#include <gringo/input/aggregate.hh>
-
 #include "literal.hh"
+
+#include <gringo/input/aggregate.hh>
 
 namespace Gringo::Input::Grammar {
 

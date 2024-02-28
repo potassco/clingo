@@ -1,7 +1,4 @@
-#include <algorithm>
-
-#include <gringo/util/optional.hh>
-#include <gringo/util/type_traits.hh>
+#include "unpool.hh"
 
 #include <gringo/input/algo/analyze.hh>
 #include <gringo/input/algo/print.hh>
@@ -10,7 +7,10 @@
 #include <gringo/input/algo/unpool.hh>
 #include <gringo/input/algo/visit_variables.hh>
 
-#include "unpool.hh"
+#include <gringo/util/optional.hh>
+#include <gringo/util/type_traits.hh>
+
+#include <algorithm>
 
 namespace Gringo::Input {
 

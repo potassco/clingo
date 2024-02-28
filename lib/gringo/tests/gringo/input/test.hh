@@ -1,15 +1,15 @@
 #pragma once
 
-#include <span>
-#include <sstream>
-
-#include <catch2/catch_test_macros.hpp>
-
 #include <gringo/input/algo/parse.hh>
 #include <gringo/input/algo/print.hh>
 
 #include <gringo/util/algorithm.hh>
 #include <gringo/util/print.hh>
+
+#include <catch2/catch_test_macros.hpp>
+
+#include <span>
+#include <sstream>
 
 namespace Gringo::Input::Test {
 

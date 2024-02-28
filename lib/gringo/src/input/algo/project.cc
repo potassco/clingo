@@ -1,11 +1,11 @@
-#include <algorithm>
+#include "transform.hh"
 
 #include <gringo/input/algo/analyze.hh>
 #include <gringo/input/algo/project.hh>
 #include <gringo/input/algo/project_anonymous.hh>
 #include <gringo/input/algo/visit_variables.hh>
 
-#include "transform.hh"
+#include <algorithm>
 
 namespace Gringo::Input {
 
