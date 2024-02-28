@@ -21,22 +21,16 @@ enum SyntaxCheck : unsigned {
 GRINGO_ENUM_FLAGS(SyntaxCheck);
 
 struct CheckSyntax {
-    template <class T>
-    static constexpr auto ignore1 = Util::is_among_v<T, StmScript, StmInclude, StmProgram, StmComment, StmShowSig,
-                                                     StmTheory, StmDefined, StmProjectSig>;
+    // expressions that can be ignored
 
-    template <class T> static constexpr auto ignore2 = Util::is_among_v<T, LitBool, TheoryTerm, TermSymbol>;
-
-    template <class T> auto operator()(T const &x) const -> bool {
-        static_cast<void>(x);
-        static_assert(ignore1<T>);
+    template <class T> auto operator()([[maybe_unused]] T const &x) const -> bool {
+        static_assert(Util::is_among_v<T, StmScript, StmInclude, StmProgram, StmComment, StmShowSig, StmTheory,
+                                       StmDefined, StmProjectSig>);
         return true;
     }
 
-    template <class T> auto operator()(T const &x, SyntaxCheck check) const -> bool {
-        static_cast<void>(x);
-        static_cast<void>(check);
-        static_assert(ignore2<T>);
+    template <class T> auto operator()([[maybe_unused]] T const &x, [[maybe_unused]] SyntaxCheck check) const -> bool {
+        static_assert(Util::is_among_v<T, LitBool, TheoryTerm, TermSymbol>);
         return true;
     }
 
@@ -125,8 +119,7 @@ struct CheckSyntax {
         return operator()(*term.rhs(), check);
     }
 
-    auto operator()(TermBinary const &term, SyntaxCheck check) const -> bool {
-        static_cast<void>(check);
+    auto operator()(TermBinary const &term, [[maybe_unused]] SyntaxCheck check) const -> bool {
         return operator()(*term.lhs()) && operator()(*term.rhs());
     }
 
@@ -138,8 +131,7 @@ struct CheckSyntax {
         return std::visit(*this, lit, std::variant<SyntaxCheck>{check});
     }
 
-    auto operator()(LitComparison const &lit, SyntaxCheck check) const -> bool {
-        static_cast<void>(check);
+    auto operator()(LitComparison const &lit, [[maybe_unused]] SyntaxCheck check) const -> bool {
         return operator()(lit.lhs()) && std::all_of(lit.rhs().begin(), lit.rhs().end(),
                                                     [this](auto &guard) { return operator()(guard.second); });
     }

@@ -92,10 +92,7 @@ using BoundStateMap = std::vector<BoundState>;
 struct ExtractTerms {
     auto operator()(Term const &term) const -> bool { return std::visit(*this, term); }
 
-    auto operator()(auto const &term) const -> bool {
-        static_cast<void>(term);
-        return false;
-    }
+    auto operator()([[maybe_unused]] auto const &term) const -> bool { return false; }
 
     auto operator()(TermVariable const &term) const -> bool {
         auto x = IETerm{Number{1}, term.name()};
@@ -191,7 +188,7 @@ struct ExtractTerms {
 struct ExtractInequalities {
     void operator()(Lit const &lit) const { std::visit(*this, lit); }
 
-    void operator()(auto const &lit) const { static_cast<void>(lit); }
+    void operator()([[maybe_unused]] auto const &lit) const {}
 
     void operator()(LitComparison const &lit) const {
         assert(lit.sign() == Sign::none);
@@ -273,10 +270,7 @@ struct ExtractInequalities {
 struct ApplyBounds {
     auto operator()(Lit const &lit) const -> Util::ResultState<Lit> { return std::visit(*this, lit); }
 
-    auto operator()(auto const &lit) const -> Util::ResultState<Lit> {
-        static_cast<void>(lit);
-        return {true};
-    }
+    auto operator()([[maybe_unused]] auto const &lit) const -> Util::ResultState<Lit> { return {true}; }
 
     auto operator()(LitComparison const &lit) const -> Util::ResultState<Lit> {
         assert(lit.sign() == Sign::none);
@@ -287,19 +281,20 @@ struct ApplyBounds {
             }
             return TermSymbol{sym.loc(), store.num(bound)};
         };
-        auto make_relation = [this, &lit](auto const &lhs, Relation rel, Location loc, auto const &bound) {
-            return LitComparison{lit.loc(), Sign::none, lhs,
-                                 Util::make_vec<Guard>(Guard{rel, TermSymbol{std::move(loc), store.num(bound)}})};
+        auto make_relation = [this, &lit](auto lhs, Relation rel, Location loc, auto bound) {
+            return lit.update(
+                a_lhs = std::move(lhs),
+                a_rhs = Util::make_vec<Guard>(Guard{rel, TermSymbol{std::move(loc), store.num(std::move(bound))}}));
         };
         auto make_interval = [&lit](auto var, auto loc, auto u, auto v) -> Util::ResultState<Lit> {
             if (u.value() == v.value()) {
                 return {true,
-                        LitComparison{lit.loc(), Sign::none, var, Util::make_vec<Guard>(Guard{Relation::equal, u})}};
+                        lit.update(a_lhs = std::move(var), a_rhs = Util::make_vec<Guard>(Guard{Relation::equal, u}))};
             }
-            return {true, LitComparison{lit.loc(), Sign::none, std::move(var),
-                                        Util::make_vec<Guard>(
-                                            Guard{Relation::equal, TermBinary{std::move(loc), std::move(u),
-                                                                              BinaryOperator::dots, std::move(v)}})}};
+            return {true, lit.update(a_lhs = std::move(var),
+                                     a_rhs = Util::make_vec<Guard>(
+                                         Guard{Relation::equal, TermBinary{std::move(loc), std::move(u),
+                                                                           BinaryOperator::dots, std::move(v)}}))};
         };
         if (is_variable(lit.lhs()) && is_interval(rhs.second)) {
             auto const *var = std::get_if<TermVariable>(&lit.lhs());
@@ -336,8 +331,8 @@ struct ApplyBounds {
         // Result=true  => keep
         // Result=false => drop
         // has value    => replace
-        auto update_bound = [this, &make_symbol, &make_relation, &make_interval](auto &lhs, Relation rel,
-                                                                                 auto &rhs) -> Util::ResultState<Lit> {
+        auto update_bound = [this, &make_symbol, &make_relation,
+                             &make_interval](auto const &lhs, Relation rel, auto const &rhs) -> Util::ResultState<Lit> {
             auto const *var = std::get_if<TermVariable>(&lhs);
             auto const *sym = std::get_if<TermSymbol>(&rhs);
             // Note: non-integer bounds could also be handled
@@ -391,7 +386,7 @@ struct ApplyBounds {
             // update if changed
             if (cmp(bound, rel, *sym->value().num() + Number{bound_type == IEInterval::Lower ? 1 : -1})) {
                 auto rel = bound_type == IEInterval::Lower > 0 ? Relation::greater_equal : Relation::less_equal;
-                return {true, make_relation(lhs, rel, location(rhs), bound)};
+                return {true, make_relation(lhs, rel, location(rhs), std::move(bound))};
             }
             return {true};
         };
@@ -513,8 +508,7 @@ struct ComputeBounds {
 
     template <bool Body> using HBRes = std::conditional_t<Body, Util::ResultState<BdLit>, std::optional<HdLit>>;
 
-    template <bool Body> auto operator()(SetAggregate<Body> const &lit) -> HBRes<Body> {
-        static_cast<void>(lit);
+    template <bool Body> auto operator()([[maybe_unused]] SetAggregate<Body> const &lit) -> HBRes<Body> {
         throw std::runtime_error("unpool must be called before computing bounds");
     }
 
@@ -534,10 +528,7 @@ struct ComputeBounds {
 
     auto operator()(HdLit const &lit) -> std::optional<HdLit> { return std::visit(*this, lit); }
 
-    auto operator()(HdLitSimple const &lit) -> std::optional<HdLit> {
-        static_cast<void>(lit);
-        return std::nullopt;
-    }
+    auto operator()([[maybe_unused]] HdLitSimple const &lit) -> std::optional<HdLit> { return std::nullopt; }
 
     auto operator()(HdLitDisjunction const &lit) -> std::optional<HdLit> {
         auto res_elems = Util::ResultVec{lit.elems()};
@@ -561,10 +552,7 @@ struct ComputeBounds {
 
     auto operator()(BdLit const &lit) -> Util::ResultState<BdLit> { return std::visit(*this, lit); }
 
-    auto operator()(BdLitSimple const &lit) -> Util::ResultState<BdLit> {
-        static_cast<void>(lit);
-        return {true};
-    }
+    auto operator()([[maybe_unused]] BdLitSimple const &lit) -> Util::ResultState<BdLit> { return {true}; }
 
     auto operator()(BdLitConjunction const &conj) -> Util::ResultState<BdLit> {
         auto sub_slv = IESolver{&slv};
@@ -617,8 +605,7 @@ struct ComputeBounds {
         });
     }
 
-    auto operator()(StmOptimize const &stm) -> Util::ResultState<Stm> {
-        static_cast<void>(stm);
+    auto operator()([[maybe_unused]] StmOptimize const &stm) -> Util::ResultState<Stm> {
         throw std::runtime_error("unpool must be called before computing bounds");
     }
 
@@ -632,8 +619,7 @@ struct ComputeBounds {
     template <class T>
         requires Util::is_among_v<T, StmTheory, StmProjectSig, StmDefined, StmShowSig, StmScript, StmInclude,
                                   StmProgram, StmConst, StmComment>
-    auto operator()(auto const &stm) -> Util::ResultState<Stm> {
-        static_cast<void>(stm);
+    auto operator()([[maybe_unused]] auto const &stm) -> Util::ResultState<Stm> {
         return {true};
     }
 

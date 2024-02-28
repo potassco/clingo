@@ -34,7 +34,7 @@ struct BuildDep {
 
     void operator()(Term const &term) const { std::visit(*this, term); }
 
-    void operator()(Projection const &pro) const { static_cast<void>(pro); }
+    void operator()([[maybe_unused]] Projection const &pro) const {}
 
     void operator()(Argument const &elem) const { std::visit(*this, elem); };
 
@@ -42,7 +42,7 @@ struct BuildDep {
         std::for_each(tuple.elems().begin(), tuple.elems().end(), *this);
     }
 
-    void operator()(TermVariable const &term) const { static_cast<void>(term); }
+    void operator()([[maybe_unused]] TermVariable const &term) const {}
 
     void operator()(TermSymbol const &term) const {
         if (term.value().type() == SymbolType::function) {
@@ -172,10 +172,7 @@ struct Evaluate {
 
     auto operator()(Term const &term) const -> std::optional<Symbol> { return std::visit(*this, term); }
 
-    auto operator()(Projection const &pro) const -> std::optional<Symbol> {
-        static_cast<void>(pro);
-        return std::nullopt;
-    }
+    auto operator()([[maybe_unused]] Projection const &pro) const -> std::optional<Symbol> { return std::nullopt; }
 
     auto operator()(Argument const &elem) const -> std::optional<Symbol> { return std::visit(*this, elem); };
 
@@ -200,10 +197,7 @@ struct Evaluate {
         return {store.tup(args.value())};
     }
 
-    auto operator()(TermVariable const &term) const -> std::optional<Symbol> {
-        static_cast<void>(term);
-        return std::nullopt;
-    }
+    auto operator()([[maybe_unused]] TermVariable const &term) const -> std::optional<Symbol> { return std::nullopt; }
 
     auto operator()(TermSymbol const &term) const -> std::optional<Symbol> { return operator()(term.value()); }
 

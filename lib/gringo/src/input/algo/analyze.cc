@@ -2,6 +2,7 @@
 
 #include <gringo/util/algorithm.hh>
 #include <gringo/util/print.hh>
+#include <gringo/util/type_traits.hh>
 
 #include <gringo/input/algo/analyze.hh>
 #include <gringo/input/algo/evaluate.hh>
@@ -13,12 +14,6 @@ namespace Gringo::Input {
 namespace {
 
 struct CheckType {
-    // protect ourselves -> no unintended overloads
-
-    template <class T> auto operator()(T const &x) const -> bool = delete;
-
-    // terms
-
     auto operator()(Term const &term) const -> bool { return std::visit(*this, term); }
 
     auto operator()(TermSymbol const &term) const -> bool {
@@ -52,16 +47,6 @@ struct CheckType {
         }
     }
 
-    auto operator()(TermVariable const &term) const -> bool {
-        static_cast<void>(term);
-        return false;
-    }
-
-    auto operator()(TermTuple const &term) const -> bool {
-        static_cast<void>(term);
-        return false;
-    }
-
     auto operator()(TermFunction const &term) const -> bool {
         if (type == TermCheckType::atom) {
             return !term.external();
@@ -73,11 +58,6 @@ struct CheckType {
             }
             return true;
         }
-        return false;
-    }
-
-    auto operator()(TermAbs const &term) const -> bool {
-        static_cast<void>(term);
         return false;
     }
 
@@ -104,6 +84,11 @@ struct CheckType {
         return false;
     }
 
+    template <class T> auto operator()([[maybe_unused]] T const &x) const -> bool {
+        static_assert(Util::is_among_v<T, TermVariable, TermTuple, TermAbs>);
+        return false;
+    }
+
     TermCheckType type;
     CheckTypeResult *res;
 };
@@ -111,159 +96,79 @@ struct CheckType {
 struct AlwaysNumeric {
     auto operator()(Term const &term) const -> bool { return std::visit(*this, term); }
 
-    auto operator()(auto const &term) const -> bool = delete;
-
     auto operator()(TermSymbol const &term) const -> bool { return term.value().type() == SymbolType::number; }
-
-    auto operator()(TermVariable const &term) const -> bool {
-        static_cast<void>(term);
-        return false;
-    }
-
-    auto operator()(TermFunction const &term) const -> bool {
-        static_cast<void>(term);
-        return false;
-    }
 
     auto operator()(TermTuple const &term) const -> bool {
         return term.pool().size() == 1 && std::holds_alternative<ArgumentTuple>(term.pool().front());
-    }
-
-    auto operator()(TermAbs const &term) const -> bool {
-        static_cast<void>(term);
-        return true;
     }
 
     auto operator()(TermUnary const &term) const -> bool {
         return term.op() == UnaryOperator::invert || std::visit(*this, *term.rhs());
     }
 
-    auto operator()(TermBinary const &term) const -> bool {
-        static_cast<void>(term);
-        return true;
+    template <class T> auto operator()([[maybe_unused]] T const &term) const -> bool {
+        if constexpr (Util::is_among_v<T, TermAbs, TermBinary>) {
+            return true;
+        } else {
+            static_assert(Util::is_among_v<T, TermVariable, TermFunction>);
+            return false;
+        }
     }
 };
 
 struct NeverNumeric {
     auto operator()(Term const &term) const -> bool { return std::visit(*this, term); }
 
-    auto operator()(auto const &term) const -> bool = delete;
-
     auto operator()(TermSymbol const &term) const -> bool { return term.value().type() != SymbolType::number; }
-
-    auto operator()(TermVariable const &term) const -> bool {
-        static_cast<void>(term);
-        return false;
-    }
-
-    auto operator()(TermFunction const &term) const -> bool {
-        static_cast<void>(term);
-        return true;
-    }
 
     auto operator()(TermTuple const &term) const -> bool {
         return term.pool().size() == 1 && std::holds_alternative<ArgumentTuple>(term.pool().front());
-    }
-
-    auto operator()(TermAbs const &term) const -> bool {
-        static_cast<void>(term);
-        return false;
     }
 
     auto operator()(TermUnary const &term) const -> bool {
         return term.op() == UnaryOperator::negate && std::visit(*this, *term.rhs());
     }
 
-    auto operator()(TermBinary const &term) const -> bool {
-        static_cast<void>(term);
-        return false;
+    template <class T> auto operator()([[maybe_unused]] T const &term) const -> bool {
+        if constexpr (Util::is_among_v<T, TermAbs, TermBinary, TermVariable>) {
+            return false;
+        } else {
+            static_assert(Util::is_among_v<T, TermFunction>);
+            return true;
+        }
     }
 };
 
 struct IsTest {
-    // protect ourselves -> no unintended overloads
-
-    template <class T> auto operator()(T const &x) const -> bool = delete;
-
-    // literals
-
-    auto operator()(Lit const &lit) const -> bool { return std::visit(*this, lit); }
-
-    auto operator()(LitBool const &lit) const -> bool {
-        static_cast<void>(lit);
-        return true;
-    }
-
-    auto operator()(LitComparison const &lit) const -> bool {
-        static_cast<void>(lit);
-        return true;
-    }
-
-    auto operator()(LitSymbolic const &lit) const -> bool {
-        static_cast<void>(lit);
-        return false;
-    }
-
-    // body literal
-
-    auto operator()(BdLit const &lit) const -> bool { return std::visit(*this, lit); }
-
-    auto operator()(BdLitSimple const &lit) const -> bool { return operator()(lit.lit()); }
-
-    auto operator()(BdLitConjunction const &lit) const -> bool {
-        static_cast<void>(lit);
-        return false;
-    }
-
-    auto operator()(BdLitSetAggregate const &lit) const -> bool {
-        static_cast<void>(lit);
-        return false;
-    }
-
-    auto operator()(BdLitAggregate const &lit) const -> bool {
-        static_cast<void>(lit);
-        return false;
-    }
-
-    auto operator()(BdLitTheoryAtom const &lit) const -> bool {
-        static_cast<void>(lit);
-        return false;
+    template <class T> auto operator()([[maybe_unused]] T const &lit) const -> bool {
+        if constexpr (Util::is_among_v<T, Lit, BdLit>) {
+            return std::visit(*this, lit);
+        } else if constexpr (Util::is_among_v<T, Lit, BdLitSimple>) {
+            return operator()(lit.lit());
+        } else if constexpr (Util::is_among_v<T, LitBool, LitComparison>) {
+            return true;
+        } else {
+            static_assert(
+                Util::is_among_v<T, BdLitConjunction, BdLitSetAggregate, BdLitAggregate, BdLitTheoryAtom, LitSymbolic>);
+            return false;
+        }
     }
 };
 
 struct IsAtom {
-    // protect ourselves -> no unintended overloads
-
-    template <class T> auto operator()(T const &x) const -> bool = delete;
-
-    // literal
-
-    auto operator()(Lit const &lit) const -> bool { return std::visit(*this, lit); }
-
-    auto operator()(LitBool const &lit) const -> bool {
-        static_cast<void>(lit);
-        return false;
-    }
-
-    auto operator()(LitComparison const &lit) const -> bool {
-        static_cast<void>(lit);
-        return false;
+    template <class T> auto operator()([[maybe_unused]] T const &lit) const -> bool {
+        if constexpr (Util::is_among_v<T, LitBool, LitComparison, HdLitSetAggregate, BdLitSetAggregate, HdLitAggregate,
+                                       HdLitTheoryAtom, BdLitConjunction, BdLitAggregate, BdLitTheoryAtom>) {
+            return false;
+        } else if constexpr (Util::is_among_v<T, HdLitSimple, BdLitSimple>) {
+            return operator()(lit.lit());
+        } else {
+            static_assert(Util::is_among_v<T, Lit, HdLit, BdLit>);
+            return std::visit(*this, lit);
+        }
     }
 
     auto operator()(LitSymbolic const &lit) const -> bool { return lit.sign() == Sign::none; }
-
-    // conditional literals
-
-    template <bool HasSign> auto operator()(SetAggregate<HasSign> const &lit) const -> bool {
-        static_cast<void>(lit);
-        return false;
-    }
-
-    // head literal
-
-    auto operator()(HdLit const &lit) const -> bool { return std::visit(*this, lit); }
-
-    auto operator()(HdLitSimple const &lit) const -> bool { return operator()(lit.lit()); }
 
     auto operator()(HdLitDisjunction const &lit) const -> bool {
         if (lit.elems().size() != 1) {
@@ -272,64 +177,12 @@ struct IsAtom {
         auto const *front = std::get_if<Lit>(&lit.elems().front());
         return front != nullptr && operator()(*front);
     }
-
-    auto operator()(HdLitAggregate const &lit) const -> bool {
-        static_cast<void>(lit);
-        return false;
-    }
-
-    auto operator()(HdLitTheoryAtom const &lit) const -> bool {
-        static_cast<void>(lit);
-        return false;
-    }
-
-    // body literal
-
-    auto operator()(BdLit const &lit) const -> bool { return std::visit(*this, lit); }
-
-    auto operator()(BdLitSimple const &lit) const -> bool { return operator()(lit.lit()); }
-
-    auto operator()(BdLitConjunction const &lit) const -> bool {
-        static_cast<void>(lit);
-        return false;
-    }
-
-    auto operator()(BdLitAggregate const &lit) const -> bool {
-        static_cast<void>(lit);
-        return false;
-    }
-
-    auto operator()(BdLitTheoryAtom const &lit) const -> bool {
-        static_cast<void>(lit);
-        return false;
-    }
 };
 
 struct IsClassical {
-    // protect ourselves -> no unintended overloads
-
-    template <class T> auto operator()(T const &x) const -> bool = delete;
-
-    // head literal
-
     auto operator()(HdLit const &lit) const -> bool { return std::visit(*this, lit); }
 
     auto operator()(HdLitSimple const &lit) const -> bool { return !is_atom(lit.lit()); }
-
-    auto operator()(HdLitAggregate const &lit) const -> bool {
-        static_cast<void>(lit);
-        return false;
-    }
-
-    auto operator()(HdLitSetAggregate const &lit) const -> bool {
-        static_cast<void>(lit);
-        return false;
-    }
-
-    auto operator()(HdLitTheoryAtom const &lit) const -> bool {
-        static_cast<void>(lit);
-        return false;
-    }
 
     auto operator()(HdLitDisjunction const &lit) const -> bool {
         return std::all_of(lit.elems().begin(), lit.elems().end(), [](auto const &elem) {
@@ -345,6 +198,11 @@ struct IsClassical {
                 elem);
         });
     }
+
+    template <class T> auto operator()([[maybe_unused]] T const &lit) const -> bool {
+        static_assert(Util::is_among_v<T, HdLitAggregate, HdLitSetAggregate, HdLitTheoryAtom>);
+        return true;
+    }
 };
 
 struct IsFact {
@@ -354,10 +212,7 @@ struct IsFact {
 
     auto operator()(Term const &term) const -> std::optional<Symbol> { return std::visit(*this, term); }
 
-    auto operator()(TermVariable const &term) const -> std::optional<Symbol> {
-        static_cast<void>(term);
-        return std::nullopt;
-    }
+    auto operator()([[maybe_unused]] TermVariable const &term) const -> std::optional<Symbol> { return std::nullopt; }
 
     auto operator()(TermSymbol const &term) const -> std::optional<Symbol> { return term.value(); }
 
@@ -378,7 +233,6 @@ struct IsFact {
     }
 
     auto operator()(TermFunction const &term) const -> std::optional<Symbol> {
-        static_cast<void>(term);
         if (term.pool().size() != 1 || term.external()) {
             return std::nullopt;
         }
@@ -493,8 +347,6 @@ auto is_atom(BdLit const &lit) -> bool { return IsAtom{}(lit); }
 
 auto is_test(Lit const &lit) -> bool { return IsTest{}(lit); }
 
-// auto is_test(HeadLiteral const &lit) -> bool { return IsTest{}(lit); }
-
 auto is_test(BdLit const &lit) -> bool { return IsTest{}(lit); }
 
 auto is_classical(HdLit const &lit) -> bool { return IsClassical{}(lit); }
@@ -520,8 +372,7 @@ auto check_global(Logger &log, VariableSet const &global, Stm const &stm) -> boo
     std::vector<String> unsafe;
     visit_variables(
         stm,
-        [&](Location const &loc, String var) {
-            static_cast<void>(loc);
+        [&]([[maybe_unused]] Location const &loc, String var) {
             if (!var.starts_with("$") && global.contains(var) != new_global.contains(var)) {
                 unsafe.emplace_back(var);
             }
