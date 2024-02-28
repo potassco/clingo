@@ -1,6 +1,6 @@
 #pragma once
 
-#include <gringo/number.hh>
+#include <gringo/core/number.hh>
 
 #include <gringo/util/hash.hh>
 #include <gringo/util/unordered_set.hh>

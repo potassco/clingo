@@ -1,4 +1,4 @@
-#include <gringo/number.hh>
+#include <gringo/core/number.hh>
 
 #include <catch2/catch_test_macros.hpp>
 

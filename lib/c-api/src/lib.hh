@@ -1,7 +1,7 @@
 #include <clingo.h>
 
-#include <gringo/logger.hh>
-#include <gringo/symbol.hh>
+#include <gringo/core/logger.hh>
+#include <gringo/core/symbol.hh>
 
 #include <exception>
 #include <stdexcept>

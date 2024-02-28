@@ -1,6 +1,6 @@
 #pragma once
 
-#include <gringo/symbol.hh>
+#include <gringo/core/symbol.hh>
 
 #include <cstddef>
 #include <optional>

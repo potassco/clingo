@@ -10,7 +10,7 @@
 #include <gringo/input/algo/unpool_relations.hh>
 #include <gringo/input/algo/visit_variables.hh>
 
-#include <gringo/logger.hh>
+#include <gringo/core/logger.hh>
 
 namespace Gringo::Input {
 

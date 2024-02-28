@@ -2,7 +2,7 @@
 
 #include <gringo/input/statement.hh>
 
-#include <gringo/logger.hh>
+#include <gringo/core/logger.hh>
 
 namespace Gringo::Input {
 

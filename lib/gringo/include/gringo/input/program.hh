@@ -2,11 +2,11 @@
 
 #include <gringo/input/statement.hh>
 
+#include <gringo/core/logger.hh>
+
 #include <gringo/util/ordered_map.hh>
 #include <gringo/util/ordered_set.hh>
 #include <gringo/util/unordered_map.hh>
-
-#include <gringo/logger.hh>
 
 #include <stack>
 

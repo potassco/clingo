@@ -1,4 +1,6 @@
 add_library(gringo
+    "src/core/number.cc"
+    "src/core/symbol.cc"
     "src/input/algo/add_sign.cc"
     "src/input/algo/analyze.cc"
     "src/input/algo/check_syntax.cc"
@@ -19,8 +21,6 @@ add_library(gringo
     "src/input/iesolver.cc"
     "src/input/literal.cc"
     "src/input/program.cc"
-    "src/number.cc"
-    "src/symbol.cc"
     )
 
 target_link_libraries(gringo PUBLIC tsl::hopscotch_map tsl::ordered_map PRIVATE foonathan::lexy::core foonathan::lexy::file imath::imath)

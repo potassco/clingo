@@ -1,6 +1,6 @@
 #pragma once
 
-#include <gringo/logger.hh>
+#include <gringo/core/logger.hh>
 
 #include <lexy_ext/report_error.hpp>
 

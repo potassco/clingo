@@ -3,10 +3,10 @@
 #include <gringo/input/algo/evaluate.hh>
 #include <gringo/input/algo/print.hh>
 
+#include <gringo/core/logger.hh>
+
 #include <gringo/util/algorithm.hh>
 #include <gringo/util/checked_math.hh>
-
-#include <gringo/logger.hh>
 
 namespace Gringo::Input {
 

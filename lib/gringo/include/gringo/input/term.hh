@@ -3,12 +3,12 @@
 #include <gringo/input/attributes.hh>
 #include <gringo/input/location.hh>
 
+#include <gringo/core/symbol.hh>
+
 #include <gringo/util/hash.hh>
 #include <gringo/util/immutable_array.hh>
 #include <gringo/util/immutable_value.hh>
 #include <gringo/util/optional.hh>
-
-#include <gringo/symbol.hh>
 
 #include <variant>
 
