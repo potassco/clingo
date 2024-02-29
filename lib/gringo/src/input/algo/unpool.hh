@@ -34,7 +34,7 @@ auto unpool_cross(R &res, E const &expr, B &build, P const &pool, Es const &...e
 template <class R, auto n, class B, class U, class E, class... Es>
 auto unpool_apply(B build, U const &unpool, E const &elem, Es const &...elems) -> std::optional<std::vector<R>> {
     if constexpr (n == 0) {
-        if (elem || (elems || ...)) {
+        if ((elem || ... || elems)) {
             std::vector<R> res;
             auto get_size = [](auto const &elem) { return elem ? elem->size() : 1; };
             res.reserve((get_size(elem) * ... * get_size(elems)));
@@ -43,7 +43,7 @@ auto unpool_apply(B build, U const &unpool, E const &elem, Es const &...elems) -
         }
         return std::nullopt;
     } else {
-        return unpool_apply<R, n - 1>(std::forward<decltype(build)>(build), unpool, elems..., unpool(elem));
+        return unpool_apply<R, n - 1>(std::forward<B>(build), unpool, elems..., unpool(elem));
     }
 }
 

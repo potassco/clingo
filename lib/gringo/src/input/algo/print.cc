@@ -11,10 +11,6 @@ namespace Gringo::Input {
 
 namespace {
 
-auto is_theory_operator(std::string_view name) -> bool {
-    return (!name.empty() && std::strchr("/!<=>+-*\\?&@|:;~^.", name.front()) != nullptr) || (name == "not");
-}
-
 //! Enumeration of term positions.
 enum class OperatorPosition : int {
     left,  //!< The term is directly on the right-hand-side of a term.

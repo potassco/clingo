@@ -134,6 +134,11 @@ auto is_fact(SymbolStore &store, Stm const &stm) -> std::optional<Symbol>;
 //! Check that none of the given varables are local in the statement.
 auto check_global(Logger &log, VariableSet const &global, Stm const &stm) -> bool;
 
+//! Check if the given string is a theory operator.
+inline auto is_theory_operator(std::string_view name) -> bool {
+    return (!name.empty() && std::strchr("/!<=>+-*\\?&@|:;~^.", name.front()) != nullptr) || (name == "not");
+}
+
 //! @}
 
 } // namespace Gringo::Input
