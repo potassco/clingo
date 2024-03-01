@@ -139,6 +139,9 @@ inline auto is_theory_operator(std::string_view name) -> bool {
     return (!name.empty() && std::strchr("/!<=>+-*\\?&@|:;~^.", name.front()) != nullptr) || (name == "not");
 }
 
+//! Get the signature of a term.
+auto signature(Term const &term) -> std::optional<std::tuple<String, size_t, bool>>;
+
 //! @}
 
 } // namespace Gringo::Input

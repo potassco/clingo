@@ -291,6 +291,33 @@ struct IsFact {
     SymbolStore &store;
 };
 
+struct GetSignature {
+    auto operator()(TermFunction const &term) -> std::optional<std::tuple<String, size_t, bool>> {
+        if (term.pool().size() == 1) {
+            return std::tuple{term.name(), term.pool().front().elems().size(), false};
+        }
+        return std::nullopt;
+    }
+    auto operator()(TermUnary const &term) -> std::optional<std::tuple<String, size_t, bool>> {
+        if (term.op() == UnaryOperator::negate) {
+            return Util::transform(std::visit(*this, *term.rhs()), [](auto sig) {
+                return std::tuple{std::get<0>(sig), std::get<1>(sig), !std::get<2>(sig)};
+            });
+        }
+        return std::nullopt;
+    }
+    auto operator()(TermSymbol const &term) -> std::optional<std::tuple<String, size_t, bool>> {
+        auto val = term.value();
+        if (val.type() == SymbolType::function) {
+            return std::tuple{val.name(), val.args().size(), val.has_sign()};
+        }
+        return std::nullopt;
+    }
+    auto operator()([[maybe_unused]] auto const &term) -> std::optional<std::tuple<String, size_t, bool>> {
+        return std::nullopt;
+    }
+};
+
 } // namespace
 
 auto check_type(Term const &term, TermCheckType type, CheckTypeResult *res) -> bool {
@@ -388,6 +415,10 @@ auto check_global(Logger &log, VariableSet const &global, Stm const &stm) -> boo
         return false;
     }
     return true;
+}
+
+auto signature(Term const &term) -> std::optional<std::tuple<String, size_t, bool>> {
+    return std::visit(GetSignature{}, term);
 }
 
 } // namespace Gringo::Input
