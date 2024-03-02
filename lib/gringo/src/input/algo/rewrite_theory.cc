@@ -234,7 +234,7 @@ auto TheoryAtomParser::parse(Logger &log, TheoryAtom<has_sign> const &atom, bool
             // maybe clear guard and elems...
             return std::nullopt;
         }
-        rhs = ParseTheoryTerm{log, term_parsers_[index]}.transform(*atom.rhs());
+        rhs = ParseTheoryTerm{log, term_parsers_[guard_index]}.transform(*atom.rhs());
     }
     return atom.rewrite(a_elems = std::move(elems), a_rhs = std::move(rhs));
 }
