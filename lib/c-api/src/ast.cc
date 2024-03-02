@@ -4,6 +4,7 @@
 #include <gringo/input/algo/parse.hh>
 #include <gringo/input/algo/print.hh>
 #include <gringo/input/algo/rewrite.hh>
+#include <gringo/input/algo/rewrite_theory.hh>
 #include <gringo/input/algo/substitute.hh>
 
 #include <gringo/util/algorithm.hh>
@@ -2535,7 +2536,8 @@ extern "C" auto clingo_ast_rewrite(clingo_lib_t *lib, clingo_ast_t *statement,
             pum.emplace(var, id);
             ++i;
         }
-        rewrite(lib->log, *lib->store, param_map, const_map, stm, opts, stms);
+        TheoryAtomParser parser;
+        rewrite(lib->log, *lib->store, param_map, const_map, parser, stm, opts, stms);
         if (lib->log.has_error()) {
             lib->log.reset();
             throw std::runtime_error("rewriting statement failed");

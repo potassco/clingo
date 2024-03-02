@@ -3,6 +3,7 @@
 #include <gringo/input/algo/project.hh>
 #include <gringo/input/algo/rewrite.hh>
 #include <gringo/input/algo/rewrite_anonymous.hh>
+#include <gringo/input/algo/rewrite_theory.hh>
 #include <gringo/input/algo/safety.hh>
 #include <gringo/input/algo/simplify.hh>
 #include <gringo/input/algo/substitute.hh>
@@ -14,8 +15,8 @@
 
 namespace Gringo::Input {
 
-void rewrite(Logger &log, SymbolStore &store, ParamMap &param_map, ConstMap &const_map, Stm const &stm,
-             RewriteOptions opts, StmVec &stms) {
+void rewrite(Logger &log, SymbolStore &store, ParamMap &param_map, ConstMap &const_map, TheoryAtomParser const &parser,
+             Stm const &stm, RewriteOptions opts, StmVec &stms) {
     RewriteContext ctx{log, store, param_map, const_map, select_variables(stm, VariableContext::all), "__A_"};
     GRINGO_REPORT(log, debug) << "rewrite: " << stm;
     auto opt = rewrite_anonymous(store, stm);
@@ -24,8 +25,8 @@ void rewrite(Logger &log, SymbolStore &store, ParamMap &param_map, ConstMap &con
     }
     auto res = std::move(opt).value_or(stm);
 
-    auto rewrite_unpooled = [&opts, &stms, &ctx](Stm stm, char const *indent) {
-        auto rewrite_unpooled = [&stms, &ctx, indent](Stm stm, char const *sub_indent) {
+    auto rewrite_unpooled = [&opts, &stms, &ctx, &parser](Stm stm, char const *indent) {
+        auto rewrite_unpooled = [&stms, &ctx, &parser, indent](Stm stm, char const *sub_indent) {
             auto [state_cb, res_cb] = compute_bounds(ctx, stm);
             if (res_cb) {
                 GRINGO_REPORT(ctx.logger(), debug) << indent << sub_indent << "compute bounds: " << *res_cb;
@@ -38,6 +39,11 @@ void rewrite(Logger &log, SymbolStore &store, ParamMap &param_map, ConstMap &con
                 }
                 if (state_cs) {
                     stm = std::move(res_cs).value_or(std::move(stm));
+                    auto res_thy = rewrite_theory(ctx.logger(), parser, stm);
+                    if (res_thy) {
+                        GRINGO_REPORT(ctx.logger(), debug) << indent << "theory: " << *res_thy;
+                    }
+                    stm = std::move(res_thy).value_or(std::move(stm));
                     stms.emplace_back(std::move(stm));
                 }
             }

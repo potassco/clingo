@@ -3,6 +3,7 @@
 #include <gringo/input/algo/analyze.hh>
 #include <gringo/input/algo/evaluate.hh>
 #include <gringo/input/algo/rewrite.hh>
+#include <gringo/input/algo/rewrite_theory.hh>
 #include <gringo/input/algo/substitute.hh>
 
 #include <gringo/util/algorithm.hh>
@@ -17,6 +18,8 @@ void add(SymbolStore &store, Stm stm, UnprocessedProgram &prg) {
                 prg.meta_stms.emplace_back(std::move(stm));
             } else if constexpr (Util::is_among_v<T, StmInclude, StmComment>) {
                 // ignore
+            } else if constexpr (std::is_same_v<T, StmTheory>) {
+                prg.thy_stms.emplace_back(std::move(stm));
             } else if constexpr (std::is_same_v<T, StmConst>) {
                 prg.const_stms.emplace_back(std::move(stm));
             } else if constexpr (std::is_same_v<T, StmProgram>) {
@@ -38,16 +41,24 @@ void add(SymbolStore &store, Stm stm, UnprocessedProgram &prg) {
 }
 
 void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
+    // process theory statements
+    thy_stms_.insert(thy_stms_.end(), prg.thy_stms.begin(), prg.thy_stms.end());
+    TheoryAtomParser parser;
+    for (auto const &stm : thy_stms_) {
+        parser.add_theory(log, stm);
+    }
+
     // process meta statements
     evaluate_const(log, store, prg.const_stms, const_map_);
     {
         ParamMap empty_pm;
         auto ctx = RewriteContext{log, store, empty_pm, const_map_, {}, ""};
         for (auto &stm : prg.meta_stms) {
-            rewrite(log, store, empty_pm, const_map_, stm, opts_, meta_stms_);
+            rewrite(log, store, empty_pm, const_map_, parser, stm, opts_, meta_stms_);
         }
     }
 
+    // process program parts
     for (auto &[program_stm, stms, facts] : prg.parts) {
         auto part = parts_.try_emplace(Signature{program_stm.name(), program_stm.args().size()}, program_stm);
         ParamMap param_map;
@@ -72,7 +83,7 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
         // process rules
         for (auto &stm : stms) {
             size_t n = res_part.stms.size();
-            rewrite(log, store, param_map, const_map_, stm, opts_, res_part.stms);
+            rewrite(log, store, param_map, const_map_, parser, stm, opts_, res_part.stms);
             auto jt = res_part.stms.begin() + n;
             for (auto it = jt, ie = res_part.stms.end(); it != ie; ++it) {
                 if (auto fact = is_fact(store, *it); fact) {

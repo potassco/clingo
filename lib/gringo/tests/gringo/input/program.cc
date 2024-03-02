@@ -39,6 +39,9 @@ TEST_CASE("rewrite_program") {
             SV{"#program a(__p_0,y).", "p(__p_0,z).", "p(x,y)."});
     REQUIRE(rewrite_program({"#program a(x,y).", "p(x,z).", "#program a(y,z).", "p(x,z,__p_0)."}) ==
             SV{"#program a(__p_1,y).", "p(__p_1,z).", "p(x,y,__p_0)."});
+    REQUIRE(
+        rewrite_program({"#theory x { t { + : 0, binary, left }; &a/0: t, any }.", "&a{ x+y+z }."}) ==
+        SV{"#theory x {\n  t { + : 0, binary, left };\n  &a/0: t, any\n}.", "#program base.", "&a { ((x + y) + z) }."});
 }
 
 } // namespace Gringo::Input::Test

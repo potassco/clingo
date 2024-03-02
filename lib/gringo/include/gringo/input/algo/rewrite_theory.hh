@@ -2,6 +2,8 @@
 
 #include <gringo/input/program.hh>
 
+#include <gringo/core/logger.hh>
+
 namespace Gringo::Input {
 
 enum class Arity {

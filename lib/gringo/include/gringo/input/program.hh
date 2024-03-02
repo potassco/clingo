@@ -135,6 +135,8 @@ struct UnprocessedProgram {
     PartVec parts;
     //! Unprocessed const statements.
     std::vector<StmConst> const_stms;
+    //! Theory statements.
+    std::vector<StmTheory> thy_stms;
     //! Meta statements.
     std::vector<Stm> meta_stms;
 };
@@ -161,6 +163,9 @@ class Program {
         for (auto const &[id, sym] : const_map_) {
             fun(Stm{StmConst{sym.first.loc(), sym.first.type(), sym.first.name(),
                              TermSymbol{location(sym.first.value()), sym.second}}});
+        }
+        for (auto const &stm : thy_stms_) {
+            fun(stm);
         }
         for (auto const &stm : meta_stms_) {
             fun(stm);
@@ -205,6 +210,8 @@ class Program {
     RewriteOptions opts_;
     //! The meta statements in the program.
     StmVec meta_stms_;
+    //! Theory statements.
+    std::vector<StmTheory> thy_stms_;
     //! The map of program parts.
     PartMap parts_;
     //! The constants and their values.
