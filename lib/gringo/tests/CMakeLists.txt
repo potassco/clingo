@@ -9,6 +9,7 @@ add_executable(tests
     "gringo/input/rewrite_anonymous.cc"
     "gringo/input/safety.cc"
     "gringo/input/simplify.cc"
+    "gringo/input/theory.cc"
     "gringo/input/unpool.cc"
     "gringo/input/unpool_relations.cc"
     "gringo/input/variables.cc"
