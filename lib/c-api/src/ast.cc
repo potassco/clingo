@@ -1372,6 +1372,13 @@ template <> [[nodiscard]] auto clingo_ast::convert<Gringo::Input::Edge>() const 
     throw std::runtime_error("edge expected");
 }
 
+template <> [[nodiscard]] auto clingo_ast::convert<Gringo::Input::StmTheory>() const -> Gringo::Input::StmTheory {
+    if (type_ != clingo_ast_type_statement_theory) {
+        throw std::runtime_error("theory expected");
+    }
+    return cast<Gringo::Input::StmTheory>();
+}
+
 template <> [[nodiscard]] auto clingo_ast::convert<Gringo::Input::Stm>() const -> Gringo::Input::Stm {
     switch (type_) {
         case clingo_ast_type_statement_rule: {
@@ -2514,38 +2521,92 @@ extern "C" void clingo_ast_scanner_close(clingo_ast_scanner_t *scanner) {
     }
 }
 
-extern "C" auto clingo_ast_rewrite(clingo_lib_t *lib, clingo_ast_t *statement,
-                                   clingo_ast_rewrite_options_t const *options, char const **parameters,
-                                   size_t parameters_size, clingo_ast_t ***result, size_t *result_size) -> bool {
+struct clingo_ast_rewrite_context {
+    clingo_lib *lib;
+    Gringo::Input::TheoryAtomParser parser = {};
+    Gringo::Input::ParamMap param_map = {};
+    Gringo::Input::ConstMap const_map = {};
+    Gringo::Input::RewriteOptions options = {};
+    Gringo::Util::ordered_map<Gringo::String, Gringo::String> param_unmap = {};
+};
+
+extern "C" auto clingo_ast_rewrite_context_create(clingo_lib_t *lib, clingo_ast_rewrite_context_t **context) -> bool {
+    CLINGO_TRY { *context = new clingo_ast_rewrite_context{lib}; }
+    CLINGO_CATCH(lib);
+}
+
+extern "C" void clingo_ast_rewrite_context_free(clingo_ast_rewrite_context_t *context) { delete context; }
+
+extern "C" auto clingo_ast_rewrite_context_add_param(clingo_ast_rewrite_context_t *context, char const *param) -> bool {
+    auto *lib = context->lib;
+    CLINGO_TRY {
+        if (auto prm = lib->store->string(param); context->param_map.emplace(prm).second) {
+            auto var = lib->store->string("$" + std::to_string(context->param_unmap.size()));
+            context->param_unmap.emplace(var, prm);
+        }
+    }
+    CLINGO_CATCH(lib);
+}
+
+extern "C" void clingo_ast_rewrite_context_clear_params(clingo_ast_rewrite_context_t *context) {
+    context->param_map.clear();
+    context->param_unmap.clear();
+}
+
+extern "C" auto clingo_ast_rewrite_context_add_theory(clingo_ast_rewrite_context_t *context, clingo_ast_t const *theory)
+    -> bool {
+    auto *lib = context->lib;
+    CLINGO_TRY {
+        auto stm = theory->convert<Gringo::Input::StmTheory>();
+        context->parser.add_theory(lib->log, stm);
+        if (lib->log.has_error()) {
+            lib->log.reset();
+            throw std::runtime_error("adding theory failed");
+        }
+    }
+    CLINGO_CATCH(lib);
+}
+
+extern "C" auto clingo_ast_rewrite_context_get_project_anonymous(clingo_ast_rewrite_context_t *context) -> bool {
+    return context->options.project_anonymous;
+}
+
+extern "C" void clingo_ast_rewrite_context_set_project_anonymous(clingo_ast_rewrite_context_t *context, bool value) {
+    context->options.project_anonymous = value;
+}
+
+extern "C" auto clingo_ast_rewrite_context_get_project_mode(clingo_ast_rewrite_context_t *context)
+    -> clingo_projection_mode_t {
+    return static_cast<clingo_projection_mode_t>(context->options.project_mode);
+}
+
+extern "C" void clingo_ast_rewrite_context_set_project_mode(clingo_ast_rewrite_context_t *context,
+                                                            clingo_projection_mode_t value) {
+    context->options.project_mode = static_cast<Gringo::Input::ProjectionMode>(value);
+}
+
+extern "C" auto clingo_ast_rewrite_context_get_lib(clingo_ast_rewrite_context_t *context) -> clingo_lib_t * {
+    return context->lib;
+}
+
+extern "C" auto clingo_ast_rewrite(clingo_ast_rewrite_context_t *ctx, clingo_ast_t *statement, clingo_ast_t ***result,
+                                   size_t *result_size) -> bool {
+    using namespace Gringo::Input;
+    auto *lib = ctx->lib;
     CLINGO_TRY {
         *result = nullptr;
         *result_size = 0;
-        using namespace Gringo::Input;
         auto stms = StmVec{};
         auto stm = statement->convert<Stm>();
-        auto param_map = ParamMap{};
-        param_map.reserve(parameters_size);
-        std::for_each_n(parameters, parameters_size,
-                        [&param_map, lib](auto const *str) { param_map.emplace(lib->store->string(str)); });
-        RewriteOptions opts{static_cast<ProjectionMode>(options->project_mode), options->project_anonymous};
-        auto const_map = ConstMap{};
-        Gringo::Util::ordered_map<Gringo::String, Gringo::String> pum;
-        size_t i = 0;
-        for (auto const &id : param_map) {
-            auto var = lib->store->string("$" + std::to_string(i));
-            pum.emplace(var, id);
-            ++i;
-        }
-        TheoryAtomParser parser;
-        rewrite(lib->log, *lib->store, param_map, const_map, parser, stm, opts, stms);
+        rewrite(lib->log, *lib->store, ctx->param_map, ctx->const_map, ctx->parser, stm, ctx->options, stms);
         if (lib->log.has_error()) {
             lib->log.reset();
             throw std::runtime_error("rewriting statement failed");
         }
         ASTVec res{stms.size()};
-        i = 0;
+        int i = 0;
         for (auto &stm : stms) {
-            if (auto res_stm = unmap_params(*lib->store, pum, stm); res_stm) {
+            if (auto res_stm = unmap_params(*lib->store, ctx->param_unmap, stm); res_stm) {
                 stm = *std::move(res_stm);
             }
             auto owner = Gringo::Util::make_immutable<std::any>(std::move(stm));

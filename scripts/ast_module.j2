@@ -371,21 +371,45 @@ private:
     std::optional<Statement> value_;
 };
 
-auto rewrite_statement(Library &lib, Statement &stm, std::vector<std::string> parameters, ProjectionMode mode,
-                       bool project_anonymous) -> std::vector<Statement> {
-    std::vector<char const *> params;
-    params.reserve(parameters.size());
-    std::transform(parameters.begin(), parameters.end(), std::back_inserter(params),
-                   [](auto const &str) { return str.c_str(); });
+class RewriteContext {
+  public:
+    RewriteContext(Library &lib) { handle_error(lib, clingo_ast_rewrite_context_create(lib, &ctx_)); }
+    ~RewriteContext() { clingo_ast_rewrite_context_free(ctx_); }
+    void set_project_mode(ProjectionMode value) {
+        clingo_ast_rewrite_context_set_project_mode(ctx_, static_cast<clingo_projection_mode_t>(value));
+    }
+    auto get_project_mode() -> ProjectionMode {
+        return static_cast<ProjectionMode>(clingo_ast_rewrite_context_get_project_mode(ctx_));
+    }
+    void set_project_anoymous(bool value) { clingo_ast_rewrite_context_set_project_anonymous(ctx_, value); }
+    auto get_project_anonymous() -> bool { return clingo_ast_rewrite_context_get_project_mode(ctx_) != 0; }
+    void add_param(std::string name) {
+        handle_error(clingo_ast_rewrite_context_get_lib(ctx_),
+                     clingo_ast_rewrite_context_add_param(ctx_, name.c_str()));
+    }
+    void clear_params() {
+        clingo_ast_rewrite_context_clear_params(ctx_);
+    }
+    void add_theory(StatementTheory const &stm) {
+        handle_error(clingo_ast_rewrite_context_get_lib(ctx_),
+                     clingo_ast_rewrite_context_add_theory(ctx_, c_cast(stm)));
+    }
+    friend auto c_cast(RewriteContext const &x) -> clingo_ast_rewrite_context_t * { return x.ctx_; }
+
+  private:
+    clingo_ast_rewrite_context_t *ctx_ = nullptr;
+};
+
+auto rewrite_statement(RewriteContext &ctx, Statement &stm) -> std::vector<Statement> {
+    auto *c_ctx = c_cast(ctx);
+    auto *lib = clingo_ast_rewrite_context_get_lib(c_ctx);
     struct Array {
         ~Array() { clingo_ast_array_free(result, result_size); }
         clingo_ast_t **result = nullptr;
         size_t result_size = 0;
     };
     auto arr = Array{};
-    clingo_ast_rewrite_options_t options{static_cast<clingo_projection_mode_e>(mode), project_anonymous};
-    handle_error(lib, clingo_ast_rewrite(lib, c_cast(stm), &options, params.data(), params.size(), &arr.result,
-                                          &arr.result_size));
+    handle_error(lib, clingo_ast_rewrite(c_ctx, c_cast(stm), &arr.result, &arr.result_size));
     std::vector<Statement> res;
     res.reserve(arr.result_size);
     std::for_each_n(arr.result, arr.result_size, [&res](clingo_ast *&ast) {
@@ -586,23 +610,54 @@ string
 Returns
 -------
 The parsed Statement object.)doc");
-    ast.def("rewrite_statement", &rewrite_statement, py::arg("lib"), py::arg("statement"),
-            py::arg("parameters") = std::vector<std::string>{}, py::arg("project_mode") = ProjectionMode::Pure,
-            py::arg("project_anonymous") = false,
-            R"doc(Simplify the given statement.
+
+    py::class_<RewriteContext>(ast, "RewriteContext", R"doc(Context to rewrite statements.)doc")
+        .def(py::init<Library &>(), py::arg("lib"),
+             R"doc(Create a context to rewrite statements.
 
 Parameters
 ----------
 lib
-    The library object for storing symbols.
+    A library object to store symbols.
+)doc")
+        .def("add_param", &RewriteContext::add_param, py::arg("name"), R"doc(
+Add a parameter.
+
+Parameters are protected from simplification.
+
+Parameters
+----------
+name
+    The name of the parameter.
+)doc")
+        .def("clear_params", &RewriteContext::clear_params, R"doc(
+Remove previously added params
+)doc")
+        .def("add_theory", &RewriteContext::add_theory, py::arg("theory"), R"doc(
+Add a theory definition statement.
+
+The theory definition is used to rewrite theory atoms in statements.
+
+Parameters
+----------
+theory
+    The theory statement to add.
+)doc")
+        .def_property("project_mode", &RewriteContext::get_project_mode, &RewriteContext::set_project_mode,
+                      R"doc(The active projection mode.)doc")
+        .def_property("project_anonymous", &RewriteContext::get_project_anonymous,
+                      &RewriteContext::set_project_anoymous,
+                      R"doc(Whether to project anonymous variables in negative literals.)doc");
+
+    ast.def("rewrite_statement", &rewrite_statement, py::arg("ctx"), py::arg("statement"),
+            R"doc(Simplify the given statement.
+
+Parameters
+----------
+ctx
+    The rewrite context.
 statement
     The statement to rewrite.
-parameters
-    The parameters to exempt from simplification.
-project_mode
-    Which variables to project.
-project_anonymous
-    Whether to project anonymous variables in negative literals.
 
 Returns
 -------

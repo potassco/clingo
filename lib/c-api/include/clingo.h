@@ -993,17 +993,36 @@ enum clingo_projection_mode_e {
 };
 typedef int clingo_projection_mode_t;
 
-//! Enumeration to select variables to project.
-typedef struct clingo_ast_rewrite_options {
-    //! The projection mode.
-    clingo_projection_mode_t project_mode;
-    //! Whether to project anonymous variables in negative literals.
-    bool project_anonymous;
-} clingo_ast_rewrite_options_t;
+typedef struct clingo_ast_rewrite_context clingo_ast_rewrite_context_t;
 
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_rewrite(clingo_lib_t *lib, clingo_ast_t *statement,
-                                                  clingo_ast_rewrite_options_t const *options, char const **parameters,
-                                                  size_t parameters_size, clingo_ast_t ***result, size_t *result_size);
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_rewrite_context_create(clingo_lib_t *lib,
+                                                                 clingo_ast_rewrite_context_t **context);
+
+CLINGO_VISIBILITY_DEFAULT void clingo_ast_rewrite_context_free(clingo_ast_rewrite_context_t *context);
+
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_rewrite_context_add_param(clingo_ast_rewrite_context_t *context,
+                                                                    char const *param);
+
+CLINGO_VISIBILITY_DEFAULT void clingo_ast_rewrite_context_clear_params(clingo_ast_rewrite_context_t *context);
+
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_rewrite_context_add_theory(clingo_ast_rewrite_context_t *context,
+                                                                     clingo_ast_t const *theory);
+
+CLINGO_VISIBILITY_DEFAULT void clingo_ast_rewrite_context_set_project_anonymous(clingo_ast_rewrite_context_t *context,
+                                                                                bool value);
+
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_rewrite_context_get_project_anonymous(clingo_ast_rewrite_context_t *context);
+
+CLINGO_VISIBILITY_DEFAULT void clingo_ast_rewrite_context_set_project_mode(clingo_ast_rewrite_context_t *context,
+                                                                           clingo_projection_mode_t value);
+
+CLINGO_VISIBILITY_DEFAULT clingo_projection_mode_t
+clingo_ast_rewrite_context_get_project_mode(clingo_ast_rewrite_context_t *context);
+
+CLINGO_VISIBILITY_DEFAULT clingo_lib_t *clingo_ast_rewrite_context_get_lib(clingo_ast_rewrite_context_t *context);
+
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_rewrite(clingo_ast_rewrite_context_t *ctx, clingo_ast_t *statement,
+                                                  clingo_ast_t ***result, size_t *result_size);
 
 /*
 //! @name Functions to construct ASTs from strings

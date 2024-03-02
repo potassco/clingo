@@ -251,12 +251,18 @@ def rewrite(lib: Library, prg: Program) -> Program:
             prg_other.append(stm)
 
     params = params_const
+    opts = ast.RewriteContext(lib)
+    for param in params:
+        opts.add_param(param)
     for stm in prg_other:
         if isinstance(stm, ast.StatementProgram):
             params = params_const + stm.arguments
+            opts.clear_params()
+            for param in params:
+                opts.add_param(param)
             prg_res.append(stm)
         else:
-            prg_res.extend(ast.rewrite_statement(lib, stm, parameters=params))
+            prg_res.extend(ast.rewrite_statement(opts, stm))
 
     return prg_res
 

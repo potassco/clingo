@@ -912,14 +912,14 @@ class TestAST(TestCase):
         """
 
         def simp(stm, params=()):
+            ctx = ast.RewriteContext(self.lib)
+            ctx.project_anonymous = True
+            for param in params:
+                ctx.add_param(param)
+
             return [
                 str(x)
-                for x in ast.rewrite_statement(
-                    self.lib,
-                    ast.parse_statement(self.lib, stm),
-                    params,
-                    project_anonymous=True,
-                )
+                for x in ast.rewrite_statement(ctx, ast.parse_statement(self.lib, stm))
             ]
 
         stm = "a; b: c :- d: e."
