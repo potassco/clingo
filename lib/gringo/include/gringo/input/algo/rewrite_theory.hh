@@ -6,15 +6,20 @@
 
 namespace Gringo::Input {
 
+//! @addtogroup input_rewrite
+//! @{
+
+//! Enum for unary/binary operator arities.
 enum class Arity {
-    unary = 0,
-    binary = 1,
+    unary = 0,  //!< unary arity
+    binary = 1, //!< binary arity
 };
 
+//! Enum for operator associativities.
 enum class Associativity {
-    left = 0,
-    right = 1,
-    non_assoc = 2,
+    left = 0,      //!< left associative
+    right = 1,     //!< right associative
+    non_assoc = 2, //!< no associativity
 };
 
 //! A parser for theory terms.
@@ -75,5 +80,7 @@ class TheoryAtomParser {
 
 //! Parse theory atoms in the given statement with the given parser.
 auto rewrite_theory(Logger &log, TheoryAtomParser const &parser, Stm const &stm) -> std::optional<Stm>;
+
+//! @}
 
 } // namespace Gringo::Input

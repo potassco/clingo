@@ -6,7 +6,12 @@
 
 namespace Gringo::Input {
 
+//! @addtogroup input_rewrite
+//! @{
+
 //! Compute bounds from comparisons and intervals.
 [[nodiscard]] auto compute_bounds(RewriteContext &ctx, Stm const &stm) -> Util::ResultState<Stm>;
+
+//! @}
 
 } // namespace Gringo::Input

@@ -13,6 +13,11 @@
 //! @{
 //! @}
 
+//! @defgroup util_math Math Functions
+//! Additional (checked) math functions.
+//! @{
+//! @}
+
 //! @defgroup util_algorithm Generic Algorithms
 //! Generic algorithms used throughout the library.
 //! @{
@@ -43,8 +48,18 @@
 //! @{
 //! @}
 
+//! @defgroup util_container Additonal Containers
+//! Additional containers currently including hash based containers.
+//! @{
+//! @}
+
 //! @defgroup util_record Records
 //! Helpers to declare records with keyword arguments.
+//! @{
+//! @}
+
+//! @defgroup util_debug Debugging Functions
+//! Helper functions for debugging.
 //! @{
 //! @}
 

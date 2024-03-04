@@ -14,6 +14,9 @@
 
 namespace Gringo {
 
+//! @addtogroup util_math
+//! @{
+
 // Casting
 
 //! Check if s of type S can be casted to T without loss.
@@ -203,5 +206,7 @@ auto check_pow(S a, S b) -> std::optional<S> {
     }
     return r;
 }
+
+//! @}
 
 } // namespace Gringo

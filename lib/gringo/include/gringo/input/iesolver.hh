@@ -4,6 +4,9 @@
 
 namespace Gringo::Input {
 
+//! @addtogroup input_rewrite
+//! @{
+
 //! A term of form coefficient times variable.
 //!
 //! If the variable is the empty string, the term consists of a coefficient only.
@@ -127,5 +130,7 @@ class IESolver {
     //! The inequalities used to compute bounds.
     IEVec ies_;
 };
+
+//! @}
 
 } // namespace Gringo::Input

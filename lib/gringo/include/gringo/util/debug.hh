@@ -2,6 +2,9 @@
 
 namespace Gringo::Util {
 
+//! @addtogroup util_debug
+//! @{
+
 inline auto replace_all(std::string str, std::string_view from, const std::string_view to) -> std::string {
     size_t start_pos = 0;
     while ((start_pos = str.find(from, start_pos)) != std::string::npos) {
@@ -38,5 +41,7 @@ template <class T> constexpr auto type_name() -> std::string_view {
 #endif
     // NOLINTEND(readability-magic-numbers)
 }
+
+//! @}
 
 } // namespace Gringo::Util
