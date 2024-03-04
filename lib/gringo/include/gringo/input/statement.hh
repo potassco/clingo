@@ -212,6 +212,7 @@ class OptimizeTuple : public Expression<OptimizeTuple> {
                           a_terms = &OptimizeTuple::terms_};
     }
 
+    //! Construct an optimize tuple.
     explicit OptimizeTuple(Term weight, std::optional<Term> priority, TermArray terms)
         : weight_{std::move(weight)}, prio_{std::move(priority)}, terms_{std::move(terms)} {}
 
@@ -236,6 +237,7 @@ class OptimizeElement : public Expression<OptimizeElement> {
         return std::tuple{a_tuple = &OptimizeElement::tuple_, a_cond = &OptimizeElement::cond_};
     }
 
+    //! Construct an optimize element.
     explicit OptimizeElement(OptimizeTuple tuple, LitArray cond) : tuple_{std::move(tuple)}, cond_{std::move(cond)} {}
 
     //! The weight.
@@ -492,6 +494,7 @@ class Edge : public Expression<Edge> {
     //! The record attributes.
     static constexpr auto attributes() { return std::tuple{a_src = &Edge::src_, a_dst = &Edge::dst_}; }
 
+    //! Construct an edge.
     explicit Edge(Term src, Term dst) : src_{std::move(src)}, dst_{std::move(dst)} {}
 
     //! The source vertex.

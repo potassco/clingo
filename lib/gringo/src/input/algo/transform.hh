@@ -91,7 +91,8 @@ template <class T> class Transformer {
             var);
     }
 
-    template <class U> auto accept_(Util::immutable_array<U> const &vec) const -> std::optional<std::vector<U>> {
+    template <class U>
+    auto accept_(Util::immutable_array<U> const &vec) const -> std::optional<Util::immutable_array<U>> {
         size_t n = 0;
         std::optional<std::vector<std::remove_const_t<U>>> ret;
         for (auto const &elem : vec) {

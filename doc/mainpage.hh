@@ -1,7 +1,3 @@
-//! @mainpage
-//!
-//! The parser test project.
-
 //! @defgroup API Internal C++ API
 //! This is the internal Clingo API, use at your own risk.
 //!

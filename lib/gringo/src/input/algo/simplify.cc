@@ -1145,7 +1145,7 @@ struct LiteralToTuple {
     if (state_lit == state_fixed) {
         // ensure result: "#true/#false:"
         if (!lit.cond().empty()) {
-            res_cond = LitArray{};
+            res_cond = std::vector<Lit>{};
         }
         state = state_fixed;
     }
@@ -1204,7 +1204,7 @@ struct LiteralToTuple {
         auto const &tuple = res_tuple ? *res_tuple : elem.tuple();
         state_elem = all_symbol(tuple) ? TruthValue::top : TruthValue::unknown;
         if (!elem.cond().empty()) {
-            res_cond = LitArray{};
+            res_cond = std::vector<Lit>{};
         }
     }
     if (state_lit == TruthValue::bot || state_cond == TruthValue::bot) {
@@ -1213,7 +1213,7 @@ struct LiteralToTuple {
             res_tuple = TermArray{};
         }
         if (!elem.cond().empty()) {
-            res_cond = LitArray{};
+            res_cond = std::vector<Lit>{};
         }
         if (state_lit != TruthValue::bot) {
             res_lit = LitBool{location(elem.lit()), Sign::none, false};
@@ -1223,7 +1223,7 @@ struct LiteralToTuple {
     if (rel_lit != nullptr) {
         assert(state_cond != TruthValue::bot);
         if (!res_cond.has_value()) {
-            res_cond = elem.cond();
+            res_cond.emplace(elem.cond().begin(), elem.cond().end());
         }
         res_cond->emplace_back(std::move(res_lit).value_or(elem.lit()));
         res_lit = make_constant(location(elem.lit()), true);
@@ -1248,7 +1248,7 @@ struct LiteralToTuple {
         auto const &tuple = res_tuple ? *res_tuple : elem.tuple();
         state_elem = all_symbol(tuple) ? TruthValue::top : TruthValue::unknown;
         if (!elem.cond().empty()) {
-            res_cond = LitArray{};
+            res_cond = std::vector<Lit>{};
         }
     }
     if (state_cond == TruthValue::bot) {
@@ -1489,7 +1489,7 @@ template <bool head>
     if (state_cond == TruthValue::top) {
         state_elem = TruthValue::unknown;
         if (!elem.cond().empty()) {
-            res_cond = LitArray{};
+            res_cond = std::vector<Lit>{};
         }
     }
     if (state_cond == TruthValue::bot) {

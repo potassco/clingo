@@ -71,6 +71,7 @@ using SetAggregateElementArray = Util::immutable_array<SetAggregateElement>;
 template <bool HasSign>
 class SetAggregate : public std::conditional_t<HasSign, Signed, Unsigned>, public Expression<SetAggregate<HasSign>> {
   public:
+    //! The base class.
     using Base = std::conditional_t<HasSign, Signed, Unsigned>;
 
     //! The record attributes.

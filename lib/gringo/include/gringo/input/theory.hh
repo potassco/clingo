@@ -207,6 +207,7 @@ using TheoryElementArray = Util::immutable_array<TheoryElement>;
 template <bool HasSign>
 class TheoryAtom : public std::conditional_t<HasSign, Signed, Unsigned>, public Expression<TheoryAtom<HasSign>> {
   public:
+    //! The parent class.
     using Base = std::conditional_t<HasSign, Signed, Unsigned>;
 
     //! The record attributes.

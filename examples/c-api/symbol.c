@@ -1,7 +1,6 @@
 #define __STDC_FORMAT_MACROS
 #include <assert.h>
 #include <clingo.h>
-#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 

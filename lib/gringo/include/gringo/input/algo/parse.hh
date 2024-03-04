@@ -15,10 +15,14 @@ class ScannerImpl;
 //! A scanner to parse statements.
 class Scanner {
   public:
+    //! Move construct a scanner.
     Scanner(Scanner &&other) noexcept;
+    //! Delete copy constructor.
     Scanner(Scanner const &other) = delete;
 
+    //! Move assign a scanner.
     auto operator=(Scanner &&other) noexcept -> Scanner &;
+    //! Delete assignment operator.
     auto operator=(Scanner const &other) -> Scanner & = delete;
 
     friend auto scan_stream(Logger &log, SymbolStore &store, std::istream &in) -> Scanner;

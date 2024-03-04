@@ -516,12 +516,12 @@ struct Unpool {
     }
 
     auto operator()(StmEdge const &stm) const -> std::optional<StmVec> {
-        auto edges = operator()(stm.edges());
+        auto edges = Util::transform(operator()(stm.edges()), [](auto vec) { return EdgeArray{std::move(vec)}; });
         auto bodies = operator()(stm.body());
         if (stm.edges().size() != 1 || edges.has_value() || bodies.has_value()) {
             StmVec ret;
             for (auto &body : bodies.value_or(Util::make_vec<BdLitArray>(stm.body()))) {
-                for (auto &edge : edges.value_or(stm.edges())) {
+                for (auto const &edge : edges.value_or(stm.edges())) {
                     ret.emplace_back(stm.update(a_edges = Util::make_vec<Edge>(edge), a_body = body));
                 }
             }

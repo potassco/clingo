@@ -153,12 +153,19 @@ template <class E, class S = bool> struct ResultState {
 //! This uses the efficient copying of the array in case there was no change.
 template <class T, bool UseSpan = true> class ResultVec {
   public:
+    //! The value type.
     using ValueType = T;
+    //! A span of values.
     using Span = std::span<ValueType const>;
+    //! An array of values.
     using Array = Util::immutable_array<ValueType>;
-    using Source = std::conditional_t<UseSpan, Span, Array const &>;
-    using Iterator = std::conditional_t<UseSpan, typename Span::iterator, typename Array::const_iterator>;
+    //! A vector of values.
     using Vector = std::vector<ValueType>;
+    //! The (reference to the) source values.
+    using Source = std::conditional_t<UseSpan, Span, Array const &>;
+    //! A constant iterator to the source values.
+    using Iterator = std::conditional_t<UseSpan, typename Span::iterator, typename Array::const_iterator>;
+    //! The result values.
     using Result = std::conditional_t<UseSpan, Vector, Array>;
 
     //! Construct a result vec to track changes to the given source.

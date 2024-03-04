@@ -119,7 +119,7 @@ struct body_atom : lexy::transparent_production {
            Position end) {
             std::vector<Guard> guards;
             if (opt_guards.has_value()) {
-                guards = std::move(opt_guards).value();
+                guards.assign(opt_guards->begin(), opt_guards->end());
             }
             guards.insert(guards.begin(), Guard{rel, std::move(rhs)});
             auto loc = location(lhs) + location(guards.back().second);
