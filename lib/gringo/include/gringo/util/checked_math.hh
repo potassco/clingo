@@ -10,6 +10,7 @@
 #include <limits>
 #include <optional>
 #include <type_traits>
+#include <utility>
 
 namespace Gringo {
 
@@ -19,7 +20,7 @@ namespace Gringo {
 template <class T, class S>
     requires std::is_signed_v<T> && std::is_signed_v<S>
 auto check_cast(S in) -> bool {
-    return sizeof(T) >= sizeof(S) || (in >= std::numeric_limits<T>::min() && in <= std::numeric_limits<T>::max());
+    return std::in_range<T>(std::move(in));
 }
 
 // Addition
