@@ -1,4 +1,4 @@
-#include <gringo/input/iesolver.hh>
+#include <gringo/input/algo/iesolver.hh>
 
 #include <gringo/input/algo/analyze.hh>
 #include <gringo/input/algo/compute_bounds.hh>
