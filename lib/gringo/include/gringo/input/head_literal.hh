@@ -6,11 +6,7 @@
 
 namespace Gringo::Input {
 
-//! @defgroup input_head_literal Head Literals
-//! Data structures and functions to represent head literals.
-//!
-//! @ingroup input_language
-//!
+//! @addtogroup input_head
 //! @{
 
 //! A single literal in a rule head.

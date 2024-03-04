@@ -5,11 +5,7 @@
 
 namespace Gringo::Input {
 
-//! @defgroup input_theory Theory Terms and Atoms
-//! Data structures and functions to represent theory terms and atoms.
-//!
-//! @ingroup input_language
-//!
+//! @addtogroup input_theory
 //! @{
 
 class TheoryTermSymbol;

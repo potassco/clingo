@@ -21,6 +21,9 @@ using transform_vec_result = std::optional<std::vector<typename transform_result
 
 } // namespace Detail
 
+//! @addtogroup util_optional
+//! @{
+
 //! Implemenatation of std::optional<T>::transform.
 template <class T, class F> constexpr auto transform(std::optional<T> &x, F &&f) -> Detail::transform_result<T &, F> {
     if (x.has_value()) {
@@ -264,5 +267,7 @@ template <class T> ResultVec(std::vector<T> const &) -> ResultVec<T, true>;
 template <class T> ResultVec(std::span<T const> const &) -> ResultVec<T, true>;
 
 template <class T> ResultVec(immutable_array<T> const &) -> ResultVec<T, false>;
+
+//! @}
 
 } // namespace Gringo::Util

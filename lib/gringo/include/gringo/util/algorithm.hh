@@ -6,11 +6,7 @@
 
 namespace Gringo::Util {
 
-//! @defgroup core_algorithm Generic Algorithms
-//! Generic algorithms used throughout the library.
-//!
-//! @ingroup core_util
-//!
+//! @addtogroup util_algorithm
 //! @{
 
 //! Return a vector with the first n elements from the given one.

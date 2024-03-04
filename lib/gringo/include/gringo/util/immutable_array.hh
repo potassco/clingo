@@ -9,7 +9,7 @@
 
 namespace Gringo::Util {
 
-//! @addtogroup core_immutable
+//! @addtogroup util_immutable
 //! @{
 
 //! An immutable array with efficient copying.
@@ -84,6 +84,7 @@ template <typename T> class immutable_array {
 
     [[nodiscard]] auto size() const noexcept -> size_type { return vector_().size(); }
 
+    //! Swap two immutable arrays.
     void swap(immutable_array &other) noexcept { swap(other.vec_, vec_); }
 
     friend auto operator==(immutable_array const &lhs, immutable_array const &rhs) -> bool {
@@ -104,10 +105,15 @@ template <typename T> class immutable_array {
     Util::immutable_value<vector_type> vec_;
 };
 
+//! Decduction guide to construct an immutable array from an iterator range.
 template <class It> immutable_array(It, It) -> immutable_array<typename std::iterator_traits<It>::value_type>;
 
+//! Swap two immutable arrays.
 template <class T> void swap(immutable_array<T> &lhs, immutable_array<T> &rhs) noexcept { lhs.swap(rhs); }
 
+//! Construct an immutable array from the given elements.
+//!
+//! (Avoids useless copies in initializer lists).
 template <class T, class... Ts> auto make_immutable_array(Ts &&...args) -> immutable_array<T> {
     std::vector<T> res;
     res.reserve(sizeof...(Ts));

@@ -13,11 +13,7 @@
 
 namespace Gringo::Util {
 
-//! @defgroup core_hash Hash Functions
-//! Generic functions for equality comparison and hash computation.
-//!
-//! @ingroup core_util
-//!
+//! @addtogroup util_hash
 //! @{
 
 //! Combine the given seeds.

@@ -5,16 +5,7 @@
 
 namespace Gringo::Util {
 
-//! @defgroup core_util Utility
-//! Utility data structures and functions.
-//!
-//! @ingroup core
-
-//! @defgroup core_immutable Immutable Values
-//! Immutable values and arrays with reference counting.
-//!
-//! @ingroup core_util
-//!
+//! @addtogroup util_immutable
 //! @{
 
 //! An immutable value imlementation.

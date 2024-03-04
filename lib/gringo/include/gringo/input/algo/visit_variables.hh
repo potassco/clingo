@@ -6,11 +6,7 @@
 
 namespace Gringo::Input {
 
-//! @defgroup input_visit_variables Visit Variables
-//! Functions to visit variables in expressions.
-//!
-//! @ingroup input_algo
-//!
+//! @addtogroup input_visit_variables
 //! @{
 
 //! Variable selection scopes.

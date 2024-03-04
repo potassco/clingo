@@ -6,11 +6,7 @@
 
 namespace Gringo::Input {
 
-//! @defgroup input_check Check
-//! Additional syntax checks.
-//!
-//! @ingroup input_algo
-//!
+//! @addtogroup input_check
 //! @{
 
 //! Check a term.

@@ -4,11 +4,7 @@
 
 namespace Gringo::Input {
 
-//! @defgroup input_literal Literals
-//! Data structures and functions to represent simple literals.
-//!
-//! @ingroup input_language
-//!
+//! @addtogroup input_literal
 //! @{
 
 //! Enumeration of signs (default negation).

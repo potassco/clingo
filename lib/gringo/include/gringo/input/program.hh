@@ -12,11 +12,7 @@
 
 namespace Gringo::Input {
 
-//! @defgroup input_program Programs
-//! Data structures and functions to represent and rewrite programs.
-//!
-//! @ingroup input_language
-//!
+//! @addtogroup input_program
 //! @{
 
 //! Enumeration to select variables to project.

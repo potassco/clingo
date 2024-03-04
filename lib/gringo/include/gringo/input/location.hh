@@ -8,11 +8,7 @@
 
 namespace Gringo::Input {
 
-//! @defgroup input_location Source Locations
-//! Data structures and functions to track source locations.
-//!
-//! @ingroup input_language
-//!
+//! @addtogroup core_location
 //! @{
 
 //! A point in an input source.

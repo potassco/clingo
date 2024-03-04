@@ -6,16 +6,7 @@
 
 namespace Gringo::Input {
 
-//! @defgroup input_algo Algorithms
-//! Algorithms for the input language.
-//!
-//! @ingroup input
-
-//! @defgroup input_analyze Analyze
-//! Functions to analyze expressions.
-//!
-//! @ingroup input_algo
-//!
+//! @addtogroup input_analyze
 //! @{
 
 //! Enumeration for Term::check_type().

@@ -4,11 +4,7 @@
 
 namespace Gringo::Input {
 
-//! @defgroup input_print Print
-//! Functions to output expressions.
-//!
-//! @ingroup input_algo
-//!
+//! @addtogroup input_print
 //! @{
 
 //! @name Enumerations
@@ -112,7 +108,7 @@ auto operator<<(std::ostream &out, SetAggregateElement const &elem) -> std::ostr
 //! Output the head aggregate element to the given stream.
 auto operator<<(std::ostream &out, HdLitAggregateElement const &elem) -> std::ostream &;
 
-//! Output the head aggregate element to the given stream.
+//! Output the body aggregate element to the given stream.
 auto operator<<(std::ostream &out, BdLitAggregateElement const &elem) -> std::ostream &;
 
 //! @}
@@ -264,7 +260,7 @@ auto operator<<(std::ostream &out, Stm const &stm) -> std::ostream &;
 //! Convert the given term into a string.
 auto to_string(Term const &term) -> std::string;
 
-//! Convert the given term into a string.
+//! Convert the given theory term into a string.
 auto to_string(TheoryTerm const &term) -> std::string;
 
 //! Convert the given literal into a string.
@@ -273,10 +269,10 @@ auto to_string(Lit const &lit) -> std::string;
 //! Convert the given head literal into a string.
 auto to_string(HdLit const &lit) -> std::string;
 
-//! Convert the given head literal into a string.
+//! Convert the given body literal into a string.
 auto to_string(BdLit const &lit) -> std::string;
 
-//! Convert the given head literal into a string.
+//! Convert the given statement into a string.
 auto to_string(Stm const &stm) -> std::string;
 
 //! @}

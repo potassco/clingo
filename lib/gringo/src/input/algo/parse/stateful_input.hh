@@ -4,13 +4,6 @@
 
 namespace Gringo::Input {
 
-//! @defgroup parser Parser
-//! @ingroup language
-//!
-//! Data structures and functions for parsing.
-//!
-//! @{
-
 //! Helper class to attach state information to a reader.
 template <typename Reader, typename State> class StatefulReader : public Reader {
   public:
@@ -37,7 +30,5 @@ template <typename Input, typename State> class StatefulInput {
     Input &input_;
     State *state_;
 };
-
-//! @}
 
 } // namespace Gringo::Input

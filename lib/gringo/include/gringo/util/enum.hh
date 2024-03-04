@@ -3,11 +3,7 @@
 // NOLINTNEXTLINE(unused-includes)
 #include <type_traits>
 
-//! @defgroup core_enum Helpers for enumurations
-//! Currently, just provides a macro to create bitsets.
-//!
-//! @ingroup core_util
-//!
+//! @addtogroup util_enum
 //! @{
 
 //! Helper to create a bitset from an enum class.

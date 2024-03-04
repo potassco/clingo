@@ -6,11 +6,7 @@ namespace Gringo::Input {
 
 class TheoryAtomParser;
 
-//! @defgroup input_rewrite Rewrite
-//! Functions to rewrite expressions.
-//!
-//! @ingroup input_algo
-//!
+//! @addtogroup input_rewrite
 //! @{
 
 //! Rewrite the given statement.

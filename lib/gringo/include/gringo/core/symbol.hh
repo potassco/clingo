@@ -10,24 +10,7 @@
 
 namespace Gringo {
 
-//! @defgroup API Internal C++ API
-//! This is the internal Clingo API, use at your own risk.
-//!
-//! The interface might change across minor releases without further notice.
-
-//! @defgroup core Core
-//! Core functionality shared across modules.
-//!
-//! @ingroup API
-
-//! @defgroup core_symbol Symbols
-//! Data structures and functions to represent symbols.
-//!
-//! @ingroup core
-//!
-//! The symbol implementation available here is currently a placeholder.
-//! Something similar to what is used in gringo should be used.
-//!
+//! @addtogroup core_symbol
 //! @{
 
 //! Reference to a string stored in a symbol store.

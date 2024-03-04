@@ -5,11 +5,7 @@
 
 namespace Gringo {
 
-//! @defgroup core_number Numbers
-//! Data structures and functions to represent arbitrary precision integers.
-//!
-//! @ingroup core
-//!
+//! @addtogroup core_number
 //! @{
 
 //! The base of a number.

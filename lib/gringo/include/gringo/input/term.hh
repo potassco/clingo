@@ -14,21 +14,7 @@
 
 namespace Gringo::Input {
 
-//! @defgroup input Input
-//! Data structures and functions to parse and rewrite the gringo language.
-//!
-//! @ingroup API
-
-//! @defgroup input_language Language
-//! Data structures and functions to capture the gringo language.
-//!
-//! @ingroup input
-
-//! @defgroup input_term Terms
-//! Data structures and functions to represent terms.
-//!
-//! @ingroup input_language
-//!
+//! @addtogroup input_term
 //! @{
 
 //! An array of strings.
@@ -73,6 +59,7 @@ using Argument = std::variant<Projection, Term>;
 //! A tuple of terms or positions to project.
 using ArgumentArray = Util::immutable_array<Argument>;
 
+//! An argument tuple for a function or directly a tuple.
 class ArgumentTuple : public RecursiveExpression<ArgumentTuple> {
   public:
     //! The record attributes.

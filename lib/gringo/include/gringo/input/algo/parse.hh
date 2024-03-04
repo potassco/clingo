@@ -6,11 +6,7 @@
 
 namespace Gringo::Input {
 
-//! @defgroup input_parse Parse
-//! Functions to parse the input language.
-//!
-//! @ingroup input_algo
-//!
+//! @addtogroup input_parse
 //! @{
 
 //! @internal The scanner implementation.

@@ -9,9 +9,6 @@
 
 namespace Gringo::Input {
 
-//! @addtogroup util
-//! @{
-
 //! Location counting based on encoding.
 //!
 //! @related StreamInput
@@ -346,7 +343,5 @@ class StreamInput {
     size_t last_nl_{0};
     unsigned nl_{1};
 };
-
-//! @}
 
 } // namespace Gringo::Input

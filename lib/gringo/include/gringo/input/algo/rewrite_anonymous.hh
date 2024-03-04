@@ -4,7 +4,7 @@
 
 namespace Gringo::Input {
 
-//! @ingroup input_algo
+//! @addtogroup input_rewrite
 //! @{
 
 //! Give anonymous variables a unique name.

@@ -6,11 +6,7 @@
 
 namespace Gringo::Input {
 
-//! @defgroup input_evaluate Evaluate
-//! Functions to evaluate expressions.
-//!
-//! @ingroup input_algo
-//!
+//! @addtogroup input_evaluate
 //! @{
 
 //! Evaluate the comparison.

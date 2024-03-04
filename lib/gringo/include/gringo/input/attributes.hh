@@ -4,6 +4,12 @@
 
 namespace Gringo::Input {
 
+//! @ingroup input_language
+//!
+//! @{
+
+//! @{
+//! A named attribute.
 constexpr auto a_anonymous = Util::Record::AttributeName<1>{};
 constexpr auto a_elems = Util::Record::AttributeName<2>{};
 constexpr auto a_exteral = Util::Record::AttributeName<3>{};
@@ -35,17 +41,26 @@ constexpr auto a_src = Util::Record::AttributeName<27>{};
 constexpr auto a_dst = Util::Record::AttributeName<28>{};
 constexpr auto a_edges = Util::Record::AttributeName<29>{};
 constexpr auto a_atom = Util::Record::AttributeName<30>{};
+//! @}
 
+//! A record that friend declares comparision operators.
+template <class T> class RecursiveExpression : public Gringo::Util::Record::Base<T> {
+  public:
+    //! Compare two records.
+    friend auto operator==(T const &a, T const &b) -> bool;
+    //! Compare two records.
+    friend auto operator<=>(T const &a, T const &b) -> std::strong_ordering;
+};
+
+//! A record that friend declares and defines comparision operators.
 template <class T> class Expression : public Gringo::Util::Record::Base<T> {
   public:
+    //! Compare two records.
     friend auto operator==(T const &a, T const &b) -> bool { return a.equal(b); }
+    //! Compare two records.
     friend auto operator<=>(T const &a, T const &b) -> std::strong_ordering { return a.compare(b); }
 };
 
-template <class T> class RecursiveExpression : public Gringo::Util::Record::Base<T> {
-  public:
-    friend auto operator==(T const &a, T const &b) -> bool;
-    friend auto operator<=>(T const &a, T const &b) -> std::strong_ordering;
-};
+//! @}
 
 } // namespace Gringo::Input

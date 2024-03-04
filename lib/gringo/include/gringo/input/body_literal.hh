@@ -6,11 +6,7 @@
 
 namespace Gringo::Input {
 
-//! @defgroup input_body_literal Body Literals
-//! Data structures and functions to represent body literals.
-//!
-//! @ingroup input_language
-//!
+//! @addtogroup input_body
 //! @{
 
 //! A single literal in a rule body.
@@ -56,6 +52,7 @@ class BdLitAggregateElement : public Expression<BdLitAggregateElement> {
                           a_cond = &BdLitAggregateElement::cond_};
     }
 
+    //! Construct a body aggregate element.
     explicit BdLitAggregateElement(Location loc, TermArray tuple, LitArray cond)
         : loc_{loc}, tuple_{std::move(tuple)}, cond_{std::move(cond)} {}
     //! The location of the element.

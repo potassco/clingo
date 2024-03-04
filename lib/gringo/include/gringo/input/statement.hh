@@ -5,11 +5,7 @@
 
 namespace Gringo::Input {
 
-//! @defgroup input_statement Statements
-//! Data structures and functions to represent statements.
-//!
-//! @ingroup input_language
-//!
+//! @addtogroup input_statement
 //! @{
 
 //! A rule.

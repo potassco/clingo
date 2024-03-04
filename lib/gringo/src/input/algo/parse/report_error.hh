@@ -8,9 +8,6 @@
 
 namespace Gringo::Input {
 
-//! @addtogroup util
-//! @{
-
 //! Get the default counting strategy if the input does not define one.
 //!
 //! @related report_error_
@@ -145,7 +142,5 @@ class report_error {
         [[nodiscard]] auto finish() const && -> std::size_t { return _count; }
     };
 };
-
-//! @}
 
 } // namespace Gringo::Input

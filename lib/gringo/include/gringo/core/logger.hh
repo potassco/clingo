@@ -10,11 +10,7 @@
 
 namespace Gringo {
 
-//! @defgroup core_logger Logging
-//! Functions and classes for logging.
-//!
-//! @ingroup core
-//!
+//! @addtogroup core_logger
 //! @{
 
 //! The default message limit.
@@ -254,5 +250,7 @@ inline auto Logger::message_prefix(MessageCode code) const -> char const * {
     if ((p).check(::Gringo::MessageCode::id)) {                                                                        \
         (p).print(::Gringo::MessageCode::id, msg);                                                                     \
     }
+
+//! @}
 
 } // namespace Gringo
