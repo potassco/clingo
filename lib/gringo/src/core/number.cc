@@ -60,6 +60,7 @@ class mp_int_ptr {
             throw std::bad_alloc();
         }
     }
+    mp_int_ptr(mp_int_ptr &&) noexcept = delete;
     ~mp_int_ptr() {
         if (ptr_ != nullptr) {
             mp_int_free(ptr_);

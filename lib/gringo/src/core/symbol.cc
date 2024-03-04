@@ -151,6 +151,14 @@ class SlottedAlloc {
     static constexpr size_t max_slot = 256;
     static constexpr size_t max_alloc = 4096;
 
+    SlottedAlloc() = default;
+    SlottedAlloc(SimpleAlloc &&) noexcept = delete;
+    ~SlottedAlloc() noexcept {
+        for (auto &head : free_list_) {
+            free_head_(head);
+        }
+    }
+
     //! Allocate memory aligned to uint64_t.
     auto alloc(size_t n) -> void * {
         void *mem = nullptr;
@@ -200,12 +208,6 @@ class SlottedAlloc {
             } else {
                 SimpleAlloc::dealloc(mem);
             }
-        }
-    }
-
-    ~SlottedAlloc() noexcept {
-        for (auto &head : free_list_) {
-            free_head_(head);
         }
     }
 
@@ -349,6 +351,10 @@ struct CharArrayHash {
 
 template <class Allocator> class DefaultSymbolStore : public SymbolStore {
   public:
+    DefaultSymbolStore() = default;
+    DefaultSymbolStore(DefaultSymbolStore &&) noexcept = delete;
+    ~DefaultSymbolStore() noexcept override { clear(); }
+
     [[nodiscard]] auto store_num(Number const &num) noexcept -> Symbol override {
         auto jt = numbers_.find(num);
         if (jt == numbers_.end()) {
@@ -404,8 +410,6 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
         clear_(strings_);
         clear_(tuples_);
     }
-
-    ~DefaultSymbolStore() noexcept override { clear(); }
 
   private:
     using NumberSet = Util::unordered_set<Number>;
