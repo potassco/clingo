@@ -6,6 +6,7 @@
 // Currently, it is not included because it is a bit heavy (7k loc) and we need
 // only a few functions here. I still have to make up my mind here.
 
+#include <concepts>
 #include <cstdint>
 #include <limits>
 #include <optional>
@@ -20,9 +21,7 @@ namespace Gringo {
 // Casting
 
 //! Check if s of type S can be casted to T without loss.
-template <class T, class S>
-    requires std::is_signed_v<T> && std::is_signed_v<S>
-auto check_cast(S in) -> bool {
+template <std::signed_integral T, std::signed_integral S> auto check_cast(S in) -> bool {
     return std::in_range<T>(std::move(in));
 }
 
@@ -31,9 +30,13 @@ auto check_cast(S in) -> bool {
 //! Add two integers checking overflows.
 //!
 //! Fallback for the general case.
-template <class S, class T>
-    requires std::is_signed_v<S> && std::is_integral_v<S> && std::is_same_v<S, T>
-auto check_add(S a, T b) -> std::optional<S> {
+template <std::signed_integral S> auto check_add(S a, S b) -> std::optional<S> {
+#ifdef __GNUC__
+    if (S c; !__builtin_add_overflow(a, b, &c)) {
+        return c;
+    }
+    return std::nullopt;
+#else
     if constexpr (std::is_same_v<S, int32_t>) {
         int64_t tmp = static_cast<int64_t>(a) + b;
         if (check_cast<int32_t>(tmp)) {
@@ -48,6 +51,7 @@ auto check_add(S a, T b) -> std::optional<S> {
         }
         return tmp;
     }
+#endif
 }
 
 // Subtraction
@@ -55,9 +59,13 @@ auto check_add(S a, T b) -> std::optional<S> {
 //! Subtract two integers checking overflows.
 //!
 //! Fallback for the general case.
-template <class S, class T>
-    requires std::is_signed_v<S> && std::is_integral_v<S> && std::is_same_v<S, T>
-auto check_sub(S a, T b) -> std::optional<S> {
+template <std::signed_integral S> auto check_sub(S a, S b) -> std::optional<S> {
+#ifdef __GNUC__
+    if (S c; !__builtin_sub_overflow(a, b, &c)) {
+        return c;
+    }
+    return std::nullopt;
+#else
     if constexpr (std::is_same_v<S, int32_t>) {
         int64_t tmp = static_cast<int64_t>(a) - b;
         if (check_cast<int32_t>(tmp)) {
@@ -72,14 +80,13 @@ auto check_sub(S a, T b) -> std::optional<S> {
         }
         return tmp;
     }
+#endif
 }
 
 // Unary Minus
 
 //! Negate an integer checking overflows.
-template <class S>
-    requires std::is_signed_v<S>
-auto check_neg(S a) -> std::optional<S> {
+template <std::signed_integral S> auto check_neg(S a) -> std::optional<S> {
     if (a == std::numeric_limits<S>::min()) {
         return std::nullopt;
     }
@@ -89,9 +96,7 @@ auto check_neg(S a) -> std::optional<S> {
 // Absolute
 
 //! The absolute of an integer checking overflows.
-template <class S>
-    requires std::is_signed_v<S>
-auto check_abs(S a) -> std::optional<S> {
+template <std::signed_integral S> auto check_abs(S a) -> std::optional<S> {
     if (a == std::numeric_limits<S>::min()) {
         return std::nullopt;
     }
@@ -103,9 +108,13 @@ auto check_abs(S a) -> std::optional<S> {
 //! Multiply two integers checking overflows.
 //!
 //! Fallback for the general case.
-template <class S, class T>
-    requires std::is_signed_v<S> && std::is_integral_v<S> && std::is_same_v<S, T>
-auto check_mul(S a, T b) -> std::optional<S> {
+template <std::signed_integral S> auto check_mul(S a, S b) -> std::optional<S> {
+#ifdef __GNUC__
+    if (S c; !__builtin_mul_overflow(a, b, &c)) {
+        return c;
+    }
+    return std::nullopt;
+#else
     if constexpr (std::is_same_v<S, int32_t>) {
         int64_t tmp = static_cast<int64_t>(a) * b;
         if (check_cast<int32_t>(tmp)) {
@@ -113,13 +122,6 @@ auto check_mul(S a, T b) -> std::optional<S> {
         }
         return std::nullopt;
     } else {
-#ifdef __GNUC__
-        S c;
-        if (!__builtin_mul_overflow(a, b, &c)) {
-            return std::nullopt;
-        }
-        return c;
-#else
         if (a > 0 && b > 0 && a > std::numeric_limits<S>::max() / b) {
             return std::nullopt;
         }
@@ -133,16 +135,14 @@ auto check_mul(S a, T b) -> std::optional<S> {
             return std::nullopt;
         }
         return a * b;
-#endif
     }
+#endif
 }
 
 // Division
 
 //! Divide two integers checking overflows (truncating toward negative infinity).
-template <class S, class T>
-    requires std::is_signed_v<S> && std::is_integral_v<S> && std::is_same_v<S, T>
-auto check_div(S a, T b) -> std::optional<S> {
+template <std::signed_integral S> auto check_div(S a, S b) -> std::optional<S> {
     if (b == 0 || (b == -1 && a == std::numeric_limits<S>::min())) {
         return std::nullopt;
     }
@@ -158,9 +158,7 @@ auto check_div(S a, T b) -> std::optional<S> {
 // Modulo
 
 //! Modulo of two integers checking overflows (truncating toward negative infinity).
-template <class S, class T>
-    requires std::is_signed_v<S> && std::is_integral_v<S> && std::is_same_v<S, T>
-auto check_mod(S a, T b) -> std::optional<S> {
+template <std::signed_integral S> auto check_mod(S a, S b) -> std::optional<S> {
     if (b == 0) {
         return std::nullopt;
     }
@@ -180,9 +178,7 @@ auto check_mod(S a, T b) -> std::optional<S> {
 //! Power of the given integers checking overflows.
 //!
 //! Note that <tt>a^0 = 1</tt> for all values of <tt>a</tt> and <tt>a^b=0</tt> whenever <tt>b</tt> is less than zero.
-template <class S>
-    requires std::is_signed_v<S>
-auto check_pow(S a, S b) -> std::optional<S> {
+template <std::signed_integral S> auto check_pow(S a, S b) -> std::optional<S> {
     if (b < 0) {
         return std::nullopt;
     }
