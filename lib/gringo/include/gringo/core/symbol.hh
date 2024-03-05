@@ -224,6 +224,14 @@ class NameGen {
     //! The generator ensures that there are no collisions with these names.
     NameGen(SymbolStore &store, StringSet names, char const *prefix)
         : store_{store}, names_{std::move(names)}, prefix_{prefix} {}
+    //! Delete move/copy constructor.
+    NameGen(NameGen &&) noexcept = delete;
+    //! Initialize/reset the name generator.
+    void init(StringSet names, char const *prefix) {
+        num_ = 0;
+        names_ = std::move(names);
+        prefix_ = prefix;
+    }
     //! Add a name returning true if it is not yet used.
     [[nodiscard]] auto add_name(String name) -> bool { return names_.emplace(name).second; }
     //! Generate a unique variable name.

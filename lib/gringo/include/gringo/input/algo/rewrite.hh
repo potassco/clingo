@@ -1,6 +1,6 @@
 #pragma once
 
-#include <gringo/input/program.hh>
+#include <gringo/input/algo/rewrite_context.hh>
 
 namespace Gringo::Input {
 
@@ -13,8 +13,7 @@ class TheoryAtomParser;
 //!
 //! This functions pulls together all the different rewriting steps.
 //! There are some optional rewriting steps that can be configured via options.
-void rewrite(Logger &log, SymbolStore &store, ParamMap &param_map, ConstMap &const_map, TheoryAtomParser const &parser,
-             Stm const &stm, RewriteOptions opts, StmVec &stms);
+void rewrite(RewriteContext &ctx, Stm const &stm, StmVec &stms);
 
 //! @}
 

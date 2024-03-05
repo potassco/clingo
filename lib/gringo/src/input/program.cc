@@ -41,32 +41,29 @@ void add(SymbolStore &store, Stm stm, UnprocessedProgram &prg) {
 }
 
 void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
-    // process theory statements
+    // setup rewrite context
     thy_stms_.insert(thy_stms_.end(), prg.thy_stms.begin(), prg.thy_stms.end());
-    TheoryAtomParser parser;
+    auto parser = TheoryAtomParser{};
     for (auto const &stm : thy_stms_) {
         parser.add_theory(log, stm);
     }
+    auto param_map = ParamMap{};
+    auto ctx = RewriteContext{log, store, opts_, parser, param_map, const_map_};
 
     // process meta statements
     evaluate_const(log, store, prg.const_stms, const_map_);
-    {
-        ParamMap empty_pm;
-        auto ctx = RewriteContext{log, store, empty_pm, const_map_, {}, ""};
-        for (auto &stm : prg.meta_stms) {
-            rewrite(log, store, empty_pm, const_map_, parser, stm, opts_, meta_stms_);
-        }
+    for (auto &stm : prg.meta_stms) {
+        rewrite(ctx, stm, meta_stms_);
     }
 
     // process program parts
     for (auto &[program_stm, stms, facts] : prg.parts) {
         auto part = parts_.try_emplace(Signature{program_stm.name(), program_stm.args().size()}, program_stm);
-        ParamMap param_map;
+        param_map.clear();
         param_map.insert(program_stm.args().begin(), program_stm.args().end());
         auto &res_part = part.first.value();
 
         // process facts
-        auto ctx = RewriteContext{log, store, param_map, const_map_, {}, ""};
         for (auto &fact : facts) {
             std::visit(
                 [&part]<class T>(T &&x) {
@@ -83,7 +80,7 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
         // process rules
         for (auto &stm : stms) {
             size_t n = res_part.stms.size();
-            rewrite(log, store, param_map, const_map_, parser, stm, opts_, res_part.stms);
+            rewrite(ctx, stm, res_part.stms);
             auto jt = res_part.stms.begin() + n;
             for (auto it = jt, ie = res_part.stms.end(); it != ie; ++it) {
                 if (auto fact = is_fact(store, *it); fact) {

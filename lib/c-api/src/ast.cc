@@ -2527,6 +2527,7 @@ struct clingo_ast_rewrite_context {
     Gringo::Input::ParamMap param_map = {};
     Gringo::Input::ConstMap const_map = {};
     Gringo::Input::RewriteOptions options = {};
+    Gringo::Input::RewriteContext ctx = {lib->log, *lib->store, options, parser, param_map, const_map};
     Gringo::Util::ordered_map<Gringo::String, Gringo::String> param_unmap = {};
 };
 
@@ -2598,8 +2599,7 @@ extern "C" auto clingo_ast_rewrite(clingo_ast_rewrite_context_t *context, clingo
         *result_size = 0;
         auto stms = StmVec{};
         auto stm = statement->convert<Stm>();
-        rewrite(lib->log, *lib->store, context->param_map, context->const_map, context->parser, stm, context->options,
-                stms);
+        rewrite(context->ctx, stm, stms);
         if (lib->log.has_error()) {
             lib->log.reset();
             throw std::runtime_error("rewriting statement failed");

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <gringo/input/program.hh>
+#include <gringo/input/algo/rewrite_context.hh>
 
 #include <gringo/util/enum.hh>
 #include <gringo/util/optional.hh>

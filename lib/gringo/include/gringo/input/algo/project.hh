@@ -49,7 +49,7 @@ class ProjectionMap {
 //! Project variables according to given projection mode.
 //!
 //! Optionally, project anonymous variables in negative scope (deprecated).
-[[nodiscard]] auto project(Stm const &stm, ProjectionMode mode, bool project_anonymous) -> std::optional<Stm>;
+[[nodiscard]] auto project(RewriteOptions const &opts, Stm const &stm) -> std::optional<Stm>;
 
 //! @}
 

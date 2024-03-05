@@ -24,11 +24,10 @@ auto rewrite_statement(std::string const &str) -> std::string {
 
         }.)"));
     REQUIRE(!ph.logger().has_error());
-    TheoryAtomParser parser;
-    parser.add_theory(ph.logger(), thy);
+    ph.parser().add_theory(ph.logger(), thy);
 
     if (auto stm = ph.statement(str); stm && !ph.logger().has_error()) {
-        if (auto rev = rewrite_theory(ph.logger(), parser, *stm); rev && !ph.logger().has_error()) {
+        if (auto rev = rewrite_theory(ph, *stm); rev && !ph.logger().has_error()) {
             return to_str(*rev);
         }
         if (ph.logger().has_error()) {

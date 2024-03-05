@@ -8,7 +8,7 @@ namespace {
 
 template <class T> auto project_str(std::optional<T> value) -> std::string {
     if (value) {
-        return to_str(project(value.value(), ProjectionMode::pure, true).value_or(value.value()));
+        return to_str(project(RewriteOptions{ProjectionMode::pure, true}, value.value()).value_or(value.value()));
     }
     return "<failed>";
 }

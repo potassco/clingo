@@ -267,9 +267,9 @@ auto project(BdLit const &lit, ProjectionMap project, bool in_classical_scope) -
     return Project{project, in_classical_scope}.transform(lit);
 }
 
-auto project(Stm const &stm, ProjectionMode mode, bool project_anonymous) -> std::optional<Stm> {
+auto project(RewriteOptions const &opts, Stm const &stm) -> std::optional<Stm> {
     std::optional<Stm> res;
-    if (mode != ProjectionMode::disabled) {
+    if (opts.project_mode != ProjectionMode::disabled) {
         VariableSet vars = select_variables(stm, VariableContext::global);
         Util::unordered_map<String, size_t> counts;
         counts.reserve(vars.size());
@@ -282,9 +282,9 @@ auto project(Stm const &stm, ProjectionMode mode, bool project_anonymous) -> std
             },
             VariableContext::all);
 
-        res = Project{ProjectionMap{mode, counts}}.transform(stm);
+        res = Project{ProjectionMap{opts.project_mode, counts}}.transform(stm);
     }
-    if (project_anonymous) {
+    if (opts.project_anonymous) {
         if (res.has_value()) {
             auto tmp = Gringo::Input::project_anonymous(res.value());
             if (tmp.has_value()) {

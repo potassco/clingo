@@ -18,9 +18,7 @@ auto call_simplify_([[maybe_unused]] F flags, RewriteContext &ctx, T const &x) -
 
 template <class F, class T> auto simplify_str_(ParseHelper &ph, std::optional<T> value, F flags) -> std::string {
     if (value) {
-        ConstMap const_map;
-        ParamMap param_map;
-        auto ctx = RewriteContext{ph, ph, param_map, const_map, {}, "__A_"};
+        auto &ctx = ph.ctx();
         auto guard = std::is_same_v<T, Stm> ? nullptr : ctx.push();
         auto ures = unpool(ctx, value.value());
         bool changed = ures.has_value();

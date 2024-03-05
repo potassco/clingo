@@ -2,6 +2,8 @@
 
 #include <gringo/input/program.hh>
 
+#include <gringo/input/algo/rewrite_context.hh>
+
 #include <gringo/util/optional.hh>
 
 namespace Gringo::Input {

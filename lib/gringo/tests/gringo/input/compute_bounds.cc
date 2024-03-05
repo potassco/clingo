@@ -9,14 +9,11 @@ namespace {
 
 auto cb_stm(char const *str) -> std::string {
     ParseHelper ph;
-    ConstMap const_map;
-    ParamMap param_map;
-    RewriteContext ctx{ph, ph, param_map, const_map, {}, "__A_"};
     auto stm = ph.statement(str);
     if (!stm) {
         return "<failed>";
     }
-    auto [state, res] = compute_bounds(ctx, *stm);
+    auto [state, res] = compute_bounds(ph, *stm);
     return to_str(std::move(res).value_or(*stm));
 }
 

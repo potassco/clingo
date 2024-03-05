@@ -11,6 +11,7 @@ add_library(gringo
     "src/input/algo/print.cc"
     "src/input/algo/project_anonymous.cc"
     "src/input/algo/project.cc"
+    "src/input/algo/rewrite_context.cc"
     "src/input/algo/rewrite_anonymous.cc"
     "src/input/algo/rewrite.cc"
     "src/input/algo/rewrite_theory.cc"

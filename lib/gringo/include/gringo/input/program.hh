@@ -32,85 +32,8 @@ struct RewriteOptions {
     bool project_anonymous = false;
 };
 
-// TODO: a map might also be an idea here to avoid duplicates for the same variable
-//! A vector of term pairs where the second has been substituted by the first in some other term.
-using AuxTermVec = std::vector<std::pair<Term, Term>>;
-
 //! Map from identifiers to constants.
 using ConstMap = Util::ordered_map<String, std::pair<StmConst, Symbol>>;
-
-//! Map from identifiers to constants.
-using ParamMap = Util::ordered_set<String>;
-
-//! Helper to pass arguments to rewrite functions.
-class RewriteContext {
-  public:
-    //! Helper to pop auxiliary variable assignments.
-    struct _pop {
-        //! Pop the last variable term map pushed.
-        void operator()(RewriteContext *ctx) const {
-            if (ctx != nullptr) {
-                ctx->pop();
-                ctx = nullptr;
-            }
-        }
-    };
-    //! Helper to pop auxiliary variable assignments.
-    using Guard = std::unique_ptr<RewriteContext, _pop>;
-    //! Construct a rewrite context.
-    RewriteContext(Logger &log, SymbolStore &store, ParamMap &param_map, ConstMap &const_map, StringSet names,
-                   char const *prefix)
-        : log_{log}, const_map_{const_map}, param_map_{param_map}, gen_{store, names, prefix} {}
-    //! Get the logger.
-    [[nodiscard]] auto logger() const -> Logger & { return log_; }
-    //! Get the symbol store.
-    [[nodiscard]] auto store() const -> SymbolStore & { return gen_.store(); }
-    //! Get the name generator.
-    [[nodiscard]] auto gen() -> NameGen & { return gen_; }
-    //! Check if the given identifier is a parameter defined by a program directive.
-    //!
-    //! If it is a parameter, return its index.
-    [[nodiscard]] auto is_param(String name) const -> std::optional<int> {
-        if (auto it = param_map_.find(name); it != param_map_.end()) {
-            return std::distance(param_map_.begin(), it);
-        }
-        return std::nullopt;
-    }
-    //! Check if the given identifier is a parameter defined by a constant.
-    //!
-    //! If it is a parameter, return its value.
-    [[nodiscard]] auto is_const(String name) const -> std::optional<Symbol> {
-        if (auto it = const_map_.find(name); it != const_map_.end()) {
-            assert(!is_param(name));
-            return it->second.second;
-        }
-        return std::nullopt;
-    }
-    //! Check if there is at least one parameter (from a program or const statement).
-    [[nodiscard]] auto has_params() const -> bool { return !const_map_.empty() || !param_map_.empty(); }
-    //! Get the variable term map.
-    [[nodiscard]] auto aux() -> AuxTermVec & {
-        assert(!aux_.empty());
-        return aux_.top();
-    }
-    //! Pop the last variable term map pushed.
-    void pop() {
-        assert(!aux_.empty());
-        aux_.pop();
-    }
-    //! Push a fresh variable term map.
-    [[nodiscard]] auto push() -> Guard {
-        aux_.emplace();
-        return Guard{this};
-    }
-
-  private:
-    Logger &log_;                //!< Logger to report messages.
-    ConstMap &const_map_;        //!< Constant definitions.
-    ParamMap &param_map_;        //!< Map of Parameters.
-    NameGen gen_;                //!< Generator to create fresh variable names.
-    std::stack<AuxTermVec> aux_; //!< Vector of variable term pairs.
-};
 
 //! A program part.
 struct ProgramPart {
