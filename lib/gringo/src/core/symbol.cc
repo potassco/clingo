@@ -10,99 +10,29 @@
 
 namespace Gringo {
 
-// Note: The old system implemented symbol storage using 32bit indices. In
-// principle, we can do something like this here, too, by adding further
-// representation types and caveats regarding usage.
-
-// The design is targeted toward 64bit architectures. There are probably better
-// ways to store symbols on 32bit architectures.
-// ========================================================================
-// | 64 bit layout of symbol                                              |
-// ========================================================================
-// |                | 32b for number    | 29b for subtype   | 3b for type |
-// |----------------+-------------------+-------------------+-------------|
-// | Number         | the number        | 0 for number      | 0           |
-// | Inf            | unused            | 1 for inf         | 0           |
-// | Sup            | unused            | 2 for sup         | 0           |
-// |----------------+-------------------+-------------------+-------------|
-// |                | 16b for size      | 45b for pointer   |             |
-// |----------------+-------------------+-------------------+-------------|
-// | String         | unused            | pointer to string | 1           |
-// | Tuple          |                   |                   |             |
-// | - empty        | unused            | 0                 | 2           |
-// | - large        | unused            | pointer to large  | 2           |
-// | Function       |                   |                   |             |
-// | - id           | unused            | pointer to string | 3           |
-// | - large        | unused            | pointer to large  | 4           |
-// ========================================================================
-// | 32 bit layout of symbol                                              |
-// ========================================================================
-// |                | 32b for number    | 29b for subtype   | 3b for type |
-// |----------------+-------------------+-------------------+-------------|
-// | Number         | the number        | 0 for number      | 0           |
-// | Inf            | unused            | 1 for inf         | 0           |
-// | Sup            | unused            | 2 for sup         | 0           |
-// |----------------+-------------------+-------------------+-------------|
-// |                | 32b for pointer   | 29b for size      |             |
-// |----------------+-------------------+-------------------+-------------|
-// | String         | pointer to string | unused            | 1           |
-// | Tuple          |                   |                   |             |
-// | - empty        | 0                 | unused            | 2           |
-// | - large        | pointer to large  | unused            | 2           |
-// | Function       |                   |                   |             |
-// | - id           | pointer to string | unused            | 3           |
-// | - large        | pointer to large  | unused            | 4           |
-// ------------------------------------------------------------------------
-
 namespace {
 
+constexpr auto TYPE_SIZE = static_cast<uint64_t>(3);
+constexpr auto TYPE_MASK = static_cast<uint64_t>((1 << TYPE_SIZE) - 1);
+constexpr auto EXT_TYPE_SIZE = static_cast<uint64_t>(TYPE_SIZE + 2);
+constexpr auto EXT_TYPE_MASK = static_cast<uint64_t>((1 << EXT_TYPE_SIZE) - 1);
+
 enum RepType : uint64_t {
-    rep_number_or_constant = 0,
-    rep_string = 1,
-    rep_tuple = 2,
-    rep_signed_id = 3,
-    rep_id = 4,
-    rep_signed_function = 5,
-    rep_function = 6,
-    rep_bigint = 7,
+    REP_NUM_OR_CONSTANT = 0,
+    REP_STR = 1,
+    REP_TUP = 2,
+    REP_SIGNED_ID = 3,
+    REP_ID = 4,
+    REP_SIGNED_FUN = 5,
+    REP_FUN = 6,
+    REP_BIGINT = 7,
 };
 
-enum SubRepType : uint64_t {
-    sub_rep_number = 0,
-    sub_rep_inf = 1,
-    sub_rep_sup = 2,
+enum ExtRepType : uint64_t {
+    EXT_REP_NUM = 0,
+    EXT_REP_INF = 1 << TYPE_SIZE,
+    EXT_REP_SUP = 2 << TYPE_SIZE,
 };
-
-template <size_t N> struct MS_;
-
-template <> struct MS_<8> {
-    static constexpr int type_size = 3;
-    static constexpr uint64_t type_mask = (1ULL << type_size) - 1;
-
-    static constexpr int ptr_shift = 0;
-
-    static constexpr uint64_t lower_mask = (1ULL << 32) - 1;
-};
-
-#ifdef __GNUC__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-const-variable"
-#endif
-
-template <> struct MS_<4> {
-    static constexpr int type_size = 3;
-    static constexpr uint64_t type_mask = (1ULL << type_size) - 1;
-
-    static constexpr int ptr_shift = 32;
-
-    static constexpr uint64_t lower_mask = (1ULL >> 32) - 1;
-};
-
-#ifdef __GNUC__
-#pragma GCC diagnostic pop
-#endif
-
-using MS = MS_<sizeof(uint64_t)>;
 
 struct Sized {
     uint64_t size : 63;
@@ -371,7 +301,7 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
     [[nodiscard]] auto fun(String name, SymbolSpan args, bool sign) -> Symbol override {
         auto size = args.size();
         if (size == 0) {
-            auto rep = (sign ? rep_signed_id : rep_id) | (static_cast<uint64_t>(String::to_rep(name)) << MS::ptr_shift);
+            auto rep = (sign ? REP_SIGNED_ID : REP_ID) | String::to_rep(name);
             return Symbol::from_rep(rep);
         }
         auto fun = std::make_pair(SymbolStore::str(name), args);
@@ -379,7 +309,7 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
         if (jt == tuples_.end()) {
             jt = insert_(tuples_, fun.first, fun.second);
         }
-        auto rep = reinterpret_cast<uint64_t>(jt->data()) | (sign ? rep_signed_function : rep_function);
+        auto rep = reinterpret_cast<uint64_t>(jt->data()) | (sign ? REP_SIGNED_FUN : REP_FUN);
         return Symbol::from_rep(rep);
     }
 
@@ -387,13 +317,13 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
         // Almost the same as for function except that the name does not have to be stored separately.
         auto size = args.size();
         if (size == 0) {
-            return Symbol::from_rep(rep_tuple);
+            return Symbol::from_rep(REP_TUP);
         }
         auto jt = tuples_.find(args);
         if (jt == tuples_.end()) {
             jt = insert_(tuples_, args);
         }
-        auto rep = reinterpret_cast<uint64_t>(jt->data()) | rep_tuple;
+        auto rep = reinterpret_cast<uint64_t>(jt->data()) | REP_TUP;
         return Symbol::from_rep(rep);
     }
 
@@ -515,37 +445,37 @@ auto operator<<(std::ostream &out, String const &str) -> std::ostream & {
 
 [[nodiscard]] auto Symbol::str() const noexcept -> String {
     assert(type() == SymbolType::string);
-    return String::from_rep((rep_ & ~MS::type_mask) >> MS::ptr_shift);
+    return String::from_rep(rep_ & ~TYPE_MASK);
 }
 
 [[nodiscard]] auto Symbol::name() const noexcept -> String {
     assert(type() == SymbolType::function);
-    switch (rep_ & MS::type_mask) {
-        case rep_id:
-        case rep_signed_id: {
-            return String::from_rep((rep_ & ~MS::type_mask) >> MS::ptr_shift);
+    switch (rep_ & TYPE_MASK) {
+        case REP_ID:
+        case REP_SIGNED_ID: {
+            return String::from_rep(rep_ & ~TYPE_MASK);
         }
         default: {
-            return reinterpret_cast<Symbol *>(rep_ & ~MS::type_mask)->str();
+            return reinterpret_cast<Symbol *>(rep_ & ~TYPE_MASK)->str();
         }
     }
 }
 
 [[nodiscard]] auto Symbol::args() const noexcept -> SymbolSpan {
-    switch (rep_ & MS::type_mask) {
-        case rep_signed_id:
-        case rep_id: {
+    switch (rep_ & TYPE_MASK) {
+        case REP_SIGNED_ID:
+        case REP_ID: {
             return SymbolSpan{};
         }
-        case rep_signed_function:
-        case rep_function: {
-            auto *ptr = reinterpret_cast<Symbol *>(rep_ & ~MS::type_mask);
+        case REP_SIGNED_FUN:
+        case REP_FUN: {
+            auto *ptr = reinterpret_cast<Symbol *>(rep_ & ~TYPE_MASK);
             auto size = alloc_size(ptr) / sizeof(Symbol);
             return SymbolSpan{ptr + 1, size - 1};
         }
         default: {
-            assert((rep_ & MS::type_mask) == rep_tuple);
-            auto *ptr = reinterpret_cast<Symbol *>(rep_ & ~MS::type_mask);
+            assert((rep_ & TYPE_MASK) == REP_TUP);
+            auto *ptr = reinterpret_cast<Symbol *>(rep_ & ~TYPE_MASK);
             auto size = ptr != nullptr ? alloc_size(ptr) / sizeof(Symbol) : 0;
             return SymbolSpan{ptr, size};
         }
@@ -553,9 +483,9 @@ auto operator<<(std::ostream &out, String const &str) -> std::ostream & {
 }
 
 [[nodiscard]] auto Symbol::has_classical_sign() const -> bool {
-    switch (rep_ & MS::type_mask) {
-        case rep_signed_id:
-        case rep_signed_function: {
+    switch (rep_ & TYPE_MASK) {
+        case REP_SIGNED_ID:
+        case REP_SIGNED_FUN: {
             return true;
         }
         default: {
@@ -565,18 +495,18 @@ auto operator<<(std::ostream &out, String const &str) -> std::ostream & {
 }
 
 [[nodiscard]] auto Symbol::has_sign() const -> bool {
-    switch (rep_ & MS::type_mask) {
-        case rep_number_or_constant: {
-            if ((rep_ & MS::lower_mask) >> MS::type_size == sub_rep_number) {
+    switch (rep_ & TYPE_MASK) {
+        case REP_NUM_OR_CONSTANT: {
+            if ((rep_ & EXT_TYPE_MASK) == EXT_REP_NUM) {
                 return static_cast<int>(rep_ >> 32) < 0;
             }
             return false;
         }
-        case rep_signed_id:
-        case rep_signed_function: {
+        case REP_SIGNED_ID:
+        case REP_SIGNED_FUN: {
             return true;
         }
-        case rep_bigint: {
+        case REP_BIGINT: {
             return *num() < 0;
         }
         default: {
@@ -586,18 +516,18 @@ auto operator<<(std::ostream &out, String const &str) -> std::ostream & {
 }
 
 [[nodiscard]] auto Symbol::flip_classical_sign() const -> std::optional<Symbol> {
-    switch (rep_ & MS::type_mask) {
-        case rep_signed_id: {
-            return Symbol{(rep_ & ~MS::type_mask) | rep_id};
+    switch (rep_ & TYPE_MASK) {
+        case REP_SIGNED_ID: {
+            return Symbol{(rep_ & ~TYPE_MASK) | REP_ID};
         }
-        case rep_signed_function: {
-            return Symbol{(rep_ & ~MS::type_mask) | rep_function};
+        case REP_SIGNED_FUN: {
+            return Symbol{(rep_ & ~TYPE_MASK) | REP_FUN};
         }
-        case rep_id: {
-            return Symbol{(rep_ & ~MS::type_mask) | rep_signed_id};
+        case REP_ID: {
+            return Symbol{(rep_ & ~TYPE_MASK) | REP_SIGNED_ID};
         }
-        case rep_function: {
-            return Symbol{(rep_ & ~MS::type_mask) | rep_signed_function};
+        case REP_FUN: {
+            return Symbol{(rep_ & ~TYPE_MASK) | REP_SIGNED_FUN};
         }
         default: {
             return std::nullopt;
@@ -606,25 +536,27 @@ auto operator<<(std::ostream &out, String const &str) -> std::ostream & {
 }
 
 [[nodiscard]] auto Symbol::type() const noexcept -> SymbolType {
-    switch (rep_ & MS::type_mask) {
-        case rep_number_or_constant: {
-            auto sub_type = (rep_ & MS::lower_mask) >> MS::type_size;
-            switch (sub_type) {
-                case sub_rep_number:
+    switch (rep_ & TYPE_MASK) {
+        case REP_NUM_OR_CONSTANT: {
+            switch (rep_ & EXT_TYPE_MASK) {
+                case EXT_REP_NUM: {
                     return SymbolType::number;
-                case sub_rep_inf:
+                }
+                case EXT_REP_INF: {
                     return SymbolType::inf;
-                default:
+                }
+                default: {
                     return SymbolType::sup;
+                }
             }
         }
-        case rep_string: {
+        case REP_STR: {
             return SymbolType::string;
         }
-        case rep_tuple: {
+        case REP_TUP: {
             return SymbolType::tuple;
         }
-        case rep_bigint: {
+        case REP_BIGINT: {
             return SymbolType::number;
         }
         default: {
@@ -673,20 +605,11 @@ auto operator<<(std::ostream &out, Symbol const &sym) -> std::ostream & {
     return out;
 }
 
-auto SymbolStore::sup() noexcept -> Symbol {
-    uint64_t rep = (sub_rep_sup << MS::type_size) | rep_number_or_constant;
-    return Symbol::from_rep(rep);
-}
+auto SymbolStore::sup() noexcept -> Symbol { return Symbol::from_rep(EXT_REP_SUP); }
 
-auto SymbolStore::inf() noexcept -> Symbol {
-    uint64_t rep = (sub_rep_inf << MS::type_size) | rep_number_or_constant;
-    return Symbol::from_rep(rep);
-}
+auto SymbolStore::inf() noexcept -> Symbol { return Symbol::from_rep(EXT_REP_INF); }
 
-auto SymbolStore::str(String str) noexcept -> Symbol {
-    uint64_t rep = reinterpret_cast<uint64_t>(String::to_rep(str)) | rep_string;
-    return Symbol::from_rep(rep);
-}
+auto SymbolStore::str(String str) noexcept -> Symbol { return Symbol::from_rep(String::to_rep(str) | REP_STR); }
 
 auto SymbolStore::num(Number const &num) noexcept -> Symbol {
     if (auto res = num.as_int(); res) {
