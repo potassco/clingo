@@ -9,6 +9,7 @@ namespace Gringo::Util {
 //! @addtogroup util_container
 //! @{
 
+//! Alias for unordered maps.
 template <class Key, class T, class Hash = value_hasher, class KeyEqual = std::equal_to<Key>,
           class Allocator = std::allocator<std::pair<Key, T>>,
           unsigned int NeighborhoodSize = default_neighborhood_size, bool StoreHash = false,

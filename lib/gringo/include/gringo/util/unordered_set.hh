@@ -9,6 +9,7 @@ namespace Gringo::Util {
 //! @addtogroup util_container
 //! @{
 
+//! Alias for unordered sets.
 template <class Key, class Hash = value_hasher, class KeyEqual = std::equal_to<Key>,
           class Allocator = std::allocator<Key>, unsigned int NeighborhoodSize = default_neighborhood_size,
           bool StoreHash = false, class GrowthPolicy = tsl::hh::power_of_two_growth_policy<2>>

@@ -179,7 +179,7 @@ auto check_mod(S a, T b) -> std::optional<S> {
 
 //! Power of the given integers checking overflows.
 //!
-//! Note that <tt>a^0 = 1</tt> for all values of <tt>a</tt> and <tt>a^b=0</tt> whenever <tt>b<tt> is less than zero.
+//! Note that <tt>a^0 = 1</tt> for all values of <tt>a</tt> and <tt>a^b=0</tt> whenever <tt>b</tt> is less than zero.
 template <class S>
     requires std::is_signed_v<S>
 auto check_pow(S a, S b) -> std::optional<S> {

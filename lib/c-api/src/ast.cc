@@ -2589,16 +2589,17 @@ extern "C" auto clingo_ast_rewrite_context_get_lib(clingo_ast_rewrite_context_t 
     return context->lib;
 }
 
-extern "C" auto clingo_ast_rewrite(clingo_ast_rewrite_context_t *ctx, clingo_ast_t *statement, clingo_ast_t ***result,
-                                   size_t *result_size) -> bool {
+extern "C" auto clingo_ast_rewrite(clingo_ast_rewrite_context_t *context, clingo_ast_t *statement,
+                                   clingo_ast_t ***result, size_t *result_size) -> bool {
     using namespace Gringo::Input;
-    auto *lib = ctx->lib;
+    auto *lib = context->lib;
     CLINGO_TRY {
         *result = nullptr;
         *result_size = 0;
         auto stms = StmVec{};
         auto stm = statement->convert<Stm>();
-        rewrite(lib->log, *lib->store, ctx->param_map, ctx->const_map, ctx->parser, stm, ctx->options, stms);
+        rewrite(lib->log, *lib->store, context->param_map, context->const_map, context->parser, stm, context->options,
+                stms);
         if (lib->log.has_error()) {
             lib->log.reset();
             throw std::runtime_error("rewriting statement failed");
@@ -2606,7 +2607,7 @@ extern "C" auto clingo_ast_rewrite(clingo_ast_rewrite_context_t *ctx, clingo_ast
         ASTVec res{stms.size()};
         int i = 0;
         for (auto &stm : stms) {
-            if (auto res_stm = unmap_params(*lib->store, ctx->param_unmap, stm); res_stm) {
+            if (auto res_stm = unmap_params(*lib->store, context->param_unmap, stm); res_stm) {
                 stm = *std::move(res_stm);
             }
             auto owner = Gringo::Util::make_immutable<std::any>(std::move(stm));

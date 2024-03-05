@@ -9,6 +9,7 @@ namespace Gringo::Util {
 //! @addtogroup util_container
 //! @{
 
+//! Alias for ordered sets.
 template <class Key, class Hash = value_hasher, class KeyEqual = std::equal_to<Key>,
           class Allocator = std::allocator<Key>, class ValueTypeContainer = std::deque<Key, Allocator>,
           class IndexType = std::uint_least32_t>

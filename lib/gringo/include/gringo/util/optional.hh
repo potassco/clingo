@@ -269,10 +269,13 @@ template <class T, bool UseSpan = true> class ResultVec {
     Iterator current_;
 };
 
+//! Deduction guide to construct from a std::vector.
 template <class T> ResultVec(std::vector<T> const &) -> ResultVec<T, true>;
 
+//! Deduction guide to construct from a std::span.
 template <class T> ResultVec(std::span<T const> const &) -> ResultVec<T, true>;
 
+//! Deduction guide to construct from an immutable array.
 template <class T> ResultVec(immutable_array<T> const &) -> ResultVec<T, false>;
 
 //! @}

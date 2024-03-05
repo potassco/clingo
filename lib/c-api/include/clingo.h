@@ -52,7 +52,9 @@ extern "C" {
 #define CLINGO_VISIBILITY_DEFAULT __attribute__((visibility("default")))
 #define CLINGO_VISIBILITY_PRIVATE __attribute__((visibility("hidden")))
 #else
+//! Set the visibility of a symbol to default.
 #define CLINGO_VISIBILITY_DEFAULT
+//! Set the visibility of a symbol to private.
 #define CLINGO_VISIBILITY_PRIVATE
 #endif
 #endif
@@ -63,6 +65,7 @@ extern "C" {
 #elif defined _MSC_VER
 #define CLINGO_DEPRECATED __declspec(deprecated)
 #else
+//! Mark a function as deprecated.
 #define CLINGO_DEPRECATED
 #endif
 
@@ -70,6 +73,7 @@ extern "C" {
 //! API providing a stable interface for applications using Clingo.
 //!
 //! The API is mainly intended for developing higher level language bindings.
+//! @{
 
 // {{{1 Core
 
@@ -88,11 +92,7 @@ extern "C" {
 //! @defgroup Core Core
 //! Core types and functions used throughout all modules and version information.
 //!
-//! @ingroup CAPI
-//!
 //! For an example, see @ref version.c.
-
-//! @addtogroup Core
 //! @{
 
 //! Major version number.
@@ -215,8 +215,8 @@ typedef uint32_t clingo_id_t;
 typedef int32_t clingo_weight_t;
 //! A Literal with an associated weight.
 typedef struct clingo_weighted_literal {
-    clingo_literal_t literal;
-    clingo_weight_t weight;
+    clingo_literal_t literal; //!< the literal
+    clingo_weight_t weight;   //!< the weight
 } clingo_weighted_literal_t;
 
 //! Represents three-valued truth values.
@@ -270,7 +270,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_location_less_than(clingo_location_t const
 CLINGO_VISIBILITY_DEFAULT bool clingo_location_equal(clingo_location_t const *a, clingo_location_t const *b);
 //! Compute a hash for a location.
 //!
-//! @param[in] ast the target
+//! @param[in] loc the target
 //! @return the resulting hash code
 CLINGO_VISIBILITY_DEFAULT size_t clingo_location_hash(clingo_location_t const *loc);
 
@@ -288,6 +288,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_location_to_string_size(clingo_location_t 
 //! @param[in] size the size of the string
 //! @return whether the string has been set
 CLINGO_VISIBILITY_DEFAULT bool clingo_location_to_string(clingo_location_t location, char *string, size_t size);
+
 //! @}
 
 // {{{1 Symbol
@@ -312,13 +313,9 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_location_to_string(clingo_location_t locat
 //! @defgroup Symbols Symbols
 //! Working with (evaluated) ground terms and related functions.
 //!
-//! @ingroup CAPI
-//!
 //! @note Functions to create symbols are only thread-safe if library flags have been requested accordingly.
 //!
 //! For an example, see @ref symbol.c.
-
-//! @addtogroup Symbols
 //! @{
 
 /*
@@ -605,8 +602,31 @@ CLINGO_VISIBILITY_DEFAULT size_t clingo_symbol_hash(clingo_symbol_t symbol);
 
 // {{{1 Control
 
+//! @example control.c
+//! The example shows how to ground and solve a simple logic program, and print
+//! its answer sets.
+//!
+//! ## Output ##
+//!
+//! ~~~~~~~~~~~~
+//! ./control 0
+//! Model: a
+//! Model: b
+//! ~~~~~~~~~~~~
+//!
+//! ## Code ##
+
+//! @defgroup Control Grounding and Solving
+//! Functions to control the grounding and solving process.
+//!
+//! For an example, see @ref control.c.
+//! @addtogroup Control
+//! @{
+
 //! Control object holding grounding and solving state.
 typedef struct clingo_control clingo_control_t;
+
+//! @}
 
 // {{{1 AST
 
@@ -631,9 +651,6 @@ typedef struct clingo_control clingo_control_t;
 //! @defgroup AST Abstract Syntax Trees
 //! Functions and data structures to work with program ASTs.
 //!
-//! @ingroup CAPI
-
-//! @addtogroup AST
 //! @{
 
 //! Enumeration of AST types.
@@ -937,7 +954,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_string_array(clingo_ast_
                                                                      clingo_ast_attribute_t attribute,
                                                                      char const **value, size_t *size);
 
-//! Get the value of an ast attribute..
+//! Get the value of an ast attribute.
 //!
 //! The value will be set to NULL if an optional AST does not have a value.
 //!
@@ -974,108 +991,135 @@ CLINGO_VISIBILITY_DEFAULT char const *clingo_ast_type_info_yaml();
 //! @name Functions to scan ASTs
 //! @{
 
+//! A scanner to read programs from some input source.
 typedef struct clingo_ast_scanner clingo_ast_scanner_t;
 
+//! Creater a scanner reading a program from a string.
+//!
+//! @param[in] lib the library object to store symbols
+//! @param[in] program the string to read from
+//! @param[out] scanner the resulting scanner
+//! @return whether the call was successful or an error has been set
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_scan_string(clingo_lib_t *lib, char const *program,
                                                       clingo_ast_scanner_t **scanner);
+
+//! Creater a scanner reading a program from a string.
+//!
+//! @param[in] lib the library object to store symbols
+//! @param[in] files the file paths to read from
+//! @param[in] size the number of file paths
+//! @param[out] scanner the resulting scanner
+//! @return whether the call was successful or an error has been set
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_scan_files(clingo_lib_t *lib, char const *const *files, size_t size,
                                                      clingo_ast_scanner_t **scanner);
 
+//! Parse the next statement.
+//!
+//! @param[in] scanner the scanner to use for parsing
+//! @param[out] ast the resulting ast
+//! @return whether the call was successful or an error has been set
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_scanner_next(clingo_ast_scanner_t *scanner, clingo_ast_t **ast);
+//! Close the scanner and free any resources it uses.
+//!
+//! @param[in] scanner the scanner
 CLINGO_VISIBILITY_DEFAULT void clingo_ast_scanner_close(clingo_ast_scanner_t *scanner);
 
 //! @}
 
+//! The available projection modes.
 enum clingo_projection_mode_e {
     clingo_projection_mode_disabled = 0,  //!< Disable projection.
     clingo_projection_mode_anonymous = 1, //!< Only project anonymous variables.
     clingo_projection_mode_pure = 2,      //!< Project pure variables.
 };
+//! Corresponding type to ::clingo_projection_mode_e.
 typedef int clingo_projection_mode_t;
 
+//! Context object to rewrite statements.
 typedef struct clingo_ast_rewrite_context clingo_ast_rewrite_context_t;
 
+//! Create a new rewrite context.
+//!
+//! @param[in] lib the library object to store symbols
+//! @param[out] context the resulting context object
+//! @return whether the call was successful or an error has been set
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_rewrite_context_create(clingo_lib_t *lib,
                                                                  clingo_ast_rewrite_context_t **context);
 
+//! Free the given rewrite context.
+//!
+//! @param[in] context the context to free
 CLINGO_VISIBILITY_DEFAULT void clingo_ast_rewrite_context_free(clingo_ast_rewrite_context_t *context);
 
+//! Protect the given parameter from simplifications.
+//!
+//! Parameters from const and program statements should be protected.
+//!
+//! @param[in] context the context object
+//! @param[in] param the parameter to protect
+//! @return whether the call was successful or an error has been set
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_rewrite_context_add_param(clingo_ast_rewrite_context_t *context,
                                                                     char const *param);
 
+//! Remove all previously added parameters.
+//!
+//! @param[in] context the context object
 CLINGO_VISIBILITY_DEFAULT void clingo_ast_rewrite_context_clear_params(clingo_ast_rewrite_context_t *context);
 
+//! Add a theory definition to the rewrite context.
+//!
+//! Added definitions are used to rewrite theory atoms.
+//!
+//! @param[in] context the context object
+//! @param[in] theory the theory definition
+//! @return whether the call was successful or an error has been set
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_rewrite_context_add_theory(clingo_ast_rewrite_context_t *context,
                                                                      clingo_ast_t const *theory);
 
+//! Configure whether anonymous variables in negative literals are projected.
+//!
+//! @param[in] context the context object
+//! @param[in] value whether to enable projection
 CLINGO_VISIBILITY_DEFAULT void clingo_ast_rewrite_context_set_project_anonymous(clingo_ast_rewrite_context_t *context,
                                                                                 bool value);
 
+//! Return whether anonymous variables in negative literals are projected.
+//!
+//! @param[in] context the context object
+//! @return whether anonymous variables in negative literals are projected
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_rewrite_context_get_project_anonymous(clingo_ast_rewrite_context_t *context);
 
+//! Configure the projection mode.
+//!
+//! @param[in] context the context object
+//! @param[in] value the projection mode
 CLINGO_VISIBILITY_DEFAULT void clingo_ast_rewrite_context_set_project_mode(clingo_ast_rewrite_context_t *context,
                                                                            clingo_projection_mode_t value);
 
+//! Get the configured projection mode.
+//!
+//! @param[in] context the context object
+//! @return the projection mode
 CLINGO_VISIBILITY_DEFAULT clingo_projection_mode_t
 clingo_ast_rewrite_context_get_project_mode(clingo_ast_rewrite_context_t *context);
 
+//! Get the library object used to create the context.
+//!
+//! @param[in] context the context object
+//! @return the library object
 CLINGO_VISIBILITY_DEFAULT clingo_lib_t *clingo_ast_rewrite_context_get_lib(clingo_ast_rewrite_context_t *context);
 
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_rewrite(clingo_ast_rewrite_context_t *ctx, clingo_ast_t *statement,
+//! Rewrite the given statement.
+//!
+//! @note The returned statementsn have to be freed using clingo_ast_array_free().
+//!
+//! @param[in] context the context object
+//! @param[in] statement the statement object
+//! @param[out] result the resulting rewritten statements
+//! @param[out] result_size the number of resulting statements
+//! @return whether the call was successful or an error has been set
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_rewrite(clingo_ast_rewrite_context_t *context, clingo_ast_t *statement,
                                                   clingo_ast_t ***result, size_t *result_size);
-
-/*
-//! @name Functions to construct ASTs from strings
-//! @{
-
-//! Callback function to intercept AST nodes.
-//!
-//! @param[in] ast the AST
-//! @param[in] data a user data pointer
-//! @return whether the call was successful
-typedef bool (*clingo_ast_callback_t)(clingo_ast_t *ast, void *data);
-//! Parse the given program and return an abstract syntax tree for each statement via a callback.
-//!
-//! @note The control object can be set to a NULL to disable reading input in aspif format.
-//!
-//! @param[in] program the program in gringo syntax
-//! @param[in] callback the callback reporting statements
-//! @param[in] callback_data user data for the callback
-//! @param[in] control object to add ground statements to
-//! @param[in] logger callback to report messages during parsing
-//! @param[in] logger_data user data for the logger
-//! @param[in] message_limit the maximum number of times the logger is called
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_runtime if parsing fails
-//! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_parse_string(char const *program, clingo_ast_callback_t callback,
-                                                       void *callback_data, clingo_control_t *control,
-                                                       clingo_logger_t logger, void *logger_data,
-                                                       unsigned message_limit);
-//! Parse the programs in the given list of files and return an abstract syntax tree for each statement via a callback.
-//!
-//! The function follows clingo's handling of files on the command line.
-//! Filename "-" is treated as "STDIN" and if an empty list is given, then the parser will read from "STDIN".
-//!
-//! @note The control object can be set to a NULL to disable reading input in aspif format.
-//!
-//! @param[in] files the beginning of the file name array
-//! @param[in] size the number of file names
-//! @param[in] callback the callback reporting statements
-//! @param[in] callback_data user data for the callback
-//! @param[in] control object to add ground statements to
-//! @param[in] logger callback to report messages during parsing
-//! @param[in] logger_data user data for the logger
-//! @param[in] message_limit the maximum number of times the logger is called
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_runtime if parsing fails
-//! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_parse_files(char const *const *files, size_t size,
-                                                      clingo_ast_callback_t callback, void *callback_data,
-                                                      clingo_control_t *control, clingo_logger_t logger,
-                                                      void *logger_data, unsigned message_limit);
-
-*/
 
 //! @}
 

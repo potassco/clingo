@@ -5,6 +5,7 @@ namespace Gringo::Util {
 //! @addtogroup util_debug
 //! @{
 
+//! Replace all occurrences of `from` by `to` in `str`.
 inline auto replace_all(std::string str, std::string_view from, const std::string_view to) -> std::string {
     size_t start_pos = 0;
     while ((start_pos = str.find(from, start_pos)) != std::string::npos) {
@@ -14,6 +15,7 @@ inline auto replace_all(std::string str, std::string_view from, const std::strin
     return str;
 }
 
+//! Replaces complex types used in this project by shorter aliases.
 inline auto type_short(std::string sig) -> std::string {
     sig = replace_all(
         std::move(sig),
@@ -22,6 +24,7 @@ inline auto type_short(std::string sig) -> std::string {
     return sig;
 }
 
+//! Return a nice string representation of T.
 template <class T> constexpr auto type_name() -> std::string_view {
     // NOLINTBEGIN(readability-magic-numbers)
     using namespace std;
