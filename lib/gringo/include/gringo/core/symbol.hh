@@ -16,7 +16,7 @@ namespace Gringo {
 //! Reference to a string stored in a symbol store.
 class String {
   public:
-    //! Construct a string pointing to a null pointer.
+    //! Construct an empty string.
     constexpr String() : String{0} {};
 
     //! Get the underlying C string.
@@ -25,8 +25,6 @@ class String {
     [[nodiscard]] auto view() const -> std::string_view;
     //! Test if the string is empty.
     [[nodiscard]] auto empty() const -> bool;
-    //! Test if the string is null.
-    [[nodiscard]] auto null() const -> bool;
     //! Get the length of the string.
     [[nodiscard]] auto size() const -> size_t;
     //! Check if the string starts with the given string.

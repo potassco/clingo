@@ -27,7 +27,7 @@ auto simplify(IETermVec &terms) -> Number {
     auto bound = Number{0};
     // remove terms not associated with a variable
     auto last = std::partition(terms.begin(), terms.end(),
-                               [](auto &term) { return !term.variable.null() && term.coefficient != 0; });
+                               [](auto &term) { return !term.variable.empty() && term.coefficient != 0; });
     for (auto end = terms.end(), current = last; current != end; ++current) {
         bound += current->coefficient;
     }
@@ -50,10 +50,10 @@ auto simplify(IETermVec &terms) -> Number {
 }
 
 auto operator<<(std::ostream &out, IETerm const &term) -> std::ostream & {
-    if (term.coefficient != 1 || term.variable.null()) {
+    if (term.coefficient != 1 || term.variable.empty()) {
         out << term.coefficient;
     }
-    if (term.coefficient != 0 && !term.variable.null()) {
+    if (term.coefficient != 0 && !term.variable.empty()) {
         out << "*" << term.variable;
     }
     return out;
@@ -136,7 +136,7 @@ void IESolver::add(IE ie) {
 
     // remove terms not associated with a variable
     auto last = std::partition(terms.begin(), terms.end(),
-                               [](auto &term) { return !term.variable.null() && term.coefficient != 0; });
+                               [](auto &term) { return !term.variable.empty() && term.coefficient != 0; });
     for (auto end = terms.end(), current = last; current != end; ++current) {
         ie.bound -= current->coefficient;
     }

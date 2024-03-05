@@ -398,6 +398,9 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
     }
 
     [[nodiscard]] auto string(std::string_view str) -> String override {
+        if (str.empty()) {
+            return {};
+        }
         auto it = strings_.find(str);
         if (it == strings_.end()) {
             it = insert_(strings_, str);
@@ -466,6 +469,9 @@ template <class Alloc> class SharedSymbolStore : public SymbolStore {
     }
 
     [[nodiscard]] auto string(std::string_view str) -> String override {
+        if (str.empty()) {
+            return {};
+        }
         std::unique_lock ulock{mutex_};
         return store_.string(str);
     }
@@ -487,13 +493,11 @@ auto default_symbol_store_() -> USymbolStore & {
 
 } // namespace
 
-auto String::c_str() const -> const char * { return reinterpret_cast<char const *>(rep_); }
+auto String::c_str() const -> const char * { return rep_ != 0 ? reinterpret_cast<char const *>(rep_) : ""; }
 
 auto String::view() const -> std::string_view { return {c_str(), size()}; }
 
 auto String::empty() const -> bool { return *c_str() == '\0'; }
-
-auto String::null() const -> bool { return rep_ == 0; }
 
 auto String::size() const -> size_t { return rep_ != 0 ? alloc_size(reinterpret_cast<void *>(rep_)) - 1 : 0; }
 
