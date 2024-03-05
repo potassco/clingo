@@ -4,6 +4,8 @@
 
 #include <gringo/core/logger.hh>
 
+#include <cstring>
+
 namespace Gringo::Input {
 
 //! @addtogroup input_analyze

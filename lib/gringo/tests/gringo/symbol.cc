@@ -138,7 +138,7 @@ TEST_CASE("symbol_tuple") {
         REQUIRE(t4 != t6);
         REQUIRE(t5 == t6);
 
-        size_t n = 1 >> 20;
+        size_t n = 1 << 20;
         std::vector<Symbol> args;
         args.reserve(n);
         for (size_t i = 0; i < n; ++i) {
@@ -219,7 +219,7 @@ TEST_CASE("symbol_function") {
         REQUIRE(f5 == f6);
         REQUIRE(f6 != f7);
 
-        size_t n = 1 >> 20;
+        size_t n = 1 << 20;
         std::vector<Symbol> args;
         args.reserve(n);
         for (size_t i = 0; i < n; ++i) {
