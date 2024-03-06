@@ -2,6 +2,9 @@
 
 #include <gringo/input/program.hh>
 
+#include <gringo/util/ordered_set.hh>
+#include <gringo/util/unordered_map.hh>
+
 namespace Gringo::Input {
 
 //! Enum for unary/binary operator arities.

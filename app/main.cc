@@ -3,19 +3,88 @@
 #include <gringo/input/algo/parse.hh>
 #include <gringo/input/algo/print.hh>
 
+#include <gringo/util/ordered_set.hh>
+
 #include <CLI/CLI.hpp>
 
+#include <filesystem>
 #include <iostream>
 
 using namespace Gringo::Input;
 
-template <class Scanner>
-void process(Gringo::SymbolStore &store, Scanner &&scanner, std::optional<UnprocessedProgram> &prg) {
-    for (auto stm = scanner.scan(); stm.has_value(); stm = scanner.scan()) {
-        if (prg) {
-            add(store, std::move(stm).value(), *prg);
+// Note: candidate for library because cumbersome to implement
+void process_files(Gringo::Logger &log, Gringo::SymbolStore &store, std::vector<std::string> &files,
+                   std::optional<UnprocessedProgram> &prg) {
+    namespace fs = std::filesystem;
+
+    auto root = fs::current_path();
+    std::deque<std::pair<fs::path, Gringo::Input::StmInclude>> includes;
+
+    // parse a program
+    auto process = [&]<class Scanner>(fs::path const &dir, Scanner &&scanner) {
+        for (auto stm = scanner.scan(); stm.has_value(); stm = scanner.scan()) {
+            if (auto *include = std::get_if<Gringo::Input::StmInclude>(&*stm); include != nullptr) {
+                includes.emplace_back(dir, *include);
+            } else if (prg) {
+                add(store, std::move(stm).value(), *prg);
+            } else {
+                std::cout << *stm << "\n";
+            }
+        }
+    };
+
+    // parse a program from a file
+    auto process_path = [&, seen = Gringo::Util::unordered_set<fs::path>{}](auto &&path, bool required) mutable {
+        if (fs::exists(path)) {
+            path = fs::canonical(path);
+            auto rel = path.lexically_relative(root);
+            if (!fs::is_directory(path)) {
+                if (seen.emplace(path).second) {
+                    process(path.parent_path(), scan_file(log, store, rel.c_str()));
+                } else {
+                    GRINGO_REPORT(log, info_file_included) << "file already included: " << rel;
+                }
+            } else {
+                GRINGO_REPORT(log, error) << "cannot include directory: " << rel;
+            }
+            return true;
+        }
+        if (required) {
+            GRINGO_REPORT(log, error) << "file nout found: " << path;
+        }
+        return false;
+    };
+
+    // parse a program from stdin
+    auto process_stdin = [&, processed_stdin = false]() mutable {
+        if (!processed_stdin) {
+            processed_stdin = true;
+            process(root, scan_stream(log, store, std::cin));
         } else {
-            std::cout << *stm << "\n";
+            GRINGO_REPORT(log, info_file_included) << "file already included: -";
+        }
+    };
+
+    if (files.empty()) {
+        process_stdin();
+    }
+    for (auto const &file : files) {
+        if (file == "-") {
+            process_stdin();
+        } else {
+            process_path(fs::path(file), true);
+        }
+        for (; !includes.empty(); includes.pop_front()) {
+            auto const &[parent, include] = includes.front();
+            if (include.type() == Gringo::Input::IncludeType::system) {
+                auto path = fs::path(include.value());
+                if (path.is_relative() && parent != root) {
+                    if (process_path(parent / path, false)) {
+                        continue;
+                    }
+                }
+                process_path(path, true);
+            }
         }
     }
 }
@@ -74,13 +143,7 @@ auto main(int argc, char *argv[]) -> int {
         auto store = Gringo::make_symbol_store(true, false);
         log.set_level(log_level);
         GRINGO_REPORT(log, debug) << "starting up";
-        if (files.empty()) {
-            process(*store, scan_stream(log, *store, std::cin), uprg);
-        } else {
-            for (auto const &file : files) {
-                process(*store, scan_file(log, *store, file.c_str()), uprg);
-            }
-        }
+        process_files(log, *store, files, uprg);
         if (uprg) {
             Program prg{opts};
             prg.join(log, *store, std::move(uprg).value());
