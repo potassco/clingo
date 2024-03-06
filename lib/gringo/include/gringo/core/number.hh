@@ -30,7 +30,7 @@ class Number {
     Number(Number const &other);
     //! Move construct a number.
     Number(Number &&other) noexcept;
-    //! Copy construct a number.
+    //! Copy assign a number.
     auto operator=(Number const &other) -> Number &;
     //! Move assign a number.
     auto operator=(Number &&other) noexcept -> Number &;
@@ -299,12 +299,8 @@ class NumberRef {
 
 } // namespace Gringo
 
-namespace std {
-
 //! Hasher for numbers.
-template <> struct hash<Gringo::Number> {
+template <> struct std::hash<Gringo::Number> {
     //! Compute hash of string.
-    auto operator()(Gringo::Number a) const -> size_t { return hash_code(a); }
+    auto operator()(Gringo::Number const &a) const -> size_t { return hash_code(a); }
 };
-
-} // namespace std

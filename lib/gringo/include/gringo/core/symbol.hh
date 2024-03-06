@@ -56,17 +56,13 @@ class String {
 
 } // namespace Gringo
 
-namespace std {
-
 //! Hasher for strings.
-template <> struct hash<Gringo::String> {
+template <> struct std::hash<Gringo::String> {
     //! Compute hash of string.
     auto operator()(Gringo::String str) const -> size_t {
         return Gringo::Util::value_hash(Gringo::String::to_rep(str));
     }
 };
-
-} // namespace std
 
 namespace Gringo {
 
@@ -135,17 +131,13 @@ using SymbolVec = std::vector<Symbol>;
 
 } // namespace Gringo
 
-namespace std {
-
 //! Hasher for symbols.
-template <> struct hash<Gringo::Symbol> {
+template <> struct std::hash<Gringo::Symbol> {
     //! Compute hash of symbol.
     auto operator()(Gringo::Symbol sym) const -> size_t {
         return Gringo::Util::value_hash_record<Gringo::Symbol>(Gringo::Symbol::to_rep(sym));
     }
 };
-
-} // namespace std
 
 namespace Gringo {
 
