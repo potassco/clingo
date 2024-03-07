@@ -42,7 +42,7 @@ auto operator+=(Sign &a, Sign b) -> Sign & {
 auto flip(Relation rel) -> Relation {
     switch (rel) {
         case Relation::equal:
-        case Relation::inequal: {
+        case Relation::not_equal: {
             break;
         }
         case Relation::greater: {
@@ -64,9 +64,9 @@ auto flip(Relation rel) -> Relation {
 auto complement(Relation rel) -> Relation {
     switch (rel) {
         case Relation::equal: {
-            return Relation::inequal;
+            return Relation::not_equal;
         }
-        case Relation::inequal: {
+        case Relation::not_equal: {
             return Relation::equal;
         }
         case Relation::greater: {

@@ -20,7 +20,7 @@ namespace {
 template <class R> void extend(R &res, AuxTermVec &aux, bool conjunctive = true) {
     for (auto &[lhs, rhs] : aux) {
         auto loc = location(lhs);
-        auto rel = conjunctive ? Relation::equal : Relation::inequal;
+        auto rel = conjunctive ? Relation::equal : Relation::not_equal;
         auto lit = LitComparison{loc, Sign::none, std::move(lhs), Util::make_vec<Guard>(Guard{rel, std::move(rhs)})};
         if constexpr (std::is_same_v<typename R::ValueType, Lit>) {
             res.append(std::move(lit));
@@ -904,7 +904,7 @@ struct SimplifyLiteral {
         }
         // the relation symbol that corresponds to assignment
         // (in the head it is inequality)
-        auto assign = disjunctive ? Relation::inequal : Relation::equal;
+        auto assign = disjunctive ? Relation::not_equal : Relation::equal;
 
         auto get_constant = [](Term const &orig, std::optional<Term> const &res) -> std::optional<Symbol> {
             if (res.has_value()) {
@@ -1392,7 +1392,7 @@ template <bool head> using SimpleHBLiteral = std::conditional_t<head, HdLitSimpl
 //! Check if the given relation forms an assignment together with the aggregate.
 template <bool head> [[nodiscard]] auto is_assignment(HBAggregate<head> const &lit, Relation rel) -> bool {
     if constexpr (!head) {
-        return lit.sign() == Sign::once ? rel == Relation::inequal : rel == Relation::equal;
+        return lit.sign() == Sign::once ? rel == Relation::not_equal : rel == Relation::equal;
     }
     return false;
 }

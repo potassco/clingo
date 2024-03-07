@@ -56,7 +56,7 @@ using BoundStateMap = std::vector<BoundState>;
         case Relation::equal: {
             return cmp == 0;
         }
-        case Relation::inequal: {
+        case Relation::not_equal: {
             return cmp != 0;
         }
         case Relation::less: {
@@ -246,7 +246,7 @@ struct ExtractInequalities {
                 }
                 break;
             }
-            case Relation::inequal: {
+            case Relation::not_equal: {
                 break;
             }
         }
@@ -363,7 +363,7 @@ struct ApplyBounds {
                     state.both = 1;
                     return {true};
                 }
-                case Relation::inequal: {
+                case Relation::not_equal: {
                     return {true};
                 }
             }

@@ -28,10 +28,10 @@ inline auto reduct_is_nonmonotone(LGuard const &lhs, AggregateFunction fun, RGua
     if (!lhs.has_value() && !rhs.has_value()) {
         return false;
     }
-    if (lhs.has_value() && lhs->second == Relation::inequal) {
+    if (lhs.has_value() && lhs->second == Relation::not_equal) {
         return true;
     }
-    if (rhs.has_value() && rhs->first == Relation::inequal) {
+    if (rhs.has_value() && rhs->first == Relation::not_equal) {
         return true;
     }
     return fun == AggregateFunction::sum;

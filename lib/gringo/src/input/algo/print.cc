@@ -775,7 +775,7 @@ auto operator<<(std::ostream &out, Relation op) -> std::ostream & {
             out << "=";
             break;
         }
-        case Relation::inequal: {
+        case Relation::not_equal: {
             out << "!=";
             break;
         }

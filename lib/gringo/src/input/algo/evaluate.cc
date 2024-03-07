@@ -330,7 +330,7 @@ auto evaluate(Symbol lhs, Relation rel, Symbol rhs) -> bool {
         case Relation::equal: {
             return lhs == rhs;
         }
-        case Relation::inequal: {
+        case Relation::not_equal: {
             return lhs != rhs;
         }
         case Relation::less: {

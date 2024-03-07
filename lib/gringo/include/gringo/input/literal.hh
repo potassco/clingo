@@ -49,7 +49,7 @@ class Unsigned {
 //! Enumeration of relation symbols.
 enum class Relation {
     equal,         //!< The equal to symbol (=).
-    inequal,       //!< The not equal to symbol (!=).
+    not_equal,     //!< The not equal to symbol (!=).
     less,          //!< The less than symbol (<).
     less_equal,    //!< The less than or equal to symbol (<=).
     greater,       //!< The greater than symbol (>).
