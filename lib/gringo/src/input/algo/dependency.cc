@@ -1,6 +1,7 @@
 #include <gringo/input/algo/analyze.hh>
 #include <gringo/input/algo/dependency.hh>
 
+#include <gringo/util/type_traits.hh>
 #include <gringo/util/unordered_map.hh>
 
 namespace Gringo::Input {
@@ -10,11 +11,114 @@ using Dependency = std::tuple<Stm const *, Term const *, bool>;
 
 using DependencyMap = Util::unordered_map<Signature, std::vector<Dependency>>;
 
+enum class DependencyType : uint32_t {
+    positive = 1,
+    negative = 2,
+};
+GRINGO_ENUM_FLAGS(DependencyType)
+
 //! Builder for the dependencies between statements.
 struct AddDepend {
-    void operator()(HdLit const &lit) const {
-        static_cast<void>(lit);
-        throw std::runtime_error("implement me!!!");
+
+    // TODO:
+    // - too verbose, unnecessary information for grounding
+    // - restrict to essential dependencies for grounding
+    // - tag statements as normal/not normal to detect to positive program (parts)
+
+    void operator()(LitSymbolic const &lit, DependencyType type) const {
+        auto const &term = lit.term();
+        auto sig = signature(term).value();
+        if (test(type, DependencyType::positive) && lit.sign() == Sign::none) {
+            map[sig].emplace_back(&stm, &term, false);
+        }
+        if (test(type, DependencyType::negative) || lit.sign() != Sign::none) {
+            map[sig].emplace_back(&stm, &term, true);
+        }
+    }
+
+    template <class T>
+        requires Util::is_among_v<T, LitComparison, LitSymbolic>
+    void operator()([[maybe_unused]] T const &lit, [[maybe_unused]] DependencyType type) const {}
+
+    void operator()(Lit const &lit, DependencyType type) const {
+        std::visit([type, this](auto const &lit) { operator()(lit, type); }, lit);
+    }
+
+    void operator()(LitArray const &lits, DependencyType type) const {
+        for (auto const &lit : lits) {
+            operator()(lit, type);
+        }
+    }
+
+    void operator()([[maybe_unused]] HdLitSimple const &lit) const {
+        // Note: we can ignore the literal here because all negative literals
+        // have been shifted to the body and positive literals do not induce a
+        // dependency.
+    }
+
+    void operator()(HdLitDisjunction const &lit) const {
+        // TODO: think about self dependency or tag
+        for (auto const &elem : lit.elems()) {
+            std::visit(
+                [this]<class T>(T const &lit) {
+                    if constexpr (Util::matches<T, Lit>) {
+                        operator()(lit, DependencyType::negative);
+                    } else {
+                        operator()(lit.lit(), DependencyType::negative);
+                        operator()(lit.cond(), DependencyType::positive | DependencyType::negative);
+                    }
+                },
+                elem);
+        }
+    }
+
+    template <class T>
+        requires Util::is_among_v<T, HdLitSetAggregate, HdLitAggregate, HdLitTheoryAtom>
+    void operator()(HdLitSetAggregate const &lit) const {
+        // TODO: think about self dependency or tag
+        for (auto const &elem : lit.elems()) {
+            if constexpr (Util::is_among_v<T, HdLitSetAggregate, HdLitArray>) {
+                operator()(elem.lit(), DependencyType::negative);
+            }
+            operator()(elem.cond(), DependencyType::positive | DependencyType::negative);
+        }
+    }
+
+    void operator()(HdLit const &lit) const { std::visit(*this, lit); }
+
+    void operator()(BdLitSimple const &lit) const { operator()(lit.lit(), DependencyType::positive); }
+
+    void operator()(BdLitConjunction const &lit) const {
+        operator()(lit.lit().lit(), DependencyType::positive);
+        operator()(lit.lit().cond(), DependencyType::positive | DependencyType::negative);
+    }
+
+    void operator()(BdLitSetAggregate const &lit) const {
+        auto type = DependencyType::positive;
+        if (!reduct_is_monotone(lit.lhs(), AggregateFunction::count, lit.rhs())) {
+            type |= DependencyType::negative;
+        }
+        for (auto const &elem : lit.elems()) {
+            operator()(elem.lit(), type);
+            operator()(elem.cond(), type);
+        }
+    }
+
+    void operator()(BdLitAggregate const &lit) const {
+        auto type = DependencyType::positive;
+        if (!reduct_is_monotone(lit.lhs(), lit.fun(), lit.rhs())) {
+            type |= DependencyType::negative;
+        }
+        for (auto const &elem : lit.elems()) {
+            operator()(elem.cond(), type);
+        }
+    }
+
+    void operator()(BdLitTheoryAtom const &lit) const {
+        // TODO: think about self dependency
+        for (auto const &elem : lit.elems()) {
+            operator()(elem.cond(), DependencyType::positive | DependencyType::negative);
+        }
     }
 
     void operator()(BdLit const &lit) const {
@@ -22,7 +126,11 @@ struct AddDepend {
         throw std::runtime_error("implement me!!!");
     }
 
-    template <class T> void operator()(T const &stm) const {
+    template <class T>
+        requires Util::is_among_v<T, StmTheory, StmOptimize, StmWeakConstraint, StmShow, StmShowSig, StmProject,
+                                  StmProjectSig, StmDefined, StmExternal, StmEdge, StmHeuristic, StmScript, StmInclude,
+                                  StmProgram, StmConst, StmComment>
+    void operator()(T const &stm) const {
         static_cast<void>(stm);
         throw std::runtime_error("implement me!!!");
     }
@@ -33,7 +141,7 @@ struct AddDepend {
     }
 
     Stm const &stm;
-    DependencyMap map;
+    DependencyMap &map;
 };
 
 struct DependencyGraph {

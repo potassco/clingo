@@ -37,6 +37,19 @@ inline auto reduct_is_nonmonotone(LGuard const &lhs, AggregateFunction fun, RGua
     return fun == AggregateFunction::sum;
 }
 
+//! Check whether the given aggregate function/guard combination is monotone.
+inline auto reduct_is_monotone(LGuard const &lhs, AggregateFunction fun, RGuard const &rhs) -> bool {
+    if (fun != AggregateFunction::sum) {
+        auto check = [](auto rel, bool less) {
+            return less ? (rel == Relation::less || rel == Relation::less_equal)
+                        : (rel == Relation::greater || rel == Relation::greater_equal);
+        };
+        bool less = fun != AggregateFunction::min;
+        return (!lhs || check(lhs->second, less)) && (!rhs || check(rhs->first, !less));
+    }
+    return false;
+}
+
 //! An element of a set aggregate.
 class SetAggregateElement : public Expression<SetAggregateElement> {
   public:
