@@ -5,6 +5,7 @@ add_library(gringo
     "src/input/algo/analyze.cc"
     "src/input/algo/check_syntax.cc"
     "src/input/algo/compute_bounds.cc"
+    "src/input/algo/dependency.cc"
     "src/input/algo/evaluate.cc"
     "src/input/algo/iesolver.cc"
     "src/input/algo/parse.cc"

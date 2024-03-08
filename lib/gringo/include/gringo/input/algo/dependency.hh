@@ -65,7 +65,7 @@ private:
 // - refined component graph only considers positive ones
 
 //! The type of a component.
-enum class ComponentType {
+enum class ComponentType : uint32_t {
     domain = 1,     //!< The component evaluates to facts.
     stratified = 2, //!< The component can be grounded in one pass.
 };
