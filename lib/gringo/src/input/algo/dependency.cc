@@ -1,15 +1,23 @@
+#include <gringo/input/algo/analyze.hh>
 #include <gringo/input/algo/dependency.hh>
+
+#include <gringo/util/unordered_map.hh>
 
 namespace Gringo::Input {
 
 struct DependencyGraph {
     void add(Stm const &stm, std::vector<Term> provide, std::vector<std::pair<Term, bool>> depend) {
-        static_cast<void>(stm);
-        static_cast<void>(provide);
-        static_cast<void>(depend);
-        static_cast<void>(this);
-        throw std::runtime_error("implement me!!!");
+        for (auto &lit : depend) {
+            depend_[signature(lit.first).value()].emplace_back(lit, stm);
+        }
+        // Note: the head dependency should be computed on the fly and only the statement be stored here.
+        // This way, the vector of statements can be reused.
+        // Furthermore, references to terms can be used here because the statements are not touched in any way.
+        stms_.emplace_back(stm, std::move(provide));
     }
+    Util::unordered_map<std::tuple<String, size_t, bool>, std::vector<std::pair<std::pair<Term, bool>, Stm const &>>>
+        depend_;
+    std::vector<std::pair<Stm const &, std::vector<Term>>> stms_;
 };
 
 //! Builder for the dependencies between statements.
