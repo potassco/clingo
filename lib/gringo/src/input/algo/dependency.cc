@@ -5,44 +5,50 @@
 
 namespace Gringo::Input {
 
-struct DependencyGraph {
-    void add(Stm const &stm, std::vector<Term> provide, std::vector<std::pair<Term, bool>> depend) {
-        for (auto &lit : depend) {
-            depend_[signature(lit.first).value()].emplace_back(lit, stm);
-        }
-        // Note: the head dependency should be computed on the fly and only the statement be stored here.
-        // This way, the vector of statements can be reused.
-        // Furthermore, references to terms can be used here because the statements are not touched in any way.
-        stms_.emplace_back(stm, std::move(provide));
-    }
-    Util::unordered_map<std::tuple<String, size_t, bool>, std::vector<std::pair<std::pair<Term, bool>, Stm const &>>>
-        depend_;
-    std::vector<std::pair<Stm const &, std::vector<Term>>> stms_;
-};
+using Signature = std::tuple<String, size_t, bool>;
+using Dependency = std::tuple<Stm const *, Term const *, bool>;
+
+using DependencyMap = Util::unordered_map<Signature, std::vector<Dependency>>;
 
 //! Builder for the dependencies between statements.
-struct DependencyBuilder {
-
-    auto operator()(HdLit const &lit) -> std::vector<Term> {
+struct AddDepend {
+    void operator()(HdLit const &lit) const {
         static_cast<void>(lit);
         throw std::runtime_error("implement me!!!");
     }
 
-    auto operator()(BdLitArray const &lit) -> std::vector<std::pair<Term, bool>> {
+    void operator()(BdLit const &lit) const {
         static_cast<void>(lit);
         throw std::runtime_error("implement me!!!");
     }
 
-    //! Add dependencies for the given rule.
-    void operator()(Stm const &stm) {
-        if (auto const *rule = std::get_if<StmRule>(&stm); rule != nullptr) {
-            graph.add(stm, operator()(rule->head()), operator()(rule->body()));
-        } else {
-            throw std::runtime_error("implement me!!!");
+    template <class T> void operator()(T const &stm) const {
+        static_cast<void>(stm);
+        throw std::runtime_error("implement me!!!");
+    }
+
+    void operator()(StmRule const &stm) const {
+        operator()(stm.head());
+        std::for_each(stm.body().begin(), stm.body().end(), *this);
+    }
+
+    Stm const &stm;
+    DependencyMap map;
+};
+
+struct DependencyGraph {
+    void add(std::vector<Stm> const &stms) {
+        // add dependencies to the dependency map
+        for (auto const &stm : stms) {
+            std::visit(AddDepend{stm, map_}, stm);
+        }
+        // build the dependency graph
+        for (auto const &stm : stms) {
+            static_cast<void>(stm);
+            throw std::logic_error("build dependencies using provided atoms");
         }
     }
-
-    DependencyGraph &graph;
+    DependencyMap map_;
 };
 
 /*
@@ -171,8 +177,7 @@ class DependencyBuilder:
 
 auto analyze(std::vector<Stm> const &stms) -> Components {
     auto gph = DependencyGraph{};
-    auto bld = DependencyBuilder{gph};
-    std::for_each(stms.begin(), stms.end(), bld);
+    gph.add(stms);
     throw std::runtime_error("implement me!!!");
 }
 
