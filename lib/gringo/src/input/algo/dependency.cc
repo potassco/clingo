@@ -20,11 +20,6 @@ GRINGO_ENUM_FLAGS(DependencyType)
 //! Builder for the dependencies between statements.
 struct AddDepend {
 
-    // TODO:
-    // - too verbose, unnecessary information for grounding
-    // - restrict to essential dependencies for grounding
-    // - tag statements as normal/not normal to detect to positive program (parts)
-
     void operator()(LitSymbolic const &lit, DependencyType type) const {
         auto const &term = lit.term();
         auto sig = signature(term).value();
@@ -54,18 +49,16 @@ struct AddDepend {
         // Note: we can ignore the literal here because all negative literals
         // have been shifted to the body and positive literals do not induce a
         // dependency.
+        normal = true;
     }
 
     void operator()(HdLitDisjunction const &lit) const {
-        // TODO: think about self dependency or tag
+        normal = false;
         for (auto const &elem : lit.elems()) {
             std::visit(
                 [this]<class T>(T const &lit) {
-                    if constexpr (Util::matches<T, Lit>) {
-                        operator()(lit, DependencyType::negative);
-                    } else {
-                        operator()(lit.lit(), DependencyType::negative);
-                        operator()(lit.cond(), DependencyType::positive | DependencyType::negative);
+                    if constexpr (Util::matches<T, CondLit>) {
+                        operator()(lit.cond(), DependencyType::positive);
                     }
                 },
                 elem);
@@ -75,12 +68,9 @@ struct AddDepend {
     template <class T>
         requires Util::is_among_v<T, HdLitSetAggregate, HdLitAggregate, HdLitTheoryAtom>
     void operator()(HdLitSetAggregate const &lit) const {
-        // TODO: think about self dependency or tag
+        normal = false;
         for (auto const &elem : lit.elems()) {
-            if constexpr (Util::is_among_v<T, HdLitSetAggregate, HdLitArray>) {
-                operator()(elem.lit(), DependencyType::negative);
-            }
-            operator()(elem.cond(), DependencyType::positive | DependencyType::negative);
+            operator()(elem.cond(), DependencyType::positive);
         }
     }
 
@@ -115,16 +105,13 @@ struct AddDepend {
     }
 
     void operator()(BdLitTheoryAtom const &lit) const {
-        // TODO: think about self dependency
+        normal = false;
         for (auto const &elem : lit.elems()) {
-            operator()(elem.cond(), DependencyType::positive | DependencyType::negative);
+            operator()(elem.cond(), DependencyType::positive);
         }
     }
 
-    void operator()(BdLit const &lit) const {
-        static_cast<void>(lit);
-        throw std::runtime_error("implement me!!!");
-    }
+    void operator()(BdLit const &lit) const { return std::visit(*this, lit); }
 
     template <class T>
         requires Util::is_among_v<T, StmTheory, StmOptimize, StmWeakConstraint, StmShow, StmShowSig, StmProject,
@@ -135,20 +122,19 @@ struct AddDepend {
         throw std::runtime_error("implement me!!!");
     }
 
-    void operator()(StmRule const &stm) const {
-        operator()(stm.head());
-        std::for_each(stm.body().begin(), stm.body().end(), *this);
-    }
+    void operator()(StmRule const &stm) const { std::for_each(stm.body().begin(), stm.body().end(), *this); }
 
     Stm const &stm;
     DependencyMap &map;
+    bool &normal;
 };
 
 struct DependencyGraph {
     void add(std::vector<Stm> const &stms) {
         // add dependencies to the dependency map
         for (auto const &stm : stms) {
-            std::visit(AddDepend{stm, map_}, stm);
+            bool normal = true;
+            std::visit(AddDepend{stm, map_, normal}, stm);
         }
         // build the dependency graph
         for (auto const &stm : stms) {
