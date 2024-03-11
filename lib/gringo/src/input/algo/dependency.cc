@@ -49,7 +49,6 @@ struct AddDepend {
         // Note: we can ignore the literal here because all negative literals
         // have been shifted to the body and positive literals do not induce a
         // dependency.
-        normal = true;
     }
 
     void operator()(HdLitDisjunction const &lit) const {
@@ -114,15 +113,23 @@ struct AddDepend {
     void operator()(BdLit const &lit) const { return std::visit(*this, lit); }
 
     template <class T>
-        requires Util::is_among_v<T, StmTheory, StmOptimize, StmWeakConstraint, StmShow, StmShowSig, StmProject,
-                                  StmProjectSig, StmDefined, StmExternal, StmEdge, StmHeuristic, StmScript, StmInclude,
-                                  StmProgram, StmConst, StmComment>
-    void operator()(T const &stm) const {
-        static_cast<void>(stm);
-        throw std::runtime_error("implement me!!!");
-    }
+        requires Util::is_among_v<T, StmTheory, StmOptimize, StmShowSig, StmProjectSig, StmDefined, StmScript,
+                                  StmInclude, StmProgram, StmConst, StmComment>
+    void operator()([[maybe_unused]] T const &stm) const {}
 
-    void operator()(StmRule const &stm) const { std::for_each(stm.body().begin(), stm.body().end(), *this); }
+    template <class T>
+        requires Util::is_among_v<T, StmRule, StmWeakConstraint, StmShow, StmProject, StmExternal, StmEdge,
+                                  StmHeuristic>
+    void operator()(T const &stm) const {
+        if constexpr (Util::matches<T, StmRule>) {
+            std::visit(*this, stm.head());
+        }
+        if constexpr (Util::matches<T, StmProject, StmHeuristic>) {
+            auto sig = signature(stm.atom()).value();
+            map[sig].emplace_back(&this->stm, &stm.atom(), false);
+        }
+        std::for_each(stm.body().begin(), stm.body().end(), *this);
+    }
 
     Stm const &stm;
     DependencyMap &map;
