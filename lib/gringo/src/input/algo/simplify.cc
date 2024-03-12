@@ -186,7 +186,7 @@ struct VarToLinear {
 
 //! Result indicating a changed tuple.
 using TupleResultChanged = std::vector<std::variant<Projection, Symbol, Term>>;
-//! Result indicating an changed tuple.
+//! Result indicating an unchanged tuple.
 struct TupleResultUnhanged {};
 //! Result indicating a tuples that failed to simplify.
 struct TupleResultFail {};
