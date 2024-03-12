@@ -195,6 +195,53 @@ struct AddProvide {
 
 using Assignment = Util::unordered_map<String, Term const *>;
 
+class LinearTerm {
+  public:
+    [[nodiscard]] auto m() const -> NumberRef { return std::get<TermSymbol>(m_).value().num(); }
+    [[nodiscard]] auto n() const { return std::get<TermSymbol>(n_).value().num(); }
+    [[nodiscard]] auto x() const { return std::get<TermVariable>(x_).name(); }
+    [[nodiscard]] auto term_m() const { return m_; }
+    [[nodiscard]] auto term_n() const { return n_; }
+    [[nodiscard]] auto term_x() const { return x_; }
+    [[nodiscard]] auto term_mx() const { return mx_; }
+    [[nodiscard]] auto term_mxn() const { return mxn_; }
+
+    friend auto check_linear(TermBinary const &term) -> std::optional<LinearTerm>;
+
+  private:
+    LinearTerm(TermBinary const &mxn, Term const &mx, Term const &m, Term const &x, Term const &n)
+        : mxn_{mxn}, mx_{mx}, m_{m}, x_{x}, n_{n} {}
+
+    TermBinary const &mxn_;
+    Term const &mx_;
+    Term const &m_;
+    Term const &x_;
+    Term const &n_;
+};
+
+auto check_linear(TermBinary const &term) -> std::optional<LinearTerm> {
+    if (term.op() != BinaryOperator::plus) {
+        return std::nullopt;
+    }
+    auto const *mul = std::get_if<TermBinary>(&term.lhs().get());
+    if (mul == nullptr || mul->op() != BinaryOperator::times) {
+        return std::nullopt;
+    }
+    auto const *n = std::get_if<TermSymbol>(&term.rhs().get());
+    if (n == nullptr || n->value().type() != SymbolType::number) {
+        return std::nullopt;
+    }
+    auto const *m = std::get_if<TermSymbol>(&mul->lhs().get());
+    if (m == nullptr || m->value().type() != SymbolType::number || *m->value().num() == 0) {
+        return std::nullopt;
+    }
+    auto const *v = std::get_if<TermVariable>(&mul->rhs().get());
+    if (v == nullptr) {
+        return std::nullopt;
+    }
+    return LinearTerm{term, term.lhs().get(), mul->lhs().get(), mul->rhs().get(), term.rhs().get()};
+}
+
 class Unifier {
   public:
     Unifier(SymbolStore &store) : store_{store} {}
@@ -224,28 +271,20 @@ class Unifier {
         return true;
     }
 
-    static auto check_linear_(TermBinary const &term)
-        -> std::optional<std::tuple<TermBinary const &, TermSymbol const &, TermVariable const &, TermSymbol const &>> {
-        if (term.op() != BinaryOperator::plus) {
-            return std::nullopt;
+    auto unify_(LinearTerm const &a, LinearTerm const &b) -> bool {
+        auto n = *a.n() - *b.n();
+        if (n % *b.m() != 0) {
+            return true;
         }
-        auto const *mul = std::get_if<TermBinary>(&term.lhs().get());
-        if (mul == nullptr || mul->op() != BinaryOperator::times) {
-            return std::nullopt;
-        }
-        auto const *n = std::get_if<TermSymbol>(&term.rhs().get());
-        if (n == nullptr || n->value().type() != SymbolType::number) {
-            return std::nullopt;
-        }
-        auto const *m = std::get_if<TermSymbol>(&mul->lhs().get());
-        if (m == nullptr || m->value().type() != SymbolType::number || *m->value().num() == 0) {
-            return std::nullopt;
-        }
-        auto const *v = std::get_if<TermVariable>(&mul->rhs().get());
-        if (v == nullptr) {
-            return std::nullopt;
-        }
-        return std::forward_as_tuple(*mul, *m, *v, *n);
+        // var = m_a / m_b * tx + (n_a - n_b) / m_b
+        auto m = *a.m() / *b.m();
+        n /= *b.m();
+        terms_.emplace_front(
+            TermBinary{a.term_mxn().loc(),
+                       TermBinary{location(a.term_mx()), TermSymbol{location(a.term_m()), store_.num(std::move(m))},
+                                  BinaryOperator::times, a.term_x()},
+                       BinaryOperator::plus, TermSymbol{location(a.term_n()), store_.num(std::move(n))}});
+        return unify_(b.term_x(), terms_.front());
     }
 
     auto unify_(Term const &a, Term const &b) -> bool {
@@ -253,14 +292,14 @@ class Unifier {
             return true;
         }
         return std::visit(
-            [&, this]<class A, class B>(A const &a_v, B const &b_v) {
+            [&, this]<class A, class B>(A const &v_a, B const &v_b) {
                 if constexpr (Util::matches<A, TermSymbol> && Util::matches<B, TermSymbol>) {
                     // TODO: maybe remove!!!
                     return false;
                 }
                 if constexpr (Util::matches<A, TermVariable>) {
                     // TODO: occurs check
-                    if (auto [it, ins] = ass_.try_emplace(a_v.name(), &b); !ins) {
+                    if (auto [it, ins] = ass_.try_emplace(v_a.name(), &b); !ins) {
                         return unify_(b, *it->second);
                     }
                     return true;
@@ -269,17 +308,17 @@ class Unifier {
                     return unify_(b, a);
                 }
                 if constexpr (Util::matches<A, TermTuple> && Util::matches<B, TermTuple>) {
-                    assert(a_v.pool().size() == 1 && std::holds_alternative<ArgumentTuple>(a_v.pool().front()));
-                    assert(b_v.pool().size() == 1 && std::holds_alternative<ArgumentTuple>(b_v.pool().front()));
-                    return unify_(std::get<ArgumentTuple>(a_v.pool().at(0)), std::get<ArgumentTuple>(b_v.pool().at(0)));
+                    assert(v_a.pool().size() == 1 && std::holds_alternative<ArgumentTuple>(v_a.pool().front()));
+                    assert(v_b.pool().size() == 1 && std::holds_alternative<ArgumentTuple>(v_b.pool().front()));
+                    return unify_(std::get<ArgumentTuple>(v_a.pool().at(0)), std::get<ArgumentTuple>(v_b.pool().at(0)));
                 }
                 if constexpr (Util::matches<A, TermFunction> && Util::matches<B, TermFunction>) {
-                    assert(a_v.pool().size() == 1);
-                    assert(b_v.pool().size() == 1);
-                    if (a_v.name() != b_v.name()) {
+                    assert(v_a.pool().size() == 1);
+                    assert(v_b.pool().size() == 1);
+                    if (v_a.name() != v_b.name()) {
                         return false;
                     }
-                    return unify_(a_v.pool().at(0), b_v.pool().at(0));
+                    return unify_(v_a.pool().at(0), v_b.pool().at(0));
                 }
                 if constexpr (Util::matches<A, TermAbs> && Util::matches<B, TermAbs>) {
                     // can unify anything
@@ -289,45 +328,20 @@ class Unifier {
                 }
                 if constexpr (Util::matches<A, TermBinary> && Util::matches<B, TermBinary>) {
                     // in general just returns true but (certain) linear terms are handled more cleverly
-                    if (auto lin_a = check_linear_(a_v), lin_b = check_linear_(b_v); lin_a && lin_b) {
-                        auto [tmx_a, tm_a, tx_a, tn_a] = *lin_a;
-                        auto [tmx_b, tm_b, tx_b, tn_b] = *lin_b;
-                        auto m_a = tm_a.value().num();
-                        auto x_a = tx_a.name();
-                        auto n_a = tn_a.value().num();
-                        auto m_b = tm_b.value().num();
-                        auto x_b = tx_b.name();
-                        auto n_b = tn_b.value().num();
+                    if (auto l_a = check_linear(v_a), l_b = check_linear(v_b); l_a && l_b) {
                         // TODO: make sure that neither x_a nor x_b is symbolic:
                         // - lookup x_a and x_b in assignment
                         // - make sure that the assignment is not symbolic
-                        if (x_a == x_b) {
-                            auto n = (*n_b - *n_a);
-                            auto d = (*m_a - *m_b);
+                        if (l_a->x() == l_b->x()) {
+                            auto n = (*l_b->n() - *l_a->n());
+                            auto d = (*l_a->m() - *l_b->m());
                             return n == 0 || (d != 0 && std::move(n) % std::move(d) == 0);
                         }
-                        auto unify_linear = [this](auto const &tmxn, auto const &tmx, auto const &tm, auto const &tx,
-                                                   auto const &tn, auto const &var, auto const &m_a, auto const &m_b,
-                                                   auto const &n_a, auto const &n_b) {
-                            auto n = *n_a - *n_b;
-                            if (n % *m_b != 0) {
-                                return true;
-                            }
-                            // var = m_a / m_b * tx + (n_a - n_b) / m_b
-                            auto m = *m_a / *m_b;
-                            n /= *m_b;
-                            terms_.emplace_front(
-                                TermBinary{tmxn.loc(),
-                                           TermBinary{tmx.loc(), TermSymbol{tm.loc(), store_.num(std::move(m))},
-                                                      BinaryOperator::times, tx},
-                                           BinaryOperator::plus, TermSymbol{tn.loc(), store_.num(std::move(n))}});
-                            return unify_(var, terms_.front());
-                        };
-                        if (*m_a % *m_b == 0) {
-                            return unify_linear(a_v, tmx_a, tm_a, tx_a, tn_a, tx_b, m_a, m_b, n_a, n_b);
+                        if (*l_a->m() % *l_b->m() == 0) {
+                            return unify_(*l_a, *l_b);
                         }
-                        if (*m_b % *m_a == 0) {
-                            return unify_linear(b_v, tmx_b, tm_b, tx_b, tn_b, tx_a, m_b, m_a, n_b, n_a); // NOLINT
+                        if (*l_b->m() % *l_a->m() == 0) {
+                            return unify_(*l_b, *l_a);
                         }
                     }
                     return true;
