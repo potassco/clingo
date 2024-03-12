@@ -988,7 +988,7 @@ class TestAST(TestCase):
 
     def test_cmp(self):
         """
-        Test comparision functions.
+        Test comparison functions.
         """
         x = ast.TermVariable(self.lib, self.loc, "X")
         a = ast.TermVariable(self.lib, self.loc, "_", True)

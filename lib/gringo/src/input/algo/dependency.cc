@@ -6,16 +6,19 @@
 
 namespace Gringo::Input {
 
+namespace {
+
 using Signature = std::tuple<String, size_t, bool>;
 using Dependency = std::tuple<Stm const *, Term const *, bool>;
 
 using DependencyMap = Util::unordered_map<Signature, std::vector<Dependency>>;
+using ProvideVec = std::vector<Term const *>;
 
 enum class DependencyType : uint32_t {
     positive = 1,
     negative = 2,
 };
-GRINGO_ENUM_FLAGS(DependencyType)
+[[maybe_unused]] consteval void is_bit_set_enum(DependencyType flags);
 
 //! Builder for the dependencies between statements.
 struct AddDepend {
@@ -66,7 +69,7 @@ struct AddDepend {
 
     template <class T>
         requires Util::is_among_v<T, HdLitSetAggregate, HdLitAggregate, HdLitTheoryAtom>
-    void operator()(HdLitSetAggregate const &lit) const {
+    void operator()(T const &lit) const {
         normal = false;
         for (auto const &elem : lit.elems()) {
             operator()(elem.cond(), DependencyType::positive);
@@ -136,145 +139,111 @@ struct AddDepend {
     bool &normal;
 };
 
-struct DependencyGraph {
+struct AddProvide {
+    void operator()(LitSymbolic const &lit) const {
+        // Note: could be made an assertion
+        if (lit.sign() == Sign::none) {
+            provide.emplace_back(&lit.term());
+        }
+    }
+
+    template <class T>
+        requires Util::is_among_v<T, LitComparison, LitSymbolic, HdLitTheoryAtom>
+    void operator()([[maybe_unused]] T const &lit) const {}
+
+    void operator()(Lit const &lit) const { std::visit(*this, lit); }
+
+    void operator()([[maybe_unused]] HdLitSimple const &lit) const { std::visit(*this, lit.lit()); }
+
+    void operator()(HdLitDisjunction const &lit) const {
+        for (auto const &elem : lit.elems()) {
+            std::visit(
+                [this]<class T>(T const &lit) {
+                    if constexpr (Util::matches<T, CondLit>) {
+                        std::visit(*this, lit.lit());
+                    } else {
+                        std::visit(*this, lit);
+                    }
+                },
+                elem);
+        }
+    }
+
+    template <class T>
+        requires Util::is_among_v<T, HdLitSetAggregate, HdLitAggregate>
+    void operator()(T const &lit) const {
+        for (auto const &elem : lit.elems()) {
+            operator()(elem.lit());
+        }
+    }
+
+    void operator()(HdLit const &lit) const { std::visit(*this, lit); }
+    template <class T>
+        requires Util::is_among_v<T, StmWeakConstraint, StmShow, StmProject, StmEdge, StmHeuristic, StmTheory,
+                                  StmOptimize, StmShowSig, StmProjectSig, StmDefined, StmScript, StmInclude, StmProgram,
+                                  StmConst, StmComment>
+    void operator()([[maybe_unused]] T const &stm) const {}
+
+    void operator()(StmRule const &stm) const { std::visit(*this, stm.head()); }
+
+    void operator()(StmExternal const &stm) const { provide.emplace_back(&stm.atom()); }
+
+    ProvideVec &provide;
+};
+
+auto unify(Term const &a, Term const &b) -> bool {
+    static_cast<void>(a);
+    static_cast<void>(b);
+    // X ~ Y
+    // map[X] ~ map[Y]
+    //
+    // f(A) ~ f(B) -> A ~ B
+    // f(A) ~ f(B) -> A ~ B
+    return false;
+}
+
+struct Node {
+    Stm const *stm;
+    bool normal;
+};
+
+class DependencyGraph {
+  public:
+    DependencyGraph() = default;
     void add(std::vector<Stm> const &stms) {
         // add dependencies to the dependency map
         for (auto const &stm : stms) {
-            bool normal = true;
-            std::visit(AddDepend{stm, map_, normal}, stm);
+            nodes_.emplace_back(Node{&stm, true});
+            std::visit(AddDepend{stm, map_, nodes_.back().normal}, stm);
         }
         // build the dependency graph
-        for (auto const &stm : stms) {
-            static_cast<void>(stm);
-            throw std::logic_error("build dependencies using provided atoms");
+        ProvideVec provide;
+        auto node_it = nodes_.begin();
+        for (auto const &hd_stm : stms) {
+            provide.clear();
+            std::visit(AddProvide{provide}, hd_stm);
+            for (auto const *hd_term : provide) {
+                auto hd_sig = signature(*hd_term).value();
+                if (auto it = map_.find(hd_sig); it != map_.end()) {
+                    for (auto const &[bd_stm, bd_term, bd_sign] : it->second) {
+                        static_cast<void>(bd_stm);
+                        static_cast<void>(bd_sign);
+                        if (unify(*hd_term, *bd_term)) {
+                            throw std::logic_error("add dependency to positive/negative graph");
+                        }
+                    }
+                }
+            }
+            ++node_it;
         }
     }
+
+  private:
     DependencyMap map_;
+    std::vector<Node> nodes_;
 };
 
-/*
-class DependencyBuilder:
-    """
-    Builder for the dependencies between predicates given by rules.
-    """
-
-    def __init__(self):
-        self.graph = PredicateGraph()
-
-    def _get_pred(self, lit: Literal):
-        if isinstance(lit, ast.LiteralSymbolic):
-            atom = lit.atom
-            if isinstance(atom, ast.TermSymbolic):
-                symbol = atom.symbol
-                return [(symbol.name, symbol.arity, symbol.sign)]
-
-            sign = False
-            if isinstance(atom, ast.TermUnaryOperation):
-                sign = True
-                atom = atom.right
-            assert isinstance(atom, ast.TermFunction)
-
-            return [(atom.name, len(atom.pool[0].arguments), sign)]
-        return []
-
-    def _get_body_pred(self, lit: Literal, force_negative=False):
-        res = [(pred, lit.sign != ast.Sign.NoSign) for pred in self._get_pred(lit)]
-        if force_negative:
-            res += [(pred, True) for pred, sign in res if not sign]
-        return res
-
-    @singledispatchmethod
-    def _head(self, lit) -> list[Predicate]:
-        _ = lit
-        return []
-
-    @_head.register
-    def _(self, lit: ast.HeadSimpleLiteral) -> list[Predicate]:
-        if isinstance(lit.literal, ast.LiteralSymbolic):
-            return self._get_pred(lit.literal)
-        return []
-
-    @_head.register(ast.HeadDisjunction)
-    @_head.register(ast.HeadAggregate)
-    def _(self, lit: Union[ast.HeadDisjunction, ast.HeadAggregate]) -> list[Predicate]:
-        # Note: that here edges are added that only involve the conditionals in
-        # the head. It would also be possible to add the predicates to the
-        # result. Then, one could even change the interface to get the
-        # predicates a rule provides/depends.
-        res = []
-        for elem in lit.elements:
-            if isinstance(elem, (ast.HeadConditionalLiteral, ast.HeadAggregateElement)):
-                head_preds = self._get_pred(elem.literal)
-                for slit in elem.condition:
-                    for body_pred, sign in self._body(slit):
-                        for head_pred in head_preds:
-                            self.graph.add_edge(head_pred, body_pred, sign)
-            else:
-                head_preds = self._get_pred(elem)
-            for head_pred in head_preds:
-                self.graph.add_edge(head_pred, head_pred, True)
-            res.extend(head_preds)
-        return res
-
-    @singledispatchmethod
-    def _body(self, lit: BodyLiteral) -> list[tuple[Predicate, bool]]:
-        _ = lit
-        return []
-
-    @_body.register
-    def _(self, lit: ast.BodySimpleLiteral) -> list[tuple[Predicate, bool]]:
-        return self._get_body_pred(lit.literal)
-
-    @_body.register
-    def _(self, lit: ast.BodyTheoryAtom) -> list[tuple[Predicate, bool]]:
-        res = []
-        for elem in lit.elements:
-            for slit in elem.condition:
-                res.extend(self._get_body_pred(slit, True))
-        return res
-
-    @_body.register
-    def _(self, lit: ast.BodyConditionalLiteral) -> list[tuple[Predicate, bool]]:
-        res = self._get_body_pred(lit.literal)
-        for slit in lit.condition:
-            res.extend(self._get_body_pred(slit, True))
-        return res
-
-    def _is_monotone(
-        self,
-        left: Optional[ast.LeftGuard],
-        fun: ast.AggregateFunction,
-        right: Optional[ast.RightGuard],
-    ) -> bool:
-        if fun != ast.AggregateFunction.Sum:
-            rel_left = (ast.Relation.Less, ast.Relation.LessEqual)
-            rel_right = (ast.Relation.Greater, ast.Relation.GreaterEqual)
-            if fun == ast.AggregateFunction.Min:
-                rel_left, rel_right = rel_right, rel_left
-            return (not left or left.relation in rel_left) and (
-                not right or right.relation in rel_right
-            )
-        return False
-
-    @_body.register
-    def _(self, lit: ast.BodyAggregate) -> list[tuple[Predicate, bool]]:
-        res = []
-        force_negative = not self._is_monotone(lit.left, lit.function, lit.right)
-        for elem in lit.elements:
-            for slit in elem.condition:
-                res.extend(self._get_body_pred(slit, force_negative))
-        return res
-
-    def add(self, stm: ast.StatementRule):
-        """
-        Add dependencies for the given rule.
-        """
-        head_preds = self._head(stm.head)
-        for lit in stm.body:
-            for head_pred in head_preds:
-                for body_pred, sign in self._body(lit):
-                    self.graph.add_edge(head_pred, body_pred, sign)
-*/
+} // namespace
 
 auto analyze(std::vector<Stm> const &stms) -> Components {
     auto gph = DependencyGraph{};

@@ -18,8 +18,7 @@ enum class SimplifyTermFlags : unsigned {
     nested_matchable = 4,  //!< Do not make roots of terms matchable (should be used together with matchable).
     preserve_toplevel = 8, //!< Preserve toplevel terms terms like u..t or \@f.
 };
-
-GRINGO_ENUM_FLAGS(SimplifyTermFlags)
+consteval void is_bit_set_enum(SimplifyTermFlags flags);
 
 //! Flags controlling simplification of literals.
 enum class SimplifyLiteralFlags : unsigned {
@@ -28,8 +27,7 @@ enum class SimplifyLiteralFlags : unsigned {
     unfailable = 2, //!< Ensure that terms in literals do not evaluate to empty pools.
     head = 4,       //!< Indicate literals occurring in rule heads.
 };
-
-GRINGO_ENUM_FLAGS(SimplifyLiteralFlags)
+consteval void is_bit_set_enum(SimplifyLiteralFlags flags);
 
 using Util::TruthValue;
 

@@ -69,7 +69,7 @@ enum class ComponentType : uint32_t {
     domain = 1,     //!< The component evaluates to facts.
     stratified = 2, //!< The component can be grounded in one pass.
 };
-GRINGO_ENUM_FLAGS(ComponentType);
+consteval void is_bit_set_enum(ComponentType flags);
 
 //! A refined component.
 //!

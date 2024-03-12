@@ -16,7 +16,7 @@ namespace Gringo::Input {
 
 namespace {
 
-//! Extend the contained vector with the given assignements.
+//! Extend the contained vector with the given assignments.
 template <class R> void extend(R &res, AuxTermVec &aux, bool conjunctive = true) {
     for (auto &[lhs, rhs] : aux) {
         auto loc = location(lhs);
@@ -358,7 +358,7 @@ struct SimplifyTerm {
                             return TermResultChanged{type, map_term(ctx, std::move(fun))};
                         }
                         // Note: this is somewhat inefficient because the
-                        // equality comparision recurses into the structure
+                        // equality comparison recurses into the structure
                         return check_change(type, term, std::move(fun));
                     }
                     return ctx.store().fun(term.name(), result_as_symbol_vec(std::move(res)), false);
@@ -396,7 +396,7 @@ struct SimplifyTerm {
                     // changed term that did not evaluate to a symbol
                     if (!constant) {
                         // Note: this is somewhat inefficient because the
-                        // equality comparision recurses into the structure
+                        // equality comparison recurses into the structure
                         return check_change(
                             type, term,
                             term.update(a_pool = Util::make_vec<TupleElement>(result_as_tuple(tuple, std::move(res)))));
@@ -919,7 +919,7 @@ struct SimplifyLiteral {
             return std::nullopt;
         };
 
-        // the truth value of the relation literal if all (signed) comparisions are true
+        // the truth value of the relation literal if all (signed) comparisons are true
         auto state = lit.sign() != Sign::once ? TruthValue::top : TruthValue::bot;
         // the truth value of the literal fixed by one of the  comparisons
         auto state_fixed = lit.sign() != Sign::once ? TruthValue::bot : TruthValue::top;

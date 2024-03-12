@@ -17,8 +17,7 @@ enum SyntaxCheck : unsigned {
     project_tuple = 2,
     is_const = 4,
 };
-
-GRINGO_ENUM_FLAGS(SyntaxCheck);
+[[maybe_unused]] consteval void is_bit_set_enum(SyntaxCheck flags);
 
 struct CheckSyntax {
     // expressions that can be ignored
