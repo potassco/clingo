@@ -4,6 +4,8 @@
 #include <gringo/util/type_traits.hh>
 #include <gringo/util/unordered_map.hh>
 
+#include <forward_list>
+
 namespace Gringo::Input {
 
 namespace {
@@ -191,16 +193,154 @@ struct AddProvide {
     ProvideVec &provide;
 };
 
-auto unify(Term const &a, Term const &b) -> bool {
-    static_cast<void>(a);
-    static_cast<void>(b);
-    // X ~ Y
-    // map[X] ~ map[Y]
-    //
-    // f(A) ~ f(B) -> A ~ B
-    // f(A) ~ f(B) -> A ~ B
-    return false;
-}
+using Assignment = Util::unordered_map<String, Term const *>;
+
+class Unifier {
+  public:
+    Unifier(SymbolStore &store) : store_{store} {}
+    auto unify(Term const &a, Term const &b) -> bool {
+        ass_.clear();
+        return unify_(a, b);
+    }
+
+  private:
+    auto unify_(ArgumentTuple const &a, ArgumentTuple const &b) -> bool {
+        if (a.elems().size() != b.elems().size()) {
+            return false;
+        }
+        for (auto it = a.elems().begin(), jt = b.elems().begin(), ie = a.elems().end(); it != ie; ++it, ++jt) {
+            if (!std::visit(
+                    [this]<class EA, class EB>(EA const &a, EB const &b) {
+                        if constexpr (Util::matches<EA, Projection> || Util::matches<EB, Projection>) {
+                            return true;
+                        } else {
+                            return unify_(a, b);
+                        }
+                    },
+                    *it, *jt)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    static auto check_linear_(TermBinary const &term)
+        -> std::optional<std::tuple<TermBinary const &, TermSymbol const &, TermVariable const &, TermSymbol const &>> {
+        if (term.op() != BinaryOperator::plus) {
+            return std::nullopt;
+        }
+        auto const *mul = std::get_if<TermBinary>(&term.lhs().get());
+        if (mul == nullptr || mul->op() != BinaryOperator::times) {
+            return std::nullopt;
+        }
+        auto const *n = std::get_if<TermSymbol>(&term.rhs().get());
+        if (n == nullptr || n->value().type() != SymbolType::number) {
+            return std::nullopt;
+        }
+        auto const *m = std::get_if<TermSymbol>(&mul->lhs().get());
+        if (m == nullptr || m->value().type() != SymbolType::number || *m->value().num() == 0) {
+            return std::nullopt;
+        }
+        auto const *v = std::get_if<TermVariable>(&mul->rhs().get());
+        if (v == nullptr) {
+            return std::nullopt;
+        }
+        return std::forward_as_tuple(*mul, *m, *v, *n);
+    }
+
+    auto unify_(Term const &a, Term const &b) -> bool {
+        if (a == b) {
+            return true;
+        }
+        return std::visit(
+            [&, this]<class A, class B>(A const &a_v, B const &b_v) {
+                if constexpr (Util::matches<A, TermSymbol> && Util::matches<B, TermSymbol>) {
+                    // TODO: maybe remove!!!
+                    return false;
+                }
+                if constexpr (Util::matches<A, TermVariable>) {
+                    // TODO: occurs check
+                    if (auto [it, ins] = ass_.try_emplace(a_v.name(), &b); !ins) {
+                        return unify_(b, *it->second);
+                    }
+                    return true;
+                }
+                if constexpr (Util::matches<B, TermVariable>) {
+                    return unify_(b, a);
+                }
+                if constexpr (Util::matches<A, TermTuple> && Util::matches<B, TermTuple>) {
+                    assert(a_v.pool().size() == 1 && std::holds_alternative<ArgumentTuple>(a_v.pool().front()));
+                    assert(b_v.pool().size() == 1 && std::holds_alternative<ArgumentTuple>(b_v.pool().front()));
+                    return unify_(std::get<ArgumentTuple>(a_v.pool().at(0)), std::get<ArgumentTuple>(b_v.pool().at(0)));
+                }
+                if constexpr (Util::matches<A, TermFunction> && Util::matches<B, TermFunction>) {
+                    assert(a_v.pool().size() == 1);
+                    assert(b_v.pool().size() == 1);
+                    if (a_v.name() != b_v.name()) {
+                        return false;
+                    }
+                    return unify_(a_v.pool().at(0), b_v.pool().at(0));
+                }
+                if constexpr (Util::matches<A, TermAbs> && Util::matches<B, TermAbs>) {
+                    // can unify anything
+                }
+                if constexpr (Util::matches<A, TermUnary> && Util::matches<B, TermUnary>) {
+                    // negated symbols have to be handled
+                }
+                if constexpr (Util::matches<A, TermBinary> && Util::matches<B, TermBinary>) {
+                    // in general just returns true but (certain) linear terms are handled more cleverly
+                    if (auto lin_a = check_linear_(a_v), lin_b = check_linear_(b_v); lin_a && lin_b) {
+                        auto [tmx_a, tm_a, tx_a, tn_a] = *lin_a;
+                        auto [tmx_b, tm_b, tx_b, tn_b] = *lin_b;
+                        auto m_a = tm_a.value().num();
+                        auto x_a = tx_a.name();
+                        auto n_a = tn_a.value().num();
+                        auto m_b = tm_b.value().num();
+                        auto x_b = tx_b.name();
+                        auto n_b = tn_b.value().num();
+                        // TODO: make sure that neither x_a nor x_b is symbolic:
+                        // - lookup x_a and x_b in assignment
+                        // - make sure that the assignment is not symbolic
+                        if (x_a == x_b) {
+                            auto n = (*n_b - *n_a);
+                            auto d = (*m_a - *m_b);
+                            return n == 0 || (d != 0 && std::move(n) % std::move(d) == 0);
+                        }
+                        auto unify_linear = [this](auto const &tmxn, auto const &tmx, auto const &tm, auto const &tx,
+                                                   auto const &tn, auto const &var, auto const &m_a, auto const &m_b,
+                                                   auto const &n_a, auto const &n_b) {
+                            auto n = *n_a - *n_b;
+                            if (n % *m_b != 0) {
+                                return true;
+                            }
+                            // var = m_a / m_b * tx + (n_a - n_b) / m_b
+                            auto m = *m_a / *m_b;
+                            n /= *m_b;
+                            terms_.emplace_front(
+                                TermBinary{tmxn.loc(),
+                                           TermBinary{tmx.loc(), TermSymbol{tm.loc(), store_.num(std::move(m))},
+                                                      BinaryOperator::times, tx},
+                                           BinaryOperator::plus, TermSymbol{tn.loc(), store_.num(std::move(n))}});
+                            return unify_(var, terms_.front());
+                        };
+                        if (*m_a % *m_b == 0) {
+                            return unify_linear(a_v, tmx_a, tm_a, tx_a, tn_a, tx_b, m_a, m_b, n_a, n_b);
+                        }
+                        if (*m_b % *m_a == 0) {
+                            return unify_linear(b_v, tmx_b, tm_b, tx_b, tn_b, tx_a, m_b, m_a, n_b, n_a); // NOLINT
+                        }
+                    }
+                    return true;
+                }
+                return false;
+            },
+            a, b);
+    }
+
+    Assignment ass_;
+    std::forward_list<Term> terms_;
+    SymbolStore &store_;
+};
 
 struct Node {
     Stm const *stm;
@@ -209,7 +349,7 @@ struct Node {
 
 class DependencyGraph {
   public:
-    DependencyGraph() = default;
+    DependencyGraph(SymbolStore &store) : store_{store} {}
     void add(std::vector<Stm> const &stms) {
         // add dependencies to the dependency map
         for (auto const &stm : stms) {
@@ -218,6 +358,7 @@ class DependencyGraph {
         }
         // build the dependency graph
         ProvideVec provide;
+        Unifier unifier{store_};
         auto node_it = nodes_.begin();
         for (auto const &hd_stm : stms) {
             provide.clear();
@@ -228,7 +369,8 @@ class DependencyGraph {
                     for (auto const &[bd_stm, bd_term, bd_sign] : it->second) {
                         static_cast<void>(bd_stm);
                         static_cast<void>(bd_sign);
-                        if (unify(*hd_term, *bd_term)) {
+                        // Variables in different contexts have to be renamed.
+                        if (unifier.unify(*hd_term, *bd_term)) {
                             throw std::logic_error("add dependency to positive/negative graph");
                         }
                     }
@@ -239,14 +381,15 @@ class DependencyGraph {
     }
 
   private:
+    SymbolStore &store_;
     DependencyMap map_;
     std::vector<Node> nodes_;
 };
 
 } // namespace
 
-auto analyze(std::vector<Stm> const &stms) -> Components {
-    auto gph = DependencyGraph{};
+auto analyze(SymbolStore &store, std::vector<Stm> const &stms) -> Components {
+    auto gph = DependencyGraph{store};
     gph.add(stms);
     throw std::runtime_error("implement me!!!");
 }

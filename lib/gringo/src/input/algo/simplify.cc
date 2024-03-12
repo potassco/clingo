@@ -187,11 +187,11 @@ struct VarToLinear {
 //! Result indicating a changed tuple.
 using TupleResultChanged = std::vector<std::variant<Projection, Symbol, Term>>;
 //! Result indicating an unchanged tuple.
-struct TupleResultUnhanged {};
+struct TupleResultUnchanged {};
 //! Result indicating a tuples that failed to simplify.
 struct TupleResultFail {};
 //! Variant for the different tuple evaluation results.
-using TupleResult = std::variant<TupleResultFail, TupleResultUnhanged, TupleResultChanged>;
+using TupleResult = std::variant<TupleResultFail, TupleResultUnchanged, TupleResultChanged>;
 
 //! Convert the given simplified arguments to a symbol vector.
 //!
@@ -235,7 +235,7 @@ struct SimplifyTerm {
     auto handle_tuple(SimplifyTermFlags flags, ArgumentTuple const &tuple, bool &constant) const -> TupleResult {
         size_t n = 0;
 
-        TupleResult res_tuple = TupleResultUnhanged{};
+        TupleResult res_tuple = TupleResultUnchanged{};
 
         // helper to initialize the optional result vector
         auto init = [&]() -> TupleResultChanged & {
@@ -342,7 +342,7 @@ struct SimplifyTerm {
                 if constexpr (std::is_same_v<T, TupleResultFail>) {
                     return TermResultFail{};
                 }
-                if constexpr (std::is_same_v<T, TupleResultUnhanged>) {
+                if constexpr (std::is_same_v<T, TupleResultUnchanged>) {
                     if (term.external() && !preserve) {
                         return TermResultChanged{type, map_term(ctx, term)};
                     }
@@ -385,7 +385,7 @@ struct SimplifyTerm {
                 if constexpr (std::is_same_v<T, TupleResultFail>) {
                     return TermResultFail{};
                 }
-                if constexpr (std::is_same_v<T, TupleResultUnhanged>) {
+                if constexpr (std::is_same_v<T, TupleResultUnchanged>) {
                     // unchanged term that did not evaluate to a symbol
                     if (!constant) {
                         return type;

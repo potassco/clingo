@@ -93,6 +93,6 @@ struct Component {
 
 using Components = std::vector<std::vector<Component>>;
 
-auto analyze(std::vector<Stm> const &stms) -> Components;
+auto analyze(SymbolStore &store, std::vector<Stm> const &stms) -> Components;
 
 } // namespace Gringo::Input
