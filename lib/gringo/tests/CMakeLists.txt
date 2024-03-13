@@ -1,5 +1,6 @@
 add_executable(tests
     "gringo/input/compute_bounds.cc"
+    "gringo/input/dependency.cc"
     "gringo/input/evaluate.cc"
     "gringo/input/iesolver.cc"
     "gringo/input/parse.cc"

@@ -6,6 +6,11 @@
 
 #include <forward_list>
 
+// TODO: remove
+#include <gringo/input/algo/print.hh>
+#include <iostream>
+// TODO: remove
+
 namespace Gringo::Input {
 
 namespace {
@@ -478,8 +483,11 @@ class DependencyGraph {
                         static_cast<void>(bd_stm);
                         static_cast<void>(bd_sign);
                         // Variables in different contexts have to be renamed.
+                        std::cerr << "unify: " << *hd_term << " ~ " << *bd_term << " = ";
                         if (unifier.unify(*hd_term, *bd_term)) {
-                            throw std::logic_error("add dependency to positive/negative graph");
+                            std::cerr << "true" << std::endl;
+                        } else {
+                            std::cerr << "false" << std::endl;
                         }
                     }
                 }
@@ -497,6 +505,7 @@ class DependencyGraph {
 } // namespace
 
 auto analyze(SymbolStore &store, std::vector<Stm> const &stms) -> Components {
+    std::cerr << "analyze..." << std::endl;
     auto gph = DependencyGraph{store};
     gph.add(stms);
     throw std::runtime_error("implement me!!!");
