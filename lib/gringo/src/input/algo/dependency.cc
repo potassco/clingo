@@ -292,61 +292,104 @@ class Unifier {
             return true;
         }
         return std::visit(
-            [&, this]<class A, class B>(A const &v_a, B const &v_b) {
-                if constexpr (Util::matches<A, TermSymbol> && Util::matches<B, TermSymbol>) {
-                    // TODO: maybe remove!!!
-                    return false;
-                }
-                if constexpr (Util::matches<A, TermVariable>) {
-                    // TODO: occurs check
-                    if (auto [it, ins] = ass_.try_emplace(v_a.name(), &b); !ins) {
-                        return unify_(b, *it->second);
+            [&, this]<class A, class B>(A const &v_a, B const &v_b) -> bool {
+                // variables
+                if constexpr (Util::matches<A, TermVariable> || Util::matches<B, TermVariable>) {
+                    if constexpr (Util::matches<A, TermVariable>) {
+                        // TODO: occurs check
+                        if (auto [it, ins] = ass_.try_emplace(v_a.name(), &b); !ins) {
+                            return unify_(b, *it->second);
+                        }
+                        return true;
                     }
-                    return true;
-                }
-                if constexpr (Util::matches<B, TermVariable>) {
                     return unify_(b, a);
                 }
-                if constexpr (Util::matches<A, TermTuple> && Util::matches<B, TermTuple>) {
-                    assert(v_a.pool().size() == 1 && std::holds_alternative<ArgumentTuple>(v_a.pool().front()));
-                    assert(v_b.pool().size() == 1 && std::holds_alternative<ArgumentTuple>(v_b.pool().front()));
-                    return unify_(std::get<ArgumentTuple>(v_a.pool().at(0)), std::get<ArgumentTuple>(v_b.pool().at(0)));
-                }
-                if constexpr (Util::matches<A, TermFunction> && Util::matches<B, TermFunction>) {
-                    assert(v_a.pool().size() == 1);
-                    assert(v_b.pool().size() == 1);
-                    if (v_a.name() != v_b.name()) {
-                        return false;
+                // tuples
+                else if constexpr (Util::matches<A, TermTuple> || Util::matches<B, TermTuple>) {
+                    // TODO: match symbol
+                    if constexpr (Util::matches<A, TermTuple> && Util::matches<B, TermTuple>) {
+                        assert(v_a.pool().size() == 1 && std::holds_alternative<ArgumentTuple>(v_a.pool().front()));
+                        assert(v_b.pool().size() == 1 && std::holds_alternative<ArgumentTuple>(v_b.pool().front()));
+                        return unify_(std::get<ArgumentTuple>(v_a.pool().at(0)),
+                                      std::get<ArgumentTuple>(v_b.pool().at(0)));
                     }
-                    return unify_(v_a.pool().at(0), v_b.pool().at(0));
+                    return false;
                 }
-                if constexpr (Util::matches<A, TermAbs> && Util::matches<B, TermAbs>) {
-                    // can unify anything
+                // functions
+                else if constexpr (Util::matches<A, TermFunction> || Util::matches<B, TermFunction>) {
+                    // TODO: match symbol
+                    if constexpr (Util::matches<A, TermFunction> && Util::matches<B, TermFunction>) {
+                        assert(v_a.pool().size() == 1);
+                        assert(v_b.pool().size() == 1);
+                        if (v_a.name() != v_b.name()) {
+                            return false;
+                        }
+                        return unify_(v_a.pool().at(0), v_b.pool().at(0));
+                    }
+                    return false;
                 }
-                if constexpr (Util::matches<A, TermUnary> && Util::matches<B, TermUnary>) {
-                    // negated symbols have to be handled
+                // absolute terms
+                else if constexpr (Util::matches<A, TermAbs> || Util::matches<B, TermAbs>) {
+                    if constexpr (!Util::matches<A, TermAbs>) {
+                        return unify_(b, a);
+                    } else {
+                        // could also check greater equal 0 and could also apply assignment
+                        return !never_numeric(b);
+                    }
                 }
-                if constexpr (Util::matches<A, TermBinary> && Util::matches<B, TermBinary>) {
+                // linear terms
+                else if constexpr (Util::matches<A, TermBinary> || Util::matches<B, TermBinary>) {
                     // in general just returns true but (certain) linear terms are handled more cleverly
-                    if (auto l_a = check_linear(v_a), l_b = check_linear(v_b); l_a && l_b) {
-                        // TODO: make sure that neither x_a nor x_b is symbolic:
-                        // - lookup x_a and x_b in assignment
-                        // - make sure that the assignment is not symbolic
-                        if (l_a->x() == l_b->x()) {
-                            auto n = (*l_b->n() - *l_a->n());
-                            auto d = (*l_a->m() - *l_b->m());
-                            return n == 0 || (d != 0 && std::move(n) % std::move(d) == 0);
+                    if constexpr (!Util::matches<A, TermBinary>) {
+                        return unify_(b, a);
+                    } else if constexpr (Util::matches<B, TermBinary>) {
+                        if (auto l_a = check_linear(v_a), l_b = check_linear(v_b); l_a && l_b) {
+                            if (auto it = ass_.find(l_a->x()); it != ass_.end() && never_numeric(*it->second)) {
+                                return false;
+                            }
+                            if (l_a->x() == l_b->x()) {
+                                auto n = (*l_b->n() - *l_a->n());
+                                auto d = (*l_a->m() - *l_b->m());
+                                return n == 0 || (d != 0 && std::move(n) % std::move(d) == 0);
+                            }
+                            if (auto it = ass_.find(l_b->x()); it != ass_.end() && never_numeric(*it->second)) {
+                                return false;
+                            }
+                            if (*l_a->m() % *l_b->m() == 0) {
+                                return unify_(*l_a, *l_b);
+                            }
+                            if (*l_b->m() % *l_a->m() == 0) {
+                                return unify_(*l_b, *l_a);
+                            }
                         }
-                        if (*l_a->m() % *l_b->m() == 0) {
-                            return unify_(*l_a, *l_b);
-                        }
-                        if (*l_b->m() % *l_a->m() == 0) {
-                            return unify_(*l_b, *l_a);
-                        }
+                        return true;
+                    } else if constexpr (Util::matches<B, TermUnary>) {
+                        throw std::runtime_error(
+                            "implement me: check numeric mach/try to turn unary term into linear term");
+                    } else if constexpr (Util::matches<B, TermSymbol>) {
+                        throw std::runtime_error("implement me: try to match symbol");
+                    } else {
+                        static_assert(false);
                     }
-                    return true;
                 }
-                return false;
+                // unary terms
+                else if constexpr (Util::matches<A, TermUnary> || Util::matches<B, TermUnary>) {
+                    if constexpr (!Util::matches<A, TermUnary>) {
+                        return unify_(b, a);
+                    } else if constexpr (Util::matches<B, TermUnary>) {
+                        throw std::runtime_error("implement me: peel away leading minuses/check numeric match");
+                    } else if constexpr (Util::matches<B, TermSymbol>) {
+                        throw std::runtime_error("implement me: try to match symbol");
+                    } else {
+                        static_assert(false);
+                    }
+                }
+                // symbols
+                else {
+                    // TODO: symbol matching could be handled separately
+                    static_assert(Util::matches<A, TermSymbol> && Util::matches<B, TermSymbol>);
+                    return false;
+                }
             },
             a, b);
     }
