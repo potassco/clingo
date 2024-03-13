@@ -250,7 +250,59 @@ class Unifier {
         return unify_(a, b);
     }
 
+    template <class T, class U> auto unify_(T const &a, U const &b) = delete;
+
+    template <class T, class U> auto match_(Symbol const &a, U const &b) = delete;
+
   private:
+    auto match_(SymbolSpan a, ArgumentTuple const &b) -> bool {
+        if (a.size() != b.elems().size()) {
+            return false;
+        }
+        auto it = b.elems().begin();
+        for (auto sym : a) {
+            if (!std::visit(
+                    [this, sym]<class T>(T const &c) {
+                        if constexpr (Util::matches<T, Projection>) {
+                            return true;
+                        } else {
+                            return match_(sym, c);
+                        }
+                    },
+                    *it++)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    auto match_(Symbol const &a, Term const &b) -> bool {
+        return std::visit(
+            [&, this]<class T>(T const &v_b) -> bool {
+                if constexpr (Util::matches<T, TermVariable>) {
+                    terms_.emplace_front(TermSymbol{v_b.loc(), a});
+                    auto [it, ins] = ass_.try_emplace(v_b.name(), &terms_.front());
+                    return ins || unify_(b, *it->second);
+                } else if constexpr (Util::matches<T, TermSymbol>) {
+                    return a == v_b.value();
+                } else if constexpr (Util::matches<T, TermTuple>) {
+                    return a.type() == SymbolType::tuple &&
+                           match_(a.args(), std::get<ArgumentTuple>(v_b.pool().at(0)).elems());
+                } else if constexpr (Util::matches<T, TermFunction>) {
+                    return a.type() == SymbolType::function && a.name() == v_b.name() && !v_b.external() &&
+                           !a.has_classical_sign() && match_(a.args(), v_b.pool().at(0));
+                } else if constexpr (Util::matches<T, TermAbs>) {
+                    return a.type() == SymbolType::number && *a.num() >= 0;
+                } else if constexpr (Util::matches<T, TermUnary>) {
+                    throw std::runtime_error("implement me!!!");
+                } else {
+                    static_assert(Util::matches<T, TermBinary>);
+                    throw std::runtime_error("implement me!!!");
+                }
+            },
+            b);
+    }
+
     auto unify_(ArgumentTuple const &a, ArgumentTuple const &b) -> bool {
         if (a.elems().size() != b.elems().size()) {
             return false;
@@ -297,16 +349,22 @@ class Unifier {
                 if constexpr (Util::matches<A, TermVariable> || Util::matches<B, TermVariable>) {
                     if constexpr (Util::matches<A, TermVariable>) {
                         // TODO: occurs check
-                        if (auto [it, ins] = ass_.try_emplace(v_a.name(), &b); !ins) {
-                            return unify_(b, *it->second);
-                        }
-                        return true;
+                        auto [it, ins] = ass_.try_emplace(v_a.name(), &b);
+                        return ins || unify_(b, *it->second);
+                    } else {
+                        return unify_(b, a);
                     }
-                    return unify_(b, a);
+                }
+                // symbols
+                else if constexpr (Util::matches<A, TermSymbol> || Util::matches<B, TermSymbol>) {
+                    if constexpr (Util::matches<A, TermSymbol>) {
+                        return match_(v_a.value(), b);
+                    } else {
+                        return match_(v_b.value(), a);
+                    }
                 }
                 // tuples
                 else if constexpr (Util::matches<A, TermTuple> || Util::matches<B, TermTuple>) {
-                    // TODO: match symbol
                     if constexpr (Util::matches<A, TermTuple> && Util::matches<B, TermTuple>) {
                         assert(v_a.pool().size() == 1 && std::holds_alternative<ArgumentTuple>(v_a.pool().front()));
                         assert(v_b.pool().size() == 1 && std::holds_alternative<ArgumentTuple>(v_b.pool().front()));
@@ -317,7 +375,6 @@ class Unifier {
                 }
                 // functions
                 else if constexpr (Util::matches<A, TermFunction> || Util::matches<B, TermFunction>) {
-                    // TODO: match symbol
                     if constexpr (Util::matches<A, TermFunction> && Util::matches<B, TermFunction>) {
                         assert(v_a.pool().size() == 1);
                         assert(v_b.pool().size() == 1);
@@ -333,16 +390,15 @@ class Unifier {
                     if constexpr (!Util::matches<A, TermAbs>) {
                         return unify_(b, a);
                     } else {
-                        // could also check greater equal 0 and could also apply assignment
                         return !never_numeric(b);
                     }
                 }
                 // linear terms
                 else if constexpr (Util::matches<A, TermBinary> || Util::matches<B, TermBinary>) {
-                    // in general just returns true but (certain) linear terms are handled more cleverly
                     if constexpr (!Util::matches<A, TermBinary>) {
                         return unify_(b, a);
                     } else if constexpr (Util::matches<B, TermBinary>) {
+                        // handle linear terms
                         if (auto l_a = check_linear(v_a), l_b = check_linear(v_b); l_a && l_b) {
                             if (auto it = ass_.find(l_a->x()); it != ass_.end() && never_numeric(*it->second)) {
                                 return false;
@@ -366,8 +422,6 @@ class Unifier {
                     } else if constexpr (Util::matches<B, TermUnary>) {
                         throw std::runtime_error(
                             "implement me: check numeric mach/try to turn unary term into linear term");
-                    } else if constexpr (Util::matches<B, TermSymbol>) {
-                        throw std::runtime_error("implement me: try to match symbol");
                     } else {
                         static_assert(false);
                     }
@@ -378,23 +432,20 @@ class Unifier {
                         return unify_(b, a);
                     } else if constexpr (Util::matches<B, TermUnary>) {
                         throw std::runtime_error("implement me: peel away leading minuses/check numeric match");
-                    } else if constexpr (Util::matches<B, TermSymbol>) {
-                        throw std::runtime_error("implement me: try to match symbol");
                     } else {
                         static_assert(false);
                     }
                 }
                 // symbols
                 else {
-                    // TODO: symbol matching could be handled separately
-                    static_assert(Util::matches<A, TermSymbol> && Util::matches<B, TermSymbol>);
-                    return false;
+                    static_assert(false);
                 }
             },
             a, b);
     }
 
     Assignment ass_;
+    // or a dequeue...
     std::forward_list<Term> terms_;
     SymbolStore &store_;
 };
