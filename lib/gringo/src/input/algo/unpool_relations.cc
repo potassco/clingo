@@ -339,14 +339,14 @@ struct UnpoolStatement {
 
     template <class S>
         requires Util::is_among_v<S, StmWeakConstraint, StmShow, StmProject, StmExternal, StmEdge, StmHeuristic>
-    constexpr auto operator()(S const &stm) const -> std::optional<StmVec> {
+    auto operator()(S const &stm) const -> std::optional<StmVec> {
         return rewrite_with_body(stm);
     }
 
     template <class S>
         requires Util::is_among_v<S, StmTheory, StmShowSig, StmProjectSig, StmDefined, StmScript, StmInclude,
                                   StmProgram, StmConst, StmComment>
-    constexpr auto operator()([[maybe_unused]] S const &stm) const -> std::optional<StmVec> {
+    auto operator()([[maybe_unused]] S const &stm) const -> std::optional<StmVec> {
         return std::nullopt;
     }
 
