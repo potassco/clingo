@@ -428,7 +428,7 @@ class Unifier {
                         throw std::runtime_error(
                             "implement me: check numeric mach/try to turn unary term into linear term");
                     } else {
-                        static_assert(false);
+                        static_assert(Util::matches<B, void>);
                     }
                 }
                 // unary terms
@@ -438,12 +438,10 @@ class Unifier {
                     } else if constexpr (Util::matches<B, TermUnary>) {
                         throw std::runtime_error("implement me: peel away leading minuses/check numeric match");
                     } else {
-                        static_assert(false);
+                        static_assert(Util::matches<B, void>);
                     }
-                }
-                // symbols
-                else {
-                    static_assert(false);
+                } else {
+                    static_assert(Util::matches<B, void>);
                 }
             },
             a, b);
