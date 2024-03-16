@@ -299,10 +299,22 @@ class Unifier {
                 } else if constexpr (Util::matches<T, TermAbs>) {
                     return a.type() == SymbolType::number && *a.num() >= 0;
                 } else if constexpr (Util::matches<T, TermUnary>) {
-                    throw std::runtime_error("implement me!!!");
+                    if (v_b.op() == UnaryOperator::invert) {
+                        return a.type() == SymbolType::number;
+                    }
+                    if (a.type() == SymbolType::number) {
+                        return match_(store_.num(-*a.num()), v_b.rhs());
+                    }
+                    if (a.type() == SymbolType::function) {
+                        return match_(*a.flip_classical_sign(), v_b.rhs());
+                    }
+                    return false;
                 } else {
                     static_assert(Util::matches<T, TermBinary>);
-                    throw std::runtime_error("implement me!!!");
+                    if (auto l_b = check_linear(v_b); l_b) {
+                        throw std::runtime_error("implement me!!!");
+                    }
+                    return a.type() == SymbolType::number;
                 }
             },
             b);
