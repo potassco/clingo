@@ -1,3 +1,5 @@
+#include "graph.hh"
+
 #include <gringo/input/algo/analyze.hh>
 #include <gringo/input/algo/dependency.hh>
 
@@ -486,18 +488,18 @@ class Unifier {
 
 struct Node {
     Stm const *stm = nullptr;
-    std::vector<std::pair<Node *, bool>> depend = {};
+    std::vector<std::pair<size_t, bool>> depend = {};
     bool normal = true;
 };
 
-auto build_graph(SymbolStore &store_, std::vector<Stm> const &stms) -> std::vector<Node> {
+auto build_nodes(SymbolStore &store_, std::vector<Stm> const &stms) -> std::vector<Node> {
     DependencyMap map_;
     std::vector<Node> nodes;
     nodes.reserve(stms.size());
     // add dependencies to the dependency map
     auto i = size_t{0};
     for (auto const &stm : stms) {
-        nodes.emplace_back(&stm, std::vector<std::pair<Node *, bool>>{}, true);
+        nodes.emplace_back(&stm, std::vector<std::pair<size_t, bool>>{}, true);
         std::visit(AddDepend{i++, map_, nodes.back().normal}, stm);
     }
     // build the dependency graph
@@ -514,7 +516,7 @@ auto build_graph(SymbolStore &store_, std::vector<Stm> const &stms) -> std::vect
                     // TODO: variables in different contexts have to be renamed.
                     std::cerr << "unify: " << *hd_term << " ~ " << *bd_term << " = ";
                     if (unifier.unify(*hd_term, *bd_term)) {
-                        nodes[bd_idx].depend.emplace_back(&nodes[i], bd_sign);
+                        nodes[bd_idx].depend.emplace_back(i, bd_sign);
                         std::cerr << "true" << std::endl;
                     } else {
                         std::cerr << "false" << std::endl;
@@ -531,8 +533,23 @@ auto build_graph(SymbolStore &store_, std::vector<Stm> const &stms) -> std::vect
 
 auto analyze(SymbolStore &store, std::vector<Stm> const &stms) -> Components {
     std::cerr << "analyze..." << std::endl;
-    auto gph = build_graph(store, stms);
-    static_cast<void>(gph);
+    auto nodes = build_nodes(store, stms);
+    auto graph = Graph{};
+    graph.ensure_size(nodes.size());
+    auto i = size_t{0};
+    for (auto const &node : nodes) {
+        for (auto [j, sign] : node.depend) {
+            graph.add_edge(i, j);
+        }
+        ++i;
+    }
+    graph.tarjan([](auto const &scc) {
+        std::cerr << "scc:";
+        for (auto i : scc) {
+            std::cerr << " " << i;
+        }
+        std::cerr << std::endl;
+    });
     throw std::runtime_error("implement me!!!");
 }
 
