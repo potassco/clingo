@@ -546,10 +546,13 @@ auto analyze(SymbolStore &store, std::vector<Stm> const &stms) -> Components {
         }
         ++i;
     }
+    auto comps = Components{};
     graph.tarjan([&, num_scc = size_t{0}](auto const &scc) mutable {
+        comps.emplace_back();
+        auto &sub_comps = comps.back();
         // tag sccs
         std::cerr << "scc:";
-        size_t n = 0;
+        auto n = size_t{0};
         for (auto i : scc) {
             nodes[i].scc = num_scc;
             nodes[i].idx = n;
@@ -567,16 +570,24 @@ auto analyze(SymbolStore &store, std::vector<Stm> const &stms) -> Components {
                 }
             }
         }
+        // TODO: step can be skipped if there are no recursive dependencies
         sub_graph.tarjan([&](auto const &sub_scc) {
+            auto comp = Component{};
+            comp.stms.reserve(sub_scc.size());
             std::cerr << "  sub scc:";
             for (auto i : sub_scc) {
+                comp.stms.emplace_back(&stms[scc[i]]);
+                // TODO:
+                // - comp.incomplete = ...
+                // - comp.type = ...
                 std::cerr << " " << scc[i];
             }
             std::cerr << std::endl;
+            sub_comps.emplace_back(std::move(comp));
         });
         ++num_scc;
     });
-    throw std::runtime_error("implement me!!!");
+    return comps;
 }
 
 } // namespace Gringo::Input
