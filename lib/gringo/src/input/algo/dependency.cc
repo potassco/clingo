@@ -489,6 +489,8 @@ class Unifier {
 struct Node {
     Stm const *stm = nullptr;
     std::vector<std::pair<size_t, bool>> depend = {};
+    size_t scc = std::numeric_limits<size_t>::max();
+    size_t idx = 0;
     bool normal = true;
 };
 
@@ -499,7 +501,7 @@ auto build_nodes(SymbolStore &store_, std::vector<Stm> const &stms) -> std::vect
     // add dependencies to the dependency map
     auto i = size_t{0};
     for (auto const &stm : stms) {
-        nodes.emplace_back(&stm, std::vector<std::pair<size_t, bool>>{}, true);
+        nodes.emplace_back(&stm, std::vector<std::pair<size_t, bool>>{}, std::numeric_limits<size_t>::max(), 0, true);
         std::visit(AddDepend{i++, map_, nodes.back().normal}, stm);
     }
     // build the dependency graph
@@ -534,6 +536,7 @@ auto build_nodes(SymbolStore &store_, std::vector<Stm> const &stms) -> std::vect
 auto analyze(SymbolStore &store, std::vector<Stm> const &stms) -> Components {
     std::cerr << "analyze..." << std::endl;
     auto nodes = build_nodes(store, stms);
+    // build graph considering positive and negative dependencies
     auto graph = Graph{};
     graph.ensure_size(nodes.size());
     auto i = size_t{0};
@@ -543,12 +546,35 @@ auto analyze(SymbolStore &store, std::vector<Stm> const &stms) -> Components {
         }
         ++i;
     }
-    graph.tarjan([](auto const &scc) {
+    graph.tarjan([&, num_scc = size_t{0}](auto const &scc) mutable {
+        // tag sccs
         std::cerr << "scc:";
+        size_t n = 0;
         for (auto i : scc) {
+            nodes[i].scc = num_scc;
+            nodes[i].idx = n;
             std::cerr << " " << i;
+            ++n;
         }
         std::cerr << std::endl;
+        // build graph considering only positive dependencies
+        auto sub_graph = Graph{};
+        sub_graph.ensure_size(n);
+        for (auto i : scc) {
+            for (auto const &[j, sign] : nodes[i].depend) {
+                if (!sign && nodes[j].scc == num_scc) {
+                    sub_graph.add_edge(nodes[i].idx, nodes[j].idx);
+                }
+            }
+        }
+        sub_graph.tarjan([&](auto const &sub_scc) {
+            std::cerr << "  sub scc:";
+            for (auto i : sub_scc) {
+                std::cerr << " " << scc[i];
+            }
+            std::cerr << std::endl;
+        });
+        ++num_scc;
     });
     throw std::runtime_error("implement me!!!");
 }
