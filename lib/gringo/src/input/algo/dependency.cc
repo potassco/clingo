@@ -311,10 +311,14 @@ class Unifier {
                     return false;
                 } else {
                     static_assert(Util::matches<T, TermBinary>);
-                    if (auto l_b = check_linear(v_b); l_b) {
-                        throw std::runtime_error("implement me!!!");
+                    if (a.type() != SymbolType::number) {
+                        return false;
                     }
-                    return a.type() == SymbolType::number;
+                    if (auto l_b = check_linear(v_b); l_b) {
+                        auto c = *a.num() - *l_b->n();
+                        return c % l_b->m() == 0 && match_(store_.num(c / l_b->m()), l_b->term_x());
+                    }
+                    return true;
                 }
             },
             b);
