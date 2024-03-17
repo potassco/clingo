@@ -13,6 +13,7 @@ TEST_CASE("dependency") {
     std::vector<Stm> stms;
     stms.emplace_back(*ph.statement("a(X) :- b(X), b(g(X))."));
     stms.emplace_back(*ph.statement("b(f(X)) :- a(X)."));
+    stms.emplace_back(*ph.statement("a(-X) :- a(-1*X+1)."));
     analyze(ph, stms);
 }
 
