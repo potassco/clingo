@@ -441,8 +441,17 @@ class Unifier {
                         }
                         return true;
                     } else if constexpr (Util::matches<B, TermUnary>) {
-                        throw std::runtime_error(
-                            "implement me: check numeric mach/try to turn unary term into linear term");
+                        if (auto l_a = check_linear(v_a); l_a && v_b.op() == UnaryOperator::negate) {
+                            terms_.emplace_front(TermBinary{
+                                l_a->term_mxn().loc(),
+                                TermBinary{location(l_a->term_mx()),
+                                           TermSymbol{location(l_a->term_m()), store_.num(-*l_a->m())},
+                                           BinaryOperator::times, l_a->term_x()},
+                                BinaryOperator::plus, TermSymbol{location(l_a->term_n()), store_.num(-*l_a->n())}});
+                            // -a ~ --b
+                            return unify_(terms_.front(), *v_b.rhs());
+                        }
+                        return !never_numeric(b);
                     } else {
                         static_assert(Util::matches<B, void>);
                     }
@@ -452,7 +461,13 @@ class Unifier {
                     if constexpr (!Util::matches<A, TermUnary>) {
                         return unify_(b, a);
                     } else if constexpr (Util::matches<B, TermUnary>) {
-                        throw std::runtime_error("implement me: peel away leading minuses/check numeric match");
+                        if (v_a.op() == v_b.op()) {
+                            return unify_(*v_a.rhs(), *v_b.rhs());
+                        }
+                        if (v_a.op() == UnaryOperator::invert) {
+                            return !never_numeric(v_b.rhs());
+                        }
+                        return !never_numeric(v_a.rhs());
                     } else {
                         static_assert(Util::matches<B, void>);
                     }
