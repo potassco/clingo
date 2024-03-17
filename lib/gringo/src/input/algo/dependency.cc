@@ -16,7 +16,7 @@ namespace Gringo::Input {
 namespace {
 
 using Signature = std::tuple<String, size_t, bool>;
-using Dependency = std::tuple<Stm const *, Term const *, bool>;
+using Dependency = std::tuple<size_t, Term const *, bool>;
 
 using DependencyMap = Util::unordered_map<Signature, std::vector<Dependency>>;
 using ProvideVec = std::vector<Term const *>;
@@ -34,10 +34,10 @@ struct AddDepend {
         auto const &term = lit.term();
         auto sig = signature(term).value();
         if (test(type, DependencyType::positive) && lit.sign() == Sign::none) {
-            map[sig].emplace_back(&stm, &term, false);
+            map[sig].emplace_back(idx, &term, false);
         }
         if (test(type, DependencyType::negative) || lit.sign() != Sign::none) {
-            map[sig].emplace_back(&stm, &term, true);
+            map[sig].emplace_back(idx, &term, true);
         }
     }
 
@@ -136,12 +136,12 @@ struct AddDepend {
         }
         if constexpr (Util::matches<T, StmProject, StmHeuristic>) {
             auto sig = signature(stm.atom()).value();
-            map[sig].emplace_back(&this->stm, &stm.atom(), false);
+            map[sig].emplace_back(idx, &stm.atom(), false);
         }
         std::for_each(stm.body().begin(), stm.body().end(), *this);
     }
 
-    Stm const &stm;
+    size_t idx;
     DependencyMap &map;
     bool &normal;
 };
@@ -485,8 +485,9 @@ class Unifier {
 };
 
 struct Node {
-    Stm const *stm;
-    bool normal;
+    Stm const *stm = nullptr;
+    std::vector<std::pair<Node *, bool>> depend = {};
+    bool normal = true;
 };
 
 class DependencyGraph {
@@ -494,26 +495,26 @@ class DependencyGraph {
     DependencyGraph(SymbolStore &store) : store_{store} {}
     void add(std::vector<Stm> const &stms) {
         // add dependencies to the dependency map
+        auto i = size_t{0};
         for (auto const &stm : stms) {
-            nodes_.emplace_back(Node{&stm, true});
-            std::visit(AddDepend{stm, map_, nodes_.back().normal}, stm);
+            nodes_.emplace_back(&stm, std::vector<std::pair<Node *, bool>>{}, true);
+            std::visit(AddDepend{i++, map_, nodes_.back().normal}, stm);
         }
         // build the dependency graph
         ProvideVec provide;
         Unifier unifier{store_};
-        auto node_it = nodes_.begin();
+        i = 0;
         for (auto const &hd_stm : stms) {
             provide.clear();
             std::visit(AddProvide{provide}, hd_stm);
             for (auto const *hd_term : provide) {
                 auto hd_sig = signature(*hd_term).value();
                 if (auto it = map_.find(hd_sig); it != map_.end()) {
-                    for (auto const &[bd_stm, bd_term, bd_sign] : it->second) {
-                        static_cast<void>(bd_stm);
-                        static_cast<void>(bd_sign);
-                        // Variables in different contexts have to be renamed.
+                    for (auto const &[bd_idx, bd_term, bd_sign] : it->second) {
+                        // TODO: variables in different contexts have to be renamed.
                         std::cerr << "unify: " << *hd_term << " ~ " << *bd_term << " = ";
                         if (unifier.unify(*hd_term, *bd_term)) {
+                            nodes_[bd_idx].depend.emplace_back(&nodes_[i], bd_sign);
                             std::cerr << "true" << std::endl;
                         } else {
                             std::cerr << "false" << std::endl;
@@ -521,7 +522,7 @@ class DependencyGraph {
                     }
                 }
             }
-            ++node_it;
+            ++i;
         }
     }
 
