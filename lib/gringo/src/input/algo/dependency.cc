@@ -1,4 +1,5 @@
 #include "graph.hh"
+#include "transform.hh"
 
 #include <gringo/input/algo/analyze.hh>
 #include <gringo/input/algo/dependency.hh>
@@ -545,7 +546,26 @@ struct Node {
     bool normal = true;
 };
 
-auto build_nodes(SymbolStore &store_, std::vector<Stm> const &stms) -> std::vector<Node> {
+struct VariableRenamer : Transformer<VariableRenamer> {
+    VariableRenamer(NameGen &gen, Util::unordered_map<String, String> &map) : gen{gen}, map{map} {}
+    [[nodiscard]] auto accept(TermVariable const &var) const -> std::optional<Term> {
+        auto [it, ins] = map.try_emplace(var.name(), String{});
+        if (ins) {
+            it.value() = gen.new_name();
+        }
+        return var.update(a_name = it.value());
+    }
+    NameGen &gen;
+    Util::unordered_map<String, String> &map;
+};
+
+auto rename(SymbolStore &store, Term const &term) -> std::optional<Term> {
+    auto gen = NameGen{store, {}, "#U"};
+    Util::unordered_map<String, String> map;
+    return VariableRenamer{gen, map}.transform(term);
+}
+
+auto build_nodes(SymbolStore &store, std::vector<Stm> const &stms) -> std::vector<Node> {
     DependencyMap map_;
     std::vector<Node> nodes;
     nodes.reserve(stms.size());
@@ -557,12 +577,16 @@ auto build_nodes(SymbolStore &store_, std::vector<Stm> const &stms) -> std::vect
     }
     // build the dependency graph
     ProvideVec provide;
-    Unifier unifier{store_};
+    Unifier unifier{store};
     i = 0;
     for (auto const &hd_stm : stms) {
         provide.clear();
         std::visit(AddProvide{provide}, hd_stm);
         for (auto const *hd_term : provide) {
+            auto hd_term_r = rename(store, *hd_term);
+            if (hd_term_r) {
+                hd_term = &*hd_term_r;
+            }
             auto hd_sig = signature(*hd_term).value();
             if (auto it = map_.find(hd_sig); it != map_.end()) {
                 for (auto const &[bd_idx, bd_term, bd_sign] : it->second) {
