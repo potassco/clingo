@@ -10,8 +10,9 @@ namespace {
 auto unify_terms(std::string_view a, std::string_view b) -> bool {
     ParseHelper ph;
     auto simplify_term = [&ph](std::string_view str) -> Term {
-        auto term = *ph.term(str);
+        auto term = ph.term(str).value();
         auto res = simplify(SimplifyTermFlags::none, ph, term);
+        REQUIRE(res.state);
         return std::move(res).value.value_or(std::move(term));
     };
     return unify(ph, simplify_term(a), simplify_term(b));
@@ -20,14 +21,13 @@ auto unify_terms(std::string_view a, std::string_view b) -> bool {
 } // namespace
 
 TEST_CASE("dependency") {
-    ParseHelper ph;
     SECTION("unify variable") {
         REQUIRE(unify_terms("X", "Y"));
         REQUIRE(unify_terms("X", "a"));
         REQUIRE(unify_terms("X", "f(Y)"));
-        CHECK(!unify_terms("X", "f(X)"));
+        REQUIRE(!unify_terms("X", "f(X)"));
         REQUIRE(unify_terms("X", "(Y,)"));
-        CHECK(!unify_terms("X", "(X,)"));
+        REQUIRE(!unify_terms("X", "(X,)"));
         REQUIRE(unify_terms("X", "-X"));
         REQUIRE(unify_terms("X", "|X|"));
         REQUIRE(unify_terms("X", "X+X"));
@@ -50,30 +50,97 @@ TEST_CASE("dependency") {
         REQUIRE(!unify_terms("1", "2*X+2"));
         REQUIRE(unify_terms("1", "X*X"));
     }
-    SECTION("unify tuple") {}
-    SECTION("unify function") {}
-    SECTION("unify absolute") {}
-    SECTION("unify unary") {}
-    SECTION("unify binary") {}
-    /*
-    SECTION("complex") {
-        // TODO: should use program + rewrite
-        std::vector<Stm> stms;
-        stms.emplace_back(*ph.statement("y."));
-        stms.emplace_back(*ph.statement("a :- x, y."));
-        stms.emplace_back(*ph.statement("x :- a."));
-        stms.emplace_back(*ph.statement("b :- not c, a."));
-        stms.emplace_back(*ph.statement("c :- not b."));
-        stms.emplace_back(*ph.statement("d :- e."));
-        stms.emplace_back(*ph.statement("e :- d, c."));
-        auto comps = analyze(ph, stms);
-        std::ofstream out{"dep1.dot"};
-        visualize(comps, out);
-        REQUIRE(comps.size() == 1);
-        REQUIRE(comps.front().size() == 1);
-        REQUIRE(comps.front().front().stms.size() == 3);
+    SECTION("unify tuple") {
+        REQUIRE(unify_terms("(X,)", "(X,)"));
+        REQUIRE(unify_terms("(X,)", "(Y,)"));
+        REQUIRE(!unify_terms("(x,)", "(y,)"));
+        REQUIRE(!unify_terms("(X,)", "-X"));
+        REQUIRE(!unify_terms("(X,)", "|X|"));
+        REQUIRE(!unify_terms("(X,)", "X*X"));
+        REQUIRE(!unify_terms("(X,)", "1*X+1"));
     }
-    */
+    SECTION("unify function") {
+        REQUIRE(unify_terms("f(X)", "f(X)"));
+        REQUIRE(unify_terms("f(X)", "f(Y)"));
+        REQUIRE(!unify_terms("f(x)", "f(y)"));
+        REQUIRE(!unify_terms("f(x)", "g(x)"));
+        REQUIRE(!unify_terms("f(X)", "-X"));
+        REQUIRE(!unify_terms("f(X)", "|X|"));
+        REQUIRE(!unify_terms("f(X)", "X*X"));
+        REQUIRE(!unify_terms("f(X)", "1*X+1"));
+    }
+    SECTION("unify absolute") {
+        REQUIRE(unify_terms("|X|", "|X|"));
+        REQUIRE(unify_terms("|X|", "|Y|"));
+        REQUIRE(unify_terms("|X|", "|X+1|"));
+        REQUIRE(unify_terms("|X|", "|Y+1|"));
+        REQUIRE(unify_terms("|X|", "-X"));
+        REQUIRE(unify_terms("|X|", "-Y"));
+        REQUIRE(unify_terms("|X|", "X+1"));
+        REQUIRE(unify_terms("|X|", "Y+1"));
+        REQUIRE(unify_terms("|X|", "X*X"));
+        REQUIRE(unify_terms("|X|", "Y*Y"));
+    }
+    SECTION("unify binary") {
+        REQUIRE(unify_terms("2*X", "3*X"));
+        REQUIRE(unify_terms("2*X", "3*Y"));
+        REQUIRE(unify_terms("(-1*X,X)", "(-X,5)"));
+        REQUIRE(unify_terms("(-1*X,X)", "(--X,0)"));
+        REQUIRE(!unify_terms("(-1*X,X)", "(--X,1)"));
+        REQUIRE(unify_terms("(2*X+1,X)", "(3*X+2,-1)"));
+        REQUIRE(!unify_terms("(2*X+1,X)", "(3*X+2,1)"));
+        REQUIRE(unify_terms("(2*X,X,Y)", "(4*Y,4,2)"));
+        REQUIRE(unify_terms("(4*X,X,Y)", "(2*Y,2,4)"));
+        REQUIRE(!unify_terms("(2*X,X,Y)", "(4*Y,2,5)"));
+        REQUIRE(!unify_terms("(4*X,X,Y)", "(2*Y,5,2)"));
+        REQUIRE(!unify_terms("(X,X+1)", "(a,X+1)"));
+    }
+    SECTION("unify unary") {
+        REQUIRE(unify_terms("-X", "-Y"));
+        REQUIRE(unify_terms("-X", "-X"));
+        REQUIRE(unify_terms("-X", "--X"));
+        REQUIRE(unify_terms("~X", "~Y"));
+        REQUIRE(unify_terms("~X", "~X"));
+        REQUIRE(unify_terms("~X", "~~X"));
+        REQUIRE(!unify_terms("~X", "a"));
+        REQUIRE(unify_terms("-X", "a"));
+        REQUIRE(unify_terms("(-X,X)", "(a,-a)"));
+        REQUIRE(!unify_terms("(-X,X)", "(-a,-a)"));
+    }
+    SECTION("analyze1") {
+        ParseHelper ph;
+        std::vector<Stm> stms;
+        stms.emplace_back(ph.statement("y.").value());
+        stms.emplace_back(ph.statement("a :- x, y.").value());
+        stms.emplace_back(ph.statement("x :- a.").value());
+        stms.emplace_back(ph.statement("b :- not c, a.").value());
+        stms.emplace_back(ph.statement("c :- not b.").value());
+        stms.emplace_back(ph.statement("d :- e.").value());
+        stms.emplace_back(ph.statement("e :- d, c.").value());
+        auto comps = analyze(ph, stms);
+        REQUIRE(comps.size() == 4);
+        REQUIRE(comps[0].size() == 1);
+        REQUIRE(comps[0][0].stms.size() == 1);
+        REQUIRE(comps[0][0].type == (ComponentType::domain | ComponentType::single_pass));
+        REQUIRE(comps[1].size() == 1);
+        REQUIRE(comps[1][0].stms.size() == 2);
+        REQUIRE(comps[1][0].type == ComponentType::domain);
+        REQUIRE(comps[2].size() == 2);
+        REQUIRE(comps[2][0].stms.size() == 1);
+        REQUIRE(comps[2][0].type == ComponentType::single_pass);
+        REQUIRE(comps[2][1].stms.size() == 1);
+        REQUIRE(comps[2][1].type == ComponentType::single_pass);
+        REQUIRE(comps[3].size() == 1);
+        REQUIRE(comps[3][0].stms.size() == 2);
+        REQUIRE(comps[3][0].type == ComponentType{0});
+    }
+    SECTION("analyze_rename") {
+        ParseHelper ph;
+        std::vector<Stm> stms;
+        stms.emplace_back(ph.statement("p(X,a) :- f(X).").value());
+        stms.emplace_back(ph.statement("f(X) :- p(b,X).").value());
+        REQUIRE(analyze(ph, stms).size() == 1);
+    }
 }
 
 } // namespace Gringo::Input::Test

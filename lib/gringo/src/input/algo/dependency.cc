@@ -2,17 +2,13 @@
 
 #include <gringo/input/algo/analyze.hh>
 #include <gringo/input/algo/dependency.hh>
+#include <gringo/input/algo/print.hh>
 
 #include <gringo/util/ordered_set.hh>
 #include <gringo/util/type_traits.hh>
 #include <gringo/util/unordered_map.hh>
 
 #include <forward_list>
-
-// TODO: remove
-#include <gringo/input/algo/print.hh>
-#include <iostream>
-// TODO: remove
 
 namespace Gringo::Input {
 
@@ -263,6 +259,43 @@ class Unifier {
     template <class T, class U> auto match_(Symbol const &a, U const &b) = delete;
 
   private:
+    auto occurs_check_(String name, ArgumentTuple const &tup) -> bool {
+        return std::all_of(tup.elems().begin(), tup.elems().end(), [name, this](auto const &arg) {
+            if (auto const *term = std::get_if<Term>(&arg); term != nullptr) {
+                return occurs_check_(name, *term);
+            }
+            return false;
+        });
+    }
+
+    auto occurs_check_(String name, Term const &b) -> bool {
+        // Note: assumes that arithmetic operations are wrapped within tuples/functions
+        return std::visit(
+            [&, this]<class T>(T const &v_b) -> bool {
+                if constexpr (Util::matches<T, TermVariable>) {
+                    return name != v_b.name();
+                } else if constexpr (Util::matches<T, TermSymbol>) {
+                    return true;
+                } else if constexpr (Util::matches<T, TermTuple>) {
+                    return std::all_of(v_b.pool().begin(), v_b.pool().end(), [name, this](auto const &x) {
+                        return std::visit([name, this](auto const &x) { return this->occurs_check_(name, x); }, x);
+                    });
+                } else if constexpr (Util::matches<T, TermFunction>) {
+                    return std::all_of(v_b.pool().begin(), v_b.pool().end(),
+                                       [name, this](auto const &x) { return this->occurs_check_(name, x); });
+                } else if constexpr (Util::matches<T, TermAbs>) {
+                    return std::all_of(v_b.pool().begin(), v_b.pool().end(),
+                                       [name, this](auto const &x) { return this->occurs_check_(name, x); });
+                } else if constexpr (Util::matches<T, TermUnary>) {
+                    return occurs_check_(name, *v_b.rhs());
+                } else {
+                    static_assert(Util::matches<T, TermBinary>);
+                    return occurs_check_(name, *v_b.lhs()) && occurs_check_(name, *v_b.rhs());
+                }
+            },
+            b);
+    }
+
     auto match_(SymbolSpan a, ArgumentTuple const &b) -> bool {
         if (a.size() != b.elems().size()) {
             return false;
@@ -290,7 +323,7 @@ class Unifier {
                 if constexpr (Util::matches<T, TermVariable>) {
                     terms_.emplace_front(TermSymbol{v_b.loc(), a});
                     auto [it, ins] = ass_.try_emplace(v_b.name(), &terms_.front());
-                    return ins || unify_(b, *it->second);
+                    return ins || match_(a, *it->second);
                 } else if constexpr (Util::matches<T, TermSymbol>) {
                     return a == v_b.value();
                 } else if constexpr (Util::matches<T, TermTuple>) {
@@ -360,21 +393,32 @@ class Unifier {
                        TermBinary{location(a.term_mx()), TermSymbol{location(a.term_m()), store_.num(std::move(m))},
                                   BinaryOperator::times, a.term_x()},
                        BinaryOperator::plus, TermSymbol{location(a.term_n()), store_.num(std::move(n))}});
-        return unify_(b.term_x(), terms_.front());
+        auto [it, ins] = ass_.try_emplace(b.x(), &terms_.front());
+        return ins || unify_(terms_.front(), *it->second);
     }
 
     auto unify_(Term const &a, Term const &b) -> bool {
-        if (a == b) {
-            return true;
-        }
         return std::visit(
             [&, this]<class A, class B>(A const &v_a, B const &v_b) -> bool {
                 // variables
                 if constexpr (Util::matches<A, TermVariable> || Util::matches<B, TermVariable>) {
                     if constexpr (Util::matches<A, TermVariable>) {
-                        // TODO: occurs check and handling of arithmetics
-                        auto [it, ins] = ass_.try_emplace(v_a.name(), &b);
-                        return ins || unify_(b, *it->second);
+                        if constexpr (Util::matches<B, TermAbs>) {
+                            return true;
+                        } else if constexpr (Util::matches<B, TermUnary, TermBinary>) {
+                            terms_.emplace_front(
+                                TermBinary{v_a.loc(),
+                                           TermBinary{v_a.loc(), TermSymbol{v_a.loc(), store_.num(Number(1))},
+                                                      BinaryOperator::times, a},
+                                           BinaryOperator::plus, TermSymbol{v_a.loc(), store_.num(0)}});
+                            return unify_(terms_.front(), b);
+                        } else {
+                            if (a == b) {
+                                return true;
+                            }
+                            auto [it, ins] = ass_.try_emplace(v_a.name(), &b);
+                            return ins ? occurs_check_(v_a.name(), b) : unify_(b, *it->second);
+                        }
                     } else {
                         return unify_(b, a);
                     }
@@ -430,7 +474,12 @@ class Unifier {
                             if (l_a->x() == l_b->x()) {
                                 auto n = (*l_b->n() - *l_a->n());
                                 auto d = (*l_a->m() - *l_b->m());
-                                return n == 0 || (d != 0 && std::move(n) % std::move(d) == 0);
+                                if (d != 0 && n % d == 0) {
+                                    terms_.emplace_front(
+                                        TermSymbol{v_a.loc(), store_.num(std::move(n) / std::move(d))});
+                                    return unify_(l_a->term_x(), terms_.front());
+                                }
+                                return n == 0;
                             }
                             if (auto it = ass_.find(l_b->x()); it != ass_.end() && never_numeric(*it->second)) {
                                 return false;
@@ -517,13 +566,8 @@ auto build_nodes(SymbolStore &store_, std::vector<Stm> const &stms) -> std::vect
             auto hd_sig = signature(*hd_term).value();
             if (auto it = map_.find(hd_sig); it != map_.end()) {
                 for (auto const &[bd_idx, bd_term, bd_sign] : it->second) {
-                    // TODO: variables in different contexts have to be renamed.
-                    std::cerr << "unify: " << *hd_term << " ~ " << *bd_term << " = ";
                     if (unifier.unify(*hd_term, *bd_term)) {
                         nodes[bd_idx].depend.emplace_back(i, bd_term, bd_sign);
-                        std::cerr << "true" << std::endl;
-                    } else {
-                        std::cerr << "false" << std::endl;
                     }
                 }
             }
