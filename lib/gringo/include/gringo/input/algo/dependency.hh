@@ -6,26 +6,6 @@
 
 namespace Gringo::Input {
 
-/*
-class AtomNode {
-public:
-    AtomNode(Term const *term) : term_{term} {
-    }
-private:
-    Term const *term_;
-};
-
-class StmNode {
-public:
-    StmNode(Stm const &stm) : stm_{&stm} { }
-private:
-    Stm const *stm_;
-    // should be ordered/index by signature for faster lookup
-    std::vector<AtomNode> provide_;
-    std::vector<std::pair<AtomNode, bool>> depend_;
-};
-*/
-
 // examples:
 // - h :- a : b, not c; d; not e.
 //   - depend:
@@ -66,8 +46,8 @@ private:
 
 //! The type of a component.
 enum class ComponentType : uint32_t {
-    domain = 1,     //!< The component evaluates to facts.
-    stratified = 2, //!< The component can be grounded in one pass.
+    domain = 1,      //!< The component evaluates to facts.
+    single_pass = 2, //!< The component can be grounded in one pass.
 };
 consteval void is_bit_set_enum(ComponentType flags);
 
@@ -84,15 +64,25 @@ struct Component {
     //! This vector captures literals that are not yet complete.
     std::vector<std::pair<Term const *, bool>> incomplete;
     //! The type of the componnent.
-    //!
-    //! It seems like this information won't be necessary for grounding.
-    //! On-the-fly propagation taking into account previously seen rule instances should suffice.
-    //! The type might still be interesting for diagnostics.
     ComponentType type;
 };
 
+//! The list of components in groundable order.
 using Components = std::vector<std::vector<Component>>;
 
+//! Analyze the given statements organizing them in components for grounding.
 auto analyze(SymbolStore &store, std::vector<Stm> const &stms) -> Components;
+
+//! Try to unify the two terms.
+//!
+//! The function also accepts terms with arithmetic terms,
+//! which except for special cases are assumed to unify with anything that is not a function or tuple.
+//! The store object is required to add auxiliary symbols during unification.
+auto unify(SymbolStore &store, Term const &a, Term const &b) -> bool;
+
+//! Output components in the dot language for visualization.
+//!
+//! This function is intended for debugging.
+void visualize(Components const &comps, std::ostream &out);
 
 } // namespace Gringo::Input

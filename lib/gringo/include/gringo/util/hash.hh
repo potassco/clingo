@@ -40,6 +40,9 @@ template <class T> auto value_hash(T const *x) -> size_t;
 //! Compute hash for optionals.
 template <class T> auto value_hash(std::optional<T> const &x) -> size_t;
 
+//! Compute hash for reference_wrapper.
+template <class T> auto value_hash(std::reference_wrapper<T> const &x) -> size_t;
+
 //! Compute hash for unique_ptr.
 template <class T> auto value_hash(std::unique_ptr<T> const &x) -> size_t;
 
@@ -96,6 +99,10 @@ template <class T> auto value_hash(std::optional<T> const &x) -> size_t {
         return hash_combine({typeid(std::optional<T>).hash_code(), value_hash(*x)});
     }
     return typeid(std::optional<T>).hash_code();
+}
+
+template <class T> auto value_hash(std::reference_wrapper<T> const &x) -> size_t {
+    return hash_combine({typeid(std::reference_wrapper<T>).hash_code(), value_hash(x.get())});
 }
 
 template <class T> auto value_hash(std::unique_ptr<T> const &x) -> size_t {

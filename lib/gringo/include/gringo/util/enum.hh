@@ -17,6 +17,11 @@ concept BitSetEnum = std::is_enum_v<T> && requires(T e) { is_bit_set_enum(e); };
 
 } // namespace Detail
 
+//! Complement of a bit set.
+template <Detail::BitSetEnum T> [[nodiscard]] inline auto operator~(T a) -> T {
+    return static_cast<T>(~static_cast<std::underlying_type_t<T>>(a));
+}
+
 //! Union of two bit sets.
 template <Detail::BitSetEnum T> [[nodiscard]] inline auto operator|(T a, T b) -> T {
     return static_cast<T>(static_cast<std::underlying_type_t<T>>(a) | static_cast<std::underlying_type_t<T>>(b));
@@ -33,11 +38,6 @@ template <Detail::BitSetEnum T> [[nodiscard]] inline auto operator-(T a, T b) ->
 //! Symmetric difference of two bit sets.
 template <Detail::BitSetEnum T> [[nodiscard]] inline auto operator^(T a, T b) -> T {
     return static_cast<T>(static_cast<std::underlying_type_t<T>>(a) ^ static_cast<std::underlying_type_t<T>>(b));
-}
-
-//! Complement of a bit set.
-template <Detail::BitSetEnum T> [[nodiscard]] inline auto operator~(T a) -> T {
-    return static_cast<T>(~static_cast<std::underlying_type_t<T>>(a));
 }
 
 //! Union assignment for bit sets.
@@ -59,7 +59,7 @@ template <Detail::BitSetEnum T> inline auto operator^=(T &a, T b) -> T & {
 }
 
 //! Difference assignment for bit sets.
-template <Detail::BitSetEnum T> [[nodiscard]] inline auto operator-=(T a, T b) -> T & {
+template <Detail::BitSetEnum T> inline auto operator-=(T &a, T b) -> T & {
     a = a - b;
     return a;
 }

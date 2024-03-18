@@ -3,6 +3,7 @@
 #include <gringo/input/algo/analyze.hh>
 #include <gringo/input/algo/dependency.hh>
 
+#include <gringo/util/ordered_set.hh>
 #include <gringo/util/type_traits.hh>
 #include <gringo/util/unordered_map.hh>
 
@@ -371,7 +372,7 @@ class Unifier {
                 // variables
                 if constexpr (Util::matches<A, TermVariable> || Util::matches<B, TermVariable>) {
                     if constexpr (Util::matches<A, TermVariable>) {
-                        // TODO: occurs check
+                        // TODO: occurs check and handling of arithmetics
                         auto [it, ins] = ass_.try_emplace(v_a.name(), &b);
                         return ins || unify_(b, *it->second);
                     } else {
@@ -488,8 +489,9 @@ class Unifier {
 
 struct Node {
     Stm const *stm = nullptr;
-    std::vector<std::pair<size_t, bool>> depend = {};
+    std::vector<Dependency> depend = {};
     size_t scc = std::numeric_limits<size_t>::max();
+    size_t sub_scc = std::numeric_limits<size_t>::max();
     size_t idx = 0;
     bool normal = true;
 };
@@ -501,7 +503,7 @@ auto build_nodes(SymbolStore &store_, std::vector<Stm> const &stms) -> std::vect
     // add dependencies to the dependency map
     auto i = size_t{0};
     for (auto const &stm : stms) {
-        nodes.emplace_back(&stm, std::vector<std::pair<size_t, bool>>{}, std::numeric_limits<size_t>::max(), 0, true);
+        nodes.emplace_back(&stm);
         std::visit(AddDepend{i++, map_, nodes.back().normal}, stm);
     }
     // build the dependency graph
@@ -518,7 +520,7 @@ auto build_nodes(SymbolStore &store_, std::vector<Stm> const &stms) -> std::vect
                     // TODO: variables in different contexts have to be renamed.
                     std::cerr << "unify: " << *hd_term << " ~ " << *bd_term << " = ";
                     if (unifier.unify(*hd_term, *bd_term)) {
-                        nodes[bd_idx].depend.emplace_back(i, bd_sign);
+                        nodes[bd_idx].depend.emplace_back(i, bd_term, bd_sign);
                         std::cerr << "true" << std::endl;
                     } else {
                         std::cerr << "false" << std::endl;
@@ -531,17 +533,49 @@ auto build_nodes(SymbolStore &store_, std::vector<Stm> const &stms) -> std::vect
     return nodes;
 }
 
+template <class T> void encode_html(T const &stm, std::ostream &out) {
+    auto oss = std::stringstream{};
+    oss << stm;
+    for (auto c : oss.str()) {
+        switch (c) {
+            case '&': {
+                out << "&amp;";
+                break;
+            }
+            case '\"': {
+                out << "&quot;";
+                break;
+            }
+            case '\'': {
+                out << "&apos;";
+                break;
+            }
+            case '<': {
+                out << "&lt;";
+                break;
+            }
+            case '>': {
+                out << "&gt;";
+                break;
+            }
+            default: {
+                out << c;
+                break;
+            }
+        }
+    }
+}
+
 } // namespace
 
 auto analyze(SymbolStore &store, std::vector<Stm> const &stms) -> Components {
-    std::cerr << "analyze..." << std::endl;
     auto nodes = build_nodes(store, stms);
     // build graph considering positive and negative dependencies
     auto graph = Graph{};
     graph.ensure_size(nodes.size());
     auto i = size_t{0};
     for (auto const &node : nodes) {
-        for (auto [j, sign] : node.depend) {
+        for (auto [j, _term, sign] : node.depend) {
             graph.add_edge(i, j);
         }
         ++i;
@@ -551,43 +585,118 @@ auto analyze(SymbolStore &store, std::vector<Stm> const &stms) -> Components {
         comps.emplace_back();
         auto &sub_comps = comps.back();
         // tag sccs
-        std::cerr << "scc:";
         auto n = size_t{0};
         for (auto i : scc) {
             nodes[i].scc = num_scc;
             nodes[i].idx = n;
-            std::cerr << " " << i;
             ++n;
         }
-        std::cerr << std::endl;
         // build graph considering only positive dependencies
         auto sub_graph = Graph{};
         sub_graph.ensure_size(n);
         for (auto i : scc) {
-            for (auto const &[j, sign] : nodes[i].depend) {
+            for (auto const &[j, _term, sign] : nodes[i].depend) {
                 if (!sign && nodes[j].scc == num_scc) {
                     sub_graph.add_edge(nodes[i].idx, nodes[j].idx);
                 }
             }
         }
-        // TODO: step can be skipped if there are no recursive dependencies
-        sub_graph.tarjan([&](auto const &sub_scc) {
+        // TODO: step could be skipped if there are no recursive negative dependencies
+        //       (the case for most programs)
+        sub_graph.tarjan([&, num_sub_scc = size_t{0}](auto const &sub_scc) mutable {
             auto comp = Component{};
             comp.stms.reserve(sub_scc.size());
-            std::cerr << "  sub scc:";
             for (auto i : sub_scc) {
-                comp.stms.emplace_back(&stms[scc[i]]);
-                // TODO:
-                // - comp.incomplete = ...
-                // - comp.type = ...
-                std::cerr << " " << scc[i];
+                nodes[scc[i]].sub_scc = num_sub_scc;
             }
-            std::cerr << std::endl;
+            comp.type = ComponentType::domain | ComponentType::single_pass;
+            for (auto i : sub_scc) {
+                auto const &stm = stms[scc[i]];
+                if (!nodes[scc[i]].normal) {
+                    comp.type -= ComponentType::domain;
+                }
+                comp.stms.emplace_back(&stm);
+                for (auto const &[idx, term, sign] : nodes[scc[i]].depend) {
+                    auto const &node = nodes[idx];
+                    if (std::tie(node.scc, node.sub_scc) >= std::tie(num_scc, num_sub_scc)) {
+                        if (sign) {
+                            comp.type -= ComponentType::domain;
+                        } else {
+                            comp.type -= ComponentType::single_pass;
+                        }
+                        comp.incomplete.emplace_back(term, sign);
+                    } else if (!test(comps[node.scc][node.sub_scc].type, ComponentType::domain)) {
+                        comp.type -= ComponentType::domain;
+                    }
+                }
+            }
             sub_comps.emplace_back(std::move(comp));
+            ++num_sub_scc;
         });
         ++num_scc;
     });
     return comps;
+}
+
+auto unify(SymbolStore &store, Term const &a, Term const &b) -> bool { return Unifier{store}.unify(a, b); }
+
+void visualize(Components const &comps, std::ostream &out) {
+    out << "digraph {\n";
+    auto i = size_t{0};
+    for (auto const &sub_comps : comps) {
+        out << "  subgraph cluster_" << i << " {\n";
+        out << "    label = \"component " << i << "\";\n";
+        auto j = size_t{0};
+        for (auto const &comp : sub_comps) {
+            out << "    subgraph cluster_" << i << "_" << j << " {\n";
+            out << "      label = \"subcomponent " << j << "\";\n";
+            out << "      stms_" << i << "_" << j << " [label=<";
+            out << "statements[" << (test(comp.type, ComponentType::domain) ? "domain" : "non-domain") << ", "
+                << (test(comp.type, ComponentType::single_pass) ? "single-pass" : "multi-pass") << "]:";
+            for (auto const &stm : comp.stms) {
+                out << "<br/>";
+                encode_html(*stm, out);
+            }
+            if (!comp.incomplete.empty()) {
+                out << "<br/>incomplete:";
+                bool comma = false;
+                Util::ordered_set<std::reference_wrapper<Term const>, Util::value_hasher, std::equal_to<Term>>
+                    incomplete;
+                for (auto const &[term, _sign] : comp.incomplete) {
+                    if (incomplete.emplace(*term).second) {
+                        if (comma) {
+                            out << ",";
+                        } else {
+                            comma = true;
+                        }
+                        out << " ";
+                        encode_html(*term, out);
+                    }
+                }
+            }
+            out << ">];\n";
+            out << "    }\n";
+            ++j;
+        }
+        out << "  }\n";
+        ++i;
+    }
+    if (!comps.empty()) {
+        bool comma = false;
+        out << "  ";
+        for (auto i = size_t{0}; i < comps.size(); ++i) {
+            for (auto j = size_t{0}; j < comps[i].size(); ++j) {
+                if (comma) {
+                    out << " -> ";
+                } else {
+                    comma = true;
+                }
+                out << "stms_" << i << "_" << j;
+            }
+        }
+        out << " [style=\"invis\"];\n";
+    }
+    out << "}\n";
 }
 
 } // namespace Gringo::Input

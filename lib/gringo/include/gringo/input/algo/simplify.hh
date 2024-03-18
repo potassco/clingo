@@ -43,8 +43,6 @@ using SimplifyTermResult = Util::ResultState<Term, bool>;
 //! i.e., it evaluated to an empty pool.
 //!
 //! Terms that are replaced during simplification by auxiliary variables are added to the given context.
-//!
-//! All but flags but the head flag apply to terms.
 [[nodiscard]] auto simplify(SimplifyTermFlags flags, RewriteContext &ctx, Term const &term) -> SimplifyTermResult;
 
 //! Simplifies the given literal.
