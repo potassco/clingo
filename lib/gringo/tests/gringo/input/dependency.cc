@@ -141,6 +141,70 @@ TEST_CASE("dependency") {
         stms.emplace_back(ph.statement("f(X) :- p(b,X).").value());
         REQUIRE(analyze(ph, stms).size() == 1);
     }
+    SECTION("analyze_program") {
+        struct Builder : DependencyBuilder {
+            void flush() {
+                res.emplace_back(oss.str());
+                oss.str("");
+            }
+            void param(ProgramParam const &param) override {
+                oss << "#program_" << param.first << "(";
+                bool comma = false;
+                for (auto const &sym : param.second) {
+                    if (comma) {
+                        oss << ", ";
+                    } else {
+                        comma = true;
+                    }
+                    oss << sym;
+                }
+                oss << ").";
+                flush();
+            }
+            void meta(std::vector<Stm> const &stms) override {
+                for (auto const &stm : stms) {
+                    oss << stm;
+                    flush();
+                }
+            }
+            void fact(std::vector<Symbol> const &facts) override {
+                for (auto const &fact : facts) {
+                    oss << fact << ".";
+                    flush();
+                }
+            }
+            void components(Components const &comps) override {
+                for (auto const &ref_comps : comps) {
+                    oss << "% component";
+                    flush();
+                    for (auto const &ref_comp : ref_comps) {
+                        oss << "% refined component";
+                        flush();
+                        for (auto const &stm : ref_comp.stms) {
+                            oss << *stm;
+                            flush();
+                        }
+                    }
+                }
+            }
+            std::ostringstream oss;
+            std::vector<std::string> res;
+        };
+        auto bld = Builder{};
+        auto ph = ParseHelper();
+        auto uprg = UnprocessedProgram{};
+        add(ph, ph.statement("#show p/2.").value(), uprg);
+        add(ph, ph.statement("#program p(a).").value(), uprg);
+        add(ph, ph.statement("p(a).").value(), uprg);
+        add(ph, ph.statement("p(b).").value(), uprg);
+        add(ph, ph.statement("p(X,a) :- f(X).").value(), uprg);
+        auto prg = Program{ph.ctx().options()};
+        prg.join(ph, ph, uprg);
+        prg.analyze(ph, {ProgramParam{ph.store().string("p"), {ph.store().num(Number(1))}}}, bld);
+        REQUIRE(bld.res == std::vector<std::string>{"#show p/2.", "p(b).", "#program_p(1).", "% component",
+                                                    "% refined component", "p($0) :- #program_p($0).", "% component",
+                                                    "% refined component", "p(X,$0) :- #program_p($0); f(X)."});
+    }
 }
 
 } // namespace Gringo::Input::Test

@@ -591,6 +591,12 @@ auto build_nodes(SymbolStore &store, std::vector<Stm> const &stms) -> std::vecto
             if (auto it = map_.find(hd_sig); it != map_.end()) {
                 for (auto const &[bd_idx, bd_term, bd_sign] : it->second) {
                     if (unifier.unify(*hd_term, *bd_term)) {
+                        // bd_term is provided by statement i
+                        // in principle one could also store
+                        // that hd_term updates the index of bd_term
+                        // this would avoid having to update later on
+                        // depending on how indices are designed
+                        // edges within components are sufficient
                         nodes[bd_idx].depend.emplace_back(i, bd_term, bd_sign);
                     }
                 }

@@ -1,6 +1,7 @@
 #include <gringo/input/program.hh>
 
 #include <gringo/input/algo/analyze.hh>
+#include <gringo/input/algo/dependency.hh>
 #include <gringo/input/algo/evaluate.hh>
 #include <gringo/input/algo/rewrite.hh>
 #include <gringo/input/algo/rewrite_theory.hh>
@@ -124,6 +125,64 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
         return unmap_params(store, pum, stm);
     }
     return std::nullopt;
+}
+
+void Program::analyze(SymbolStore &store, ProgramParamVec const &params, DependencyBuilder &bld) const {
+    bld.meta(meta_stms_);
+    std::vector<Stm> stms;
+    Util::unordered_set<Signature> sigs;
+    Util::unordered_set<std::reference_wrapper<ProgramParam const>, Util::value_hasher, std::equal_to<ProgramParam>>
+        seen;
+    seen.reserve(params.size());
+    sigs.reserve(params.size());
+    for (auto const &param : params) {
+        if (!seen.emplace(param).second) {
+            continue;
+        }
+        auto [sig_it, sig_ins] = sigs.emplace(Signature{param.first, param.second.size()});
+        if (auto it = parts_.find(*sig_it); it != parts_.end()) {
+            // note that facts are not subject to parameters
+            bld.fact(it->second.facts);
+            if (it->first.second == 0) {
+                stms.insert(stms.end(), it->second.stms.begin(), it->second.stms.end());
+            } else {
+                bld.param(param);
+                if (sig_ins) {
+                    auto loc = it->second.part.loc();
+                    std::vector<Argument> args;
+                    args.reserve(sig_it->second);
+                    for (size_t i = 0; i < sig_it->second; ++i) {
+                        args.emplace_back(TermVariable{loc, store.string("$" + std::to_string(i))});
+                    }
+                    auto name = std::string{};
+                    auto const *prefix = "#program_";
+                    name.reserve(std::strlen(prefix) + sig_it->first.size());
+                    name += prefix;
+                    name += sig_it->first.c_str();
+                    auto fun =
+                        TermFunction{loc, store.string(name),
+                                     Util::make_immutable_array<ArgumentTuple>(ArgumentTuple{std::move(args)}), false};
+                    auto lit = BdLit{BdLitSimple{LitSymbolic{loc, Sign::none, std::move(fun)}}};
+                    for (auto const &stm : it->second.stms) {
+                        std::visit(
+                            [&]<class T>(T const &stm) {
+                                if constexpr (requires(T const &x) { x.body(); }) {
+                                    std::vector<BdLit> body;
+                                    body.reserve(stm.body().size() + 1);
+                                    body.emplace_back(lit);
+                                    body.insert(body.end(), stm.body().begin(), stm.body().end());
+                                    stms.emplace_back(stm.update(a_body = std::move(body)));
+                                } else {
+                                    throw std::runtime_error("unexpected statement in analyze");
+                                }
+                            },
+                            stm);
+                    }
+                }
+            }
+        }
+    }
+    bld.components(Gringo::Input::analyze(store, stms));
 }
 
 } // namespace Gringo::Input

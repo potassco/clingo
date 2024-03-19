@@ -619,7 +619,7 @@ struct ComputeBounds {
     template <class T>
         requires Util::is_among_v<T, StmTheory, StmProjectSig, StmDefined, StmShowSig, StmScript, StmInclude,
                                   StmProgram, StmConst, StmComment>
-    auto operator()([[maybe_unused]] auto const &stm) -> Util::ResultState<Stm> {
+    auto operator()([[maybe_unused]] T const &stm) -> Util::ResultState<Stm> {
         return {true};
     }
 

@@ -41,6 +41,10 @@ struct ProgramPart {
     StmVec stms;
 };
 
+using ProgramSig = std::pair<String, size_t>;
+using ProgramParam = std::pair<String, std::vector<Symbol>>;
+using ProgramParamVec = std::vector<ProgramParam>;
+
 //! Program grouping unprocessed statements.
 struct UnprocessedProgram {
     //! Statements as input grouped by parts.
@@ -58,6 +62,47 @@ struct UnprocessedProgram {
 
 //! Add a statement.
 void add(SymbolStore &store, Stm stm, UnprocessedProgram &prg);
+
+//! The type of a component.
+enum class ComponentType : uint32_t {
+    domain = 1,      //!< The component evaluates to facts.
+    single_pass = 2, //!< The component can be grounded in one pass.
+};
+consteval void is_bit_set_enum(ComponentType flags);
+
+//! A refined component.
+//!
+//! A component consists of a (non-empty) set of statements and a set of incomplete literals.
+//! Instances of incomplete literals are added while grounding a component.
+//! In case of negative literals, instances might also be added after grounding the component.
+//! We cannot assume that an instance of a incomplete negative literal is true
+//! if there has been no instance deriving its positive counterpart previously.
+struct Component {
+    //! The statements in the component.
+    std::vector<Stm const *> stms;
+    //! This vector captures literals that are not yet complete.
+    std::vector<std::pair<Term const *, bool>> incomplete;
+    //! The type of the componnent.
+    ComponentType type;
+};
+
+//! The list of components in groundable order.
+using Components = std::vector<std::vector<Component>>;
+
+//! Interface to process a rewritten and analyzed input program.
+class DependencyBuilder {
+  public:
+    //! Default destructor.
+    virtual ~DependencyBuilder() = default;
+    //! Add parts to ground.
+    virtual void param(ProgramParam const &param) = 0;
+    //! Add meta statements.
+    virtual void meta(std::vector<Stm> const &stms) = 0;
+    //! Add facts.
+    virtual void fact(std::vector<Symbol> const &facts) = 0;
+    //! Add components.
+    virtual void components(Components const &comps) = 0;
+};
 
 //! A program consisting of parts.
 class Program {
@@ -104,6 +149,9 @@ class Program {
             }
         }
     }
+
+    //! Prepare the statements in a program for grounding.
+    void analyze(SymbolStore &store, ProgramParamVec const &params, DependencyBuilder &bld) const;
 
   private:
     //! The signature of a program part.

@@ -44,32 +44,6 @@ namespace Gringo::Input {
 // - component graph uses both dependencies
 // - refined component graph only considers positive ones
 
-//! The type of a component.
-enum class ComponentType : uint32_t {
-    domain = 1,      //!< The component evaluates to facts.
-    single_pass = 2, //!< The component can be grounded in one pass.
-};
-consteval void is_bit_set_enum(ComponentType flags);
-
-//! A refined component.
-//!
-//! A component consists of a (non-empty) set of statements and a set of incomplete literals.
-//! Instances of incomplete literals are added while grounding a component.
-//! In case of negative literals, instances might also be added after grounding the component.
-//! We cannot assume that an instance of a incomplete negative literal is true
-//! if there has been no instance deriving its positive counterpart previously.
-struct Component {
-    //! The statements in the component.
-    std::vector<Stm const *> stms;
-    //! This vector captures literals that are not yet complete.
-    std::vector<std::pair<Term const *, bool>> incomplete;
-    //! The type of the componnent.
-    ComponentType type;
-};
-
-//! The list of components in groundable order.
-using Components = std::vector<std::vector<Component>>;
-
 //! Analyze the given statements organizing them in components for grounding.
 auto analyze(SymbolStore &store, std::vector<Stm> const &stms) -> Components;
 
