@@ -8,6 +8,8 @@
 
 namespace Gringo {
 
+namespace {
+
 //! Helper for parsing.
 struct Parser {
     //! Scan statements.
@@ -79,6 +81,46 @@ struct Parser {
     bool processed_stdin = false;
 };
 
+// TODO: here transform statements into grounding directives
+struct Builder : Input::DependencyBuilder {
+    void param(Input::ProgramParam const &param) override {
+        std::cerr << "#program_" << param.first << "(";
+        bool comma = false;
+        for (auto const &sym : param.second) {
+            if (comma) {
+                std::cerr << ", ";
+            } else {
+                comma = true;
+            }
+            std::cerr << sym;
+        }
+        std::cerr << ").\n";
+    }
+    void meta(std::vector<Input::Stm> const &stms) override {
+        for (auto const &stm : stms) {
+            std::cerr << stm << "\n";
+        }
+    }
+    void fact(std::vector<Symbol> const &facts) override {
+        for (auto const &fact : facts) {
+            std::cerr << fact << ".\n";
+        }
+    }
+    void components(Input::Components const &comps) override {
+        for (auto const &ref_comps : comps) {
+            std::cerr << "% component\n";
+            for (auto const &ref_comp : ref_comps) {
+                std::cerr << "% refined component\n";
+                for (auto const &stm : ref_comp.stms) {
+                    std::cerr << *stm << "\n";
+                }
+            }
+        }
+    }
+};
+
+} // namespace
+
 void Grounder::parse(std::string_view prg) {
     GRINGO_REPORT(log_, debug) << "parsing...";
     auto prs = Parser{log_, store_, unprocessed_prg_};
@@ -110,7 +152,12 @@ void Grounder::prepare() {
     unprocessed_prg_.clear();
 }
 
-void Grounder::ground() { GRINGO_REPORT(log_, debug) << "grounding..."; }
+void Grounder::ground(Input::ProgramParamVec const &params) {
+    GRINGO_REPORT(log_, debug) << "grounding...";
+    Builder bld;
+    prg_.analyze(store_, params, bld);
+    std::cerr.flush();
+}
 
 void Grounder::output_unprocessed_program(std::ostream &out) {
     for (auto const &stm : unprocessed_prg_.const_stms) {

@@ -14,7 +14,7 @@ class Grounder {
     //! Prepare a program for grounding.
     void prepare();
     //! Ground the program.
-    void ground();
+    void ground(Input::ProgramParamVec const &params);
 
     //! Output the current unprocessed program.
     void output_unprocessed_program(std::ostream &out);

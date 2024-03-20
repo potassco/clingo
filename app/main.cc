@@ -6,9 +6,11 @@
 
 using namespace Gringo::Input;
 
+enum class AppMode { parse, rewrite, ground };
+
 auto main(int argc, char *argv[]) -> int {
     auto opts = RewriteOptions{};
-    bool parse_only = false;
+    auto mode = AppMode::ground;
     std::vector<std::string> files;
     auto log_level = Gringo::LogLevel::info;
 
@@ -43,8 +45,19 @@ auto main(int argc, char *argv[]) -> int {
         }
         return std::string{"unexpected value"};
     });
+    app.add_option("--mode", "{parse,rewrite,ground}")->check([&mode](std::string const &value) {
+        using P = std::pair<char const *, AppMode>;
+        auto modes =
+            std::array{P{"parse", AppMode::parse}, P{"rewrite", AppMode::rewrite}, P{"ground", AppMode::ground}};
+        for (auto &[name, m] : modes) {
+            if (name == value) {
+                mode = m;
+                return std::string{};
+            }
+        }
+        return std::string{"unexpected value"};
+    });
     app.add_flag("--project-anonymous", opts.project_anonymous, "project anoymous variables in negated literals");
-    app.add_flag("--parse-only", parse_only, "project anoymous variables in negated literals");
     try {
         app.parse(argc, argv);
     } catch (CLI::ParseError const &e) {
@@ -56,14 +69,18 @@ auto main(int argc, char *argv[]) -> int {
         log.set_level(log_level);
         auto store = Gringo::make_symbol_store(true, false);
         Gringo::Grounder grd{log, *store, std::move(opts)};
-        grd.parse(files);
         [&]() {
-            if (parse_only) {
+            grd.parse(files);
+            if (mode == AppMode::parse) {
                 grd.output_unprocessed_program(std::cout);
                 return;
             }
             grd.prepare();
-            grd.output_program(std::cout);
+            if (mode == AppMode::rewrite) {
+                grd.output_program(std::cout);
+                return;
+            }
+            grd.ground(Gringo::Input::ProgramParamVec{{store->string("base"), {}}});
         }();
     } catch (std::exception const &e) {
         fprintf(stderr, "%s: %s\n", log.message_prefix(Gringo::MessageCode::error), e.what());
