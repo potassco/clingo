@@ -52,7 +52,7 @@ protected:
 
     ProblemType getProblemType() override;
     void        run(Clasp::ClaspFacade& clasp) override;
-    ClaspOutput* createOutput(ProblemType f) override;
+    ClaspOutput* createTextOutput(const Clasp::Cli::ClaspAppBase::TextOptions& options) override;
     void        printHelp(const Potassco::ProgramOptions::OptionContext& root) override;
     void        printVersion() override;
 
