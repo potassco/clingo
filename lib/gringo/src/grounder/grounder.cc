@@ -3,6 +3,8 @@
 #include <gringo/input/algo/parse.hh>
 #include <gringo/input/algo/print.hh>
 
+#include <gringo/util/ordered_set.hh>
+
 #include <filesystem>
 #include <iostream>
 
@@ -79,6 +81,44 @@ struct Parser {
     std::deque<std::pair<std::filesystem::path, Input::StmInclude>> includes = {};
     Util::unordered_set<std::filesystem::path> seen = {};
     bool processed_stdin = false;
+};
+
+enum class AtomState : uint64_t {
+    // Indicates that the atom is derived by a fact.
+    fact = 0,
+    // Indicates that the atom is derived by some rule but not a fact.
+    derived = 1,
+    // Indicates that the atom is derived by some external but not a rule or fact.
+    external = 2,
+    // At the time rule (1) is grounded, atom x is not yet defined.
+    // Once (2) has been grounded, there is a definition for it.
+    //
+    //   a :- not x. (1)
+    //   x :- a.     (2)
+    //
+    // The flag indicates atoms that have neither been derived by facts, rules, or externals.
+    unknown = 3,
+};
+
+struct Atom {
+    // The symbolic representation of an atom.
+    Symbol sym;
+    // A unique id among all atoms.
+    mutable uint64_t uid;
+    // Indicates at which iteration an atom has been grounded.
+    // It would be ideal if it were possible to get rid of this field.
+    mutable uint64_t generation : 61;
+    mutable AtomState state : 2;
+
+    friend auto operator==(Atom const &a, Atom const &b) -> bool { return a.sym == b.sym; }
+    friend auto operator<=>(Atom const &a, Atom const &b) { return a.sym <=> b.sym; }
+    auto hash() const -> size_t { return Util::value_hash(sym); }
+};
+
+struct Domain {
+    void dummy() { atoms.emplace(Atom{SymbolStore::inf(), 0, 0, AtomState::fact}); }
+    Util::ordered_set<Atom> atoms;
+    size_t generation;
 };
 
 // TODO: here transform statements into grounding directives
