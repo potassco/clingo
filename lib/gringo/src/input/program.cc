@@ -12,30 +12,42 @@
 
 namespace Gringo::Input {
 
-void add(SymbolStore &store, Stm stm, UnprocessedProgram &prg) {
+void UnprocessedProgram::clear() {
+    parts.clear();
+    const_stms.clear();
+    thy_stms.clear();
+    meta_stms.clear();
+}
+
+void UnprocessedProgram::add(SymbolStore &store, Stm stm) {
     std::visit(
         [&]<class T>(T const &stm) {
             if constexpr (Util::is_among_v<T, StmShowSig, StmProjectSig, StmScript, StmDefined>) {
-                prg.meta_stms.emplace_back(std::move(stm));
+                meta_stms.emplace_back(std::move(stm));
             } else if constexpr (Util::is_among_v<T, StmInclude, StmComment>) {
                 // ignore
             } else if constexpr (std::is_same_v<T, StmTheory>) {
-                prg.thy_stms.emplace_back(std::move(stm));
+                thy_stms.emplace_back(std::move(stm));
             } else if constexpr (std::is_same_v<T, StmConst>) {
-                prg.const_stms.emplace_back(std::move(stm));
+                const_stms.emplace_back(std::move(stm));
             } else if constexpr (std::is_same_v<T, StmProgram>) {
-                prg.parts.emplace_back(stm, StmVec{}, SymbolVec{});
+                ensure_base = false;
+                parts.emplace_back(stm, StmVec{}, SymbolVec{});
             } else {
-                if (prg.parts.empty()) {
-                    prg.parts.emplace_back(StmProgram{location(stm), store.string("base"), {}}, StmVec{}, SymbolVec{});
+                if (parts.empty() || ensure_base) {
+                    if (parts.empty() || std::get<0>(parts.back()).name() != "base" ||
+                        !std::get<0>(parts.back()).args().empty()) {
+                        parts.emplace_back(StmProgram{location(stm), store.string("base"), {}}, StmVec{}, SymbolVec{});
+                    }
+                    ensure_base = false;
                 }
                 if constexpr (std::is_same_v<T, StmRule>) {
                     if (auto fact = is_fact(store, stm); fact) {
-                        std::get<2>(prg.parts.back()).emplace_back(std::move(fact).value());
+                        std::get<2>(parts.back()).emplace_back(std::move(fact).value());
                         return;
                     }
                 }
-                std::get<1>(prg.parts.back()).emplace_back(std::move(stm));
+                std::get<1>(parts.back()).emplace_back(std::move(stm));
             }
         },
         stm);

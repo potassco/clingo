@@ -1,9 +1,4 @@
-#include <gringo/input/program.hh>
-
-#include <gringo/input/algo/parse.hh>
-#include <gringo/input/algo/print.hh>
-
-#include <gringo/core/logger.hh>
+#include <gringo/grounder/grounder.hh>
 
 #include <CLI/CLI.hpp>
 
@@ -54,28 +49,20 @@ auto run(std::string program, std::vector<std::string> args) -> bool {
     }
 
     auto log = Gringo::Logger{};
-    log.enable_color(false);
     try {
-        std::optional<UnprocessedProgram> uprg;
-        if (!parse_only) {
-            uprg.emplace();
-        }
-        auto store = Gringo::make_symbol_store(true, false);
+        log.enable_color(false);
         log.set_level(log_level);
-        GRINGO_REPORT(log, debug) << "starting up";
-        auto scanner = scan_string(log, *store, program);
-        for (auto stm = scanner.scan(); stm; stm = scanner.scan()) {
-            if (uprg) {
-                add(*store, std::move(stm).value(), *uprg);
-            } else {
-                std::cout << *stm << "\n";
+        auto store = Gringo::make_symbol_store(true, false);
+        Gringo::Grounder grd{log, *store, std::move(opts)};
+        grd.parse(program);
+        [&]() {
+            if (parse_only) {
+                grd.output_unprocessed_program(std::cout);
+                return;
             }
-        }
-        if (uprg) {
-            Program prg{opts};
-            prg.join(log, *store, std::move(uprg).value());
-            prg.visit_stms(*store, [](auto const &stm) { std::cout << stm << "\n"; });
-        }
+            grd.prepare();
+            grd.output_program(std::cout);
+        }();
     } catch (std::exception const &e) {
         fprintf(stderr, "%s: %s\n", log.message_prefix(Gringo::MessageCode::error), e.what());
         fflush(stderr);

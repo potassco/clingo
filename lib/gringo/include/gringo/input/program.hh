@@ -50,6 +50,12 @@ struct UnprocessedProgram {
     //! Statements as input grouped by parts.
     using PartVec = std::vector<std::tuple<StmProgram, StmVec, SymbolVec>>;
 
+    //! Add a statement.
+    void add(SymbolStore &store, Stm stm);
+
+    //! Add a statement.
+    void clear();
+
     //! Unprocessed statemtents.
     PartVec parts;
     //! Unprocessed const statements.
@@ -58,10 +64,9 @@ struct UnprocessedProgram {
     std::vector<StmTheory> thy_stms;
     //! Meta statements.
     std::vector<Stm> meta_stms;
+    //! Ensure base.
+    bool ensure_base = true;
 };
-
-//! Add a statement.
-void add(SymbolStore &store, Stm stm, UnprocessedProgram &prg);
 
 //! The type of a component.
 enum class ComponentType : uint32_t {

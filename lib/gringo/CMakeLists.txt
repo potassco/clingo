@@ -1,6 +1,7 @@
 add_library(gringo
     "src/core/number.cc"
     "src/core/symbol.cc"
+    "src/grounder/grounder.cc"
     "src/input/algo/add_sign.cc"
     "src/input/algo/analyze.cc"
     "src/input/algo/check_syntax.cc"

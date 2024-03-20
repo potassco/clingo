@@ -15,7 +15,7 @@ auto rewrite_program(std::vector<char const *> stms) -> SV {
     UnprocessedProgram upr;
     for (auto const *str : stms) {
         if (auto stm = ph.statement(str); stm) {
-            add(ph, *stm, upr);
+            upr.add(ph, *stm);
         }
     }
     Program prg{RewriteOptions{}};

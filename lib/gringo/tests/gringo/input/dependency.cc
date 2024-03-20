@@ -193,11 +193,11 @@ TEST_CASE("dependency") {
         auto bld = Builder{};
         auto ph = ParseHelper();
         auto uprg = UnprocessedProgram{};
-        add(ph, ph.statement("#show p/2.").value(), uprg);
-        add(ph, ph.statement("#program p(a).").value(), uprg);
-        add(ph, ph.statement("p(a).").value(), uprg);
-        add(ph, ph.statement("p(b).").value(), uprg);
-        add(ph, ph.statement("p(X,a) :- f(X).").value(), uprg);
+        uprg.add(ph, ph.statement("#show p/2.").value());
+        uprg.add(ph, ph.statement("#program p(a).").value());
+        uprg.add(ph, ph.statement("p(a).").value());
+        uprg.add(ph, ph.statement("p(b).").value());
+        uprg.add(ph, ph.statement("p(X,a) :- f(X).").value());
         auto prg = Program{ph.ctx().options()};
         prg.join(ph, ph, uprg);
         prg.analyze(ph, {ProgramParam{ph.store().string("p"), {ph.store().num(Number(1))}}}, bld);
