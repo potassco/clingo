@@ -1,4 +1,4 @@
-#include "gringo/input/test.hh"
+#include "test.hh"
 
 #include <gringo/input/program.hh>
 
