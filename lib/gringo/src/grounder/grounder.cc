@@ -83,42 +83,14 @@ struct Parser {
     bool processed_stdin = false;
 };
 
-enum class AtomState : uint64_t {
-    // Indicates that the atom is derived by a fact.
-    fact = 0,
-    // Indicates that the atom is derived by some rule but not a fact.
-    derived = 1,
-    // Indicates that the atom is derived by some external but not a rule or fact.
-    external = 2,
-    // At the time rule (1) is grounded, atom x is not yet defined.
-    // Once (2) has been grounded, there is a definition for it.
-    //
-    //   a :- not x. (1)
-    //   x :- a.     (2)
-    //
-    // The flag indicates atoms that have neither been derived by facts, rules, or externals.
-    unknown = 3,
-};
-
-struct Atom {
-    // The symbolic representation of an atom.
-    Symbol sym;
-    // A unique id among all atoms.
-    mutable uint64_t uid;
-    // Indicates at which iteration an atom has been grounded.
-    // It would be ideal if it were possible to get rid of this field.
-    mutable uint64_t generation : 61;
-    mutable AtomState state : 2;
-
-    friend auto operator==(Atom const &a, Atom const &b) -> bool { return a.sym == b.sym; }
-    friend auto operator<=>(Atom const &a, Atom const &b) { return a.sym <=> b.sym; }
-    auto hash() const -> size_t { return Util::value_hash(sym); }
-};
-
-struct Domain {
-    void dummy() { atoms.emplace(Atom{SymbolStore::inf(), 0, 0, AtomState::fact}); }
-    Util::ordered_set<Atom> atoms;
-    size_t generation;
+struct BuilderStm {
+    template <class T> void operator()([[maybe_unused]] T const &stm) const {
+        throw std::logic_error("implement me!!!");
+    }
+    void operator()(Input::StmRule const &stm) const {
+        // TODO: first step handle simple literals
+        std::cerr << stm << "\n";
+    }
 };
 
 // TODO: here transform statements into grounding directives
@@ -147,12 +119,13 @@ struct Builder : Input::DependencyBuilder {
         }
     }
     void components(Input::Components const &comps) override {
+        BuilderStm bld_stm;
         for (auto const &ref_comps : comps) {
             std::cerr << "% component\n";
             for (auto const &ref_comp : ref_comps) {
                 std::cerr << "% refined component\n";
                 for (auto const &stm : ref_comp.stms) {
-                    std::cerr << *stm << "\n";
+                    std::visit(bld_stm, *stm);
                 }
             }
         }
