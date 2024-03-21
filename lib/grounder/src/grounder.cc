@@ -5,6 +5,7 @@
 #include <gringo/input/algo/analyze.hh>
 #include <gringo/input/algo/parse.hh>
 #include <gringo/input/algo/print.hh>
+#include <gringo/input/algo/visit_variables.hh>
 
 #include <gringo/util/unordered_map.hh>
 
@@ -193,14 +194,26 @@ struct BuilderTerm {
     Util::unordered_map<String, size_t> &var_map;
 };
 
+struct BuilderLit {
+    template <class T> void operator()([[maybe_unused]] T const &lit) const {
+        throw std::logic_error("implement me!!!");
+    }
+    void operator()(Input::LitSymbolic const &lit) const {
+        BuilderTerm bld_term{var_map};
+        auto term = std::visit(bld_term, lit.term());
+    }
+    Util::unordered_map<String, size_t> &var_map;
+};
+
 struct BuilderHdLit {
     template <class T> void operator()([[maybe_unused]] T const &lit) const {
         throw std::logic_error("implement me!!!");
     }
     void operator()(Input::HdLitSimple const &lit) const {
-        // TODO: first step handle simple literals
-        std::cerr << "  " << lit << "\n";
+        auto bld_lit = BuilderLit{var_map};
+        std::visit(bld_lit, lit.lit());
     }
+    Util::unordered_map<String, size_t> &var_map;
 };
 
 struct BuilderBdLit {
@@ -208,9 +221,10 @@ struct BuilderBdLit {
         throw std::logic_error("implement me!!!");
     }
     void operator()(Input::BdLitSimple const &lit) const {
-        // TODO: first step handle simple literals
-        std::cerr << "  " << lit << "\n";
+        auto bld_lit = BuilderLit{var_map};
+        std::visit(bld_lit, lit.lit());
     }
+    Util::unordered_map<String, size_t> &var_map;
 };
 
 struct BuilderStm {
@@ -218,8 +232,8 @@ struct BuilderStm {
         throw std::logic_error("implement me!!!");
     }
     void operator()(Input::StmRule const &stm) const {
-        BuilderBdLit bld_bd;
-        BuilderHdLit bld_hd;
+        auto bld_bd = BuilderBdLit{var_map};
+        auto bld_hd = BuilderHdLit{var_map};
         // TODO: first step handle simple literals
         std::cerr << stm << "\n";
         std::visit(bld_hd, stm.head());
@@ -227,6 +241,7 @@ struct BuilderStm {
             std::visit(bld_bd, lit);
         }
     }
+    Util::unordered_map<String, size_t> &var_map;
 };
 
 // TODO: here transform statements into grounding directives
@@ -255,12 +270,19 @@ struct Builder : Input::DependencyBuilder {
         }
     }
     void components(Input::Components const &comps) override {
-        BuilderStm bld_stm;
         for (auto const &ref_comps : comps) {
             std::cerr << "% component\n";
             for (auto const &ref_comp : ref_comps) {
                 std::cerr << "% refined component\n";
                 for (auto const &stm : ref_comp.stms) {
+                    Util::unordered_map<String, size_t> var_map;
+                    Input::visit_variables(
+                        *stm,
+                        [&var_map]([[maybe_unused]] Input::Location const &loc, String var) {
+                            var_map.try_emplace(var, var_map.size());
+                        },
+                        Input::VariableContext::all);
+                    auto bld_stm = BuilderStm{var_map};
                     std::visit(bld_stm, *stm);
                 }
             }

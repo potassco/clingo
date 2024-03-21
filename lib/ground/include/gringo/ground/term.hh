@@ -4,12 +4,13 @@
 
 namespace Gringo::Ground {
 
-using Assignment = std::vector<Symbol>;
+using Assignment = std::vector<std::optional<Symbol>>;
 
 class Term {
   public:
     virtual ~Term() = default;
-    [[nodiscard]] virtual auto match(Symbol sym, Assignment const &ass) const -> bool;
+    [[nodiscard]] virtual auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool = 0;
+    [[nodiscard]] virtual auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> = 0;
 };
 using UTerm = std::unique_ptr<Term>;
 using UTermVec = std::vector<UTerm>;
@@ -17,7 +18,8 @@ using UTermVec = std::vector<UTerm>;
 class TermSymbol : public Term {
   public:
     TermSymbol(Symbol sym) : sym_{sym} {}
-    [[nodiscard]] auto match(Symbol sym, Assignment const &ass) const -> bool override;
+    [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
+    [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
 
   private:
     Symbol sym_;
@@ -26,7 +28,8 @@ class TermSymbol : public Term {
 class TermVariable : public Term {
   public:
     TermVariable(size_t var) : var_{var} {}
-    [[nodiscard]] auto match(Symbol sym, Assignment const &ass) const -> bool override;
+    [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
+    [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
 
   private:
     size_t var_;
@@ -35,7 +38,8 @@ class TermVariable : public Term {
 class TermLinear : public Term {
   public:
     TermLinear(Number m, size_t var, Number n) : m_{std::move(m)}, n_{std::move(n)}, var_{var} {}
-    [[nodiscard]] auto match(Symbol sym, Assignment const &ass) const -> bool override;
+    [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
+    [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
 
   private:
     Number m_;
@@ -53,7 +57,8 @@ enum class UnaryOperator : int {
 class TermUnary : public Term {
   public:
     TermUnary(UnaryOperator op, UTerm rhs) : rhs_{std::move(rhs)}, op_{op} {}
-    [[nodiscard]] auto match(Symbol sym, Assignment const &ass) const -> bool override;
+    [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
+    [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
 
   private:
     UTerm rhs_;
@@ -76,7 +81,8 @@ enum class BinaryOperator : int {
 class TermBinary : public Term {
   public:
     TermBinary(UTerm lhs, BinaryOperator op, UTerm rhs) : lhs_{std::move(lhs)}, rhs_{std::move(rhs)}, op_{op} {}
-    [[nodiscard]] auto match(Symbol sym, Assignment const &ass) const -> bool override;
+    [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
+    [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
 
   private:
     UTerm lhs_;
@@ -87,7 +93,8 @@ class TermBinary : public Term {
 class TermTuple : public Term {
   public:
     TermTuple(UTermVec args) : args_{std::move(args)} {}
-    [[nodiscard]] auto match(Symbol sym, Assignment const &ass) const -> bool override;
+    [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
+    [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
 
   private:
     UTermVec args_;
@@ -96,7 +103,8 @@ class TermTuple : public Term {
 class TermFunction : public Term {
   public:
     TermFunction(String name, UTermVec args) : name_{name}, args_{std::move(args)} {}
-    [[nodiscard]] auto match(Symbol sym, Assignment const &ass) const -> bool override;
+    [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
+    [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
 
   private:
     String name_;
