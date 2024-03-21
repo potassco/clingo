@@ -83,13 +83,39 @@ struct Parser {
     bool processed_stdin = false;
 };
 
+struct BuilderHdLit {
+    template <class T> void operator()([[maybe_unused]] T const &lit) const {
+        throw std::logic_error("implement me!!!");
+    }
+    void operator()(Input::HdLitSimple const &lit) const {
+        // TODO: first step handle simple literals
+        std::cerr << "  " << lit << "\n";
+    }
+};
+
+struct BuilderBdLit {
+    template <class T> void operator()([[maybe_unused]] T const &lit) const {
+        throw std::logic_error("implement me!!!");
+    }
+    void operator()(Input::BdLitSimple const &lit) const {
+        // TODO: first step handle simple literals
+        std::cerr << "  " << lit << "\n";
+    }
+};
+
 struct BuilderStm {
     template <class T> void operator()([[maybe_unused]] T const &stm) const {
         throw std::logic_error("implement me!!!");
     }
     void operator()(Input::StmRule const &stm) const {
+        BuilderBdLit bld_bd;
+        BuilderHdLit bld_hd;
         // TODO: first step handle simple literals
         std::cerr << stm << "\n";
+        std::visit(bld_hd, stm.head());
+        for (auto const &lit : stm.body()) {
+            std::visit(bld_bd, lit);
+        }
     }
 };
 
