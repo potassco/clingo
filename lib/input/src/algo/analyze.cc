@@ -324,35 +324,44 @@ auto check_type(Term const &term, TermCheckType type, CheckTypeResult *res) -> b
     return CheckType{type, res}(term);
 }
 
-[[nodiscard]] auto is_linear(TermBinary const &term) -> std::optional<String> {
+[[nodiscard]] auto is_linear(TermBinary const &term) -> bool {
     if (term.op() != BinaryOperator::plus) {
-        return std::nullopt;
+        return false;
     }
     auto const *mul = std::get_if<TermBinary>(&term.lhs().get());
     if (mul == nullptr || mul->op() != BinaryOperator::times) {
-        return std::nullopt;
+        return false;
     }
     auto const *n = std::get_if<TermSymbol>(&term.rhs().get());
     if (n == nullptr || n->value().type() != SymbolType::number) {
-        return std::nullopt;
+        return false;
     }
     auto const *m = std::get_if<TermSymbol>(&mul->lhs().get());
     if (m == nullptr || m->value().type() != SymbolType::number || *m->value().num() == 0) {
-        return std::nullopt;
+        return false;
     }
-    auto const *v = std::get_if<TermVariable>(&mul->rhs().get());
-    if (v == nullptr) {
-        return std::nullopt;
-    }
-    return v->name();
+    return std::get_if<TermVariable>(&mul->rhs().get()) != nullptr;
 }
 
-[[nodiscard]] auto is_linear(Term const &term) -> std::optional<String> {
-    auto const *plus = std::get_if<TermBinary>(&term);
-    if (plus == nullptr) {
-        return std::nullopt;
+[[nodiscard]] auto is_linear(Term const &term) -> bool {
+    auto const *bin = std::get_if<TermBinary>(&term);
+    return bin != nullptr && is_linear(*bin);
+}
+
+//! Check if the given term is a linear term and return an object to access its elements.
+auto check_linear(TermBinary const &term) -> std::optional<LinearTerm> {
+    if (is_linear(term)) {
+        return LinearTerm{term};
     }
-    return is_linear(*plus);
+    return std::nullopt;
+}
+
+//! Check if the given term is a linear term and return an object to access its elements.
+auto check_linear(Term const &term) -> std::optional<LinearTerm> {
+    if (auto const *bin = std::get_if<TermBinary>(&term); bin != nullptr) {
+        return check_linear(*bin);
+    }
+    return std::nullopt;
 }
 
 [[nodiscard]] auto is_interval(Term const &term) -> bool {

@@ -35,14 +35,45 @@ struct CheckTypeResult {
 //! Query information about the structure of the given term.
 auto check_type(Term const &term, TermCheckType type, CheckTypeResult *res = nullptr) -> bool;
 
+//! Helper to access elements of linear terms.
+class LinearTerm {
+  public:
+    //! The coefficient.
+    [[nodiscard]] auto m() const -> NumberRef { return std::get<TermSymbol>(term_m()).value().num(); }
+    //! The constant.
+    [[nodiscard]] auto n() const -> NumberRef { return std::get<TermSymbol>(term_n()).value().num(); }
+    //! The variable name.
+    [[nodiscard]] auto x() const -> String { return std::get<TermVariable>(term_x()).name(); }
+    //! The term for the coefficient.
+    [[nodiscard]] auto term_m() const -> Term const & { return *std::get<TermBinary>(term_mx()).lhs(); }
+    //! The term for the constant.
+    [[nodiscard]] auto term_n() const -> Term const & { return mxn_.rhs(); }
+    //! The term for the variable.
+    [[nodiscard]] auto term_x() const -> Term const & { return *std::get<TermBinary>(term_mx()).rhs(); }
+    //! The term for the coefficient times the varibale.
+    [[nodiscard]] auto term_mx() const -> Term const & { return mxn_.lhs(); }
+    //! The term for the whole linear term.
+    [[nodiscard]] auto term_mxn() const -> TermBinary const & { return mxn_; }
+
+    friend auto check_linear(TermBinary const &term) -> std::optional<LinearTerm>;
+
+  private:
+    LinearTerm(TermBinary const &mxn) : mxn_{mxn} {}
+
+    TermBinary const &mxn_;
+};
+
 //! Check if the given term is a linear term.
-//!
-//! Returns "X" if the term has form m*X+n where m is a non-zero number, X a
-//! variable, and n a number.
-[[nodiscard]] auto is_linear(Term const &term) -> std::optional<String>;
+[[nodiscard]] auto is_linear(Term const &term) -> bool;
 
 //! See is_linear().
-[[nodiscard]] auto is_linear(TermBinary const &term) -> std::optional<String>;
+[[nodiscard]] auto is_linear(TermBinary const &term) -> bool;
+
+//! Check if the given term is a linear term and return an object to access its elements.
+auto check_linear(TermBinary const &term) -> std::optional<LinearTerm>;
+
+//! See check_linear().
+auto check_linear(Term const &term) -> std::optional<LinearTerm>;
 
 //! Returns true if the term has form t..u.
 [[nodiscard]] auto is_interval(Term const &term) -> bool;

@@ -63,8 +63,8 @@ struct GetDep {
     }
 
     void operator()(TermBinary const &term, bool can_provide) const {
-        if (auto var = is_linear(term); can_provide && var && !ignore.contains(*var)) {
-            provide.emplace_back(*var);
+        if (auto lin = check_linear(term); can_provide && lin && !ignore.contains(lin->x())) {
+            provide.emplace_back(lin->x());
         } else {
             operator()(*term.lhs(), false);
             operator()(*term.rhs(), false);

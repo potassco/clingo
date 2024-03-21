@@ -200,53 +200,6 @@ struct AddProvide {
 
 using Assignment = Util::unordered_map<String, Term const *>;
 
-class LinearTerm {
-  public:
-    [[nodiscard]] auto m() const -> NumberRef { return std::get<TermSymbol>(m_).value().num(); }
-    [[nodiscard]] auto n() const { return std::get<TermSymbol>(n_).value().num(); }
-    [[nodiscard]] auto x() const { return std::get<TermVariable>(x_).name(); }
-    [[nodiscard]] auto term_m() const { return m_; }
-    [[nodiscard]] auto term_n() const { return n_; }
-    [[nodiscard]] auto term_x() const { return x_; }
-    [[nodiscard]] auto term_mx() const { return mx_; }
-    [[nodiscard]] auto term_mxn() const { return mxn_; }
-
-    friend auto check_linear(TermBinary const &term) -> std::optional<LinearTerm>;
-
-  private:
-    LinearTerm(TermBinary const &mxn, Term const &mx, Term const &m, Term const &x, Term const &n)
-        : mxn_{mxn}, mx_{mx}, m_{m}, x_{x}, n_{n} {}
-
-    TermBinary const &mxn_;
-    Term const &mx_;
-    Term const &m_;
-    Term const &x_;
-    Term const &n_;
-};
-
-auto check_linear(TermBinary const &term) -> std::optional<LinearTerm> {
-    if (term.op() != BinaryOperator::plus) {
-        return std::nullopt;
-    }
-    auto const *mul = std::get_if<TermBinary>(&term.lhs().get());
-    if (mul == nullptr || mul->op() != BinaryOperator::times) {
-        return std::nullopt;
-    }
-    auto const *n = std::get_if<TermSymbol>(&term.rhs().get());
-    if (n == nullptr || n->value().type() != SymbolType::number) {
-        return std::nullopt;
-    }
-    auto const *m = std::get_if<TermSymbol>(&mul->lhs().get());
-    if (m == nullptr || m->value().type() != SymbolType::number || *m->value().num() == 0) {
-        return std::nullopt;
-    }
-    auto const *v = std::get_if<TermVariable>(&mul->rhs().get());
-    if (v == nullptr) {
-        return std::nullopt;
-    }
-    return LinearTerm{term, term.lhs().get(), mul->lhs().get(), mul->rhs().get(), term.rhs().get()};
-}
-
 class Unifier {
   public:
     Unifier(SymbolStore &store) : store_{store} {}

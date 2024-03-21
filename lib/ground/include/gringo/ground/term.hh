@@ -4,28 +4,43 @@
 
 namespace Gringo::Ground {
 
+using Assignment = std::vector<Symbol>;
+
 class Term {
   public:
     virtual ~Term() = default;
+    [[nodiscard]] virtual auto match(Symbol sym, Assignment const &ass) const -> bool;
 };
 using UTerm = std::unique_ptr<Term>;
 using UTermVec = std::vector<UTerm>;
 
 class TermSymbol : public Term {
   public:
-    Symbol sym;
+    TermSymbol(Symbol sym) : sym_{sym} {}
+    [[nodiscard]] auto match(Symbol sym, Assignment const &ass) const -> bool override;
+
+  private:
+    Symbol sym_;
 };
 
 class TermVariable : public Term {
   public:
-    size_t var;
+    TermVariable(size_t var) : var_{var} {}
+    [[nodiscard]] auto match(Symbol sym, Assignment const &ass) const -> bool override;
+
+  private:
+    size_t var_;
 };
 
 class TermLinear : public Term {
   public:
-    Number m;
-    Number n;
-    size_t var;
+    TermLinear(Number m, size_t var, Number n) : m_{std::move(m)}, n_{std::move(n)}, var_{var} {}
+    [[nodiscard]] auto match(Symbol sym, Assignment const &ass) const -> bool override;
+
+  private:
+    Number m_;
+    Number n_;
+    size_t var_;
 };
 
 //! Available unary operations.
@@ -37,8 +52,12 @@ enum class UnaryOperator : int {
 
 class TermUnary : public Term {
   public:
-    UTerm rhs;
-    UnaryOperator op;
+    TermUnary(UnaryOperator op, UTerm rhs) : rhs_{std::move(rhs)}, op_{op} {}
+    [[nodiscard]] auto match(Symbol sym, Assignment const &ass) const -> bool override;
+
+  private:
+    UTerm rhs_;
+    UnaryOperator op_;
 };
 
 //! Available binary operations.
@@ -56,20 +75,32 @@ enum class BinaryOperator : int {
 
 class TermBinary : public Term {
   public:
-    UTerm lhs;
-    UTerm rhs;
-    BinaryOperator op;
+    TermBinary(UTerm lhs, BinaryOperator op, UTerm rhs) : lhs_{std::move(lhs)}, rhs_{std::move(rhs)}, op_{op} {}
+    [[nodiscard]] auto match(Symbol sym, Assignment const &ass) const -> bool override;
+
+  private:
+    UTerm lhs_;
+    UTerm rhs_;
+    BinaryOperator op_;
 };
 
 class TermTuple : public Term {
   public:
-    UTermVec args;
+    TermTuple(UTermVec args) : args_{std::move(args)} {}
+    [[nodiscard]] auto match(Symbol sym, Assignment const &ass) const -> bool override;
+
+  private:
+    UTermVec args_;
 };
 
 class TermFunction : public Term {
   public:
-    String name;
-    UTermVec args;
+    TermFunction(String name, UTermVec args) : name_{name}, args_{std::move(args)} {}
+    [[nodiscard]] auto match(Symbol sym, Assignment const &ass) const -> bool override;
+
+  private:
+    String name_;
+    UTermVec args_;
 };
 
 } // namespace Gringo::Ground

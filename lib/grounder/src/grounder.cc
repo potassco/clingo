@@ -1,9 +1,12 @@
 #include <gringo/grounder/grounder.hh>
 
+#include <gringo/ground/term.hh>
+
+#include <gringo/input/algo/analyze.hh>
 #include <gringo/input/algo/parse.hh>
 #include <gringo/input/algo/print.hh>
 
-#include <gringo/util/ordered_set.hh>
+#include <gringo/util/unordered_map.hh>
 
 #include <filesystem>
 #include <iostream>
@@ -81,6 +84,113 @@ struct Parser {
     std::deque<std::pair<std::filesystem::path, Input::StmInclude>> includes = {};
     Util::unordered_set<std::filesystem::path> seen = {};
     bool processed_stdin = false;
+};
+
+struct BuilderTerm {
+    auto operator()(Input::TermVariable const &term) const -> Ground::UTerm {
+        assert(var_map.find(term.name()) != var_map.end());
+        return std::make_unique<Ground::TermVariable>(var_map.find(term.name())->second);
+    }
+    auto operator()(Input::TermSymbol const &term) const -> Ground::UTerm {
+        return std::make_unique<Ground::TermSymbol>(term.value());
+    }
+    auto operator()(Input::TermTuple const &term) const -> Ground::UTerm {
+        assert(term.pool().size() == 1 && std::holds_alternative<Input::ArgumentTuple>(term.pool().front()));
+        auto const &args = std::get<Input::ArgumentTuple>(term.pool().front()).elems();
+        Ground::UTermVec g_args;
+        g_args.reserve(args.size());
+        for (auto const &arg : args) {
+            if (!std::holds_alternative<Input::Term>(arg)) {
+                // This should set a flag.
+                // The term can be constructed by inserting a special projection term,
+                // which are handled in a second pass:
+                // - create a copy of renaming variables in order of occurrence
+                //   - this term can serve as a unique representation to identify the projection
+                //   - we can genearate a unique name for a projection domain
+                // - create a copy removing projected places setting this unique name
+                //   - we need two copies one with the original and the renamed variables
+                //   - the version with the original variables can be used in rule bodies
+                //   - the version with the renamed variables can be used to create a projection rule
+                throw std::logic_error("implement me: handle projection!!!");
+            }
+            g_args.emplace_back(std::visit(*this, std::get<Input::Term>(arg)));
+        }
+        return std::make_unique<Ground::TermTuple>(std::move(g_args));
+    }
+    auto operator()(Input::TermFunction const &term) const -> Ground::UTerm {
+        assert(!term.external() && term.pool().size() == 1);
+        auto const &args = term.pool().front().elems();
+        Ground::UTermVec g_args;
+        g_args.reserve(args.size());
+        for (auto const &arg : args) {
+            if (!std::holds_alternative<Input::Term>(arg)) {
+                // see above...
+                throw std::logic_error("implement me: handle projection!!!");
+            }
+            g_args.emplace_back(std::visit(*this, std::get<Input::Term>(arg)));
+        }
+        return std::make_unique<Ground::TermFunction>(term.name(), std::move(g_args));
+    }
+    auto operator()(Input::TermAbs const &term) const -> Ground::UTerm {
+        assert(term.pool().size() == 1);
+        return std::make_unique<Ground::TermUnary>(Ground::UnaryOperator::abs, std::visit(*this, term.pool().front()));
+    }
+    auto operator()(Input::TermUnary const &term) const -> Ground::UTerm {
+        Ground::UnaryOperator op =
+            term.op() == Input::UnaryOperator::negate ? Ground::UnaryOperator::minus : Ground::UnaryOperator::invert;
+        return std::make_unique<Ground::TermUnary>(op, std::visit(*this, *term.rhs()));
+    }
+    auto operator()(Input::TermBinary const &term) const -> Ground::UTerm {
+        assert(term.op() != Input::BinaryOperator::dots);
+        if (auto lin = Input::check_linear(term); lin) {
+            assert(var_map.find(lin->x()) != var_map.end());
+            return std::make_unique<Ground::TermLinear>(*lin->m(), var_map.find(lin->x())->second, lin->n());
+        }
+        Ground::BinaryOperator op = Ground::BinaryOperator::plus;
+        switch (term.op()) {
+            case Input::BinaryOperator::and_: {
+                op = Ground::BinaryOperator::and_;
+                break;
+            }
+            case Input::BinaryOperator::div: {
+                op = Ground::BinaryOperator::div;
+                break;
+            }
+            case Input::BinaryOperator::dots: {
+                break;
+            }
+            case Input::BinaryOperator::minus: {
+                op = Ground::BinaryOperator::minus;
+                break;
+            }
+            case Input::BinaryOperator::mod: {
+                op = Ground::BinaryOperator::mod;
+                break;
+            }
+            case Input::BinaryOperator::or_: {
+                op = Ground::BinaryOperator::or_;
+                break;
+            }
+            case Input::BinaryOperator::plus: {
+                op = Ground::BinaryOperator::plus;
+                break;
+            }
+            case Input::BinaryOperator::pow: {
+                op = Ground::BinaryOperator::pow;
+                break;
+            }
+            case Input::BinaryOperator::times: {
+                op = Ground::BinaryOperator::times;
+                break;
+            }
+            case Input::BinaryOperator::xor_: {
+                op = Ground::BinaryOperator::xor_;
+                break;
+            }
+        }
+        return std::make_unique<Ground::TermBinary>(std::visit(*this, *term.lhs()), op, std::visit(*this, *term.rhs()));
+    }
+    Util::unordered_map<String, size_t> &var_map;
 };
 
 struct BuilderHdLit {
