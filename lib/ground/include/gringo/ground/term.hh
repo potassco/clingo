@@ -28,17 +28,37 @@ class TermLinear : public Term {
     size_t var;
 };
 
+//! Available unary operations.
+enum class UnaryOperator : int {
+    minus = 0,  //!< The unary arithmetic minus operation.
+    invert = 1, //!< The bitwise negation operation.
+    abs = 2,    //!< The arithmetic absolute operation.
+};
+
 class TermUnary : public Term {
   public:
-    // TODO: operator
     UTerm rhs;
+    UnaryOperator op;
+};
+
+//! Available binary operations.
+enum class BinaryOperator : int {
+    and_,  //!< The AND bit operation.
+    div,   //!< The (integer) divide arithmetic operation.
+    minus, //!< The minus arithmetic operation.
+    mod,   //!< The modulo arithmetic operation.
+    times, //!< The multiply arithmetic operation.
+    or_,   //!< The OR bit operation.
+    plus,  //!< The plus arithmetic operation.
+    pow,   //!< The exponentiation arithmetic operation.
+    xor_,  //!< The XOR bit operation.
 };
 
 class TermBinary : public Term {
   public:
-    // TODO: operator
     UTerm lhs;
     UTerm rhs;
+    BinaryOperator op;
 };
 
 class TermTuple : public Term {
