@@ -1,5 +1,7 @@
 #include <gringo/ground/term.hh>
 
+#include <gringo/util/optional.hh>
+
 namespace Gringo::Ground {
 
 auto TermSymbol::match([[maybe_unused]] SymbolStore &store, Symbol sym, [[maybe_unused]] Assignment &ass) const
@@ -140,32 +142,53 @@ auto TermUnary::eval(SymbolStore &store, Assignment const &ass) const -> std::op
     return std::nullopt;
 }
 
+namespace {
+
+auto eval_args(SymbolStore &store, Assignment const &ass, UTermVec const &args) -> std::optional<SymbolVec> {
+    SymbolVec res;
+    res.reserve(args.size());
+    for (auto const &arg : args) {
+        if (auto sym = arg->eval(store, ass); sym) {
+            res.emplace_back(*sym);
+        } else {
+            return std::nullopt;
+        }
+    }
+    return res;
+}
+
+auto match_args(SymbolStore &store, Assignment &ass, UTermVec const &term_args, SymbolSpan sym_args) -> bool {
+    if (term_args.size() != sym_args.size()) {
+        return false;
+    }
+    auto it = sym_args.begin();
+    for (auto const &arg : term_args) {
+        if (!arg->match(store, *it++, ass)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+} // namespace
+
 [[nodiscard]] auto TermTuple::match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
-    // TODO: match the arguments
-    static_cast<void>(store);
-    static_cast<void>(sym);
-    static_cast<void>(ass);
-    throw std::logic_error("implement me!!!");
+    return sym.type() == SymbolType::tuple && match_args(store, ass, args_, sym.args());
 }
 
 [[nodiscard]] auto TermTuple::eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> {
-    static_cast<void>(store);
-    static_cast<void>(ass);
-    throw std::logic_error("implement me!!!");
+    return Util::transform(eval_args(store, ass, args_),
+                           [&store](SymbolVec args) { return store.tup(std::move(args)); });
 }
 
 [[nodiscard]] auto TermFunction::match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
-    // TODO: match the arguments
-    static_cast<void>(store);
-    static_cast<void>(sym);
-    static_cast<void>(ass);
-    throw std::logic_error("implement me!!!");
+    return sym.type() == SymbolType::function && !sym.has_classical_sign() && sym.name() == name_ &&
+           match_args(store, ass, args_, sym.args());
 }
 
 [[nodiscard]] auto TermFunction::eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> {
-    static_cast<void>(store);
-    static_cast<void>(ass);
-    throw std::logic_error("implement me!!!");
+    return Util::transform(eval_args(store, ass, args_),
+                           [&store, this](SymbolVec args) { return store.fun(name_, std::move(args), false); });
 }
 
 } // namespace Gringo::Ground
