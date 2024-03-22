@@ -22,6 +22,7 @@ class Lit {
     }
 };
 using ULit = std::unique_ptr<Lit>;
+using ULitVec = std::vector<ULit>;
 
 class LitSymbolic : public Lit {
   public:

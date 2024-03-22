@@ -26,7 +26,7 @@ struct Grounder::Impl {
             auto head = it->first->rename(store, Ground::RenameMode::drop_projection, &it.value(), nullptr);
             auto body = it->first->rename(store, Ground::RenameMode::rename_projection, nullptr, &vars);
             std::cerr << "  TODO: add projection rule:\n";
-            std::cerr << "    " << *head << " :- " << *body << std::endl;
+            std::cerr << "    " << *head << " :- " << *body << "." << std::endl;
         }
         return term->rename(store, Ground::RenameMode::drop_projection, &it.value(), nullptr);
     }
@@ -246,10 +246,22 @@ struct BuilderHdLit {
     void operator()(Input::HdLitSimple const &lit) const {
         auto bld_lit = BuilderLit{impl, var_map};
         auto glit = std::visit(bld_lit, lit.lit());
-        std::cerr << "  TODO: make head\n    " << *glit << std::endl;
+        std::cerr << "  TODO: make rule\n";
+        std::cerr << "    " << *glit << " :- ";
+        bool comma = false;
+        for (auto const &glit : body) {
+            if (comma) {
+                std::cerr << ", ";
+            } else {
+                comma = true;
+            }
+            std::cerr << *glit;
+        }
+        std::cerr << "." << std::endl;
     }
     Grounder::Impl &impl;
     Util::unordered_map<String, size_t> &var_map;
+    Ground::ULitVec &body;
 };
 
 struct BuilderBdLit {
@@ -258,27 +270,29 @@ struct BuilderBdLit {
     }
     void operator()(Input::BdLitSimple const &lit) const {
         auto bld_lit = BuilderLit{impl, var_map};
-        auto glit = std::visit(bld_lit, lit.lit());
-        std::cerr << "  TODO: add to body:    \n    " << *glit << std::endl;
+        body.emplace_back(std::visit(bld_lit, lit.lit()));
     }
     Grounder::Impl &impl;
     Util::unordered_map<String, size_t> &var_map;
+    Ground::ULitVec &body;
 };
 
 struct BuilderStm {
     template <class T> void operator()([[maybe_unused]] T const &stm) const {
         throw std::logic_error("implement me!!!");
     }
+
     void operator()(Input::StmRule const &stm) const {
-        auto bld_bd = BuilderBdLit{impl, var_map};
-        auto bld_hd = BuilderHdLit{impl, var_map};
-        // TODO: first step handle simple literals
-        std::cerr << stm << "\n";
-        std::visit(bld_hd, stm.head());
+        Ground::ULitVec body;
+        auto bld_bd = BuilderBdLit{impl, var_map, body};
+        auto bld_hd = BuilderHdLit{impl, var_map, body};
+        body.reserve(stm.body().size());
         for (auto const &lit : stm.body()) {
             std::visit(bld_bd, lit);
         }
+        std::visit(bld_hd, stm.head());
     }
+
     Grounder::Impl &impl;
     Util::unordered_map<String, size_t> &var_map;
 };
