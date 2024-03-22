@@ -7,6 +7,7 @@
 #include <gringo/input/algo/print.hh>
 #include <gringo/input/algo/visit_variables.hh>
 
+#include <gringo/util/type_traits.hh>
 #include <gringo/util/unordered_map.hh>
 
 #include <filesystem>
@@ -87,6 +88,8 @@ struct Parser {
     bool processed_stdin = false;
 };
 
+struct BuilderProjection {};
+
 struct BuilderTerm {
     auto operator()(Input::TermVariable const &term) const -> Ground::UTerm {
         assert(var_map.find(term.name()) != var_map.end());
@@ -95,42 +98,31 @@ struct BuilderTerm {
     auto operator()(Input::TermSymbol const &term) const -> Ground::UTerm {
         return std::make_unique<Ground::TermSymbol>(term.value());
     }
-    auto operator()(Input::TermTuple const &term) const -> Ground::UTerm {
-        assert(term.pool().size() == 1 && std::holds_alternative<Input::ArgumentTuple>(term.pool().front()));
-        auto const &args = std::get<Input::ArgumentTuple>(term.pool().front()).elems();
+    [[nodiscard]] auto handle_args(Input::ArgumentArray const &args) const -> Ground::UTermVec {
         Ground::UTermVec g_args;
         g_args.reserve(args.size());
         for (auto const &arg : args) {
-            if (!std::holds_alternative<Input::Term>(arg)) {
-                // This should set a flag.
-                // The term can be constructed by inserting a special projection term,
-                // which are handled in a second pass:
-                // - create a copy of renaming variables in order of occurrence
-                //   - this term can serve as a unique representation to identify the projection
-                //   - we can genearate a unique name for a projection domain
-                // - create a copy removing projected places setting this unique name
-                //   - we need two copies one with the original and the renamed variables
-                //   - the version with the original variables can be used in rule bodies
-                //   - the version with the renamed variables can be used to create a projection rule
-                throw std::logic_error("implement me: handle projection!!!");
-            }
-            g_args.emplace_back(std::visit(*this, std::get<Input::Term>(arg)));
+            g_args.emplace_back(std::visit(
+                [this]<class T>(T const &arg) -> Ground::UTerm {
+                    if constexpr (Util::matches<T, Input::Projection>) {
+                        has_projection = true;
+                        return std::make_unique<Ground::TermProjection>();
+                    } else {
+                        return std::visit(*this, arg);
+                    }
+                },
+                arg));
         }
-        return std::make_unique<Ground::TermTuple>(std::move(g_args));
+        return g_args;
+    }
+    auto operator()(Input::TermTuple const &term) const -> Ground::UTerm {
+        assert(term.pool().size() == 1 && std::holds_alternative<Input::ArgumentTuple>(term.pool().front()));
+        return std::make_unique<Ground::TermTuple>(
+            handle_args(std::get<Input::ArgumentTuple>(term.pool().front()).elems()));
     }
     auto operator()(Input::TermFunction const &term) const -> Ground::UTerm {
         assert(!term.external() && term.pool().size() == 1);
-        auto const &args = term.pool().front().elems();
-        Ground::UTermVec g_args;
-        g_args.reserve(args.size());
-        for (auto const &arg : args) {
-            if (!std::holds_alternative<Input::Term>(arg)) {
-                // see above...
-                throw std::logic_error("implement me: handle projection!!!");
-            }
-            g_args.emplace_back(std::visit(*this, std::get<Input::Term>(arg)));
-        }
-        return std::make_unique<Ground::TermFunction>(term.name(), std::move(g_args));
+        return std::make_unique<Ground::TermFunction>(term.name(), handle_args(term.pool().front().elems()));
     }
     auto operator()(Input::TermAbs const &term) const -> Ground::UTerm {
         assert(term.pool().size() == 1);
@@ -191,6 +183,7 @@ struct BuilderTerm {
         }
         return std::make_unique<Ground::TermBinary>(std::visit(*this, *term.lhs()), op, std::visit(*this, *term.rhs()));
     }
+    bool &has_projection;
     Util::unordered_map<String, size_t> &var_map;
 };
 
@@ -199,9 +192,22 @@ struct BuilderLit {
         throw std::logic_error("implement me!!!");
     }
     void operator()(Input::LitSymbolic const &lit) const {
-        BuilderTerm bld_term{var_map};
+        bool has_projection = false;
+        BuilderTerm bld_term{has_projection, var_map};
         auto term = std::visit(bld_term, lit.term());
+        if (has_projection) {
+            // proj is ready to be registered with the projection builder of the grounder
+            size_t vars = 0;
+            auto proj = term->rename(store, Ground::RenameMode::rename_vars, nullptr, &vars);
+            auto name = store.string("unique_name_from_builder");
+            term = term->rename(store, Ground::RenameMode::drop_projection, &name, nullptr);
+            auto head = proj->rename(store, Ground::RenameMode::drop_projection, &name, nullptr);
+            auto body = proj->rename(store, Ground::RenameMode::rename_projection, nullptr, &vars);
+            std::cerr << "  TODO: " << *head << " :- " << *body << std::endl;
+        }
+        std::cerr << "  TODO: " << *term << std::endl;
     }
+    SymbolStore &store;
     Util::unordered_map<String, size_t> &var_map;
 };
 
@@ -210,9 +216,10 @@ struct BuilderHdLit {
         throw std::logic_error("implement me!!!");
     }
     void operator()(Input::HdLitSimple const &lit) const {
-        auto bld_lit = BuilderLit{var_map};
+        auto bld_lit = BuilderLit{store, var_map};
         std::visit(bld_lit, lit.lit());
     }
+    SymbolStore &store;
     Util::unordered_map<String, size_t> &var_map;
 };
 
@@ -221,9 +228,10 @@ struct BuilderBdLit {
         throw std::logic_error("implement me!!!");
     }
     void operator()(Input::BdLitSimple const &lit) const {
-        auto bld_lit = BuilderLit{var_map};
+        auto bld_lit = BuilderLit{store, var_map};
         std::visit(bld_lit, lit.lit());
     }
+    SymbolStore &store;
     Util::unordered_map<String, size_t> &var_map;
 };
 
@@ -232,8 +240,8 @@ struct BuilderStm {
         throw std::logic_error("implement me!!!");
     }
     void operator()(Input::StmRule const &stm) const {
-        auto bld_bd = BuilderBdLit{var_map};
-        auto bld_hd = BuilderHdLit{var_map};
+        auto bld_bd = BuilderBdLit{store, var_map};
+        auto bld_hd = BuilderHdLit{store, var_map};
         // TODO: first step handle simple literals
         std::cerr << stm << "\n";
         std::visit(bld_hd, stm.head());
@@ -241,11 +249,14 @@ struct BuilderStm {
             std::visit(bld_bd, lit);
         }
     }
+    SymbolStore &store;
     Util::unordered_map<String, size_t> &var_map;
 };
 
 // TODO: here transform statements into grounding directives
 struct Builder : Input::DependencyBuilder {
+    Builder(SymbolStore &store) : store{store} {}
+
     void param(Input::ProgramParam const &param) override {
         std::cerr << "#program_" << param.first << "(";
         bool comma = false;
@@ -259,16 +270,19 @@ struct Builder : Input::DependencyBuilder {
         }
         std::cerr << ").\n";
     }
+
     void meta(std::vector<Input::Stm> const &stms) override {
         for (auto const &stm : stms) {
             std::cerr << stm << "\n";
         }
     }
+
     void fact(std::vector<Symbol> const &facts) override {
         for (auto const &fact : facts) {
             std::cerr << fact << ".\n";
         }
     }
+
     void components(Input::Components const &comps) override {
         for (auto const &ref_comps : comps) {
             std::cerr << "% component\n";
@@ -282,12 +296,14 @@ struct Builder : Input::DependencyBuilder {
                             var_map.try_emplace(var, var_map.size());
                         },
                         Input::VariableContext::all);
-                    auto bld_stm = BuilderStm{var_map};
+                    auto bld_stm = BuilderStm{store, var_map};
                     std::visit(bld_stm, *stm);
                 }
             }
         }
     }
+
+    SymbolStore &store;
 };
 
 } // namespace
@@ -325,7 +341,7 @@ void Grounder::prepare() {
 
 void Grounder::ground(Input::ProgramParamVec const &params) {
     GRINGO_REPORT(log_, debug) << "grounding...";
-    Builder bld;
+    auto bld = Builder{store_};
     prg_.analyze(store_, params, bld);
     std::cerr.flush();
 }
