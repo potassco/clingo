@@ -1,6 +1,6 @@
 #include <gringo/grounder/grounder.hh>
 
-#include <gringo/ground/term.hh>
+#include <gringo/ground/literal.hh>
 
 #include <gringo/input/algo/analyze.hh>
 #include <gringo/input/algo/parse.hh>
@@ -14,6 +14,33 @@
 #include <iostream>
 
 namespace Gringo {
+
+struct Grounder::Impl {
+    Impl(Logger &log, SymbolStore &store, Input::RewriteOptions opts) : log{log}, store{store}, prg{std::move(opts)} {}
+
+    auto add_project(Ground::UTerm const &term) -> Ground::UTerm {
+        size_t vars = 0;
+        auto [it, ins] = map.try_emplace(term->rename(store, Ground::RenameMode::rename_vars, nullptr, &vars));
+        if (ins) {
+            it.value() = store.string("#p_" + std::to_string(map.size()));
+            auto head = it->first->rename(store, Ground::RenameMode::drop_projection, &it.value(), nullptr);
+            auto body = it->first->rename(store, Ground::RenameMode::rename_projection, nullptr, &vars);
+            std::cerr << "  TODO: add projection rule:\n";
+            std::cerr << "    " << *head << " :- " << *body << std::endl;
+        }
+        return term->rename(store, Ground::RenameMode::drop_projection, &it.value(), nullptr);
+    }
+
+    struct TermCmp {
+        auto operator()(Ground::UTerm const &a, Ground::UTerm const &b) const -> bool { return a->equal_to(*b); }
+    };
+
+    Logger &log;
+    SymbolStore &store;
+    Input::UnprocessedProgram unprocessed_prg;
+    Input::Program prg;
+    Util::ordered_map<Ground::UTerm, String, Util::value_hasher, TermCmp> map;
+};
 
 namespace {
 
@@ -88,7 +115,41 @@ struct Parser {
     bool processed_stdin = false;
 };
 
-struct BuilderProjection {};
+auto map_binary_op(Input::BinaryOperator op) -> Ground::BinaryOperator {
+    switch (op) {
+        case Input::BinaryOperator::and_: {
+            return Ground::BinaryOperator::and_;
+        }
+        case Input::BinaryOperator::div: {
+            return Ground::BinaryOperator::div;
+        }
+        case Input::BinaryOperator::dots: {
+            break;
+        }
+        case Input::BinaryOperator::minus: {
+            return Ground::BinaryOperator::minus;
+        }
+        case Input::BinaryOperator::mod: {
+            return Ground::BinaryOperator::mod;
+        }
+        case Input::BinaryOperator::or_: {
+            return Ground::BinaryOperator::or_;
+        }
+        case Input::BinaryOperator::plus: {
+            return Ground::BinaryOperator::plus;
+        }
+        case Input::BinaryOperator::pow: {
+            return Ground::BinaryOperator::pow;
+        }
+        case Input::BinaryOperator::times: {
+            return Ground::BinaryOperator::times;
+        }
+        case Input::BinaryOperator::xor_: {
+            return Ground::BinaryOperator::xor_;
+        }
+    }
+    throw std::runtime_error("unsupported binary operator");
+}
 
 struct BuilderTerm {
     auto operator()(Input::TermVariable const &term) const -> Ground::UTerm {
@@ -139,75 +200,42 @@ struct BuilderTerm {
             assert(var_map.find(lin->x()) != var_map.end());
             return std::make_unique<Ground::TermLinear>(*lin->m(), var_map.find(lin->x())->second, lin->n());
         }
-        Ground::BinaryOperator op = Ground::BinaryOperator::plus;
-        switch (term.op()) {
-            case Input::BinaryOperator::and_: {
-                op = Ground::BinaryOperator::and_;
-                break;
-            }
-            case Input::BinaryOperator::div: {
-                op = Ground::BinaryOperator::div;
-                break;
-            }
-            case Input::BinaryOperator::dots: {
-                break;
-            }
-            case Input::BinaryOperator::minus: {
-                op = Ground::BinaryOperator::minus;
-                break;
-            }
-            case Input::BinaryOperator::mod: {
-                op = Ground::BinaryOperator::mod;
-                break;
-            }
-            case Input::BinaryOperator::or_: {
-                op = Ground::BinaryOperator::or_;
-                break;
-            }
-            case Input::BinaryOperator::plus: {
-                op = Ground::BinaryOperator::plus;
-                break;
-            }
-            case Input::BinaryOperator::pow: {
-                op = Ground::BinaryOperator::pow;
-                break;
-            }
-            case Input::BinaryOperator::times: {
-                op = Ground::BinaryOperator::times;
-                break;
-            }
-            case Input::BinaryOperator::xor_: {
-                op = Ground::BinaryOperator::xor_;
-                break;
-            }
-        }
-        return std::make_unique<Ground::TermBinary>(std::visit(*this, *term.lhs()), op, std::visit(*this, *term.rhs()));
+        return std::make_unique<Ground::TermBinary>(std::visit(*this, *term.lhs()), map_binary_op(term.op()),
+                                                    std::visit(*this, *term.rhs()));
     }
     bool &has_projection;
     Util::unordered_map<String, size_t> &var_map;
 };
 
+auto map_sign(Input::Sign sign) {
+    switch (sign) {
+        case Input::Sign::none: {
+            return Ground::Sign::none;
+        }
+        case Input::Sign::once: {
+            return Ground::Sign::once;
+        }
+        case Input::Sign::twice: {
+            break;
+        }
+    }
+    return Ground::Sign::twice;
+}
+
 struct BuilderLit {
-    template <class T> void operator()([[maybe_unused]] T const &lit) const {
+    template <class T> auto operator()([[maybe_unused]] T const &lit) const -> Ground::ULit {
         throw std::logic_error("implement me!!!");
     }
-    void operator()(Input::LitSymbolic const &lit) const {
-        bool has_projection = false;
-        BuilderTerm bld_term{has_projection, var_map};
+    auto operator()(Input::LitSymbolic const &lit) const -> Ground::ULit {
+        auto has_projection = false;
+        auto bld_term = BuilderTerm{has_projection, var_map};
         auto term = std::visit(bld_term, lit.term());
         if (has_projection) {
-            // proj is ready to be registered with the projection builder of the grounder
-            size_t vars = 0;
-            auto proj = term->rename(store, Ground::RenameMode::rename_vars, nullptr, &vars);
-            auto name = store.string("unique_name_from_builder");
-            term = term->rename(store, Ground::RenameMode::drop_projection, &name, nullptr);
-            auto head = proj->rename(store, Ground::RenameMode::drop_projection, &name, nullptr);
-            auto body = proj->rename(store, Ground::RenameMode::rename_projection, nullptr, &vars);
-            std::cerr << "  TODO: " << *head << " :- " << *body << std::endl;
+            term = impl.add_project(term);
         }
-        std::cerr << "  TODO: " << *term << std::endl;
+        return std::make_unique<Ground::LitSymbolic>(map_sign(lit.sign()), std::move(term));
     }
-    SymbolStore &store;
+    Grounder::Impl &impl;
     Util::unordered_map<String, size_t> &var_map;
 };
 
@@ -216,10 +244,11 @@ struct BuilderHdLit {
         throw std::logic_error("implement me!!!");
     }
     void operator()(Input::HdLitSimple const &lit) const {
-        auto bld_lit = BuilderLit{store, var_map};
-        std::visit(bld_lit, lit.lit());
+        auto bld_lit = BuilderLit{impl, var_map};
+        auto glit = std::visit(bld_lit, lit.lit());
+        std::cerr << "  TODO: make head\n    " << *glit << std::endl;
     }
-    SymbolStore &store;
+    Grounder::Impl &impl;
     Util::unordered_map<String, size_t> &var_map;
 };
 
@@ -228,10 +257,11 @@ struct BuilderBdLit {
         throw std::logic_error("implement me!!!");
     }
     void operator()(Input::BdLitSimple const &lit) const {
-        auto bld_lit = BuilderLit{store, var_map};
-        std::visit(bld_lit, lit.lit());
+        auto bld_lit = BuilderLit{impl, var_map};
+        auto glit = std::visit(bld_lit, lit.lit());
+        std::cerr << "  TODO: add to body:    \n    " << *glit << std::endl;
     }
-    SymbolStore &store;
+    Grounder::Impl &impl;
     Util::unordered_map<String, size_t> &var_map;
 };
 
@@ -240,8 +270,8 @@ struct BuilderStm {
         throw std::logic_error("implement me!!!");
     }
     void operator()(Input::StmRule const &stm) const {
-        auto bld_bd = BuilderBdLit{store, var_map};
-        auto bld_hd = BuilderHdLit{store, var_map};
+        auto bld_bd = BuilderBdLit{impl, var_map};
+        auto bld_hd = BuilderHdLit{impl, var_map};
         // TODO: first step handle simple literals
         std::cerr << stm << "\n";
         std::visit(bld_hd, stm.head());
@@ -249,13 +279,13 @@ struct BuilderStm {
             std::visit(bld_bd, lit);
         }
     }
-    SymbolStore &store;
+    Grounder::Impl &impl;
     Util::unordered_map<String, size_t> &var_map;
 };
 
 // TODO: here transform statements into grounding directives
 struct Builder : Input::DependencyBuilder {
-    Builder(SymbolStore &store) : store{store} {}
+    Builder(Grounder::Impl &impl) : impl{impl} {}
 
     void param(Input::ProgramParam const &param) override {
         std::cerr << "#program_" << param.first << "(";
@@ -296,29 +326,34 @@ struct Builder : Input::DependencyBuilder {
                             var_map.try_emplace(var, var_map.size());
                         },
                         Input::VariableContext::all);
-                    auto bld_stm = BuilderStm{store, var_map};
+                    auto bld_stm = BuilderStm{impl, var_map};
                     std::visit(bld_stm, *stm);
                 }
             }
         }
     }
 
-    SymbolStore &store;
+    Grounder::Impl &impl;
 };
 
 } // namespace
 
+Grounder::Grounder(Logger &log, SymbolStore &store, Input::RewriteOptions opts)
+    : impl_{std::make_unique<Impl>(log, store, std::move(opts))} {}
+
+Grounder::~Grounder() noexcept = default;
+
 void Grounder::parse(std::string_view prg) {
-    GRINGO_REPORT(log_, debug) << "parsing...";
-    auto prs = Parser{log_, store_, unprocessed_prg_};
-    auto scanner = Input::scan_string(log_, store_, prg);
+    GRINGO_REPORT(impl_->log, debug) << "parsing...";
+    auto prs = Parser{impl_->log, impl_->store, impl_->unprocessed_prg};
+    auto scanner = Input::scan_string(impl_->log, impl_->store, prg);
     prs.process(prs.root, scanner);
     prs.process_includes();
 }
 
 void Grounder::parse(std::vector<std::string> const &files) {
-    GRINGO_REPORT(log_, debug) << "parsing...";
-    auto prs = Parser{log_, store_, unprocessed_prg_};
+    GRINGO_REPORT(impl_->log, debug) << "parsing...";
+    auto prs = Parser{impl_->log, impl_->store, impl_->unprocessed_prg};
     if (files.empty()) {
         prs.process_stdin();
         prs.process_includes();
@@ -334,29 +369,29 @@ void Grounder::parse(std::vector<std::string> const &files) {
 }
 
 void Grounder::prepare() {
-    GRINGO_REPORT(log_, debug) << "preparing...";
-    prg_.join(log_, store_, std::move(unprocessed_prg_));
-    unprocessed_prg_.clear();
+    GRINGO_REPORT(impl_->log, debug) << "preparing...";
+    impl_->prg.join(impl_->log, impl_->store, std::move(impl_->unprocessed_prg));
+    impl_->unprocessed_prg.clear();
 }
 
 void Grounder::ground(Input::ProgramParamVec const &params) {
-    GRINGO_REPORT(log_, debug) << "grounding...";
-    auto bld = Builder{store_};
-    prg_.analyze(store_, params, bld);
+    GRINGO_REPORT(impl_->log, debug) << "grounding...";
+    auto bld = Builder{*impl_};
+    impl_->prg.analyze(impl_->store, params, bld);
     std::cerr.flush();
 }
 
 void Grounder::output_unprocessed_program(std::ostream &out) {
-    for (auto const &stm : unprocessed_prg_.const_stms) {
+    for (auto const &stm : impl_->unprocessed_prg.const_stms) {
         out << stm << "\n";
     }
-    for (auto const &stm : unprocessed_prg_.thy_stms) {
+    for (auto const &stm : impl_->unprocessed_prg.thy_stms) {
         out << stm << "\n";
     }
-    for (auto const &stm : unprocessed_prg_.meta_stms) {
+    for (auto const &stm : impl_->unprocessed_prg.meta_stms) {
         out << stm << "\n";
     }
-    for (auto const &[prg_stm, stms, facts] : unprocessed_prg_.parts) {
+    for (auto const &[prg_stm, stms, facts] : impl_->unprocessed_prg.parts) {
         out << prg_stm << "\n";
         for (auto fact : facts) {
             out << fact << ".\n";
@@ -369,7 +404,7 @@ void Grounder::output_unprocessed_program(std::ostream &out) {
 }
 
 void Grounder::output_program(std::ostream &out) {
-    prg_.visit_stms(store_, [&out](auto const &stm) { out << stm << "\n"; });
+    impl_->prg.visit_stms(impl_->store, [&out](auto const &stm) { out << stm << "\n"; });
     out.flush();
 }
 

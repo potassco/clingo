@@ -5,8 +5,9 @@ namespace Gringo {
 //! A grounder for logic programs.
 class Grounder {
   public:
-    Grounder(Logger &log, SymbolStore &store, Input::RewriteOptions opts)
-        : log_{log}, store_{store}, prg_{std::move(opts)} {};
+    struct Impl;
+    Grounder(Logger &log, SymbolStore &store, Input::RewriteOptions opts);
+    ~Grounder() noexcept;
     //! Parse a program from the given string.
     void parse(std::string_view prg);
     //! Parse the given files.
@@ -22,10 +23,7 @@ class Grounder {
     void output_program(std::ostream &out);
 
   private:
-    Logger &log_;
-    SymbolStore &store_;
-    Input::UnprocessedProgram unprocessed_prg_;
-    Input::Program prg_;
+    std::unique_ptr<Impl> impl_;
 };
 
 } // namespace Gringo
