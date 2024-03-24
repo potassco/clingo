@@ -239,25 +239,51 @@ struct BuilderLit {
     Util::unordered_map<String, size_t> &var_map;
 };
 
+struct Rule {
+    // head of a rule can only be a symbolic literal or null for integrity constraints
+    Ground::UTerm atom;
+    Ground::ULitVec body;
+};
+
+auto operator<<(std::ostream &out, Rule const &stm) -> std::ostream & {
+    out << *stm.atom << " :- ";
+    bool comma = false;
+    for (auto const &lit : stm.body) {
+        if (comma) {
+            out << ", ";
+        } else {
+            comma = true;
+        }
+        std::cerr << *lit;
+    }
+    out << "." << std::endl;
+    return out;
+}
+
 struct BuilderHdLit {
     template <class T> void operator()([[maybe_unused]] T const &lit) const {
         throw std::logic_error("implement me!!!");
     }
     void operator()(Input::HdLitSimple const &lit) const {
-        auto bld_lit = BuilderLit{impl, var_map};
-        auto glit = std::visit(bld_lit, lit.lit());
+        auto head = std::visit(
+            [&]<class T>(T const &lit) -> Ground::UTerm {
+                if constexpr (Util::matches<T, Input::LitSymbolic>) {
+                    assert(lit.sign() == Input::Sign::none);
+                    auto has_projection = false;
+                    auto term = std::visit(BuilderTerm{has_projection, var_map}, lit.term());
+                    assert(!has_projection);
+                    return term;
+                } else if constexpr (Util::matches<T, Input::LitBool>) {
+                    // nothing
+                } else {
+                    assert(false);
+                }
+                return nullptr;
+            },
+            lit.lit());
+        auto stm = Rule{std::move(head), std::move(body)};
         std::cerr << "  TODO: make rule\n";
-        std::cerr << "    " << *glit << " :- ";
-        bool comma = false;
-        for (auto const &glit : body) {
-            if (comma) {
-                std::cerr << ", ";
-            } else {
-                comma = true;
-            }
-            std::cerr << *glit;
-        }
-        std::cerr << "." << std::endl;
+        std::cerr << "    " << stm << std::endl;
     }
     Grounder::Impl &impl;
     Util::unordered_map<String, size_t> &var_map;
