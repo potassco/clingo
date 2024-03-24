@@ -1,6 +1,6 @@
 #include <gringo/grounder/grounder.hh>
 
-#include <gringo/ground/statement.hh>
+#include <gringo/ground/component.hh>
 
 #include <gringo/input/algo/analyze.hh>
 #include <gringo/input/algo/parse.hh>
@@ -31,14 +31,20 @@ struct Grounder::Impl {
         return term->rename(store, Ground::RenameMode::drop_projection, &it.value(), nullptr);
     }
 
+    //! Comparison function for term pointers by value.
     struct TermCmp {
         auto operator()(Ground::UTerm const &a, Ground::UTerm const &b) const -> bool { return a->equal_to(*b); }
     };
 
+    //! The logger used by the grounder.
     Logger &log;
+    //! The store used by the grounder.
     SymbolStore &store;
+    //! The current unprocessed program not yet added to the program.
     Input::UnprocessedProgram unprocessed_prg;
+    //! The program stored in the grounder.
     Input::Program prg;
+    //! Dictionary to map terms with projections to their replacement predicates.
     Util::ordered_map<Ground::UTerm, String, Util::value_hasher, TermCmp> map;
 };
 
@@ -253,18 +259,17 @@ struct BuilderHdLit {
                     assert(!has_projection);
                     return term;
                 } else if constexpr (Util::matches<T, Input::LitBool>) {
-                    // nothing
+                    // TODO: either use a nullptr or handle contstraints in some specific way
                 } else {
                     assert(false);
                 }
                 return nullptr;
             },
             lit.lit());
-        auto stm = Ground::StmRule{std::move(head), std::move(body)};
-        std::cerr << "  TODO: add rule to component\n";
-        std::cerr << "    " << stm << std::endl;
+        comp.stms.emplace_back(std::make_unique<Ground::StmRule>(std::move(head), std::move(body)));
     }
     Grounder::Impl &impl;
+    Ground::Component &comp;
     Util::unordered_map<String, size_t> &var_map;
     Ground::ULitVec &body;
 };
@@ -290,7 +295,7 @@ struct BuilderStm {
     void operator()(Input::StmRule const &stm) const {
         Ground::ULitVec body;
         auto bld_bd = BuilderBdLit{impl, var_map, body};
-        auto bld_hd = BuilderHdLit{impl, var_map, body};
+        auto bld_hd = BuilderHdLit{impl, comp, var_map, body};
         body.reserve(stm.body().size());
         for (auto const &lit : stm.body()) {
             std::visit(bld_bd, lit);
@@ -299,6 +304,7 @@ struct BuilderStm {
     }
 
     Grounder::Impl &impl;
+    Ground::Component &comp;
     Util::unordered_map<String, size_t> &var_map;
 };
 
@@ -337,6 +343,7 @@ struct Builder : Input::DependencyBuilder {
             std::cerr << "% component\n";
             for (auto const &ref_comp : ref_comps) {
                 std::cerr << "% refined component\n";
+                auto comp = Ground::Component{};
                 for (auto const &stm : ref_comp.stms) {
                     Util::unordered_map<String, size_t> var_map;
                     Input::visit_variables(
@@ -345,8 +352,12 @@ struct Builder : Input::DependencyBuilder {
                             var_map.try_emplace(var, var_map.size());
                         },
                         Input::VariableContext::all);
-                    auto bld_stm = BuilderStm{impl, var_map};
+                    auto bld_stm = BuilderStm{impl, comp, var_map};
                     std::visit(bld_stm, *stm);
+                }
+                for (auto const &stm : comp.stms) {
+                    std::cerr << "  TODO: ground\n";
+                    std::cerr << "    " << *stm << std::endl;
                 }
             }
         }

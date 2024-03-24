@@ -14,6 +14,9 @@ class Stm {
     }
 };
 
+using UStm = std::unique_ptr<Stm>;
+using UStmVec = std::vector<UStm>;
+
 class StmRule : public Stm {
   public:
     StmRule(Ground::UTerm atom, Ground::ULitVec body) : atom_{std::move(atom)}, body_{std::move(body)} {}

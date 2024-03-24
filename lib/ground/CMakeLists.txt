@@ -2,6 +2,7 @@ add_library(gringo_ground
     "src/term.cc"
     "src/literal.cc"
     "src/statement.cc"
+    "src/component.cc"
     )
 
 target_link_libraries(gringo_ground PUBLIC gringo_core)
