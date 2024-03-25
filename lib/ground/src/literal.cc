@@ -19,6 +19,11 @@ auto operator<<(std::ostream &out, Sign sign) -> std::ostream & {
     return out;
 }
 
-void LitSymbolic::print(std::ostream &out) const { out << sign_ << *atom_ << "[" << provided_by_ << "]"; }
+void LitSymbolic::print(std::ostream &out) const {
+    out << sign_ << *atom_;
+    if (index_ != std::numeric_limits<size_t>::max()) {
+        out << "[" << index_ << "]";
+    }
+}
 
 } // namespace Gringo::Ground

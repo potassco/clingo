@@ -537,13 +537,11 @@ auto build_nodes(SymbolStore &store, std::vector<Stm> const &stms) -> std::vecto
         std::visit(AddProvide{provide}, hd_stm);
         for (auto const *hd_term : provide) {
             auto hd_term_r = rename(store, *hd_term);
-            if (hd_term_r) {
-                hd_term = &*hd_term_r;
-            }
-            auto hd_sig = signature(*hd_term).value();
+            auto const *hd_term_u = hd_term_r ? &*hd_term_r : hd_term;
+            auto hd_sig = signature(*hd_term_u).value();
             if (auto it = map_.find(hd_sig); it != map_.end()) {
                 for (auto const &[bd_idx, bd_term, bd_sign] : it->second) {
-                    if (unifier.unify(*hd_term, *bd_term)) {
+                    if (unifier.unify(*hd_term_u, *bd_term)) {
                         // bd_term is provided by statement i
                         // in principle one could also store
                         // that hd_term updates the index of bd_term
@@ -653,7 +651,7 @@ auto analyze(SymbolStore &store, std::vector<Stm> const &stms) -> Components {
                         }
                         auto &hd_terms = comp.incomplete[bd_term];
                         if (node.sub_scc == num_sub_scc) {
-                            hd_terms.emplace_back(hd_term);
+                            hd_terms.emplace(hd_term);
                         }
                     } else if (!test(comps[node.scc][node.sub_scc].type, ComponentType::domain)) {
                         comp.type -= ComponentType::domain;

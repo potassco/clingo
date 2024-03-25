@@ -6,8 +6,8 @@ namespace Gringo::Ground {
 
 void StmRule::print(std::ostream &out) const {
     out << *atom_;
-    if (!provides_.empty()) {
-        out << "[" << Util::p_range(provides_, ",") << "]";
+    if (!indices_.empty()) {
+        out << "[" << Util::p_range(indices_, ",") << "]";
     }
     out << " :- " << Util::p_range(body_, ", ", [](auto const &lit) -> decltype(auto) { return *lit; }) << ".";
 }

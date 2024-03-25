@@ -19,14 +19,18 @@ using UStmVec = std::vector<UStm>;
 
 class StmRule : public Stm {
   public:
-    StmRule(Ground::UTerm atom, std::vector<size_t> provides, Ground::ULitVec body)
-        : atom_{std::move(atom)}, provides_{std::move(provides)}, body_{std::move(body)} {}
+    StmRule(Ground::UTerm atom, std::vector<size_t> indices, Ground::ULitVec body)
+        : atom_{std::move(atom)}, indices_{std::move(indices)}, body_{std::move(body)} {}
     void print(std::ostream &out) const override;
 
   private:
     // TODO: how to handle head
     Ground::UTerm atom_;
-    std::vector<size_t> provides_;
+    //! A list of indices.
+    //!
+    //! Recursize body literals that unify with the rule head have matching indices.
+    //! This allows for updating the indices of these literals while grounding.
+    std::vector<size_t> indices_;
     Ground::ULitVec body_;
 };
 

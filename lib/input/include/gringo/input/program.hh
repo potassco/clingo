@@ -5,6 +5,7 @@
 #include <gringo/core/logger.hh>
 
 #include <gringo/util/ordered_map.hh>
+#include <gringo/util/ordered_set.hh>
 
 namespace Gringo::Input {
 
@@ -86,7 +87,7 @@ struct Component {
     //! The statements in the component.
     std::vector<Stm const *> stms;
     //! This vector captures literals that are not yet complete.
-    Util::ordered_map<Term const *, std::vector<Term const *>> incomplete;
+    Util::ordered_map<Term const *, Util::ordered_set<Term const *>> incomplete;
     //! The type of the componnent.
     ComponentType type;
 };

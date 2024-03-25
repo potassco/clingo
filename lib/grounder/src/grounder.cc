@@ -245,7 +245,10 @@ struct BuilderLit {
         }
         auto it = ctx.comp.incomplete.find(&lit.term());
         // the index referring to a set of heads defining this literal
-        size_t idx = it - ctx.comp.incomplete.begin();
+        auto idx = std::numeric_limits<size_t>::max();
+        if (it != ctx.comp.incomplete.end()) {
+            idx = it - ctx.comp.incomplete.begin();
+        }
         return std::make_unique<Ground::LitSymbolic>(map_sign(lit.sign()), std::move(term), idx);
     }
     BuildContext &ctx;
