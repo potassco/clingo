@@ -86,7 +86,7 @@ struct Component {
     //! The statements in the component.
     std::vector<Stm const *> stms;
     //! This vector captures literals that are not yet complete.
-    std::vector<std::pair<Term const *, bool>> incomplete;
+    Util::ordered_map<Term const *, std::vector<Term const *>> incomplete;
     //! The type of the componnent.
     ComponentType type;
 };

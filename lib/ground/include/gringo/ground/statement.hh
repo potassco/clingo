@@ -19,12 +19,14 @@ using UStmVec = std::vector<UStm>;
 
 class StmRule : public Stm {
   public:
-    StmRule(Ground::UTerm atom, Ground::ULitVec body) : atom_{std::move(atom)}, body_{std::move(body)} {}
+    StmRule(Ground::UTerm atom, std::vector<size_t> provides, Ground::ULitVec body)
+        : atom_{std::move(atom)}, provides_{std::move(provides)}, body_{std::move(body)} {}
     void print(std::ostream &out) const override;
 
   private:
     // TODO: how to handle head
     Ground::UTerm atom_;
+    std::vector<size_t> provides_;
     Ground::ULitVec body_;
 };
 

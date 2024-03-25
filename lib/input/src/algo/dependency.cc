@@ -492,7 +492,7 @@ class Unifier {
 
 struct Node {
     Stm const *stm = nullptr;
-    std::vector<Dependency> depend = {};
+    std::vector<std::tuple<size_t, Term const *, Term const *, bool>> depend = {};
     size_t scc = std::numeric_limits<size_t>::max();
     size_t sub_scc = std::numeric_limits<size_t>::max();
     size_t idx = 0;
@@ -550,7 +550,7 @@ auto build_nodes(SymbolStore &store, std::vector<Stm> const &stms) -> std::vecto
                         // this would avoid having to update later on
                         // depending on how indices are designed
                         // edges within components are sufficient
-                        nodes[bd_idx].depend.emplace_back(i, bd_term, bd_sign);
+                        nodes[bd_idx].depend.emplace_back(i, bd_term, hd_term, bd_sign);
                     }
                 }
             }
@@ -602,7 +602,7 @@ auto analyze(SymbolStore &store, std::vector<Stm> const &stms) -> Components {
     graph.ensure_size(nodes.size());
     auto i = size_t{0};
     for (auto const &node : nodes) {
-        for (auto [j, _term, sign] : node.depend) {
+        for (auto [j, _bd_term, _hd_term, sign] : node.depend) {
             graph.add_edge(i, j);
         }
         ++i;
@@ -622,7 +622,7 @@ auto analyze(SymbolStore &store, std::vector<Stm> const &stms) -> Components {
         auto sub_graph = Graph{};
         sub_graph.ensure_size(n);
         for (auto i : scc) {
-            for (auto const &[j, _term, sign] : nodes[i].depend) {
+            for (auto const &[j, _bd_term, _hd_term, sign] : nodes[i].depend) {
                 if (!sign && nodes[j].scc == num_scc) {
                     sub_graph.add_edge(nodes[i].idx, nodes[j].idx);
                 }
@@ -643,7 +643,7 @@ auto analyze(SymbolStore &store, std::vector<Stm> const &stms) -> Components {
                     comp.type -= ComponentType::domain;
                 }
                 comp.stms.emplace_back(&stm);
-                for (auto const &[idx, term, sign] : nodes[scc[i]].depend) {
+                for (auto const &[idx, bd_term, hd_term, sign] : nodes[scc[i]].depend) {
                     auto const &node = nodes[idx];
                     if (std::tie(node.scc, node.sub_scc) >= std::tie(num_scc, num_sub_scc)) {
                         if (sign) {
@@ -651,7 +651,10 @@ auto analyze(SymbolStore &store, std::vector<Stm> const &stms) -> Components {
                         } else {
                             comp.type -= ComponentType::single_pass;
                         }
-                        comp.incomplete.emplace_back(term, sign);
+                        auto &hd_terms = comp.incomplete[bd_term];
+                        if (node.sub_scc == num_sub_scc) {
+                            hd_terms.emplace_back(hd_term);
+                        }
                     } else if (!test(comps[node.scc][node.sub_scc].type, ComponentType::domain)) {
                         comp.type -= ComponentType::domain;
                     }
@@ -688,15 +691,15 @@ void visualize(Components const &comps, std::ostream &out) {
                 out << "<br/>incomplete:";
                 bool comma = false;
                 Util::ordered_set<std::reference_wrapper<Term const>> incomplete;
-                for (auto const &[term, _sign] : comp.incomplete) {
-                    if (incomplete.emplace(*term).second) {
+                for (auto const &[bd, hd] : comp.incomplete) {
+                    if (incomplete.emplace(*bd).second) {
                         if (comma) {
                             out << ",";
                         } else {
                             comma = true;
                         }
                         out << " ";
-                        encode_html(*term, out);
+                        encode_html(*bd, out);
                     }
                 }
             }

@@ -223,21 +223,32 @@ auto map_sign(Input::Sign sign) {
     return Ground::Sign::twice;
 }
 
+struct BuildContext {
+    Grounder::Impl &impl;
+    Input::Component const &comp;
+    Util::unordered_map<Input::Term const *, std::vector<size_t>> def_map;
+    Ground::Component &gcomp;
+    Util::unordered_map<String, size_t> &var_map;
+    Ground::ULitVec &body;
+};
+
 struct BuilderLit {
     template <class T> auto operator()([[maybe_unused]] T const &lit) const -> Ground::ULit {
         throw std::logic_error("implement me!!!");
     }
     auto operator()(Input::LitSymbolic const &lit) const -> Ground::ULit {
         auto has_projection = false;
-        auto bld_term = BuilderTerm{has_projection, var_map};
+        auto bld_term = BuilderTerm{has_projection, ctx.var_map};
         auto term = std::visit(bld_term, lit.term());
         if (has_projection) {
-            term = impl.add_project(term);
+            term = ctx.impl.add_project(term);
         }
-        return std::make_unique<Ground::LitSymbolic>(map_sign(lit.sign()), std::move(term));
+        auto it = ctx.comp.incomplete.find(&lit.term());
+        // the index referring to a set of heads defining this literal
+        size_t idx = it - ctx.comp.incomplete.begin();
+        return std::make_unique<Ground::LitSymbolic>(map_sign(lit.sign()), std::move(term), idx);
     }
-    Grounder::Impl &impl;
-    Util::unordered_map<String, size_t> &var_map;
+    BuildContext &ctx;
 };
 
 struct BuilderHdLit {
@@ -245,12 +256,16 @@ struct BuilderHdLit {
         throw std::logic_error("implement me!!!");
     }
     void operator()(Input::HdLitSimple const &lit) const {
+        std::vector<size_t> provides;
         auto head = std::visit(
             [&]<class T>(T const &lit) -> Ground::UTerm {
                 if constexpr (Util::matches<T, Input::LitSymbolic>) {
                     assert(lit.sign() == Input::Sign::none);
+                    if (auto it = ctx.def_map.find(&lit.term()); it != ctx.def_map.end()) {
+                        provides = it->second;
+                    }
                     auto has_projection = false;
-                    auto term = std::visit(BuilderTerm{has_projection, var_map}, lit.term());
+                    auto term = std::visit(BuilderTerm{has_projection, ctx.var_map}, lit.term());
                     assert(!has_projection);
                     return term;
                 } else if constexpr (Util::matches<T, Input::LitBool>) {
@@ -261,12 +276,10 @@ struct BuilderHdLit {
                 return nullptr;
             },
             lit.lit());
-        comp.stms.emplace_back(std::make_unique<Ground::StmRule>(std::move(head), std::move(body)));
+        ctx.gcomp.stms.emplace_back(
+            std::make_unique<Ground::StmRule>(std::move(head), std::move(provides), std::move(ctx.body)));
     }
-    Grounder::Impl &impl;
-    Ground::Component &comp;
-    Util::unordered_map<String, size_t> &var_map;
-    Ground::ULitVec &body;
+    BuildContext &ctx;
 };
 
 struct BuilderBdLit {
@@ -281,12 +294,10 @@ struct BuilderBdLit {
         // an index only has to be updated until it contains at least one value that justifies grounding
         // the remaining of the index can be updated while grounding
         // in case the index is never grounded, this can safe some computation
-        auto bld_lit = BuilderLit{impl, var_map};
-        body.emplace_back(std::visit(bld_lit, lit.lit()));
+        auto bld_lit = BuilderLit{ctx};
+        ctx.body.emplace_back(std::visit(bld_lit, lit.lit()));
     }
-    Grounder::Impl &impl;
-    Util::unordered_map<String, size_t> &var_map;
-    Ground::ULitVec &body;
+    BuildContext &ctx;
 };
 
 struct BuilderStm {
@@ -295,19 +306,16 @@ struct BuilderStm {
     }
 
     void operator()(Input::StmRule const &stm) const {
-        Ground::ULitVec body;
-        auto bld_bd = BuilderBdLit{impl, var_map, body};
-        auto bld_hd = BuilderHdLit{impl, comp, var_map, body};
-        body.reserve(stm.body().size());
+        auto bld_bd = BuilderBdLit{ctx};
+        auto bld_hd = BuilderHdLit{ctx};
+        ctx.body.reserve(stm.body().size());
         for (auto const &lit : stm.body()) {
             std::visit(bld_bd, lit);
         }
         std::visit(bld_hd, stm.head());
     }
 
-    Grounder::Impl &impl;
-    Ground::Component &comp;
-    Util::unordered_map<String, size_t> &var_map;
+    BuildContext &ctx;
 };
 
 // TODO: here transform statements into grounding directives
@@ -345,7 +353,7 @@ struct Builder : Input::DependencyBuilder {
             std::cerr << "% component\n";
             for (auto const &ref_comp : ref_comps) {
                 std::cerr << "% refined component\n";
-                auto comp = Ground::Component{};
+                auto gcomp = Ground::Component{};
                 for (auto const &stm : ref_comp.stms) {
                     Util::unordered_map<String, size_t> var_map;
                     Input::visit_variables(
@@ -354,10 +362,21 @@ struct Builder : Input::DependencyBuilder {
                             var_map.try_emplace(var, var_map.size());
                         },
                         Input::VariableContext::all);
-                    auto bld_stm = BuilderStm{impl, comp, var_map};
+                    Ground::ULitVec body;
+
+                    auto def_map = Util::unordered_map<Input::Term const *, std::vector<size_t>>{};
+                    auto i = size_t{0};
+                    for (auto const &[bd, hds] : ref_comp.incomplete) {
+                        for (auto const &hd : hds) {
+                            def_map[hd].emplace_back(i);
+                        }
+                        ++i;
+                    }
+                    auto ctx = BuildContext{impl, ref_comp, def_map, gcomp, var_map, body};
+                    auto bld_stm = BuilderStm{ctx};
                     std::visit(bld_stm, *stm);
                 }
-                for (auto const &stm : comp.stms) {
+                for (auto const &stm : gcomp.stms) {
                     std::cerr << "  TODO: ground\n";
                     std::cerr << "    " << *stm << std::endl;
                 }

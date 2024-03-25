@@ -19,6 +19,6 @@ auto operator<<(std::ostream &out, Sign sign) -> std::ostream & {
     return out;
 }
 
-void LitSymbolic::print(std::ostream &out) const { out << sign_ << *atom_; }
+void LitSymbolic::print(std::ostream &out) const { out << sign_ << *atom_ << "[" << provided_by_ << "]"; }
 
 } // namespace Gringo::Ground

@@ -1,19 +1,15 @@
 #include <gringo/ground/statement.hh>
 
+#include <gringo/util/print.hh>
+
 namespace Gringo::Ground {
 
 void StmRule::print(std::ostream &out) const {
-    out << *atom_ << " :- ";
-    bool comma = false;
-    for (auto const &lit : body_) {
-        if (comma) {
-            out << ", ";
-        } else {
-            comma = true;
-        }
-        out << *lit;
+    out << *atom_;
+    if (!provides_.empty()) {
+        out << "[" << Util::p_range(provides_, ",") << "]";
     }
-    out << "." << std::endl;
+    out << " :- " << Util::p_range(body_, ", ", [](auto const &lit) -> decltype(auto) { return *lit; }) << ".";
 }
 
 } // namespace Gringo::Ground
