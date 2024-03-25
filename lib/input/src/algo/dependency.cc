@@ -687,8 +687,7 @@ void visualize(Components const &comps, std::ostream &out) {
             if (!comp.incomplete.empty()) {
                 out << "<br/>incomplete:";
                 bool comma = false;
-                Util::ordered_set<std::reference_wrapper<Term const>, Util::value_hasher, std::equal_to<Term>>
-                    incomplete;
+                Util::ordered_set<std::reference_wrapper<Term const>> incomplete;
                 for (auto const &[term, _sign] : comp.incomplete) {
                     if (incomplete.emplace(*term).second) {
                         if (comma) {

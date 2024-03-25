@@ -10,7 +10,7 @@ namespace Gringo::Util {
 //! @{
 
 //! Alias for ordered maps.
-template <class Key, class T, class Hash = value_hasher, class KeyEqual = std::equal_to<Key>,
+template <class Key, class T, class Hash = value_hasher, class KeyEqual = value_equal_to,
           class Allocator = std::allocator<std::pair<Key, T>>,
           class ValueTypeContainer = std::deque<std::pair<Key, T>, Allocator>, class IndexType = std::uint_least32_t>
 using ordered_map = tsl::ordered_map<Key, T, Hash, KeyEqual, Allocator, ValueTypeContainer, IndexType>;

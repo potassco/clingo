@@ -31,11 +31,6 @@ struct Grounder::Impl {
         return term->rename(store, Ground::RenameMode::drop_projection, &it.value(), nullptr);
     }
 
-    //! Comparison function for term pointers by value.
-    struct TermCmp {
-        auto operator()(Ground::UTerm const &a, Ground::UTerm const &b) const -> bool { return a->equal_to(*b); }
-    };
-
     //! The logger used by the grounder.
     Logger &log;
     //! The store used by the grounder.
@@ -45,7 +40,7 @@ struct Grounder::Impl {
     //! The program stored in the grounder.
     Input::Program prg;
     //! Dictionary to map terms with projections to their replacement predicates.
-    Util::ordered_map<Ground::UTerm, String, Util::value_hasher, TermCmp> map;
+    Util::ordered_map<Ground::UTerm, String> map;
 };
 
 namespace {
@@ -279,6 +274,13 @@ struct BuilderBdLit {
         throw std::logic_error("implement me!!!");
     }
     void operator()(Input::BdLitSimple const &lit) const {
+        // we need to know whether the literal is recursive
+        // if it is, then it has to be updated while grounding
+        // if not then its index can be created ahead of time
+        // we might also want to persue a different strategy here
+        // an index only has to be updated until it contains at least one value that justifies grounding
+        // the remaining of the index can be updated while grounding
+        // in case the index is never grounded, this can safe some computation
         auto bld_lit = BuilderLit{impl, var_map};
         body.emplace_back(std::visit(bld_lit, lit.lit()));
     }

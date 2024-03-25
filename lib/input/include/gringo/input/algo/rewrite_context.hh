@@ -69,8 +69,8 @@ class TheoryAtomParser {
   private:
     using ParserIndex = size_t;
     using GuardTable = std::pair<StringSet, ParserIndex>;
-    using AtomTable =
-        Util::unordered_map<std::pair<String, int>, std::tuple<TheoryAtomType, ParserIndex, std::optional<GuardTable>>>;
+    using AtomTable = Util::unordered_map<std::pair<String, size_t>,
+                                          std::tuple<TheoryAtomType, ParserIndex, std::optional<GuardTable>>>;
 
     std::vector<TheoryTermParser> term_parsers_;
     AtomTable atom_table_;
@@ -122,7 +122,7 @@ class RewriteContext {
     //! Check if the given identifier is a parameter defined by a program directive.
     //!
     //! If it is a parameter, return its index.
-    [[nodiscard]] auto is_param(String name) const -> std::optional<int> {
+    [[nodiscard]] auto is_param(String name) const -> std::optional<size_t> {
         if (auto it = param_map_.find(name); it != param_map_.end()) {
             return std::distance(param_map_.begin(), it);
         }

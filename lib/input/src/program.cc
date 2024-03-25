@@ -143,8 +143,7 @@ void Program::analyze(SymbolStore &store, ProgramParamVec const &params, Depende
     bld.meta(meta_stms_);
     std::vector<Stm> stms;
     Util::unordered_set<Signature> sigs;
-    Util::unordered_set<std::reference_wrapper<ProgramParam const>, Util::value_hasher, std::equal_to<ProgramParam>>
-        seen;
+    Util::unordered_set<std::reference_wrapper<ProgramParam const>> seen;
     seen.reserve(params.size());
     sigs.reserve(params.size());
     for (auto const &param : params) {
