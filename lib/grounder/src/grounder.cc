@@ -1,6 +1,6 @@
 #include <gringo/grounder/grounder.hh>
 
-#include <gringo/ground/component.hh>
+#include <gringo/ground/program.hh>
 
 #include <gringo/input/algo/analyze.hh>
 #include <gringo/input/algo/parse.hh>
@@ -245,6 +245,8 @@ struct BuilderLit {
         }
         auto it = ctx.comp.incomplete.find(&lit.term());
         // the index referring to a set of heads defining this literal
+        // - a literal that is recursive and inside a non-domain component is non-domain
+        // - a literal whole contains a non-fact is non-domain
         auto idx = std::numeric_limits<size_t>::max();
         if (it != ctx.comp.incomplete.end()) {
             idx = it - ctx.comp.incomplete.begin();
@@ -279,8 +281,7 @@ struct BuilderHdLit {
                 return nullptr;
             },
             lit.lit());
-        ctx.gcomp.stms.emplace_back(
-            std::make_unique<Ground::StmRule>(std::move(head), std::move(provides), std::move(ctx.body)));
+        ctx.gcomp.add(std::make_unique<Ground::StmRule>(std::move(head), std::move(provides), std::move(ctx.body)));
     }
     BuildContext &ctx;
 };
@@ -297,8 +298,7 @@ struct BuilderBdLit {
         // an index only has to be updated until it contains at least one value that justifies grounding
         // the remaining of the index can be updated while grounding
         // in case the index is never grounded, this can safe some computation
-        auto bld_lit = BuilderLit{ctx};
-        ctx.body.emplace_back(std::visit(bld_lit, lit.lit()));
+        ctx.body.emplace_back(std::visit(BuilderLit{ctx}, lit.lit()));
     }
     BuildContext &ctx;
 };
@@ -356,7 +356,7 @@ struct Builder : Input::DependencyBuilder {
             std::cerr << "% component\n";
             for (auto const &ref_comp : ref_comps) {
                 std::cerr << "% refined component\n";
-                auto gcomp = Ground::Component{};
+                auto gcomp = Ground::Component{static_cast<Ground::ComponentType>(ref_comp.type)};
                 for (auto const &stm : ref_comp.stms) {
                     Util::unordered_map<String, size_t> var_map;
                     Input::visit_variables(
@@ -366,7 +366,6 @@ struct Builder : Input::DependencyBuilder {
                         },
                         Input::VariableContext::all);
                     Ground::ULitVec body;
-
                     auto def_map = Util::unordered_map<Input::Term const *, std::vector<size_t>>{};
                     auto i = size_t{0};
                     for (auto const &[bd, hds] : ref_comp.incomplete) {
@@ -379,10 +378,17 @@ struct Builder : Input::DependencyBuilder {
                     auto bld_stm = BuilderStm{ctx};
                     std::visit(bld_stm, *stm);
                 }
-                for (auto const &stm : gcomp.stms) {
+                // Domain:
+                // - generation:
+                //   |---------|-----|------|
+                //       old     new   next
+                // Atom:
+                // - index
+                for (auto const &stm : gcomp.stms()) {
                     std::cerr << "  TODO: ground\n";
                     std::cerr << "    " << *stm << std::endl;
                 }
+                // recursive: old/new/all
             }
         }
     }

@@ -2,6 +2,8 @@
 
 #include <gringo/ground/literal.hh>
 
+#include <gringo/ground/instantiator.hh>
+
 namespace Gringo::Ground {
 
 class Stm {
@@ -22,6 +24,7 @@ class StmRule : public Stm {
     StmRule(Ground::UTerm atom, std::vector<size_t> indices, Ground::ULitVec body)
         : atom_{std::move(atom)}, indices_{std::move(indices)}, body_{std::move(body)} {}
     void print(std::ostream &out) const override;
+    void linearize(bool domain);
 
   private:
     // TODO: how to handle head

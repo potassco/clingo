@@ -4,6 +4,7 @@
 
 #include <gringo/core/logger.hh>
 
+#include <gringo/util/enum.hh>
 #include <gringo/util/ordered_map.hh>
 #include <gringo/util/ordered_set.hh>
 
@@ -54,7 +55,7 @@ struct UnprocessedProgram {
     //! Add a statement.
     void add(SymbolStore &store, Stm stm);
 
-    //! Add a statement.
+    //! Reset the program to its initial state removing all added statements.
     void clear();
 
     //! Unprocessed statemtents.
