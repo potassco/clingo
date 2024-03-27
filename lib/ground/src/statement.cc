@@ -68,11 +68,10 @@ class LitDep {
             queue.pop_front();
             for (auto var : lit_map_[i].second) {
                 if (!provided[var]) {
-                    if (var < var_map_.size()) {
-                        for (auto j : var_map_[var]) {
-                            if (--lit_map_[j].first; lit_map_[j].first == 0) {
-                                queue.emplace_back(j);
-                            }
+                    assert(var < var_map_.size());
+                    for (auto j : var_map_[var]) {
+                        if (--lit_map_[j].first; lit_map_[j].first == 0) {
+                            queue.emplace_back(j);
                         }
                     }
                     provided[var] = true;
