@@ -12,10 +12,18 @@ enum class Sign {
 };
 auto operator<<(std::ostream &out, Sign sign) -> std::ostream &;
 
+enum class VarSelectMode {
+    depend = 1,
+    provide = 2,
+    all = 3,
+};
+
 class Lit {
   public:
     virtual ~Lit() = default;
     virtual void print(std::ostream &out) const = 0;
+    virtual void vars(VariableSet &vars, VarSelectMode mode) const = 0;
+    [[nodiscard]] virtual auto recursive() const -> bool { return false; }
     friend auto operator<<(std::ostream &out, Lit const &lit) -> std::ostream & {
         lit.print(out);
         return out;
@@ -27,7 +35,9 @@ using ULitVec = std::vector<ULit>;
 class LitSymbolic : public Lit {
   public:
     LitSymbolic(Sign sign, UTerm atom, size_t index) : sign_{sign}, atom_{std::move(atom)}, index_{index} {}
+    void vars(VariableSet &vars, VarSelectMode mode) const override;
     void print(std::ostream &out) const override;
+    [[nodiscard]] auto recursive() const -> bool override;
 
   private:
     Sign sign_;

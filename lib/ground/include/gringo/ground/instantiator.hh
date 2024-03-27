@@ -25,6 +25,7 @@ class Matcher {
     virtual auto next(Assignment &ass) -> bool = 0;
 };
 using UMatcher = std::unique_ptr<Matcher>;
+using UMatcherVec = std::vector<UMatcher>;
 
 class Queue;
 
@@ -39,6 +40,8 @@ class InstanceCallback {
     virtual void report(Assignment const &ass) = 0;
     //! Notify a statement that instantiation has finished.
     virtual void propagate(Queue &queue) = 0;
+    //! The priority of the callback.
+    [[nodiscard]] virtual auto priority() const -> size_t = 0;
 };
 
 //! An instantiator implementinig the basic grounding algorithm.
@@ -47,7 +50,7 @@ class Instantiator {
     //! A vector of Matcher indices.
     using DependVec = std::vector<size_t>;
     //! Construct an instantiator with the given instance callback and number of variables.
-    Instantiator(InstanceCallback &icb, size_t priority, size_t vars) : icb_{&icb}, ass_{vars}, priority_{priority} {};
+    Instantiator(InstanceCallback &icb, size_t vars, size_t n) : icb_{&icb}, ass_{vars} { matchers_.reserve(n + 1); }
     //! Finalize the instantiator.
     //!
     //! The depend vector must point to matchers that bind relevant variables for the matcher.
@@ -71,7 +74,7 @@ class Instantiator {
     //! Add instantiators that need grounding to queue.
     void propagate(Queue &queue) { icb_->propagate(queue); }
     //! The priority of the instantiator.
-    [[nodiscard]] auto priority() const { return priority_; }
+    [[nodiscard]] auto priority() const { return icb_->priority(); }
 
   private:
     class BackjumpMatcher {
@@ -92,8 +95,7 @@ class Instantiator {
     };
     InstanceCallback *icb_;
     Assignment ass_;
-    std::vector<BackjumpMatcher> binders_;
-    size_t priority_;
+    std::vector<BackjumpMatcher> matchers_;
     bool enqueued_ = false;
 };
 

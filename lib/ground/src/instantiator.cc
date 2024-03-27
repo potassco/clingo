@@ -24,7 +24,7 @@ auto Instantiator::BackjumpMatcher::backjumpable() const -> bool { return backju
 void Instantiator::BackjumpMatcher::block() { backjumpable_ = false; }
 
 void Instantiator::add(UMatcher matcher, DependVec depend) {
-    binders_.emplace_back(std::move(matcher), std::move(depend));
+    matchers_.emplace_back(std::move(matcher), std::move(depend));
 }
 
 void Instantiator::finalize(DependVec depend) {
@@ -33,7 +33,7 @@ void Instantiator::finalize(DependVec depend) {
         void match([[maybe_unused]] Assignment &ass) override {}
         auto next([[maybe_unused]] Assignment &ass) -> bool override { return false; }
     };
-    binders_.emplace_back(std::make_unique<SolutionMatcher>(), std::move(depend));
+    matchers_.emplace_back(std::make_unique<SolutionMatcher>(), std::move(depend));
 }
 
 auto Instantiator::enqueue() -> bool {
@@ -45,9 +45,9 @@ auto Instantiator::enqueue() -> bool {
 void Instantiator::instantiate() {
     enqueued_ = false;
     icb_->init();
-    auto ie = binders_.rend();
+    auto ie = matchers_.rend();
     auto it = ie - 1;
-    auto ib = binders_.rbegin();
+    auto ib = matchers_.rbegin();
     it->match(ass_);
     do {
         if (it->next(ass_)) {
@@ -58,7 +58,7 @@ void Instantiator::instantiate() {
             icb_->report(ass_);
         }
         for (auto idx : it->depend()) {
-            binders_[idx].block();
+            matchers_[idx].block();
         }
         for (++it; it != ie && it->backjumpable(); ++it) {
         }

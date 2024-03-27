@@ -26,4 +26,29 @@ void LitSymbolic::print(std::ostream &out) const {
     }
 }
 
+auto LitSymbolic::recursive() const -> bool {
+    return sign_ == Sign::none && index_ != std::numeric_limits<size_t>::max();
+}
+
+void LitSymbolic::vars(VariableSet &vars, VarSelectMode mode) const {
+    switch (mode) {
+        case VarSelectMode::all: {
+            atom_->vars(vars);
+            break;
+        }
+        case VarSelectMode::provide: {
+            if (sign_ == Sign::none || (sign_ == Sign::twice && index_ == std::numeric_limits<size_t>::max())) {
+                atom_->vars(vars);
+            }
+            break;
+        }
+        case VarSelectMode::depend: {
+            if (sign_ == Sign::once || (sign_ == Sign::twice && index_ != std::numeric_limits<size_t>::max())) {
+                atom_->vars(vars);
+            }
+            break;
+        }
+    }
+}
+
 } // namespace Gringo::Ground

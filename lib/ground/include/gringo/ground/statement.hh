@@ -22,14 +22,14 @@ using UStmVec = std::vector<UStm>;
 
 class StmRule : public Stm {
   public:
-    StmRule(Ground::UTerm atom, std::vector<size_t> indices, Ground::ULitVec body)
-        : atom_{std::move(atom)}, indices_{std::move(indices)}, body_{std::move(body)} {}
+    StmRule(Ground::UTerm head, std::vector<size_t> indices, Ground::ULitVec body)
+        : head_{std::move(head)}, indices_{std::move(indices)}, body_{std::move(body)} {}
     void print(std::ostream &out) const override;
     void linearize(InstantiatorVec &insts, bool domain) override;
 
   private:
     // TODO: how to handle head
-    Ground::UTerm atom_;
+    Ground::UTerm head_;
     //! A list of indices.
     //!
     //! Recursize body literals that unify with the rule head have matching indices.

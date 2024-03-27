@@ -1,6 +1,9 @@
 #pragma once
 
 #include <gringo/core/symbol.hh>
+#include <gringo/util/ordered_set.hh>
+
+#include <gringo/util/enum.hh>
 
 namespace Gringo::Ground {
 
@@ -11,6 +14,8 @@ enum class RenameMode {
     rename_projection, //!< Succesively introduce variables for projections in order of traversal.
     drop_projection,   //!< Drop projections from tuples and functions.
 };
+
+using VariableSet = Util::ordered_set<size_t>;
 
 class Term;
 using UTerm = std::unique_ptr<Term>;
@@ -36,6 +41,8 @@ class Term {
     //! Otherwise, variables and projection are replaced according to the given mode.
     [[nodiscard]] virtual auto rename(SymbolStore &store, RenameMode mode, String *name, size_t *vars) const
         -> UTerm = 0;
+    //! Collect all variables in the term.
+    virtual void vars(VariableSet &vars, bool provide = false) const = 0;
     virtual void print(std::ostream &out) const = 0;
     [[nodiscard]] virtual auto hash() const -> size_t = 0;
     [[nodiscard]] virtual auto equal_to(Term const &other) const -> bool = 0;
@@ -54,6 +61,7 @@ class TermProjection : public Term {
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
     [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
     [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String *name, size_t *vars) const -> UTerm override;
+    void vars(VariableSet &vars, bool provide) const override;
     void print(std::ostream &out) const override;
     [[nodiscard]] auto hash() const -> size_t override;
     [[nodiscard]] auto equal_to(Term const &other) const -> bool override;
@@ -66,6 +74,7 @@ class TermSymbol : public Term {
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
     [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
     [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String *name, size_t *vars) const -> UTerm override;
+    void vars(VariableSet &vars, bool provide) const override;
     void print(std::ostream &out) const override;
     [[nodiscard]] auto hash() const -> size_t override;
     [[nodiscard]] auto equal_to(Term const &other) const -> bool override;
@@ -81,6 +90,7 @@ class TermVariable : public Term {
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
     [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
     [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String *name, size_t *vars) const -> UTerm override;
+    void vars(VariableSet &vars, bool provide) const override;
     void print(std::ostream &out) const override;
     [[nodiscard]] auto hash() const -> size_t override;
     [[nodiscard]] auto equal_to(Term const &other) const -> bool override;
@@ -96,6 +106,7 @@ class TermLinear : public Term {
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
     [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
     [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String *name, size_t *vars) const -> UTerm override;
+    void vars(VariableSet &vars, bool provide) const override;
     void print(std::ostream &out) const override;
     [[nodiscard]] auto hash() const -> size_t override;
     [[nodiscard]] auto equal_to(Term const &other) const -> bool override;
@@ -120,6 +131,7 @@ class TermUnary : public Term {
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
     [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
     [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String *name, size_t *vars) const -> UTerm override;
+    void vars(VariableSet &vars, bool provide) const override;
     void print(std::ostream &out) const override;
     [[nodiscard]] auto hash() const -> size_t override;
     [[nodiscard]] auto equal_to(Term const &other) const -> bool override;
@@ -149,6 +161,7 @@ class TermBinary : public Term {
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
     [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
     [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String *name, size_t *vars) const -> UTerm override;
+    void vars(VariableSet &vars, bool provide) const override;
     void print(std::ostream &out) const override;
     [[nodiscard]] auto hash() const -> size_t override;
     [[nodiscard]] auto equal_to(Term const &other) const -> bool override;
@@ -166,6 +179,7 @@ class TermTuple : public Term {
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
     [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
     [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String *name, size_t *vars) const -> UTerm override;
+    void vars(VariableSet &vars, bool provide) const override;
     void print(std::ostream &out) const override;
     [[nodiscard]] auto hash() const -> size_t override;
     [[nodiscard]] auto equal_to(Term const &other) const -> bool override;
@@ -181,6 +195,7 @@ class TermFunction : public Term {
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
     [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
     [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String *name, size_t *vars) const -> UTerm override;
+    void vars(VariableSet &vars, bool provide) const override;
     void print(std::ostream &out) const override;
     [[nodiscard]] auto hash() const -> size_t override;
     [[nodiscard]] auto equal_to(Term const &other) const -> bool override;

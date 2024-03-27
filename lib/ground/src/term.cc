@@ -71,6 +71,8 @@ auto TermProjection::rename([[maybe_unused]] SymbolStore &store, RenameMode mode
     return std::make_unique<TermProjection>();
 }
 
+void TermProjection::vars([[maybe_unused]] VariableSet &vars, [[maybe_unused]] bool provide) const {}
+
 void TermProjection::print(std::ostream &out) const { out << "*"; }
 
 auto TermProjection::hash() const -> size_t { return Util::value_hash_record<TermProjection>(); }
@@ -105,6 +107,8 @@ auto TermSymbol::rename([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Re
     }
     return std::make_unique<TermSymbol>(sym_);
 }
+
+void TermSymbol::vars([[maybe_unused]] VariableSet &vars, [[maybe_unused]] bool provide) const {}
 
 void TermSymbol::print(std::ostream &out) const { out << sym_; }
 
@@ -141,6 +145,8 @@ auto TermVariable::rename([[maybe_unused]] SymbolStore &store, RenameMode mode, 
     assert(name == nullptr);
     return std::make_unique<TermVariable>(mode == RenameMode::rename_vars && vars != nullptr ? (*vars)++ : var_);
 }
+
+void TermVariable::vars(VariableSet &vars, [[maybe_unused]] bool provide) const { vars.emplace(var_); }
 
 void TermVariable::print(std::ostream &out) const { out << "X_" << var_; }
 
@@ -192,6 +198,8 @@ auto TermLinear::rename([[maybe_unused]] SymbolStore &store, RenameMode mode, [[
     assert(name == nullptr);
     return std::make_unique<TermLinear>(m_, mode == RenameMode::rename_vars && vars != nullptr ? (*vars)++ : var_, n_);
 }
+
+void TermLinear::vars(VariableSet &vars, [[maybe_unused]] bool provide) const { vars.emplace(var_); }
 
 void TermLinear::print(std::ostream &out) const { out << "(" << m_ << "*X_" << var_ << "+" << n_ << ")"; }
 
@@ -253,6 +261,12 @@ auto TermUnary::eval(SymbolStore &store, Assignment const &ass) const -> std::op
 auto TermUnary::rename(SymbolStore &store, RenameMode mode, String *name, size_t *vars) const -> UTerm {
     assert(name == nullptr);
     return std::make_unique<TermUnary>(op_, rhs_->rename(store, mode, name, vars));
+}
+
+void TermUnary::vars(VariableSet &vars, bool provide) const {
+    if (op_ == UnaryOperator::minus || !provide) {
+        rhs_->vars(vars, provide);
+    }
 }
 
 void TermUnary::print(std::ostream &out) const {
@@ -350,6 +364,13 @@ auto TermBinary::rename(SymbolStore &store, RenameMode mode, String *name, size_
     return std::make_unique<TermBinary>(std::move(lhs), op_, rhs_->rename(store, mode, name, vars));
 }
 
+void TermBinary::vars(VariableSet &vars, bool provide) const {
+    if (!provide) {
+        lhs_->vars(vars, provide);
+        rhs_->vars(vars, provide);
+    }
+}
+
 void TermBinary::print(std::ostream &out) const {
     out << "(";
     lhs_->print(out);
@@ -426,6 +447,12 @@ auto TermTuple::rename(SymbolStore &store, RenameMode mode, [[maybe_unused]] Str
     return std::make_unique<TermTuple>(rename_args(args_, store, mode, vars));
 }
 
+void TermTuple::vars(VariableSet &vars, bool provide) const {
+    for (auto const &arg : args_) {
+        arg->vars(vars, provide);
+    }
+}
+
 void TermTuple::print(std::ostream &out) const {
     out << "(";
     auto n = args_.size();
@@ -471,6 +498,12 @@ auto TermTuple::compare_to([[maybe_unused]] Term const &other) const -> std::str
 
 auto TermFunction::rename(SymbolStore &store, RenameMode mode, String *name, size_t *vars) const -> UTerm {
     return std::make_unique<TermFunction>(name != nullptr ? *name : name_, rename_args(args_, store, mode, vars));
+}
+
+void TermFunction::vars(VariableSet &vars, bool provide) const {
+    for (auto const &arg : args_) {
+        arg->vars(vars, provide);
+    }
 }
 
 void TermFunction::print(std::ostream &out) const {
