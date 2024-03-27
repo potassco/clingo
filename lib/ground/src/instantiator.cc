@@ -2,17 +2,37 @@
 
 namespace Gringo::Ground {
 
-class SolutionMatcher : public Matcher {
-  public:
-    void match([[maybe_unused]] Assignment &ass) override {}
-    auto next([[maybe_unused]] Assignment &ass) -> bool override { return false; }
-};
+void Instantiator::BackjumpMatcher::match(Assignment &ass) { matcher_->match(ass); }
+
+auto Instantiator::BackjumpMatcher::next(Assignment &ass) -> bool {
+    if (matcher_->next(ass)) {
+        backjumpable_ = true;
+        return true;
+    }
+    return false;
+}
+
+auto Instantiator::BackjumpMatcher::first(Assignment &ass) -> bool {
+    matcher_->match(ass);
+    return next(ass);
+}
+
+auto Instantiator::BackjumpMatcher::depend() const -> DependVec const & { return depend_; }
+
+auto Instantiator::BackjumpMatcher::backjumpable() const -> bool { return backjumpable_; }
+
+void Instantiator::BackjumpMatcher::block() { backjumpable_ = false; }
 
 void Instantiator::add(UMatcher matcher, DependVec depend) {
     binders_.emplace_back(std::move(matcher), std::move(depend));
 }
 
 void Instantiator::finalize(DependVec depend) {
+    class SolutionMatcher : public Matcher {
+      public:
+        void match([[maybe_unused]] Assignment &ass) override {}
+        auto next([[maybe_unused]] Assignment &ass) -> bool override { return false; }
+    };
     binders_.emplace_back(std::make_unique<SolutionMatcher>(), std::move(depend));
 }
 

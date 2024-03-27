@@ -12,4 +12,10 @@ void StmRule::print(std::ostream &out) const {
     out << " :- " << Util::p_range(body_, ", ", [](auto const &lit) -> decltype(auto) { return *lit; }) << ".";
 }
 
+void StmRule::linearize(InstantiatorVec &insts, bool domain) {
+    static_cast<void>(insts);
+    static_cast<void>(domain);
+    printf("TODO: implement me!!!\n");
+}
+
 } // namespace Gringo::Ground

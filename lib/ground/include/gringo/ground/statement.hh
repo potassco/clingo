@@ -10,6 +10,7 @@ class Stm {
   public:
     virtual ~Stm() = default;
     virtual void print(std::ostream &out) const = 0;
+    virtual void linearize(InstantiatorVec &insts, bool domain) = 0;
     friend auto operator<<(std::ostream &out, Stm const &stm) -> std::ostream & {
         stm.print(out);
         return out;
@@ -24,7 +25,7 @@ class StmRule : public Stm {
     StmRule(Ground::UTerm atom, std::vector<size_t> indices, Ground::ULitVec body)
         : atom_{std::move(atom)}, indices_{std::move(indices)}, body_{std::move(body)} {}
     void print(std::ostream &out) const override;
-    void linearize(bool domain);
+    void linearize(InstantiatorVec &insts, bool domain) override;
 
   private:
     // TODO: how to handle head

@@ -11,18 +11,27 @@ namespace Gringo::Ground {
 
 using Assignment = std::vector<std::optional<Symbol>>;
 
+//! A matcher to match expressions.
 class Matcher {
   public:
+    //! Destroy the matcher.
     virtual ~Matcher() = default;
+    //! Initialize matching.
     virtual void match(Assignment &ass) = 0;
+    //! Obtain the next match.
+    //!
+    //! Has to be called to obtain the first match.
+    //! Returns true if there is a match.
     virtual auto next(Assignment &ass) -> bool = 0;
 };
 using UMatcher = std::unique_ptr<Matcher>;
 
 class Queue;
 
+//! Callbacks to notify statements during instantiations.
 class InstanceCallback {
   public:
+    //! Destroy the callback.
     virtual ~InstanceCallback() = default;
     //! Notify a statement that instantiation starts.
     virtual void init() = 0;
@@ -69,21 +78,12 @@ class Instantiator {
       public:
         BackjumpMatcher(UMatcher matcher, DependVec depend)
             : matcher_{std::move(matcher)}, depend_{std::move(depend)} {}
-        void match(Assignment &ass) { matcher_->match(ass); }
-        auto next(Assignment &ass) -> bool {
-            if (matcher_->next(ass)) {
-                backjumpable_ = true;
-                return true;
-            }
-            return false;
-        }
-        auto first(Assignment &ass) -> bool {
-            matcher_->match(ass);
-            return next(ass);
-        }
-        [[nodiscard]] auto depend() const -> DependVec const & { return depend_; }
-        [[nodiscard]] auto backjumpable() const -> bool { return backjumpable_; }
-        void block() { backjumpable_ = false; }
+        void match(Assignment &ass);
+        auto next(Assignment &ass) -> bool;
+        auto first(Assignment &ass) -> bool;
+        [[nodiscard]] auto depend() const -> DependVec const &;
+        [[nodiscard]] auto backjumpable() const -> bool;
+        void block();
 
       private:
         UMatcher matcher_;
@@ -97,9 +97,14 @@ class Instantiator {
     bool enqueued_ = false;
 };
 
+using InstantiatorVec = std::vector<Instantiator>;
+
+//! A queue to proccess instantiators.
 class Queue {
   public:
+    //! Add an instantiator to the queue.
     void add(Instantiator &inst);
+    //! Process previously enqueued instantiators.
     void process();
 
   private:

@@ -384,9 +384,11 @@ struct Builder : Input::DependencyBuilder {
                 //       old     new   next
                 // Atom:
                 // - index
+                Ground::InstantiatorVec insts;
                 for (auto const &stm : gcomp.stms()) {
                     std::cerr << "  TODO: ground\n";
                     std::cerr << "    " << *stm << std::endl;
+                    stm->linearize(insts, test(gcomp.type(), Ground::ComponentType::domain));
                 }
                 // recursive: old/new/all
             }
