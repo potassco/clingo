@@ -24,8 +24,12 @@ class Queue;
 class InstanceCallback {
   public:
     virtual ~InstanceCallback() = default;
+    //! Notify a statement that instantiation starts.
+    virtual void init() = 0;
+    //! Report an assignment giving rise to an instance for a statement.
     virtual void report(Assignment const &ass) = 0;
-    virtual void propagate(size_t gen, Queue &queue) = 0;
+    //! Notify a statement that instantiation has finished.
+    virtual void propagate(Queue &queue) = 0;
 };
 
 //! An instantiator implementinig the basic grounding algorithm.
@@ -56,7 +60,7 @@ class Instantiator {
     //! Assignments are reported via the InstanceCallback.
     void instantiate();
     //! Add instantiators that need grounding to queue.
-    void propagate(size_t gen, Queue &queue) { icb_->propagate(gen, queue); }
+    void propagate(Queue &queue) { icb_->propagate(queue); }
     //! The priority of the instantiator.
     [[nodiscard]] auto priority() const { return priority_; }
 

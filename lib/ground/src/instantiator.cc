@@ -24,6 +24,7 @@ auto Instantiator::enqueue() -> bool {
 
 void Instantiator::instantiate() {
     enqueued_ = false;
+    icb_->init();
     auto ie = binders_.rend();
     auto it = ie - 1;
     auto ib = binders_.rbegin();
@@ -47,7 +48,7 @@ void Instantiator::instantiate() {
 void Queue::add(Instantiator &inst) { queue_.emplace_back(&inst); }
 
 void Queue::process() {
-    for (auto gen = size_t{0}; !queue_.empty(); ++gen) {
+    while (!queue_.empty()) {
         auto n = queue_.size();
         std::stable_sort(queue_.begin(), queue_.end(),
                          [](auto const &a, auto const &b) { return a->priority() > b->priority(); });
@@ -56,7 +57,9 @@ void Queue::process() {
             inst->instantiate();
             if (i + 1 == n || inst->priority() != queue_[i + 1]->priority()) {
                 for (; j <= i; ++j) {
-                    queue_[j]->propagate(gen, *this);
+                    // Note: previous gringo versions enqueued the domain for update.
+                    // Currently, the update is planned to happen with a generation counter
+                    queue_[j]->propagate(*this);
                 }
             }
         }
