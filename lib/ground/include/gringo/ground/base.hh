@@ -28,21 +28,33 @@ struct AtomInfo {
     mutable uint64_t id;
     // Indicates at which iteration an atom has been grounded.
     // It would be ideal if it were possible to get rid of this field.
-    mutable uint64_t gen : 61;
+    mutable uint64_t gen : 62;
     mutable AtomState state : 2;
 };
 
 using Atom = std::pair<Symbol, AtomInfo>;
 
-class Domain {
+class Base {
   public:
     [[nodiscard]] auto contains(Symbol const &sym) const -> bool;
     [[nodiscard]] auto operator[](size_t pos) -> Atom &;
     [[nodiscard]] auto operator[](size_t pos) const -> Atom const &;
+    //! Check if the base is domain.
+    //!
+    //! A base is domain if it contains facts only.
+    [[nodiscard]] auto domain() const {
+        for (auto n = atoms_.size(); domain_offset_ < n; ++domain_offset_) {
+            if (atoms_.nth(n)->second.state != AtomState::fact) {
+                return false;
+            }
+        }
+        return true;
+    }
 
   private:
     Util::ordered_map<Symbol, AtomInfo> atoms_;
     size_t gen_ = 0;
+    size_t mutable domain_offset_ = 0;
 };
 
 } // namespace Gringo::Ground

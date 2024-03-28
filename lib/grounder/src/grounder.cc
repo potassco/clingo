@@ -41,6 +41,8 @@ struct Grounder::Impl {
     Input::Program prg;
     //! Dictionary to map terms with projections to their replacement predicates.
     Util::ordered_map<Ground::UTerm, String> map;
+    //! The atom base.
+    Util::ordered_map<std::tuple<String, size_t, bool>, std::unique_ptr<Ground::Base>> atom_base;
 };
 
 namespace {
@@ -251,7 +253,12 @@ struct BuilderLit {
         if (it != ctx.comp.incomplete.end()) {
             idx = it - ctx.comp.incomplete.begin();
         }
-        return std::make_unique<Ground::LitSymbolic>(map_sign(lit.sign()), std::move(term), idx);
+        auto sig = Input::signature(lit.term());
+        auto dom_it = ctx.impl.atom_base.try_emplace(sig.value(), nullptr).first;
+        if (dom_it->second == nullptr) {
+            dom_it.value() = std::make_unique<Ground::Base>();
+        }
+        return std::make_unique<Ground::LitSymbolic>(*dom_it.value(), map_sign(lit.sign()), std::move(term), idx);
     }
     BuildContext &ctx;
 };

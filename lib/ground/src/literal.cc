@@ -30,8 +30,7 @@ void LitSymbolic::print(std::ostream &out) const {
 
 auto LitSymbolic::domain(bool domain) const -> bool {
     // check if the base of the literal is domain
-    bool has_non_domain = printf("implement me properly: base of symbolic literal is domain!!!\n") < 0;
-    if (has_non_domain) {
+    if (!base_->domain()) {
         return false;
     }
     // stratifed literals with a domain base can be completely evaluated
@@ -70,6 +69,26 @@ void LitSymbolic::vars(VariableSet &vars, VarSelectMode mode) const {
 
 auto LitSymbolic::matcher(MatcherType type) -> UMatcher {
     static_cast<void>(type);
+    // TODO:
+    // - distinguish matcher types
+    // - the first matcher can just iterate over the base to do the matching
+    // - to construct the matcher the bound variables are still missing
+    // - how to track new/old/all generations:
+    //   - before accessing a domain we update the generation
+    //     - this has the advantage of storing limits/generations only once
+    //     - if the current generation is equal to generation:
+    //       - do nothing
+    //     - if the current generation is equal to generation - 1:
+    //       - limit of the old generation is the previous all limit
+    //       - limit of the all generation is the current domain size
+    //       - update current generation
+    //     - if the current generation is less than generation - 1:
+    //       - limits of the old and all generations is the current domain size
+    //       - update current generation
+    //   - the above has to be performed when
+    //     - accessing the limits
+    //     - adding symbols to the base
+    // - matchers track offsets of atoms in the base, they can determine old/new/all based on the old/all limits
     class DummyMatcher : public Matcher {
       public:
         void match(Assignment &ass) override {

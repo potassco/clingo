@@ -1,8 +1,11 @@
 #pragma once
 
+#include <gringo/ground/base.hh>
 #include <gringo/ground/instantiator.hh>
 #include <gringo/ground/literal.hh>
 #include <gringo/ground/term.hh>
+
+#include <gringo/util/ordered_map.hh>
 
 namespace Gringo::Ground {
 
@@ -60,7 +63,8 @@ using ULitVec = std::vector<ULit>;
 
 class LitSymbolic : public Lit {
   public:
-    LitSymbolic(Sign sign, UTerm atom, size_t index) : sign_{sign}, atom_{std::move(atom)}, index_{index} {}
+    LitSymbolic(Base &base, Sign sign, UTerm atom, size_t index)
+        : base_{&base}, atom_{std::move(atom)}, sign_{sign}, index_{index} {}
 
     void vars(VariableSet &vars, VarSelectMode mode) const override;
     [[nodiscard]] auto domain(bool domain) const -> bool override;
@@ -74,8 +78,9 @@ class LitSymbolic : public Lit {
     [[nodiscard]] auto compare_to(Lit const &other) const -> std::weak_ordering override;
 
   private:
-    Sign sign_;
+    Base *base_;
     UTerm atom_;
+    Sign sign_;
     //! The index of the literal.
     //!
     //! Note that only recursive literals have indices.
