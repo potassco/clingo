@@ -1,5 +1,6 @@
 #pragma once
 
+#include <gringo/ground/instantiator.hh>
 #include <gringo/ground/literal.hh>
 #include <gringo/ground/term.hh>
 
@@ -18,12 +19,37 @@ enum class VarSelectMode {
     all = 3,
 };
 
+enum class MatcherType { new_atoms, old_atoms, all_atoms };
+
 class Lit {
   public:
     virtual ~Lit() = default;
-    virtual void print(std::ostream &out) const = 0;
+
+    //! Get the variables in the predicate.
     virtual void vars(VariableSet &vars, VarSelectMode mode) const = 0;
+    //! Returns true if the literal is domain.
+    //!
+    //! A literal is considered domain if
+    //! - it's base does not contain a non-domain value, and
+    //!   - it occurs in a domain component, or
+    //!   - it is stratified
+    [[nodiscard]] virtual auto domain(bool domain) const -> bool = 0;
+    //! Returns true if the literal is recursive.
+    //!
+    //! Recursive literals give rise to components that need more than one grounding pass.
+    //! For example, incomplete positive symbolic literals are considered recursive.
+    //! However, incomplete negative literals are not considered recursive.
     [[nodiscard]] virtual auto recursive() const -> bool { return false; }
+    [[nodiscard]] virtual auto matcher(MatcherType type) -> UMatcher = 0;
+
+    virtual void print(std::ostream &out) const = 0;
+
+    [[nodiscard]] virtual auto hash() const -> size_t = 0;
+    [[nodiscard]] virtual auto equal_to(Lit const &other) const -> bool = 0;
+    [[nodiscard]] virtual auto compare_to(Lit const &other) const -> std::weak_ordering = 0;
+
+    friend auto operator==(Lit const &a, Lit const &b) -> bool { return a.equal_to(b); }
+    friend auto operator<=>(Lit const &a, Lit const &b) -> std::weak_ordering { return a.compare_to(b); }
     friend auto operator<<(std::ostream &out, Lit const &lit) -> std::ostream & {
         lit.print(out);
         return out;
@@ -35,9 +61,17 @@ using ULitVec = std::vector<ULit>;
 class LitSymbolic : public Lit {
   public:
     LitSymbolic(Sign sign, UTerm atom, size_t index) : sign_{sign}, atom_{std::move(atom)}, index_{index} {}
+
     void vars(VariableSet &vars, VarSelectMode mode) const override;
-    void print(std::ostream &out) const override;
+    [[nodiscard]] auto domain(bool domain) const -> bool override;
     [[nodiscard]] auto recursive() const -> bool override;
+    [[nodiscard]] auto matcher(MatcherType type) -> UMatcher override;
+
+    void print(std::ostream &out) const override;
+
+    [[nodiscard]] auto hash() const -> size_t override;
+    [[nodiscard]] auto equal_to(Lit const &other) const -> bool override;
+    [[nodiscard]] auto compare_to(Lit const &other) const -> std::weak_ordering override;
 
   private:
     Sign sign_;

@@ -20,12 +20,16 @@ class Stm {
 using UStm = std::unique_ptr<Stm>;
 using UStmVec = std::vector<UStm>;
 
-class StmRule : public Stm {
+class StmRule : public Stm, private InstanceCallback {
   public:
     StmRule(Ground::UTerm head, std::vector<size_t> indices, Ground::ULitVec body)
         : head_{std::move(head)}, indices_{std::move(indices)}, body_{std::move(body)} {}
     void print(std::ostream &out) const override;
     void linearize(InstantiatorVec &insts, bool domain) override;
+    void init() override;
+    void report(Assignment const &ass) override;
+    void propagate(Queue &queue) override;
+    [[nodiscard]] auto priority() const -> size_t override { return 0; }
 
   private:
     // TODO: how to handle head

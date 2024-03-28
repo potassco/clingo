@@ -378,19 +378,17 @@ struct Builder : Input::DependencyBuilder {
                     auto bld_stm = BuilderStm{ctx};
                     std::visit(bld_stm, *stm);
                 }
-                // Domain:
-                // - generation:
-                //   |---------|-----|------|
-                //       old     new   next
-                // Atom:
-                // - index
                 Ground::InstantiatorVec insts;
                 for (auto const &stm : gcomp.stms()) {
                     std::cerr << "  TODO: ground\n";
                     std::cerr << "    " << *stm << std::endl;
                     stm->linearize(insts, test(gcomp.type(), Ground::ComponentType::domain));
                 }
-                // recursive: old/new/all
+                Ground::Queue queue;
+                for (auto &inst : insts) {
+                    queue.add(inst);
+                }
+                queue.process();
             }
         }
     }
