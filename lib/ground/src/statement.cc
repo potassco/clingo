@@ -52,17 +52,17 @@ class LitDep {
     //! Create matchers for literals ordering them heuristically.
     auto order(InstanceCallback &cb, std::vector<MatcherType> const &todo, VariableSet important) -> Instantiator {
         auto inst = Instantiator{cb, var_map_.size(), lits_.size()};
-        auto queue = std::deque<size_t>{};
+        size_t gen = 0;
+        auto queue = std::vector<std::pair<size_t, size_t>>{};
         auto i = size_t{0};
         // initialize the queue
         for (auto &[cur, dep, prv] : lit_map_) {
             if ((cur = dep.size()) == 0) {
-                queue.emplace_back(i);
+                queue.emplace_back(i, ++gen);
             }
             ++i;
         }
-        // proceess the queue
-        auto provided = std::vector<size_t>(var_map_.size(), std::numeric_limits<size_t>::max());
+        auto provided = std::vector<size_t>(var_map_.size(), 0);
         auto make_depend = [&provided](auto const &vars) {
             auto dep = std::vector<size_t>{};
             for (auto var : vars) {
@@ -70,29 +70,43 @@ class LitDep {
             }
             return dep;
         };
+        // proceess the queue
         auto done = Util::unordered_set<Lit const *>{};
+        auto bound = std::vector<bool>(var_map_.size(), false);
         done.reserve(lits_.size());
         while (!queue.empty()) {
-            // TODO: sort queue by priority
-            printf("TODO: sort queue\n");
-            i = queue.front();
-            queue.pop_front();
+            // get minimum element in queue (breaking ties using insertion order)
+            auto pred = [&, this](auto const &ei, auto const &ej) -> bool {
+                auto si(lits_[ei.first]->score(bound));
+                auto sj(lits_[ej.first]->score(bound));
+                auto ti = todo[ei.first];
+                auto tj = todo[ej.first];
+                if ((ti == MatcherType::new_atoms || tj == MatcherType::new_atoms) && (si >= 0 && sj >= 0)) {
+                    assert(ti != tj);
+                    return ti < tj;
+                }
+                return std::tie(si, ei.second) < std::tie(sj, ej.second);
+            };
+            std::iter_swap(queue.rbegin(), std::min_element(queue.rbegin(), queue.rend(), pred));
+            i = queue.back().first;
+            queue.pop_back();
             // skip if an equivalent matcher has already been added (i.e., X=Y and Y=X)
             if (!done.emplace(lits_[i].get()).second && todo[i] == MatcherType::all_atoms) {
                 continue;
             }
             inst.add(lits_[i]->matcher(todo[i]), make_depend(std::get<1>(lit_map_[i])));
             for (auto var : std::get<2>(lit_map_[i])) {
-                if (provided[var] != std::numeric_limits<size_t>::max()) {
+                if (bound[var]) {
                     continue;
                 }
                 assert(var < var_map_.size());
                 for (auto j : var_map_[var]) {
                     if (--std::get<0>(lit_map_[j]) == 0) {
-                        queue.emplace_back(j);
+                        queue.emplace_back(j, ++gen);
                     }
                 }
                 provided[var] = i;
+                bound[var] = true;
             }
         }
         inst.finalize(make_depend(important));

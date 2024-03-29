@@ -44,6 +44,7 @@ class Lit {
     //! However, incomplete negative literals are not considered recursive.
     [[nodiscard]] virtual auto recursive() const -> bool { return false; }
     [[nodiscard]] virtual auto matcher(MatcherType type) -> UMatcher = 0;
+    [[nodiscard]] virtual auto score(std::vector<bool> const &bound) const -> double = 0;
 
     virtual void print(std::ostream &out) const = 0;
 
@@ -70,6 +71,7 @@ class LitSymbolic : public Lit {
     [[nodiscard]] auto domain(bool domain) const -> bool override;
     [[nodiscard]] auto recursive() const -> bool override;
     [[nodiscard]] auto matcher(MatcherType type) -> UMatcher override;
+    [[nodiscard]] auto score(std::vector<bool> const &bound) const -> double override;
 
     void print(std::ostream &out) const override;
 

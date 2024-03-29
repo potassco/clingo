@@ -106,6 +106,12 @@ auto LitSymbolic::matcher(MatcherType type) -> UMatcher {
     return std::make_unique<DummyMatcher>();
 }
 
+auto LitSymbolic::score(std::vector<bool> const &bound) const -> double {
+    static_cast<void>(bound);
+    printf("todo proper score for literal\n");
+    return 2;
+}
+
 auto LitSymbolic::hash() const -> size_t { return Util::value_hash_record<LitSymbolic>(sign_, atom_); }
 
 auto LitSymbolic::equal_to(Lit const &other) const -> bool {
