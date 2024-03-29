@@ -385,11 +385,12 @@ struct Builder : Input::DependencyBuilder {
                     auto bld_stm = BuilderStm{ctx};
                     std::visit(bld_stm, *stm);
                 }
-                Ground::InstantiatorVec insts;
+                auto insts = Ground::InstantiatorVec{};
+                auto lin = Ground::Linearizer{insts, test(gcomp.type(), Ground::ComponentType::domain)};
                 for (auto const &stm : gcomp.stms()) {
                     std::cerr << "  TODO: ground\n";
                     std::cerr << "    " << *stm << std::endl;
-                    stm->linearize(insts, test(gcomp.type(), Ground::ComponentType::domain));
+                    lin.linearize(*stm);
                 }
                 Ground::Queue queue;
                 for (auto &inst : insts) {
