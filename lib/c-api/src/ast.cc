@@ -510,184 +510,184 @@ auto clingo_ast::visit(V &&visit) const -> std::invoke_result_t<V, Gringo::Input
     using namespace Gringo::Input;
     switch (type_) {
         case clingo_ast_type_projection: {
-            return std::invoke(std::move(visit), cast<Projection>());
+            return std::invoke(std::forward<V>(visit), cast<Projection>());
         }
         case clingo_ast_type_term_variable: {
-            return std::invoke(std::move(visit), cast<TermVariable>());
+            return std::invoke(std::forward<V>(visit), cast<TermVariable>());
         }
         case clingo_ast_type_term_symbolic: {
-            return std::invoke(std::move(visit), cast<TermSymbol>());
+            return std::invoke(std::forward<V>(visit), cast<TermSymbol>());
         }
         case clingo_ast_type_term_absolute: {
-            return std::invoke(std::move(visit), cast<TermAbs>());
+            return std::invoke(std::forward<V>(visit), cast<TermAbs>());
         }
         case clingo_ast_type_term_unary_operation: {
-            return std::invoke(std::move(visit), cast<TermUnary>());
+            return std::invoke(std::forward<V>(visit), cast<TermUnary>());
         }
         case clingo_ast_type_term_binary_operation: {
-            return std::invoke(std::move(visit), cast<TermBinary>());
+            return std::invoke(std::forward<V>(visit), cast<TermBinary>());
         }
         case clingo_ast_type_term_tuple: {
-            return std::invoke(std::move(visit), cast<TermTuple>());
+            return std::invoke(std::forward<V>(visit), cast<TermTuple>());
         }
         case clingo_ast_type_term_function: {
-            return std::invoke(std::move(visit), cast<TermFunction>());
+            return std::invoke(std::forward<V>(visit), cast<TermFunction>());
         }
         case clingo_ast_type_argument_tuple: {
-            return std::invoke(std::move(visit), cast<ArgumentTuple>());
+            return std::invoke(std::forward<V>(visit), cast<ArgumentTuple>());
         }
         case clingo_ast_type_left_guard: {
-            return std::invoke(std::move(visit), cast<LGuard::value_type>());
+            return std::invoke(std::forward<V>(visit), cast<LGuard::value_type>());
         }
         case clingo_ast_type_right_guard: {
-            return std::invoke(std::move(visit), cast<RGuard::value_type>());
+            return std::invoke(std::forward<V>(visit), cast<RGuard::value_type>());
         }
         case clingo_ast_type_unparsed_element: {
-            return std::invoke(std::move(visit), cast<UnparsedElement>());
+            return std::invoke(std::forward<V>(visit), cast<UnparsedElement>());
         }
         case clingo_ast_type_theory_term_variable: {
-            return std::invoke(std::move(visit), cast<TheoryTermVariable>());
+            return std::invoke(std::forward<V>(visit), cast<TheoryTermVariable>());
         }
         case clingo_ast_type_theory_term_symbolic: {
-            return std::invoke(std::move(visit), cast<TheoryTermSymbol>());
+            return std::invoke(std::forward<V>(visit), cast<TheoryTermSymbol>());
         }
         case clingo_ast_type_theory_term_tuple: {
-            return std::invoke(std::move(visit), cast<TheoryTermTuple>());
+            return std::invoke(std::forward<V>(visit), cast<TheoryTermTuple>());
         }
         case clingo_ast_type_theory_term_function: {
-            return std::invoke(std::move(visit), cast<TheoryTermFunction>());
+            return std::invoke(std::forward<V>(visit), cast<TheoryTermFunction>());
         }
         case clingo_ast_type_theory_term_unparsed: {
-            return std::invoke(std::move(visit), cast<TheoryTermUnparsed>());
+            return std::invoke(std::forward<V>(visit), cast<TheoryTermUnparsed>());
         }
         case clingo_ast_type_literal_boolean: {
-            return std::invoke(std::move(visit), cast<LitBool>());
+            return std::invoke(std::forward<V>(visit), cast<LitBool>());
         }
         case clingo_ast_type_literal_comparison: {
-            return std::invoke(std::move(visit), cast<LitComparison>());
+            return std::invoke(std::forward<V>(visit), cast<LitComparison>());
         }
         case clingo_ast_type_literal_symbolic: {
-            return std::invoke(std::move(visit), cast<LitSymbolic>());
+            return std::invoke(std::forward<V>(visit), cast<LitSymbolic>());
         }
         case clingo_ast_type_set_aggregate_element: {
-            return std::invoke(std::move(visit), cast<SetAggregateElement>());
+            return std::invoke(std::forward<V>(visit), cast<SetAggregateElement>());
         }
         case clingo_ast_type_theory_atom_element: {
-            return std::invoke(std::move(visit), cast<TheoryElement>());
+            return std::invoke(std::forward<V>(visit), cast<TheoryElement>());
         }
         case clingo_ast_type_theory_right_guard: {
-            return std::invoke(std::move(visit), cast<TheoryRGuard::value_type>());
+            return std::invoke(std::forward<V>(visit), cast<TheoryRGuard::value_type>());
         }
         case clingo_ast_type_body_simple_literal: {
-            return std::invoke(std::move(visit), cast<BdLitSimple>());
+            return std::invoke(std::forward<V>(visit), cast<BdLitSimple>());
         }
         case clingo_ast_type_body_aggregate_element: {
-            return std::invoke(std::move(visit), cast<BdLitAggregateElement>());
+            return std::invoke(std::forward<V>(visit), cast<BdLitAggregateElement>());
         }
         case clingo_ast_type_body_aggregate: {
-            return std::invoke(std::move(visit), cast<BdLitAggregate>());
+            return std::invoke(std::forward<V>(visit), cast<BdLitAggregate>());
         }
         case clingo_ast_type_body_set_aggregate: {
-            return std::invoke(std::move(visit), cast<BdLitSetAggregate>());
+            return std::invoke(std::forward<V>(visit), cast<BdLitSetAggregate>());
         }
         case clingo_ast_type_body_theory_atom: {
-            return std::invoke(std::move(visit), cast<BdLitTheoryAtom>());
+            return std::invoke(std::forward<V>(visit), cast<BdLitTheoryAtom>());
         }
         case clingo_ast_type_body_conditional_literal: {
-            return std::invoke(std::move(visit), cast<BdLitConjunction>());
+            return std::invoke(std::forward<V>(visit), cast<BdLitConjunction>());
         }
         case clingo_ast_type_head_simple_literal: {
-            return std::invoke(std::move(visit), cast<HdLitSimple>());
+            return std::invoke(std::forward<V>(visit), cast<HdLitSimple>());
         }
         case clingo_ast_type_head_aggregate_element: {
-            return std::invoke(std::move(visit), cast<HdLitAggregateElement>());
+            return std::invoke(std::forward<V>(visit), cast<HdLitAggregateElement>());
         }
         case clingo_ast_type_head_aggregate: {
-            return std::invoke(std::move(visit), cast<HdLitAggregate>());
+            return std::invoke(std::forward<V>(visit), cast<HdLitAggregate>());
         }
         case clingo_ast_type_head_set_aggregate: {
-            return std::invoke(std::move(visit), cast<HdLitSetAggregate>());
+            return std::invoke(std::forward<V>(visit), cast<HdLitSetAggregate>());
         }
         case clingo_ast_type_head_theory_atom: {
-            return std::invoke(std::move(visit), cast<HdLitTheoryAtom>());
+            return std::invoke(std::forward<V>(visit), cast<HdLitTheoryAtom>());
         }
         case clingo_ast_type_head_conditional_literal: {
-            return std::invoke(std::move(visit), cast<CondLit>());
+            return std::invoke(std::forward<V>(visit), cast<CondLit>());
         }
         case clingo_ast_type_head_disjunction: {
-            return std::invoke(std::move(visit), cast<HdLitDisjunction>());
+            return std::invoke(std::forward<V>(visit), cast<HdLitDisjunction>());
         }
         case clingo_ast_type_statement_rule: {
-            return std::invoke(std::move(visit), cast<StmRule>());
+            return std::invoke(std::forward<V>(visit), cast<StmRule>());
         }
         case clingo_ast_type_theory_operator_definition: {
-            return std::invoke(std::move(visit), cast<TheoryOpDefinition>());
+            return std::invoke(std::forward<V>(visit), cast<TheoryOpDefinition>());
         }
         case clingo_ast_type_theory_term_definition: {
-            return std::invoke(std::move(visit), cast<TheoryTermDefinition>());
+            return std::invoke(std::forward<V>(visit), cast<TheoryTermDefinition>());
         }
         case clingo_ast_type_theory_guard_definition: {
-            return std::invoke(std::move(visit), cast<TheoryRGuardDefinition>());
+            return std::invoke(std::forward<V>(visit), cast<TheoryRGuardDefinition>());
         }
         case clingo_ast_type_theory_atom_definition: {
-            return std::invoke(std::move(visit), cast<TheoryAtomDefinition>());
+            return std::invoke(std::forward<V>(visit), cast<TheoryAtomDefinition>());
         }
         case clingo_ast_type_statement_theory: {
-            return std::invoke(std::move(visit), cast<StmTheory>());
+            return std::invoke(std::forward<V>(visit), cast<StmTheory>());
         }
         case clingo_ast_type_optimize_tuple: {
-            return std::invoke(std::move(visit), cast<OptimizeTuple>());
+            return std::invoke(std::forward<V>(visit), cast<OptimizeTuple>());
         }
         case clingo_ast_type_optimize_element: {
-            return std::invoke(std::move(visit), cast<OptimizeElement>());
+            return std::invoke(std::forward<V>(visit), cast<OptimizeElement>());
         }
         case clingo_ast_type_statement_optimize: {
-            return std::invoke(std::move(visit), cast<StmOptimize>());
+            return std::invoke(std::forward<V>(visit), cast<StmOptimize>());
         }
         case clingo_ast_type_statement_weak_constraint: {
-            return std::invoke(std::move(visit), cast<StmWeakConstraint>());
+            return std::invoke(std::forward<V>(visit), cast<StmWeakConstraint>());
         }
         case clingo_ast_type_edge: {
-            return std::invoke(std::move(visit), cast<Edge>());
+            return std::invoke(std::forward<V>(visit), cast<Edge>());
         }
         case clingo_ast_type_statement_show: {
-            return std::invoke(std::move(visit), cast<StmShow>());
+            return std::invoke(std::forward<V>(visit), cast<StmShow>());
         }
         case clingo_ast_type_statement_show_signature: {
-            return std::invoke(std::move(visit), cast<StmShowSig>());
+            return std::invoke(std::forward<V>(visit), cast<StmShowSig>());
         }
         case clingo_ast_type_statement_project: {
-            return std::invoke(std::move(visit), cast<StmProject>());
+            return std::invoke(std::forward<V>(visit), cast<StmProject>());
         }
         case clingo_ast_type_statement_project_signature: {
-            return std::invoke(std::move(visit), cast<StmProjectSig>());
+            return std::invoke(std::forward<V>(visit), cast<StmProjectSig>());
         }
         case clingo_ast_type_statement_defined: {
-            return std::invoke(std::move(visit), cast<StmDefined>());
+            return std::invoke(std::forward<V>(visit), cast<StmDefined>());
         }
         case clingo_ast_type_statement_external: {
-            return std::invoke(std::move(visit), cast<StmExternal>());
+            return std::invoke(std::forward<V>(visit), cast<StmExternal>());
         }
         case clingo_ast_type_statement_edge: {
-            return std::invoke(std::move(visit), cast<StmEdge>());
+            return std::invoke(std::forward<V>(visit), cast<StmEdge>());
         }
         case clingo_ast_type_statement_heuristic: {
-            return std::invoke(std::move(visit), cast<StmHeuristic>());
+            return std::invoke(std::forward<V>(visit), cast<StmHeuristic>());
         }
         case clingo_ast_type_statement_include: {
-            return std::invoke(std::move(visit), cast<StmInclude>());
+            return std::invoke(std::forward<V>(visit), cast<StmInclude>());
         }
         case clingo_ast_type_statement_program: {
-            return std::invoke(std::move(visit), cast<StmProgram>());
+            return std::invoke(std::forward<V>(visit), cast<StmProgram>());
         }
         case clingo_ast_type_statement_script: {
-            return std::invoke(std::move(visit), cast<StmScript>());
+            return std::invoke(std::forward<V>(visit), cast<StmScript>());
         }
         case clingo_ast_type_statement_const: {
-            return std::invoke(std::move(visit), cast<StmConst>());
+            return std::invoke(std::forward<V>(visit), cast<StmConst>());
         }
         case clingo_ast_type_statement_comment: {
-            return std::invoke(std::move(visit), cast<StmComment>());
+            return std::invoke(std::forward<V>(visit), cast<StmComment>());
         }
     }
     throw std::invalid_argument("invalid ast type");

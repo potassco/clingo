@@ -22,7 +22,6 @@ extern "C" auto clingo_symbol_create_number_str(clingo_lib_t *lib, char const *n
     -> bool {
     CLINGO_TRY {
         if (lib == nullptr || number == nullptr || symbol == nullptr) {
-            std::cerr << "going to throw invalid arguments!!!" << std::endl;
             throw std::invalid_argument("invalid arguments");
         }
         *symbol = Gringo::Symbol::to_rep(lib->store->num(Gringo::Number{number}));

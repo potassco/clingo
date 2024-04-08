@@ -6,7 +6,7 @@
 
 using namespace Gringo::Input;
 
-auto run(std::string program, std::vector<std::string> args) -> bool {
+auto run(std::string const &program, std::vector<std::string> args) -> bool {
     auto opts = RewriteOptions{};
     bool parse_only = false;
     auto log_level = Gringo::LogLevel::info;
@@ -53,7 +53,7 @@ auto run(std::string program, std::vector<std::string> args) -> bool {
         log.enable_color(false);
         log.set_level(log_level);
         auto store = Gringo::make_symbol_store(true, false);
-        Gringo::Grounder grd{log, *store, std::move(opts)};
+        Gringo::Grounder grd{log, *store, opts};
         grd.parse(program);
         [&]() {
             if (parse_only) {

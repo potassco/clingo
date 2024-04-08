@@ -68,7 +68,7 @@ auto main(int argc, char *argv[]) -> int {
     try {
         log.set_level(log_level);
         auto store = Gringo::make_symbol_store(true, false);
-        Gringo::Grounder grd{log, *store, std::move(opts)};
+        Gringo::Grounder grd{log, *store, opts};
         [&]() {
             grd.parse(files);
             if (mode == AppMode::parse) {

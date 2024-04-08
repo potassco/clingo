@@ -2,6 +2,8 @@
 
 #include <pybind11/operators.h>
 
+// NOLINTBEGIN(cppcoreguidelines-macro-usage,bugprone-macro-parentheses)
+
 #define CLINGO_PY_TOTAL_ORDER                                                                                          \
     .def(py::self == py::self)                                                                                         \
         .def(py::self != py::self)                                                                                     \
@@ -15,3 +17,5 @@
     [[maybe_unused]] type auto operator<=(T const &a, T const &b) -> bool { return !(b < a); }                         \
     [[maybe_unused]] type auto operator>(T const &a, T const &b) -> bool { return b < a; }                             \
     [[maybe_unused]] type auto operator>=(T const &a, T const &b) -> bool { return !(a < b); }
+
+// NOLINTEND(cppcoreguidelines-macro-usage,bugprone-macro-parentheses)
