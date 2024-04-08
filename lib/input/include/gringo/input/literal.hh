@@ -77,7 +77,7 @@ class LitBool : public Expression<LitBool> {
     }
 
     //! Construct a Boolean literal.
-    explicit LitBool(Location loc, Sign sign, bool value) : loc_{std::move(loc)}, sign_(sign), value_(value) {}
+    explicit LitBool(Location loc, Sign sign, bool value) : loc_{loc}, sign_(sign), value_(value) {}
 
     //! The location of the literal.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
@@ -105,7 +105,7 @@ class LitComparison : public Expression<LitComparison> {
 
     //! Construct a relation literal.
     explicit LitComparison(Location loc, Sign sign, Term lhs, GuardArray rhs)
-        : loc_{std::move(loc)}, sign_(sign), lhs_(std::move(lhs)), rhs_(std::move(rhs)) {}
+        : loc_{loc}, sign_(sign), lhs_(std::move(lhs)), rhs_(std::move(rhs)) {}
 
     //! The location of the literal.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
@@ -134,8 +134,7 @@ class LitSymbolic : public Expression<LitSymbolic> {
     }
 
     //! Construct a symbolic literal.
-    explicit LitSymbolic(Location loc, Sign sign, Term term)
-        : loc_{std::move(loc)}, sign_(sign), term_(std::move(term)) {}
+    explicit LitSymbolic(Location loc, Sign sign, Term term) : loc_{loc}, sign_(sign), term_(std::move(term)) {}
 
     //! The location of the literal.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
@@ -165,8 +164,7 @@ class CondLit : public Expression<CondLit> {
     }
 
     //! Construct a conditional literal.
-    explicit CondLit(Location loc, Lit lit, LitArray cond)
-        : loc_{std::move(loc)}, lit_{std::move(lit)}, cond_{std::move(cond)} {}
+    explicit CondLit(Location loc, Lit lit, LitArray cond) : loc_{loc}, lit_{std::move(lit)}, cond_{std::move(cond)} {}
     //! The location of the literal.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The literals on the left-hand-side.

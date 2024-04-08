@@ -100,13 +100,13 @@ class SetAggregate : public std::conditional_t<HasSign, Signed, Unsigned>, publi
 
     //! Construct a set aggregate.
     explicit SetAggregate(Location loc, LGuard lhs, SetAggregateElementArray elems, RGuard rhs)
-        : loc_{std::move(loc)}, elems_{std::move(elems)}, lhs_(std::move(lhs)), rhs_(std::move(rhs)) {
+        : loc_{loc}, elems_{std::move(elems)}, lhs_(std::move(lhs)), rhs_(std::move(rhs)) {
         static_assert(!HasSign);
     }
 
     //! Construct a set aggregate.
     explicit SetAggregate(Location loc, Sign sign, LGuard lhs, SetAggregateElementArray elems, RGuard rhs)
-        : Signed{sign}, loc_{std::move(loc)}, elems_{std::move(elems)}, lhs_(std::move(lhs)), rhs_(std::move(rhs)) {
+        : Signed{sign}, loc_{loc}, elems_{std::move(elems)}, lhs_(std::move(lhs)), rhs_(std::move(rhs)) {
         static_assert(HasSign);
     }
 

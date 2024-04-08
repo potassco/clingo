@@ -117,7 +117,7 @@ class Program {
     //! Initialize a program with a rewrite level.
     //!
     //! (The highest rewrite level has to be used for grounding.)
-    Program(RewriteOptions opts) : opts_{std::move(opts)} {}
+    Program(RewriteOptions opts) : opts_{opts} {}
     //! Join with the given unprocessed program.
     //!
     //! If fresh const statements are added, they will be merged with the previous ones.

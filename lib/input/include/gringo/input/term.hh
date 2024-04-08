@@ -91,7 +91,7 @@ class TermVariable : public Expression<TermVariable> {
 
     //! Construct a variable.
     explicit TermVariable(Location loc, String name, bool is_anonymous = false)
-        : loc_{std::move(loc)}, name_{std::move(name)}, anonymous_{is_anonymous} {}
+        : loc_{loc}, name_{name}, anonymous_{is_anonymous} {}
 
     //! The location of the variable.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
@@ -115,7 +115,7 @@ class TermSymbol : public Expression<TermSymbol> {
     static constexpr auto attributes() { return std::tuple{a_loc = &TermSymbol::loc_, a_value = &TermSymbol::value_}; }
 
     //! Construct term with the given symbol.
-    explicit TermSymbol(Location loc, Symbol value) : loc_{std::move(loc)}, value_{std::move(value)} {}
+    explicit TermSymbol(Location loc, Symbol value) : loc_{loc}, value_{value} {}
 
     //! The location of the symbol.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
@@ -303,7 +303,7 @@ inline auto operator<=>(ArgumentTuple const &a, ArgumentTuple const &b) -> std::
 
 // TermTuple
 
-inline TermTuple::TermTuple(Location loc, TupleElementArray pool) : loc_{std::move(loc)}, pool_{std::move(pool)} {}
+inline TermTuple::TermTuple(Location loc, TupleElementArray pool) : loc_{loc}, pool_{std::move(pool)} {}
 
 inline auto operator==(TermTuple const &a, TermTuple const &b) -> bool { return a.equal(b); }
 
@@ -312,7 +312,7 @@ inline auto operator<=>(TermTuple const &a, TermTuple const &b) -> std::strong_o
 // TermFunction
 
 inline TermFunction::TermFunction(Location loc, String name, PoolArray pool, bool external)
-    : loc_{std::move(loc)}, name_(std::move(name)), pool_{std::move(pool)}, external_{external} {}
+    : loc_{loc}, name_(name), pool_{std::move(pool)}, external_{external} {}
 
 inline auto operator==(TermFunction const &a, TermFunction const &b) -> bool { return a.equal(b); }
 
@@ -320,7 +320,7 @@ inline auto operator<=>(TermFunction const &a, TermFunction const &b) -> std::st
 
 // TermAbs
 
-inline TermAbs::TermAbs(Location loc, TermArray pool) : loc_{std::move(loc)}, pool_{std::move(pool)} {}
+inline TermAbs::TermAbs(Location loc, TermArray pool) : loc_{loc}, pool_{std::move(pool)} {}
 
 inline auto operator==(TermAbs const &a, TermAbs const &b) -> bool { return a.equal(b); }
 
@@ -329,7 +329,7 @@ inline auto operator<=>(TermAbs const &a, TermAbs const &b) -> std::strong_order
 // TermUnary
 
 inline TermUnary::TermUnary(Location loc, UnaryOperator op, Util::immutable_value<Term> rhs)
-    : loc_{std::move(loc)}, op_{op}, rhs_{std::move(rhs)} {}
+    : loc_{loc}, op_{op}, rhs_{std::move(rhs)} {}
 
 inline auto operator==(TermUnary const &a, TermUnary const &b) -> bool { return a.equal(b); }
 
@@ -339,7 +339,7 @@ inline auto operator<=>(TermUnary const &a, TermUnary const &b) -> std::strong_o
 
 inline TermBinary::TermBinary(Location loc, Util::immutable_value<Term> lhs, BinaryOperator op,
                               Util::immutable_value<Term> rhs)
-    : loc_{std::move(loc)}, lhs_{std::move(lhs)}, rhs_{std::move(rhs)}, op_{op} {}
+    : loc_{loc}, lhs_{std::move(lhs)}, rhs_{std::move(rhs)}, op_{op} {}
 
 inline auto operator==(TermBinary const &a, TermBinary const &b) -> bool { return a.equal(b); }
 

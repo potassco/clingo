@@ -85,8 +85,7 @@ class BdLitAggregate : public Expression<BdLitAggregate> {
     //! Construct a body aggregate.
     explicit BdLitAggregate(Location loc, Sign sign, LGuard lhs, AggregateFunction fun,
                             BdLitAggregateElementArray elems, RGuard rhs)
-        : loc_{std::move(loc)}, sign_{sign}, fun_(fun), elems_(std::move(elems)), lhs_{std::move(lhs)},
-          rhs_{std::move(rhs)} {}
+        : loc_{loc}, sign_{sign}, fun_(fun), elems_(std::move(elems)), lhs_{std::move(lhs)}, rhs_{std::move(rhs)} {}
 
     //! The location of the literal.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }

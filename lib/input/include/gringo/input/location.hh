@@ -31,20 +31,20 @@ struct Location {
     //! Create a new location from the beginning and end of the given two locations.
     friend auto operator+(Location const &a, Location const &b) -> Location { return {a.begin, b.end}; }
     //! Create a new location from the beginning of the location and the position.
-    friend auto operator+(Location const &a, Position b) -> Location { return {a.begin, std::move(b)}; }
+    friend auto operator+(Location const &a, Position b) -> Location { return {a.begin, b}; }
     //! Create a new location from the given one optionally adjusting its end position.
     friend auto operator+(Location const &a, std::optional<Position> b) -> Location {
         if (b.has_value()) {
-            return {a.begin, std::move(b).value()};
+            return {a.begin, b.value()};
         }
         return a;
     }
     //! Create a new location from the position of the end of the location.
-    friend auto operator+(Position a, Location const &b) -> Location { return {std::move(a), b.end}; }
+    friend auto operator+(Position a, Location const &b) -> Location { return {a, b.end}; }
     //! Create a new location from the given one optionally adjusting its start position.
     friend auto operator+(std::optional<Position> a, Location const &b) -> Location {
-        if (a.has_value()) {
-            return {std::move(a).value(), b.end};
+        if (a) {
+            return {*a, b.end};
         }
         return b;
     }
@@ -55,13 +55,13 @@ struct Location {
     }
     //! See the corresponding + operator.
     friend auto operator+=(Location &a, Position b) -> Location & {
-        a.end = std::move(b);
+        a.end = b;
         return a;
     }
     //! See the corresponding + operator.
     friend auto operator+=(Location &a, std::optional<Position> b) -> Location & {
-        if (b.has_value()) {
-            a.end = std::move(b).value();
+        if (b) {
+            a.end = *b;
         }
         return a;
     }
@@ -78,7 +78,7 @@ struct Location {
 };
 
 //! Create a location from the given two positions.
-inline auto operator+(Position a, Position b) -> Location { return {std::move(a), std::move(b)}; }
+inline auto operator+(Position a, Position b) -> Location { return {a, b}; }
 
 //! Get the location of an expression.
 template <class T>
