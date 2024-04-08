@@ -14,7 +14,7 @@ class ProjectionMap {
   public:
     //! Constructor taking the mode which variables to project and a map with counts of variables.
     explicit ProjectionMap(ProjectionMode mode, Util::unordered_map<String, size_t> const &counts)
-        : counts_{counts}, mode_{mode} {};
+        : counts_{&counts}, mode_{mode} {};
     //! Return whether a the given variable should be projected.
     //!
     //! Only variables with a count of exactly one can be projected while the mode adds further restrictions.
@@ -26,7 +26,7 @@ class ProjectionMap {
 
   private:
     //! The variable counts.
-    Util::unordered_map<String, size_t> const &counts_;
+    Util::unordered_map<String, size_t> const *counts_;
     //! The projection mode.
     ProjectionMode mode_;
 };

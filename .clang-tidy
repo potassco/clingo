@@ -14,6 +14,7 @@ Checks: >
   -cppcoreguidelines-special-member-functions,
   -readability-function-cognitive-complexity,
   -readability-identifier-length,
+  -cppcoreguidelines-avoid-do-while,
 WarningsAsErrors: ''
 HeaderFilterRegex: ''
 AnalyzeTemporaryDtors: false

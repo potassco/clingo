@@ -24,7 +24,9 @@ struct StateDep {
     size_t gen = 0;
 };
 
-struct BuildDep {
+class BuildDep {
+  public:
+    BuildDep(Util::ordered_map<String, size_t> &map, Graph &dep, size_t id) : map_{&map}, dep_{&dep}, id_{id} {}
 
     // protect ourselves -> no unintended overloads
 
@@ -72,20 +74,25 @@ struct BuildDep {
 
     //! Add a dependency to the graph.
     void add_(String const &name) const {
-        if (auto it = map.find(name); it != map.end()) {
-            dep.add_edge(id, it->second);
+        if (auto it = map_->find(name); it != map_->end()) {
+            dep_->add_edge(id_, it->second);
         }
     }
 
+  private:
     //! A map from constant names to indices of const statements.
-    Util::ordered_map<String, size_t> &map;
+    Util::ordered_map<String, size_t> *map_;
     //! The dependency graph to build.
-    Graph &dep;
+    Graph *dep_;
     //! The id of the const statement at hand.
-    size_t id;
+    size_t id_;
 };
 
-struct Evaluate {
+class Evaluate {
+  public:
+    Evaluate(Logger &log, SymbolStore &store, ConstMap const &map, StmConst const *root)
+        : log_{&log}, store_{&store}, map_{&map}, root_{root} {}
+
     // protect ourselves -> no unintended overloads
 
     template <class T> auto operator()(T const &x) const -> std::optional<Symbol> = delete;
@@ -104,7 +111,7 @@ struct Evaluate {
                 ret = Util::copy_n(args, n);
             }
             if (ret.has_value()) {
-                ret->emplace_back(std::move(arg_eval).value());
+                ret->emplace_back(arg_eval.value());
             }
             ++n;
         }
@@ -125,13 +132,13 @@ struct Evaluate {
             case SymbolType::function: {
                 auto args = sym.args();
                 if (args.empty()) {
-                    auto it = map.find(sym.name());
-                    if (it == map.end()) {
+                    auto it = map_->find(sym.name());
+                    if (it == map_->end()) {
                         return sym;
                     }
                     auto [type, rep] = it->second;
                     if (sym.has_sign()) {
-                        return evaluate(store, UnaryOperator::negate, rep);
+                        return evaluate(*store_, UnaryOperator::negate, rep);
                     }
                     return rep;
                 }
@@ -144,7 +151,7 @@ struct Evaluate {
                             return std::nullopt;
                         }
                         if constexpr (std::is_same_v<T, std::vector<Symbol>>) {
-                            return store.fun(sym.name(), res, sym.has_sign());
+                            return store_->fun(sym.name(), res, sym.has_sign());
                         }
                     },
                     eval_args_(args));
@@ -159,7 +166,7 @@ struct Evaluate {
                             return std::nullopt;
                         }
                         if constexpr (std::is_same_v<T, std::vector<Symbol>>) {
-                            return store.tup(res);
+                            return store_->tup(res);
                         }
                     },
                     eval_args_(sym.args()));
@@ -184,7 +191,7 @@ struct Evaluate {
             if (!res.has_value()) {
                 return std::nullopt;
             }
-            args.emplace_back(std::move(res).value());
+            args.emplace_back(res.value());
         }
         return {std::move(args)};
     }
@@ -194,7 +201,7 @@ struct Evaluate {
         if (!args.has_value()) {
             return std::nullopt;
         }
-        return {store.tup(args.value())};
+        return {store_->tup(args.value())};
     }
 
     auto operator()([[maybe_unused]] TermVariable const &term) const -> std::optional<Symbol> { return std::nullopt; }
@@ -213,7 +220,7 @@ struct Evaluate {
             return std::nullopt;
         }
         if (term.pool().front().elems().empty()) {
-            if (auto it = map.find(term.name()); it != map.end()) {
+            if (auto it = map_->find(term.name()); it != map_->end()) {
                 return it->second.second;
             }
         }
@@ -221,7 +228,7 @@ struct Evaluate {
         if (!args.has_value()) {
             return std::nullopt;
         }
-        return store.fun(term.name(), args.value(), false);
+        return store_->fun(term.name(), args.value(), false);
     }
 
     struct ErrorContext {
@@ -244,14 +251,14 @@ struct Evaluate {
             return std::nullopt;
         }
         if (val->type() == SymbolType::number) {
-            val = store.num(abs(*val->num()));
+            val = store_->num(abs(*val->num()));
         } else {
             val = std::nullopt;
         }
         if (!val.has_value()) {
-            GRINGO_REPORT_LOC(log, error, location(term)) << "operation undefined:\n"
-                                                          << "  |" << val.value() << "|\n"
-                                                          << ErrorContext{root};
+            GRINGO_REPORT_LOC(*log_, error, location(term)) << "operation undefined:\n"
+                                                            << "  |" << val.value() << "|\n"
+                                                            << ErrorContext{root_};
             return std::nullopt;
         }
         return val;
@@ -262,7 +269,7 @@ struct Evaluate {
         if (!rhs.has_value()) {
             return std::nullopt;
         }
-        auto res = evaluate(store, term.op(), rhs.value());
+        auto res = evaluate(*store_, term.op(), rhs.value());
         if (!res.has_value()) {
             auto const *lp = "";
             auto const *rp = "";
@@ -270,9 +277,9 @@ struct Evaluate {
                 lp = "(";
                 rp = ")";
             }
-            GRINGO_REPORT_LOC(log, error, location(term)) << "operation undefined:\n"
-                                                          << "  " << term.op() << lp << rhs.value() << rp << "\n"
-                                                          << ErrorContext{root};
+            GRINGO_REPORT_LOC(*log_, error, location(term)) << "operation undefined:\n"
+                                                            << "  " << term.op() << lp << rhs.value() << rp << "\n"
+                                                            << ErrorContext{root_};
         }
         return res;
     }
@@ -283,7 +290,7 @@ struct Evaluate {
         if (term.op() == BinaryOperator::dots || !lhs.has_value() || !rhs.has_value()) {
             return std::nullopt;
         }
-        auto res = evaluate(store, lhs.value(), term.op(), rhs.value());
+        auto res = evaluate(*store_, lhs.value(), term.op(), rhs.value());
         if (!res.has_value()) {
             auto const *lp = "";
             auto const *rp = "";
@@ -291,18 +298,19 @@ struct Evaluate {
                 lp = "(";
                 rp = ")";
             }
-            GRINGO_REPORT_LOC(log, error, location(term))
+            GRINGO_REPORT_LOC(*log_, error, location(term))
                 << "operation undefined:\n"
                 << "  " << lhs.value() << term.op() << lp << rhs.value() << rp << "\n"
-                << ErrorContext{root};
+                << ErrorContext{root_};
         }
         return res;
     }
 
-    Logger &log;
-    SymbolStore &store;
-    ConstMap const &map;
-    StmConst const *root;
+  private:
+    Logger *log_;
+    SymbolStore *store_;
+    ConstMap const *map_;
+    StmConst const *root_;
 };
 
 [[maybe_unused]] auto evaluate(Logger &log, SymbolStore &store, ConstMap const &map, StmConst const &stm)

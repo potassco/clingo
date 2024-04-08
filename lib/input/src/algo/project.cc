@@ -29,10 +29,10 @@ auto get_counts(ProjectionMap project, auto const &elem) {
     return counts;
 }
 
-struct Project : Transformer<Project> {
-
+class Project : public Transformer<Project> {
+  public:
     Project(ProjectionMap project, bool in_classical_scope = true, bool project_lits = true)
-        : project{std::move(project)}, in_classical_scope{in_classical_scope}, project_lits{project_lits} {}
+        : project_{project}, in_classical_scope_{in_classical_scope}, project_lits_{project_lits} {}
 
     // no unintended overloads
 
@@ -41,7 +41,7 @@ struct Project : Transformer<Project> {
     // term
 
     [[nodiscard]] auto accept(Argument const &elem) const -> std::optional<Argument> {
-        if (auto const *term = std::get_if<Term>(&elem); projectable(project, term)) {
+        if (auto const *term = std::get_if<Term>(&elem); projectable(project_, term)) {
             return {Projection{location(*term)}};
         }
         return std::visit(
@@ -87,13 +87,13 @@ struct Project : Transformer<Project> {
     // conditional literal
 
     [[nodiscard]] auto accept(CondLit const &elem) const -> std::optional<CondLit> {
-        bool project_cond = in_classical_scope || !is_atom(elem.lit());
+        bool project_cond = in_classical_scope_ || !is_atom(elem.lit());
         // add counts of local variables
-        auto counts = get_counts(project, elem);
-        auto sub_project = Project{ProjectionMap{project.mode(), counts}};
+        auto counts = get_counts(project_, elem);
+        auto sub_project = Project{ProjectionMap{project_.mode(), counts}};
         // project conclusion
         auto res_lit = std::optional<Lit>{};
-        if (project_lits) {
+        if (project_lits_) {
             res_lit = sub_project.transform(elem.lit());
         }
         // project premise
@@ -112,8 +112,8 @@ struct Project : Transformer<Project> {
 
     [[nodiscard]] auto accept(SetAggregateElement const &elem) const -> std::optional<SetAggregateElement> {
         // add counts of local variables
-        auto counts = get_counts(project, elem);
-        auto sub_project = Project{ProjectionMap{project.mode(), counts}};
+        auto counts = get_counts(project_, elem);
+        auto sub_project = Project{ProjectionMap{project_.mode(), counts}};
         // project literals in condition
         return sub_project.rewrite(elem, a_cond);
     }
@@ -124,7 +124,7 @@ struct Project : Transformer<Project> {
         return std::visit(
             [this]<class T>(T const &elem) -> std::optional<HdLitDisjunctionElement> {
                 if constexpr (std::is_same_v<T, Lit>) {
-                    if (!project_lits) {
+                    if (!project_lits_) {
                         return std::nullopt;
                     }
                 }
@@ -134,14 +134,14 @@ struct Project : Transformer<Project> {
     }
     [[nodiscard]] auto accept(HdLitDisjunction const &lit) const -> std::optional<HdLit> {
         // only projects variables in premise (almost body literals)
-        auto sub_project = Project{project, true, false};
+        auto sub_project = Project{project_, true, false};
         return sub_project.rewrite(lit, a_elems);
     }
 
     [[nodiscard]] auto accept(HdLitAggregateElement const &elem) const -> std::optional<HdLitAggregateElement> {
         // counts of local variables
-        auto counts = get_counts(project, elem);
-        auto sub_project = Project{ProjectionMap{project.mode(), counts}};
+        auto counts = get_counts(project_, elem);
+        auto sub_project = Project{ProjectionMap{project_.mode(), counts}};
         // project literals in condition
         return sub_project.rewrite(elem, a_cond);
     }
@@ -166,27 +166,28 @@ struct Project : Transformer<Project> {
     [[nodiscard]] auto accept(BdLitConjunction const &lit) const -> std::optional<BdLit> {
         // we project variables in premise if in classical scope,
         // we always project variables in conclusion.
-        auto sub_project = Project{project, in_classical_scope, true};
+        auto sub_project = Project{project_, in_classical_scope_, true};
         return sub_project.rewrite(lit, a_lit);
     }
     [[nodiscard]] auto accept(BdLitAggregateElement const &elem) const -> std::optional<BdLitAggregateElement> {
         // counts of local variables
-        auto counts = get_counts(project, elem);
-        auto sub_project = Project{ProjectionMap{project.mode(), counts}};
+        auto counts = get_counts(project_, elem);
+        auto sub_project = Project{ProjectionMap{project_.mode(), counts}};
 
         // project literals in condition
         return sub_project.rewrite(elem, a_cond);
     }
 
     [[nodiscard]] auto accept(BdLitAggregate const &lit) const -> std::optional<BdLit> {
-        if (lit.sign() != Sign::none || in_classical_scope || !reduct_is_nonmonotone(lit.lhs(), lit.fun(), lit.rhs())) {
+        if (lit.sign() != Sign::none || in_classical_scope_ ||
+            !reduct_is_nonmonotone(lit.lhs(), lit.fun(), lit.rhs())) {
             return rewrite(lit, a_elems);
         }
         return std::nullopt;
     }
 
     [[nodiscard]] auto accept(BdLitSetAggregate const &lit) const -> std::optional<BdLit> {
-        if (lit.sign() != Sign::none || in_classical_scope ||
+        if (lit.sign() != Sign::none || in_classical_scope_ ||
             !reduct_is_nonmonotone(lit.lhs(), AggregateFunction::count, lit.rhs())) {
             return rewrite(lit, a_elems);
         }
@@ -211,7 +212,7 @@ struct Project : Transformer<Project> {
             }
         }
         bool in_classical_scope = is_classical(stm.head());
-        auto sub_project = Project{project, in_classical_scope};
+        auto sub_project = Project{project_, in_classical_scope};
         // Note that it would be nicest to be able to have two different
         // translators for head and body because the scope setting would
         // ideally just apply to the body. In the current implementation, the
@@ -220,8 +221,8 @@ struct Project : Transformer<Project> {
     }
 
     [[nodiscard]] auto accept(OptimizeElement const &elem) const -> std::optional<OptimizeElement> {
-        auto counts = get_counts(project, elem);
-        auto sub_project = Project{ProjectionMap{project.mode(), counts}};
+        auto counts = get_counts(project_, elem);
+        auto sub_project = Project{ProjectionMap{project_.mode(), counts}};
         return sub_project.rewrite(elem, a_cond);
     }
 
@@ -231,9 +232,10 @@ struct Project : Transformer<Project> {
         return rewrite(stm, a_body);
     }
 
-    ProjectionMap project;
-    bool in_classical_scope;
-    bool project_lits;
+  private:
+    ProjectionMap project_;
+    bool in_classical_scope_;
+    bool project_lits_;
 };
 
 } // namespace
@@ -245,11 +247,11 @@ auto ProjectionMap::projectable(String const &var, bool anonymous) const -> bool
     if (mode_ == ProjectionMode::anonymous && !anonymous) {
         return false;
     }
-    auto it = counts_.find(var);
-    return it != counts_.end() && it->second == 1;
+    auto it = counts_->find(var);
+    return it != counts_->end() && it->second == 1;
 }
 
-auto ProjectionMap::counts() const -> Util::unordered_map<String, size_t> const & { return counts_; }
+auto ProjectionMap::counts() const -> Util::unordered_map<String, size_t> const & { return *counts_; }
 
 auto ProjectionMap::mode() const -> ProjectionMode { return mode_; }
 

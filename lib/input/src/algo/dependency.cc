@@ -9,7 +9,7 @@
 #include <gringo/util/type_traits.hh>
 #include <gringo/util/unordered_map.hh>
 
-#include <forward_list>
+#include <deque>
 
 namespace Gringo::Input {
 
@@ -27,17 +27,23 @@ enum class DependencyType : uint32_t {
 };
 [[maybe_unused]] consteval void is_bit_set_enum(DependencyType flags);
 
+auto safe_sig(Term const &term) -> std::tuple<String, size_t, bool> {
+    return signature(term).value(); // NOLINT(bugprone-unchecked-optional-access)
+}
+
 //! Builder for the dependencies between statements.
-struct AddDepend {
+class AddDepend {
+  public:
+    AddDepend(size_t idx, DependencyMap &map, bool &normal) : idx_{idx}, map_{&map}, normal_{&normal} {}
 
     void operator()(LitSymbolic const &lit, DependencyType type) const {
         auto const &term = lit.term();
-        auto sig = signature(term).value();
+        auto sig = safe_sig(term);
         if (test(type, DependencyType::positive) && lit.sign() == Sign::none) {
-            map[sig].emplace_back(idx, &term, false);
+            map_->operator[](sig).emplace_back(idx_, &term, false);
         }
         if (test(type, DependencyType::negative) || lit.sign() != Sign::none) {
-            map[sig].emplace_back(idx, &term, true);
+            map_->operator[](sig).emplace_back(idx_, &term, true);
         }
     }
 
@@ -62,7 +68,7 @@ struct AddDepend {
     }
 
     void operator()(HdLitDisjunction const &lit) const {
-        normal = false;
+        *normal_ = false;
         for (auto const &elem : lit.elems()) {
             std::visit(
                 [this]<class T>(T const &lit) {
@@ -77,7 +83,7 @@ struct AddDepend {
     template <class T>
         requires Util::is_among_v<T, HdLitSetAggregate, HdLitAggregate, HdLitTheoryAtom>
     void operator()(T const &lit) const {
-        normal = false;
+        *normal_ = false;
         for (auto const &elem : lit.elems()) {
             operator()(elem.cond(), DependencyType::positive);
         }
@@ -114,7 +120,7 @@ struct AddDepend {
     }
 
     void operator()(BdLitTheoryAtom const &lit) const {
-        normal = false;
+        *normal_ = false;
         for (auto const &elem : lit.elems()) {
             operator()(elem.cond(), DependencyType::positive);
         }
@@ -135,22 +141,26 @@ struct AddDepend {
             std::visit(*this, stm.head());
         }
         if constexpr (Util::matches<T, StmProject, StmHeuristic>) {
-            auto sig = signature(stm.atom()).value();
-            map[sig].emplace_back(idx, &stm.atom(), false);
+            auto sig = safe_sig(stm.atom());
+            map_->operator[](sig).emplace_back(idx_, &stm.atom(), false);
         }
         std::for_each(stm.body().begin(), stm.body().end(), *this);
     }
 
-    size_t idx;
-    DependencyMap &map;
-    bool &normal;
+  private:
+    size_t idx_;
+    DependencyMap *map_;
+    bool *normal_;
 };
 
-struct AddProvide {
+class AddProvide {
+  public:
+    AddProvide(ProvideVec &provide) : provide_{&provide} {}
+
     void operator()(LitSymbolic const &lit) const {
         // Note: could be made an assertion
         if (lit.sign() == Sign::none) {
-            provide.emplace_back(&lit.term());
+            provide_->emplace_back(&lit.term());
         }
     }
 
@@ -193,16 +203,17 @@ struct AddProvide {
 
     void operator()(StmRule const &stm) const { std::visit(*this, stm.head()); }
 
-    void operator()(StmExternal const &stm) const { provide.emplace_back(&stm.atom()); }
+    void operator()(StmExternal const &stm) const { provide_->emplace_back(&stm.atom()); }
 
-    ProvideVec &provide;
+  private:
+    ProvideVec *provide_;
 };
 
 using Assignment = Util::unordered_map<String, Term const *>;
 
 class Unifier {
   public:
-    Unifier(SymbolStore &store) : store_{store} {}
+    Unifier(SymbolStore &store) : store_{&store} {}
     auto unify(Term const &a, Term const &b) -> bool {
         ass_.clear();
         return unify_(a, b);
@@ -275,8 +286,8 @@ class Unifier {
         return std::visit(
             [&, this]<class T>(T const &v_b) -> bool {
                 if constexpr (Util::matches<T, TermVariable>) {
-                    terms_.emplace_front(TermSymbol{v_b.loc(), a});
-                    auto [it, ins] = ass_.try_emplace(v_b.name(), &terms_.front());
+                    terms_.emplace_back(TermSymbol{v_b.loc(), a});
+                    auto [it, ins] = ass_.try_emplace(v_b.name(), &terms_.back());
                     return ins || match_(a, *it->second);
                 } else if constexpr (Util::matches<T, TermSymbol>) {
                     return a == v_b.value();
@@ -293,7 +304,7 @@ class Unifier {
                         return a.type() == SymbolType::number;
                     }
                     if (a.type() == SymbolType::number) {
-                        return match_(store_.num(-*a.num()), v_b.rhs());
+                        return match_(store_->num(-*a.num()), v_b.rhs());
                     }
                     if (a.type() == SymbolType::function) {
                         return match_(*a.flip_classical_sign(), v_b.rhs());
@@ -306,7 +317,7 @@ class Unifier {
                     }
                     if (auto l_b = check_linear(v_b); l_b) {
                         auto c = *a.num() - *l_b->n();
-                        return c % l_b->m() == 0 && match_(store_.num(c / l_b->m()), l_b->term_x());
+                        return c % l_b->m() == 0 && match_(store_->num(c / l_b->m()), l_b->term_x());
                     }
                     return true;
                 }
@@ -342,13 +353,13 @@ class Unifier {
         // var = m_a / m_b * tx + (n_a - n_b) / m_b
         auto m = *a.m() / *b.m();
         n /= *b.m();
-        terms_.emplace_front(
+        terms_.emplace_back(
             TermBinary{a.term_mxn().loc(),
-                       TermBinary{location(a.term_mx()), TermSymbol{location(a.term_m()), store_.num(std::move(m))},
+                       TermBinary{location(a.term_mx()), TermSymbol{location(a.term_m()), store_->num(std::move(m))},
                                   BinaryOperator::times, a.term_x()},
-                       BinaryOperator::plus, TermSymbol{location(a.term_n()), store_.num(std::move(n))}});
-        auto [it, ins] = ass_.try_emplace(b.x(), &terms_.front());
-        return ins || unify_(terms_.front(), *it->second);
+                       BinaryOperator::plus, TermSymbol{location(a.term_n()), store_->num(std::move(n))}});
+        auto [it, ins] = ass_.try_emplace(b.x(), &terms_.back());
+        return ins || unify_(terms_.back(), *it->second);
     }
 
     auto unify_(Term const &a, Term const &b) -> bool {
@@ -360,12 +371,12 @@ class Unifier {
                         if constexpr (Util::matches<B, TermAbs>) {
                             return true;
                         } else if constexpr (Util::matches<B, TermUnary, TermBinary>) {
-                            terms_.emplace_front(
+                            terms_.emplace_back(
                                 TermBinary{v_a.loc(),
-                                           TermBinary{v_a.loc(), TermSymbol{v_a.loc(), store_.num(Number(1))},
+                                           TermBinary{v_a.loc(), TermSymbol{v_a.loc(), store_->num(Number(1))},
                                                       BinaryOperator::times, a},
-                                           BinaryOperator::plus, TermSymbol{v_a.loc(), store_.num(0)}});
-                            return unify_(terms_.front(), b);
+                                           BinaryOperator::plus, TermSymbol{v_a.loc(), store_->num(0)}});
+                            return unify_(terms_.back(), b);
                         } else {
                             if (a == b) {
                                 return true;
@@ -429,9 +440,9 @@ class Unifier {
                                 auto n = (*l_b->n() - *l_a->n());
                                 auto d = (*l_a->m() - *l_b->m());
                                 if (d != 0 && n % d == 0) {
-                                    terms_.emplace_front(
-                                        TermSymbol{v_a.loc(), store_.num(std::move(n) / std::move(d))});
-                                    return unify_(l_a->term_x(), terms_.front());
+                                    terms_.emplace_back(
+                                        TermSymbol{v_a.loc(), store_->num(std::move(n) / std::move(d))});
+                                    return unify_(l_a->term_x(), terms_.back());
                                 }
                                 return n == 0;
                             }
@@ -448,14 +459,14 @@ class Unifier {
                         return true;
                     } else if constexpr (Util::matches<B, TermUnary>) {
                         if (auto l_a = check_linear(v_a); l_a && v_b.op() == UnaryOperator::negate) {
-                            terms_.emplace_front(TermBinary{
+                            terms_.emplace_back(TermBinary{
                                 l_a->term_mxn().loc(),
                                 TermBinary{location(l_a->term_mx()),
-                                           TermSymbol{location(l_a->term_m()), store_.num(-*l_a->m())},
+                                           TermSymbol{location(l_a->term_m()), store_->num(-*l_a->m())},
                                            BinaryOperator::times, l_a->term_x()},
-                                BinaryOperator::plus, TermSymbol{location(l_a->term_n()), store_.num(-*l_a->n())}});
+                                BinaryOperator::plus, TermSymbol{location(l_a->term_n()), store_->num(-*l_a->n())}});
                             // -a ~ --b
-                            return unify_(terms_.front(), *v_b.rhs());
+                            return unify_(terms_.back(), *v_b.rhs());
                         }
                         return !never_numeric(b);
                     } else {
@@ -485,9 +496,8 @@ class Unifier {
     }
 
     Assignment ass_;
-    // or a dequeue...
-    std::forward_list<Term> terms_;
-    SymbolStore &store_;
+    std::deque<Term> terms_;
+    SymbolStore *store_;
 };
 
 struct Node {
@@ -499,17 +509,20 @@ struct Node {
     bool normal = true;
 };
 
-struct VariableRenamer : Transformer<VariableRenamer> {
-    VariableRenamer(NameGen &gen, Util::unordered_map<String, String> &map) : gen{gen}, map{map} {}
+class VariableRenamer : public Transformer<VariableRenamer> {
+  public:
+    VariableRenamer(NameGen &gen, Util::unordered_map<String, String> &map) : gen_{&gen}, map_{&map} {}
     [[nodiscard]] auto accept(TermVariable const &var) const -> std::optional<Term> {
-        auto [it, ins] = map.try_emplace(var.name(), String{});
+        auto [it, ins] = map_->try_emplace(var.name(), String{});
         if (ins) {
-            it.value() = gen.new_name();
+            it.value() = gen_->new_name();
         }
         return var.update(a_name = it.value());
     }
-    NameGen &gen;
-    Util::unordered_map<String, String> &map;
+
+  private:
+    NameGen *gen_;
+    Util::unordered_map<String, String> *map_;
 };
 
 auto rename(SymbolStore &store, Term const &term) -> std::optional<Term> {
@@ -538,7 +551,7 @@ auto build_nodes(SymbolStore &store, std::vector<Stm> const &stms) -> std::vecto
         for (auto const *hd_term : provide) {
             auto hd_term_r = rename(store, *hd_term);
             auto const *hd_term_u = hd_term_r ? &*hd_term_r : hd_term;
-            auto hd_sig = signature(*hd_term_u).value();
+            auto hd_sig = safe_sig(*hd_term_u);
             if (auto it = map_.find(hd_sig); it != map_.end()) {
                 for (auto const &[bd_idx, bd_term, bd_sign] : it->second) {
                     if (unifier.unify(*hd_term_u, *bd_term)) {

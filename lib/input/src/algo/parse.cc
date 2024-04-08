@@ -23,7 +23,7 @@ template <class It> class State {
 
     //! Construct state with beginning of input.
     State(SymbolStore &store, String filename, It begin)
-        : store_{store}, filename_{filename}, cur_{begin}, ws_begin_{begin}, ws_end_{begin} {}
+        : store_{&store}, filename_{filename}, cur_{begin}, ws_begin_{begin}, ws_end_{begin} {}
 
     //! Compute line and column offsets for the given position.
     auto pos(It pos) -> Position {
@@ -108,9 +108,7 @@ template <class It> class State {
     }
 
     //! Add a comment.
-    void push(Location loc, CommentType type, std::string comment) {
-        comments_.emplace(std::move(loc), type, std::move(comment));
-    }
+    void push(Location loc, CommentType type, std::string comment) { comments_.emplace(loc, type, std::move(comment)); }
 
     //! Mark all currently available comments for popping.
     void mark() { mark_ = comments_.size(); }
@@ -137,17 +135,17 @@ template <class It> class State {
         }
     }
 
-    auto num(Number const &num) -> Symbol { return store_.num(num); }
+    auto num(Number const &num) -> Symbol { return store_->num(num); }
 
-    auto num(Number &&num) -> Symbol { return store_.num(std::move(num)); }
+    auto num(Number &&num) -> Symbol { return store_->num(std::move(num)); }
 
-    auto string(std::string str) -> String { return store_.string(str); }
+    auto string(std::string_view str) -> String { return store_->string(str); }
 
-    auto string(char const *str) -> String { return store_.string(str); }
+    auto string(char const *str) -> String { return store_->string(str); }
 
   private:
     //! The store to construct symbols.
-    SymbolStore &store_;
+    SymbolStore *store_;
     //! The name of the file at hand.
     String filename_;
     //! Positions have been computed up to and including this iterator.

@@ -61,7 +61,10 @@ auto operator<<(std::ostream &out, IETerm const &term) -> std::ostream & {
 
 auto IEInterval::has_value(Type type) const -> bool { return type == Lower ? lower_.has_value() : upper_.has_value(); }
 
-auto IEInterval::value(Type type) const -> Number const & { return type == Lower ? *lower_ : *upper_; }
+auto IEInterval::value(Type type) const -> Number const & {
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+    return type == Lower ? *lower_ : *upper_;
+}
 
 void IEInterval::set_value(Type type, Number bound) {
     if (type == Lower) {
@@ -76,10 +79,12 @@ auto IEInterval::refine(Type type, Number const &bound) -> bool {
         set_value(type, bound);
         return true;
     }
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
     if (type == Lower && bound > *lower_) {
         lower_ = bound;
         return true;
     }
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
     if (type == Upper && bound < *upper_) {
         upper_ = bound;
         return true;
@@ -246,7 +251,7 @@ auto IESolver::update_bound_(IETerm const &term, Number slack, size_t num_unboun
         // floordiv
         slack /= term.coefficient;
     }
-    return domain_[term.variable].refine(positive ? IEInterval::Lower : IEInterval::Upper, std::move(slack));
+    return domain_[term.variable].refine(positive ? IEInterval::Lower : IEInterval::Upper, slack);
 }
 
 auto IESolver::update_slack_(IETerm const &term, Number &slack) -> bool {

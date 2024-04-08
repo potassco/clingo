@@ -18,7 +18,7 @@ class Graph {
     //! Compute the strongly connected components of the graph.
     //!
     //! The components are reported in topological order.
-    template <class Callback> void tarjan(Callback &&cb);
+    template <class Callback> void tarjan(Callback cb);
     //! Ensure that the graph holds at least n nodes.
     void ensure_size(size_t n);
     //! Add an edge to the graph.
@@ -64,7 +64,7 @@ inline void Graph::add_edge(size_t u, size_t v) {
     nodes_[u].out.emplace_back(v);
 }
 
-template <class Callback> inline void Graph::tarjan(Callback &&cb) {
+template <class Callback> inline void Graph::tarjan(Callback cb) {
     IdVec scc;
     IdVec stack;
     IdVec trail;
