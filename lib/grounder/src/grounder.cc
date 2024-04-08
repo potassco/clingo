@@ -16,7 +16,7 @@
 namespace Gringo {
 
 struct Grounder::Impl {
-    Impl(Logger &log, SymbolStore &store, Input::RewriteOptions opts) : log{log}, store{store}, prg{std::move(opts)} {}
+    Impl(Logger &log, SymbolStore &store, Input::RewriteOptions opts) : log{log}, store{store}, prg{opts} {}
 
     auto add_project(Ground::UTerm const &term) -> Ground::UTerm {
         size_t vars = 0;
@@ -26,7 +26,7 @@ struct Grounder::Impl {
             auto head = it->first->rename(store, Ground::RenameMode::drop_projection, &it.value(), nullptr);
             auto body = it->first->rename(store, Ground::RenameMode::rename_projection, nullptr, &vars);
             std::cerr << "  TODO: add projection rule:\n";
-            std::cerr << "    " << *head << " :- " << *body << "." << std::endl;
+            std::cerr << "    " << *head << " :- " << *body << "." << '\n';
         }
         return term->rename(store, Ground::RenameMode::drop_projection, &it.value(), nullptr);
     }
@@ -359,6 +359,7 @@ struct Builder : Input::DependencyBuilder {
     }
 
     void components(Input::Components const &comps) override {
+        auto lin = Ground::Linearizer{};
         for (auto const &ref_comps : comps) {
             std::cerr << "% component\n";
             for (auto const &ref_comp : ref_comps) {
@@ -386,11 +387,11 @@ struct Builder : Input::DependencyBuilder {
                     std::visit(bld_stm, *stm);
                 }
                 auto insts = Ground::InstantiatorVec{};
-                auto lin = Ground::Linearizer{insts, test(gcomp.type(), Ground::ComponentType::domain)};
+                lin.start(insts, test(gcomp.type(), Ground::ComponentType::domain));
                 for (auto const &stm : gcomp.stms()) {
                     std::cerr << "  TODO: ground\n";
-                    std::cerr << "    " << *stm << std::endl;
-                    lin.linearize(*stm);
+                    std::cerr << "    " << *stm << '\n';
+                    lin.prepare(*stm);
                 }
                 Ground::Queue queue;
                 for (auto &inst : insts) {
@@ -407,7 +408,7 @@ struct Builder : Input::DependencyBuilder {
 } // namespace
 
 Grounder::Grounder(Logger &log, SymbolStore &store, Input::RewriteOptions opts)
-    : impl_{std::make_unique<Impl>(log, store, std::move(opts))} {}
+    : impl_{std::make_unique<Impl>(log, store, opts)} {}
 
 Grounder::~Grounder() noexcept = default;
 
@@ -464,7 +465,7 @@ void Grounder::output_unprocessed_program(std::ostream &out) {
         for (auto fact : facts) {
             out << fact << ".\n";
         }
-        for (auto stm : stms) {
+        for (const auto &stm : stms) {
             out << stm << "\n";
         }
     }

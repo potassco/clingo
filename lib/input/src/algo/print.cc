@@ -150,7 +150,12 @@ auto right_bracket(TheoryTermTupleType type) -> char {
     return ']';
 }
 
-struct Print {
+class Print {
+  public:
+    Print(std::ostream &out, OperatorPosition pos = OperatorPosition::none, unsigned int prio = 0,
+          bool no_leading_op = false)
+        : out_{&out}, pos_{pos}, prio_{prio}, no_leading_op_{no_leading_op} {}
+
     // protect ourselves -> no unintended overloads
 
     template <class T> void operator()(T const &x) const = delete;
@@ -161,7 +166,7 @@ struct Print {
         bool comma = false;
         for (auto const &x : rng) {
             if (comma) {
-                out << sep;
+                *out_ << sep;
             } else {
                 comma = true;
             }
@@ -178,7 +183,7 @@ struct Print {
     }
 
     void print_range(auto const &rng, char const *sep = ",") const {
-        apply_to_range_with(rng, sep, [this](auto const &x) { out << x; });
+        apply_to_range_with(rng, sep, [this](auto const &x) { *out_ << x; });
     }
 
     // term
@@ -188,16 +193,16 @@ struct Print {
     void operator()(TermSymbol const &term) const {
         char const *lp = "";
         char const *rp = "";
-        if (no_leading_op && term.value().has_sign()) {
+        if (no_leading_op_ && term.value().has_sign()) {
             lp = "(";
             rp = ")";
         }
-        out << lp << term.value() << rp;
+        *out_ << lp << term.value() << rp;
     }
 
-    void operator()(TermVariable const &term) const { out << term.name(); }
+    void operator()(TermVariable const &term) const { *out_ << term.name(); }
 
-    void operator()(Projection const &x) const { out << x; }
+    void operator()(Projection const &x) const { *out_ << x; }
 
     void operator()(Argument const &elem) const { std::visit(*this, elem); }
 
@@ -206,42 +211,42 @@ struct Print {
         if (pool.size() == 1 && std::holds_alternative<Term>(pool.front())) {
             std::visit(*this, std::get<Term>(term.pool().front()));
         } else {
-            out << "(";
+            *out_ << "(";
             apply_to_range_with(pool, ";", [this](auto const &term_or_tuple) {
                 std::visit(
                     [this]<class T>(T const &x) {
                         if constexpr (std::is_same_v<T, Term>) {
-                            Print{out}(x);
+                            Print{*out_}(x);
                         } else if constexpr (std::is_same_v<T, ArgumentTuple>) {
-                            Print{out}.apply_to_range(x.elems());
+                            Print{*out_}.apply_to_range(x.elems());
                             if (x.elems().size() == 1) {
-                                out << ",";
+                                *out_ << ",";
                             }
                         }
                     },
                     term_or_tuple);
             });
-            out << ")";
+            *out_ << ")";
         }
     }
 
     void operator()(TermFunction const &term) const {
         if (term.external()) {
-            out << "@";
+            *out_ << "@";
         }
-        out << term.name();
+        *out_ << term.name();
         auto const &pool = term.pool();
         if (pool.size() != 1 || !pool.front().elems().empty()) {
-            out << "(";
-            apply_to_range_with(pool, ";", [this](auto const &tuple) { Print{out}.apply_to_range(tuple.elems()); });
-            out << ")";
+            *out_ << "(";
+            apply_to_range_with(pool, ";", [this](auto const &tuple) { Print{*out_}.apply_to_range(tuple.elems()); });
+            *out_ << ")";
         }
     }
 
     void operator()(TermAbs const &term) const {
-        out << "|";
-        Print{out}.visit_range(term.pool(), ";");
-        out << "|";
+        *out_ << "|";
+        Print{*out_}.visit_range(term.pool(), ";");
+        *out_ << "|";
     }
 
     void operator()(TermUnary const &term) const {
@@ -250,84 +255,84 @@ struct Print {
         auto op = term.op();
         // No need to consider associativity/position because the unary priority is
         // different from all binary ones.
-        if (no_leading_op || (priority(op) < prio)) {
+        if (no_leading_op_ || (priority(op) < prio_)) {
             lp = "(";
             rp = ")";
         }
-        out << lp << op;
-        std::visit(Print{out, OperatorPosition::none, priority(op), true}, *term.rhs());
-        out << rp;
+        *out_ << lp << op;
+        std::visit(Print{*out_, OperatorPosition::none, priority(op), true}, *term.rhs());
+        *out_ << rp;
     }
 
     void operator()(TermBinary const &term) const {
         char const *lp = "";
         char const *rp = "";
         auto op = term.op();
-        bool lhs_no_leading_op = no_leading_op;
+        bool lhs_no_leading_op = no_leading_op_;
         // We assume that operators with the same priority have the same associativity.
-        if (priority(op) < prio || (prio == priority(op) && associativity(op) != pos)) {
+        if (priority(op) < prio_ || (prio_ == priority(op) && associativity(op) != pos_)) {
             lp = "(";
             rp = ")";
             lhs_no_leading_op = false;
         }
-        out << lp;
-        std::visit(Print{out, OperatorPosition::left, priority(op), lhs_no_leading_op}, *term.lhs());
-        out << op;
-        std::visit(Print{out, OperatorPosition::right, priority(op), true}, *term.rhs());
-        out << rp;
+        *out_ << lp;
+        std::visit(Print{*out_, OperatorPosition::left, priority(op), lhs_no_leading_op}, *term.lhs());
+        *out_ << op;
+        std::visit(Print{*out_, OperatorPosition::right, priority(op), true}, *term.rhs());
+        *out_ << rp;
     }
 
     // theory terms
 
     void operator()(TheoryTerm const &term) const { std::visit(*this, term); }
 
-    void operator()(TheoryTermSymbol const &term) const { out << term.value(); }
+    void operator()(TheoryTermSymbol const &term) const { *out_ << term.value(); }
 
-    void operator()(TheoryTermVariable const &term) const { out << term.name(); }
+    void operator()(TheoryTermVariable const &term) const { *out_ << term.name(); }
 
     void operator()(TheoryTermTuple const &term) const {
-        out << left_bracket(term.type());
+        *out_ << left_bracket(term.type());
         visit_range(term.elems());
         if (term.type() == TheoryTermTupleType::tuple && term.elems().size() == 1) {
-            out << ",";
+            *out_ << ",";
         }
-        out << right_bracket(term.type());
+        *out_ << right_bracket(term.type());
     }
 
     void operator()(TheoryTermFunction const &term) const {
         size_t n = term.args().size();
         if (is_theory_operator(term.name().view()) && 0 < n && n < 3) {
-            out << "(";
+            *out_ << "(";
             if (n == 2) {
-                out << term.args().front() << " ";
+                *out_ << term.args().front() << " ";
             }
-            out << term.name();
-            out << " " << term.args().back();
-            out << ")";
+            *out_ << term.name();
+            *out_ << " " << term.args().back();
+            *out_ << ")";
         } else {
-            out << term.name();
+            *out_ << term.name();
             if (n > 0) {
-                out << "(";
+                *out_ << "(";
                 visit_range(term.args());
-                out << ")";
+                *out_ << ")";
             }
         }
     }
 
     void operator()(TheoryTermUnparsed const &term) const {
-        auto elems = term.elems();
+        const auto &elems = term.elems();
         bool needs_parens = elems.size() != 1 || !elems.front().first.empty();
         if (needs_parens) {
-            out << "(";
+            *out_ << "(";
         }
         apply_to_range_with(elems, " ", [this](auto const &elem) {
             for (auto const &op : elem.first) {
-                out << op << " ";
+                *out_ << op << " ";
             }
             operator()(elem.second);
         });
         if (needs_parens) {
-            out << ")";
+            *out_ << ")";
         }
     }
 
@@ -335,16 +340,16 @@ struct Print {
 
     void operator()(Lit const &lit) const { std::visit(*this, lit); }
 
-    void operator()(LitBool const &lit) const { out << lit.sign() << (lit.value() ? "#true" : "#false"); }
+    void operator()(LitBool const &lit) const { *out_ << lit.sign() << (lit.value() ? "#true" : "#false"); }
 
     void operator()(LitComparison const &lit) const {
-        out << lit.sign() << lit.lhs();
+        *out_ << lit.sign() << lit.lhs();
         for (auto const &[rel, term] : lit.rhs()) {
-            out << rel << term;
+            *out_ << rel << term;
         }
     }
 
-    void operator()(LitSymbolic const &lit) const { out << lit.sign() << lit.term(); }
+    void operator()(LitSymbolic const &lit) const { *out_ << lit.sign() << lit.term(); }
 
     // conditional literal
 
@@ -352,55 +357,55 @@ struct Print {
 
     void operator()(CondLit const &lit) const {
         operator()(lit.lit());
-        out << ": ";
+        *out_ << ": ";
         operator()(lit.cond());
     }
 
     void operator()(SetAggregateElement const &elem) const {
         operator()(elem.lit());
         if (!elem.cond().empty()) {
-            out << ": ";
+            *out_ << ": ";
             operator()(elem.cond());
         }
     }
 
     template <bool HasSign> void operator()(SetAggregate<HasSign> const &aggr) const {
         if constexpr (HasSign) {
-            out << aggr.sign();
+            *out_ << aggr.sign();
         }
-        if (aggr.lhs().has_value()) {
-            out << aggr.lhs()->first << " " << aggr.lhs()->second << " ";
+        if (auto const &lhs = aggr.lhs(); lhs) {
+            *out_ << lhs->first << " " << lhs->second << " ";
         }
-        out << "{ ";
+        *out_ << "{ ";
         apply_to_range(aggr.elems(), "; ");
-        out << (aggr.elems().empty() ? "}" : " }");
-        if (aggr.rhs().has_value()) {
-            out << " " << aggr.rhs()->first << " " << aggr.rhs()->second;
+        *out_ << (aggr.elems().empty() ? "}" : " }");
+        if (auto const &rhs = aggr.rhs(); rhs) {
+            *out_ << " " << rhs->first << " " << rhs->second;
         }
     }
 
     void operator()(TheoryElement const &elem) const {
         visit_range(elem.tuple());
         if (!elem.cond().empty() || elem.tuple().empty()) {
-            out << ": ";
+            *out_ << ": ";
             visit_range(elem.cond(), ", ");
         }
     }
 
     template <bool HasSign> void operator()(TheoryAtom<HasSign> const &atom) const {
         if constexpr (HasSign) {
-            out << atom.sign();
+            *out_ << atom.sign();
         }
-        out << "&" << atom.name();
+        *out_ << "&" << atom.name();
         auto const &elems = atom.elems();
         if (!elems.empty() || atom.rhs().has_value()) {
-            out << " { ";
+            *out_ << " { ";
             apply_to_range(elems, "; ");
-            out << (elems.empty() ? "}" : " }");
+            *out_ << (elems.empty() ? "}" : " }");
         }
-        if (atom.rhs().has_value()) {
-            out << " " << atom.rhs().value().first << " ";
-            operator()(atom.rhs().value().second);
+        if (auto const &rhs = atom.rhs(); rhs) {
+            *out_ << " " << rhs->first << " ";
+            operator()(rhs->second);
         }
     }
 
@@ -416,25 +421,23 @@ struct Print {
 
     void operator()(HdLitAggregateElement const &elem) const {
         visit_range(elem.tuple());
-        out << ": ";
+        *out_ << ": ";
         operator()(elem.lit());
         if (!elem.cond().empty()) {
-            out << ": ";
+            *out_ << ": ";
             visit_range(elem.cond(), ", ");
         }
     }
 
     void operator()(HdLitAggregate const &lit) const {
-        auto const &lhs = lit.lhs();
-        auto const &rhs = lit.rhs();
-        if (lhs.has_value()) {
-            out << lhs->first << " " << lhs->second << " ";
+        if (auto const &lhs = lit.lhs(); lhs) {
+            *out_ << lhs->first << " " << lhs->second << " ";
         }
-        out << lit.fun() << " { ";
+        *out_ << lit.fun() << " { ";
         apply_to_range_with(lit.elems(), "; ", *this);
-        out << (lit.elems().empty() ? "}" : " }");
-        if (rhs.has_value()) {
-            out << " " << rhs->first << " " << rhs->second;
+        *out_ << (lit.elems().empty() ? "}" : " }");
+        if (auto const &rhs = lit.rhs(); rhs) {
+            *out_ << " " << rhs->first << " " << rhs->second;
         }
     }
 
@@ -449,21 +452,21 @@ struct Print {
     void operator()(BdLitAggregateElement const &elem) const {
         visit_range(elem.tuple());
         if (!elem.cond().empty()) {
-            out << ": ";
+            *out_ << ": ";
             visit_range(elem.cond(), ", ");
         }
     }
 
     void operator()(BdLitAggregate const &lit) const {
-        out << lit.sign();
-        if (lit.lhs().has_value()) {
-            out << lit.lhs()->first << " " << lit.lhs()->second << " ";
+        *out_ << lit.sign();
+        if (auto const &lhs = lit.lhs(); lhs) {
+            *out_ << lhs->first << " " << lhs->second << " ";
         }
-        out << lit.fun() << " { ";
+        *out_ << lit.fun() << " { ";
         apply_to_range_with(lit.elems(), "; ", *this);
-        out << (lit.elems().empty() ? "}" : " }");
-        if (lit.rhs().has_value()) {
-            out << " " << lit.rhs()->first << " " << lit.rhs()->second;
+        *out_ << (lit.elems().empty() ? "}" : " }");
+        if (auto const &rhs = lit.rhs(); rhs) {
+            *out_ << " " << rhs->first << " " << rhs->second;
         }
     }
 
@@ -484,90 +487,90 @@ struct Print {
             },
             stm.head());
         if (!empty_head) {
-            out << stm.head();
+            *out_ << stm.head();
         }
         if (empty_head || !stm.body().empty()) {
-            out << " :- ";
+            *out_ << " :- ";
             visit_range(stm.body(), "; ");
         }
-        out << ".";
+        *out_ << ".";
     }
 
     void operator()(TheoryOpDefinition const &def) const {
-        out << def.op() << " : " << def.prio() << ", ";
+        *out_ << def.op() << " : " << def.prio() << ", ";
         switch (def.type()) {
             case TheoryOpType::unary: {
-                out << "unary";
+                *out_ << "unary";
                 break;
             }
             case TheoryOpType::binary_left: {
-                out << "binary, left";
+                *out_ << "binary, left";
                 break;
             }
             case TheoryOpType::binary_right: {
-                out << "binary, right";
+                *out_ << "binary, right";
                 break;
             }
         }
     }
 
     void operator()(TheoryTermDefinition const &def, char const *pre = "  ") const {
-        out << pre << def.name() << " {";
+        *out_ << pre << def.name() << " {";
         if (def.op_defs().empty()) {
-            out << " }";
+            *out_ << " }";
         } else if (def.op_defs().size() == 1) {
-            out << " ";
+            *out_ << " ";
             operator()(def.op_defs().front());
-            out << " }";
+            *out_ << " }";
         } else {
-            out << "\n";
+            *out_ << "\n";
             apply_to_range_with(def.op_defs(), ";\n", [this](auto &op_def) {
-                out << "    ";
+                *out_ << "    ";
                 operator()(op_def);
             });
-            out << "\n  }";
+            *out_ << "\n  }";
         }
     }
 
     void operator()(TheoryRGuardDefinition const &def) const {
-        out << "{";
+        *out_ << "{";
         print_range(def.first);
-        out << "}, " << def.second;
+        *out_ << "}, " << def.second;
     }
 
     void operator()(TheoryAtomDefinition const &def, char const *pre = "  ") const {
-        out << pre << "&" << def.name() << "/" << def.arity() << ": " << def.term() << ", ";
-        if (def.rhs()) {
-            operator()(*def.rhs());
-            out << ", ";
+        *out_ << pre << "&" << def.name() << "/" << def.arity() << ": " << def.term() << ", ";
+        if (auto const &rhs = def.rhs(); rhs) {
+            operator()(*rhs);
+            *out_ << ", ";
         }
-        out << def.type();
+        *out_ << def.type();
     }
 
     void operator()(StmTheory const &stm) const {
-        out << "#theory " << stm.name() << (stm.term_defs().empty() && stm.atom_defs().empty() ? " { " : " {\n");
+        *out_ << "#theory " << stm.name() << (stm.term_defs().empty() && stm.atom_defs().empty() ? " { " : " {\n");
         apply_to_range(stm.term_defs(), ";\n");
         if (!stm.term_defs().empty()) {
             if (!stm.atom_defs().empty()) {
-                out << ";";
+                *out_ << ";";
             }
-            out << "\n";
+            *out_ << "\n";
         }
         apply_to_range(stm.atom_defs(), ";\n");
         if (!stm.atom_defs().empty()) {
-            out << "\n";
+            *out_ << "\n";
         }
-        out << "}.";
+        *out_ << "}.";
     }
 
     void operator()(OptimizeTuple const &tuple) const {
-        out << tuple.weight();
-        if (tuple.prio()) {
-            out << "@";
-            operator()(*tuple.prio());
+        *out_ << tuple.weight();
+        if (auto const &prio = tuple.prio(); prio) {
+            *out_ << "@";
+            operator()(*prio);
         }
         if (!tuple.terms().empty()) {
-            out << ",";
+            *out_ << ",";
             visit_range(tuple.terms());
         }
     }
@@ -575,30 +578,30 @@ struct Print {
     void operator()(OptimizeElement const &elem) const {
         operator()(elem.tuple());
         if (!elem.cond().empty()) {
-            out << ": ";
+            *out_ << ": ";
             visit_range(elem.cond(), ", ");
         }
     }
 
     void operator()(StmOptimize const &stm) const {
-        out << stm.type() << " { ";
+        *out_ << stm.type() << " { ";
         apply_to_range(stm.elems(), "; ");
-        out << (stm.elems().empty() ? "}" : " }") << ".";
+        *out_ << (stm.elems().empty() ? "}" : " }") << ".";
     }
 
     void operator()(StmWeakConstraint const &stm) const {
         auto const &tuple = stm.tuple();
-        out << " :~ ";
+        *out_ << " :~ ";
         visit_range(stm.body(), "; ");
-        out << ". [" << tuple.weight();
-        if (tuple.prio()) {
-            out << "@" << *tuple.prio();
+        *out_ << ". [" << tuple.weight();
+        if (auto const &prio = tuple.prio(); prio) {
+            *out_ << "@" << *prio;
         }
         if (!tuple.terms().empty()) {
-            out << ",";
+            *out_ << ",";
             visit_range(tuple.terms());
         }
-        out << "]";
+        *out_ << "]";
     }
 
     void operator()(StmShow const &stm) const {
@@ -608,96 +611,97 @@ struct Print {
             lp = "(";
             rp = ")";
         }
-        out << "#show " << lp << stm.term() << rp << ": ";
+        *out_ << "#show " << lp << stm.term() << rp << ": ";
         visit_range(stm.body(), "; ");
-        out << ".";
+        *out_ << ".";
     }
 
     void operator()(StmShowSig const &stm) const {
-        out << "#show " << (stm.sign() ? "-" : "") << stm.name() << "/" << stm.arity() << ".";
+        *out_ << "#show " << (stm.sign() ? "-" : "") << stm.name() << "/" << stm.arity() << ".";
     }
 
     void operator()(StmProject const &stm) const {
-        out << "#project " << stm.atom() << (stm.body().empty() ? "" : ": ");
+        *out_ << "#project " << stm.atom() << (stm.body().empty() ? "" : ": ");
         visit_range(stm.body(), "; ");
-        out << ".";
+        *out_ << ".";
     }
 
     void operator()(StmProjectSig const &stm) const {
-        out << "#project " << (stm.sign() ? "-" : "") << stm.name() << "/" << stm.arity() << ".";
+        *out_ << "#project " << (stm.sign() ? "-" : "") << stm.name() << "/" << stm.arity() << ".";
     }
 
     void operator()(StmDefined const &stm) const {
-        out << "#defined " << (stm.sign() ? "-" : "") << stm.name() << "/" << stm.arity() << ".";
+        *out_ << "#defined " << (stm.sign() ? "-" : "") << stm.name() << "/" << stm.arity() << ".";
     }
 
     void operator()(StmExternal const &stm) const {
-        out << "#external " << stm.atom() << (stm.body().empty() ? "" : ": ");
+        *out_ << "#external " << stm.atom() << (stm.body().empty() ? "" : ": ");
         visit_range(stm.body(), "; ");
-        out << ".";
-        if (stm.type().has_value()) {
-            out << " [" << stm.type().value() << "]";
+        *out_ << ".";
+        if (auto const &type = stm.type(); type) {
+            *out_ << " [" << *type << "]";
         }
     }
 
     void operator()(Edge const &edge) const {
         operator()(edge.src());
-        out << ",";
+        *out_ << ",";
         operator()(edge.dst());
     }
 
     void operator()(StmEdge const &stm) const {
-        out << "#edge (";
+        *out_ << "#edge (";
         apply_to_range(stm.edges(), ";");
-        out << ")" << (stm.body().empty() ? "" : ": ");
+        *out_ << ")" << (stm.body().empty() ? "" : ": ");
         visit_range(stm.body(), "; ");
-        out << ".";
+        *out_ << ".";
     }
 
     void operator()(StmHeuristic const &stm) const {
-        out << "#heuristic " << stm.atom() << (stm.body().empty() ? "" : ": ");
+        *out_ << "#heuristic " << stm.atom() << (stm.body().empty() ? "" : ": ");
         visit_range(stm.body(), "; ");
-        out << ". [" << stm.weight();
-        if (stm.prio().has_value()) {
-            out << "@" << stm.prio().value();
+        *out_ << ". [" << stm.weight();
+        if (auto const &prio = stm.prio(); prio) {
+            *out_ << "@" << *prio;
         }
-        out << "," << stm.type() << "]";
+        *out_ << "," << stm.type() << "]";
     }
 
-    void operator()(StmScript const &stm) const { out << "#script (" << stm.type() << ")" << stm.value() << "#end."; }
+    void operator()(StmScript const &stm) const { *out_ << "#script (" << stm.type() << ")" << stm.value() << "#end."; }
 
     void operator()(StmInclude const &stm) const {
         if (stm.type() == IncludeType::inbuild) {
-            out << "#include <" << stm.value() << ">.";
+            *out_ << "#include <" << stm.value() << ">.";
         } else {
-            out << "#include ";
-            Util::print_quoted(out, stm.value());
-            out << ".";
+            *out_ << "#include ";
+            Util::print_quoted(*out_, stm.value());
+            *out_ << ".";
         }
     }
 
     void operator()(StmProgram const &stm) const {
-        out << "#program " << stm.name();
+        *out_ << "#program " << stm.name();
         if (!stm.args().empty()) {
-            out << "(";
+            *out_ << "(";
             print_range(stm.args());
-            out << ")";
+            *out_ << ")";
         }
-        out << ".";
+        *out_ << ".";
     }
 
     void operator()(StmConst const &stm) const {
-        out << "#const " << stm.name() << "=";
+        *out_ << "#const " << stm.name() << "=";
         operator()(stm.value());
-        out << ". [" << stm.type() << "]";
+        *out_ << ". [" << stm.type() << "]";
     }
 
-    void operator()(StmComment const &stm) const { out << stm.value(); }
+    void operator()(StmComment const &stm) const { *out_ << stm.value(); }
 
-    std::ostream &out;
-    OperatorPosition pos = OperatorPosition::none;
-    unsigned int prio = 0;
-    bool no_leading_op = false;
+  private:
+    std::ostream *out_;
+    OperatorPosition pos_;
+    unsigned int prio_;
+    bool no_leading_op_;
 };
 
 } // namespace

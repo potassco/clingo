@@ -20,19 +20,22 @@ class Stm : public InstanceCallback {
 using UStm = std::unique_ptr<Stm>;
 using UStmVec = std::vector<UStm>;
 
+//! Helper class to prepare statemnts for grounding.
 class Linearizer {
   public:
-    Linearizer(InstantiatorVec &insts, bool domain) : insts_{insts}, domain_{domain} {}
-    void linearize(Stm &stm);
+    //! Indicate that a new domain is being prepared.
+    void start(InstantiatorVec &insts, bool domain);
+    //! Prepare a statement for grounding.
+    void prepare(Stm &stm);
 
   private:
     //! Build the dependency graph among literals and variables.
     void build_(ULitVec const &lits);
     //! Create matchers for literals ordering them heuristically.
-    auto order_(InstanceCallback &cb, std::vector<MatcherType> const &todo, VariableSet important, ULitVec const &lits)
-        -> Instantiator;
+    auto order_(InstanceCallback &cb, std::vector<MatcherType> const &todo, VariableSet const &important,
+                ULitVec const &lits) -> Instantiator;
 
-    InstantiatorVec &insts_;
+    InstantiatorVec *insts_ = nullptr;
     std::vector<size_t> rec_;
     std::vector<std::vector<MatcherType>> todos_;
     std::vector<std::pair<size_t, size_t>> queue_;
@@ -40,7 +43,7 @@ class Linearizer {
     std::vector<std::tuple<size_t, std::vector<size_t>, std::vector<size_t>>> lit_map_;
     //! A map from variables to provided literals.
     std::vector<std::vector<size_t>> var_map_;
-    bool domain_;
+    bool domain_ = false;
 };
 
 class StmRule : public Stm {

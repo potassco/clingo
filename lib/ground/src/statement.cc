@@ -5,7 +5,12 @@
 
 namespace Gringo::Ground {
 
-void Linearizer::linearize(Stm &stm) {
+void Linearizer::start(InstantiatorVec &insts, bool domain) {
+    insts_ = &insts;
+    domain_ = domain;
+}
+
+void Linearizer::prepare(Stm &stm) {
     rec_.clear();
     todos_.clear();
     todos_.emplace_back();
@@ -32,14 +37,13 @@ void Linearizer::linearize(Stm &stm) {
             todos_.back()[i] = MatcherType::old_atoms;
         }
     }
-    insts_.reserve(insts_.size() + todos_.size());
+    insts_->reserve(insts_->size() + todos_.size());
     build_(body);
     for (auto const &todo : todos_) {
-        insts_.emplace_back(order_(stm, todo, important, body));
+        insts_->emplace_back(order_(stm, todo, important, body));
     }
 }
 
-//! Build the dependency graph among literals and variables.
 void Linearizer::build_(ULitVec const &lits) {
     lit_map_.clear();
     var_map_.clear();
@@ -70,8 +74,8 @@ void Linearizer::build_(ULitVec const &lits) {
         ++i;
     }
 }
-//! Create matchers for literals ordering them heuristically.
-auto Linearizer::order_(InstanceCallback &cb, std::vector<MatcherType> const &todo, VariableSet important,
+
+auto Linearizer::order_(InstanceCallback &cb, std::vector<MatcherType> const &todo, VariableSet const &important,
                         ULitVec const &lits) -> Instantiator {
     auto inst = Instantiator{cb, var_map_.size(), lits.size()};
     size_t gen = 0;
@@ -79,7 +83,7 @@ auto Linearizer::order_(InstanceCallback &cb, std::vector<MatcherType> const &to
     auto i = size_t{0};
     // initialize the queue
     for (auto &[cur, dep, prv] : lit_map_) {
-        if ((cur = dep.size()) == 0) {
+        if (cur = dep.size(); cur == 0) {
             queue_.emplace_back(i, ++gen);
         }
         ++i;
