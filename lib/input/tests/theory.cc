@@ -7,7 +7,7 @@ namespace Gringo::Input::Test {
 namespace {
 
 auto rewrite_statement(std::string const &str) -> std::string {
-    ParseHelper ph;
+    auto ph = ParseHelper{};
     auto thy = std::get<StmTheory>(opt_value(ph.statement(R"(
         #theory x {
             a {

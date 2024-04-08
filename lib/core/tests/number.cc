@@ -38,16 +38,19 @@ TEST_CASE("number_cross") {
 
     Number x = c;
     auto repr = Number::to_repr(x);
-    REQUIRE(Number::to_repr(std::move(x) + a) == repr);
+    auto res = Number::to_repr(std::move(x) + a);
+    REQUIRE(res == repr);
 
     x = c;
     repr = Number::to_repr(x);
-    REQUIRE(Number::to_repr(a + std::move(x)) == repr);
+    res = Number::to_repr(a + std::move(x));
+    REQUIRE(res == repr);
 
     x = c;
     Number y = c;
     repr = Number::to_repr(x);
-    REQUIRE(Number::to_repr(std::move(x) + std::move(y)) == repr);
+    res = Number::to_repr(std::move(x) + std::move(y));
+    REQUIRE(res == repr);
 }
 
 TEST_CASE("number_op") {

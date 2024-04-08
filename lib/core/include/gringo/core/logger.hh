@@ -125,7 +125,7 @@ class Report {
         out_ << loc << ": " << log_.message_prefix(code) << ": ";
     }
     //! Destroy the reporter and output message.
-    ~Report() { log_.print(code_, out_.str().c_str()); }
+    ~Report() noexcept(false) { log_.print(code_, out_.str().c_str()); }
     //! Get message sink.
     [[nodiscard]] auto out() -> std::ostringstream & { return out_; }
 
@@ -234,8 +234,9 @@ inline auto Logger::message_prefix(MessageCode code) const -> char const * {
     return prefix;
 }
 
+// NOLINTBEGIN(cppcoreguidelines-macro-usage)
+
 //! Report messages of the given type.
-// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define GRINGO_REPORT(p, id)                                                                                           \
     if ((p).check(::Gringo::MessageCode::id))                                                                          \
     Gringo::Report(p, ::Gringo::MessageCode::id).out()
@@ -250,6 +251,8 @@ inline auto Logger::message_prefix(MessageCode code) const -> char const * {
     if ((p).check(::Gringo::MessageCode::id)) {                                                                        \
         (p).print(::Gringo::MessageCode::id, msg);                                                                     \
     }
+
+// NOLINTEND(cppcoreguidelines-macro-usage)
 
 //! @}
 

@@ -284,11 +284,14 @@ class NumberRef {
     //! Construct a reference to the given number.
     explicit NumberRef(Number const &num) : repr_{Number::to_repr(num)} {}
     //! Access members of the underlying number.
-    auto operator->() const -> Number const * { return reinterpret_cast<Number const *>(&repr_); }
+    auto operator->() const -> Number const * { return &static_cast<Number const &>(*this); }
     //! Convert to const ref to underlying number.
-    operator Number const &() const { return reinterpret_cast<Number const &>(repr_); }
+    operator Number const &() const {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+        return reinterpret_cast<Number const &>(repr_);
+    }
     //! Convert to const ref to underlying number.
-    auto operator*() const -> Number const & { return reinterpret_cast<Number const &>(repr_); }
+    auto operator*() const -> Number const & { return static_cast<Number const &>(*this); }
 
   private:
     //! The representation of the number.
