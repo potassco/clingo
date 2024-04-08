@@ -45,15 +45,15 @@ void Library::logger_(clingo_message_t code, char const *message, void *self) {
 }
 
 auto version() -> std::tuple<int, int, int> {
-    int major;
-    int minor;
-    int patch;
+    int major = 0;
+    int minor = 0;
+    int patch = 0;
     clingo_version(&major, &minor, &patch);
     return {major, minor, patch};
 }
 
 auto Position::construct(Library &lib, char const *file_name, size_t line, size_t column) -> Position {
-    char const *str;
+    char const *str = nullptr;
     handle_error(lib, clingo_add_string(lib, file_name, &str));
     return {str, line, column};
 }

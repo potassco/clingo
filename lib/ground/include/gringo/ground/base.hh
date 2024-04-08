@@ -91,11 +91,11 @@ class Base {
     size_t gen_ = 0;
     size_t mutable domain_offset_ = 0;
     //! Symbols before this offset are considered old.
-    size_t mutable old_offset_;
+    size_t mutable old_offset_ = 0;
     //! Symbols before this offset are considered new or old.
-    size_t mutable all_offset_;
+    size_t mutable all_offset_ = 0;
     //! The last generation at which the domain has been updated.
-    size_t mutable generation_;
+    size_t mutable generation_ = 0;
 };
 
 } // namespace Gringo::Ground
