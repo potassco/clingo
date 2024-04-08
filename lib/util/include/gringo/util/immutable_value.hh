@@ -26,6 +26,7 @@ template <typename T> class immutable_value {
     constexpr immutable_value(std::nullptr_t) noexcept {}
 
     //! Construct a value.
+    // NOLINTNEXTLINE(bugprone-forwarding-reference-overload)
     template <class U> immutable_value(U &&value) : immutable_value{std::in_place, std::forward<U>(value)} {}
 
     //! Construct a value in place.
@@ -40,6 +41,7 @@ template <typename T> class immutable_value {
     immutable_value(immutable_value &&other) noexcept : data_{std::exchange(other.data_, nullptr)} {}
 
     //! Copy assign an immutable value.
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(immutable_value const &other) noexcept -> immutable_value & {
         other.inc_();
         dec_();

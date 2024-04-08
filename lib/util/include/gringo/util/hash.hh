@@ -18,8 +18,10 @@ namespace Gringo::Util {
 
 //! Combine the given seeds.
 inline auto hash_combine(std::initializer_list<size_t> list) -> size_t {
+    // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
     return std::hash<std::string_view>{}(
         std::string_view(reinterpret_cast<char const *>(list.begin()), sizeof(size_t) * list.size()));
+    // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
 }
 
 //! Combine the given seeds.

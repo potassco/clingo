@@ -33,6 +33,7 @@ template <auto T, bool C = true> struct AttributeName {
     //! Whether the attribute is relevant for comparison.
     static constexpr auto compare = C;
     //! Helper to bind an attribute to a value.
+    // NOLINTNEXTLINE(cppcoreguidelines-c-copy-assignment-signature)
     template <class Val> constexpr auto operator=(Val &&val) const {
         return AttributeValue<tag, compare, Val>{std::forward<Val>(val)};
     }
@@ -97,6 +98,7 @@ auto select_value(Rec const &rec, Arg &arg, Args &...args) -> decltype(auto) {
 //!
 //! If Opt is true, the arguments are supposed to be wrapped in optionals.
 //! If the argument is not engaged, it is taken from the given record.
+// NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
 template <bool Opt = false, typename Rec, typename... Args> auto update_record(Rec const &x, Args &&...args) -> Rec {
     return [&]<class... Attrs>([[maybe_unused]] std::tuple<Attrs...> attrs) {
         return Rec{select_value<Attrs::tag, Opt>(x, args...)...};

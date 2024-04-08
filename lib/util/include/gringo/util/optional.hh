@@ -109,6 +109,7 @@ auto transform_vec(std::optional<std::vector<T>> const &vec, F const &f)
 
 //! Map the given predicate over an optional vector.
 template <class T, class F>
+// NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
 auto transform_vec(std::optional<std::vector<T>> &&vec, F const &f) -> Detail::transform_vec_result<T, F const &> {
     return transform(vec, [&f](auto &vec) {
         typename Detail::transform_vec_result<T, F const &>::value_type ret;
@@ -139,6 +140,7 @@ template <class E, class S = bool> struct ResultState {
     template <class F> ResultState(ResultState<F, S> const &res) : state{res.state}, value{res.value} {}
     //! Construct from compatible result state.
     template <class F>
+    // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
     ResultState(ResultState<F, S> &&res) : state{std::move(res.state)}, value{std::move(res.value)} {}
 
     //! A truth value or state.
