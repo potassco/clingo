@@ -16,7 +16,12 @@ namespace Gringo::Input {
 
 namespace {
 
-struct LiteralToTuple {
+class LiteralToTuple {
+  public:
+    explicit LiteralToTuple(SymbolStore &store) : store_{&store} {}
+    LiteralToTuple(LiteralToTuple const &) = delete;
+    auto operator=(LiteralToTuple const &) -> LiteralToTuple & = delete;
+
     auto operator()(Lit const &orig, Lit const &lit) -> std::vector<Term> {
         return std::visit(*this, std::variant<std::reference_wrapper<Lit const>>{orig}, lit);
     }
@@ -27,7 +32,7 @@ struct LiteralToTuple {
         std::sort(var_vec.begin(), var_vec.end());
         std::vector<Term> res;
         res.reserve(var_vec.size() + 1);
-        res.emplace_back(TermSymbol{location(orig), store.num(n)});
+        res.emplace_back(TermSymbol{location(orig), store_->num(n)});
         for (auto const &var : var_vec) {
             res.emplace_back(TermVariable{location(orig), var});
         }
@@ -60,18 +65,21 @@ struct LiteralToTuple {
                 break;
             }
         }
-        res.emplace_back(TermSymbol{lit.loc(), store.num(i)});
+        res.emplace_back(TermSymbol{lit.loc(), store_->num(i)});
         res.emplace_back(lit.term());
         return res;
     }
 
     void next() { ++n; }
 
-    SymbolStore &store;
+  private:
+    SymbolStore *store_;
     int n = 2;
 };
 
-struct Unpool {
+class Unpool {
+  public:
+    explicit Unpool(RewriteContext &ctx) : ctx_{&ctx} {}
 
     // terms
 
@@ -244,17 +252,17 @@ struct Unpool {
     unpool_elem(LiteralToTuple &to_tuple, SetAggregateElement const &elem,
                 std::vector<std::conditional_t<HasSign, BdLitAggregateElement, HdLitAggregateElement>> &elems) const {
         auto set_elems = unpool_rewrite<SetAggregateElement>(elem, *this, a_lit, a_cond);
-        auto simplify_lit = [this, &to_tuple, &elem, &elems](SetAggregateElement unpooled) {
-            auto guard = ctx.push();
-            auto res_subst = map_params(ctx, unpooled.lit());
-            auto lit = std::move(res_subst).value_or(std::move(unpooled.lit()));
+        auto simplify_lit = [this, &to_tuple, &elem, &elems](SetAggregateElement const &unpooled) {
+            auto guard = ctx_->push();
+            auto res_subst = map_params(*ctx_, unpooled.lit());
+            auto lit = std::move(res_subst).value_or(unpooled.lit());
             auto res_simp = simplify(HasSign ? SimplifyLiteralFlags::matchable
                                              : (SimplifyLiteralFlags::matchable | SimplifyLiteralFlags::unfailable),
-                                     ctx, lit);
+                                     *ctx_, lit);
             lit = res_simp.value.value_or(std::move(lit));
             auto res_cond = Util::ResultVec{unpooled.cond()};
             res_cond.keep_all();
-            for (auto &[lhs, rhs] : ctx.aux()) {
+            for (auto &[lhs, rhs] : ctx_->aux()) {
                 auto loc = location(lhs);
                 auto rel = LitComparison{loc, Sign::none, std::move(lhs),
                                          Util::make_vec<Guard>(Guard{Relation::equal, std::move(rhs)})};
@@ -283,7 +291,7 @@ struct Unpool {
         -> std::optional<std::vector<std::conditional_t<HasSign, BdLit, HdLit>>> {
         auto build = [this, &aggr](auto lhs, auto rhs) {
             std::vector<std::conditional_t<HasSign, BdLitAggregateElement, HdLitAggregateElement>> elems;
-            LiteralToTuple to_tuple{ctx.store()};
+            auto to_tuple = LiteralToTuple{ctx_->store()};
             for (auto &elem : aggr.elems()) {
                 to_tuple.next();
                 unpool_elem<HasSign>(to_tuple, elem, elems);
@@ -486,7 +494,7 @@ struct Unpool {
             auto tuple = stm.type() == OptimizeType::minimize
                              ? elem.tuple()
                              : OptimizeTuple{TermUnary{location(elem.tuple().weight()), UnaryOperator::negate,
-                                                       std::move(elem.tuple().weight())},
+                                                       elem.tuple().weight()},
                                              elem.tuple().prio(), elem.tuple().terms()};
             auto cons = StmWeakConstraint{stm.loc(), std::move(body), std::move(tuple)};
             if (auto opt_stms = operator()(cons); opt_stms.has_value()) {
@@ -548,7 +556,8 @@ struct Unpool {
         return std::nullopt;
     }
 
-    RewriteContext &ctx;
+  private:
+    RewriteContext *ctx_;
 };
 
 } // namespace
@@ -562,12 +571,15 @@ auto unpool(RewriteContext &ctx, HdLit const &lit) -> std::optional<std::vector<
 auto unpool(RewriteContext &ctx, BdLit const &lit) -> std::optional<std::vector<BdLit>> { return Unpool{ctx}(lit); }
 
 template <class F> struct print {
-    print(F const &f) : f{f} {}
+  public:
+    print(F f) : f_{f} {}
     friend auto operator<<(std::ostream &out, print const &p) -> std::ostream & {
-        p.f(out);
+        p.f_(out);
         return out;
     }
-    F const &f;
+
+  private:
+    F f_;
 };
 
 auto unpool(RewriteContext &ctx, Stm const &stm) -> std::optional<StmVec> {

@@ -13,7 +13,7 @@
 #include <type_traits>
 #include <utility>
 
-namespace Gringo {
+namespace Gringo::Util {
 
 //! @addtogroup util_math
 //! @{
@@ -23,6 +23,14 @@ namespace Gringo {
 //! Check if s of type S can be casted to T without loss.
 template <std::signed_integral T, std::signed_integral S> auto check_cast(S in) -> bool {
     return std::in_range<T>(std::move(in));
+}
+
+//! Cast S to T if possible.
+template <std::integral T, std::integral S> auto safe_cast(S in) -> T {
+    if (std::in_range<T, S>(in)) {
+        return static_cast<T>(std::move(in));
+    }
+    throw std::range_error("invalid cast");
 }
 
 // Addition
@@ -205,4 +213,4 @@ template <std::signed_integral S> auto check_pow(S a, S b) -> std::optional<S> {
 
 //! @}
 
-} // namespace Gringo
+} // namespace Gringo::Util

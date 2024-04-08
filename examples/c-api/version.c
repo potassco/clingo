@@ -1,11 +1,10 @@
 #include <clingo.h>
 #include <stdio.h>
-#include <stdlib.h>
 
 int main() {
-    int major;
-    int minor;
-    int revision;
+    int major = 0;
+    int minor = 0;
+    int revision = 0;
 
     clingo_version(&major, &minor, &revision);
 

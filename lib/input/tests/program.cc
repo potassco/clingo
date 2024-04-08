@@ -10,7 +10,7 @@ namespace {
 
 using SV = std::vector<std::string>;
 
-auto rewrite_program(std::vector<char const *> stms) -> SV {
+auto rewrite_program(std::vector<char const *> const &stms) -> SV {
     ParseHelper ph;
     UnprocessedProgram upr;
     for (auto const *str : stms) {

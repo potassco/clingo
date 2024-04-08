@@ -1,3 +1,4 @@
+// NOLINTNEXTLINE(bugprone-reserved-identifier)
 #define __STDC_FORMAT_MACROS
 #include <stdio.h>
 

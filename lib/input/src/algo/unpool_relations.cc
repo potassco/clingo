@@ -67,7 +67,9 @@ auto shift(TheoryElementArray const &elems) {
     return res_elems;
 }
 
-struct ShiftHead {
+class ShiftHead {
+  public:
+    explicit ShiftHead(Util::ResultVec<BdLit, false> &body) : body_{&body} {}
     // protect ourselves -> no unintended overloads
 
     template <class T> auto operator()(T const &x) const -> std::optional<T> = delete;
@@ -76,7 +78,7 @@ struct ShiftHead {
 
     auto operator()(HdLit const &lit) const -> std::optional<HdLit> { return std::visit(*this, lit); }
 
-    auto operator()(HdLitSimple const &lit) const -> std::optional<HdLit> { return shift(lit.lit(), body, true); }
+    auto operator()(HdLitSimple const &lit) const -> std::optional<HdLit> { return shift(lit.lit(), *body_, true); }
 
     //! This also shifts disjunctions with non-atomic literals into the rule body.
     //!
@@ -93,7 +95,7 @@ struct ShiftHead {
             std::visit(
                 [this, &res_elems]<class T>(T const &x) {
                     if constexpr (std::is_same_v<T, Lit>) {
-                        if (shift(x, body, true)) {
+                        if (shift(x, *body_, true)) {
                             res_elems.remove();
                         } else {
                             res_elems.keep();
@@ -104,7 +106,7 @@ struct ShiftHead {
                         auto res_lit = shift(x.lit(), res_cond, false);
                         if (const auto *blit = std::get_if<LitBool>(res_lit ? &*res_lit : &x.lit()); blit != nullptr) {
                             res_elems.remove();
-                            body.append(BdLitConjunction{
+                            body_->append(BdLitConjunction{
                                 x.update(a_lit = NegateLiteral{}(*blit), a_cond = *std::move(res_cond))});
                         } else {
                             res_elems.update(x.rewrite(a_lit = std::move(res_lit), a_cond = std::move(res_cond)));
@@ -137,10 +139,14 @@ struct ShiftHead {
         return atom.rewrite(a_elems = shift(atom.elems()));
     }
 
-    Util::ResultVec<BdLit, false> &body;
+  private:
+    Util::ResultVec<BdLit, false> *body_;
 };
 
-struct ShiftBody {
+class ShiftBody {
+  public:
+    explicit ShiftBody(Util::ResultVec<BdLit, false> &body) : body_{&body} {}
+
     // protect ourselves -> no unintended overloads
 
     template <class T> auto operator()(T const &x) const -> std::optional<T> = delete;
@@ -150,17 +156,17 @@ struct ShiftBody {
     void operator()(BdLit const &lit) const { std::visit(*this, lit); }
 
     void operator()(BdLitSimple const &lit) const {
-        if (shift(lit.lit(), body, false)) {
-            body.remove();
+        if (shift(lit.lit(), *body_, false)) {
+            body_->remove();
         } else {
-            body.keep();
+            body_->keep();
         }
     }
 
     void operator()(BdLitConjunction const &lit) const {
         auto res_cond = unpool_conjunctive(lit.lit().cond());
         auto res_lit = shift(lit.lit().lit(), res_cond, true);
-        body.update(lit.lit().rewrite(a_lit = std::move(res_lit), a_cond = std::move(res_cond)));
+        body_->update(lit.lit().rewrite(a_lit = std::move(res_lit), a_cond = std::move(res_cond)));
     }
 
     void operator()([[maybe_unused]] BdLitSetAggregate const &lit) const {
@@ -172,24 +178,27 @@ struct ShiftBody {
         for (auto const &elem : lit.elems()) {
             res_elems.update(elem.rewrite(a_cond = unpool_conjunctive(elem.cond())));
         }
-        bool assign_lhs = lit.lhs() && lit.lhs()->second == Relation::equal;
-        bool assign_rhs = lit.rhs() && lit.rhs()->first == Relation::equal;
+        auto const &lhs = lit.lhs();
+        auto const &rhs = lit.rhs();
+        bool assign_lhs = lhs && lhs->second == Relation::equal;
+        bool assign_rhs = rhs && rhs->first == Relation::equal;
         bool has_assign = assign_lhs || assign_rhs;
-        if (lit.sign() == Sign::none && has_assign && lit.rhs()) {
-            body.remove();
+        if (lit.sign() == Sign::none && has_assign && rhs) {
+            body_->remove();
             if (lit.lhs()) {
-                body.append(lit.update(a_elems = *res_elems, a_rhs = std::nullopt));
+                body_->append(lit.update(a_elems = *res_elems, a_rhs = std::nullopt));
             }
-            body.append(lit.update(a_lhs = std::make_pair(lit.rhs()->second, flip(lit.rhs()->first)),
-                                   a_elems = *std::move(res_elems), a_rhs = std::nullopt));
+            body_->append(lit.update(a_lhs = std::make_pair(rhs->second, flip(rhs->first)),
+                                     a_elems = *std::move(res_elems), a_rhs = std::nullopt));
         } else {
-            body.update(lit.rewrite(a_elems = std::move(res_elems)));
+            body_->update(lit.rewrite(a_elems = std::move(res_elems)));
         }
     }
 
-    void operator()(BdLitTheoryAtom const &atom) const { body.update(atom.rewrite(a_elems = shift(atom.elems()))); }
+    void operator()(BdLitTheoryAtom const &atom) const { body_->update(atom.rewrite(a_elems = shift(atom.elems()))); }
 
-    Util::ResultVec<BdLit, false> &body;
+  private:
+    Util::ResultVec<BdLit, false> *body_;
 };
 
 auto shift_body(BdLitArray const &body) {
@@ -301,16 +310,12 @@ struct UnpoolHeadBody {
     auto operator()(BdLitArray const &body) const -> std::optional<std::vector<BdLitArray>> {
         return operator()(std::span{body});
     }
-
-    RewriteContext const &ctx;
 };
 
 struct UnpoolStatement {
     template <class S> [[nodiscard]] auto rewrite_with_body(S const &stm) const -> std::optional<StmVec> {
         auto build = [&stm](auto body) -> Stm { return stm.update(a_body = std::move(body)); };
-        auto unpool = [this, &build](auto const &body) {
-            return Util::transform_vec(UnpoolHeadBody{ctx}(body), build);
-        };
+        auto unpool = [&build](auto const &body) { return Util::transform_vec(UnpoolHeadBody{}(body), build); };
         if (auto res_body = shift_body(stm.body()); res_body) {
             if (auto res = unpool(*res_body); res) {
                 return res;
@@ -323,7 +328,7 @@ struct UnpoolStatement {
     auto operator()(StmRule const &stm) const -> std::optional<StmVec> {
         auto res_body = shift_body(stm.body());
         auto res_head = ShiftHead{res_body}(stm.head());
-        auto unpool = [this](auto const &stm) { return unpool_rewrite<Stm>(stm, UnpoolHeadBody{ctx}, a_head, a_body); };
+        auto unpool = [](auto const &stm) { return unpool_rewrite<Stm>(stm, UnpoolHeadBody{}, a_head, a_body); };
         if (auto res_shifted = stm.rewrite(a_head = std::move(res_head), a_body = std::move(res_body)); res_shifted) {
             if (auto res = unpool(*res_shifted); res) {
                 return res;
@@ -351,8 +356,6 @@ struct UnpoolStatement {
     }
 
     auto operator()(Stm const &stm) const -> std::optional<StmVec> { return std::visit(*this, stm); }
-
-    RewriteContext const &ctx;
 };
 
 } // namespace
@@ -374,7 +377,7 @@ struct UnpoolStatement {
 }
 
 [[nodiscard]] auto unpool_relations(RewriteContext &ctx, Stm const &stm) -> std::optional<StmVec> {
-    auto stms = UnpoolStatement{ctx}(stm);
+    auto stms = UnpoolStatement{}(stm);
     if (stms) {
         VariableSet global = select_variables(stm, VariableContext::global);
         for (auto const &unpooled : stms.value()) {

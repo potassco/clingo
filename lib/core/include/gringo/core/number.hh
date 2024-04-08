@@ -45,7 +45,7 @@ class Number {
     [[nodiscard]] auto as_string() const -> std::string;
 
     //! Swap two numbers.
-    void swap(Number &other);
+    void swap(Number &other) noexcept;
 
     // comparison
 

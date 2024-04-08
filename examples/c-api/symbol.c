@@ -1,4 +1,5 @@
-#define __STDC_FORMAT_MACROS
+// NOLINTNEXTLINE(STDC_FORMAT_MACROS)
+#define STDC_FORMAT_MACROS
 #include <assert.h>
 #include <clingo.h>
 #include <stdio.h>
@@ -24,8 +25,8 @@ void free_string_buffer(string_buffer_t *buf) {
 
 bool print_symbol(clingo_lib_t *lib, clingo_symbol_t symbol, string_buffer_t *buf) {
     bool ret = true;
-    char *string;
-    size_t n;
+    char *string = NULL;
+    size_t n = 0;
 
     // determine size of the string representation of the next symbol in the model
     if (!clingo_symbol_to_string_size(symbol, &n)) {
@@ -34,7 +35,8 @@ bool print_symbol(clingo_lib_t *lib, clingo_symbol_t symbol, string_buffer_t *bu
 
     if (buf->string_n < n) {
         // allocate required memory to hold the symbol's string
-        if (!(string = (char *)realloc(buf->string, sizeof(*buf->string) * n))) {
+        string = (char *)realloc(buf->string, sizeof(*buf->string) * n);
+        if (string == NULL) {
             clingo_set_error(lib, clingo_error_bad_alloc, "could not allocate memory for symbol's string");
             goto error;
         }
@@ -63,7 +65,7 @@ int main() {
     clingo_lib_t *lib = NULL;
     clingo_symbol_t symbols[] = {0, 0, 0};
     string_buffer_t buf = {NULL, 0};
-    clingo_symbol_t const *args;
+    clingo_symbol_t const *args = NULL;
     size_t size = 0;
 
     lib = clingo_lib_new(0, NULL, NULL, message_limit);
@@ -118,7 +120,8 @@ int main() {
     goto out;
 
 error:
-    if (!(error_message = clingo_error_message(lib))) {
+    error_message = clingo_error_message(lib);
+    if (error_message == NULL) {
         error_message = "error";
     }
 

@@ -8,6 +8,7 @@
 #include <gringo/input/algo/substitute.hh>
 
 #include <gringo/util/algorithm.hh>
+#include <gringo/util/checked_math.hh>
 #include <gringo/util/type_traits.hh>
 
 namespace Gringo::Input {
@@ -26,11 +27,11 @@ void UnprocessedProgram::add(SymbolStore &store, Stm stm) {
                 meta_stms.emplace_back(std::move(stm));
             } else if constexpr (Util::is_among_v<T, StmInclude, StmComment>) {
                 // ignore
-            } else if constexpr (std::is_same_v<T, StmTheory>) {
+            } else if constexpr (Util::matches<T, StmTheory>) {
                 thy_stms.emplace_back(std::move(stm));
-            } else if constexpr (std::is_same_v<T, StmConst>) {
+            } else if constexpr (Util::matches<T, StmConst>) {
                 const_stms.emplace_back(std::move(stm));
-            } else if constexpr (std::is_same_v<T, StmProgram>) {
+            } else if constexpr (Util::matches<T, StmProgram>) {
                 ensure_base = false;
                 parts.emplace_back(stm, StmVec{}, SymbolVec{});
             } else {
@@ -41,7 +42,7 @@ void UnprocessedProgram::add(SymbolStore &store, Stm stm) {
                     }
                     ensure_base = false;
                 }
-                if constexpr (std::is_same_v<T, StmRule>) {
+                if constexpr (Util::matches<T, StmRule>) {
                     if (auto fact = is_fact(store, stm); fact) {
                         std::get<2>(parts.back()).emplace_back(std::move(fact).value());
                         return;
@@ -80,11 +81,11 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
         for (auto &fact : facts) {
             std::visit(
                 [&part]<class T>(T &&x) {
-                    if constexpr (std::is_same_v<T, Symbol>) {
+                    if constexpr (Util::matches<T, Symbol>) {
                         part.first.value().facts.emplace_back(x);
                     }
-                    if constexpr (std::is_same_v<T, Stm>) {
-                        part.first.value().stms.emplace_back(std::move(x));
+                    if constexpr (Util::matches<T, Stm>) {
+                        part.first.value().stms.emplace_back(std::forward<T>(x));
                     }
                 },
                 map_params(ctx, res_part.part.loc(), fact));
@@ -92,7 +93,7 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
 
         // process rules
         for (auto &stm : stms) {
-            size_t n = res_part.stms.size();
+            auto n = Util::safe_cast<ssize_t>(res_part.stms.size());
             rewrite(ctx, stm, res_part.stms);
             auto jt = res_part.stms.begin() + n;
             for (auto it = jt, ie = res_part.stms.end(); it != ie; ++it) {

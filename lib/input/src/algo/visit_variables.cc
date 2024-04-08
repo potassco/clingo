@@ -6,7 +6,8 @@ namespace Gringo::Input {
 
 namespace {
 
-struct VisitVariables : Visitor<VisitVariables> {
+class VisitVariables : public Visitor<VisitVariables> {
+  public:
     VisitVariables(VarVisitFun fun, VariableContext ctx = VariableContext::all) : fun{std::move(fun)}, ctx{ctx} {}
 
     // protect ourselves -> no unintended overloads
@@ -77,6 +78,7 @@ struct VisitVariables : Visitor<VisitVariables> {
 
     static void accept([[maybe_unused]] StmConst const &stm) {}
 
+  private:
     VarVisitFun fun;
     VariableContext ctx;
 };

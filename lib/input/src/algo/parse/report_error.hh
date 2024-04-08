@@ -128,8 +128,8 @@ class report_error {
     struct sink_ {
         Gringo::Logger &log_;
         lexy::visualization_options opts_;
-        const char *path_;
-        std::size_t _count;
+        const char *path_{};
+        std::size_t _count{};
 
         using return_type = std::size_t;
 

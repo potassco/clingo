@@ -18,16 +18,16 @@ struct theory_tuple_trail {
 template <TheoryTermTupleType type>
 static constexpr auto theory_tuple = lexy::callback<TheoryTerm>(
     [](Location loc, lexy::nullopt) {
-        return TheoryTermTuple{std::move(loc), type, std::vector<TheoryTerm>{}};
+        return TheoryTermTuple{loc, type, std::vector<TheoryTerm>{}};
     },
     [](Location loc, std::vector<TheoryTerm> elems) {
-        return TheoryTermTuple{std::move(loc), type, std::move(elems)};
+        return TheoryTermTuple{loc, type, std::move(elems)};
     },
     [](Location loc, Detail::theory_tuple_trail elems) -> TheoryTerm {
         if (elems.vec.size() == 1 && !elems.trail) {
             return std::move(elems.vec.back());
         }
-        return TheoryTermTuple{std::move(loc), TheoryTermTupleType::tuple, std::move(elems.vec)};
+        return TheoryTermTuple{loc, TheoryTermTupleType::tuple, std::move(elems.vec)};
     });
 
 } // namespace Detail
@@ -120,7 +120,7 @@ struct theory_term_anonymous_variable : lexy::token_production {
     static constexpr char const *name = "anonymous variable";
     static constexpr auto rule = Detail::location(anonymous_variable);
     static constexpr auto value = lexy::callback_with_state<TheoryTerm>([](auto &state, Location loc) {
-        return TheoryTermVariable{std::move(loc), state.string("_"), true};
+        return TheoryTermVariable{loc, state.string("_"), true};
     });
 };
 
@@ -129,7 +129,7 @@ struct theory_term_number : lexy::token_production {
     static constexpr auto rule = Detail::position(number >> Detail::position);
     static constexpr auto value =
         lexy::callback_with_state<TheoryTerm>([](auto &state, Position begin, auto num, Position end) {
-            return TheoryTermSymbol(Location{std::move(begin), std::move(end)}, state.num(std::move(num)));
+            return TheoryTermSymbol(Location{begin, end}, state.num(std::move(num)));
         });
 };
 
@@ -137,7 +137,7 @@ struct theory_term_string : lexy::token_production {
     static constexpr char const *name = "string";
     static constexpr auto rule = Detail::location(string);
     static constexpr auto value = as_stored_string >> lexy::callback<TheoryTerm>([](Location loc, auto str) {
-                                      return TheoryTermSymbol{std::move(loc), SymbolStore::str(str)};
+                                      return TheoryTermSymbol{loc, SymbolStore::str(str)};
                                   });
 };
 
@@ -145,7 +145,7 @@ struct theory_term_constant : lexy::token_production {
     static constexpr char const *name = "constant";
     static constexpr auto rule = Detail::location(constant);
     static constexpr auto value = lexy::callback<TheoryTerm>([](Location loc, Constant val) {
-        return TheoryTermSymbol(std::move(loc), val == Constant::infimum ? SymbolStore::inf() : SymbolStore::sup());
+        return TheoryTermSymbol(loc, val == Constant::infimum ? SymbolStore::inf() : SymbolStore::sup());
     });
 };
 
@@ -175,12 +175,12 @@ struct theory_term_unparsed : lexy::transparent_production {
            std::vector<UnparsedElement> guards = {}) {
             guards.insert(guards.begin(), UnparsedElement{std::move(ops), std::move(term)});
             auto loc = Location{state.pos(begin), location(guards.back().second).end};
-            return TheoryTermUnparsed{std::move(loc), std::move(guards)};
+            return TheoryTermUnparsed{loc, std::move(guards)};
         },
         [](auto &state, auto begin, TheoryTerm term, std::vector<UnparsedElement> guards) {
-            guards.insert(guards.begin(), UnparsedElement{{}, std::move(term)});
+            guards.insert(guards.begin(), UnparsedElement{{}, term});
             auto loc = Location{state.pos(begin), location(guards.back().second).end};
-            return TheoryTermUnparsed{std::move(loc), std::move(guards)};
+            return TheoryTermUnparsed{loc, std::move(guards)};
         });
 };
 
@@ -196,10 +196,10 @@ struct theory_atom_element {
         Detail::location(dsl::p<condition> | dsl::else_ >> dsl::p<theory_atom_element_tuple> + dsl::p<if_condition>);
     static constexpr auto value = lexy::callback<TheoryElement>(
         [](Location loc, std::vector<TheoryTerm> tuple, std::vector<Lit> cond) {
-            return TheoryElement{std::move(loc), std::move(tuple), std::move(cond)};
+            return TheoryElement{loc, std::move(tuple), std::move(cond)};
         },
         [](Location loc, std::vector<Lit> cond) {
-            return TheoryElement{std::move(loc), std::vector<TheoryTerm>{}, std::move(cond)};
+            return TheoryElement{loc, std::vector<TheoryTerm>{}, std::move(cond)};
         });
 };
 
@@ -222,18 +222,17 @@ template <bool HasSign> struct theory_atom {
     static constexpr auto value = lexy::callback<TheoryAtom<HasSign>>(
         [](Location loc, Term name, std::vector<TheoryElement> elems, String op, TheoryTerm rhs) {
             if constexpr (HasSign) {
-                return TheoryAtom<HasSign>{std::move(loc), Sign::none, std::move(name), std::move(elems),
-                                           std::make_pair(std::move(op), std::move(rhs))};
+                return TheoryAtom<HasSign>{loc, Sign::none, std::move(name), std::move(elems),
+                                           std::make_pair(op, std::move(rhs))};
             } else {
-                return TheoryAtom<HasSign>{std::move(loc), std::move(name), std::move(elems),
-                                           std::make_pair(std::move(op), std::move(rhs))};
+                return TheoryAtom<HasSign>{loc, std::move(name), std::move(elems), std::make_pair(op, std::move(rhs))};
             }
         },
         [](Location loc, Term name, std::vector<TheoryElement> elems) {
             if constexpr (HasSign) {
-                return TheoryAtom<HasSign>{std::move(loc), Sign::none, std::move(name), std::move(elems), std::nullopt};
+                return TheoryAtom<HasSign>{loc, Sign::none, std::move(name), std::move(elems), std::nullopt};
             } else {
-                return TheoryAtom<HasSign>{std::move(loc), std::move(name), std::move(elems), std::nullopt};
+                return TheoryAtom<HasSign>{loc, std::move(name), std::move(elems), std::nullopt};
             }
         });
 };

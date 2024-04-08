@@ -1,4 +1,5 @@
-#define __STDC_FORMAT_MACROS
+// NOLINTNEXTLINE(STDC_FORMAT_MACROS)
+#define STDC_FORMAT_MACROS
 #include <stdio.h>
 
 int main() {

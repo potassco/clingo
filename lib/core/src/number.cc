@@ -14,7 +14,7 @@ namespace {
 constexpr int BASE = 10;
 constexpr uint64_t BIGINT_MASK = 7;
 
-// NOLINTBEGIN(readability-magic-numbers)
+// NOLINTBEGIN(readability-magic-numbers,cppcoreguidelines-pro-type-reinterpret-cast,performance-no-int-to-ptr,cppcoreguidelines-avoid-c-arrays,cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
 auto repr_is_int(uint64_t repr) -> bool { return (repr & BIGINT_MASK) == 0; }
 
@@ -29,14 +29,12 @@ auto repr_to_bigint(uint64_t repr) -> mp_int {
 auto int_to_repr(int num) -> uint64_t { return static_cast<uint64_t>(num) << 32; }
 
 auto bigint_to_repr(mp_int a, bool fast = false) -> uint64_t {
-    if (mp_small inum = 0; !fast && mp_int_to_int(a, &inum) == MP_OK && check_cast<int32_t>(inum)) {
+    if (mp_small inum = 0; !fast && mp_int_to_int(a, &inum) == MP_OK && Util::check_cast<int32_t>(inum)) {
         mp_int_free(a);
         return int_to_repr(static_cast<int32_t>(inum));
     }
     return static_cast<uint64_t>(reinterpret_cast<uintptr_t>(a)) | BIGINT_MASK;
 }
-
-// NOLINTEND(readability-magic-numbers)
 
 void handle_error(mp_result res) {
     if (res == MP_MEMORY) {
@@ -456,6 +454,7 @@ class Number::Impl {
         return a;
     }
 
+    // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
     static auto op_assign(Op op, OpValue op_value, OpValue op_value_inv, OpCheck op_check, Number &a, Number &&b)
         -> Number & {
         // op(int, big)
@@ -588,7 +587,7 @@ Number::~Number() noexcept {
     return ret;
 }
 
-void Number::swap(Number &other) { std::swap(repr_, other.repr_); }
+void Number::swap(Number &other) noexcept { std::swap(repr_, other.repr_); }
 
 auto compare(Number const &a, Number const &b) -> int { return Number::Impl::cmp(a, b); }
 
@@ -599,143 +598,149 @@ auto compare(Number const &a, int32_t b) -> int { return Number::Impl::cmp(a, b)
 // addition
 
 auto operator+(Number const &a, Number const &b) -> Number {
-    return Number::Impl::op_binary(mp_int_add, mp_int_add_value, mp_int_add_value, check_add, a, b);
+    return Number::Impl::op_binary(mp_int_add, mp_int_add_value, mp_int_add_value, Util::check_add, a, b);
 }
 
 auto operator+(Number &&a, Number const &b) -> Number {
-    return Number::Impl::op_binary(mp_int_add, mp_int_add_value, mp_int_add_value, check_add, std::move(a), b);
+    return Number::Impl::op_binary(mp_int_add, mp_int_add_value, mp_int_add_value, Util::check_add, std::move(a), b);
 }
 
 auto operator+(Number const &a, Number &&b) -> Number {
-    return Number::Impl::op_binary(mp_int_add, mp_int_add_value, mp_int_add_value, check_add, a, std::move(b));
+    return Number::Impl::op_binary(mp_int_add, mp_int_add_value, mp_int_add_value, Util::check_add, a, std::move(b));
 }
 
 auto operator+(Number &&a, Number &&b) -> Number {
-    return Number::Impl::op_binary(mp_int_add, mp_int_add_value, mp_int_add_value, check_add, std::move(a),
+    return Number::Impl::op_binary(mp_int_add, mp_int_add_value, mp_int_add_value, Util::check_add, std::move(a),
                                    std::move(b));
 }
 
 auto operator+=(Number &a, Number const &b) -> Number & {
-    return Number::Impl::op_assign(mp_int_add, mp_int_add_value, mp_int_add_value, check_add, a, b);
+    return Number::Impl::op_assign(mp_int_add, mp_int_add_value, mp_int_add_value, Util::check_add, a, b);
 }
 
 auto operator+=(Number &a, Number &&b) -> Number & {
-    return Number::Impl::op_assign(mp_int_add, mp_int_add_value, mp_int_add_value, check_add, a, std::move(b));
+    return Number::Impl::op_assign(mp_int_add, mp_int_add_value, mp_int_add_value, Util::check_add, a, std::move(b));
 }
 
 // subtraction
 
 auto operator-(Number const &a, Number const &b) -> Number {
-    return Number::Impl::op_binary(mp_int_sub, mp_int_sub_value, mp_int_sub_value_inv, check_sub, std::move(a),
-                                   std::move(b));
+    return Number::Impl::op_binary(mp_int_sub, mp_int_sub_value, mp_int_sub_value_inv, Util::check_sub, a, b);
 }
 
 auto operator-(Number &&a, Number const &b) -> Number {
-    return Number::Impl::op_binary(mp_int_sub, mp_int_sub_value, mp_int_sub_value_inv, check_sub, std::move(a), b);
+    return Number::Impl::op_binary(mp_int_sub, mp_int_sub_value, mp_int_sub_value_inv, Util::check_sub, std::move(a),
+                                   b);
 }
 
 auto operator-(Number const &a, Number &&b) -> Number {
-    return Number::Impl::op_binary(mp_int_sub, mp_int_sub_value, mp_int_sub_value_inv, check_sub, a, std::move(b));
+    return Number::Impl::op_binary(mp_int_sub, mp_int_sub_value, mp_int_sub_value_inv, Util::check_sub, a,
+                                   std::move(b));
 }
 
 auto operator-(Number &&a, Number &&b) -> Number {
-    return Number::Impl::op_binary(mp_int_sub, mp_int_sub_value, mp_int_sub_value_inv, check_sub, std::move(a),
+    return Number::Impl::op_binary(mp_int_sub, mp_int_sub_value, mp_int_sub_value_inv, Util::check_sub, std::move(a),
                                    std::move(b));
 }
 
 auto operator-=(Number &a, Number const &b) -> Number & {
-    return Number::Impl::op_assign(mp_int_sub, mp_int_sub_value, mp_int_sub_value_inv, check_sub, a, b);
+    return Number::Impl::op_assign(mp_int_sub, mp_int_sub_value, mp_int_sub_value_inv, Util::check_sub, a, b);
 }
 
 auto operator-=(Number &a, Number &&b) -> Number & {
-    return Number::Impl::op_assign(mp_int_sub, mp_int_sub_value, mp_int_sub_value_inv, check_sub, a, std::move(b));
+    return Number::Impl::op_assign(mp_int_sub, mp_int_sub_value, mp_int_sub_value_inv, Util::check_sub, a,
+                                   std::move(b));
 }
 
 // multiplication
 
 auto operator*(Number const &a, Number const &b) -> Number {
-    return Number::Impl::op_binary(mp_int_mul, mp_int_mul_value, mp_int_mul_value, check_mul, a, b);
+    return Number::Impl::op_binary(mp_int_mul, mp_int_mul_value, mp_int_mul_value, Util::check_mul, a, b);
 }
 
 auto operator*(Number &&a, Number const &b) -> Number {
-    return Number::Impl::op_binary(mp_int_mul, mp_int_mul_value, mp_int_mul_value, check_mul, std::move(a), b);
+    return Number::Impl::op_binary(mp_int_mul, mp_int_mul_value, mp_int_mul_value, Util::check_mul, std::move(a), b);
 }
 
 auto operator*(Number const &a, Number &&b) -> Number {
-    return Number::Impl::op_binary(mp_int_mul, mp_int_mul_value, mp_int_mul_value, check_mul, a, std::move(b));
+    return Number::Impl::op_binary(mp_int_mul, mp_int_mul_value, mp_int_mul_value, Util::check_mul, a, std::move(b));
 }
 
 auto operator*(Number &&a, Number &&b) -> Number {
-    return Number::Impl::op_binary(mp_int_mul, mp_int_mul_value, mp_int_mul_value, check_mul, std::move(a),
+    return Number::Impl::op_binary(mp_int_mul, mp_int_mul_value, mp_int_mul_value, Util::check_mul, std::move(a),
                                    std::move(b));
 }
 
 auto operator*=(Number &a, Number const &b) -> Number & {
-    return Number::Impl::op_assign(mp_int_mul, mp_int_mul_value, mp_int_mul_value, check_mul, a, b);
+    return Number::Impl::op_assign(mp_int_mul, mp_int_mul_value, mp_int_mul_value, Util::check_mul, a, b);
 }
 
 auto operator*=(Number &a, Number &&b) -> Number & {
-    return Number::Impl::op_assign(mp_int_mul, mp_int_mul_value, mp_int_mul_value, check_mul, a, std::move(b));
+    return Number::Impl::op_assign(mp_int_mul, mp_int_mul_value, mp_int_mul_value, Util::check_mul, a, std::move(b));
 }
 
 // division
 
 auto operator/(Number const &a, Number const &b) -> Number {
-    return Number::Impl::op_binary(mp_int_floordiv, mp_int_floordiv_value, mp_int_floordiv_value_inv, check_div, a, b);
+    return Number::Impl::op_binary(mp_int_floordiv, mp_int_floordiv_value, mp_int_floordiv_value_inv, Util::check_div,
+                                   a, b);
 }
 
 auto operator/(Number &&a, Number const &b) -> Number {
-    return Number::Impl::op_binary(mp_int_floordiv, mp_int_floordiv_value, mp_int_floordiv_value_inv, check_div,
+    return Number::Impl::op_binary(mp_int_floordiv, mp_int_floordiv_value, mp_int_floordiv_value_inv, Util::check_div,
                                    std::move(a), b);
 }
 
 auto operator/(Number const &a, Number &&b) -> Number {
-    return Number::Impl::op_binary(mp_int_floordiv, mp_int_floordiv_value, mp_int_floordiv_value_inv, check_div, a,
-                                   std::move(b));
+    return Number::Impl::op_binary(mp_int_floordiv, mp_int_floordiv_value, mp_int_floordiv_value_inv, Util::check_div,
+                                   a, std::move(b));
 }
 
 auto operator/(Number &&a, Number &&b) -> Number {
-    return Number::Impl::op_binary(mp_int_floordiv, mp_int_floordiv_value, mp_int_floordiv_value_inv, check_div,
+    return Number::Impl::op_binary(mp_int_floordiv, mp_int_floordiv_value, mp_int_floordiv_value_inv, Util::check_div,
                                    std::move(a), std::move(b));
 }
 
 auto operator/=(Number &a, Number const &b) -> Number & {
-    return Number::Impl::op_assign(mp_int_floordiv, mp_int_floordiv_value, mp_int_floordiv_value_inv, check_div, a, b);
+    return Number::Impl::op_assign(mp_int_floordiv, mp_int_floordiv_value, mp_int_floordiv_value_inv, Util::check_div,
+                                   a, b);
 }
 
 auto operator/=(Number &a, Number &&b) -> Number & {
-    return Number::Impl::op_assign(mp_int_floordiv, mp_int_floordiv_value, mp_int_floordiv_value_inv, check_div, a,
-                                   std::move(b));
+    return Number::Impl::op_assign(mp_int_floordiv, mp_int_floordiv_value, mp_int_floordiv_value_inv, Util::check_div,
+                                   a, std::move(b));
 }
 
 // modulus
 
 auto operator%(Number const &a, Number const &b) -> Number {
-    return Number::Impl::op_binary(mp_int_floormod, mp_int_floormod_value, mp_int_floormod_value_inv, check_mod, a, b);
+    return Number::Impl::op_binary(mp_int_floormod, mp_int_floormod_value, mp_int_floormod_value_inv, Util::check_mod,
+                                   a, b);
 }
 
 auto operator%(Number &&a, Number const &b) -> Number {
-    return Number::Impl::op_binary(mp_int_floormod, mp_int_floormod_value, mp_int_floormod_value_inv, check_mod,
+    return Number::Impl::op_binary(mp_int_floormod, mp_int_floormod_value, mp_int_floormod_value_inv, Util::check_mod,
                                    std::move(a), b);
 }
 
 auto operator%(Number const &a, Number &&b) -> Number {
-    return Number::Impl::op_binary(mp_int_floormod, mp_int_floormod_value, mp_int_floormod_value_inv, check_mod, a,
-                                   std::move(b));
+    return Number::Impl::op_binary(mp_int_floormod, mp_int_floormod_value, mp_int_floormod_value_inv, Util::check_mod,
+                                   a, std::move(b));
 }
 
 auto operator%(Number &&a, Number &&b) -> Number {
-    return Number::Impl::op_binary(mp_int_floormod, mp_int_floormod_value, mp_int_floormod_value_inv, check_mod,
+    return Number::Impl::op_binary(mp_int_floormod, mp_int_floormod_value, mp_int_floormod_value_inv, Util::check_mod,
                                    std::move(a), std::move(b));
 }
 
 auto operator%=(Number &a, Number const &b) -> Number & {
-    return Number::Impl::op_assign(mp_int_floormod, mp_int_floormod_value, mp_int_floormod_value_inv, check_mod, a, b);
+    return Number::Impl::op_assign(mp_int_floormod, mp_int_floormod_value, mp_int_floormod_value_inv, Util::check_mod,
+                                   a, b);
 }
 
 auto operator%=(Number &a, Number &&b) -> Number & {
-    return Number::Impl::op_assign(mp_int_floormod, mp_int_floormod_value, mp_int_floormod_value_inv, check_mod, a,
-                                   std::move(b));
+    return Number::Impl::op_assign(mp_int_floormod, mp_int_floormod_value, mp_int_floormod_value_inv, Util::check_mod,
+                                   a, std::move(b));
 }
 
 // unary minus
@@ -743,7 +748,7 @@ auto operator%=(Number &a, Number &&b) -> Number & {
 auto operator-(Number const &a) -> Number {
     bool is_int = repr_is_int(a.repr_);
     if (is_int) {
-        if (auto res = check_neg(repr_to_int(a.repr_)); res.has_value()) {
+        if (auto res = Util::check_neg(repr_to_int(a.repr_)); res.has_value()) {
             return {res.value()};
         }
     }
@@ -889,19 +894,21 @@ auto operator^=(Number &a, Number &&b) -> Number & {
 // exponentiation
 
 auto pow(Number const &a, Number const &b) -> Number {
-    return Number::Impl::op_binary(mp_int_expt_full, mp_int_expt, mp_expt_int_value_inv, check_pow, a, b);
+    return Number::Impl::op_binary(mp_int_expt_full, mp_int_expt, mp_expt_int_value_inv, Util::check_pow, a, b);
 }
 
 auto pow(Number &&a, Number const &b) -> Number {
-    return Number::Impl::op_binary(mp_int_expt_full, mp_int_expt, mp_expt_int_value_inv, check_pow, std::move(a), b);
+    return Number::Impl::op_binary(mp_int_expt_full, mp_int_expt, mp_expt_int_value_inv, Util::check_pow, std::move(a),
+                                   b);
 }
 
 auto pow(Number const &a, Number &&b) -> Number {
-    return Number::Impl::op_binary(mp_int_expt_full, mp_int_expt, mp_expt_int_value_inv, check_pow, a, std::move(b));
+    return Number::Impl::op_binary(mp_int_expt_full, mp_int_expt, mp_expt_int_value_inv, Util::check_pow, a,
+                                   std::move(b));
 }
 
 auto pow(Number &&a, Number &&b) -> Number {
-    return Number::Impl::op_binary(mp_int_expt_full, mp_int_expt, mp_expt_int_value_inv, check_pow, std::move(a),
+    return Number::Impl::op_binary(mp_int_expt_full, mp_int_expt, mp_expt_int_value_inv, Util::check_pow, std::move(a),
                                    std::move(b));
 }
 
@@ -910,7 +917,7 @@ auto pow(Number &&a, Number &&b) -> Number {
 auto abs(Number const &a) -> Number {
     bool is_int = repr_is_int(a.repr_);
     if (is_int) {
-        if (auto res = check_abs(repr_to_int(a.repr_))) {
+        if (auto res = Util::check_abs(repr_to_int(a.repr_))) {
             return {res.value()};
         }
     }
@@ -975,5 +982,7 @@ auto operator<<(std::ostream &out, Number const &num) -> std::ostream & {
     }
     return out;
 }
+
+// NOLINTEND(readability-magic-numbers,cppcoreguidelines-pro-type-reinterpret-cast,performance-no-int-to-ptr,cppcoreguidelines-avoid-c-arrays,cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
 } // namespace Gringo

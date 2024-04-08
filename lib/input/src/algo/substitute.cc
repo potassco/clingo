@@ -21,9 +21,9 @@ namespace {
     return TermVariable{loc, ctx.store().string("$" + std::to_string(param))};
 }
 
-struct MapParams : Transformer<MapParams> {
-
-    MapParams(RewriteContext &ctx) : ctx{ctx} {}
+class MapParams : public Transformer<MapParams> {
+  public:
+    MapParams(RewriteContext &ctx) : ctx_{&ctx} {}
 
     // protect ourselves -> no unintended overloads
 
@@ -36,7 +36,7 @@ struct MapParams : Transformer<MapParams> {
         std::optional<std::vector<std::variant<Term, Symbol>>> res_args;
         bool constant = true;
         {
-            size_t i = 0;
+            ssize_t i = 0;
             for (auto arg : args) {
                 auto res_arg = accept(loc, arg);
                 if (res_arg.has_value() || res_args.has_value()) {
@@ -86,17 +86,17 @@ struct MapParams : Transformer<MapParams> {
         switch (sym.type()) {
             case SymbolType::function: {
                 if (sym.args().empty()) {
-                    if (auto param = ctx.is_param(sym.name()); param) {
-                        return variable_for_param(ctx, loc, param.value());
+                    if (auto param = ctx_->is_param(sym.name()); param) {
+                        return variable_for_param(*ctx_, loc, param.value());
                     }
-                    if (auto value = ctx.is_const(sym.name()); value) {
+                    if (auto value = ctx_->is_const(sym.name()); value) {
                         if (sym.has_sign()) {
                             switch (sym.type()) {
                                 case SymbolType::function: {
                                     return value->flip_classical_sign();
                                 }
                                 case SymbolType::number: {
-                                    return ctx.store().num(-*value->num());
+                                    return ctx_->store().num(-*value->num());
                                 }
                                 case SymbolType::inf:
                                 case SymbolType::sup:
@@ -116,7 +116,7 @@ struct MapParams : Transformer<MapParams> {
                     return std::visit(
                         [this, &loc, &sym]<class T>(T tuple) -> std::variant<Term, Symbol> {
                             if constexpr (std::is_same_v<T, SymbolVec>) {
-                                return ctx.store().fun(sym.name(), std::move(tuple), sym.has_sign());
+                                return ctx_->store().fun(sym.name(), std::move(tuple), sym.has_sign());
                             }
                             if constexpr (std::is_same_v<T, ArgumentTuple>) {
                                 auto ret = Term{TermFunction{loc, sym.name(), {std::move(tuple)}, false}};
@@ -135,7 +135,7 @@ struct MapParams : Transformer<MapParams> {
                     return std::visit(
                         [this, &loc]<class T>(T tuple) -> std::variant<Term, Symbol> {
                             if constexpr (std::is_same_v<T, SymbolVec>) {
-                                return ctx.store().tup(std::move(tuple));
+                                return ctx_->store().tup(std::move(tuple));
                             }
                             if constexpr (std::is_same_v<T, ArgumentTuple>) {
                                 return TermTuple{loc, Util::make_vec<TupleElement>(std::move(tuple))};
@@ -179,10 +179,10 @@ struct MapParams : Transformer<MapParams> {
         if (!term.pool().front().elems().empty() || term.external()) {
             return rewrite(term, a_pool);
         }
-        if (auto param = ctx.is_param(term.name()); param) {
-            return TermVariable{term.loc(), ctx.store().string("$" + std::to_string(param.value()))};
+        if (auto param = ctx_->is_param(term.name()); param) {
+            return TermVariable{term.loc(), ctx_->store().string("$" + std::to_string(param.value()))};
         }
-        if (auto value = ctx.is_const(term.name()); value) {
+        if (auto value = ctx_->is_const(term.name()); value) {
             return TermSymbol{term.loc(), value.value()};
         }
         return std::nullopt;
@@ -226,12 +226,13 @@ struct MapParams : Transformer<MapParams> {
         return rewrite(stm, a_body, a_weight, a_prio, a_type);
     }
 
-    RewriteContext &ctx;
+  private:
+    RewriteContext *ctx_;
 };
 
-struct UnmapParams : Transformer<UnmapParams> {
-
-    UnmapParams(SymbolStore &store, Util::ordered_map<String, String> const &map) : store{store}, map{map} {}
+class UnmapParams : public Transformer<UnmapParams> {
+  public:
+    UnmapParams(SymbolStore &store, Util::ordered_map<String, String> const &map) : store_{&store}, map_{&map} {}
 
     // protect ourselves -> no unintended overloads
 
@@ -240,8 +241,8 @@ struct UnmapParams : Transformer<UnmapParams> {
     // term
 
     [[nodiscard]] auto accept(TermVariable const &term) const -> std::optional<Term> {
-        if (auto it = map.find(term.name()); it != map.end()) {
-            return TermSymbol{term.loc(), store.fun(it.value(), {}, false)};
+        if (auto it = map_->find(term.name()); it != map_->end()) {
+            return TermSymbol{term.loc(), store_->fun(it.value(), {}, false)};
         }
         return std::nullopt;
     }
@@ -252,13 +253,14 @@ struct UnmapParams : Transformer<UnmapParams> {
         return std::nullopt;
     }
 
-    SymbolStore &store;
-    Util::ordered_map<String, String> const &map;
+  private:
+    SymbolStore *store_;
+    Util::ordered_map<String, String> const *map_;
 };
 
-struct Collect : Visitor<Collect> {
-
-    Collect(StringSet &ids) : ids{ids} {}
+struct Collect : public Visitor<Collect> {
+  public:
+    Collect(StringSet &ids) : ids_{&ids} {}
 
     // protect ourselves -> no unintended overloads
 
@@ -270,7 +272,7 @@ struct Collect : Visitor<Collect> {
         switch (sym.type()) {
             case SymbolType::function: {
                 if (sym.args().empty()) {
-                    ids.emplace(sym.name());
+                    ids_->emplace(sym.name());
                 } else {
                     std::for_each(sym.args().begin(), sym.args().end(), *this);
                 }
@@ -296,7 +298,7 @@ struct Collect : Visitor<Collect> {
             throw std::runtime_error("unpool has to be called before substituting parameters");
         }
         if (term.pool().front().elems().empty() && !term.external()) {
-            ids.emplace(term.name());
+            ids_->emplace(term.name());
         } else {
             visit(term.pool());
         }
@@ -337,7 +339,8 @@ struct Collect : Visitor<Collect> {
         visit(stm.body(), stm.weight(), stm.prio(), stm.type());
     }
 
-    StringSet &ids;
+  private:
+    StringSet *ids_;
 };
 
 } // namespace
