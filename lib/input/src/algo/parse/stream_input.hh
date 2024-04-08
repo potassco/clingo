@@ -9,6 +9,8 @@
 
 namespace Gringo::Input {
 
+// NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic,cppcoreguidelines-pro-type-reinterpret-cast)
+
 //! Location counting based on encoding.
 //!
 //! @related StreamInput
@@ -42,7 +44,7 @@ class StreamInput {
         static constexpr size_t chunk_size = 4096;
 
         //! Construct a stream buffer reading from the given stream.
-        StreamBuffer(std::istream &in) : in_{in} {}
+        StreamBuffer(std::istream &in) : in_{&in} {}
 
         //! Check if the given offset no longer points to valid input.
         //!
@@ -59,8 +61,8 @@ class StreamInput {
                 }
                 size_t old_size = buffer_.size();
                 buffer_.resize(old_size + chunk_size);
-                in_.read(buffer_.data() + old_size, chunk_size);
-                size_t num = in_.gcount();
+                in_->read(buffer_.data() + old_size, chunk_size);
+                size_t num = in_->gcount();
                 if (num < chunk_size) {
                     eoi_ = true;
                     buffer_.resize(old_size + num);
@@ -97,7 +99,7 @@ class StreamInput {
         [[nodiscard]] auto offset() const { return start_; }
 
       private:
-        std::istream &in_;
+        std::istream *in_;
         std::vector<char> buffer_;
         size_t start_{0};
         size_t discard_{0};
@@ -343,5 +345,7 @@ class StreamInput {
     size_t last_nl_{0};
     unsigned nl_{1};
 };
+
+// NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic,cppcoreguidelines-pro-type-reinterpret-cast)
 
 } // namespace Gringo::Input

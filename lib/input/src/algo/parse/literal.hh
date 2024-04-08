@@ -42,7 +42,7 @@ struct atom_bool : lexy::token_production {
                                              .map<LEXY_SYMBOL("#false")>(false);
     static constexpr auto rule = Detail::location(dsl::symbol<bool_symbols>(keyword_base));
     static constexpr auto value = lexy::callback<Lit>([](Location loc, bool value) {
-        return LitBool{std::move(loc), Sign::none, value};
+        return LitBool{loc, Sign::none, value};
     });
 };
 
@@ -85,8 +85,8 @@ struct naf_sign {
     static auto constexpr rule = dsl::if_(Detail::position(kw_not) >> dsl::opt(kw_not));
     static auto constexpr value = lexy::callback<std::pair<std::optional<Position>, Sign>>(
         []() { return std::make_pair(std::nullopt, Sign::none); },
-        [](Position begin, lexy::nullopt) { return std::make_pair(std::move(begin), Sign::once); },
-        [](Position begin) { return std::make_pair(std::move(begin), Sign::twice); });
+        [](Position begin, lexy::nullopt) { return std::make_pair(begin, Sign::once); },
+        [](Position begin) { return std::make_pair(begin, Sign::twice); });
 };
 
 struct literal {

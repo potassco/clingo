@@ -21,13 +21,13 @@ template <typename Reader, typename State> class StatefulReader : public Reader 
 template <typename Input, typename State> class StatefulInput {
   public:
     //! Construct a stateful input.
-    StatefulInput(Input &input, State &state) : input_{input}, state_{&state} {}
+    StatefulInput(Input &input, State &state) : input_{&input}, state_{&state} {}
 
     //! Return the state associated with the input.
-    [[nodiscard]] auto reader() const & { return StatefulReader(input_.reader(), *state_); }
+    [[nodiscard]] auto reader() const & { return StatefulReader(input_->reader(), *state_); }
 
   private:
-    Input &input_;
+    Input *input_;
     State *state_;
 };
 

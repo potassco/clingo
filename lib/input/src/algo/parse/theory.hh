@@ -173,12 +173,12 @@ struct theory_term_unparsed : lexy::transparent_production {
         []([[maybe_unused]] auto &state, [[maybe_unused]] auto begin, TheoryTerm term) { return term; },
         [](auto &state, auto begin, std::vector<String> ops, TheoryTerm term,
            std::vector<UnparsedElement> guards = {}) {
-            guards.insert(guards.begin(), UnparsedElement{std::move(ops), std::move(term)});
+            guards.emplace(guards.begin(), std::move(ops), std::move(term));
             auto loc = Location{state.pos(begin), location(guards.back().second).end};
             return TheoryTermUnparsed{loc, std::move(guards)};
         },
         [](auto &state, auto begin, TheoryTerm term, std::vector<UnparsedElement> guards) {
-            guards.insert(guards.begin(), UnparsedElement{{}, term});
+            guards.emplace(guards.begin(), StringArray{}, std::move(term));
             auto loc = Location{state.pos(begin), location(guards.back().second).end};
             return TheoryTermUnparsed{loc, std::move(guards)};
         });

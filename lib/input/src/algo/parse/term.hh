@@ -14,18 +14,18 @@ template <bool external> struct construct_function {
     using return_type = TermFunction;
 
     auto operator()(Location loc, auto name) const {
-        return TermFunction{std::move(loc), name, PoolArray{ArgumentTuple{ArgumentArray{}}}, external};
+        return TermFunction{loc, name, PoolArray{ArgumentTuple{ArgumentArray{}}}, external};
     }
 
     auto operator()(Location loc, auto name, auto args) const {
-        return TermFunction{std::move(loc), name, std::move(args), external};
+        return TermFunction{loc, name, std::move(args), external};
     }
 };
 
 class tuple_trail {
   public:
-    void push_back(Projection p) { vec_.emplace_back(std::move(p)); }
-    void push_front(Projection p) { vec_.emplace(vec_.begin(), std::move(p)); }
+    void push_back(Projection p) { vec_.emplace_back(p); }
+    void push_front(Projection p) { vec_.emplace(vec_.begin(), p); }
     void push_back(Term term) { vec_.emplace_back(std::move(term)); }
     template <typename Reader> void push_back(lexy::lexeme<Reader> /* unused */) { trail_ = true; }
     auto to_tuple() -> TupleElement {
@@ -54,13 +54,13 @@ struct store_string_ {
     template <class State> struct sink_callback_ {
         using return_type = String;
 
-        constexpr sink_callback_(State &state) : state{state} {}
+        constexpr sink_callback_(State &state) : state{&state} {}
 
         template <typename... Args> auto operator()(Args &&...args) { return sink(std::forward<Args>(args)...); }
 
-        auto finish() && -> String { return state.string(std::move(sink).finish()); }
+        auto finish() && -> String { return state->string(std::move(sink).finish()); }
 
-        State &state;
+        State *state;
         decltype(Detail::as_string.sink()) sink = Detail::as_string.sink();
     };
 
@@ -113,7 +113,7 @@ struct term_number : lexy::token_production {
     static constexpr char const *name = "number";
     static constexpr auto rule = Detail::location(number);
     static constexpr auto value = lexy::callback_with_state<Term>(
-        [](auto &state, Location loc, auto num) { return TermSymbol(std::move(loc), state.num(std::move(num))); });
+        [](auto &state, Location loc, auto num) { return TermSymbol(loc, state.num(std::move(num))); });
 };
 
 static constexpr auto escaped_symbols = lexy::symbol_table<char> //
@@ -133,7 +133,7 @@ struct term_string : lexy::token_production {
     static constexpr char const *name = "string";
     static constexpr auto rule = Detail::location(string);
     static constexpr auto value = as_stored_string >> lexy::callback<Term>([](Location loc, auto str) {
-                                      return TermSymbol{std::move(loc), SymbolStore::str(str)};
+                                      return TermSymbol{loc, SymbolStore::str(str)};
                                   });
 };
 
@@ -165,7 +165,7 @@ struct term_constant : lexy::token_production {
     static constexpr char const *name = "constant";
     static constexpr auto rule = Detail::location(constant);
     static constexpr auto value = lexy::callback<Term>([](Location loc, auto val) {
-        return TermSymbol(std::move(loc), val == Constant::infimum ? SymbolStore::inf() : SymbolStore::sup());
+        return TermSymbol(loc, val == Constant::infimum ? SymbolStore::inf() : SymbolStore::sup());
     });
 };
 
@@ -222,15 +222,16 @@ struct term_tuple_element {
         return dsl::if_(dsl::p<projection> >> dsl::comma) +
                dsl::if_(dsl::list(dsl::p<projection> | peek >> dsl::p<term>, sep));
     }();
-    static constexpr auto
-        value = lexy::as_list<Detail::tuple_trail> >>
-                lexy::callback<TupleElement>([]() { return ArgumentTuple{{}}; },
-                                             [](Projection p) { return ArgumentTuple{{std::move(p)}}; },
-                                             [](Projection p, Detail::tuple_trail elem) {
-                                                 elem.push_front(std::move(p));
-                                                 return elem.to_tuple();
-                                             },
-                                             [](Detail::tuple_trail elem) { return elem.to_tuple(); });
+    static constexpr auto value = lexy::as_list<Detail::tuple_trail> >>
+                                  lexy::callback<TupleElement>([]() { return ArgumentTuple{{}}; },
+                                                               [](Projection p) { return ArgumentTuple{{p}}; },
+                                                               [](Projection p, Detail::tuple_trail elem) {
+                                                                   elem.push_front(p);
+                                                                   return elem.to_tuple();
+                                                               },
+                                                               [](Detail::tuple_trail elem) {
+                                                                   return elem.to_tuple();
+                                                               });
 };
 
 struct term_tuple {
@@ -241,9 +242,9 @@ struct term_tuple {
     static constexpr auto value = lexy::as_list<std::vector<TupleElement>> >>
                                   lexy::callback<Term>([](Location loc, TupleElementArray elem) -> Term {
                                       if (elem.size() == 1 && std::holds_alternative<Term>(elem.front())) {
-                                          return std::move(std::get<Term>(elem.front()));
+                                          return std::get<Term>(elem.front());
                                       }
-                                      return TermTuple{std::move(loc), std::move(elem)};
+                                      return TermTuple{loc, std::move(elem)};
                                   });
 };
 
@@ -252,7 +253,7 @@ struct term_abs {
     static constexpr auto rule =
         Detail::location(dsl::brackets(LEXY_LIT("|"), LEXY_LIT("|")).list(dsl::p<term>, dsl::sep(dsl::semicolon)));
     static constexpr auto value = lexy::as_list<std::vector<Term>> >> lexy::callback<Term>([](Location loc, auto pool) {
-                                      return TermAbs{std::move(loc), std::move(pool)};
+                                      return TermAbs{loc, std::move(pool)};
                                   });
 };
 
@@ -263,7 +264,7 @@ struct term_anonymous_variable : lexy::token_production {
     static constexpr char const *name = "anonymous variable";
     static constexpr auto rule = Detail::location(anonymous_variable);
     static constexpr auto value = lexy::callback_with_state<Term>([](auto &state, Location loc) {
-        return TermVariable{std::move(loc), state.string("_"), true};
+        return TermVariable{loc, state.string("_"), true};
     });
 };
 

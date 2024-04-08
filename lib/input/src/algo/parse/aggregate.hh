@@ -9,9 +9,9 @@ namespace Gringo::Input::Grammar {
 namespace Detail {
 template <bool HasSign> static auto construct_set_aggregate(Location loc, SetAggregateElementArray elems, RGuard rhs) {
     if constexpr (HasSign) {
-        return SetAggregate<HasSign>{std::move(loc), Sign::none, std::nullopt, std::move(elems), std::move(rhs)};
+        return SetAggregate<HasSign>{loc, Sign::none, std::nullopt, std::move(elems), std::move(rhs)};
     } else {
-        return SetAggregate<HasSign>{std::move(loc), std::nullopt, std::move(elems), std::move(rhs)};
+        return SetAggregate<HasSign>{loc, std::nullopt, std::move(elems), std::move(rhs)};
     }
 }
 } // namespace Detail
@@ -57,7 +57,7 @@ struct set_aggregate_element {
     static constexpr char const *name = "conditional literal";
     static constexpr auto rule = Detail::location(dsl::p<literal> + dsl::p<if_condition>);
     static constexpr auto value = lexy::callback<SetAggregateElement>([](Location loc, Lit lit, std::vector<Lit> cond) {
-        return SetAggregateElement{std::move(loc), std::move(lit), std::move(cond)};
+        return SetAggregateElement{loc, std::move(lit), std::move(cond)};
     });
 };
 
@@ -80,14 +80,14 @@ template <bool HasSign> struct set_aggregate {
         Detail::location(LEXY_LIT("{") >> dsl::p<set_aggregate_elements> >> LEXY_LIT("}") + aggregate_right_guard);
     static constexpr auto value = lexy::callback<SetAggregate<HasSign>>(
         [](Location loc, SetAggregateElementArray elems) {
-            return Detail::construct_set_aggregate<HasSign>(std::move(loc), std::move(elems), std::nullopt);
+            return Detail::construct_set_aggregate<HasSign>(loc, std::move(elems), std::nullopt);
         },
         [](Location loc, SetAggregateElementArray elems, Term rhs) {
-            return Detail::construct_set_aggregate<HasSign>(std::move(loc), std::move(elems),
+            return Detail::construct_set_aggregate<HasSign>(loc, std::move(elems),
                                                             RGuard::value_type{Relation::less_equal, std::move(rhs)});
         },
         [](Location loc, SetAggregateElementArray elems, Relation rel, Term rhs) {
-            return Detail::construct_set_aggregate<HasSign>(std::move(loc), std::move(elems),
+            return Detail::construct_set_aggregate<HasSign>(loc, std::move(elems),
                                                             RGuard::value_type{rel, std::move(rhs)});
         });
 };

@@ -10,22 +10,25 @@ namespace Gringo::Input::Grammar {
 
 namespace Detail {
 
-inline auto construct_body_aggr(Term term, Relation rel, BdLitAggregate aggr) -> BdLitAggregate {
-    return BdLitAggregate{
-        location(term).begin + aggr.loc(), aggr.sign(), LGuard::value_type{std::move(term), rel}, aggr.fun(),
-        std::move(aggr.elems()),           aggr.rhs()};
+inline auto construct_body_aggr(Term term, Relation rel, BdLitAggregate const &aggr) -> BdLitAggregate {
+    return BdLitAggregate{location(term).begin + aggr.loc(),
+                          aggr.sign(),
+                          LGuard::value_type{std::move(term), rel},
+                          aggr.fun(),
+                          aggr.elems(),
+                          aggr.rhs()};
 }
 
-inline auto construct_body_aggr(Term term, Relation rel, BdLitSetAggregate aggr) -> BdLitSetAggregate {
+inline auto construct_body_aggr(Term term, Relation rel, BdLitSetAggregate const &aggr) -> BdLitSetAggregate {
     return BdLitSetAggregate{location(term).begin + aggr.loc(), aggr.sign(), LGuard::value_type{std::move(term), rel},
-                             std::move(aggr.elems()), aggr.rhs()};
+                             aggr.elems(), aggr.rhs()};
 }
 
 auto construct_conjunction(Lit lit, std::optional<std::vector<Lit>> cond, Position end) -> BdLit {
     if (!cond) {
         return lit;
     }
-    return BdLitConjunction{CondLit{location(lit) + std::move(end), std::move(lit), std::move(cond).value()}};
+    return BdLitConjunction{CondLit{location(lit) + end, std::move(lit), std::move(cond).value()}};
 }
 
 } // namespace Detail
@@ -38,10 +41,10 @@ struct body_aggregate_element {
     }();
     static constexpr auto value = lexy::callback<BdLitAggregateElement>(
         [](Location loc, std::vector<Lit> cond) {
-            return BdLitAggregateElement{std::move(loc), TermArray{}, std::move(cond)};
+            return BdLitAggregateElement{loc, TermArray{}, std::move(cond)};
         },
         [](Location loc, TermArray tuple, std::vector<Lit> cond) {
-            return BdLitAggregateElement{std::move(loc), std::move(tuple), std::move(cond)};
+            return BdLitAggregateElement{loc, std::move(tuple), std::move(cond)};
         });
 };
 
@@ -61,17 +64,15 @@ struct body_aggregate {
         Detail::location(dsl::p<aggregate_function> >> dsl::p<body_aggregate_elements> + aggregate_right_guard);
     static constexpr auto value = lexy::callback<BdLitAggregate>(
         [](Location loc, AggregateFunction fun, BdLitAggregateElementArray elems) {
-            return BdLitAggregate{std::move(loc), Sign::none, std::nullopt, fun, std::move(elems), std::nullopt};
+            return BdLitAggregate{loc, Sign::none, std::nullopt, fun, std::move(elems), std::nullopt};
         },
         [](Location loc, AggregateFunction fun, BdLitAggregateElementArray elems, Relation rel, Term rhs) {
-            return BdLitAggregate{std::move(loc),   Sign::none,
-                                  std::nullopt,     fun,
-                                  std::move(elems), RGuard::value_type{rel, std::move(rhs)}};
+            return BdLitAggregate{loc, Sign::none,       std::nullopt,
+                                  fun, std::move(elems), RGuard::value_type{rel, std::move(rhs)}};
         },
         [](Location loc, AggregateFunction fun, BdLitAggregateElementArray elems, Term rhs) {
-            return BdLitAggregate{std::move(loc),   Sign::none,
-                                  std::nullopt,     fun,
-                                  std::move(elems), RGuard::value_type{Relation::less_equal, std::move(rhs)}};
+            return BdLitAggregate{loc, Sign::none,       std::nullopt,
+                                  fun, std::move(elems), RGuard::value_type{Relation::less_equal, std::move(rhs)}};
         });
 };
 
@@ -124,15 +125,15 @@ struct body_atom : lexy::transparent_production {
             guards.insert(guards.begin(), Guard{rel, std::move(rhs)});
             auto loc = location(lhs) + location(guards.back().second);
             auto lit = LitComparison{loc, Sign::none, std::move(lhs), std::move(guards)};
-            return Detail::construct_conjunction(std::move(lit), std::move(cond), std::move(end));
+            return Detail::construct_conjunction(std::move(lit), std::move(cond), end);
         },
         [](Lit lit, std::optional<std::vector<Lit>> cond, Position end) -> BdLit {
-            return Detail::construct_conjunction(std::move(lit), std::move(cond), std::move(end));
+            return Detail::construct_conjunction(std::move(lit), std::move(cond), end);
         },
         [](Term term, std::optional<std::vector<Lit>> cond, Position end) {
             auto loc = location(term);
             auto lit = LitSymbolic{loc, Sign::none, std::move(term)};
-            return Detail::construct_conjunction(std::move(lit), std::move(cond), std::move(end));
+            return Detail::construct_conjunction(std::move(lit), std::move(cond), end);
         });
 };
 
