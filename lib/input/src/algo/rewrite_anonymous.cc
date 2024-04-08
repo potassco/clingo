@@ -7,8 +7,9 @@ namespace Gringo::Input {
 
 namespace {
 
-struct RewriteAnonymous : Transformer<RewriteAnonymous> {
-    RewriteAnonymous(NameGen &gen) : gen{gen} {}
+class RewriteAnonymous : public Transformer<RewriteAnonymous> {
+  public:
+    RewriteAnonymous(NameGen &gen) : gen_{&gen} {}
 
     // protect ourselves -> no unintended overloads
 
@@ -18,7 +19,7 @@ struct RewriteAnonymous : Transformer<RewriteAnonymous> {
 
     [[nodiscard]] auto accept(TermVariable const &term) const -> std::optional<Term> {
         if (term.anonymous()) {
-            return TermVariable{term.loc(), gen.new_name(), true};
+            return TermVariable{term.loc(), gen_->new_name(), true};
         }
         return std::nullopt;
     }
@@ -27,12 +28,13 @@ struct RewriteAnonymous : Transformer<RewriteAnonymous> {
 
     [[nodiscard]] auto accept(TheoryTermVariable const &term) const -> std::optional<TheoryTerm> {
         if (term.anonymous()) {
-            return TheoryTermVariable{term.loc(), gen.new_name(), true};
+            return TheoryTermVariable{term.loc(), gen_->new_name(), true};
         }
         return std::nullopt;
     }
 
-    NameGen &gen;
+  private:
+    NameGen *gen_;
 };
 
 } // namespace

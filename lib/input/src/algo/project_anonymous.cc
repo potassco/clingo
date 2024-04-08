@@ -15,8 +15,8 @@ auto is_anonymous(Term const *term) -> bool {
     return var != nullptr && var->anonymous();
 }
 
-struct ProjectAnonymous : Transformer<ProjectAnonymous> {
-
+class ProjectAnonymous : public Transformer<ProjectAnonymous> {
+  public:
     // protect ourselves -> no unintended overloads
 
     template <class T> [[nodiscard]] auto accept(T const &expr) const = delete;

@@ -12,7 +12,7 @@ namespace {
 //! Parser for theory terms.
 class ParseTheoryTerm : public Transformer<ParseTheoryTerm> {
   public:
-    ParseTheoryTerm(Logger &log, TheoryTermParser const &parser) : log_{log}, parser_{parser} {}
+    ParseTheoryTerm(Logger &log, TheoryTermParser const &parser) : log_{&log}, parser_{&parser} {}
 
     [[nodiscard]] auto accept(TheoryTermFunction const &term) const -> std::optional<TheoryTerm> {
         auto arity = std::optional<Arity>{};
@@ -22,19 +22,19 @@ class ParseTheoryTerm : public Transformer<ParseTheoryTerm> {
             arity = Arity::binary;
         }
         if (arity && is_theory_operator(term.name().view())) {
-            parser_.check_operator(log_, term.name(), *arity, term.loc());
+            parser_->check_operator(*log_, term.name(), *arity, term.loc());
         }
 
         return rewrite(term, a_args);
     }
 
     [[nodiscard]] auto accept(TheoryTermUnparsed const &term) const -> std::optional<TheoryTerm> {
-        return parser_.parse(log_, term);
+        return parser_->parse(*log_, term);
     }
 
   private:
-    Logger &log_;
-    TheoryTermParser const &parser_;
+    Logger *log_;
+    TheoryTermParser const *parser_;
 };
 
 } // namespace
@@ -145,8 +145,8 @@ void TheoryAtomParser::add_theory(Logger &log, StmTheory const &stm) {
     atom_table_.reserve(atom_table_.size() + stm.atom_defs().size());
     for (auto const &atom_def : stm.atom_defs()) {
         auto guard = std::optional<GuardTable>{};
-        if (atom_def.rhs()) {
-            auto const &[ops, term] = *atom_def.rhs();
+        if (auto const &rhs = atom_def.rhs(); rhs) {
+            auto const &[ops, term] = *rhs;
             if (auto it = term_defs.find(term); it != term_defs.end()) {
                 guard.emplace(StringSet{ops.begin(), ops.end()}, std::distance(term_defs.begin(), it));
             } else {
@@ -171,6 +171,7 @@ void TheoryAtomParser::add_theory(Logger &log, StmTheory const &stm) {
 template <bool has_sign>
 auto TheoryAtomParser::parse(Logger &log, TheoryAtom<has_sign> const &atom, bool fact) const
     -> std::optional<TheoryAtom<has_sign>> {
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
     auto [name, arity, sign] = signature(atom.name()).value();
     static_cast<void>(fact);
     if (sign) {

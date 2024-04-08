@@ -12,7 +12,10 @@ namespace Gringo::Input {
 namespace {
 
 //! Get variables a term provides or depends on.
-struct GetDep {
+class GetDep {
+  public:
+    GetDep(const VariableSet &ignore, StringVec &provide, StringVec &depend)
+        : ignore_{&ignore}, provide_{&provide}, depend_{&depend} {}
 
     void operator()(auto const &x, bool can_provide) const = delete;
 
@@ -21,11 +24,11 @@ struct GetDep {
     }
 
     void operator()(TermVariable const &term, bool can_provide) const {
-        if (!ignore.contains(term.name())) {
+        if (!ignore_->contains(term.name())) {
             if (can_provide) {
-                provide.emplace_back(term.name());
+                provide_->emplace_back(term.name());
             } else {
-                depend.emplace_back(term.name());
+                depend_->emplace_back(term.name());
             }
         }
     }
@@ -63,40 +66,42 @@ struct GetDep {
     }
 
     void operator()(TermBinary const &term, bool can_provide) const {
-        if (auto lin = check_linear(term); can_provide && lin && !ignore.contains(lin->x())) {
-            provide.emplace_back(lin->x());
+        if (auto lin = check_linear(term); can_provide && lin && !ignore_->contains(lin->x())) {
+            provide_->emplace_back(lin->x());
         } else {
             operator()(*term.lhs(), false);
             operator()(*term.rhs(), false);
         }
     }
 
-    VariableSet const &ignore;
-    StringVec &provide;
-    StringVec &depend;
+  private:
+    VariableSet const *ignore_;
+    StringVec *provide_;
+    StringVec *depend_;
 };
 
 //! Turn literals into nodes that depend or provide variables.
-template <class CB> struct MakeNode {
+template <class CB> class MakeNode {
+  public:
     MakeNode(CB cb, VariableSet const &global, VariableSet const &provided)
-        : cb{std::move(cb)}, global{global}, provided{provided} {}
+        : cb_{std::move(cb)}, global_{&global}, provided_{&provided} {}
 
     // literals
 
     void operator()(Lit const &lit, bool can_provide) { std::visit(*this, lit, std::variant<bool>{can_provide}); }
 
     void operator()([[maybe_unused]] LitBool const &lit, [[maybe_unused]] bool can_provide) {
-        std::invoke(cb, StringVec{}, StringVec{}, false);
+        std::invoke(cb_, StringVec{}, StringVec{}, false);
     }
 
     void operator()(LitComparison const &lit, bool can_provide) {
         auto add = [this, &lit](bool lhs, bool rhs) {
             StringVec provide;
             StringVec depend;
-            GetDep{provided, provide, depend}(lit.lhs(), lhs);
-            GetDep{provided, provide, depend}(lit.rhs().front().second, rhs);
+            GetDep{*provided_, provide, depend}(lit.lhs(), lhs);
+            GetDep{*provided_, provide, depend}(lit.rhs().front().second, rhs);
             if (!rhs || !provide.empty()) {
-                std::invoke(cb, std::move(provide), std::move(depend), rhs);
+                std::invoke(cb_, std::move(provide), std::move(depend), rhs);
             }
         };
         if (lit.rhs().front().first == Relation::equal && can_provide) {
@@ -110,8 +115,8 @@ template <class CB> struct MakeNode {
     void operator()(LitSymbolic const &lit, bool can_provide) {
         StringVec provide;
         StringVec depend;
-        GetDep{provided, provide, depend}(lit.term(), can_provide && lit.sign() == Sign::none);
-        std::invoke(cb, std::move(provide), std::move(depend), false);
+        GetDep{*provided_, provide, depend}(lit.term(), can_provide && lit.sign() == Sign::none);
+        std::invoke(cb_, std::move(provide), std::move(depend), false);
     }
 
     // body literals
@@ -125,33 +130,34 @@ template <class CB> struct MakeNode {
         visit_variables(
             lit,
             [this, &depend]([[maybe_unused]] Location const &loc, auto const &var) {
-                if (global.contains(var)) {
+                if (global_->contains(var)) {
                     depend.emplace_back(var);
                 }
             },
             VariableContext::all);
-        std::invoke(cb, StringVec{}, std::move(depend), false);
+        std::invoke(cb_, StringVec{}, std::move(depend), false);
     }
 
     void operator()(BdLitAggregate const &lit, bool can_provide) {
+        auto const &lhs = lit.lhs();
+        auto const &rhs = lit.rhs();
         VariableVec provide;
         VariableVec depend;
-        can_provide =
-            can_provide && lit.sign() == Sign::none && !lit.rhs() && lit.lhs() && lit.lhs()->second == Relation::equal;
-        if (lit.lhs()) {
-            GetDep{provided, provide, depend}(lit.lhs()->first, can_provide);
+        can_provide = can_provide && lit.sign() == Sign::none && !rhs && lhs && lhs->second == Relation::equal;
+        if (lhs) {
+            GetDep{*provided_, provide, depend}(lhs->first, can_provide);
         }
-        if (lit.rhs()) {
-            GetDep{provided, provide, depend}(lit.rhs()->second, false);
+        if (rhs) {
+            GetDep{*provided_, provide, depend}(rhs->second, false);
         }
         for (auto const &elem : lit.elems()) {
             visit_variables(elem, [this, &depend]([[maybe_unused]] Location const &loc, auto const &var) {
-                if (global.contains(var)) {
+                if (global_->contains(var)) {
                     depend.emplace_back(var);
                 }
             });
         }
-        std::invoke(cb, std::move(provide), std::move(depend), false);
+        std::invoke(cb_, std::move(provide), std::move(depend), false);
     }
 
     void operator()([[maybe_unused]] BdLitSetAggregate const &lit, [[maybe_unused]] bool can_provide) {
@@ -163,17 +169,18 @@ template <class CB> struct MakeNode {
         visit_variables(
             lit,
             [this, &depend]([[maybe_unused]] Location const &loc, auto const &var) {
-                if (global.contains(var)) {
+                if (global_->contains(var)) {
                     depend.emplace_back(var);
                 }
             },
             VariableContext::all);
-        std::invoke(cb, StringVec{}, std::move(depend), false);
+        std::invoke(cb_, StringVec{}, std::move(depend), false);
     }
 
-    CB cb;
-    VariableSet const &global;
-    VariableSet const &provided;
+  private:
+    CB cb_;
+    VariableSet const *global_;
+    VariableSet const *provided_;
 };
 
 template <class Lit> struct Node {
@@ -296,12 +303,15 @@ auto report_local(Logger &log, VariableSet const &global, VariableSet const &bou
 }
 
 //! Check safety of local variables.
-struct CheckLocal {
+class CheckLocal {
+  public:
+    CheckLocal(Logger &log, const VariableSet &bound) : log_{&log}, bound_{&bound} {}
+
     [[nodiscard]] auto handle_cond(auto const &elem, auto fun, auto... attr) const {
-        auto [res_cond, provided] = prepare_lits(log, elem.cond(), VariableSet{}, bound);
+        auto [res_cond, provided] = prepare_lits(*log_, elem.cond(), VariableSet{}, *bound_);
         if (!res_cond.complete() ||
-            !check_provided(bound, provided, elem.template get_value<decltype(attr)::tag>()...)) {
-            report_local(log, bound, provided, elem);
+            !check_provided(*bound_, provided, elem.template get_value<decltype(attr)::tag>()...)) {
+            report_local(*log_, *bound_, provided, elem);
             return fun(false, Util::ResultVec{elem.cond()});
         }
         return fun(true, std::move(res_cond));
@@ -377,11 +387,15 @@ struct CheckLocal {
         return handle_elems<std::conditional_t<sign, BdLit, HdLit>>(lit, a_tuple);
     }
 
-    Logger &log;
-    VariableSet const &bound;
+  private:
+    Logger *log_;
+    VariableSet const *bound_;
 };
 
-struct CheckGlobal {
+class CheckGlobal {
+  public:
+    CheckGlobal(Logger &log, const VariableSet &global) : log_{&log}, global_{&global} {}
+
     template <class S, class F>
     auto handle_body(S const &stm, F build, Term const *atom = nullptr) const -> Util::ResultState<Stm> {
         // check body
@@ -389,16 +403,16 @@ struct CheckGlobal {
         if (atom != nullptr) {
             extra = select_variables(*atom);
         }
-        auto [res_body, provided] = prepare_lits(log, stm.body(), global, VariableSet{}, extra);
-        if (!res_body.complete() || !is_provided(provided, global)) {
-            report(log, global, provided, stm);
+        auto [res_body, provided] = prepare_lits(*log_, stm.body(), *global_, VariableSet{}, extra);
+        if (!res_body.complete() || !is_provided(provided, *global_)) {
+            report(*log_, *global_, provided, stm);
             return {false};
         }
 
         // check nested body
         auto res_body_nested = Util::ResultVec{res_body.value()};
         for (auto const &lit : res_body.value()) {
-            auto [res_state, res_lit] = CheckLocal{log, provided}(lit);
+            auto [res_state, res_lit] = CheckLocal{*log_, provided}(lit);
             if (!res_state) {
                 return {false};
             }
@@ -424,7 +438,7 @@ struct CheckGlobal {
     auto operator()(StmRule const &stm) const -> Util::ResultState<Stm> {
         return handle_body(stm, [this, &stm](auto &provided, auto res_body) -> Util::ResultState<Stm> {
             // check nested head
-            auto [state_head, res_head] = CheckLocal{log, provided}(stm.head());
+            auto [state_head, res_head] = CheckLocal{*log_, provided}(stm.head());
             if (!state_head) {
                 return {false};
             }
@@ -449,8 +463,9 @@ struct CheckGlobal {
         }
     }
 
-    Logger &log;
-    VariableSet const &global;
+  private:
+    Logger *log_;
+    VariableSet const *global_;
 };
 
 } // namespace
