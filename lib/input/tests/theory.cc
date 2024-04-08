@@ -8,7 +8,7 @@ namespace {
 
 auto rewrite_statement(std::string const &str) -> std::string {
     ParseHelper ph;
-    auto thy = std::get<StmTheory>(*ph.statement(R"(
+    auto thy = std::get<StmTheory>(opt_value(ph.statement(R"(
         #theory x {
             a {
                 - : 1, unary;
@@ -22,7 +22,7 @@ auto rewrite_statement(std::string const &str) -> std::string {
             };
             &p/0: a, {<,>}, b, any
 
-        }.)"));
+        }.)")));
     REQUIRE(!ph.logger().has_error());
     ph.parser().add_theory(ph.logger(), thy);
 

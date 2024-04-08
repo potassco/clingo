@@ -10,12 +10,13 @@ Checks: >
   performance-*,
   readability-*,
   -bugprone-easily-swappable-parameters,
+  -cppcoreguidelines-avoid-do-while,
+  -cppcoreguidelines-avoid-magic-numbers,
   -cppcoreguidelines-pro-type-vararg,
   -cppcoreguidelines-special-member-functions,
   -readability-function-cognitive-complexity,
+  -readability-function-size,
   -readability-identifier-length,
-  -cppcoreguidelines-avoid-do-while,
-  -cppcoreguidelines-avoid-magic-numbers,
 WarningsAsErrors: ''
 HeaderFilterRegex: ''
 AnalyzeTemporaryDtors: false

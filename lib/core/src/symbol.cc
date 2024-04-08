@@ -6,7 +6,7 @@
 #include <cstring>
 #include <mutex>
 
-// NOLINTBEGIN(readability-magic-numbers,modernize-avoid-c-arrays)
+// NOLINTBEGIN(readability-magic-numbers,modernize-avoid-c-arrays,cppcoreguidelines-pro-bounds-pointer-arithmetic,cppcoreguidelines-pro-type-reinterpret-cast,cppcoreguidelines-pro-bounds-constant-array-index,performance-no-int-to-ptr)
 
 namespace Gringo {
 
@@ -82,7 +82,8 @@ class SlottedAlloc {
     static constexpr size_t max_alloc = 4096;
 
     SlottedAlloc() = default;
-    SlottedAlloc(SimpleAlloc &&) noexcept = delete;
+    SlottedAlloc(SlottedAlloc &&) = delete;
+    auto operator=(SlottedAlloc &&) -> SlottedAlloc & = delete;
     ~SlottedAlloc() noexcept {
         for (auto &head : free_list_) {
             free_head_(head);
@@ -725,9 +726,7 @@ auto compare(Symbol a, Symbol b) -> int {
             }
             break;
         }
-        case SymbolType::inf: {
-            break;
-        }
+        case SymbolType::inf:
         case SymbolType::sup: {
             break;
         }
@@ -737,4 +736,4 @@ auto compare(Symbol a, Symbol b) -> int {
 
 } // namespace Gringo
 
-// NOLINTEND(readability-magic-numbers,modernize-avoid-c-arrays)
+// NOLINTEND(readability-magic-numbers,modernize-avoid-c-arrays,cppcoreguidelines-pro-bounds-pointer-arithmetic,cppcoreguidelines-pro-type-reinterpret-cast,cppcoreguidelines-pro-bounds-constant-array-index,performance-no-int-to-ptr)

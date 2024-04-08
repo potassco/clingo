@@ -135,10 +135,10 @@ TEST_CASE("dependency") {
         REQUIRE(comps[3][0].type == ComponentType{0});
     }
     SECTION("analyze_rename") {
-        ParseHelper ph;
+        auto ph = ParseHelper{};
         std::vector<Stm> stms;
-        stms.emplace_back(ph.statement("p(X,a) :- f(X).").value());
-        stms.emplace_back(ph.statement("f(X) :- p(b,X).").value());
+        stms.emplace_back(opt_value(ph.statement("p(X,a) :- f(X).")));
+        stms.emplace_back(opt_value(ph.statement("f(X) :- p(b,X).")));
         REQUIRE(analyze(ph, stms).size() == 1);
     }
     SECTION("analyze_program") {
@@ -193,11 +193,11 @@ TEST_CASE("dependency") {
         auto bld = Builder{};
         auto ph = ParseHelper();
         auto uprg = UnprocessedProgram{};
-        uprg.add(ph, ph.statement("#show p/2.").value());
-        uprg.add(ph, ph.statement("#program p(a).").value());
-        uprg.add(ph, ph.statement("p(a).").value());
-        uprg.add(ph, ph.statement("p(b).").value());
-        uprg.add(ph, ph.statement("p(X,a) :- f(X).").value());
+        uprg.add(ph, opt_value(ph.statement("#show p/2.")));
+        uprg.add(ph, opt_value(ph.statement("#program p(a).")));
+        uprg.add(ph, opt_value(ph.statement("p(a).")));
+        uprg.add(ph, opt_value(ph.statement("p(b).")));
+        uprg.add(ph, opt_value(ph.statement("p(X,a) :- f(X).")));
         auto prg = Program{ph.ctx().options()};
         prg.join(ph, ph, uprg);
         prg.analyze(ph, {ProgramParam{ph.store().string("p"), {ph.store().num(Number(1))}}}, bld);

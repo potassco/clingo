@@ -14,6 +14,14 @@
 
 namespace Gringo::Input::Test {
 
+template <class T> inline auto opt_value(T &&opt) {
+    REQUIRE(opt);
+    if (opt) {
+        return *std::forward<T>(opt);
+    }
+    throw std::bad_optional_access();
+}
+
 inline auto default_store() -> SymbolStore & {
     static auto store = make_symbol_store(true, true);
     return *store;
