@@ -20,6 +20,9 @@ enum SyntaxCheck : unsigned {
 [[maybe_unused]] consteval void is_bit_set_enum(SyntaxCheck flags);
 
 struct CheckSyntax {
+  public:
+    CheckSyntax(Logger &log) : log_{&log} {}
+
     // expressions that can be ignored
 
     template <class T> auto operator()([[maybe_unused]] T const &x) const -> bool {
@@ -41,7 +44,7 @@ struct CheckSyntax {
 
     auto operator()(TermVariable const &term, SyntaxCheck check) const -> bool {
         if (test(check, SyntaxCheck::is_const)) {
-            GRINGO_REPORT_LOC(log, error, term.loc()) << "variables not permitted in this context";
+            GRINGO_REPORT_LOC(*log_, error, term.loc()) << "variables not permitted in this context";
             return false;
         }
         return true;
@@ -49,7 +52,7 @@ struct CheckSyntax {
 
     auto operator()(Projection pro, SyntaxCheck check) const -> bool {
         if (!test(check, SyntaxCheck::project)) {
-            GRINGO_REPORT_LOC(log, error, pro.loc()) << "projection not permitted in this context";
+            GRINGO_REPORT_LOC(*log_, error, pro.loc()) << "projection not permitted in this context";
             return false;
         }
         return true;
@@ -73,7 +76,7 @@ struct CheckSyntax {
 
     auto operator()(TermTuple const &term, SyntaxCheck check) const -> bool {
         if (test(check, SyntaxCheck::is_const) && term.pool().size() != 1) {
-            GRINGO_REPORT_LOC(log, error, term.loc()) << "pools not permitted in this context";
+            GRINGO_REPORT_LOC(*log_, error, term.loc()) << "pools not permitted in this context";
             return false;
         }
         return std::all_of(term.pool().begin(), term.pool().end(),
@@ -83,11 +86,11 @@ struct CheckSyntax {
     auto operator()(TermFunction const &term, SyntaxCheck check) const -> bool {
         if (test(check, SyntaxCheck::is_const)) {
             if (term.external()) {
-                GRINGO_REPORT_LOC(log, error, term.loc()) << "external functions not permitted in this context";
+                GRINGO_REPORT_LOC(*log_, error, term.loc()) << "external functions not permitted in this context";
                 return false;
             }
             if (term.pool().size() != 1) {
-                GRINGO_REPORT_LOC(log, error, term.loc()) << "pools not permitted in this context";
+                GRINGO_REPORT_LOC(*log_, error, term.loc()) << "pools not permitted in this context";
                 return false;
             }
         }
@@ -97,7 +100,7 @@ struct CheckSyntax {
 
     auto operator()(TermAbs const &term, SyntaxCheck check) const -> bool {
         if (test(check, SyntaxCheck::is_const) && term.pool().size() != 1) {
-            GRINGO_REPORT_LOC(log, error, term.loc()) << "pools not permitted in this context";
+            GRINGO_REPORT_LOC(*log_, error, term.loc()) << "pools not permitted in this context";
             return false;
         }
         return std::all_of(term.pool().begin(), term.pool().end(),
@@ -267,7 +270,8 @@ struct CheckSyntax {
 
     auto operator()(StmConst const &stm) const -> bool { return operator()(stm.value(), SyntaxCheck::is_const); }
 
-    Logger &log;
+  private:
+    Logger *log_;
 };
 
 } // namespace

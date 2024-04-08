@@ -89,27 +89,30 @@ using BoundStateMap = std::vector<BoundState>;
 }
 
 //! Extract (and classify) linear terms from terms.
-struct ExtractTerms {
+class ExtractTerms {
+  public:
+    ExtractTerms(IETermVec &terms, bool add = true) : terms_{&terms}, add_{add} {}
+
     auto operator()(Term const &term) const -> bool { return std::visit(*this, term); }
 
     auto operator()([[maybe_unused]] auto const &term) const -> bool { return false; }
 
     auto operator()(TermVariable const &term) const -> bool {
         auto x = IETerm{Number{1}, term.name()};
-        if (!add) {
+        if (!add_) {
             x.coefficient *= -1;
         }
-        add_term(terms, std::move(x));
+        add_term(*terms_, std::move(x));
         return true;
     }
 
     auto operator()(TermSymbol const &term) const -> bool {
         if (term.value().type() == SymbolType::number) {
             auto x = IETerm{term.value().num(), String{}};
-            if (!add) {
+            if (!add_) {
                 x.coefficient *= -1;
             }
-            add_term(terms, std::move(x));
+            add_term(*terms_, std::move(x));
             return true;
         }
         return false;
@@ -117,7 +120,7 @@ struct ExtractTerms {
 
     auto operator()(TermUnary const &term) const -> bool {
         if (term.op() == UnaryOperator::negate) {
-            return ExtractTerms{terms, !add}(*term.rhs());
+            return ExtractTerms{*terms_, !add_}(*term.rhs());
         }
         return false;
     }
@@ -125,7 +128,7 @@ struct ExtractTerms {
     auto operator()(TermBinary const &term) const -> bool {
         switch (term.op()) {
             case BinaryOperator::minus: {
-                return operator()(*term.lhs()) && ExtractTerms{terms, !add}(*term.rhs());
+                return operator()(*term.lhs()) && ExtractTerms{*terms_, !add_}(*term.rhs());
             }
             case BinaryOperator::plus: {
                 return operator()(*term.lhs()) && operator()(*term.rhs());
@@ -153,10 +156,10 @@ struct ExtractTerms {
                     return rhs.empty() && fixed_rhs == 0;
                 }
                 auto fixed = fixed_lhs * fixed_rhs;
-                if (!add) {
+                if (!add_) {
                     fixed *= -fixed;
                 }
-                add_term(terms, IETerm{std::move(fixed), String{}});
+                add_term(*terms_, IETerm{std::move(fixed), String{}});
                 if (!lhs.empty()) {
                     lhs.swap(rhs);
                     fixed_lhs.swap(fixed_rhs);
@@ -164,10 +167,10 @@ struct ExtractTerms {
                 if (lhs.empty()) {
                     for (auto &x : rhs) {
                         x.coefficient *= fixed_lhs;
-                        if (!add) {
+                        if (!add_) {
                             x.coefficient *= -1;
                         }
-                        add_term(terms, std::move(x));
+                        add_term(*terms_, std::move(x));
                     }
                     return true;
                 }
@@ -180,12 +183,16 @@ struct ExtractTerms {
         return true;
     }
 
-    IETermVec &terms;
-    bool add = true;
+  private:
+    IETermVec *terms_;
+    bool add_;
 };
 
 //! Extract inequalities from relation literals.
-struct ExtractInequalities {
+class ExtractInequalities {
+  public:
+    ExtractInequalities(IESolver &slv) : slv_{&slv} {}
+
     void operator()(Lit const &lit) const { std::visit(*this, lit); }
 
     void operator()([[maybe_unused]] auto const &lit) const {}
@@ -201,10 +208,10 @@ struct ExtractInequalities {
             auto const &u = *std::get<TermBinary>(rhs.second).lhs();
             auto const &t = *std::get<TermBinary>(rhs.second).rhs();
             if (IETermVec terms; ExtractTerms{terms, true}(lit.lhs()) && ExtractTerms{terms, false}(u)) {
-                slv.add(IE{std::move(terms), bound});
+                slv_->add(IE{std::move(terms), bound});
             }
             if (IETermVec terms; ExtractTerms{terms, false}(lit.lhs()) && ExtractTerms{terms, true}(t)) {
-                slv.add(IE{std::move(terms), bound});
+                slv_->add(IE{std::move(terms), bound});
             }
             return;
         }
@@ -223,7 +230,7 @@ struct ExtractInequalities {
             }
             case Relation::greater_equal: {
                 if (IETermVec terms; ExtractTerms{terms, true}(lit.lhs()) && ExtractTerms{terms, false}(rhs.second)) {
-                    slv.add(IE{std::move(terms), bound});
+                    slv_->add(IE{std::move(terms), bound});
                 }
                 break;
             }
@@ -233,16 +240,16 @@ struct ExtractInequalities {
             }
             case Relation::less_equal: {
                 if (IETermVec terms; ExtractTerms{terms, false}(lit.lhs()) && ExtractTerms{terms, true}(rhs.second)) {
-                    slv.add(IE{std::move(terms), bound});
+                    slv_->add(IE{std::move(terms), bound});
                 }
                 break;
             }
             case Relation::equal: {
                 if (IETermVec terms; ExtractTerms{terms, true}(lit.lhs()) && ExtractTerms{terms, false}(rhs.second)) {
-                    slv.add(IE{std::move(terms), bound});
+                    slv_->add(IE{std::move(terms), bound});
                 }
                 if (IETermVec terms; ExtractTerms{terms, false}(lit.lhs()) && ExtractTerms{terms, true}(rhs.second)) {
-                    slv.add(IE{std::move(terms), bound});
+                    slv_->add(IE{std::move(terms), bound});
                 }
                 break;
             }
@@ -258,7 +265,8 @@ struct ExtractInequalities {
         }
     }
 
-    IESolver &slv;
+  private:
+    IESolver *slv_;
 };
 
 //! Apply bounds modifying relation literals.
@@ -267,7 +275,11 @@ struct ExtractInequalities {
 //! Number n in `X rel n` is adjusted according to relation and bounds.
 //! Numbers n and m in `X = m..n` are adjusted according to bounds.
 //! Unnecessary relations are dropped.
-struct ApplyBounds {
+class ApplyBounds {
+  public:
+    ApplyBounds(IEDomain const &dom, BoundStateMap &states, SymbolStore &store)
+        : dom_{&dom}, states_{&states}, store_{&store} {}
+
     auto operator()(Lit const &lit) const -> Util::ResultState<Lit> { return std::visit(*this, lit); }
 
     auto operator()([[maybe_unused]] auto const &lit) const -> Util::ResultState<Lit> { return {true}; }
@@ -279,12 +291,11 @@ struct ApplyBounds {
             if (sym.value().num() == bound) {
                 return sym;
             }
-            return TermSymbol{sym.loc(), store.num(bound)};
+            return TermSymbol{sym.loc(), store_->num(bound)};
         };
         auto make_relation = [this, &lit](auto lhs, Relation rel, Location loc, auto bound) {
-            return lit.update(
-                a_lhs = std::move(lhs),
-                a_rhs = Util::make_vec<Guard>(Guard{rel, TermSymbol{std::move(loc), store.num(std::move(bound))}}));
+            return lit.update(a_lhs = std::move(lhs), a_rhs = Util::make_vec<Guard>(
+                                                          Guard{rel, TermSymbol{loc, store_->num(std::move(bound))}}));
         };
         auto make_interval = [&lit](auto var, auto loc, auto u, auto v) -> Util::ResultState<Lit> {
             if (u.value() == v.value()) {
@@ -298,8 +309,8 @@ struct ApplyBounds {
         };
         if (is_variable(lit.lhs()) && is_interval(rhs.second)) {
             auto const *var = std::get_if<TermVariable>(&lit.lhs());
-            auto it = dom.find(var->name());
-            if (it == dom.end()) {
+            auto it = dom_->find(var->name());
+            if (it == dom_->end()) {
                 return {true};
             }
             auto const *u = std::get_if<TermSymbol>(&std::get<TermBinary>(rhs.second).lhs().get());
@@ -309,7 +320,7 @@ struct ApplyBounds {
                 t->value().type() != SymbolType::number) {
                 return {true};
             }
-            auto &state = states[std::distance(dom.begin(), it)];
+            auto &state = states_->operator[](std::distance(dom_->begin(), it));
             if (state.both == 1) {
                 return {false};
             }
@@ -323,8 +334,7 @@ struct ApplyBounds {
                 res_t = make_symbol(*t, it->second.value(IEInterval::Upper));
             }
             if (res_u || res_t) {
-                return make_interval(lit.lhs(), location(rhs.second), std::move(res_u).value_or(*u),
-                                     std::move(res_t).value_or(*t));
+                return make_interval(lit.lhs(), location(rhs.second), res_u.value_or(*u), res_t.value_or(*t));
             }
             return {true};
         }
@@ -339,11 +349,11 @@ struct ApplyBounds {
             if (var == nullptr || sym == nullptr || sym->value().type() != SymbolType::number) {
                 return {true};
             }
-            auto it = dom.find(var->name());
-            if (it == dom.end()) {
+            auto it = dom_->find(var->name());
+            if (it == dom_->end()) {
                 return {true};
             }
-            auto &state = states[std::distance(dom.begin(), it)];
+            auto &state = states_->operator[](std::distance(dom_->begin(), it));
             auto bound_type = IEInterval::Lower;
             switch (rel) {
                 case Relation::greater:
@@ -396,12 +406,16 @@ struct ApplyBounds {
         return update_bound(rhs.second, flip(rhs.first), lit.lhs());
     }
 
-    IEDomain const &dom;
-    BoundStateMap &states;
-    SymbolStore &store;
+  private:
+    IEDomain const *dom_;
+    BoundStateMap *states_;
+    SymbolStore *store_;
 };
 
-struct ComputeBounds {
+class ComputeBounds {
+  public:
+    ComputeBounds(RewriteContext &ctx) : ctx_{&ctx} {}
+
     //! Compute bounds given a set of literals/body literals.
     template <class Span>
     auto compute_bounds(IESolver &slv, Location const &loc, Span const &lits)
@@ -415,7 +429,7 @@ struct ComputeBounds {
         }
 
         // compute bounds
-        if (!slv.compute(ctx.logger())) {
+        if (!slv.compute(ctx_->logger())) {
             return {false, std::move(res_lits)};
         }
         auto const &dom = slv.domain();
@@ -437,7 +451,7 @@ struct ComputeBounds {
                 slit = &lit;
             }
             if (slit != nullptr) {
-                auto res = ApplyBounds{dom, states, ctx.store()}(*slit);
+                auto res = ApplyBounds{dom, states, ctx_->store()}(*slit);
                 if (!res.state) {
                     res_lits.remove();
                 } else {
@@ -451,21 +465,19 @@ struct ComputeBounds {
         // add relation literals to literals if required
         auto make_relation = [this, &loc](auto const &var, Relation rel, auto const &bound) -> Lit {
             auto term_var = TermVariable{loc, var};
-            return LitComparison{loc, Sign::none, std::move(term_var),
-                                 Util::make_vec<Guard>(Guard{rel, TermSymbol{loc, ctx.store().num(bound)}})};
+            return LitComparison{loc, Sign::none, term_var,
+                                 Util::make_vec<Guard>(Guard{rel, TermSymbol{loc, ctx_->store().num(bound)}})};
         };
         auto make_interval = [this, &loc](auto var, Number const &u, Number const &v) -> Lit {
             auto term_var = TermVariable{loc, var};
-            auto term_u = TermSymbol{loc, ctx.store().num(u)};
+            auto term_u = TermSymbol{loc, ctx_->store().num(u)};
             if (u == v) {
-                return LitComparison{loc, Sign::none, std::move(term_var),
-                                     Util::make_vec<Guard>(Guard{Relation::equal, std::move(term_u)})};
+                return LitComparison{loc, Sign::none, term_var, Util::make_vec<Guard>(Guard{Relation::equal, term_u})};
             }
-            auto term_v = TermSymbol{loc, ctx.store().num(v)};
+            auto term_v = TermSymbol{loc, ctx_->store().num(v)};
             return LitComparison{
-                loc, Sign::none, std::move(term_var),
-                Util::make_vec<Guard>(Guard{
-                    Relation::equal, TermBinary{loc, std::move(term_u), BinaryOperator::dots, std::move(term_v)}})};
+                loc, Sign::none, term_var,
+                Util::make_vec<Guard>(Guard{Relation::equal, TermBinary{loc, term_u, BinaryOperator::dots, term_v}})};
         };
         auto it = dom.begin();
         for (auto &state : states) {
@@ -495,7 +507,7 @@ struct ComputeBounds {
 
     //! Helper to compute bounds for a set of elements.
     template <class E, class R> auto compute_bounds_elem(E const &elem, R &elems) {
-        auto sub_slv = IESolver{&slv};
+        auto sub_slv = IESolver{&slv_};
         auto [state_lits, res_lits] = compute_bounds(sub_slv, elem.loc(), elem.cond());
         if (!state_lits) {
             elems.remove();
@@ -555,7 +567,7 @@ struct ComputeBounds {
     auto operator()([[maybe_unused]] BdLitSimple const &lit) -> Util::ResultState<BdLit> { return {true}; }
 
     auto operator()(BdLitConjunction const &conj) -> Util::ResultState<BdLit> {
-        auto sub_slv = IESolver{&slv};
+        auto sub_slv = IESolver{&slv_};
         auto [state_cond, res_cond] = compute_bounds(sub_slv, conj.lit().loc(), conj.lit().cond());
         if (!state_cond) {
             return {false, BdLitSimple{LitBool{conj.lit().loc(), Sign::none, false}}};
@@ -575,7 +587,7 @@ struct ComputeBounds {
 
     template <class T, class F> auto compute_bounds_body(T const &stm, F &&fun) -> Util::ResultState<Stm> {
         // compute bounds
-        auto [state_body, res_body] = compute_bounds(slv, stm.loc(), stm.body());
+        auto [state_body, res_body] = compute_bounds(slv_, stm.loc(), stm.body());
         if (!state_body) {
             return {false, StmRule{stm.loc(), HdLitSimple{LitBool{stm.loc(), Sign::none, true}}, {}}};
         }
@@ -623,8 +635,9 @@ struct ComputeBounds {
         return {true};
     }
 
-    RewriteContext &ctx;
-    IESolver slv = {};
+  private:
+    RewriteContext *ctx_;
+    IESolver slv_;
 };
 
 } // namespace

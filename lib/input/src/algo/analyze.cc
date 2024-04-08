@@ -205,8 +205,9 @@ struct IsClassical {
     }
 };
 
-struct IsFact {
-    IsFact(SymbolStore &store) : store{store} {}
+class IsFact {
+  public:
+    IsFact(SymbolStore &store) : store_{&store} {}
 
     template <class T> auto operator()(T const &x) const -> bool = delete;
 
@@ -227,7 +228,7 @@ struct IsFact {
             if (!res_term) {
                 return std::nullopt;
             }
-            res.emplace_back(std::move(res_term).value());
+            res.emplace_back(*res_term);
         }
         return res;
     }
@@ -237,7 +238,7 @@ struct IsFact {
             return std::nullopt;
         }
         if (auto res_args = operator()(term.pool().front()); res_args) {
-            return store.fun(term.name(), res_args.value(), false);
+            return store_->fun(term.name(), res_args.value(), false);
         }
         return std::nullopt;
     }
@@ -253,7 +254,7 @@ struct IsFact {
                 }
                 if constexpr (std::is_same_v<T, ArgumentTuple>) {
                     if (auto tuple = operator()(x); tuple) {
-                        return store.tup(*tuple);
+                        return store_->tup(*tuple);
                     }
                     return std::nullopt;
                 }
@@ -266,14 +267,14 @@ struct IsFact {
             return std::nullopt;
         }
         if (auto arg = operator()(term.pool().front()); arg && arg->type() == SymbolType::number) {
-            return store.num(abs(*arg->num()));
+            return store_->num(abs(*arg->num()));
         }
         return std::nullopt;
     }
 
     auto operator()(TermUnary const &term) const -> std::optional<Symbol> {
         if (auto rhs = operator()(*term.rhs()); rhs) {
-            return evaluate(store, term.op(), rhs.value());
+            return evaluate(*store_, term.op(), rhs.value());
         }
         return std::nullopt;
     }
@@ -283,12 +284,13 @@ struct IsFact {
             return std::nullopt;
         }
         if (auto lhs = operator()(*term.lhs()), rhs = operator()(*term.rhs()); lhs && rhs) {
-            return evaluate(store, *lhs, term.op(), *rhs);
+            return evaluate(*store_, *lhs, term.op(), *rhs);
         }
         return std::nullopt;
     }
 
-    SymbolStore &store;
+  private:
+    SymbolStore *store_;
 };
 
 struct GetSignature {
