@@ -16,50 +16,52 @@
 namespace Gringo {
 
 struct Grounder::Impl {
-    Impl(Logger &log, SymbolStore &store, Input::RewriteOptions opts) : log{log}, store{store}, prg{opts} {}
+    Impl(Logger &log, SymbolStore &store, Input::RewriteOptions opts) : log_{&log}, store_{&store}, prg_{opts} {}
 
     auto add_project(Ground::UTerm const &term) -> Ground::UTerm {
         size_t vars = 0;
-        auto [it, ins] = map.try_emplace(term->rename(store, Ground::RenameMode::rename_vars, nullptr, &vars));
+        auto [it, ins] = map_.try_emplace(term->rename(*store_, Ground::RenameMode::rename_vars, nullptr, &vars));
         if (ins) {
-            it.value() = store.string("#p_" + std::to_string(map.size()));
-            auto head = it->first->rename(store, Ground::RenameMode::drop_projection, &it.value(), nullptr);
-            auto body = it->first->rename(store, Ground::RenameMode::rename_projection, nullptr, &vars);
+            it.value() = store_->string("#p_" + std::to_string(map_.size()));
+            auto head = it->first->rename(*store_, Ground::RenameMode::drop_projection, &it.value(), nullptr);
+            auto body = it->first->rename(*store_, Ground::RenameMode::rename_projection, nullptr, &vars);
             std::cerr << "  TODO: add projection rule:\n";
             std::cerr << "    " << *head << " :- " << *body << "." << '\n';
         }
-        return term->rename(store, Ground::RenameMode::drop_projection, &it.value(), nullptr);
+        return term->rename(*store_, Ground::RenameMode::drop_projection, &it.value(), nullptr);
     }
 
     //! The logger used by the grounder.
-    Logger &log;
+    Logger *log_;
     //! The store used by the grounder.
-    SymbolStore &store;
+    SymbolStore *store_;
     //! The current unprocessed program not yet added to the program.
     Input::UnprocessedProgram unprocessed_prg;
     //! The program stored in the grounder.
-    Input::Program prg;
+    Input::Program prg_;
     //! Dictionary to map terms with projections to their replacement predicates.
-    Util::ordered_map<Ground::UTerm, String> map;
+    Util::ordered_map<Ground::UTerm, String> map_;
     //! The atom base.
-    Util::ordered_map<std::tuple<String, size_t, bool>, std::unique_ptr<Ground::Base>> atom_base;
+    Util::ordered_map<std::tuple<String, size_t, bool>, std::unique_ptr<Ground::Base>> atom_base_;
 };
 
 namespace {
 
 //! Helper for parsing.
 struct Parser {
+    // NOLINTBEGIN(cppcoreguidelines-missing-std-forward,bugprone-unchecked-optional-access)
     //! Scan statements.
     template <class Scanner> void process(std::filesystem::path const &dir, Scanner &&scanner) {
-        prg.ensure_base = true;
-        for (auto stm = scanner.scan(); stm.has_value(); stm = scanner.scan()) {
+        prg->ensure_base = true;
+        for (auto stm = scanner.scan(); stm; stm = scanner.scan()) {
             if (auto *include = std::get_if<Input::StmInclude>(&*stm); include != nullptr) {
                 includes.emplace_back(dir, *include);
             } else {
-                prg.add(store, std::move(stm).value());
+                prg->add(*store, *std::move(stm));
             }
         }
     }
+    // NOLINTEND(cppcoreguidelines-missing-std-forward,bugprone-unchecked-optional-access)
 
     //! Parse a program from the given path.
     auto process_path(auto &&path, bool required) -> bool {
@@ -68,17 +70,17 @@ struct Parser {
             auto rel = path.lexically_relative(root);
             if (!std::filesystem::is_directory(path)) {
                 if (seen.emplace(path).second) {
-                    process(path.parent_path(), Input::scan_file(log, store, rel.c_str()));
+                    process(path.parent_path(), Input::scan_file(*log, *store, rel.c_str()));
                 } else {
-                    GRINGO_REPORT(log, info_file_included) << "file already included: " << rel;
+                    GRINGO_REPORT(*log, info_file_included) << "file already included: " << rel;
                 }
             } else {
-                GRINGO_REPORT(log, error) << "cannot include directory: " << rel;
+                GRINGO_REPORT(*log, error) << "cannot include directory: " << rel;
             }
             return true;
         }
         if (required) {
-            GRINGO_REPORT(log, error) << "file not found: " << path;
+            GRINGO_REPORT(*log, error) << "file not found: " << path;
         }
         return false;
     }
@@ -87,9 +89,9 @@ struct Parser {
     void process_stdin() {
         if (!processed_stdin) {
             processed_stdin = true;
-            process(root, Input::scan_stream(log, store, std::cin));
+            process(root, Input::scan_stream(*log, *store, std::cin));
         } else {
-            GRINGO_REPORT(log, info_file_included) << "file already included: -";
+            GRINGO_REPORT(*log, info_file_included) << "file already included: -";
         }
     }
 
@@ -109,9 +111,9 @@ struct Parser {
         }
     }
 
-    Logger &log;
-    SymbolStore &store;
-    Input::UnprocessedProgram &prg;
+    Logger *log;
+    SymbolStore *store;
+    Input::UnprocessedProgram *prg;
     std::filesystem::path root = std::filesystem::current_path();
     std::deque<std::pair<std::filesystem::path, Input::StmInclude>> includes = {};
     Util::unordered_set<std::filesystem::path> seen = {};
@@ -156,8 +158,8 @@ auto map_binary_op(Input::BinaryOperator op) -> Ground::BinaryOperator {
 
 struct BuilderTerm {
     auto operator()(Input::TermVariable const &term) const -> Ground::UTerm {
-        assert(var_map.find(term.name()) != var_map.end());
-        return std::make_unique<Ground::TermVariable>(var_map.find(term.name())->second);
+        assert(var_map->find(term.name()) != var_map->end());
+        return std::make_unique<Ground::TermVariable>(var_map->find(term.name())->second);
     }
     auto operator()(Input::TermSymbol const &term) const -> Ground::UTerm {
         return std::make_unique<Ground::TermSymbol>(term.value());
@@ -169,7 +171,7 @@ struct BuilderTerm {
             g_args.emplace_back(std::visit(
                 [this]<class T>(T const &arg) -> Ground::UTerm {
                     if constexpr (Util::matches<T, Input::Projection>) {
-                        has_projection = true;
+                        *has_projection = true;
                         return std::make_unique<Ground::TermProjection>();
                     } else {
                         return std::visit(*this, arg);
@@ -200,14 +202,14 @@ struct BuilderTerm {
     auto operator()(Input::TermBinary const &term) const -> Ground::UTerm {
         assert(term.op() != Input::BinaryOperator::dots);
         if (auto lin = Input::check_linear(term); lin) {
-            assert(var_map.find(lin->x()) != var_map.end());
-            return std::make_unique<Ground::TermLinear>(*lin->m(), var_map.find(lin->x())->second, lin->n());
+            assert(var_map->find(lin->x()) != var_map->end());
+            return std::make_unique<Ground::TermLinear>(*lin->m(), var_map->find(lin->x())->second, lin->n());
         }
         return std::make_unique<Ground::TermBinary>(std::visit(*this, *term.lhs()), map_binary_op(term.op()),
                                                     std::visit(*this, *term.rhs()));
     }
-    bool &has_projection;
-    Util::unordered_map<String, size_t> &var_map;
+    bool *has_projection;
+    Util::unordered_map<String, size_t> *var_map;
 };
 
 auto map_sign(Input::Sign sign) {
@@ -226,12 +228,12 @@ auto map_sign(Input::Sign sign) {
 }
 
 struct BuildContext {
-    Grounder::Impl &impl;
-    Input::Component const &comp;
-    Util::unordered_map<Input::Term const *, std::vector<size_t>> def_map;
-    Ground::Component &gcomp;
-    Util::unordered_map<String, size_t> &var_map;
-    Ground::ULitVec &body;
+    Grounder::Impl *impl = nullptr;
+    Input::Component const *comp = nullptr;
+    Util::unordered_map<Input::Term const *, std::vector<size_t>> *def_map = nullptr;
+    Ground::Component *gcomp = nullptr;
+    Util::unordered_map<String, size_t> *var_map = nullptr;
+    Ground::ULitVec *body = nullptr;
 };
 
 struct BuilderLit {
@@ -240,27 +242,28 @@ struct BuilderLit {
     }
     auto operator()(Input::LitSymbolic const &lit) const -> Ground::ULit {
         auto has_projection = false;
-        auto bld_term = BuilderTerm{has_projection, ctx.var_map};
+        auto bld_term = BuilderTerm{&has_projection, ctx->var_map};
         auto term = std::visit(bld_term, lit.term());
         if (has_projection) {
-            term = ctx.impl.add_project(term);
+            term = ctx->impl->add_project(term);
         }
-        auto it = ctx.comp.incomplete.find(&lit.term());
+        auto it = ctx->comp->incomplete.find(&lit.term());
         // the index referring to a set of heads defining this literal
         // - a literal that is recursive and inside a non-domain component is non-domain
         // - a literal whole contains a non-fact is non-domain
         auto idx = std::numeric_limits<size_t>::max();
-        if (it != ctx.comp.incomplete.end()) {
-            idx = it - ctx.comp.incomplete.begin();
+        if (it != ctx->comp->incomplete.end()) {
+            idx = it - ctx->comp->incomplete.begin();
         }
-        auto sig = Input::signature(lit.term());
-        auto dom_it = ctx.impl.atom_base.try_emplace(sig.value(), nullptr).first;
+        // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+        auto sig = *Input::signature(lit.term());
+        auto dom_it = ctx->impl->atom_base_.try_emplace(sig, nullptr).first;
         if (dom_it->second == nullptr) {
             dom_it.value() = std::make_unique<Ground::Base>();
         }
         return std::make_unique<Ground::LitSymbolic>(*dom_it.value(), map_sign(lit.sign()), std::move(term), idx);
     }
-    BuildContext &ctx;
+    BuildContext *ctx;
 };
 
 struct BuilderHdLit {
@@ -273,11 +276,11 @@ struct BuilderHdLit {
             [&]<class T>(T const &lit) -> Ground::UTerm {
                 if constexpr (Util::matches<T, Input::LitSymbolic>) {
                     assert(lit.sign() == Input::Sign::none);
-                    if (auto it = ctx.def_map.find(&lit.term()); it != ctx.def_map.end()) {
+                    if (auto it = ctx->def_map->find(&lit.term()); it != ctx->def_map->end()) {
                         provides = it->second;
                     }
                     auto has_projection = false;
-                    auto term = std::visit(BuilderTerm{has_projection, ctx.var_map}, lit.term());
+                    auto term = std::visit(BuilderTerm{&has_projection, ctx->var_map}, lit.term());
                     assert(!has_projection);
                     return term;
                 } else if constexpr (Util::matches<T, Input::LitBool>) {
@@ -288,9 +291,9 @@ struct BuilderHdLit {
                 return nullptr;
             },
             lit.lit());
-        ctx.gcomp.add(std::make_unique<Ground::StmRule>(std::move(head), std::move(provides), std::move(ctx.body)));
+        ctx->gcomp->add(std::make_unique<Ground::StmRule>(std::move(head), std::move(provides), std::move(*ctx->body)));
     }
-    BuildContext &ctx;
+    BuildContext *ctx;
 };
 
 struct BuilderBdLit {
@@ -305,9 +308,9 @@ struct BuilderBdLit {
         // an index only has to be updated until it contains at least one value that justifies grounding
         // the remaining of the index can be updated while grounding
         // in case the index is never grounded, this can safe some computation
-        ctx.body.emplace_back(std::visit(BuilderLit{ctx}, lit.lit()));
+        ctx->body->emplace_back(std::visit(BuilderLit{ctx}, lit.lit()));
     }
-    BuildContext &ctx;
+    BuildContext *ctx;
 };
 
 struct BuilderStm {
@@ -318,19 +321,19 @@ struct BuilderStm {
     void operator()(Input::StmRule const &stm) const {
         auto bld_bd = BuilderBdLit{ctx};
         auto bld_hd = BuilderHdLit{ctx};
-        ctx.body.reserve(stm.body().size());
+        ctx->body->reserve(stm.body().size());
         for (auto const &lit : stm.body()) {
             std::visit(bld_bd, lit);
         }
         std::visit(bld_hd, stm.head());
     }
 
-    BuildContext &ctx;
+    BuildContext *ctx;
 };
 
 // TODO: here transform statements into grounding directives
 struct Builder : Input::DependencyBuilder {
-    Builder(Grounder::Impl &impl) : impl{impl} {}
+    Builder(Grounder::Impl &impl) : impl{&impl} {}
 
     void param(Input::ProgramParam const &param) override {
         std::cerr << "#program_" << param.first << "(";
@@ -382,8 +385,8 @@ struct Builder : Input::DependencyBuilder {
                         }
                         ++i;
                     }
-                    auto ctx = BuildContext{impl, ref_comp, def_map, gcomp, var_map, body};
-                    auto bld_stm = BuilderStm{ctx};
+                    auto ctx = BuildContext{impl, &ref_comp, &def_map, &gcomp, &var_map, &body};
+                    auto bld_stm = BuilderStm{&ctx};
                     std::visit(bld_stm, *stm);
                 }
                 auto insts = Ground::InstantiatorVec{};
@@ -402,7 +405,7 @@ struct Builder : Input::DependencyBuilder {
         }
     }
 
-    Grounder::Impl &impl;
+    Grounder::Impl *impl;
 };
 
 } // namespace
@@ -413,16 +416,16 @@ Grounder::Grounder(Logger &log, SymbolStore &store, Input::RewriteOptions opts)
 Grounder::~Grounder() noexcept = default;
 
 void Grounder::parse(std::string_view prg) {
-    GRINGO_REPORT(impl_->log, debug) << "parsing...";
-    auto prs = Parser{impl_->log, impl_->store, impl_->unprocessed_prg};
-    auto scanner = Input::scan_string(impl_->log, impl_->store, prg);
+    GRINGO_REPORT(*impl_->log_, debug) << "parsing...";
+    auto prs = Parser{impl_->log_, impl_->store_, &impl_->unprocessed_prg};
+    auto scanner = Input::scan_string(*impl_->log_, *impl_->store_, prg);
     prs.process(prs.root, scanner);
     prs.process_includes();
 }
 
 void Grounder::parse(std::vector<std::string> const &files) {
-    GRINGO_REPORT(impl_->log, debug) << "parsing...";
-    auto prs = Parser{impl_->log, impl_->store, impl_->unprocessed_prg};
+    GRINGO_REPORT(*impl_->log_, debug) << "parsing...";
+    auto prs = Parser{impl_->log_, impl_->store_, &impl_->unprocessed_prg};
     if (files.empty()) {
         prs.process_stdin();
         prs.process_includes();
@@ -438,15 +441,15 @@ void Grounder::parse(std::vector<std::string> const &files) {
 }
 
 void Grounder::prepare() {
-    GRINGO_REPORT(impl_->log, debug) << "preparing...";
-    impl_->prg.join(impl_->log, impl_->store, std::move(impl_->unprocessed_prg));
+    GRINGO_REPORT(*impl_->log_, debug) << "preparing...";
+    impl_->prg_.join(*impl_->log_, *impl_->store_, std::move(impl_->unprocessed_prg));
     impl_->unprocessed_prg.clear();
 }
 
 void Grounder::ground(Input::ProgramParamVec const &params) {
-    GRINGO_REPORT(impl_->log, debug) << "grounding...";
+    GRINGO_REPORT(*impl_->log_, debug) << "grounding...";
     auto bld = Builder{*impl_};
-    impl_->prg.analyze(impl_->store, params, bld);
+    impl_->prg_.analyze(*impl_->store_, params, bld);
     std::cerr.flush();
 }
 
@@ -473,7 +476,7 @@ void Grounder::output_unprocessed_program(std::ostream &out) {
 }
 
 void Grounder::output_program(std::ostream &out) {
-    impl_->prg.visit_stms(impl_->store, [&out](auto const &stm) { out << stm << "\n"; });
+    impl_->prg_.visit_stms(*impl_->store_, [&out](auto const &stm) { out << stm << "\n"; });
     out.flush();
 }
 

@@ -110,13 +110,13 @@ TEST_CASE("dependency") {
     SECTION("analyze1") {
         ParseHelper ph;
         std::vector<Stm> stms;
-        stms.emplace_back(ph.statement("y.").value());
-        stms.emplace_back(ph.statement("a :- x, y.").value());
-        stms.emplace_back(ph.statement("x :- a.").value());
-        stms.emplace_back(ph.statement("b :- not c, a.").value());
-        stms.emplace_back(ph.statement("c :- not b.").value());
-        stms.emplace_back(ph.statement("d :- e.").value());
-        stms.emplace_back(ph.statement("e :- d, c.").value());
+        stms.emplace_back(opt_value(ph.statement("y.")));
+        stms.emplace_back(opt_value(ph.statement("a :- x, y.")));
+        stms.emplace_back(opt_value(ph.statement("x :- a.")));
+        stms.emplace_back(opt_value(ph.statement("b :- not c, a.")));
+        stms.emplace_back(opt_value(ph.statement("c :- not b.")));
+        stms.emplace_back(opt_value(ph.statement("d :- e.")));
+        stms.emplace_back(opt_value(ph.statement("e :- d, c.")));
         auto comps = analyze(ph, stms);
         REQUIRE(comps.size() == 4);
         REQUIRE(comps[0].size() == 1);

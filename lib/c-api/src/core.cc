@@ -6,6 +6,8 @@
 
 #include <cstring>
 
+// NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
+
 extern "C" void clingo_version(int *major, int *minor, int *revision) {
     *major = CLINGO_VERSION_MAJOR;
     *minor = CLINGO_VERSION_MINOR;
@@ -92,15 +94,20 @@ extern "C" auto clingo_lib_new(clingo_lib_flags_t flags, clingo_logger_t logger,
                 return logger(static_cast<clingo_message_t>(code), msg, logger_data);
             };
         }
+        // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
         lib = new clingo_lib{
             prt, Gringo::Logger{prt, message_limit},
             Gringo::make_symbol_store((flags & clingo_lib_flags_slotted) != 0, (flags & clingo_lib_flags_shared) != 0)};
+        // NOLINTNEXTLINE(bugprone-empty-catch)
     } catch (...) {
     }
     return lib;
 }
 
-extern "C" void clingo_lib_free(clingo_lib_t *lib) { delete lib; }
+extern "C" void clingo_lib_free(clingo_lib_t *lib) {
+    // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+    delete lib;
+}
 
 extern "C" void clingo_set_error(clingo_lib_t *lib, clingo_error_t code, char const *message) {
     if (lib != nullptr) {
@@ -199,3 +206,5 @@ extern "C" auto clingo_location_to_string(clingo_location_t location, char *stri
         return false;
     }
 }
+
+// NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)

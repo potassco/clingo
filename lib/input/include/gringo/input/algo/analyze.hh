@@ -47,20 +47,20 @@ class LinearTerm {
     //! The term for the coefficient.
     [[nodiscard]] auto term_m() const -> Term const & { return *std::get<TermBinary>(term_mx()).lhs(); }
     //! The term for the constant.
-    [[nodiscard]] auto term_n() const -> Term const & { return mxn_.rhs(); }
+    [[nodiscard]] auto term_n() const -> Term const & { return mxn_->rhs(); }
     //! The term for the variable.
     [[nodiscard]] auto term_x() const -> Term const & { return *std::get<TermBinary>(term_mx()).rhs(); }
     //! The term for the coefficient times the varibale.
-    [[nodiscard]] auto term_mx() const -> Term const & { return mxn_.lhs(); }
+    [[nodiscard]] auto term_mx() const -> Term const & { return mxn_->lhs(); }
     //! The term for the whole linear term.
-    [[nodiscard]] auto term_mxn() const -> TermBinary const & { return mxn_; }
+    [[nodiscard]] auto term_mxn() const -> TermBinary const & { return *mxn_; }
 
     friend auto check_linear(TermBinary const &term) -> std::optional<LinearTerm>;
 
   private:
-    LinearTerm(TermBinary const &mxn) : mxn_{mxn} {}
+    LinearTerm(TermBinary const &mxn) : mxn_{&mxn} {}
 
-    TermBinary const &mxn_;
+    TermBinary const *mxn_;
 };
 
 //! Check if the given term is a linear term.

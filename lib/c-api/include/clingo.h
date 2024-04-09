@@ -27,7 +27,7 @@
 extern "C" {
 #endif
 
-// NOLINTBEGIN(modernize-*)
+// NOLINTBEGIN(modernize-*,cppcoreguidelines-macro-usage)
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -409,12 +409,12 @@ typedef uint64_t clingo_symbol_t;
 //! Construct a symbol representing <tt>\#inf</tt>.
 //!
 //! @return the resulting symbol
-CLINGO_VISIBILITY_DEFAULT clingo_symbol_t clingo_symbol_create_infimum();
+CLINGO_VISIBILITY_DEFAULT clingo_symbol_t clingo_symbol_create_infimum(void);
 
 //! Construct a symbol representing \#sup.
 //!
 //! @return the resulting symbol
-CLINGO_VISIBILITY_DEFAULT clingo_symbol_t clingo_symbol_create_supremum();
+CLINGO_VISIBILITY_DEFAULT clingo_symbol_t clingo_symbol_create_supremum(void);
 
 //! Construct a symbol representing a number.
 //!
@@ -984,7 +984,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_ast_array(clingo_ast_t *
 //! Get a description of the AST structure in form of a YAML document.
 //!
 //! @return A YAML string.
-CLINGO_VISIBILITY_DEFAULT char const *clingo_ast_type_info_yaml();
+CLINGO_VISIBILITY_DEFAULT char const *clingo_ast_type_info_yaml(void);
 
 //! @}
 
@@ -1125,7 +1125,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_rewrite(clingo_ast_rewrite_context_t *
 
 //! @}
 
-// NOLINTEND(modernize-*)
+// NOLINTEND(modernize-*,cppcoreguidelines-macro-usage)
 
 #ifdef __cplusplus
 }

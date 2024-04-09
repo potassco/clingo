@@ -170,12 +170,12 @@ auto TermLinear::match([[maybe_unused]] SymbolStore &store, Symbol sym, Assignme
     if (sym.type() != SymbolType::number) {
         return false;
     }
-    if (ass[var_]) {
+    if (auto var = ass[var_]; var) {
         // m * x + n == s
-        if (ass[var_]->type() != SymbolType::number) {
+        if (var->type() != SymbolType::number) {
             return false;
         }
-        return m_ * ass[var_]->num() + n_ == sym.num();
+        return m_ * var->num() + n_ == sym.num();
     }
     // x == (s - n) / m
     auto sn = *sym.num() - n_;
@@ -187,8 +187,8 @@ auto TermLinear::match([[maybe_unused]] SymbolStore &store, Symbol sym, Assignme
 }
 
 auto TermLinear::eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> {
-    if (ass[var_] && ass[var_]->type() == SymbolType::number) {
-        return store.num(m_ * ass[var_]->num() + n_);
+    if (auto var = ass[var_]; var && var->type() == SymbolType::number) {
+        return store.num(m_ * var->num() + n_);
     }
     return std::nullopt;
 }
@@ -222,6 +222,7 @@ auto TermLinear::compare_to([[maybe_unused]] Term const &other) const -> std::st
 [[nodiscard]] auto TermUnary::match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
     if (op_ == UnaryOperator::minus) {
         if (sym.type() == SymbolType::function) {
+            // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
             return rhs_->match(store, *sym.flip_classical_sign(), ass);
         }
         if (sym.type() == SymbolType::number) {

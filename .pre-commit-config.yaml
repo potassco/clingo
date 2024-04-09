@@ -26,4 +26,4 @@ repos:
       - id: clang-format
         args: ["-i"]
       - id: clang-tidy
-        args: ["-fix"]
+        args: ["-fix", "--warnings-as-errors=*"]
