@@ -13,11 +13,14 @@ public:
         std::swap(ast_, x.ast_);
     }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=({{ c_type_name }} const &x) -> {{ c_type_name }}& {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }

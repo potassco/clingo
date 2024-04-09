@@ -45,7 +45,7 @@ auto c_cast(StringArray const &arr) -> std::vector<char const *> {
 }
 
 template <class Cons>
-void visit_array(clingo_ast_t *ast, clingo_ast_attribute_t attr, py::handle visitor, py::args const &args, py::kwargs const &kwargs, Cons &&cons);
+void visit_array(clingo_ast_t *ast, clingo_ast_attribute_t attr, py::handle visitor, py::args const &args, py::kwargs const &kwargs, Cons cons);
 
 template <class Array>
 auto transform_array(Array arr, py::handle transform, py::args const &args, py::kwargs const &kwargs) -> std::pair<Array, bool>;
@@ -122,7 +122,7 @@ auto construct_{{ type_name }}(clingo_ast_t **ast, size_t size) -> {{ c_type_nam
 }
 {%    elif type.type == 'union' %}
 auto construct_{{ type_name }}(clingo_ast_t *ast) -> {{ c_type_name }} {
-    clingo_ast_type_t type;
+    clingo_ast_type_t type = 0;
     if (!clingo_ast_get_type(ast, &type)) {
         clingo_ast_free(ast);
         throw std::runtime_error("could not get type");
@@ -133,9 +133,11 @@ auto construct_{{ type_name }}(clingo_ast_t *ast) -> {{ c_type_name }} {
             return {{ sub_type | camel }}::acquire(ast);
         }
 {%-     endfor %}
+        default: {
+            clingo_ast_free(ast);
+            throw std::runtime_error("unexpected ast type");
+        }
     }
-    clingo_ast_free(ast);
-    throw std::runtime_error("unexpected ast type");
 }
 {%    elif type.type == 'record' %}
 {%- include "_record_define_cpp.j2" %}
@@ -165,7 +167,7 @@ auto c_cast(std::vector<T> const &arr) -> std::vector<clingo_ast_t*> {
 }
 
 template <class Cons>
-void visit_array(clingo_ast_t *ast, clingo_ast_attribute_t attr, py::handle visitor, py::args const &args, py::kwargs const &kwargs, Cons &&cons) {
+void visit_array(clingo_ast_t *ast, clingo_ast_attribute_t attr, py::handle visitor, py::args const &args, py::kwargs const &kwargs, Cons cons) {
     struct Array {
         ~Array() { clingo_ast_array_free(begin, size); }
         clingo_ast_t **begin = nullptr;
@@ -178,7 +180,7 @@ void visit_array(clingo_ast_t *ast, clingo_ast_attribute_t attr, py::handle visi
     std::for_each_n(array.begin, array.size, [&](auto *&cld) {
         auto *cpy = cld;
         cld = nullptr;
-        visitor(std::invoke(std::move(cons), cpy), *args, **kwargs);
+        visitor(std::invoke(cons, cpy), *args, **kwargs);
     });
 }
 
@@ -213,7 +215,7 @@ template <class T, class F, class M>
 auto update_value(Library &lib, F *self, M fun, py::kwargs const &kwargs, char const *attr) -> T {
     if constexpr (std::is_same_v<T, char const *>) {
         if (kwargs.contains(attr)) {
-            char const *res;
+            char const *res = nullptr;
             clingo_add_string(lib, py::cast<std::string>(kwargs[attr]).c_str(), &res);
             return res;
         }
@@ -232,37 +234,37 @@ auto update_value(Library &lib, F *self, M fun, py::kwargs const &kwargs, char c
 }
 
 auto parse_term(Library &lib, char const *string) -> Term {
-    clingo_ast_t *ast;
+    clingo_ast_t *ast = nullptr;
     handle_error(lib, clingo_ast_parse_expression(lib, clingo_ast_parse_type_term, string, &ast));
     return construct_term(ast);
 }
 
 auto parse_theory_term(Library &lib, char const *string) -> TheoryTerm {
-    clingo_ast_t *ast;
+    clingo_ast_t *ast = nullptr;
     handle_error(lib, clingo_ast_parse_expression(lib, clingo_ast_parse_type_theory_term, string, &ast));
     return construct_theory_term(ast);
 }
 
 auto parse_literal(Library &lib, char const *string) -> Literal {
-    clingo_ast_t *ast;
+    clingo_ast_t *ast = nullptr;
     handle_error(lib, clingo_ast_parse_expression(lib, clingo_ast_parse_type_literal, string, &ast));
     return construct_literal(ast);
 }
 
 auto parse_head_literal(Library &lib, char const *string) -> HeadLiteral {
-    clingo_ast_t *ast;
+    clingo_ast_t *ast = nullptr;
     handle_error(lib, clingo_ast_parse_expression(lib, clingo_ast_parse_type_head_literal, string, &ast));
     return construct_head_literal(ast);
 }
 
 auto parse_body_literal(Library &lib, char const *string) -> BodyLiteral {
-    clingo_ast_t *ast;
+    clingo_ast_t *ast = nullptr;
     handle_error(lib, clingo_ast_parse_expression(lib, clingo_ast_parse_type_body_literal, string, &ast));
     return construct_body_literal(ast);
 }
 
 auto parse_statement(Library &lib, char const *string) -> Statement {
-    clingo_ast_t *ast;
+    clingo_ast_t *ast = nullptr;
     handle_error(lib, clingo_ast_parse_expression(lib, clingo_ast_parse_type_statement, string, &ast));
     return construct_statement(ast);
 }
@@ -280,10 +282,12 @@ public:
         Iterator(Scanner *scanner = nullptr) : scanner_{scanner} {}
 
         auto operator*() -> value_type {
+            // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
             return *std::move(scanner_->value_);
         }
 
         auto operator->() -> pointer {
+            // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
             return &*scanner_->value_;
         }
 
@@ -345,7 +349,7 @@ public:
         return py::make_iterator(Iterator{this}, Iterator{});
     }
     void next() {
-        clingo_ast_t *ast;
+        clingo_ast_t *ast = nullptr;
         handle_error(lib_, clingo_ast_scanner_next(scanner_, &ast));
         if (ast != nullptr) {
             value_ = construct_statement(ast);
@@ -383,7 +387,7 @@ class RewriteContext {
     }
     void set_project_anoymous(bool value) { clingo_ast_rewrite_context_set_project_anonymous(ctx_, value); }
     auto get_project_anonymous() -> bool { return clingo_ast_rewrite_context_get_project_mode(ctx_) != 0; }
-    void add_param(std::string name) {
+    void add_param(std::string const &name) {
         handle_error(clingo_ast_rewrite_context_get_lib(ctx_),
                      clingo_ast_rewrite_context_add_param(ctx_, name.c_str()));
     }
@@ -533,7 +537,7 @@ files
         .def("__iter__", &Scanner::iter, R"(Return an iterator over parsed statements.)")
         .def(
             "__exit__",
-            [](Scanner &scanner, py::object, py::object, py::object) -> bool {
+            [](Scanner &scanner, py::object const &, py::object const &, py::object const &) -> bool {
                 scanner.close();
                 return false;
             },

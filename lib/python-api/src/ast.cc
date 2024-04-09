@@ -43,7 +43,7 @@ auto c_cast(StringArray const &arr) -> std::vector<char const *> {
 
 template <class Cons>
 void visit_array(clingo_ast_t *ast, clingo_ast_attribute_t attr, py::handle visitor, py::args const &args,
-                 py::kwargs const &kwargs, Cons &&cons);
+                 py::kwargs const &kwargs, Cons cons);
 
 template <class Array>
 auto transform_array(Array arr, py::handle transform, py::args const &args, py::kwargs const &kwargs)
@@ -183,11 +183,14 @@ class Projection {
 
     Projection(Projection &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(Projection const &x) -> Projection & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -287,11 +290,14 @@ class TermVariable {
 
     TermVariable(TermVariable &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(TermVariable const &x) -> TermVariable & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -372,11 +378,14 @@ class TermSymbolic {
 
     TermSymbolic(TermSymbolic &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(TermSymbolic const &x) -> TermSymbolic & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -454,11 +463,14 @@ class TermAbsolute {
 
     TermAbsolute(TermAbsolute &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(TermAbsolute const &x) -> TermAbsolute & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -536,11 +548,14 @@ class TermUnaryOperation {
 
     TermUnaryOperation(TermUnaryOperation &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(TermUnaryOperation const &x) -> TermUnaryOperation & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -621,11 +636,14 @@ class TermBinaryOperation {
 
     TermBinaryOperation(TermBinaryOperation &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(TermBinaryOperation const &x) -> TermBinaryOperation & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -708,11 +726,14 @@ class TermTuple {
 
     TermTuple(TermTuple &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(TermTuple const &x) -> TermTuple & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -789,11 +810,14 @@ class TermFunction {
 
     TermFunction(TermFunction &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(TermFunction const &x) -> TermFunction & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -876,11 +900,14 @@ class ArgumentTuple {
 
     ArgumentTuple(ArgumentTuple &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(ArgumentTuple const &x) -> ArgumentTuple & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -966,11 +993,14 @@ class LeftGuard {
 
     LeftGuard(LeftGuard &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(LeftGuard const &x) -> LeftGuard & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -1048,11 +1078,14 @@ class RightGuard {
 
     RightGuard(RightGuard &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(RightGuard const &x) -> RightGuard & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -1136,11 +1169,14 @@ class LiteralBoolean {
 
     LiteralBoolean(LiteralBoolean &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(LiteralBoolean const &x) -> LiteralBoolean & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -1221,11 +1257,14 @@ class LiteralComparison {
 
     LiteralComparison(LiteralComparison &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(LiteralComparison const &x) -> LiteralComparison & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -1308,11 +1347,14 @@ class LiteralSymbolic {
 
     LiteralSymbolic(LiteralSymbolic &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(LiteralSymbolic const &x) -> LiteralSymbolic & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -1412,11 +1454,14 @@ class UnparsedElement {
 
     UnparsedElement(UnparsedElement &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(UnparsedElement const &x) -> UnparsedElement & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -1498,11 +1543,14 @@ class TheoryTermVariable {
 
     TheoryTermVariable(TheoryTermVariable &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(TheoryTermVariable const &x) -> TheoryTermVariable & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -1583,11 +1631,14 @@ class TheoryTermSymbolic {
 
     TheoryTermSymbolic(TheoryTermSymbolic &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(TheoryTermSymbolic const &x) -> TheoryTermSymbolic & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -1665,11 +1716,14 @@ class TheoryTermTuple {
 
     TheoryTermTuple(TheoryTermTuple &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(TheoryTermTuple const &x) -> TheoryTermTuple & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -1750,11 +1804,14 @@ class TheoryTermFunction {
 
     TheoryTermFunction(TheoryTermFunction &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(TheoryTermFunction const &x) -> TheoryTermFunction & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -1835,11 +1892,14 @@ class TheoryTermUnparsed {
 
     TheoryTermUnparsed(TheoryTermUnparsed &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(TheoryTermUnparsed const &x) -> TheoryTermUnparsed & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -1918,11 +1978,14 @@ class TheoryRightGuard {
 
     TheoryRightGuard(TheoryRightGuard &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(TheoryRightGuard const &x) -> TheoryRightGuard & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -2006,11 +2069,14 @@ class SetAggregateElement {
 
     SetAggregateElement(SetAggregateElement &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(SetAggregateElement const &x) -> SetAggregateElement & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -2095,11 +2161,14 @@ class BodyAggregateElement {
 
     BodyAggregateElement(BodyAggregateElement &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(BodyAggregateElement const &x) -> BodyAggregateElement & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -2184,11 +2253,14 @@ class TheoryAtomElement {
 
     TheoryAtomElement(TheoryAtomElement &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(TheoryAtomElement const &x) -> TheoryAtomElement & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -2292,11 +2364,14 @@ class BodySimpleLiteral {
 
     BodySimpleLiteral(BodySimpleLiteral &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(BodySimpleLiteral const &x) -> BodySimpleLiteral & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -2372,11 +2447,14 @@ class BodyAggregate {
 
     BodyAggregate(BodyAggregate &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(BodyAggregate const &x) -> BodyAggregate & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -2464,11 +2542,14 @@ class BodySetAggregate {
 
     BodySetAggregate(BodySetAggregate &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(BodySetAggregate const &x) -> BodySetAggregate & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -2554,11 +2635,14 @@ class BodyTheoryAtom {
 
     BodyTheoryAtom(BodyTheoryAtom &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(BodyTheoryAtom const &x) -> BodyTheoryAtom & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -2644,11 +2728,14 @@ class BodyConditionalLiteral {
 
     BodyConditionalLiteral(BodyConditionalLiteral &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(BodyConditionalLiteral const &x) -> BodyConditionalLiteral & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -2729,11 +2816,14 @@ class HeadConditionalLiteral {
 
     HeadConditionalLiteral(HeadConditionalLiteral &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(HeadConditionalLiteral const &x) -> HeadConditionalLiteral & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -2822,11 +2912,14 @@ class HeadAggregateElement {
 
     HeadAggregateElement(HeadAggregateElement &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(HeadAggregateElement const &x) -> HeadAggregateElement & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -2927,11 +3020,14 @@ class HeadSimpleLiteral {
 
     HeadSimpleLiteral(HeadSimpleLiteral &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(HeadSimpleLiteral const &x) -> HeadSimpleLiteral & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -3007,11 +3103,14 @@ class HeadAggregate {
 
     HeadAggregate(HeadAggregate &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(HeadAggregate const &x) -> HeadAggregate & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -3097,11 +3196,14 @@ class HeadSetAggregate {
 
     HeadSetAggregate(HeadSetAggregate &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(HeadSetAggregate const &x) -> HeadSetAggregate & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -3185,11 +3287,14 @@ class HeadTheoryAtom {
 
     HeadTheoryAtom(HeadTheoryAtom &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(HeadTheoryAtom const &x) -> HeadTheoryAtom & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -3273,11 +3378,14 @@ class HeadDisjunction {
 
     HeadDisjunction(HeadDisjunction &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(HeadDisjunction const &x) -> HeadDisjunction & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -3356,11 +3464,14 @@ class TheoryOperatorDefinition {
 
     TheoryOperatorDefinition(TheoryOperatorDefinition &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(TheoryOperatorDefinition const &x) -> TheoryOperatorDefinition & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -3447,11 +3558,14 @@ class TheoryTermDefinition {
 
     TheoryTermDefinition(TheoryTermDefinition &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(TheoryTermDefinition const &x) -> TheoryTermDefinition & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -3536,11 +3650,14 @@ class TheoryGuardDefinition {
 
     TheoryGuardDefinition(TheoryGuardDefinition &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(TheoryGuardDefinition const &x) -> TheoryGuardDefinition & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -3620,11 +3737,14 @@ class TheoryAtomDefinition {
 
     TheoryAtomDefinition(TheoryAtomDefinition &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(TheoryAtomDefinition const &x) -> TheoryAtomDefinition & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -3716,11 +3836,14 @@ class OptimizeTuple {
 
     OptimizeTuple(OptimizeTuple &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(OptimizeTuple const &x) -> OptimizeTuple & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -3801,11 +3924,14 @@ class OptimizeElement {
 
     OptimizeElement(OptimizeElement &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(OptimizeElement const &x) -> OptimizeElement & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -3887,11 +4013,14 @@ class Edge {
 
     Edge(Edge &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(Edge const &x) -> Edge & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -4010,11 +4139,14 @@ class StatementRule {
 
     StatementRule(StatementRule &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(StatementRule const &x) -> StatementRule & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -4095,11 +4227,14 @@ class StatementTheory {
 
     StatementTheory(StatementTheory &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(StatementTheory const &x) -> StatementTheory & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -4183,11 +4318,14 @@ class StatementOptimize {
 
     StatementOptimize(StatementOptimize &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(StatementOptimize const &x) -> StatementOptimize & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -4268,11 +4406,14 @@ class StatementWeakConstraint {
 
     StatementWeakConstraint(StatementWeakConstraint &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(StatementWeakConstraint const &x) -> StatementWeakConstraint & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -4353,11 +4494,14 @@ class StatementShow {
 
     StatementShow(StatementShow &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(StatementShow const &x) -> StatementShow & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -4438,11 +4582,14 @@ class StatementShowSignature {
 
     StatementShowSignature(StatementShowSignature &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(StatementShowSignature const &x) -> StatementShowSignature & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -4525,11 +4672,14 @@ class StatementProject {
 
     StatementProject(StatementProject &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(StatementProject const &x) -> StatementProject & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -4610,11 +4760,14 @@ class StatementProjectSignature {
 
     StatementProjectSignature(StatementProjectSignature &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(StatementProjectSignature const &x) -> StatementProjectSignature & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -4697,11 +4850,14 @@ class StatementDefined {
 
     StatementDefined(StatementDefined &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(StatementDefined const &x) -> StatementDefined & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -4784,11 +4940,14 @@ class StatementExternal {
 
     StatementExternal(StatementExternal &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(StatementExternal const &x) -> StatementExternal & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -4871,11 +5030,14 @@ class StatementEdge {
 
     StatementEdge(StatementEdge &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(StatementEdge const &x) -> StatementEdge & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -4956,11 +5118,14 @@ class StatementHeuristic {
 
     StatementHeuristic(StatementHeuristic &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(StatementHeuristic const &x) -> StatementHeuristic & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -5048,11 +5213,14 @@ class StatementScript {
 
     StatementScript(StatementScript &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(StatementScript const &x) -> StatementScript & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -5133,11 +5301,14 @@ class StatementInclude {
 
     StatementInclude(StatementInclude &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(StatementInclude const &x) -> StatementInclude & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -5218,11 +5389,14 @@ class StatementProgram {
 
     StatementProgram(StatementProgram &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(StatementProgram const &x) -> StatementProgram & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -5303,11 +5477,14 @@ class StatementConst {
 
     StatementConst(StatementConst &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(StatementConst const &x) -> StatementConst & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -5390,11 +5567,14 @@ class StatementComment {
 
     StatementComment(StatementComment &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(StatementComment const &x) -> StatementComment & {
-        clingo_ast_free(ast_);
-        ast_ = nullptr;
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
         }
         return *this;
     }
@@ -5490,9 +5670,11 @@ auto construct_term(clingo_ast_t *ast) -> Term {
         case clingo_ast_type_term_function: {
             return TermFunction::acquire(ast);
         }
+        default: {
+            clingo_ast_free(ast);
+            throw std::runtime_error("unexpected ast type");
+        }
     }
-    clingo_ast_free(ast);
-    throw std::runtime_error("unexpected ast type");
 }
 
 auto construct_term_array(clingo_ast_t **ast, size_t size) -> TermArray {
@@ -5571,9 +5753,11 @@ auto construct_term_or_projection(clingo_ast_t *ast) -> TermOrProjection {
         case clingo_ast_type_projection: {
             return Projection::acquire(ast);
         }
+        default: {
+            clingo_ast_free(ast);
+            throw std::runtime_error("unexpected ast type");
+        }
     }
-    clingo_ast_free(ast);
-    throw std::runtime_error("unexpected ast type");
 }
 
 auto construct_term_or_projection_array(clingo_ast_t **ast, size_t size) -> TermOrProjectionArray {
@@ -5641,9 +5825,11 @@ auto construct_term_or_argument_tuple(clingo_ast_t *ast) -> TermOrArgumentTuple 
         case clingo_ast_type_argument_tuple: {
             return ArgumentTuple::acquire(ast);
         }
+        default: {
+            clingo_ast_free(ast);
+            throw std::runtime_error("unexpected ast type");
+        }
     }
-    clingo_ast_free(ast);
-    throw std::runtime_error("unexpected ast type");
 }
 
 auto construct_term_or_argument_tuple_array(clingo_ast_t **ast, size_t size) -> TermOrArgumentTupleArray {
@@ -6074,9 +6260,11 @@ auto construct_literal(clingo_ast_t *ast) -> Literal {
         case clingo_ast_type_literal_symbolic: {
             return LiteralSymbolic::acquire(ast);
         }
+        default: {
+            clingo_ast_free(ast);
+            throw std::runtime_error("unexpected ast type");
+        }
     }
-    clingo_ast_free(ast);
-    throw std::runtime_error("unexpected ast type");
 }
 
 auto LeftGuard::term() -> Term {
@@ -6372,9 +6560,11 @@ auto construct_theory_term(clingo_ast_t *ast) -> TheoryTerm {
         case clingo_ast_type_theory_term_unparsed: {
             return TheoryTermUnparsed::acquire(ast);
         }
+        default: {
+            clingo_ast_free(ast);
+            throw std::runtime_error("unexpected ast type");
+        }
     }
-    clingo_ast_free(ast);
-    throw std::runtime_error("unexpected ast type");
 }
 
 auto construct_theory_term_array(clingo_ast_t **ast, size_t size) -> TheoryTermArray {
@@ -7013,9 +7203,11 @@ auto construct_body_literal(clingo_ast_t *ast) -> BodyLiteral {
         case clingo_ast_type_body_conditional_literal: {
             return BodyConditionalLiteral::acquire(ast);
         }
+        default: {
+            clingo_ast_free(ast);
+            throw std::runtime_error("unexpected ast type");
+        }
     }
-    clingo_ast_free(ast);
-    throw std::runtime_error("unexpected ast type");
 }
 
 auto construct_body_literal_array(clingo_ast_t **ast, size_t size) -> BodyLiteralArray {
@@ -7479,9 +7671,11 @@ auto construct_disjunction_element(clingo_ast_t *ast) -> DisjunctionElement {
         case clingo_ast_type_head_conditional_literal: {
             return HeadConditionalLiteral::acquire(ast);
         }
+        default: {
+            clingo_ast_free(ast);
+            throw std::runtime_error("unexpected ast type");
+        }
     }
-    clingo_ast_free(ast);
-    throw std::runtime_error("unexpected ast type");
 }
 
 auto construct_disjunction_element_array(clingo_ast_t **ast, size_t size) -> DisjunctionElementArray {
@@ -7610,9 +7804,11 @@ auto construct_head_literal(clingo_ast_t *ast) -> HeadLiteral {
         case clingo_ast_type_head_disjunction: {
             return HeadDisjunction::acquire(ast);
         }
+        default: {
+            clingo_ast_free(ast);
+            throw std::runtime_error("unexpected ast type");
+        }
     }
-    clingo_ast_free(ast);
-    throw std::runtime_error("unexpected ast type");
 }
 
 auto HeadSimpleLiteral::literal() -> Literal {
@@ -8487,9 +8683,11 @@ auto construct_statement(clingo_ast_t *ast) -> Statement {
         case clingo_ast_type_statement_comment: {
             return StatementComment::acquire(ast);
         }
+        default: {
+            clingo_ast_free(ast);
+            throw std::runtime_error("unexpected ast type");
+        }
     }
-    clingo_ast_free(ast);
-    throw std::runtime_error("unexpected ast type");
 }
 
 auto StatementRule::location() -> clingo_location_t {
@@ -9530,7 +9728,7 @@ template <class T> auto c_cast(std::vector<T> const &arr) -> std::vector<clingo_
 
 template <class Cons>
 void visit_array(clingo_ast_t *ast, clingo_ast_attribute_t attr, py::handle visitor, py::args const &args,
-                 py::kwargs const &kwargs, Cons &&cons) {
+                 py::kwargs const &kwargs, Cons cons) {
     struct Array {
         ~Array() { clingo_ast_array_free(begin, size); }
         clingo_ast_t **begin = nullptr;
@@ -9543,7 +9741,7 @@ void visit_array(clingo_ast_t *ast, clingo_ast_attribute_t attr, py::handle visi
     std::for_each_n(array.begin, array.size, [&](auto *&cld) {
         auto *cpy = cld;
         cld = nullptr;
-        visitor(std::invoke(std::forward<Cons>(cons), cpy), *args, **kwargs);
+        visitor(std::invoke(cons, cpy), *args, **kwargs);
     });
 }
 
@@ -9646,9 +9844,15 @@ class Scanner {
 
         Iterator(Scanner *scanner = nullptr) : scanner_{scanner} {}
 
-        auto operator*() -> value_type { return *std::move(scanner_->value_); }
+        auto operator*() -> value_type {
+            // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+            return *std::move(scanner_->value_);
+        }
 
-        auto operator->() -> pointer { return &*scanner_->value_; }
+        auto operator->() -> pointer {
+            // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+            return &*scanner_->value_;
+        }
 
         auto operator++() -> Iterator & {
             scanner_->next();
@@ -12995,7 +13199,7 @@ files
         .def("__iter__", &Scanner::iter, R"(Return an iterator over parsed statements.)")
         .def(
             "__exit__",
-            [](Scanner &scanner, py::object, py::object, py::object) -> bool {
+            [](Scanner &scanner, py::object const &, py::object const &, py::object const &) -> bool {
                 scanner.close();
                 return false;
             },
