@@ -1,5 +1,7 @@
 #include <gringo/ground/instantiator.hh>
 
+#include <gringo/util/checked_math.hh>
+
 namespace Gringo::Ground {
 
 void Instantiator::BackjumpMatcher::match(Assignment &ass) { matcher_->match(ass); }
@@ -83,7 +85,7 @@ void Queue::process() {
                 }
             }
         }
-        queue_.erase(queue_.begin(), queue_.begin() + n);
+        queue_.erase(queue_.begin(), queue_.begin() + Util::safe_cast<ssize_t>(n));
     }
 }
 
