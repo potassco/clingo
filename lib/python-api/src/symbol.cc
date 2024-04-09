@@ -70,6 +70,7 @@ static constexpr int decimal_base = 10;
     }
     py::list ret;
     for (size_t i = 0; i < size; ++i) {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         ret.append(Symbol{args[i]});
     }
     return ret;
@@ -190,16 +191,17 @@ auto String(Core::Library &lib, std::string const &str) -> Symbol {
 
 auto Tuple(Core::Library &lib, std::vector<Symbol> const &args) -> Symbol {
     clingo_symbol_t sym = 0;
-    handle_error(lib, clingo_symbol_create_tuple(lib, reinterpret_cast<clingo_symbol_t const *>(args.data()),
-                                                 args.size(), &sym));
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    auto const *syms = reinterpret_cast<clingo_symbol_t const *>(args.data());
+    handle_error(lib, clingo_symbol_create_tuple(lib, syms, args.size(), &sym));
     return sym;
 }
 
 auto Function(Core::Library &lib, std::string const &name, std::vector<Symbol> const &args, bool positive) -> Symbol {
     clingo_symbol_t sym = 0;
-    handle_error(lib,
-                 clingo_symbol_create_function(lib, name.data(), reinterpret_cast<clingo_symbol_t const *>(args.data()),
-                                               args.size(), positive, &sym));
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    auto const *syms = reinterpret_cast<clingo_symbol_t const *>(args.data());
+    handle_error(lib, clingo_symbol_create_function(lib, name.data(), syms, args.size(), positive, &sym));
     return sym;
 }
 

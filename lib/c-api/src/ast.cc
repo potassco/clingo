@@ -7,6 +7,7 @@
 #include <gringo/input/algo/rewrite_theory.hh>
 #include <gringo/input/algo/substitute.hh>
 
+#include "gringo/util/type_traits.hh"
 #include <gringo/util/algorithm.hh>
 #include <gringo/util/ordered_map.hh>
 #include <gringo/util/ordered_set.hh>
@@ -16,6 +17,8 @@
 #include <cstring>
 #include <forward_list>
 #include <span>
+
+// NOLINTBEGIN(cppcoreguidelines-macro-usage)
 
 namespace {
 
@@ -67,6 +70,7 @@ auto convert_loc(clingo_lib_t *lib, clingo_location_t const *loc) -> Gringo::Inp
 auto convert_string_array(clingo_lib_t *lib, char const **array, size_t size) -> Gringo::StringVec {
     auto ret = Gringo::StringVec{};
     ret.reserve(size);
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     std::transform(array, array + size, std::back_inserter(ret), [lib](auto str) { return lib->store->string(str); });
     return ret;
 }
@@ -119,6 +123,7 @@ class ASTVec {
     ASTVec() = default;
     ASTVec(size_t size) {
         if (size > 0) {
+            // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
             data_ = new clingo_ast_t *[size] { nullptr };
             size_ = size;
         }
@@ -146,7 +151,9 @@ class ASTVec {
         return *this;
     }
     ~ASTVec() {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         for (auto it = data_, ie = data_ + size_; it != ie; ++it) {
+            // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
             delete *it;
         }
         delete[] data_;
@@ -154,9 +161,13 @@ class ASTVec {
     [[nodiscard]] auto empty() const -> bool { return size_ == 0; }
     [[nodiscard]] auto size() const -> size_t { return size_; }
     [[nodiscard]] auto begin() const -> clingo_ast_t ** { return data_; }
-    [[nodiscard]] auto end() const -> clingo_ast_t ** { return data_ + size_; }
+    [[nodiscard]] auto end() const -> clingo_ast_t ** {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+        return data_ + size_;
+    }
     auto operator[](size_t i) const -> clingo_ast_t *& {
-        return data_[i]; // NOLINT
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic,clang-analyzer-core.uninitialized.UndefReturn)
+        return data_[i];
     }
     auto release() -> std::pair<clingo_ast_t **, size_t> {
         auto res = std::make_pair(data_, size_);
@@ -168,6 +179,7 @@ class ASTVec {
     static auto copy(clingo_ast_t const **data, size_t size) -> ASTVec {
         auto ret = ASTVec{size};
         for (size_t i = 0; i < size; ++i) {
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
             ret[i] = data[i]->copy().release();
         }
         return ret;
@@ -209,6 +221,7 @@ template <class T> auto convert_ast_opt(clingo_ast const *ast) -> std::optional<
 template <class T> auto convert_ast_vec(clingo_ast const **ast, size_t size) -> std::vector<T> {
     std::vector<T> res;
     res.reserve(size);
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     for (auto it = ast, ie = ast + size; it != ie; ++it) {
         res.emplace_back((*it)->convert<T>());
     }
@@ -500,6 +513,7 @@ auto make_ast(Owner const &owner, Gringo::Input::Stm const &term) -> std::unique
 template <class T, class... A> auto construct_ast(clingo_ast_type_t type, A &&...args) -> clingo_ast * {
     auto owner = Gringo::Util::make_immutable<std::any>(T{std::forward<A>(args)...});
     auto *ptr = std::any_cast<T>(&owner.get());
+    // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
     return new clingo_ast{std::move(owner), static_cast<clingo_ast_type_e>(type), ptr};
 }
 
@@ -1055,7 +1069,7 @@ auto clingo_ast::copy() const -> std::unique_ptr<clingo_ast_t> { return std::mak
 void clingo_ast::print(std::ostream &out) const {
     using namespace Gringo::Input;
     visit([&out]<class T>(T const &x) {
-        if constexpr (std::is_same_v<T, TheoryRGuard::value_type>) {
+        if constexpr (Gringo::Util::matches<T, TheoryRGuard::value_type, RGuard::value_type>) {
             out << " " << x.first << " " << x.second;
         } else if constexpr (std::is_same_v<T, UnparsedElement>) {
             for (auto const &op : x.first) {
@@ -1074,8 +1088,6 @@ void clingo_ast::print(std::ostream &out) const {
             }
         } else if constexpr (std::is_same_v<T, LGuard::value_type>) {
             out << x.first << " " << x.second << " ";
-        } else if constexpr (std::is_same_v<T, RGuard::value_type>) {
-            out << " " << x.first << " " << x.second;
         } else {
             out << x;
         }
@@ -1161,7 +1173,7 @@ template <> [[nodiscard]] auto clingo_ast::convert<Gringo::Input::Lit>() const -
             return cast<Gringo::Input::LitSymbolic>();
         }
         case clingo_ast_type_literal_comparison: {
-            return cast<Gringo::Input::LitSymbolic>();
+            return cast<Gringo::Input::LitComparison>();
         }
         default: {
             throw std::runtime_error("literal expected");
@@ -1431,6 +1443,8 @@ template <> [[nodiscard]] auto clingo_ast::convert<Gringo::Input::Stm>() const -
         }
     }
 }
+
+// NOLINTBEGIN(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
 extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, clingo_ast_t **ast, ...) -> bool {
     using namespace Gringo::Input;
     CLINGO_TRY {
@@ -2192,6 +2206,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
     }
     CLINGO_CATCH(lib);
 }
+// NOLINTEND(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
 
 extern "C" auto clingo_ast_to_string_size(clingo_ast_t *ast, size_t *size) -> bool {
     CLINGO_TRY {
@@ -2229,7 +2244,10 @@ extern "C" auto clingo_ast_copy(clingo_ast_t *ast, clingo_ast_t **copy) -> bool 
     CLINGO_CATCH(nullptr);
 }
 
-extern "C" void clingo_ast_free(clingo_ast_t *ast) { delete ast; }
+extern "C" void clingo_ast_free(clingo_ast_t *ast) {
+    // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+    delete ast;
+}
 
 extern "C" void clingo_ast_array_free(clingo_ast_t **ast, size_t size) {
     if (ast != nullptr) {
@@ -2517,6 +2535,7 @@ extern "C" auto clingo_ast_scanner_next(clingo_ast_scanner_t *scanner, clingo_as
 extern "C" void clingo_ast_scanner_close(clingo_ast_scanner_t *scanner) {
     if (scanner != nullptr) {
         scanner->lib()->log.reset();
+        // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
         delete scanner;
     }
 }
@@ -2532,11 +2551,17 @@ struct clingo_ast_rewrite_context {
 };
 
 extern "C" auto clingo_ast_rewrite_context_create(clingo_lib_t *lib, clingo_ast_rewrite_context_t **context) -> bool {
-    CLINGO_TRY { *context = new clingo_ast_rewrite_context{lib}; }
+    CLINGO_TRY {
+        // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+        *context = new clingo_ast_rewrite_context{lib};
+    }
     CLINGO_CATCH(lib);
 }
 
-extern "C" void clingo_ast_rewrite_context_free(clingo_ast_rewrite_context_t *context) { delete context; }
+extern "C" void clingo_ast_rewrite_context_free(clingo_ast_rewrite_context_t *context) {
+    // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+    delete context;
+}
 
 extern "C" auto clingo_ast_rewrite_context_add_param(clingo_ast_rewrite_context_t *context, char const *param) -> bool {
     auto *lib = context->lib;
@@ -2619,3 +2644,5 @@ extern "C" auto clingo_ast_rewrite(clingo_ast_rewrite_context_t *context, clingo
     }
     CLINGO_CATCH(lib);
 }
+
+// NOLINTEND(cppcoreguidelines-macro-usage)

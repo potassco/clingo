@@ -174,7 +174,7 @@ Return self.
 )"))
         .def(
             "__exit__",
-            [](Library &lib, py::object, py::object, py::object) -> bool {
+            [](Library &lib, py::object const &, py::object const &, py::object const &) -> bool {
                 lib.close();
                 return false;
             },

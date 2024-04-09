@@ -26,7 +26,10 @@ using LoggerCB = std::function<void(clingo_message_e, char const *)>;
 
 static constexpr size_t default_message_limit = 25;
 
-constexpr auto doc(char const *str) -> char const * { return str + 1; }
+constexpr auto doc(char const *str) -> char const * {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    return str + 1;
+}
 
 class Library {
   public:
@@ -48,19 +51,18 @@ class Library {
 inline void handle_error(clingo_lib_t *lib, bool success) {
     if (!success) {
         auto const *msg = clingo_error_message(lib);
-        switch (clingo_error_code(lib)) {
+        switch (static_cast<clingo_error_e>(clingo_error_code(lib))) {
             case clingo_error_success:
             case clingo_error_unknown:
-            case clingo_error_runtime: {
-                throw std::logic_error(msg);
-            }
+            case clingo_error_runtime:
             case clingo_error_logic: {
                 throw std::logic_error(msg);
             }
             case clingo_error_bad_alloc: {
-                throw std::bad_alloc();
+                break;
             }
         }
+        throw std::bad_alloc();
     }
 }
 

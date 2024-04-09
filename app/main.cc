@@ -8,7 +8,8 @@ using namespace Gringo::Input;
 
 enum class AppMode { parse, rewrite, ground };
 
-auto main(int argc, char *argv[]) -> int {
+// NOLINTNEXTLINE(modernize-avoid-c-arrays)
+auto run(int argc, char *argv[]) -> int {
     auto opts = RewriteOptions{};
     auto mode = AppMode::ground;
     std::vector<std::string> files;
@@ -88,4 +89,14 @@ auto main(int argc, char *argv[]) -> int {
         return 1;
     }
     return log.has_error() ? 1 : 0;
+}
+
+auto main(int argc, char *argv[]) -> int {
+    try {
+        return run(argc, argv);
+    } catch (std::exception const &e) {
+        fprintf(stderr, "panic: %s\n", "unrecoverable error during startup");
+        fflush(stderr);
+        return 1;
+    }
 }

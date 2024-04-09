@@ -8,6 +8,7 @@ Checks: >
   performance-*,
   readability-*,
   -bugprone-easily-swappable-parameters,
+  -cppcoreguidelines-avoid-c-arrays,
   -cppcoreguidelines-avoid-do-while,
   -cppcoreguidelines-avoid-magic-numbers,
   -cppcoreguidelines-pro-type-vararg,
