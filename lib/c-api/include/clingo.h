@@ -473,13 +473,13 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_tuple(clingo_lib_t *lib, cli
 //! @param[in] name the name of the function
 //! @param[in] arguments the arguments of the function
 //! @param[in] arguments_size the number of arguments
-//! @param[in] positive whether the symbol has a classical negation sign
+//! @param[in] sign whether the symbol has a classical negation sign
 //! @param[out] symbol the resulting symbol
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_function(clingo_lib_t *lib, char const *name,
                                                              clingo_symbol_t const *arguments, size_t arguments_size,
-                                                             bool positive, clingo_symbol_t *symbol);
+                                                             bool sign, clingo_symbol_t *symbol);
 
 //! Parse a term in string form.
 //!
