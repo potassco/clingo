@@ -35,6 +35,8 @@ namespace {
 
 } // namespace
 
+// NOLINTBEGIN(cppcoreguidelines-macro-usage)
+
 #define CLINGO_TRY try
 #define CLINGO_CATCH(lib)                                                                                              \
     catch (...) {                                                                                                      \
@@ -44,3 +46,5 @@ namespace {
         return false;                                                                                                  \
     }                                                                                                                  \
     return true
+
+// NOLINTEND(cppcoreguidelines-macro-usage)
