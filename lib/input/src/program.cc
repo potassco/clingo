@@ -93,7 +93,7 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
 
         // process rules
         for (auto &stm : stms) {
-            auto n = Util::safe_cast<ssize_t>(res_part.stms.size());
+            auto n = std::ssize(res_part.stms);
             rewrite(ctx, stm, res_part.stms);
             auto jt = res_part.stms.begin() + n;
             for (auto it = jt, ie = res_part.stms.end(); it != ie; ++it) {

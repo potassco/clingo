@@ -71,10 +71,10 @@ void Queue::add(Instantiator &inst) { queue_.emplace_back(&inst); }
 
 void Queue::process() {
     while (!queue_.empty()) {
-        auto n = queue_.size();
+        auto n = std::ssize(queue_);
         std::stable_sort(queue_.begin(), queue_.end(),
                          [](auto const &a, auto const &b) { return a->priority() > b->priority(); });
-        for (auto i = size_t{0}, j = size_t{0}; i < n; ++i) {
+        for (auto i = ssize_t{0}, j = ssize_t{0}; i < n; ++i) {
             auto &inst = queue_[i];
             inst->instantiate();
             if (i + 1 == n || inst->priority() != queue_[i + 1]->priority()) {
@@ -85,7 +85,7 @@ void Queue::process() {
                 }
             }
         }
-        queue_.erase(queue_.begin(), queue_.begin() + Util::safe_cast<ssize_t>(n));
+        queue_.erase(queue_.begin(), queue_.begin() + n);
     }
 }
 
