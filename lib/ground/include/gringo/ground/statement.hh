@@ -48,21 +48,22 @@ class Linearizer {
 
 class StmRule : public Stm {
   public:
-    StmRule(Ground::UTerm head, std::vector<size_t> indices, Ground::ULitVec body)
-        : head_{std::move(head)}, indices_{std::move(indices)}, body_{std::move(body)} {}
+    StmRule(Ground::UTerm head, Base *base, std::vector<size_t> indices, Ground::ULitVec body)
+        : head_{std::move(head)}, base_{base}, indices_{std::move(indices)}, body_{std::move(body)} {}
     // Stm interface
     void print(std::ostream &out) const override;
     [[nodiscard]] auto body() const -> ULitVec const & override;
     [[nodiscard]] auto important() const -> VariableSet override;
     // InstanceCallback interface
     void init() override;
-    void report(Assignment const &ass) override;
+    void report(SymbolStore &store, Assignment const &ass) override;
     void propagate(Queue &queue) override;
     [[nodiscard]] auto priority() const -> size_t override { return 0; }
 
   private:
     // TODO: how to handle head
-    Ground::UTerm head_;
+    UTerm head_;
+    Base *base_;
     //! A list of indices.
     //!
     //! Recursize body literals that unify with the rule head have matching indices.

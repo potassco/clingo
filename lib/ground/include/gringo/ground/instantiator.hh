@@ -17,12 +17,12 @@ class Matcher {
     //! Destroy the matcher.
     virtual ~Matcher() = default;
     //! Initialize matching.
-    virtual void match(Assignment &ass) = 0;
+    virtual void match(SymbolStore &store, Assignment &ass) = 0;
     //! Obtain the next match.
     //!
     //! Has to be called to obtain the first match.
     //! Returns true if there is a match.
-    virtual auto next(Assignment &ass) -> bool = 0;
+    virtual auto next(SymbolStore &store, Assignment &ass) -> bool = 0;
 };
 using UMatcher = std::unique_ptr<Matcher>;
 using UMatcherVec = std::vector<UMatcher>;
@@ -37,7 +37,7 @@ class InstanceCallback {
     //! Notify a statement that instantiation starts.
     virtual void init() = 0;
     //! Report an assignment giving rise to an instance for a statement.
-    virtual void report(Assignment const &ass) = 0;
+    virtual void report(SymbolStore &store, Assignment const &ass) = 0;
     //! Notify a statement that instantiation has finished.
     virtual void propagate(Queue &queue) = 0;
     //! The priority of the callback.
@@ -70,7 +70,7 @@ class Instantiator {
     //! Find all assignments for the added matchers.
     //!
     //! Assignments are reported via the InstanceCallback.
-    void instantiate();
+    void instantiate(SymbolStore &store);
     //! Add instantiators that need grounding to queue.
     void propagate(Queue &queue) { icb_->propagate(queue); }
     //! The priority of the instantiator.
@@ -81,9 +81,9 @@ class Instantiator {
       public:
         BackjumpMatcher(UMatcher matcher, DependVec depend)
             : matcher_{std::move(matcher)}, depend_{std::move(depend)} {}
-        void match(Assignment &ass);
-        auto next(Assignment &ass) -> bool;
-        auto first(Assignment &ass) -> bool;
+        void match(SymbolStore &store, Assignment &ass);
+        auto next(SymbolStore &store, Assignment &ass) -> bool;
+        auto first(SymbolStore &store, Assignment &ass) -> bool;
         [[nodiscard]] auto depend() const -> DependVec const &;
         [[nodiscard]] auto backjumpable() const -> bool;
         void block();
@@ -107,7 +107,7 @@ class Queue {
     //! Add an instantiator to the queue.
     void add(Instantiator &inst);
     //! Process previously enqueued instantiators.
-    void process();
+    void process(SymbolStore &store);
 
   private:
     std::deque<Instantiator *> queue_;

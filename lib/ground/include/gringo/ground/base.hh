@@ -47,7 +47,7 @@ class Base {
     //! A base is domain if it contains facts only.
     [[nodiscard]] auto domain() const {
         for (auto n = atoms_.size(); domain_offset_ < n; ++domain_offset_) {
-            if (atoms_.nth(n)->second.state != AtomState::fact) {
+            if (atoms_.nth(domain_offset_)->second.state != AtomState::fact) {
                 return false;
             }
         }
@@ -86,7 +86,11 @@ class Base {
         }
     }
 
+    // TODO: consider type
     auto atoms() const -> std::span<Atom const> { return {atoms_.values_container().data(), all_offset_}; }
+    auto size() const -> size_t { return atoms_.size(); }
+    auto nth(size_t i) const -> Util::ordered_map<Symbol, AtomInfo>::const_iterator { return atoms_.nth(i); }
+    auto nth(size_t i) -> Util::ordered_map<Symbol, AtomInfo>::iterator { return atoms_.nth(i); }
 
   private:
     Util::ordered_map<Symbol, AtomInfo> atoms_;

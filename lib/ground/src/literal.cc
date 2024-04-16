@@ -95,21 +95,29 @@ auto LitSymbolic::matcher(MatcherType type, std::vector<bool> const &bound) -> U
     // - matchers track offsets of atoms in the base, they can determine old/new/all based on the old/all limits
     class DummyMatcher : public Matcher {
       public:
-        DummyMatcher(Base const &base, Term const &term) : base_{&base}, term_{&term} {}
-        void match(Assignment &ass) override {
+        DummyMatcher(Base const &base, Term const &term, VariableVec free)
+            : base_{&base}, term_{&term}, free_{std::move(free)} {}
+        void match(SymbolStore &store, Assignment &ass) override {
             static_cast<void>(ass);
+            static_cast<void>(store);
             std::cerr << "todo start match\n";
             current_ = 0;
             base_->update(1);
         }
-        auto next(Assignment &ass) -> bool override {
-            std::cerr << "todo next match\n";
-            static_cast<void>(ass);
+        auto next(SymbolStore &store, Assignment &ass) -> bool override {
             // TODO: take into consideration type
-            for (auto const &atom : base_->atoms()) {
-                // TODO: needs a store
-                // TODO: unbind variables
-                std::cerr << "todo match " << *term_ << " and " << atom.first << "\n";
+            for (auto n = base_->size(); current_ < n;) {
+                // unbind variables
+                for (auto const &var : free_) {
+                    ass[var] = std::nullopt;
+                }
+                // match symbol and term
+                std::cerr << "matching " << *term_ << " and " << base_->nth(current_)->first << ":";
+                if (term_->match(store, base_->nth(current_++)->first, ass)) {
+                    std::cerr << " true\n";
+                    return true;
+                }
+                std::cerr << " false\n";
             }
             return false;
         }
@@ -117,11 +125,14 @@ auto LitSymbolic::matcher(MatcherType type, std::vector<bool> const &bound) -> U
       private:
         Base const *base_;
         Term const *term_;
+        VariableVec free_;
         size_t current_ = 0;
     };
     std::cerr << "todo create a proper matcher\n";
-    // TODO: pass along variables to unbind
-    return std::make_unique<DummyMatcher>(*base_, *atom_);
+    VariableSet vars;
+    atom_->vars(vars);
+    erase_if(vars, [&bound](auto const &var) { return !bound[var]; });
+    return std::make_unique<DummyMatcher>(*base_, *atom_, vars.release());
 }
 
 auto LitSymbolic::score(std::vector<bool> const &bound) const -> double {

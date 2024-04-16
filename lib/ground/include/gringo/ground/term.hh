@@ -16,6 +16,7 @@ enum class RenameMode {
 };
 
 using VariableSet = Util::ordered_set<size_t>;
+using VariableVec = VariableSet::values_container_type;
 
 class Term;
 using UTerm = std::unique_ptr<Term>;

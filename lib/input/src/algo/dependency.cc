@@ -164,9 +164,18 @@ class AddProvide {
         }
     }
 
-    template <class T>
-        requires Util::is_among_v<T, LitComparison, LitSymbolic, HdLitTheoryAtom>
-    void operator()([[maybe_unused]] T const &lit) const {}
+    template <class T> void operator()(T const &lit) const {
+        if constexpr (Util::is_among_v<T, HdLitSetAggregate, HdLitAggregate>) {
+            for (auto const &elem : lit.elems()) {
+                operator()(elem.lit());
+            }
+        } else {
+            static_assert(
+                Util::is_among_v<T, LitComparison, LitBool, HdLitTheoryAtom, StmWeakConstraint, StmShow, StmProject,
+                                 StmEdge, StmHeuristic, StmTheory, StmOptimize, StmShowSig, StmProjectSig, StmDefined,
+                                 StmScript, StmInclude, StmProgram, StmConst, StmComment>);
+        }
+    }
 
     void operator()(Lit const &lit) const { std::visit(*this, lit); }
 
@@ -186,20 +195,7 @@ class AddProvide {
         }
     }
 
-    template <class T>
-        requires Util::is_among_v<T, HdLitSetAggregate, HdLitAggregate>
-    void operator()(T const &lit) const {
-        for (auto const &elem : lit.elems()) {
-            operator()(elem.lit());
-        }
-    }
-
     void operator()(HdLit const &lit) const { std::visit(*this, lit); }
-    template <class T>
-        requires Util::is_among_v<T, StmWeakConstraint, StmShow, StmProject, StmEdge, StmHeuristic, StmTheory,
-                                  StmOptimize, StmShowSig, StmProjectSig, StmDefined, StmScript, StmInclude, StmProgram,
-                                  StmConst, StmComment>
-    void operator()([[maybe_unused]] T const &stm) const {}
 
     void operator()(StmRule const &stm) const { std::visit(*this, stm.head()); }
 

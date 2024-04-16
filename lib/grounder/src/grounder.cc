@@ -272,9 +272,16 @@ struct BuilderHdLit {
     }
     void operator()(Input::HdLitSimple const &lit) const {
         std::vector<size_t> provides;
+        Ground::UTerm blub;
+        Ground::Base *base = nullptr;
         auto head = std::visit(
             [&]<class T>(T const &lit) -> Ground::UTerm {
                 if constexpr (Util::matches<T, Input::LitSymbolic>) {
+                    auto dom_it = ctx->impl->atom_base_.try_emplace(*signature(lit.term()), nullptr).first;
+                    if (dom_it->second == nullptr) {
+                        dom_it.value() = std::make_unique<Ground::Base>();
+                    }
+                    base = dom_it->second.get();
                     assert(lit.sign() == Input::Sign::none);
                     if (auto it = ctx->def_map->find(&lit.term()); it != ctx->def_map->end()) {
                         provides = it->second;
@@ -291,7 +298,8 @@ struct BuilderHdLit {
                 return nullptr;
             },
             lit.lit());
-        ctx->gcomp->add(std::make_unique<Ground::StmRule>(std::move(head), std::move(provides), std::move(*ctx->body)));
+        ctx->gcomp->add(
+            std::make_unique<Ground::StmRule>(std::move(head), base, std::move(provides), std::move(*ctx->body)));
     }
     BuildContext *ctx;
 };
@@ -356,8 +364,14 @@ struct Builder : Input::DependencyBuilder {
     }
 
     void fact(std::vector<Symbol> const &facts) override {
-        std::cerr << "TODO: add fact to base!\n";
         for (auto const &fact : facts) {
+            // TODO: remove c&p
+            auto sig = std::tuple<String, size_t, bool>(fact.name(), fact.args().size(), fact.has_sign());
+            auto dom_it = impl->atom_base_.try_emplace(sig, nullptr).first;
+            if (dom_it->second == nullptr) {
+                dom_it.value() = std::make_unique<Ground::Base>();
+            }
+            dom_it->second->add(fact, Ground::AtomState::fact, 1);
             std::cerr << fact << ".\n";
         }
     }
@@ -401,7 +415,7 @@ struct Builder : Input::DependencyBuilder {
                 for (auto &inst : insts) {
                     queue.add(inst);
                 }
-                queue.process();
+                queue.process(*impl->store_);
             }
         }
     }

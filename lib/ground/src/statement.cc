@@ -163,13 +163,14 @@ void StmRule::init() {
     std::cerr << "implement me: StmRule::init\n";
 }
 
-void StmRule::report(Assignment const &ass) {
+void StmRule::report(SymbolStore &store, Assignment const &ass) {
     static_cast<void>(ass);
-    std::cerr << "implement me: StmRule::report\n";
+    static_cast<void>(store);
     if (head_) {
-        // TODO: store
-        // std::cerr << "todo: add " << head_->eval(store, ass) << "\n";
-        std::cerr << "todo: add " << *head_ << "\n";
+        if (auto atom = head_->eval(store, ass); atom) {
+            std::cerr << "add to domain: " << *atom << "\n";
+            base_->add(*atom, AtomState::unknown, 1);
+        }
     }
 }
 
