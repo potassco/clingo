@@ -2,6 +2,9 @@
 
 #include <typeindex>
 
+// TODO
+#include <iostream>
+
 namespace Gringo::Ground {
 
 auto operator<<(std::ostream &out, Sign sign) -> std::ostream & {
@@ -67,8 +70,9 @@ void LitSymbolic::vars(VariableSet &vars, VarSelectMode mode) const {
     }
 }
 
-auto LitSymbolic::matcher(MatcherType type) -> UMatcher {
+auto LitSymbolic::matcher(MatcherType type, std::vector<bool> const &bound) -> UMatcher {
     static_cast<void>(type);
+    static_cast<void>(bound);
     // TODO:
     // - distinguish matcher types
     // - the first matcher can just iterate over the base to do the matching
@@ -91,24 +95,38 @@ auto LitSymbolic::matcher(MatcherType type) -> UMatcher {
     // - matchers track offsets of atoms in the base, they can determine old/new/all based on the old/all limits
     class DummyMatcher : public Matcher {
       public:
+        DummyMatcher(Base const &base, Term const &term) : base_{&base}, term_{&term} {}
         void match(Assignment &ass) override {
             static_cast<void>(ass);
-            printf("todo start match\n");
+            std::cerr << "todo start match\n";
+            current_ = 0;
+            base_->update(1);
         }
-
         auto next(Assignment &ass) -> bool override {
+            std::cerr << "todo next match\n";
             static_cast<void>(ass);
-            printf("todo next match\n");
+            // TODO: take into consideration type
+            for (auto const &atom : base_->atoms()) {
+                // TODO: needs a store
+                // TODO: unbind variables
+                std::cerr << "todo match " << *term_ << " and " << atom.first << "\n";
+            }
             return false;
         }
+
+      private:
+        Base const *base_;
+        Term const *term_;
+        size_t current_ = 0;
     };
-    printf("todo create a proper matcher\n");
-    return std::make_unique<DummyMatcher>();
+    std::cerr << "todo create a proper matcher\n";
+    // TODO: pass along variables to unbind
+    return std::make_unique<DummyMatcher>(*base_, *atom_);
 }
 
 auto LitSymbolic::score(std::vector<bool> const &bound) const -> double {
     static_cast<void>(bound);
-    printf("todo proper score for literal\n");
+    std::cerr << "todo proper score for literal\n";
     return 2;
 }
 

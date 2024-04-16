@@ -86,9 +86,10 @@ class Base {
         }
     }
 
+    auto atoms() const -> std::span<Atom const> { return {atoms_.values_container().data(), all_offset_}; }
+
   private:
     Util::ordered_map<Symbol, AtomInfo> atoms_;
-    size_t gen_ = 0;
     size_t mutable domain_offset_ = 0;
     //! Symbols before this offset are considered old.
     size_t mutable old_offset_ = 0;

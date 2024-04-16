@@ -356,6 +356,7 @@ struct Builder : Input::DependencyBuilder {
     }
 
     void fact(std::vector<Symbol> const &facts) override {
+        std::cerr << "TODO: add fact to base!\n";
         for (auto const &fact : facts) {
             std::cerr << fact << ".\n";
         }

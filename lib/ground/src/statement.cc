@@ -3,6 +3,9 @@
 #include <gringo/util/print.hh>
 #include <gringo/util/unordered_map.hh>
 
+// TODO:
+#include <iostream>
+
 namespace Gringo::Ground {
 
 void Linearizer::start(InstantiatorVec &insts, bool domain) {
@@ -120,7 +123,7 @@ auto Linearizer::order_(InstanceCallback &cb, std::vector<MatcherType> const &to
         if (!done.emplace(lits[i].get()).second && todo[i] == MatcherType::all_atoms) {
             continue;
         }
-        inst.add(lits[i]->matcher(todo[i]), make_depend(std::get<1>(lit_map_[i])));
+        inst.add(lits[i]->matcher(todo[i], bound), make_depend(std::get<1>(lit_map_[i])));
         for (auto var : std::get<2>(lit_map_[i])) {
             if (bound[var]) {
                 continue;
@@ -157,18 +160,23 @@ auto StmRule::important() const -> VariableSet {
 
 void StmRule::init() {
     // Consider adding the propagation to the instantiator...
-    printf("implement me: StmRule::init\n");
+    std::cerr << "implement me: StmRule::init\n";
 }
 
 void StmRule::report(Assignment const &ass) {
     static_cast<void>(ass);
-    printf("implement me: StmRule::report\n");
+    std::cerr << "implement me: StmRule::report\n";
+    if (head_) {
+        // TODO: store
+        // std::cerr << "todo: add " << head_->eval(store, ass) << "\n";
+        std::cerr << "todo: add " << *head_ << "\n";
+    }
 }
 
 void StmRule::propagate(Queue &queue) {
     static_cast<void>(queue);
     // Consider adding the propagation to the instantiator...
-    printf("implement me: StmRule::propagate\n");
+    std::cerr << "implement me: StmRule::propagate\n";
 }
 
 } // namespace Gringo::Ground
