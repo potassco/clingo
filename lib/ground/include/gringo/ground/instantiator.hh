@@ -2,7 +2,6 @@
 
 #include <gringo/core/symbol.hh>
 
-#include <deque>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -16,6 +15,8 @@ class Matcher {
   public:
     //! Destroy the matcher.
     virtual ~Matcher() = default;
+    //! Notify that instantiation starts.
+    virtual void init(size_t gen) = 0;
     //! Initialize matching.
     virtual void match(SymbolStore &store, Assignment &ass) = 0;
     //! Obtain the next match.
@@ -35,7 +36,7 @@ class InstanceCallback {
     //! Destroy the callback.
     virtual ~InstanceCallback() = default;
     //! Notify a statement that instantiation starts.
-    virtual void init() = 0;
+    virtual void init(size_t gen) = 0;
     //! Report an assignment giving rise to an instance for a statement.
     virtual void report(SymbolStore &store, Assignment const &ass) = 0;
     //! Notify a statement that instantiation has finished.
@@ -51,6 +52,10 @@ class Instantiator {
     using DependVec = std::vector<size_t>;
     //! Construct an instantiator with the given instance callback and number of variables.
     Instantiator(InstanceCallback &icb, size_t vars, size_t n) : icb_{&icb}, ass_{vars} { matchers_.reserve(n + 1); }
+    //! Prepare the instantiator for the first grounding step (with generation 0).
+    //!
+    //! This resets all involved domains.
+    void init(size_t gen);
     //! Finalize the instantiator.
     //!
     //! The depend vector must point to matchers that bind relevant variables for the matcher.
@@ -81,6 +86,7 @@ class Instantiator {
       public:
         BackjumpMatcher(UMatcher matcher, DependVec depend)
             : matcher_{std::move(matcher)}, depend_{std::move(depend)} {}
+        void init(size_t gen);
         void match(SymbolStore &store, Assignment &ass);
         auto next(SymbolStore &store, Assignment &ass) -> bool;
         auto first(SymbolStore &store, Assignment &ass) -> bool;
@@ -104,13 +110,15 @@ using InstantiatorVec = std::vector<Instantiator>;
 //! A queue to proccess instantiators.
 class Queue {
   public:
+    Queue() = default;
     //! Add an instantiator to the queue.
     void add(Instantiator &inst);
     //! Process previously enqueued instantiators.
     void process(SymbolStore &store);
 
   private:
-    std::deque<Instantiator *> queue_;
+    std::array<std::vector<Instantiator *>, 3> queues_;
+    size_t size_ = 0;
 };
 
 } // namespace Gringo::Ground

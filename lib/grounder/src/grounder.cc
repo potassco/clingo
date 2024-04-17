@@ -371,7 +371,7 @@ struct Builder : Input::DependencyBuilder {
             if (dom_it->second == nullptr) {
                 dom_it.value() = std::make_unique<Ground::Base>();
             }
-            dom_it->second->add(fact, Ground::AtomState::fact, 1);
+            dom_it->second->add(fact, Ground::AtomState::fact);
             std::cerr << fact << ".\n";
         }
     }
@@ -411,7 +411,7 @@ struct Builder : Input::DependencyBuilder {
                     std::cerr << "    " << *stm << '\n';
                     lin.prepare(*stm);
                 }
-                Ground::Queue queue;
+                auto queue = Ground::Queue{};
                 for (auto &inst : insts) {
                     queue.add(inst);
                 }

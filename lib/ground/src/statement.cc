@@ -158,18 +158,17 @@ auto StmRule::important() const -> VariableSet {
     return important;
 }
 
-void StmRule::init() {
-    // Consider adding the propagation to the instantiator...
-    std::cerr << "implement me: StmRule::init\n";
+void StmRule::init(size_t gen) {
+    if (base_ != nullptr) {
+        base_->update(gen);
+    }
 }
 
 void StmRule::report(SymbolStore &store, Assignment const &ass) {
-    static_cast<void>(ass);
-    static_cast<void>(store);
     if (head_) {
         if (auto atom = head_->eval(store, ass); atom) {
             std::cerr << "add to domain: " << *atom << "\n";
-            base_->add(*atom, AtomState::unknown, 1);
+            base_->add(*atom, AtomState::unknown);
         }
     }
 }

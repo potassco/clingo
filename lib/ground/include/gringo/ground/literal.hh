@@ -22,8 +22,6 @@ enum class VarSelectMode {
     all = 3,
 };
 
-enum class MatcherType { new_atoms, old_atoms, all_atoms };
-
 class Lit {
   public:
     virtual ~Lit() = default;

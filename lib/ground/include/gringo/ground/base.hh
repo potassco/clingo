@@ -37,6 +37,8 @@ enum class AtomUpdate {
     unchanged = 2,
 };
 
+enum class MatcherType { new_atoms, old_atoms, all_atoms };
+
 class Base {
   public:
     [[nodiscard]] auto contains(Symbol const &sym) const -> bool;
@@ -54,8 +56,15 @@ class Base {
         return true;
     }
 
-    auto add(Symbol atom, AtomState state, size_t generation) -> AtomUpdate {
-        update(generation);
+    auto add(Symbol atom, AtomState state) -> AtomUpdate {
+        // turning a delayed atom into an active one is tricky
+        // suppose p(2) below has been inserted as delayed on a previous generation
+        //   p(1) *p(2) p(3)
+        // It now has to be added as active and should also become part of the new generation.
+        // The easiest way to implement this is to delay inserting into atoms_ adding it to a separate set first.
+        //   active:  p(1) p(3)
+        //   delayed: p(2)
+        // Downside: each insertion has to check the delayed set first (which should however be empty in most cases).
         if (auto [it, ins] = atoms_.try_emplace(atom, 0, state); !ins) {
             if (state < it->second.state) {
                 // note transitions from external to unknown are ignored
@@ -75,10 +84,21 @@ class Base {
     }
 
     void update(size_t generation) const {
-        if (generation_ + 1 == generation) {
+        // initialize the domain
+        // (all atoms are marked as new)
+        if (generation_ == 0) {
+            generation_ = 0;
+            old_offset_ = 0;
+            all_offset_ = atoms_.size();
+        }
+        // the generation has been incremented by one
+        // (freshly added atoms are marked new)
+        else if (generation_ + 1 == generation) {
             generation_ = generation;
             old_offset_ = all_offset_;
             all_offset_ = atoms_.size();
+            // the generation has been incremented by more than one
+            // (all atoms are marked old)
         } else if (generation_ + 1 < generation) {
             generation_ = generation;
             old_offset_ = atoms_.size();
@@ -88,7 +108,18 @@ class Base {
 
     // TODO: consider type
     auto atoms() const -> std::span<Atom const> { return {atoms_.values_container().data(), all_offset_}; }
-    auto size() const -> size_t { return atoms_.size(); }
+    auto begin(MatcherType type) const -> size_t {
+        if (type == MatcherType::new_atoms) {
+            return old_offset_;
+        }
+        return 0;
+    }
+    auto end(MatcherType type) const -> size_t {
+        if (type == MatcherType::old_atoms) {
+            return old_offset_;
+        }
+        return all_offset_;
+    }
     auto nth(size_t i) const -> Util::ordered_map<Symbol, AtomInfo>::const_iterator { return atoms_.nth(i); }
     auto nth(size_t i) -> Util::ordered_map<Symbol, AtomInfo>::iterator { return atoms_.nth(i); }
 

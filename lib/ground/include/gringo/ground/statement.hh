@@ -55,7 +55,7 @@ class StmRule : public Stm {
     [[nodiscard]] auto body() const -> ULitVec const & override;
     [[nodiscard]] auto important() const -> VariableSet override;
     // InstanceCallback interface
-    void init() override;
+    void init(size_t gen) override;
     void report(SymbolStore &store, Assignment const &ass) override;
     void propagate(Queue &queue) override;
     [[nodiscard]] auto priority() const -> size_t override { return 0; }

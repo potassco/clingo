@@ -4,6 +4,8 @@
 
 namespace Gringo::Ground {
 
+void Instantiator::BackjumpMatcher::init(size_t gen) { matcher_->init(gen); }
+
 void Instantiator::BackjumpMatcher::match(SymbolStore &store, Assignment &ass) { matcher_->match(store, ass); }
 
 auto Instantiator::BackjumpMatcher::next(SymbolStore &store, Assignment &ass) -> bool {
@@ -29,9 +31,17 @@ void Instantiator::add(UMatcher matcher, DependVec depend) {
     matchers_.emplace_back(std::move(matcher), std::move(depend));
 }
 
+void Instantiator::init(size_t gen) {
+    icb_->init(gen);
+    for (auto &matcher : matchers_) {
+        matcher.init(gen);
+    }
+}
+
 void Instantiator::finalize(DependVec depend) {
     class SolutionMatcher : public Matcher {
       public:
+        void init([[maybe_unused]] size_t gen) override{};
         void match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) override {}
         auto next([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) -> bool override {
             return false;
@@ -48,7 +58,6 @@ auto Instantiator::enqueue() -> bool {
 
 void Instantiator::instantiate(SymbolStore &store) {
     enqueued_ = false;
-    icb_->init();
     auto ie = matchers_.rend();
     auto it = ie - 1;
     auto ib = matchers_.rbegin();
@@ -69,25 +78,31 @@ void Instantiator::instantiate(SymbolStore &store) {
     } while (it != ie);
 }
 
-void Queue::add(Instantiator &inst) { queue_.emplace_back(&inst); }
+void Queue::add(Instantiator &inst) {
+    if (!inst.enqueue()) {
+        queues_.at(inst.priority()).emplace_back(&inst);
+        ++size_;
+    }
+}
 
 void Queue::process(SymbolStore &store) {
-    while (!queue_.empty()) {
-        auto n = std::ssize(queue_);
-        std::stable_sort(queue_.begin(), queue_.end(),
-                         [](auto const &a, auto const &b) { return a->priority() > b->priority(); });
-        for (auto i = ssize_t{0}, j = ssize_t{0}; i < n; ++i) {
-            auto &inst = queue_[i];
-            inst->instantiate(store);
-            if (i + 1 == n || inst->priority() != queue_[i + 1]->priority()) {
-                for (; j <= i; ++j) {
-                    // Note: previous gringo versions enqueued the domain for update.
-                    // Currently, the update is planned to happen with a generation counter
-                    queue_[j]->propagate(*this);
-                }
+    // ground
+    auto current = std::vector<Instantiator *>{};
+    for (auto gen = size_t{0}; size_ > 0; ++gen) {
+        for (auto &queue : queues_) {
+            current.clear();
+            current.swap(queue);
+            size_ -= current.size();
+            for (auto *inst : current) {
+                inst->init(gen);
+            }
+            for (auto *inst : current) {
+                inst->instantiate(store);
+            }
+            for (auto *inst : current) {
+                inst->propagate(*this);
             }
         }
-        queue_.erase(queue_.begin(), queue_.begin() + n);
     }
 }
 

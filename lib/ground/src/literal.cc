@@ -71,8 +71,6 @@ void LitSymbolic::vars(VariableSet &vars, VarSelectMode mode) const {
 }
 
 auto LitSymbolic::matcher(MatcherType type, std::vector<bool> const &bound) -> UMatcher {
-    static_cast<void>(type);
-    static_cast<void>(bound);
     // TODO:
     // - distinguish matcher types
     // - the first matcher can just iterate over the base to do the matching
@@ -95,18 +93,18 @@ auto LitSymbolic::matcher(MatcherType type, std::vector<bool> const &bound) -> U
     // - matchers track offsets of atoms in the base, they can determine old/new/all based on the old/all limits
     class DummyMatcher : public Matcher {
       public:
-        DummyMatcher(Base const &base, Term const &term, VariableVec free)
-            : base_{&base}, term_{&term}, free_{std::move(free)} {}
+        DummyMatcher(Base const &base, Term const &term, VariableVec free, MatcherType type)
+            : base_{&base}, term_{&term}, free_{std::move(free)}, type_{type} {}
+        void init(size_t gen) override { base_->update(gen); }
         void match(SymbolStore &store, Assignment &ass) override {
+            // TODO: consider removing arguments
             static_cast<void>(ass);
             static_cast<void>(store);
-            std::cerr << "todo start match\n";
-            current_ = 0;
-            base_->update(1);
+            current_ = base_->begin(type_);
         }
         auto next(SymbolStore &store, Assignment &ass) -> bool override {
             // TODO: take into consideration type
-            for (auto n = base_->size(); current_ < n;) {
+            for (auto n = base_->end(type_); current_ < n;) {
                 // unbind variables
                 for (auto const &var : free_) {
                     ass[var] = std::nullopt;
@@ -126,13 +124,14 @@ auto LitSymbolic::matcher(MatcherType type, std::vector<bool> const &bound) -> U
         Base const *base_;
         Term const *term_;
         VariableVec free_;
+        MatcherType type_;
         size_t current_ = 0;
     };
     std::cerr << "todo create a proper matcher\n";
     VariableSet vars;
     atom_->vars(vars);
     erase_if(vars, [&bound](auto const &var) { return !bound[var]; });
-    return std::make_unique<DummyMatcher>(*base_, *atom_, vars.release());
+    return std::make_unique<DummyMatcher>(*base_, *atom_, vars.release(), type);
 }
 
 auto LitSymbolic::score(std::vector<bool> const &bound) const -> double {
