@@ -177,6 +177,10 @@ void StmRule::propagate(Queue &queue) {
     static_cast<void>(queue);
     // Consider adding the propagation to the instantiator...
     std::cerr << "implement me: StmRule::propagate\n";
+    std::cerr << "  " << *this << "\n";
+    for (auto const &idx : indices_) {
+        std::cerr << "  propagate index: " << idx << "\n";
+    }
 }
 
 } // namespace Gringo::Ground
