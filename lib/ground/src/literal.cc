@@ -7,6 +7,72 @@
 
 namespace Gringo::Ground {
 
+namespace {
+
+class NonFactMatcher : public Matcher {
+  public:
+    NonFactMatcher(Base const &base, Term const &term) : base_{&base}, term_{&term} {}
+    void init(size_t gen) override { base_->update(gen); }
+    void match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) override { matched_ = false; }
+    auto next(SymbolStore &store, Assignment &ass) -> bool override {
+        if (!matched_) {
+            matched_ = true;
+            auto sym = term_->eval(store, ass);
+            return !sym || !base_->is_fact(*sym);
+        }
+        return false;
+    }
+
+  private:
+    Base const *base_;
+    Term const *term_;
+    bool matched_ = false;
+};
+
+// TODO: this matcher is inefficient
+// - However, matching like this is still a good idea for atoms of form
+//   p(X,Y,Z) if no variables are bound.
+// - Another interesting case is if all atoms are bound, then we can simply
+//   lookup the symbol in the domain.
+// - Otherwise, a lookup table should be build traversing the atoms in the
+//   domain.
+class DummyMatcher : public Matcher {
+  public:
+    DummyMatcher(Base const &base, Term const &term, VariableVec free, MatcherType type)
+        : base_{&base}, term_{&term}, free_{std::move(free)}, type_{type} {}
+    void init(size_t gen) override { base_->update(gen); }
+    void match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) override {
+        current_ = base_->begin(type_);
+        std::cerr << "match " << *term_ << " in range [" << base_->begin(type_) << "," << base_->end(type_) << "]\n";
+    }
+    auto next(SymbolStore &store, Assignment &ass) -> bool override {
+        // TODO: take into consideration type
+        for (auto n = base_->end(type_); current_ < n;) {
+            // unbind variables
+            for (auto const &var : free_) {
+                ass[var] = std::nullopt;
+            }
+            // match symbol and term
+            std::cerr << "matching " << *term_ << " and " << base_->nth(current_)->first << ":";
+            if (term_->match(store, base_->nth(current_++)->first, ass)) {
+                std::cerr << " true\n";
+                return true;
+            }
+            std::cerr << " false\n";
+        }
+        return false;
+    }
+
+  private:
+    Base const *base_;
+    Term const *term_;
+    VariableVec free_;
+    MatcherType type_;
+    size_t current_ = 0;
+};
+
+} // namespace
+
 auto operator<<(std::ostream &out, Sign sign) -> std::ostream & {
     switch (sign) {
         case Sign::none: {
@@ -72,64 +138,9 @@ void LitSymbolic::vars(VariableSet &vars, VarSelectMode mode) const {
 
 auto LitSymbolic::matcher(MatcherType type, std::vector<bool> const &bound)
     -> std::pair<UMatcher, std::optional<size_t>> {
-    // TODO:
-    // - distinguish matcher types
-    // - the first matcher can just iterate over the base to do the matching
-    // - to construct the matcher the bound variables are still missing
-    // - how to track new/old/all generations:
-    //   - before accessing a domain we update the generation
-    //     - this has the advantage of storing limits/generations only once
-    //     - if the current generation is equal to generation:
-    //       - do nothing
-    //     - if the current generation is equal to generation - 1:
-    //       - limit of the old generation is the previous all limit
-    //       - limit of the all generation is the current domain size
-    //       - update current generation
-    //     - if the current generation is less than generation - 1:
-    //       - limits of the old and all generations is the current domain size
-    //       - update current generation
-    //   - the above has to be performed when
-    //     - accessing the limits
-    //     - adding symbols to the base
-    // - matchers track offsets of atoms in the base, they can determine old/new/all based on the old/all limits
-    class DummyMatcher : public Matcher {
-      public:
-        DummyMatcher(Base const &base, Term const &term, VariableVec free, MatcherType type)
-            : base_{&base}, term_{&term}, free_{std::move(free)}, type_{type} {}
-        void init(size_t gen) override { base_->update(gen); }
-        void match(SymbolStore &store, Assignment &ass) override {
-            // TODO: consider removing arguments
-            static_cast<void>(ass);
-            static_cast<void>(store);
-            current_ = base_->begin(type_);
-            std::cerr << "match " << *term_ << " in range [" << base_->begin(type_) << "," << base_->end(type_)
-                      << "]\n";
-        }
-        auto next(SymbolStore &store, Assignment &ass) -> bool override {
-            // TODO: take into consideration type
-            for (auto n = base_->end(type_); current_ < n;) {
-                // unbind variables
-                for (auto const &var : free_) {
-                    ass[var] = std::nullopt;
-                }
-                // match symbol and term
-                std::cerr << "matching " << *term_ << " and " << base_->nth(current_)->first << ":";
-                if (term_->match(store, base_->nth(current_++)->first, ass)) {
-                    std::cerr << " true\n";
-                    return true;
-                }
-                std::cerr << " false\n";
-            }
-            return false;
-        }
-
-      private:
-        Base const *base_;
-        Term const *term_;
-        VariableVec free_;
-        MatcherType type_;
-        size_t current_ = 0;
-    };
+    if (sign_ == Sign::once) {
+        return {std::make_unique<NonFactMatcher>(*base_, *atom_), std::nullopt};
+    }
     std::cerr << "todo create a proper matcher\n";
     VariableSet vars;
     atom_->vars(vars);

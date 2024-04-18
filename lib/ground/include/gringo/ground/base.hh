@@ -120,6 +120,14 @@ class Base {
         }
         return all_offset_;
     }
+    //! Check if the given atom is a fact.
+    //!
+    //! This function does not take into account to which generation an atom belongs.
+    //! It can also return true for atoms added to upcoming generations.
+    auto is_fact(Symbol sym) const -> bool {
+        auto it = atoms_.find(sym);
+        return it != atoms_.end() && it->second.state == AtomState::fact;
+    }
     auto nth(size_t i) const -> Util::ordered_map<Symbol, AtomInfo>::const_iterator { return atoms_.nth(i); }
     auto nth(size_t i) -> Util::ordered_map<Symbol, AtomInfo>::iterator { return atoms_.nth(i); }
 
