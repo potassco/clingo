@@ -3,13 +3,10 @@
 #include <gringo/util/print.hh>
 #include <gringo/util/unordered_map.hh>
 
-// TODO:
-#include <iostream>
-
 namespace Gringo::Ground {
 
-void Linearizer::start(InstantiatorVec &insts, bool domain) {
-    insts_ = &insts;
+void Linearizer::start(Queue &queue, bool domain) {
+    iqueue_ = &queue;
     domain_ = domain;
 }
 
@@ -40,10 +37,10 @@ void Linearizer::prepare(Stm &stm) {
             todos_.back()[i] = MatcherType::old_atoms;
         }
     }
-    insts_->reserve(insts_->size() + todos_.size());
     build_(body);
     for (auto const &todo : todos_) {
-        insts_->emplace_back(order_(stm, todo, important, body));
+        auto [inst, index] = order_(stm, todo, important, body);
+        iqueue_->insert(std::move(inst), index);
     }
 }
 
@@ -79,7 +76,7 @@ void Linearizer::build_(ULitVec const &lits) {
 }
 
 auto Linearizer::order_(InstanceCallback &cb, std::vector<MatcherType> const &todo, VariableSet const &important,
-                        ULitVec const &lits) -> Instantiator {
+                        ULitVec const &lits) -> std::pair<Instantiator, std::optional<size_t>> {
     auto inst = Instantiator{cb, var_map_.size(), lits.size()};
     size_t gen = 0;
     queue_.clear();
@@ -103,6 +100,7 @@ auto Linearizer::order_(InstanceCallback &cb, std::vector<MatcherType> const &to
     auto done = Util::unordered_set<Lit const *>{};
     auto bound = std::vector<bool>(var_map_.size(), false);
     done.reserve(lits.size());
+    auto res_index = std::optional<size_t>{};
     while (!queue_.empty()) {
         // get minimum element in queue (breaking ties using insertion order)
         auto pred = [&](auto const &ei, auto const &ej) -> bool {
@@ -123,7 +121,11 @@ auto Linearizer::order_(InstanceCallback &cb, std::vector<MatcherType> const &to
         if (!done.emplace(lits[i].get()).second && todo[i] == MatcherType::all_atoms) {
             continue;
         }
-        inst.add(lits[i]->matcher(todo[i], bound), make_depend(std::get<1>(lit_map_[i])));
+        auto [matcher, index] = lits[i]->matcher(todo[i], bound);
+        if (index) {
+            res_index = index;
+        }
+        inst.add(std::move(matcher), make_depend(std::get<1>(lit_map_[i])));
         for (auto var : std::get<2>(lit_map_[i])) {
             if (bound[var]) {
                 continue;
@@ -139,7 +141,7 @@ auto Linearizer::order_(InstanceCallback &cb, std::vector<MatcherType> const &to
         }
     }
     inst.finalize(make_depend(important));
-    return inst;
+    return {std::move(inst), res_index};
 }
 
 void StmRule::print(std::ostream &out) const {
@@ -167,19 +169,17 @@ void StmRule::init(size_t gen) {
 void StmRule::report(SymbolStore &store, Assignment const &ass) {
     if (head_) {
         if (auto atom = head_->eval(store, ass); atom) {
-            std::cerr << "add to domain: " << *atom << "\n";
             base_->add(*atom, AtomState::unknown);
         }
     }
 }
 
 void StmRule::propagate(Queue &queue) {
-    static_cast<void>(queue);
     // Consider adding the propagation to the instantiator...
-    std::cerr << "implement me: StmRule::propagate\n";
-    std::cerr << "  " << *this << "\n";
-    for (auto const &idx : indices_) {
-        std::cerr << "  propagate index: " << idx << "\n";
+    if (base_->has_update()) {
+        for (auto const &idx : indices_) {
+            queue.propagate(idx);
+        }
     }
 }
 

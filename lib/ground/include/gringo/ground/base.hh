@@ -86,7 +86,7 @@ class Base {
     void update(size_t generation) const {
         // initialize the domain
         // (all atoms are marked as new)
-        if (generation_ == 0) {
+        if (generation == 0) {
             generation_ = 0;
             old_offset_ = 0;
             all_offset_ = atoms_.size();
@@ -106,8 +106,8 @@ class Base {
         }
     }
 
-    // TODO: consider type
     auto atoms() const -> std::span<Atom const> { return {atoms_.values_container().data(), all_offset_}; }
+    auto has_update() const -> bool { return atoms_.size() > all_offset_; }
     auto begin(MatcherType type) const -> size_t {
         if (type == MatcherType::new_atoms) {
             return old_offset_;

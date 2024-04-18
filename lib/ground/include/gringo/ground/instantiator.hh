@@ -77,7 +77,7 @@ class Instantiator {
     //! Assignments are reported via the InstanceCallback.
     void instantiate(SymbolStore &store);
     //! Add instantiators that need grounding to queue.
-    void propagate(Queue &queue) { icb_->propagate(queue); }
+    void propagate(Queue &queue);
     //! The priority of the instantiator.
     [[nodiscard]] auto priority() const { return icb_->priority(); }
 
@@ -111,12 +111,18 @@ using InstantiatorVec = std::vector<Instantiator>;
 class Queue {
   public:
     Queue() = default;
-    //! Add an instantiator to the queue.
-    void add(Instantiator &inst);
+    //! Register an instantiator with the queue.
+    void insert(Instantiator inst, std::optional<size_t> index);
+    void propagate(size_t index);
     //! Process previously enqueued instantiators.
     void process(SymbolStore &store);
 
   private:
+    //! Append an instantiator to the queue.
+    void enter_(size_t i);
+
+    std::vector<Instantiator> insts_;
+    std::vector<std::vector<size_t>> update_;
     std::array<std::vector<Instantiator *>, 3> queues_;
     size_t size_ = 0;
 };

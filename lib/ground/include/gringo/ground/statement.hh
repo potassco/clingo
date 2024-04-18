@@ -24,7 +24,7 @@ using UStmVec = std::vector<UStm>;
 class Linearizer {
   public:
     //! Indicate that a new domain is being prepared.
-    void start(InstantiatorVec &insts, bool domain);
+    void start(Queue &queue, bool domain);
     //! Prepare a statement for grounding.
     void prepare(Stm &stm);
 
@@ -33,9 +33,9 @@ class Linearizer {
     void build_(ULitVec const &lits);
     //! Create matchers for literals ordering them heuristically.
     auto order_(InstanceCallback &cb, std::vector<MatcherType> const &todo, VariableSet const &important,
-                ULitVec const &lits) -> Instantiator;
+                ULitVec const &lits) -> std::pair<Instantiator, std::optional<size_t>>;
 
-    InstantiatorVec *insts_ = nullptr;
+    Queue *iqueue_ = nullptr;
     std::vector<size_t> rec_;
     std::vector<std::vector<MatcherType>> todos_;
     std::vector<std::pair<size_t, size_t>> queue_;

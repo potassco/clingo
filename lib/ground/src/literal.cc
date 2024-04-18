@@ -70,7 +70,8 @@ void LitSymbolic::vars(VariableSet &vars, VarSelectMode mode) const {
     }
 }
 
-auto LitSymbolic::matcher(MatcherType type, std::vector<bool> const &bound) -> UMatcher {
+auto LitSymbolic::matcher(MatcherType type, std::vector<bool> const &bound)
+    -> std::pair<UMatcher, std::optional<size_t>> {
     // TODO:
     // - distinguish matcher types
     // - the first matcher can just iterate over the base to do the matching
@@ -101,6 +102,8 @@ auto LitSymbolic::matcher(MatcherType type, std::vector<bool> const &bound) -> U
             static_cast<void>(ass);
             static_cast<void>(store);
             current_ = base_->begin(type_);
+            std::cerr << "match " << *term_ << " in range [" << base_->begin(type_) << "," << base_->end(type_)
+                      << "]\n";
         }
         auto next(SymbolStore &store, Assignment &ass) -> bool override {
             // TODO: take into consideration type
@@ -130,8 +133,12 @@ auto LitSymbolic::matcher(MatcherType type, std::vector<bool> const &bound) -> U
     std::cerr << "todo create a proper matcher\n";
     VariableSet vars;
     atom_->vars(vars);
-    erase_if(vars, [&bound](auto const &var) { return !bound[var]; });
-    return std::make_unique<DummyMatcher>(*base_, *atom_, vars.release(), type);
+    erase_if(vars, [&bound](auto const &var) { return bound[var]; });
+    auto index = std::optional<size_t>{};
+    if (index_ != std::numeric_limits<size_t>::max() && type == MatcherType::new_atoms) {
+        index = index_;
+    }
+    return {std::make_unique<DummyMatcher>(*base_, *atom_, vars.release(), type), index};
 }
 
 auto LitSymbolic::score(std::vector<bool> const &bound) const -> double {

@@ -404,16 +404,12 @@ struct Builder : Input::DependencyBuilder {
                     auto bld_stm = BuilderStm{&ctx};
                     std::visit(bld_stm, *stm);
                 }
-                auto insts = Ground::InstantiatorVec{};
-                lin.start(insts, test(gcomp.type(), Ground::ComponentType::domain));
+                auto queue = Ground::Queue{};
+                lin.start(queue, test(gcomp.type(), Ground::ComponentType::domain));
                 for (auto const &stm : gcomp.stms()) {
                     std::cerr << "  TODO: ground\n";
                     std::cerr << "    " << *stm << '\n';
                     lin.prepare(*stm);
-                }
-                auto queue = Ground::Queue{};
-                for (auto &inst : insts) {
-                    queue.add(inst);
                 }
                 queue.process(*impl->store_);
             }

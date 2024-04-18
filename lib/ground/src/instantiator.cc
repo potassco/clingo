@@ -78,15 +78,39 @@ void Instantiator::instantiate(SymbolStore &store) {
     } while (it != ie);
 }
 
-void Queue::add(Instantiator &inst) {
+void Instantiator::propagate(Queue &queue) { icb_->propagate(queue); }
+
+void Queue::insert(Instantiator inst, std::optional<size_t> index) {
+    if (index) {
+        if (update_.size() <= *index) {
+            update_.resize(*index + 1);
+        }
+        update_[*index].emplace_back(insts_.size());
+    }
+    insts_.emplace_back(std::move(inst));
+}
+
+void Queue::enter_(size_t i) {
+    auto &inst = insts_[i];
     if (!inst.enqueue()) {
         queues_.at(inst.priority()).emplace_back(&inst);
         ++size_;
     }
 }
 
+void Queue::propagate(size_t index) {
+    if (index < update_.size()) {
+        for (auto i : update_[index]) {
+            enter_(i);
+        }
+    }
+}
+
 void Queue::process(SymbolStore &store) {
     // ground
+    for (auto i = size_t{0}; i < insts_.size(); ++i) {
+        enter_(i);
+    }
     auto current = std::vector<Instantiator *>{};
     for (auto gen = size_t{0}; size_ > 0; ++gen) {
         for (auto &queue : queues_) {
