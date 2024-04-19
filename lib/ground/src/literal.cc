@@ -9,14 +9,29 @@ namespace Gringo::Ground {
 
 namespace {
 
+class MatchOnce {
+  public:
+    MatchOnce() = default;
+    void reset() { matched_ = false; }
+    auto operator*() -> bool {
+        if (!matched_) {
+            matched_ = true;
+            return true;
+        }
+        return false;
+    }
+
+  private:
+    bool matched_ = false;
+};
+
 class NonFactMatcher : public Matcher {
   public:
     NonFactMatcher(Base const &base, Term const &term) : base_{&base}, term_{&term} {}
     void init(size_t gen) override { base_->update(gen); }
-    void match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) override { matched_ = false; }
+    void match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) override { once_.reset(); }
     auto next(SymbolStore &store, Assignment &ass) -> bool override {
-        if (!matched_) {
-            matched_ = true;
+        if (*once_) {
             auto sym = term_->eval(store, ass);
             return !sym || !base_->is_fact(*sym);
         }
@@ -26,7 +41,18 @@ class NonFactMatcher : public Matcher {
   private:
     Base const *base_;
     Term const *term_;
-    bool matched_ = false;
+    MatchOnce once_;
+};
+
+class OnceMatcher : public Matcher {
+  public:
+    OnceMatcher() = default;
+    void init([[maybe_unused]] size_t gen) override {}
+    void match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) override { once_.reset(); }
+    auto next([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) -> bool override { return *once_; }
+
+  private:
+    MatchOnce once_;
 };
 
 // TODO: this matcher is inefficient
@@ -140,6 +166,9 @@ auto LitSymbolic::matcher(MatcherType type, std::vector<bool> const &bound)
     -> std::pair<UMatcher, std::optional<size_t>> {
     if (sign_ == Sign::once) {
         return {std::make_unique<NonFactMatcher>(*base_, *atom_), std::nullopt};
+    }
+    if (sign_ == Sign::twice && index_ != std::numeric_limits<size_t>::max()) {
+        return {std::make_unique<OnceMatcher>(), std::nullopt};
     }
     std::cerr << "todo create a proper matcher\n";
     VariableSet vars;
