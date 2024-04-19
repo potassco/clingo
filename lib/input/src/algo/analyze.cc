@@ -371,6 +371,11 @@ auto check_linear(Term const &term) -> std::optional<LinearTerm> {
     return bin != nullptr && is_interval(*bin);
 }
 
+[[nodiscard]] auto is_external(Term const &term) -> bool {
+    auto const *fun = std::get_if<TermFunction>(&term);
+    return fun != nullptr && fun->external();
+}
+
 [[nodiscard]] auto is_interval(TermBinary const &term) -> bool { return term.op() == BinaryOperator::dots; }
 
 [[nodiscard]] auto always_numeric(Term const &term) -> bool { return AlwaysNumeric{}(term); }

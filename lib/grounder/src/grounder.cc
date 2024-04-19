@@ -237,8 +237,24 @@ struct BuildContext {
 };
 
 struct BuilderLit {
-    template <class T> auto operator()([[maybe_unused]] T const &lit) const -> Ground::ULit {
-        throw std::logic_error("implement me!!!");
+    auto operator()(Input::LitBool const &lit) const -> Ground::ULit {
+        static_cast<void>(lit);
+        throw std::logic_error("literal boolean: implement me!!!");
+    }
+    auto operator()(Input::LitComparison const &lit) const -> Ground::ULit {
+        auto has_projection = false;
+        auto bld_term = BuilderTerm{&has_projection, ctx->var_map};
+        if (Input::is_interval(lit.rhs().front().second)) {
+            throw std::logic_error("literal comparison is interval: implement me!!!");
+        }
+        if (Input::is_interval(lit.rhs().front().second)) {
+            throw std::logic_error("literal comparison is external: implement me!!!");
+        }
+        auto lhs = std::visit(bld_term, lit.lhs());
+        auto rhs = std::visit(bld_term, lit.rhs().front().second);
+        std::cerr << "TODO: somehow both directions have to be handled!!!\n";
+        return std::make_unique<Ground::LitComparison>(
+            std::move(lhs), static_cast<Ground::Relation>(lit.rhs().front().first), std::move(rhs));
     }
     auto operator()(Input::LitSymbolic const &lit) const -> Ground::ULit {
         auto has_projection = false;
@@ -268,7 +284,7 @@ struct BuilderLit {
 
 struct BuilderHdLit {
     template <class T> void operator()([[maybe_unused]] T const &lit) const {
-        throw std::logic_error("implement me!!!");
+        throw std::logic_error("head literal: implement me!!!");
     }
     void operator()(Input::HdLitSimple const &lit) const {
         std::vector<size_t> provides;
@@ -379,9 +395,9 @@ struct Builder : Input::DependencyBuilder {
     void components(Input::Components const &comps) override {
         auto lin = Ground::Linearizer{};
         for (auto const &ref_comps : comps) {
-            std::cerr << "% component\n";
+            GRINGO_REPORT(*impl->log_, debug) << "  component";
             for (auto const &ref_comp : ref_comps) {
-                std::cerr << "% refined component\n";
+                GRINGO_REPORT(*impl->log_, debug) << "    refined component";
                 auto gcomp = Ground::Component{static_cast<Ground::ComponentType>(ref_comp.type)};
                 for (auto const &stm : ref_comp.stms) {
                     Util::unordered_map<String, size_t> var_map;
@@ -407,8 +423,7 @@ struct Builder : Input::DependencyBuilder {
                 auto queue = Ground::Queue{};
                 lin.start(queue, test(gcomp.type(), Ground::ComponentType::domain));
                 for (auto const &stm : gcomp.stms()) {
-                    std::cerr << "  TODO: ground\n";
-                    std::cerr << "    " << *stm << '\n';
+                    GRINGO_REPORT(*impl->log_, debug) << "      " << *stm << "\n";
                     lin.prepare(*stm);
                 }
                 queue.process(*impl->store_);

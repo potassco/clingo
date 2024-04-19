@@ -16,6 +16,16 @@ enum class Sign {
 };
 auto operator<<(std::ostream &out, Sign sign) -> std::ostream &;
 
+enum class Relation {
+    equal,         //!< The equal to symbol (=).
+    not_equal,     //!< The not equal to symbol (!=).
+    less,          //!< The less than symbol (<).
+    less_equal,    //!< The less than or equal to symbol (<=).
+    greater,       //!< The greater than symbol (>).
+    greater_equal, //!< The greater than or equal to symbol (>=).
+};
+auto operator<<(std::ostream &out, Relation rel) -> std::ostream &;
+
 enum class VarSelectMode {
     depend = 1,
     provide = 2,
@@ -46,6 +56,9 @@ class Lit {
     [[nodiscard]] virtual auto score(std::vector<bool> const &bound) const -> double = 0;
 
     virtual void print(std::ostream &out) const = 0;
+    // Note: I did not make up my mind how to handle the text output yet
+    // It might get it's own representation or a way to be output directly to a stream.
+    virtual void output(SymbolStore &store, Assignment const &ass, std::ostream &out) const = 0;
 
     [[nodiscard]] virtual auto hash() const -> size_t = 0;
     [[nodiscard]] virtual auto equal_to(Lit const &other) const -> bool = 0;
@@ -61,6 +74,30 @@ class Lit {
 using ULit = std::unique_ptr<Lit>;
 using ULitVec = std::vector<ULit>;
 
+class LitComparison : public Lit {
+  public:
+    LitComparison(UTerm lhs, Relation cmp, UTerm rhs) : lhs_{std::move(lhs)}, rhs_{std::move(rhs)}, cmp_{cmp} {}
+
+    void vars(VariableSet &vars, VarSelectMode mode) const override;
+    [[nodiscard]] auto domain(bool domain) const -> bool override;
+    [[nodiscard]] auto recursive() const -> bool override;
+    [[nodiscard]] auto matcher(MatcherType type, std::vector<bool> const &bound)
+        -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto score(std::vector<bool> const &bound) const -> double override;
+
+    void print(std::ostream &out) const override;
+    void output(SymbolStore &store, Assignment const &ass, std::ostream &out) const override;
+
+    [[nodiscard]] auto hash() const -> size_t override;
+    [[nodiscard]] auto equal_to(Lit const &other) const -> bool override;
+    [[nodiscard]] auto compare_to(Lit const &other) const -> std::weak_ordering override;
+
+  private:
+    UTerm lhs_;
+    UTerm rhs_;
+    Relation cmp_;
+};
+
 class LitSymbolic : public Lit {
   public:
     LitSymbolic(Base &base, Sign sign, UTerm atom, size_t index)
@@ -74,6 +111,7 @@ class LitSymbolic : public Lit {
     [[nodiscard]] auto score(std::vector<bool> const &bound) const -> double override;
 
     void print(std::ostream &out) const override;
+    void output(SymbolStore &store, Assignment const &ass, std::ostream &out) const override;
 
     [[nodiscard]] auto hash() const -> size_t override;
     [[nodiscard]] auto equal_to(Lit const &other) const -> bool override;

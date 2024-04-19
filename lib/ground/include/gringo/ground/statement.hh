@@ -9,6 +9,7 @@ namespace Gringo::Ground {
 class Stm : public InstanceCallback {
   public:
     virtual void print(std::ostream &out) const = 0;
+    virtual void output(SymbolStore &store, Assignment const &ass, std::ostream &out) const = 0;
     [[nodiscard]] virtual auto body() const -> ULitVec const & = 0;
     [[nodiscard]] virtual auto important() const -> VariableSet = 0;
     friend auto operator<<(std::ostream &out, Stm const &stm) -> std::ostream & {
@@ -52,6 +53,8 @@ class StmRule : public Stm {
         : head_{std::move(head)}, base_{base}, indices_{std::move(indices)}, body_{std::move(body)} {}
     // Stm interface
     void print(std::ostream &out) const override;
+    void output(SymbolStore &store, Assignment const &ass, std::ostream &out) const override;
+
     [[nodiscard]] auto body() const -> ULitVec const & override;
     [[nodiscard]] auto important() const -> VariableSet override;
     // InstanceCallback interface

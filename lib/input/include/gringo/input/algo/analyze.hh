@@ -78,6 +78,9 @@ auto check_linear(Term const &term) -> std::optional<LinearTerm>;
 //! Returns true if the term has form t..u.
 [[nodiscard]] auto is_interval(Term const &term) -> bool;
 
+//! Returns true if the term has form @f(...).
+[[nodiscard]] auto is_external(Term const &term) -> bool;
+
 //! See is_interval().
 [[nodiscard]] auto is_interval(TermBinary const &term) -> bool;
 

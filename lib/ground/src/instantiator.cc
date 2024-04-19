@@ -2,6 +2,8 @@
 
 #include <gringo/util/checked_math.hh>
 
+#include <iostream>
+
 namespace Gringo::Ground {
 
 void Instantiator::BackjumpMatcher::init(size_t gen) { matcher_->init(gen); }
@@ -63,18 +65,25 @@ void Instantiator::instantiate(SymbolStore &store) {
     auto ib = matchers_.rbegin();
     it->match(store, ass_);
     do {
+        // std::cerr << "***start at " << std::distance(it, ie) - 1 << "\n";
         if (it->next(store, ass_)) {
             for (--it; it->first(store, ass_); --it) {
             }
+            // std::cerr << "***advanced to " << std::distance(it, ie) - 1 << "\n";
         }
         if (it == ib) {
+            // std::cerr << "***solution";
             icb_->report(store, ass_);
         }
+        // std::cerr << "***block";
         for (auto idx : it->depend()) {
+            // std::cerr << " " << idx;
             matchers_[idx].block();
         }
+        // std::cerr << "\n";
         for (++it; it != ie && it->backjumpable(); ++it) {
         }
+        // std::cerr << "***backjumped to " << std::distance(it, ie) - 1 << "\n";
     } while (it != ie);
 }
 

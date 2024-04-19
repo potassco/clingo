@@ -3,12 +3,17 @@
 #include <gringo/util/print.hh>
 #include <gringo/util/unordered_map.hh>
 
+// TODO:
+#include <iostream>
+
 namespace Gringo::Ground {
 
 void Linearizer::start(Queue &queue, bool domain) {
     iqueue_ = &queue;
     domain_ = domain;
 }
+
+#ifndef __clang_analyzer__
 
 void Linearizer::prepare(Stm &stm) {
     rec_.clear();
@@ -89,16 +94,23 @@ auto Linearizer::order_(InstanceCallback &cb, std::vector<MatcherType> const &to
         ++i;
     }
     auto provided = std::vector<size_t>(var_map_.size(), 0);
-    auto make_depend = [&provided](auto const &vars) {
-        auto dep = std::vector<size_t>{};
-        for (auto var : vars) {
-            dep.emplace_back(provided[var]);
+    auto bound = std::vector<bool>(var_map_.size(), false);
+    auto make_depend = [&provided, &bound](auto const &dep, auto const &prv) {
+        auto res = std::vector<size_t>{};
+        for (auto var : dep) {
+            res.emplace_back(provided[var]);
         }
-        return dep;
+        for (auto var : prv) {
+            if (bound[var]) {
+                res.emplace_back(provided[var]);
+            }
+        }
+        std::sort(res.begin(), res.end());
+        res.erase(std::unique(res.begin(), res.end()), res.end());
+        return res;
     };
     // proceess the queue
     auto done = Util::unordered_set<Lit const *>{};
-    auto bound = std::vector<bool>(var_map_.size(), false);
     done.reserve(lits.size());
     auto res_index = std::optional<size_t>{};
     while (!queue_.empty()) {
@@ -125,8 +137,9 @@ auto Linearizer::order_(InstanceCallback &cb, std::vector<MatcherType> const &to
         if (index) {
             res_index = index;
         }
-        inst.add(std::move(matcher), make_depend(std::get<1>(lit_map_[i])));
-        for (auto var : std::get<2>(lit_map_[i])) {
+        auto const &[cur, dep, prv] = lit_map_[i];
+        inst.add(std::move(matcher), make_depend(dep, prv));
+        for (auto var : prv) {
             if (bound[var]) {
                 continue;
             }
@@ -140,9 +153,11 @@ auto Linearizer::order_(InstanceCallback &cb, std::vector<MatcherType> const &to
             bound[var] = true;
         }
     }
-    inst.finalize(make_depend(important));
+    inst.finalize(make_depend(important, std::vector<size_t>{}));
     return {std::move(inst), res_index};
 }
+
+#endif
 
 void StmRule::print(std::ostream &out) const {
     out << *head_;
@@ -150,6 +165,25 @@ void StmRule::print(std::ostream &out) const {
         out << "[" << Util::p_range(indices_, ",") << "]";
     }
     out << " :- " << Util::p_range(body_, ", ", [](auto const &lit) -> decltype(auto) { return *lit; }) << ".";
+}
+
+void StmRule::output(SymbolStore &store, Assignment const &ass, std::ostream &out) const {
+    if (head_ != nullptr) {
+        if (auto atom = head_->eval(store, ass); atom) {
+            out << *atom;
+        }
+    }
+    out << " :- ";
+    bool comma = false;
+    for (auto const &lit : body_) {
+        if (comma) {
+            out << "; ";
+        } else {
+            comma = true;
+        }
+        lit->output(store, ass, out);
+    }
+    out << ".\n";
 }
 
 auto StmRule::body() const -> ULitVec const & { return body_; }
@@ -167,11 +201,13 @@ void StmRule::init(size_t gen) {
 }
 
 void StmRule::report(SymbolStore &store, Assignment const &ass) {
-    if (head_) {
+    if (head_ != nullptr) {
+        // TODO: properly determine the type of the atom
         if (auto atom = head_->eval(store, ass); atom) {
             base_->add(*atom, AtomState::unknown);
         }
     }
+    output(store, ass, std::cerr);
 }
 
 void StmRule::propagate(Queue &queue) {

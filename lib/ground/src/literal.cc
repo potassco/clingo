@@ -2,57 +2,108 @@
 
 #include <typeindex>
 
-// TODO
 #include <iostream>
 
 namespace Gringo::Ground {
 
 namespace {
 
-class MatchOnce {
+class OnceMatcher : public Matcher {
   public:
-    MatchOnce() = default;
-    void reset() { matched_ = false; }
-    auto operator*() -> bool {
-        if (!matched_) {
-            matched_ = true;
-            return true;
+    OnceMatcher() = default;
+    virtual auto do_match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) -> bool {
+        return true;
+    }
+    void init([[maybe_unused]] size_t gen) override {}
+    void match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) override { match_ = true; }
+    auto next(SymbolStore &store, Assignment &ass) -> bool override {
+        if (match_) {
+            match_ = false;
+            return do_match(store, ass);
         }
         return false;
     }
 
   private:
-    bool matched_ = false;
+    bool match_ = false;
 };
 
-class NonFactMatcher : public Matcher {
+class CmpMatcher : public OnceMatcher {
+  public:
+    CmpMatcher(Term const &lhs, Relation cmp, Term const &rhs) : lhs_{&lhs}, rhs_{&rhs}, cmp_{cmp} {}
+    auto do_match(SymbolStore &store, Assignment &ass) -> bool override {
+        // std::cerr << "doing a cmp match: " << *lhs_ << " " << cmp_ << " " << *rhs_ << "\n";
+        auto lhs = lhs_->eval(store, ass);
+        if (!lhs) {
+            return false;
+        }
+        auto rhs = rhs_->eval(store, ass);
+        if (!rhs) {
+            return false;
+        }
+        switch (cmp_) {
+            case Relation::equal: {
+                return *lhs == *rhs;
+            }
+            case Relation::greater: {
+                return *lhs > *rhs;
+            }
+            case Relation::greater_equal: {
+                return *lhs >= *rhs;
+            }
+            case Relation::less: {
+                return *lhs < *rhs;
+            }
+            case Relation::less_equal: {
+                return *lhs <= *rhs;
+            }
+            case Relation::not_equal: {
+                return *lhs != *rhs;
+            }
+        }
+        return false;
+    }
+
+  private:
+    Term const *lhs_;
+    Term const *rhs_;
+    Relation cmp_;
+};
+
+class AssignMatcher : public OnceMatcher {
+  public:
+    AssignMatcher(Term const &lhs, Term const &rhs, VariableVec free)
+        : lhs_{&lhs}, rhs_{&rhs}, free_{std::move(free)} {}
+    auto do_match(SymbolStore &store, Assignment &ass) -> bool override {
+        // unbind variables
+        for (auto const &var : free_) {
+            ass[var] = std::nullopt;
+        }
+        auto rhs = rhs_->eval(store, ass);
+        // if (rhs) {
+        //     std::cerr << "matching: " << *lhs_ << " and " << *rhs << "\n";
+        // }
+        return rhs && lhs_->match(store, *rhs, ass);
+    }
+
+  private:
+    Term const *lhs_;
+    Term const *rhs_;
+    VariableVec free_;
+};
+
+class NonFactMatcher : public OnceMatcher {
   public:
     NonFactMatcher(Base const &base, Term const &term) : base_{&base}, term_{&term} {}
     void init(size_t gen) override { base_->update(gen); }
-    void match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) override { once_.reset(); }
-    auto next(SymbolStore &store, Assignment &ass) -> bool override {
-        if (*once_) {
-            auto sym = term_->eval(store, ass);
-            return !sym || !base_->is_fact(*sym);
-        }
-        return false;
+    auto do_match(SymbolStore &store, Assignment &ass) -> bool override {
+        auto sym = term_->eval(store, ass);
+        return !sym || !base_->is_fact(*sym);
     }
 
   private:
     Base const *base_;
     Term const *term_;
-    MatchOnce once_;
-};
-
-class OnceMatcher : public Matcher {
-  public:
-    OnceMatcher() = default;
-    void init([[maybe_unused]] size_t gen) override {}
-    void match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) override { once_.reset(); }
-    auto next([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) -> bool override { return *once_; }
-
-  private:
-    MatchOnce once_;
 };
 
 // TODO: this matcher is inefficient
@@ -69,22 +120,19 @@ class DummyMatcher : public Matcher {
     void init(size_t gen) override { base_->update(gen); }
     void match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) override {
         current_ = base_->begin(type_);
-        std::cerr << "match " << *term_ << " in range [" << base_->begin(type_) << "," << base_->end(type_) << "]\n";
+        // std::cerr << "matching: " << *term_ << " in range " << current_ << "-" << base_->end(type_) << "\n";
     }
     auto next(SymbolStore &store, Assignment &ass) -> bool override {
-        // TODO: take into consideration type
         for (auto n = base_->end(type_); current_ < n;) {
-            // unbind variables
+            // std::cerr << "matching: " << *term_ << " and " << base_->nth(current_)->first << "\n";
+            //  unbind variables
             for (auto const &var : free_) {
                 ass[var] = std::nullopt;
             }
             // match symbol and term
-            std::cerr << "matching " << *term_ << " and " << base_->nth(current_)->first << ":";
             if (term_->match(store, base_->nth(current_++)->first, ass)) {
-                std::cerr << " true\n";
                 return true;
             }
-            std::cerr << " false\n";
         }
         return false;
     }
@@ -116,10 +164,134 @@ auto operator<<(std::ostream &out, Sign sign) -> std::ostream & {
     return out;
 }
 
+auto operator<<(std::ostream &out, Relation rel) -> std::ostream & {
+    switch (rel) {
+        case Relation::equal: {
+            out << "=";
+            break;
+        }
+        case Relation::greater: {
+            out << ">";
+            break;
+        }
+        case Relation::greater_equal: {
+            out << ">=";
+            break;
+        }
+        case Relation::less: {
+            out << "<";
+            break;
+        }
+        case Relation::less_equal: {
+            out << "<=";
+            break;
+        }
+        case Relation::not_equal: {
+            out << "!=";
+            break;
+        }
+    }
+    return out;
+}
+
+void LitComparison::print(std::ostream &out) const { out << *lhs_ << cmp_ << *rhs_; }
+
+void LitComparison::output(SymbolStore &store, Assignment const &ass, std::ostream &out) const {
+    if (auto lhs = lhs_->eval(store, ass), rhs = rhs_->eval(store, ass); lhs && rhs) {
+        out << *lhs << cmp_ << *rhs;
+    } else {
+        out << "#false";
+    }
+}
+
+auto LitComparison::domain([[maybe_unused]] bool domain) const -> bool { return true; }
+
+auto LitComparison::recursive() const -> bool { return false; }
+
+void LitComparison::vars(VariableSet &vars, VarSelectMode mode) const {
+    if (cmp_ != Relation::equal) {
+        mode = VarSelectMode::all;
+    }
+    switch (mode) {
+        case VarSelectMode::all: {
+            lhs_->vars(vars);
+            rhs_->vars(vars);
+            break;
+        }
+        case VarSelectMode::provide: {
+            lhs_->vars(vars, true);
+            break;
+        }
+        case VarSelectMode::depend: {
+            // Note: the rewriting ensures that if variables can be provided,
+            //       then all of them can be provided.
+            VariableSet provide;
+            lhs_->vars(provide, true);
+            if (provide.empty()) {
+                lhs_->vars(vars);
+            }
+            rhs_->vars(vars);
+            break;
+        }
+    }
+}
+
+auto LitComparison::matcher([[maybe_unused]] MatcherType type, [[maybe_unused]] std::vector<bool> const &bound)
+    -> std::pair<UMatcher, std::optional<size_t>> {
+    if (cmp_ == Relation::equal) {
+        VariableSet vars;
+        lhs_->vars(vars, true);
+        erase_if(vars, [&bound](auto const &var) { return bound[var]; });
+        if (!vars.empty()) {
+            return {std::make_unique<AssignMatcher>(*lhs_, *rhs_, vars.release()), std::nullopt};
+        }
+    }
+    return {std::make_unique<CmpMatcher>(*lhs_, cmp_, *rhs_), std::nullopt};
+}
+
+auto LitComparison::score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return 0; }
+
+auto LitComparison::hash() const -> size_t {
+    if (cmp_ == Relation::equal && *rhs_ < *lhs_) {
+        return Util::value_hash_record<LitComparison>(rhs_, cmp_, lhs_);
+    }
+    return Util::value_hash_record<LitComparison>(lhs_, cmp_, rhs_);
+}
+
+auto LitComparison::equal_to(Lit const &other) const -> bool {
+    auto const *x = dynamic_cast<LitComparison const *>(&other);
+    if (x != nullptr) {
+        if (cmp_ == Relation::equal && x->cmp_ == Relation::equal && (*rhs_ < *lhs_ != *x->rhs_ < *x->lhs_)) {
+            return std::tie(lhs_, rhs_) == std::tie(x->rhs_, x->lhs_);
+        }
+        return std::tie(lhs_, cmp_, rhs_) == std::tie(x->lhs_, x->cmp_, x->rhs_);
+    }
+    return false;
+}
+
+auto LitComparison::compare_to(Lit const &other) const -> std::weak_ordering {
+    auto const *x = dynamic_cast<LitComparison const *>(&other);
+    if (x != nullptr) {
+        if (cmp_ == Relation::equal && x->cmp_ == Relation::equal && (*rhs_ < *lhs_ != *x->rhs_ < *x->lhs_)) {
+            return std::tie(lhs_, rhs_) <=> std::tie(x->rhs_, x->lhs_);
+        }
+        return std::tie(lhs_, cmp_, rhs_) <=> std::tie(x->lhs_, x->cmp_, x->rhs_);
+    }
+    return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
+}
+
 void LitSymbolic::print(std::ostream &out) const {
     out << sign_ << *atom_;
     if (index_ != std::numeric_limits<size_t>::max()) {
         out << "[" << index_ << "]";
+    }
+}
+
+void LitSymbolic::output(SymbolStore &store, Assignment const &ass, std::ostream &out) const {
+    if (auto sym = atom_->eval(store, ass)) {
+        out << sign_ << *sym;
+    } else {
+        out << "#false";
     }
 }
 
@@ -170,7 +342,7 @@ auto LitSymbolic::matcher(MatcherType type, std::vector<bool> const &bound)
     if (sign_ == Sign::twice && index_ != std::numeric_limits<size_t>::max()) {
         return {std::make_unique<OnceMatcher>(), std::nullopt};
     }
-    std::cerr << "todo create a proper matcher\n";
+    // TODO: proper matcher creation
     VariableSet vars;
     atom_->vars(vars);
     erase_if(vars, [&bound](auto const &var) { return bound[var]; });
@@ -183,7 +355,7 @@ auto LitSymbolic::matcher(MatcherType type, std::vector<bool> const &bound)
 
 auto LitSymbolic::score(std::vector<bool> const &bound) const -> double {
     static_cast<void>(bound);
-    std::cerr << "todo proper score for literal\n";
+    // TODO: proper score computation
     return 2;
 }
 
