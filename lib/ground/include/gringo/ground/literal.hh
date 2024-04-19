@@ -58,7 +58,7 @@ class Lit {
     virtual void print(std::ostream &out) const = 0;
     // Note: I did not make up my mind how to handle the text output yet
     // It might get it's own representation or a way to be output directly to a stream.
-    virtual void output(SymbolStore &store, Assignment const &ass, std::ostream &out) const = 0;
+    virtual auto output(SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool = 0;
 
     [[nodiscard]] virtual auto hash() const -> size_t = 0;
     [[nodiscard]] virtual auto equal_to(Lit const &other) const -> bool = 0;
@@ -86,7 +86,7 @@ class LitComparison : public Lit {
     [[nodiscard]] auto score(std::vector<bool> const &bound) const -> double override;
 
     void print(std::ostream &out) const override;
-    void output(SymbolStore &store, Assignment const &ass, std::ostream &out) const override;
+    auto output(SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool override;
 
     [[nodiscard]] auto hash() const -> size_t override;
     [[nodiscard]] auto equal_to(Lit const &other) const -> bool override;
@@ -111,7 +111,7 @@ class LitInterval : public Lit {
     [[nodiscard]] auto score(std::vector<bool> const &bound) const -> double override;
 
     void print(std::ostream &out) const override;
-    void output(SymbolStore &store, Assignment const &ass, std::ostream &out) const override;
+    auto output(SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool override;
 
     [[nodiscard]] auto hash() const -> size_t override;
     [[nodiscard]] auto equal_to(Lit const &other) const -> bool override;
@@ -136,7 +136,7 @@ class LitSymbolic : public Lit {
     [[nodiscard]] auto score(std::vector<bool> const &bound) const -> double override;
 
     void print(std::ostream &out) const override;
-    void output(SymbolStore &store, Assignment const &ass, std::ostream &out) const override;
+    auto output(SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool override;
 
     [[nodiscard]] auto hash() const -> size_t override;
     [[nodiscard]] auto equal_to(Lit const &other) const -> bool override;

@@ -2,7 +2,7 @@
 
 #include <gringo/util/checked_math.hh>
 
-#include <iostream>
+// #include <iostream>
 
 namespace Gringo::Ground {
 
@@ -72,7 +72,7 @@ void Instantiator::instantiate(SymbolStore &store) {
             // std::cerr << "***advanced to " << std::distance(it, ie) - 1 << "\n";
         }
         if (it == ib) {
-            // std::cerr << "***solution";
+            // std::cerr << "***solution\n";
             icb_->report(store, ass_);
         }
         // std::cerr << "***block";

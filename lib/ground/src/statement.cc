@@ -5,6 +5,7 @@
 
 // TODO:
 #include <iostream>
+#include <sstream>
 
 namespace Gringo::Ground {
 
@@ -167,25 +168,6 @@ void StmRule::print(std::ostream &out) const {
     out << " :- " << Util::p_range(body_, ", ", [](auto const &lit) -> decltype(auto) { return *lit; }) << ".";
 }
 
-void StmRule::output(SymbolStore &store, Assignment const &ass, std::ostream &out) const {
-    if (head_ != nullptr) {
-        if (auto atom = head_->eval(store, ass); atom) {
-            out << *atom;
-        }
-    }
-    out << " :- ";
-    bool comma = false;
-    for (auto const &lit : body_) {
-        if (comma) {
-            out << "; ";
-        } else {
-            comma = true;
-        }
-        lit->output(store, ass, out);
-    }
-    out << ".\n";
-}
-
 auto StmRule::body() const -> ULitVec const & { return body_; }
 
 auto StmRule::important() const -> VariableSet {
@@ -201,13 +183,34 @@ void StmRule::init(size_t gen) {
 }
 
 void StmRule::report(SymbolStore &store, Assignment const &ass) {
-    if (head_ != nullptr) {
-        // TODO: properly determine the type of the atom
-        if (auto atom = head_->eval(store, ass); atom) {
-            base_->add(*atom, AtomState::unknown);
+    std::ostream &out = std::cerr;
+    bool fact = true;
+    std::ostringstream tmp_bd;
+    bool comma = false;
+    for (auto const &lit : body_) {
+        std::ostringstream tmp_lit;
+        if (lit->output(store, ass, tmp_lit)) {
+            fact = false;
+            if (comma) {
+                tmp_bd << "; ";
+            } else {
+                comma = true;
+            }
+            tmp_bd << tmp_lit.view();
         }
     }
-    output(store, ass, std::cerr);
+    if (head_ != nullptr) {
+        if (auto atom = head_->eval(store, ass); atom) {
+            base_->add(*atom, fact ? AtomState::fact : AtomState::unknown);
+            out << *atom;
+            if (!fact) {
+                out << " :- " << tmp_bd.view();
+            }
+            out << ".\n";
+        }
+    } else {
+        out << " :- " << tmp_bd.view() << ".\n";
+    }
 }
 
 void StmRule::propagate(Queue &queue) {

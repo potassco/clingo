@@ -117,7 +117,10 @@ class DummyMatcher : public Matcher {
   public:
     DummyMatcher(Base const &base, Term const &term, VariableVec free, MatcherType type)
         : base_{&base}, term_{&term}, free_{std::move(free)}, type_{type} {}
-    void init(size_t gen) override { base_->update(gen); }
+    void init(size_t gen) override {
+        // std::cerr << "set generation of " << *term_ << " to " << gen << "\n";
+        base_->update(gen);
+    }
     void match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) override {
         current_ = base_->begin(type_);
         // std::cerr << "matching: " << *term_ << " in range " << current_ << "-" << base_->end(type_) << "\n";
@@ -125,7 +128,7 @@ class DummyMatcher : public Matcher {
     auto next(SymbolStore &store, Assignment &ass) -> bool override {
         for (auto n = base_->end(type_); current_ < n;) {
             // std::cerr << "matching: " << *term_ << " and " << base_->nth(current_)->first << "\n";
-            //  unbind variables
+            // unbind variables
             for (auto const &var : free_) {
                 ass[var] = std::nullopt;
             }
@@ -240,15 +243,16 @@ auto operator<<(std::ostream &out, Relation rel) -> std::ostream & {
     return out;
 }
 
-void LitInterval::print(std::ostream &out) const { out << *lhs_ << "=" << *lower_ << ".." << upper_; }
+void LitInterval::print(std::ostream &out) const { out << *lhs_ << "=" << *lower_ << ".." << *upper_; }
 
-void LitInterval::output(SymbolStore &store, Assignment const &ass, std::ostream &out) const {
+auto LitInterval::output(SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool {
     if (auto lhs = lhs_->eval(store, ass), lower = lower_->eval(store, ass), upper = upper_->eval(store, ass);
         lhs && lower && upper) {
         out << *lower << "<=" << *lhs << "<=" << *upper;
     } else {
         out << "#false";
     }
+    return false;
 }
 
 auto LitInterval::domain([[maybe_unused]] bool domain) const -> bool { return true; }
@@ -309,12 +313,13 @@ auto LitInterval::compare_to(Lit const &other) const -> std::weak_ordering {
 
 void LitComparison::print(std::ostream &out) const { out << *lhs_ << cmp_ << *rhs_; }
 
-void LitComparison::output(SymbolStore &store, Assignment const &ass, std::ostream &out) const {
+auto LitComparison::output(SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool {
     if (auto lhs = lhs_->eval(store, ass), rhs = rhs_->eval(store, ass); lhs && rhs) {
         out << *lhs << cmp_ << *rhs;
     } else {
         out << "#false";
     }
+    return false;
 }
 
 auto LitComparison::domain([[maybe_unused]] bool domain) const -> bool { return true; }
@@ -400,12 +405,16 @@ void LitSymbolic::print(std::ostream &out) const {
     }
 }
 
-void LitSymbolic::output(SymbolStore &store, Assignment const &ass, std::ostream &out) const {
+auto LitSymbolic::output(SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool {
     if (auto sym = atom_->eval(store, ass)) {
         out << sign_ << *sym;
-    } else {
-        out << "#false";
+        if (sign_ == Sign::once) {
+            return index_ != std::numeric_limits<size_t>::max() || base_->contains(*sym);
+        }
+        return !base_->is_fact(*sym);
     }
+    out << "#false";
+    return true;
 }
 
 auto LitSymbolic::domain(bool domain) const -> bool {

@@ -41,7 +41,6 @@ enum class MatcherType { new_atoms, old_atoms, all_atoms };
 
 class Base {
   public:
-    [[nodiscard]] auto contains(Symbol const &sym) const -> bool;
     [[nodiscard]] auto operator[](size_t pos) -> Atom &;
     [[nodiscard]] auto operator[](size_t pos) const -> Atom const &;
     //! Check if the base is domain.
@@ -108,6 +107,7 @@ class Base {
 
     auto atoms() const -> std::span<Atom const> { return {atoms_.values_container().data(), all_offset_}; }
     auto has_update() const -> bool { return atoms_.size() > all_offset_; }
+    [[nodiscard]] auto contains(Symbol const &sym) const -> bool { return atoms_.find(sym) != atoms_.end(); }
     auto begin(MatcherType type) const -> size_t {
         if (type == MatcherType::new_atoms) {
             return old_offset_;
