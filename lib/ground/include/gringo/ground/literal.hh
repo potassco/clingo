@@ -98,6 +98,31 @@ class LitComparison : public Lit {
     Relation cmp_;
 };
 
+class LitInterval : public Lit {
+  public:
+    LitInterval(UTerm lhs, UTerm lower, UTerm upper)
+        : lhs_{std::move(lhs)}, lower_{std::move(lower)}, upper_{std::move(upper)} {}
+
+    void vars(VariableSet &vars, VarSelectMode mode) const override;
+    [[nodiscard]] auto domain(bool domain) const -> bool override;
+    [[nodiscard]] auto recursive() const -> bool override;
+    [[nodiscard]] auto matcher(MatcherType type, std::vector<bool> const &bound)
+        -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto score(std::vector<bool> const &bound) const -> double override;
+
+    void print(std::ostream &out) const override;
+    void output(SymbolStore &store, Assignment const &ass, std::ostream &out) const override;
+
+    [[nodiscard]] auto hash() const -> size_t override;
+    [[nodiscard]] auto equal_to(Lit const &other) const -> bool override;
+    [[nodiscard]] auto compare_to(Lit const &other) const -> std::weak_ordering override;
+
+  private:
+    UTerm lhs_;
+    UTerm lower_;
+    UTerm upper_;
+};
+
 class LitSymbolic : public Lit {
   public:
     LitSymbolic(Base &base, Sign sign, UTerm atom, size_t index)

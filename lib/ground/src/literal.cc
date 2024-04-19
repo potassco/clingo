@@ -145,6 +145,52 @@ class DummyMatcher : public Matcher {
     size_t current_ = 0;
 };
 
+class IntervalMatcher : public Matcher {
+  public:
+    IntervalMatcher(Term const &lhs, Term const &lower, Term const &upper, VariableVec free)
+        : lhs_{&lhs}, lower_{&lower}, upper_{&upper}, free_{std::move(free)} {}
+    void init([[maybe_unused]] size_t gen) override {}
+    void match(SymbolStore &store, Assignment &ass) override {
+        val_current_ = 1;
+        val_upper_ = 0;
+        if (auto lower = lower_->eval(store, ass), upper = upper_->eval(store, ass);
+            lower && upper && lower->type() == SymbolType::number && upper->type() == SymbolType::number) {
+            if (!free_.empty()) {
+                val_current_ = lower->num();
+                val_upper_ = upper->num();
+            }
+            // Note: that the case free is empty could be handled a little more
+            // efficiently. I would not expect a big impact, though.
+            else if (auto lhs = lhs_->eval(store, ass); lhs && lhs->type() == SymbolType::number &&
+                                                        *lower->num() <= *lhs->num() && *lhs->num() <= *upper->num()) {
+                val_current_ = lhs->num();
+                val_upper_ = lhs->num();
+            }
+        }
+    }
+    auto next(SymbolStore &store, Assignment &ass) -> bool override {
+        while (val_current_ <= val_upper_) {
+            for (auto const &var : free_) {
+                ass[var] = std::nullopt;
+            }
+            auto num = val_current_;
+            val_current_ += 1;
+            if (lhs_->match(store, store.num(std::move(num)), ass)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+  private:
+    Term const *lhs_;
+    Term const *lower_;
+    Term const *upper_;
+    VariableVec free_;
+    Number val_current_ = 0;
+    Number val_upper_ = 0;
+};
+
 } // namespace
 
 auto operator<<(std::ostream &out, Sign sign) -> std::ostream & {
@@ -192,6 +238,73 @@ auto operator<<(std::ostream &out, Relation rel) -> std::ostream & {
         }
     }
     return out;
+}
+
+void LitInterval::print(std::ostream &out) const { out << *lhs_ << "=" << *lower_ << ".." << upper_; }
+
+void LitInterval::output(SymbolStore &store, Assignment const &ass, std::ostream &out) const {
+    if (auto lhs = lhs_->eval(store, ass), lower = lower_->eval(store, ass), upper = upper_->eval(store, ass);
+        lhs && lower && upper) {
+        out << *lower << "<=" << *lhs << "<=" << *upper;
+    } else {
+        out << "#false";
+    }
+}
+
+auto LitInterval::domain([[maybe_unused]] bool domain) const -> bool { return true; }
+
+auto LitInterval::recursive() const -> bool { return false; }
+
+void LitInterval::vars(VariableSet &vars, VarSelectMode mode) const {
+    switch (mode) {
+        case VarSelectMode::all: {
+            lhs_->vars(vars);
+            lower_->vars(vars);
+            upper_->vars(vars);
+            break;
+        }
+        case VarSelectMode::provide: {
+            lhs_->vars(vars);
+            break;
+        }
+        case VarSelectMode::depend: {
+            lower_->vars(vars);
+            upper_->vars(vars);
+            break;
+        }
+    }
+}
+
+auto LitInterval::matcher([[maybe_unused]] MatcherType type, [[maybe_unused]] std::vector<bool> const &bound)
+    -> std::pair<UMatcher, std::optional<size_t>> {
+    VariableSet vars;
+    lhs_->vars(vars);
+    erase_if(vars, [&bound](auto const &var) { return bound[var]; });
+    return {std::make_unique<IntervalMatcher>(*lhs_, *lower_, *upper_, vars.release()), std::nullopt};
+}
+
+auto LitInterval::score([[maybe_unused]] std::vector<bool> const &bound) const -> double {
+    // TODO: compute proper score
+    // NOLINTNEXTLINE(readability-magic-numbers)
+    return 100;
+}
+
+auto LitInterval::hash() const -> size_t { return Util::value_hash_record<LitInterval>(lhs_, lower_, upper_); }
+
+auto LitInterval::equal_to(Lit const &other) const -> bool {
+    auto const *x = dynamic_cast<LitInterval const *>(&other);
+    if (x != nullptr) {
+        return std::tie(lhs_, lower_, upper_) == std::tie(x->lhs_, x->lower_, x->upper_);
+    }
+    return false;
+}
+
+auto LitInterval::compare_to(Lit const &other) const -> std::weak_ordering {
+    auto const *x = dynamic_cast<LitInterval const *>(&other);
+    if (x != nullptr) {
+        return std::tie(lhs_, lower_, upper_) <=> std::tie(x->lhs_, x->lower_, x->upper_);
+    }
+    return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
 }
 
 void LitComparison::print(std::ostream &out) const { out << *lhs_ << cmp_ << *rhs_; }

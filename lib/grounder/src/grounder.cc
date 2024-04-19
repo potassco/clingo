@@ -244,13 +244,16 @@ struct BuilderLit {
     auto operator()(Input::LitComparison const &lit) const -> Ground::ULit {
         auto has_projection = false;
         auto bld_term = BuilderTerm{&has_projection, ctx->var_map};
+        auto lhs = std::visit(bld_term, lit.lhs());
         if (Input::is_interval(lit.rhs().front().second)) {
-            throw std::logic_error("literal comparison is interval: implement me!!!");
+            auto const &rng = std::get<Input::TermBinary>(lit.rhs().front().second);
+            auto lower = std::visit(bld_term, *rng.lhs());
+            auto upper = std::visit(bld_term, *rng.rhs());
+            return std::make_unique<Ground::LitInterval>(std::move(lhs), std::move(lower), std::move(upper));
         }
-        if (Input::is_interval(lit.rhs().front().second)) {
+        if (Input::is_external(lit.rhs().front().second)) {
             throw std::logic_error("literal comparison is external: implement me!!!");
         }
-        auto lhs = std::visit(bld_term, lit.lhs());
         auto rhs = std::visit(bld_term, lit.rhs().front().second);
         std::cerr << "TODO: somehow both directions have to be handled!!!\n";
         return std::make_unique<Ground::LitComparison>(
@@ -423,7 +426,7 @@ struct Builder : Input::DependencyBuilder {
                 auto queue = Ground::Queue{};
                 lin.start(queue, test(gcomp.type(), Ground::ComponentType::domain));
                 for (auto const &stm : gcomp.stms()) {
-                    GRINGO_REPORT(*impl->log_, debug) << "      " << *stm << "\n";
+                    GRINGO_REPORT(*impl->log_, debug) << "      " << *stm;
                     lin.prepare(*stm);
                 }
                 queue.process(*impl->store_);
