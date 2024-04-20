@@ -9,7 +9,6 @@ Checks: >
   readability-*,
   -bugprone-chained-comparison,
   -bugprone-easily-swappable-parameters,
-  -clang-analyzer-optin.core.EnumCastOutOfRange,
   -cppcoreguidelines-avoid-c-arrays,
   -cppcoreguidelines-avoid-do-while,
   -cppcoreguidelines-avoid-magic-numbers,

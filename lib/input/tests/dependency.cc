@@ -132,6 +132,7 @@ TEST_CASE("dependency") {
         REQUIRE(comps[2][1].type == ComponentType::single_pass);
         REQUIRE(comps[3].size() == 1);
         REQUIRE(comps[3][0].stms.size() == 2);
+        // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange)
         REQUIRE(comps[3][0].type == ComponentType{0});
     }
     SECTION("analyze_rename") {
