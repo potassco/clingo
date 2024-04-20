@@ -148,6 +148,36 @@ class DummyMatcher : public Matcher {
     size_t current_ = 0;
 };
 
+// IndexMatcher
+// - build on the fly
+// - the index
+//   - signature
+//     - term with variables renamed in order
+//     - can be used to reuse the index
+//   - unordered_map:
+//     - bound symbols -> symbols to bind
+//   - pointer to domain
+//   - offset how many atoms have been imported into the index
+//   - when trying to find a match
+//     - needs separate assignment involving renamed variables
+//     - if match:
+//       - return true
+//     - while not all imported:
+//       - import one
+//       - if match
+//         - return true
+//     - return false
+// - a map for indices has to be stored somewhere
+// - names of bound variables
+// - names of variables to bind
+// - finding a match
+//   - lookup bound symbols in index returning an offset
+//   - if match at offset
+//     - bind variables
+//     - increase offset
+//     - return true
+//   - return false
+
 class IntervalMatcher : public Matcher {
   public:
     IntervalMatcher(Term const &lhs, Term const &lower, Term const &upper, VariableVec free)
