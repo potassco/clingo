@@ -19,16 +19,19 @@ concept BitSetEnum = std::is_enum_v<T> && requires(T e) { is_bit_set_enum(e); };
 
 //! Complement of a bit set.
 template <Detail::BitSetEnum T> [[nodiscard]] inline auto operator~(T a) -> T {
+    // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange)
     return static_cast<T>(~static_cast<std::underlying_type_t<T>>(a));
 }
 
 //! Union of two bit sets.
 template <Detail::BitSetEnum T> [[nodiscard]] inline auto operator|(T a, T b) -> T {
+    // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange)
     return static_cast<T>(static_cast<std::underlying_type_t<T>>(a) | static_cast<std::underlying_type_t<T>>(b));
 }
 
 //! Intersection of two bit sets.
 template <Detail::BitSetEnum T> [[nodiscard]] inline auto operator&(T a, T b) -> T {
+    // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange)
     return static_cast<T>(static_cast<std::underlying_type_t<T>>(a) & static_cast<std::underlying_type_t<T>>(b));
 }
 
@@ -37,6 +40,7 @@ template <Detail::BitSetEnum T> [[nodiscard]] inline auto operator-(T a, T b) ->
 
 //! Symmetric difference of two bit sets.
 template <Detail::BitSetEnum T> [[nodiscard]] inline auto operator^(T a, T b) -> T {
+    // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange)
     return static_cast<T>(static_cast<std::underlying_type_t<T>>(a) ^ static_cast<std::underlying_type_t<T>>(b));
 }
 

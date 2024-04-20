@@ -110,10 +110,9 @@ auto location_hash(clingo_location_t const &a) -> size_t { return clingo_locatio
 
 [[nodiscard]] auto location_repr(clingo_location_t const &loc) -> std::string {
     std::ostringstream oss;
-    oss << "Location("
-        << "Position(" << py::cast<std::string>(py::str{loc.begin_file}.attr("__repr__")()) << "," << loc.begin_line
-        << "," << loc.begin_column << "),"
-        << "Position(" << py::cast<std::string>(py::str{loc.end_file}.attr("__repr__")()) << "," << loc.end_line << ","
+    oss << "Location(" << "Position(" << py::cast<std::string>(py::str{loc.begin_file}.attr("__repr__")()) << ","
+        << loc.begin_line << "," << loc.begin_column << ")," << "Position("
+        << py::cast<std::string>(py::str{loc.end_file}.attr("__repr__")()) << "," << loc.end_line << ","
         << loc.end_column << "))";
     return oss.str();
 }
@@ -194,14 +193,11 @@ Close the library object.
 
     py::class_<clingo_location_t>(core, "Location", R"(Location tracking object.)")
         .def(py::init(&construct_location), py::arg("begin"), py::arg("end"))
-        .def_property_readonly("begin",
-                               [](clingo_location_t const &loc) {
-                                   return Position{loc.begin_file, loc.begin_line, loc.begin_column};
-                               })
-        .def_property_readonly("end",
-                               [](clingo_location_t const &loc) {
-                                   return Position{loc.end_file, loc.end_line, loc.end_column};
-                               })
+        .def_property_readonly(
+            "begin",
+            [](clingo_location_t const &loc) { return Position{loc.begin_file, loc.begin_line, loc.begin_column}; })
+        .def_property_readonly(
+            "end", [](clingo_location_t const &loc) { return Position{loc.end_file, loc.end_line, loc.end_column}; })
         .def("__str__", &location_str)
         .def("__repr__", &location_repr)
         .def("__hash__", &location_hash)

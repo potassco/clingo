@@ -27,7 +27,7 @@
 extern "C" {
 #endif
 
-// NOLINTBEGIN(modernize-*,cppcoreguidelines-macro-usage)
+// NOLINTBEGIN(modernize-*,cppcoreguidelines-macro-usage,performance-enum-size)
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -1125,7 +1125,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_rewrite(clingo_ast_rewrite_context_t *
 
 //! @}
 
-// NOLINTEND(modernize-*,cppcoreguidelines-macro-usage)
+// NOLINTEND(modernize-*,cppcoreguidelines-macro-usage,performance-enum-size)
 
 #ifdef __cplusplus
 }

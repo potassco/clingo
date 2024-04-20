@@ -18,8 +18,8 @@ namespace Gringo::Input {
 //! Evaluate the term.
 //!
 //! Note that this will fail if the term contains variables or external functions.
-[[nodiscard]] auto evaluate(Logger &log, SymbolStore &store, ConstMap const &map, Term const &term)
-    -> std::optional<Symbol>;
+[[nodiscard]] auto evaluate(Logger &log, SymbolStore &store, ConstMap const &map,
+                            Term const &term) -> std::optional<Symbol>;
 
 //! Evaluate the given const statements storing the result in the given map.
 //!

@@ -74,7 +74,7 @@ class TheoryTermVariable : public Expression<TheoryTermVariable> {
 //! Enumeration of theory term tuple types.
 //!
 //! @related TheoryTermTuple
-enum class TheoryTermTupleType {
+enum class TheoryTermTupleType : uint8_t {
     tuple, //!< A tuple of terms enclosed in parentheses.
     set,   //!< A set of terms enclosed in braces.
     list   //!< A list of terms enclosed in brackets.

@@ -9,7 +9,7 @@ namespace Gringo {
 //! @{
 
 //! The base of a number.
-enum class Base {
+enum class Base : uint8_t {
     dec = 10, //!< Decimal base.
     hex = 16, //!< Hexadecimal base.
     oct = 8,  //!< Octal base.

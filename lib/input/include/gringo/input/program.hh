@@ -16,7 +16,7 @@ namespace Gringo::Input {
 //! Enumeration to select variables to project.
 //!
 //! @see Projection
-enum class ProjectionMode {
+enum class ProjectionMode : uint8_t {
     disabled = 0,  //!< Disable projection.
     anonymous = 1, //!< Only project anonymous variables.
     pure = 2,      //!< Project pure variables.
@@ -71,7 +71,7 @@ struct UnprocessedProgram {
 };
 
 //! The type of a component.
-enum class ComponentType : uint32_t {
+enum class ComponentType : uint8_t {
     domain = 1,      //!< The component evaluates to facts.
     single_pass = 2, //!< The component can be grounded in one pass.
 };
@@ -171,8 +171,8 @@ class Program {
     using ParamUnmap = Util::ordered_map<String, String>;
 
     //! Gather all identifiers appearing in a program part.
-    [[nodiscard]] static auto param_map_(SymbolStore &store, ProgramPart const &part)
-        -> Util::ordered_map<String, String>;
+    [[nodiscard]] static auto param_map_(SymbolStore &store,
+                                         ProgramPart const &part) -> Util::ordered_map<String, String>;
     //! Replace all bound paramets in a statement by parsable ids.
     [[nodiscard]] static auto unmap_(SymbolStore &store, ParamUnmap const &pum, Stm const &stm) -> std::optional<Stm>;
 

@@ -12,7 +12,7 @@ namespace Gringo::Input {
 //! @{
 
 //! Enumeration for Term::check_type().
-enum class TermCheckType : int {
+enum class TermCheckType : uint8_t {
     atom,              //!< Check if term is an atom.
     sig,               //!< Check if term is a signature.
     identifier,        //!< Check if term is an identifier.

@@ -111,8 +111,8 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
     }
 }
 
-[[nodiscard]] auto Program::param_map_(SymbolStore &store, ProgramPart const &part)
-    -> Util::ordered_map<String, String> {
+[[nodiscard]] auto Program::param_map_(SymbolStore &store,
+                                       ProgramPart const &part) -> Util::ordered_map<String, String> {
     Util::ordered_map<String, String> res;
     if (!part.part.args().empty()) {
         StringSet ids;

@@ -52,7 +52,7 @@ using IEVec = std::vector<IE>;
 class IEInterval {
   public:
     //! Enum to indicate the lower and upper bound of the interval.
-    enum Type { Lower, Upper };
+    enum Type : uint8_t { Lower, Upper };
     //! Create an unbounded interval.
     IEInterval() = default;
     //! Create an interval with the given bounds.

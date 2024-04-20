@@ -30,8 +30,8 @@ class Symbol {
     friend auto Number(Core::Library &lib, py::int_ num) -> Symbol;
     friend auto String(Core::Library &lib, std::string const &str) -> Symbol;
     friend auto Tuple(Core::Library &lib, std::vector<Symbol> const &args) -> Symbol;
-    friend auto Function(Core::Library &lib, std::string const &name, std::vector<Symbol> const &args, bool positive)
-        -> Symbol;
+    friend auto Function(Core::Library &lib, std::string const &name, std::vector<Symbol> const &args,
+                         bool positive) -> Symbol;
     friend auto parse_term(Core::Library &lib, std::string str) -> Symbol;
     friend auto operator==(Symbol const &a, Symbol const &b) -> bool;
     friend auto operator<(Symbol const &a, Symbol const &b) -> bool;

@@ -10,7 +10,7 @@ namespace Gringo::Input {
 //! @{
 
 //! Enumeration of aggregate functions.
-enum class AggregateFunction {
+enum class AggregateFunction : uint8_t {
     count, //! The <tt>\#count</tt> function.
     sum,   //! The <tt>\#sum</tt> function.
     sump,  //! The <tt>\#sum+</tt> function.

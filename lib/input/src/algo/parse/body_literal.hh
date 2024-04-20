@@ -40,9 +40,7 @@ struct body_aggregate_element {
         return Detail::location(dsl::if_(peek >> dsl::p<term_list>) + dsl::p<if_condition>);
     }();
     static constexpr auto value = lexy::callback<BdLitAggregateElement>(
-        [](Location loc, std::vector<Lit> cond) {
-            return BdLitAggregateElement{loc, TermArray{}, std::move(cond)};
-        },
+        [](Location loc, std::vector<Lit> cond) { return BdLitAggregateElement{loc, TermArray{}, std::move(cond)}; },
         [](Location loc, TermArray tuple, std::vector<Lit> cond) {
             return BdLitAggregateElement{loc, std::move(tuple), std::move(cond)};
         });

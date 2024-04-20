@@ -81,7 +81,7 @@ void rewrite(RewriteContext &ctx, Stm const &stm, StmVec &stms) {
             rewrite_unpooled(std::move(stm), "    ");
         }
     } else {
-        return rewrite_unpooled(std::move(res), "  ");
+        rewrite_unpooled(std::move(res), "  ");
     }
 }
 

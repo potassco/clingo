@@ -19,7 +19,7 @@ static constexpr size_t default_message_limit = 20;
 //! Error codes.
 //!
 //! This is used by the C-API.
-enum class ErrorCode : int {
+enum class ErrorCode : uint8_t {
     success = 0,   //!< There was no error.
     runtime = 1,   //!< A runtime error.
     logic = 2,     //!< A logic error.
@@ -39,7 +39,7 @@ class GringoError : public std::runtime_error {
 //! Codes of messages.
 //!
 //! Codes larger or equal to error indicate non-recoverable runtime errors.
-enum class MessageCode : int {
+enum class MessageCode : uint8_t {
     trace = 0,                    //! Trace messages.
     debug = 1,                    //! Debug messages.
     info = 2,                     //! Generic info messages.
@@ -59,12 +59,12 @@ class MessageLimitError : public std::runtime_error {
 };
 
 //! Log levels for course grain configuration of logging.
-enum class LogLevel : int {
-    trace = static_cast<int>(MessageCode::trace), //!< Trace as much as possible.
-    debug = static_cast<int>(MessageCode::debug), //!< Output debug messages.
-    info = static_cast<int>(MessageCode::info),   //!< Output info messages.
-    warn = static_cast<int>(MessageCode::warn),   //!< Output warnings.
-    error = static_cast<int>(MessageCode::error), //!< Output errors.
+enum class LogLevel : uint8_t {
+    trace = static_cast<uint8_t>(MessageCode::trace), //!< Trace as much as possible.
+    debug = static_cast<uint8_t>(MessageCode::debug), //!< Output debug messages.
+    info = static_cast<uint8_t>(MessageCode::info),   //!< Output info messages.
+    warn = static_cast<uint8_t>(MessageCode::warn),   //!< Output warnings.
+    error = static_cast<uint8_t>(MessageCode::error), //!< Output errors.
 };
 
 //! Simple logger to report message to stderr or via a callback.

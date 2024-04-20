@@ -8,13 +8,13 @@
 namespace Gringo::Input {
 
 //! Enum for unary/binary operator arities.
-enum class Arity {
+enum class Arity : uint8_t {
     unary = 0,  //!< unary arity
     binary = 1, //!< binary arity
 };
 
 //! Enum for operator associativities.
-enum class Associativity {
+enum class Associativity : uint8_t {
     left = 0,      //!< left associative
     right = 1,     //!< right associative
     non_assoc = 2, //!< no associativity

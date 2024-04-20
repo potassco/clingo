@@ -95,8 +95,8 @@ constexpr auto and_then(std::optional<T> const &&x, F &&f) -> Detail::and_then_r
 
 //! Map the given predicate over an optional vector.
 template <class T, class F>
-auto transform_vec(std::optional<std::vector<T>> const &vec, F const &f)
-    -> Detail::transform_vec_result<T const &, F const &> {
+auto transform_vec(std::optional<std::vector<T>> const &vec,
+                   F const &f) -> Detail::transform_vec_result<T const &, F const &> {
     return transform(vec, [&f](auto const &vec) {
         typename Detail::transform_vec_result<T const &, F const &>::value_type ret;
         ret.reserve(vec.size());
@@ -122,7 +122,7 @@ auto transform_vec(std::optional<std::vector<T>> &&vec, F const &f) -> Detail::t
 }
 
 //! Truth values for expressions.
-enum class TruthValue {
+enum class TruthValue : uint8_t {
     top,     //!< Indicate a true expression.
     bot,     //!< Indicate a false expression.
     unknown, //!< Indicate an expression with an unknown truth value.

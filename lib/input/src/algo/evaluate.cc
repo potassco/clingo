@@ -313,8 +313,8 @@ class Evaluate {
     StmConst const *root_;
 };
 
-[[maybe_unused]] auto evaluate(Logger &log, SymbolStore &store, ConstMap const &map, StmConst const &stm)
-    -> std::optional<Symbol> {
+[[maybe_unused]] auto evaluate(Logger &log, SymbolStore &store, ConstMap const &map,
+                               StmConst const &stm) -> std::optional<Symbol> {
     return std::visit(Evaluate{log, store, map, &stm}, stm.value());
 }
 

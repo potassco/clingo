@@ -72,7 +72,7 @@ template <class R> void extend(R &res, AuxTermVec &aux, bool conjunctive = true)
 }
 
 //! The detected type of a term.
-enum class TermType {
+enum class TermType : uint8_t {
     numeric,  //!< Term evaluates to a number.
     symbolic, //!< Term evaluates to a function.
     tuple,    //!< Term evaluates to a tuple.
@@ -328,8 +328,8 @@ class SimplifyTerm {
     }
 
     //! Simplify the given variable.
-    auto operator()([[maybe_unused]] TermVariable const &term, [[maybe_unused]] SimplifyTermFlags flags) const
-        -> TermResult {
+    auto operator()([[maybe_unused]] TermVariable const &term,
+                    [[maybe_unused]] SimplifyTermFlags flags) const -> TermResult {
         // a variable can represent any term
         return TermType::any;
     }
@@ -771,8 +771,8 @@ class MakeMatchableTerm {
     }
 
     //! Make the given variable term matchable.
-    auto operator()([[maybe_unused]] TermVariable const &term, [[maybe_unused]] SimplifyTermFlags flags) const
-        -> Result {
+    auto operator()([[maybe_unused]] TermVariable const &term,
+                    [[maybe_unused]] SimplifyTermFlags flags) const -> Result {
         return std::nullopt;
     }
 
@@ -1104,8 +1104,8 @@ class LiteralToTuple {
 //! In the disjunctive case empty pools evaluate conjunctively, and the result is top.
 //!
 //! @note The automatic extension with the aux elements makes for a somewhat awkward interface.
-[[nodiscard]] auto simplify_litvec(RewriteContext &ctx, LitArray const &lits, bool conjunctive = true)
-    -> SimplifyResult<std::vector<Lit>> {
+[[nodiscard]] auto simplify_litvec(RewriteContext &ctx, LitArray const &lits,
+                                   bool conjunctive = true) -> SimplifyResult<std::vector<Lit>> {
     auto state_fixed = conjunctive ? TruthValue::bot : TruthValue::top;
     auto state_empty = conjunctive ? TruthValue::top : TruthValue::bot;
     auto state_lits = state_empty;
@@ -1159,8 +1159,8 @@ class LiteralToTuple {
 //! - case: A+B is undefined
 //!   - p :- q(X,Z): r(Z).
 //!   - this is the same as obtained from 1.1.1
-[[nodiscard]] auto simplify_condlit(RewriteContext &ctx, CondLit const &lit, bool conjunctive)
-    -> SimplifyResult<CondLit> {
+[[nodiscard]] auto simplify_condlit(RewriteContext &ctx, CondLit const &lit,
+                                    bool conjunctive) -> SimplifyResult<CondLit> {
     auto guard = ctx.push();
     auto [state_lit, res_lit] =
         simplify(conjunctive ? SimplifyLiteralFlags::head : SimplifyLiteralFlags::matchable, ctx, lit.lit());
@@ -1190,8 +1190,8 @@ class LiteralToTuple {
 }
 
 //! Simplify the left guard of an aggregate.
-[[nodiscard]] auto simplify_guard(RewriteContext &ctx, LGuard const &guard, bool matchable)
-    -> Util::ResultState<LGuard::value_type> {
+[[nodiscard]] auto simplify_guard(RewriteContext &ctx, LGuard const &guard,
+                                  bool matchable) -> Util::ResultState<LGuard::value_type> {
     if (guard.has_value()) {
         auto [state, res] =
             simplify(matchable ? SimplifyTermFlags::matchable : SimplifyTermFlags::none, ctx, guard->first);
@@ -1203,8 +1203,8 @@ class LiteralToTuple {
 }
 
 //! Simplify the right guard of an aggregate.
-[[nodiscard]] auto simplify_guard(RewriteContext &ctx, RGuard const &guard, bool matchable)
-    -> Util::ResultState<RGuard::value_type> {
+[[nodiscard]] auto simplify_guard(RewriteContext &ctx, RGuard const &guard,
+                                  bool matchable) -> Util::ResultState<RGuard::value_type> {
     if (guard.has_value()) {
         auto [state, res] =
             simplify(matchable ? SimplifyTermFlags::matchable : SimplifyTermFlags::none, ctx, guard->second);
@@ -1216,8 +1216,8 @@ class LiteralToTuple {
 }
 
 //! Simplify a head aggregate element.
-[[nodiscard]] auto simplify_element(RewriteContext &ctx, HdLitAggregateElement const &elem)
-    -> SimplifyResult<HdLitAggregateElement> {
+[[nodiscard]] auto simplify_element(RewriteContext &ctx,
+                                    HdLitAggregateElement const &elem) -> SimplifyResult<HdLitAggregateElement> {
     auto guard = ctx.push();
     auto [state_tuple, res_tuple] = simplify_termvec(ctx, elem.tuple());
     auto [state_lit, res_lit] = simplify(SimplifyLiteralFlags::none, ctx, elem.lit());
@@ -1261,8 +1261,8 @@ class LiteralToTuple {
 }
 
 //! Simplify a body aggregate element.
-[[nodiscard]] auto simplify_element(RewriteContext &ctx, BdLitAggregateElement const &elem)
-    -> SimplifyResult<BdLitAggregateElement> {
+[[nodiscard]] auto simplify_element(RewriteContext &ctx,
+                                    BdLitAggregateElement const &elem) -> SimplifyResult<BdLitAggregateElement> {
     auto guard = ctx.push();
     auto [state_tuple, res_tuple] = simplify_termvec(ctx, elem.tuple());
     auto [state_cond, res_cond] = simplify_litvec(ctx, elem.cond());
@@ -1427,12 +1427,12 @@ template <bool head> [[nodiscard]] auto is_assignment(HBAggregate<head> const &l
 
 //! Simplify a head or body aggregate.
 template <bool head>
-[[nodiscard]] auto simplify_aggregate(RewriteContext &ctx, HBAggregate<head> const &lit)
-    -> SimplifyResult<HBLiteral<head>> {
-    auto [state_lhs, res_lhs] =
-        simplify_guard(ctx, lit.lhs(), lit.lhs().has_value() && is_assignment<head>(lit, lit.lhs()->second));
-    auto [state_rhs, res_rhs] =
-        simplify_guard(ctx, lit.rhs(), lit.rhs().has_value() && is_assignment<head>(lit, lit.rhs()->first));
+[[nodiscard]] auto simplify_aggregate(RewriteContext &ctx,
+                                      HBAggregate<head> const &lit) -> SimplifyResult<HBLiteral<head>> {
+    auto const &lit_lhs = lit.lhs();
+    auto const &lit_rhs = lit.rhs();
+    auto [state_lhs, res_lhs] = simplify_guard(ctx, lit_lhs, lit_lhs && is_assignment<head>(lit, lit_lhs->second));
+    auto [state_rhs, res_rhs] = simplify_guard(ctx, lit_rhs, lit_rhs && is_assignment<head>(lit, lit_rhs->first));
     auto res_elems = Util::ResultVec{lit.elems()};
     bool constant = true;
     auto value = neutral_value(lit.fun());
@@ -1464,14 +1464,14 @@ template <bool head>
     // Note: value also gives a lower bound for the aggregate, which could be used to detect true/false aggregates
     // (unlikely to be relevant in practice)
     if constexpr (!head) {
-        if (!lit.lhs().has_value() && !lit.rhs().has_value()) {
+        if (!lit_lhs && !lit_rhs) {
             return {TruthValue::top, SimpleHBLiteral<head>{make_constant(lit.loc(), lit.sign() != Sign::once)}};
         }
     }
     if (constant) {
         auto sign = Sign::none;
         if constexpr (head) {
-            if (!lit.lhs().has_value() && !lit.rhs().has_value()) {
+            if (!lit_lhs && !lit_rhs) {
                 return {TruthValue::top, SimpleHBLiteral<head>{make_constant(lit.loc(), true)}};
             }
         } else {
@@ -1488,16 +1488,16 @@ template <bool head>
                                                   },
                                                   std::move(value))}};
         auto guards = std::vector<Guard>{};
-        if (lit.lhs().has_value()) {
-            guards.emplace_back(lit.lhs()->second, std::move(lhs));
+        if (lit_lhs) {
+            guards.emplace_back(lit_lhs->second, std::move(lhs));
             lhs = Util::transform(std::move(res_lhs), [](auto guard) {
                       return std::move(guard).first;
-                  }).value_or(lit.lhs()->first);
+                  }).value_or(lit_lhs->first);
         }
-        if (lit.rhs().has_value()) {
-            guards.emplace_back(lit.rhs()->first, Util::transform(std::move(res_rhs), [](auto guard) {
-                                                      return std::move(guard).second;
-                                                  }).value_or(lit.rhs()->second));
+        if (lit_rhs) {
+            guards.emplace_back(lit_rhs->first, Util::transform(std::move(res_rhs), [](auto guard) {
+                                                    return std::move(guard).second;
+                                                }).value_or(lit_rhs->second));
         }
         auto rel_lit = SimpleHBLiteral<head>{LitComparison{lit.loc(), sign, std::move(lhs), std::move(guards)}};
         auto [state_lit, res_lit] = simplify(ctx, rel_lit);
@@ -1804,7 +1804,7 @@ class SimplifyStatement {
     auto make_matchable = [&](auto &&target, bool self = true) -> SimplifyTermResult {
         if (test(flags, SimplifyTermFlags::matchable)) {
             if (auto ret = MakeMatchableTerm{ctx}(target, flags); ret.has_value()) {
-                return {true, std::move(ret).value()};
+                return {true, std::move(ret)};
             }
         }
         if (self && target != term) {

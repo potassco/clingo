@@ -46,8 +46,8 @@ struct store_string_ {
     using return_type = String;
 
     template <typename... Args>
-    auto operator()(auto &state, Args &&...args) const
-        -> decltype(state.string(Detail::as_string(std::forward<Args>(args)...))) {
+    auto operator()(auto &state,
+                    Args &&...args) const -> decltype(state.string(Detail::as_string(std::forward<Args>(args)...))) {
         return state.string(Detail::as_string(std::forward<Args>(args)...));
     }
 
@@ -146,12 +146,11 @@ static constexpr auto variable = []() {
 struct term_variable : lexy::token_production {
     static constexpr char const *name = "variable";
     static constexpr auto rule = dsl::capture(dsl::token(variable));
-    static constexpr auto value = lexy::callback_with_state<Term>([](auto &state, auto var) {
-        return TermVariable{state.loc(var), state.string(Detail::as_string(var))};
-    });
+    static constexpr auto value = lexy::callback_with_state<Term>(
+        [](auto &state, auto var) { return TermVariable{state.loc(var), state.string(Detail::as_string(var))}; });
 };
 
-enum class Constant { supremum, infimum };
+enum class Constant : uint8_t { supremum, infimum };
 
 static constexpr auto constants = lexy::symbol_table<Constant> //
                                       .map<LEXY_SYMBOL("#infimum")>(Constant::infimum)
@@ -263,9 +262,8 @@ static constexpr auto anonymous_variable =
 struct term_anonymous_variable : lexy::token_production {
     static constexpr char const *name = "anonymous variable";
     static constexpr auto rule = Detail::location(anonymous_variable);
-    static constexpr auto value = lexy::callback_with_state<Term>([](auto &state, Location loc) {
-        return TermVariable{loc, state.string("_"), true};
-    });
+    static constexpr auto value = lexy::callback_with_state<Term>(
+        [](auto &state, Location loc) { return TermVariable{loc, state.string("_"), true}; });
 };
 
 struct term_rec : lexy::expression_production {
@@ -339,9 +337,7 @@ struct term_rec : lexy::expression_production {
     using operation = op_dots;
     static constexpr auto value = lexy::callback<Term>(
         lexy::forward<Term>,
-        [](auto tag, Term rhs) {
-            return TermUnary{Location{tag.pos, location(rhs).end}, tag.op, std::move(rhs)};
-        },
+        [](auto tag, Term rhs) { return TermUnary{Location{tag.pos, location(rhs).end}, tag.op, std::move(rhs)}; },
         [](Term lhs, BinaryOperator op, Term rhs) {
             return TermBinary{Location{location(lhs).begin, location(rhs).end}, std::move(lhs), op, std::move(rhs)};
         });

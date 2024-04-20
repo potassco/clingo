@@ -9,7 +9,7 @@ namespace Gringo::Ground {
 
 using Assignment = std::vector<std::optional<Symbol>>;
 
-enum class RenameMode {
+enum class RenameMode : uint8_t {
     rename_vars,       //!< Succesively rename variables in order of traversal.
     rename_projection, //!< Succesively introduce variables for projections in order of traversal.
     drop_projection,   //!< Drop projections from tuples and functions.
@@ -40,8 +40,8 @@ class Term {
     //!
     //! If a name is given, the name of the outermost function symbol is changed.
     //! Otherwise, variables and projection are replaced according to the given mode.
-    [[nodiscard]] virtual auto rename(SymbolStore &store, RenameMode mode, String *name, size_t *vars) const
-        -> UTerm = 0;
+    [[nodiscard]] virtual auto rename(SymbolStore &store, RenameMode mode, String *name,
+                                      size_t *vars) const -> UTerm = 0;
     //! Collect all variables in the term.
     virtual void vars(VariableSet &vars, bool provide = false) const = 0;
     virtual void print(std::ostream &out) const = 0;
@@ -120,7 +120,7 @@ class TermLinear : public Term {
 };
 
 //! Available unary operations.
-enum class UnaryOperator : int {
+enum class UnaryOperator : uint8_t {
     minus = 0,  //!< The unary arithmetic minus operation.
     invert = 1, //!< The bitwise negation operation.
     abs = 2,    //!< The arithmetic absolute operation.
@@ -144,7 +144,7 @@ class TermUnary : public Term {
 };
 
 //! Available binary operations.
-enum class BinaryOperator : int {
+enum class BinaryOperator : uint8_t {
     and_,  //!< The AND bit operation.
     div,   //!< The (integer) divide arithmetic operation.
     minus, //!< The minus arithmetic operation.

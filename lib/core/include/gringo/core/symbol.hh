@@ -77,7 +77,7 @@ auto operator<<(std::ostream &out, String const &str) -> std::ostream &;
 //! Enumeration of available symbols types.
 //!
 //! See the documentation of the corresponding functions in the SymbolStore.
-enum class SymbolType { number, sup, inf, string, tuple, function };
+enum class SymbolType : uint8_t { number, sup, inf, string, tuple, function };
 
 class Symbol;
 //! A span of symbols.

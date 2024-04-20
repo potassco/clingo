@@ -11,7 +11,7 @@ namespace Gringo::Input {
 //! @{
 
 //! Flags controlling simplification of terms.
-enum class SimplifyTermFlags : unsigned {
+enum class SimplifyTermFlags : uint8_t {
     none = 0,       //!< No flags are set.
     matchable = 1,  //!< Ensure that terms are matchable.
     unfailable = 2, //!< Ensure that terms do not evaluate to empty pools (should be used together with matchable).
@@ -21,7 +21,7 @@ enum class SimplifyTermFlags : unsigned {
 consteval void is_bit_set_enum(SimplifyTermFlags flags);
 
 //! Flags controlling simplification of literals.
-enum class SimplifyLiteralFlags : unsigned {
+enum class SimplifyLiteralFlags : uint8_t {
     none = 0,       //!< No flags are set.
     matchable = 1,  //!< Ensure that literals are matchable.
     unfailable = 2, //!< Ensure that terms in literals do not evaluate to empty pools.

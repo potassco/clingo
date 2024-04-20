@@ -26,8 +26,8 @@ namespace Gringo::Input {
 [[nodiscard]] auto map_params(RewriteContext &ctx, Stm const &stm) -> std::optional<Stm>;
 
 //! Replace all variables with the given names in the statement.
-[[nodiscard]] auto unmap_params(SymbolStore &store, Util::ordered_map<String, String> const &map, Stm const &stm)
-    -> std::optional<Stm>;
+[[nodiscard]] auto unmap_params(SymbolStore &store, Util::ordered_map<String, String> const &map,
+                                Stm const &stm) -> std::optional<Stm>;
 
 //! Collect all ids appearing in the symbol.
 void collect_ids(Symbol const &sym, StringSet &ids);

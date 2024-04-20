@@ -176,8 +176,8 @@ template <class P> struct root : Grammar::control {
 };
 
 template <typename Control>
-auto parse(Logger &log, SymbolStore &store, std::string_view str)
-    -> std::optional<typename decltype(Control::value)::return_type> {
+auto parse(Logger &log, SymbolStore &store,
+           std::string_view str) -> std::optional<typename decltype(Control::value)::return_type> {
     auto input = lexy::string_input<Grammar::encoding>{str};
     auto state = State{store, store.string("<string>"), input.reader().position()};
     auto res = lexy::parse<root<Control>>(input, state, report_error{log});

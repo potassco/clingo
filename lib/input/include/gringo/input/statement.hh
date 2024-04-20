@@ -38,7 +38,7 @@ class StmRule : public Expression<StmRule> {
 //! The type of a theory operator.
 //!
 //! @see TheoryOpDefinition
-enum class TheoryOpType {
+enum class TheoryOpType : uint8_t {
     unary,       //!< An unary theory operator.
     binary_left, //!< An binary left associative theory operator.
     binary_right //!< An binary right associative theory operator.
@@ -112,7 +112,7 @@ using TheoryTermDefinitionArray = Util::immutable_array<TheoryTermDefinition>;
 //! Enumeration of theory atom types.
 //!
 //! @see TheoryAtomDefinition
-enum class TheoryAtomType {
+enum class TheoryAtomType : uint8_t {
     head,     //!< A theory atom that can appear only in the head.
     body,     //!< A theory atom that can appear only in the body.
     any,      //!< A theory atom that can appear only in the head and a body.
@@ -201,7 +201,7 @@ class StmTheory : public Expression<StmTheory> {
 //! Enumeration of optimization statement types.
 //!
 //! @related StatementOptimize
-enum class OptimizeType { minimize, maximize };
+enum class OptimizeType : uint8_t { minimize, maximize };
 
 //! The tuple of a minimize element.
 class OptimizeTuple : public Expression<OptimizeTuple> {
@@ -616,7 +616,7 @@ class StmScript : public Expression<StmScript> {
 //! Enumeration of include types.
 //!
 //! @related StatementInclude
-enum class IncludeType {
+enum class IncludeType : uint8_t {
     system,  //!< Include from path.
     inbuild, //!< Include inbuilt script.
 };
@@ -677,7 +677,7 @@ class StmProgram : public Expression<StmProgram> {
 //! Enumeration of constant statement types.
 //!
 //! @see StatementConst
-enum class ConstType {
+enum class ConstType : uint8_t {
     default_, //! A statement providing default value.
     override_ //! A statement overriding a default value.
 };
@@ -716,7 +716,7 @@ class StmConst : public Expression<StmConst> {
 //! Enumeration of comment types.
 //!
 //! @related Comment
-enum class CommentType {
+enum class CommentType : uint8_t {
     line,  //!< A newline terminated comment starting with <tt>%</tt>.
     block, //!< A block comment enclosed in <tt>%*</tt> and <tt>*%</tt>.
 };

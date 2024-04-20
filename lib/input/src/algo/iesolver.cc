@@ -12,6 +12,7 @@ template <class It, class Merge> auto merge_adjancent(It first, It last, Merge m
 
     auto result = first;
     while (++first != last) {
+        // NOLINTNEXTLINE(bugprone-inc-dec-in-conditions)
         if (!m(*result, *first) && ++result != first) {
             *result = std::move(*first);
         }

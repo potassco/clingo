@@ -9,14 +9,14 @@
 
 namespace Gringo::Ground {
 
-enum class Sign {
+enum class Sign : uint8_t {
     none,
     once,
     twice,
 };
 auto operator<<(std::ostream &out, Sign sign) -> std::ostream &;
 
-enum class Relation {
+enum class Relation : uint8_t {
     equal,         //!< The equal to symbol (=).
     not_equal,     //!< The not equal to symbol (!=).
     less,          //!< The less than symbol (<).
@@ -26,7 +26,7 @@ enum class Relation {
 };
 auto operator<<(std::ostream &out, Relation rel) -> std::ostream &;
 
-enum class VarSelectMode {
+enum class VarSelectMode : uint8_t {
     depend = 1,
     provide = 2,
     all = 3,
@@ -51,8 +51,8 @@ class Lit {
     //! For example, incomplete positive symbolic literals are considered recursive.
     //! However, incomplete negative literals are not considered recursive.
     [[nodiscard]] virtual auto recursive() const -> bool { return false; }
-    [[nodiscard]] virtual auto matcher(MatcherType type, std::vector<bool> const &bound)
-        -> std::pair<UMatcher, std::optional<size_t>> = 0;
+    [[nodiscard]] virtual auto
+    matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> = 0;
     [[nodiscard]] virtual auto score(std::vector<bool> const &bound) const -> double = 0;
 
     virtual void print(std::ostream &out) const = 0;
@@ -81,8 +81,8 @@ class LitComparison : public Lit {
     void vars(VariableSet &vars, VarSelectMode mode) const override;
     [[nodiscard]] auto domain(bool domain) const -> bool override;
     [[nodiscard]] auto recursive() const -> bool override;
-    [[nodiscard]] auto matcher(MatcherType type, std::vector<bool> const &bound)
-        -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto matcher(MatcherType type,
+                               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto score(std::vector<bool> const &bound) const -> double override;
 
     void print(std::ostream &out) const override;
@@ -106,8 +106,8 @@ class LitInterval : public Lit {
     void vars(VariableSet &vars, VarSelectMode mode) const override;
     [[nodiscard]] auto domain(bool domain) const -> bool override;
     [[nodiscard]] auto recursive() const -> bool override;
-    [[nodiscard]] auto matcher(MatcherType type, std::vector<bool> const &bound)
-        -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto matcher(MatcherType type,
+                               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto score(std::vector<bool> const &bound) const -> double override;
 
     void print(std::ostream &out) const override;
@@ -131,8 +131,8 @@ class LitSymbolic : public Lit {
     void vars(VariableSet &vars, VarSelectMode mode) const override;
     [[nodiscard]] auto domain(bool domain) const -> bool override;
     [[nodiscard]] auto recursive() const -> bool override;
-    [[nodiscard]] auto matcher(MatcherType type, std::vector<bool> const &bound)
-        -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto matcher(MatcherType type,
+                               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto score(std::vector<bool> const &bound) const -> double override;
 
     void print(std::ostream &out) const override;

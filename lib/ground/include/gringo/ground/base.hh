@@ -6,6 +6,7 @@
 
 namespace Gringo::Ground {
 
+// NOLINTNEXTLINE(performance-enum-size)
 enum class AtomState : uint64_t {
     // Indicates that the atom is derived by a fact.
     fact = 0,
@@ -31,13 +32,13 @@ struct AtomInfo {
 
 using Atom = std::pair<Symbol, AtomInfo>;
 
-enum class AtomUpdate {
+enum class AtomUpdate : uint8_t {
     added = 0,
     changed = 1,
     unchanged = 2,
 };
 
-enum class MatcherType { new_atoms, old_atoms, all_atoms };
+enum class MatcherType : uint8_t { new_atoms, old_atoms, all_atoms };
 
 class Base {
   public:

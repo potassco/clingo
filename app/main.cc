@@ -6,7 +6,7 @@
 
 using namespace Gringo::Input;
 
-enum class AppMode { parse, rewrite, ground };
+enum class AppMode : uint8_t { parse, rewrite, ground };
 
 // NOLINTNEXTLINE(modernize-avoid-c-arrays)
 auto run(int argc, char *argv[]) -> int {

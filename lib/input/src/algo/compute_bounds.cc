@@ -418,8 +418,8 @@ class ComputeBounds {
 
     //! Compute bounds given a set of literals/body literals.
     template <class Span>
-    auto compute_bounds(IESolver &slv, Location const &loc, Span const &lits)
-        -> std::pair<bool, decltype(Util::ResultVec{lits})> {
+    auto compute_bounds(IESolver &slv, Location const &loc,
+                        Span const &lits) -> std::pair<bool, decltype(Util::ResultVec{lits})> {
 
         auto res_lits = Util::ResultVec{lits};
 

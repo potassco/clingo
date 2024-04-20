@@ -12,7 +12,7 @@ namespace Gringo::Input {
 //! Variable selection scopes.
 //!
 //! @see Statement::visit_variables()
-enum class VariableContext {
+enum class VariableContext : uint8_t {
     global, //!< Visit variables occurring in global scope.
     all,    //!< Visit all variable occurrences.
 };
@@ -62,8 +62,7 @@ template <class T>
     if (size_hint > 0) {
         vars.reserve(size_hint);
     }
-    visit_variables(
-        x, [&]([[maybe_unused]] Location const &loc, String const &var) { vars.emplace(var); }, context);
+    visit_variables(x, [&]([[maybe_unused]] Location const &loc, String const &var) { vars.emplace(var); }, context);
     return vars;
 }
 

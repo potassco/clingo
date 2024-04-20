@@ -169,8 +169,8 @@ void TheoryAtomParser::add_theory(Logger &log, StmTheory const &stm) {
 
 //! Parse the given theory atom.
 template <bool has_sign>
-auto TheoryAtomParser::parse(Logger &log, TheoryAtom<has_sign> const &atom, bool fact) const
-    -> std::optional<TheoryAtom<has_sign>> {
+auto TheoryAtomParser::parse(Logger &log, TheoryAtom<has_sign> const &atom,
+                             bool fact) const -> std::optional<TheoryAtom<has_sign>> {
     // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
     auto [name, arity, sign] = signature(atom.name()).value();
     static_cast<void>(fact);
@@ -220,9 +220,9 @@ auto TheoryAtomParser::parse(Logger &log, TheoryAtom<has_sign> const &atom, bool
     }
     return atom.rewrite(a_elems = std::move(elems), a_rhs = std::move(rhs));
 }
-template auto TheoryAtomParser::parse(Logger &, TheoryAtom<true> const &, bool) const
-    -> std::optional<TheoryAtom<true>>;
-template auto TheoryAtomParser::parse(Logger &, TheoryAtom<false> const &, bool) const
-    -> std::optional<TheoryAtom<false>>;
+template auto TheoryAtomParser::parse(Logger &, TheoryAtom<true> const &,
+                                      bool) const -> std::optional<TheoryAtom<true>>;
+template auto TheoryAtomParser::parse(Logger &, TheoryAtom<false> const &,
+                                      bool) const -> std::optional<TheoryAtom<false>>;
 
 } // namespace Gringo::Input

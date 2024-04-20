@@ -11,7 +11,7 @@ namespace Gringo::Input {
 
 namespace {
 
-enum SyntaxCheck : unsigned {
+enum class SyntaxCheck : uint8_t {
     none = 0,
     project = 1,
     project_tuple = 2,
@@ -68,7 +68,7 @@ struct CheckSyntax {
     }
 
     auto operator()(TupleElement const &elem, SyntaxCheck check) const -> bool {
-        if (!test(check, project_tuple)) {
+        if (!test(check, SyntaxCheck::project_tuple)) {
             check &= ~SyntaxCheck::project;
         }
         return std::visit(*this, elem, std::variant<SyntaxCheck>{check});
@@ -153,8 +153,8 @@ struct CheckSyntax {
         });
     }
 
-    auto operator()(CondLit const &lit, SyntaxCheck check = SyntaxCheck::project | SyntaxCheck::project_tuple) const
-        -> bool {
+    auto operator()(CondLit const &lit,
+                    SyntaxCheck check = SyntaxCheck::project | SyntaxCheck::project_tuple) const -> bool {
         return this->operator()(lit.lit(), check) && operator()(lit.cond());
     }
 

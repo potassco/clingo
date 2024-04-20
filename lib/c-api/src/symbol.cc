@@ -18,8 +18,8 @@ extern "C" auto clingo_symbol_create_number(int32_t number) -> clingo_symbol_t {
     return Gringo::Number::to_repr(Gringo::Number{number});
 }
 
-extern "C" auto clingo_symbol_create_number_str(clingo_lib_t *lib, char const *number, clingo_symbol_t *symbol)
-    -> bool {
+extern "C" auto clingo_symbol_create_number_str(clingo_lib_t *lib, char const *number,
+                                                clingo_symbol_t *symbol) -> bool {
     CLINGO_TRY {
         if (lib == nullptr || number == nullptr || symbol == nullptr) {
             throw std::invalid_argument("invalid arguments");
@@ -47,8 +47,8 @@ extern "C" auto clingo_symbol_create_string(clingo_lib_t *lib, char const *strin
     CLINGO_CATCH(lib);
 }
 
-extern "C" auto clingo_symbol_create_id(clingo_lib_t *lib, char const *name, bool sign, clingo_symbol_t *symbol)
-    -> bool {
+extern "C" auto clingo_symbol_create_id(clingo_lib_t *lib, char const *name, bool sign,
+                                        clingo_symbol_t *symbol) -> bool {
     CLINGO_TRY {
         if (lib == nullptr || name == nullptr || symbol == nullptr) {
             throw std::invalid_argument("invalid arguments");

@@ -12,7 +12,7 @@ namespace Gringo::Input {
 namespace {
 
 //! Enumeration of term positions.
-enum class OperatorPosition : int {
+enum class OperatorPosition : uint8_t {
     left,  //!< The term is directly on the right-hand-side of a term.
     right, //!< The term is directly on the left-hand-side of a term.
     none   //!< No position information.

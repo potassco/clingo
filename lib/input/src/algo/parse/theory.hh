@@ -17,12 +17,8 @@ struct theory_tuple_trail {
 
 template <TheoryTermTupleType type>
 static constexpr auto theory_tuple = lexy::callback<TheoryTerm>(
-    [](Location loc, lexy::nullopt) {
-        return TheoryTermTuple{loc, type, std::vector<TheoryTerm>{}};
-    },
-    [](Location loc, std::vector<TheoryTerm> elems) {
-        return TheoryTermTuple{loc, type, std::move(elems)};
-    },
+    [](Location loc, lexy::nullopt) { return TheoryTermTuple{loc, type, std::vector<TheoryTerm>{}}; },
+    [](Location loc, std::vector<TheoryTerm> elems) { return TheoryTermTuple{loc, type, std::move(elems)}; },
     [](Location loc, Detail::theory_tuple_trail elems) -> TheoryTerm {
         if (elems.vec.size() == 1 && !elems.trail) {
             return std::move(elems.vec.back());
@@ -119,9 +115,8 @@ struct theory_term_variable : lexy::token_production {
 struct theory_term_anonymous_variable : lexy::token_production {
     static constexpr char const *name = "anonymous variable";
     static constexpr auto rule = Detail::location(anonymous_variable);
-    static constexpr auto value = lexy::callback_with_state<TheoryTerm>([](auto &state, Location loc) {
-        return TheoryTermVariable{loc, state.string("_"), true};
-    });
+    static constexpr auto value = lexy::callback_with_state<TheoryTerm>(
+        [](auto &state, Location loc) { return TheoryTermVariable{loc, state.string("_"), true}; });
 };
 
 struct theory_term_number : lexy::token_production {

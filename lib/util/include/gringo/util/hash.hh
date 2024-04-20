@@ -178,22 +178,17 @@ template <class... T> auto value_hash(std::tuple<T...> const &x) -> size_t {
 
 template <class... T> auto value_hash(std::variant<T...> const &x) -> size_t {
     return std::visit(
-        [](auto &&arg) {
-            return hash_combine({typeid(std::variant<T...>).hash_code(), value_hash(arg)});
-        },
-        x);
+        [](auto &&arg) { return hash_combine({typeid(std::variant<T...>).hash_code(), value_hash(arg)}); }, x);
 }
 
 template <class T> auto value_hash(std::vector<T> const &x) -> size_t {
-    return std::accumulate(x.begin(), x.end(), typeid(std::vector<T>).hash_code(), [](auto const &seed, auto const &x) {
-        return hash_combine({seed, value_hash(x)});
-    });
+    return std::accumulate(x.begin(), x.end(), typeid(std::vector<T>).hash_code(),
+                           [](auto const &seed, auto const &x) { return hash_combine({seed, value_hash(x)}); });
 }
 
 template <class T> auto value_hash(Util::immutable_array<T> const &x) -> size_t {
-    return std::accumulate(x.begin(), x.end(), typeid(std::vector<T>).hash_code(), [](auto const &seed, auto const &x) {
-        return hash_combine({seed, value_hash(x)});
-    });
+    return std::accumulate(x.begin(), x.end(), typeid(std::vector<T>).hash_code(),
+                           [](auto const &seed, auto const &x) { return hash_combine({seed, value_hash(x)}); });
 }
 
 template <class T, class... Args> auto value_hash_record(Args const &...x) -> size_t {

@@ -7,7 +7,7 @@
 namespace Gringo::Ground {
 
 //! The type of a component.
-enum class ComponentType : uint32_t {
+enum class ComponentType : uint8_t {
     domain = 1,      //!< The component evaluates to facts.
     single_pass = 2, //!< The component can be grounded in one pass.
 };

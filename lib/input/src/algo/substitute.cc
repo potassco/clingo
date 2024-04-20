@@ -31,8 +31,8 @@ class MapParams : public Transformer<MapParams> {
 
     // term
 
-    [[nodiscard]] auto accept(Location const &loc, SymbolSpan args) const
-        -> std::optional<std::variant<SymbolVec, ArgumentTuple>> {
+    [[nodiscard]] auto accept(Location const &loc,
+                              SymbolSpan args) const -> std::optional<std::variant<SymbolVec, ArgumentTuple>> {
         std::optional<std::vector<std::variant<Term, Symbol>>> res_args;
         bool constant = true;
         {
@@ -81,8 +81,8 @@ class MapParams : public Transformer<MapParams> {
         return ArgumentTuple{std::move(tuple)};
     }
 
-    [[nodiscard]] auto accept(Location const &loc, Symbol const &sym) const
-        -> std::optional<std::variant<Term, Symbol>> {
+    [[nodiscard]] auto accept(Location const &loc,
+                              Symbol const &sym) const -> std::optional<std::variant<Term, Symbol>> {
         switch (sym.type()) {
             case SymbolType::function: {
                 if (sym.args().empty()) {
@@ -380,8 +380,8 @@ struct Collect : public Visitor<Collect> {
     return std::nullopt;
 }
 
-[[nodiscard]] auto map_params(RewriteContext &ctx, Location const &loc, Symbol const &sym)
-    -> std::variant<Symbol, Stm> {
+[[nodiscard]] auto map_params(RewriteContext &ctx, Location const &loc,
+                              Symbol const &sym) -> std::variant<Symbol, Stm> {
     if (!ctx.has_params() || (sym.type() == SymbolType::function && sym.args().empty())) {
         return sym;
     }
@@ -401,8 +401,8 @@ struct Collect : public Visitor<Collect> {
     return sym;
 }
 
-[[nodiscard]] auto unmap_params(SymbolStore &store, Util::ordered_map<String, String> const &map, Stm const &stm)
-    -> std::optional<Stm> {
+[[nodiscard]] auto unmap_params(SymbolStore &store, Util::ordered_map<String, String> const &map,
+                                Stm const &stm) -> std::optional<Stm> {
     if (!map.empty()) {
         return UnmapParams{store, map}.transform(stm);
     }

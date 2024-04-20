@@ -8,11 +8,13 @@
 #include <string>
 
 struct clingo_lib {
+    clingo_lib(Gringo::Logger::Printer prt, Gringo::Logger log, std::unique_ptr<Gringo::SymbolStore> store)
+        : prt{std::move(prt)}, log{std::move(log)}, store{std::move(store)} {}
     Gringo::Logger::Printer prt;
     Gringo::Logger log;
     std::unique_ptr<Gringo::SymbolStore> store;
     std::exception_ptr last_exception = nullptr;
-    std::string last_message = {};
+    std::string last_message;
     clingo_error_t last_code = clingo_error_success;
 };
 

@@ -486,8 +486,8 @@ void LitSymbolic::vars(VariableSet &vars, VarSelectMode mode) const {
     }
 }
 
-auto LitSymbolic::matcher(MatcherType type, std::vector<bool> const &bound)
-    -> std::pair<UMatcher, std::optional<size_t>> {
+auto LitSymbolic::matcher(MatcherType type,
+                          std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
     if (sign_ == Sign::once) {
         return {std::make_unique<NonFactMatcher>(*base_, *atom_), std::nullopt};
     }

@@ -8,7 +8,7 @@ namespace Gringo::Input {
 //! @{
 
 //! Enumeration of signs (default negation).
-enum class Sign {
+enum class Sign : uint8_t {
     none,  //!< No sign.
     once,  //!< One sign (not).
     twice, //!< Two signs (not not).
@@ -47,7 +47,7 @@ class Unsigned {
 };
 
 //! Enumeration of relation symbols.
-enum class Relation {
+enum class Relation : uint8_t {
     equal,         //!< The equal to symbol (=).
     not_equal,     //!< The not equal to symbol (!=).
     less,          //!< The less than symbol (<).

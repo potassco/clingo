@@ -43,7 +43,7 @@ void Instantiator::init(size_t gen) {
 void Instantiator::finalize(DependVec depend) {
     class SolutionMatcher : public Matcher {
       public:
-        void init([[maybe_unused]] size_t gen) override{};
+        void init([[maybe_unused]] size_t gen) override {};
         void match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) override {}
         auto next([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) -> bool override {
             return false;

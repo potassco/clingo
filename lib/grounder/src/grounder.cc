@@ -115,8 +115,8 @@ struct Parser {
     SymbolStore *store;
     Input::UnprocessedProgram *prg;
     std::filesystem::path root = std::filesystem::current_path();
-    std::deque<std::pair<std::filesystem::path, Input::StmInclude>> includes = {};
-    Util::unordered_set<std::filesystem::path> seen = {};
+    std::deque<std::pair<std::filesystem::path, Input::StmInclude>> includes;
+    Util::unordered_set<std::filesystem::path> seen;
     bool processed_stdin = false;
 };
 
@@ -446,7 +446,7 @@ Grounder::~Grounder() noexcept = default;
 
 void Grounder::parse(std::string_view prg) {
     GRINGO_REPORT(*impl_->log_, debug) << "parsing...";
-    auto prs = Parser{impl_->log_, impl_->store_, &impl_->unprocessed_prg};
+    auto prs = Parser{impl_->log_, impl_->store_, &impl_->unprocessed_prg, {}, {}, {}};
     auto scanner = Input::scan_string(*impl_->log_, *impl_->store_, prg);
     prs.process(prs.root, scanner);
     prs.process_includes();
@@ -454,7 +454,7 @@ void Grounder::parse(std::string_view prg) {
 
 void Grounder::parse(std::vector<std::string> const &files) {
     GRINGO_REPORT(*impl_->log_, debug) << "parsing...";
-    auto prs = Parser{impl_->log_, impl_->store_, &impl_->unprocessed_prg};
+    auto prs = Parser{impl_->log_, impl_->store_, &impl_->unprocessed_prg, {}, {}, {}};
     if (files.empty()) {
         prs.process_stdin();
         prs.process_includes();

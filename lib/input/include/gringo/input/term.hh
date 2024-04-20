@@ -215,7 +215,7 @@ class TermAbs : public RecursiveExpression<TermAbs> {
 };
 
 //! Enumeration of available unary operators.
-enum class UnaryOperator : int {
+enum class UnaryOperator : uint8_t {
     negate, //!< The unary minus sign (-).
     invert, //!< The unary negation sign (~).
 };
@@ -247,7 +247,7 @@ class TermUnary : public RecursiveExpression<TermUnary> {
 };
 
 //! Enumeration of available binary operators.
-enum class BinaryOperator : int {
+enum class BinaryOperator : uint8_t {
     and_,  //!< The AND bit operation.
     div,   //!< The (integer) divide arithmetic operation.
     minus, //!< The minus arithmetic operation.

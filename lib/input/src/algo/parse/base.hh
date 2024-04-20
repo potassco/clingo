@@ -124,8 +124,8 @@ template <typename Rule> struct location_rule_ : lexyd::_copy_base<Rule> {
     struct pp : lexyd::rule_base {
         template <typename NextParser> struct p {
             template <typename Context, typename Reader, typename... Args>
-            LEXY_PARSER_FUNC static auto parse(Context &context, Reader &reader, Position begin, Args &&...args)
-                -> bool {
+            LEXY_PARSER_FUNC static auto parse(Context &context, Reader &reader, Position begin,
+                                               Args &&...args) -> bool {
                 auto end = reader.position();
                 auto loc = Location{begin, context.control_block->parse_state->post_pos(end)};
                 context.on(lexyd::_ev::token{}, lexy::position_token_kind, end, end);

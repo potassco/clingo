@@ -21,7 +21,7 @@ using Dependency = std::tuple<size_t, Term const *, bool>;
 using DependencyMap = Util::unordered_map<Signature, std::vector<Dependency>>;
 using ProvideVec = std::vector<Term const *>;
 
-enum class DependencyType : uint32_t {
+enum class DependencyType : uint8_t {
     positive = 1,
     negative = 2,
 };
@@ -126,7 +126,7 @@ class AddDepend {
         }
     }
 
-    void operator()(BdLit const &lit) const { return std::visit(*this, lit); }
+    void operator()(BdLit const &lit) const { std::visit(*this, lit); }
 
     template <class T>
         requires Util::is_among_v<T, StmTheory, StmOptimize, StmShowSig, StmProjectSig, StmDefined, StmScript,
@@ -498,7 +498,7 @@ class Unifier {
 
 struct Node {
     Stm const *stm = nullptr;
-    std::vector<std::tuple<size_t, Term const *, Term const *, bool>> depend = {};
+    std::vector<std::tuple<size_t, Term const *, Term const *, bool>> depend;
     size_t scc = std::numeric_limits<size_t>::max();
     size_t sub_scc = std::numeric_limits<size_t>::max();
     size_t idx = 0;

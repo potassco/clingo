@@ -54,8 +54,8 @@ auto TermProjection::match([[maybe_unused]] SymbolStore &store, [[maybe_unused]]
     return true;
 }
 
-auto TermProjection::eval([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment const &ass) const
-    -> std::optional<Symbol> {
+auto TermProjection::eval([[maybe_unused]] SymbolStore &store,
+                          [[maybe_unused]] Assignment const &ass) const -> std::optional<Symbol> {
     return std::nullopt;
 }
 
@@ -90,13 +90,13 @@ auto TermProjection::compare_to([[maybe_unused]] Term const &other) const -> std
 
 // TermSymbol
 
-auto TermSymbol::match([[maybe_unused]] SymbolStore &store, Symbol sym, [[maybe_unused]] Assignment &ass) const
-    -> bool {
+auto TermSymbol::match([[maybe_unused]] SymbolStore &store, Symbol sym,
+                       [[maybe_unused]] Assignment &ass) const -> bool {
     return sym == sym_;
 }
 
-auto TermSymbol::eval([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment const &ass) const
-    -> std::optional<Symbol> {
+auto TermSymbol::eval([[maybe_unused]] SymbolStore &store,
+                      [[maybe_unused]] Assignment const &ass) const -> std::optional<Symbol> {
     return sym_;
 }
 
@@ -442,8 +442,8 @@ auto TermBinary::compare_to([[maybe_unused]] Term const &other) const -> std::st
                            [&store](SymbolVec args) { return store.tup(std::move(args)); });
 }
 
-auto TermTuple::rename(SymbolStore &store, RenameMode mode, [[maybe_unused]] String *name, size_t *vars) const
-    -> UTerm {
+auto TermTuple::rename(SymbolStore &store, RenameMode mode, [[maybe_unused]] String *name,
+                       size_t *vars) const -> UTerm {
     assert(name == nullptr);
     return std::make_unique<TermTuple>(rename_args(args_, store, mode, vars));
 }

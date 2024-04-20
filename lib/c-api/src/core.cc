@@ -91,7 +91,7 @@ extern "C" auto clingo_lib_new(clingo_lib_flags_t flags, clingo_logger_t logger,
         Gringo::Logger::Printer prt = nullptr;
         if (logger != nullptr) {
             prt = [logger, logger_data](Gringo::MessageCode code, char const *msg) {
-                return logger(static_cast<clingo_message_t>(code), msg, logger_data);
+                logger(static_cast<clingo_message_t>(code), msg, logger_data);
             };
         }
         // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)

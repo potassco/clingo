@@ -14,8 +14,6 @@ void Linearizer::start(Queue &queue, bool domain) {
     domain_ = domain;
 }
 
-#ifndef __clang_analyzer__
-
 void Linearizer::prepare(Stm &stm) {
     rec_.clear();
     todos_.clear();
@@ -157,8 +155,6 @@ auto Linearizer::order_(InstanceCallback &cb, std::vector<MatcherType> const &to
     inst.finalize(make_depend(important, std::vector<size_t>{}));
     return {std::move(inst), res_index};
 }
-
-#endif
 
 void StmRule::print(std::ostream &out) const {
     out << *head_;
