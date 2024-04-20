@@ -1,6 +1,7 @@
 """
 Unit tests for clingo.core module.
 """
+
 from unittest import TestCase
 
 from clingo.core import Library, version

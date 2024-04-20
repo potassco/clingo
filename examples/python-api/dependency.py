@@ -1,6 +1,7 @@
 """
 Example computing the predicate dependency graph of a program.
 """
+
 import sys
 from dataclasses import dataclass, field
 from functools import singledispatchmethod

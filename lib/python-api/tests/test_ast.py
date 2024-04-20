@@ -1,6 +1,7 @@
 """
 Unit tests for clingo.ast module.
 """
+
 from functools import singledispatch
 from textwrap import dedent
 from unittest import TestCase
