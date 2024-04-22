@@ -139,6 +139,39 @@ struct NeverNumeric {
     }
 };
 
+struct IsMatchable {
+    auto operator()(TermFunction const &term) const -> bool {
+        return !term.external() && std::all_of(term.pool().begin(), term.pool().end(), *this);
+    }
+
+    auto operator()(TermTuple const &term) const -> bool {
+        return std::all_of(term.pool().begin(), term.pool().end(), *this);
+    }
+
+    auto operator()(ArgumentTuple const &tuple) const -> bool {
+        return std::all_of(tuple.elems().begin(), tuple.elems().end(), *this);
+    }
+
+    auto operator()(TermUnary const &term) const -> bool {
+        return term.op() == UnaryOperator::negate && std::visit(*this, *term.rhs());
+    }
+
+    auto operator()(TermBinary const &term) const -> bool { return is_linear(term); }
+
+    template <class T> auto operator()(T const &term) const -> bool {
+        if constexpr (Util::is_among_v<T, Term, Argument, TupleElement>) {
+            return std::visit(*this, term);
+        } else if constexpr (Util::is_among_v<T, TermAbs>) {
+            return false;
+        } else if constexpr (Util::is_among_v<T, TermSymbol, Projection, TermVariable>) {
+            return true;
+        } else {
+            static_assert(Util::is_among_v<T, void>);
+            return false;
+        }
+    }
+};
+
 struct IsTest {
     template <class T> auto operator()([[maybe_unused]] T const &lit) const -> bool {
         if constexpr (Util::is_among_v<T, Lit, BdLit>) {
@@ -432,6 +465,8 @@ auto check_global(Logger &log, VariableSet const &global, Stm const &stm) -> boo
     }
     return true;
 }
+
+auto is_matchable(Term const &term) -> bool { return std::visit(IsMatchable{}, term); }
 
 auto signature(Term const &term) -> std::optional<std::tuple<String, size_t, bool>> {
     return std::visit(GetSignature{}, term);

@@ -328,7 +328,7 @@ auto LitInterval::hash() const -> size_t { return Util::value_hash_record<LitInt
 auto LitInterval::equal_to(Lit const &other) const -> bool {
     auto const *x = dynamic_cast<LitInterval const *>(&other);
     if (x != nullptr) {
-        return std::tie(lhs_, lower_, upper_) == std::tie(x->lhs_, x->lower_, x->upper_);
+        return std::tie(*lhs_, *lower_, *upper_) == std::tie(*x->lhs_, *x->lower_, *x->upper_);
     }
     return false;
 }
@@ -336,7 +336,7 @@ auto LitInterval::equal_to(Lit const &other) const -> bool {
 auto LitInterval::compare_to(Lit const &other) const -> std::weak_ordering {
     auto const *x = dynamic_cast<LitInterval const *>(&other);
     if (x != nullptr) {
-        return std::tie(lhs_, lower_, upper_) <=> std::tie(x->lhs_, x->lower_, x->upper_);
+        return std::tie(*lhs_, *lower_, *upper_) <=> std::tie(*x->lhs_, *x->lower_, *x->upper_);
     }
     return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
 }
@@ -409,10 +409,11 @@ auto LitComparison::hash() const -> size_t {
 auto LitComparison::equal_to(Lit const &other) const -> bool {
     auto const *x = dynamic_cast<LitComparison const *>(&other);
     if (x != nullptr) {
-        if (cmp_ == Relation::equal && x->cmp_ == Relation::equal && (*rhs_ < *lhs_ != *x->rhs_ < *x->lhs_)) {
-            return std::tie(lhs_, rhs_) == std::tie(x->rhs_, x->lhs_);
+        if (cmp_ == Relation::equal && x->cmp_ == Relation::equal) {
+            return std::tie(*lhs_, *rhs_) == std::tie(*x->lhs_, *x->rhs_) ||
+                   std::tie(*lhs_, *rhs_) == std::tie(*x->rhs_, *x->lhs_);
         }
-        return std::tie(lhs_, cmp_, rhs_) == std::tie(x->lhs_, x->cmp_, x->rhs_);
+        return std::tie(*lhs_, cmp_, *rhs_) == std::tie(*x->lhs_, x->cmp_, *x->rhs_);
     }
     return false;
 }
@@ -421,9 +422,9 @@ auto LitComparison::compare_to(Lit const &other) const -> std::weak_ordering {
     auto const *x = dynamic_cast<LitComparison const *>(&other);
     if (x != nullptr) {
         if (cmp_ == Relation::equal && x->cmp_ == Relation::equal && (*rhs_ < *lhs_ != *x->rhs_ < *x->lhs_)) {
-            return std::tie(lhs_, rhs_) <=> std::tie(x->rhs_, x->lhs_);
+            return std::tie(*lhs_, *rhs_) <=> std::tie(*x->rhs_, *x->lhs_);
         }
-        return std::tie(lhs_, cmp_, rhs_) <=> std::tie(x->lhs_, x->cmp_, x->rhs_);
+        return std::tie(*lhs_, cmp_, *rhs_) <=> std::tie(*x->lhs_, x->cmp_, *x->rhs_);
     }
     return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
 }
@@ -515,12 +516,12 @@ auto LitSymbolic::hash() const -> size_t { return Util::value_hash_record<LitSym
 
 auto LitSymbolic::equal_to(Lit const &other) const -> bool {
     auto const *x = dynamic_cast<LitSymbolic const *>(&other);
-    return x != nullptr && std::tie(sign_, atom_) == std::tie(x->sign_, x->atom_);
+    return x != nullptr && std::tie(sign_, *atom_) == std::tie(x->sign_, *x->atom_);
 }
 
 auto LitSymbolic::compare_to(Lit const &other) const -> std::weak_ordering {
     if (auto const *x = dynamic_cast<LitSymbolic const *>(&other); x != nullptr) {
-        return std::tie(sign_, atom_) <=> std::tie(x->sign_, x->atom_);
+        return std::tie(sign_, *atom_) <=> std::tie(x->sign_, *x->atom_);
     }
     return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
 }

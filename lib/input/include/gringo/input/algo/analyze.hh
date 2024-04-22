@@ -169,6 +169,14 @@ inline auto is_theory_operator(std::string_view name) -> bool {
 //! Get the signature of a term.
 auto signature(Term const &term) -> std::optional<std::tuple<String, size_t, bool>>;
 
+//! Check if a term is matchable.
+//!
+//! Matchable terms only contain (non-external) functions, tuples, constants,
+//! variables, linear terms, and negated terms.
+//!
+//! For example, the folllowing terms is matchable: `f(1,c,X,X+1,-X,(X,Y))`.
+auto is_matchable(Term const &term) -> bool;
+
 //! @}
 
 } // namespace Gringo::Input

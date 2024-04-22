@@ -236,53 +236,67 @@ struct BuildContext {
     Ground::ULitVec *body = nullptr;
 };
 
-struct BuilderLit {
-    auto operator()(Input::LitBool const &lit) const -> Ground::ULit {
+template <class F> struct BuilderLit {
+  public:
+    BuilderLit(BuildContext &ctx, F cb) : cb_{std::move(cb)}, ctx_{&ctx} {}
+    void operator()(Input::LitBool const &lit) const {
         static_cast<void>(lit);
         throw std::logic_error("literal boolean: implement me!!!");
     }
-    auto operator()(Input::LitComparison const &lit) const -> Ground::ULit {
+    void operator()(Input::LitComparison const &lit) const {
         auto has_projection = false;
-        auto bld_term = BuilderTerm{&has_projection, ctx->var_map};
-        auto lhs = std::visit(bld_term, lit.lhs());
+        auto bld_term = BuilderTerm{&has_projection, ctx_->var_map};
         if (Input::is_interval(lit.rhs().front().second)) {
+            auto lhs = std::visit(bld_term, lit.lhs());
             auto const &rng = std::get<Input::TermBinary>(lit.rhs().front().second);
             auto lower = std::visit(bld_term, *rng.lhs());
             auto upper = std::visit(bld_term, *rng.rhs());
-            return std::make_unique<Ground::LitInterval>(std::move(lhs), std::move(lower), std::move(upper));
-        }
-        if (Input::is_external(lit.rhs().front().second)) {
+            cb_(std::make_unique<Ground::LitInterval>(std::move(lhs), std::move(lower), std::move(upper)));
+        } else if (Input::is_external(lit.rhs().front().second)) {
             throw std::logic_error("literal comparison is external: implement me!!!");
+        } else {
+            auto add_cmp = [this, &bld_term](auto const &lhs, auto rel, auto const &rhs) {
+                auto l = std::visit(bld_term, lhs);
+                auto r = std::visit(bld_term, rhs);
+                cb_(std::make_unique<Ground::LitComparison>(std::move(l), static_cast<Ground::Relation>(rel),
+                                                            std::move(r)));
+            };
+            auto const &lhs = lit.lhs();
+            auto const &rhs = lit.rhs().front().second;
+            auto rel = lit.rhs().front().first;
+            add_cmp(lhs, rel, rhs);
+            if (rel == Input::Relation::equal && Input::is_matchable(rhs) && !Input::is_symbol(rhs)) {
+                add_cmp(rhs, rel, lhs);
+            }
         }
-        auto rhs = std::visit(bld_term, lit.rhs().front().second);
-        std::cerr << "TODO: somehow both directions have to be handled!!!\n";
-        return std::make_unique<Ground::LitComparison>(
-            std::move(lhs), static_cast<Ground::Relation>(lit.rhs().front().first), std::move(rhs));
     }
-    auto operator()(Input::LitSymbolic const &lit) const -> Ground::ULit {
+    void operator()(Input::LitSymbolic const &lit) const {
         auto has_projection = false;
-        auto bld_term = BuilderTerm{&has_projection, ctx->var_map};
+        auto bld_term = BuilderTerm{&has_projection, ctx_->var_map};
         auto term = std::visit(bld_term, lit.term());
         if (has_projection) {
-            term = ctx->impl->add_project(term);
+            term = ctx_->impl->add_project(term);
         }
-        auto it = ctx->comp->incomplete.find(&lit.term());
+        auto it = ctx_->comp->incomplete.find(&lit.term());
         // the index referring to a set of heads defining this literal
         // - a literal that is recursive and inside a non-domain component is non-domain
         // - a literal whole contains a non-fact is non-domain
         auto idx = std::numeric_limits<size_t>::max();
-        if (it != ctx->comp->incomplete.end()) {
-            idx = it - ctx->comp->incomplete.begin();
+        if (it != ctx_->comp->incomplete.end()) {
+            idx = it - ctx_->comp->incomplete.begin();
         }
         // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
         auto sig = *Input::signature(lit.term());
-        auto dom_it = ctx->impl->atom_base_.try_emplace(sig, nullptr).first;
+        auto dom_it = ctx_->impl->atom_base_.try_emplace(sig, nullptr).first;
         if (dom_it->second == nullptr) {
             dom_it.value() = std::make_unique<Ground::Base>();
         }
-        return std::make_unique<Ground::LitSymbolic>(*dom_it.value(), map_sign(lit.sign()), std::move(term), idx);
+        cb_(std::make_unique<Ground::LitSymbolic>(*dom_it.value(), map_sign(lit.sign()), std::move(term), idx));
     }
-    BuildContext *ctx;
+
+  private:
+    F cb_;
+    BuildContext *ctx_;
 };
 
 struct BuilderHdLit {
@@ -335,7 +349,9 @@ struct BuilderBdLit {
         // an index only has to be updated until it contains at least one value that justifies grounding
         // the remaining of the index can be updated while grounding
         // in case the index is never grounded, this can safe some computation
-        ctx->body->emplace_back(std::visit(BuilderLit{ctx}, lit.lit()));
+        std::visit(
+            BuilderLit{*ctx, [this]<class Lit>(Lit &&glit) { ctx->body->emplace_back(std::forward<Lit>(glit)); }},
+            lit.lit());
     }
     BuildContext *ctx;
 };
@@ -358,9 +374,9 @@ struct BuilderStm {
     BuildContext *ctx;
 };
 
-// TODO: here transform statements into grounding directives
-struct Builder : Input::DependencyBuilder {
-    Builder(Grounder::Impl &impl) : impl{&impl} {}
+class Builder : public Input::DependencyBuilder {
+  public:
+    Builder(Grounder::Impl &impl) : impl_{&impl} {}
 
     void param(Input::ProgramParam const &param) override {
         std::cerr << "#program_" << param.first << "(";
@@ -386,7 +402,7 @@ struct Builder : Input::DependencyBuilder {
         for (auto const &fact : facts) {
             // TODO: remove c&p
             auto sig = std::tuple<String, size_t, bool>(fact.name(), fact.args().size(), fact.has_sign());
-            auto dom_it = impl->atom_base_.try_emplace(sig, nullptr).first;
+            auto dom_it = impl_->atom_base_.try_emplace(sig, nullptr).first;
             if (dom_it->second == nullptr) {
                 dom_it.value() = std::make_unique<Ground::Base>();
             }
@@ -398,9 +414,9 @@ struct Builder : Input::DependencyBuilder {
     void components(Input::Components const &comps) override {
         auto lin = Ground::Linearizer{};
         for (auto const &ref_comps : comps) {
-            GRINGO_REPORT(*impl->log_, debug) << "  component";
+            GRINGO_REPORT(*impl_->log_, debug) << "  component";
             for (auto const &ref_comp : ref_comps) {
-                GRINGO_REPORT(*impl->log_, debug) << "    refined component";
+                GRINGO_REPORT(*impl_->log_, debug) << "    refined component";
                 auto gcomp = Ground::Component{static_cast<Ground::ComponentType>(ref_comp.type)};
                 for (auto const &stm : ref_comp.stms) {
                     Util::unordered_map<String, size_t> var_map;
@@ -419,22 +435,23 @@ struct Builder : Input::DependencyBuilder {
                         }
                         ++i;
                     }
-                    auto ctx = BuildContext{impl, &ref_comp, &def_map, &gcomp, &var_map, &body};
+                    auto ctx = BuildContext{impl_, &ref_comp, &def_map, &gcomp, &var_map, &body};
                     auto bld_stm = BuilderStm{&ctx};
                     std::visit(bld_stm, *stm);
                 }
                 auto queue = Ground::Queue{};
                 lin.start(queue, test(gcomp.type(), Ground::ComponentType::domain));
                 for (auto const &stm : gcomp.stms()) {
-                    GRINGO_REPORT(*impl->log_, debug) << "      " << *stm;
+                    GRINGO_REPORT(*impl_->log_, debug) << "      " << *stm;
                     lin.prepare(*stm);
                 }
-                queue.process(*impl->store_);
+                queue.process(*impl_->store_);
             }
         }
     }
 
-    Grounder::Impl *impl;
+  private:
+    Grounder::Impl *impl_;
 };
 
 } // namespace

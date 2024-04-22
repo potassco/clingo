@@ -17,6 +17,7 @@ Checks: >
   -readability-function-cognitive-complexity,
   -readability-function-size,
   -readability-identifier-length,
+  -readability-suspicious-call-argument,
 WarningsAsErrors: ''
 HeaderFilterRegex: ''
 FormatStyle: none
