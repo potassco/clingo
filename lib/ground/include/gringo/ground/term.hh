@@ -4,6 +4,7 @@
 #include <gringo/util/ordered_set.hh>
 
 #include <gringo/util/enum.hh>
+#include <gringo/util/unordered_map.hh>
 
 namespace Gringo::Ground {
 
@@ -42,6 +43,8 @@ class Term {
     //! Otherwise, variables and projection are replaced according to the given mode.
     [[nodiscard]] virtual auto rename(SymbolStore &store, RenameMode mode, String *name,
                                       size_t *vars) const -> UTerm = 0;
+    //! Create a copy of the term renaming variables in order of occurrence.
+    [[nodiscard]] virtual auto rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm = 0;
     //! Collect all variables in the term.
     virtual void vars(VariableSet &vars, bool provide = false) const = 0;
     virtual void print(std::ostream &out) const = 0;
@@ -62,6 +65,7 @@ class TermProjection : public Term {
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
     [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
     [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String *name, size_t *vars) const -> UTerm override;
+    [[nodiscard]] auto rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm override;
     void vars(VariableSet &vars, bool provide) const override;
     void print(std::ostream &out) const override;
     [[nodiscard]] auto hash() const -> size_t override;
@@ -75,6 +79,7 @@ class TermSymbol : public Term {
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
     [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
     [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String *name, size_t *vars) const -> UTerm override;
+    [[nodiscard]] auto rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm override;
     void vars(VariableSet &vars, bool provide) const override;
     void print(std::ostream &out) const override;
     [[nodiscard]] auto hash() const -> size_t override;
@@ -92,6 +97,7 @@ class TermVariable : public Term {
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
     [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
     [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String *name, size_t *vars) const -> UTerm override;
+    [[nodiscard]] auto rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm override;
     void vars(VariableSet &vars, bool provide) const override;
     void print(std::ostream &out) const override;
     [[nodiscard]] auto hash() const -> size_t override;
@@ -108,6 +114,7 @@ class TermLinear : public Term {
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
     [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
     [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String *name, size_t *vars) const -> UTerm override;
+    [[nodiscard]] auto rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm override;
     void vars(VariableSet &vars, bool provide) const override;
     void print(std::ostream &out) const override;
     [[nodiscard]] auto hash() const -> size_t override;
@@ -133,6 +140,7 @@ class TermUnary : public Term {
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
     [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
     [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String *name, size_t *vars) const -> UTerm override;
+    [[nodiscard]] auto rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm override;
     void vars(VariableSet &vars, bool provide) const override;
     void print(std::ostream &out) const override;
     [[nodiscard]] auto hash() const -> size_t override;
@@ -163,6 +171,7 @@ class TermBinary : public Term {
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
     [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
     [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String *name, size_t *vars) const -> UTerm override;
+    [[nodiscard]] auto rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm override;
     void vars(VariableSet &vars, bool provide) const override;
     void print(std::ostream &out) const override;
     [[nodiscard]] auto hash() const -> size_t override;
@@ -181,6 +190,7 @@ class TermTuple : public Term {
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
     [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
     [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String *name, size_t *vars) const -> UTerm override;
+    [[nodiscard]] auto rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm override;
     void vars(VariableSet &vars, bool provide) const override;
     void print(std::ostream &out) const override;
     [[nodiscard]] auto hash() const -> size_t override;
@@ -197,6 +207,7 @@ class TermFunction : public Term {
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
     [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
     [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String *name, size_t *vars) const -> UTerm override;
+    [[nodiscard]] auto rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm override;
     void vars(VariableSet &vars, bool provide) const override;
     void print(std::ostream &out) const override;
     [[nodiscard]] auto hash() const -> size_t override;

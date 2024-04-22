@@ -609,6 +609,21 @@ auto LitSymbolic::matcher(MatcherType type,
     if (bind.empty()) {
         return {std::make_unique<LookupMatcher>(*base_, *atom_, type), index};
     }
+    auto names = Util::unordered_map<size_t, size_t>{};
+    names.reserve(bind.size() + lookup.size());
+    auto sig_term = atom_->rename(names);
+    auto sig_lookup = std::vector<size_t>{};
+    sig_lookup.reserve(lookup.size());
+    for (auto const &var : lookup) {
+        sig_lookup.emplace_back(names[var]);
+    }
+    std::cerr << "TODO: register " << (lookup.empty() ? "full" : "hash") << " index for:\n";
+    std::cerr << "- lookup:";
+    for (auto const &var : sig_lookup) {
+        std::cerr << " X_" << var;
+    }
+    std::cerr << "\n- term  : " << *sig_term << "\n";
+
     if (lookup.empty()) {
         std::cerr << "TODO: the index of the full matcher should be shared\n";
         return {std::make_unique<FullMatcher>(*base_, *atom_, bind.release(), type), index};
