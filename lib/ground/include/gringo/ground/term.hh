@@ -88,6 +88,7 @@ class TermSymbol : public Term {
 class TermVariable : public Term {
   public:
     TermVariable(size_t var) : var_{var} {}
+    [[nodiscard]] auto match_sym() const -> bool;
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
     [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
     [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String *name, size_t *vars) const -> UTerm override;

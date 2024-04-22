@@ -219,7 +219,7 @@ auto TermLinear::compare_to([[maybe_unused]] Term const &other) const -> std::st
 
 // TermUnary
 
-[[nodiscard]] auto TermUnary::match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
+auto TermUnary::match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
     if (op_ == UnaryOperator::minus) {
         if (sym.type() == SymbolType::function) {
             // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
@@ -309,11 +309,11 @@ auto TermUnary::compare_to([[maybe_unused]] Term const &other) const -> std::str
 
 // TermBinary
 
-[[nodiscard]] auto TermBinary::match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
+auto TermBinary::match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
     return sym.type() == SymbolType::number && eval(store, ass) == sym;
 }
 
-[[nodiscard]] auto TermBinary::eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> {
+auto TermBinary::eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> {
     if (auto lhs = lhs_->eval(store, ass); lhs && lhs->type() == SymbolType::number) {
         if (auto rhs = rhs_->eval(store, ass); rhs && rhs->type() == SymbolType::number) {
             switch (op_) {
@@ -433,11 +433,11 @@ auto TermBinary::compare_to([[maybe_unused]] Term const &other) const -> std::st
 
 // TermTuple
 
-[[nodiscard]] auto TermTuple::match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
+auto TermTuple::match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
     return sym.type() == SymbolType::tuple && match_args(store, ass, args_, sym.args());
 }
 
-[[nodiscard]] auto TermTuple::eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> {
+auto TermTuple::eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> {
     return Util::transform(eval_args(store, ass, args_),
                            [&store](SymbolVec args) { return store.tup(std::move(args)); });
 }
@@ -487,12 +487,12 @@ auto TermTuple::compare_to([[maybe_unused]] Term const &other) const -> std::str
 
 // TermFunction
 
-[[nodiscard]] auto TermFunction::match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
+auto TermFunction::match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
     return sym.type() == SymbolType::function && !sym.has_classical_sign() && sym.name() == name_ &&
            match_args(store, ass, args_, sym.args());
 }
 
-[[nodiscard]] auto TermFunction::eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> {
+auto TermFunction::eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> {
     return Util::transform(eval_args(store, ass, args_),
                            [&store, this](SymbolVec args) { return store.fun(name_, std::move(args), false); });
 }

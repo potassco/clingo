@@ -106,13 +106,124 @@ class NonFactMatcher : public OnceMatcher {
     Term const *term_;
 };
 
-// TODO: this matcher is inefficient
-// - However, matching like this is still a good idea for atoms of form
-//   p(X,Y,Z) if no variables are bound.
-// - Another interesting case is if all atoms are bound, then we can simply
-//   lookup the symbol in the domain.
-// - Otherwise, a lookup table should be build traversing the atoms in the
-//   domain.
+class FullMatcher : public Matcher {
+  public:
+    FullMatcher(Base const &base, Term const &term, VariableVec free, MatcherType type)
+        : base_{&base}, term_{&term}, free_{std::move(free)}, type_{type} {}
+    void init(size_t gen) override { base_->update(gen); }
+    void match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) override {
+        // select the index of the first atom of the matcher's generation
+        current_ = base_->begin(type_);
+        // select the first interval that contains an atom of the matcher's generation
+        interval_ =
+            std::distance(index_.begin(), std::upper_bound(index_.begin(), index_.end(), current_,
+                                                           [](auto const &a, auto const &b) { return a < b.second; }));
+    }
+    auto next(SymbolStore &store, Assignment &ass) -> bool override {
+        auto n = base_->end(type_);
+        // populate the index if it does not yet hold enough elements
+        for (; imported_ <= current_; ++imported_) {
+            // the current index can no longer provide a match
+            if (current_ >= n) {
+                return false;
+            }
+            for (auto const &var : free_) {
+                ass[var] = std::nullopt;
+            }
+            if (term_->match(store, base_->nth(imported_)->first, ass)) {
+                if (index_.empty() || index_.back().second != imported_) {
+                    interval_ = index_.size();
+                    index_.emplace_back(imported_, imported_ + 1);
+                } else {
+                    ++index_.back().second;
+                }
+                if (imported_ == current_) {
+                    // the current index matches
+                    ++current_;
+                    ++imported_;
+                    return true;
+                }
+            } else if (current_ == imported_) {
+                // the current index does not match
+                ++current_;
+            }
+        }
+        // obtain a (guaranteed) match from the index
+        for (; interval_ < index_.size(); ++interval_) {
+            // all atoms in the interval have been matched
+            if (current_ < index_[interval_].first) {
+                current_ = index_[interval_].first;
+            }
+            // the current index can no longer provide a match
+            if (current_ >= n) {
+                return false;
+            }
+            // match the next atom in the interval
+            if (current_ < index_[interval_].second) {
+                for (auto const &var : free_) {
+                    ass[var] = std::nullopt;
+                }
+                return term_->match(store, base_->nth(current_++)->first, ass);
+            }
+        }
+        return false;
+    }
+
+  private:
+    Base const *base_;
+    Term const *term_;
+    VariableVec free_;
+    MatcherType type_;
+    std::vector<std::pair<size_t, size_t>> index_;
+    size_t interval_ = 0;
+    size_t current_ = 0;
+    size_t imported_ = 0;
+};
+
+class LookupMatcher : public OnceMatcher {
+  public:
+    LookupMatcher(Base const &base, Term const &term, MatcherType type) : base_{&base}, term_{&term}, type_{type} {}
+    void init(size_t gen) override { base_->update(gen); }
+    auto do_match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) -> bool override {
+        auto sym = term_->eval(store, ass);
+        return sym && base_->contains(*sym, type_);
+    }
+
+  private:
+    Base const *base_;
+    Term const *term_;
+    MatcherType type_;
+};
+
+// IndexMatcher
+// - build on the fly
+// - the index
+//   - signature
+//     - term with variables renamed in order
+//     - can be used to reuse the index
+//   - unordered_map:
+//     - bound symbols -> symbols to bind
+//   - pointer to domain
+//   - offset how many atoms have been imported into the index
+//   - when trying to find a match
+//     - needs separate assignment involving renamed variables
+//     - if match:
+//       - return true
+//     - while not all imported:
+//       - import one
+//       - if match
+//         - return true
+//     - return false
+// - a map for indices has to be stored somewhere
+// - names of bound variables
+// - names of variables to bind
+// - finding a match
+//   - lookup bound symbols in index returning an offset
+//   - if match at offset
+//     - bind variables
+//     - increase offset
+//     - return true
+//   - return false
 class DummyMatcher : public Matcher {
   public:
     DummyMatcher(Base const &base, Term const &term, VariableVec free, MatcherType type)
@@ -147,36 +258,6 @@ class DummyMatcher : public Matcher {
     MatcherType type_;
     size_t current_ = 0;
 };
-
-// IndexMatcher
-// - build on the fly
-// - the index
-//   - signature
-//     - term with variables renamed in order
-//     - can be used to reuse the index
-//   - unordered_map:
-//     - bound symbols -> symbols to bind
-//   - pointer to domain
-//   - offset how many atoms have been imported into the index
-//   - when trying to find a match
-//     - needs separate assignment involving renamed variables
-//     - if match:
-//       - return true
-//     - while not all imported:
-//       - import one
-//       - if match
-//         - return true
-//     - return false
-// - a map for indices has to be stored somewhere
-// - names of bound variables
-// - names of variables to bind
-// - finding a match
-//   - lookup bound symbols in index returning an offset
-//   - if match at offset
-//     - bind variables
-//     - increase offset
-//     - return true
-//   - return false
 
 class IntervalMatcher : public Matcher {
   public:
@@ -496,14 +577,28 @@ auto LitSymbolic::matcher(MatcherType type,
         return {std::make_unique<OnceMatcher>(), std::nullopt};
     }
     // TODO: proper matcher creation
-    VariableSet vars;
-    atom_->vars(vars);
-    erase_if(vars, [&bound](auto const &var) { return bound[var]; });
+    VariableSet bind;
+    VariableSet lookup;
+    atom_->vars(bind);
+    erase_if(bind, [&bound, &lookup](auto const &var) {
+        if (bound[var]) {
+            lookup.insert(var);
+        }
+        return bound[var];
+    });
     auto index = std::optional<size_t>{};
     if (index_ != std::numeric_limits<size_t>::max() && type == MatcherType::new_atoms) {
         index = index_;
     }
-    return {std::make_unique<DummyMatcher>(*base_, *atom_, vars.release(), type), index};
+    if (bind.empty()) {
+        return {std::make_unique<LookupMatcher>(*base_, *atom_, type), index};
+    }
+    if (lookup.empty()) {
+        std::cerr << "TODO: the index of the full matcher should be shared\n";
+        return {std::make_unique<FullMatcher>(*base_, *atom_, bind.release(), type), index};
+    }
+    std::cerr << "TODO: implement a proper index\n";
+    return {std::make_unique<DummyMatcher>(*base_, *atom_, bind.release(), type), index};
 }
 
 auto LitSymbolic::score(std::vector<bool> const &bound) const -> double {

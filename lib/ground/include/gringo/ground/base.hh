@@ -109,6 +109,9 @@ class Base {
     auto atoms() const -> std::span<Atom const> { return {atoms_.values_container().data(), all_offset_}; }
     auto has_update() const -> bool { return atoms_.size() > all_offset_; }
     [[nodiscard]] auto contains(Symbol const &sym) const -> bool { return atoms_.find(sym) != atoms_.end(); }
+    [[nodiscard]] auto contains(Symbol const &sym, MatcherType type) const -> bool {
+        return static_cast<size_t>(std::distance(atoms_.begin(), atoms_.find(sym))) < end(type);
+    }
     auto begin(MatcherType type) const -> size_t {
         if (type == MatcherType::new_atoms) {
             return old_offset_;
