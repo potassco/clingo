@@ -106,64 +106,64 @@ class NonFactMatcher : public OnceMatcher {
     Term const *term_;
 };
 
-class FullMatcher : public Matcher {
+class FullIndex {
   public:
-    FullMatcher(Base const &base, Term const &term, VariableVec free, MatcherType type)
-        : base_{&base}, term_{&term}, free_{std::move(free)}, type_{type} {}
-    void init(size_t gen) override { base_->update(gen); }
-    void match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) override {
+    FullIndex(Base const &base) : base_{&base} {}
+    void init(size_t gen) { base_->update(gen); }
+    auto match(MatcherType type) -> std::pair<size_t, size_t> {
         // select the index of the first atom of the matcher's generation
-        current_ = base_->begin(type_);
+        auto current = base_->begin(type);
         // select the first interval that contains an atom of the matcher's generation
-        interval_ =
-            std::distance(index_.begin(), std::upper_bound(index_.begin(), index_.end(), current_,
-                                                           [](auto const &a, auto const &b) { return a < b.second; }));
+        return {current, std::distance(index_.begin(),
+                                       std::upper_bound(index_.begin(), index_.end(), current,
+                                                        [](auto const &a, auto const &b) { return a < b.second; }))};
     }
-    auto next(SymbolStore &store, Assignment &ass) -> bool override {
-        auto n = base_->end(type_);
+    auto next(SymbolStore &store, Assignment &ass, Term const &term, VariableVec &free, MatcherType type,
+              size_t &current, size_t interval) -> bool {
+        auto n = base_->end(type);
         // populate the index if it does not yet hold enough elements
-        for (; imported_ <= current_; ++imported_) {
+        for (; imported_ <= current; ++imported_) {
             // the current index can no longer provide a match
-            if (current_ >= n) {
+            if (current >= n) {
                 return false;
             }
-            for (auto const &var : free_) {
+            for (auto const &var : free) {
                 ass[var] = std::nullopt;
             }
-            if (term_->match(store, base_->nth(imported_)->first, ass)) {
+            if (term.match(store, base_->nth(imported_)->first, ass)) {
                 if (index_.empty() || index_.back().second != imported_) {
-                    interval_ = index_.size();
+                    interval = index_.size();
                     index_.emplace_back(imported_, imported_ + 1);
                 } else {
                     ++index_.back().second;
                 }
-                if (imported_ == current_) {
+                if (imported_ == current) {
                     // the current index matches
-                    ++current_;
+                    ++current;
                     ++imported_;
                     return true;
                 }
-            } else if (current_ == imported_) {
+            } else if (current == imported_) {
                 // the current index does not match
-                ++current_;
+                ++current;
             }
         }
         // obtain a (guaranteed) match from the index
-        for (; interval_ < index_.size(); ++interval_) {
+        for (; interval < index_.size(); ++interval) {
             // all atoms in the interval have been matched
-            if (current_ < index_[interval_].first) {
-                current_ = index_[interval_].first;
+            if (current < index_[interval].first) {
+                current = index_[interval].first;
             }
             // the current index can no longer provide a match
-            if (current_ >= n) {
+            if (current >= n) {
                 return false;
             }
             // match the next atom in the interval
-            if (current_ < index_[interval_].second) {
-                for (auto const &var : free_) {
+            if (current < index_[interval].second) {
+                for (auto const &var : free) {
                     ass[var] = std::nullopt;
                 }
-                return term_->match(store, base_->nth(current_++)->first, ass);
+                return term.match(store, base_->nth(current++)->first, ass);
             }
         }
         return false;
@@ -171,13 +171,29 @@ class FullMatcher : public Matcher {
 
   private:
     Base const *base_;
+    std::vector<std::pair<size_t, size_t>> index_;
+    size_t imported_ = 0;
+};
+
+class FullMatcher : public Matcher {
+  public:
+    FullMatcher(Base const &base, Term const &term, VariableVec free, MatcherType type)
+        : index_{std::make_unique<FullIndex>(base)}, term_{&term}, free_{std::move(free)}, type_{type} {}
+    void init(size_t gen) override { index_->init(gen); }
+    void match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) override {
+        std::tie(current_, interval_) = index_->match(type_);
+    }
+    auto next(SymbolStore &store, Assignment &ass) -> bool override {
+        return index_->next(store, ass, *term_, free_, type_, current_, interval_);
+    }
+
+  private:
+    std::unique_ptr<FullIndex> index_;
     Term const *term_;
     VariableVec free_;
     MatcherType type_;
-    std::vector<std::pair<size_t, size_t>> index_;
     size_t interval_ = 0;
     size_t current_ = 0;
-    size_t imported_ = 0;
 };
 
 class LookupMatcher : public OnceMatcher {
