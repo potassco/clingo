@@ -282,6 +282,7 @@ class HashIndex {
         if (cur == std::numeric_limits<size_t>::max()) {
             temp_values_.clear();
             for (auto const &var : bound_vars) {
+                assert(ass[var]);
                 // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
                 temp_values_.emplace_back(*ass[var]);
             }
@@ -363,7 +364,7 @@ class HashIndex {
     std::vector<Symbol> temp_values_;
     SpanStack<Symbol> bound_values_;
     SpanStack<Symbol> bind_values_;
-    Util::unordered_map<Symbol *, std::vector<std::pair<size_t, Symbol *>>, SpanHash, SpanEqualTo> index_;
+    IndexMap index_;
     size_t imported_ = 0;
 };
 
@@ -434,13 +435,9 @@ class HashMatcher : public Matcher {
   public:
     HashMatcher(HashIndex &index, Term const &term, VariableVec bound, VariableVec bind, MatcherType type)
         : index_{&index}, term_{&term}, bound_{std::move(bound)}, bind_{std::move(bind)}, type_{type} {}
-    void init(size_t gen) override {
-        // std::cerr << "set generation of " << *term_ << " to " << gen << "\n";
-        index_->init(gen);
-    }
+    void init(size_t gen) override { index_->init(gen); }
     void match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) override {
         current_ = std::numeric_limits<size_t>::max();
-        // std::cerr << "matching: " << *term_ << " in range " << current_ << "-" << base_->end(type_) << "\n";
     }
     auto next(SymbolStore &store, Assignment &ass) -> bool override {
         return index_->next(store, ass, bound_, bind_, *term_, type_, it_, current_);
