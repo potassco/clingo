@@ -4,6 +4,8 @@
 
 #include <gringo/util/ordered_map.hh>
 
+#include <iostream>
+
 namespace Gringo::Ground {
 
 // NOLINTNEXTLINE(performance-enum-size)
@@ -39,6 +41,15 @@ enum class AtomUpdate : uint8_t {
 };
 
 enum class MatcherType : uint8_t { new_atoms, old_atoms, all_atoms };
+
+// TODO:
+// - used to store indices for the domain
+// - implemented in an any-like fashion because we do not need details here
+// - for base cleanup it would be easy to add a method
+class BaseContext {
+  public:
+    virtual ~BaseContext() = default;
+};
 
 class Base {
   public:
@@ -135,7 +146,19 @@ class Base {
     auto nth(size_t i) const -> Util::ordered_map<Symbol, AtomInfo>::const_iterator { return atoms_.nth(i); }
     auto nth(size_t i) -> Util::ordered_map<Symbol, AtomInfo>::iterator { return atoms_.nth(i); }
 
+    template <class T> auto context() -> T & {
+        if (context_ != nullptr) {
+            if (auto res = dynamic_cast<T *>(context_.get()); res != nullptr) {
+                return *res;
+            }
+            throw std::bad_cast();
+        }
+        context_ = std::make_unique<T>();
+        return static_cast<T &>(*context_);
+    }
+
   private:
+    std::unique_ptr<BaseContext> context_;
     Util::ordered_map<Symbol, AtomInfo> atoms_;
     size_t mutable domain_offset_ = 0;
     //! Symbols before this offset are considered old.

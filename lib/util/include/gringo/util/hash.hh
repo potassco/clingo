@@ -6,6 +6,7 @@
 #include <memory>
 #include <numeric>
 #include <optional>
+#include <span>
 #include <string_view>
 #include <typeinfo>
 #include <variant>
@@ -60,6 +61,9 @@ template <class... T> auto value_hash(std::tuple<T...> const &x) -> size_t;
 //! Compute the hash of a variant.
 template <class... T> auto value_hash(std::variant<T...> const &x) -> size_t;
 
+//! Compute the hash of a span.
+template <class T> auto value_hash(std::span<T> const &x) -> size_t;
+
 //! Compute the hash of a vector.
 template <class T> auto value_hash(std::vector<T> const &x) -> size_t;
 
@@ -113,6 +117,10 @@ struct value_equal_to {
         return i == b.index() && [&, this]<size_t... I>([[maybe_unused]] std::index_sequence<I...> seq) {
             return ((i == I && this->operator()(std::get<I>(a), std::get<I>(b))) || ...);
         }(std::index_sequence_for<T...>());
+    }
+    //! Compare spans by value.
+    template <class T, size_t E> auto operator()(std::span<T, E> const &a, std::span<T, E> const &b) const -> bool {
+        return std::equal(a.begin(), a.end(), b.begin(), b.end(), *this);
     }
     //! Compare vectors by value.
     template <class... T> auto operator()(std::vector<T...> const &a, std::vector<T...> const &b) const -> bool {
@@ -181,13 +189,18 @@ template <class... T> auto value_hash(std::variant<T...> const &x) -> size_t {
         [](auto &&arg) { return hash_combine({typeid(std::variant<T...>).hash_code(), value_hash(arg)}); }, x);
 }
 
+template <class T> auto value_hash(std::span<T> const &x) -> size_t {
+    return std::accumulate(x.begin(), x.end(), typeid(std::span<T>).hash_code(),
+                           [](auto const &seed, auto const &x) { return hash_combine({seed, value_hash(x)}); });
+}
+
 template <class T> auto value_hash(std::vector<T> const &x) -> size_t {
     return std::accumulate(x.begin(), x.end(), typeid(std::vector<T>).hash_code(),
                            [](auto const &seed, auto const &x) { return hash_combine({seed, value_hash(x)}); });
 }
 
 template <class T> auto value_hash(Util::immutable_array<T> const &x) -> size_t {
-    return std::accumulate(x.begin(), x.end(), typeid(std::vector<T>).hash_code(),
+    return std::accumulate(x.begin(), x.end(), typeid(Util::immutable_array<T>).hash_code(),
                            [](auto const &seed, auto const &x) { return hash_combine({seed, value_hash(x)}); });
 }
 
