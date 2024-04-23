@@ -335,6 +335,9 @@ class HashIndex {
                     bound_match = {jt->first, bound_vars.size()};
                     bound_values_.pop();
                 }
+                // TODO: cache-wise this is not the best layout
+                // it would be better to store the matches in contiguous memory
+                // something like this: [size,var,...,var,size,var,...,var,...]
                 auto bind_match = bind_values_.push_map(bind_vars, [&ass](auto const &var) { return *ass[var]; });
                 jt.value().emplace_back(imported_, bind_match.data());
                 // check if the imported symbol is a match
