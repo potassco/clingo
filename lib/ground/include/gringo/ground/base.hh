@@ -4,8 +4,6 @@
 
 #include <gringo/util/ordered_map.hh>
 
-#include <iostream>
-
 namespace Gringo::Ground {
 
 // NOLINTNEXTLINE(performance-enum-size)

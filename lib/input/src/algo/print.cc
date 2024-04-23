@@ -757,53 +757,6 @@ auto operator<<(std::ostream &out, BinaryOperator op) -> std::ostream & {
     return out;
 }
 
-auto operator<<(std::ostream &out, Relation op) -> std::ostream & {
-    switch (op) {
-        case Relation::less: {
-            out << "<";
-            break;
-        }
-        case Relation::less_equal: {
-            out << "<=";
-            break;
-        }
-        case Relation::greater: {
-            out << ">";
-            break;
-        }
-        case Relation::greater_equal: {
-            out << ">=";
-            break;
-        }
-        case Relation::equal: {
-            out << "=";
-            break;
-        }
-        case Relation::not_equal: {
-            out << "!=";
-            break;
-        }
-    }
-    return out;
-}
-
-auto operator<<(std::ostream &out, Sign sign) -> std::ostream & {
-    switch (sign) {
-        case Sign::none: {
-            break;
-        }
-        case Sign::once: {
-            out << "not ";
-            break;
-        }
-        case Sign::twice: {
-            out << "not not ";
-            break;
-        }
-    }
-    return out;
-}
-
 auto operator<<(std::ostream &out, AggregateFunction fun) -> std::ostream & {
     switch (fun) {
         case AggregateFunction::count: {

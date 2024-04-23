@@ -1562,7 +1562,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto right = va_arg(args, int);
                 va_end(args);
                 *ast = construct_ast<Gringo::Input::LGuard::value_type>(type, left->convert<Gringo::Input::Term>(),
-                                                                        static_cast<Gringo::Input::Relation>(right));
+                                                                        static_cast<Gringo::Relation>(right));
                 break;
             }
             case clingo_ast_type_right_guard: {
@@ -1571,8 +1571,8 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto left = va_arg(args, int);
                 auto const *right = va_arg(args, clingo_ast const *);
                 va_end(args);
-                *ast = construct_ast<Gringo::Input::RGuard::value_type>(
-                    type, static_cast<Gringo::Input::Relation>(left), right->convert<Gringo::Input::Term>());
+                *ast = construct_ast<Gringo::Input::RGuard::value_type>(type, static_cast<Gringo::Relation>(left),
+                                                                        right->convert<Gringo::Input::Term>());
                 break;
             }
             case clingo_ast_type_literal_boolean: {
@@ -1583,7 +1583,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto value = va_arg(args, int);
                 va_end(args);
                 *ast = construct_ast<Gringo::Input::LitBool>(type, convert_loc(lib, loc),
-                                                             static_cast<Gringo::Input::Sign>(sign), value != 0);
+                                                             static_cast<Gringo::Sign>(sign), value != 0);
                 break;
             }
             case clingo_ast_type_literal_symbolic: {
@@ -1593,9 +1593,8 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto sign = va_arg(args, int);
                 auto const *atom = va_arg(args, clingo_ast_t const *);
                 va_end(args);
-                *ast = construct_ast<Gringo::Input::LitSymbolic>(type, convert_loc(lib, loc),
-                                                                 static_cast<Gringo::Input::Sign>(sign),
-                                                                 atom->convert<Gringo::Input::Term>());
+                *ast = construct_ast<Gringo::Input::LitSymbolic>(
+                    type, convert_loc(lib, loc), static_cast<Gringo::Sign>(sign), atom->convert<Gringo::Input::Term>());
                 break;
             }
             case clingo_ast_type_literal_comparison: {
@@ -1608,8 +1607,8 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto size = va_arg(args, size_t);
                 va_end(args);
                 *ast = construct_ast<Gringo::Input::LitComparison>(
-                    type, convert_loc(lib, loc), static_cast<Gringo::Input::Sign>(sign),
-                    left->convert<Gringo::Input::Term>(), convert_ast_vec<Gringo::Input::Guard>(right, size));
+                    type, convert_loc(lib, loc), static_cast<Gringo::Sign>(sign), left->convert<Gringo::Input::Term>(),
+                    convert_ast_vec<Gringo::Input::Guard>(right, size));
                 break;
             }
             case clingo_ast_type_unparsed_element: {
@@ -1751,7 +1750,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *rhs = va_arg(args, clingo_ast_t const *);
                 va_end(args);
                 *ast = construct_ast<Gringo::Input::BdLitAggregate>(
-                    type, convert_loc(lib, loc), static_cast<Gringo::Input::Sign>(sign),
+                    type, convert_loc(lib, loc), static_cast<Gringo::Sign>(sign),
                     convert_ast_opt<Gringo::Input::LGuard::value_type>(lhs),
                     static_cast<Gringo::Input::AggregateFunction>(fun),
                     convert_ast_vec<Gringo::Input::BdLitAggregateElement>(elems, elems_size),
@@ -1769,7 +1768,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *rhs = va_arg(args, clingo_ast_t const *);
                 va_end(args);
                 *ast = construct_ast<Gringo::Input::BdLitSetAggregate>(
-                    type, convert_loc(lib, loc), static_cast<Gringo::Input::Sign>(sign),
+                    type, convert_loc(lib, loc), static_cast<Gringo::Sign>(sign),
                     convert_ast_opt<Gringo::Input::LGuard::value_type>(lhs),
                     convert_ast_vec<Gringo::Input::SetAggregateElement>(elems, elems_size),
                     convert_ast_opt<Gringo::Input::RGuard::value_type>(rhs));
@@ -1786,8 +1785,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *rhs = va_arg(args, clingo_ast_t const *);
                 va_end(args);
                 *ast = construct_ast<Gringo::Input::BdLitTheoryAtom>(
-                    type, convert_loc(lib, loc), static_cast<Gringo::Input::Sign>(sign),
-                    term->convert<Gringo::Input::Term>(),
+                    type, convert_loc(lib, loc), static_cast<Gringo::Sign>(sign), term->convert<Gringo::Input::Term>(),
                     convert_ast_vec<Gringo::Input::TheoryElement>(elems, elems_size),
                     convert_ast_opt<Gringo::Input::TheoryRGuard::value_type>(rhs));
                 break;

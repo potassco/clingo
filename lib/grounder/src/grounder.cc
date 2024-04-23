@@ -224,21 +224,6 @@ class BuilderTerm {
     Util::unordered_map<String, size_t> *var_map_;
 };
 
-auto map_sign(Input::Sign sign) {
-    switch (sign) {
-        case Input::Sign::none: {
-            return Ground::Sign::none;
-        }
-        case Input::Sign::once: {
-            return Ground::Sign::once;
-        }
-        case Input::Sign::twice: {
-            break;
-        }
-    }
-    return Ground::Sign::twice;
-}
-
 struct BuildContext {
     Grounder::Impl *impl = nullptr;
     Input::Component const *comp = nullptr;
@@ -270,14 +255,13 @@ template <class F> class BuilderLit {
             auto add_cmp = [this, &bld_term](auto const &lhs, auto rel, auto const &rhs) {
                 auto l = std::visit(bld_term, lhs);
                 auto r = std::visit(bld_term, rhs);
-                cb_(std::make_unique<Ground::LitComparison>(std::move(l), static_cast<Ground::Relation>(rel),
-                                                            std::move(r)));
+                cb_(std::make_unique<Ground::LitComparison>(std::move(l), rel, std::move(r)));
             };
             auto const &lhs = lit.lhs();
             auto const &rhs = lit.rhs().front().second;
             auto rel = lit.rhs().front().first;
             add_cmp(lhs, rel, rhs);
-            if (rel == Input::Relation::equal && Input::is_matchable(rhs) && !Input::is_symbol(rhs)) {
+            if (rel == Relation::equal && Input::is_matchable(rhs) && !Input::is_symbol(rhs)) {
                 add_cmp(rhs, rel, lhs);
             }
         }
@@ -303,7 +287,7 @@ template <class F> class BuilderLit {
         if (dom_it->second == nullptr) {
             dom_it.value() = std::make_unique<Ground::Base>();
         }
-        cb_(std::make_unique<Ground::LitSymbolic>(*dom_it.value(), map_sign(lit.sign()), std::move(term), idx));
+        cb_(std::make_unique<Ground::LitSymbolic>(*dom_it.value(), lit.sign(), std::move(term), idx));
     }
 
   private:
@@ -330,7 +314,7 @@ class BuilderHdLit {
                         dom_it.value() = std::make_unique<Ground::Base>();
                     }
                     base = dom_it->second.get();
-                    assert(lit.sign() == Input::Sign::none);
+                    assert(lit.sign() == Sign::none);
                     if (auto it = ctx_->def_map->find(&lit.term()); it != ctx_->def_map->end()) {
                         provides = it->second;
                     }

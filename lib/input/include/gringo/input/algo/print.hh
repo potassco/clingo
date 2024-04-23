@@ -16,12 +16,6 @@ auto operator<<(std::ostream &out, UnaryOperator op) -> std::ostream &;
 //! Output the given binary operator.
 auto operator<<(std::ostream &out, BinaryOperator op) -> std::ostream &;
 
-//! Output the given relation.
-auto operator<<(std::ostream &out, Relation op) -> std::ostream &;
-
-//! Output the given sign.
-auto operator<<(std::ostream &out, Sign sign) -> std::ostream &;
-
 //! Output the given aggregate function.
 auto operator<<(std::ostream &out, AggregateFunction fun) -> std::ostream &;
 

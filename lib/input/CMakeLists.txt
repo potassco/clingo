@@ -20,7 +20,6 @@ add_library(gringo_input
     "src/algo/unpool.cc"
     "src/algo/unpool_relations.cc"
     "src/algo/visit_variables.cc"
-    "src/literal.cc"
     "src/program.cc"
     )
 

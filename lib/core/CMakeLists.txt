@@ -1,6 +1,7 @@
 add_library(gringo_core
     "src/number.cc"
     "src/symbol.cc"
+    "src/core.cc"
     )
 
 target_link_libraries(gringo_core PUBLIC gringo_util tsl::hopscotch_map tsl::ordered_map PRIVATE imath::imath)

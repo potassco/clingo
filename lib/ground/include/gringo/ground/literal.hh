@@ -1,30 +1,14 @@
 #pragma once
 
+#include <gringo/core/core.hh>
+
 #include <gringo/ground/base.hh>
 #include <gringo/ground/instantiator.hh>
-#include <gringo/ground/literal.hh>
 #include <gringo/ground/term.hh>
 
 #include <gringo/util/ordered_map.hh>
 
 namespace Gringo::Ground {
-
-enum class Sign : uint8_t {
-    none,
-    once,
-    twice,
-};
-auto operator<<(std::ostream &out, Sign sign) -> std::ostream &;
-
-enum class Relation : uint8_t {
-    equal,         //!< The equal to symbol (=).
-    not_equal,     //!< The not equal to symbol (!=).
-    less,          //!< The less than symbol (<).
-    less_equal,    //!< The less than or equal to symbol (<=).
-    greater,       //!< The greater than symbol (>).
-    greater_equal, //!< The greater than or equal to symbol (>=).
-};
-auto operator<<(std::ostream &out, Relation rel) -> std::ostream &;
 
 enum class VarSelectMode : uint8_t {
     depend = 1,
