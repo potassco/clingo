@@ -144,7 +144,7 @@ auto LitComparison::equal_to(Lit const &other) const -> bool {
 auto LitComparison::compare_to(Lit const &other) const -> std::weak_ordering {
     auto const *x = dynamic_cast<LitComparison const *>(&other);
     if (x != nullptr) {
-        if (cmp_ == Relation::equal && x->cmp_ == Relation::equal && (*rhs_ < *lhs_ != *x->rhs_ < *x->lhs_)) {
+        if (cmp_ == Relation::equal && x->cmp_ == Relation::equal && ((*rhs_ < *lhs_) != (*x->rhs_ < *x->lhs_))) {
             return std::tie(*lhs_, *rhs_) <=> std::tie(*x->rhs_, *x->lhs_);
         }
         return std::tie(*lhs_, cmp_, *rhs_) <=> std::tie(*x->lhs_, x->cmp_, *x->rhs_);
