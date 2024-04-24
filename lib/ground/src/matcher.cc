@@ -1,5 +1,7 @@
 #include <gringo/ground/matcher.hh>
 
+#include <iostream>
+
 namespace Gringo::Ground {
 
 namespace {

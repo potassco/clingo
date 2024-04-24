@@ -10,3 +10,12 @@ add_library(gringo_ground
 target_link_libraries(gringo_ground PUBLIC gringo_core)
 target_include_directories(gringo_ground PUBLIC "include")
 set_property(TARGET gringo_ground PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+if (PARSER_BUILD_TESTS)
+    add_executable(test_ground
+        "tests/matcher.cc")
+    target_link_libraries(test_ground PRIVATE gringo_ground Catch2::Catch2WithMain)
+    target_include_directories(test_ground PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
+    set_target_properties(test_ground PROPERTIES FOLDER test_ground)
+    add_test(NAME test_ground COMMAND test_ground)
+endif()
