@@ -1,10 +1,11 @@
 # Build Environment
 
-The clang project that ships with conda does not come with an up to date
-libc++. Hence, the commands below simply setup a basic development environment
-and installs the required clang manually.
+The clang project that ships with conda does not come with an up-to-date
+libc++. Hence, the commands below setup a development environment with a
+manually complied clang.
 
-Bring some cups of coffee to wait out the build process!
+Bring some cups of coffee to wait out the build process and note that this
+won't work on MacOS!
 
 ```
 # create conda environment
@@ -27,7 +28,7 @@ cmake --build build --target install
 cat > "${CONDA_PREFIX}/bin/clang.cfg" <<EOF
 -Wl,-rpath="${CONDA_PREFIX}/lib/x86_64-unknown-linux-gnu"
 -Wl,-rpath="${CONDA_PREFIX}/lib"
--L/mnt/scratch/kaminski/conda/envs/clang/lib
+-L"${CONDA_PREFIX}/lib"
 EOF
 cp -fs "${CONDA_PREFIX}/bin/clang.cfg" "${CONDA_PREFIX}/bin/clang++.cfg"
 ```
