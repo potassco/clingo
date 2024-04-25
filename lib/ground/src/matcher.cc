@@ -107,19 +107,20 @@ class FullIndex {
     void init(size_t gen) { base_->update(gen); }
     auto match(MatcherType type) -> std::pair<size_t, size_t> {
         // select the index of the first atom of the matcher's generation
-        auto current = base_->begin(type);
+        auto cur = base_->begin(type);
         // select the first interval that contains an atom of the matcher's generation
-        return {current, std::distance(index_.begin(),
-                                       std::upper_bound(index_.begin(), index_.end(), current,
-                                                        [](auto const &a, auto const &b) { return a < b.second; }))};
+        return {
+            std::distance(index_.begin(), std::upper_bound(index_.begin(), index_.end(), cur,
+                                                           [](auto const &a, auto const &b) { return a < b.second; })),
+            cur};
     }
-    auto next(SymbolStore &store, Assignment &ass, Term const &term, VariableVec &free, MatcherType type,
-              size_t &current, size_t interval) -> bool {
+    auto next(SymbolStore &store, Assignment &ass, Term const &term, VariableVec &free, MatcherType type, size_t &pos,
+              size_t &cur) -> bool {
         auto n = base_->end(type);
         // populate the index if it does not yet hold enough elements
-        for (; imported_ <= current; ++imported_) {
+        for (; imported_ <= cur; ++imported_) {
             // the current index can no longer provide a match
-            if (current >= n) {
+            if (cur >= n) {
                 return false;
             }
             for (auto const &var : free) {
@@ -127,38 +128,38 @@ class FullIndex {
             }
             if (term.match(store, base_->nth(imported_)->first, ass)) {
                 if (index_.empty() || index_.back().second != imported_) {
-                    interval = index_.size();
+                    pos = index_.size();
                     index_.emplace_back(imported_, imported_ + 1);
                 } else {
                     ++index_.back().second;
                 }
-                if (imported_ == current) {
+                if (imported_ == cur) {
                     // the current index matches
-                    ++current;
+                    ++cur;
                     ++imported_;
                     return true;
                 }
-            } else if (current == imported_) {
+            } else if (cur == imported_) {
                 // the current index does not match
-                ++current;
+                ++cur;
             }
         }
         // obtain a (guaranteed) match from the index
-        for (; interval < index_.size(); ++interval) {
+        for (; pos < index_.size(); ++pos) {
             // all atoms in the interval have been matched
-            if (current < index_[interval].first) {
-                current = index_[interval].first;
+            if (cur < index_[pos].first) {
+                cur = index_[pos].first;
             }
             // the current index can no longer provide a match
-            if (current >= n) {
+            if (cur >= n) {
                 return false;
             }
             // match the next atom in the interval
-            if (current < index_[interval].second) {
+            if (cur < index_[pos].second) {
                 for (auto const &var : free) {
                     ass[var] = std::nullopt;
                 }
-                return term.match(store, base_->nth(current++)->first, ass);
+                return term.match(store, base_->nth(cur++)->first, ass);
             }
         }
         return false;
@@ -269,9 +270,13 @@ class HashIndex {
     }
     void init(size_t gen) { base_->update(gen); }
 
+    static auto match() -> std::pair<size_t, size_t> {
+        return {std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max()};
+    }
+
     auto next(SymbolStore &store, Assignment &ass, VariableVec &bound_vars, VariableVec &bind_vars, Term const &term,
               MatcherType type, size_t &pos, size_t &cur) -> bool {
-        if (cur == std::numeric_limits<size_t>::max()) {
+        if (pos == std::numeric_limits<size_t>::max()) {
             temp_values_.clear();
             for (auto const &var : bound_vars) {
                 assert(ass[var]);
@@ -418,10 +423,10 @@ class FullMatcher : public Matcher {
         : index_{&index}, term_{&term}, free_{std::move(free)}, type_{type} {}
     void init(size_t gen) override { index_->init(gen); }
     void match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) override {
-        std::tie(current_, interval_) = index_->match(type_);
+        std::tie(pos_, cur_) = index_->match(type_);
     }
     auto next(SymbolStore &store, Assignment &ass) -> bool override {
-        return index_->next(store, ass, *term_, free_, type_, current_, interval_);
+        return index_->next(store, ass, *term_, free_, type_, pos_, cur_);
     }
 
   private:
@@ -429,8 +434,8 @@ class FullMatcher : public Matcher {
     Term const *term_;
     VariableVec free_;
     MatcherType type_;
-    size_t interval_ = 0;
-    size_t current_ = 0;
+    size_t pos_ = 0;
+    size_t cur_ = 0;
 };
 
 class HashMatcher : public Matcher {
@@ -439,7 +444,7 @@ class HashMatcher : public Matcher {
         : index_{&index}, term_{&term}, bound_{std::move(bound)}, bind_{std::move(bind)}, type_{type} {}
     void init(size_t gen) override { index_->init(gen); }
     void match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) override {
-        cur_ = std::numeric_limits<size_t>::max();
+        std::tie(pos_, cur_) = HashIndex::match();
     }
     auto next(SymbolStore &store, Assignment &ass) -> bool override {
         return index_->next(store, ass, bound_, bind_, *term_, type_, pos_, cur_);
@@ -451,8 +456,8 @@ class HashMatcher : public Matcher {
     VariableVec bound_;
     VariableVec bind_;
     MatcherType type_;
-    size_t pos_ = std::numeric_limits<size_t>::max();
-    size_t cur_ = std::numeric_limits<size_t>::max();
+    size_t pos_ = 0;
+    size_t cur_ = 0;
 };
 
 class IntervalMatcher : public Matcher {
