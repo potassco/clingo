@@ -20,13 +20,18 @@ struct Grounder::Impl {
 
     auto add_project(Ground::UTerm const &term) -> Ground::UTerm {
         size_t vars = 0;
-        auto [it, ins] = map.try_emplace(term->rename(*store, Ground::RenameMode::rename_vars, nullptr, &vars));
+        auto key = term->rename(*store, Ground::RenameMode::rename_vars, nullptr, &vars);
+        std::cerr << "projection key: " << *key << "\n";
+        auto [it, ins] = map.try_emplace(std::move(key));
         if (ins) {
             it.value() = store->string("#p_" + std::to_string(map.size()));
             auto head = it->first->rename(*store, Ground::RenameMode::drop_projection, &it.value(), nullptr);
             auto body = it->first->rename(*store, Ground::RenameMode::rename_projection, nullptr, &vars);
             std::cerr << "  TODO: add projection rule:\n";
             std::cerr << "    " << *head << " :- " << *body << "." << '\n';
+            // this should add a dedicated statement that creates a single matcher
+            // in the recursive case we have to insert an index
+            // it might also be a good idea to ground projection rules with the highest priority
         }
         return term->rename(*store, Ground::RenameMode::drop_projection, &it.value(), nullptr);
     }

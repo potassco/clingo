@@ -1,6 +1,7 @@
 #include <gringo/ground/term.hh>
 
 #include <gringo/util/optional.hh>
+
 #include <typeindex>
 
 namespace Gringo::Ground {
