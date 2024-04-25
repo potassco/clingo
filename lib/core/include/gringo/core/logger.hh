@@ -6,6 +6,7 @@
 #include <limits>
 #include <sstream>
 #include <stdexcept>
+#include <cstdint>
 #include <unistd.h>
 
 namespace Gringo {
