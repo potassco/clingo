@@ -1,7 +1,5 @@
 #include <gringo/ground/matcher.hh>
 
-#include <iostream>
-
 namespace Gringo::Ground {
 
 namespace {
@@ -264,9 +262,6 @@ struct SpanEqualTo {
 
 class HashIndex {
   public:
-    using BindVec = std::vector<std::pair<size_t, Symbol *>>;
-    using IndexMap = Util::unordered_map<Symbol *, BindVec, SpanHash, SpanEqualTo>;
-
     HashIndex(Base const &base, size_t bound, size_t bind)
         : base_{&base}, bound_values_{bound}, bind_values_{bind}, index_{0, SpanHash{bound}, SpanEqualTo{bound}} {
         assert(bound > 0 && bind > 0);
@@ -275,7 +270,7 @@ class HashIndex {
     void init(size_t gen) { base_->update(gen); }
 
     auto next(SymbolStore &store, Assignment &ass, VariableVec &bound_vars, VariableVec &bind_vars, Term const &term,
-              MatcherType type, IndexMap::iterator &it, size_t &cur) -> bool {
+              MatcherType type, size_t &pos, size_t &cur) -> bool {
         if (cur == std::numeric_limits<size_t>::max()) {
             temp_values_.clear();
             for (auto const &var : bound_vars) {
@@ -283,7 +278,8 @@ class HashIndex {
                 // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
                 temp_values_.emplace_back(*ass[var]);
             }
-            if (it = index_.find(temp_values_.data()); it != index_.end()) {
+            if (auto it = index_.find(temp_values_.data()); it != index_.end()) {
+                pos = std::distance(index_.begin(), it);
                 cur = static_cast<size_t>(std::distance(
                     it->second.begin(), std::lower_bound(it->second.begin(), it->second.end(), base_->begin(type),
                                                          [](auto const &a, auto const &b) { return a.first < b; })));
@@ -291,16 +287,22 @@ class HashIndex {
                     return bind_next(ass, bind_vars, type, it, cur);
                 }
             }
-            return import_next(store, ass, bound_vars, bind_vars, term, type, std::span(temp_values_), it, cur);
+            return import_next(store, ass, bound_vars, bind_vars, term, type, std::span(temp_values_), pos, cur);
         }
+        auto it = index_.nth(pos);
         if (cur < it->second.size()) {
             return bind_next(ass, bind_vars, type, it, cur);
         }
-        return import_next(store, ass, bound_vars, bind_vars, term, type, std::span(it->first, bound_vars.size()), it,
+        return import_next(store, ass, bound_vars, bind_vars, term, type, std::span(it->first, bound_vars.size()), pos,
                            cur);
     }
 
   private:
+    using BindVec = std::vector<std::pair<size_t, Symbol *>>;
+    // Note: we need an ordered map to be able to update indices while
+    // matching. The same index might be updated from different matchers.
+    using IndexMap = Util::ordered_map<Symbol *, BindVec, SpanHash, SpanEqualTo>;
+
     auto bind_next(Assignment &ass, VariableVec &bind_vars, MatcherType type, IndexMap::iterator &it,
                    size_t &cur) -> bool {
         if (auto [i, bind_vals] = it->second[cur]; i < base_->end(type)) {
@@ -314,7 +316,7 @@ class HashIndex {
         return false;
     }
     auto import_next(SymbolStore &store, Assignment &ass, VariableVec &bound_vars, VariableVec &bind_vars,
-                     Term const &term, MatcherType type, std::span<Symbol> bound_vals, IndexMap::iterator &it,
+                     Term const &term, MatcherType type, std::span<Symbol> bound_vals, size_t &pos,
                      size_t &cur) -> bool {
         auto n = base_->end(type);
         // there can be no more matches
@@ -346,8 +348,8 @@ class HashIndex {
                 // note that the current assignment captures the match
                 if (i <= imported_ && Util::value_equal_to{}(bound_match, bound_vals)) {
                     ++imported_;
+                    pos = std::distance(index_.begin(), jt);
                     cur = jt->second.size();
-                    it = jt;
                     return true;
                 }
             }
@@ -437,10 +439,10 @@ class HashMatcher : public Matcher {
         : index_{&index}, term_{&term}, bound_{std::move(bound)}, bind_{std::move(bind)}, type_{type} {}
     void init(size_t gen) override { index_->init(gen); }
     void match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) override {
-        current_ = std::numeric_limits<size_t>::max();
+        cur_ = std::numeric_limits<size_t>::max();
     }
     auto next(SymbolStore &store, Assignment &ass) -> bool override {
-        return index_->next(store, ass, bound_, bind_, *term_, type_, it_, current_);
+        return index_->next(store, ass, bound_, bind_, *term_, type_, pos_, cur_);
     }
 
   private:
@@ -449,8 +451,8 @@ class HashMatcher : public Matcher {
     VariableVec bound_;
     VariableVec bind_;
     MatcherType type_;
-    HashIndex::IndexMap::iterator it_;
-    size_t current_ = std::numeric_limits<size_t>::max();
+    size_t pos_ = std::numeric_limits<size_t>::max();
+    size_t cur_ = std::numeric_limits<size_t>::max();
 };
 
 class IntervalMatcher : public Matcher {
