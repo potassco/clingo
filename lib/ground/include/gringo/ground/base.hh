@@ -167,4 +167,6 @@ class Base {
     size_t mutable generation_ = 0;
 };
 
+using UBase = std::unique_ptr<Base>;
+
 } // namespace Gringo::Ground

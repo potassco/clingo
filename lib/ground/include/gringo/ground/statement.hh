@@ -20,7 +20,7 @@ class Stm : public InstanceCallback {
 using UStm = std::unique_ptr<Stm>;
 using UStmVec = std::vector<UStm>;
 
-//! Helper class to prepare statemnts for grounding.
+//! Helper class to prepare statements for grounding.
 class Linearizer {
   public:
     //! Indicate that a new domain is being prepared.
@@ -67,36 +67,10 @@ class StmRule : public Stm {
     Base *base_;
     //! A list of indices.
     //!
-    //! Recursize body literals that unify with the rule head have matching indices.
+    //! Recursive body literals that unify with the rule head have matching indices.
     //! This allows for updating the indices of these literals while grounding.
     std::vector<size_t> indices_;
     Ground::ULitVec body_;
-};
-
-//! Projection statement.
-//!
-//! Behaves mostly like a rule but is optimized for a single literal in the
-//! body and handles recursive definitions of literals gracefully.
-class StmProjection : public Stm {
-  public:
-    StmProjection(Ground::UTerm head, Base *base, std::vector<size_t> indices, ULit body)
-        : head_{std::move(head)}, base_{base}, indices_{std::move(indices)}, body_{std::move(body)} {}
-    // Stm interface
-    void print(std::ostream &out) const override;
-
-    [[nodiscard]] auto body() const -> ULitVec const & override;
-    [[nodiscard]] auto important() const -> VariableSet override;
-    // InstanceCallback interface
-    void init(size_t gen) override;
-    void report(SymbolStore &store, Assignment const &ass) override;
-    void propagate(Queue &queue) override;
-    [[nodiscard]] auto priority() const -> size_t override { return 0; }
-
-  private:
-    UTerm head_;
-    Base *base_;
-    std::vector<size_t> indices_;
-    Ground::ULit body_;
 };
 
 } // namespace Gringo::Ground

@@ -107,6 +107,8 @@ class LitInterval : public Lit {
     UTerm upper_;
 };
 
+constexpr auto stratified_index = std::numeric_limits<size_t>::max();
+
 class LitSymbolic : public Lit {
   public:
     LitSymbolic(Base &base, Sign sign, UTerm atom, size_t index)
@@ -134,6 +136,38 @@ class LitSymbolic : public Lit {
     //!
     //! Note that only recursive literals have indices.
     size_t index_;
+};
+
+//! A literal similar to a symbolic literal.
+//!
+//! This literal takes care of projection during matching.
+class LitProject : public Lit {
+  public:
+    LitProject(Sign sign, Base &base, UTerm atom, Base &p_base, UTerm p_atom, size_t index)
+        : base_{&base}, p_base_{&p_base}, atom_{std::move(atom)}, p_atom_{std::move(p_atom)}, index_{index},
+          sign_{sign} {}
+
+    void vars(VariableSet &vars, VarSelectMode mode) const override;
+    [[nodiscard]] auto domain(bool domain) const -> bool override;
+    [[nodiscard]] auto recursive() const -> bool override;
+    [[nodiscard]] auto matcher(MatcherType type,
+                               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto score(std::vector<bool> const &bound) const -> double override;
+
+    void print(std::ostream &out) const override;
+    auto output(SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool override;
+
+    [[nodiscard]] auto hash() const -> size_t override;
+    [[nodiscard]] auto equal_to(Lit const &other) const -> bool override;
+    [[nodiscard]] auto compare_to(Lit const &other) const -> std::weak_ordering override;
+
+  private:
+    Base *base_;
+    Base *p_base_;
+    UTerm atom_;
+    UTerm p_atom_;
+    size_t index_;
+    Sign sign_;
 };
 
 } // namespace Gringo::Ground

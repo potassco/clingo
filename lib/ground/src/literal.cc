@@ -152,6 +152,8 @@ auto LitComparison::compare_to(Lit const &other) const -> std::weak_ordering {
     return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
 }
 
+// LitSymbolic
+
 void LitSymbolic::print(std::ostream &out) const {
     out << sign_ << *atom_;
     if (index_ != std::numeric_limits<size_t>::max()) {
@@ -241,6 +243,102 @@ auto LitSymbolic::equal_to(Lit const &other) const -> bool {
 
 auto LitSymbolic::compare_to(Lit const &other) const -> std::weak_ordering {
     if (auto const *x = dynamic_cast<LitSymbolic const *>(&other); x != nullptr) {
+        return std::tie(sign_, *atom_) <=> std::tie(x->sign_, *x->atom_);
+    }
+    return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
+}
+
+// LitProject
+
+void LitProject::print(std::ostream &out) const {
+    out << sign_ << *atom_;
+    if (index_ != std::numeric_limits<size_t>::max()) {
+        out << "[" << index_ << "]";
+    }
+}
+
+auto LitProject::output(SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool {
+    if (auto sym = atom_->eval(store, ass)) {
+        out << sign_ << *sym;
+        if (sign_ == Sign::once) {
+            return index_ != std::numeric_limits<size_t>::max() || base_->contains(*sym);
+        }
+        return !base_->is_fact(*sym);
+    }
+    out << "#false";
+    return true;
+}
+
+auto LitProject::domain(bool domain) const -> bool {
+    // check if the base of the literal is domain
+    if (!base_->domain()) {
+        return false;
+    }
+    // stratifed literals with a domain base can be completely evaluated
+    if (index_ == std::numeric_limits<size_t>::max()) {
+        return true;
+    }
+    // return true if the literal is in a domain component
+    // noting that a domain component cannot contain negative literals
+    return domain;
+}
+
+auto LitProject::recursive() const -> bool {
+    return sign_ == Sign::none && index_ != std::numeric_limits<size_t>::max();
+}
+
+void LitProject::vars(VariableSet &vars, VarSelectMode mode) const {
+    switch (mode) {
+        case VarSelectMode::all: {
+            atom_->vars(vars);
+            break;
+        }
+        case VarSelectMode::provide: {
+            if (sign_ == Sign::none || (sign_ == Sign::twice && index_ == std::numeric_limits<size_t>::max())) {
+                atom_->vars(vars);
+            }
+            break;
+        }
+        case VarSelectMode::depend: {
+            if (sign_ == Sign::once || (sign_ == Sign::twice && index_ != std::numeric_limits<size_t>::max())) {
+                atom_->vars(vars);
+            }
+            break;
+        }
+    }
+}
+
+auto LitProject::matcher(MatcherType type,
+                         std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
+    if (sign_ == Sign::once) {
+        return {make_non_fact_matcher(*base_, *atom_), std::nullopt};
+    }
+    if (sign_ == Sign::twice && index_ != std::numeric_limits<size_t>::max()) {
+        return {make_once_matcher(), std::nullopt};
+    }
+
+    auto index = std::optional<size_t>{};
+    if (index_ != std::numeric_limits<size_t>::max() && type == MatcherType::new_atoms) {
+        index = index_;
+    }
+    return {make_atom_matcher(bound, *base_, *atom_, type), index};
+}
+
+auto LitProject::score(std::vector<bool> const &bound) const -> double {
+    static_cast<void>(bound);
+    // TODO: proper score computation
+    return 2;
+}
+
+auto LitProject::hash() const -> size_t { return Util::value_hash_record<LitProject>(sign_, atom_); }
+
+auto LitProject::equal_to(Lit const &other) const -> bool {
+    auto const *x = dynamic_cast<LitProject const *>(&other);
+    return x != nullptr && std::tie(sign_, *atom_) == std::tie(x->sign_, *x->atom_);
+}
+
+auto LitProject::compare_to(Lit const &other) const -> std::weak_ordering {
+    if (auto const *x = dynamic_cast<LitProject const *>(&other); x != nullptr) {
         return std::tie(sign_, *atom_) <=> std::tie(x->sign_, *x->atom_);
     }
     return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));

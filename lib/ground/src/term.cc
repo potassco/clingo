@@ -55,12 +55,12 @@ auto TermProjection::match([[maybe_unused]] SymbolStore &store, [[maybe_unused]]
     return true;
 }
 
-auto TermProjection::eval([[maybe_unused]] SymbolStore &store,
-                          [[maybe_unused]] Assignment const &ass) const -> std::optional<Symbol> {
-    return std::nullopt;
+auto TermProjection::eval(SymbolStore &store, [[maybe_unused]] Assignment const &ass) const -> std::optional<Symbol> {
+    // Note: this is a sentinel symbol intended for text output
+    return store.fun(store.string("*"), {}, false);
 }
 
-auto TermProjection::rename([[maybe_unused]] SymbolStore &store, RenameMode mode, [[maybe_unused]] String *name,
+auto TermProjection::rename([[maybe_unused]] SymbolStore &store, RenameMode mode, [[maybe_unused]] String const *name,
                             size_t *vars) const -> UTerm {
     assert(name == nullptr);
     if (mode == RenameMode::drop_projection) {
@@ -105,7 +105,7 @@ auto TermSymbol::eval([[maybe_unused]] SymbolStore &store,
     return sym_;
 }
 
-auto TermSymbol::rename([[maybe_unused]] SymbolStore &store, [[maybe_unused]] RenameMode mode, String *name,
+auto TermSymbol::rename([[maybe_unused]] SymbolStore &store, [[maybe_unused]] RenameMode mode, String const *name,
                         [[maybe_unused]] size_t *vars) const -> UTerm {
     if (name != nullptr && sym_.type() == SymbolType::function) {
         return std::make_unique<TermSymbol>(store.fun(*name, sym_.args(), sym_.has_classical_sign()));
@@ -149,7 +149,7 @@ auto TermVariable::eval([[maybe_unused]] SymbolStore &store, Assignment const &a
     return ass[var_];
 }
 
-auto TermVariable::rename([[maybe_unused]] SymbolStore &store, RenameMode mode, [[maybe_unused]] String *name,
+auto TermVariable::rename([[maybe_unused]] SymbolStore &store, RenameMode mode, [[maybe_unused]] String const *name,
                           size_t *vars) const -> UTerm {
     assert(name == nullptr);
     return std::make_unique<TermVariable>(mode == RenameMode::rename_vars && vars != nullptr ? (*vars)++ : var_);
@@ -206,7 +206,7 @@ auto TermLinear::eval(SymbolStore &store, Assignment const &ass) const -> std::o
     return std::nullopt;
 }
 
-auto TermLinear::rename([[maybe_unused]] SymbolStore &store, RenameMode mode, [[maybe_unused]] String *name,
+auto TermLinear::rename([[maybe_unused]] SymbolStore &store, RenameMode mode, [[maybe_unused]] String const *name,
                         size_t *vars) const -> UTerm {
     assert(name == nullptr);
     return std::make_unique<TermLinear>(m_, mode == RenameMode::rename_vars && vars != nullptr ? (*vars)++ : var_, n_);
@@ -276,7 +276,7 @@ auto TermUnary::eval(SymbolStore &store, Assignment const &ass) const -> std::op
     return std::nullopt;
 }
 
-auto TermUnary::rename(SymbolStore &store, RenameMode mode, String *name, size_t *vars) const -> UTerm {
+auto TermUnary::rename(SymbolStore &store, RenameMode mode, String const *name, size_t *vars) const -> UTerm {
     assert(name == nullptr);
     return std::make_unique<TermUnary>(op_, rhs_->rename(store, mode, name, vars));
 }
@@ -380,7 +380,7 @@ auto TermBinary::eval(SymbolStore &store, Assignment const &ass) const -> std::o
     return std::nullopt;
 }
 
-auto TermBinary::rename(SymbolStore &store, RenameMode mode, String *name, size_t *vars) const -> UTerm {
+auto TermBinary::rename(SymbolStore &store, RenameMode mode, String const *name, size_t *vars) const -> UTerm {
     assert(name == nullptr);
     auto lhs = lhs_->rename(store, mode, name, vars);
     return std::make_unique<TermBinary>(std::move(lhs), op_, rhs_->rename(store, mode, name, vars));
@@ -469,7 +469,7 @@ auto TermTuple::eval(SymbolStore &store, Assignment const &ass) const -> std::op
                            [&store](SymbolVec args) { return store.tup(std::move(args)); });
 }
 
-auto TermTuple::rename(SymbolStore &store, RenameMode mode, [[maybe_unused]] String *name,
+auto TermTuple::rename(SymbolStore &store, RenameMode mode, [[maybe_unused]] String const *name,
                        size_t *vars) const -> UTerm {
     assert(name == nullptr);
     return std::make_unique<TermTuple>(rename_args(args_, store, mode, vars));
@@ -533,7 +533,7 @@ auto TermFunction::eval(SymbolStore &store, Assignment const &ass) const -> std:
                            [&store, this](SymbolVec args) { return store.fun(name_, std::move(args), false); });
 }
 
-auto TermFunction::rename(SymbolStore &store, RenameMode mode, String *name, size_t *vars) const -> UTerm {
+auto TermFunction::rename(SymbolStore &store, RenameMode mode, String const *name, size_t *vars) const -> UTerm {
     return std::make_unique<TermFunction>(name != nullptr ? *name : name_, rename_args(args_, store, mode, vars));
 }
 

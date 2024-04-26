@@ -18,22 +18,38 @@ namespace Gringo {
 struct Grounder::Impl {
     Impl(Logger &log, SymbolStore &store, Input::RewriteOptions opts) : log{&log}, store{&store}, prg{opts} {}
 
-    auto add_project(Ground::UTerm const &term) -> Ground::UTerm {
+    auto add_project(Ground::UTerm const &term) -> std::pair<Ground::Base *, Ground::UTerm> {
         size_t vars = 0;
         auto key = term->rename(*store, Ground::RenameMode::rename_vars, nullptr, &vars);
         std::cerr << "projection key: " << *key << "\n";
         auto [it, ins] = map.try_emplace(std::move(key));
         if (ins) {
-            it.value() = store->string("#p_" + std::to_string(map.size()));
-            auto head = it->first->rename(*store, Ground::RenameMode::drop_projection, &it.value(), nullptr);
+            it.value().first = store->string("#p_" + std::to_string(map.size()));
+            auto head = it->first->rename(*store, Ground::RenameMode::drop_projection, &it->second.first, nullptr);
             auto body = it->first->rename(*store, Ground::RenameMode::rename_projection, nullptr, &vars);
             std::cerr << "  TODO: add projection rule:\n";
             std::cerr << "    " << *head << " :- " << *body << "." << '\n';
-            // this should add a dedicated statement that creates a single matcher
-            // in the recursive case we have to insert an index
-            // it might also be a good idea to ground projection rules with the highest priority
+            std::cerr << "    there is no need to keep any symbols in the projected domain\n";
+            std::cerr << "    one could even substitute them in the key\n";
+            std::cerr << "    for example: p(1,X,X,f(*,Y)) -> p(X0,X1,X2,f(*,X3))\n";
+            std::cerr << "    this should maximize reuse of projections in typical programs\n";
+            std::cerr << "    indices will take care of efficient matching\n";
+            std::cerr << "    the return value here has to be adjusted slightly\n";
+            std::cerr << "    it should also include the number of variables\n";
+            std::cerr << "    that are needed for matching the <<projection rule>>\n";
+            // a literal that takes care of projection should be added
+            // - adding a statement would also be possible but is difficult in the current design
+            // - the projection literal should just add a bit of functionality on top of the normal literal
+            //   - all the literal functionality
+            //   - two domains one for the projected literal and one for the normal one
+            //   - the matcher can use the standard ones for the literal *after* importing the relevant atoms
+            //   - we can always import all atoms from the current generation before calling update on the domain
+            //   - the domain must be unique, some unique state must be associated to keep track of the imported atoms
+            //   - the IndexSet could be (mis)used for that purpose
+            it.value().second = std::make_unique<Ground::Base>();
         }
-        return term->rename(*store, Ground::RenameMode::drop_projection, &it.value(), nullptr);
+        return {it->second.second.get(),
+                term->rename(*store, Ground::RenameMode::drop_projection, &it->second.first, nullptr)};
     }
 
     //! The logger used by the grounder.
@@ -45,7 +61,7 @@ struct Grounder::Impl {
     //! The program stored in the grounder.
     Input::Program prg;
     //! Dictionary to map terms with projections to their replacement predicates.
-    Util::ordered_map<Ground::UTerm, String> map;
+    Util::ordered_map<Ground::UTerm, std::pair<String, Ground::UBase>> map;
     //! The atom base.
     Util::ordered_map<std::tuple<String, size_t, bool>, std::unique_ptr<Ground::Base>> atom_base;
 };
@@ -275,24 +291,27 @@ template <class F> class BuilderLit {
         auto has_projection = false;
         auto bld_term = BuilderTerm{has_projection, *ctx_->var_map};
         auto term = std::visit(bld_term, lit.term());
-        if (has_projection) {
-            term = ctx_->impl->add_project(term);
-        }
         auto it = ctx_->comp->incomplete.find(&lit.term());
         // the index referring to a set of heads defining this literal
         // - a literal that is recursive and inside a non-domain component is non-domain
         // - a literal whole contains a non-fact is non-domain
-        auto idx = std::numeric_limits<size_t>::max();
+        auto idx = Ground::stratified_index;
         if (it != ctx_->comp->incomplete.end()) {
             idx = it - ctx_->comp->incomplete.begin();
         }
         // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-        auto sig = *Input::signature(lit.term());
+        auto sig = Input::signature(lit.term()).value();
         auto dom_it = ctx_->impl->atom_base.try_emplace(sig, nullptr).first;
         if (dom_it->second == nullptr) {
             dom_it.value() = std::make_unique<Ground::Base>();
         }
-        cb_(std::make_unique<Ground::LitSymbolic>(*dom_it.value(), lit.sign(), std::move(term), idx));
+        if (has_projection) {
+            auto [p_base, p_term] = ctx_->impl->add_project(term);
+            cb_(std::make_unique<Ground::LitProject>(lit.sign(), *dom_it.value(), std::move(term), *p_base,
+                                                     std::move(p_term), idx));
+        } else {
+            cb_(std::make_unique<Ground::LitSymbolic>(*dom_it.value(), lit.sign(), std::move(term), idx));
+        }
     }
 
   private:

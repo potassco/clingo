@@ -41,7 +41,7 @@ class Term {
     //!
     //! If a name is given, the name of the outermost function symbol is changed.
     //! Otherwise, variables and projection are replaced according to the given mode.
-    [[nodiscard]] virtual auto rename(SymbolStore &store, RenameMode mode, String *name,
+    [[nodiscard]] virtual auto rename(SymbolStore &store, RenameMode mode, String const *name,
                                       size_t *vars) const -> UTerm = 0;
     //! Create a copy of the term renaming variables in order of occurrence.
     [[nodiscard]] virtual auto rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm = 0;
@@ -64,7 +64,8 @@ class TermProjection : public Term {
   public:
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
     [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
-    [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String *name, size_t *vars) const -> UTerm override;
+    [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String const *name,
+                              size_t *vars) const -> UTerm override;
     [[nodiscard]] auto rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm override;
     void vars(VariableSet &vars, bool provide) const override;
     void print(std::ostream &out) const override;
@@ -78,7 +79,8 @@ class TermSymbol : public Term {
     TermSymbol(Symbol sym) : sym_{sym} {}
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
     [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
-    [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String *name, size_t *vars) const -> UTerm override;
+    [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String const *name,
+                              size_t *vars) const -> UTerm override;
     [[nodiscard]] auto rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm override;
     void vars(VariableSet &vars, bool provide) const override;
     void print(std::ostream &out) const override;
@@ -96,7 +98,8 @@ class TermVariable : public Term {
     [[nodiscard]] auto match_sym() const -> bool;
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
     [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
-    [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String *name, size_t *vars) const -> UTerm override;
+    [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String const *name,
+                              size_t *vars) const -> UTerm override;
     [[nodiscard]] auto rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm override;
     void vars(VariableSet &vars, bool provide) const override;
     void print(std::ostream &out) const override;
@@ -113,7 +116,8 @@ class TermLinear : public Term {
     TermLinear(Number m, size_t var, Number n) : m_{std::move(m)}, n_{std::move(n)}, var_{var} {}
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
     [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
-    [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String *name, size_t *vars) const -> UTerm override;
+    [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String const *name,
+                              size_t *vars) const -> UTerm override;
     [[nodiscard]] auto rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm override;
     void vars(VariableSet &vars, bool provide) const override;
     void print(std::ostream &out) const override;
@@ -139,7 +143,8 @@ class TermUnary : public Term {
     TermUnary(UnaryOperator op, UTerm rhs) : rhs_{std::move(rhs)}, op_{op} {}
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
     [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
-    [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String *name, size_t *vars) const -> UTerm override;
+    [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String const *name,
+                              size_t *vars) const -> UTerm override;
     [[nodiscard]] auto rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm override;
     void vars(VariableSet &vars, bool provide) const override;
     void print(std::ostream &out) const override;
@@ -170,7 +175,8 @@ class TermBinary : public Term {
     TermBinary(UTerm lhs, BinaryOperator op, UTerm rhs) : lhs_{std::move(lhs)}, rhs_{std::move(rhs)}, op_{op} {}
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
     [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
-    [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String *name, size_t *vars) const -> UTerm override;
+    [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String const *name,
+                              size_t *vars) const -> UTerm override;
     [[nodiscard]] auto rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm override;
     void vars(VariableSet &vars, bool provide) const override;
     void print(std::ostream &out) const override;
@@ -189,7 +195,8 @@ class TermTuple : public Term {
     TermTuple(UTermVec args) : args_{std::move(args)} {}
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
     [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
-    [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String *name, size_t *vars) const -> UTerm override;
+    [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String const *name,
+                              size_t *vars) const -> UTerm override;
     [[nodiscard]] auto rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm override;
     void vars(VariableSet &vars, bool provide) const override;
     void print(std::ostream &out) const override;
@@ -206,7 +213,8 @@ class TermFunction : public Term {
     TermFunction(String name, UTermVec args) : name_{name}, args_{std::move(args)} {}
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
     [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
-    [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String *name, size_t *vars) const -> UTerm override;
+    [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String const *name,
+                              size_t *vars) const -> UTerm override;
     [[nodiscard]] auto rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm override;
     void vars(VariableSet &vars, bool provide) const override;
     void print(std::ostream &out) const override;
