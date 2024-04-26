@@ -143,9 +143,24 @@ class LitSymbolic : public Lit {
 //! This literal takes care of projection during matching.
 class LitProject : public Lit {
   public:
-    LitProject(Sign sign, Base &base, UTerm atom, Base &p_base, UTerm p_atom, size_t index)
-        : base_{&base}, p_base_{&p_base}, atom_{std::move(atom)}, p_atom_{std::move(p_atom)}, index_{index},
-          sign_{sign} {}
+    class State {
+      public:
+        State(String name, Base &base, UTerm p_head, UTerm p_body)
+            : name_{name}, base_{&base}, p_head_{std::move(p_head)}, p_body_{std::move(p_body)} {}
+        [[nodiscard]] auto base() const -> Base & { return *base_; }
+        [[nodiscard]] auto name() const -> String const & { return name_; }
+        void init(size_t gen);
+
+      private:
+        String name_;
+        Base *base_;
+        Base p_base_;
+        UTerm p_head_;
+        UTerm p_body_;
+        size_t imported_ = 0;
+    };
+    LitProject(State &state, Sign sign, UTerm atom, UTerm p_atom, size_t index)
+        : state_{&state}, atom_{std::move(atom)}, p_atom_{std::move(p_atom)}, index_{index}, sign_{sign} {}
 
     void vars(VariableSet &vars, VarSelectMode mode) const override;
     [[nodiscard]] auto domain(bool domain) const -> bool override;
@@ -162,8 +177,7 @@ class LitProject : public Lit {
     [[nodiscard]] auto compare_to(Lit const &other) const -> std::weak_ordering override;
 
   private:
-    Base *base_;
-    Base *p_base_;
+    State *state_;
     UTerm atom_;
     UTerm p_atom_;
     size_t index_;

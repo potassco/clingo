@@ -249,6 +249,9 @@ auto LitSymbolic::compare_to(Lit const &other) const -> std::weak_ordering {
 }
 
 // LitProject
+// TODO:
+// - quite a bit of c&p
+// - composition...
 
 void LitProject::print(std::ostream &out) const {
     out << sign_ << *atom_;
@@ -261,9 +264,9 @@ auto LitProject::output(SymbolStore &store, Assignment const &ass, std::ostream 
     if (auto sym = atom_->eval(store, ass)) {
         out << sign_ << *sym;
         if (sign_ == Sign::once) {
-            return index_ != std::numeric_limits<size_t>::max() || base_->contains(*sym);
+            return index_ != std::numeric_limits<size_t>::max() || state_->base().contains(*sym);
         }
-        return !base_->is_fact(*sym);
+        return !state_->base().is_fact(*sym);
     }
     out << "#false";
     return true;
@@ -271,7 +274,7 @@ auto LitProject::output(SymbolStore &store, Assignment const &ass, std::ostream 
 
 auto LitProject::domain(bool domain) const -> bool {
     // check if the base of the literal is domain
-    if (!base_->domain()) {
+    if (!state_->base().domain()) {
         return false;
     }
     // stratifed literals with a domain base can be completely evaluated
@@ -310,8 +313,11 @@ void LitProject::vars(VariableSet &vars, VarSelectMode mode) const {
 
 auto LitProject::matcher(MatcherType type,
                          std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
+    std::cerr << "TODO: create projection matcher:\n";
+    std::cerr << "- initialize projected domain on init\n";
+    std::cerr << "- wrap the literal matchers\n";
     if (sign_ == Sign::once) {
-        return {make_non_fact_matcher(*base_, *atom_), std::nullopt};
+        return {make_non_fact_matcher(state_->base(), *atom_), std::nullopt};
     }
     if (sign_ == Sign::twice && index_ != std::numeric_limits<size_t>::max()) {
         return {make_once_matcher(), std::nullopt};
@@ -321,7 +327,7 @@ auto LitProject::matcher(MatcherType type,
     if (index_ != std::numeric_limits<size_t>::max() && type == MatcherType::new_atoms) {
         index = index_;
     }
-    return {make_atom_matcher(bound, *base_, *atom_, type), index};
+    return {make_atom_matcher(bound, state_->base(), *atom_, type), index};
 }
 
 auto LitProject::score(std::vector<bool> const &bound) const -> double {
