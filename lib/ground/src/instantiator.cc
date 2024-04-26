@@ -6,7 +6,7 @@
 
 namespace Gringo::Ground {
 
-void Instantiator::BackjumpMatcher::init(size_t gen) { matcher_->init(gen); }
+void Instantiator::BackjumpMatcher::init(SymbolStore &store, size_t gen) { matcher_->init(store, gen); }
 
 void Instantiator::BackjumpMatcher::match(SymbolStore &store, Assignment &ass) { matcher_->match(store, ass); }
 
@@ -33,17 +33,17 @@ void Instantiator::add(UMatcher matcher, DependVec depend) {
     matchers_.emplace_back(std::move(matcher), std::move(depend));
 }
 
-void Instantiator::init(size_t gen) {
+void Instantiator::init(SymbolStore &store, size_t gen) {
     icb_->init(gen);
     for (auto &matcher : matchers_) {
-        matcher.init(gen);
+        matcher.init(store, gen);
     }
 }
 
 void Instantiator::finalize(DependVec depend) {
     class SolutionMatcher : public Matcher {
       public:
-        void init([[maybe_unused]] size_t gen) override {};
+        void init([[maybe_unused]] SymbolStore &store, [[maybe_unused]] size_t gen) override {};
         void match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) override {}
         auto next([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) -> bool override {
             return false;
@@ -127,7 +127,7 @@ void Queue::process(SymbolStore &store) {
             current.swap(queue);
             size_ -= current.size();
             for (auto *inst : current) {
-                inst->init(gen);
+                inst->init(store, gen);
             }
             for (auto *inst : current) {
                 inst->instantiate(store);

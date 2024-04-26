@@ -3,8 +3,6 @@
 
 #include <typeindex>
 
-#include <iostream>
-
 namespace Gringo::Ground {
 
 void LitInterval::print(std::ostream &out) const { out << *lhs_ << "=" << *lower_ << ".." << *upper_; }
@@ -253,6 +251,26 @@ auto LitSymbolic::compare_to(Lit const &other) const -> std::weak_ordering {
 // - quite a bit of c&p
 // - composition...
 
+void LitProject::State::init(SymbolStore &store, size_t gen) {
+    base_->update(gen);
+    for (size_t n = base_->end(MatcherType::all_atoms); imported_ != n; ++imported_) {
+        auto atom = base_->nth(imported_);
+        for (auto &sym : ass_) {
+            sym = std::nullopt;
+        }
+        if (p_body_->match(store, atom->first, ass_)) {
+            auto state = atom->second.state;
+            if (state == AtomState::external) {
+                state = AtomState::unknown;
+            }
+            if (auto sym = p_head_->eval(store, ass_); sym) {
+                p_base_.add(*sym, state);
+            }
+        }
+    }
+    p_base_.update(gen);
+}
+
 void LitProject::print(std::ostream &out) const {
     out << sign_ << *atom_;
     if (index_ != std::numeric_limits<size_t>::max()) {
@@ -261,12 +279,14 @@ void LitProject::print(std::ostream &out) const {
 }
 
 auto LitProject::output(SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool {
-    if (auto sym = atom_->eval(store, ass)) {
-        out << sign_ << *sym;
-        if (sign_ == Sign::once) {
-            return index_ != std::numeric_limits<size_t>::max() || state_->base().contains(*sym);
+    if (auto p_sym = p_atom_->eval(store, ass)) {
+        if (auto sym = atom_->eval(store, ass)) {
+            out << sign_ << *sym;
         }
-        return !state_->base().is_fact(*sym);
+        if (sign_ == Sign::once) {
+            return index_ != std::numeric_limits<size_t>::max() || state_->p_base().contains(*p_sym);
+        }
+        return !state_->p_base().is_fact(*p_sym);
     }
     out << "#false";
     return true;
@@ -274,6 +294,9 @@ auto LitProject::output(SymbolStore &store, Assignment const &ass, std::ostream 
 
 auto LitProject::domain(bool domain) const -> bool {
     // check if the base of the literal is domain
+    // Note: This check could be stronger in principle. However, this would
+    // require to import the base into the p_base at this point. Hence, we only
+    // use an approximation here. The test should work well in practice
     if (!state_->base().domain()) {
         return false;
     }
@@ -313,21 +336,34 @@ void LitProject::vars(VariableSet &vars, VarSelectMode mode) const {
 
 auto LitProject::matcher(MatcherType type,
                          std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
-    std::cerr << "TODO: create projection matcher:\n";
-    std::cerr << "- initialize projected domain on init\n";
-    std::cerr << "- wrap the literal matchers\n";
+    class MatcherProject : public Matcher {
+      public:
+        MatcherProject(State &state, UMatcher matcher) : state_{&state}, matcher_{std::move(matcher)} {}
+        void init(SymbolStore &store, size_t gen) override {
+            state_->init(store, gen);
+            matcher_->init(store, gen);
+        }
+        void match(SymbolStore &store, Assignment &ass) override { matcher_->match(store, ass); }
+        auto next(SymbolStore &store, Assignment &ass) -> bool override { return matcher_->next(store, ass); }
+
+      private:
+        State *state_;
+        UMatcher matcher_;
+    };
+    auto m = [this]<class T>(T &&matcher) {
+        return std::make_unique<MatcherProject>(*state_, std::forward<T>(matcher));
+    };
     if (sign_ == Sign::once) {
-        return {make_non_fact_matcher(state_->base(), *atom_), std::nullopt};
+        return {m(make_non_fact_matcher(state_->p_base(), *p_atom_)), std::nullopt};
     }
     if (sign_ == Sign::twice && index_ != std::numeric_limits<size_t>::max()) {
-        return {make_once_matcher(), std::nullopt};
+        return {m(make_once_matcher()), std::nullopt};
     }
-
     auto index = std::optional<size_t>{};
     if (index_ != std::numeric_limits<size_t>::max() && type == MatcherType::new_atoms) {
         index = index_;
     }
-    return {make_atom_matcher(bound, state_->base(), *atom_, type), index};
+    return {m(make_atom_matcher(bound, state_->p_base(), *p_atom_, type)), index};
 }
 
 auto LitProject::score(std::vector<bool> const &bound) const -> double {

@@ -16,7 +16,7 @@ class Matcher {
     //! Destroy the matcher.
     virtual ~Matcher() = default;
     //! Notify that instantiation starts.
-    virtual void init(size_t gen) = 0;
+    virtual void init(SymbolStore &store, size_t gen) = 0;
     //! Initialize matching.
     virtual void match(SymbolStore &store, Assignment &ass) = 0;
     //! Obtain the next match.
@@ -55,7 +55,7 @@ class Instantiator {
     //! Prepare the instantiator for the first grounding step (with generation 0).
     //!
     //! This resets all involved domains.
-    void init(size_t gen);
+    void init(SymbolStore &store, size_t gen);
     //! Finalize the instantiator.
     //!
     //! The depend vector must point to matchers that bind relevant variables for the matcher.
@@ -86,7 +86,7 @@ class Instantiator {
       public:
         BackjumpMatcher(UMatcher matcher, DependVec depend)
             : matcher_{std::move(matcher)}, depend_{std::move(depend)} {}
-        void init(size_t gen);
+        void init(SymbolStore &store, size_t gen);
         void match(SymbolStore &store, Assignment &ass);
         auto next(SymbolStore &store, Assignment &ass) -> bool;
         auto first(SymbolStore &store, Assignment &ass) -> bool;

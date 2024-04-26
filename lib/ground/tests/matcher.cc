@@ -88,7 +88,7 @@ TEST_CASE("ground_matcher") {
         auto a1 = std::make_unique<TermVariable>(0);
         auto term = std::make_unique<TermFunction>(name, Util::make_vec<UTerm>(std::move(a1)));
         auto matcher = make_non_fact_matcher(base, *term);
-        matcher->init(0);
+        matcher->init(*store, 0);
         base.add(sym(3), AtomState::unknown);
         base.add(sym(4), AtomState::fact);
         ass[0] = store->num(0);
@@ -125,7 +125,7 @@ TEST_CASE("ground_matcher") {
         std::vector<bool> const bound = {false};
         // match all
         auto m1 = make_atom_matcher(bound, base, *term, MatcherType::all_atoms);
-        m1->init(0);
+        m1->init(*store, 0);
         m1->match(*store, ass);
         base.add(sym(1, 4), AtomState::unknown);
         base.add(sym(2, 5), AtomState::unknown);
@@ -134,7 +134,7 @@ TEST_CASE("ground_matcher") {
         REQUIRE(m1->next(*store, ass));
         REQUIRE(ass[0] == store->num(3));
         REQUIRE(!m1->next(*store, ass));
-        m1->init(1);
+        m1->init(*store, 1);
         m1->match(*store, ass);
         REQUIRE(m1->next(*store, ass));
         REQUIRE(ass[0] == store->num(1));
@@ -146,7 +146,7 @@ TEST_CASE("ground_matcher") {
         base.add(sym(1, 6), AtomState::unknown);
         // match old
         m1 = make_atom_matcher(bound, base, *term, MatcherType::old_atoms);
-        m1->init(1);
+        m1->init(*store, 1);
         REQUIRE(m1->next(*store, ass));
         REQUIRE(ass[0] == store->num(1));
         REQUIRE(m1->next(*store, ass));
@@ -154,7 +154,7 @@ TEST_CASE("ground_matcher") {
         REQUIRE(!m1->next(*store, ass));
         // match new
         m1 = make_atom_matcher(bound, base, *term, MatcherType::new_atoms);
-        m1->init(1);
+        m1->init(*store, 1);
         m1->match(*store, ass);
         REQUIRE(m1->next(*store, ass));
         REQUIRE(ass[0] == store->num(4));
@@ -189,8 +189,8 @@ TEST_CASE("ground_matcher") {
         base.add(sym(1, 3, 4), AtomState::unknown);
         base.add(sym(1, 1, 3), AtomState::unknown);
         // gen 0
-        m1->init(0);
-        m2->init(0);
+        m1->init(*store, 0);
+        m2->init(*store, 0);
         m1->match(*store, ass);
         REQUIRE(m1->next(*store, ass));
         REQUIRE(ass[1] == store->num(1));
@@ -213,8 +213,8 @@ TEST_CASE("ground_matcher") {
         // gen 1
         base.add(sym(1, 1, 5), AtomState::unknown);
         base.add(sym(1, 5, 6), AtomState::unknown);
-        m1->init(1);
-        m2->init(1);
+        m1->init(*store, 1);
+        m2->init(*store, 1);
         m2->match(*store, ass);
         REQUIRE(m1->next(*store, ass));
         REQUIRE(ass[1] == store->num(5));

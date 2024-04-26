@@ -26,9 +26,10 @@ struct Grounder::Impl {
         auto &state = it.value();
         if (ins) {
             auto p_name = store->string("#p_" + std::to_string(map.size()));
-            state = std::make_unique<Ground::LitProject::State>(
-                p_name, base, p_key.rename(*store, Ground::RenameMode::drop_projection, &p_name, nullptr),
-                p_key.rename(*store, Ground::RenameMode::rename_projection, nullptr, &vars));
+            auto p_head = p_key.rename(*store, Ground::RenameMode::drop_projection, &p_name, nullptr);
+            auto p_body = p_key.rename(*store, Ground::RenameMode::rename_projection, nullptr, &vars);
+            state =
+                std::make_unique<Ground::LitProject::State>(p_name, vars, base, std::move(p_head), std::move(p_body));
         }
         return {term->rename(*store, Ground::RenameMode::drop_projection, &state->name(), nullptr), state.get()};
     }

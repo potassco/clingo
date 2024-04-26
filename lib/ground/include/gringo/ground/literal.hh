@@ -145,11 +145,14 @@ class LitProject : public Lit {
   public:
     class State {
       public:
-        State(String name, Base &base, UTerm p_head, UTerm p_body)
-            : name_{name}, base_{&base}, p_head_{std::move(p_head)}, p_body_{std::move(p_body)} {}
+        State(String name, size_t vars, Base &base, UTerm p_head, UTerm p_body)
+            : name_{name}, base_{&base}, p_head_{std::move(p_head)}, p_body_{std::move(p_body)} {
+            ass_.resize(vars);
+        }
         [[nodiscard]] auto base() const -> Base & { return *base_; }
+        [[nodiscard]] auto p_base() -> Base & { return p_base_; }
         [[nodiscard]] auto name() const -> String const & { return name_; }
-        void init(size_t gen);
+        void init(SymbolStore &store, size_t gen);
 
       private:
         String name_;
@@ -157,6 +160,7 @@ class LitProject : public Lit {
         Base p_base_;
         UTerm p_head_;
         UTerm p_body_;
+        Assignment ass_;
         size_t imported_ = 0;
     };
     LitProject(State &state, Sign sign, UTerm atom, UTerm p_atom, size_t index)

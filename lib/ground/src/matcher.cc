@@ -9,7 +9,7 @@ class OnceMatcher : public Matcher {
     virtual auto do_match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) -> bool {
         return true;
     }
-    void init([[maybe_unused]] size_t gen) override {}
+    void init([[maybe_unused]] SymbolStore &store, [[maybe_unused]] size_t gen) override {}
     void match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) override { match_ = true; }
     auto next(SymbolStore &store, Assignment &ass) -> bool override {
         if (match_) {
@@ -90,7 +90,7 @@ class AssignMatcher : public OnceMatcher {
 class NonFactMatcher : public OnceMatcher {
   public:
     NonFactMatcher(Base const &base, Term const &term) : base_{&base}, term_{&term} {}
-    void init(size_t gen) override { base_->update(gen); }
+    void init([[maybe_unused]] SymbolStore &store, size_t gen) override { base_->update(gen); }
     auto do_match(SymbolStore &store, Assignment &ass) -> bool override {
         auto sym = term_->eval(store, ass);
         return !sym || !base_->is_fact(*sym);
@@ -405,7 +405,7 @@ class IndexSet : public BaseContext {
 class LookupMatcher : public OnceMatcher {
   public:
     LookupMatcher(Base const &base, Term const &term, MatcherType type) : base_{&base}, term_{&term}, type_{type} {}
-    void init(size_t gen) override { base_->update(gen); }
+    void init([[maybe_unused]] SymbolStore &store, size_t gen) override { base_->update(gen); }
     auto do_match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) -> bool override {
         auto sym = term_->eval(store, ass);
         return sym && base_->contains(*sym, type_);
@@ -421,7 +421,7 @@ class FullMatcher : public Matcher {
   public:
     FullMatcher(FullIndex &index, Term const &term, VariableVec free, MatcherType type)
         : index_{&index}, term_{&term}, free_{std::move(free)}, type_{type} {}
-    void init(size_t gen) override { index_->init(gen); }
+    void init([[maybe_unused]] SymbolStore &store, size_t gen) override { index_->init(gen); }
     void match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) override {
         std::tie(pos_, cur_) = index_->match(type_);
     }
@@ -442,7 +442,7 @@ class HashMatcher : public Matcher {
   public:
     HashMatcher(HashIndex &index, Term const &term, VariableVec bound, VariableVec bind, MatcherType type)
         : index_{&index}, term_{&term}, bound_{std::move(bound)}, bind_{std::move(bind)}, type_{type} {}
-    void init(size_t gen) override { index_->init(gen); }
+    void init([[maybe_unused]] SymbolStore &store, size_t gen) override { index_->init(gen); }
     void match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) override {
         std::tie(pos_, cur_) = HashIndex::match();
     }
@@ -464,7 +464,7 @@ class IntervalMatcher : public Matcher {
   public:
     IntervalMatcher(Term const &lhs, Term const &lower, Term const &upper, VariableVec free)
         : lhs_{&lhs}, lower_{&lower}, upper_{&upper}, free_{std::move(free)} {}
-    void init([[maybe_unused]] size_t gen) override {}
+    void init([[maybe_unused]] SymbolStore &store, [[maybe_unused]] size_t gen) override {}
     void match(SymbolStore &store, Assignment &ass) override {
         val_current_ = 1;
         val_upper_ = 0;
