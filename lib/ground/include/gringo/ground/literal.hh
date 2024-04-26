@@ -109,6 +109,32 @@ class LitInterval : public Lit {
 
 constexpr auto stratified_index = std::numeric_limits<size_t>::max();
 
+//! Simple literal that discards whenever it matches to a fact.
+//!
+//! It is meant to prune rules whose heads have already been derived as facts.
+class LitFactCheck : public Lit {
+  public:
+    LitFactCheck(Base &base, Term const &atom) : base_{&base}, atom_{&atom} {}
+
+    void vars(VariableSet &vars, VarSelectMode mode) const override;
+    [[nodiscard]] auto domain(bool domain) const -> bool override;
+    [[nodiscard]] auto recursive() const -> bool override;
+    [[nodiscard]] auto matcher(MatcherType type,
+                               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto score(std::vector<bool> const &bound) const -> double override;
+
+    void print(std::ostream &out) const override;
+    auto output(SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool override;
+
+    [[nodiscard]] auto hash() const -> size_t override;
+    [[nodiscard]] auto equal_to(Lit const &other) const -> bool override;
+    [[nodiscard]] auto compare_to(Lit const &other) const -> std::weak_ordering override;
+
+  private:
+    Base *base_;
+    Term const *atom_;
+};
+
 class LitSymbolic : public Lit {
   public:
     LitSymbolic(Base &base, Sign sign, UTerm atom, size_t index)

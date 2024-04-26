@@ -150,6 +150,48 @@ auto LitComparison::compare_to(Lit const &other) const -> std::weak_ordering {
     return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
 }
 
+// LitFactCheck
+
+void LitFactCheck::vars(VariableSet &vars, VarSelectMode mode) const {
+    if (mode != VarSelectMode::provide) {
+        atom_->vars(vars);
+    }
+}
+
+auto LitFactCheck::domain([[maybe_unused]] bool domain) const -> bool { return true; }
+
+auto LitFactCheck::recursive() const -> bool { return false; }
+
+auto LitFactCheck::matcher([[maybe_unused]] MatcherType type, [[maybe_unused]] std::vector<bool> const &bound)
+    -> std::pair<UMatcher, std::optional<size_t>> {
+    return {make_non_fact_matcher(*base_, *atom_), std::nullopt};
+}
+
+auto LitFactCheck::score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return 0; }
+
+void LitFactCheck::print(std::ostream &out) const { out << "#not_fact " << *atom_; }
+
+auto LitFactCheck::output([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment const &ass,
+                          std::ostream &out) const -> bool {
+    out << "#true";
+    return false;
+}
+
+auto LitFactCheck::hash() const -> size_t { return Util::value_hash_record<LitFactCheck>(*atom_); }
+
+auto LitFactCheck::equal_to(Lit const &other) const -> bool {
+    auto const *x = dynamic_cast<LitFactCheck const *>(&other);
+    return x != nullptr && *atom_ == *x->atom_;
+}
+
+auto LitFactCheck::compare_to(Lit const &other) const -> std::weak_ordering {
+    auto const *x = dynamic_cast<LitFactCheck const *>(&other);
+    if (x != nullptr) {
+        return *atom_ <=> *x->atom_;
+    }
+    return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
+}
+
 // LitSymbolic
 
 void LitSymbolic::print(std::ostream &out) const {

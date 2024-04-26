@@ -376,7 +376,7 @@ class BuilderStm {
     void operator()(Input::StmRule const &stm) const {
         auto bld_bd = BuilderBdLit{*ctx_};
         auto bld_hd = BuilderHdLit{*ctx_};
-        ctx_->body->reserve(stm.body().size());
+        ctx_->body->reserve(stm.body().size() + 1);
         for (auto const &lit : stm.body()) {
             std::visit(bld_bd, lit);
         }

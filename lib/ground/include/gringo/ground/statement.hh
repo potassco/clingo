@@ -49,7 +49,11 @@ class Linearizer {
 class StmRule : public Stm {
   public:
     StmRule(Ground::UTerm head, Base *base, std::vector<size_t> indices, Ground::ULitVec body)
-        : head_{std::move(head)}, base_{base}, indices_{std::move(indices)}, body_{std::move(body)} {}
+        : head_{std::move(head)}, base_{base}, indices_{std::move(indices)}, body_{std::move(body)} {
+        if (head_) {
+            body_.emplace_back(std::make_unique<LitFactCheck>(*base_, *head_));
+        }
+    }
     // Stm interface
     void print(std::ostream &out) const override;
 
