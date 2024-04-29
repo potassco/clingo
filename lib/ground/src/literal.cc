@@ -48,6 +48,15 @@ auto LitInterval::matcher([[maybe_unused]] MatcherType type,
 
 auto LitInterval::score([[maybe_unused]] std::vector<bool> const &bound) const -> double {
     // TODO: compute proper score
+    /*
+    if (range_.first->getInvertibility() == Term::CONSTANT && range_.second->getInvertibility() == Term::CONSTANT) {
+        bool undefined = false;
+        Symbol l(range_.first->eval(undefined, log));
+        Symbol r(range_.second->eval(undefined, log));
+        return (l.type() == SymbolType::Num && r.type() == SymbolType::Num) ? static_cast<double>(r.num()) - l.num() :
+    -1.0;
+    }
+    */
     // NOLINTNEXTLINE(readability-magic-numbers)
     return 100;
 }
@@ -118,7 +127,7 @@ auto LitComparison::matcher([[maybe_unused]] MatcherType type, [[maybe_unused]] 
     return {make_comp_matcher(bound, *lhs_, cmp_, *rhs_), std::nullopt};
 }
 
-auto LitComparison::score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return 0; }
+auto LitComparison::score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return -1; }
 
 auto LitComparison::hash() const -> size_t {
     if (cmp_ == Relation::equal && *rhs_ < *lhs_) {
@@ -271,6 +280,21 @@ auto LitSymbolic::matcher(MatcherType type,
 auto LitSymbolic::score(std::vector<bool> const &bound) const -> double {
     static_cast<void>(bound);
     // TODO: proper score computation
+    /*
+    inline double estimate(unsigned size, Term const &term, Term::VarSet const &bound) {
+        Term::VarSet vars;
+        term.collect(vars);
+        bool found = false;
+        for (auto const &x : vars) {
+            if (bound.find(x) != bound.end()) {
+                found = true;
+                break;
+            }
+        }
+        return term.estimate(size, bound) + (found ? 0 : 10000000);
+    }
+    return naf_ == NAF::POS ? estimate(domain_.size(), *repr_, bound) : 0;
+    */
     return 2;
 }
 
@@ -411,6 +435,9 @@ auto LitProject::matcher(MatcherType type,
 auto LitProject::score(std::vector<bool> const &bound) const -> double {
     static_cast<void>(bound);
     // TODO: proper score computation
+    /*
+    return naf_ == NAF::POS ? estimate(domain_.size(), *repr_, bound) : 0;
+    */
     return 2;
 }
 
