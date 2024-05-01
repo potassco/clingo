@@ -51,6 +51,7 @@ class BaseContext {
 
 class Base {
   public:
+    [[nodiscard]] auto size() const { return atoms_.size(); }
     [[nodiscard]] auto operator[](size_t pos) -> Atom &;
     [[nodiscard]] auto operator[](size_t pos) const -> Atom const &;
     //! Check if the base is domain.

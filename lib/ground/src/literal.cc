@@ -47,16 +47,29 @@ auto LitInterval::matcher([[maybe_unused]] MatcherType type,
 }
 
 auto LitInterval::score([[maybe_unused]] std::vector<bool> const &bound) const -> double {
-    // TODO: compute proper score
-    /*
-    if (range_.first->getInvertibility() == Term::CONSTANT && range_.second->getInvertibility() == Term::CONSTANT) {
-        bool undefined = false;
-        Symbol l(range_.first->eval(undefined, log));
-        Symbol r(range_.second->eval(undefined, log));
-        return (l.type() == SymbolType::Num && r.type() == SymbolType::Num) ? static_cast<double>(r.num()) - l.num() :
-    -1.0;
+    if (auto *l = dynamic_cast<TermSymbol *>(lower_.get()), *r = dynamic_cast<TermSymbol *>(lower_.get());
+        l != nullptr && r != nullptr) {
+        VariableSet vars;
+        lhs_->vars(vars);
+        if (std::all_of(vars.begin(), vars.end(), [&bound](auto var) { return bound[var]; })) {
+            return -1;
+        }
+        auto sl = l->symbol();
+        auto sr = r->symbol();
+        if (sl.type() != SymbolType::number || sr.type() != SymbolType::number) {
+            return -1;
+        }
+        auto nl = sl.num();
+        auto nr = sr.num();
+        if (*nl > *nr) {
+            return -1;
+        }
+        auto d = *nr - *nl;
+        if (auto id = d.as_int(); id) {
+            return *id;
+        }
+        return std::numeric_limits<double>::max();
     }
-    */
     // NOLINTNEXTLINE(readability-magic-numbers)
     return 100;
 }
@@ -278,24 +291,12 @@ auto LitSymbolic::matcher(MatcherType type,
 }
 
 auto LitSymbolic::score(std::vector<bool> const &bound) const -> double {
-    static_cast<void>(bound);
-    // TODO: proper score computation
-    /*
-    inline double estimate(unsigned size, Term const &term, Term::VarSet const &bound) {
-        Term::VarSet vars;
-        term.collect(vars);
-        bool found = false;
-        for (auto const &x : vars) {
-            if (bound.find(x) != bound.end()) {
-                found = true;
-                break;
-            }
-        }
-        return term.estimate(size, bound) + (found ? 0 : 10000000);
+    if (sign_ != Sign::once) {
+        // TODO: Somehow gringo previously added 10,000,000 if all variables were
+        // bound. I don't see the point of this?
+        return atom_->score(static_cast<double>(base_->size()), bound);
     }
-    return naf_ == NAF::POS ? estimate(domain_.size(), *repr_, bound) : 0;
-    */
-    return 2;
+    return 0;
 }
 
 auto LitSymbolic::hash() const -> size_t { return Util::value_hash_record<LitSymbolic>(sign_, atom_); }
@@ -433,12 +434,10 @@ auto LitProject::matcher(MatcherType type,
 }
 
 auto LitProject::score(std::vector<bool> const &bound) const -> double {
-    static_cast<void>(bound);
-    // TODO: proper score computation
-    /*
-    return naf_ == NAF::POS ? estimate(domain_.size(), *repr_, bound) : 0;
-    */
-    return 2;
+    if (sign_ != Sign::once) {
+        return atom_->score(static_cast<double>(state_->base().size()), bound);
+    }
+    return 0;
 }
 
 auto LitProject::hash() const -> size_t { return Util::value_hash_record<LitProject>(sign_, atom_); }

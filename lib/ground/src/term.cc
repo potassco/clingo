@@ -50,6 +50,11 @@ auto rename_args(UTermVec const &args, SymbolStore &store, RenameMode mode, size
 
 // TermProjection
 
+auto TermProjection::score([[maybe_unused]] double size,
+                           [[maybe_unused]] std::vector<bool> const &bound) const -> double {
+    return 0;
+}
+
 auto TermProjection::match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Symbol sym,
                            [[maybe_unused]] Assignment &ass) const -> bool {
     return true;
@@ -100,6 +105,10 @@ auto TermSymbol::match([[maybe_unused]] SymbolStore &store, Symbol sym,
     return sym == sym_;
 }
 
+auto TermSymbol::score([[maybe_unused]] double size, [[maybe_unused]] std::vector<bool> const &bound) const -> double {
+    return 0;
+}
+
 auto TermSymbol::eval([[maybe_unused]] SymbolStore &store,
                       [[maybe_unused]] Assignment const &ass) const -> std::optional<Symbol> {
     return sym_;
@@ -139,6 +148,10 @@ auto TermSymbol::compare_to([[maybe_unused]] Term const &other) const -> std::st
 }
 
 // TermVariable
+
+auto TermVariable::score(double size, std::vector<bool> const &bound) const -> double {
+    return bound[var_] ? 0.0 : size;
+}
 
 auto TermVariable::match([[maybe_unused]] SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
     if (ass[var_]) {
@@ -181,6 +194,8 @@ auto TermVariable::compare_to([[maybe_unused]] Term const &other) const -> std::
 }
 
 // TermLinear
+
+auto TermLinear::score(double size, std::vector<bool> const &bound) const -> double { return bound[var_] ? 0.0 : size; }
 
 auto TermLinear::match([[maybe_unused]] SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
     if (sym.type() != SymbolType::number) {
@@ -238,6 +253,10 @@ auto TermLinear::compare_to([[maybe_unused]] Term const &other) const -> std::st
 }
 
 // TermUnary
+
+auto TermUnary::score(double size, std::vector<bool> const &bound) const -> double {
+    return op_ == UnaryOperator::minus ? rhs_->score(size, bound) : 0.0;
+}
 
 auto TermUnary::match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
     if (op_ == UnaryOperator::minus) {
@@ -332,6 +351,10 @@ auto TermUnary::compare_to([[maybe_unused]] Term const &other) const -> std::str
 }
 
 // TermBinary
+
+auto TermBinary::score([[maybe_unused]] double size, [[maybe_unused]] std::vector<bool> const &bound) const -> double {
+    return 0;
+}
 
 auto TermBinary::match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
     return sym.type() == SymbolType::number && eval(store, ass) == sym;
@@ -463,6 +486,20 @@ auto TermBinary::compare_to([[maybe_unused]] Term const &other) const -> std::st
 
 // TermTuple
 
+auto TermTuple::score(double size, std::vector<bool> const &bound) const -> double {
+    double ret = 0.0;
+    if (!args_.empty()) {
+        auto len = static_cast<double>(args_.size());
+        // NOLINTNEXTLINE(readability-magic-numbers)
+        double root = std::max(1.0, std::pow(size, 1.0 / len));
+        for (const auto &x : args_) {
+            ret += x->score(root, bound);
+        }
+        ret /= len;
+    }
+    return ret;
+}
+
 auto TermTuple::match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
     return sym.type() == SymbolType::tuple && match_args(store, ass, args_, sym.args());
 }
@@ -525,6 +562,20 @@ auto TermTuple::compare_to([[maybe_unused]] Term const &other) const -> std::str
 }
 
 // TermFunction
+
+auto TermFunction::score(double size, std::vector<bool> const &bound) const -> double {
+    double ret = 0.0;
+    if (!args_.empty()) {
+        auto len = static_cast<double>(args_.size());
+        // NOLINTNEXTLINE(readability-magic-numbers)
+        double root = std::max(1.0, std::pow(size / 2.0, 1.0 / len));
+        for (const auto &x : args_) {
+            ret += x->score(root, bound);
+        }
+        ret /= len;
+    }
+    return ret;
+}
 
 auto TermFunction::match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
     return sym.type() == SymbolType::function && !sym.has_classical_sign() && sym.name() == name_ &&

@@ -28,6 +28,8 @@ class Term {
   public:
     //! Destructor.
     virtual ~Term() = default;
+    //! Compute an estimate how often the term can match size symbols given the bound variables.
+    [[nodiscard]] virtual auto score(double size, std::vector<bool> const &bound) const -> double = 0;
     //! Match a term with the given symbol.
     //!
     //! Returns true if the term can match the symbol.
@@ -62,6 +64,7 @@ class Term {
 
 class TermProjection : public Term {
   public:
+    [[nodiscard]] auto score(double size, std::vector<bool> const &bound) const -> double override;
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
     [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
     [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String const *name,
@@ -77,6 +80,8 @@ class TermProjection : public Term {
 class TermSymbol : public Term {
   public:
     TermSymbol(Symbol sym) : sym_{sym} {}
+    [[nodiscard]] auto symbol() const -> Symbol { return sym_; }
+    [[nodiscard]] auto score(double size, std::vector<bool> const &bound) const -> double override;
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
     [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
     [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String const *name,
@@ -95,7 +100,7 @@ class TermSymbol : public Term {
 class TermVariable : public Term {
   public:
     TermVariable(size_t var) : var_{var} {}
-    [[nodiscard]] auto match_sym() const -> bool;
+    [[nodiscard]] auto score(double size, std::vector<bool> const &bound) const -> double override;
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
     [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
     [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String const *name,
@@ -114,6 +119,7 @@ class TermVariable : public Term {
 class TermLinear : public Term {
   public:
     TermLinear(Number m, size_t var, Number n) : m_{std::move(m)}, n_{std::move(n)}, var_{var} {}
+    [[nodiscard]] auto score(double size, std::vector<bool> const &bound) const -> double override;
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
     [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
     [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String const *name,
@@ -141,6 +147,7 @@ enum class UnaryOperator : uint8_t {
 class TermUnary : public Term {
   public:
     TermUnary(UnaryOperator op, UTerm rhs) : rhs_{std::move(rhs)}, op_{op} {}
+    [[nodiscard]] auto score(double size, std::vector<bool> const &bound) const -> double override;
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
     [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
     [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String const *name,
@@ -173,6 +180,7 @@ enum class BinaryOperator : uint8_t {
 class TermBinary : public Term {
   public:
     TermBinary(UTerm lhs, BinaryOperator op, UTerm rhs) : lhs_{std::move(lhs)}, rhs_{std::move(rhs)}, op_{op} {}
+    [[nodiscard]] auto score(double size, std::vector<bool> const &bound) const -> double override;
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
     [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
     [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String const *name,
@@ -193,6 +201,7 @@ class TermBinary : public Term {
 class TermTuple : public Term {
   public:
     TermTuple(UTermVec args) : args_{std::move(args)} {}
+    [[nodiscard]] auto score(double size, std::vector<bool> const &bound) const -> double override;
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
     [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
     [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String const *name,
@@ -211,6 +220,7 @@ class TermTuple : public Term {
 class TermFunction : public Term {
   public:
     TermFunction(String name, UTermVec args) : name_{name}, args_{std::move(args)} {}
+    [[nodiscard]] auto score(double size, std::vector<bool> const &bound) const -> double override;
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
     [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
     [[nodiscard]] auto rename(SymbolStore &store, RenameMode mode, String const *name,
