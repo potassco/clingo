@@ -112,7 +112,7 @@ auto Linearizer::order_(InstanceCallback &cb, std::vector<MatcherType> const &to
     auto done = Util::unordered_set<Lit const *>{};
     done.reserve(lits.size());
     auto res_index = std::optional<size_t>{};
-    while (!queue_.empty()) {
+    for (size_t k = 0; !queue_.empty();) {
         // get minimum element in queue (breaking ties using insertion order)
         auto pred = [&](auto const &ei, auto const &ej) -> bool {
             auto si(lits[ei.first]->score(bound));
@@ -148,9 +148,10 @@ auto Linearizer::order_(InstanceCallback &cb, std::vector<MatcherType> const &to
                     queue_.emplace_back(j, ++gen);
                 }
             }
-            provided[var] = i;
+            provided[var] = k;
             bound[var] = true;
         }
+        ++k;
     }
     inst.finalize(make_depend(important, std::vector<size_t>{}));
     return {std::move(inst), res_index};
