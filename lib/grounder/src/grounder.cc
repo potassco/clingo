@@ -458,7 +458,7 @@ class Builder : public Input::DependencyBuilder {
                     GRINGO_REPORT(*impl_->log, debug) << "      " << *stm;
                     lin.prepare(*stm);
                 }
-                queue.process(*impl_->store);
+                queue.process(*impl_->log, *impl_->store);
             }
         }
     }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <gringo/core/logger.hh>
 #include <gringo/core/symbol.hh>
 
 #include <memory>
@@ -24,6 +25,8 @@ class Matcher {
     //! Has to be called to obtain the first match.
     //! Returns true if there is a match.
     virtual auto next(SymbolStore &store, Assignment &ass) -> bool = 0;
+    //! Print the matcher to the given stream.
+    virtual void print(std::ostream &out) const = 0;
 };
 using UMatcher = std::unique_ptr<Matcher>;
 using UMatcherVec = std::vector<UMatcher>;
@@ -75,7 +78,7 @@ class Instantiator {
     //! Find all assignments for the added matchers.
     //!
     //! Assignments are reported via the InstanceCallback.
-    void instantiate(SymbolStore &store);
+    void instantiate(Logger &log, SymbolStore &store);
     //! Add instantiators that need grounding to queue.
     void propagate(Queue &queue);
     //! The priority of the instantiator.
@@ -90,6 +93,7 @@ class Instantiator {
         void match(SymbolStore &store, Assignment &ass);
         auto next(SymbolStore &store, Assignment &ass) -> bool;
         auto first(SymbolStore &store, Assignment &ass) -> bool;
+        void print(std::ostream &out, size_t index) const;
         [[nodiscard]] auto depend() const -> DependVec const &;
         [[nodiscard]] auto backjumpable() const -> bool;
         void block();
@@ -115,7 +119,7 @@ class Queue {
     void insert(Instantiator inst, std::optional<size_t> index);
     void propagate(size_t index);
     //! Process previously enqueued instantiators.
-    void process(SymbolStore &store);
+    void process(Logger &log, SymbolStore &store);
 
   private:
     //! Append an instantiator to the queue.

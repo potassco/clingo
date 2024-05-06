@@ -7,18 +7,27 @@ namespace Gringo::Util {
 //! @addtogroup util_print
 //! @{
 
-//! An identity mapper used for printing.
-struct p_map {
-    //! Map the given object to itself.
-    auto operator()(auto const &x) -> auto const & { return x; }
+//! Helper to print an object.
+struct p_self {
+    //! Print the given object.
+    void operator()(std::ostream &out, auto const &x) { out << x; }
+};
+
+template <class F> struct p_fun {
+    p_fun(F fun) : fun{std::move(fun)} {}
+    friend auto operator<<(std::ostream &out, p_fun const &x) -> std::ostream & {
+        x.fun(out);
+        return out;
+    }
+    F fun;
 };
 
 //! Wrapper for range with a separator and a mapper for printing.
-template <class T, class M = p_map> struct p_range : private M {
+template <class T, class F = p_self> struct p_range : private F {
     //! Print the range with the given separator.
-    p_range(T const &rng, char const *sep, M map = M{}) : M{std::move(map)}, rng_{&rng}, sep_{sep} {}
+    p_range(T const &rng, char const *sep, F fun = F{}) : F{std::move(fun)}, rng_{&rng}, sep_{sep} {}
     //! Print the range with a comma separator.
-    p_range(T const &rng, M map = M{}) : M{std::move(map)}, rng_{&rng}, sep_{","} {}
+    p_range(T const &rng, F fun = F{}) : F{std::move(fun)}, rng_{&rng}, sep_{","} {}
     //! Output the range.
     friend auto operator<<(std::ostream &out, p_range rng) -> std::ostream & {
         bool comma = false;
@@ -27,7 +36,7 @@ template <class T, class M = p_map> struct p_range : private M {
                 out << rng.sep_;
             }
             comma = true;
-            out << static_cast<M &>(rng)(elem);
+            static_cast<F &>(rng)(out, elem);
         }
         return out;
     }

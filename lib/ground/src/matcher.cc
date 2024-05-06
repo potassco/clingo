@@ -18,6 +18,7 @@ class OnceMatcher : public Matcher {
         }
         return false;
     }
+    void print(std::ostream &out) const override { out << "#once"; }
 
   private:
     bool match_ = false;
@@ -58,6 +59,7 @@ class CmpMatcher : public OnceMatcher {
         }
         return false;
     }
+    void print(std::ostream &out) const override { out << *lhs_ << cmp_ << *rhs_; }
 
   private:
     Term const *lhs_;
@@ -80,6 +82,7 @@ class AssignMatcher : public OnceMatcher {
         // }
         return rhs && lhs_->match(store, *rhs, ass);
     }
+    void print(std::ostream &out) const override { out << *lhs_ << ":=" << *rhs_; }
 
   private:
     Term const *lhs_;
@@ -95,6 +98,7 @@ class NonFactMatcher : public OnceMatcher {
         auto sym = term_->eval(store, ass);
         return !sym || !base_->is_fact(*sym);
     }
+    void print(std::ostream &out) const override { out << "#not fact " << *term_; }
 
   private:
     Base const *base_;
@@ -410,6 +414,7 @@ class LookupMatcher : public OnceMatcher {
         auto sym = term_->eval(store, ass);
         return sym && base_->contains(*sym, type_);
     }
+    void print(std::ostream &out) const override { out << *term_; }
 
   private:
     Base const *base_;
@@ -428,6 +433,7 @@ class FullMatcher : public Matcher {
     auto next(SymbolStore &store, Assignment &ass) -> bool override {
         return index_->next(store, ass, *term_, free_, type_, pos_, cur_);
     }
+    void print(std::ostream &out) const override { out << *term_; }
 
   private:
     FullIndex *index_;
@@ -449,6 +455,7 @@ class HashMatcher : public Matcher {
     auto next(SymbolStore &store, Assignment &ass) -> bool override {
         return index_->next(store, ass, bound_, bind_, *term_, type_, pos_, cur_);
     }
+    void print(std::ostream &out) const override { out << *term_; }
 
   private:
     HashIndex *index_;
@@ -496,6 +503,7 @@ class IntervalMatcher : public Matcher {
         }
         return false;
     }
+    void print(std::ostream &out) const override { out << *lhs_ << ":=" << *lower_ << ".." << *upper_; }
 
   private:
     Term const *lhs_;

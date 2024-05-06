@@ -412,6 +412,7 @@ auto LitProject::matcher(MatcherType type,
         }
         void match(SymbolStore &store, Assignment &ass) override { matcher_->match(store, ass); }
         auto next(SymbolStore &store, Assignment &ass) -> bool override { return matcher_->next(store, ass); }
+        void print(std::ostream &out) const override { matcher_->print(out); }
 
       private:
         State *state_;

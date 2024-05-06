@@ -2,6 +2,8 @@
 
 #include <gringo/util/checked_math.hh>
 
+#include <gringo/util/print.hh>
+
 // #include <iostream>
 
 namespace Gringo::Ground {
@@ -21,6 +23,15 @@ auto Instantiator::BackjumpMatcher::next(SymbolStore &store, Assignment &ass) ->
 auto Instantiator::BackjumpMatcher::first(SymbolStore &store, Assignment &ass) -> bool {
     matcher_->match(store, ass);
     return next(store, ass);
+}
+
+void Instantiator::BackjumpMatcher::print(std::ostream &out, size_t index) const {
+    matcher_->print(out);
+    out << " [" << index;
+    if (!depend_.empty()) {
+        out << ": " << Util::p_range(depend_);
+    }
+    out << "]";
 }
 
 auto Instantiator::BackjumpMatcher::depend() const -> DependVec const & { return depend_; }
@@ -48,6 +59,7 @@ void Instantiator::finalize(DependVec depend) {
         auto next([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) -> bool override {
             return false;
         }
+        void print(std::ostream &out) const override { out << "#solution"; }
     };
     matchers_.emplace_back(std::make_unique<SolutionMatcher>(), std::move(depend));
 }
@@ -58,32 +70,36 @@ auto Instantiator::enqueue() -> bool {
     return old;
 }
 
-void Instantiator::instantiate(SymbolStore &store) {
+void Instantiator::instantiate(Logger &log, SymbolStore &store) {
     enqueued_ = false;
     auto ie = matchers_.rend();
     auto it = ie - 1;
     auto ib = matchers_.rbegin();
     it->match(store, ass_);
+    GRINGO_REPORT(log, trace) << "instantiate: " << Util::p_fun{[this](std::ostream &out) {
+        out << Util::p_range(matchers_, "; ", [index = size_t{0}](std::ostream &out, auto const &matcher) mutable {
+            matcher.print(out, index);
+            ++index;
+        });
+    }};
     do {
-        // std::cerr << "***start at " << std::distance(it, ie) - 1 << "\n";
+        GRINGO_REPORT(log, trace) << "  start at " << std::distance(it, ie) - 1;
         if (it->next(store, ass_)) {
             for (--it; it->first(store, ass_); --it) {
             }
-            // std::cerr << "***advanced to " << std::distance(it, ie) - 1 << "\n";
+            GRINGO_REPORT(log, trace) << "  advanced to " << std::distance(it, ie) - 1;
         }
         if (it == ib) {
-            // std::cerr << "***solution\n";
+            GRINGO_REPORT(log, trace) << "  solution";
             icb_->report(store, ass_);
         }
-        // std::cerr << "***block";
+        GRINGO_REPORT(log, trace) << "  block: " << Util::p_range(it->depend());
         for (auto idx : it->depend()) {
-            // std::cerr << " " << idx;
             matchers_[idx].block();
         }
-        // std::cerr << "\n";
         for (++it; it != ie && it->backjumpable(); ++it) {
         }
-        // std::cerr << "***backjumped to " << std::distance(it, ie) - 1 << "\n";
+        GRINGO_REPORT(log, trace) << "  backjumped to " << std::distance(it, ie) - 1;
     } while (it != ie);
 }
 
@@ -115,7 +131,7 @@ void Queue::propagate(size_t index) {
     }
 }
 
-void Queue::process(SymbolStore &store) {
+void Queue::process(Logger &log, SymbolStore &store) {
     // ground
     for (auto i = size_t{0}; i < insts_.size(); ++i) {
         enter_(i);
@@ -130,7 +146,7 @@ void Queue::process(SymbolStore &store) {
                 inst->init(store, gen);
             }
             for (auto *inst : current) {
-                inst->instantiate(store);
+                inst->instantiate(log, store);
             }
             for (auto *inst : current) {
                 inst->propagate(*this);

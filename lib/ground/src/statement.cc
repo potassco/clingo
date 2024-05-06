@@ -162,7 +162,7 @@ void StmRule::print(std::ostream &out) const {
     if (!indices_.empty()) {
         out << "[" << Util::p_range(indices_, ",") << "]";
     }
-    out << " :- " << Util::p_range(body_, ", ", [](auto const &lit) -> decltype(auto) { return *lit; }) << ".";
+    out << " :- " << Util::p_range(body_, ", ", [](std::ostream &out, auto const &lit) { out << *lit; }) << ".";
 }
 
 auto StmRule::body() const -> ULitVec const & { return body_; }
