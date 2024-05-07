@@ -77,8 +77,10 @@ public:
     void endStep() override;
     ~ClaspAPIBackend() noexcept override;
 private:
+    std::string str_(Symbol sym);
     Clasp::Asp::LogicProgram *prg();
     ClingoControl& ctl_;
+    std::ostringstream out_;
 };
 
 // {{{1 declaration of ClingoOptions

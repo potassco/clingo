@@ -32,11 +32,9 @@
 #include <clasp/weight_constraint.h>
 #include "clingo.h"
 #include "gringo/backend.hh"
-#include "gringo/hash_set.hh"
 #include "gringo/output/literal.hh"
 #include "gringo/output/literals.hh"
 #include "gringo/output/output.hh"
-#include "gringo/output/statements.hh"
 #include "potassco/theory_data.h"
 #include <csignal>
 #include <clingo/incmode.hh>
@@ -70,22 +68,26 @@ void ClaspAPIBackend::project(const Potassco::AtomSpan& atoms) {
     if (auto *p = prg()) { p->addProject(atoms); }
 }
 
+std::string ClaspAPIBackend::str_(Symbol sym) {
+    // Note: should use a view in C++20
+    out_.str("");
+    out_.clear();
+    out_ << sym;
+    return out_.str();
+}
+
 void ClaspAPIBackend::output(Symbol sym, Potassco::Atom_t atom) {
-    std::ostringstream out;
-    out << sym;
     if (atom != 0) {
         Potassco::Lit_t lit = atom;
-        if (auto *p = prg()) { p->addOutput(Potassco::toSpan(out.str().c_str()), Potassco::LitSpan{&lit, 1}); }
+        if (auto *p = prg()) { p->addOutput(Potassco::toSpan(str_(sym).c_str()), Potassco::LitSpan{&lit, 1}); }
     }
     else {
-        if (auto *p = prg()) { p->addOutput(Potassco::toSpan(out.str().c_str()), Potassco::LitSpan{nullptr, 0}); }
+        if (auto *p = prg()) { p->addOutput(Potassco::toSpan(str_(sym).c_str()), Potassco::LitSpan{nullptr, 0}); }
     }
 }
 
 void ClaspAPIBackend::output(Symbol sym, Potassco::LitSpan const& condition) {
-    std::ostringstream out;
-    out << sym;
-    if (auto *p = prg()) { p->addOutput(Potassco::toSpan(out.str().c_str()), condition); }
+    if (auto *p = prg()) { p->addOutput(Potassco::toSpan(str_(sym).c_str()), condition); }
 }
 
 void ClaspAPIBackend::acycEdge(int s, int t, const Potassco::LitSpan& condition) {
