@@ -102,6 +102,11 @@ if ((CLINGO_BUILD_SHARED OR CLINGO_INSTALL_LIB) AND NOT CLINGO_BUILD_WITH_PYTHON
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Clingo)
 endif()
 
+if (CLINGO_PROFILE)
+    target_compile_definitions(libclingo PUBLIC CLINGO_PROFILE)
+    target_link_libraries(libclingo PUBLIC Gperftools::Profiler)
+endif()
+
 if (MSVC)
     target_compile_definitions(libclingo ${clingo_private_scope_} _SCL_SECURE_NO_WARNINGS)
 endif()

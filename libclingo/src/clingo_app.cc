@@ -26,6 +26,10 @@
 #include <clasp/parser.h>
 #include <climits>
 
+#ifdef CLINGO_PROFILE
+#include <gperftools/profiler.h>
+#endif
+
 namespace Gringo {
 
 // {{{ declaration of ClingoApp
@@ -177,6 +181,16 @@ void ClingoApp::onEvent(Clasp::Event const& ev) {
     BaseType::onEvent(ev);
 }
 void ClingoApp::run(Clasp::ClaspFacade& clasp) {
+#ifdef CLINGO_PROFILE
+    struct P {
+        P() {
+            ProfilerStart("clingo.solve.prof");
+        }
+        ~P() {
+            ProfilerStop();
+        }
+    } profile;
+#endif
     try {
         using namespace std::placeholders;
         if (mode_ != mode_clasp) {
@@ -195,7 +209,9 @@ void ClingoApp::run(Clasp::ClaspFacade& clasp) {
         std::cerr << e.what() << std::endl;
         throw std::runtime_error("fatal error");
     }
-    catch (...) { throw; }
+    catch (...) {
+        throw;
+    }
 }
 
 // }}}

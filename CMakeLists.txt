@@ -105,6 +105,8 @@ set(LUACLINGO_INSTALL_DIR "" CACHE STRING
 set(LUACLINGO_SUFFIX CACHE STRING
 "Advanced variable to manually configure the suffix of the Lua module.")
 
+option(CLINGO_PROFILE "profile clingo" OFF)
+
 mark_as_advanced(CLINGO_BUILD_WEB)
 mark_as_advanced(CLINGO_BUILD_STATIC)
 mark_as_advanced(CLINGO_BUILD_SHARED)
@@ -115,6 +117,7 @@ mark_as_advanced(PYCLINGO_SUFFIX)
 mark_as_advanced(PYCLINGO_DYNAMIC_LOOKUP)
 mark_as_advanced(LUACLINGO_INSTALL_DIR)
 mark_as_advanced(LUACLINGO_SUFFIX)
+mark_as_advanced(CLINGO_PROFILE)
 
 # workaround to set custom ar and ranlib
 if (CLINGO_CMAKE_AR)
@@ -238,6 +241,10 @@ if (Python_Development_FOUND)
     # avoid linker errors
     set(THREADS_PREFER_PTHREAD_FLAG ON)
     find_package(Threads REQUIRED)
+endif()
+
+if (CLINGO_PROFILE)
+    find_package(Gperftools REQUIRED)
 endif()
 
 
