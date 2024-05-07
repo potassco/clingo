@@ -127,7 +127,7 @@ class Queue {
 
     std::vector<Instantiator> insts_;
     std::vector<std::vector<size_t>> update_;
-    std::array<std::vector<Instantiator *>, 3> queues_;
+    std::vector<std::vector<Instantiator *>> queues_;
     size_t size_ = 0;
 };
 

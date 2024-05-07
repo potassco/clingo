@@ -118,7 +118,11 @@ void Queue::insert(Instantiator inst, std::optional<size_t> index) {
 void Queue::enter_(size_t i) {
     auto &inst = insts_[i];
     if (!inst.enqueue()) {
-        queues_.at(inst.priority()).emplace_back(&inst);
+        auto prio = inst.priority();
+        if (queues_.size() <= prio) {
+            queues_.resize(prio + 1);
+        }
+        queues_[prio].emplace_back(&inst);
         ++size_;
     }
 }

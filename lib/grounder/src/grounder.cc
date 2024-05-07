@@ -234,6 +234,7 @@ struct BuildContext {
     Ground::Component *gcomp = nullptr;
     Util::unordered_map<String, size_t> *var_map = nullptr;
     Ground::ULitVec *body = nullptr;
+    size_t priority = 0;
 };
 
 template <class F> class BuilderLit {
@@ -361,6 +362,34 @@ class BuilderBdLit {
             BuilderLit{*ctx_, [this]<class Lit>(Lit &&glit) { ctx_->body->emplace_back(std::forward<Lit>(glit)); }},
             lit.lit());
     }
+    void operator()(Input::BdLitConjunction const &lit) const {
+        static_cast<void>(lit);
+        // - needs auxiliary rules
+        // - copy body until cond lit and mark as domain!
+        // - G are the global variables in the cond lit
+        // - L are the local variables in the head of the cond lit
+        // - #accu(empty,G) :- body.
+        // - #accu(cond,G,L) :- #accu(empty,G), cond.
+        // - progate:
+        //   - head & #accu(cond,G,L)
+        //   - #aggr(cond,G)
+        // - head :- body, #aggr(cond,G), ...
+        // - body should not have #aggr literals in it
+        //   (or only literals with a lower priority)
+        // - consider separating base/and aggregate bases
+
+        // splitting:
+        // H :- B1, C : P, B2.
+        //   empty(clit(G)) :- B1                             0
+        ctx_->priority += 1;
+        //   premise(clit(G),L) :- empty(clit(G)), P.         1
+        ctx_->priority += 1;
+        //   conclusion(clit(G),L) :- premise(clit(G),L), C.  2
+        ctx_->priority += 1;
+        // propagate
+        //   H :- B1, clit(G), B2.                            3
+        throw std::logic_error("implement me: cond lit");
+    }
 
   private:
     BuildContext *ctx_;
@@ -448,7 +477,7 @@ class Builder : public Input::DependencyBuilder {
                         }
                         ++i;
                     }
-                    auto ctx = BuildContext{impl_, &ref_comp, &def_map, &gcomp, &var_map, &body};
+                    auto ctx = BuildContext{impl_, &ref_comp, &def_map, &gcomp, &var_map, &body, 0};
                     auto bld_stm = BuilderStm{ctx};
                     std::visit(bld_stm, *stm);
                 }
