@@ -1,4 +1,5 @@
 add_library(gringo_ground
+    "src/aggregate.cc"
     "src/instantiator.cc"
     "src/literal.cc"
     "src/program.cc"
