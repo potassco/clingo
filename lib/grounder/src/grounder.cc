@@ -454,6 +454,9 @@ class Builder : public Input::DependencyBuilder {
     }
 
     void components(Input::Components const &comps) override {
+        // TODO: the domain check in it's current form does not work
+        // - any recursive literal in a component that has a non-domain atom in its base
+        //   should turn a domain component into a non-domain one
         auto lin = Ground::Linearizer{};
         for (auto const &ref_comps : comps) {
             GRINGO_REPORT(*impl_->log, debug) << "  component";
