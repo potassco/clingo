@@ -49,7 +49,10 @@ class Term {
     [[nodiscard]] virtual auto rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm = 0;
     //! Collect all variables in the term.
     virtual void vars(VariableSet &vars, bool provide = false) const = 0;
+    //! Output the term.
     virtual void print(std::ostream &out) const = 0;
+    //! Create a copy of the term.
+    [[nodiscard]] virtual auto copy() const -> UTerm = 0;
     [[nodiscard]] virtual auto hash() const -> size_t = 0;
     [[nodiscard]] virtual auto equal_to(Term const &other) const -> bool = 0;
     [[nodiscard]] virtual auto compare_to(Term const &other) const -> std::strong_ordering = 0;
@@ -72,6 +75,7 @@ class TermProjection : public Term {
     [[nodiscard]] auto rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm override;
     void vars(VariableSet &vars, bool provide) const override;
     void print(std::ostream &out) const override;
+    [[nodiscard]] auto copy() const -> UTerm override;
     [[nodiscard]] auto hash() const -> size_t override;
     [[nodiscard]] auto equal_to(Term const &other) const -> bool override;
     [[nodiscard]] auto compare_to(Term const &other) const -> std::strong_ordering override;
@@ -89,6 +93,7 @@ class TermSymbol : public Term {
     [[nodiscard]] auto rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm override;
     void vars(VariableSet &vars, bool provide) const override;
     void print(std::ostream &out) const override;
+    [[nodiscard]] auto copy() const -> UTerm override;
     [[nodiscard]] auto hash() const -> size_t override;
     [[nodiscard]] auto equal_to(Term const &other) const -> bool override;
     [[nodiscard]] auto compare_to(Term const &other) const -> std::strong_ordering override;
@@ -108,6 +113,7 @@ class TermVariable : public Term {
     [[nodiscard]] auto rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm override;
     void vars(VariableSet &vars, bool provide) const override;
     void print(std::ostream &out) const override;
+    [[nodiscard]] auto copy() const -> UTerm override;
     [[nodiscard]] auto hash() const -> size_t override;
     [[nodiscard]] auto equal_to(Term const &other) const -> bool override;
     [[nodiscard]] auto compare_to(Term const &other) const -> std::strong_ordering override;
@@ -127,6 +133,7 @@ class TermLinear : public Term {
     [[nodiscard]] auto rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm override;
     void vars(VariableSet &vars, bool provide) const override;
     void print(std::ostream &out) const override;
+    [[nodiscard]] auto copy() const -> UTerm override;
     [[nodiscard]] auto hash() const -> size_t override;
     [[nodiscard]] auto equal_to(Term const &other) const -> bool override;
     [[nodiscard]] auto compare_to(Term const &other) const -> std::strong_ordering override;
@@ -155,6 +162,7 @@ class TermUnary : public Term {
     [[nodiscard]] auto rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm override;
     void vars(VariableSet &vars, bool provide) const override;
     void print(std::ostream &out) const override;
+    [[nodiscard]] auto copy() const -> UTerm override;
     [[nodiscard]] auto hash() const -> size_t override;
     [[nodiscard]] auto equal_to(Term const &other) const -> bool override;
     [[nodiscard]] auto compare_to(Term const &other) const -> std::strong_ordering override;
@@ -188,6 +196,7 @@ class TermBinary : public Term {
     [[nodiscard]] auto rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm override;
     void vars(VariableSet &vars, bool provide) const override;
     void print(std::ostream &out) const override;
+    [[nodiscard]] auto copy() const -> UTerm override;
     [[nodiscard]] auto hash() const -> size_t override;
     [[nodiscard]] auto equal_to(Term const &other) const -> bool override;
     [[nodiscard]] auto compare_to(Term const &other) const -> std::strong_ordering override;
@@ -209,6 +218,7 @@ class TermTuple : public Term {
     [[nodiscard]] auto rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm override;
     void vars(VariableSet &vars, bool provide) const override;
     void print(std::ostream &out) const override;
+    [[nodiscard]] auto copy() const -> UTerm override;
     [[nodiscard]] auto hash() const -> size_t override;
     [[nodiscard]] auto equal_to(Term const &other) const -> bool override;
     [[nodiscard]] auto compare_to(Term const &other) const -> std::strong_ordering override;
@@ -228,6 +238,7 @@ class TermFunction : public Term {
     [[nodiscard]] auto rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm override;
     void vars(VariableSet &vars, bool provide) const override;
     void print(std::ostream &out) const override;
+    [[nodiscard]] auto copy() const -> UTerm override;
     [[nodiscard]] auto hash() const -> size_t override;
     [[nodiscard]] auto equal_to(Term const &other) const -> bool override;
     [[nodiscard]] auto compare_to(Term const &other) const -> std::strong_ordering override;

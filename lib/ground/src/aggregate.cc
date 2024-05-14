@@ -65,6 +65,8 @@ auto LitCondLit::output(SymbolStore &store, Assignment const &ass, std::ostream 
     return false;
 }
 
+auto LitCondLit::copy() const -> ULit { return std::make_unique<LitCondLit>(type_, *base_); }
+
 auto LitCondLit::hash() const -> size_t {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     return Util::value_hash_record<LitCondLit>(type_, reinterpret_cast<uintptr_t>(base_));

@@ -17,6 +17,10 @@ auto LitInterval::output(SymbolStore &store, Assignment const &ass, std::ostream
     return false;
 }
 
+auto LitInterval::copy() const -> ULit {
+    return std::make_unique<LitInterval>(lhs_->copy(), lower_->copy(), upper_->copy());
+}
+
 auto LitInterval::domain([[maybe_unused]] bool domain) const -> bool { return true; }
 
 auto LitInterval::recursive() const -> bool { return false; }
@@ -102,6 +106,8 @@ auto LitComparison::output(SymbolStore &store, Assignment const &ass, std::ostre
     }
     return false;
 }
+
+auto LitComparison::copy() const -> ULit { return std::make_unique<LitComparison>(lhs_->copy(), cmp_, rhs_->copy()); }
 
 auto LitComparison::domain([[maybe_unused]] bool domain) const -> bool { return true; }
 
@@ -199,6 +205,8 @@ auto LitFactCheck::output([[maybe_unused]] SymbolStore &store, [[maybe_unused]] 
     return false;
 }
 
+auto LitFactCheck::copy() const -> ULit { return std::make_unique<LitFactCheck>(*base_, *atom_); }
+
 auto LitFactCheck::hash() const -> size_t { return Util::value_hash_record<LitFactCheck>(*atom_); }
 
 auto LitFactCheck::equal_to(Lit const &other) const -> bool {
@@ -234,6 +242,8 @@ auto LitSymbolic::output(SymbolStore &store, Assignment const &ass, std::ostream
     out << "#false";
     return true;
 }
+
+auto LitSymbolic::copy() const -> ULit { return std::make_unique<LitSymbolic>(*base_, sign_, atom_->copy(), index_); }
 
 auto LitSymbolic::domain(bool domain) const -> bool {
     // check if the base of the literal is domain
@@ -357,6 +367,10 @@ auto LitProject::output(SymbolStore &store, Assignment const &ass, std::ostream 
     }
     out << "#false";
     return true;
+}
+
+auto LitProject::copy() const -> ULit {
+    return std::make_unique<LitProject>(*state_, sign_, atom_->copy(), p_atom_->copy(), index_);
 }
 
 auto LitProject::domain(bool domain) const -> bool {

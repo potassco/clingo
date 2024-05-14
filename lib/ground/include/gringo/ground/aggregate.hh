@@ -40,6 +40,7 @@ class LitCondLit : public Lit {
     [[nodiscard]] auto score(std::vector<bool> const &bound) const -> double override;
     void print(std::ostream &out) const override;
     auto output(SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool override;
+    [[nodiscard]] auto copy() const -> ULit override;
     [[nodiscard]] auto hash() const -> size_t override;
     [[nodiscard]] auto equal_to(Lit const &other) const -> bool override;
     [[nodiscard]] auto compare_to(Lit const &other) const -> std::weak_ordering override;
@@ -58,8 +59,8 @@ auto operator<<(std::ostream &out, StmCondLitType type) -> std::ostream &;
 
 class StmCondLit : public Stm {
   public:
-    StmCondLit(StmCondLitType type, BaseCondLit *base, ULitVec body, size_t prio)
-        : base_{base}, body_{std::move(body)}, prio_{prio}, type_{type} {}
+    StmCondLit(StmCondLitType type, BaseCondLit &base, ULitVec body, size_t prio)
+        : base_{&base}, body_{std::move(body)}, prio_{prio}, type_{type} {}
     // statement interface
     void print(std::ostream &out) const override;
     [[nodiscard]] auto body() const -> ULitVec const & override;

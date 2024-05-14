@@ -1,5 +1,6 @@
 #include <gringo/grounder/grounder.hh>
 
+#include <gringo/ground/aggregate.hh>
 #include <gringo/ground/program.hh>
 
 #include <gringo/input/algo/analyze.hh>
@@ -380,14 +381,43 @@ class BuilderBdLit {
 
         // splitting:
         // H :- B1, C : P, B2.
+        auto stms = Ground::UStmVec{};     // TODO: how to return
+        auto base = Ground::BaseCondLit{}; // TODO: where to store
         //   empty(clit(G)) :- B1                             0
+        auto body = Ground::ULitVec{};
+        body.reserve(ctx_->body->size());
+        for (auto const &lit : *ctx_->body) {
+            body.emplace_back(lit->copy());
+        }
+        stms.emplace_back(
+            std::make_unique<Ground::StmCondLit>(Ground::StmCondLitType::empty, base, std::move(body), ctx_->priority));
         ctx_->priority += 1;
         //   premise(clit(G),L) :- empty(clit(G)), P.         1
+        body = Ground::ULitVec{};
+        body.reserve(lit.lit().cond().size() + 1);
+        body.emplace_back(std::make_unique<Ground::LitCondLit>(Ground::LitCondLitType::empty, base));
+        for (auto const &clit : lit.lit().cond()) {
+            std::visit(
+                BuilderLit{*ctx_, [&body]<class Lit>(Lit &&glit) { body.emplace_back(std::forward<Lit>(glit)); }},
+                clit);
+        }
+        stms.emplace_back(std::make_unique<Ground::StmCondLit>(Ground::StmCondLitType::premise, base, std::move(body),
+                                                               ctx_->priority));
         ctx_->priority += 1;
         //   conclusion(clit(G),L) :- premise(clit(G),L), C.  2
-        ctx_->priority += 1;
-        // propagate
+        if (auto fixed = Input::is_fixed(lit.lit().lit()); !fixed || !*fixed) {
+            body = Ground::ULitVec{};
+            body.reserve(2);
+            body.emplace_back(std::make_unique<Ground::LitCondLit>(Ground::LitCondLitType::premise, base));
+            std::visit(
+                BuilderLit{*ctx_, [&body]<class Lit>(Lit &&glit) { body.emplace_back(std::forward<Lit>(glit)); }},
+                lit.lit().lit());
+            stms.emplace_back(std::make_unique<Ground::StmCondLit>(Ground::StmCondLitType::conclusion, base,
+                                                                   std::move(body), ctx_->priority));
+            ctx_->priority += 1;
+        }
         //   H :- B1, clit(G), B2.                            3
+        ctx_->body->emplace_back(std::make_unique<Ground::LitCondLit>(Ground::LitCondLitType::lit, base));
         throw std::logic_error("implement me: cond lit");
     }
 

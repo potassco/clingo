@@ -16,6 +16,10 @@ enum class VarSelectMode : uint8_t {
     all = 3,
 };
 
+class Lit;
+using ULit = std::unique_ptr<Lit>;
+using ULitVec = std::vector<ULit>;
+
 class Lit {
   public:
     virtual ~Lit() = default;
@@ -44,6 +48,8 @@ class Lit {
     // It might get it's own representation or a way to be output directly to a stream.
     virtual auto output(SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool = 0;
 
+    [[nodiscard]] virtual auto copy() const -> ULit = 0;
+
     [[nodiscard]] virtual auto hash() const -> size_t = 0;
     [[nodiscard]] virtual auto equal_to(Lit const &other) const -> bool = 0;
     [[nodiscard]] virtual auto compare_to(Lit const &other) const -> std::weak_ordering = 0;
@@ -55,8 +61,6 @@ class Lit {
         return out;
     }
 };
-using ULit = std::unique_ptr<Lit>;
-using ULitVec = std::vector<ULit>;
 
 class LitComparison : public Lit {
   public:
@@ -71,6 +75,8 @@ class LitComparison : public Lit {
 
     void print(std::ostream &out) const override;
     auto output(SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool override;
+
+    [[nodiscard]] auto copy() const -> ULit override;
 
     [[nodiscard]] auto hash() const -> size_t override;
     [[nodiscard]] auto equal_to(Lit const &other) const -> bool override;
@@ -96,6 +102,8 @@ class LitInterval : public Lit {
 
     void print(std::ostream &out) const override;
     auto output(SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool override;
+
+    [[nodiscard]] auto copy() const -> ULit override;
 
     [[nodiscard]] auto hash() const -> size_t override;
     [[nodiscard]] auto equal_to(Lit const &other) const -> bool override;
@@ -126,6 +134,8 @@ class LitFactCheck : public Lit {
     void print(std::ostream &out) const override;
     auto output(SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool override;
 
+    [[nodiscard]] auto copy() const -> ULit override;
+
     [[nodiscard]] auto hash() const -> size_t override;
     [[nodiscard]] auto equal_to(Lit const &other) const -> bool override;
     [[nodiscard]] auto compare_to(Lit const &other) const -> std::weak_ordering override;
@@ -149,6 +159,8 @@ class LitSymbolic : public Lit {
 
     void print(std::ostream &out) const override;
     auto output(SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool override;
+
+    [[nodiscard]] auto copy() const -> ULit override;
 
     [[nodiscard]] auto hash() const -> size_t override;
     [[nodiscard]] auto equal_to(Lit const &other) const -> bool override;
@@ -201,6 +213,8 @@ class LitProject : public Lit {
 
     void print(std::ostream &out) const override;
     auto output(SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool override;
+
+    [[nodiscard]] auto copy() const -> ULit override;
 
     [[nodiscard]] auto hash() const -> size_t override;
     [[nodiscard]] auto equal_to(Lit const &other) const -> bool override;
