@@ -70,13 +70,13 @@ template <class T, class A> auto value_hash(std::vector<T, A> const &x) -> size_
 //! Compute the hash of an immutable array.
 template <class T> auto value_hash(Util::immutable_array<T> const &x) -> size_t;
 
-//! Compute and compbine the hashes of the given arguments.
+//! Compute and combine the hashes of the given arguments.
 template <class T, class... Args> auto value_hash_record(Args const &...x) -> size_t;
 
 //! Compute a hash using std::hash.
 struct value_hasher {
     //! Compute the hash of the given value.
-    template <class T> auto operator()(T const &x) const -> size_t { return hash_mix(value_hash(x)); }
+    template <class T> auto operator()(T const &x) const -> size_t { return value_hash(x); }
 };
 
 //! Helper class to compare pointers and some STL containers holding pointers by value.
@@ -130,7 +130,7 @@ struct value_equal_to {
 
 // Implementation of value_hash
 
-inline auto value_hash(std::type_info const &x) -> size_t { return x.hash_code(); }
+inline auto value_hash(std::type_info const &x) -> size_t { return hash_mix(x.hash_code()); }
 
 template <class T> auto value_hash(T const &x) -> size_t {
     if constexpr (requires { x.hash(); }) {
@@ -146,14 +146,14 @@ template <class T> auto value_hash(T *x) -> size_t {
     if (x != nullptr) {
         return hash_combine({typeid(T *).hash_code(), value_hash(*x)});
     }
-    return typeid(T *).hash_code();
+    return value_hash(typeid(T *));
 }
 
 template <class T> auto value_hash(std::optional<T> const &x) -> size_t {
     if (x) {
         return hash_combine({typeid(std::optional<T>).hash_code(), value_hash(*x)});
     }
-    return typeid(std::optional<T>).hash_code();
+    return value_hash(typeid(std::optional<T>));
 }
 
 template <class T> auto value_hash(std::reference_wrapper<T> const &x) -> size_t {
@@ -164,14 +164,14 @@ template <class T, class D> auto value_hash(std::unique_ptr<T, D> const &x) -> s
     if (x) {
         return hash_combine({typeid(std::unique_ptr<T, D>).hash_code(), value_hash(*x)});
     }
-    return typeid(std::unique_ptr<T, D>).hash_code();
+    return value_hash(typeid(std::unique_ptr<T, D>));
 }
 
 template <class T> auto value_hash(immutable_value<T> const &x) -> size_t {
     if (x) {
         return hash_combine({typeid(immutable_value<T>).hash_code(), value_hash(*x)});
     }
-    return typeid(immutable_value<T>).hash_code();
+    return value_hash(typeid(immutable_value<T>));
 }
 
 template <class T, class U> auto value_hash(std::pair<T, U> const &x) -> size_t {
@@ -190,22 +190,22 @@ template <class... T> auto value_hash(std::variant<T...> const &x) -> size_t {
 }
 
 template <class T, size_t E> auto value_hash(std::span<T, E> const &x) -> size_t {
-    return std::accumulate(x.begin(), x.end(), typeid(std::span<T, E>).hash_code(),
+    return std::accumulate(x.begin(), x.end(), value_hash(typeid(std::span<T, E>)),
                            [](auto const &seed, auto const &x) { return hash_combine({seed, value_hash(x)}); });
 }
 
 template <class T, class A> auto value_hash(std::vector<T, A> const &x) -> size_t {
-    return std::accumulate(x.begin(), x.end(), typeid(std::vector<T, A>).hash_code(),
+    return std::accumulate(x.begin(), x.end(), value_hash(typeid(std::vector<T, A>)),
                            [](auto const &seed, auto const &x) { return hash_combine({seed, value_hash(x)}); });
 }
 
 template <class T> auto value_hash(Util::immutable_array<T> const &x) -> size_t {
-    return std::accumulate(x.begin(), x.end(), typeid(Util::immutable_array<T>).hash_code(),
+    return std::accumulate(x.begin(), x.end(), value_hash(typeid(Util::immutable_array<T>)),
                            [](auto const &seed, auto const &x) { return hash_combine({seed, value_hash(x)}); });
 }
 
 template <class T, class... Args> auto value_hash_record(Args const &...x) -> size_t {
-    return hash_combine({typeid(T).hash_code(), value_hash(x)...});
+    return hash_combine({value_hash(typeid(T)), value_hash(x)...});
 }
 
 static constexpr unsigned int default_neighborhood_size = 62;
