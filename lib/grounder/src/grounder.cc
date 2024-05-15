@@ -12,6 +12,7 @@
 #include <gringo/util/unordered_map.hh>
 
 #include <filesystem>
+#include <forward_list>
 #include <iostream>
 
 namespace Gringo {
@@ -235,7 +236,9 @@ struct BuildContext {
     Ground::Component *gcomp = nullptr;
     Util::unordered_map<String, size_t> *var_map = nullptr;
     Ground::ULitVec *body = nullptr;
+    std::forward_list<Ground::BaseCondLit> *clit_base_ = nullptr;
     size_t priority = 0;
+    size_t index_ = 0;
 };
 
 template <class F> class BuilderLit {
@@ -382,44 +385,90 @@ class BuilderBdLit {
         // splitting:
         // H :- B1, C : P, B2.
         // TODO: indices for enquing
-        auto stms = Ground::UStmVec{};     // TODO: how to return
-        auto base = Ground::BaseCondLit{}; // TODO: where to store
+        // - the index is ctx_->index
+        // - indices are only necessary if the condlit is recursive
+        //   - it looks like the bodies of the auxiliary rules can be used to infer this info
+        //   - empty() needs an index if B1 is recursive
+        //   - premise() needs an index if empty or P is recursive
+        //   - conclusion() needs an index if premise() or C is recursive
+        //   - clit() needs an index if conclusion() is recursive
+        //   -> we get empty recursive => premise recursive => conclusion recursive => clit recursive
+        // - maybe also whether the literal needs the recursive translation
+        assert(!Input::is_fixed(lit.lit().lit()).value_or(false));
+        auto has_conclusion = !Input::is_fixed(lit.lit().lit()).has_value();
+        auto &base = ctx_->clit_base_->emplace_front();
+        std::cerr << "the next index is: " << ctx_->index_ << "\n";
         //   empty(clit(G)) :- B1                             0
         auto body = Ground::ULitVec{};
+        auto empty_index = std::optional<size_t>{};
         body.reserve(ctx_->body->size());
         for (auto const &lit : *ctx_->body) {
+            if (!empty_index && lit->recursive()) {
+                empty_index = ctx_->index_++;
+            }
             body.emplace_back(lit->copy());
         }
-        stms.emplace_back(
+        if (empty_index) {
+            std::cerr << "TODO: add empty index to statement: " << *empty_index << "\n";
+        }
+        ctx_->gcomp->add(
             std::make_unique<Ground::StmCondLit>(Ground::StmCondLitType::empty, base, std::move(body), ctx_->priority));
         ctx_->priority += 1;
         //   premise(clit(G),L) :- empty(clit(G)), P.         1
+        auto premise_index = std::optional<size_t>{};
         body = Ground::ULitVec{};
         body.reserve(lit.lit().cond().size() + 1);
+        if (empty_index) {
+            premise_index = ctx_->index_++;
+        }
         body.emplace_back(std::make_unique<Ground::LitCondLit>(Ground::LitCondLitType::empty, base));
         for (auto const &clit : lit.lit().cond()) {
-            std::visit(
-                BuilderLit{*ctx_, [&body]<class Lit>(Lit &&glit) { body.emplace_back(std::forward<Lit>(glit)); }},
-                clit);
+            std::visit(BuilderLit{*ctx_,
+                                  [&body, &premise_index, this]<class Lit>(Lit &&glit) {
+                                      if (!premise_index && glit->recursive()) {
+                                          premise_index = ctx_->index_++;
+                                      }
+                                      body.emplace_back(std::forward<Lit>(glit));
+                                  }},
+                       clit);
         }
-        stms.emplace_back(std::make_unique<Ground::StmCondLit>(Ground::StmCondLitType::premise, base, std::move(body),
-                                                               ctx_->priority));
+        if (premise_index) {
+            // NOLINTNEXTLINE
+            std::cerr << "TODO: add premise index to statement: " << *premise_index << "\n";
+        }
+        ctx_->gcomp->add(std::make_unique<Ground::StmCondLit>(Ground::StmCondLitType::premise, base, std::move(body),
+                                                              ctx_->priority));
         ctx_->priority += 1;
         //   conclusion(clit(G),L) :- premise(clit(G),L), C.  2
-        if (auto fixed = Input::is_fixed(lit.lit().lit()); !fixed || !*fixed) {
+        if (has_conclusion) {
+            auto conclusion_index = std::optional<size_t>{};
             body = Ground::ULitVec{};
             body.reserve(2);
+            if (premise_index) {
+                conclusion_index = ctx_->index_++;
+            }
             body.emplace_back(std::make_unique<Ground::LitCondLit>(Ground::LitCondLitType::premise, base));
-            std::visit(
-                BuilderLit{*ctx_, [&body]<class Lit>(Lit &&glit) { body.emplace_back(std::forward<Lit>(glit)); }},
-                lit.lit().lit());
-            stms.emplace_back(std::make_unique<Ground::StmCondLit>(Ground::StmCondLitType::conclusion, base,
-                                                                   std::move(body), ctx_->priority));
+            std::visit(BuilderLit{*ctx_,
+                                  [&body, &conclusion_index, this]<class Lit>(Lit &&glit) {
+                                      if (!conclusion_index && glit->recursive()) {
+                                          conclusion_index = ctx_->index_++;
+                                      }
+                                      body.emplace_back(std::forward<Lit>(glit));
+                                  }},
+                       lit.lit().lit());
+            if (conclusion_index) {
+                std::cerr << "TODO: add conclusion index to statement: " << *conclusion_index << "\n";
+            }
+            ctx_->gcomp->add(std::make_unique<Ground::StmCondLit>(Ground::StmCondLitType::conclusion, base,
+                                                                  std::move(body), ctx_->priority));
             ctx_->priority += 1;
+            // TODO: the base should be associated with the conclusion index
+        } else {
+            // TODO: the base should be associated with the premise index
         }
         //   H :- B1, clit(G), B2.                            3
+        // TODO: literal should be associated with the base index
         ctx_->body->emplace_back(std::make_unique<Ground::LitCondLit>(Ground::LitCondLitType::lit, base));
-        throw std::logic_error("implement me: cond lit");
     }
 
   private:
@@ -491,6 +540,7 @@ class Builder : public Input::DependencyBuilder {
             for (auto const &ref_comp : ref_comps) {
                 GRINGO_REPORT(*impl_->log, debug) << "    refined component";
                 auto gcomp = Ground::Component{};
+                auto clit_base_ = std::forward_list<Ground::BaseCondLit>{};
                 for (auto const &stm : ref_comp.stms) {
                     Util::unordered_map<String, size_t> var_map;
                     Input::visit_variables(
@@ -508,7 +558,9 @@ class Builder : public Input::DependencyBuilder {
                         }
                         ++i;
                     }
-                    auto ctx = BuildContext{impl_, &ref_comp, &def_map, &gcomp, &var_map, &body, 0};
+                    auto ctx = BuildContext{impl_,       &ref_comp, &def_map,
+                                            &gcomp,      &var_map,  &body,
+                                            &clit_base_, 0,         ref_comp.incomplete.size()};
                     auto bld_stm = BuilderStm{ctx};
                     std::visit(bld_stm, *stm);
                 }

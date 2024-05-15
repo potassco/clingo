@@ -11,15 +11,19 @@ auto operator<<(std::ostream &out, LitCondLitType type) -> std::ostream & {
     switch (type) {
         case LitCondLitType::empty: {
             out << "empty";
+            break;
         }
         case LitCondLitType::premise: {
             out << "premise";
+            break;
         }
         case LitCondLitType::conclusion: {
             out << "conclusion";
+            break;
         }
         case LitCondLitType::lit: {
             out << "condlit";
+            break;
         }
     }
     return out;
@@ -90,18 +94,21 @@ auto operator<<(std::ostream &out, StmCondLitType type) -> std::ostream & {
     switch (type) {
         case StmCondLitType::empty: {
             out << "empty";
+            break;
         }
         case StmCondLitType::premise: {
             out << "premise";
+            break;
         }
         case StmCondLitType::conclusion: {
             out << "conclusion";
+            break;
         }
     }
     return out;
 }
 
-void StmCondLit::print(std::ostream &out) const { out << "TOOD: cond lit" << type_; }
+void StmCondLit::print(std::ostream &out) const { out << "TOOD: cond lit" << type_ << "."; }
 
 auto StmCondLit::body() const -> ULitVec const & { return body_; }
 
