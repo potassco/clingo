@@ -381,6 +381,7 @@ class BuilderBdLit {
 
         // splitting:
         // H :- B1, C : P, B2.
+        // TODO: indices for enquing
         auto stms = Ground::UStmVec{};     // TODO: how to return
         auto base = Ground::BaseCondLit{}; // TODO: where to store
         //   empty(clit(G)) :- B1                             0
@@ -484,15 +485,12 @@ class Builder : public Input::DependencyBuilder {
     }
 
     void components(Input::Components const &comps) override {
-        // TODO: the domain check in it's current form does not work
-        // - any recursive literal in a component that has a non-domain atom in its base
-        //   should turn a domain component into a non-domain one
         auto lin = Ground::Linearizer{};
         for (auto const &ref_comps : comps) {
             GRINGO_REPORT(*impl_->log, debug) << "  component";
             for (auto const &ref_comp : ref_comps) {
                 GRINGO_REPORT(*impl_->log, debug) << "    refined component";
-                auto gcomp = Ground::Component{static_cast<Ground::ComponentType>(ref_comp.type)};
+                auto gcomp = Ground::Component{};
                 for (auto const &stm : ref_comp.stms) {
                     Util::unordered_map<String, size_t> var_map;
                     Input::visit_variables(
@@ -514,8 +512,23 @@ class Builder : public Input::DependencyBuilder {
                     auto bld_stm = BuilderStm{ctx};
                     std::visit(bld_stm, *stm);
                 }
+                // a component is domain if has be classified as such
+                // and also does not contain a non-domain literal
+                bool domain = [&ref_comp, &gcomp]() {
+                    if (!test(ref_comp.type, Input::ComponentType::domain)) {
+                        return false;
+                    }
+                    for (auto const &stm : gcomp.stms()) {
+                        for (auto const &lit : stm->body()) {
+                            if (!lit->domain(true)) {
+                                return false;
+                            }
+                        }
+                    }
+                    return true;
+                }();
                 auto queue = Ground::Queue{};
-                lin.start(queue, test(gcomp.type(), Ground::ComponentType::domain));
+                lin.start(queue, domain);
                 for (auto const &stm : gcomp.stms()) {
                     GRINGO_REPORT(*impl_->log, debug) << "      " << *stm;
                     lin.prepare(*stm);
