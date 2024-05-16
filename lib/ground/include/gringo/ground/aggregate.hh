@@ -17,6 +17,23 @@ struct BaseCondLit {
         vars(res, all);
         return res;
     }
+    // map local symbols -> to state
+    // state:
+    //   - set of global symbols in element
+    //   - propagated or not
+    //     - not yet propagated literals can still be blocked
+    //     - a literal is blocked if one of its premises is true
+    //       but the conclusion false or not yet derived
+    //     - if the conclusion is false, the whole literal becomes false
+    //       and does not need to be propagated anymore
+    //   - determine if fact when condition is stratified
+    //     - if the premise is stratified then the literal can be marked as fact
+    //       if all associated conclusions are true
+    //     - needs a flag in base
+    //   - the literal has to be propagated either by the premise or conclusion statement
+    //     - if the conclusion is false there is no corresponding statement
+    //       and the premise statement can trigger propagation
+    //     - needs flag in base
     VariableVec local;
     VariableVec global;
     size_t index;
