@@ -394,81 +394,62 @@ class BuilderBdLit {
         //   - clit() needs an index if conclusion() is recursive
         //   -> we get empty recursive => premise recursive => conclusion recursive => clit recursive
         // - maybe also whether the literal needs the recursive translation
+        auto fresh_index = [this](auto &index, auto const &lit) {
+            if (index != Ground::stratified_index && lit->recursive()) {
+                index = ctx_->index_++;
+            }
+        };
+        auto build_lit = [this, &fresh_index](auto &index, auto &body, auto const &lit) {
+            std::visit(BuilderLit{*ctx_,
+                                  [&body, &index, &fresh_index]<class Lit>(Lit &&glit) {
+                                      fresh_index(index, glit);
+                                      body.emplace_back(std::forward<Lit>(glit));
+                                  }},
+                       lit);
+        };
         assert(!Input::is_fixed(lit.lit().lit()).value_or(false));
         auto has_conclusion = !Input::is_fixed(lit.lit().lit()).has_value();
         auto &base = ctx_->clit_base_->emplace_front();
-        std::cerr << "the next index is: " << ctx_->index_ << "\n";
-        //   empty(clit(G)) :- B1                             0
+        // empty(clit(G)) :- B1.
         auto body = Ground::ULitVec{};
-        auto empty_index = std::optional<size_t>{};
+        auto empty_index = Ground::stratified_index;
         body.reserve(ctx_->body->size());
         for (auto const &lit : *ctx_->body) {
-            if (!empty_index && lit->recursive()) {
-                empty_index = ctx_->index_++;
-            }
+            fresh_index(empty_index, lit);
             body.emplace_back(lit->copy());
         }
-        if (empty_index) {
-            std::cerr << "TODO: add empty index to statement: " << *empty_index << "\n";
-        }
-        ctx_->gcomp->add(
-            std::make_unique<Ground::StmCondLit>(Ground::StmCondLitType::empty, base, std::move(body), ctx_->priority));
+        ctx_->gcomp->add(std::make_unique<Ground::StmCondLit>(Ground::StmCondLitType::empty, base, std::move(body),
+                                                              ctx_->priority, empty_index));
         ctx_->priority += 1;
-        //   premise(clit(G),L) :- empty(clit(G)), P.         1
-        auto premise_index = std::optional<size_t>{};
+        // premise(clit(G),L) :- empty(clit(G)), P.
+        auto premise_index = empty_index != Ground::stratified_index ? ctx_->index_++ : Ground::stratified_index;
         body = Ground::ULitVec{};
         body.reserve(lit.lit().cond().size() + 1);
-        if (empty_index) {
-            premise_index = ctx_->index_++;
-        }
-        body.emplace_back(std::make_unique<Ground::LitCondLit>(Ground::LitCondLitType::empty, base));
+        body.emplace_back(std::make_unique<Ground::LitCondLit>(Ground::LitCondLitType::empty, base, empty_index));
         for (auto const &clit : lit.lit().cond()) {
-            std::visit(BuilderLit{*ctx_,
-                                  [&body, &premise_index, this]<class Lit>(Lit &&glit) {
-                                      if (!premise_index && glit->recursive()) {
-                                          premise_index = ctx_->index_++;
-                                      }
-                                      body.emplace_back(std::forward<Lit>(glit));
-                                  }},
-                       clit);
-        }
-        if (premise_index) {
-            // NOLINTNEXTLINE
-            std::cerr << "TODO: add premise index to statement: " << *premise_index << "\n";
+            build_lit(premise_index, body, clit);
         }
         ctx_->gcomp->add(std::make_unique<Ground::StmCondLit>(Ground::StmCondLitType::premise, base, std::move(body),
-                                                              ctx_->priority));
+                                                              ctx_->priority, premise_index));
         ctx_->priority += 1;
-        //   conclusion(clit(G),L) :- premise(clit(G),L), C.  2
+        // conclusion(clit(G),L) :- premise(clit(G),L), C.
         if (has_conclusion) {
-            auto conclusion_index = std::optional<size_t>{};
+            auto conclusion_index =
+                premise_index != Ground::stratified_index ? ctx_->index_++ : Ground::stratified_index;
             body = Ground::ULitVec{};
             body.reserve(2);
-            if (premise_index) {
-                conclusion_index = ctx_->index_++;
-            }
-            body.emplace_back(std::make_unique<Ground::LitCondLit>(Ground::LitCondLitType::premise, base));
-            std::visit(BuilderLit{*ctx_,
-                                  [&body, &conclusion_index, this]<class Lit>(Lit &&glit) {
-                                      if (!conclusion_index && glit->recursive()) {
-                                          conclusion_index = ctx_->index_++;
-                                      }
-                                      body.emplace_back(std::forward<Lit>(glit));
-                                  }},
-                       lit.lit().lit());
-            if (conclusion_index) {
-                std::cerr << "TODO: add conclusion index to statement: " << *conclusion_index << "\n";
-            }
+            body.emplace_back(
+                std::make_unique<Ground::LitCondLit>(Ground::LitCondLitType::premise, base, premise_index));
+            build_lit(conclusion_index, body, lit.lit().lit());
+            base.index = conclusion_index;
             ctx_->gcomp->add(std::make_unique<Ground::StmCondLit>(Ground::StmCondLitType::conclusion, base,
-                                                                  std::move(body), ctx_->priority));
+                                                                  std::move(body), ctx_->priority, conclusion_index));
             ctx_->priority += 1;
-            // TODO: the base should be associated with the conclusion index
         } else {
-            // TODO: the base should be associated with the premise index
+            base.index = premise_index;
         }
-        //   H :- B1, clit(G), B2.                            3
-        // TODO: literal should be associated with the base index
-        ctx_->body->emplace_back(std::make_unique<Ground::LitCondLit>(Ground::LitCondLitType::lit, base));
+        //   H :- B1, clit(G), B2.
+        ctx_->body->emplace_back(std::make_unique<Ground::LitCondLit>(Ground::LitCondLitType::lit, base, base.index));
     }
 
   private:

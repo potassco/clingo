@@ -19,6 +19,7 @@ struct BaseCondLit {
     }
     VariableVec local;
     VariableVec global;
+    size_t index;
 };
 
 enum class LitCondLitType : uint8_t {
@@ -31,7 +32,7 @@ auto operator<<(std::ostream &out, LitCondLitType type) -> std::ostream &;
 
 class LitCondLit : public Lit {
   public:
-    LitCondLit(LitCondLitType type, BaseCondLit &base) : base_{&base}, type_{type} {}
+    LitCondLit(LitCondLitType type, BaseCondLit &base, size_t index) : base_{&base}, index_{index}, type_{type} {}
     void vars(VariableSet &vars, VarSelectMode mode) const override;
     [[nodiscard]] auto domain(bool domain) const -> bool override;
     [[nodiscard]] auto recursive() const -> bool override;
@@ -47,6 +48,7 @@ class LitCondLit : public Lit {
 
   private:
     BaseCondLit *base_;
+    size_t index_;
     LitCondLitType type_;
 };
 
@@ -59,8 +61,8 @@ auto operator<<(std::ostream &out, StmCondLitType type) -> std::ostream &;
 
 class StmCondLit : public Stm {
   public:
-    StmCondLit(StmCondLitType type, BaseCondLit &base, ULitVec body, size_t prio)
-        : base_{&base}, body_{std::move(body)}, prio_{prio}, type_{type} {}
+    StmCondLit(StmCondLitType type, BaseCondLit &base, ULitVec body, size_t prio, size_t index)
+        : base_{&base}, body_{std::move(body)}, prio_{prio}, index_{index}, type_{type} {}
     // statement interface
     void print(std::ostream &out) const override;
     [[nodiscard]] auto body() const -> ULitVec const & override;
@@ -75,6 +77,7 @@ class StmCondLit : public Stm {
     BaseCondLit *base_;
     ULitVec body_;
     size_t prio_;
+    size_t index_;
     StmCondLitType type_;
 };
 
