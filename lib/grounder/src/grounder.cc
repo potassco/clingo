@@ -407,9 +407,11 @@ class BuilderBdLit {
                                   }},
                        lit);
         };
+        auto lvars = Ground::VariableVec{};
+        auto gvars = Ground::VariableVec{};
         assert(!Input::is_fixed(lit.lit().lit()).value_or(false));
         auto has_conclusion = !Input::is_fixed(lit.lit().lit()).has_value();
-        auto &base = ctx_->clit_base_->emplace_front();
+        auto &base = ctx_->clit_base_->emplace_front(std::move(lvars), std::move(gvars));
         // empty(clit(G)) :- B1.
         auto body = Ground::ULitVec{};
         auto empty_index = Ground::stratified_index;
@@ -441,15 +443,15 @@ class BuilderBdLit {
             body.emplace_back(
                 std::make_unique<Ground::LitCondLit>(Ground::LitCondLitType::premise, base, premise_index));
             build_lit(conclusion_index, body, lit.lit().lit());
-            base.index = conclusion_index;
+            base.set_index(conclusion_index);
             ctx_->gcomp->add(std::make_unique<Ground::StmCondLit>(Ground::StmCondLitType::conclusion, base,
                                                                   std::move(body), ctx_->priority, conclusion_index));
             ctx_->priority += 1;
         } else {
-            base.index = premise_index;
+            base.set_index(premise_index);
         }
         //   H :- B1, clit(G), B2.
-        ctx_->body->emplace_back(std::make_unique<Ground::LitCondLit>(Ground::LitCondLitType::lit, base, base.index));
+        ctx_->body->emplace_back(std::make_unique<Ground::LitCondLit>(Ground::LitCondLitType::lit, base, base.index()));
     }
 
   private:
@@ -521,7 +523,7 @@ class Builder : public Input::DependencyBuilder {
             for (auto const &ref_comp : ref_comps) {
                 GRINGO_REPORT(*impl_->log, debug) << "    refined component";
                 auto gcomp = Ground::Component{};
-                auto clit_base_ = std::forward_list<Ground::BaseCondLit>{};
+                auto clit_base = std::forward_list<Ground::BaseCondLit>{};
                 for (auto const &stm : ref_comp.stms) {
                     Util::unordered_map<String, size_t> var_map;
                     Input::visit_variables(
@@ -539,9 +541,8 @@ class Builder : public Input::DependencyBuilder {
                         }
                         ++i;
                     }
-                    auto ctx = BuildContext{impl_,       &ref_comp, &def_map,
-                                            &gcomp,      &var_map,  &body,
-                                            &clit_base_, 0,         ref_comp.incomplete.size()};
+                    auto ctx = BuildContext{
+                        impl_, &ref_comp, &def_map, &gcomp, &var_map, &body, &clit_base, 0, ref_comp.incomplete.size()};
                     auto bld_stm = BuilderStm{ctx};
                     std::visit(bld_stm, *stm);
                 }

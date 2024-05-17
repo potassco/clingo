@@ -49,11 +49,16 @@ class BaseContext {
     virtual ~BaseContext() = default;
 };
 
+//! An atom base used to store derivable atoms and associated state.
+//!
+//! The base tracks the generation of atoms for semi-naive evaluation,
+//! and the state of atoms.
+//!
 class Base {
   public:
+    //! Get the number of atoms in the base.
     [[nodiscard]] auto size() const { return atoms_.size(); }
-    [[nodiscard]] auto operator[](size_t pos) -> Atom &;
-    [[nodiscard]] auto operator[](size_t pos) const -> Atom const &;
+
     //! Check if the base is domain.
     //!
     //! A base is domain if it contains facts only.
@@ -66,6 +71,7 @@ class Base {
         return true;
     }
 
+    //! Add an atom to the base.
     auto add(Symbol atom, AtomState state) -> AtomUpdate {
         // turning a delayed atom into an active one is tricky
         // suppose p(2) below has been inserted as delayed on a previous generation
@@ -93,6 +99,14 @@ class Base {
         return AtomUpdate::added;
     }
 
+    //! Update the generation counts.
+    //!
+    //! Calling with generation zero resets the counts. Calling with a
+    //! generation greater than the current generation adds all atoms from the
+    //! current all generation to the old generation.
+    //!
+    //! Calling the function multiple times for the same generation has no
+    //! effect.
     void update(size_t generation) const {
         // initialize the domain
         // (all atoms are marked as new)
@@ -116,23 +130,30 @@ class Base {
         }
     }
 
+    //! Return a span with all atoms in the base.
     auto atoms() const -> std::span<Atom const> { return {atoms_.values_container().data(), all_offset_}; }
+    //! Check if the base contains at least one atom from the all generation.
     auto has_update() const -> bool { return atoms_.size() > all_offset_; }
+    //! Check if the base contains the given atom.
     [[nodiscard]] auto contains(Symbol const &sym) const -> bool { return atoms_.find(sym) != atoms_.end(); }
-    [[nodiscard]] auto contains(Symbol const &sym, MatcherType type) const -> bool {
-        return static_cast<size_t>(std::distance(atoms_.begin(), atoms_.find(sym))) < end(type);
-    }
+    //! Get the index of the first atom in the given generation.
     auto begin(MatcherType type) const -> size_t {
         if (type == MatcherType::new_atoms) {
             return old_offset_;
         }
         return 0;
     }
+    //! Get the index plus one of the last atom in the given generation.
     auto end(MatcherType type) const -> size_t {
         if (type == MatcherType::old_atoms) {
             return old_offset_;
         }
         return all_offset_;
+    }
+    //! Check if the base contains the given atom with in the given generation.
+    [[nodiscard]] auto contains(Symbol const &sym, MatcherType type) const -> bool {
+        auto index = static_cast<size_t>(std::distance(atoms_.begin(), atoms_.find(sym)));
+        return begin(type) <= index && index < end(type);
     }
     //! Check if the given atom is a fact.
     //!
@@ -142,9 +163,12 @@ class Base {
         auto it = atoms_.find(sym);
         return it != atoms_.end() && it->second.state == AtomState::fact;
     }
+    //! Get the n-th atom in the base.
     auto nth(size_t i) const -> Util::ordered_map<Symbol, AtomInfo>::const_iterator { return atoms_.nth(i); }
+    //! Get the n-th atom in the base.
     auto nth(size_t i) -> Util::ordered_map<Symbol, AtomInfo>::iterator { return atoms_.nth(i); }
 
+    //! Get the context of the base.
     template <class T> auto context() -> T & {
         if (context_ != nullptr) {
             if (auto res = dynamic_cast<T *>(context_.get()); res != nullptr) {
