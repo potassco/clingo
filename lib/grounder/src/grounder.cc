@@ -230,6 +230,69 @@ class BuilderTerm {
 };
 
 struct BuildContext {
+    //! Get the index of the given symbolic literal.
+    [[nodiscard]] auto index(Input::LitSymbolic const &lit) const -> size_t {
+        auto it = comp->incomplete.find(&lit.term());
+        if (it != comp->incomplete.end()) {
+            return static_cast<size_t>(it - comp->incomplete.begin());
+        }
+        return Ground::stratified_index;
+    }
+    //! Check if the given input literal is recursive.
+    [[nodiscard]] auto is_recursive(Input::Lit const &lit) const -> bool {
+        if (test(comp->type, Input::ComponentType::single_pass)) {
+            return false;
+        }
+        if (auto const *slit = std::get_if<Input::LitSymbolic>(&lit); slit != nullptr) {
+            return slit->sign() == Sign::none && index(*slit) != Ground::stratified_index;
+        }
+        return false;
+    }
+    //! Analyze the given conditional literal and return the required indices for grounding.
+    [[nodiscard]] auto analyze(Input::CondLit const &lit) -> std::tuple<bool, size_t, size_t, size_t> {
+        assert(!Input::is_fixed(lit.lit()).value_or(false));
+        auto has_conclusion = !Input::is_fixed(lit.lit()).has_value();
+        auto empty_index = [this]() {
+            if (comp->type == Input::ComponentType::single_pass) {
+                return Ground::stratified_index;
+            }
+            if (auto ie = body->end(),
+                it = std::find_if(body->begin(), ie, [](auto const &lit) { return lit->recursive(); });
+                it != ie) {
+                return index_++;
+            }
+            return Ground::stratified_index;
+        }();
+        auto premise_index = [&empty_index, &lit, this]() {
+            if (comp->type == Input::ComponentType::single_pass) {
+                return Ground::stratified_index;
+            }
+            if (empty_index != Ground::stratified_index) {
+                return index_++;
+            }
+            auto const &cond = lit.cond();
+            if (auto ie = cond.end(),
+                it = std::find_if(cond.begin(), ie, [this](auto const &lit) { return is_recursive(lit); });
+                it != ie) {
+                return index_++;
+            }
+            return Ground::stratified_index;
+        }();
+        auto lit_index = [&premise_index, &has_conclusion, this]() {
+            if (comp->type == Input::ComponentType::single_pass) {
+                return Ground::stratified_index;
+            }
+            if (!has_conclusion) {
+                return premise_index;
+            }
+            if (premise_index != Ground::stratified_index) {
+                return index_++;
+            }
+            return Ground::stratified_index;
+        }();
+        return {has_conclusion, empty_index, premise_index, lit_index};
+    }
+
     Grounder::Impl *impl = nullptr;
     Input::Component const *comp = nullptr;
     Util::unordered_map<Input::Term const *, std::vector<size_t>> *def_map = nullptr;
@@ -278,14 +341,7 @@ template <class F> class BuilderLit {
         auto has_projection = false;
         auto bld_term = BuilderTerm{has_projection, *ctx_->var_map};
         auto term = std::visit(bld_term, lit.term());
-        auto it = ctx_->comp->incomplete.find(&lit.term());
-        // the index referring to a set of heads defining this literal
-        // - a literal that is recursive and inside a non-domain component is non-domain
-        // - a literal whole contains a non-fact is non-domain
-        auto idx = Ground::stratified_index;
-        if (it != ctx_->comp->incomplete.end()) {
-            idx = it - ctx_->comp->incomplete.begin();
-        }
+        auto idx = ctx_->index(lit);
         // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
         auto sig = Input::signature(lit.term()).value();
         auto dom_it = ctx_->impl->atom_base.try_emplace(sig, nullptr).first;
@@ -367,90 +423,73 @@ class BuilderBdLit {
             lit.lit());
     }
     void operator()(Input::BdLitConjunction const &lit) const {
-        static_cast<void>(lit);
-        // - needs auxiliary rules
-        // - copy body until cond lit and mark as domain!
-        // - G are the global variables in the cond lit
-        // - L are the local variables in the head of the cond lit
-        // - #accu(empty,G) :- body.
-        // - #accu(cond,G,L) :- #accu(empty,G), cond.
-        // - progate:
-        //   - head & #accu(cond,G,L)
-        //   - #aggr(cond,G)
-        // - head :- body, #aggr(cond,G), ...
-        // - body should not have #aggr literals in it
-        //   (or only literals with a lower priority)
-        // - consider separating base/and aggregate bases
-
         // splitting:
-        // H :- B1, C : P, B2.
-        // TODO: indices for enquing
-        // - the index is ctx_->index
-        // - indices are only necessary if the condlit is recursive
-        //   - it looks like the bodies of the auxiliary rules can be used to infer this info
-        //   - empty() needs an index if B1 is recursive
-        //   - premise() needs an index if empty or P is recursive
-        //   - conclusion() needs an index if premise() or C is recursive
-        //   - clit() needs an index if conclusion() is recursive
-        //   -> we get empty recursive => premise recursive => conclusion recursive => clit recursive
         // - maybe also whether the literal needs the recursive translation
-        auto fresh_index = [this](auto &index, auto const &lit) {
-            if (index != Ground::stratified_index && lit->recursive()) {
-                index = ctx_->index_++;
-            }
-        };
-        auto build_lit = [this, &fresh_index](auto &index, auto &body, auto const &lit) {
+        auto [has_conclusion, empty_index, premise_index, lit_index] = ctx_->analyze(lit.lit());
+        auto build_lit = [this](auto &body, auto &vars, auto const &lit) {
             std::visit(BuilderLit{*ctx_,
-                                  [&body, &index, &fresh_index]<class Lit>(Lit &&glit) {
-                                      fresh_index(index, glit);
+                                  [&body, &vars]<class Lit>(Lit &&glit) {
+                                      glit->vars(vars, Ground::VarSelectMode::all);
                                       body.emplace_back(std::forward<Lit>(glit));
                                   }},
                        lit);
         };
-        auto lvars = Ground::VariableVec{};
-        auto gvars = Ground::VariableVec{};
-        assert(!Input::is_fixed(lit.lit().lit()).value_or(false));
-        auto has_conclusion = !Input::is_fixed(lit.lit().lit()).has_value();
-        auto &base = ctx_->clit_base_->emplace_front(std::move(lvars), std::move(gvars));
-        // empty(clit(G)) :- B1.
+
+        // convert conclusion and premise
+        auto vars_lit = Ground::VariableSet{};
+        auto conclusion = Ground::ULitVec{};
+        if (has_conclusion) {
+            conclusion.reserve(2);
+            build_lit(conclusion, vars_lit, lit.lit().lit());
+        }
+        auto premise = Ground::ULitVec{};
+        premise.reserve(lit.lit().cond().size() + 1);
+        for (auto const &clit : lit.lit().cond()) {
+            build_lit(premise, vars_lit, clit);
+        }
+
+        // convert body
         auto body = Ground::ULitVec{};
-        auto empty_index = Ground::stratified_index;
+        auto vars_body = Ground::VariableSet{};
         body.reserve(ctx_->body->size());
         for (auto const &lit : *ctx_->body) {
-            fresh_index(empty_index, lit);
             body.emplace_back(lit->copy());
         }
+
+        // initialize base
+        auto vars_local = Ground::VariableVec{};
+        auto vars_global = Ground::VariableVec{};
+        for (auto const &x : vars_lit) {
+            if (vars_body.contains(x)) {
+                vars_global.emplace_back(x);
+            } else {
+                vars_local.emplace_back(x);
+            }
+        }
+        auto &base = ctx_->clit_base_->emplace_front(std::move(vars_local), std::move(vars_global), lit_index);
+
+        // create: empty(clit(G)) :- B1.
         ctx_->gcomp->add(std::make_unique<Ground::StmCondLit>(Ground::StmCondLitType::empty, base, std::move(body),
                                                               ctx_->priority, empty_index));
         ctx_->priority += 1;
-        // premise(clit(G),L) :- empty(clit(G)), P.
-        auto premise_index = empty_index != Ground::stratified_index ? ctx_->index_++ : Ground::stratified_index;
-        body = Ground::ULitVec{};
-        body.reserve(lit.lit().cond().size() + 1);
-        body.emplace_back(std::make_unique<Ground::LitCondLit>(Ground::LitCondLitType::empty, base, empty_index));
-        for (auto const &clit : lit.lit().cond()) {
-            build_lit(premise_index, body, clit);
-        }
-        ctx_->gcomp->add(std::make_unique<Ground::StmCondLit>(Ground::StmCondLitType::premise, base, std::move(body),
+
+        // create: premise(clit(G),L) :- empty(clit(G)), P.
+        premise.insert(premise.begin(),
+                       std::make_unique<Ground::LitCondLit>(Ground::LitCondLitType::empty, base, empty_index));
+        ctx_->gcomp->add(std::make_unique<Ground::StmCondLit>(Ground::StmCondLitType::premise, base, std::move(premise),
                                                               ctx_->priority, premise_index));
         ctx_->priority += 1;
-        // conclusion(clit(G),L) :- premise(clit(G),L), C.
+
+        // create: conclusion(clit(G),L) :- premise(clit(G),L), C.
         if (has_conclusion) {
-            auto conclusion_index =
-                premise_index != Ground::stratified_index ? ctx_->index_++ : Ground::stratified_index;
-            body = Ground::ULitVec{};
-            body.reserve(2);
-            body.emplace_back(
-                std::make_unique<Ground::LitCondLit>(Ground::LitCondLitType::premise, base, premise_index));
-            build_lit(conclusion_index, body, lit.lit().lit());
-            base.set_index(conclusion_index);
+            conclusion.insert(conclusion.begin(), std::make_unique<Ground::LitCondLit>(Ground::LitCondLitType::premise,
+                                                                                       base, premise_index));
             ctx_->gcomp->add(std::make_unique<Ground::StmCondLit>(Ground::StmCondLitType::conclusion, base,
-                                                                  std::move(body), ctx_->priority, conclusion_index));
+                                                                  std::move(conclusion), ctx_->priority, lit_index));
             ctx_->priority += 1;
-        } else {
-            base.set_index(premise_index);
         }
-        //   H :- B1, clit(G), B2.
+
+        // create: H :- B1, clit(G), B2.
         ctx_->body->emplace_back(std::make_unique<Ground::LitCondLit>(Ground::LitCondLitType::lit, base, base.index()));
     }
 

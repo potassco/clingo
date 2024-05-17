@@ -6,7 +6,8 @@ namespace Gringo::Ground {
 
 struct BaseCondLit {
   public:
-    BaseCondLit(VariableVec local, VariableVec global) : local_{std::move(local)}, global_{std::move(global)} {}
+    BaseCondLit(VariableVec local, VariableVec global, size_t index)
+        : local_{std::move(local)}, global_{std::move(global)}, index_{index} {}
     // TODO:
     // map local symbols -> to state
     // state:
@@ -40,7 +41,6 @@ struct BaseCondLit {
         return res;
     }
 
-    void set_index(size_t index) { index_ = index; }
     [[nodiscard]] auto index() const -> size_t { return index_; }
 
     // Base interface
