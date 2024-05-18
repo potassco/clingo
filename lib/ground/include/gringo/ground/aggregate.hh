@@ -2,12 +2,33 @@
 
 #include <gringo/ground/statement.hh>
 
+#include <gringo/util/span_stack.hh>
+
 namespace Gringo::Ground {
 
+// TODO: better rename to state
+// the bases
 struct BaseCondLit {
   public:
+    struct ElemState {
+        bool is_fact;
+        bool is_blocked;
+    };
+    // we can use here that the number of local variables is fixed
+    using ElemMap = Util::ordered_map<Symbol *, ElemState, Util::SpanHash, Util::SpanEqualTo>;
+
+    struct AtomState {
+        bool is_fact;
+        size_t num_blocked;
+        std::vector<size_t> elems;
+    };
+    // we can use here that the number of global variables is fixed
+    using AtomMap = Util::ordered_map<Symbol *, AtomState, Util::SpanHash, Util::SpanEqualTo>;
+
     BaseCondLit(VariableVec local, VariableVec global, size_t index)
-        : local_{std::move(local)}, global_{std::move(global)}, index_{index} {}
+        : local_{std::move(local)}, global_{std::move(global)},
+          atoms_{0, Util::SpanHash{global_.size()}, Util::SpanEqualTo{global_.size()}},
+          elems_{0, Util::SpanHash{local_.size() + 1}, Util::SpanEqualTo{local_.size() + 1}}, index_{index} {}
     // TODO:
     // map local symbols -> to state
     // state:
@@ -27,10 +48,6 @@ struct BaseCondLit {
     //       and the premise statement can trigger propagation
     //     - needs flag in base
     //
-    // Atom: (GlobalSymbols, AtomState)
-    // AtomState: (IsFact, NumBlocked, {Element})
-    // Element: (LocalSymbols, ElementState)
-    // ElementState: (IsFact, IsBlocked)
 
     void vars(VariableSet &res, bool all) const {
         if (all) {
@@ -48,6 +65,22 @@ struct BaseCondLit {
 
     [[nodiscard]] auto index() const -> size_t { return index_; }
 
+    // TODO: there are three associated bases
+    // - empty: any conditional literal encountered during grounding
+    // - premise:
+    //   - premises accumulated
+    //   - only necessary if there is a conclusion
+    //   - the key is the index of the atom and the global variables
+    //     (by misusing the representation of the symbol,
+    //     the index could be stored using to_rep/from_rep)
+    //   - adding an element would mean having to lookup the atom
+    //     (which should be fine)
+    // - lit:
+    //   - subset of empty
+    //   - gathers propagated atoms
+    //   - can be represented using a set of integers
+    //     (atoms are already stored in the atom table and can be addressed by index)
+
     // Base interface
     //! Get the number of atoms in the base.
     [[nodiscard]] auto size() const { return atoms_.size(); }
@@ -57,13 +90,14 @@ struct BaseCondLit {
     //! A base is domain if it contains facts only.
     [[nodiscard]] auto domain() const {
         for (auto n = atoms_.size(); domain_offset_ < n; ++domain_offset_) {
-            if (atoms_.nth(domain_offset_)->second.state != AtomState::fact) {
+            if (!atoms_.nth(domain_offset_)->second.is_fact) {
                 return false;
             }
         }
         return true;
     }
 
+    /*
     //! Add an atom to the base.
     auto add(Symbol atom, AtomState state) -> AtomUpdate {
         // turning a delayed atom into an active one is tricky
@@ -91,6 +125,7 @@ struct BaseCondLit {
         }
         return AtomUpdate::added;
     }
+    */
 
     //! Update the generation counts.
     //!
@@ -101,6 +136,8 @@ struct BaseCondLit {
     //! Calling the function multiple times for the same generation has no
     //! effect.
     void update(size_t generation) const {
+        // TODO: has to be adjusted
+
         // initialize the domain
         // (all atoms are marked as new)
         if (generation == 0) {
@@ -123,6 +160,7 @@ struct BaseCondLit {
         }
     }
 
+    /*
     //! Return a span with all atoms in the base.
     auto atoms() const -> std::span<Atom const> { return {atoms_.values_container().data(), all_offset_}; }
     //! Check if the base contains at least one atom from the all generation.
@@ -172,12 +210,14 @@ struct BaseCondLit {
         context_ = std::make_unique<T>();
         return static_cast<T &>(*context_);
     }
+    */
 
   private:
     VariableVec local_;
     VariableVec global_;
     std::unique_ptr<BaseContext> context_;
-    Util::ordered_map<Symbol, AtomInfo> atoms_;
+    AtomMap atoms_;
+    ElemMap elems_;
     size_t mutable domain_offset_ = 0;
     //! Symbols before this offset are considered old.
     size_t mutable old_offset_ = 0;

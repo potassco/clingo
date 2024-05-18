@@ -1,5 +1,7 @@
 #include <gringo/ground/matcher.hh>
 
+#include <gringo/util/span_stack.hh>
+
 namespace Gringo::Ground {
 
 namespace {
@@ -175,100 +177,11 @@ class FullIndex {
     size_t imported_ = 0;
 };
 
-constexpr auto page_size = size_t{4096};
-
-// NOLINTBEGIN(cppcoreguidelines-pro-bounds-array-to-pointer-decay,cppcoreguidelines-pro-bounds-pointer-arithmetic)
-
-template <class T> class SpanStack {
-  public:
-    SpanStack(size_t size) : size_{size} {}
-    auto push(std::span<T const> arr) -> std::span<T> {
-        return root_->push_map(arr, [](auto const &val) { return val; });
-    }
-    template <typename Source, typename Map> auto push_map(Source const &c, Map map) {
-        if (root_ == nullptr || root_->size() == chunk_size()) {
-            auto *prev = root_;
-            root_ = static_cast<Chunk *>(::operator new(sizeof(Chunk) + sizeof(T) * chunk_size(),
-                                                        static_cast<std::align_val_t>(alignof(Chunk))));
-            new (root_) Chunk{prev};
-        }
-        return root_->push_map(c, map);
-    }
-    void pop() {
-        if (root_->empty()) {
-            root_ = root_->free();
-        }
-        root_->pop(size_);
-    }
-    ~SpanStack() noexcept {
-        for (; root_ != nullptr; root_ = root_->free()) {
-        }
-    }
-
-  private:
-    class Chunk {
-      public:
-        Chunk(Chunk *next = nullptr) : next_{next} {}
-        ~Chunk() noexcept {
-            std::for_each_n(data_, size_, [](auto &x) { x.~T(); });
-        }
-        [[nodiscard]] auto empty() const -> bool { return size_ == 0; }
-        [[nodiscard]] auto size() const -> size_t { return size_; }
-        template <typename Source, typename Map> auto push_map(Source const &arr, Map map) -> std::span<T> {
-            // Note: does not provide strong exception guarantee
-            auto *beg = data_ + size_;
-            auto *ins = beg;
-            for (auto const &val : arr) {
-                new (ins) T(map(val));
-                ++ins;
-                ++size_;
-            }
-            return {beg, arr.size()};
-        }
-        void pop(size_t size) {
-            auto end = data_ + size_;
-            std::for_each(end - size, end, [](auto &x) { x.~T(); });
-            size_ -= size;
-        }
-        auto free() noexcept -> Chunk * {
-            auto ret = next_;
-            this->~Chunk();
-            ::operator delete(static_cast<void *>(this), static_cast<std::align_val_t>(alignof(Chunk)));
-            return ret;
-        }
-
-      private:
-        Chunk *next_;
-        size_t size_ = 0;
-        // NOLINTNEXTLINE
-        T data_[0];
-    };
-    auto chunk_size() {
-        auto n = page_size / sizeof(T);
-        return size_ * (size_ >= n ? 1 : n / size_);
-    }
-    Chunk *root_ = nullptr;
-    size_t size_;
-};
-
-struct SpanHash {
-    SpanHash(size_t size) : size{size} {}
-    template <class T> auto operator()(T const *sym) const -> size_t { return Util::value_hash(std::span(sym, size)); }
-    size_t size;
-};
-
-struct SpanEqualTo {
-    SpanEqualTo(size_t size) : size{size} {}
-    template <class T> auto operator()(T const *a, T const *b) const -> bool {
-        return Util::value_equal_to{}(std::span(a, size), std::span(b, size));
-    }
-    size_t size;
-};
-
 class HashIndex {
   public:
     HashIndex(Base const &base, size_t bound, size_t bind)
-        : base_{&base}, bound_values_{bound}, bind_values_{bind}, index_{0, SpanHash{bound}, SpanEqualTo{bound}} {
+        : base_{&base}, bound_values_{bound}, bind_values_{bind},
+          index_{0, Util::SpanHash{bound}, Util::SpanEqualTo{bound}} {
         assert(bound > 0 && bind > 0);
         temp_values_.reserve(bound);
     }
@@ -310,7 +223,7 @@ class HashIndex {
     using BindVec = std::vector<std::pair<size_t, Symbol *>>;
     // Note: we need an ordered map to be able to update indices while
     // matching. The same index might be updated from different matchers.
-    using IndexMap = Util::ordered_map<Symbol *, BindVec, SpanHash, SpanEqualTo>;
+    using IndexMap = Util::ordered_map<Symbol *, BindVec, Util::SpanHash, Util::SpanEqualTo>;
 
     auto bind_next(Assignment &ass, VariableVec &bind_vars, MatcherType type, IndexMap::iterator &it,
                    size_t &cur) -> bool {
@@ -373,13 +286,11 @@ class HashIndex {
 
     Base const *base_;
     std::vector<Symbol> temp_values_;
-    SpanStack<Symbol> bound_values_;
-    SpanStack<Symbol> bind_values_;
+    Util::SpanStack<Symbol> bound_values_;
+    Util::SpanStack<Symbol> bind_values_;
     IndexMap index_;
     size_t imported_ = 0;
 };
-
-// NOLINTEND(cppcoreguidelines-pro-bounds-array-to-pointer-decay,cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
 using IndexSig = std::pair<std::vector<size_t>, UTerm>;
 
