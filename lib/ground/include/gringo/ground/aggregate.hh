@@ -6,8 +6,72 @@
 
 namespace Gringo::Ground {
 
+class GenerationCounts {
+  public:
+    //! Update the generation counts.
+    //!
+    //! Calling with generation zero resets the counts. Calling with a
+    //! generation greater than the current generation adds all atoms from the
+    //! current all generation to the old generation.
+    //!
+    //! Calling the function multiple times for the same generation has no
+    //! effect.
+
+    //! Get the index of the first atom in the given generation.
+    [[nodiscard]] auto begin(MatcherType type) const -> size_t {
+        if (type == MatcherType::new_atoms) {
+            return old_offset_;
+        }
+        return 0;
+    }
+
+    //! Get the index plus one of the last atom in the given generation.
+    [[nodiscard]] auto end(MatcherType type) const -> size_t {
+        if (type == MatcherType::old_atoms) {
+            return old_offset_;
+        }
+        return all_offset_;
+    }
+
+    //! Check if the given index belongs to the given generation.
+    [[nodiscard]] auto contains(size_t index, MatcherType type) const -> bool {
+        return begin(type) <= index && index < end(type);
+    }
+
+    void update(size_t generation, size_t size) {
+        // TODO: has to be adjusted; it also seems pretty generic and might be organized differently
+        // initialize the domain
+        // (all atoms are marked as new)
+        if (generation == 0) {
+            generation_ = 0;
+            old_offset_ = 0;
+            all_offset_ = size;
+        }
+        // the generation has been incremented by one
+        // (freshly added atoms are marked new)
+        else if (generation_ + 1 == generation) {
+            generation_ = generation;
+            old_offset_ = all_offset_;
+            all_offset_ = size;
+            // the generation has been incremented by more than one
+            // (all atoms are marked old)
+        } else if (generation_ + 1 < generation) {
+            generation_ = generation;
+            old_offset_ = size;
+            all_offset_ = size;
+        }
+    }
+
+  private:
+    //! Symbols before this offset are considered old.
+    size_t old_offset_ = 0;
+    //! Symbols before this offset are considered new or old.
+    size_t all_offset_ = 0;
+    //! The last generation at which the domain has been updated.
+    size_t generation_ = 0;
+};
+
 // TODO: better rename to state
-// the bases
 struct BaseCondLit {
   public:
     struct ElemState {
@@ -15,20 +79,114 @@ struct BaseCondLit {
         bool is_blocked;
     };
     // we can use here that the number of local variables is fixed
-    using ElemMap = Util::ordered_map<Symbol *, ElemState, Util::SpanHash, Util::SpanEqualTo>;
+    using ElemMap = Util::ordered_map<Symbol const *, ElemState, Util::SpanHash, Util::SpanEqualTo>;
 
     struct AtomState {
         bool is_fact;
         size_t num_blocked;
+        size_t lit_index_;
         std::vector<size_t> elems;
     };
     // we can use here that the number of global variables is fixed
-    using AtomMap = Util::ordered_map<Symbol *, AtomState, Util::SpanHash, Util::SpanEqualTo>;
+    using AtomMap = Util::ordered_map<Symbol const *, AtomState, Util::SpanHash, Util::SpanEqualTo>;
+
+    class BaseEmpty {
+      public:
+        BaseEmpty(AtomMap &atoms) : atoms_{&atoms} {}
+
+        //! Get the index of the first atom in the given generation.
+        auto begin(MatcherType type) const -> size_t { return counts_.begin(type); }
+
+        //! Get the index plus one of the last atom in the given generation.
+        auto end(MatcherType type) const -> size_t { return counts_.end(type); }
+
+        //! Check if the base contains the given atom with in the given generation.
+        [[nodiscard]] auto contains(Symbol const *sym, MatcherType type) const -> bool {
+            auto index = static_cast<size_t>(std::distance(atoms_->begin(), atoms_->find(sym)));
+            return counts_.contains(index, type);
+        }
+
+        //! Get the n-th atom in the base.
+        auto nth(size_t i) const -> AtomMap::const_iterator { return atoms_->nth(i); }
+
+        //! Get the n-th atom in the base.
+        auto nth(size_t i) -> AtomMap::iterator { return atoms_->nth(i); }
+
+        //! Update the generation counts.
+        void update(size_t generation) const { counts_.update(generation, atoms_->size()); }
+
+      private:
+        AtomMap *atoms_;
+        std::unique_ptr<BaseContext> context_;
+        GenerationCounts mutable counts_;
+    };
+
+    struct BasePremise {
+        BasePremise(ElemMap &elems) : elems_{&elems} {}
+
+        //! Get the index of the first atom in the given generation.
+        auto begin(MatcherType type) const -> size_t { return counts_.begin(type); }
+
+        //! Get the index plus one of the last atom in the given generation.
+        auto end(MatcherType type) const -> size_t { return counts_.end(type); }
+
+        //! Check if the base contains the given atom with in the given generation.
+        [[nodiscard]] auto contains(Symbol const *sym, MatcherType type) const -> bool {
+            auto index = static_cast<size_t>(std::distance(elems_->begin(), elems_->find(sym)));
+            return counts_.contains(index, type);
+        }
+
+        //! Get the n-th atom in the base.
+        auto nth(size_t i) const -> ElemMap::const_iterator { return elems_->nth(i); }
+
+        //! Get the n-th atom in the base.
+        auto nth(size_t i) -> ElemMap::iterator { return elems_->nth(i); }
+
+        //! Update the generation counts.
+        void update(size_t generation) const { counts_.update(generation, elems_->size()); }
+
+      private:
+        ElemMap *elems_;
+        std::unique_ptr<BaseContext> context_;
+        GenerationCounts mutable counts_;
+    };
+
+    struct BaseLit {
+        BaseLit(AtomMap &atoms) : atoms_{&atoms} {}
+
+        //! Get the index of the first atom in the given generation.
+        auto begin(MatcherType type) const -> size_t { return counts_.begin(type); }
+
+        //! Get the index plus one of the last atom in the given generation.
+        auto end(MatcherType type) const -> size_t { return counts_.end(type); }
+
+        //! Check if the base contains the given atom with in the given generation.
+        [[nodiscard]] auto contains(Symbol const *sym, MatcherType type) const -> bool {
+            auto index = atoms_->find(sym)->second.lit_index_;
+            return counts_.contains(index, type);
+        }
+
+        //! Get the n-th atom in the base.
+        auto nth(size_t i) const -> AtomMap::const_iterator { return atoms_->nth(base_[i]); }
+
+        //! Get the n-th atom in the base.
+        auto nth(size_t i) -> AtomMap::iterator { return atoms_->nth(base_[i]); }
+
+        //! Update the generation counts.
+        void update(size_t generation) const { counts_.update(generation, base_.size()); }
+
+      private:
+        AtomMap *atoms_;
+        std::vector<size_t> base_;
+        std::unique_ptr<BaseContext> context_;
+        GenerationCounts mutable counts_;
+    };
 
     BaseCondLit(VariableVec local, VariableVec global, size_t index)
         : local_{std::move(local)}, global_{std::move(global)},
           atoms_{0, Util::SpanHash{global_.size()}, Util::SpanEqualTo{global_.size()}},
-          elems_{0, Util::SpanHash{local_.size() + 1}, Util::SpanEqualTo{local_.size() + 1}}, index_{index} {}
+          elems_{0, Util::SpanHash{local_.size() + 1}, Util::SpanEqualTo{local_.size() + 1}}, base_empty_{atoms_},
+          base_premise_{elems_}, base_lit_{atoms_}, index_{index} {}
     // TODO:
     // map local symbols -> to state
     // state:
@@ -81,6 +239,7 @@ struct BaseCondLit {
     //   - can be represented using a set of integers
     //     (atoms are already stored in the atom table and can be addressed by index)
 
+    /*
     // Base interface
     //! Get the number of atoms in the base.
     [[nodiscard]] auto size() const { return atoms_.size(); }
@@ -97,7 +256,6 @@ struct BaseCondLit {
         return true;
     }
 
-    /*
     //! Add an atom to the base.
     auto add(Symbol atom, AtomState state) -> AtomUpdate {
         // turning a delayed atom into an active one is tricky
@@ -125,42 +283,7 @@ struct BaseCondLit {
         }
         return AtomUpdate::added;
     }
-    */
 
-    //! Update the generation counts.
-    //!
-    //! Calling with generation zero resets the counts. Calling with a
-    //! generation greater than the current generation adds all atoms from the
-    //! current all generation to the old generation.
-    //!
-    //! Calling the function multiple times for the same generation has no
-    //! effect.
-    void update(size_t generation) const {
-        // TODO: has to be adjusted
-
-        // initialize the domain
-        // (all atoms are marked as new)
-        if (generation == 0) {
-            generation_ = 0;
-            old_offset_ = 0;
-            all_offset_ = atoms_.size();
-        }
-        // the generation has been incremented by one
-        // (freshly added atoms are marked new)
-        else if (generation_ + 1 == generation) {
-            generation_ = generation;
-            old_offset_ = all_offset_;
-            all_offset_ = atoms_.size();
-            // the generation has been incremented by more than one
-            // (all atoms are marked old)
-        } else if (generation_ + 1 < generation) {
-            generation_ = generation;
-            old_offset_ = atoms_.size();
-            all_offset_ = atoms_.size();
-        }
-    }
-
-    /*
     //! Return a span with all atoms in the base.
     auto atoms() const -> std::span<Atom const> { return {atoms_.values_container().data(), all_offset_}; }
     //! Check if the base contains at least one atom from the all generation.
@@ -194,10 +317,6 @@ struct BaseCondLit {
         auto it = atoms_.find(sym);
         return it != atoms_.end() && it->second.state == AtomState::fact;
     }
-    //! Get the n-th atom in the base.
-    auto nth(size_t i) const -> Util::ordered_map<Symbol, AtomInfo>::const_iterator { return atoms_.nth(i); }
-    //! Get the n-th atom in the base.
-    auto nth(size_t i) -> Util::ordered_map<Symbol, AtomInfo>::iterator { return atoms_.nth(i); }
 
     //! Get the context of the base.
     template <class T> auto context() -> T & {
@@ -215,16 +334,11 @@ struct BaseCondLit {
   private:
     VariableVec local_;
     VariableVec global_;
-    std::unique_ptr<BaseContext> context_;
     AtomMap atoms_;
     ElemMap elems_;
-    size_t mutable domain_offset_ = 0;
-    //! Symbols before this offset are considered old.
-    size_t mutable old_offset_ = 0;
-    //! Symbols before this offset are considered new or old.
-    size_t mutable all_offset_ = 0;
-    //! The last generation at which the domain has been updated.
-    size_t mutable generation_ = 0;
+    BaseEmpty base_empty_;
+    BasePremise base_premise_;
+    BaseLit base_lit_;
     size_t index_ = 0;
 };
 
