@@ -198,7 +198,7 @@ void StmRule::report(SymbolStore &store, Assignment const &ass) {
     }
     if (head_ != nullptr) {
         if (auto atom = head_->eval(store, ass); atom) {
-            base_->add(*atom, fact ? AtomState::fact : AtomState::unknown);
+            base_->add(*atom, fact ? AtomState::fact : AtomState::derived);
             out << *atom;
             if (!fact) {
                 out << " :- " << tmp_bd.view();

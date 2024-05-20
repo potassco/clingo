@@ -2,6 +2,7 @@
 
 #include <gringo/core/symbol.hh>
 
+#include <gringo/util/index_sequence.hh>
 #include <gringo/util/ordered_map.hh>
 
 namespace Gringo::Ground {
@@ -10,6 +11,10 @@ namespace Gringo::Ground {
 enum class AtomState : uint64_t {
     // Indicates that the atom is derived by a fact.
     fact = 0,
+    // Indicates that the atom is derived by some rule but not a fact.
+    derived = 1,
+    // Indicates that the atom is derived by some external but not a rule or fact.
+    external = 2,
     // At the time rule (1) is grounded, atom x is not yet defined.
     // Once (2) has been grounded, there is a definition for it.
     //
@@ -17,16 +22,12 @@ enum class AtomState : uint64_t {
     //   x :- a.     (2)
     //
     // The flag indicates atoms that have neither been derived by facts, rules, or externals.
-    unknown = 1,
-    // Indicates that the atom is derived by some external but not a rule or fact.
-    external = 2,
-    // Indicates that the atom is derived by some rule but not a fact.
-    derived = 3,
+    unknown = 3,
 };
 
 struct AtomInfo {
     // A unique id among all atoms.
-    mutable uint64_t id : 62;
+    mutable uint64_t id : 63;
     mutable AtomState state : 2;
 };
 
@@ -118,9 +119,12 @@ class BaseContext {
 //! The base tracks the generation of atoms for semi-naive evaluation,
 //! and the state of atoms.
 //!
+//! An atom base can also stores unknown atoms. For such atoms it is not yet
+//! know whether there will be a rule deriving them. The only purpose is to
+//! store them here is to associated them with a unique id.
 class Base {
   public:
-    //! Get the number of atoms in the base.
+    //! Get the number of atoms in the base (including unknown ones).
     [[nodiscard]] auto size() const { return atoms_.size(); }
 
     //! Check if the base is domain.
@@ -137,56 +141,55 @@ class Base {
 
     //! Add an atom to the base.
     auto add(Symbol atom, AtomState state) -> AtomUpdate {
-        // turning a delayed atom into an active one is tricky
-        // suppose p(2) below has been inserted as delayed on a previous generation
-        //   p(1) *p(2) p(3)
-        // It now has to be added as active and should also become part of the new generation.
-        // The easiest way to implement this is to delay inserting into atoms_ adding it to a separate set first.
-        //   active:  p(1) p(3)
-        //   delayed: p(2)
-        // Downside: each insertion has to check the delayed set first (which should however be empty in most cases).
-        if (auto [it, ins] = atoms_.try_emplace(atom, 0, state); !ins) {
-            if (state < it->second.state) {
-                // note transitions from external to unknown are ignored
-                // because there is no additional information for grounding
-                auto prev = it.value().state;
-                it.value().state = state;
-                if (prev == AtomState::derived) {
-                    return AtomUpdate::added;
-                }
-                if (state == AtomState::fact) {
-                    return AtomUpdate::changed;
-                }
+        auto [it, ins] = atoms_.try_emplace(atom, 0, state);
+        if (ins) {
+            if (state != AtomState::unknown) {
+                derived_.add(std::distance(atoms_.begin(), it));
             }
-            return AtomUpdate::unchanged;
+            return AtomUpdate::added;
         }
-        return AtomUpdate::added;
+        if (state < it->second.state) {
+            // note transitions from external to derived are ignored
+            // because there is no additional information for grounding
+            auto prev = it.value().state;
+            it.value().state = state;
+            if (prev == AtomState::unknown) {
+                derived_.add(std::distance(atoms_.begin(), it));
+                return AtomUpdate::added;
+            }
+            if (state == AtomState::fact) {
+                return AtomUpdate::changed;
+            }
+        }
+        return AtomUpdate::unchanged;
     }
 
     //! Update the generation counts.
-    void update(size_t generation) const { counts_.update(generation, atoms_.size()); }
+    void update(size_t generation) const { counts_.update(generation, derived_.size()); }
     //! Get the index of the first atom in the given generation.
     auto begin(MatcherType type) const -> size_t { return counts_.begin(type); }
     //! Get the index plus one of the last atom in the given generation.
     auto end(MatcherType type) const -> size_t { return counts_.end(type); }
     //! Check if the base contains the given atom.
-    [[nodiscard]] auto contains(Symbol const &sym) const -> bool { return atoms_.find(sym) != atoms_.end(); }
+    [[nodiscard]] auto contains(Symbol const &sym) const -> bool {
+        auto it = atoms_.find(sym);
+        return it != atoms_.end() && it->second.state != AtomState::unknown;
+    }
     //! Check if the base contains the given atom with in the given generation.
     [[nodiscard]] auto contains(Symbol const &sym, MatcherType type) const -> bool {
-        auto index = static_cast<size_t>(std::distance(atoms_.begin(), atoms_.find(sym)));
-        return counts_.contains(index, type);
+        if (auto it = atoms_.find(sym); it != atoms_.end() && it->second.state != AtomState::unknown) {
+            auto index = derived_[static_cast<size_t>(std::distance(atoms_.begin(), it))];
+            return counts_.contains(index, type);
+        }
+        return false;
     }
-    //! Get the n-th atom in the base.
-    auto nth(size_t i) const -> Util::ordered_map<Symbol, AtomInfo>::const_iterator { return atoms_.nth(i); }
-    //! Get the n-th atom in the base.
-    auto nth(size_t i) -> Util::ordered_map<Symbol, AtomInfo>::iterator { return atoms_.nth(i); }
+    //! Get the i-th atom in the base.
+    auto nth(size_t i) const -> Util::ordered_map<Symbol, AtomInfo>::const_iterator { return atoms_.nth(derived_[i]); }
+    //! Get the i-th atom in the base.
+    auto nth(size_t i) -> Util::ordered_map<Symbol, AtomInfo>::iterator { return atoms_.nth(derived_[i]); }
 
-    //! Return a span with all atoms in the base.
-    auto atoms() const -> std::span<Atom const> {
-        return {atoms_.values_container().data(), counts_.end(MatcherType::all_atoms)};
-    }
     //! Check if the base contains at least one atom from the all generation.
-    auto has_update() const -> bool { return atoms_.size() > counts_.end(MatcherType::all_atoms); }
+    auto has_update() const -> bool { return derived_.size() > counts_.end(MatcherType::all_atoms); }
     //! Check if the given atom is a fact.
     //!
     //! This function does not take into account to which generation an atom belongs.
@@ -211,6 +214,7 @@ class Base {
   private:
     std::unique_ptr<BaseContext> context_;
     Util::ordered_map<Symbol, AtomInfo> atoms_;
+    Util::index_sequence<size_t> derived_;
     size_t mutable domain_offset_ = 0;
     GenerationCounts mutable counts_;
 };

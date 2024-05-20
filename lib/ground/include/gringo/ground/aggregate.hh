@@ -172,6 +172,11 @@ struct BaseCondLit {
 
     [[nodiscard]] auto index() const -> size_t { return index_; }
 
+    void add_empty() {
+        // TODO:
+        // - add directly to atoms_
+    }
+
     /*
     // Base interface
     //! Get the number of atoms in the base.
