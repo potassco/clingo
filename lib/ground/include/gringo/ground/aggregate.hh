@@ -6,72 +6,40 @@
 
 namespace Gringo::Ground {
 
-class GenerationCounts {
-  public:
-    //! Update the generation counts.
-    //!
-    //! Calling with generation zero resets the counts. Calling with a
-    //! generation greater than the current generation adds all atoms from the
-    //! current all generation to the old generation.
-    //!
-    //! Calling the function multiple times for the same generation has no
-    //! effect.
-
-    //! Get the index of the first atom in the given generation.
-    [[nodiscard]] auto begin(MatcherType type) const -> size_t {
-        if (type == MatcherType::new_atoms) {
-            return old_offset_;
-        }
-        return 0;
-    }
-
-    //! Get the index plus one of the last atom in the given generation.
-    [[nodiscard]] auto end(MatcherType type) const -> size_t {
-        if (type == MatcherType::old_atoms) {
-            return old_offset_;
-        }
-        return all_offset_;
-    }
-
-    //! Check if the given index belongs to the given generation.
-    [[nodiscard]] auto contains(size_t index, MatcherType type) const -> bool {
-        return begin(type) <= index && index < end(type);
-    }
-
-    void update(size_t generation, size_t size) {
-        // TODO: has to be adjusted; it also seems pretty generic and might be organized differently
-        // initialize the domain
-        // (all atoms are marked as new)
-        if (generation == 0) {
-            generation_ = 0;
-            old_offset_ = 0;
-            all_offset_ = size;
-        }
-        // the generation has been incremented by one
-        // (freshly added atoms are marked new)
-        else if (generation_ + 1 == generation) {
-            generation_ = generation;
-            old_offset_ = all_offset_;
-            all_offset_ = size;
-            // the generation has been incremented by more than one
-            // (all atoms are marked old)
-        } else if (generation_ + 1 < generation) {
-            generation_ = generation;
-            old_offset_ = size;
-            all_offset_ = size;
-        }
-    }
-
-  private:
-    //! Symbols before this offset are considered old.
-    size_t old_offset_ = 0;
-    //! Symbols before this offset are considered new or old.
-    size_t all_offset_ = 0;
-    //! The last generation at which the domain has been updated.
-    size_t generation_ = 0;
-};
-
-// TODO: better rename to state
+// TODO:
+// maybe rename to state
+// map local symbols -> to state
+// state:
+//   - set of global symbols in element
+//   - propagated or not
+//     - not yet propagated literals can still be blocked
+//     - a literal is blocked if one of its premises is true
+//       but the conclusion false or not yet derived
+//     - if the conclusion is false, the whole literal becomes false
+//       and does not need to be propagated anymore
+//   - determine if fact when condition is stratified
+//     - if the premise is stratified then the literal can be marked as fact
+//       if all associated conclusions are true
+//     - needs a flag in base
+//   - the literal has to be propagated either by the premise or conclusion statement
+//     - if the conclusion is false there is no corresponding statement
+//       and the premise statement can trigger propagation
+//     - needs flag in base
+// there are three associated bases
+// - empty: any conditional literal encountered during grounding
+// - premise:
+//   - premises accumulated
+//   - only necessary if there is a conclusion
+//   - the key is the index of the atom and the global variables
+//     (by misusing the representation of the symbol,
+//     the index could be stored using to_rep/from_rep)
+//   - adding an element would mean having to lookup the atom
+//     (which should be fine)
+// - lit:
+//   - subset of empty
+//   - gathers propagated atoms
+//   - can be represented using a set of integers
+//     (atoms are already stored in the atom table and can be addressed by index)
 struct BaseCondLit {
   public:
     struct ElemState {
@@ -187,25 +155,6 @@ struct BaseCondLit {
           atoms_{0, Util::SpanHash{global_.size()}, Util::SpanEqualTo{global_.size()}},
           elems_{0, Util::SpanHash{local_.size() + 1}, Util::SpanEqualTo{local_.size() + 1}}, base_empty_{atoms_},
           base_premise_{elems_}, base_lit_{atoms_}, index_{index} {}
-    // TODO:
-    // map local symbols -> to state
-    // state:
-    //   - set of global symbols in element
-    //   - propagated or not
-    //     - not yet propagated literals can still be blocked
-    //     - a literal is blocked if one of its premises is true
-    //       but the conclusion false or not yet derived
-    //     - if the conclusion is false, the whole literal becomes false
-    //       and does not need to be propagated anymore
-    //   - determine if fact when condition is stratified
-    //     - if the premise is stratified then the literal can be marked as fact
-    //       if all associated conclusions are true
-    //     - needs a flag in base
-    //   - the literal has to be propagated either by the premise or conclusion statement
-    //     - if the conclusion is false there is no corresponding statement
-    //       and the premise statement can trigger propagation
-    //     - needs flag in base
-    //
 
     void vars(VariableSet &res, bool all) const {
         if (all) {
@@ -222,22 +171,6 @@ struct BaseCondLit {
     }
 
     [[nodiscard]] auto index() const -> size_t { return index_; }
-
-    // TODO: there are three associated bases
-    // - empty: any conditional literal encountered during grounding
-    // - premise:
-    //   - premises accumulated
-    //   - only necessary if there is a conclusion
-    //   - the key is the index of the atom and the global variables
-    //     (by misusing the representation of the symbol,
-    //     the index could be stored using to_rep/from_rep)
-    //   - adding an element would mean having to lookup the atom
-    //     (which should be fine)
-    // - lit:
-    //   - subset of empty
-    //   - gathers propagated atoms
-    //   - can be represented using a set of integers
-    //     (atoms are already stored in the atom table and can be addressed by index)
 
     /*
     // Base interface
