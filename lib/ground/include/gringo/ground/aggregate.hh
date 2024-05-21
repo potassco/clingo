@@ -85,7 +85,17 @@ struct BaseCondLit {
             }
             return false;
         }
-
+        [[nodiscard]] auto propagate(ElemMap const &elems) -> bool {
+            assert(!propagated_);
+            for (auto n = elems_.size(); elems_propagated_ < n; ++elems_propagated_) {
+                if (elems.nth(elems_[n]).value().is_blocked()) {
+                    return false;
+                }
+            }
+            propagated_ = true;
+            return true;
+        }
+        void set_offset(size_t offset) { offset_ = offset; }
         [[nodiscard]] auto offset() const -> size_t { return offset_; }
 
       private:
@@ -170,6 +180,12 @@ struct BaseCondLit {
 
     struct BaseLit {
         BaseLit(AtomMap &atoms) : atoms_{&atoms} {}
+
+        //! Add a propagated atom to the base.
+        void add(AtomMap::iterator it) {
+            it.value().set_offset(base_.size());
+            base_.emplace_back(std::distance(atoms_->begin(), it));
+        }
 
         //! Get the index of the first atom in the given generation.
         auto begin(MatcherType type) const -> size_t { return counts_.begin(type); }
@@ -283,14 +299,18 @@ struct BaseCondLit {
     }
 
     //! Propagate enqueued conditional literals whose elements are not blocked.
-    void propagate() {
-        // TODO:
-        // - loop over atoms in propagate_
-        // - loop over elements in atoms that have not been propagated yet
-        // - find the first blocked atom
-        //   - if there is such an atom, continue with the next atom
-        //   - otherwise, add the atom to the literal base
-        static_cast<void>(this);
+    auto propagate() -> bool {
+        bool res = false;
+        for (auto atom_index : propagate_) {
+            auto it = atoms_.nth(atom_index);
+            auto &atom = it.value();
+            if (atom.propagate(elems_)) {
+                base_lit_.add(it);
+                res = true;
+            }
+        }
+        propagate_.clear();
+        return res;
     }
 
     /*
