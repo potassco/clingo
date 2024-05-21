@@ -26,8 +26,11 @@ template <class T> class index_sequence {
     //! Get the i-th integer in the sequence.
     [[nodiscard]] auto operator[](T i) const -> T {
         assert(i < size());
-        auto it = std::upper_bound(values_.begin(), values_.end(), i,
-                                   [](auto const &a, auto const &b) { return a < std::get<1>(b); });
+        auto const &[l, r, y] = values_[last_];
+        auto ib = l < i ? values_.begin() + last_ : values_.begin();
+        auto ie = i < r ? ib + last_ + 1 : values_.end();
+        auto it = std::upper_bound(ib, ie, i, [](auto const &a, auto const &b) { return a < std::get<1>(b); });
+        last_ = static_cast<size_t>(std::distance(values_.begin(), it));
         return i + std::get<2>(*it);
     }
     //! Get the number of indices in the sequence.
@@ -37,6 +40,7 @@ template <class T> class index_sequence {
 
   private:
     std::vector<std::tuple<T, T, T>> values_;
+    size_t mutable last_ = 0;
 };
 
 } // namespace Gringo::Util
