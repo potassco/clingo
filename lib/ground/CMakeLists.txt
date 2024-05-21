@@ -11,12 +11,6 @@ add_library(gringo_ground
 target_link_libraries(gringo_ground PUBLIC gringo_core)
 target_include_directories(gringo_ground PUBLIC "include")
 set_property(TARGET gringo_ground PROPERTY POSITION_INDEPENDENT_CODE ON)
-if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    target_compile_options(gringo_ground PRIVATE "-Wno-zero-length-array")
-endif()
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    target_compile_options(gringo_ground PRIVATE "-Wno-pedantic")
-endif()
 
 if (PARSER_BUILD_TESTS)
     add_executable(test_ground

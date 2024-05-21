@@ -50,9 +50,9 @@ struct BaseCondLit {
     using ElemMap = Util::ordered_map<Symbol const *, ElemState, Util::SpanHash, Util::SpanEqualTo>;
 
     struct AtomState {
-        bool is_fact;
-        size_t num_blocked;
-        size_t lit_index_;
+        bool is_fact = false;
+        size_t num_blocked = 0;
+        size_t lit_index_ = 0;
         std::vector<size_t> elems;
     };
     // we can use here that the number of global variables is fixed
@@ -84,6 +84,7 @@ struct BaseCondLit {
         void update(size_t generation) const { counts_.update(generation, atoms_->size()); }
 
       private:
+        // TODO: derived and unknown atoms might have to be distinguished
         AtomMap *atoms_;
         std::unique_ptr<BaseContext> context_;
         GenerationCounts mutable counts_;
@@ -151,11 +152,12 @@ struct BaseCondLit {
     };
 
     BaseCondLit(VariableVec local, VariableVec global, size_t index)
-        : local_{std::move(local)}, global_{std::move(global)},
-          atoms_{0, Util::SpanHash{global_.size()}, Util::SpanEqualTo{global_.size()}},
+        : local_{std::move(local)}, global_{std::move(global)}, syms_elems_{local_.size() + 1},
+          syms_atoms_{global_.size()}, atoms_{0, Util::SpanHash{global_.size()}, Util::SpanEqualTo{global_.size()}},
           elems_{0, Util::SpanHash{local_.size() + 1}, Util::SpanEqualTo{local_.size() + 1}}, base_empty_{atoms_},
           base_premise_{elems_}, base_lit_{atoms_}, index_{index} {}
 
+    //! Get the variables occuring in the conditional literal.
     void vars(VariableSet &res, bool all) const {
         if (all) {
             res.insert(local_.begin(), local_.end());
@@ -163,6 +165,7 @@ struct BaseCondLit {
         res.insert(global_.begin(), global_.end());
     }
 
+    //! Get the variables occuring in the conditional literal.
     [[nodiscard]] auto vars(bool all) const -> VariableSet {
         VariableSet res;
         res.reserve(all ? global_.size() + local_.size() : global_.size());
@@ -170,13 +173,52 @@ struct BaseCondLit {
         return res;
     }
 
+    //! Get the update index of the conditional literal.
     [[nodiscard]] auto index() const -> size_t { return index_; }
 
-    void add_empty() {
-        // TODO:
-        // - add directly to atoms_
+    //! Add a new cond lit atom.
+    void add_empty(Assignment const &ass) {
+        auto const syms = syms_atoms_.push_map(global_, [&ass](auto var) {
+            // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+            return ass[var].value();
+        });
+        if (!atoms_.try_emplace(syms.data()).second) {
+            syms_atoms_.pop();
+        }
     }
 
+    //! Add a new cond lit element.
+    void add_premise(Assignment const &ass) {
+        // TODO:
+        // - set is_fact
+        // - block element if is fact
+        // - can unblock conclusions right away if the conclusion is stratified
+        std::vector<Symbol> syms_atom;
+        syms_atom.reserve(global_.size());
+        for (auto var : global_) {
+            // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+            syms_atom.emplace_back(ass[var].value());
+        }
+        auto it = atoms_.find(syms_atom.data());
+        std::vector<Symbol> syms_elem;
+        syms_elem.reserve(local_.size() + 1);
+        syms_elem.emplace_back(Symbol::from_rep(std::distance(atoms_.begin(), it)));
+        for (auto var : local_) {
+            // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+            syms_elem.emplace_back(ass[var].value());
+        }
+        if (auto [jt, ins] = elems_.try_emplace(syms_elem.data()); ins) {
+            it.value().elems.emplace_back(std::distance(elems_.begin(), jt));
+        } else {
+            syms_elems_.pop();
+        }
+    }
+    void add_conclusion(Assignment const &ass) {
+        // TODO:
+        // - unblock elements
+        static_cast<void>(ass);
+        static_cast<void>(this);
+    }
     /*
     // Base interface
     //! Get the number of atoms in the base.
@@ -272,6 +314,8 @@ struct BaseCondLit {
   private:
     VariableVec local_;
     VariableVec global_;
+    Util::SpanStack<Symbol> syms_elems_;
+    Util::SpanStack<Symbol> syms_atoms_;
     AtomMap atoms_;
     ElemMap elems_;
     BaseEmpty base_empty_;

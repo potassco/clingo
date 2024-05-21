@@ -33,6 +33,18 @@ template <class T> class index_sequence {
         last_ = static_cast<size_t>(std::distance(values_.begin(), it));
         return i + std::get<2>(*it);
     }
+    //! Check if the sequence contains an element.
+    [[nodiscard]] auto find(size_t x) const -> size_t {
+        // TODO: has linear complexity in the worst case:
+        // - locality could be improved
+        // - reverse mapping could be stored
+        for (auto const &[l, r, y] : values_) {
+            if (l + y <= x && r + y < x) {
+                return x - y;
+            }
+        }
+        return size();
+    }
     //! Get the number of indices in the sequence.
     [[nodiscard]] auto size() const -> size_t { return std::get<1>(values_.back()); }
     //! Check whether the sequence is empty.

@@ -248,6 +248,8 @@ struct BuildContext {
         }
         return false;
     }
+    [[nodiscard]] auto next_index() -> size_t { return comp->incomplete.size() + index_++; }
+
     //! Analyze the given conditional literal and return the required indices for grounding.
     [[nodiscard]] auto analyze(Input::CondLit const &lit) -> std::tuple<bool, size_t, size_t, size_t> {
         assert(!Input::is_fixed(lit.lit()).value_or(false));
@@ -259,7 +261,7 @@ struct BuildContext {
             if (auto ie = body->end(),
                 it = std::find_if(body->begin(), ie, [](auto const &lit) { return lit->recursive(); });
                 it != ie) {
-                return index_++;
+                return next_index();
             }
             return Ground::stratified_index;
         }();
@@ -268,13 +270,13 @@ struct BuildContext {
                 return Ground::stratified_index;
             }
             if (empty_index != Ground::stratified_index) {
-                return index_++;
+                return next_index();
             }
             auto const &cond = lit.cond();
             if (auto ie = cond.end(),
                 it = std::find_if(cond.begin(), ie, [this](auto const &lit) { return is_recursive(lit); });
                 it != ie) {
-                return index_++;
+                return next_index();
             }
             return Ground::stratified_index;
         }();
@@ -286,7 +288,7 @@ struct BuildContext {
                 return premise_index;
             }
             if (premise_index != Ground::stratified_index) {
-                return index_++;
+                return next_index();
             }
             return Ground::stratified_index;
         }();

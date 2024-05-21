@@ -144,7 +144,7 @@ class Base {
         auto [it, ins] = atoms_.try_emplace(atom, 0, state);
         if (ins) {
             if (state != AtomState::unknown) {
-                derived_.add(std::distance(atoms_.begin(), it));
+                derived_.add(atom_index_(it));
             }
             return AtomUpdate::added;
         }
@@ -154,7 +154,7 @@ class Base {
             auto prev = it.value().state;
             it.value().state = state;
             if (prev == AtomState::unknown) {
-                derived_.add(std::distance(atoms_.begin(), it));
+                derived_.add(atom_index_(it));
                 return AtomUpdate::added;
             }
             if (state == AtomState::fact) {
@@ -178,7 +178,7 @@ class Base {
     //! Check if the base contains the given atom with in the given generation.
     [[nodiscard]] auto contains(Symbol const &sym, MatcherType type) const -> bool {
         if (auto it = atoms_.find(sym); it != atoms_.end() && it->second.state != AtomState::unknown) {
-            auto index = derived_[static_cast<size_t>(std::distance(atoms_.begin(), it))];
+            auto index = derived_.find(atom_index_(it));
             return counts_.contains(index, type);
         }
         return false;
@@ -212,6 +212,10 @@ class Base {
     }
 
   private:
+    [[nodiscard]] auto atom_index_(Util::ordered_map<Symbol, AtomInfo>::const_iterator it) const -> size_t {
+        return static_cast<size_t>(std::distance(atoms_.cbegin(), it));
+    }
+
     std::unique_ptr<BaseContext> context_;
     Util::ordered_map<Symbol, AtomInfo> atoms_;
     Util::index_sequence<size_t> derived_;
