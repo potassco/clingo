@@ -2,6 +2,7 @@
 
 #include <gringo/util/hash.hh>
 
+#include <ranges>
 #include <span>
 
 namespace Gringo::Util {
@@ -37,6 +38,9 @@ template <class T> class SpanStack {
         }
         return root_->push_map(rng, map);
     }
+
+    //! Push an element in-place constructing it from the given range.
+    template <typename Map> auto push_imap(Map map) { return push_map(std::ranges::iota_view{size_t{0}, size_}, map); }
 
     //! Pop the last element.
     void pop() {

@@ -42,18 +42,58 @@ namespace Gringo::Ground {
 //     (atoms are already stored in the atom table and can be addressed by index)
 struct BaseCondLit {
   public:
+    // NOLINTNEXTLINE(performance-enum-size)
+    enum class TruthConclusion : size_t {
+        true_ = 0,
+        false_ = 1,
+        derived = 2,
+        unknown = 3,
+    };
     struct ElemState {
-        bool is_fact;
-        bool is_blocked;
+      public:
+        ElemState(bool premise_is_fact) : premise_is_fact_{static_cast<uint8_t>(premise_is_fact)} {}
+        void mark_conclusion(bool fact) {
+            assert(conclusion_truth_ == TruthConclusion::unknown);
+            conclusion_truth_ = fact ? TruthConclusion::true_ : TruthConclusion::derived;
+        }
+        [[nodiscard]] auto is_fact() const -> bool {
+            return premise_is_fact_ != 0 && conclusion_truth_ == TruthConclusion::true_;
+        }
+        [[nodiscard]] auto is_blocked() const -> bool {
+            return premise_is_fact_ != 0 &&
+                   (conclusion_truth_ == TruthConclusion::false_ || conclusion_truth_ == TruthConclusion::unknown);
+        }
+        void set_offset(size_t offset) { offset_ = offset; }
+        [[nodiscard]] auto offset() const -> size_t { return offset_; }
+
+      private:
+        size_t offset_ : 56 = 0;
+        TruthConclusion conclusion_truth_ : 7 = TruthConclusion::unknown;
+        size_t premise_is_fact_ : 1;
     };
     // we can use here that the number of local variables is fixed
     using ElemMap = Util::ordered_map<Symbol const *, ElemState, Util::SpanHash, Util::SpanEqualTo>;
 
     struct AtomState {
-        bool is_fact = false;
-        size_t num_blocked = 0;
-        size_t lit_index_ = 0;
-        std::vector<size_t> elems;
+      public:
+        AtomState() = default;
+        void add_elem(size_t index) { elems_.emplace_back(index); }
+        [[nodiscard]] auto enqueue(ElemMap const &elems) -> bool {
+            if (!enqueued_ && !propagated_ && !elems.nth(elems_propagated_).value().is_blocked()) {
+                enqueued_ = true;
+                return true;
+            }
+            return false;
+        }
+
+        [[nodiscard]] auto offset() const -> size_t { return offset_; }
+
+      private:
+        std::vector<size_t> elems_;
+        size_t offset_ = 0;
+        size_t elems_propagated_ = 0;
+        bool propagated_ = false;
+        bool enqueued_ = false;
     };
     // we can use here that the number of global variables is fixed
     using AtomMap = Util::ordered_map<Symbol const *, AtomState, Util::SpanHash, Util::SpanEqualTo>;
@@ -93,6 +133,13 @@ struct BaseCondLit {
     struct BasePremise {
         BasePremise(ElemMap &elems) : elems_{&elems} {}
 
+        //! Add a blocked element to the base.
+        void add(ElemMap::iterator it) {
+            assert(it.value().is_blocked());
+            it.value().set_offset(base_.size());
+            base_.emplace_back(std::distance(elems_->begin(), it));
+        }
+
         //! Get the index of the first atom in the given generation.
         auto begin(MatcherType type) const -> size_t { return counts_.begin(type); }
 
@@ -101,21 +148,22 @@ struct BaseCondLit {
 
         //! Check if the base contains the given atom with in the given generation.
         [[nodiscard]] auto contains(Symbol const *sym, MatcherType type) const -> bool {
-            auto index = static_cast<size_t>(std::distance(elems_->begin(), elems_->find(sym)));
+            auto index = elems_->find(sym)->second.offset();
             return counts_.contains(index, type);
         }
 
         //! Get the n-th atom in the base.
-        auto nth(size_t i) const -> ElemMap::const_iterator { return elems_->nth(i); }
+        auto nth(size_t i) const -> ElemMap::const_iterator { return elems_->nth(base_[i]); }
 
         //! Get the n-th atom in the base.
-        auto nth(size_t i) -> ElemMap::iterator { return elems_->nth(i); }
+        auto nth(size_t i) -> ElemMap::iterator { return elems_->nth(base_[i]); }
 
         //! Update the generation counts.
         void update(size_t generation) const { counts_.update(generation, elems_->size()); }
 
       private:
         ElemMap *elems_;
+        std::vector<size_t> base_;
         std::unique_ptr<BaseContext> context_;
         GenerationCounts mutable counts_;
     };
@@ -131,7 +179,7 @@ struct BaseCondLit {
 
         //! Check if the base contains the given atom with in the given generation.
         [[nodiscard]] auto contains(Symbol const *sym, MatcherType type) const -> bool {
-            auto index = atoms_->find(sym)->second.lit_index_;
+            auto index = atoms_->find(sym)->second.offset();
             return counts_.contains(index, type);
         }
 
@@ -155,7 +203,9 @@ struct BaseCondLit {
         : local_{std::move(local)}, global_{std::move(global)}, syms_elems_{local_.size() + 1},
           syms_atoms_{global_.size()}, atoms_{0, Util::SpanHash{global_.size()}, Util::SpanEqualTo{global_.size()}},
           elems_{0, Util::SpanHash{local_.size() + 1}, Util::SpanEqualTo{local_.size() + 1}}, base_empty_{atoms_},
-          base_premise_{elems_}, base_lit_{atoms_}, index_{index} {}
+          base_premise_{elems_}, base_lit_{atoms_}, index_{index} {
+        temp_syms_.reserve(std::max(global_.size(), local_.size() + 1));
+    }
 
     //! Get the variables occuring in the conditional literal.
     void vars(VariableSet &res, bool all) const {
@@ -188,37 +238,61 @@ struct BaseCondLit {
     }
 
     //! Add a new cond lit element.
-    void add_premise(Assignment const &ass) {
+    void add_premise(Assignment const &ass, bool fact) {
         // TODO:
-        // - set is_fact
-        // - block element if is fact
-        // - can unblock conclusions right away if the conclusion is stratified
-        std::vector<Symbol> syms_atom;
-        syms_atom.reserve(global_.size());
-        for (auto var : global_) {
+        // - if the conclusion is fixed to false, set the truth member accordingly
+        auto it = find_atom(ass);
+        auto syms_elem = syms_elems_.push_imap([this, it, &ass](size_t i) {
+            if (i == 0) {
+                return Symbol::from_rep(std::distance(atoms_.begin(), it));
+            }
             // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-            syms_atom.emplace_back(ass[var].value());
-        }
-        auto it = atoms_.find(syms_atom.data());
-        std::vector<Symbol> syms_elem;
-        syms_elem.reserve(local_.size() + 1);
-        syms_elem.emplace_back(Symbol::from_rep(std::distance(atoms_.begin(), it)));
-        for (auto var : local_) {
-            // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-            syms_elem.emplace_back(ass[var].value());
-        }
-        if (auto [jt, ins] = elems_.try_emplace(syms_elem.data()); ins) {
-            it.value().elems.emplace_back(std::distance(elems_.begin(), jt));
-        } else {
-            syms_elems_.pop();
+            return ass[global_[i - 1]].value();
+        });
+
+        auto [jt, ins] = elems_.try_emplace(syms_elem.data(), fact);
+        // an element can only be added once
+        assert(ins);
+
+        auto &atom = it.value();
+        auto &elem = jt.value();
+
+        // TODO:
+        // - in the stratified case, unblock the element right away if the premise is true and the conclusion is not
+        // false
+        // - if the conclusion is false, mark the element and do not add it to the base because it cannot become true
+
+        atom.add_elem(std::distance(elems_.begin(), jt));
+        if (elem.is_blocked()) {
+            base_premise_.add(jt);
+        } else if (atom.enqueue(elems_)) {
+            propagate_.emplace_back(std::distance(atoms_.begin(), it));
         }
     }
-    void add_conclusion(Assignment const &ass) {
+
+    //! Add a conclusion to an element.
+    void add_conclusion(Assignment const &ass, bool fact) {
+        auto it = find_atom(ass);
+        auto jt = find_elem(ass, it);
+        auto &atom = it.value();
+        auto &elem = jt.value();
+        elem.mark_conclusion(fact);
+        if (atom.enqueue(elems_)) {
+            propagate_.emplace_back(std::distance(atoms_.begin(), it));
+        }
+    }
+
+    //! Propagate enqueued conditional literals whose elements are not blocked.
+    void propagate() {
         // TODO:
-        // - unblock elements
-        static_cast<void>(ass);
+        // - loop over atoms in propagate_
+        // - loop over elements in atoms that have not been propagated yet
+        // - find the first blocked atom
+        //   - if there is such an atom, continue with the next atom
+        //   - otherwise, add the atom to the literal base
         static_cast<void>(this);
     }
+
     /*
     // Base interface
     //! Get the number of atoms in the base.
@@ -312,12 +386,33 @@ struct BaseCondLit {
     */
 
   private:
+    [[nodiscard]] auto find_atom(Assignment const &ass) -> AtomMap::iterator {
+        temp_syms_.clear();
+        for (auto var : global_) {
+            // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+            temp_syms_.emplace_back(ass[var].value());
+        }
+        return atoms_.find(temp_syms_.data());
+    }
+
+    [[nodiscard]] auto find_elem(Assignment const &ass, AtomMap::iterator it) -> ElemMap::iterator {
+        temp_syms_.clear();
+        temp_syms_.emplace_back(Symbol::from_rep(std::distance(atoms_.begin(), it)));
+        for (auto var : global_) {
+            // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+            temp_syms_.emplace_back(ass[var].value());
+        }
+        return elems_.find(temp_syms_.data());
+    }
+
     VariableVec local_;
     VariableVec global_;
+    std::vector<Symbol> temp_syms_;
     Util::SpanStack<Symbol> syms_elems_;
     Util::SpanStack<Symbol> syms_atoms_;
     AtomMap atoms_;
     ElemMap elems_;
+    std::vector<size_t> propagate_;
     BaseEmpty base_empty_;
     BasePremise base_premise_;
     BaseLit base_lit_;
