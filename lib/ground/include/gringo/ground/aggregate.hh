@@ -2,6 +2,7 @@
 
 #include <gringo/ground/statement.hh>
 
+#include <gringo/util/enumerate.hh>
 #include <gringo/util/span_stack.hh>
 
 namespace Gringo::Ground {
@@ -258,12 +259,12 @@ struct BaseCondLit {
         // TODO:
         // - if the conclusion is fixed to false, set the truth member accordingly
         auto it = find_atom(ass);
-        auto syms_elem = syms_elems_.push_imap([this, it, &ass](size_t i) {
+        auto syms_elem = syms_elems_.push_map(Util::enumerate{local_.size() + 1}, [this, it, &ass](size_t i) {
             if (i == 0) {
                 return Symbol::from_rep(std::distance(atoms_.begin(), it));
             }
             // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-            return ass[global_[i - 1]].value();
+            return ass[local_[i - 1]].value();
         });
 
         auto [jt, ins] = elems_.try_emplace(syms_elem.data(), fact);
