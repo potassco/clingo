@@ -7,6 +7,26 @@
 
 namespace Gringo::Ground {
 
+template <class Base>
+concept IsBase = requires(Base &b) {
+    b.begin(std::declval<MatcherType>());
+    b.end(std::declval<MatcherType>());
+    b.contains(std::declval<typename Base::Key>(), std::declval<MatcherType>());
+    { b.nth(std::declval<size_t>())->first } -> std::same_as<typename Base::Key const &>;
+    b.update(size_t{0});
+    { b.template context<int>() } -> std::same_as<int &>;
+} && requires(Base const &b) {
+    { b.nth(std::declval<size_t>())->first } -> std::same_as<typename Base::Key const &>;
+};
+
+template <class Match>
+concept IsMatch = requires(Match const &m) {
+    m.match(std::declval<SymbolStore &>(), std::declval<typename Match::Key>(), std::declval<Assignment &>());
+    m.eval(std::declval<SymbolStore &>(), std::declval<Assignment &>());
+    m.signature(std::declval<VariableSet const &>(), std::declval<VariableSet const &>());
+    std::declval<std::ostream &>() << m;
+};
+
 // TODO:
 // maybe rename to state
 // map local symbols -> to state
@@ -111,6 +131,8 @@ struct BaseCondLit {
 
     class BaseEmpty {
       public:
+        using Key = Symbol const *;
+
         BaseEmpty(AtomMap &atoms) : atoms_{&atoms} {}
 
         //! Get the index of the first atom in the given generation.
@@ -134,14 +156,76 @@ struct BaseCondLit {
         //! Update the generation counts.
         void update(size_t generation) const { counts_.update(generation, atoms_->size()); }
 
+        template <class T> auto context() -> T & {
+            if (context_ != nullptr) {
+                if (auto res = dynamic_cast<T *>(context_.get()); res != nullptr) {
+                    return *res;
+                }
+                throw std::bad_cast();
+            }
+            context_ = std::make_unique<T>();
+            return static_cast<T &>(*context_);
+        }
+
       private:
-        // TODO: derived and unknown atoms might have to be distinguished
         AtomMap *atoms_;
         std::unique_ptr<BaseContext> context_;
         GenerationCounts mutable counts_;
     };
 
-    struct BasePremise {
+    class MatchEmpty {
+      public:
+        using Key = Symbol const *;
+
+        MatchEmpty(VariableVec &global) : global_{&global} { eval_.reserve(global_->size()); }
+        [[nodiscard]] auto match([[maybe_unused]] SymbolStore &store, Symbol const *sym,
+                                 Assignment &ass) const -> bool {
+            for (auto const &var : *global_) {
+                if (auto &opt = ass[var]; opt) {
+                    if (*opt != *sym) {
+                        return false;
+                    }
+                } else {
+                    ass[var] = *sym;
+                }
+                ++sym; // NOLINT
+            }
+            return true;
+        };
+
+        [[nodiscard]] auto eval([[maybe_unused]] SymbolStore &store,
+                                Assignment &ass) const -> std::optional<Symbol const *> {
+            eval_.clear();
+            for (auto var : *global_) {
+                // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+                eval_.emplace_back(ass[var].value());
+            }
+            return eval_.data();
+        };
+
+        [[nodiscard]] auto signature(VariableSet const &bound,
+                                     [[maybe_unused]] VariableSet const &bind) const -> VariableVec {
+            static_cast<void>(this);
+            return {bound.begin(), bound.end()};
+        };
+
+        friend auto operator<<(std::ostream &out, MatchEmpty const &m) -> std::ostream & {
+            static_cast<void>(m);
+            out << "#cond_lit(empty";
+            for (auto var : *m.global_) {
+                out << ",X_" << var;
+            }
+            out << ")";
+            return out;
+        }
+
+      private:
+        std::vector<Symbol> mutable eval_;
+        VariableVec *global_;
+    };
+
+    class BasePremise {
+      public:
         BasePremise(ElemMap &elems) : elems_{&elems} {}
 
         //! Add a blocked element to the base.
@@ -179,7 +263,8 @@ struct BaseCondLit {
         GenerationCounts mutable counts_;
     };
 
-    struct BaseLit {
+    class BaseLit {
+      public:
         BaseLit(AtomMap &atoms) : atoms_{&atoms} {}
 
         //! Add a propagated atom to the base.
@@ -239,6 +324,10 @@ struct BaseCondLit {
         vars(res, all);
         return res;
     }
+
+    auto vars_global() const -> VariableVec const & { return global_; }
+
+    auto vars_local() const -> VariableVec const & { return local_; }
 
     //! Get the update index of the conditional literal.
     [[nodiscard]] auto index() const -> size_t { return index_; }
@@ -313,6 +402,10 @@ struct BaseCondLit {
         propagate_.clear();
         return res;
     }
+
+    auto base_empty() -> BaseEmpty & { return base_empty_; }
+
+    auto match_empty() const -> MatchEmpty const & { return match_empty_; }
 
     /*
     // Base interface
@@ -428,6 +521,7 @@ struct BaseCondLit {
 
     VariableVec local_;
     VariableVec global_;
+    MatchEmpty match_empty_ = MatchEmpty{global_};
     std::vector<Symbol> temp_syms_;
     Util::SpanStack<Symbol> syms_elems_;
     Util::SpanStack<Symbol> syms_atoms_;

@@ -46,7 +46,7 @@ template <class T> class index_sequence {
         return size();
     }
     //! Get the number of indices in the sequence.
-    [[nodiscard]] auto size() const -> size_t { return std::get<1>(values_.back()); }
+    [[nodiscard]] auto size() const -> size_t { return empty() ? 0 : std::get<1>(values_.back()); }
     //! Check whether the sequence is empty.
     [[nodiscard]] auto empty() const -> bool { return values_.empty(); }
 
