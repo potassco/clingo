@@ -21,7 +21,7 @@ auto LitInterval::copy() const -> ULit {
     return std::make_unique<LitInterval>(lhs_->copy(), lower_->copy(), upper_->copy());
 }
 
-auto LitInterval::domain([[maybe_unused]] bool domain) const -> bool { return true; }
+auto LitInterval::domain() const -> bool { return true; }
 
 auto LitInterval::recursive() const -> bool { return false; }
 
@@ -109,7 +109,7 @@ auto LitComparison::output(SymbolStore &store, Assignment const &ass, std::ostre
 
 auto LitComparison::copy() const -> ULit { return std::make_unique<LitComparison>(lhs_->copy(), cmp_, rhs_->copy()); }
 
-auto LitComparison::domain([[maybe_unused]] bool domain) const -> bool { return true; }
+auto LitComparison::domain() const -> bool { return true; }
 
 auto LitComparison::recursive() const -> bool { return false; }
 
@@ -186,7 +186,7 @@ void LitFactCheck::vars(VariableSet &vars, VarSelectMode mode) const {
     }
 }
 
-auto LitFactCheck::domain([[maybe_unused]] bool domain) const -> bool { return true; }
+auto LitFactCheck::domain() const -> bool { return true; }
 
 auto LitFactCheck::recursive() const -> bool { return false; }
 
@@ -226,7 +226,7 @@ auto LitFactCheck::compare_to(Lit const &other) const -> std::weak_ordering {
 
 void LitSymbolic::print(std::ostream &out) const {
     out << sign_ << *atom_;
-    if (index_ != std::numeric_limits<size_t>::max()) {
+    if (index_ != stratified_index) {
         out << "[" << index_ << "]";
     }
 }
@@ -235,7 +235,7 @@ auto LitSymbolic::output(SymbolStore &store, Assignment const &ass, std::ostream
     if (auto sym = atom_->eval(store, ass)) {
         out << sign_ << *sym;
         if (sign_ == Sign::once) {
-            return index_ != std::numeric_limits<size_t>::max() || base_->contains(*sym);
+            return index_ != stratified_index || base_->contains(*sym);
         }
         return !base_->is_fact(*sym);
     }
@@ -245,23 +245,11 @@ auto LitSymbolic::output(SymbolStore &store, Assignment const &ass, std::ostream
 
 auto LitSymbolic::copy() const -> ULit { return std::make_unique<LitSymbolic>(*base_, sign_, atom_->copy(), index_); }
 
-auto LitSymbolic::domain(bool domain) const -> bool {
-    // check if the base of the literal is domain
-    if (!base_->domain()) {
-        return false;
-    }
-    // stratifed literals with a domain base can be completely evaluated
-    if (index_ == std::numeric_limits<size_t>::max()) {
-        return true;
-    }
-    // return true if the literal is in a domain component
-    // noting that a domain component cannot contain negative literals
-    return domain;
+auto LitSymbolic::domain() const -> bool {
+    return (sign_ == Sign::none || index_ == stratified_index) && base_->domain();
 }
 
-auto LitSymbolic::recursive() const -> bool {
-    return sign_ == Sign::none && index_ != std::numeric_limits<size_t>::max();
-}
+auto LitSymbolic::recursive() const -> bool { return sign_ == Sign::none && index_ != stratified_index; }
 
 void LitSymbolic::vars(VariableSet &vars, VarSelectMode mode) const {
     switch (mode) {
@@ -270,13 +258,13 @@ void LitSymbolic::vars(VariableSet &vars, VarSelectMode mode) const {
             break;
         }
         case VarSelectMode::provide: {
-            if (sign_ == Sign::none || (sign_ == Sign::twice && index_ == std::numeric_limits<size_t>::max())) {
+            if (sign_ == Sign::none || (sign_ == Sign::twice && index_ == stratified_index)) {
                 atom_->vars(vars);
             }
             break;
         }
         case VarSelectMode::depend: {
-            if (sign_ == Sign::once || (sign_ == Sign::twice && index_ != std::numeric_limits<size_t>::max())) {
+            if (sign_ == Sign::once || (sign_ == Sign::twice && index_ != stratified_index)) {
                 atom_->vars(vars);
             }
             break;
@@ -289,12 +277,12 @@ auto LitSymbolic::matcher(MatcherType type,
     if (sign_ == Sign::once) {
         return {make_non_fact_matcher(*base_, *atom_), std::nullopt};
     }
-    if (sign_ == Sign::twice && index_ != std::numeric_limits<size_t>::max()) {
+    if (sign_ == Sign::twice && index_ != stratified_index) {
         return {make_once_matcher(), std::nullopt};
     }
 
     auto index = std::optional<size_t>{};
-    if (index_ != std::numeric_limits<size_t>::max() && type == MatcherType::new_atoms) {
+    if (index_ != stratified_index && type == MatcherType::new_atoms) {
         index = index_;
     }
     return {make_atom_matcher(bound, *base_, *atom_, type), index};
@@ -350,7 +338,7 @@ void LitProject::State::init(SymbolStore &store, size_t gen) {
 
 void LitProject::print(std::ostream &out) const {
     out << sign_ << *atom_;
-    if (index_ != std::numeric_limits<size_t>::max()) {
+    if (index_ != stratified_index) {
         out << "[" << index_ << "]";
     }
 }
@@ -361,7 +349,7 @@ auto LitProject::output(SymbolStore &store, Assignment const &ass, std::ostream 
             out << sign_ << *sym;
         }
         if (sign_ == Sign::once) {
-            return index_ != std::numeric_limits<size_t>::max() || state_->p_base().contains(*p_sym);
+            return index_ != stratified_index || state_->p_base().contains(*p_sym);
         }
         return !state_->p_base().is_fact(*p_sym);
     }
@@ -373,26 +361,11 @@ auto LitProject::copy() const -> ULit {
     return std::make_unique<LitProject>(*state_, sign_, atom_->copy(), p_atom_->copy(), index_);
 }
 
-auto LitProject::domain(bool domain) const -> bool {
-    // check if the base of the literal is domain
-    // Note: This check could be stronger in principle. However, this would
-    // require to import the base into the p_base at this point. Hence, we only
-    // use an approximation here. The test should work well in practice
-    if (!state_->base().domain()) {
-        return false;
-    }
-    // stratifed literals with a domain base can be completely evaluated
-    if (index_ == std::numeric_limits<size_t>::max()) {
-        return true;
-    }
-    // return true if the literal is in a domain component
-    // noting that a domain component cannot contain negative literals
-    return domain;
+auto LitProject::domain() const -> bool {
+    return (sign_ == Sign::none || index_ == stratified_index) && state_->base().domain();
 }
 
-auto LitProject::recursive() const -> bool {
-    return sign_ == Sign::none && index_ != std::numeric_limits<size_t>::max();
-}
+auto LitProject::recursive() const -> bool { return sign_ == Sign::none && index_ != stratified_index; }
 
 void LitProject::vars(VariableSet &vars, VarSelectMode mode) const {
     switch (mode) {
@@ -401,13 +374,13 @@ void LitProject::vars(VariableSet &vars, VarSelectMode mode) const {
             break;
         }
         case VarSelectMode::provide: {
-            if (sign_ == Sign::none || (sign_ == Sign::twice && index_ == std::numeric_limits<size_t>::max())) {
+            if (sign_ == Sign::none || (sign_ == Sign::twice && index_ == stratified_index)) {
                 atom_->vars(vars);
             }
             break;
         }
         case VarSelectMode::depend: {
-            if (sign_ == Sign::once || (sign_ == Sign::twice && index_ != std::numeric_limits<size_t>::max())) {
+            if (sign_ == Sign::once || (sign_ == Sign::twice && index_ != stratified_index)) {
                 atom_->vars(vars);
             }
             break;
@@ -438,11 +411,11 @@ auto LitProject::matcher(MatcherType type,
     if (sign_ == Sign::once) {
         return {m(make_non_fact_matcher(state_->p_base(), *p_atom_)), std::nullopt};
     }
-    if (sign_ == Sign::twice && index_ != std::numeric_limits<size_t>::max()) {
+    if (sign_ == Sign::twice && index_ != stratified_index) {
         return {m(make_once_matcher()), std::nullopt};
     }
     auto index = std::optional<size_t>{};
-    if (index_ != std::numeric_limits<size_t>::max() && type == MatcherType::new_atoms) {
+    if (index_ != stratified_index && type == MatcherType::new_atoms) {
         index = index_;
     }
     return {m(make_atom_matcher(bound, state_->p_base(), *p_atom_, type)), index};

@@ -26,19 +26,17 @@ class Lit {
 
     //! Get the variables in the predicate.
     virtual void vars(VariableSet &vars, VarSelectMode mode) const = 0;
-    //! Returns true if the literal is domain.
+    //! Check that all elements in the base of the literal are domain.
     //!
-    //! A literal is considered domain if
-    //! - it's base does not contain a non-domain value, and
-    //!   - it occurs in a domain component, or
-    //!   - it is stratified
-    [[nodiscard]] virtual auto domain(bool domain) const -> bool = 0;
+    //! Does not return true for incomplete negative literals.
+    [[nodiscard]] virtual auto domain() const -> bool = 0;
     //! Returns true if the literal is recursive.
     //!
     //! Recursive literals give rise to components that need more than one grounding pass.
     //! For example, incomplete positive symbolic literals are considered recursive.
     //! However, incomplete negative literals are not considered recursive.
     [[nodiscard]] virtual auto recursive() const -> bool { return false; }
+    //! Returns true if the base of the literal is complete at the time of grounding.
     [[nodiscard]] virtual auto
     matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> = 0;
     [[nodiscard]] virtual auto score(std::vector<bool> const &bound) const -> double = 0;
@@ -67,7 +65,7 @@ class LitComparison : public Lit {
     LitComparison(UTerm lhs, Relation cmp, UTerm rhs) : lhs_{std::move(lhs)}, rhs_{std::move(rhs)}, cmp_{cmp} {}
 
     void vars(VariableSet &vars, VarSelectMode mode) const override;
-    [[nodiscard]] auto domain(bool domain) const -> bool override;
+    [[nodiscard]] auto domain() const -> bool override;
     [[nodiscard]] auto recursive() const -> bool override;
     [[nodiscard]] auto matcher(MatcherType type,
                                std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
@@ -94,7 +92,7 @@ class LitInterval : public Lit {
         : lhs_{std::move(lhs)}, lower_{std::move(lower)}, upper_{std::move(upper)} {}
 
     void vars(VariableSet &vars, VarSelectMode mode) const override;
-    [[nodiscard]] auto domain(bool domain) const -> bool override;
+    [[nodiscard]] auto domain() const -> bool override;
     [[nodiscard]] auto recursive() const -> bool override;
     [[nodiscard]] auto matcher(MatcherType type,
                                std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
@@ -125,7 +123,7 @@ class LitFactCheck : public Lit {
     LitFactCheck(Base &base, Term const &atom) : base_{&base}, atom_{&atom} {}
 
     void vars(VariableSet &vars, VarSelectMode mode) const override;
-    [[nodiscard]] auto domain(bool domain) const -> bool override;
+    [[nodiscard]] auto domain() const -> bool override;
     [[nodiscard]] auto recursive() const -> bool override;
     [[nodiscard]] auto matcher(MatcherType type,
                                std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
@@ -151,7 +149,7 @@ class LitSymbolic : public Lit {
         : base_{&base}, atom_{std::move(atom)}, sign_{sign}, index_{index} {}
 
     void vars(VariableSet &vars, VarSelectMode mode) const override;
-    [[nodiscard]] auto domain(bool domain) const -> bool override;
+    [[nodiscard]] auto domain() const -> bool override;
     [[nodiscard]] auto recursive() const -> bool override;
     [[nodiscard]] auto matcher(MatcherType type,
                                std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
@@ -205,7 +203,7 @@ class LitProject : public Lit {
         : state_{&state}, atom_{std::move(atom)}, p_atom_{std::move(p_atom)}, index_{index}, sign_{sign} {}
 
     void vars(VariableSet &vars, VarSelectMode mode) const override;
-    [[nodiscard]] auto domain(bool domain) const -> bool override;
+    [[nodiscard]] auto domain() const -> bool override;
     [[nodiscard]] auto recursive() const -> bool override;
     [[nodiscard]] auto matcher(MatcherType type,
                                std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;

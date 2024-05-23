@@ -27,7 +27,7 @@ void Linearizer::prepare(Stm &stm) {
         if (lit->recursive()) {
             rec_.emplace_back(i);
         }
-        if (!lit->domain(domain_)) {
+        if (!lit->domain() || (!domain_ && lit->recursive())) {
             lit->vars(important, VarSelectMode::all);
         }
         ++i;

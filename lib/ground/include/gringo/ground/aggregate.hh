@@ -409,51 +409,6 @@ struct BaseCondLit {
 
     /*
     // Base interface
-    //! Get the number of atoms in the base.
-    [[nodiscard]] auto size() const { return atoms_.size(); }
-
-    //! Check if the base is domain.
-    //!
-    //! A base is domain if it contains facts only.
-    [[nodiscard]] auto domain() const {
-        for (auto n = atoms_.size(); domain_offset_ < n; ++domain_offset_) {
-            if (!atoms_.nth(domain_offset_)->second.is_fact) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    //! Add an atom to the base.
-    auto add(Symbol atom, AtomState state) -> AtomUpdate {
-        // turning a delayed atom into an active one is tricky
-        // suppose p(2) below has been inserted as delayed on a previous generation
-        //   p(1) *p(2) p(3)
-        // It now has to be added as active and should also become part of the new generation.
-        // The easiest way to implement this is to delay inserting into atoms_ adding it to a separate set first.
-        //   active:  p(1) p(3)
-        //   delayed: p(2)
-        // Downside: each insertion has to check the delayed set first (which should however be empty in most cases).
-        if (auto [it, ins] = atoms_.try_emplace(atom, 0, state); !ins) {
-            if (state < it->second.state) {
-                // note transitions from external to unknown are ignored
-                // because there is no additional information for grounding
-                auto prev = it.value().state;
-                it.value().state = state;
-                if (prev == AtomState::derived) {
-                    return AtomUpdate::added;
-                }
-                if (state == AtomState::fact) {
-                    return AtomUpdate::changed;
-                }
-            }
-            return AtomUpdate::unchanged;
-        }
-        return AtomUpdate::added;
-    }
-
-    //! Return a span with all atoms in the base.
-    auto atoms() const -> std::span<Atom const> { return {atoms_.values_container().data(), all_offset_}; }
     //! Check if the base contains at least one atom from the all generation.
     auto has_update() const -> bool { return atoms_.size() > all_offset_; }
     //! Check if the base contains the given atom.
@@ -546,7 +501,7 @@ class LitCondLit : public Lit {
   public:
     LitCondLit(LitCondLitType type, BaseCondLit &base, size_t index) : base_{&base}, index_{index}, type_{type} {}
     void vars(VariableSet &vars, VarSelectMode mode) const override;
-    [[nodiscard]] auto domain(bool domain) const -> bool override;
+    [[nodiscard]] auto domain() const -> bool override;
     [[nodiscard]] auto recursive() const -> bool override;
     [[nodiscard]] auto matcher(MatcherType type,
                                std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;

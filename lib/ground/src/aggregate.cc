@@ -362,15 +362,12 @@ void LitCondLit::vars(VariableSet &vars, VarSelectMode mode) const {
     }
 }
 
-auto LitCondLit::domain(bool domain) const -> bool {
-    std::cerr << "TODO: cond lit " << type_ << " check if premise and conclusion are domain\n";
-    return domain;
+auto LitCondLit::domain() const -> bool {
+    // We can return true here because a cond lit domain is empty upon an incremental step.
+    return true;
 }
 
-auto LitCondLit::recursive() const -> bool {
-    std::cerr << "TODO: cond lit " << type_ << " check if recursive via some index\n";
-    return false;
-}
+auto LitCondLit::recursive() const -> bool { return index_ != stratified_index; }
 
 auto LitCondLit::matcher(MatcherType type,
                          std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
@@ -410,7 +407,9 @@ auto LitCondLit::output(SymbolStore &store, Assignment const &ass, std::ostream 
     static_cast<void>(store);
     static_cast<void>(ass);
     static_cast<void>(out);
-    std::cerr << "TODO: cond lit " << type_ << " output something\n";
+    if (type_ == LitCondLitType::lit) {
+        std::cerr << "TODO: cond lit " << type_ << " output something\n";
+    }
     return false;
 }
 
@@ -476,13 +475,17 @@ auto StmCondLit::body() const -> ULitVec const & { return body_; }
 
 auto StmCondLit::important() const -> VariableSet { return base_->vars(type_ != StmCondLitType::empty); }
 
-void StmCondLit::init(size_t gen) { std::cerr << "init cond lit " << type_ << "with generation: " << gen << "\n"; }
-
-void StmCondLit::report([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment const &ass) {
-    std::cerr << "report cond lit " << type_ << "\n";
+void StmCondLit::init([[maybe_unused]] size_t gen) {
+    // by construction, this statement does not increment the generation
 }
 
-void StmCondLit::propagate([[maybe_unused]] Queue &queue) { std::cerr << "propagate cond lit " << type_ << "\n"; }
+void StmCondLit::report([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment const &ass) {}
+
+void StmCondLit::propagate([[maybe_unused]] Queue &queue) {
+    if (type_ == StmCondLitType::empty) {
+    }
+    std::cerr << "propagate cond lit " << type_ << "\n";
+}
 
 auto StmCondLit::priority() const -> size_t { return prio_; }
 

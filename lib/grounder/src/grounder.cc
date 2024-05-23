@@ -595,7 +595,7 @@ class Builder : public Input::DependencyBuilder {
                     }
                     for (auto const &stm : gcomp.stms()) {
                         for (auto const &lit : stm->body()) {
-                            if (!lit->domain(true)) {
+                            if (!lit->domain()) {
                                 return false;
                             }
                         }
