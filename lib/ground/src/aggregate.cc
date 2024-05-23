@@ -309,9 +309,8 @@ template <IsBase Base, class Sig> class IndexSet : public BaseContext {
 
 template <IsBase Base, IsMatch Match>
 auto make_atom_matcher(std::vector<bool> const &bound, Base &base, Match const &atom, MatcherType type) -> UMatcher {
-    VariableSet bind;
+    VariableSet bind = atom.vars();
     VariableSet lookup;
-    // atom.vars(bind);
     erase_if(bind, [&bound, &lookup](auto const &var) {
         if (bound[var]) {
             lookup.insert(var);
@@ -389,11 +388,13 @@ auto LitCondLit::score(std::vector<bool> const &bound) const -> double {
 void LitCondLit::print(std::ostream &out) const {
     out << "#cond_lit(" << type_;
     for (auto var : base_->vars_global()) {
-        out << "," << "X_" << var;
+        out << ","
+            << "X_" << var;
     }
     if (type_ != LitCondLitType::empty && type_ != LitCondLitType::lit) {
         for (auto var : base_->vars_local()) {
-            out << "," << "X_" << var;
+            out << ","
+                << "X_" << var;
         }
     }
     out << ")";
@@ -451,11 +452,13 @@ auto operator<<(std::ostream &out, StmCondLitType type) -> std::ostream & {
 void StmCondLit::print_head(std::ostream &out) const {
     out << "#cond_lit(" << type_;
     for (auto var : base_->vars_global()) {
-        out << "," << "X_" << var;
+        out << ","
+            << "X_" << var;
     }
     if (type_ != StmCondLitType::empty) {
         for (auto var : base_->vars_local()) {
-            out << "," << "X_" << var;
+            out << ","
+                << "X_" << var;
         }
     }
     out << ")";

@@ -21,6 +21,7 @@ concept IsBase = requires(Base &b) {
 
 template <class Match>
 concept IsMatch = requires(Match const &m) {
+    { m.vars() } -> std::same_as<VariableSet>;
     m.match(std::declval<SymbolStore &>(), std::declval<typename Match::Key>(), std::declval<Assignment &>());
     m.eval(std::declval<SymbolStore &>(), std::declval<Assignment &>());
     m.signature(std::declval<VariableSet const &>(), std::declval<VariableSet const &>());
@@ -177,10 +178,13 @@ struct BaseCondLit {
       public:
         using Key = Symbol const *;
 
-        MatchEmpty(VariableVec &global) : global_{&global} { eval_.reserve(global_->size()); }
+        MatchEmpty(BaseCondLit &base) : base_{&base} { eval_.reserve(base_->vars_global().size()); }
+
+        [[nodiscard]] auto vars() const -> VariableSet { return base_->vars(false); }
+
         [[nodiscard]] auto match([[maybe_unused]] SymbolStore &store, Symbol const *sym,
                                  Assignment &ass) const -> bool {
-            for (auto const &var : *global_) {
+            for (auto const &var : base_->vars_global()) {
                 if (auto &opt = ass[var]; opt) {
                     if (*opt != *sym) {
                         return false;
@@ -196,7 +200,7 @@ struct BaseCondLit {
         [[nodiscard]] auto eval([[maybe_unused]] SymbolStore &store,
                                 Assignment &ass) const -> std::optional<Symbol const *> {
             eval_.clear();
-            for (auto var : *global_) {
+            for (auto var : base_->vars_global()) {
                 // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
                 eval_.emplace_back(ass[var].value());
             }
@@ -211,7 +215,7 @@ struct BaseCondLit {
 
         friend auto operator<<(std::ostream &out, MatchEmpty const &m) -> std::ostream & {
             out << "#cond_lit(empty";
-            for (auto var : *m.global_) {
+            for (auto var : m.base_->vars_global()) {
                 out << ",X_" << var;
             }
             out << ")";
@@ -220,7 +224,7 @@ struct BaseCondLit {
 
       private:
         std::vector<Symbol> mutable eval_;
-        VariableVec *global_;
+        BaseCondLit *base_;
     };
 
     class BasePremise {
@@ -280,6 +284,9 @@ struct BaseCondLit {
         using Key = Symbol const *;
 
         MatchPremise(BaseCondLit &base) : base_{&base} { eval_.reserve(base_->global_.size()); }
+
+        [[nodiscard]] auto vars() const -> VariableSet { return base_->vars(true); }
+
         [[nodiscard]] auto match([[maybe_unused]] SymbolStore &store, Symbol const *sym,
                                  Assignment &ass) const -> bool {
             auto atom = base_->atoms_.nth(Symbol::to_rep(*sym++)); // NOLINT
@@ -423,6 +430,8 @@ struct BaseCondLit {
             eval_.emplace_back(Symbol::from_rep(std::distance(base_->atoms_.begin(), atom)));
             return eval_.data();
         };
+
+        [[nodiscard]] auto vars() const -> VariableSet { return base_->vars(false); }
 
         [[nodiscard]] auto signature(VariableSet const &bound,
                                      [[maybe_unused]] VariableSet const &bind) const -> VariableVec {
@@ -611,7 +620,7 @@ struct BaseCondLit {
 
     VariableVec local_;
     VariableVec global_;
-    MatchEmpty match_empty_ = MatchEmpty{global_};
+    MatchEmpty match_empty_ = MatchEmpty{*this};
     MatchPremise match_premise_ = MatchPremise{*this};
     MatchLit match_lit_ = MatchLit{*this};
     std::vector<Symbol> temp_syms_;
