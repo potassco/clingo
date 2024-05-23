@@ -210,7 +210,6 @@ struct BaseCondLit {
         };
 
         friend auto operator<<(std::ostream &out, MatchEmpty const &m) -> std::ostream & {
-            static_cast<void>(m);
             out << "#cond_lit(empty";
             for (auto var : *m.global_) {
                 out << ",X_" << var;
@@ -226,6 +225,8 @@ struct BaseCondLit {
 
     class BasePremise {
       public:
+        using Key = Symbol const *;
+
         BasePremise(ElemMap &elems) : elems_{&elems} {}
 
         //! Add a blocked element to the base.
@@ -256,6 +257,17 @@ struct BaseCondLit {
         //! Update the generation counts.
         void update(size_t generation) const { counts_.update(generation, elems_->size()); }
 
+        template <class T> auto context() -> T & {
+            if (context_ != nullptr) {
+                if (auto res = dynamic_cast<T *>(context_.get()); res != nullptr) {
+                    return *res;
+                }
+                throw std::bad_cast();
+            }
+            context_ = std::make_unique<T>();
+            return static_cast<T &>(*context_);
+        }
+
       private:
         ElemMap *elems_;
         std::vector<size_t> base_;
@@ -263,8 +275,78 @@ struct BaseCondLit {
         GenerationCounts mutable counts_;
     };
 
+    class MatchPremise {
+      public:
+        using Key = Symbol const *;
+
+        MatchPremise(BaseCondLit &base) : base_{&base} { eval_.reserve(base_->global_.size()); }
+        [[nodiscard]] auto match([[maybe_unused]] SymbolStore &store, Symbol const *sym,
+                                 Assignment &ass) const -> bool {
+            auto atom = base_->atoms_.nth(Symbol::to_rep(*sym++)); // NOLINT
+            auto const *gsym = atom->first;
+            for (auto var : base_->global_) {
+                if (auto &opt = ass[var]; opt) {
+                    if (*opt != *gsym) {
+                        return false;
+                    }
+                } else {
+                    ass[var] = *gsym;
+                }
+                ++gsym; // NOLINT
+            }
+            for (auto var : base_->local_) {
+                if (auto &opt = ass[var]; opt) {
+                    if (*opt != *sym) {
+                        return false;
+                    }
+                } else {
+                    ass[var] = *sym;
+                }
+                ++sym; // NOLINT
+            }
+            return true;
+        };
+
+        [[nodiscard]] auto eval([[maybe_unused]] SymbolStore &store,
+                                Assignment &ass) const -> std::optional<Symbol const *> {
+            auto atom = base_->find_atom(ass);
+            if (atom == base_->atoms_.end()) {
+                return std::nullopt;
+            }
+            eval_.emplace_back(Symbol::from_rep(std::distance(base_->atoms_.begin(), atom)));
+            for (auto var : base_->local_) {
+                eval_.emplace_back(ass[var].value()); // NOLINT
+            }
+            return eval_.data();
+        };
+
+        [[nodiscard]] auto signature(VariableSet const &bound,
+                                     [[maybe_unused]] VariableSet const &bind) const -> VariableVec {
+            static_cast<void>(this);
+            return {bound.begin(), bound.end()};
+        };
+
+        friend auto operator<<(std::ostream &out, MatchPremise const &m) -> std::ostream & {
+            out << "#cond_lit(premise";
+            for (auto var : m.base_->global_) {
+                out << ",X_" << var;
+            }
+            for (auto var : m.base_->local_) {
+                out << ",X_" << var;
+            }
+            out << ")";
+            return out;
+        }
+
+      private:
+        std::vector<Symbol> mutable eval_;
+        BaseCondLit *base_;
+    };
+
     class BaseLit {
       public:
+        using Key = Symbol const *;
+
         BaseLit(AtomMap &atoms) : atoms_{&atoms} {}
 
         //! Add a propagated atom to the base.
@@ -294,11 +376,72 @@ struct BaseCondLit {
         //! Update the generation counts.
         void update(size_t generation) const { counts_.update(generation, base_.size()); }
 
+        template <class T> auto context() -> T & {
+            if (context_ != nullptr) {
+                if (auto res = dynamic_cast<T *>(context_.get()); res != nullptr) {
+                    return *res;
+                }
+                throw std::bad_cast();
+            }
+            context_ = std::make_unique<T>();
+            return static_cast<T &>(*context_);
+        }
+
       private:
         AtomMap *atoms_;
         std::vector<size_t> base_;
         std::unique_ptr<BaseContext> context_;
         GenerationCounts mutable counts_;
+    };
+
+    class MatchLit {
+      public:
+        using Key = Symbol const *;
+
+        MatchLit(BaseCondLit &base) : base_{&base} { eval_.reserve(base_->global_.size()); }
+        [[nodiscard]] auto match([[maybe_unused]] SymbolStore &store, Symbol const *sym,
+                                 Assignment &ass) const -> bool {
+            for (auto var : base_->global_) {
+                if (auto &opt = ass[var]; opt) {
+                    if (*opt != *sym) {
+                        return false;
+                    }
+                } else {
+                    ass[var] = *sym;
+                }
+                ++sym; // NOLINT
+            }
+            return true;
+        };
+
+        [[nodiscard]] auto eval([[maybe_unused]] SymbolStore &store,
+                                Assignment &ass) const -> std::optional<Symbol const *> {
+            auto atom = base_->find_atom(ass);
+            if (atom == base_->atoms_.end()) {
+                return std::nullopt;
+            }
+            eval_.emplace_back(Symbol::from_rep(std::distance(base_->atoms_.begin(), atom)));
+            return eval_.data();
+        };
+
+        [[nodiscard]] auto signature(VariableSet const &bound,
+                                     [[maybe_unused]] VariableSet const &bind) const -> VariableVec {
+            static_cast<void>(this);
+            return {bound.begin(), bound.end()};
+        };
+
+        friend auto operator<<(std::ostream &out, MatchLit const &m) -> std::ostream & {
+            out << "#cond_lit(lit";
+            for (auto var : m.base_->global_) {
+                out << ",X_" << var;
+            }
+            out << ")";
+            return out;
+        }
+
+      private:
+        std::vector<Symbol> mutable eval_;
+        BaseCondLit *base_;
     };
 
     BaseCondLit(VariableVec local, VariableVec global, size_t index)
@@ -404,8 +547,12 @@ struct BaseCondLit {
     }
 
     auto base_empty() -> BaseEmpty & { return base_empty_; }
+    auto base_premise() -> BasePremise & { return base_premise_; }
+    auto base_lit() -> BaseLit & { return base_lit_; }
 
     auto match_empty() const -> MatchEmpty const & { return match_empty_; }
+    auto match_premise() const -> MatchPremise const & { return match_premise_; }
+    auto match_lit() const -> MatchLit const & { return match_lit_; }
 
     /*
     // Base interface
@@ -440,18 +587,6 @@ struct BaseCondLit {
         auto it = atoms_.find(sym);
         return it != atoms_.end() && it->second.state == AtomState::fact;
     }
-
-    //! Get the context of the base.
-    template <class T> auto context() -> T & {
-        if (context_ != nullptr) {
-            if (auto res = dynamic_cast<T *>(context_.get()); res != nullptr) {
-                return *res;
-            }
-            throw std::bad_cast();
-        }
-        context_ = std::make_unique<T>();
-        return static_cast<T &>(*context_);
-    }
     */
 
   private:
@@ -477,6 +612,8 @@ struct BaseCondLit {
     VariableVec local_;
     VariableVec global_;
     MatchEmpty match_empty_ = MatchEmpty{global_};
+    MatchPremise match_premise_ = MatchPremise{*this};
+    MatchLit match_lit_ = MatchLit{*this};
     std::vector<Symbol> temp_syms_;
     Util::SpanStack<Symbol> syms_elems_;
     Util::SpanStack<Symbol> syms_atoms_;
@@ -492,8 +629,7 @@ struct BaseCondLit {
 enum class LitCondLitType : uint8_t {
     empty = 0,
     premise = 1,
-    conclusion = 2,
-    lit = 4,
+    lit = 2,
 };
 auto operator<<(std::ostream &out, LitCondLitType type) -> std::ostream &;
 
@@ -535,6 +671,7 @@ class StmCondLit : public Stm {
     [[nodiscard]] auto body() const -> ULitVec const & override;
     [[nodiscard]] auto important() const -> VariableSet override;
     // solution callback interface
+    void print_head(std::ostream &out) const override;
     void init(size_t gen) override;
     void report(SymbolStore &store, Assignment const &ass) override;
     void propagate(Queue &queue) override;

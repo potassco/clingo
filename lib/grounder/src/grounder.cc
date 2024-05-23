@@ -455,6 +455,7 @@ class BuilderBdLit {
         auto vars_body = Ground::VariableSet{};
         body.reserve(ctx_->body->size());
         for (auto const &lit : *ctx_->body) {
+            lit->vars(vars_body, Ground::VarSelectMode::all);
             body.emplace_back(lit->copy());
         }
 

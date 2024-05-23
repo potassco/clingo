@@ -77,6 +77,8 @@ void Instantiator::instantiate(Logger &log, SymbolStore &store) {
     auto ib = matchers_.rbegin();
     it->match(store, ass_);
     GRINGO_REPORT(log, trace) << "instantiate: " << Util::p_fun{[this](std::ostream &out) {
+        icb_->print_head(out);
+        out << " <- ";
         out << Util::p_range(matchers_, "; ", [index = size_t{0}](std::ostream &out, auto const &matcher) mutable {
             matcher.print(out, index);
             ++index;

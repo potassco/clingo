@@ -39,7 +39,7 @@ template <class T> class index_sequence {
         // - locality could be improved
         // - reverse mapping could be stored
         for (auto const &[l, r, y] : values_) {
-            if (l + y <= x && r + y < x) {
+            if (l <= x - y && x - y < r) {
                 return x - y;
             }
         }

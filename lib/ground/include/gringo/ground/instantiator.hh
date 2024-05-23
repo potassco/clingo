@@ -46,6 +46,8 @@ class InstanceCallback {
     virtual void propagate(Queue &queue) = 0;
     //! The priority of the callback.
     [[nodiscard]] virtual auto priority() const -> size_t = 0;
+    //! Print representation for debugging.
+    virtual void print_head(std::ostream &out) const = 0;
 };
 
 //! An instantiator implementinig the basic grounding algorithm.

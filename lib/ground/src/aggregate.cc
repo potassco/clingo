@@ -344,10 +344,6 @@ auto operator<<(std::ostream &out, LitCondLitType type) -> std::ostream & {
             out << "premise";
             break;
         }
-        case LitCondLitType::conclusion: {
-            out << "conclusion";
-            break;
-        }
         case LitCondLitType::lit: {
             out << "condlit";
             break;
@@ -357,8 +353,8 @@ auto operator<<(std::ostream &out, LitCondLitType type) -> std::ostream & {
 }
 
 void LitCondLit::vars(VariableSet &vars, VarSelectMode mode) const {
-    if (mode != VarSelectMode::provide) {
-        base_->vars(vars, type_ != LitCondLitType::empty);
+    if (mode != VarSelectMode::depend) {
+        base_->vars(vars, type_ == LitCondLitType::premise);
     }
 }
 
@@ -375,11 +371,13 @@ auto LitCondLit::matcher(MatcherType type,
     if (index_ != std::numeric_limits<size_t>::max() && type == MatcherType::new_atoms) {
         index = index_;
     }
-    std::cerr << "TODO: ******* cond lit " << type_ << " matcher ******\n";
     if (type_ == LitCondLitType::empty) {
         return {make_atom_matcher(bound, base_->base_empty(), base_->match_empty(), type), index};
     }
-    throw std::runtime_error("cond lit: implement the other matchers");
+    if (type_ == LitCondLitType::premise) {
+        return {make_atom_matcher(bound, base_->base_premise(), base_->match_premise(), type), index};
+    }
+    return {make_atom_matcher(bound, base_->base_lit(), base_->match_lit(), type), index};
 }
 
 auto LitCondLit::score(std::vector<bool> const &bound) const -> double {
@@ -391,13 +389,11 @@ auto LitCondLit::score(std::vector<bool> const &bound) const -> double {
 void LitCondLit::print(std::ostream &out) const {
     out << "#cond_lit(" << type_;
     for (auto var : base_->vars_global()) {
-        out << ","
-            << "X_" << var;
+        out << "," << "X_" << var;
     }
     if (type_ != LitCondLitType::empty && type_ != LitCondLitType::lit) {
         for (auto var : base_->vars_local()) {
-            out << ","
-                << "X_" << var;
+            out << "," << "X_" << var;
         }
     }
     out << ")";
@@ -452,23 +448,24 @@ auto operator<<(std::ostream &out, StmCondLitType type) -> std::ostream & {
     return out;
 }
 
-void StmCondLit::print(std::ostream &out) const {
+void StmCondLit::print_head(std::ostream &out) const {
     out << "#cond_lit(" << type_;
     for (auto var : base_->vars_global()) {
-        out << ","
-            << "X_" << var;
+        out << "," << "X_" << var;
     }
     if (type_ != StmCondLitType::empty) {
         for (auto var : base_->vars_local()) {
-            out << ","
-                << "X_" << var;
+            out << "," << "X_" << var;
         }
     }
     out << ")";
     // if (!indices_.empty()) {
     //     out << "[" << Util::p_range(indices_, ",") << "]";
     // }
-    out << " :- " << Util::p_range(body_, ", ", [](std::ostream &out, auto const &lit) { out << *lit; }) << ".";
+}
+void StmCondLit::print(std::ostream &out) const {
+    print_head(out);
+    out << " <- " << Util::p_range(body_, ", ", [](std::ostream &out, auto const &lit) { out << *lit; }) << ".";
 }
 
 auto StmCondLit::body() const -> ULitVec const & { return body_; }

@@ -60,6 +60,7 @@ class StmRule : public Stm {
     [[nodiscard]] auto body() const -> ULitVec const & override;
     [[nodiscard]] auto important() const -> VariableSet override;
     // InstanceCallback interface
+    void print_head(std::ostream &out) const override;
     void init(size_t gen) override;
     void report(SymbolStore &store, Assignment const &ass) override;
     void propagate(Queue &queue) override;
