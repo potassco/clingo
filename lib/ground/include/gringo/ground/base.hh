@@ -73,6 +73,9 @@ class GenerationCounts {
         return begin(type) <= index && index < end(type);
     }
 
+    //! Check if there is an update.
+    [[nodiscard]] auto has_update(size_t size) const -> bool { return all_offset_ < size; }
+
     void update(size_t generation, size_t size) {
         // initialize the domain
         // (all atoms are marked as new)

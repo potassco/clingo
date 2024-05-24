@@ -379,33 +379,29 @@ auto LitCondLit::matcher(MatcherType type,
     return {make_atom_matcher(bound, base_->base_lit(), base_->match_lit(), type), index};
 }
 
-auto LitCondLit::score(std::vector<bool> const &bound) const -> double {
-    static_cast<void>(bound);
-    std::cerr << "TODO: cond lit " << type_ << " compute proper score or return something very small\n";
-    return 0;
-}
+auto LitCondLit::score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return 1; }
 
 void LitCondLit::print(std::ostream &out) const {
     out << "#cond_lit(" << type_;
     for (auto var : base_->vars_global()) {
-        out << ","
-            << "X_" << var;
+        out << "," << "X_" << var;
     }
     if (type_ != LitCondLitType::empty && type_ != LitCondLitType::lit) {
         for (auto var : base_->vars_local()) {
-            out << ","
-                << "X_" << var;
+            out << "," << "X_" << var;
         }
     }
     out << ")";
+    if (index_ != stratified_index) {
+        out << "[" << index_ << "]";
+    }
 }
 
-auto LitCondLit::output(SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool {
-    static_cast<void>(store);
-    static_cast<void>(ass);
-    static_cast<void>(out);
+auto LitCondLit::output([[maybe_unused]] SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool {
     if (type_ == LitCondLitType::lit) {
-        std::cerr << "TODO: cond lit " << type_ << " output something\n";
+        // TODO: fix once there is a proper output
+        out << "#cond_lit(TODO)";
+        return !base_->is_fact_lit(ass);
     }
     return false;
 }
@@ -452,19 +448,17 @@ auto operator<<(std::ostream &out, StmCondLitType type) -> std::ostream & {
 void StmCondLit::print_head(std::ostream &out) const {
     out << "#cond_lit(" << type_;
     for (auto var : base_->vars_global()) {
-        out << ","
-            << "X_" << var;
+        out << "," << "X_" << var;
     }
     if (type_ != StmCondLitType::empty) {
         for (auto var : base_->vars_local()) {
-            out << ","
-                << "X_" << var;
+            out << "," << "X_" << var;
         }
     }
     out << ")";
-    // if (!indices_.empty()) {
-    //     out << "[" << Util::p_range(indices_, ",") << "]";
-    // }
+    if (index_ != stratified_index) {
+        out << "[" << index_ << "]";
+    }
 }
 void StmCondLit::print(std::ostream &out) const {
     out << prio_ << ": ";
@@ -480,12 +474,75 @@ void StmCondLit::init([[maybe_unused]] size_t gen) {
     // by construction, this statement does not increment the generation
 }
 
-void StmCondLit::report([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment const &ass) {}
+void StmCondLit::report([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment const &ass) {
+    switch (type_) {
+        case StmCondLitType::empty: {
+            base_->add_empty(ass);
+            break;
+        }
+        case StmCondLitType::premise: {
+            // TODO: fix once there is a proper output
+            bool fact = true;
+            for (auto const &lit : body_) {
+                std::stringstream out;
+                if (lit->output(store, ass, out)) {
+                    fact = false;
+                }
+            }
+            base_->add_premise(ass, fact);
+            break;
+        }
+        case StmCondLitType::conclusion: {
+            // TODO: fix once there is a proper output
+            bool fact = true;
+            for (auto const &lit : body_) {
+                std::stringstream out;
+                if (lit->output(store, ass, out)) {
+                    fact = false;
+                }
+            }
+            base_->add_conclusion(ass, fact);
+            break;
+        }
+    }
+}
 
 void StmCondLit::propagate([[maybe_unused]] Queue &queue) {
-    if (type_ == StmCondLitType::empty) {
+    switch (type_) {
+        case StmCondLitType::empty: {
+            if (base_->base_empty().has_update()) {
+                if (index_ != stratified_index) {
+                    queue.propagate(index_);
+                }
+            }
+            break;
+        }
+        case StmCondLitType::premise: {
+            if (base_->base_premise().has_update()) {
+                if (index_ != stratified_index) {
+                    queue.propagate(index_);
+                }
+            }
+            // note that atoms not blocked at this point are not added to the premise base
+            // thus, we have to propagate here already
+            if (base_->propagate() && base_->index() != stratified_index) {
+                queue.propagate(base_->index());
+            }
+            break;
+        }
+        case StmCondLitType::conclusion: {
+            if (base_->base_lit().has_update()) {
+                if (index_ != stratified_index) {
+                    queue.propagate(index_);
+                }
+            }
+            // propagate further conditional literals
+            if (base_->propagate() && base_->index() != stratified_index) {
+                queue.propagate(base_->index());
+            }
+            break;
+        }
     }
-    std::cerr << "propagate cond lit " << type_ << "\n";
 }
 
 auto StmCondLit::priority() const -> size_t { return prio_; }

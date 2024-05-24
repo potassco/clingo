@@ -160,7 +160,7 @@ auto Linearizer::order_(InstanceCallback &cb, std::vector<MatcherType> const &to
 void StmRule::print_head(std::ostream &out) const {
     out << *head_;
     if (!indices_.empty()) {
-        out << " [" << Util::p_range(indices_, ",") << "]";
+        out << "[" << Util::p_range(indices_, ",") << "]";
     }
 }
 

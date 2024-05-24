@@ -230,6 +230,13 @@ class BuilderTerm {
 };
 
 struct BuildContext {
+    BuildContext(Grounder::Impl &impl, Input::Component const &comp,
+                 Util::unordered_map<Input::Term const *, std::vector<size_t>> &def_map, Ground::Component &gcomp,
+                 Util::unordered_map<String, size_t> &var_map, Ground::ULitVec &body,
+                 std::forward_list<Ground::BaseCondLit> &clit_base)
+        : impl{&impl}, comp{&comp}, def_map{&def_map}, gcomp{&gcomp}, var_map{&var_map}, body{&body},
+          clit_base_{&clit_base} {}
+
     //! Get the index of the given symbolic literal.
     [[nodiscard]] auto index(Input::LitSymbolic const &lit) const -> size_t {
         auto it = comp->incomplete.find(&lit.term());
@@ -251,9 +258,10 @@ struct BuildContext {
     [[nodiscard]] auto next_index() -> size_t { return comp->incomplete.size() + index_++; }
 
     //! Analyze the given conditional literal and return the required indices for grounding.
-    [[nodiscard]] auto analyze(Input::CondLit const &lit) -> std::tuple<bool, size_t, size_t, size_t> {
+    [[nodiscard]] auto analyze(Input::CondLit const &lit) -> std::tuple<bool, bool, size_t, size_t, size_t> {
         assert(!Input::is_fixed(lit.lit()).value_or(false));
         auto has_conclusion = !Input::is_fixed(lit.lit()).has_value();
+        bool rec_premise = false;
         auto empty_index = [this]() {
             if (comp->type == Input::ComponentType::single_pass) {
                 return Ground::stratified_index;
@@ -265,14 +273,17 @@ struct BuildContext {
             }
             return Ground::stratified_index;
         }();
-        auto premise_index = [&empty_index, &lit, this]() {
+        auto premise_index = [&empty_index, &lit, &rec_premise, this]() {
             if (comp->type == Input::ComponentType::single_pass) {
                 return Ground::stratified_index;
             }
+            auto const &cond = lit.cond();
+            auto ie = cond.end();
+            auto it = std::find_if(cond.begin(), ie, [this](auto const &lit) { return is_recursive(lit); });
+            rec_premise = it != ie;
             if (empty_index != Ground::stratified_index) {
                 return next_index();
             }
-            auto const &cond = lit.cond();
             if (auto ie = cond.end(),
                 it = std::find_if(cond.begin(), ie, [this](auto const &lit) { return is_recursive(lit); });
                 it != ie) {
@@ -280,19 +291,19 @@ struct BuildContext {
             }
             return Ground::stratified_index;
         }();
-        auto lit_index = [&premise_index, &has_conclusion, this]() {
+        auto lit_index = [&premise_index, &has_conclusion, &lit, this]() {
             if (comp->type == Input::ComponentType::single_pass) {
                 return Ground::stratified_index;
             }
             if (!has_conclusion) {
                 return premise_index;
             }
-            if (premise_index != Ground::stratified_index) {
+            if (premise_index != Ground::stratified_index || is_recursive(lit.lit())) {
                 return next_index();
             }
             return Ground::stratified_index;
         }();
-        return {has_conclusion, empty_index, premise_index, lit_index};
+        return {has_conclusion, rec_premise, empty_index, premise_index, lit_index};
     }
 
     Grounder::Impl *impl = nullptr;
@@ -428,7 +439,7 @@ class BuilderBdLit {
     void operator()(Input::BdLitConjunction const &lit) const {
         // splitting:
         // - maybe also whether the literal needs the recursive translation
-        auto [has_conclusion, empty_index, premise_index, lit_index] = ctx_->analyze(lit.lit());
+        auto [has_conclusion, rec_premise, empty_index, premise_index, lit_index] = ctx_->analyze(lit.lit());
         auto build_lit = [this](auto &body, auto &vars, auto const &lit) {
             std::visit(BuilderLit{*ctx_,
                                   [&body, &vars]<class Lit>(Lit &&glit) {
@@ -470,7 +481,8 @@ class BuilderBdLit {
                 vars_local.emplace_back(x);
             }
         }
-        auto &base = ctx_->clit_base_->emplace_front(std::move(vars_local), std::move(vars_global), lit_index);
+        auto &base =
+            ctx_->clit_base_->emplace_front(std::move(vars_local), std::move(vars_global), lit_index, rec_premise);
 
         // create: empty(clit(G)) :- B1.
         ctx_->gcomp->add(std::make_unique<Ground::StmCondLit>(Ground::StmCondLitType::empty, base, std::move(body),
@@ -584,8 +596,7 @@ class Builder : public Input::DependencyBuilder {
                         }
                         ++i;
                     }
-                    auto ctx = BuildContext{
-                        impl_, &ref_comp, &def_map, &gcomp, &var_map, &body, &clit_base, 0, ref_comp.incomplete.size()};
+                    auto ctx = BuildContext{*impl_, ref_comp, def_map, gcomp, var_map, body, clit_base};
                     auto bld_stm = BuilderStm{ctx};
                     std::visit(bld_stm, *stm);
                 }
