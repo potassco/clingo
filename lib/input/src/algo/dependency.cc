@@ -48,7 +48,7 @@ class AddDepend {
     }
 
     template <class T>
-        requires Util::is_among_v<T, LitComparison, LitSymbolic>
+        requires Util::is_among_v<T, LitComparison, LitBool>
     void operator()([[maybe_unused]] T const &lit, [[maybe_unused]] DependencyType type) const {}
 
     void operator()(Lit const &lit, DependencyType type) const {
