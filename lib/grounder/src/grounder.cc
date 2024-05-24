@@ -437,8 +437,7 @@ class BuilderBdLit {
             lit.lit());
     }
     void operator()(Input::BdLitConjunction const &lit) const {
-        // splitting:
-        // - maybe also whether the literal needs the recursive translation
+        // TODO: stratified conclusions can be shifted into the body
         auto [has_conclusion, rec_premise, empty_index, premise_index, lit_index] = ctx_->analyze(lit.lit());
         auto build_lit = [this](auto &body, auto &vars, auto const &lit) {
             std::visit(BuilderLit{*ctx_,
@@ -481,8 +480,8 @@ class BuilderBdLit {
                 vars_local.emplace_back(x);
             }
         }
-        auto &base =
-            ctx_->clit_base_->emplace_front(std::move(vars_local), std::move(vars_global), lit_index, rec_premise);
+        auto &base = ctx_->clit_base_->emplace_front(std::move(vars_local), std::move(vars_global), lit_index,
+                                                     has_conclusion, rec_premise);
 
         // create: empty(clit(G)) :- B1.
         ctx_->gcomp->add(std::make_unique<Ground::StmCondLit>(Ground::StmCondLitType::empty, base, std::move(body),

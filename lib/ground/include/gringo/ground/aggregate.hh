@@ -41,7 +41,9 @@ struct BaseCondLit {
     };
     struct ElemState {
       public:
-        ElemState(bool premise_is_fact) : premise_is_fact_{static_cast<uint8_t>(premise_is_fact)} {}
+        ElemState(bool premise_is_fact, bool has_conclusion)
+            : conclusion_truth_{has_conclusion ? TruthConclusion::unknown : TruthConclusion::false_},
+              premise_is_fact_{static_cast<uint8_t>(premise_is_fact)} {}
         void mark_conclusion(bool fact) {
             assert(conclusion_truth_ == TruthConclusion::unknown);
             conclusion_truth_ = fact ? TruthConclusion::true_ : TruthConclusion::derived;
@@ -56,7 +58,7 @@ struct BaseCondLit {
 
       private:
         size_t offset_ : 56 = 0;
-        TruthConclusion conclusion_truth_ : 7 = TruthConclusion::unknown;
+        TruthConclusion conclusion_truth_ : 7;
         size_t premise_is_fact_ : 1;
     };
     // we can use here that the number of local variables is fixed
@@ -89,6 +91,7 @@ struct BaseCondLit {
             return std::all_of(elems_.begin(), elems_.end(),
                                [&elems](auto idx) { return elems.nth(idx).value().is_fact(); });
         }
+        [[nodiscard]] auto is_false() const -> bool { return false_; }
         void set_offset(size_t offset) { offset_ = offset; }
         [[nodiscard]] auto offset() const -> size_t { return offset_; }
 
@@ -98,6 +101,7 @@ struct BaseCondLit {
         size_t elems_propagated_ = 0;
         bool propagated_ = false;
         bool enqueued_ = false;
+        bool false_ = false;
     };
     // we can use here that the number of global variables is fixed
     using AtomMap = Util::ordered_map<Symbol const *, AtomState, Util::SpanHash, Util::SpanEqualTo>;
@@ -437,11 +441,12 @@ struct BaseCondLit {
         BaseCondLit *base_;
     };
 
-    BaseCondLit(VariableVec local, VariableVec global, size_t index, bool rec_premise)
+    BaseCondLit(VariableVec local, VariableVec global, size_t index, bool has_conclusion, bool rec_premise)
         : local_{std::move(local)}, global_{std::move(global)}, syms_elems_{local_.size() + 1},
           syms_atoms_{global_.size()}, atoms_{0, Util::SpanHash{global_.size()}, Util::SpanEqualTo{global_.size()}},
           elems_{0, Util::SpanHash{local_.size() + 1}, Util::SpanEqualTo{local_.size() + 1}}, base_empty_{atoms_},
-          base_premise_{elems_}, base_lit_{atoms_}, index_{index}, rec_premise_{rec_premise} {
+          base_premise_{elems_}, base_lit_{atoms_}, index_{index}, has_conclusion_{has_conclusion},
+          rec_premise_{rec_premise} {
         temp_syms_.reserve(std::max(global_.size(), local_.size() + 1));
     }
 
@@ -485,9 +490,11 @@ struct BaseCondLit {
 
     //! Add a new cond lit element.
     void add_premise(Assignment const &ass, bool fact) {
-        // TODO:
-        // - if the conclusion is fixed to false, set the truth member accordingly
         auto it = find_atom(ass);
+        // no further elements have to be accumulated if the literal is false
+        if (it.value().is_false()) {
+            return;
+        }
         auto syms_elem = syms_elems_.push_map(Util::enumerate{local_.size() + 1}, [this, it, &ass](size_t i) {
             if (i == 0) {
                 return Symbol::from_rep(std::distance(atoms_.begin(), it));
@@ -496,21 +503,18 @@ struct BaseCondLit {
             return ass[local_[i - 1]].value();
         });
 
-        auto [jt, ins] = elems_.try_emplace(syms_elem.data(), fact);
+        auto [jt, ins] = elems_.try_emplace(syms_elem.data(), fact, has_conclusion_);
         // an element can only be added once
         assert(ins);
 
         auto &atom = it.value();
         auto &elem = jt.value();
 
-        // TODO:
-        // - in the stratified case, unblock the element right away if the premise is true and the conclusion is not
-        // false
-        // - if the conclusion is false, mark the element and do not add it to the base because it cannot become true
-
         atom.add_elem(std::distance(elems_.begin(), jt));
         if (elem.is_blocked()) {
-            base_premise_.add(jt);
+            if (!fact || has_conclusion_) {
+                base_premise_.add(jt);
+            }
         } else if (atom.enqueue(elems_)) {
             propagate_.emplace_back(std::distance(atoms_.begin(), it));
         }
@@ -598,6 +602,7 @@ struct BaseCondLit {
     BasePremise base_premise_;
     BaseLit base_lit_;
     size_t index_;
+    bool has_conclusion_;
     bool rec_premise_;
 };
 
