@@ -117,6 +117,45 @@ class BaseContext {
     virtual ~BaseContext() = default;
 };
 
+template <class KeyType, class BaseType> class BaseImpl {
+  public:
+    using Key = KeyType;
+
+    //! Get the index of the first atom in the given generation.
+    [[nodiscard]] auto begin(MatcherType type) const -> size_t { return counts_.begin(type); }
+
+    //! Get the index plus one of the last atom in the given generation.
+    [[nodiscard]] auto end(MatcherType type) const -> size_t { return counts_.end(type); }
+
+    //! Check if the base contains the given atom with in the given generation.
+    [[nodiscard]] auto contains(Key const &sym, MatcherType type) const -> bool {
+        return counts_.contains(base().index(sym), type);
+    }
+
+    //! Update the generation counts.
+    void update(size_t generation) { counts_.update(generation, base().size()); }
+
+    template <class T> auto context() -> T & {
+        if (context_ != nullptr) {
+            if (auto res = dynamic_cast<T *>(context_.get()); res != nullptr) {
+                return *res;
+            }
+            throw std::bad_cast();
+        }
+        context_ = std::make_unique<T>();
+        return static_cast<T &>(*context_);
+    }
+
+    [[nodiscard]] auto has_update() const -> bool { return counts_.has_update(base().size()); }
+
+  private:
+    [[nodiscard]] auto base() -> BaseType & { return *static_cast<BaseType *>(this); }
+    [[nodiscard]] auto base() const -> BaseType const & { return *static_cast<BaseType const *>(this); }
+
+    GenerationCounts counts_;
+    std::unique_ptr<BaseContext> context_;
+};
+
 //! An atom base used to store derivable atoms and associated state.
 //!
 //! The base tracks the generation of atoms for semi-naive evaluation,
@@ -125,21 +164,35 @@ class BaseContext {
 //! An atom base can also stores unknown atoms. For such atoms it is not yet
 //! know whether there will be a rule deriving them. The only purpose is to
 //! store them here is to associated them with a unique id.
-class Base {
+class Base : public BaseImpl<Symbol, Base> {
   public:
-    //! Get the number of atoms in the base (including unknown ones).
-    [[nodiscard]] auto size() const { return atoms_.size(); }
+    using BaseImpl::contains;
 
     //! Check if the base is domain.
     //!
     //! A base is domain if it contains facts only.
     [[nodiscard]] auto domain() const {
-        for (auto n = atoms_.size(); domain_offset_ < n; ++domain_offset_) {
-            if (atoms_.nth(domain_offset_)->second.state != AtomState::fact) {
+        for (auto n = derived_.size(); domain_offset_ < n; ++domain_offset_) {
+            if (atoms_.nth(derived_[domain_offset_])->second.state != AtomState::fact) {
                 return false;
             }
         }
         return true;
+    }
+    //! Check if the given atom is a fact.
+    //!
+    //! This function does not take into account to which generation an atom belongs.
+    //! It can also return true for atoms added to upcoming generations.
+    auto is_fact(Symbol sym) const -> bool {
+        auto it = atoms_.find(sym);
+        return it != atoms_.end() && it->second.state == AtomState::fact;
+    }
+    //! Check if the base contains the given atom.
+    //!
+    //! This might includes atoms that have not (yet) been derived.
+    [[nodiscard]] auto contains(Symbol const &sym) const -> bool {
+        auto it = atoms_.find(sym);
+        return it != atoms_.end();
     }
 
     //! Add an atom to the base.
@@ -167,63 +220,30 @@ class Base {
         return AtomUpdate::unchanged;
     }
 
-    //! Update the generation counts.
-    void update(size_t generation) const { counts_.update(generation, derived_.size()); }
-    //! Get the index of the first atom in the given generation.
-    auto begin(MatcherType type) const -> size_t { return counts_.begin(type); }
-    //! Get the index plus one of the last atom in the given generation.
-    auto end(MatcherType type) const -> size_t { return counts_.end(type); }
-    //! Check if the base contains the given atom.
-    [[nodiscard]] auto contains(Symbol const &sym) const -> bool {
-        auto it = atoms_.find(sym);
-        return it != atoms_.end() && it->second.state != AtomState::unknown;
-    }
-    //! Check if the base contains the given atom with in the given generation.
-    [[nodiscard]] auto contains(Symbol const &sym, MatcherType type) const -> bool {
+    //! Get the number of derived atoms.
+    [[nodiscard]] auto size() const -> size_t { return derived_.size(); }
+    //! Get the atom index of the given symbol.
+    //!
+    //! Note that only derived atoms have indices.
+    auto index(Symbol const &sym) const -> size_t {
         if (auto it = atoms_.find(sym); it != atoms_.end() && it->second.state != AtomState::unknown) {
-            auto index = derived_.find(atom_index_(it));
-            return counts_.contains(index, type);
+            return derived_.find(atom_index_(it));
         }
-        return false;
+        return size();
     }
     //! Get the i-th atom in the base.
     auto nth(size_t i) const -> Util::ordered_map<Symbol, AtomInfo>::const_iterator { return atoms_.nth(derived_[i]); }
     //! Get the i-th atom in the base.
     auto nth(size_t i) -> Util::ordered_map<Symbol, AtomInfo>::iterator { return atoms_.nth(derived_[i]); }
 
-    //! Check if the base contains at least one atom from the all generation.
-    auto has_update() const -> bool { return derived_.size() > counts_.end(MatcherType::all_atoms); }
-    //! Check if the given atom is a fact.
-    //!
-    //! This function does not take into account to which generation an atom belongs.
-    //! It can also return true for atoms added to upcoming generations.
-    auto is_fact(Symbol sym) const -> bool {
-        auto it = atoms_.find(sym);
-        return it != atoms_.end() && it->second.state == AtomState::fact;
-    }
-
-    //! Get the context of the base.
-    template <class T> auto context() -> T & {
-        if (context_ != nullptr) {
-            if (auto res = dynamic_cast<T *>(context_.get()); res != nullptr) {
-                return *res;
-            }
-            throw std::bad_cast();
-        }
-        context_ = std::make_unique<T>();
-        return static_cast<T &>(*context_);
-    }
-
   private:
     [[nodiscard]] auto atom_index_(Util::ordered_map<Symbol, AtomInfo>::const_iterator it) const -> size_t {
         return static_cast<size_t>(std::distance(atoms_.cbegin(), it));
     }
 
-    std::unique_ptr<BaseContext> context_;
     Util::ordered_map<Symbol, AtomInfo> atoms_;
     Util::index_sequence<size_t> derived_;
     size_t mutable domain_offset_ = 0;
-    GenerationCounts mutable counts_;
 };
 
 using UBase = std::unique_ptr<Base>;

@@ -94,7 +94,7 @@ class AssignMatcher : public OnceMatcher {
 
 class NonFactMatcher : public OnceMatcher {
   public:
-    NonFactMatcher(Base const &base, Term const &term) : base_{&base}, term_{&term} {}
+    NonFactMatcher(Base &base, Term const &term) : base_{&base}, term_{&term} {}
     void init([[maybe_unused]] SymbolStore &store, size_t gen) override { base_->update(gen); }
     auto do_match(SymbolStore &store, Assignment &ass) -> bool override {
         auto sym = term_->eval(store, ass);
@@ -103,13 +103,13 @@ class NonFactMatcher : public OnceMatcher {
     void print(std::ostream &out) const override { out << "#not fact " << *term_; }
 
   private:
-    Base const *base_;
+    Base *base_;
     Term const *term_;
 };
 
 class FullIndex {
   public:
-    FullIndex(Base const &base) : base_{&base} {}
+    FullIndex(Base &base) : base_{&base} {}
     void init(size_t gen) { base_->update(gen); }
     auto match(MatcherType type) -> std::pair<size_t, size_t> {
         // select the index of the first atom of the matcher's generation
@@ -172,14 +172,14 @@ class FullIndex {
     }
 
   private:
-    Base const *base_;
+    Base *base_;
     std::vector<std::pair<size_t, size_t>> index_;
     size_t imported_ = 0;
 };
 
 class HashIndex {
   public:
-    HashIndex(Base const &base, size_t bound, size_t bind)
+    HashIndex(Base &base, size_t bound, size_t bind)
         : base_{&base}, bound_values_{bound}, bind_values_{bind},
           index_{0, Util::SpanHash{bound}, Util::SpanEqualTo{bound}} {
         assert(bound > 0 && bind > 0);
@@ -284,7 +284,7 @@ class HashIndex {
         return false;
     }
 
-    Base const *base_;
+    Base *base_;
     std::vector<Symbol> temp_values_;
     Util::SpanStack<Symbol> bound_values_;
     Util::SpanStack<Symbol> bind_values_;
@@ -319,7 +319,7 @@ class IndexSet : public BaseContext {
 
 class LookupMatcher : public OnceMatcher {
   public:
-    LookupMatcher(Base const &base, Term const &term, MatcherType type) : base_{&base}, term_{&term}, type_{type} {}
+    LookupMatcher(Base &base, Term const &term, MatcherType type) : base_{&base}, term_{&term}, type_{type} {}
     void init([[maybe_unused]] SymbolStore &store, size_t gen) override { base_->update(gen); }
     auto do_match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) -> bool override {
         auto sym = term_->eval(store, ass);
@@ -328,7 +328,7 @@ class LookupMatcher : public OnceMatcher {
     void print(std::ostream &out) const override { out << *term_; }
 
   private:
-    Base const *base_;
+    Base *base_;
     Term const *term_;
     MatcherType type_;
 };
@@ -449,7 +449,7 @@ auto make_comp_matcher(std::vector<bool> const &bound, Term const &lhs, Relation
     return std::make_unique<CmpMatcher>(lhs, rel, rhs);
 }
 
-auto make_non_fact_matcher(Base const &base, Term const &term) -> UMatcher {
+auto make_non_fact_matcher(Base &base, Term const &term) -> UMatcher {
     return std::make_unique<NonFactMatcher>(base, term);
 }
 

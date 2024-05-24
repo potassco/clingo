@@ -13,7 +13,7 @@ auto make_interval_matcher(std::vector<bool> const &bound, Term const &lhs, Term
 
 auto make_comp_matcher(std::vector<bool> const &bound, Term const &lhs, Relation rel, Term const &rhs) -> UMatcher;
 
-auto make_non_fact_matcher(Base const &base, Term const &term) -> UMatcher;
+auto make_non_fact_matcher(Base &base, Term const &term) -> UMatcher;
 
 auto make_atom_matcher(std::vector<bool> const &bound, Base &base, Term const &atom, MatcherType type) -> UMatcher;
 

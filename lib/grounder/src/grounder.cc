@@ -233,7 +233,7 @@ struct BuildContext {
     BuildContext(Grounder::Impl &impl, Input::Component const &comp,
                  Util::unordered_map<Input::Term const *, std::vector<size_t>> &def_map, Ground::Component &gcomp,
                  Util::unordered_map<String, size_t> &var_map, Ground::ULitVec &body,
-                 std::forward_list<Ground::BaseCondLit> &clit_base)
+                 std::forward_list<Ground::StateCondLit> &clit_base)
         : impl{&impl}, comp{&comp}, def_map{&def_map}, gcomp{&gcomp}, var_map{&var_map}, body{&body},
           clit_base_{&clit_base} {}
 
@@ -312,7 +312,7 @@ struct BuildContext {
     Ground::Component *gcomp = nullptr;
     Util::unordered_map<String, size_t> *var_map = nullptr;
     Ground::ULitVec *body = nullptr;
-    std::forward_list<Ground::BaseCondLit> *clit_base_ = nullptr;
+    std::forward_list<Ground::StateCondLit> *clit_base_ = nullptr;
     size_t priority = 0;
     size_t index_ = 0;
 };
@@ -577,7 +577,7 @@ class Builder : public Input::DependencyBuilder {
             for (auto const &ref_comp : ref_comps) {
                 GRINGO_REPORT(*impl_->log, debug) << "    refined component";
                 auto gcomp = Ground::Component{};
-                auto clit_base = std::forward_list<Ground::BaseCondLit>{};
+                auto clit_base = std::forward_list<Ground::StateCondLit>{};
                 for (auto const &stm : ref_comp.stms) {
                     Util::unordered_map<String, size_t> var_map;
                     Input::visit_variables(

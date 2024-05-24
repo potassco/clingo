@@ -4,8 +4,6 @@
 
 #include <gringo/util/print.hh>
 
-// #include <iostream>
-
 namespace Gringo::Ground {
 
 void Instantiator::BackjumpMatcher::init(SymbolStore &store, size_t gen) { matcher_->init(store, gen); }

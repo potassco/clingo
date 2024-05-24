@@ -1,7 +1,6 @@
-#include "gringo/util/print.hh"
 #include <gringo/ground/aggregate.hh>
+#include <gringo/util/print.hh>
 
-#include <iostream>
 #include <typeindex>
 
 namespace Gringo::Ground {
@@ -10,7 +9,7 @@ namespace {
 
 template <IsBase Base> class FullIndex {
   public:
-    FullIndex(Base const &base) : base_{&base} {}
+    FullIndex(Base &base) : base_{&base} {}
     void init(size_t gen) { base_->update(gen); }
     auto match(MatcherType type) -> std::pair<size_t, size_t> {
         // select the index of the first atom of the matcher's generation
@@ -74,14 +73,14 @@ template <IsBase Base> class FullIndex {
     }
 
   private:
-    Base const *base_;
+    Base *base_;
     std::vector<std::pair<size_t, size_t>> index_;
     size_t imported_ = 0;
 };
 
 template <IsBase Base> class HashIndex {
   public:
-    HashIndex(Base const &base, size_t bound, size_t bind)
+    HashIndex(Base &base, size_t bound, size_t bind)
         : base_{&base}, bound_values_{bound}, bind_values_{bind},
           index_{0, Util::SpanHash{bound}, Util::SpanEqualTo{bound}} {
         assert(bound > 0 && bind > 0);
@@ -187,7 +186,7 @@ template <IsBase Base> class HashIndex {
         return false;
     }
 
-    Base const *base_;
+    Base *base_;
     std::vector<Symbol> temp_values_;
     Util::SpanStack<Symbol> bound_values_;
     Util::SpanStack<Symbol> bind_values_;
@@ -218,7 +217,7 @@ class OnceMatcher : public Matcher {
 
 template <IsBase Base, IsMatch Match> class LookupMatcher : public OnceMatcher {
   public:
-    LookupMatcher(Base const &base, Match const &m, MatcherType type) : base_{&base}, match_{&m}, type_{type} {}
+    LookupMatcher(Base &base, Match const &m, MatcherType type) : base_{&base}, match_{&m}, type_{type} {}
     void init([[maybe_unused]] SymbolStore &store, size_t gen) override { base_->update(gen); }
     auto do_match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) -> bool override {
         auto sym = match_->eval(store, ass);
@@ -227,7 +226,7 @@ template <IsBase Base, IsMatch Match> class LookupMatcher : public OnceMatcher {
     void print(std::ostream &out) const override { out << *match_; }
 
   private:
-    Base const *base_;
+    Base *base_;
     Match const *match_;
     MatcherType type_;
 };
@@ -331,6 +330,223 @@ auto make_atom_matcher(std::vector<bool> const &bound, Base &base, Match const &
 
 } // namespace
 
+// StateCondLitBase
+
+void StateCondLit::vars(VariableSet &res, bool all) const {
+    if (all) {
+        res.insert(local_.begin(), local_.end());
+    }
+    res.insert(global_.begin(), global_.end());
+}
+
+auto StateCondLit::vars(bool all) const -> VariableSet {
+    VariableSet res;
+    res.reserve(all ? global_.size() + local_.size() : global_.size());
+    vars(res, all);
+    return res;
+}
+
+auto StateCondLit::vars_global() const -> VariableVec const & { return global_; }
+
+auto StateCondLit::vars_local() const -> VariableVec const & { return local_; }
+
+auto StateCondLit::index() const -> size_t { return index_; }
+
+void StateCondLit::add_empty(Assignment const &ass) {
+    auto const syms = syms_atoms_.push_map(global_, [&ass](auto var) {
+        // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+        return ass[var].value();
+    });
+    if (auto [it, ins] = atoms_.try_emplace(syms.data()); ins) {
+        if (it.value().enqueue(elems_)) {
+            propagate_.emplace_back(std::distance(atoms_.begin(), it));
+        }
+    } else {
+        syms_atoms_.pop();
+    }
+}
+
+void StateCondLit::add_premise(Assignment const &ass, bool fact) {
+    auto it = atom_find(ass);
+    // no further elements have to be accumulated if the literal is false
+    if (it.value().is_false()) {
+        return;
+    }
+    auto syms_elem = syms_elems_.push_map(Util::enumerate{local_.size() + 1}, [this, it, &ass](size_t i) {
+        if (i == 0) {
+            return Symbol::from_rep(std::distance(atoms_.begin(), it));
+        }
+        // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+        return ass[local_[i - 1]].value();
+    });
+
+    auto [jt, ins] = elems_.try_emplace(syms_elem.data(), fact, has_conclusion_);
+    // an element can only be added once
+    assert(ins);
+
+    auto &atom = it.value();
+    auto &elem = jt.value();
+
+    atom.add_elem(std::distance(elems_.begin(), jt));
+    if (elem.is_blocked()) {
+        if (!fact || has_conclusion_) {
+            base_premise_.add(jt);
+        }
+    } else if (atom.enqueue(elems_)) {
+        propagate_.emplace_back(atom_index(it));
+    }
+}
+
+void StateCondLit::add_conclusion(Assignment const &ass, bool fact) {
+    auto it = atom_find(ass);
+    assert(it != atoms_.end());
+    auto jt = elem_find(ass, it);
+    assert(jt != elems_.end());
+    auto &atom = it.value();
+    auto &elem = jt.value();
+    elem.mark_conclusion(fact);
+    if (atom.enqueue(elems_)) {
+        propagate_.emplace_back(atom_index(it));
+    }
+}
+
+auto StateCondLit::propagate() -> bool {
+    bool res = false;
+    for (auto atom_index : propagate_) {
+        auto it = atoms_.nth(atom_index);
+        auto &atom = it.value();
+        if (atom.propagate(elems_)) {
+            base_lit_.add(it);
+            res = true;
+        }
+    }
+    propagate_.clear();
+    return res;
+}
+
+auto StateCondLit::base_empty() -> BaseCondLitEmpty & { return base_empty_; }
+
+auto StateCondLit::base_premise() -> BaseCondLitPremise & { return base_premise_; }
+
+auto StateCondLit::base_lit() -> BaseCondLit & { return base_lit_; }
+
+auto StateCondLit::lit_is_fact(Assignment const &ass) {
+    if (rec_premise_) {
+        return false;
+    }
+    auto it = atom_find(ass);
+    assert(it != atoms_.end());
+    return it->second.is_fact(elems_);
+}
+
+auto StateCondLit::atom_index(Assignment &ass) const -> std::optional<size_t> {
+    auto it = atom_find(ass);
+    if (it != atoms_.end()) {
+        return atom_index(it);
+    }
+    return std::nullopt;
+}
+
+auto StateCondLit::atom_nth(size_t index) -> MapAtomCondLit::iterator { return atoms_.nth(index); }
+
+auto StateCondLit::atom_index(MapAtomCondLit::const_iterator it) const -> size_t {
+    return std::distance(atoms_.begin(), it);
+}
+
+auto StateCondLit::atom_find(Assignment const &ass) const -> MapAtomCondLit::const_iterator {
+    temp_syms_.clear();
+    for (auto var : global_) {
+        // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+        temp_syms_.emplace_back(ass[var].value());
+    }
+    return atoms_.find(temp_syms_.data());
+}
+
+auto StateCondLit::atom_find(Assignment const &ass) -> MapAtomCondLit::iterator {
+    temp_syms_.clear();
+    for (auto var : global_) {
+        // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+        temp_syms_.emplace_back(ass[var].value());
+    }
+    return atoms_.find(temp_syms_.data());
+}
+
+auto StateCondLit::elem_find(Assignment const &ass, MapAtomCondLit::iterator it) -> MapElemCondLit::iterator {
+    temp_syms_.clear();
+    temp_syms_.emplace_back(Symbol::from_rep(atom_index(it)));
+    for (auto var : local_) {
+        // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+        temp_syms_.emplace_back(ass[var].value());
+    }
+    return elems_.find(temp_syms_.data());
+}
+
+// MatchCondLit
+
+auto MatchCondLit::vars() const -> VariableSet { return state_->vars(type_ == LitCondLitType::premise); }
+
+auto MatchCondLit::signature(VariableSet const &bound, [[maybe_unused]] VariableSet const &bind) const -> VariableVec {
+    static_cast<void>(this);
+    return {bound.begin(), bound.end()};
+};
+
+auto MatchCondLit::match([[maybe_unused]] SymbolStore &store, Symbol const *sym, Assignment &ass) const -> bool {
+    if (type_ == LitCondLitType::premise) {
+        auto atom = state_->atom_nth(Symbol::to_rep(*sym));
+        return match_(ass, atom->first, state_->vars_global()) && match_(ass, std::next(sym), state_->vars_local());
+    }
+    return match_(ass, sym, state_->vars_global());
+};
+
+auto MatchCondLit::eval([[maybe_unused]] SymbolStore &store, Assignment &ass) const -> std::optional<Symbol const *> {
+    eval_.clear();
+    bool is_premise = type_ == LitCondLitType::premise;
+    if (is_premise) {
+        if (auto index = state_->atom_index(ass); index) {
+            eval_.emplace_back(Symbol::from_rep(*index));
+        } else {
+            return std::nullopt;
+        }
+    }
+    for (auto var : is_premise ? state_->vars_local() : state_->vars_global()) {
+        // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+        eval_.emplace_back(ass[var].value());
+    }
+    return eval_.data();
+};
+
+auto operator<<(std::ostream &out, MatchCondLit const &m) -> std::ostream & {
+    out << "#cond_lit(" << m.type_;
+    for (auto var : m.state_->vars_global()) {
+        out << ",X_" << var;
+    }
+    if (m.type_ == LitCondLitType::premise) {
+        for (auto var : m.state_->vars_local()) {
+            out << ",X_" << var;
+        }
+    }
+    out << ")";
+    return out;
+}
+
+auto MatchCondLit::state() const -> StateCondLit & { return *state_; }
+
+auto MatchCondLit::type() const -> LitCondLitType { return type_; }
+
+auto MatchCondLit::match_(Assignment &ass, Symbol const *sym, VariableVec const &vars) -> bool {
+    for (auto var : vars) {
+        if (auto &opt = ass[var]; opt) {
+            if (*opt != *sym) {
+                return false;
+            }
+        } else {
+            ass[var] = *sym;
+        }
+        sym = std::next(sym);
+    }
+    return true;
+}
+
 // LitCondLit
 
 auto operator<<(std::ostream &out, LitCondLitType type) -> std::ostream & {
@@ -353,7 +569,7 @@ auto operator<<(std::ostream &out, LitCondLitType type) -> std::ostream & {
 
 void LitCondLit::vars(VariableSet &vars, VarSelectMode mode) const {
     if (mode != VarSelectMode::depend) {
-        base_->vars(vars, type_ == LitCondLitType::premise);
+        state().vars(vars, type() == LitCondLitType::premise);
     }
 }
 
@@ -370,25 +586,28 @@ auto LitCondLit::matcher(MatcherType type,
     if (index_ != std::numeric_limits<size_t>::max() && type == MatcherType::new_atoms) {
         index = index_;
     }
-    if (type_ == LitCondLitType::empty) {
-        return {make_atom_matcher(bound, base_->base_empty(), base_->match_empty(), type), index};
+    auto &match = static_cast<MatchCondLit &>(*this);
+    if (this->type() == LitCondLitType::empty) {
+        return {make_atom_matcher(bound, state().base_empty(), match, type), index};
     }
-    if (type_ == LitCondLitType::premise) {
-        return {make_atom_matcher(bound, base_->base_premise(), base_->match_premise(), type), index};
+    if (this->type() == LitCondLitType::premise) {
+        return {make_atom_matcher(bound, state().base_premise(), match, type), index};
     }
-    return {make_atom_matcher(bound, base_->base_lit(), base_->match_lit(), type), index};
+    return {make_atom_matcher(bound, state().base_lit(), match, type), index};
 }
 
 auto LitCondLit::score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return 1; }
 
 void LitCondLit::print(std::ostream &out) const {
-    out << "#cond_lit(" << type_;
-    for (auto var : base_->vars_global()) {
-        out << "," << "X_" << var;
+    out << "#cond_lit(" << type();
+    for (auto var : state().vars_global()) {
+        out << ","
+            << "X_" << var;
     }
-    if (type_ != LitCondLitType::empty && type_ != LitCondLitType::lit) {
-        for (auto var : base_->vars_local()) {
-            out << "," << "X_" << var;
+    if (type() == LitCondLitType::premise) {
+        for (auto var : state().vars_local()) {
+            out << ","
+                << "X_" << var;
         }
     }
     out << ")";
@@ -398,29 +617,29 @@ void LitCondLit::print(std::ostream &out) const {
 }
 
 auto LitCondLit::output([[maybe_unused]] SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool {
-    if (type_ == LitCondLitType::lit) {
+    if (type() == LitCondLitType::lit) {
         // TODO: fix once there is a proper output
         out << "#cond_lit(TODO)";
-        return !base_->is_fact_lit(ass);
+        return !state().lit_is_fact(ass);
     }
     return false;
 }
 
-auto LitCondLit::copy() const -> ULit { return std::make_unique<LitCondLit>(type_, *base_, index_); }
+auto LitCondLit::copy() const -> ULit { return std::make_unique<LitCondLit>(type(), state(), index_); }
 
 auto LitCondLit::hash() const -> size_t {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-    return Util::value_hash_record<LitCondLit>(type_, reinterpret_cast<uintptr_t>(base_));
+    return Util::value_hash_record<LitCondLit>(type(), reinterpret_cast<uintptr_t>(&state()));
 }
 
 auto LitCondLit::equal_to(Lit const &other) const -> bool {
     auto const *x = dynamic_cast<LitCondLit const *>(&other);
-    return x != nullptr && std::tie(type_, base_) == std::tie(x->type_, x->base_);
+    return x != nullptr && std::make_tuple(type(), &state()) == std::make_tuple(x->type(), &x->state());
 }
 
 auto LitCondLit::compare_to(Lit const &other) const -> std::weak_ordering {
     if (auto const *x = dynamic_cast<LitCondLit const *>(&other); x != nullptr) {
-        return std::tie(type_, base_) <=> std::tie(x->type_, x->base_);
+        return std::make_tuple(type(), &state()) <=> std::make_tuple(x->type(), &x->state());
     }
     return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
 }
@@ -448,11 +667,13 @@ auto operator<<(std::ostream &out, StmCondLitType type) -> std::ostream & {
 void StmCondLit::print_head(std::ostream &out) const {
     out << "#cond_lit(" << type_;
     for (auto var : base_->vars_global()) {
-        out << "," << "X_" << var;
+        out << ","
+            << "X_" << var;
     }
     if (type_ != StmCondLitType::empty) {
         for (auto var : base_->vars_local()) {
-            out << "," << "X_" << var;
+            out << ","
+                << "X_" << var;
         }
     }
     out << ")";
