@@ -467,6 +467,7 @@ void StmCondLit::print_head(std::ostream &out) const {
     // }
 }
 void StmCondLit::print(std::ostream &out) const {
+    out << prio_ << ": ";
     print_head(out);
     out << " <- " << Util::p_range(body_, ", ", [](std::ostream &out, auto const &lit) { out << *lit; }) << ".";
 }

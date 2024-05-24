@@ -48,8 +48,8 @@ class Linearizer {
 
 class StmRule : public Stm {
   public:
-    StmRule(Ground::UTerm head, Base *base, std::vector<size_t> indices, Ground::ULitVec body)
-        : head_{std::move(head)}, base_{base}, indices_{std::move(indices)}, body_{std::move(body)} {
+    StmRule(Ground::UTerm head, Base *base, std::vector<size_t> indices, Ground::ULitVec body, size_t priority)
+        : head_{std::move(head)}, base_{base}, indices_{std::move(indices)}, body_{std::move(body)}, prio_{priority} {
         if (head_) {
             body_.emplace_back(std::make_unique<LitFactCheck>(*base_, *head_));
         }
@@ -64,7 +64,7 @@ class StmRule : public Stm {
     void init(size_t gen) override;
     void report(SymbolStore &store, Assignment const &ass) override;
     void propagate(Queue &queue) override;
-    [[nodiscard]] auto priority() const -> size_t override { return 0; }
+    [[nodiscard]] auto priority() const -> size_t override { return prio_; }
 
   private:
     // TODO: how to handle head
@@ -76,6 +76,7 @@ class StmRule : public Stm {
     //! This allows for updating the indices of these literals while grounding.
     std::vector<size_t> indices_;
     Ground::ULitVec body_;
+    size_t prio_;
 };
 
 } // namespace Gringo::Ground

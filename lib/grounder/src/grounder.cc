@@ -398,8 +398,9 @@ class BuilderHdLit {
                 return nullptr;
             },
             lit.lit());
-        ctx_->gcomp->add(
-            std::make_unique<Ground::StmRule>(std::move(head), base, std::move(provides), std::move(*ctx_->body)));
+        // TODO: think about priority handling!!!
+        ctx_->gcomp->add(std::make_unique<Ground::StmRule>(std::move(head), base, std::move(provides),
+                                                           std::move(*ctx_->body), ctx_->priority));
     }
 
   private:
