@@ -96,6 +96,64 @@ auto LitInterval::compare_to(Lit const &other) const -> std::weak_ordering {
     return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
 }
 
+// LitBool
+
+void LitBool::print(std::ostream &out) const { out << (value_ ? "#true" : "#false"); }
+
+auto LitBool::output([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment const &ass,
+                     std::ostream &out) const -> bool {
+    print(out);
+    return false;
+}
+
+auto LitBool::copy() const -> ULit { return std::make_unique<LitBool>(value_); }
+
+auto LitBool::domain() const -> bool { return true; }
+
+auto LitBool::recursive() const -> bool { return false; }
+
+void LitBool::vars([[maybe_unused]] VariableSet &vars, [[maybe_unused]] VarSelectMode mode) const {}
+
+auto LitBool::matcher([[maybe_unused]] MatcherType type,
+                      [[maybe_unused]] std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
+    if (value_) {
+        return {make_once_matcher(), std::nullopt};
+    }
+    class NeverMatcher : public Matcher {
+      public:
+        NeverMatcher() = default;
+        void init([[maybe_unused]] SymbolStore &store, [[maybe_unused]] size_t gen) override {}
+        void match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) override {}
+        auto next([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) -> bool override {
+            return false;
+        }
+        void print(std::ostream &out) const override { out << "#never"; }
+    };
+    return {std::make_unique<NeverMatcher>(), std::nullopt};
+}
+
+auto LitBool::score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return -1; }
+
+auto LitBool::hash() const -> size_t { return Util::value_hash_record<LitBool>(value_); }
+
+auto LitBool::equal_to(Lit const &other) const -> bool {
+    auto const *x = dynamic_cast<LitBool const *>(&other);
+    if (x != nullptr) {
+        return std::tie(value_) == std::tie(x->value_);
+    }
+    return false;
+}
+
+auto LitBool::compare_to(Lit const &other) const -> std::weak_ordering {
+    auto const *x = dynamic_cast<LitBool const *>(&other);
+    if (x != nullptr) {
+        return std::tie(value_) <=> std::tie(x->value_);
+    }
+    return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
+}
+
+// LitComparison
+
 void LitComparison::print(std::ostream &out) const { out << *lhs_ << cmp_ << *rhs_; }
 
 auto LitComparison::output(SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool {

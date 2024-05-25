@@ -60,6 +60,30 @@ class Lit {
     }
 };
 
+class LitBool : public Lit {
+  public:
+    LitBool(bool value) : value_{value} {}
+
+    void vars(VariableSet &vars, VarSelectMode mode) const override;
+    [[nodiscard]] auto domain() const -> bool override;
+    [[nodiscard]] auto recursive() const -> bool override;
+    [[nodiscard]] auto matcher(MatcherType type,
+                               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto score(std::vector<bool> const &bound) const -> double override;
+
+    void print(std::ostream &out) const override;
+    auto output(SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool override;
+
+    [[nodiscard]] auto copy() const -> ULit override;
+
+    [[nodiscard]] auto hash() const -> size_t override;
+    [[nodiscard]] auto equal_to(Lit const &other) const -> bool override;
+    [[nodiscard]] auto compare_to(Lit const &other) const -> std::weak_ordering override;
+
+  private:
+    bool value_;
+};
+
 class LitComparison : public Lit {
   public:
     LitComparison(UTerm lhs, Relation cmp, UTerm rhs) : lhs_{std::move(lhs)}, rhs_{std::move(rhs)}, cmp_{cmp} {}

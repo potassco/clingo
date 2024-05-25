@@ -158,9 +158,11 @@ auto Linearizer::order_(InstanceCallback &cb, std::vector<MatcherType> const &to
 }
 
 void StmRule::print_head(std::ostream &out) const {
-    out << *head_;
-    if (!indices_.empty()) {
-        out << "[" << Util::p_range(indices_, ",") << "]";
+    if (head_) {
+        out << *head_;
+        if (!indices_.empty()) {
+            out << "[" << Util::p_range(indices_, ",") << "]";
+        }
     }
 }
 
@@ -174,7 +176,9 @@ auto StmRule::body() const -> ULitVec const & { return body_; }
 
 auto StmRule::important() const -> VariableSet {
     VariableSet important;
-    head_->vars(important);
+    if (head_) {
+        head_->vars(important);
+    }
     return important;
 }
 
@@ -217,7 +221,7 @@ void StmRule::report(SymbolStore &store, Assignment const &ass) {
 
 void StmRule::propagate(Queue &queue) {
     // Consider adding the propagation to the instantiator...
-    if (base_->has_update()) {
+    if (base_ != nullptr && base_->has_update()) {
         for (auto const &idx : indices_) {
             queue.propagate(idx);
         }

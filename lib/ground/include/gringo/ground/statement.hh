@@ -48,8 +48,10 @@ class Linearizer {
 
 class StmRule : public Stm {
   public:
-    StmRule(Ground::UTerm head, Base *base, std::vector<size_t> indices, Ground::ULitVec body, size_t priority)
-        : head_{std::move(head)}, base_{base}, indices_{std::move(indices)}, body_{std::move(body)}, prio_{priority} {
+    StmRule(std::optional<std::pair<Ground::UTerm, Base &>> head, std::vector<size_t> indices, Ground::ULitVec body,
+            size_t priority)
+        : head_{head ? std::move(head->first) : nullptr}, base_{head ? &head->second : nullptr},
+          indices_{std::move(indices)}, body_{std::move(body)}, prio_{priority} {
         if (head_) {
             body_.emplace_back(std::make_unique<LitFactCheck>(*base_, *head_));
         }
@@ -67,7 +69,9 @@ class StmRule : public Stm {
     [[nodiscard]] auto priority() const -> size_t override { return prio_; }
 
   private:
-    // TODO: how to handle head
+    //! The head of the rule.
+    //!
+    //! Note that this unique pointer is zero in case of constraints.
     UTerm head_;
     Base *base_;
     //! A list of indices.

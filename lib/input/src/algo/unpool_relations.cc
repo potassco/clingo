@@ -38,23 +38,31 @@ auto unpool_conjunctive(LitArray const &lits) {
     return res_lits;
 }
 
-void append_conjunctive(auto &lits, Lit lit) {
-    if (auto res = unpool_relations(lit, true); res) {
-        lits.extend(std::make_move_iterator(res->begin()), std::make_move_iterator(res->end()));
-    } else {
-        lits.append(std::move(lit));
+enum class ShiftMode : uint8_t { keep, negate, force };
+
+auto append_conjunctive(auto &lits, Lit const &lit, ShiftMode mode) -> std::optional<Lit> {
+    auto res_lit = std::optional<Lit>{};
+    if (mode == ShiftMode::force) {
+        res_lit = lit;
+    } else if (mode == ShiftMode::negate) {
+        res_lit = NegateLiteral{}(lit);
     }
+    if (auto res = unpool_relations(res_lit ? res_lit.value() : lit, true); res) {
+        lits.extend(std::make_move_iterator(res->begin()), std::make_move_iterator(res->end()));
+    } else if (res_lit) {
+        lits.append(*std::move(res_lit));
+    } else {
+        return std::nullopt;
+    }
+    return LitBool{location(lit), Sign::none, mode != ShiftMode::negate};
 }
 
-auto shift(auto const &lit, auto &lits, bool negate) -> std::optional<Lit> {
-    // TODO: there should be something in analyze
+auto shift(auto const &lit, auto &lits, ShiftMode mode) -> std::optional<Lit> {
     if (auto const *rel = std::get_if<LitComparison>(&lit); rel != nullptr) {
-        append_conjunctive(lits, negate ? NegateLiteral{}(*rel) : Lit{*rel});
-        return LitBool{location(lit), Sign::none, !negate};
+        return append_conjunctive(lits, lit, mode);
     }
     if (auto const *sym = std::get_if<LitSymbolic>(&lit); sym != nullptr && sym->sign() != Sign::none) {
-        append_conjunctive(lits, negate ? NegateLiteral{}(*sym) : Lit{*sym});
-        return LitBool{location(lit), Sign::none, !negate};
+        return append_conjunctive(lits, lit, mode);
     }
     return std::nullopt;
 }
@@ -78,7 +86,9 @@ class ShiftHead {
 
     auto operator()(HdLit const &lit) const -> std::optional<HdLit> { return std::visit(*this, lit); }
 
-    auto operator()(HdLitSimple const &lit) const -> std::optional<HdLit> { return shift(lit.lit(), *body_, true); }
+    auto operator()(HdLitSimple const &lit) const -> std::optional<HdLit> {
+        return shift(lit.lit(), *body_, ShiftMode::negate);
+    }
 
     //! This also shifts disjunctions with non-atomic literals into the rule body.
     //!
@@ -95,7 +105,7 @@ class ShiftHead {
             std::visit(
                 [this, &res_elems]<class T>(T const &x) {
                     if constexpr (std::is_same_v<T, Lit>) {
-                        if (shift(x, *body_, true)) {
+                        if (shift(x, *body_, ShiftMode::negate)) {
                             res_elems.remove();
                         } else {
                             res_elems.keep();
@@ -103,7 +113,7 @@ class ShiftHead {
                     }
                     if constexpr (std::is_same_v<T, CondLit>) {
                         auto res_cond = unpool_conjunctive(x.cond());
-                        auto res_lit = shift(x.lit(), res_cond, false);
+                        auto res_lit = shift(x.lit(), res_cond, ShiftMode::force);
                         if (const auto *blit = std::get_if<LitBool>(res_lit ? &*res_lit : &x.lit()); blit != nullptr) {
                             res_elems.remove();
                             body_->append(BdLitConjunction{
@@ -129,7 +139,7 @@ class ShiftHead {
         auto res_elems = Util::ResultVec{lit.elems()};
         for (auto const &elem : lit.elems()) {
             auto res_cond = unpool_conjunctive(elem.cond());
-            auto res_lit = shift(elem.lit(), res_cond, false);
+            auto res_lit = shift(elem.lit(), res_cond, ShiftMode::force);
             res_elems.update(elem.rewrite(a_lit = std::move(res_lit), a_cond = std::move(res_cond)));
         }
         return lit.rewrite(a_elems = std::move(res_elems));
@@ -156,7 +166,7 @@ class ShiftBody {
     void operator()(BdLit const &lit) const { std::visit(*this, lit); }
 
     void operator()(BdLitSimple const &lit) const {
-        if (shift(lit.lit(), *body_, false)) {
+        if (shift(lit.lit(), *body_, ShiftMode::keep)) {
             body_->remove();
         } else {
             body_->keep();
@@ -165,7 +175,7 @@ class ShiftBody {
 
     void operator()(BdLitConjunction const &lit) const {
         auto res_cond = unpool_conjunctive(lit.lit().cond());
-        auto res_lit = shift(lit.lit().lit(), res_cond, true);
+        auto res_lit = shift(lit.lit().lit(), res_cond, ShiftMode::negate);
         body_->update(lit.lit().rewrite(a_lit = std::move(res_lit), a_cond = std::move(res_cond)));
     }
 

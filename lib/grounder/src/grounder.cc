@@ -321,8 +321,8 @@ template <class F> class BuilderLit {
   public:
     BuilderLit(BuildContext &ctx, F cb) : cb_{std::move(cb)}, ctx_{&ctx} {}
     void operator()(Input::LitBool const &lit) const {
-        static_cast<void>(lit);
-        throw std::logic_error("literal boolean: implement me!!!");
+        // Note: this should actually never be called
+        cb_(std::make_unique<Ground::LitBool>(lit.value()));
     }
     void operator()(Input::LitComparison const &lit) const {
         auto has_projection = false;
@@ -334,7 +334,9 @@ template <class F> class BuilderLit {
             auto upper = std::visit(bld_term, *rng.rhs());
             cb_(std::make_unique<Ground::LitInterval>(std::move(lhs), std::move(lower), std::move(upper)));
         } else if (Input::is_external(lit.rhs().front().second)) {
-            throw std::logic_error("literal comparison is external: implement me!!!");
+            std::ostringstream oss;
+            oss << "implement me: handle external function call " << lit;
+            throw std::logic_error(oss.str());
         } else {
             auto add_cmp = [this, &bld_term](auto const &lhs, auto rel, auto const &rhs) {
                 auto l = std::visit(bld_term, lhs);
@@ -378,21 +380,22 @@ class BuilderHdLit {
   public:
     BuilderHdLit(BuildContext &ctx) : ctx_{&ctx} {}
 
-    template <class T> void operator()([[maybe_unused]] T const &lit) const {
-        throw std::logic_error("head literal: implement me!!!");
+    template <class T> void operator()(T const &lit) const {
+        std::ostringstream oss;
+        oss << "implement me: handle head literal " << lit;
+        throw std::logic_error(oss.str());
     }
     void operator()(Input::HdLitSimple const &lit) const {
         std::vector<size_t> provides;
         Ground::UTerm blub;
-        Ground::Base *base = nullptr;
         auto head = std::visit(
-            [&]<class T>(T const &lit) -> Ground::UTerm {
+            [&]<class T>(T const &lit) -> std::optional<std::pair<Ground::UTerm, Ground::Base &>> {
                 if constexpr (Util::matches<T, Input::LitSymbolic>) {
                     auto dom_it = ctx_->impl->atom_base.try_emplace(*signature(lit.term()), nullptr).first;
                     if (dom_it->second == nullptr) {
                         dom_it.value() = std::make_unique<Ground::Base>();
                     }
-                    base = dom_it->second.get();
+                    auto &base = *dom_it->second;
                     assert(lit.sign() == Sign::none);
                     if (auto it = ctx_->def_map->find(&lit.term()); it != ctx_->def_map->end()) {
                         provides = it->second;
@@ -400,18 +403,17 @@ class BuilderHdLit {
                     auto has_projection = false;
                     auto term = std::visit(BuilderTerm{has_projection, *ctx_->var_map}, lit.term());
                     assert(!has_projection);
-                    return term;
+                    return std::make_pair(std::move(term), std::ref(base));
                 } else if constexpr (Util::matches<T, Input::LitBool>) {
-                    // TODO: either use a nullptr or handle contstraints in some specific way
-                } else {
-                    assert(false);
+                    if (!lit.value()) {
+                        return std::nullopt;
+                    }
                 }
-                return nullptr;
+                throw std::runtime_error("unexpected literal in rule head");
             },
             lit.lit());
-        // TODO: think about priority handling!!!
-        ctx_->gcomp->add(std::make_unique<Ground::StmRule>(std::move(head), base, std::move(provides),
-                                                           std::move(*ctx_->body), ctx_->priority));
+        ctx_->gcomp->add(std::make_unique<Ground::StmRule>(std::move(head), std::move(provides), std::move(*ctx_->body),
+                                                           ctx_->priority));
     }
 
   private:
@@ -421,8 +423,10 @@ class BuilderHdLit {
 class BuilderBdLit {
   public:
     BuilderBdLit(BuildContext &ctx) : ctx_{&ctx} {}
-    template <class T> void operator()([[maybe_unused]] T const &lit) const {
-        throw std::logic_error("implement me!!!");
+    template <class T> void operator()(T const &lit) const {
+        std::ostringstream oss;
+        oss << "implement me: handle body literal " << lit;
+        throw std::logic_error(oss.str());
     }
     void operator()(Input::BdLitSimple const &lit) const {
         // we need to know whether the literal is recursive
@@ -515,8 +519,10 @@ class BuilderBdLit {
 class BuilderStm {
   public:
     BuilderStm(BuildContext &ctx) : ctx_{&ctx} {}
-    template <class T> void operator()([[maybe_unused]] T const &stm) const {
-        throw std::logic_error("implement me!!!");
+    template <class T> void operator()(T const &stm) const {
+        std::ostringstream oss;
+        oss << "implement me: handle statement " << stm;
+        throw std::logic_error(oss.str());
     }
 
     void operator()(Input::StmRule const &stm) const {
