@@ -258,10 +258,11 @@ struct BuildContext {
     [[nodiscard]] auto next_index() -> size_t { return comp->incomplete.size() + index_++; }
 
     //! Analyze the given conditional literal and return the required indices for grounding.
-    [[nodiscard]] auto analyze(Input::CondLit const &lit) -> std::tuple<bool, bool, size_t, size_t, size_t> {
+    [[nodiscard]] auto analyze(Input::CondLit const &lit) -> std::tuple<bool, bool, bool, size_t, size_t, size_t> {
         assert(!Input::is_fixed(lit.lit()).value_or(false));
         auto has_conclusion = !Input::is_fixed(lit.lit()).has_value();
         bool rec_premise = false;
+        bool rec_conclusion = false;
         auto empty_index = [this]() {
             if (comp->type == Input::ComponentType::single_pass) {
                 return Ground::stratified_index;
@@ -289,19 +290,20 @@ struct BuildContext {
             }
             return Ground::stratified_index;
         }();
-        auto lit_index = [&premise_index, &has_conclusion, &lit, this]() {
+        auto lit_index = [&premise_index, &has_conclusion, &rec_conclusion, &lit, this]() {
             if (comp->type == Input::ComponentType::single_pass) {
                 return Ground::stratified_index;
             }
             if (!has_conclusion) {
                 return premise_index;
             }
-            if (premise_index != Ground::stratified_index || is_recursive(lit.lit())) {
+            rec_conclusion = is_recursive(lit.lit());
+            if (premise_index != Ground::stratified_index || rec_conclusion) {
                 return next_index();
             }
             return Ground::stratified_index;
         }();
-        return {has_conclusion, rec_premise, empty_index, premise_index, lit_index};
+        return {has_conclusion, rec_conclusion, rec_premise, empty_index, premise_index, lit_index};
     }
 
     Grounder::Impl *impl = nullptr;
@@ -444,7 +446,8 @@ class BuilderBdLit {
         // - stratified conditional literals should use LitCondLitStrat
         //   - add this literal to the body
         //   - instantiation of the elements happen during matching
-        auto [has_conclusion, rec_premise, empty_index, premise_index, lit_index] = ctx_->analyze(lit.lit());
+        auto [has_conclusion, rec_conclusion, rec_premise, empty_index, premise_index, lit_index] =
+            ctx_->analyze(lit.lit());
         bool domain = true;
         auto build_lit = [this, &domain](auto &body, auto &vars, auto const &lit) {
             std::visit(BuilderLit{*ctx_,
@@ -457,6 +460,10 @@ class BuilderBdLit {
                                   }},
                        lit);
         };
+
+        if (!rec_conclusion && !rec_premise) {
+            std::cerr << "TODO: handle stratified conditional literals differently\n";
+        }
 
         // convert conclusion and premise
         auto vars_lit = Ground::VariableSet{};
