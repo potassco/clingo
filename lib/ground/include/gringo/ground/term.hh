@@ -23,9 +23,13 @@ class Term;
 using UTerm = std::unique_ptr<Term>;
 using UTermVec = std::vector<UTerm>;
 
+//! TODO: this interface with the default argument and function hiding is messy.
+//! Using virtual function only for the implementation would fix this nicely.
+
 //! Term interface.
 class Term {
   public:
+    using Key = Symbol;
     //! Destructor.
     virtual ~Term() = default;
     //! Compute an estimate how often the term can match size symbols given the bound variables.
@@ -57,6 +61,29 @@ class Term {
     [[nodiscard]] virtual auto equal_to(Term const &other) const -> bool = 0;
     [[nodiscard]] virtual auto compare_to(Term const &other) const -> std::strong_ordering = 0;
 
+    //! Compute a siganture of the term.
+    //!
+    //! This renames variables in the term in ascending order and then return a pair of the term and the bound
+    //! variables.
+    [[nodiscard]] auto signature(VariableSet const &bound,
+                                 VariableSet const &bind) const -> std::pair<UTerm, VariableVec> {
+        auto names = Util::unordered_map<size_t, size_t>{};
+        names.reserve(bind.size() + bound.size());
+        auto sig_term = rename(names);
+        auto sig_lookup = std::vector<size_t>{};
+        sig_lookup.reserve(bound.size());
+        for (auto const &var : bound) {
+            sig_lookup.emplace_back(names[var]);
+        }
+        return {std::move(sig_term), std::move(sig_lookup)};
+    }
+    //! Collect all variables in the term.
+    [[nodiscard]] auto vars() const -> VariableSet {
+        VariableSet set;
+        vars(set);
+        return set;
+    }
+
     friend auto operator==(Term const &a, Term const &b) -> bool { return a.equal_to(b); }
     friend auto operator<=>(Term const &a, Term const &b) -> std::strong_ordering { return a.compare_to(b); }
     friend auto operator<<(std::ostream &out, Term const &term) -> std::ostream & {
@@ -67,6 +94,8 @@ class Term {
 
 class TermProjection : public Term {
   public:
+    using Term::vars;
+
     [[nodiscard]] auto score(double size, std::vector<bool> const &bound) const -> double override;
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
     [[nodiscard]] auto eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> override;
@@ -83,6 +112,8 @@ class TermProjection : public Term {
 
 class TermSymbol : public Term {
   public:
+    using Term::vars;
+
     TermSymbol(Symbol sym) : sym_{sym} {}
     [[nodiscard]] auto symbol() const -> Symbol { return sym_; }
     [[nodiscard]] auto score(double size, std::vector<bool> const &bound) const -> double override;
@@ -104,6 +135,8 @@ class TermSymbol : public Term {
 
 class TermVariable : public Term {
   public:
+    using Term::vars;
+
     TermVariable(size_t var) : var_{var} {}
     [[nodiscard]] auto score(double size, std::vector<bool> const &bound) const -> double override;
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
@@ -124,6 +157,8 @@ class TermVariable : public Term {
 
 class TermLinear : public Term {
   public:
+    using Term::vars;
+
     TermLinear(Number m, size_t var, Number n) : m_{std::move(m)}, n_{std::move(n)}, var_{var} {}
     [[nodiscard]] auto score(double size, std::vector<bool> const &bound) const -> double override;
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
@@ -153,6 +188,8 @@ enum class UnaryOperator : uint8_t {
 
 class TermUnary : public Term {
   public:
+    using Term::vars;
+
     TermUnary(UnaryOperator op, UTerm rhs) : rhs_{std::move(rhs)}, op_{op} {}
     [[nodiscard]] auto score(double size, std::vector<bool> const &bound) const -> double override;
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
@@ -187,6 +224,8 @@ enum class BinaryOperator : uint8_t {
 
 class TermBinary : public Term {
   public:
+    using Term::vars;
+
     TermBinary(UTerm lhs, BinaryOperator op, UTerm rhs) : lhs_{std::move(lhs)}, rhs_{std::move(rhs)}, op_{op} {}
     [[nodiscard]] auto score(double size, std::vector<bool> const &bound) const -> double override;
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
@@ -209,6 +248,8 @@ class TermBinary : public Term {
 
 class TermTuple : public Term {
   public:
+    using Term::vars;
+
     TermTuple(UTermVec args) : args_{std::move(args)} {}
     [[nodiscard]] auto score(double size, std::vector<bool> const &bound) const -> double override;
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;
@@ -229,6 +270,8 @@ class TermTuple : public Term {
 
 class TermFunction : public Term {
   public:
+    using Term::vars;
+
     TermFunction(String name, UTermVec args) : name_{name}, args_{std::move(args)} {}
     [[nodiscard]] auto score(double size, std::vector<bool> const &bound) const -> double override;
     [[nodiscard]] auto match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool override;

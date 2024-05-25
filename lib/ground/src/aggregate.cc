@@ -1,5 +1,5 @@
 #include <gringo/ground/aggregate.hh>
-#include <gringo/ground/matcher2.hh>
+#include <gringo/ground/matcher.hh>
 
 #include <gringo/util/print.hh>
 
