@@ -16,27 +16,6 @@ enum class LitCondLitType : uint8_t {
 };
 auto operator<<(std::ostream &out, LitCondLitType type) -> std::ostream &;
 
-template <class Base>
-concept IsBase = requires(Base &b) {
-    b.begin(std::declval<MatcherType>());
-    b.end(std::declval<MatcherType>());
-    b.contains(std::declval<typename Base::Key>(), std::declval<MatcherType>());
-    { b.nth(std::declval<size_t>())->first } -> std::same_as<typename Base::Key const &>;
-    b.update(size_t{0});
-    { b.template context<int>() } -> std::same_as<int &>;
-} && requires(Base const &b) {
-    { b.nth(std::declval<size_t>())->first } -> std::same_as<typename Base::Key const &>;
-};
-
-template <class Match>
-concept IsMatch = requires(Match const &m) {
-    { m.vars() } -> std::same_as<VariableSet>;
-    m.match(std::declval<SymbolStore &>(), std::declval<typename Match::Key>(), std::declval<Assignment &>());
-    m.eval(std::declval<SymbolStore &>(), std::declval<Assignment &>());
-    m.signature(std::declval<VariableSet const &>(), std::declval<VariableSet const &>());
-    std::declval<std::ostream &>() << m;
-};
-
 // NOLINTNEXTLINE(performance-enum-size)
 enum class TruthConclusion : uint64_t {
     true_ = 0,
