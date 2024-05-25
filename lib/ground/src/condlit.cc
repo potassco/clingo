@@ -1,4 +1,4 @@
-#include <gringo/ground/aggregate.hh>
+#include <gringo/ground/condlit.hh>
 #include <gringo/ground/matcher.hh>
 
 #include <gringo/util/print.hh>
@@ -7,7 +7,7 @@
 
 namespace Gringo::Ground {
 
-// StateCondLitBase
+// StateCondLit
 
 void StateCondLit::vars(VariableSet &res, bool all) const {
     if (all) {
@@ -101,13 +101,15 @@ auto StateCondLit::propagate() -> bool {
     return res;
 }
 
+auto StateCondLit::domain() const -> bool { return domain_ && !rec_premise_; }
+
 auto StateCondLit::base_empty() -> BaseCondLitEmpty & { return base_empty_; }
 
 auto StateCondLit::base_premise() -> BaseCondLitPremise & { return base_premise_; }
 
 auto StateCondLit::base_lit() -> BaseCondLit & { return base_lit_; }
 
-auto StateCondLit::lit_is_fact(Assignment const &ass) {
+auto StateCondLit::lit_is_fact(Assignment const &ass) -> bool {
     if (rec_premise_) {
         return false;
     }
@@ -251,7 +253,10 @@ void LitCondLit::vars(VariableSet &vars, VarSelectMode mode) const {
 }
 
 auto LitCondLit::domain() const -> bool {
-    // We can return true here because a cond lit domain is empty upon an incremental step.
+    // TODO: domain if elements are domain
+    if (type() == LitCondLitType::lit) {
+        return state().domain();
+    }
     return true;
 }
 
@@ -317,6 +322,62 @@ auto LitCondLit::equal_to(Lit const &other) const -> bool {
 auto LitCondLit::compare_to(Lit const &other) const -> std::weak_ordering {
     if (auto const *x = dynamic_cast<LitCondLit const *>(&other); x != nullptr) {
         return std::make_tuple(type(), &state()) <=> std::make_tuple(x->type(), &x->state());
+    }
+    return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
+}
+
+// LitCondLitStrat
+
+void LitCondLitStrat::vars(VariableSet &vars, [[maybe_unused]] VarSelectMode mode) const {
+    if (mode != VarSelectMode::provide) {
+        state_->vars(vars, false);
+    }
+}
+
+auto LitCondLitStrat::domain() const -> bool { return state_->domain(); }
+
+auto LitCondLitStrat::recursive() const -> bool { return false; }
+
+auto LitCondLitStrat::matcher(MatcherType type,
+                              std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
+    static_cast<void>(type);
+    static_cast<void>(bound);
+    throw std::runtime_error("LitCondLitStrat::matcher: implement me!!!");
+}
+
+auto LitCondLitStrat::score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return 1; }
+
+void LitCondLitStrat::print(std::ostream &out) const {
+    out << "#cond_lit(lit";
+    for (auto var : state_->vars_global()) {
+        out << ","
+            << "X_" << var;
+    }
+    out << ")";
+}
+
+auto LitCondLitStrat::output([[maybe_unused]] SymbolStore &store, Assignment const &ass,
+                             std::ostream &out) const -> bool {
+    // TODO: fix once there is a proper output
+    out << "#cond_lit(TODO)";
+    return !state_->lit_is_fact(ass);
+}
+
+auto LitCondLitStrat::copy() const -> ULit { return std::make_unique<LitCondLitStrat>(*state_); }
+
+auto LitCondLitStrat::hash() const -> size_t {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    return Util::value_hash_record<LitCondLitStrat>(reinterpret_cast<uintptr_t>(state_));
+}
+
+auto LitCondLitStrat::equal_to(Lit const &other) const -> bool {
+    auto const *x = dynamic_cast<LitCondLitStrat const *>(&other);
+    return x != nullptr && state_ == x->state_;
+}
+
+auto LitCondLitStrat::compare_to(Lit const &other) const -> std::weak_ordering {
+    if (auto const *x = dynamic_cast<LitCondLitStrat const *>(&other); x != nullptr) {
+        return state_ <=> x->state_;
     }
     return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
 }

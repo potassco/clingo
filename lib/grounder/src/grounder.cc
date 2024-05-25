@@ -1,6 +1,6 @@
 #include <gringo/grounder/grounder.hh>
 
-#include <gringo/ground/aggregate.hh>
+#include <gringo/ground/condlit.hh>
 #include <gringo/ground/program.hh>
 
 #include <gringo/input/algo/analyze.hh>
@@ -284,9 +284,7 @@ struct BuildContext {
             if (empty_index != Ground::stratified_index) {
                 return next_index();
             }
-            if (auto ie = cond.end(),
-                it = std::find_if(cond.begin(), ie, [this](auto const &lit) { return is_recursive(lit); });
-                it != ie) {
+            if (rec_premise) {
                 return next_index();
             }
             return Ground::stratified_index;
@@ -441,13 +439,21 @@ class BuilderBdLit {
             lit.lit());
     }
     void operator()(Input::BdLitConjunction const &lit) const {
-        // TODO: stratified conclusions can be shifted into the body
+        // TODO:
+        // - stratified conclusions can be shifted into the body
+        // - stratified conditional literals should use LitCondLitStrat
+        //   - add this literal to the body
+        //   - instantiation of the elements happen during matching
         auto [has_conclusion, rec_premise, empty_index, premise_index, lit_index] = ctx_->analyze(lit.lit());
-        auto build_lit = [this](auto &body, auto &vars, auto const &lit) {
+        bool domain = true;
+        auto build_lit = [this, &domain](auto &body, auto &vars, auto const &lit) {
             std::visit(BuilderLit{*ctx_,
-                                  [&body, &vars]<class Lit>(Lit &&glit) {
+                                  [&body, &vars, &domain]<class Lit>(Lit &&glit) {
                                       glit->vars(vars, Ground::VarSelectMode::all);
                                       body.emplace_back(std::forward<Lit>(glit));
+                                      if (domain && !body.back()->domain()) {
+                                          domain = false;
+                                      }
                                   }},
                        lit);
         };
@@ -485,7 +491,7 @@ class BuilderBdLit {
             }
         }
         auto &base = ctx_->clit_base_->emplace_front(std::move(vars_local), std::move(vars_global), lit_index,
-                                                     has_conclusion, rec_premise);
+                                                     has_conclusion, rec_premise, domain);
 
         // create: empty(clit(G)) :- B1.
         ctx_->gcomp->add(std::make_unique<Ground::StmCondLit>(Ground::StmCondLitType::empty, base, std::move(body),

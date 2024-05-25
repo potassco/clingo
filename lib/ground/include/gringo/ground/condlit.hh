@@ -166,12 +166,13 @@ class BaseCondLit : public BaseImpl<Symbol const *, BaseCondLit> {
 
 struct StateCondLit {
   public:
-    StateCondLit(VariableVec local, VariableVec global, size_t index, bool has_conclusion, bool rec_premise)
+    StateCondLit(VariableVec local, VariableVec global, size_t index, bool has_conclusion, bool rec_premise,
+                 bool domain)
         : local_{std::move(local)}, global_{std::move(global)}, syms_elems_{local_.size() + 1},
           syms_atoms_{global_.size()}, atoms_{0, Util::SpanHash{global_.size()}, Util::SpanEqualTo{global_.size()}},
           elems_{0, Util::SpanHash{local_.size() + 1}, Util::SpanEqualTo{local_.size() + 1}}, base_empty_{atoms_},
           base_premise_{elems_}, base_lit_{atoms_}, index_{index}, has_conclusion_{has_conclusion},
-          rec_premise_{rec_premise} {
+          rec_premise_{rec_premise}, domain_{domain} {
         temp_syms_.reserve(std::max(global_.size(), local_.size() + 1));
     }
 
@@ -200,13 +201,16 @@ struct StateCondLit {
     void add_conclusion(Assignment const &ass, bool fact);
 
     //! Propagate enqueued conditional literals whose elements are not blocked.
-    auto propagate() -> bool;
+    [[nodiscard]] auto propagate() -> bool;
 
-    auto base_empty() -> BaseCondLitEmpty &;
-    auto base_premise() -> BaseCondLitPremise &;
-    auto base_lit() -> BaseCondLit &;
+    //! Return true if all contained literals are domain and the premise is not recursive.
+    [[nodiscard]] auto domain() const -> bool;
 
-    auto lit_is_fact(Assignment const &ass);
+    [[nodiscard]] auto base_empty() -> BaseCondLitEmpty &;
+    [[nodiscard]] auto base_premise() -> BaseCondLitPremise &;
+    [[nodiscard]] auto base_lit() -> BaseCondLit &;
+
+    [[nodiscard]] auto lit_is_fact(Assignment const &ass) -> bool;
 
     [[nodiscard]] auto atom_index(Assignment &ass) const -> std::optional<size_t>;
 
@@ -235,6 +239,7 @@ struct StateCondLit {
     size_t index_;
     bool has_conclusion_;
     bool rec_premise_;
+    bool domain_;
 };
 
 class MatchCondLit {
@@ -271,7 +276,7 @@ class MatchCondLit {
 
 class LitCondLit : public Lit, private MatchCondLit {
   public:
-    LitCondLit(LitCondLitType type, StateCondLit &base, size_t index) : MatchCondLit{base, type}, index_{index} {}
+    LitCondLit(LitCondLitType type, StateCondLit &state, size_t index) : MatchCondLit{state, type}, index_{index} {}
     void vars(VariableSet &vars, VarSelectMode mode) const override;
     [[nodiscard]] auto domain() const -> bool override;
     [[nodiscard]] auto recursive() const -> bool override;
@@ -287,6 +292,26 @@ class LitCondLit : public Lit, private MatchCondLit {
 
   private:
     size_t index_;
+};
+
+class LitCondLitStrat : public Lit {
+  public:
+    LitCondLitStrat(StateCondLit &state) : state_{&state} {}
+    void vars(VariableSet &vars, VarSelectMode mode) const override;
+    [[nodiscard]] auto domain() const -> bool override;
+    [[nodiscard]] auto recursive() const -> bool override;
+    [[nodiscard]] auto matcher(MatcherType type,
+                               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto score(std::vector<bool> const &bound) const -> double override;
+    void print(std::ostream &out) const override;
+    auto output(SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool override;
+    [[nodiscard]] auto copy() const -> ULit override;
+    [[nodiscard]] auto hash() const -> size_t override;
+    [[nodiscard]] auto equal_to(Lit const &other) const -> bool override;
+    [[nodiscard]] auto compare_to(Lit const &other) const -> std::weak_ordering override;
+
+  private:
+    StateCondLit *state_;
 };
 
 enum class StmCondLitType : uint8_t {
