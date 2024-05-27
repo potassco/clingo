@@ -68,7 +68,7 @@ auto Instantiator::enqueue() -> bool {
     return old;
 }
 
-void Instantiator::instantiate(Logger &log, SymbolStore &store) {
+auto Instantiator::instantiate(Logger &log, SymbolStore &store) -> bool {
     enqueued_ = false;
     auto ie = matchers_.rend();
     auto it = ie - 1;
@@ -91,7 +91,9 @@ void Instantiator::instantiate(Logger &log, SymbolStore &store) {
         }
         if (it == ib) {
             GRINGO_REPORT(log, trace) << "  solution";
-            icb_->report(store, ass_);
+            if (!icb_->report(store, ass_)) {
+                return false;
+            }
         }
         GRINGO_REPORT(log, trace) << "  block: " << Util::p_range(it->depend());
         for (auto idx : it->depend()) {
@@ -101,6 +103,7 @@ void Instantiator::instantiate(Logger &log, SymbolStore &store) {
         }
         GRINGO_REPORT(log, trace) << "  backjumped to " << std::distance(it, ie) - 1;
     } while (it != ie);
+    return true;
 }
 
 void Instantiator::propagate(Queue &queue) { icb_->propagate(queue); }
@@ -135,7 +138,7 @@ void Queue::propagate(size_t index) {
     }
 }
 
-void Queue::process(Logger &log, SymbolStore &store) {
+auto Queue::process(Logger &log, SymbolStore &store) -> bool {
     // ground
     for (auto i = size_t{0}; i < insts_.size(); ++i) {
         enter_(i);
@@ -150,13 +153,16 @@ void Queue::process(Logger &log, SymbolStore &store) {
                 inst->init(store, gen);
             }
             for (auto *inst : current) {
-                inst->instantiate(log, store);
+                if (!inst->instantiate(log, store)) {
+                    return false;
+                }
             }
             for (auto *inst : current) {
                 inst->propagate(*this);
             }
         }
     }
+    return true;
 }
 
 } // namespace Gringo::Ground

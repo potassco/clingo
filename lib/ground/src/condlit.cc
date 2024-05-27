@@ -31,18 +31,20 @@ auto StateCondLit::vars_local() const -> VariableVec const & { return local_; }
 
 auto StateCondLit::index() const -> size_t { return index_; }
 
-void StateCondLit::add_empty(Assignment const &ass) {
+auto StateCondLit::add_empty(Assignment const &ass) -> std::pair<MapAtomCondLit::iterator, bool> {
     auto const syms = syms_atoms_.push_map(global_, [&ass](auto var) {
         // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
         return ass[var].value();
     });
-    if (auto [it, ins] = atoms_.try_emplace(syms.data()); ins) {
+    auto [it, ins] = atoms_.try_emplace(syms.data());
+    if (ins) {
         if (it.value().enqueue(elems_)) {
             propagate_.emplace_back(std::distance(atoms_.begin(), it));
         }
     } else {
         syms_atoms_.pop();
     }
+    return {it, ins};
 }
 
 void StateCondLit::add_premise(Assignment const &ass, bool fact) {
@@ -341,17 +343,18 @@ class MatcherCondLitStrat : public OnceMatcher {
             init_ = true;
             inst_.init(store, 0);
         }
-        state_->add_empty(ass);
-        // TODO: how to handle logging???
-        Logger log;
-        // log.set_level(LogLevel::trace);
-        GRINGO_REPORT(log, trace) << "<<< begin nested instantiation";
-        state_->base_empty().update(1);
-        inst_.instantiate(log, store);
-        GRINGO_REPORT(log, trace) << ">>> end nested instantiation";
-        std::ignore = state_->propagate();
-        // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-        return !state_->atom_nth(state_->atom_index(ass).value()).value().is_false();
+        auto [it, ins] = state_->add_empty(ass);
+        if (ins) {
+            // TODO: how to handle logging???
+            Logger log;
+            // log.set_level(LogLevel::trace);
+            GRINGO_REPORT(log, trace) << "<<< begin nested instantiation";
+            state_->base_empty().update(1);
+            std::ignore = inst_.instantiate(log, store);
+            GRINGO_REPORT(log, trace) << ">>> end nested instantiation";
+            std::ignore = state_->propagate();
+        }
+        return !it.value().is_false();
     }
     void print(std::ostream &out) const override {
         out << "#cond_lit(lit";
@@ -372,10 +375,9 @@ class MatcherCondLitStrat : public OnceMatcher {
 
 void LitCondLitStrat::init([[maybe_unused]] size_t gen) {}
 
-void LitCondLitStrat::report(SymbolStore &store, Assignment const &ass) {
+auto LitCondLitStrat::report(SymbolStore &store, Assignment const &ass) -> bool {
     // TODO:
     // - improve fact check
-    // - consider providing an early exit in case a solution callback can accumulate no more matches
     bool fact = true;
     for (auto const &lit : premise_) {
         std::stringstream out;
@@ -384,6 +386,10 @@ void LitCondLitStrat::report(SymbolStore &store, Assignment const &ass) {
         }
     }
     state_->add_premise(ass, fact);
+    // In the stratified case, the conclusion is always false. Furthermore,
+    // exactly one literal is bound. Thus, we can exit instantiation early
+    // here.
+    return !fact;
 }
 
 void LitCondLitStrat::propagate([[maybe_unused]] Queue &queue) {}
@@ -519,7 +525,7 @@ void StmCondLit::init([[maybe_unused]] size_t gen) {
     // by construction, this statement does not increment the generation
 }
 
-void StmCondLit::report([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment const &ass) {
+auto StmCondLit::report([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment const &ass) -> bool {
     switch (type_) {
         case StmCondLitType::empty: {
             base_->add_empty(ass);
@@ -550,6 +556,7 @@ void StmCondLit::report([[maybe_unused]] SymbolStore &store, [[maybe_unused]] As
             break;
         }
     }
+    return true;
 }
 
 void StmCondLit::propagate([[maybe_unused]] Queue &queue) {

@@ -108,7 +108,7 @@ class DependencyBuilder {
     //! Add facts.
     virtual void fact(std::vector<Symbol> const &facts) = 0;
     //! Add components.
-    virtual void components(Components const &comps) = 0;
+    [[nodiscard]] virtual auto components(Components const &comps) -> bool = 0;
 };
 
 //! A program consisting of parts.
@@ -158,7 +158,7 @@ class Program {
     }
 
     //! Prepare the statements in a program for grounding.
-    void analyze(SymbolStore &store, ProgramParamVec const &params, DependencyBuilder &bld) const;
+    [[nodiscard]] auto analyze(SymbolStore &store, ProgramParamVec const &params, DependencyBuilder &bld) const -> bool;
 
   private:
     //! The signature of a program part.

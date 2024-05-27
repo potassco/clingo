@@ -64,7 +64,7 @@ class StmRule : public Stm {
     // InstanceCallback interface
     void print_head(std::ostream &out) const override;
     void init(size_t gen) override;
-    void report(SymbolStore &store, Assignment const &ass) override;
+    [[nodiscard]] auto report(SymbolStore &store, Assignment const &ass) -> bool override;
     void propagate(Queue &queue) override;
     [[nodiscard]] auto priority() const -> size_t override { return prio_; }
 

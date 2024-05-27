@@ -583,7 +583,7 @@ class Builder : public Input::DependencyBuilder {
         }
     }
 
-    void components(Input::Components const &comps) override {
+    auto components(Input::Components const &comps) -> bool override {
         auto lin = Ground::Linearizer{};
         for (auto const &ref_comps : comps) {
             GRINGO_REPORT(*impl_->log, debug) << "  component";
@@ -633,9 +633,12 @@ class Builder : public Input::DependencyBuilder {
                     GRINGO_REPORT(*impl_->log, debug) << "      " << *stm;
                     lin.prepare(*stm, stm->body(), stm->important());
                 }
-                queue.process(*impl_->log, *impl_->store);
+                if (!queue.process(*impl_->log, *impl_->store)) {
+                    return false;
+                }
             }
         }
+        return true;
     }
 
   private:
@@ -680,11 +683,12 @@ void Grounder::prepare() {
     impl_->unprocessed_prg.clear();
 }
 
-void Grounder::ground(Input::ProgramParamVec const &params) {
+auto Grounder::ground(Input::ProgramParamVec const &params) -> bool {
     GRINGO_REPORT(*impl_->log, debug) << "grounding...";
     auto bld = Builder{*impl_};
-    impl_->prg.analyze(*impl_->store, params, bld);
+    bool ret = impl_->prg.analyze(*impl_->store, params, bld);
     std::cerr.flush();
+    return ret;
 }
 
 void Grounder::output_unprocessed_program(std::ostream &out) {

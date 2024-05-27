@@ -41,7 +41,7 @@ class InstanceCallback {
     //! Notify a statement that instantiation starts.
     virtual void init(size_t gen) = 0;
     //! Report an assignment giving rise to an instance for a statement.
-    virtual void report(SymbolStore &store, Assignment const &ass) = 0;
+    [[nodiscard]] virtual auto report(SymbolStore &store, Assignment const &ass) -> bool = 0;
     //! Notify a statement that instantiation has finished.
     virtual void propagate(Queue &queue) = 0;
     //! The priority of the callback.
@@ -80,7 +80,7 @@ class Instantiator {
     //! Find all assignments for the added matchers.
     //!
     //! Assignments are reported via the InstanceCallback.
-    void instantiate(Logger &log, SymbolStore &store);
+    [[nodiscard]] auto instantiate(Logger &log, SymbolStore &store) -> bool;
     //! Add instantiators that need grounding to queue.
     void propagate(Queue &queue);
     //! The priority of the instantiator.
@@ -121,7 +121,7 @@ class Queue {
     void insert(Instantiator inst, std::optional<size_t> index);
     void propagate(size_t index);
     //! Process previously enqueued instantiators.
-    void process(Logger &log, SymbolStore &store);
+    [[nodiscard]] auto process(Logger &log, SymbolStore &store) -> bool;
     //! Release the contained instantiators.
     auto release() -> std::vector<Instantiator> { return std::move(insts_); }
 

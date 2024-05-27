@@ -186,7 +186,7 @@ void StmRule::init(size_t gen) {
     }
 }
 
-void StmRule::report(SymbolStore &store, Assignment const &ass) {
+auto StmRule::report(SymbolStore &store, Assignment const &ass) -> bool {
     std::ostream &out = std::cerr;
     bool fact = true;
     std::ostringstream tmp_bd;
@@ -215,6 +215,8 @@ void StmRule::report(SymbolStore &store, Assignment const &ass) {
     } else {
         out << " :- " << tmp_bd.view() << ".\n";
     }
+    // stop instantiation if the body of an integrity constraint is fact
+    return head_ != nullptr || !fact;
 }
 
 void StmRule::propagate(Queue &queue) {

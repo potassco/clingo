@@ -140,7 +140,7 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
     return std::nullopt;
 }
 
-void Program::analyze(SymbolStore &store, ProgramParamVec const &params, DependencyBuilder &bld) const {
+auto Program::analyze(SymbolStore &store, ProgramParamVec const &params, DependencyBuilder &bld) const -> bool {
     bld.meta(meta_stms_);
     std::vector<Stm> stms;
     Util::unordered_set<Signature> sigs;
@@ -194,7 +194,7 @@ void Program::analyze(SymbolStore &store, ProgramParamVec const &params, Depende
             }
         }
     }
-    bld.components(Gringo::Input::analyze(store, stms));
+    return bld.components(Gringo::Input::analyze(store, stms));
 }
 
 } // namespace Gringo::Input

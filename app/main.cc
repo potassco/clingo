@@ -81,7 +81,7 @@ auto run(int argc, char *argv[]) -> int {
                 grd.output_program(std::cout);
                 return;
             }
-            grd.ground(Gringo::Input::ProgramParamVec{{store->string("base"), {}}});
+            std::ignore = grd.ground(Gringo::Input::ProgramParamVec{{store->string("base"), {}}});
         }();
     } catch (std::exception const &e) {
         fprintf(stderr, "%s: %s\n", log.message_prefix(Gringo::MessageCode::error), e.what());

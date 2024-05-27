@@ -200,7 +200,7 @@ struct StateCondLit {
     [[nodiscard]] auto index() const -> size_t;
 
     //! Add a new cond lit atom.
-    void add_empty(Assignment const &ass);
+    auto add_empty(Assignment const &ass) -> std::pair<MapAtomCondLit::iterator, bool>;
 
     //! Add a new cond lit element.
     void add_premise(Assignment const &ass, bool fact);
@@ -320,7 +320,7 @@ class LitCondLitStrat : public Lit, private InstanceCallback {
     [[nodiscard]] auto compare_to(Lit const &other) const -> std::weak_ordering override;
     // cb interface
     void init(size_t gen) override;
-    void report(SymbolStore &store, Assignment const &ass) override;
+    [[nodiscard]] auto report(SymbolStore &store, Assignment const &ass) -> bool override;
     void propagate(Queue &queue) override;
     [[nodiscard]] auto priority() const -> size_t override;
     void print_head(std::ostream &out) const override;
@@ -348,7 +348,7 @@ class StmCondLit : public Stm {
     // solution callback interface
     void print_head(std::ostream &out) const override;
     void init(size_t gen) override;
-    void report(SymbolStore &store, Assignment const &ass) override;
+    [[nodiscard]] auto report(SymbolStore &store, Assignment const &ass) -> bool override;
     void propagate(Queue &queue) override;
     [[nodiscard]] auto priority() const -> size_t override;
 
