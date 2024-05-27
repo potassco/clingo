@@ -19,15 +19,14 @@ template <std::forward_iterator T> class enumerate<T> {
     class iterator {
       public:
         using iterator_category = std::forward_iterator_tag;
-        using value_type = std::pair<size_t, typename T::value_type>;
-        using reference = std::pair<size_t, typename T::reference>;
+        using value_type = std::pair<size_t, typename T::reference>;
         using difference_type = std::make_signed_t<size_t>;
 
         iterator() = default;
 
         iterator(size_t num, T cur) : num_{num}, cur_{cur} {}
 
-        auto operator*() const -> reference { return {num_, *cur_}; }
+        auto operator*() const -> value_type { return {num_, *cur_}; }
 
         auto operator++() -> iterator & {
             ++cur_;
@@ -76,14 +75,13 @@ template <std::integral T> class enumerate<T> {
       public:
         using iterator_category = std::forward_iterator_tag;
         using value_type = T;
-        using reference = T;
         using difference_type = std::make_signed_t<value_type>;
 
         iterator() = default;
 
         iterator(value_type cur) : cur_{cur} {}
 
-        auto operator*() const -> reference { return cur_; }
+        auto operator*() const -> value_type { return cur_; }
 
         auto operator++() -> iterator & {
             ++cur_;

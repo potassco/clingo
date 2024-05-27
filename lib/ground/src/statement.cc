@@ -14,13 +14,11 @@ void Linearizer::start(Queue &queue, bool domain) {
     domain_ = domain;
 }
 
-void Linearizer::prepare(Stm &stm) {
+void Linearizer::prepare(InstanceCallback &cb, ULitVec const &body, VariableSet important) {
     rec_.clear();
     todos_.clear();
     todos_.emplace_back();
     auto i = size_t{0};
-    auto const &body = stm.body();
-    auto important = stm.important();
     // gather indices of recursize literals and extend important variables
     for (auto const &lit : body) {
         todos_.back().emplace_back(MatcherType::all_atoms);
@@ -43,7 +41,7 @@ void Linearizer::prepare(Stm &stm) {
     }
     build_(body);
     for (auto const &todo : todos_) {
-        auto [inst, index] = order_(stm, todo, important, body);
+        auto [inst, index] = order_(cb, todo, important, body);
         iqueue_->insert(std::move(inst), index);
     }
 }

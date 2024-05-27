@@ -38,6 +38,9 @@ struct StateCondLitElem {
         return premise_is_fact_ != 0 &&
                (conclusion_truth_ == TruthConclusion::false_ || conclusion_truth_ == TruthConclusion::unknown);
     }
+    [[nodiscard]] auto is_false() const {
+        return premise_is_fact_ != 0 && conclusion_truth_ == TruthConclusion::false_;
+    }
     void set_offset(size_t offset) { offset_ = offset; }
     [[nodiscard]] auto offset() const -> size_t { return offset_; }
 
@@ -66,13 +69,18 @@ class StateAtomCondLit {
         assert(!propagated_ && enqueued_);
         enqueued_ = false;
         for (auto n = elems_.size(); elems_propagated_ < n; ++elems_propagated_) {
-            if (elems.nth(elems_[elems_propagated_]).value().is_blocked()) {
+            auto const &elem = elems.nth(elems_[elems_propagated_]).value();
+            if (elem.is_blocked()) {
+                if (elem.is_false()) {
+                    false_ = true;
+                }
                 return false;
             }
         }
         propagated_ = true;
         return true;
     }
+    [[nodiscard]] auto is_blocked() const -> bool { return elems_propagated_ < elems_.size(); }
     [[nodiscard]] auto is_fact(MapElemCondLit const &elems) const -> bool {
         return std::all_of(elems_.begin(), elems_.end(),
                            [&elems](auto idx) { return elems.nth(idx).value().is_fact(); });
@@ -85,6 +93,7 @@ class StateAtomCondLit {
     std::vector<size_t> elems_;
     size_t offset_ = 0;
     size_t elems_propagated_ = 0;
+    // TODO: Combine into propagated
     bool propagated_ = false;
     bool enqueued_ = false;
     bool false_ = false;
@@ -294,9 +303,10 @@ class LitCondLit : public Lit, private MatchCondLit {
     size_t index_;
 };
 
-class LitCondLitStrat : public Lit {
+class LitCondLitStrat : public Lit, private InstanceCallback {
   public:
-    LitCondLitStrat(StateCondLit &state) : state_{&state} {}
+    LitCondLitStrat(StateCondLit &state, ULitVec premise) : state_{&state}, premise_{std::move(premise)} {}
+    // lit interface
     void vars(VariableSet &vars, VarSelectMode mode) const override;
     [[nodiscard]] auto domain() const -> bool override;
     [[nodiscard]] auto recursive() const -> bool override;
@@ -309,9 +319,16 @@ class LitCondLitStrat : public Lit {
     [[nodiscard]] auto hash() const -> size_t override;
     [[nodiscard]] auto equal_to(Lit const &other) const -> bool override;
     [[nodiscard]] auto compare_to(Lit const &other) const -> std::weak_ordering override;
+    // cb interface
+    void init(size_t gen) override;
+    void report(SymbolStore &store, Assignment const &ass) override;
+    void propagate(Queue &queue) override;
+    [[nodiscard]] auto priority() const -> size_t override;
+    void print_head(std::ostream &out) const override;
 
   private:
     StateCondLit *state_;
+    ULitVec premise_;
 };
 
 enum class StmCondLitType : uint8_t {

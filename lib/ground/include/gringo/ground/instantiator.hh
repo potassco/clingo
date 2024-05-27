@@ -122,6 +122,8 @@ class Queue {
     void propagate(size_t index);
     //! Process previously enqueued instantiators.
     void process(Logger &log, SymbolStore &store);
+    //! Release the contained instantiators.
+    auto release() -> std::vector<Instantiator> { return std::move(insts_); }
 
   private:
     //! Append an instantiator to the queue.

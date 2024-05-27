@@ -6,6 +6,7 @@
 #include <gringo/input/algo/analyze.hh>
 #include <gringo/input/algo/parse.hh>
 #include <gringo/input/algo/print.hh>
+#include <gringo/input/algo/unpool_relations.hh>
 #include <gringo/input/algo/visit_variables.hh>
 
 #include <gringo/util/type_traits.hh>
@@ -260,49 +261,29 @@ struct BuildContext {
     //! Analyze the given conditional literal and return the required indices for grounding.
     [[nodiscard]] auto analyze(Input::CondLit const &lit) -> std::tuple<bool, bool, bool, size_t, size_t, size_t> {
         assert(!Input::is_fixed(lit.lit()).value_or(false));
+
         auto has_conclusion = !Input::is_fixed(lit.lit()).has_value();
-        bool rec_premise = false;
-        bool rec_conclusion = false;
-        auto empty_index = [this]() {
-            if (comp->type == Input::ComponentType::single_pass) {
-                return Ground::stratified_index;
+        auto rec_comp = comp->type != Input::ComponentType::single_pass;
+        auto rec_body =
+            rec_comp && std::any_of(body->begin(), body->end(), [](auto const &lit) { return lit->recursive(); });
+        auto rec_premise = rec_comp && std::any_of(lit.cond().begin(), lit.cond().end(),
+                                                   [this](auto const &lit) { return is_recursive(lit); });
+        bool rec_conclusion = rec_comp && is_recursive(lit.lit());
+
+        auto empty_index = Ground::stratified_index;
+        auto premise_index = Ground::stratified_index;
+        auto lit_index = Ground::stratified_index;
+
+        if (rec_premise || rec_conclusion) {
+            if (rec_body) {
+                empty_index = Ground::stratified_index;
             }
-            if (auto ie = body->end(),
-                it = std::find_if(body->begin(), ie, [](auto const &lit) { return lit->recursive(); });
-                it != ie) {
-                return next_index();
+            if (rec_body || rec_premise) {
+                premise_index = next_index();
             }
-            return Ground::stratified_index;
-        }();
-        auto premise_index = [&empty_index, &lit, &rec_premise, this]() {
-            if (comp->type == Input::ComponentType::single_pass) {
-                return Ground::stratified_index;
-            }
-            auto const &cond = lit.cond();
-            auto ie = cond.end();
-            auto it = std::find_if(cond.begin(), ie, [this](auto const &lit) { return is_recursive(lit); });
-            rec_premise = it != ie;
-            if (empty_index != Ground::stratified_index) {
-                return next_index();
-            }
-            if (rec_premise) {
-                return next_index();
-            }
-            return Ground::stratified_index;
-        }();
-        auto lit_index = [&premise_index, &has_conclusion, &rec_conclusion, &lit, this]() {
-            if (comp->type == Input::ComponentType::single_pass) {
-                return Ground::stratified_index;
-            }
-            if (!has_conclusion) {
-                return premise_index;
-            }
-            rec_conclusion = is_recursive(lit.lit());
-            if (premise_index != Ground::stratified_index || rec_conclusion) {
-                return next_index();
-            }
-            return Ground::stratified_index;
-        }();
+            lit_index = has_conclusion ? next_index() : premise_index;
+        }
+
         return {has_conclusion, rec_conclusion, rec_premise, empty_index, premise_index, lit_index};
     }
 
@@ -441,11 +422,6 @@ class BuilderBdLit {
             lit.lit());
     }
     void operator()(Input::BdLitConjunction const &lit) const {
-        // TODO:
-        // - stratified conclusions can be shifted into the body
-        // - stratified conditional literals should use LitCondLitStrat
-        //   - add this literal to the body
-        //   - instantiation of the elements happen during matching
         auto [has_conclusion, rec_conclusion, rec_premise, empty_index, premise_index, lit_index] =
             ctx_->analyze(lit.lit());
         bool domain = true;
@@ -461,30 +437,29 @@ class BuilderBdLit {
                        lit);
         };
 
-        if (!rec_conclusion && !rec_premise) {
-            std::cerr << "TODO: handle stratified conditional literals differently\n";
+        // convert conclusion and premise
+        bool shift = !rec_conclusion && has_conclusion;
+        auto vars_lit = Ground::VariableSet{};
+        auto premise = Ground::ULitVec{};
+        premise.reserve(lit.lit().cond().size() + 1 + static_cast<size_t>(shift));
+        for (auto const &clit : lit.lit().cond()) {
+            build_lit(premise, vars_lit, clit);
         }
 
-        // convert conclusion and premise
-        auto vars_lit = Ground::VariableSet{};
+        if (shift) {
+            has_conclusion = false;
+            build_lit(premise, vars_lit, Input::negate(lit.lit().lit()));
+        }
+
         auto conclusion = Ground::ULitVec{};
         if (has_conclusion) {
             conclusion.reserve(2);
             build_lit(conclusion, vars_lit, lit.lit().lit());
         }
-        auto premise = Ground::ULitVec{};
-        premise.reserve(lit.lit().cond().size() + 1);
-        for (auto const &clit : lit.lit().cond()) {
-            build_lit(premise, vars_lit, clit);
-        }
 
-        // convert body
-        auto body = Ground::ULitVec{};
         auto vars_body = Ground::VariableSet{};
-        body.reserve(ctx_->body->size());
         for (auto const &lit : *ctx_->body) {
             lit->vars(vars_body, Ground::VarSelectMode::all);
-            body.emplace_back(lit->copy());
         }
 
         // initialize base
@@ -497,32 +472,51 @@ class BuilderBdLit {
                 vars_local.emplace_back(x);
             }
         }
+
         auto &base = ctx_->clit_base_->emplace_front(std::move(vars_local), std::move(vars_global), lit_index,
                                                      has_conclusion, rec_premise, domain);
 
-        // create: empty(clit(G)) :- B1.
-        ctx_->gcomp->add(std::make_unique<Ground::StmCondLit>(Ground::StmCondLitType::empty, base, std::move(body),
-                                                              ctx_->priority, empty_index));
-        ctx_->priority += 1;
-
-        // create: premise(clit(G),L) :- empty(clit(G)), P.
-        premise.insert(premise.begin(),
-                       std::make_unique<Ground::LitCondLit>(Ground::LitCondLitType::empty, base, empty_index));
-        ctx_->gcomp->add(std::make_unique<Ground::StmCondLit>(Ground::StmCondLitType::premise, base, std::move(premise),
-                                                              ctx_->priority, premise_index));
-        ctx_->priority += 1;
-
-        // create: conclusion(clit(G),L) :- premise(clit(G),L), C.
-        if (has_conclusion) {
-            conclusion.insert(conclusion.begin(), std::make_unique<Ground::LitCondLit>(Ground::LitCondLitType::premise,
-                                                                                       base, premise_index));
-            ctx_->gcomp->add(std::make_unique<Ground::StmCondLit>(Ground::StmCondLitType::conclusion, base,
-                                                                  std::move(conclusion), ctx_->priority, lit_index));
-            ctx_->priority += 1;
+        // handle the stratified case
+        if (!rec_conclusion && !rec_premise) {
+            assert(!has_conclusion);
+            premise.insert(premise.begin(),
+                           std::make_unique<Ground::LitCondLit>(Ground::LitCondLitType::empty, base, 1));
+            ctx_->body->emplace_back(std::make_unique<Ground::LitCondLitStrat>(base, std::move(premise)));
         }
+        // handle the recursive case
+        else {
+            // convert body
+            auto body = Ground::ULitVec{};
+            body.reserve(ctx_->body->size());
+            for (auto const &lit : *ctx_->body) {
+                body.emplace_back(lit->copy());
+            }
 
-        // create: H :- B1, clit(G), B2.
-        ctx_->body->emplace_back(std::make_unique<Ground::LitCondLit>(Ground::LitCondLitType::lit, base, base.index()));
+            // create: empty(clit(G)) :- B1.
+            ctx_->gcomp->add(std::make_unique<Ground::StmCondLit>(Ground::StmCondLitType::empty, base, std::move(body),
+                                                                  ctx_->priority, empty_index));
+            ctx_->priority += 1;
+
+            // create: premise(clit(G),L) :- empty(clit(G)), P.
+            premise.insert(premise.begin(),
+                           std::make_unique<Ground::LitCondLit>(Ground::LitCondLitType::empty, base, empty_index));
+            ctx_->gcomp->add(std::make_unique<Ground::StmCondLit>(Ground::StmCondLitType::premise, base,
+                                                                  std::move(premise), ctx_->priority, premise_index));
+            ctx_->priority += 1;
+
+            // create: conclusion(clit(G),L) :- premise(clit(G),L), C.
+            if (has_conclusion) {
+                conclusion.insert(conclusion.begin(), std::make_unique<Ground::LitCondLit>(
+                                                          Ground::LitCondLitType::premise, base, premise_index));
+                ctx_->gcomp->add(std::make_unique<Ground::StmCondLit>(
+                    Ground::StmCondLitType::conclusion, base, std::move(conclusion), ctx_->priority, lit_index));
+                ctx_->priority += 1;
+            }
+
+            // create: H :- B1, clit(G), B2.
+            ctx_->body->emplace_back(
+                std::make_unique<Ground::LitCondLit>(Ground::LitCondLitType::lit, base, base.index()));
+        }
     }
 
   private:
@@ -637,7 +631,7 @@ class Builder : public Input::DependencyBuilder {
                 lin.start(queue, domain);
                 for (auto const &stm : gcomp.stms()) {
                     GRINGO_REPORT(*impl_->log, debug) << "      " << *stm;
-                    lin.prepare(*stm);
+                    lin.prepare(*stm, stm->body(), stm->important());
                 }
                 queue.process(*impl_->log, *impl_->store);
             }

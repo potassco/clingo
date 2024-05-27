@@ -7,6 +7,9 @@ namespace Gringo::Input {
 //! @addtogroup input_rewrite
 //! @{
 
+//! Negate the given literal.
+[[nodiscard]] auto negate(Lit const &lit) -> Lit;
+
 //! Unpool non-binary relation literals.
 [[nodiscard]] auto unpool_relations(Lit const &lit, bool conjunctive) -> std::optional<LitArray>;
 

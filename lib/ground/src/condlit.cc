@@ -1,6 +1,8 @@
 #include <gringo/ground/condlit.hh>
 #include <gringo/ground/matcher.hh>
 
+#include <gringo/core/logger.hh>
+
 #include <gringo/util/print.hh>
 
 #include <typeindex>
@@ -119,8 +121,7 @@ auto StateCondLit::lit_is_fact(Assignment const &ass) -> bool {
 }
 
 auto StateCondLit::atom_index(Assignment &ass) const -> std::optional<size_t> {
-    auto it = atom_find(ass);
-    if (it != atoms_.end()) {
+    if (auto it = atom_find(ass); it != atoms_.end()) {
         return atom_index(it);
     }
     return std::nullopt;
@@ -283,13 +284,11 @@ auto LitCondLit::score([[maybe_unused]] std::vector<bool> const &bound) const ->
 void LitCondLit::print(std::ostream &out) const {
     out << "#cond_lit(" << type();
     for (auto var : state().vars_global()) {
-        out << ","
-            << "X_" << var;
+        out << "," << "X_" << var;
     }
     if (type() == LitCondLitType::premise) {
         for (auto var : state().vars_local()) {
-            out << ","
-                << "X_" << var;
+            out << "," << "X_" << var;
         }
     }
     out << ")";
@@ -328,6 +327,75 @@ auto LitCondLit::compare_to(Lit const &other) const -> std::weak_ordering {
 
 // LitCondLitStrat
 
+namespace {
+
+class MatcherCondLitStrat : public OnceMatcher {
+  public:
+    MatcherCondLitStrat(StateCondLit &state, Instantiator inst) : state_{&state}, inst_{std::move(inst)} {}
+    auto do_match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) -> bool override {
+        if (init_) {
+            state_->base_empty().update(0);
+        } else {
+            init_ = true;
+            inst_.init(store, 0);
+        }
+        state_->add_empty(ass);
+        // TODO: how to handle logging???
+        Logger log;
+        // log.set_level(LogLevel::trace);
+        GRINGO_REPORT(log, trace) << "<<< begin nested instantiation";
+        state_->base_empty().update(1);
+        inst_.instantiate(log, store);
+        GRINGO_REPORT(log, trace) << ">>> end nested instantiation";
+        std::ignore = state_->propagate();
+        // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+        return !state_->atom_nth(state_->atom_index(ass).value()).value().is_false();
+    }
+    void print(std::ostream &out) const override {
+        out << "#cond_lit(lit";
+        for (auto var : state_->vars_global()) {
+            out << "," << "X_" << var;
+        }
+        out << ")";
+    }
+
+  private:
+    StateCondLit *state_;
+    Instantiator inst_;
+    bool init_ = false;
+};
+
+} // namespace
+
+void LitCondLitStrat::init([[maybe_unused]] size_t gen) {}
+
+void LitCondLitStrat::report(SymbolStore &store, Assignment const &ass) {
+    // TODO: improve fact check
+    bool fact = true;
+    for (auto const &lit : premise_) {
+        std::stringstream out;
+        if (lit->output(store, ass, out)) {
+            fact = false;
+        }
+    }
+    state_->add_premise(ass, fact);
+}
+
+void LitCondLitStrat::propagate([[maybe_unused]] Queue &queue) {}
+
+auto LitCondLitStrat::priority() const -> size_t { return 0; }
+
+void LitCondLitStrat::print_head(std::ostream &out) const {
+    out << "#cond_lit(premise";
+    for (auto var : state_->vars_global()) {
+        out << "," << "X_" << var;
+    }
+    for (auto var : state_->vars_local()) {
+        out << "," << "X_" << var;
+    }
+    out << ")";
+}
+
 void LitCondLitStrat::vars(VariableSet &vars, [[maybe_unused]] VarSelectMode mode) const {
     if (mode != VarSelectMode::provide) {
         state_->vars(vars, false);
@@ -338,11 +406,15 @@ auto LitCondLitStrat::domain() const -> bool { return state_->domain(); }
 
 auto LitCondLitStrat::recursive() const -> bool { return false; }
 
-auto LitCondLitStrat::matcher(MatcherType type,
-                              std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
-    static_cast<void>(type);
-    static_cast<void>(bound);
-    throw std::runtime_error("LitCondLitStrat::matcher: implement me!!!");
+auto LitCondLitStrat::matcher([[maybe_unused]] MatcherType type, [[maybe_unused]] std::vector<bool> const &bound)
+    -> std::pair<UMatcher, std::optional<size_t>> {
+    Queue queue;
+    Linearizer lin;
+    lin.start(queue, state_->domain());
+    lin.prepare(static_cast<InstanceCallback &>(*this), premise_, state_->vars(true));
+    auto insts = queue.release();
+    assert(insts.size() == 1);
+    return {std::make_unique<MatcherCondLitStrat>(*state_, std::move(insts.front())), std::nullopt};
 }
 
 auto LitCondLitStrat::score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return 1; }
@@ -350,8 +422,7 @@ auto LitCondLitStrat::score([[maybe_unused]] std::vector<bool> const &bound) con
 void LitCondLitStrat::print(std::ostream &out) const {
     out << "#cond_lit(lit";
     for (auto var : state_->vars_global()) {
-        out << ","
-            << "X_" << var;
+        out << "," << "X_" << var;
     }
     out << ")";
 }
@@ -363,7 +434,14 @@ auto LitCondLitStrat::output([[maybe_unused]] SymbolStore &store, Assignment con
     return !state_->lit_is_fact(ass);
 }
 
-auto LitCondLitStrat::copy() const -> ULit { return std::make_unique<LitCondLitStrat>(*state_); }
+auto LitCondLitStrat::copy() const -> ULit {
+    ULitVec premise;
+    premise.reserve(premise_.size());
+    for (auto const &lit : premise_) {
+        premise.emplace_back(lit->copy());
+    }
+    return std::make_unique<LitCondLitStrat>(*state_, std::move(premise));
+}
 
 auto LitCondLitStrat::hash() const -> size_t {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
@@ -405,13 +483,11 @@ auto operator<<(std::ostream &out, StmCondLitType type) -> std::ostream & {
 void StmCondLit::print_head(std::ostream &out) const {
     out << "#cond_lit(" << type_;
     for (auto var : base_->vars_global()) {
-        out << ","
-            << "X_" << var;
+        out << "," << "X_" << var;
     }
     if (type_ != StmCondLitType::empty) {
         for (auto var : base_->vars_local()) {
-            out << ","
-                << "X_" << var;
+            out << "," << "X_" << var;
         }
     }
     out << ")";

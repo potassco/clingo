@@ -45,7 +45,7 @@ auto append_conjunctive(auto &lits, Lit const &lit, ShiftMode mode) -> std::opti
     if (mode == ShiftMode::force) {
         res_lit = lit;
     } else if (mode == ShiftMode::negate) {
-        res_lit = NegateLiteral{}(lit);
+        res_lit = negate(lit);
     }
     if (auto res = unpool_relations(res_lit ? res_lit.value() : lit, true); res) {
         lits.extend(std::make_move_iterator(res->begin()), std::make_move_iterator(res->end()));
@@ -369,6 +369,8 @@ struct UnpoolStatement {
 };
 
 } // namespace
+
+[[nodiscard]] auto negate(Lit const &lit) -> Lit { return NegateLiteral{}(lit); }
 
 [[nodiscard]] auto unpool_relations(Lit const &lit, bool conjunctive) -> std::optional<LitArray> {
     auto const *rel = std::get_if<LitComparison>(&lit);

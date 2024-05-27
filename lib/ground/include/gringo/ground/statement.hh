@@ -26,7 +26,7 @@ class Linearizer {
     //! Indicate that a new domain is being prepared.
     void start(Queue &queue, bool domain);
     //! Prepare a statement for grounding.
-    void prepare(Stm &stm);
+    void prepare(InstanceCallback &cb, ULitVec const &body, VariableSet important);
 
   private:
     //! Build the dependency graph among literals and variables.
