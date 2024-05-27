@@ -58,26 +58,26 @@ class StateAtomCondLit {
     StateAtomCondLit() = default;
     void add_elem(size_t index) { elems_.emplace_back(index); }
     [[nodiscard]] auto enqueue(MapElemCondLit const &elems) -> bool {
-        if (!enqueued_ && !propagated_ &&
+        if (enqueued_ == 0 && propagated_ == 0 &&
             (elems_propagated_ == elems_.size() || !elems.nth(elems_[elems_propagated_]).value().is_blocked())) {
-            enqueued_ = true;
+            enqueued_ = 1;
             return true;
         }
         return false;
     }
     [[nodiscard]] auto propagate(MapElemCondLit const &elems) -> bool {
-        assert(!propagated_ && enqueued_);
-        enqueued_ = false;
+        assert(propagated_ == 0 && enqueued_ != 0);
+        enqueued_ = 0;
         for (auto n = elems_.size(); elems_propagated_ < n; ++elems_propagated_) {
             auto const &elem = elems.nth(elems_[elems_propagated_]).value();
             if (elem.is_blocked()) {
                 if (elem.is_false()) {
-                    false_ = true;
+                    false_ = 1;
                 }
                 return false;
             }
         }
-        propagated_ = true;
+        propagated_ = 1;
         return true;
     }
     [[nodiscard]] auto is_blocked() const -> bool { return elems_propagated_ < elems_.size(); }
@@ -85,18 +85,17 @@ class StateAtomCondLit {
         return std::all_of(elems_.begin(), elems_.end(),
                            [&elems](auto idx) { return elems.nth(idx).value().is_fact(); });
     }
-    [[nodiscard]] auto is_false() const -> bool { return false_; }
+    [[nodiscard]] auto is_false() const -> bool { return false_ != 0; }
     void set_offset(size_t offset) { offset_ = offset; }
     [[nodiscard]] auto offset() const -> size_t { return offset_; }
 
   private:
     std::vector<size_t> elems_;
+    uint64_t elems_propagated_ : 61 = 0;
+    uint64_t propagated_ : 1 = 0;
+    uint64_t enqueued_ : 1 = 0;
+    uint64_t false_ : 1 = 0;
     size_t offset_ = 0;
-    size_t elems_propagated_ = 0;
-    // TODO: Combine into propagated
-    bool propagated_ = false;
-    bool enqueued_ = false;
-    bool false_ = false;
 };
 using MapAtomCondLit = Util::ordered_map<Symbol const *, StateAtomCondLit, Util::SpanHash, Util::SpanEqualTo>;
 

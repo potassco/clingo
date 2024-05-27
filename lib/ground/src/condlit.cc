@@ -284,11 +284,13 @@ auto LitCondLit::score([[maybe_unused]] std::vector<bool> const &bound) const ->
 void LitCondLit::print(std::ostream &out) const {
     out << "#cond_lit(" << type();
     for (auto var : state().vars_global()) {
-        out << "," << "X_" << var;
+        out << ","
+            << "X_" << var;
     }
     if (type() == LitCondLitType::premise) {
         for (auto var : state().vars_local()) {
-            out << "," << "X_" << var;
+            out << ","
+                << "X_" << var;
         }
     }
     out << ")";
@@ -354,7 +356,8 @@ class MatcherCondLitStrat : public OnceMatcher {
     void print(std::ostream &out) const override {
         out << "#cond_lit(lit";
         for (auto var : state_->vars_global()) {
-            out << "," << "X_" << var;
+            out << ","
+                << "X_" << var;
         }
         out << ")";
     }
@@ -370,7 +373,9 @@ class MatcherCondLitStrat : public OnceMatcher {
 void LitCondLitStrat::init([[maybe_unused]] size_t gen) {}
 
 void LitCondLitStrat::report(SymbolStore &store, Assignment const &ass) {
-    // TODO: improve fact check
+    // TODO:
+    // - improve fact check
+    // - consider providing an early exit in case a solution callback can accumulate no more matches
     bool fact = true;
     for (auto const &lit : premise_) {
         std::stringstream out;
@@ -388,10 +393,12 @@ auto LitCondLitStrat::priority() const -> size_t { return 0; }
 void LitCondLitStrat::print_head(std::ostream &out) const {
     out << "#cond_lit(premise";
     for (auto var : state_->vars_global()) {
-        out << "," << "X_" << var;
+        out << ","
+            << "X_" << var;
     }
     for (auto var : state_->vars_local()) {
-        out << "," << "X_" << var;
+        out << ","
+            << "X_" << var;
     }
     out << ")";
 }
@@ -422,7 +429,8 @@ auto LitCondLitStrat::score([[maybe_unused]] std::vector<bool> const &bound) con
 void LitCondLitStrat::print(std::ostream &out) const {
     out << "#cond_lit(lit";
     for (auto var : state_->vars_global()) {
-        out << "," << "X_" << var;
+        out << ","
+            << "X_" << var;
     }
     out << ")";
 }
@@ -483,11 +491,13 @@ auto operator<<(std::ostream &out, StmCondLitType type) -> std::ostream & {
 void StmCondLit::print_head(std::ostream &out) const {
     out << "#cond_lit(" << type_;
     for (auto var : base_->vars_global()) {
-        out << "," << "X_" << var;
+        out << ","
+            << "X_" << var;
     }
     if (type_ != StmCondLitType::empty) {
         for (auto var : base_->vars_local()) {
-            out << "," << "X_" << var;
+            out << ","
+                << "X_" << var;
         }
     }
     out << ")";
