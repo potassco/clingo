@@ -102,13 +102,19 @@ class DependencyBuilder {
     //! Default destructor.
     virtual ~DependencyBuilder() = default;
     //! Add parts to ground.
-    virtual void param(ProgramParam const &param) = 0;
+    void param(ProgramParam const &param) { do_param(param); }
     //! Add meta statements.
-    virtual void meta(std::vector<Stm> const &stms) = 0;
+    void meta(std::vector<Stm> const &stms) { do_meta(stms); }
     //! Add facts.
-    virtual void fact(std::vector<Symbol> const &facts) = 0;
+    void fact(std::vector<Symbol> const &facts) { do_fact(facts); }
     //! Add components.
-    [[nodiscard]] virtual auto components(Components const &comps) -> bool = 0;
+    [[nodiscard]] auto components(Components const &comps) -> bool { return do_components(comps); }
+
+  private:
+    virtual void do_param(ProgramParam const &param) = 0;
+    virtual void do_meta(std::vector<Stm> const &stms) = 0;
+    virtual void do_fact(std::vector<Symbol> const &facts) = 0;
+    [[nodiscard]] virtual auto do_components(Components const &comps) -> bool = 0;
 };
 
 //! A program consisting of parts.

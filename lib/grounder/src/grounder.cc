@@ -564,7 +564,8 @@ class Builder : public Input::DependencyBuilder {
   public:
     Builder(Grounder::Impl &impl) : out_{std::cout}, impl_{&impl} {}
 
-    void param(Input::ProgramParam const &param) override {
+  private:
+    void do_param(Input::ProgramParam const &param) override {
         out_.out() << "#program_" << param.first << "(";
         for (auto const &sym : param.second) {
             out_.out() << sym;
@@ -573,13 +574,13 @@ class Builder : public Input::DependencyBuilder {
         out_.end() << ").\n";
     }
 
-    void meta(std::vector<Input::Stm> const &stms) override {
+    void do_meta(std::vector<Input::Stm> const &stms) override {
         for (auto const &stm : stms) {
             out_.out() << stm << "\n";
         }
     }
 
-    void fact(std::vector<Symbol> const &facts) override {
+    void do_fact(std::vector<Symbol> const &facts) override {
         for (auto const &fact : facts) {
             // TODO: remove c&p
             auto sig = std::tuple<String, size_t, bool>(fact.name(), fact.args().size(), fact.has_sign());
@@ -592,7 +593,7 @@ class Builder : public Input::DependencyBuilder {
         }
     }
 
-    auto components(Input::Components const &comps) -> bool override {
+    auto do_components(Input::Components const &comps) -> bool override {
         auto lin = Ground::Linearizer{};
         for (auto const &ref_comps : comps) {
             GRINGO_REPORT(*impl_->log, debug) << "  component";
@@ -650,7 +651,6 @@ class Builder : public Input::DependencyBuilder {
         return true;
     }
 
-  private:
     Ground::Output out_;
     Grounder::Impl *impl_;
 };

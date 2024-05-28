@@ -148,7 +148,7 @@ TEST_CASE("dependency") {
                 res.emplace_back(oss.str());
                 oss.str("");
             }
-            void param(ProgramParam const &param) override {
+            void do_param(ProgramParam const &param) override {
                 oss << "#program_" << param.first << "(";
                 bool comma = false;
                 for (auto const &sym : param.second) {
@@ -162,19 +162,19 @@ TEST_CASE("dependency") {
                 oss << ").";
                 flush();
             }
-            void meta(std::vector<Stm> const &stms) override {
+            void do_meta(std::vector<Stm> const &stms) override {
                 for (auto const &stm : stms) {
                     oss << stm;
                     flush();
                 }
             }
-            void fact(std::vector<Symbol> const &facts) override {
+            void do_fact(std::vector<Symbol> const &facts) override {
                 for (auto const &fact : facts) {
                     oss << fact << ".";
                     flush();
                 }
             }
-            auto components(Components const &comps) -> bool override {
+            auto do_components(Components const &comps) -> bool override {
                 for (auto const &ref_comps : comps) {
                     oss << "% component";
                     flush();
