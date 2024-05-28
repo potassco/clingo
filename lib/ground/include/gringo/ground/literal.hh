@@ -44,7 +44,7 @@ class Lit {
     virtual void print(std::ostream &out) const = 0;
     // Note: I did not make up my mind how to handle the text output yet
     // It might get it's own representation or a way to be output directly to a stream.
-    virtual auto output(SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool = 0;
+    virtual auto output(InstantiationContext &ctx) const -> bool = 0;
 
     [[nodiscard]] virtual auto copy() const -> ULit = 0;
 
@@ -72,7 +72,7 @@ class LitBool : public Lit {
     [[nodiscard]] auto score(std::vector<bool> const &bound) const -> double override;
 
     void print(std::ostream &out) const override;
-    auto output(SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool override;
+    auto output(InstantiationContext &ctx) const -> bool override;
 
     [[nodiscard]] auto copy() const -> ULit override;
 
@@ -96,7 +96,7 @@ class LitComparison : public Lit {
     [[nodiscard]] auto score(std::vector<bool> const &bound) const -> double override;
 
     void print(std::ostream &out) const override;
-    auto output(SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool override;
+    auto output(InstantiationContext &ctx) const -> bool override;
 
     [[nodiscard]] auto copy() const -> ULit override;
 
@@ -123,7 +123,7 @@ class LitInterval : public Lit {
     [[nodiscard]] auto score(std::vector<bool> const &bound) const -> double override;
 
     void print(std::ostream &out) const override;
-    auto output(SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool override;
+    auto output(InstantiationContext &ctx) const -> bool override;
 
     [[nodiscard]] auto copy() const -> ULit override;
 
@@ -144,7 +144,7 @@ constexpr auto stratified_index = std::numeric_limits<size_t>::max();
 //! It is meant to prune rules whose heads have already been derived as facts.
 class LitFactCheck : public Lit {
   public:
-    LitFactCheck(Base &base, Term const &atom) : base_{&base}, atom_{&atom} {}
+    LitFactCheck(Base &base, Term const &atom, Symbol *target) : base_{&base}, atom_{&atom}, target_{target} {}
 
     void vars(VariableSet &vars, VarSelectMode mode) const override;
     [[nodiscard]] auto domain() const -> bool override;
@@ -154,7 +154,7 @@ class LitFactCheck : public Lit {
     [[nodiscard]] auto score(std::vector<bool> const &bound) const -> double override;
 
     void print(std::ostream &out) const override;
-    auto output(SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool override;
+    auto output(InstantiationContext &ctx) const -> bool override;
 
     [[nodiscard]] auto copy() const -> ULit override;
 
@@ -165,6 +165,7 @@ class LitFactCheck : public Lit {
   private:
     Base *base_;
     Term const *atom_;
+    Symbol *target_;
 };
 
 class LitSymbolic : public Lit {
@@ -180,7 +181,7 @@ class LitSymbolic : public Lit {
     [[nodiscard]] auto score(std::vector<bool> const &bound) const -> double override;
 
     void print(std::ostream &out) const override;
-    auto output(SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool override;
+    auto output(InstantiationContext &ctx) const -> bool override;
 
     [[nodiscard]] auto copy() const -> ULit override;
 
@@ -234,7 +235,7 @@ class LitProject : public Lit {
     [[nodiscard]] auto score(std::vector<bool> const &bound) const -> double override;
 
     void print(std::ostream &out) const override;
-    auto output(SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool override;
+    auto output(InstantiationContext &ctx) const -> bool override;
 
     [[nodiscard]] auto copy() const -> ULit override;
 

@@ -9,6 +9,10 @@ add_library(gringo_ground
     )
 
 target_link_libraries(gringo_ground PUBLIC gringo_core)
+if (PARSER_PROFILE)
+    target_compile_definitions(gringo_ground PUBLIC "PARSER_PROFILE")
+    target_link_libraries(gringo_ground PUBLIC Gperftools::Profiler)
+endif()
 target_include_directories(gringo_ground PUBLIC "include")
 set_property(TARGET gringo_ground PROPERTY POSITION_INDEPENDENT_CODE ON)
 

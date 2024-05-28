@@ -39,15 +39,13 @@ concept IsMatch = requires(Match const &m) {
 class OnceMatcher : public Matcher {
   public:
     OnceMatcher() = default;
-    virtual auto do_match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) -> bool {
-        return true;
-    }
+    virtual auto do_match([[maybe_unused]] InstantiationContext &ctx) -> bool { return true; }
     void init([[maybe_unused]] SymbolStore &store, [[maybe_unused]] size_t gen) override {}
-    void match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) override { match_ = true; }
-    auto next(SymbolStore &store, Assignment &ass) -> bool override {
+    void match([[maybe_unused]] InstantiationContext &ctx) override { match_ = true; }
+    auto next(InstantiationContext &ctx) -> bool override {
         if (match_) {
             match_ = false;
-            return do_match(store, ass);
+            return do_match(ctx);
         }
         return false;
     }
@@ -65,7 +63,7 @@ auto make_interval_matcher(std::vector<bool> const &bound, Term const &lhs, Term
 auto make_comp_matcher(std::vector<bool> const &bound, Term const &lhs, Relation rel, Term const &rhs) -> UMatcher;
 
 // Note: candidate for generalization
-auto make_non_fact_matcher(Base &base, Term const &term) -> UMatcher;
+auto make_non_fact_matcher(Base &base, Term const &term, Symbol *target) -> UMatcher;
 
 template <IsBase Base, IsMatch Match>
 auto make_atom_matcher(std::vector<bool> const &bound, Base &base, Match const &atom, MatcherType type) -> UMatcher;
@@ -263,8 +261,8 @@ template <IsBase Base, IsMatch Match> class LookupMatcher : public OnceMatcher {
   public:
     LookupMatcher(Base &base, Match const &m, MatcherType type) : base_{&base}, match_{&m}, type_{type} {}
     void init([[maybe_unused]] SymbolStore &store, size_t gen) override { base_->update(gen); }
-    auto do_match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) -> bool override {
-        auto sym = match_->eval(store, ass);
+    auto do_match([[maybe_unused]] InstantiationContext &ctx) -> bool override {
+        auto sym = match_->eval(ctx.store(), ctx.ass());
         return sym && base_->contains(*sym, type_);
     }
     void print(std::ostream &out) const override { out << *match_; }
@@ -282,11 +280,9 @@ template <IsBase Base, IsMatch Match> class FullMatcher : public Matcher {
     FullMatcher(Index &index, Match const &m, VariableVec free, MatcherType type)
         : index_{&index}, match_{&m}, free_{std::move(free)}, type_{type} {}
     void init([[maybe_unused]] SymbolStore &store, size_t gen) override { index_->init(gen); }
-    void match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) override {
-        std::tie(pos_, cur_) = index_->match(type_);
-    }
-    auto next(SymbolStore &store, Assignment &ass) -> bool override {
-        return index_->next(store, ass, *match_, free_, type_, pos_, cur_);
+    void match([[maybe_unused]] InstantiationContext &ctx) override { std::tie(pos_, cur_) = index_->match(type_); }
+    auto next(InstantiationContext &ctx) -> bool override {
+        return index_->next(ctx.store(), ctx.ass(), *match_, free_, type_, pos_, cur_);
     }
     void print(std::ostream &out) const override { out << *match_; }
 
@@ -306,11 +302,9 @@ template <IsBase Base, IsMatch Match> class HashMatcher : public Matcher {
     HashMatcher(Index &index, Match const &m, VariableVec bound, VariableVec bind, MatcherType type)
         : index_{&index}, match_{&m}, bound_{std::move(bound)}, bind_{std::move(bind)}, type_{type} {}
     void init([[maybe_unused]] SymbolStore &store, size_t gen) override { index_->init(gen); }
-    void match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) override {
-        std::tie(pos_, cur_) = Index::match();
-    }
-    auto next(SymbolStore &store, Assignment &ass) -> bool override {
-        return index_->next(store, ass, bound_, bind_, *match_, type_, pos_, cur_);
+    void match([[maybe_unused]] InstantiationContext &ctx) override { std::tie(pos_, cur_) = Index::match(); }
+    auto next(InstantiationContext &ctx) -> bool override {
+        return index_->next(ctx.store(), ctx.ass(), bound_, bind_, *match_, type_, pos_, cur_);
     }
     void print(std::ostream &out) const override { out << *match_; }
 

@@ -11,6 +11,44 @@ namespace Gringo::Ground {
 
 using Assignment = std::vector<std::optional<Symbol>>;
 
+class Output {
+  public:
+    Output(std::ostream &out) : out_{&out} {}
+    void start() { next_ = nullptr; }
+    void next(char const *next) { next_ = next; }
+    auto out() -> std::ostream & {
+        if (next_ != nullptr) {
+            *out_ << next_;
+            next_ = nullptr;
+        }
+        return *out_;
+    }
+    auto end() -> std::ostream & {
+        next_ = nullptr;
+        return *out_;
+    }
+
+  private:
+    std::ostream *out_;
+    char const *next_ = nullptr;
+};
+
+class InstantiationContext {
+  public:
+    InstantiationContext(Logger &log, Output &out, SymbolStore &store, Assignment &ass)
+        : log_{&log}, out_{&out}, store_{&store}, ass_{&ass} {}
+    [[nodiscard]] auto log() const -> Logger & { return *log_; }
+    [[nodiscard]] auto out() const -> Output & { return *out_; }
+    [[nodiscard]] auto store() const -> SymbolStore & { return *store_; }
+    [[nodiscard]] auto ass() const -> Assignment & { return *ass_; }
+
+  private:
+    Logger *log_;
+    Output *out_;
+    SymbolStore *store_;
+    Assignment *ass_;
+};
+
 //! A matcher to match expressions.
 class Matcher {
   public:
@@ -19,12 +57,12 @@ class Matcher {
     //! Notify that instantiation starts.
     virtual void init(SymbolStore &store, size_t gen) = 0;
     //! Initialize matching.
-    virtual void match(SymbolStore &store, Assignment &ass) = 0;
+    virtual void match(InstantiationContext &ctx) = 0;
     //! Obtain the next match.
     //!
     //! Has to be called to obtain the first match.
     //! Returns true if there is a match.
-    virtual auto next(SymbolStore &store, Assignment &ass) -> bool = 0;
+    virtual auto next(InstantiationContext &ctx) -> bool = 0;
     //! Print the matcher to the given stream.
     virtual void print(std::ostream &out) const = 0;
 };
@@ -41,7 +79,7 @@ class InstanceCallback {
     //! Notify a statement that instantiation starts.
     virtual void init(size_t gen) = 0;
     //! Report an assignment giving rise to an instance for a statement.
-    [[nodiscard]] virtual auto report(SymbolStore &store, Assignment const &ass) -> bool = 0;
+    [[nodiscard]] virtual auto report(InstantiationContext &ctx) -> bool = 0;
     //! Notify a statement that instantiation has finished.
     virtual void propagate(Queue &queue) = 0;
     //! The priority of the callback.
@@ -80,7 +118,7 @@ class Instantiator {
     //! Find all assignments for the added matchers.
     //!
     //! Assignments are reported via the InstanceCallback.
-    [[nodiscard]] auto instantiate(Logger &log, SymbolStore &store) -> bool;
+    [[nodiscard]] auto instantiate(Logger &log, SymbolStore &store, Output &out) -> bool;
     //! Add instantiators that need grounding to queue.
     void propagate(Queue &queue);
     //! The priority of the instantiator.
@@ -92,9 +130,9 @@ class Instantiator {
         BackjumpMatcher(UMatcher matcher, DependVec depend)
             : matcher_{std::move(matcher)}, depend_{std::move(depend)} {}
         void init(SymbolStore &store, size_t gen);
-        void match(SymbolStore &store, Assignment &ass);
-        auto next(SymbolStore &store, Assignment &ass) -> bool;
-        auto first(SymbolStore &store, Assignment &ass) -> bool;
+        void match(InstantiationContext &ctx);
+        auto next(InstantiationContext &ctx) -> bool;
+        auto first(InstantiationContext &ctx) -> bool;
         void print(std::ostream &out, size_t index) const;
         [[nodiscard]] auto depend() const -> DependVec const &;
         [[nodiscard]] auto backjumpable() const -> bool;
@@ -121,7 +159,7 @@ class Queue {
     void insert(Instantiator inst, std::optional<size_t> index);
     void propagate(size_t index);
     //! Process previously enqueued instantiators.
-    [[nodiscard]] auto process(Logger &log, SymbolStore &store) -> bool;
+    [[nodiscard]] auto process(Logger &log, SymbolStore &store, Output &out) -> bool;
     //! Release the contained instantiators.
     auto release() -> std::vector<Instantiator> { return std::move(insts_); }
 

@@ -7,13 +7,13 @@ namespace {
 class CmpMatcher : public OnceMatcher {
   public:
     CmpMatcher(Term const &lhs, Relation cmp, Term const &rhs) : lhs_{&lhs}, rhs_{&rhs}, cmp_{cmp} {}
-    auto do_match(SymbolStore &store, Assignment &ass) -> bool override {
+    auto do_match(InstantiationContext &ctx) -> bool override {
         // std::cerr << "doing a cmp match: " << *lhs_ << " " << cmp_ << " " << *rhs_ << "\n";
-        auto lhs = lhs_->eval(store, ass);
+        auto lhs = lhs_->eval(ctx.store(), ctx.ass());
         if (!lhs) {
             return false;
         }
-        auto rhs = rhs_->eval(store, ass);
+        auto rhs = rhs_->eval(ctx.store(), ctx.ass());
         if (!rhs) {
             return false;
         }
@@ -51,16 +51,16 @@ class AssignMatcher : public OnceMatcher {
   public:
     AssignMatcher(Term const &lhs, Term const &rhs, VariableVec free)
         : lhs_{&lhs}, rhs_{&rhs}, free_{std::move(free)} {}
-    auto do_match(SymbolStore &store, Assignment &ass) -> bool override {
+    auto do_match(InstantiationContext &ctx) -> bool override {
         // unbind variables
         for (auto const &var : free_) {
-            ass[var] = std::nullopt;
+            ctx.ass()[var] = std::nullopt;
         }
-        auto rhs = rhs_->eval(store, ass);
+        auto rhs = rhs_->eval(ctx.store(), ctx.ass());
         // if (rhs) {
         //     std::cerr << "matching: " << *lhs_ << " and " << *rhs << "\n";
         // }
-        return rhs && lhs_->match(store, *rhs, ass);
+        return rhs && lhs_->match(ctx.store(), *rhs, ctx.ass());
     }
     void print(std::ostream &out) const override { out << *lhs_ << ":=" << *rhs_; }
 
@@ -72,17 +72,23 @@ class AssignMatcher : public OnceMatcher {
 
 class NonFactMatcher : public OnceMatcher {
   public:
-    NonFactMatcher(Base &base, Term const &term) : base_{&base}, term_{&term} {}
+    NonFactMatcher(Base &base, Term const &term, Symbol *target) : base_{&base}, term_{&term}, target_{target} {}
     void init([[maybe_unused]] SymbolStore &store, size_t gen) override { base_->update(gen); }
-    auto do_match(SymbolStore &store, Assignment &ass) -> bool override {
-        auto sym = term_->eval(store, ass);
-        return !sym || !base_->is_fact(*sym);
+    auto do_match(InstantiationContext &ctx) -> bool override {
+        if (auto sym = term_->eval(ctx.store(), ctx.ass())) {
+            if (target_ != nullptr) {
+                *target_ = *sym;
+            }
+            return !base_->is_fact(*sym);
+        }
+        return false;
     }
     void print(std::ostream &out) const override { out << "#not fact " << *term_; }
 
   private:
     Base *base_;
     Term const *term_;
+    Symbol *target_;
 };
 
 class IntervalMatcher : public Matcher {
@@ -90,10 +96,10 @@ class IntervalMatcher : public Matcher {
     IntervalMatcher(Term const &lhs, Term const &lower, Term const &upper, VariableVec free)
         : lhs_{&lhs}, lower_{&lower}, upper_{&upper}, free_{std::move(free)} {}
     void init([[maybe_unused]] SymbolStore &store, [[maybe_unused]] size_t gen) override {}
-    void match(SymbolStore &store, Assignment &ass) override {
+    void match(InstantiationContext &ctx) override {
         val_current_ = 1;
         val_upper_ = 0;
-        if (auto lower = lower_->eval(store, ass), upper = upper_->eval(store, ass);
+        if (auto lower = lower_->eval(ctx.store(), ctx.ass()), upper = upper_->eval(ctx.store(), ctx.ass());
             lower && upper && lower->type() == SymbolType::number && upper->type() == SymbolType::number) {
             if (!free_.empty()) {
                 val_current_ = lower->num();
@@ -101,21 +107,22 @@ class IntervalMatcher : public Matcher {
             }
             // Note: that the case free is empty could be handled a little more
             // efficiently. I would not expect a big impact, though.
-            else if (auto lhs = lhs_->eval(store, ass); lhs && lhs->type() == SymbolType::number &&
-                                                        *lower->num() <= *lhs->num() && *lhs->num() <= *upper->num()) {
+            else if (auto lhs = lhs_->eval(ctx.store(), ctx.ass()); lhs && lhs->type() == SymbolType::number &&
+                                                                    *lower->num() <= *lhs->num() &&
+                                                                    *lhs->num() <= *upper->num()) {
                 val_current_ = lhs->num();
                 val_upper_ = lhs->num();
             }
         }
     }
-    auto next(SymbolStore &store, Assignment &ass) -> bool override {
+    auto next(InstantiationContext &ctx) -> bool override {
         while (val_current_ <= val_upper_) {
             for (auto const &var : free_) {
-                ass[var] = std::nullopt;
+                ctx.ass()[var] = std::nullopt;
             }
             auto num = val_current_;
             val_current_ += 1;
-            if (lhs_->match(store, store.num(std::move(num)), ass)) {
+            if (lhs_->match(ctx.store(), ctx.store().num(std::move(num)), ctx.ass())) {
                 return true;
             }
         }
@@ -156,8 +163,8 @@ auto make_comp_matcher(std::vector<bool> const &bound, Term const &lhs, Relation
     return std::make_unique<CmpMatcher>(lhs, rel, rhs);
 }
 
-auto make_non_fact_matcher(Base &base, Term const &term) -> UMatcher {
-    return std::make_unique<NonFactMatcher>(base, term);
+auto make_non_fact_matcher(Base &base, Term const &term, Symbol *target) -> UMatcher {
+    return std::make_unique<NonFactMatcher>(base, term, target);
 }
 
 } // namespace Gringo::Ground

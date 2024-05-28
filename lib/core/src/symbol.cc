@@ -10,6 +10,8 @@
 
 namespace Gringo {
 
+static_assert(sizeof(size_t) <= sizeof(uint64_t));
+
 namespace {
 
 constexpr auto TYPE_SIZE = static_cast<uint64_t>(3);
@@ -185,16 +187,21 @@ class SlottedAlloc {
 class SymbolArray {
   public:
     SymbolArray() = default;
+    SymbolArray(Symbol *repr) : repr_{repr} {}
 
-    template <class Alloc> void init(Alloc &alloc, SymbolSpan symbols) {
+    template <class Alloc> void init(Alloc &alloc, size_t hash, SymbolSpan symbols) {
+        hash_ = hash;
         static_assert(alignof(Symbol) <= alignof(uint64_t));
-        repr_ = reinterpret_cast<Symbol *>(alloc.alloc(symbols.size() * sizeof(Symbol)));
+        size_t n = symbols.size();
+        repr_ = reinterpret_cast<Symbol *>(alloc.alloc(n * sizeof(Symbol)));
         std::copy(symbols.begin(), symbols.end(), repr_);
     }
 
-    template <class Alloc> void init(Alloc &alloc, Symbol name, SymbolSpan symbols) {
+    template <class Alloc> void init(Alloc &alloc, size_t hash, Symbol name, SymbolSpan symbols) {
+        hash_ = hash;
         static_assert(alignof(Symbol) <= alignof(uint64_t));
-        repr_ = reinterpret_cast<Symbol *>(alloc.alloc((symbols.size() + 1) * sizeof(Symbol)));
+        size_t n = symbols.size() + 1;
+        repr_ = reinterpret_cast<Symbol *>(alloc.alloc(n * sizeof(Symbol)));
         *repr_ = name;
         std::copy(symbols.begin(), symbols.end(), repr_ + 1);
     }
@@ -204,13 +211,15 @@ class SymbolArray {
         repr_ = nullptr;
     }
 
-    [[nodiscard]] auto span() const noexcept -> SymbolSpan { return {repr_, size()}; }
-    [[nodiscard]] auto head() const noexcept -> Symbol { return *repr_; }
-    [[nodiscard]] auto tail() const noexcept -> SymbolSpan { return {repr_ + 1, size() - 1}; }
+    [[nodiscard]] auto span() const noexcept -> SymbolSpan { return {data(), size()}; }
+    [[nodiscard]] auto head() const noexcept -> Symbol { return *data(); }
+    [[nodiscard]] auto tail() const noexcept -> SymbolSpan { return {data() + 1, size() - 1}; }
     [[nodiscard]] auto data() const noexcept -> Symbol * { return repr_; }
-    [[nodiscard]] auto size() const noexcept -> size_t { return alloc_size(repr_) / sizeof(Symbol); }
+    [[nodiscard]] auto size() const noexcept -> size_t { return (alloc_size(repr_) / sizeof(Symbol)); }
+    [[nodiscard]] auto hash() const noexcept -> size_t { return hash_; }
 
   private:
+    size_t hash_ = 0;
     Symbol *repr_ = nullptr;
 };
 
@@ -223,9 +232,7 @@ struct SymbolArrayHash {
                                                               fun.second.size() * sizeof(Symbol)}));
     }
 
-    auto operator()(SymbolArray const &fun) const -> size_t {
-        return operator()(std::make_pair(fun.head(), fun.tail()));
-    }
+    auto operator()(SymbolArray const &fun) const -> size_t { return fun.hash(); }
 };
 
 struct SymbolArrayEqual {
@@ -248,7 +255,8 @@ class CharArray {
   public:
     CharArray() = default;
 
-    template <class Alloc> void init(Alloc &alloc, std::string_view str) {
+    template <class Alloc> void init(Alloc &alloc, size_t hash, std::string_view str) {
+        hash_ = hash;
         static_assert(alignof(char) <= alignof(uint64_t));
         repr_ = reinterpret_cast<char *>(alloc.alloc((str.size() + 1) * sizeof(char)));
         std::copy(str.begin(), str.end(), repr_);
@@ -263,8 +271,10 @@ class CharArray {
     [[nodiscard]] auto view() const noexcept -> std::string_view { return {repr_, size()}; }
     [[nodiscard]] auto data() const noexcept -> char const * { return repr_; }
     [[nodiscard]] auto size() const noexcept -> size_t { return alloc_size(repr_) / sizeof(char) - 1; }
+    [[nodiscard]] auto hash() const noexcept -> size_t { return hash_; }
 
   private:
+    size_t hash_ = 0;
     char *repr_ = nullptr;
 };
 
@@ -272,7 +282,7 @@ struct CharArrayEqual {
     using is_transparent = void;
     auto operator()(CharArray a, std::string_view b) const -> bool { return a.view() == b; }
     auto operator()(std::string_view a, CharArray b) const -> bool { return a == b.view(); }
-    auto operator()(CharArray a, CharArray b) const -> bool { return a.view() == b.view(); }
+    auto operator()(CharArray a, CharArray b) const -> bool { return a.data() == b.data(); }
 };
 
 struct CharArrayHash {
@@ -306,9 +316,10 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
             return Symbol::from_rep(rep);
         }
         auto fun = std::make_pair(SymbolStore::str(name), args);
-        auto jt = tuples_.find(fun);
+        auto hash = tuples_.hash_function()(fun);
+        auto jt = tuples_.find(fun, hash);
         if (jt == tuples_.end()) {
-            jt = insert_(tuples_, fun.first, fun.second);
+            jt = insert_(tuples_, hash, fun.first, fun.second);
         }
         auto rep = reinterpret_cast<uint64_t>(jt->data()) | (sign ? REP_SIGNED_FUN : REP_FUN);
         return Symbol::from_rep(rep);
@@ -320,9 +331,10 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
         if (size == 0) {
             return Symbol::from_rep(REP_TUP);
         }
-        auto jt = tuples_.find(args);
+        auto hash = tuples_.hash_function()(args);
+        auto jt = tuples_.find(args, hash);
         if (jt == tuples_.end()) {
-            jt = insert_(tuples_, args);
+            jt = insert_(tuples_, hash, args);
         }
         auto rep = reinterpret_cast<uint64_t>(jt->data()) | REP_TUP;
         return Symbol::from_rep(rep);
@@ -332,9 +344,10 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
         if (str.empty()) {
             return {};
         }
-        auto it = strings_.find(str);
+        auto hash = strings_.hash_function()(str);
+        auto it = strings_.find(str, hash);
         if (it == strings_.end()) {
-            it = insert_(strings_, str);
+            it = insert_(strings_, hash, str);
         }
         return String::from_rep(reinterpret_cast<uintptr_t>(it->data()));
     }
@@ -350,10 +363,10 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
     using StringSet = Util::unordered_set<CharArray, CharArrayHash, CharArrayEqual>;
     using TupleSet = Util::unordered_set<SymbolArray, SymbolArrayHash, SymbolArrayEqual>;
 
-    template <class T, class... Args> auto insert_(T &table, Args &&...args) -> typename T::iterator {
+    template <class T, class... Args> auto insert_(T &table, size_t hash, Args &&...args) -> typename T::iterator {
         typename T::value_type arr;
         try {
-            arr.init(alloc_, std::forward<Args>(args)...);
+            arr.init(alloc_, hash, std::forward<Args>(args)...);
             return table.emplace(arr).first;
         } catch (...) {
             arr.destroy(alloc_);
@@ -470,15 +483,12 @@ auto operator<<(std::ostream &out, String const &str) -> std::ostream & {
         }
         case REP_SIGNED_FUN:
         case REP_FUN: {
-            auto *ptr = reinterpret_cast<Symbol *>(rep_ & ~TYPE_MASK);
-            auto size = alloc_size(ptr) / sizeof(Symbol);
-            return SymbolSpan{ptr + 1, size - 1};
+            return SymbolArray{reinterpret_cast<Symbol *>(rep_ & ~TYPE_MASK)}.tail();
         }
         default: {
             assert((rep_ & TYPE_MASK) == REP_TUP);
             auto *ptr = reinterpret_cast<Symbol *>(rep_ & ~TYPE_MASK);
-            auto size = ptr != nullptr ? alloc_size(ptr) / sizeof(Symbol) : 0;
-            return SymbolSpan{ptr, size};
+            return ptr != nullptr ? SymbolArray{ptr}.span() : SymbolSpan{};
         }
     }
 }

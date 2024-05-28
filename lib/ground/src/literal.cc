@@ -7,15 +7,7 @@ namespace Gringo::Ground {
 
 void LitInterval::print(std::ostream &out) const { out << *lhs_ << "=" << *lower_ << ".." << *upper_; }
 
-auto LitInterval::output(SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool {
-    if (auto lhs = lhs_->eval(store, ass), lower = lower_->eval(store, ass), upper = upper_->eval(store, ass);
-        lhs && lower && upper) {
-        out << *lower << "<=" << *lhs << "<=" << *upper;
-    } else {
-        out << "#false";
-    }
-    return false;
-}
+auto LitInterval::output([[maybe_unused]] InstantiationContext &ctx) const -> bool { return false; }
 
 auto LitInterval::copy() const -> ULit {
     return std::make_unique<LitInterval>(lhs_->copy(), lower_->copy(), upper_->copy());
@@ -100,11 +92,7 @@ auto LitInterval::compare_to(Lit const &other) const -> std::weak_ordering {
 
 void LitBool::print(std::ostream &out) const { out << (value_ ? "#true" : "#false"); }
 
-auto LitBool::output([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment const &ass,
-                     std::ostream &out) const -> bool {
-    print(out);
-    return false;
-}
+auto LitBool::output([[maybe_unused]] InstantiationContext &ctx) const -> bool { return false; }
 
 auto LitBool::copy() const -> ULit { return std::make_unique<LitBool>(value_); }
 
@@ -119,14 +107,13 @@ auto LitBool::matcher([[maybe_unused]] MatcherType type,
     if (value_) {
         return {make_once_matcher(), std::nullopt};
     }
+    // note: for completeness; should not happen
     class NeverMatcher : public Matcher {
       public:
         NeverMatcher() = default;
         void init([[maybe_unused]] SymbolStore &store, [[maybe_unused]] size_t gen) override {}
-        void match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) override {}
-        auto next([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) -> bool override {
-            return false;
-        }
+        void match([[maybe_unused]] InstantiationContext &ctx) override {}
+        auto next([[maybe_unused]] InstantiationContext &ctx) -> bool override { return false; }
         void print(std::ostream &out) const override { out << "#never"; }
     };
     return {std::make_unique<NeverMatcher>(), std::nullopt};
@@ -156,14 +143,7 @@ auto LitBool::compare_to(Lit const &other) const -> std::weak_ordering {
 
 void LitComparison::print(std::ostream &out) const { out << *lhs_ << cmp_ << *rhs_; }
 
-auto LitComparison::output(SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool {
-    if (auto lhs = lhs_->eval(store, ass), rhs = rhs_->eval(store, ass); lhs && rhs) {
-        out << *lhs << cmp_ << *rhs;
-    } else {
-        out << "#false";
-    }
-    return false;
-}
+auto LitComparison::output([[maybe_unused]] InstantiationContext &ctx) const -> bool { return false; }
 
 auto LitComparison::copy() const -> ULit { return std::make_unique<LitComparison>(lhs_->copy(), cmp_, rhs_->copy()); }
 
@@ -250,20 +230,16 @@ auto LitFactCheck::recursive() const -> bool { return false; }
 
 auto LitFactCheck::matcher([[maybe_unused]] MatcherType type, [[maybe_unused]] std::vector<bool> const &bound)
     -> std::pair<UMatcher, std::optional<size_t>> {
-    return {make_non_fact_matcher(*base_, *atom_), std::nullopt};
+    return {make_non_fact_matcher(*base_, *atom_, target_), std::nullopt};
 }
 
 auto LitFactCheck::score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return 0; }
 
 void LitFactCheck::print(std::ostream &out) const { out << "#not_fact " << *atom_; }
 
-auto LitFactCheck::output([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment const &ass,
-                          std::ostream &out) const -> bool {
-    out << "#true";
-    return false;
-}
+auto LitFactCheck::output([[maybe_unused]] InstantiationContext &ctx) const -> bool { return false; }
 
-auto LitFactCheck::copy() const -> ULit { return std::make_unique<LitFactCheck>(*base_, *atom_); }
+auto LitFactCheck::copy() const -> ULit { return std::make_unique<LitFactCheck>(*base_, *atom_, target_); }
 
 auto LitFactCheck::hash() const -> size_t { return Util::value_hash_record<LitFactCheck>(*atom_); }
 
@@ -289,15 +265,18 @@ void LitSymbolic::print(std::ostream &out) const {
     }
 }
 
-auto LitSymbolic::output(SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool {
-    if (auto sym = atom_->eval(store, ass)) {
-        out << sign_ << *sym;
-        if (sign_ == Sign::once) {
-            return index_ != stratified_index || base_->contains(*sym);
+auto LitSymbolic::output(InstantiationContext &ctx) const -> bool {
+    auto &out = ctx.out();
+    // TODO: eval can be avoided for lookup matchers
+    if (auto sym = atom_->eval(ctx.store(), ctx.ass())) {
+        if (sign_ == Sign::once ? index_ == stratified_index && !base_->contains(*sym) : base_->is_fact(*sym)) {
+            return false;
         }
-        return !base_->is_fact(*sym);
+        out.out() << sign_ << *sym;
+    } else {
+        // note: cannot happen by construction
+        out.out() << "#false";
     }
-    out << "#false";
     return true;
 }
 
@@ -333,7 +312,7 @@ void LitSymbolic::vars(VariableSet &vars, VarSelectMode mode) const {
 auto LitSymbolic::matcher(MatcherType type,
                           std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
     if (sign_ == Sign::once) {
-        return {make_non_fact_matcher(*base_, *atom_), std::nullopt};
+        return {make_non_fact_matcher(*base_, *atom_, nullptr), std::nullopt};
     }
     if (sign_ == Sign::twice && index_ != stratified_index) {
         return {make_once_matcher(), std::nullopt};
@@ -401,17 +380,21 @@ void LitProject::print(std::ostream &out) const {
     }
 }
 
-auto LitProject::output(SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool {
-    if (auto p_sym = p_atom_->eval(store, ass)) {
-        if (auto sym = atom_->eval(store, ass)) {
-            out << sign_ << *sym;
+auto LitProject::output(InstantiationContext &ctx) const -> bool {
+    auto &out = ctx.out();
+    // Note: eval can be avoided for lookup matchers
+    if (auto p_sym = p_atom_->eval(ctx.store(), ctx.ass())) {
+        if (sign_ == Sign::once ? index_ == stratified_index && !state_->p_base().contains(*p_sym)
+                                : state_->p_base().is_fact(*p_sym)) {
+            return false;
         }
-        if (sign_ == Sign::once) {
-            return index_ != stratified_index || state_->p_base().contains(*p_sym);
-        }
-        return !state_->p_base().is_fact(*p_sym);
     }
-    out << "#false";
+    if (auto sym = atom_->eval(ctx.store(), ctx.ass())) {
+        out.out() << sign_ << *sym;
+    } else {
+        // note: cannot happen by construction
+        out.out() << "#false";
+    }
     return true;
 }
 
@@ -455,8 +438,8 @@ auto LitProject::matcher(MatcherType type,
             state_->init(store, gen);
             matcher_->init(store, gen);
         }
-        void match(SymbolStore &store, Assignment &ass) override { matcher_->match(store, ass); }
-        auto next(SymbolStore &store, Assignment &ass) -> bool override { return matcher_->next(store, ass); }
+        void match(InstantiationContext &ctx) override { matcher_->match(ctx); }
+        auto next(InstantiationContext &ctx) -> bool override { return matcher_->next(ctx); }
         void print(std::ostream &out) const override { matcher_->print(out); }
 
       private:
@@ -467,7 +450,7 @@ auto LitProject::matcher(MatcherType type,
         return std::make_unique<MatcherProject>(*state_, std::forward<T>(matcher));
     };
     if (sign_ == Sign::once) {
-        return {m(make_non_fact_matcher(state_->p_base(), *p_atom_)), std::nullopt};
+        return {m(make_non_fact_matcher(state_->p_base(), *p_atom_, nullptr)), std::nullopt};
     }
     if (sign_ == Sign::twice && index_ != stratified_index) {
         return {m(make_once_matcher()), std::nullopt};

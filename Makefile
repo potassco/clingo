@@ -89,6 +89,17 @@ release:
 	$(MAKE) -C build_release
 	$(MAKE) -C build_release test
 
+profile:
+	mkdir -p build_profile
+	current="$$(pwd -P)" && cd build_profile && cd "$$(pwd -P)" && cmake \
+		-DCMAKE_BUILD_TYPE=release \
+		-DPARSER_BUILD_TESTS=On \
+		-DCMAKE_CXX_FLAGS="-Wall -Wextra -pedantic" \
+		-DPARSER_PROFILE=ON \
+		"$${current}"
+	$(MAKE) -C build_profile
+	$(MAKE) -C build_profile test
+
 release_clang:
 	mkdir -p build_release_clang
 	current="$$(pwd -P)" && cd build_release_clang && cd "$$(pwd -P)" && cmake \

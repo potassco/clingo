@@ -9,17 +9,21 @@ namespace Gringo::Ground::Test {
 // NOLINTBEGIN(readability-magic-numbers)
 
 TEST_CASE("ground_matcher") {
+    Logger log;
     auto store = make_symbol_store(true, true);
     auto ass = Assignment{};
+    std::stringstream str;
+    auto out = Output{str};
+    auto ctx = InstantiationContext{log, out, *store, ass};
 
     SECTION("once") {
         auto matcher = make_once_matcher();
-        matcher->match(*store, ass);
-        REQUIRE(matcher->next(*store, ass));
-        REQUIRE(!matcher->next(*store, ass));
-        matcher->match(*store, ass);
-        REQUIRE(matcher->next(*store, ass));
-        REQUIRE(!matcher->next(*store, ass));
+        matcher->match(ctx);
+        REQUIRE(matcher->next(ctx));
+        REQUIRE(!matcher->next(ctx));
+        matcher->match(ctx);
+        REQUIRE(matcher->next(ctx));
+        REQUIRE(!matcher->next(ctx));
     }
 
     SECTION("interval") {
@@ -29,22 +33,22 @@ TEST_CASE("ground_matcher") {
         auto lower = std::make_unique<TermVariable>(1);
         auto upper = std::make_unique<TermSymbol>(store->num(3));
         auto matcher = make_interval_matcher(bound, *lhs, *lower, *upper);
-        matcher->match(*store, ass);
-        REQUIRE(matcher->next(*store, ass));
+        matcher->match(ctx);
+        REQUIRE(matcher->next(ctx));
         REQUIRE(ass[0] == store->num(1));
-        REQUIRE(matcher->next(*store, ass));
+        REQUIRE(matcher->next(ctx));
         REQUIRE(ass[0] == store->num(2));
-        REQUIRE(matcher->next(*store, ass));
+        REQUIRE(matcher->next(ctx));
         REQUIRE(ass[0] == store->num(3));
-        REQUIRE(!matcher->next(*store, ass));
+        REQUIRE(!matcher->next(ctx));
         ass[1] = store->num(3);
-        matcher->match(*store, ass);
-        REQUIRE(matcher->next(*store, ass));
+        matcher->match(ctx);
+        REQUIRE(matcher->next(ctx));
         REQUIRE(ass[0] == store->num(3));
-        REQUIRE(!matcher->next(*store, ass));
+        REQUIRE(!matcher->next(ctx));
         ass[1] = store->num(4);
-        matcher->match(*store, ass);
-        REQUIRE(!matcher->next(*store, ass));
+        matcher->match(ctx);
+        REQUIRE(!matcher->next(ctx));
     }
 
     SECTION("comp") {
@@ -53,12 +57,12 @@ TEST_CASE("ground_matcher") {
         auto lower = std::make_unique<TermVariable>(0);
         auto upper = std::make_unique<TermSymbol>(store->num(2));
         auto matcher = make_comp_matcher(bound, *lower, Relation::less, *upper);
-        matcher->match(*store, ass);
-        REQUIRE(matcher->next(*store, ass));
-        REQUIRE(!matcher->next(*store, ass));
+        matcher->match(ctx);
+        REQUIRE(matcher->next(ctx));
+        REQUIRE(!matcher->next(ctx));
         ass[0] = store->num(2);
-        matcher->match(*store, ass);
-        REQUIRE(!matcher->next(*store, ass));
+        matcher->match(ctx);
+        REQUIRE(!matcher->next(ctx));
     }
 
     SECTION("assign") {
@@ -67,15 +71,15 @@ TEST_CASE("ground_matcher") {
         auto lower = std::make_unique<TermVariable>(0);
         auto upper = std::make_unique<TermVariable>(1);
         auto matcher = make_comp_matcher(bound, *lower, Relation::equal, *upper);
-        matcher->match(*store, ass);
-        REQUIRE(matcher->next(*store, ass));
+        matcher->match(ctx);
+        REQUIRE(matcher->next(ctx));
         REQUIRE(ass[0] == store->num(1));
-        REQUIRE(!matcher->next(*store, ass));
+        REQUIRE(!matcher->next(ctx));
         ass[1] = store->num(2);
-        matcher->match(*store, ass);
-        REQUIRE(matcher->next(*store, ass));
+        matcher->match(ctx);
+        REQUIRE(matcher->next(ctx));
         REQUIRE(ass[0] == store->num(2));
-        REQUIRE(!matcher->next(*store, ass));
+        REQUIRE(!matcher->next(ctx));
     }
 
     SECTION("nonfact") {
@@ -87,28 +91,28 @@ TEST_CASE("ground_matcher") {
         base.add(sym(2), AtomState::derived);
         auto a1 = std::make_unique<TermVariable>(0);
         auto term = std::make_unique<TermFunction>(name, Util::make_vec<UTerm>(std::move(a1)));
-        auto matcher = make_non_fact_matcher(base, *term);
+        auto matcher = make_non_fact_matcher(base, *term, nullptr);
         matcher->init(*store, 0);
         base.add(sym(3), AtomState::derived);
         base.add(sym(4), AtomState::fact);
         ass[0] = store->num(0);
-        matcher->match(*store, ass);
-        REQUIRE(matcher->next(*store, ass));
-        REQUIRE(!matcher->next(*store, ass));
+        matcher->match(ctx);
+        REQUIRE(matcher->next(ctx));
+        REQUIRE(!matcher->next(ctx));
         ass[0] = store->num(1);
-        matcher->match(*store, ass);
-        REQUIRE(!matcher->next(*store, ass));
+        matcher->match(ctx);
+        REQUIRE(!matcher->next(ctx));
         ass[0] = store->num(2);
-        matcher->match(*store, ass);
-        REQUIRE(matcher->next(*store, ass));
-        REQUIRE(!matcher->next(*store, ass));
+        matcher->match(ctx);
+        REQUIRE(matcher->next(ctx));
+        REQUIRE(!matcher->next(ctx));
         ass[0] = store->num(3);
-        matcher->match(*store, ass);
-        REQUIRE(matcher->next(*store, ass));
-        REQUIRE(!matcher->next(*store, ass));
+        matcher->match(ctx);
+        REQUIRE(matcher->next(ctx));
+        REQUIRE(!matcher->next(ctx));
         ass[0] = store->num(4);
-        matcher->match(*store, ass);
-        REQUIRE(!matcher->next(*store, ass));
+        matcher->match(ctx);
+        REQUIRE(!matcher->next(ctx));
     }
 
     SECTION("full matcher") {
@@ -126,39 +130,39 @@ TEST_CASE("ground_matcher") {
         // match all
         auto m1 = make_atom_matcher(bound, base, *term, MatcherType::all_atoms);
         m1->init(*store, 0);
-        m1->match(*store, ass);
+        m1->match(ctx);
         base.add(sym(1, 4), AtomState::derived);
         base.add(sym(2, 5), AtomState::derived);
-        REQUIRE(m1->next(*store, ass));
+        REQUIRE(m1->next(ctx));
         REQUIRE(ass[0] == store->num(1));
-        REQUIRE(m1->next(*store, ass));
+        REQUIRE(m1->next(ctx));
         REQUIRE(ass[0] == store->num(3));
-        REQUIRE(!m1->next(*store, ass));
+        REQUIRE(!m1->next(ctx));
         m1->init(*store, 1);
-        m1->match(*store, ass);
-        REQUIRE(m1->next(*store, ass));
+        m1->match(ctx);
+        REQUIRE(m1->next(ctx));
         REQUIRE(ass[0] == store->num(1));
-        REQUIRE(m1->next(*store, ass));
+        REQUIRE(m1->next(ctx));
         REQUIRE(ass[0] == store->num(3));
-        REQUIRE(m1->next(*store, ass));
+        REQUIRE(m1->next(ctx));
         REQUIRE(ass[0] == store->num(4));
-        REQUIRE(!m1->next(*store, ass));
+        REQUIRE(!m1->next(ctx));
         base.add(sym(1, 6), AtomState::derived);
         // match old
         m1 = make_atom_matcher(bound, base, *term, MatcherType::old_atoms);
         m1->init(*store, 1);
-        REQUIRE(m1->next(*store, ass));
+        REQUIRE(m1->next(ctx));
         REQUIRE(ass[0] == store->num(1));
-        REQUIRE(m1->next(*store, ass));
+        REQUIRE(m1->next(ctx));
         REQUIRE(ass[0] == store->num(3));
-        REQUIRE(!m1->next(*store, ass));
+        REQUIRE(!m1->next(ctx));
         // match new
         m1 = make_atom_matcher(bound, base, *term, MatcherType::new_atoms);
         m1->init(*store, 1);
-        m1->match(*store, ass);
-        REQUIRE(m1->next(*store, ass));
+        m1->match(ctx);
+        REQUIRE(m1->next(ctx));
         REQUIRE(ass[0] == store->num(4));
-        REQUIRE(!m1->next(*store, ass));
+        REQUIRE(!m1->next(ctx));
     }
     SECTION("hash matcher") {
         auto name = store->string("f");
@@ -191,38 +195,38 @@ TEST_CASE("ground_matcher") {
         // gen 0
         m1->init(*store, 0);
         m2->init(*store, 0);
-        m1->match(*store, ass);
-        REQUIRE(m1->next(*store, ass));
+        m1->match(ctx);
+        REQUIRE(m1->next(ctx));
         REQUIRE(ass[1] == store->num(1));
-        m2->match(*store, ass);
-        REQUIRE(m2->next(*store, ass));
+        m2->match(ctx);
+        REQUIRE(m2->next(ctx));
         REQUIRE(ass[2] == store->num(1));
-        REQUIRE(m2->next(*store, ass));
+        REQUIRE(m2->next(ctx));
         REQUIRE(ass[2] == store->num(2));
-        REQUIRE(m1->next(*store, ass));
+        REQUIRE(m1->next(ctx));
         REQUIRE(ass[1] == store->num(2));
-        m2->match(*store, ass);
-        REQUIRE(!m2->next(*store, ass));
-        REQUIRE(m1->next(*store, ass));
+        m2->match(ctx);
+        REQUIRE(!m2->next(ctx));
+        REQUIRE(m1->next(ctx));
         REQUIRE(ass[1] == store->num(3));
-        m2->match(*store, ass);
-        REQUIRE(m2->next(*store, ass));
+        m2->match(ctx);
+        REQUIRE(m2->next(ctx));
         REQUIRE(ass[2] == store->num(4));
-        REQUIRE(!m2->next(*store, ass));
-        REQUIRE(!m1->next(*store, ass));
+        REQUIRE(!m2->next(ctx));
+        REQUIRE(!m1->next(ctx));
         // gen 1
         base.add(sym(1, 1, 5), AtomState::derived);
         base.add(sym(1, 5, 6), AtomState::derived);
         m1->init(*store, 1);
         m2->init(*store, 1);
-        m2->match(*store, ass);
-        REQUIRE(m1->next(*store, ass));
+        m2->match(ctx);
+        REQUIRE(m1->next(ctx));
         REQUIRE(ass[1] == store->num(5));
-        m2->match(*store, ass);
-        REQUIRE(m2->next(*store, ass));
+        m2->match(ctx);
+        REQUIRE(m2->next(ctx));
         REQUIRE(ass[2] == store->num(6));
-        REQUIRE(!m2->next(*store, ass));
-        REQUIRE(!m1->next(*store, ass));
+        REQUIRE(!m2->next(ctx));
+        REQUIRE(!m1->next(ctx));
     }
 }
 

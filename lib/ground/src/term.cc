@@ -233,7 +233,10 @@ auto TermLinear::eval(SymbolStore &store, Assignment const &ass) const -> std::o
 auto TermLinear::rename([[maybe_unused]] SymbolStore &store, RenameMode mode, [[maybe_unused]] String const *name,
                         size_t *vars) const -> UTerm {
     assert(name == nullptr);
-    return std::make_unique<TermLinear>(m_, mode == RenameMode::rename_vars && vars != nullptr ? (*vars)++ : var_, n_);
+    if (mode == RenameMode::rename_vars && vars != nullptr) {
+        return std::make_unique<TermVariable>((*vars)++);
+    }
+    return std::make_unique<TermLinear>(m_, var_, n_);
 }
 
 auto TermLinear::rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm {
@@ -308,6 +311,9 @@ auto TermUnary::eval(SymbolStore &store, Assignment const &ass) const -> std::op
 
 auto TermUnary::rename(SymbolStore &store, RenameMode mode, String const *name, size_t *vars) const -> UTerm {
     assert(name == nullptr);
+    if (op_ == UnaryOperator::invert && mode == RenameMode::rename_vars && vars != nullptr) {
+        return std::make_unique<TermVariable>((*vars)++);
+    }
     return std::make_unique<TermUnary>(op_, rhs_->rename(store, mode, name, vars));
 }
 
@@ -418,6 +424,9 @@ auto TermBinary::eval(SymbolStore &store, Assignment const &ass) const -> std::o
 
 auto TermBinary::rename(SymbolStore &store, RenameMode mode, String const *name, size_t *vars) const -> UTerm {
     assert(name == nullptr);
+    if (mode == RenameMode::rename_vars && vars != nullptr) {
+        return std::make_unique<TermVariable>((*vars)++);
+    }
     auto lhs = lhs_->rename(store, mode, name, vars);
     return std::make_unique<TermBinary>(std::move(lhs), op_, rhs_->rename(store, mode, name, vars));
 }

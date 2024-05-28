@@ -8,19 +8,19 @@ namespace Gringo::Ground {
 
 void Instantiator::BackjumpMatcher::init(SymbolStore &store, size_t gen) { matcher_->init(store, gen); }
 
-void Instantiator::BackjumpMatcher::match(SymbolStore &store, Assignment &ass) { matcher_->match(store, ass); }
+void Instantiator::BackjumpMatcher::match(InstantiationContext &ctx) { matcher_->match(ctx); }
 
-auto Instantiator::BackjumpMatcher::next(SymbolStore &store, Assignment &ass) -> bool {
-    if (matcher_->next(store, ass)) {
+auto Instantiator::BackjumpMatcher::next(InstantiationContext &ctx) -> bool {
+    if (matcher_->next(ctx)) {
         backjumpable_ = true;
         return true;
     }
     return false;
 }
 
-auto Instantiator::BackjumpMatcher::first(SymbolStore &store, Assignment &ass) -> bool {
-    matcher_->match(store, ass);
-    return next(store, ass);
+auto Instantiator::BackjumpMatcher::first(InstantiationContext &ctx) -> bool {
+    matcher_->match(ctx);
+    return next(ctx);
 }
 
 void Instantiator::BackjumpMatcher::print(std::ostream &out, size_t index) const {
@@ -53,10 +53,8 @@ void Instantiator::finalize(DependVec depend) {
     class SolutionMatcher : public Matcher {
       public:
         void init([[maybe_unused]] SymbolStore &store, [[maybe_unused]] size_t gen) override {};
-        void match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) override {}
-        auto next([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) -> bool override {
-            return false;
-        }
+        void match([[maybe_unused]] InstantiationContext &ctx) override {}
+        auto next([[maybe_unused]] InstantiationContext &ctx) -> bool override { return false; }
         void print(std::ostream &out) const override { out << "#solution"; }
     };
     matchers_.emplace_back(std::make_unique<SolutionMatcher>(), std::move(depend));
@@ -68,12 +66,13 @@ auto Instantiator::enqueue() -> bool {
     return old;
 }
 
-auto Instantiator::instantiate(Logger &log, SymbolStore &store) -> bool {
+auto Instantiator::instantiate(Logger &log, SymbolStore &store, Output &out) -> bool {
     enqueued_ = false;
     auto ie = matchers_.rend();
     auto it = ie - 1;
     auto ib = matchers_.rbegin();
-    it->match(store, ass_);
+    auto ctx = InstantiationContext{log, out, store, ass_};
+    it->match(ctx);
     GRINGO_REPORT(log, trace) << "instantiate: " << Util::p_fun{[this](std::ostream &out) {
         icb_->print_head(out);
         out << " <- ";
@@ -84,14 +83,14 @@ auto Instantiator::instantiate(Logger &log, SymbolStore &store) -> bool {
     }};
     do {
         GRINGO_REPORT(log, trace) << "  start at " << std::distance(it, ie) - 1;
-        if (it->next(store, ass_)) {
-            for (--it; it->first(store, ass_); --it) {
+        if (it->next(ctx)) {
+            for (--it; it->first(ctx); --it) {
             }
             GRINGO_REPORT(log, trace) << "  advanced to " << std::distance(it, ie) - 1;
         }
         if (it == ib) {
             GRINGO_REPORT(log, trace) << "  solution";
-            if (!icb_->report(store, ass_)) {
+            if (!icb_->report(ctx)) {
                 return false;
             }
         }
@@ -138,7 +137,7 @@ void Queue::propagate(size_t index) {
     }
 }
 
-auto Queue::process(Logger &log, SymbolStore &store) -> bool {
+auto Queue::process(Logger &log, SymbolStore &store, Output &out) -> bool {
     // ground
     for (auto i = size_t{0}; i < insts_.size(); ++i) {
         enter_(i);
@@ -153,7 +152,7 @@ auto Queue::process(Logger &log, SymbolStore &store) -> bool {
                 inst->init(store, gen);
             }
             for (auto *inst : current) {
-                if (!inst->instantiate(log, store)) {
+                if (!inst->instantiate(log, store, out)) {
                     return false;
                 }
             }

@@ -292,7 +292,7 @@ class LitCondLit : public Lit, private MatchCondLit {
                                std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto score(std::vector<bool> const &bound) const -> double override;
     void print(std::ostream &out) const override;
-    auto output(SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool override;
+    auto output(InstantiationContext &ctx) const -> bool override;
     [[nodiscard]] auto copy() const -> ULit override;
     [[nodiscard]] auto hash() const -> size_t override;
     [[nodiscard]] auto equal_to(Lit const &other) const -> bool override;
@@ -313,14 +313,14 @@ class LitCondLitStrat : public Lit, private InstanceCallback {
                                std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto score(std::vector<bool> const &bound) const -> double override;
     void print(std::ostream &out) const override;
-    auto output(SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool override;
+    auto output(InstantiationContext &ctx) const -> bool override;
     [[nodiscard]] auto copy() const -> ULit override;
     [[nodiscard]] auto hash() const -> size_t override;
     [[nodiscard]] auto equal_to(Lit const &other) const -> bool override;
     [[nodiscard]] auto compare_to(Lit const &other) const -> std::weak_ordering override;
     // cb interface
     void init(size_t gen) override;
-    [[nodiscard]] auto report(SymbolStore &store, Assignment const &ass) -> bool override;
+    [[nodiscard]] auto report(InstantiationContext &ctx) -> bool override;
     void propagate(Queue &queue) override;
     [[nodiscard]] auto priority() const -> size_t override;
     void print_head(std::ostream &out) const override;
@@ -348,7 +348,7 @@ class StmCondLit : public Stm {
     // solution callback interface
     void print_head(std::ostream &out) const override;
     void init(size_t gen) override;
-    [[nodiscard]] auto report(SymbolStore &store, Assignment const &ass) -> bool override;
+    [[nodiscard]] auto report(InstantiationContext &ctx) -> bool override;
     void propagate(Queue &queue) override;
     [[nodiscard]] auto priority() const -> size_t override;
 

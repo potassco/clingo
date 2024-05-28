@@ -186,36 +186,26 @@ void StmRule::init(size_t gen) {
     }
 }
 
-auto StmRule::report(SymbolStore &store, Assignment const &ass) -> bool {
-    std::ostream &out = std::cerr;
+auto StmRule::report(InstantiationContext &ctx) -> bool {
+    auto &out = ctx.out();
+    if (head_ != nullptr) {
+        out.out() << atom_;
+        out.next(" :- ");
+    }
     bool fact = true;
-    std::ostringstream tmp_bd;
-    bool comma = false;
     for (auto const &lit : body_) {
         std::ostringstream tmp_lit;
-        if (lit->output(store, ass, tmp_lit)) {
+        if (lit->output(ctx)) {
             fact = false;
-            if (comma) {
-                tmp_bd << "; ";
-            } else {
-                comma = true;
-            }
-            tmp_bd << tmp_lit.view();
+            out.next(", ");
         }
     }
     if (head_ != nullptr) {
-        if (auto atom = head_->eval(store, ass); atom) {
-            base_->add(*atom, fact ? AtomState::fact : AtomState::derived);
-            out << *atom;
-            if (!fact) {
-                out << " :- " << tmp_bd.view();
-            }
-            out << ".\n";
-        }
-    } else {
-        out << " :- " << tmp_bd.view() << ".\n";
+        base_->add(atom_, fact ? AtomState::fact : AtomState::derived);
+    } else if (fact) {
+        out.out();
     }
-    // stop instantiation if the body of an integrity constraint is fact
+    out.end() << ".\n";
     return head_ != nullptr || !fact;
 }
 

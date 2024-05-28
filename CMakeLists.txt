@@ -12,6 +12,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 option(PARSER_BUILD_WEB "compile to javascript with emscripten" OFF)
 option(PARSER_BUILD_TESTS "enable tests" ON)
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 if (PARSER_BUILD_WEB)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s DISABLE_EXCEPTION_CATCHING=0")
@@ -23,6 +24,10 @@ endif()
 
 if (PARSER_BUILD_TESTS)
     enable_testing()
+endif()
+
+if (PARSER_PROFILE)
+    find_package(Gperftools REQUIRED)
 endif()
 
 add_subdirectory(third_party)

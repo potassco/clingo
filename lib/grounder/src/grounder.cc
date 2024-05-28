@@ -12,11 +12,25 @@
 #include <gringo/util/type_traits.hh>
 #include <gringo/util/unordered_map.hh>
 
+#ifdef PARSER_PROFILE
+#include <gperftools/profiler.h>
+#endif
+
 #include <filesystem>
 #include <forward_list>
 #include <iostream>
 
 namespace Gringo {
+
+#ifdef PARSER_PROFILE
+namespace {
+class Profiler {
+  public:
+    Profiler(char const *path) { ProfilerStart(path); }
+    ~Profiler() { ProfilerStop(); }
+};
+} // namespace
+#endif
 
 struct Grounder::Impl {
     Impl(Logger &log, SymbolStore &store, Input::RewriteOptions opts) : log{&log}, store{&store}, prg{opts} {}
@@ -548,25 +562,20 @@ class BuilderStm {
 
 class Builder : public Input::DependencyBuilder {
   public:
-    Builder(Grounder::Impl &impl) : impl_{&impl} {}
+    Builder(Grounder::Impl &impl) : out_{std::cout}, impl_{&impl} {}
 
     void param(Input::ProgramParam const &param) override {
-        std::cerr << "#program_" << param.first << "(";
-        bool comma = false;
+        out_.out() << "#program_" << param.first << "(";
         for (auto const &sym : param.second) {
-            if (comma) {
-                std::cerr << ", ";
-            } else {
-                comma = true;
-            }
-            std::cerr << sym;
+            out_.out() << sym;
+            out_.next(", ");
         }
-        std::cerr << ").\n";
+        out_.end() << ").\n";
     }
 
     void meta(std::vector<Input::Stm> const &stms) override {
         for (auto const &stm : stms) {
-            std::cerr << stm << "\n";
+            out_.out() << stm << "\n";
         }
     }
 
@@ -579,7 +588,7 @@ class Builder : public Input::DependencyBuilder {
                 dom_it.value() = std::make_unique<Ground::Base>();
             }
             dom_it->second->add(fact, Ground::AtomState::fact);
-            std::cerr << fact << ".\n";
+            out_.out() << fact << ".\n";
         }
     }
 
@@ -633,7 +642,7 @@ class Builder : public Input::DependencyBuilder {
                     GRINGO_REPORT(*impl_->log, debug) << "      " << *stm;
                     lin.prepare(*stm, stm->body(), stm->important());
                 }
-                if (!queue.process(*impl_->log, *impl_->store)) {
+                if (!queue.process(*impl_->log, *impl_->store, out_)) {
                     return false;
                 }
             }
@@ -642,6 +651,7 @@ class Builder : public Input::DependencyBuilder {
     }
 
   private:
+    Ground::Output out_;
     Grounder::Impl *impl_;
 };
 
@@ -684,10 +694,12 @@ void Grounder::prepare() {
 }
 
 auto Grounder::ground(Input::ProgramParamVec const &params) -> bool {
+#ifdef PARSER_PROFILE
+    Profiler prof{"clingo-ground.prof"};
+#endif
     GRINGO_REPORT(*impl_->log, debug) << "grounding...";
     auto bld = Builder{*impl_};
     bool ret = impl_->prg.analyze(*impl_->store, params, bld);
-    std::cerr.flush();
     return ret;
 }
 

@@ -301,11 +301,11 @@ void LitCondLit::print(std::ostream &out) const {
     }
 }
 
-auto LitCondLit::output([[maybe_unused]] SymbolStore &store, Assignment const &ass, std::ostream &out) const -> bool {
-    if (type() == LitCondLitType::lit) {
+auto LitCondLit::output(InstantiationContext &ctx) const -> bool {
+    if (type() == LitCondLitType::lit && !state().lit_is_fact(ctx.ass())) {
         // TODO: fix once there is a proper output
-        out << "#cond_lit(TODO)";
-        return !state().lit_is_fact(ass);
+        ctx.out().out() << "#cond_lit(TODO)";
+        return true;
     }
     return false;
 }
@@ -336,22 +336,19 @@ namespace {
 class MatcherCondLitStrat : public OnceMatcher {
   public:
     MatcherCondLitStrat(StateCondLit &state, Instantiator inst) : state_{&state}, inst_{std::move(inst)} {}
-    auto do_match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment &ass) -> bool override {
+    auto do_match(InstantiationContext &ctx) -> bool override {
         if (init_) {
             state_->base_empty().update(0);
         } else {
             init_ = true;
-            inst_.init(store, 0);
+            inst_.init(ctx.store(), 0);
         }
-        auto [it, ins] = state_->add_empty(ass);
+        auto [it, ins] = state_->add_empty(ctx.ass());
         if (ins) {
-            // TODO: how to handle logging???
-            Logger log;
-            // log.set_level(LogLevel::trace);
-            GRINGO_REPORT(log, trace) << "<<< begin nested instantiation";
+            GRINGO_REPORT(ctx.log(), trace) << "<<< begin nested instantiation";
             state_->base_empty().update(1);
-            std::ignore = inst_.instantiate(log, store);
-            GRINGO_REPORT(log, trace) << ">>> end nested instantiation";
+            std::ignore = inst_.instantiate(ctx.log(), ctx.store(), ctx.out());
+            GRINGO_REPORT(ctx.log(), trace) << ">>> end nested instantiation";
             std::ignore = state_->propagate();
         }
         return !it.value().is_false();
@@ -375,17 +372,25 @@ class MatcherCondLitStrat : public OnceMatcher {
 
 void LitCondLitStrat::init([[maybe_unused]] size_t gen) {}
 
-auto LitCondLitStrat::report(SymbolStore &store, Assignment const &ass) -> bool {
+auto LitCondLitStrat::report(InstantiationContext &ctx) -> bool {
     // TODO:
     // - improve fact check
+    // - messes up output if not fact
+    auto &out = ctx.out();
+    out.next("% premise: ");
     bool fact = true;
     for (auto const &lit : premise_) {
-        std::stringstream out;
-        if (lit->output(store, ass, out)) {
+        if (lit->output(ctx)) {
             fact = false;
+            out.next(", ");
         }
     }
-    state_->add_premise(ass, fact);
+    if (fact) {
+        out.end();
+    } else {
+        out.end() << "\n";
+    }
+    state_->add_premise(ctx.ass(), fact);
     // In the stratified case, the conclusion is always false. Furthermore,
     // exactly one literal is bound. Thus, we can exit instantiation early
     // here.
@@ -441,11 +446,13 @@ void LitCondLitStrat::print(std::ostream &out) const {
     out << ")";
 }
 
-auto LitCondLitStrat::output([[maybe_unused]] SymbolStore &store, Assignment const &ass,
-                             std::ostream &out) const -> bool {
+auto LitCondLitStrat::output(InstantiationContext &ctx) const -> bool {
     // TODO: fix once there is a proper output
-    out << "#cond_lit(TODO)";
-    return !state_->lit_is_fact(ass);
+    if (!state_->lit_is_fact(ctx.ass())) {
+        ctx.out().out() << "#cond_lit(TODO)";
+        return true;
+    }
+    return false;
 }
 
 auto LitCondLitStrat::copy() const -> ULit {
@@ -525,34 +532,48 @@ void StmCondLit::init([[maybe_unused]] size_t gen) {
     // by construction, this statement does not increment the generation
 }
 
-auto StmCondLit::report([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Assignment const &ass) -> bool {
+auto StmCondLit::report(InstantiationContext &ctx) -> bool {
     switch (type_) {
         case StmCondLitType::empty: {
-            base_->add_empty(ass);
+            base_->add_empty(ctx.ass());
             break;
         }
         case StmCondLitType::premise: {
             // TODO: fix once there is a proper output
             bool fact = true;
+            auto &out = ctx.out();
+            out.next("% premise: ");
             for (auto const &lit : body_) {
-                std::stringstream out;
-                if (lit->output(store, ass, out)) {
+                if (lit->output(ctx)) {
                     fact = false;
+                    out.next(", ");
                 }
             }
-            base_->add_premise(ass, fact);
+            if (fact) {
+                out.end();
+            } else {
+                out.end() << "\n";
+            }
+            base_->add_premise(ctx.ass(), fact);
             break;
         }
         case StmCondLitType::conclusion: {
             // TODO: fix once there is a proper output
             bool fact = true;
+            auto &out = ctx.out();
+            out.next("% conclusion: ");
             for (auto const &lit : body_) {
-                std::stringstream out;
-                if (lit->output(store, ass, out)) {
+                if (lit->output(ctx)) {
                     fact = false;
+                    out.next(", ");
                 }
             }
-            base_->add_conclusion(ass, fact);
+            if (fact) {
+                out.end();
+            } else {
+                out.end() << "\n";
+            }
+            base_->add_conclusion(ctx.ass(), fact);
             break;
         }
     }
