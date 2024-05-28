@@ -8,13 +8,19 @@ namespace Gringo::Ground {
 
 class Stm : public InstanceCallback {
   public:
-    virtual void print(std::ostream &out) const = 0;
-    [[nodiscard]] virtual auto body() const -> ULitVec const & = 0;
-    [[nodiscard]] virtual auto important() const -> VariableSet = 0;
+    void print(std::ostream &out) const { do_print(out); }
+    [[nodiscard]] auto body() const -> ULitVec const & { return do_body(); }
+    [[nodiscard]] auto important() const -> VariableSet { return do_important(); }
+
     friend auto operator<<(std::ostream &out, Stm const &stm) -> std::ostream & {
         stm.print(out);
         return out;
     }
+
+  private:
+    virtual void do_print(std::ostream &out) const = 0;
+    [[nodiscard]] virtual auto do_body() const -> ULitVec const & = 0;
+    [[nodiscard]] virtual auto do_important() const -> VariableSet = 0;
 };
 
 using UStm = std::unique_ptr<Stm>;
@@ -56,13 +62,14 @@ class StmRule : public Stm {
             body_.emplace_back(std::make_unique<LitFactCheck>(*base_, *head_, &atom_));
         }
     }
-    // Stm interface
-    void print(std::ostream &out) const override;
-
-    [[nodiscard]] auto body() const -> ULitVec const & override;
-    [[nodiscard]] auto important() const -> VariableSet override;
 
   private:
+    // Stm interface
+    void do_print(std::ostream &out) const override;
+
+    [[nodiscard]] auto do_body() const -> ULitVec const & override;
+    [[nodiscard]] auto do_important() const -> VariableSet override;
+
     // InstanceCallback interface
     void do_print_head(std::ostream &out) const override;
     void do_init(size_t gen) override;

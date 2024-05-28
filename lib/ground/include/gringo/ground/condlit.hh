@@ -342,12 +342,13 @@ class StmCondLit : public Stm {
   public:
     StmCondLit(StmCondLitType type, StateCondLit &base, ULitVec body, size_t prio, size_t index)
         : base_{&base}, body_{std::move(body)}, prio_{prio}, index_{index}, type_{type} {}
-    // statement interface
-    void print(std::ostream &out) const override;
-    [[nodiscard]] auto body() const -> ULitVec const & override;
-    [[nodiscard]] auto important() const -> VariableSet override;
 
   private:
+    // statement interface
+    void do_print(std::ostream &out) const override;
+    [[nodiscard]] auto do_body() const -> ULitVec const & override;
+    [[nodiscard]] auto do_important() const -> VariableSet override;
+
     // solution callback interface
     void do_print_head(std::ostream &out) const override;
     void do_init(size_t gen) override;

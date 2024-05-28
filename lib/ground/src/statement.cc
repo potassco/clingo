@@ -164,15 +164,15 @@ void StmRule::do_print_head(std::ostream &out) const {
     }
 }
 
-void StmRule::print(std::ostream &out) const {
+void StmRule::do_print(std::ostream &out) const {
     out << priority() << ": ";
     print_head(out);
     out << " :- " << Util::p_range(body_, ", ", [](std::ostream &out, auto const &lit) { out << *lit; }) << ".";
 }
 
-auto StmRule::body() const -> ULitVec const & { return body_; }
+auto StmRule::do_body() const -> ULitVec const & { return body_; }
 
-auto StmRule::important() const -> VariableSet {
+auto StmRule::do_important() const -> VariableSet {
     VariableSet important;
     if (head_) {
         head_->vars(important);
