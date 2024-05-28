@@ -39,19 +39,22 @@ concept IsMatch = requires(Match const &m) {
 class OnceMatcher : public Matcher {
   public:
     OnceMatcher() = default;
-    virtual auto do_match([[maybe_unused]] InstantiationContext &ctx) -> bool { return true; }
-    void init([[maybe_unused]] SymbolStore &store, [[maybe_unused]] size_t gen) override {}
-    void match([[maybe_unused]] InstantiationContext &ctx) override { match_ = true; }
-    auto next(InstantiationContext &ctx) -> bool override {
+    [[nodiscard]] auto once(InstantiationContext &ctx) -> bool { return do_once(ctx); }
+
+  private:
+    virtual auto do_once([[maybe_unused]] InstantiationContext &ctx) -> bool { return true; }
+
+    void do_init([[maybe_unused]] SymbolStore &store, [[maybe_unused]] size_t gen) override {}
+    void do_match([[maybe_unused]] InstantiationContext &ctx) override { match_ = true; }
+    auto do_next(InstantiationContext &ctx) -> bool override {
         if (match_) {
             match_ = false;
-            return do_match(ctx);
+            return do_once(ctx);
         }
         return false;
     }
-    void print(std::ostream &out) const override { out << "#once"; }
+    void do_print(std::ostream &out) const override { out << "#once"; }
 
-  private:
     bool match_ = false;
 };
 
@@ -260,14 +263,15 @@ template <IsBase Base> class HashIndex {
 template <IsBase Base, IsMatch Match> class LookupMatcher : public OnceMatcher {
   public:
     LookupMatcher(Base &base, Match const &m, MatcherType type) : base_{&base}, match_{&m}, type_{type} {}
-    void init([[maybe_unused]] SymbolStore &store, size_t gen) override { base_->update(gen); }
-    auto do_match([[maybe_unused]] InstantiationContext &ctx) -> bool override {
+
+  private:
+    void do_init([[maybe_unused]] SymbolStore &store, size_t gen) override { base_->update(gen); }
+    auto do_once(InstantiationContext &ctx) -> bool override {
         auto sym = match_->eval(ctx.store(), ctx.ass());
         return sym && base_->contains(*sym, type_);
     }
-    void print(std::ostream &out) const override { out << *match_; }
+    void do_print(std::ostream &out) const override { out << *match_; }
 
-  private:
     Base *base_;
     Match const *match_;
     MatcherType type_;
@@ -279,14 +283,15 @@ template <IsBase Base, IsMatch Match> class FullMatcher : public Matcher {
 
     FullMatcher(Index &index, Match const &m, VariableVec free, MatcherType type)
         : index_{&index}, match_{&m}, free_{std::move(free)}, type_{type} {}
-    void init([[maybe_unused]] SymbolStore &store, size_t gen) override { index_->init(gen); }
-    void match([[maybe_unused]] InstantiationContext &ctx) override { std::tie(pos_, cur_) = index_->match(type_); }
-    auto next(InstantiationContext &ctx) -> bool override {
-        return index_->next(ctx.store(), ctx.ass(), *match_, free_, type_, pos_, cur_);
-    }
-    void print(std::ostream &out) const override { out << *match_; }
 
   private:
+    void do_init([[maybe_unused]] SymbolStore &store, size_t gen) override { index_->init(gen); }
+    void do_match([[maybe_unused]] InstantiationContext &ctx) override { std::tie(pos_, cur_) = index_->match(type_); }
+    auto do_next(InstantiationContext &ctx) -> bool override {
+        return index_->next(ctx.store(), ctx.ass(), *match_, free_, type_, pos_, cur_);
+    }
+    void do_print(std::ostream &out) const override { out << *match_; }
+
     Index *index_;
     Match const *match_;
     VariableVec free_;
@@ -301,14 +306,15 @@ template <IsBase Base, IsMatch Match> class HashMatcher : public Matcher {
 
     HashMatcher(Index &index, Match const &m, VariableVec bound, VariableVec bind, MatcherType type)
         : index_{&index}, match_{&m}, bound_{std::move(bound)}, bind_{std::move(bind)}, type_{type} {}
-    void init([[maybe_unused]] SymbolStore &store, size_t gen) override { index_->init(gen); }
-    void match([[maybe_unused]] InstantiationContext &ctx) override { std::tie(pos_, cur_) = Index::match(); }
-    auto next(InstantiationContext &ctx) -> bool override {
-        return index_->next(ctx.store(), ctx.ass(), bound_, bind_, *match_, type_, pos_, cur_);
-    }
-    void print(std::ostream &out) const override { out << *match_; }
 
   private:
+    void do_init([[maybe_unused]] SymbolStore &store, size_t gen) override { index_->init(gen); }
+    void do_match([[maybe_unused]] InstantiationContext &ctx) override { std::tie(pos_, cur_) = Index::match(); }
+    auto do_next(InstantiationContext &ctx) -> bool override {
+        return index_->next(ctx.store(), ctx.ass(), bound_, bind_, *match_, type_, pos_, cur_);
+    }
+    void do_print(std::ostream &out) const override { out << *match_; }
+
     Index *index_;
     Match const *match_;
     VariableVec bound_;

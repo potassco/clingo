@@ -318,14 +318,15 @@ class LitCondLitStrat : public Lit, private InstanceCallback {
     [[nodiscard]] auto hash() const -> size_t override;
     [[nodiscard]] auto equal_to(Lit const &other) const -> bool override;
     [[nodiscard]] auto compare_to(Lit const &other) const -> std::weak_ordering override;
-    // cb interface
-    void init(size_t gen) override;
-    [[nodiscard]] auto report(InstantiationContext &ctx) -> bool override;
-    void propagate(Queue &queue) override;
-    [[nodiscard]] auto priority() const -> size_t override;
-    void print_head(std::ostream &out) const override;
 
   private:
+    // cb interface
+    void do_init(size_t gen) override;
+    [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override;
+    void do_propagate(Queue &queue) override;
+    [[nodiscard]] auto do_priority() const -> size_t override;
+    void do_print_head(std::ostream &out) const override;
+
     StateCondLit *state_;
     ULitVec premise_;
 };
@@ -345,14 +346,15 @@ class StmCondLit : public Stm {
     void print(std::ostream &out) const override;
     [[nodiscard]] auto body() const -> ULitVec const & override;
     [[nodiscard]] auto important() const -> VariableSet override;
-    // solution callback interface
-    void print_head(std::ostream &out) const override;
-    void init(size_t gen) override;
-    [[nodiscard]] auto report(InstantiationContext &ctx) -> bool override;
-    void propagate(Queue &queue) override;
-    [[nodiscard]] auto priority() const -> size_t override;
 
   private:
+    // solution callback interface
+    void do_print_head(std::ostream &out) const override;
+    void do_init(size_t gen) override;
+    [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override;
+    void do_propagate(Queue &queue) override;
+    [[nodiscard]] auto do_priority() const -> size_t override;
+
     StateCondLit *base_;
     ULitVec body_;
     size_t prio_;

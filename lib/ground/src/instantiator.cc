@@ -52,10 +52,10 @@ void Instantiator::init(SymbolStore &store, size_t gen) {
 void Instantiator::finalize(DependVec depend) {
     class SolutionMatcher : public Matcher {
       public:
-        void init([[maybe_unused]] SymbolStore &store, [[maybe_unused]] size_t gen) override {};
-        void match([[maybe_unused]] InstantiationContext &ctx) override {}
-        auto next([[maybe_unused]] InstantiationContext &ctx) -> bool override { return false; }
-        void print(std::ostream &out) const override { out << "#solution"; }
+        void do_init([[maybe_unused]] SymbolStore &store, [[maybe_unused]] size_t gen) override {};
+        void do_match([[maybe_unused]] InstantiationContext &ctx) override {}
+        auto do_next([[maybe_unused]] InstantiationContext &ctx) -> bool override { return false; }
+        void do_print(std::ostream &out) const override { out << "#solution"; }
     };
     matchers_.emplace_back(std::make_unique<SolutionMatcher>(), std::move(depend));
 }

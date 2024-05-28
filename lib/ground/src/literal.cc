@@ -111,10 +111,12 @@ auto LitBool::matcher([[maybe_unused]] MatcherType type,
     class NeverMatcher : public Matcher {
       public:
         NeverMatcher() = default;
-        void init([[maybe_unused]] SymbolStore &store, [[maybe_unused]] size_t gen) override {}
-        void match([[maybe_unused]] InstantiationContext &ctx) override {}
-        auto next([[maybe_unused]] InstantiationContext &ctx) -> bool override { return false; }
-        void print(std::ostream &out) const override { out << "#never"; }
+
+      private:
+        void do_init([[maybe_unused]] SymbolStore &store, [[maybe_unused]] size_t gen) override {}
+        void do_match([[maybe_unused]] InstantiationContext &ctx) override {}
+        auto do_next([[maybe_unused]] InstantiationContext &ctx) -> bool override { return false; }
+        void do_print(std::ostream &out) const override { out << "#never"; }
     };
     return {std::make_unique<NeverMatcher>(), std::nullopt};
 }
@@ -434,15 +436,16 @@ auto LitProject::matcher(MatcherType type,
     class MatcherProject : public Matcher {
       public:
         MatcherProject(State &state, UMatcher matcher) : state_{&state}, matcher_{std::move(matcher)} {}
-        void init(SymbolStore &store, size_t gen) override {
+
+      private:
+        void do_init(SymbolStore &store, size_t gen) override {
             state_->init(store, gen);
             matcher_->init(store, gen);
         }
-        void match(InstantiationContext &ctx) override { matcher_->match(ctx); }
-        auto next(InstantiationContext &ctx) -> bool override { return matcher_->next(ctx); }
-        void print(std::ostream &out) const override { matcher_->print(out); }
+        void do_match(InstantiationContext &ctx) override { matcher_->match(ctx); }
+        auto do_next(InstantiationContext &ctx) -> bool override { return matcher_->next(ctx); }
+        void do_print(std::ostream &out) const override { matcher_->print(out); }
 
-      private:
         State *state_;
         UMatcher matcher_;
     };

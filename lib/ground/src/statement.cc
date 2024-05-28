@@ -155,7 +155,7 @@ auto Linearizer::order_(InstanceCallback &cb, std::vector<MatcherType> const &to
     return {std::move(inst), res_index};
 }
 
-void StmRule::print_head(std::ostream &out) const {
+void StmRule::do_print_head(std::ostream &out) const {
     if (head_) {
         out << *head_;
         if (!indices_.empty()) {
@@ -180,13 +180,13 @@ auto StmRule::important() const -> VariableSet {
     return important;
 }
 
-void StmRule::init(size_t gen) {
+void StmRule::do_init(size_t gen) {
     if (base_ != nullptr) {
         base_->update(gen);
     }
 }
 
-auto StmRule::report(InstantiationContext &ctx) -> bool {
+auto StmRule::do_report(InstantiationContext &ctx) -> bool {
     auto &out = ctx.out();
     if (head_ != nullptr) {
         out.out() << atom_;
@@ -209,7 +209,7 @@ auto StmRule::report(InstantiationContext &ctx) -> bool {
     return head_ != nullptr || !fact;
 }
 
-void StmRule::propagate(Queue &queue) {
+void StmRule::do_propagate(Queue &queue) {
     // Consider adding the propagation to the instantiator...
     if (base_ != nullptr && base_->has_update()) {
         for (auto const &idx : indices_) {

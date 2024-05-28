@@ -55,16 +55,22 @@ class Matcher {
     //! Destroy the matcher.
     virtual ~Matcher() = default;
     //! Notify that instantiation starts.
-    virtual void init(SymbolStore &store, size_t gen) = 0;
+    void init(SymbolStore &store, size_t gen) { do_init(store, gen); }
     //! Initialize matching.
-    virtual void match(InstantiationContext &ctx) = 0;
+    void match(InstantiationContext &ctx) { do_match(ctx); }
     //! Obtain the next match.
     //!
     //! Has to be called to obtain the first match.
     //! Returns true if there is a match.
-    virtual auto next(InstantiationContext &ctx) -> bool = 0;
+    [[nodiscard]] auto next(InstantiationContext &ctx) -> bool { return do_next(ctx); }
     //! Print the matcher to the given stream.
-    virtual void print(std::ostream &out) const = 0;
+    void print(std::ostream &out) const { do_print(out); }
+
+  private:
+    virtual void do_init(SymbolStore &store, size_t gen) = 0;
+    virtual void do_match(InstantiationContext &ctx) = 0;
+    virtual auto do_next(InstantiationContext &ctx) -> bool = 0;
+    virtual void do_print(std::ostream &out) const = 0;
 };
 using UMatcher = std::unique_ptr<Matcher>;
 using UMatcherVec = std::vector<UMatcher>;
@@ -77,15 +83,27 @@ class InstanceCallback {
     //! Destroy the callback.
     virtual ~InstanceCallback() = default;
     //! Notify a statement that instantiation starts.
-    virtual void init(size_t gen) = 0;
+    void init(size_t gen) { do_init(gen); }
     //! Report an assignment giving rise to an instance for a statement.
-    [[nodiscard]] virtual auto report(InstantiationContext &ctx) -> bool = 0;
+    [[nodiscard]] virtual auto report(InstantiationContext &ctx) -> bool { return do_report(ctx); }
     //! Notify a statement that instantiation has finished.
-    virtual void propagate(Queue &queue) = 0;
+    void propagate(Queue &queue) { do_propagate(queue); }
     //! The priority of the callback.
-    [[nodiscard]] virtual auto priority() const -> size_t = 0;
+    [[nodiscard]] virtual auto priority() const -> size_t { return do_priority(); }
     //! Print representation for debugging.
-    virtual void print_head(std::ostream &out) const = 0;
+    void print_head(std::ostream &out) const { do_print_head(out); }
+
+  private:
+    //! Notify a statement that instantiation starts.
+    virtual void do_init(size_t gen) = 0;
+    //! Report an assignment giving rise to an instance for a statement.
+    [[nodiscard]] virtual auto do_report(InstantiationContext &ctx) -> bool = 0;
+    //! Notify a statement that instantiation has finished.
+    virtual void do_propagate(Queue &queue) = 0;
+    //! The priority of the callback.
+    [[nodiscard]] virtual auto do_priority() const -> size_t = 0;
+    //! Print representation for debugging.
+    virtual void do_print_head(std::ostream &out) const = 0;
 };
 
 //! An instantiator implementinig the basic grounding algorithm.

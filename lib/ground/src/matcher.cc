@@ -7,7 +7,9 @@ namespace {
 class CmpMatcher : public OnceMatcher {
   public:
     CmpMatcher(Term const &lhs, Relation cmp, Term const &rhs) : lhs_{&lhs}, rhs_{&rhs}, cmp_{cmp} {}
-    auto do_match(InstantiationContext &ctx) -> bool override {
+
+  private:
+    auto do_once(InstantiationContext &ctx) -> bool override {
         // std::cerr << "doing a cmp match: " << *lhs_ << " " << cmp_ << " " << *rhs_ << "\n";
         auto lhs = lhs_->eval(ctx.store(), ctx.ass());
         if (!lhs) {
@@ -39,9 +41,8 @@ class CmpMatcher : public OnceMatcher {
         }
         return false;
     }
-    void print(std::ostream &out) const override { out << *lhs_ << cmp_ << *rhs_; }
+    void do_print(std::ostream &out) const override { out << *lhs_ << cmp_ << *rhs_; }
 
-  private:
     Term const *lhs_;
     Term const *rhs_;
     Relation cmp_;
@@ -51,7 +52,9 @@ class AssignMatcher : public OnceMatcher {
   public:
     AssignMatcher(Term const &lhs, Term const &rhs, VariableVec free)
         : lhs_{&lhs}, rhs_{&rhs}, free_{std::move(free)} {}
-    auto do_match(InstantiationContext &ctx) -> bool override {
+
+  private:
+    auto do_once(InstantiationContext &ctx) -> bool override {
         // unbind variables
         for (auto const &var : free_) {
             ctx.ass()[var] = std::nullopt;
@@ -62,9 +65,8 @@ class AssignMatcher : public OnceMatcher {
         // }
         return rhs && lhs_->match(ctx.store(), *rhs, ctx.ass());
     }
-    void print(std::ostream &out) const override { out << *lhs_ << ":=" << *rhs_; }
+    void do_print(std::ostream &out) const override { out << *lhs_ << ":=" << *rhs_; }
 
-  private:
     Term const *lhs_;
     Term const *rhs_;
     VariableVec free_;
@@ -73,8 +75,10 @@ class AssignMatcher : public OnceMatcher {
 class NonFactMatcher : public OnceMatcher {
   public:
     NonFactMatcher(Base &base, Term const &term, Symbol *target) : base_{&base}, term_{&term}, target_{target} {}
-    void init([[maybe_unused]] SymbolStore &store, size_t gen) override { base_->update(gen); }
-    auto do_match(InstantiationContext &ctx) -> bool override {
+
+  private:
+    void do_init([[maybe_unused]] SymbolStore &store, size_t gen) override { base_->update(gen); }
+    auto do_once(InstantiationContext &ctx) -> bool override {
         if (auto sym = term_->eval(ctx.store(), ctx.ass())) {
             if (target_ != nullptr) {
                 *target_ = *sym;
@@ -83,9 +87,8 @@ class NonFactMatcher : public OnceMatcher {
         }
         return false;
     }
-    void print(std::ostream &out) const override { out << "#not fact " << *term_; }
+    void do_print(std::ostream &out) const override { out << "#not fact " << *term_; }
 
-  private:
     Base *base_;
     Term const *term_;
     Symbol *target_;
@@ -95,8 +98,10 @@ class IntervalMatcher : public Matcher {
   public:
     IntervalMatcher(Term const &lhs, Term const &lower, Term const &upper, VariableVec free)
         : lhs_{&lhs}, lower_{&lower}, upper_{&upper}, free_{std::move(free)} {}
-    void init([[maybe_unused]] SymbolStore &store, [[maybe_unused]] size_t gen) override {}
-    void match(InstantiationContext &ctx) override {
+
+  private:
+    void do_init([[maybe_unused]] SymbolStore &store, [[maybe_unused]] size_t gen) override {}
+    void do_match(InstantiationContext &ctx) override {
         val_current_ = 1;
         val_upper_ = 0;
         if (auto lower = lower_->eval(ctx.store(), ctx.ass()), upper = upper_->eval(ctx.store(), ctx.ass());
@@ -115,7 +120,7 @@ class IntervalMatcher : public Matcher {
             }
         }
     }
-    auto next(InstantiationContext &ctx) -> bool override {
+    auto do_next(InstantiationContext &ctx) -> bool override {
         while (val_current_ <= val_upper_) {
             for (auto const &var : free_) {
                 ctx.ass()[var] = std::nullopt;
@@ -128,9 +133,8 @@ class IntervalMatcher : public Matcher {
         }
         return false;
     }
-    void print(std::ostream &out) const override { out << *lhs_ << ":=" << *lower_ << ".." << *upper_; }
+    void do_print(std::ostream &out) const override { out << *lhs_ << ":=" << *lower_ << ".." << *upper_; }
 
-  private:
     Term const *lhs_;
     Term const *lower_;
     Term const *upper_;

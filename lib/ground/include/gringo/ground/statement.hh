@@ -61,14 +61,15 @@ class StmRule : public Stm {
 
     [[nodiscard]] auto body() const -> ULitVec const & override;
     [[nodiscard]] auto important() const -> VariableSet override;
-    // InstanceCallback interface
-    void print_head(std::ostream &out) const override;
-    void init(size_t gen) override;
-    [[nodiscard]] auto report(InstantiationContext &ctx) -> bool override;
-    void propagate(Queue &queue) override;
-    [[nodiscard]] auto priority() const -> size_t override { return prio_; }
 
   private:
+    // InstanceCallback interface
+    void do_print_head(std::ostream &out) const override;
+    void do_init(size_t gen) override;
+    [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override;
+    void do_propagate(Queue &queue) override;
+    [[nodiscard]] auto do_priority() const -> size_t override { return prio_; }
+
     //! The head of the rule.
     //!
     //! Note that this unique pointer is zero in case of constraints.

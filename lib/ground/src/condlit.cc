@@ -336,7 +336,9 @@ namespace {
 class MatcherCondLitStrat : public OnceMatcher {
   public:
     MatcherCondLitStrat(StateCondLit &state, Instantiator inst) : state_{&state}, inst_{std::move(inst)} {}
-    auto do_match(InstantiationContext &ctx) -> bool override {
+
+  private:
+    auto do_once(InstantiationContext &ctx) -> bool override {
         if (init_) {
             state_->base_empty().update(0);
         } else {
@@ -353,7 +355,7 @@ class MatcherCondLitStrat : public OnceMatcher {
         }
         return !it.value().is_false();
     }
-    void print(std::ostream &out) const override {
+    void do_print(std::ostream &out) const override {
         out << "#cond_lit(lit";
         for (auto var : state_->vars_global()) {
             out << ","
@@ -362,7 +364,6 @@ class MatcherCondLitStrat : public OnceMatcher {
         out << ")";
     }
 
-  private:
     StateCondLit *state_;
     Instantiator inst_;
     bool init_ = false;
@@ -370,9 +371,9 @@ class MatcherCondLitStrat : public OnceMatcher {
 
 } // namespace
 
-void LitCondLitStrat::init([[maybe_unused]] size_t gen) {}
+void LitCondLitStrat::do_init([[maybe_unused]] size_t gen) {}
 
-auto LitCondLitStrat::report(InstantiationContext &ctx) -> bool {
+auto LitCondLitStrat::do_report(InstantiationContext &ctx) -> bool {
     // TODO:
     // - improve fact check
     // - messes up output if not fact
@@ -397,11 +398,11 @@ auto LitCondLitStrat::report(InstantiationContext &ctx) -> bool {
     return !fact;
 }
 
-void LitCondLitStrat::propagate([[maybe_unused]] Queue &queue) {}
+void LitCondLitStrat::do_propagate([[maybe_unused]] Queue &queue) {}
 
-auto LitCondLitStrat::priority() const -> size_t { return 0; }
+auto LitCondLitStrat::do_priority() const -> size_t { return 0; }
 
-void LitCondLitStrat::print_head(std::ostream &out) const {
+void LitCondLitStrat::do_print_head(std::ostream &out) const {
     out << "#cond_lit(premise";
     for (auto var : state_->vars_global()) {
         out << ","
@@ -501,7 +502,7 @@ auto operator<<(std::ostream &out, StmCondLitType type) -> std::ostream & {
     return out;
 }
 
-void StmCondLit::print_head(std::ostream &out) const {
+void StmCondLit::do_print_head(std::ostream &out) const {
     out << "#cond_lit(" << type_;
     for (auto var : base_->vars_global()) {
         out << ","
@@ -528,11 +529,11 @@ auto StmCondLit::body() const -> ULitVec const & { return body_; }
 
 auto StmCondLit::important() const -> VariableSet { return base_->vars(type_ != StmCondLitType::empty); }
 
-void StmCondLit::init([[maybe_unused]] size_t gen) {
+void StmCondLit::do_init([[maybe_unused]] size_t gen) {
     // by construction, this statement does not increment the generation
 }
 
-auto StmCondLit::report(InstantiationContext &ctx) -> bool {
+auto StmCondLit::do_report(InstantiationContext &ctx) -> bool {
     switch (type_) {
         case StmCondLitType::empty: {
             base_->add_empty(ctx.ass());
@@ -580,7 +581,7 @@ auto StmCondLit::report(InstantiationContext &ctx) -> bool {
     return true;
 }
 
-void StmCondLit::propagate([[maybe_unused]] Queue &queue) {
+void StmCondLit::do_propagate([[maybe_unused]] Queue &queue) {
     switch (type_) {
         case StmCondLitType::empty: {
             if (base_->base_empty().has_update()) {
@@ -618,6 +619,6 @@ void StmCondLit::propagate([[maybe_unused]] Queue &queue) {
     }
 }
 
-auto StmCondLit::priority() const -> size_t { return prio_; }
+auto StmCondLit::do_priority() const -> size_t { return prio_; }
 
 } // namespace Gringo::Ground
