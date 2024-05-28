@@ -85,11 +85,11 @@ class InstanceCallback {
     //! Notify a statement that instantiation starts.
     void init(size_t gen) { do_init(gen); }
     //! Report an assignment giving rise to an instance for a statement.
-    [[nodiscard]] virtual auto report(InstantiationContext &ctx) -> bool { return do_report(ctx); }
+    [[nodiscard]] auto report(InstantiationContext &ctx) -> bool { return do_report(ctx); }
     //! Notify a statement that instantiation has finished.
     void propagate(Queue &queue) { do_propagate(queue); }
     //! The priority of the callback.
-    [[nodiscard]] virtual auto priority() const -> size_t { return do_priority(); }
+    [[nodiscard]] auto priority() const -> size_t { return do_priority(); }
     //! Print representation for debugging.
     void print_head(std::ostream &out) const { do_print_head(out); }
 

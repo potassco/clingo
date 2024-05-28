@@ -50,23 +50,24 @@ auto rename_args(UTermVec const &args, SymbolStore &store, RenameMode mode, size
 
 // TermProjection
 
-auto TermProjection::score([[maybe_unused]] double size,
-                           [[maybe_unused]] std::vector<bool> const &bound) const -> double {
+auto TermProjection::do_score([[maybe_unused]] double size,
+                              [[maybe_unused]] std::vector<bool> const &bound) const -> double {
     return 0;
 }
 
-auto TermProjection::match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Symbol sym,
-                           [[maybe_unused]] Assignment &ass) const -> bool {
+auto TermProjection::do_match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Symbol sym,
+                              [[maybe_unused]] Assignment &ass) const -> bool {
     return true;
 }
 
-auto TermProjection::eval(SymbolStore &store, [[maybe_unused]] Assignment const &ass) const -> std::optional<Symbol> {
+auto TermProjection::do_eval(SymbolStore &store,
+                             [[maybe_unused]] Assignment const &ass) const -> std::optional<Symbol> {
     // Note: this is a sentinel symbol intended for text output
     return store.fun(store.string("*"), {}, false);
 }
 
-auto TermProjection::rename([[maybe_unused]] SymbolStore &store, RenameMode mode, [[maybe_unused]] String const *name,
-                            size_t *vars) const -> UTerm {
+auto TermProjection::do_rename([[maybe_unused]] SymbolStore &store, RenameMode mode,
+                               [[maybe_unused]] String const *name, size_t *vars) const -> UTerm {
     assert(name == nullptr);
     if (mode == RenameMode::drop_projection) {
         return nullptr;
@@ -77,23 +78,23 @@ auto TermProjection::rename([[maybe_unused]] SymbolStore &store, RenameMode mode
     return std::make_unique<TermProjection>();
 }
 
-auto TermProjection::rename([[maybe_unused]] Util::unordered_map<size_t, size_t> &vars) const -> UTerm {
+auto TermProjection::do_rename([[maybe_unused]] Util::unordered_map<size_t, size_t> &vars) const -> UTerm {
     return std::make_unique<TermProjection>();
 }
 
-void TermProjection::vars([[maybe_unused]] VariableSet &vars, [[maybe_unused]] bool provide) const {}
+void TermProjection::do_vars([[maybe_unused]] VariableSet &vars, [[maybe_unused]] bool provide) const {}
 
-void TermProjection::print(std::ostream &out) const { out << "*"; }
+void TermProjection::do_print(std::ostream &out) const { out << "*"; }
 
-auto TermProjection::copy() const -> UTerm { return std::make_unique<TermProjection>(); }
+auto TermProjection::do_copy() const -> UTerm { return std::make_unique<TermProjection>(); }
 
-auto TermProjection::hash() const -> size_t { return Util::value_hash_record<TermProjection>(); }
+auto TermProjection::do_hash() const -> size_t { return Util::value_hash_record<TermProjection>(); }
 
-auto TermProjection::equal_to([[maybe_unused]] Term const &other) const -> bool {
+auto TermProjection::do_equal_to([[maybe_unused]] Term const &other) const -> bool {
     return dynamic_cast<TermProjection const *>(&other) != nullptr;
 }
 
-auto TermProjection::compare_to([[maybe_unused]] Term const &other) const -> std::strong_ordering {
+auto TermProjection::do_compare_to([[maybe_unused]] Term const &other) const -> std::strong_ordering {
     if (auto const *x = dynamic_cast<TermProjection const *>(&other); x != nullptr) {
         return 0 <=> 0;
     }
@@ -102,22 +103,23 @@ auto TermProjection::compare_to([[maybe_unused]] Term const &other) const -> std
 
 // TermSymbol
 
-auto TermSymbol::match([[maybe_unused]] SymbolStore &store, Symbol sym,
-                       [[maybe_unused]] Assignment &ass) const -> bool {
+auto TermSymbol::do_match([[maybe_unused]] SymbolStore &store, Symbol sym,
+                          [[maybe_unused]] Assignment &ass) const -> bool {
     return sym == sym_;
 }
 
-auto TermSymbol::score([[maybe_unused]] double size, [[maybe_unused]] std::vector<bool> const &bound) const -> double {
+auto TermSymbol::do_score([[maybe_unused]] double size,
+                          [[maybe_unused]] std::vector<bool> const &bound) const -> double {
     return 0;
 }
 
-auto TermSymbol::eval([[maybe_unused]] SymbolStore &store,
-                      [[maybe_unused]] Assignment const &ass) const -> std::optional<Symbol> {
+auto TermSymbol::do_eval([[maybe_unused]] SymbolStore &store,
+                         [[maybe_unused]] Assignment const &ass) const -> std::optional<Symbol> {
     return sym_;
 }
 
-auto TermSymbol::rename([[maybe_unused]] SymbolStore &store, [[maybe_unused]] RenameMode mode, String const *name,
-                        [[maybe_unused]] size_t *vars) const -> UTerm {
+auto TermSymbol::do_rename([[maybe_unused]] SymbolStore &store, [[maybe_unused]] RenameMode mode, String const *name,
+                           [[maybe_unused]] size_t *vars) const -> UTerm {
     if (name != nullptr && sym_.type() == SymbolType::function) {
         return std::make_unique<TermSymbol>(store.fun(*name, sym_.args(), sym_.has_classical_sign()));
     }
@@ -127,24 +129,24 @@ auto TermSymbol::rename([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Re
     return std::make_unique<TermSymbol>(sym_);
 }
 
-auto TermSymbol::rename([[maybe_unused]] Util::unordered_map<size_t, size_t> &vars) const -> UTerm {
+auto TermSymbol::do_rename([[maybe_unused]] Util::unordered_map<size_t, size_t> &vars) const -> UTerm {
     return std::make_unique<TermSymbol>(sym_);
 }
 
-void TermSymbol::vars([[maybe_unused]] VariableSet &vars, [[maybe_unused]] bool provide) const {}
+void TermSymbol::do_vars([[maybe_unused]] VariableSet &vars, [[maybe_unused]] bool provide) const {}
 
-void TermSymbol::print(std::ostream &out) const { out << sym_; }
+void TermSymbol::do_print(std::ostream &out) const { out << sym_; }
 
-auto TermSymbol::copy() const -> UTerm { return std::make_unique<TermSymbol>(sym_); }
+auto TermSymbol::do_copy() const -> UTerm { return std::make_unique<TermSymbol>(sym_); }
 
-auto TermSymbol::hash() const -> size_t { return Util::value_hash_record<TermSymbol>(sym_); }
+auto TermSymbol::do_hash() const -> size_t { return Util::value_hash_record<TermSymbol>(sym_); }
 
-auto TermSymbol::equal_to(Term const &other) const -> bool {
+auto TermSymbol::do_equal_to(Term const &other) const -> bool {
     auto const *x = dynamic_cast<TermSymbol const *>(&other);
     return x != nullptr && sym_ == x->sym_;
 }
 
-auto TermSymbol::compare_to([[maybe_unused]] Term const &other) const -> std::strong_ordering {
+auto TermSymbol::do_compare_to([[maybe_unused]] Term const &other) const -> std::strong_ordering {
     if (auto const *x = dynamic_cast<TermSymbol const *>(&other); x != nullptr) {
         return sym_ <=> x->sym_;
     }
@@ -153,11 +155,11 @@ auto TermSymbol::compare_to([[maybe_unused]] Term const &other) const -> std::st
 
 // TermVariable
 
-auto TermVariable::score(double size, std::vector<bool> const &bound) const -> double {
+auto TermVariable::do_score(double size, std::vector<bool> const &bound) const -> double {
     return bound[var_] ? 0.0 : size;
 }
 
-auto TermVariable::match([[maybe_unused]] SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
+auto TermVariable::do_match([[maybe_unused]] SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
     if (ass[var_]) {
         return ass[var_] == sym;
     }
@@ -165,34 +167,34 @@ auto TermVariable::match([[maybe_unused]] SymbolStore &store, Symbol sym, Assign
     return true;
 }
 
-auto TermVariable::eval([[maybe_unused]] SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> {
+auto TermVariable::do_eval([[maybe_unused]] SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> {
     return ass[var_];
 }
 
-auto TermVariable::rename([[maybe_unused]] SymbolStore &store, RenameMode mode, [[maybe_unused]] String const *name,
-                          size_t *vars) const -> UTerm {
+auto TermVariable::do_rename([[maybe_unused]] SymbolStore &store, RenameMode mode, [[maybe_unused]] String const *name,
+                             size_t *vars) const -> UTerm {
     assert(name == nullptr);
     return std::make_unique<TermVariable>(mode == RenameMode::rename_vars && vars != nullptr ? (*vars)++ : var_);
 }
 
-auto TermVariable::rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm {
+auto TermVariable::do_rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm {
     return std::make_unique<TermVariable>(vars.try_emplace(var_, vars.size()).first.value());
 }
 
-void TermVariable::vars(VariableSet &vars, [[maybe_unused]] bool provide) const { vars.emplace(var_); }
+void TermVariable::do_vars(VariableSet &vars, [[maybe_unused]] bool provide) const { vars.emplace(var_); }
 
-void TermVariable::print(std::ostream &out) const { out << "X_" << var_; }
+void TermVariable::do_print(std::ostream &out) const { out << "X_" << var_; }
 
-auto TermVariable::copy() const -> UTerm { return std::make_unique<TermVariable>(var_); }
+auto TermVariable::do_copy() const -> UTerm { return std::make_unique<TermVariable>(var_); }
 
-auto TermVariable::hash() const -> size_t { return Util::value_hash_record<TermSymbol>(var_); }
+auto TermVariable::do_hash() const -> size_t { return Util::value_hash_record<TermSymbol>(var_); }
 
-auto TermVariable::equal_to(Term const &other) const -> bool {
+auto TermVariable::do_equal_to(Term const &other) const -> bool {
     auto const *x = dynamic_cast<TermVariable const *>(&other);
     return x != nullptr && var_ == x->var_;
 }
 
-auto TermVariable::compare_to([[maybe_unused]] Term const &other) const -> std::strong_ordering {
+auto TermVariable::do_compare_to([[maybe_unused]] Term const &other) const -> std::strong_ordering {
     if (auto const *x = dynamic_cast<TermVariable const *>(&other); x != nullptr) {
         return var_ <=> x->var_;
     }
@@ -201,9 +203,11 @@ auto TermVariable::compare_to([[maybe_unused]] Term const &other) const -> std::
 
 // TermLinear
 
-auto TermLinear::score(double size, std::vector<bool> const &bound) const -> double { return bound[var_] ? 0.0 : size; }
+auto TermLinear::do_score(double size, std::vector<bool> const &bound) const -> double {
+    return bound[var_] ? 0.0 : size;
+}
 
-auto TermLinear::match([[maybe_unused]] SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
+auto TermLinear::do_match([[maybe_unused]] SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
     if (sym.type() != SymbolType::number) {
         return false;
     }
@@ -223,15 +227,15 @@ auto TermLinear::match([[maybe_unused]] SymbolStore &store, Symbol sym, Assignme
     return false;
 }
 
-auto TermLinear::eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> {
+auto TermLinear::do_eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> {
     if (auto var = ass[var_]; var && var->type() == SymbolType::number) {
         return store.num(m_ * var->num() + n_);
     }
     return std::nullopt;
 }
 
-auto TermLinear::rename([[maybe_unused]] SymbolStore &store, RenameMode mode, [[maybe_unused]] String const *name,
-                        size_t *vars) const -> UTerm {
+auto TermLinear::do_rename([[maybe_unused]] SymbolStore &store, RenameMode mode, [[maybe_unused]] String const *name,
+                           size_t *vars) const -> UTerm {
     assert(name == nullptr);
     if (mode == RenameMode::rename_vars && vars != nullptr) {
         return std::make_unique<TermVariable>((*vars)++);
@@ -239,24 +243,24 @@ auto TermLinear::rename([[maybe_unused]] SymbolStore &store, RenameMode mode, [[
     return std::make_unique<TermLinear>(m_, var_, n_);
 }
 
-auto TermLinear::rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm {
+auto TermLinear::do_rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm {
     return std::make_unique<TermLinear>(m_, vars.try_emplace(var_, vars.size()).first.value(), n_);
 }
 
-void TermLinear::vars(VariableSet &vars, [[maybe_unused]] bool provide) const { vars.emplace(var_); }
+void TermLinear::do_vars(VariableSet &vars, [[maybe_unused]] bool provide) const { vars.emplace(var_); }
 
-void TermLinear::print(std::ostream &out) const { out << "(" << m_ << "*X_" << var_ << "+" << n_ << ")"; }
+void TermLinear::do_print(std::ostream &out) const { out << "(" << m_ << "*X_" << var_ << "+" << n_ << ")"; }
 
-auto TermLinear::copy() const -> UTerm { return std::make_unique<TermLinear>(m_, var_, n_); }
+auto TermLinear::do_copy() const -> UTerm { return std::make_unique<TermLinear>(m_, var_, n_); }
 
-auto TermLinear::hash() const -> size_t { return Util::value_hash_record<TermSymbol>(var_, m_, n_); }
+auto TermLinear::do_hash() const -> size_t { return Util::value_hash_record<TermSymbol>(var_, m_, n_); }
 
-auto TermLinear::equal_to(Term const &other) const -> bool {
+auto TermLinear::do_equal_to(Term const &other) const -> bool {
     auto const *x = dynamic_cast<TermLinear const *>(&other);
     return x != nullptr && std::tie(var_, m_, n_) == std::tie(x->var_, x->m_, x->n_);
 }
 
-auto TermLinear::compare_to([[maybe_unused]] Term const &other) const -> std::strong_ordering {
+auto TermLinear::do_compare_to([[maybe_unused]] Term const &other) const -> std::strong_ordering {
     if (auto const *x = dynamic_cast<TermLinear const *>(&other); x != nullptr) {
         return std::tie(var_, m_, n_) <=> std::tie(x->var_, x->m_, x->n_);
     }
@@ -265,11 +269,11 @@ auto TermLinear::compare_to([[maybe_unused]] Term const &other) const -> std::st
 
 // TermUnary
 
-auto TermUnary::score(double size, std::vector<bool> const &bound) const -> double {
+auto TermUnary::do_score(double size, std::vector<bool> const &bound) const -> double {
     return op_ == UnaryOperator::minus ? rhs_->score(size, bound) : 0.0;
 }
 
-auto TermUnary::match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
+auto TermUnary::do_match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
     if (op_ == UnaryOperator::minus) {
         if (sym.type() == SymbolType::function) {
             // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
@@ -283,7 +287,7 @@ auto TermUnary::match(SymbolStore &store, Symbol sym, Assignment &ass) const -> 
     return sym.type() == SymbolType::number && eval(store, ass) == sym;
 }
 
-auto TermUnary::eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> {
+auto TermUnary::do_eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> {
     if (auto rhs = rhs_->eval(store, ass); rhs) {
         switch (op_) {
             case UnaryOperator::minus: {
@@ -309,7 +313,7 @@ auto TermUnary::eval(SymbolStore &store, Assignment const &ass) const -> std::op
     return std::nullopt;
 }
 
-auto TermUnary::rename(SymbolStore &store, RenameMode mode, String const *name, size_t *vars) const -> UTerm {
+auto TermUnary::do_rename(SymbolStore &store, RenameMode mode, String const *name, size_t *vars) const -> UTerm {
     assert(name == nullptr);
     if (op_ == UnaryOperator::invert && mode == RenameMode::rename_vars && vars != nullptr) {
         return std::make_unique<TermVariable>((*vars)++);
@@ -317,17 +321,17 @@ auto TermUnary::rename(SymbolStore &store, RenameMode mode, String const *name, 
     return std::make_unique<TermUnary>(op_, rhs_->rename(store, mode, name, vars));
 }
 
-auto TermUnary::rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm {
+auto TermUnary::do_rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm {
     return std::make_unique<TermUnary>(op_, rhs_->rename(vars));
 }
 
-void TermUnary::vars(VariableSet &vars, bool provide) const {
+void TermUnary::do_vars(VariableSet &vars, bool provide) const {
     if (op_ == UnaryOperator::minus || !provide) {
         rhs_->vars(vars, provide);
     }
 }
 
-void TermUnary::print(std::ostream &out) const {
+void TermUnary::do_print(std::ostream &out) const {
     out << "(";
     switch (op_) {
         case UnaryOperator::abs: {
@@ -350,16 +354,16 @@ void TermUnary::print(std::ostream &out) const {
     out << ")";
 }
 
-auto TermUnary::copy() const -> UTerm { return std::make_unique<TermUnary>(op_, rhs_->copy()); }
+auto TermUnary::do_copy() const -> UTerm { return std::make_unique<TermUnary>(op_, rhs_->copy()); }
 
-auto TermUnary::hash() const -> size_t { return Util::value_hash_record<TermUnary>(op_, *rhs_); }
+auto TermUnary::do_hash() const -> size_t { return Util::value_hash_record<TermUnary>(op_, *rhs_); }
 
-auto TermUnary::equal_to(Term const &other) const -> bool {
+auto TermUnary::do_equal_to(Term const &other) const -> bool {
     auto const *x = dynamic_cast<TermUnary const *>(&other);
     return x != nullptr && std::tie(op_, *rhs_) == std::tie(x->op_, *x->rhs_);
 }
 
-auto TermUnary::compare_to([[maybe_unused]] Term const &other) const -> std::strong_ordering {
+auto TermUnary::do_compare_to([[maybe_unused]] Term const &other) const -> std::strong_ordering {
     if (auto const *x = dynamic_cast<TermUnary const *>(&other); x != nullptr) {
         return std::tie(op_, *rhs_) <=> std::tie(x->op_, *x->rhs_);
     }
@@ -368,15 +372,16 @@ auto TermUnary::compare_to([[maybe_unused]] Term const &other) const -> std::str
 
 // TermBinary
 
-auto TermBinary::score([[maybe_unused]] double size, [[maybe_unused]] std::vector<bool> const &bound) const -> double {
+auto TermBinary::do_score([[maybe_unused]] double size,
+                          [[maybe_unused]] std::vector<bool> const &bound) const -> double {
     return 0;
 }
 
-auto TermBinary::match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
+auto TermBinary::do_match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
     return sym.type() == SymbolType::number && eval(store, ass) == sym;
 }
 
-auto TermBinary::eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> {
+auto TermBinary::do_eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> {
     if (auto lhs = lhs_->eval(store, ass); lhs && lhs->type() == SymbolType::number) {
         if (auto rhs = rhs_->eval(store, ass); rhs && rhs->type() == SymbolType::number) {
             switch (op_) {
@@ -422,7 +427,7 @@ auto TermBinary::eval(SymbolStore &store, Assignment const &ass) const -> std::o
     return std::nullopt;
 }
 
-auto TermBinary::rename(SymbolStore &store, RenameMode mode, String const *name, size_t *vars) const -> UTerm {
+auto TermBinary::do_rename(SymbolStore &store, RenameMode mode, String const *name, size_t *vars) const -> UTerm {
     assert(name == nullptr);
     if (mode == RenameMode::rename_vars && vars != nullptr) {
         return std::make_unique<TermVariable>((*vars)++);
@@ -431,20 +436,20 @@ auto TermBinary::rename(SymbolStore &store, RenameMode mode, String const *name,
     return std::make_unique<TermBinary>(std::move(lhs), op_, rhs_->rename(store, mode, name, vars));
 }
 
-auto TermBinary::rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm {
+auto TermBinary::do_rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm {
     auto lhs = lhs_->rename(vars);
     auto rhs = rhs_->rename(vars);
     return std::make_unique<TermBinary>(std::move(lhs), op_, std::move(rhs));
 }
 
-void TermBinary::vars(VariableSet &vars, bool provide) const {
+void TermBinary::do_vars(VariableSet &vars, bool provide) const {
     if (!provide) {
         lhs_->vars(vars, provide);
         rhs_->vars(vars, provide);
     }
 }
 
-void TermBinary::print(std::ostream &out) const {
+void TermBinary::do_print(std::ostream &out) const {
     out << "(";
     lhs_->print(out);
     switch (op_) {
@@ -489,16 +494,16 @@ void TermBinary::print(std::ostream &out) const {
     out << ")";
 }
 
-auto TermBinary::copy() const -> UTerm { return std::make_unique<TermBinary>(lhs_->copy(), op_, rhs_->copy()); }
+auto TermBinary::do_copy() const -> UTerm { return std::make_unique<TermBinary>(lhs_->copy(), op_, rhs_->copy()); }
 
-auto TermBinary::hash() const -> size_t { return Util::value_hash_record<TermBinary>(op_, *rhs_); }
+auto TermBinary::do_hash() const -> size_t { return Util::value_hash_record<TermBinary>(op_, *rhs_); }
 
-auto TermBinary::equal_to(Term const &other) const -> bool {
+auto TermBinary::do_equal_to(Term const &other) const -> bool {
     auto const *x = dynamic_cast<TermBinary const *>(&other);
     return x != nullptr && std::tie(op_, *rhs_) == std::tie(x->op_, *x->rhs_);
 }
 
-auto TermBinary::compare_to([[maybe_unused]] Term const &other) const -> std::strong_ordering {
+auto TermBinary::do_compare_to([[maybe_unused]] Term const &other) const -> std::strong_ordering {
     if (auto const *x = dynamic_cast<TermBinary const *>(&other); x != nullptr) {
         return std::tie(op_, *rhs_) <=> std::tie(x->op_, *x->rhs_);
     }
@@ -507,7 +512,7 @@ auto TermBinary::compare_to([[maybe_unused]] Term const &other) const -> std::st
 
 // TermTuple
 
-auto TermTuple::score(double size, std::vector<bool> const &bound) const -> double {
+auto TermTuple::do_score(double size, std::vector<bool> const &bound) const -> double {
     double ret = 0.0;
     if (!args_.empty()) {
         auto len = static_cast<double>(args_.size());
@@ -521,22 +526,22 @@ auto TermTuple::score(double size, std::vector<bool> const &bound) const -> doub
     return ret;
 }
 
-auto TermTuple::match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
+auto TermTuple::do_match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
     return sym.type() == SymbolType::tuple && match_args(store, ass, args_, sym.args());
 }
 
-auto TermTuple::eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> {
+auto TermTuple::do_eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> {
     return Util::transform(eval_args(store, ass, args_),
                            [&store](SymbolVec args) { return store.tup(std::move(args)); });
 }
 
-auto TermTuple::rename(SymbolStore &store, RenameMode mode, [[maybe_unused]] String const *name,
-                       size_t *vars) const -> UTerm {
+auto TermTuple::do_rename(SymbolStore &store, RenameMode mode, [[maybe_unused]] String const *name,
+                          size_t *vars) const -> UTerm {
     assert(name == nullptr);
     return std::make_unique<TermTuple>(rename_args(args_, store, mode, vars));
 }
 
-auto TermTuple::rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm {
+auto TermTuple::do_rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm {
     auto args = UTermVec{};
     args.reserve(args_.size());
     for (auto const &arg : args_) {
@@ -545,13 +550,13 @@ auto TermTuple::rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm
     return std::make_unique<TermTuple>(std::move(args));
 }
 
-void TermTuple::vars(VariableSet &vars, bool provide) const {
+void TermTuple::do_vars(VariableSet &vars, bool provide) const {
     for (auto const &arg : args_) {
         arg->vars(vars, provide);
     }
 }
 
-void TermTuple::print(std::ostream &out) const {
+void TermTuple::do_print(std::ostream &out) const {
     out << "(";
     auto n = args_.size();
     if (args_.size() == 1) {
@@ -566,7 +571,7 @@ void TermTuple::print(std::ostream &out) const {
     out << ")";
 }
 
-auto TermTuple::copy() const -> UTerm {
+auto TermTuple::do_copy() const -> UTerm {
     auto args = UTermVec{};
     args.reserve(args_.size());
     for (auto const &arg : args_) {
@@ -575,15 +580,15 @@ auto TermTuple::copy() const -> UTerm {
     return std::make_unique<TermTuple>(std::move(args));
 }
 
-auto TermTuple::hash() const -> size_t { return Util::value_hash_record<TermTuple>(args_); }
+auto TermTuple::do_hash() const -> size_t { return Util::value_hash_record<TermTuple>(args_); }
 
-auto TermTuple::equal_to(Term const &other) const -> bool {
+auto TermTuple::do_equal_to(Term const &other) const -> bool {
     auto const *x = dynamic_cast<TermTuple const *>(&other);
     return x != nullptr && std::equal(args_.begin(), args_.end(), x->args_.begin(), x->args_.end(),
                                       [](auto const &a, auto const &b) { return *a == *b; });
 }
 
-auto TermTuple::compare_to([[maybe_unused]] Term const &other) const -> std::strong_ordering {
+auto TermTuple::do_compare_to([[maybe_unused]] Term const &other) const -> std::strong_ordering {
     if (auto const *x = dynamic_cast<TermTuple const *>(&other); x != nullptr) {
         return std::lexicographical_compare_three_way(args_.begin(), args_.end(), x->args_.begin(), x->args_.end(),
                                                       [](auto const &a, auto const &b) { return *a <=> *b; });
@@ -593,7 +598,7 @@ auto TermTuple::compare_to([[maybe_unused]] Term const &other) const -> std::str
 
 // TermFunction
 
-auto TermFunction::score(double size, std::vector<bool> const &bound) const -> double {
+auto TermFunction::do_score(double size, std::vector<bool> const &bound) const -> double {
     double ret = 0.0;
     if (!args_.empty()) {
         auto len = static_cast<double>(args_.size());
@@ -607,21 +612,21 @@ auto TermFunction::score(double size, std::vector<bool> const &bound) const -> d
     return ret;
 }
 
-auto TermFunction::match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
+auto TermFunction::do_match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
     return sym.type() == SymbolType::function && !sym.has_classical_sign() && sym.name() == name_ &&
            match_args(store, ass, args_, sym.args());
 }
 
-auto TermFunction::eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> {
+auto TermFunction::do_eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> {
     return Util::transform(eval_args(store, ass, args_),
                            [&store, this](SymbolVec args) { return store.fun(name_, std::move(args), false); });
 }
 
-auto TermFunction::rename(SymbolStore &store, RenameMode mode, String const *name, size_t *vars) const -> UTerm {
+auto TermFunction::do_rename(SymbolStore &store, RenameMode mode, String const *name, size_t *vars) const -> UTerm {
     return std::make_unique<TermFunction>(name != nullptr ? *name : name_, rename_args(args_, store, mode, vars));
 }
 
-auto TermFunction::rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm {
+auto TermFunction::do_rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm {
     auto args = UTermVec{};
     args.reserve(args_.size());
     for (auto const &arg : args_) {
@@ -630,13 +635,13 @@ auto TermFunction::rename(Util::unordered_map<size_t, size_t> &vars) const -> UT
     return std::make_unique<TermFunction>(name_, std::move(args));
 }
 
-void TermFunction::vars(VariableSet &vars, bool provide) const {
+void TermFunction::do_vars(VariableSet &vars, bool provide) const {
     for (auto const &arg : args_) {
         arg->vars(vars, provide);
     }
 }
 
-void TermFunction::print(std::ostream &out) const {
+void TermFunction::do_print(std::ostream &out) const {
     out << name_;
     if (auto n = args_.size(); n >= 1) {
         out << "(";
@@ -650,7 +655,7 @@ void TermFunction::print(std::ostream &out) const {
     }
 }
 
-auto TermFunction::copy() const -> UTerm {
+auto TermFunction::do_copy() const -> UTerm {
     auto args = UTermVec{};
     args.reserve(args_.size());
     for (auto const &arg : args_) {
@@ -659,16 +664,16 @@ auto TermFunction::copy() const -> UTerm {
     return std::make_unique<TermFunction>(name_, std::move(args));
 }
 
-auto TermFunction::hash() const -> size_t { return Util::value_hash_record<TermFunction>(name_, args_); }
+auto TermFunction::do_hash() const -> size_t { return Util::value_hash_record<TermFunction>(name_, args_); }
 
-auto TermFunction::equal_to(Term const &other) const -> bool {
+auto TermFunction::do_equal_to(Term const &other) const -> bool {
     auto const *x = dynamic_cast<TermFunction const *>(&other);
     return x != nullptr && name_ == x->name_ &&
            std::equal(args_.begin(), args_.end(), x->args_.begin(), x->args_.end(),
                       [](auto const &a, auto const &b) { return *a == *b; });
 }
 
-auto TermFunction::compare_to([[maybe_unused]] Term const &other) const -> std::strong_ordering {
+auto TermFunction::do_compare_to([[maybe_unused]] Term const &other) const -> std::strong_ordering {
     if (auto const *x = dynamic_cast<TermFunction const *>(&other); x != nullptr) {
         if (auto n = name_ <=> x->name_; std::is_neq(n)) {
             return n;
