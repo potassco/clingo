@@ -25,62 +25,77 @@ class Lit {
     virtual ~Lit() = default;
 
     //! Get the variables in the predicate.
-    virtual void vars(VariableSet &vars, VarSelectMode mode) const = 0;
+    void vars(VariableSet &vars, VarSelectMode mode) const { do_vars(vars, mode); }
+
     //! Check that all elements in the base of the literal are domain.
     //!
     //! Does not return true for incomplete negative literals.
-    [[nodiscard]] virtual auto domain() const -> bool = 0;
+    [[nodiscard]] auto domain() const -> bool { return do_domain(); }
     //! Returns true if the literal is recursive.
     //!
     //! Recursive literals give rise to components that need more than one grounding pass.
     //! For example, incomplete positive symbolic literals are considered recursive.
     //! However, incomplete negative literals are not considered recursive.
-    [[nodiscard]] virtual auto recursive() const -> bool { return false; }
+    [[nodiscard]] auto recursive() const -> bool { return do_recursive(); }
     //! Returns true if the base of the literal is complete at the time of grounding.
-    [[nodiscard]] virtual auto
-    matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> = 0;
-    [[nodiscard]] virtual auto score(std::vector<bool> const &bound) const -> double = 0;
+    [[nodiscard]] auto matcher(MatcherType type,
+                               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
+        return do_matcher(type, bound);
+    }
+    [[nodiscard]] auto score(std::vector<bool> const &bound) const -> double { return do_score(bound); }
 
-    virtual void print(std::ostream &out) const = 0;
+    void print(std::ostream &out) const { do_print(out); }
     // Note: I did not make up my mind how to handle the text output yet
     // It might get it's own representation or a way to be output directly to a stream.
-    virtual auto output(InstantiationContext &ctx) const -> bool = 0;
+    [[nodiscard]] auto output(InstantiationContext &ctx) const -> bool { return do_output(ctx); }
 
-    [[nodiscard]] virtual auto copy() const -> ULit = 0;
+    [[nodiscard]] auto copy() const -> ULit { return do_copy(); }
 
-    [[nodiscard]] virtual auto hash() const -> size_t = 0;
-    [[nodiscard]] virtual auto equal_to(Lit const &other) const -> bool = 0;
-    [[nodiscard]] virtual auto compare_to(Lit const &other) const -> std::weak_ordering = 0;
+    [[nodiscard]] auto hash() const -> size_t { return do_hash(); }
 
-    friend auto operator==(Lit const &a, Lit const &b) -> bool { return a.equal_to(b); }
-    friend auto operator<=>(Lit const &a, Lit const &b) -> std::weak_ordering { return a.compare_to(b); }
+    friend auto operator==(Lit const &a, Lit const &b) -> bool { return a.do_equal_to(b); }
+    friend auto operator<=>(Lit const &a, Lit const &b) -> std::weak_ordering { return a.do_compare_to(b); }
     friend auto operator<<(std::ostream &out, Lit const &lit) -> std::ostream & {
         lit.print(out);
         return out;
     }
+
+  private:
+    virtual void do_vars(VariableSet &vars, VarSelectMode mode) const = 0;
+    [[nodiscard]] virtual auto do_domain() const -> bool = 0;
+    [[nodiscard]] virtual auto do_recursive() const -> bool { return false; }
+    [[nodiscard]] virtual auto
+    do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> = 0;
+    [[nodiscard]] virtual auto do_score(std::vector<bool> const &bound) const -> double = 0;
+    virtual void do_print(std::ostream &out) const = 0;
+    virtual auto do_output(InstantiationContext &ctx) const -> bool = 0;
+    [[nodiscard]] virtual auto do_copy() const -> ULit = 0;
+    [[nodiscard]] virtual auto do_hash() const -> size_t = 0;
+    [[nodiscard]] virtual auto do_equal_to(Lit const &other) const -> bool = 0;
+    [[nodiscard]] virtual auto do_compare_to(Lit const &other) const -> std::weak_ordering = 0;
 };
 
 class LitBool : public Lit {
   public:
     LitBool(bool value) : value_{value} {}
 
-    void vars(VariableSet &vars, VarSelectMode mode) const override;
-    [[nodiscard]] auto domain() const -> bool override;
-    [[nodiscard]] auto recursive() const -> bool override;
-    [[nodiscard]] auto matcher(MatcherType type,
-                               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
-    [[nodiscard]] auto score(std::vector<bool> const &bound) const -> double override;
-
-    void print(std::ostream &out) const override;
-    auto output(InstantiationContext &ctx) const -> bool override;
-
-    [[nodiscard]] auto copy() const -> ULit override;
-
-    [[nodiscard]] auto hash() const -> size_t override;
-    [[nodiscard]] auto equal_to(Lit const &other) const -> bool override;
-    [[nodiscard]] auto compare_to(Lit const &other) const -> std::weak_ordering override;
-
   private:
+    void do_vars(VariableSet &vars, VarSelectMode mode) const override;
+    [[nodiscard]] auto do_domain() const -> bool override;
+    [[nodiscard]] auto do_recursive() const -> bool override;
+    [[nodiscard]] auto
+    do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
+
+    void do_print(std::ostream &out) const override;
+    auto do_output(InstantiationContext &ctx) const -> bool override;
+
+    [[nodiscard]] auto do_copy() const -> ULit override;
+
+    [[nodiscard]] auto do_hash() const -> size_t override;
+    [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
+    [[nodiscard]] auto do_compare_to(Lit const &other) const -> std::weak_ordering override;
+
     bool value_;
 };
 
@@ -88,23 +103,23 @@ class LitComparison : public Lit {
   public:
     LitComparison(UTerm lhs, Relation cmp, UTerm rhs) : lhs_{std::move(lhs)}, rhs_{std::move(rhs)}, cmp_{cmp} {}
 
-    void vars(VariableSet &vars, VarSelectMode mode) const override;
-    [[nodiscard]] auto domain() const -> bool override;
-    [[nodiscard]] auto recursive() const -> bool override;
-    [[nodiscard]] auto matcher(MatcherType type,
-                               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
-    [[nodiscard]] auto score(std::vector<bool> const &bound) const -> double override;
-
-    void print(std::ostream &out) const override;
-    auto output(InstantiationContext &ctx) const -> bool override;
-
-    [[nodiscard]] auto copy() const -> ULit override;
-
-    [[nodiscard]] auto hash() const -> size_t override;
-    [[nodiscard]] auto equal_to(Lit const &other) const -> bool override;
-    [[nodiscard]] auto compare_to(Lit const &other) const -> std::weak_ordering override;
-
   private:
+    void do_vars(VariableSet &vars, VarSelectMode mode) const override;
+    [[nodiscard]] auto do_domain() const -> bool override;
+    [[nodiscard]] auto do_recursive() const -> bool override;
+    [[nodiscard]] auto
+    do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
+
+    void do_print(std::ostream &out) const override;
+    auto do_output(InstantiationContext &ctx) const -> bool override;
+
+    [[nodiscard]] auto do_copy() const -> ULit override;
+
+    [[nodiscard]] auto do_hash() const -> size_t override;
+    [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
+    [[nodiscard]] auto do_compare_to(Lit const &other) const -> std::weak_ordering override;
+
     UTerm lhs_;
     UTerm rhs_;
     Relation cmp_;
@@ -115,23 +130,23 @@ class LitInterval : public Lit {
     LitInterval(UTerm lhs, UTerm lower, UTerm upper)
         : lhs_{std::move(lhs)}, lower_{std::move(lower)}, upper_{std::move(upper)} {}
 
-    void vars(VariableSet &vars, VarSelectMode mode) const override;
-    [[nodiscard]] auto domain() const -> bool override;
-    [[nodiscard]] auto recursive() const -> bool override;
-    [[nodiscard]] auto matcher(MatcherType type,
-                               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
-    [[nodiscard]] auto score(std::vector<bool> const &bound) const -> double override;
-
-    void print(std::ostream &out) const override;
-    auto output(InstantiationContext &ctx) const -> bool override;
-
-    [[nodiscard]] auto copy() const -> ULit override;
-
-    [[nodiscard]] auto hash() const -> size_t override;
-    [[nodiscard]] auto equal_to(Lit const &other) const -> bool override;
-    [[nodiscard]] auto compare_to(Lit const &other) const -> std::weak_ordering override;
-
   private:
+    void do_vars(VariableSet &vars, VarSelectMode mode) const override;
+    [[nodiscard]] auto do_domain() const -> bool override;
+    [[nodiscard]] auto do_recursive() const -> bool override;
+    [[nodiscard]] auto
+    do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
+
+    void do_print(std::ostream &out) const override;
+    auto do_output(InstantiationContext &ctx) const -> bool override;
+
+    [[nodiscard]] auto do_copy() const -> ULit override;
+
+    [[nodiscard]] auto do_hash() const -> size_t override;
+    [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
+    [[nodiscard]] auto do_compare_to(Lit const &other) const -> std::weak_ordering override;
+
     UTerm lhs_;
     UTerm lower_;
     UTerm upper_;
@@ -146,23 +161,23 @@ class LitFactCheck : public Lit {
   public:
     LitFactCheck(Base &base, Term const &atom, Symbol *target) : base_{&base}, atom_{&atom}, target_{target} {}
 
-    void vars(VariableSet &vars, VarSelectMode mode) const override;
-    [[nodiscard]] auto domain() const -> bool override;
-    [[nodiscard]] auto recursive() const -> bool override;
-    [[nodiscard]] auto matcher(MatcherType type,
-                               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
-    [[nodiscard]] auto score(std::vector<bool> const &bound) const -> double override;
-
-    void print(std::ostream &out) const override;
-    auto output(InstantiationContext &ctx) const -> bool override;
-
-    [[nodiscard]] auto copy() const -> ULit override;
-
-    [[nodiscard]] auto hash() const -> size_t override;
-    [[nodiscard]] auto equal_to(Lit const &other) const -> bool override;
-    [[nodiscard]] auto compare_to(Lit const &other) const -> std::weak_ordering override;
-
   private:
+    void do_vars(VariableSet &vars, VarSelectMode mode) const override;
+    [[nodiscard]] auto do_domain() const -> bool override;
+    [[nodiscard]] auto do_recursive() const -> bool override;
+    [[nodiscard]] auto
+    do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
+
+    void do_print(std::ostream &out) const override;
+    auto do_output(InstantiationContext &ctx) const -> bool override;
+
+    [[nodiscard]] auto do_copy() const -> ULit override;
+
+    [[nodiscard]] auto do_hash() const -> size_t override;
+    [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
+    [[nodiscard]] auto do_compare_to(Lit const &other) const -> std::weak_ordering override;
+
     Base *base_;
     Term const *atom_;
     Symbol *target_;
@@ -173,23 +188,23 @@ class LitSymbolic : public Lit {
     LitSymbolic(Base &base, Sign sign, UTerm atom, size_t index)
         : base_{&base}, atom_{std::move(atom)}, sign_{sign}, index_{index} {}
 
-    void vars(VariableSet &vars, VarSelectMode mode) const override;
-    [[nodiscard]] auto domain() const -> bool override;
-    [[nodiscard]] auto recursive() const -> bool override;
-    [[nodiscard]] auto matcher(MatcherType type,
-                               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
-    [[nodiscard]] auto score(std::vector<bool> const &bound) const -> double override;
-
-    void print(std::ostream &out) const override;
-    auto output(InstantiationContext &ctx) const -> bool override;
-
-    [[nodiscard]] auto copy() const -> ULit override;
-
-    [[nodiscard]] auto hash() const -> size_t override;
-    [[nodiscard]] auto equal_to(Lit const &other) const -> bool override;
-    [[nodiscard]] auto compare_to(Lit const &other) const -> std::weak_ordering override;
-
   private:
+    void do_vars(VariableSet &vars, VarSelectMode mode) const override;
+    [[nodiscard]] auto do_domain() const -> bool override;
+    [[nodiscard]] auto do_recursive() const -> bool override;
+    [[nodiscard]] auto
+    do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
+
+    void do_print(std::ostream &out) const override;
+    auto do_output(InstantiationContext &ctx) const -> bool override;
+
+    [[nodiscard]] auto do_copy() const -> ULit override;
+
+    [[nodiscard]] auto do_hash() const -> size_t override;
+    [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
+    [[nodiscard]] auto do_compare_to(Lit const &other) const -> std::weak_ordering override;
+
     Base *base_;
     UTerm atom_;
     Sign sign_;
@@ -227,23 +242,22 @@ class LitProject : public Lit {
     LitProject(State &state, Sign sign, UTerm atom, UTerm p_atom, size_t index)
         : state_{&state}, atom_{std::move(atom)}, p_atom_{std::move(p_atom)}, index_{index}, sign_{sign} {}
 
-    void vars(VariableSet &vars, VarSelectMode mode) const override;
-    [[nodiscard]] auto domain() const -> bool override;
-    [[nodiscard]] auto recursive() const -> bool override;
-    [[nodiscard]] auto matcher(MatcherType type,
-                               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
-    [[nodiscard]] auto score(std::vector<bool> const &bound) const -> double override;
-
-    void print(std::ostream &out) const override;
-    auto output(InstantiationContext &ctx) const -> bool override;
-
-    [[nodiscard]] auto copy() const -> ULit override;
-
-    [[nodiscard]] auto hash() const -> size_t override;
-    [[nodiscard]] auto equal_to(Lit const &other) const -> bool override;
-    [[nodiscard]] auto compare_to(Lit const &other) const -> std::weak_ordering override;
-
   private:
+    void do_vars(VariableSet &vars, VarSelectMode mode) const override;
+    [[nodiscard]] auto do_domain() const -> bool override;
+    [[nodiscard]] auto do_recursive() const -> bool override;
+    [[nodiscard]] auto
+    do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
+    void do_print(std::ostream &out) const override;
+    auto do_output(InstantiationContext &ctx) const -> bool override;
+
+    [[nodiscard]] auto do_copy() const -> ULit override;
+
+    [[nodiscard]] auto do_hash() const -> size_t override;
+    [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
+    [[nodiscard]] auto do_compare_to(Lit const &other) const -> std::weak_ordering override;
+
     State *state_;
     UTerm atom_;
     UTerm p_atom_;

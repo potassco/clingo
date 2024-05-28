@@ -285,41 +285,43 @@ class MatchCondLit {
 class LitCondLit : public Lit, private MatchCondLit {
   public:
     LitCondLit(LitCondLitType type, StateCondLit &state, size_t index) : MatchCondLit{state, type}, index_{index} {}
-    void vars(VariableSet &vars, VarSelectMode mode) const override;
-    [[nodiscard]] auto domain() const -> bool override;
-    [[nodiscard]] auto recursive() const -> bool override;
-    [[nodiscard]] auto matcher(MatcherType type,
-                               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
-    [[nodiscard]] auto score(std::vector<bool> const &bound) const -> double override;
-    void print(std::ostream &out) const override;
-    auto output(InstantiationContext &ctx) const -> bool override;
-    [[nodiscard]] auto copy() const -> ULit override;
-    [[nodiscard]] auto hash() const -> size_t override;
-    [[nodiscard]] auto equal_to(Lit const &other) const -> bool override;
-    [[nodiscard]] auto compare_to(Lit const &other) const -> std::weak_ordering override;
 
   private:
+    void do_vars(VariableSet &vars, VarSelectMode mode) const override;
+    [[nodiscard]] auto do_domain() const -> bool override;
+    [[nodiscard]] auto do_recursive() const -> bool override;
+    [[nodiscard]] auto
+    do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
+    void do_print(std::ostream &out) const override;
+    [[nodiscard]] auto do_output(InstantiationContext &ctx) const -> bool override;
+    [[nodiscard]] auto do_copy() const -> ULit override;
+    [[nodiscard]] auto do_hash() const -> size_t override;
+    [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
+    [[nodiscard]] auto do_compare_to(Lit const &other) const -> std::weak_ordering override;
+
     size_t index_;
 };
 
 class LitCondLitStrat : public Lit, private InstanceCallback {
   public:
     LitCondLitStrat(StateCondLit &state, ULitVec premise) : state_{&state}, premise_{std::move(premise)} {}
-    // lit interface
-    void vars(VariableSet &vars, VarSelectMode mode) const override;
-    [[nodiscard]] auto domain() const -> bool override;
-    [[nodiscard]] auto recursive() const -> bool override;
-    [[nodiscard]] auto matcher(MatcherType type,
-                               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
-    [[nodiscard]] auto score(std::vector<bool> const &bound) const -> double override;
-    void print(std::ostream &out) const override;
-    auto output(InstantiationContext &ctx) const -> bool override;
-    [[nodiscard]] auto copy() const -> ULit override;
-    [[nodiscard]] auto hash() const -> size_t override;
-    [[nodiscard]] auto equal_to(Lit const &other) const -> bool override;
-    [[nodiscard]] auto compare_to(Lit const &other) const -> std::weak_ordering override;
 
   private:
+    // lit interface
+    void do_vars(VariableSet &vars, VarSelectMode mode) const override;
+    [[nodiscard]] auto do_domain() const -> bool override;
+    [[nodiscard]] auto do_recursive() const -> bool override;
+    [[nodiscard]] auto
+    do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
+    void do_print(std::ostream &out) const override;
+    [[nodiscard]] auto do_output(InstantiationContext &ctx) const -> bool override;
+    [[nodiscard]] auto do_copy() const -> ULit override;
+    [[nodiscard]] auto do_hash() const -> size_t override;
+    [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
+    [[nodiscard]] auto do_compare_to(Lit const &other) const -> std::weak_ordering override;
+
     // cb interface
     void do_init(size_t gen) override;
     [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override;

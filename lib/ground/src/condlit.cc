@@ -249,13 +249,13 @@ auto operator<<(std::ostream &out, LitCondLitType type) -> std::ostream & {
     return out;
 }
 
-void LitCondLit::vars(VariableSet &vars, VarSelectMode mode) const {
+void LitCondLit::do_vars(VariableSet &vars, VarSelectMode mode) const {
     if (mode != VarSelectMode::depend) {
         state().vars(vars, type() == LitCondLitType::premise);
     }
 }
 
-auto LitCondLit::domain() const -> bool {
+auto LitCondLit::do_domain() const -> bool {
     // TODO: domain if elements are domain
     if (type() == LitCondLitType::lit) {
         return state().domain();
@@ -263,10 +263,10 @@ auto LitCondLit::domain() const -> bool {
     return true;
 }
 
-auto LitCondLit::recursive() const -> bool { return index_ != stratified_index; }
+auto LitCondLit::do_recursive() const -> bool { return index_ != stratified_index; }
 
-auto LitCondLit::matcher(MatcherType type,
-                         std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
+auto LitCondLit::do_matcher(MatcherType type,
+                            std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
     auto index = std::optional<size_t>{};
     if (index_ != std::numeric_limits<size_t>::max() && type == MatcherType::new_atoms) {
         index = index_;
@@ -281,9 +281,9 @@ auto LitCondLit::matcher(MatcherType type,
     return {make_atom_matcher(bound, state().base_lit(), match, type), index};
 }
 
-auto LitCondLit::score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return 1; }
+auto LitCondLit::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return 1; }
 
-void LitCondLit::print(std::ostream &out) const {
+void LitCondLit::do_print(std::ostream &out) const {
     out << "#cond_lit(" << type();
     for (auto var : state().vars_global()) {
         out << ","
@@ -301,7 +301,7 @@ void LitCondLit::print(std::ostream &out) const {
     }
 }
 
-auto LitCondLit::output(InstantiationContext &ctx) const -> bool {
+auto LitCondLit::do_output(InstantiationContext &ctx) const -> bool {
     if (type() == LitCondLitType::lit && !state().lit_is_fact(ctx.ass())) {
         // TODO: fix once there is a proper output
         ctx.out().out() << "#cond_lit(TODO)";
@@ -310,19 +310,19 @@ auto LitCondLit::output(InstantiationContext &ctx) const -> bool {
     return false;
 }
 
-auto LitCondLit::copy() const -> ULit { return std::make_unique<LitCondLit>(type(), state(), index_); }
+auto LitCondLit::do_copy() const -> ULit { return std::make_unique<LitCondLit>(type(), state(), index_); }
 
-auto LitCondLit::hash() const -> size_t {
+auto LitCondLit::do_hash() const -> size_t {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     return Util::value_hash_record<LitCondLit>(type(), reinterpret_cast<uintptr_t>(&state()));
 }
 
-auto LitCondLit::equal_to(Lit const &other) const -> bool {
+auto LitCondLit::do_equal_to(Lit const &other) const -> bool {
     auto const *x = dynamic_cast<LitCondLit const *>(&other);
     return x != nullptr && std::make_tuple(type(), &state()) == std::make_tuple(x->type(), &x->state());
 }
 
-auto LitCondLit::compare_to(Lit const &other) const -> std::weak_ordering {
+auto LitCondLit::do_compare_to(Lit const &other) const -> std::weak_ordering {
     if (auto const *x = dynamic_cast<LitCondLit const *>(&other); x != nullptr) {
         return std::make_tuple(type(), &state()) <=> std::make_tuple(x->type(), &x->state());
     }
@@ -415,17 +415,17 @@ void LitCondLitStrat::do_print_head(std::ostream &out) const {
     out << ")";
 }
 
-void LitCondLitStrat::vars(VariableSet &vars, [[maybe_unused]] VarSelectMode mode) const {
+void LitCondLitStrat::do_vars(VariableSet &vars, [[maybe_unused]] VarSelectMode mode) const {
     if (mode != VarSelectMode::provide) {
         state_->vars(vars, false);
     }
 }
 
-auto LitCondLitStrat::domain() const -> bool { return state_->domain(); }
+auto LitCondLitStrat::do_domain() const -> bool { return state_->domain(); }
 
-auto LitCondLitStrat::recursive() const -> bool { return false; }
+auto LitCondLitStrat::do_recursive() const -> bool { return false; }
 
-auto LitCondLitStrat::matcher([[maybe_unused]] MatcherType type, [[maybe_unused]] std::vector<bool> const &bound)
+auto LitCondLitStrat::do_matcher([[maybe_unused]] MatcherType type, [[maybe_unused]] std::vector<bool> const &bound)
     -> std::pair<UMatcher, std::optional<size_t>> {
     Queue queue;
     Linearizer lin;
@@ -436,9 +436,9 @@ auto LitCondLitStrat::matcher([[maybe_unused]] MatcherType type, [[maybe_unused]
     return {std::make_unique<MatcherCondLitStrat>(*state_, std::move(insts.front())), std::nullopt};
 }
 
-auto LitCondLitStrat::score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return 1; }
+auto LitCondLitStrat::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return 1; }
 
-void LitCondLitStrat::print(std::ostream &out) const {
+void LitCondLitStrat::do_print(std::ostream &out) const {
     out << "#cond_lit(lit";
     for (auto var : state_->vars_global()) {
         out << ","
@@ -447,7 +447,7 @@ void LitCondLitStrat::print(std::ostream &out) const {
     out << ")";
 }
 
-auto LitCondLitStrat::output(InstantiationContext &ctx) const -> bool {
+auto LitCondLitStrat::do_output(InstantiationContext &ctx) const -> bool {
     // TODO: fix once there is a proper output
     if (!state_->lit_is_fact(ctx.ass())) {
         ctx.out().out() << "#cond_lit(TODO)";
@@ -456,7 +456,7 @@ auto LitCondLitStrat::output(InstantiationContext &ctx) const -> bool {
     return false;
 }
 
-auto LitCondLitStrat::copy() const -> ULit {
+auto LitCondLitStrat::do_copy() const -> ULit {
     ULitVec premise;
     premise.reserve(premise_.size());
     for (auto const &lit : premise_) {
@@ -465,17 +465,17 @@ auto LitCondLitStrat::copy() const -> ULit {
     return std::make_unique<LitCondLitStrat>(*state_, std::move(premise));
 }
 
-auto LitCondLitStrat::hash() const -> size_t {
+auto LitCondLitStrat::do_hash() const -> size_t {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     return Util::value_hash_record<LitCondLitStrat>(reinterpret_cast<uintptr_t>(state_));
 }
 
-auto LitCondLitStrat::equal_to(Lit const &other) const -> bool {
+auto LitCondLitStrat::do_equal_to(Lit const &other) const -> bool {
     auto const *x = dynamic_cast<LitCondLitStrat const *>(&other);
     return x != nullptr && state_ == x->state_;
 }
 
-auto LitCondLitStrat::compare_to(Lit const &other) const -> std::weak_ordering {
+auto LitCondLitStrat::do_compare_to(Lit const &other) const -> std::weak_ordering {
     if (auto const *x = dynamic_cast<LitCondLitStrat const *>(&other); x != nullptr) {
         return state_ <=> x->state_;
     }
