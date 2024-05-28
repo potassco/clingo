@@ -296,7 +296,7 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
     DefaultSymbolStore(DefaultSymbolStore &&) noexcept = delete;
     ~DefaultSymbolStore() noexcept override { clear(); }
 
-    [[nodiscard]] auto store_num(Number const &num) noexcept -> Symbol override {
+    [[nodiscard]] auto do_num(Number const &num) noexcept -> Symbol override {
         auto jt = numbers_.find(num);
         if (jt == numbers_.end()) {
             jt = numbers_.insert(num).first;
@@ -304,17 +304,12 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
         return Symbol::from_rep(Number::to_repr(*jt));
     }
 
-    [[nodiscard]] auto store_num(Number &&num) noexcept -> Symbol override {
+    [[nodiscard]] auto do_num(Number &&num) noexcept -> Symbol override {
         auto jt = numbers_.insert(std::move(num)).first;
         return Symbol::from_rep(Number::to_repr(*jt));
     }
 
-    [[nodiscard]] auto fun(String name, SymbolSpan args, bool sign) -> Symbol override {
-        auto size = args.size();
-        if (size == 0) {
-            auto rep = (sign ? REP_SIGNED_ID : REP_ID) | String::to_rep(name);
-            return Symbol::from_rep(rep);
-        }
+    [[nodiscard]] auto do_fun(String name, SymbolSpan args, bool sign) -> Symbol override {
         auto fun = std::make_pair(SymbolStore::str(name), args);
         auto hash = tuples_.hash_function()(fun);
         auto jt = tuples_.find(fun, hash);
@@ -325,12 +320,8 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
         return Symbol::from_rep(rep);
     }
 
-    [[nodiscard]] auto tup(SymbolSpan args) -> Symbol override {
+    [[nodiscard]] auto do_tup(SymbolSpan args) -> Symbol override {
         // Almost the same as for function except that the name does not have to be stored separately.
-        auto size = args.size();
-        if (size == 0) {
-            return Symbol::from_rep(REP_TUP);
-        }
         auto hash = tuples_.hash_function()(args);
         auto jt = tuples_.find(args, hash);
         if (jt == tuples_.end()) {
@@ -340,10 +331,8 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
         return Symbol::from_rep(rep);
     }
 
-    [[nodiscard]] auto string(std::string_view str) -> String override {
-        if (str.empty()) {
-            return {};
-        }
+    [[nodiscard]] auto do_string(std::string_view str) -> String override {
+        assert(!str.empty());
         auto hash = strings_.hash_function()(str);
         auto it = strings_.find(str, hash);
         if (it == strings_.end()) {
@@ -392,30 +381,28 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
 //! More fine-grained locking is possible and also a shared lock is interesting.
 template <class Alloc> class SharedSymbolStore : public SymbolStore {
   public:
-    [[nodiscard]] auto store_num(Number const &num) noexcept -> Symbol override {
+    [[nodiscard]] auto do_num(Number const &num) noexcept -> Symbol override {
         std::unique_lock ulock{mutex_};
-        return store_.store_num(num);
+        return store_.do_num(num);
     }
 
-    [[nodiscard]] auto store_num(Number &&num) noexcept -> Symbol override {
+    [[nodiscard]] auto do_num(Number &&num) noexcept -> Symbol override {
         std::unique_lock ulock{mutex_};
-        return store_.store_num(std::move(num));
+        return store_.do_num(std::move(num));
     }
 
-    [[nodiscard]] auto fun(String name, SymbolSpan args, bool sign) -> Symbol override {
+    [[nodiscard]] auto do_fun(String name, SymbolSpan args, bool sign) -> Symbol override {
         std::unique_lock ulock{mutex_};
         return store_.fun(name, args, sign);
     }
 
-    [[nodiscard]] auto tup(SymbolSpan args) -> Symbol override {
+    [[nodiscard]] auto do_tup(SymbolSpan args) -> Symbol override {
         std::unique_lock ulock{mutex_};
         return store_.tup(args);
     }
 
-    [[nodiscard]] auto string(std::string_view str) -> String override {
-        if (str.empty()) {
-            return {};
-        }
+    [[nodiscard]] auto do_string(std::string_view str) -> String override {
+        assert(!str.empty());
         std::unique_lock ulock{mutex_};
         return store_.string(str);
     }
@@ -626,14 +613,36 @@ auto SymbolStore::num(Number const &num) noexcept -> Symbol {
     if (auto res = num.as_int(); res) {
         return Symbol::from_rep(Number::to_repr(num));
     }
-    return store_num(num);
+    return do_num(num);
 }
 
 auto SymbolStore::num(Number &&num) noexcept -> Symbol {
     if (auto res = num.as_int(); res) {
         return Symbol::from_rep(Number::to_repr(num));
     }
-    return store_num(std::move(num));
+    return do_num(std::move(num));
+}
+
+auto SymbolStore::tup(SymbolSpan args) -> Symbol {
+    if (args.empty()) {
+        return Symbol::from_rep(REP_TUP);
+    }
+    return do_tup(args);
+}
+
+auto SymbolStore::fun(String name, SymbolSpan args, bool sign) -> Symbol {
+    if (args.empty()) {
+        auto rep = (sign ? REP_SIGNED_ID : REP_ID) | String::to_rep(name);
+        return Symbol::from_rep(rep);
+    }
+    return do_fun(name, args, sign);
+}
+
+auto SymbolStore::string(std::string_view str) -> String {
+    if (str.empty()) {
+        return {};
+    }
+    return do_string(str);
 }
 
 void init_default_symbol_store(USymbolStore store) {

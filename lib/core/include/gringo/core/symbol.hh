@@ -151,6 +151,7 @@ auto operator<<(std::ostream &out, Symbol const &sym) -> std::ostream &;
 //! the symbol.
 class SymbolStore {
   public:
+    virtual ~SymbolStore() noexcept = default;
     //! Construct the infimum constant (<tt>\#inf</tt>).
     [[nodiscard]] static auto sup() noexcept -> Symbol;
     //! Construct the supremum constant (<tt>\#sup</tt>).
@@ -167,22 +168,22 @@ class SymbolStore {
     //! Construct a tuple.
     //!
     //! For example: <tt>(x,y)</tt>.
-    [[nodiscard]] virtual auto tup(SymbolSpan args) -> Symbol = 0;
+    [[nodiscard]] auto tup(SymbolSpan args) -> Symbol;
     //! Construct a function symbol.
     //!
     //! For example: <tt>f(x,y)</tt>.
-    [[nodiscard]] virtual auto fun(String str, SymbolSpan args, bool sign) -> Symbol = 0;
+    [[nodiscard]] auto fun(String name, SymbolSpan args, bool sign) -> Symbol;
     //! Construct a string.
     //!
     //! The string is stored as is.
-    [[nodiscard]] virtual auto string(std::string_view str) -> String = 0;
-    virtual ~SymbolStore() noexcept = default;
+    [[nodiscard]] auto string(std::string_view str) -> String;
 
-  protected:
-    //! Store the given number and return a symbol for it.
-    [[nodiscard]] virtual auto store_num(Number const &num) noexcept -> Symbol = 0;
-    //! Store the given number and return a symbol for it.
-    [[nodiscard]] virtual auto store_num(Number &&num) noexcept -> Symbol = 0;
+  private:
+    [[nodiscard]] virtual auto do_tup(SymbolSpan args) -> Symbol = 0;
+    [[nodiscard]] virtual auto do_fun(String str, SymbolSpan args, bool sign) -> Symbol = 0;
+    [[nodiscard]] virtual auto do_string(std::string_view str) -> String = 0;
+    [[nodiscard]] virtual auto do_num(Number const &num) noexcept -> Symbol = 0;
+    [[nodiscard]] virtual auto do_num(Number &&num) noexcept -> Symbol = 0;
 };
 
 //! A pointer to a symbol store.
