@@ -73,7 +73,7 @@ auto Instantiator::instantiate(Logger &log, SymbolStore &store, OutputStm &out) 
     auto ib = matchers_.rbegin();
     auto ctx = InstantiationContext{log, out, store, ass_};
     it->match(ctx);
-    GRINGO_REPORT(log, trace) << "instantiate: " << Util::p_fun{[this](std::ostream &out) {
+    GRINGO_REPORT(log, trace) << "  instantiate: " << Util::p_fun{[this](std::ostream &out) {
         icb_->print_head(out);
         out << " <- ";
         out << Util::p_range(matchers_, "; ", [index = size_t{0}](std::ostream &out, auto const &matcher) mutable {
@@ -82,25 +82,25 @@ auto Instantiator::instantiate(Logger &log, SymbolStore &store, OutputStm &out) 
         });
     }};
     do {
-        GRINGO_REPORT(log, trace) << "  start at " << std::distance(it, ie) - 1;
+        GRINGO_REPORT(log, trace) << "    start at " << std::distance(it, ie) - 1;
         if (it->next(ctx)) {
             for (--it; it->first(ctx); --it) {
             }
-            GRINGO_REPORT(log, trace) << "  advanced to " << std::distance(it, ie) - 1;
+            GRINGO_REPORT(log, trace) << "    advanced to " << std::distance(it, ie) - 1;
         }
         if (it == ib) {
-            GRINGO_REPORT(log, trace) << "  solution";
+            GRINGO_REPORT(log, trace) << "    solution";
             if (!icb_->report(ctx)) {
                 return false;
             }
         }
-        GRINGO_REPORT(log, trace) << "  block: " << Util::p_range(it->depend());
+        GRINGO_REPORT(log, trace) << "    block: " << Util::p_range(it->depend());
         for (auto idx : it->depend()) {
             matchers_[idx].block();
         }
         for (++it; it != ie && it->backjumpable(); ++it) {
         }
-        GRINGO_REPORT(log, trace) << "  backjumped to " << std::distance(it, ie) - 1;
+        GRINGO_REPORT(log, trace) << "    backjumped to " << std::distance(it, ie) - 1;
     } while (it != ie);
     return true;
 }
@@ -144,6 +144,7 @@ auto Queue::process(Logger &log, SymbolStore &store, OutputStm &out) -> bool {
     }
     auto current = std::vector<Instantiator *>{};
     for (auto gen = size_t{0}; size_ > 0; ++gen) {
+        GRINGO_REPORT(log, trace) << "process generation: " << gen;
         for (auto &queue : queues_) {
             current.clear();
             current.swap(queue);

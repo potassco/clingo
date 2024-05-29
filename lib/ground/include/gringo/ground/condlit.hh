@@ -134,7 +134,8 @@ class BaseCondLitPremise : public BaseImpl<Symbol const *, BaseCondLitPremise> {
 
     //! Add a blocked element to the base.
     void add(MapElemCondLit::iterator it) {
-        assert(it.value().is_blocked());
+        // Note: see note in add_premise
+        // assert(it.value().is_blocked());
         it.value().set_offset(base_.size());
         base_.emplace_back(std::distance(elems_->begin(), it));
     }

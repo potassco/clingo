@@ -69,11 +69,12 @@ auto StateCondLit::add_premise(Assignment const &ass, MapAtomCondLit::iterator i
     auto &elem = jt.value();
 
     atom.add_elem(std::distance(elems_.begin(), jt));
-    if (elem.is_blocked()) {
-        if (!fact || has_conclusion_) {
-            base_premise_.add(jt);
-        }
-    } else if (atom.enqueue(elems_)) {
+    // Note: in principle, we only need to ground if the conclusion is a fact.
+    // We still add to the base here to gather the conclusion for the output.
+    if (has_conclusion_) {
+        base_premise_.add(jt);
+    }
+    if (!elem.is_blocked() && atom.enqueue(elems_)) {
         propagate_.emplace_back(atom_index(it));
     }
     return jt;
