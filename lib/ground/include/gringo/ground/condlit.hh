@@ -41,11 +41,12 @@ struct StateCondLitElem {
     [[nodiscard]] auto is_false() const {
         return premise_is_fact_ != 0 && conclusion_truth_ == TruthConclusion::false_;
     }
-    void set_offset(size_t offset) { offset_ = offset; }
-    [[nodiscard]] auto offset() const -> size_t { return offset_; }
+    [[nodiscard]] auto has_offset() const -> bool { return offset_ > 0; }
+    void set_offset(size_t offset) { offset_ = offset + 1; }
+    [[nodiscard]] auto offset() const -> size_t { return offset_ - 1; }
 
   private:
-    uint64_t offset_ : 56 = 0;
+    uint64_t offset_ : 56 = 1;
     TruthConclusion conclusion_truth_ : 7;
     uint64_t premise_is_fact_ : 1;
 };
@@ -86,8 +87,10 @@ class StateAtomCondLit {
                            [&elems](auto idx) { return elems.nth(idx).value().is_fact(); });
     }
     [[nodiscard]] auto is_false() const -> bool { return false_ != 0; }
-    void set_offset(size_t offset) { offset_ = offset; }
-    [[nodiscard]] auto offset() const -> size_t { return offset_; }
+    [[nodiscard]] auto has_offset() const -> bool { return offset_ > 0; }
+    void set_offset(size_t offset) { offset_ = offset + 1; }
+    [[nodiscard]] auto offset() const -> size_t { return offset_ - 1; }
+
     [[nodiscard]] auto has_uid() const -> bool { return uid_ > 0; }
     [[nodiscard]] auto uid() const -> uint64_t { return uid_ - 1; }
     void set_uid(size_t uid) { uid_ = uid + 1; }
@@ -137,7 +140,12 @@ class BaseCondLitPremise : public BaseImpl<Symbol const *, BaseCondLitPremise> {
     }
 
     //! Map a key to its index in the base.
-    [[nodiscard]] auto index(Key const &key) const -> size_t { return elems_->find(key)->second.offset(); }
+    [[nodiscard]] auto index(Key const &key) const -> size_t {
+        if (auto it = elems_->find(key); it != elems_->end() && it->second.has_offset()) {
+            return it->second.offset();
+        }
+        return size();
+    }
     //! Get the number of atoms in the base.
     [[nodiscard]] auto size() const -> size_t { return base_.size(); }
 
@@ -162,7 +170,12 @@ class BaseCondLit : public BaseImpl<Symbol const *, BaseCondLit> {
     }
 
     //! Map a key to its index in the base.
-    [[nodiscard]] auto index(Key const &key) const -> size_t { return atoms_->find(key)->second.offset(); }
+    [[nodiscard]] auto index(Key const &key) const -> size_t {
+        if (auto it = atoms_->find(key); it != atoms_->end() && it->second.has_offset()) {
+            return it->second.offset();
+        }
+        return size();
+    }
     //! Get the number of atoms in the base.
     [[nodiscard]] auto size() const -> size_t { return base_.size(); }
 
