@@ -80,7 +80,7 @@ class OutputBody : public OutputLit {
     }
     void do_lit(Sign sign, Symbol sym) override {
         sep();
-        buf_ << sign << " " << sym;
+        buf_ << sign << sym;
     }
     void do_boolean(bool value) override {
         sep();
@@ -117,7 +117,7 @@ class OutputCond : public OutputSimple {
     }
     void do_lit(Sign sign, Symbol sym) override {
         sep();
-        buf_ << sign << " " << sym;
+        buf_ << sign << sym;
     }
     void do_boolean(bool value) override {
         sep();
@@ -184,7 +184,7 @@ class OutputText : public OutputStm {
                     comma = true;
                 }
                 auto const &[conclusion, premise] = cond_lit_elems_[std::make_pair(lit_index, elem_index)];
-                body_.buf() << conclusion << ":" << premise;
+                body_.buf() << conclusion << ": " << premise;
             }
             body_.define(lit_index, body_.buf().str());
         }

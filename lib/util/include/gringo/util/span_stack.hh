@@ -24,11 +24,17 @@ template <class T> class SpanStack {
 
     //! Push an element.
     auto push(std::span<T const> arr) -> std::span<T> {
+        if (size_ == 0) {
+            return std::span<T>{static_cast<T *>(nullptr), 0};
+        }
         return root_->push_map(arr, [](auto const &val) { return val; });
     }
 
     //! Push an element in-place constructing it from the given range.
     template <typename Rng, typename Map> auto push_map(Rng const &rng, Map map) {
+        if (size_ == 0) {
+            return std::span<T>{static_cast<T *>(nullptr), 0};
+        }
         if (root_ == nullptr || root_->size() == chunck_size_()) {
             auto *prev = root_;
             root_ = static_cast<Chunk *>(::operator new(sizeof(Chunk) + sizeof(T) * chunck_size_(),
@@ -40,10 +46,12 @@ template <class T> class SpanStack {
 
     //! Pop the last element.
     void pop() {
-        if (root_->empty()) {
-            root_ = root_->free();
+        if (size_ > 0) {
+            if (root_->empty()) {
+                root_ = root_->free();
+            }
+            root_->pop(size_);
         }
-        root_->pop(size_);
     }
 
   private:
