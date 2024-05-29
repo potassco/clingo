@@ -294,7 +294,7 @@ class LitCondLit : public Lit, private MatchCondLit {
     do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
     void do_print(std::ostream &out) const override;
-    [[nodiscard]] auto do_output(InstantiationContext &ctx) const -> bool override;
+    [[nodiscard]] auto do_output(InstantiationContext &ctx, OutputLit &out) const -> bool override;
     [[nodiscard]] auto do_copy() const -> ULit override;
     [[nodiscard]] auto do_hash() const -> size_t override;
     [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
@@ -316,7 +316,7 @@ class LitCondLitStrat : public Lit, private InstanceCallback {
     do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
     void do_print(std::ostream &out) const override;
-    [[nodiscard]] auto do_output(InstantiationContext &ctx) const -> bool override;
+    [[nodiscard]] auto do_output(InstantiationContext &ctx, OutputLit &out) const -> bool override;
     [[nodiscard]] auto do_copy() const -> ULit override;
     [[nodiscard]] auto do_hash() const -> size_t override;
     [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;

@@ -45,9 +45,7 @@ class Lit {
     [[nodiscard]] auto score(std::vector<bool> const &bound) const -> double { return do_score(bound); }
 
     void print(std::ostream &out) const { do_print(out); }
-    // Note: I did not make up my mind how to handle the text output yet
-    // It might get it's own representation or a way to be output directly to a stream.
-    [[nodiscard]] auto output(InstantiationContext &ctx) const -> bool { return do_output(ctx); }
+    [[nodiscard]] auto output(InstantiationContext &ctx, OutputLit &out) const -> bool { return do_output(ctx, out); }
 
     [[nodiscard]] auto copy() const -> ULit { return do_copy(); }
 
@@ -68,7 +66,7 @@ class Lit {
     do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> = 0;
     [[nodiscard]] virtual auto do_score(std::vector<bool> const &bound) const -> double = 0;
     virtual void do_print(std::ostream &out) const = 0;
-    virtual auto do_output(InstantiationContext &ctx) const -> bool = 0;
+    virtual auto do_output(InstantiationContext &ctx, OutputLit &out) const -> bool = 0;
     [[nodiscard]] virtual auto do_copy() const -> ULit = 0;
     [[nodiscard]] virtual auto do_hash() const -> size_t = 0;
     [[nodiscard]] virtual auto do_equal_to(Lit const &other) const -> bool = 0;
@@ -88,7 +86,7 @@ class LitBool : public Lit {
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
 
     void do_print(std::ostream &out) const override;
-    auto do_output(InstantiationContext &ctx) const -> bool override;
+    auto do_output(InstantiationContext &ctx, OutputLit &out) const -> bool override;
 
     [[nodiscard]] auto do_copy() const -> ULit override;
 
@@ -112,7 +110,7 @@ class LitComparison : public Lit {
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
 
     void do_print(std::ostream &out) const override;
-    auto do_output(InstantiationContext &ctx) const -> bool override;
+    auto do_output(InstantiationContext &ctx, OutputLit &out) const -> bool override;
 
     [[nodiscard]] auto do_copy() const -> ULit override;
 
@@ -139,7 +137,7 @@ class LitInterval : public Lit {
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
 
     void do_print(std::ostream &out) const override;
-    auto do_output(InstantiationContext &ctx) const -> bool override;
+    auto do_output(InstantiationContext &ctx, OutputLit &out) const -> bool override;
 
     [[nodiscard]] auto do_copy() const -> ULit override;
 
@@ -170,7 +168,7 @@ class LitFactCheck : public Lit {
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
 
     void do_print(std::ostream &out) const override;
-    auto do_output(InstantiationContext &ctx) const -> bool override;
+    auto do_output(InstantiationContext &ctx, OutputLit &out) const -> bool override;
 
     [[nodiscard]] auto do_copy() const -> ULit override;
 
@@ -197,7 +195,7 @@ class LitSymbolic : public Lit {
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
 
     void do_print(std::ostream &out) const override;
-    auto do_output(InstantiationContext &ctx) const -> bool override;
+    auto do_output(InstantiationContext &ctx, OutputLit &out) const -> bool override;
 
     [[nodiscard]] auto do_copy() const -> ULit override;
 
@@ -250,7 +248,7 @@ class LitProject : public Lit {
     do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
     void do_print(std::ostream &out) const override;
-    auto do_output(InstantiationContext &ctx) const -> bool override;
+    auto do_output(InstantiationContext &ctx, OutputLit &out) const -> bool override;
 
     [[nodiscard]] auto do_copy() const -> ULit override;
 

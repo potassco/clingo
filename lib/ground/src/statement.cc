@@ -187,25 +187,18 @@ void StmRule::do_init(size_t gen) {
 }
 
 auto StmRule::do_report(InstantiationContext &ctx) -> bool {
-    auto &out = ctx.out();
-    if (head_ != nullptr) {
-        out.out() << atom_;
-        out.next(" :- ");
-    }
+    auto &out = ctx.out().rule(head_ != nullptr ? atom_ : std::optional<Symbol>{});
     bool fact = true;
     for (auto const &lit : body_) {
         std::ostringstream tmp_lit;
-        if (lit->output(ctx)) {
+        if (lit->output(ctx, out)) {
             fact = false;
-            out.next(", ");
         }
     }
     if (head_ != nullptr) {
         base_->add(atom_, fact ? AtomState::fact : AtomState::derived);
-    } else if (fact) {
-        out.out();
     }
-    out.end() << ".\n";
+    out.end();
     return head_ != nullptr || !fact;
 }
 

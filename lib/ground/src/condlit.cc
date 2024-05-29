@@ -301,10 +301,10 @@ void LitCondLit::do_print(std::ostream &out) const {
     }
 }
 
-auto LitCondLit::do_output(InstantiationContext &ctx) const -> bool {
+auto LitCondLit::do_output(InstantiationContext &ctx, OutputLit &out) const -> bool {
     if (type() == LitCondLitType::lit && !state().lit_is_fact(ctx.ass())) {
         // TODO: fix once there is a proper output
-        ctx.out().out() << "#cond_lit(TODO)";
+        out.cond_lit(0);
         return true;
     }
     return false;
@@ -374,23 +374,15 @@ class MatcherCondLitStrat : public OnceMatcher {
 void LitCondLitStrat::do_init([[maybe_unused]] size_t gen) {}
 
 auto LitCondLitStrat::do_report(InstantiationContext &ctx) -> bool {
-    // TODO:
-    // - improve fact check
-    // - messes up output if not fact
-    auto &out = ctx.out();
-    out.next("% premise: ");
+    // TODO: get uid
+    auto &out = ctx.out().cond_lit_premise(0);
     bool fact = true;
     for (auto const &lit : premise_) {
-        if (lit->output(ctx)) {
+        if (lit->output(ctx, out)) {
             fact = false;
-            out.next(", ");
         }
     }
-    if (fact) {
-        out.end();
-    } else {
-        out.end() << "\n";
-    }
+    out.end();
     state_->add_premise(ctx.ass(), fact);
     // In the stratified case, the conclusion is always false. Furthermore,
     // exactly one literal is bound. Thus, we can exit instantiation early
@@ -447,10 +439,9 @@ void LitCondLitStrat::do_print(std::ostream &out) const {
     out << ")";
 }
 
-auto LitCondLitStrat::do_output(InstantiationContext &ctx) const -> bool {
-    // TODO: fix once there is a proper output
+auto LitCondLitStrat::do_output(InstantiationContext &ctx, OutputLit &out) const -> bool {
     if (!state_->lit_is_fact(ctx.ass())) {
-        ctx.out().out() << "#cond_lit(TODO)";
+        out.cond_lit(0);
         return true;
     }
     return false;
@@ -540,40 +531,28 @@ auto StmCondLit::do_report(InstantiationContext &ctx) -> bool {
             break;
         }
         case StmCondLitType::premise: {
-            // TODO: fix once there is a proper output
+            // TODO: get uid
             bool fact = true;
-            auto &out = ctx.out();
-            out.next("% premise: ");
+            auto &out = ctx.out().cond_lit_premise(0);
             for (auto const &lit : body_) {
-                if (lit->output(ctx)) {
+                if (lit->output(ctx, out)) {
                     fact = false;
-                    out.next(", ");
                 }
             }
-            if (fact) {
-                out.end();
-            } else {
-                out.end() << "\n";
-            }
+            out.end();
             base_->add_premise(ctx.ass(), fact);
             break;
         }
         case StmCondLitType::conclusion: {
             // TODO: fix once there is a proper output
             bool fact = true;
-            auto &out = ctx.out();
-            out.next("% conclusion: ");
+            auto &out = ctx.out().cond_lit_conclusion(0);
             for (auto const &lit : body_) {
-                if (lit->output(ctx)) {
+                if (lit->output(ctx, out)) {
                     fact = false;
-                    out.next(", ");
                 }
             }
-            if (fact) {
-                out.end();
-            } else {
-                out.end() << "\n";
-            }
+            out.end();
             base_->add_conclusion(ctx.ass(), fact);
             break;
         }

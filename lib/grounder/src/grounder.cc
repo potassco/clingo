@@ -1,5 +1,7 @@
 #include <gringo/grounder/grounder.hh>
 
+#include <gringo/output/text.hh>
+
 #include <gringo/ground/condlit.hh>
 #include <gringo/ground/program.hh>
 
@@ -562,21 +564,26 @@ class BuilderStm {
 
 class Builder : public Input::DependencyBuilder {
   public:
-    Builder(Grounder::Impl &impl) : out_{std::cout}, impl_{&impl} {}
+    Builder(Grounder::Impl &impl) : out_{Output::make_text_output(std::cout)}, impl_{&impl} {}
 
   private:
     void do_param(Input::ProgramParam const &param) override {
-        out_.out() << "#program_" << param.first << "(";
+        std::cout << "#program_" << param.first << "(";
+        bool comma = false;
         for (auto const &sym : param.second) {
-            out_.out() << sym;
-            out_.next(", ");
+            if (comma) {
+                std::cout << ",";
+            } else {
+                comma = true;
+            }
+            std::cout << sym;
         }
-        out_.end() << ").\n";
+        std::cout << ").\n";
     }
 
     void do_meta(std::vector<Input::Stm> const &stms) override {
         for (auto const &stm : stms) {
-            out_.out() << stm << "\n";
+            std::cout << stm << "\n";
         }
     }
 
@@ -589,7 +596,7 @@ class Builder : public Input::DependencyBuilder {
                 dom_it.value() = std::make_unique<Ground::Base>();
             }
             dom_it->second->add(fact, Ground::AtomState::fact);
-            out_.out() << fact << ".\n";
+            out_->fact(fact);
         }
     }
 
@@ -643,7 +650,7 @@ class Builder : public Input::DependencyBuilder {
                     GRINGO_REPORT(*impl_->log, debug) << "      " << *stm;
                     lin.prepare(*stm, stm->body(), stm->important());
                 }
-                if (!queue.process(*impl_->log, *impl_->store, out_)) {
+                if (!queue.process(*impl_->log, *impl_->store, *out_)) {
                     return false;
                 }
             }
@@ -651,7 +658,7 @@ class Builder : public Input::DependencyBuilder {
         return true;
     }
 
-    Ground::Output out_;
+    UOutputStm out_;
     Grounder::Impl *impl_;
 };
 

@@ -7,7 +7,9 @@ namespace Gringo::Ground {
 
 void LitInterval::do_print(std::ostream &out) const { out << *lhs_ << "=" << *lower_ << ".." << *upper_; }
 
-auto LitInterval::do_output([[maybe_unused]] InstantiationContext &ctx) const -> bool { return false; }
+auto LitInterval::do_output([[maybe_unused]] InstantiationContext &ctx, [[maybe_unused]] OutputLit &out) const -> bool {
+    return false;
+}
 
 auto LitInterval::do_copy() const -> ULit {
     return std::make_unique<LitInterval>(lhs_->copy(), lower_->copy(), upper_->copy());
@@ -92,7 +94,9 @@ auto LitInterval::do_compare_to(Lit const &other) const -> std::weak_ordering {
 
 void LitBool::do_print(std::ostream &out) const { out << (value_ ? "#true" : "#false"); }
 
-auto LitBool::do_output([[maybe_unused]] InstantiationContext &ctx) const -> bool { return false; }
+auto LitBool::do_output([[maybe_unused]] InstantiationContext &ctx, [[maybe_unused]] OutputLit &out) const -> bool {
+    return false;
+}
 
 auto LitBool::do_copy() const -> ULit { return std::make_unique<LitBool>(value_); }
 
@@ -145,7 +149,10 @@ auto LitBool::do_compare_to(Lit const &other) const -> std::weak_ordering {
 
 void LitComparison::do_print(std::ostream &out) const { out << *lhs_ << cmp_ << *rhs_; }
 
-auto LitComparison::do_output([[maybe_unused]] InstantiationContext &ctx) const -> bool { return false; }
+auto LitComparison::do_output([[maybe_unused]] InstantiationContext &ctx,
+                              [[maybe_unused]] OutputLit &out) const -> bool {
+    return false;
+}
 
 auto LitComparison::do_copy() const -> ULit {
     return std::make_unique<LitComparison>(lhs_->copy(), cmp_, rhs_->copy());
@@ -241,7 +248,10 @@ auto LitFactCheck::do_score([[maybe_unused]] std::vector<bool> const &bound) con
 
 void LitFactCheck::do_print(std::ostream &out) const { out << "#not_fact " << *atom_; }
 
-auto LitFactCheck::do_output([[maybe_unused]] InstantiationContext &ctx) const -> bool { return false; }
+auto LitFactCheck::do_output([[maybe_unused]] InstantiationContext &ctx,
+                             [[maybe_unused]] OutputLit &out) const -> bool {
+    return false;
+}
 
 auto LitFactCheck::do_copy() const -> ULit { return std::make_unique<LitFactCheck>(*base_, *atom_, target_); }
 
@@ -269,17 +279,16 @@ void LitSymbolic::do_print(std::ostream &out) const {
     }
 }
 
-auto LitSymbolic::do_output(InstantiationContext &ctx) const -> bool {
-    auto &out = ctx.out();
+auto LitSymbolic::do_output(InstantiationContext &ctx, OutputLit &out) const -> bool {
     // TODO: eval can be avoided for lookup matchers
     if (auto sym = atom_->eval(ctx.store(), ctx.ass())) {
         if (sign_ == Sign::once ? index_ == stratified_index && !base_->contains(*sym) : base_->is_fact(*sym)) {
             return false;
         }
-        out.out() << sign_ << *sym;
+        out.lit(sign_, *sym);
     } else {
         // note: cannot happen by construction
-        out.out() << "#false";
+        out.boolean(false);
     }
     return true;
 }
@@ -386,8 +395,7 @@ void LitProject::do_print(std::ostream &out) const {
     }
 }
 
-auto LitProject::do_output(InstantiationContext &ctx) const -> bool {
-    auto &out = ctx.out();
+auto LitProject::do_output(InstantiationContext &ctx, OutputLit &out) const -> bool {
     // Note: eval can be avoided for lookup matchers
     if (auto p_sym = p_atom_->eval(ctx.store(), ctx.ass())) {
         if (sign_ == Sign::once ? index_ == stratified_index && !state_->p_base().contains(*p_sym)
@@ -396,10 +404,10 @@ auto LitProject::do_output(InstantiationContext &ctx) const -> bool {
         }
     }
     if (auto sym = atom_->eval(ctx.store(), ctx.ass())) {
-        out.out() << sign_ << *sym;
+        out.lit(sign_, *sym);
     } else {
         // note: cannot happen by construction
-        out.out() << "#false";
+        out.boolean(false);
     }
     return true;
 }

@@ -66,7 +66,7 @@ auto Instantiator::enqueue() -> bool {
     return old;
 }
 
-auto Instantiator::instantiate(Logger &log, SymbolStore &store, Output &out) -> bool {
+auto Instantiator::instantiate(Logger &log, SymbolStore &store, OutputStm &out) -> bool {
     enqueued_ = false;
     auto ie = matchers_.rend();
     auto it = ie - 1;
@@ -137,7 +137,7 @@ void Queue::propagate(size_t index) {
     }
 }
 
-auto Queue::process(Logger &log, SymbolStore &store, Output &out) -> bool {
+auto Queue::process(Logger &log, SymbolStore &store, OutputStm &out) -> bool {
     // ground
     for (auto i = size_t{0}; i < insts_.size(); ++i) {
         enter_(i);

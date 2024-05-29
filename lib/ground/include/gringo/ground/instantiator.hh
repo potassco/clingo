@@ -1,6 +1,7 @@
 #pragma once
 
 #include <gringo/core/logger.hh>
+#include <gringo/core/output.hh>
 #include <gringo/core/symbol.hh>
 
 #include <memory>
@@ -11,40 +12,18 @@ namespace Gringo::Ground {
 
 using Assignment = std::vector<std::optional<Symbol>>;
 
-class Output {
-  public:
-    Output(std::ostream &out) : out_{&out} {}
-    void start() { next_ = nullptr; }
-    void next(char const *next) { next_ = next; }
-    auto out() -> std::ostream & {
-        if (next_ != nullptr) {
-            *out_ << next_;
-            next_ = nullptr;
-        }
-        return *out_;
-    }
-    auto end() -> std::ostream & {
-        next_ = nullptr;
-        return *out_;
-    }
-
-  private:
-    std::ostream *out_;
-    char const *next_ = nullptr;
-};
-
 class InstantiationContext {
   public:
-    InstantiationContext(Logger &log, Output &out, SymbolStore &store, Assignment &ass)
+    InstantiationContext(Logger &log, OutputStm &out, SymbolStore &store, Assignment &ass)
         : log_{&log}, out_{&out}, store_{&store}, ass_{&ass} {}
     [[nodiscard]] auto log() const -> Logger & { return *log_; }
-    [[nodiscard]] auto out() const -> Output & { return *out_; }
+    [[nodiscard]] auto out() const -> OutputStm & { return *out_; }
     [[nodiscard]] auto store() const -> SymbolStore & { return *store_; }
     [[nodiscard]] auto ass() const -> Assignment & { return *ass_; }
 
   private:
     Logger *log_;
-    Output *out_;
+    OutputStm *out_;
     SymbolStore *store_;
     Assignment *ass_;
 };
@@ -136,7 +115,7 @@ class Instantiator {
     //! Find all assignments for the added matchers.
     //!
     //! Assignments are reported via the InstanceCallback.
-    [[nodiscard]] auto instantiate(Logger &log, SymbolStore &store, Output &out) -> bool;
+    [[nodiscard]] auto instantiate(Logger &log, SymbolStore &store, OutputStm &out) -> bool;
     //! Add instantiators that need grounding to queue.
     void propagate(Queue &queue);
     //! The priority of the instantiator.
@@ -177,7 +156,7 @@ class Queue {
     void insert(Instantiator inst, std::optional<size_t> index);
     void propagate(size_t index);
     //! Process previously enqueued instantiators.
-    [[nodiscard]] auto process(Logger &log, SymbolStore &store, Output &out) -> bool;
+    [[nodiscard]] auto process(Logger &log, SymbolStore &store, OutputStm &out) -> bool;
     //! Release the contained instantiators.
     auto release() -> std::vector<Instantiator> { return std::move(insts_); }
 

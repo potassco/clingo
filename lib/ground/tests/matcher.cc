@@ -8,12 +8,31 @@ namespace Gringo::Ground::Test {
 
 // NOLINTBEGIN(readability-magic-numbers)
 
+namespace {
+
+class NullOutputLit : public OutputLit {
+  private:
+    void do_lit([[maybe_unused]] Sign sign, [[maybe_unused]] Symbol sym) override {}
+    void do_boolean([[maybe_unused]] bool value) override {}
+    void do_cond_lit([[maybe_unused]] size_t uid) override {}
+    void do_end() override {}
+};
+
+class NullOutputStm : public OutputStm, public NullOutputLit {
+  private:
+    void do_fact([[maybe_unused]] Symbol sym) override {}
+    auto do_rule([[maybe_unused]] std::optional<Symbol> head) -> OutputLit & override { return *this; }
+    auto do_cond_lit_premise([[maybe_unused]] size_t index) -> OutputLit & override { return *this; }
+    auto do_cond_lit_conclusion([[maybe_unused]] size_t index) -> OutputLit & override { return *this; }
+};
+
+} // namespace
+
 TEST_CASE("ground_matcher") {
     Logger log;
     auto store = make_symbol_store(true, true);
     auto ass = Assignment{};
-    std::stringstream str;
-    auto out = Output{str};
+    auto out = NullOutputStm{};
     auto ctx = InstantiationContext{log, out, *store, ass};
 
     SECTION("once") {
