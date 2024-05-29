@@ -168,6 +168,7 @@ class Queue {
     std::vector<std::vector<size_t>> update_;
     std::vector<std::vector<Instantiator *>> queues_;
     size_t size_ = 0;
+    size_t max_prio_ = 0;
 };
 
 } // namespace Gringo::Ground

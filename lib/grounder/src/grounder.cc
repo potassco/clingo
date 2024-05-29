@@ -409,8 +409,8 @@ class BuilderHdLit {
                 throw std::runtime_error("unexpected literal in rule head");
             },
             lit.lit());
-        ctx_->gcomp->add(std::make_unique<Ground::StmRule>(std::move(head), std::move(provides), std::move(*ctx_->body),
-                                                           ctx_->priority));
+        ctx_->gcomp->add(
+            std::make_unique<Ground::StmRule>(std::move(head), std::move(provides), std::move(*ctx_->body)));
     }
 
   private:

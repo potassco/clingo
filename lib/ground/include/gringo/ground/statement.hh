@@ -54,10 +54,9 @@ class Linearizer {
 
 class StmRule : public Stm {
   public:
-    StmRule(std::optional<std::pair<Ground::UTerm, Base &>> head, std::vector<size_t> indices, Ground::ULitVec body,
-            size_t priority)
+    StmRule(std::optional<std::pair<Ground::UTerm, Base &>> head, std::vector<size_t> indices, Ground::ULitVec body)
         : head_{head ? std::move(head->first) : nullptr}, base_{head ? &head->second : nullptr},
-          indices_{std::move(indices)}, body_{std::move(body)}, prio_{priority} {
+          indices_{std::move(indices)}, body_{std::move(body)} {
         if (head_) {
             body_.emplace_back(std::make_unique<LitFactCheck>(*base_, *head_, &atom_));
         }
@@ -75,7 +74,7 @@ class StmRule : public Stm {
     void do_init(size_t gen) override;
     [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override;
     void do_propagate(Queue &queue) override;
-    [[nodiscard]] auto do_priority() const -> size_t override { return prio_; }
+    [[nodiscard]] auto do_priority() const -> size_t override { return std::numeric_limits<size_t>::max(); }
 
     //! The head of the rule.
     //!
@@ -89,7 +88,6 @@ class StmRule : public Stm {
     std::vector<size_t> indices_;
     Ground::ULitVec body_;
     Symbol atom_ = SymbolStore::sup();
-    size_t prio_;
 };
 
 } // namespace Gringo::Ground

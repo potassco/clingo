@@ -114,6 +114,10 @@ void Queue::insert(Instantiator inst, std::optional<size_t> index) {
         }
         update_[*index].emplace_back(insts_.size());
     }
+    auto prio = inst.priority();
+    if (prio < std::numeric_limits<size_t>::max()) {
+        max_prio_ = std::max(max_prio_, prio + 1);
+    }
     insts_.emplace_back(std::move(inst));
 }
 
@@ -121,6 +125,9 @@ void Queue::enter_(size_t i) {
     auto &inst = insts_[i];
     if (!inst.enqueue()) {
         auto prio = inst.priority();
+        if (prio == std::numeric_limits<size_t>::max()) {
+            prio = max_prio_;
+        }
         if (queues_.size() <= prio) {
             queues_.resize(prio + 1);
         }
