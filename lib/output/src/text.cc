@@ -1,87 +1,131 @@
 #include <gringo/output/text.hh>
 
+#include <gringo/util/type_traits.hh>
+#include <gringo/util/unordered_map.hh>
+
+#include <sstream>
+
 namespace Gringo::Output {
 
 namespace {
 
 class OutputSimple : public OutputLit {
-  public:
-    OutputSimple(std::ostream &out) : out_{&out} {};
-
-    void sep() { do_sep(); }
-    auto out() -> std::ostream & { return *out_; }
-
   private:
-    virtual void do_sep() = 0;
-    void do_lit(Sign sign, Symbol sym) override {
-        sep();
-        *out_ << sign << " " << sym;
-    }
     void do_cond_lit([[maybe_unused]] size_t uid) override { throw std::runtime_error("unsupported literal"); }
-    void do_boolean(bool value) override {
-        sep();
-        *out_ << (value ? "#true" : "#false");
-    }
-
-    std::ostream *out_;
 };
 
-class OutputRule : public OutputSimple {
+class OutputBody : public OutputLit {
   public:
-    OutputRule(std::ostream &out) : OutputSimple{out} {};
-
-    void start(std::optional<Symbol> head) {
+    void start() {
+        buf_.str({});
+        if (delayed_.empty() || !delayed_.back().empty()) {
+            delayed_.emplace_back();
+        }
         has_body_ = false;
-        has_head_ = head.has_value();
-        if (has_head_) {
-            out() << *head;
+    }
+
+    auto end() -> std::string_view {
+        assert(delayed_.back().empty());
+        return buf_.view();
+    }
+
+    auto delayed() -> bool { return !delayed_.back().empty(); }
+
+    void delay() {
+        if (!buf_.view().empty()) {
+            std::string ret = buf_.str();
+            buf_.str({});
+            delayed_.back().emplace_back(std::move(ret));
         }
     }
 
+    auto buf() -> std::ostringstream & { return buf_; }
+
+    void prepend() { delayed_.back().insert(delayed_.back().begin(), buf_.str()); }
+
+    [[nodiscard]] auto empty() const -> bool { return !has_body_; }
+
+    void define(size_t index, std::string str) { defined_.emplace(index, std::move(str)); }
+
+    void flush(std::ostream &out) {
+        for (auto &delayed : delayed_) {
+            for (auto &elem : delayed) {
+                std::visit(
+                    [&out, this]<class T>(T const &elem) {
+                        if constexpr (Util::is_among_v<T, std::string>) {
+                            out << elem;
+                        } else if constexpr (Util::is_among_v<T, size_t>) {
+                            auto it = defined_.find(elem);
+                            if (it != defined_.end()) {
+                                out << it.value();
+                            } else {
+                                out << "#true";
+                            }
+                        } else {
+                        }
+                    },
+                    elem);
+            }
+        }
+        delayed_.clear();
+    }
+
   private:
-    void do_sep() override {
+    void sep() {
         if (has_body_) {
-            out() << "; ";
+            buf_ << "; ";
         } else {
-            out() << " :- ";
             has_body_ = true;
         }
     }
-    void do_end() override {
-        if (!has_body_ && !has_head_) {
-            out() << " :- ";
-        }
-        out() << ".\n";
+    void do_lit(Sign sign, Symbol sym) override {
+        sep();
+        buf_ << sign << " " << sym;
+    }
+    void do_boolean(bool value) override {
+        sep();
+        buf_ << (value ? "#true" : "#false");
     }
     void do_cond_lit(size_t uid) override {
         sep();
-        out() << "#cond_lit(TODO: " << uid << ")";
+        delay();
+        delayed_.back().emplace_back(uid);
     }
 
-    bool has_head_ = false;
     bool has_body_ = false;
+    std::ostringstream buf_;
+    Util::unordered_map<size_t, std::string> defined_;
+    std::vector<std::vector<std::variant<std::string, size_t>>> delayed_;
 };
 
-class OutputCondLitPremise : public OutputSimple {
+class OutputCond : public OutputSimple {
   public:
-    OutputCondLitPremise(std::ostream &out) : OutputSimple{out} {};
+    void start() {
+        buf_.str({});
+        has_lits_ = false;
+    }
+
+    auto end() -> std::string_view { return buf_.view(); }
 
   private:
-    void do_sep() override {}
-    void do_lit(Sign sign, Symbol sym) override { out() << "% premise: " << sign << " " << sym << "\n"; }
-    void do_boolean(bool value) override { out() << "% premise: " << (value ? "#true" : "#false") << "\n"; }
-    void do_end() override {}
-};
+    void sep() {
+        if (has_lits_) {
+            buf_ << ", ";
+        } else {
+            has_lits_ = true;
+        }
+    }
+    void do_lit(Sign sign, Symbol sym) override {
+        sep();
+        buf_ << sign << " " << sym;
+    }
+    void do_boolean(bool value) override {
+        sep();
+        buf_ << (value ? "#true" : "#false");
+    }
 
-class OutputCondLitConclusion : public OutputSimple {
-  public:
-    OutputCondLitConclusion(std::ostream &out) : OutputSimple{out} {};
-
-  private:
-    void do_sep() override {}
-    void do_lit(Sign sign, Symbol sym) override { out() << "%   conclusion: " << sign << " " << sym << "\n"; }
-    void do_boolean(bool value) override { out() << "%   conclusion: " << (value ? "#true" : "#false") << "\n"; }
-    void do_end() override {}
+    bool has_lits_ = false;
+    std::ostringstream buf_;
 };
 
 class OutputText : public OutputStm {
@@ -90,23 +134,71 @@ class OutputText : public OutputStm {
 
   private:
     void do_fact(Symbol sym) override { *out_ << sym << ".\n"; }
-    auto do_rule(std::optional<Symbol> head) -> OutputLit & override {
-        rule_.start(head);
-        return rule_;
+    auto do_body() -> OutputLit & override {
+        body_.start();
+        return body_;
     }
-    auto do_cond_lit_premise(size_t index) -> OutputLit & override {
-        static_cast<void>(index);
-        return cond_lit_premise_;
+    void do_rule(std::optional<Symbol> head) override {
+        if (!body_.delayed()) {
+            if (head) {
+                *out_ << *head;
+            }
+            if (!body_.empty() || !head) {
+                *out_ << " :- ";
+            }
+            *out_ << body_.end() << ".\n";
+        } else {
+            body_.buf() << ".\n";
+            body_.delay();
+            if (head) {
+                body_.buf() << *head;
+            }
+            body_.buf() << " :- ";
+            body_.prepend();
+        }
     }
-    auto do_cond_lit_conclusion(size_t index) -> OutputLit & override {
-        static_cast<void>(index);
-        return cond_lit_conclusion_;
+    auto do_cond() -> OutputLit & override {
+        cond_.start();
+        return cond_;
+    }
+    void do_cond_lit_premise(size_t lit_uid, size_t elem_uid) override {
+        cond_lits_[lit_uid].emplace_back(elem_uid);
+        cond_lit_elems_.emplace(std::make_pair(lit_uid, elem_uid), std::make_pair("#false", cond_.end()));
+    }
+    void do_cond_lit_conclusion(size_t lit_uid, size_t elem_uid) override {
+        cond_lit_elems_[std::make_pair(lit_uid, elem_uid)].first = cond_.end();
+    }
+    auto do_uid() -> size_t override { return ++uids_; }
+
+    void do_flush() override {
+        for (auto const &[lit_index, elems] : cond_lits_) {
+            body_.buf().str({});
+            if (elems.empty()) {
+                body_.buf() << "#true";
+            }
+            bool comma = false;
+            for (auto elem_index : elems) {
+                if (comma) {
+                    body_.buf() << "; ";
+                } else {
+                    comma = true;
+                }
+                auto const &[conclusion, premise] = cond_lit_elems_[std::make_pair(lit_index, elem_index)];
+                body_.buf() << conclusion << ":" << premise;
+            }
+            body_.define(lit_index, body_.buf().str());
+        }
+        cond_lit_elems_.clear();
+        cond_lits_.clear();
+        body_.flush(*out_);
     }
 
     std::ostream *out_;
-    OutputRule rule_{*out_};
-    OutputCondLitPremise cond_lit_premise_{*out_};
-    OutputCondLitConclusion cond_lit_conclusion_{*out_};
+    OutputBody body_;
+    OutputCond cond_;
+    Util::unordered_map<std::pair<size_t, size_t>, std::pair<std::string, std::string>> cond_lit_elems_;
+    Util::unordered_map<size_t, std::vector<size_t>> cond_lits_;
+    size_t uids_ = 0;
 };
 
 } // namespace

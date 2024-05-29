@@ -654,6 +654,7 @@ class Builder : public Input::DependencyBuilder {
                     return false;
                 }
             }
+            out_->flush();
         }
         return true;
     }

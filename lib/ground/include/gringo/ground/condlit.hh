@@ -88,6 +88,9 @@ class StateAtomCondLit {
     [[nodiscard]] auto is_false() const -> bool { return false_ != 0; }
     void set_offset(size_t offset) { offset_ = offset; }
     [[nodiscard]] auto offset() const -> size_t { return offset_; }
+    [[nodiscard]] auto has_uid() const -> bool { return uid_ > 0; }
+    [[nodiscard]] auto uid() const -> uint64_t { return uid_ - 1; }
+    void set_uid(size_t uid) { uid_ = uid + 1; }
 
   private:
     std::vector<size_t> elems_;
@@ -95,6 +98,7 @@ class StateAtomCondLit {
     uint64_t propagated_ : 1 = 0;
     uint64_t enqueued_ : 1 = 0;
     uint64_t false_ : 1 = 0;
+    uint64_t uid_ = 0;
     size_t offset_ = 0;
 };
 using MapAtomCondLit = Util::ordered_map<Symbol const *, StateAtomCondLit, Util::SpanHash, Util::SpanEqualTo>;
@@ -203,10 +207,10 @@ struct StateCondLit {
     auto add_empty(Assignment const &ass) -> std::pair<MapAtomCondLit::iterator, bool>;
 
     //! Add a new cond lit element.
-    void add_premise(Assignment const &ass, bool fact);
+    auto add_premise(Assignment const &ass, MapAtomCondLit::iterator it, bool fact) -> MapElemCondLit::iterator;
 
     //! Add a conclusion to an element.
-    void add_conclusion(Assignment const &ass, bool fact);
+    auto add_conclusion(Assignment const &ass, MapAtomCondLit::iterator it, bool fact) -> MapElemCondLit::iterator;
 
     //! Propagate enqueued conditional literals whose elements are not blocked.
     [[nodiscard]] auto propagate() -> bool;
@@ -218,19 +222,21 @@ struct StateCondLit {
     [[nodiscard]] auto base_premise() -> BaseCondLitPremise &;
     [[nodiscard]] auto base_lit() -> BaseCondLit &;
 
-    [[nodiscard]] auto lit_is_fact(Assignment const &ass) -> bool;
-
-    [[nodiscard]] auto atom_index(Assignment &ass) const -> std::optional<size_t>;
-
-    [[nodiscard]] auto atom_nth(size_t index) -> MapAtomCondLit::iterator;
-
-  private:
-    [[nodiscard]] auto atom_index(MapAtomCondLit::const_iterator it) const -> size_t;
+    [[nodiscard]] auto lit_is_fact(MapAtomCondLit::iterator it) -> bool;
 
     [[nodiscard]] auto atom_find(Assignment const &ass) const -> MapAtomCondLit::const_iterator;
 
     [[nodiscard]] auto atom_find(Assignment const &ass) -> MapAtomCondLit::iterator;
 
+    [[nodiscard]] auto atom_index(Assignment &ass) const -> std::optional<size_t>;
+
+    [[nodiscard]] auto atom_nth(size_t index) -> MapAtomCondLit::iterator;
+
+    [[nodiscard]] auto atom_index(MapAtomCondLit::const_iterator it) const -> size_t;
+
+    [[nodiscard]] auto elem_index(MapElemCondLit::const_iterator it) const -> size_t;
+
+  private:
     [[nodiscard]] auto elem_find(Assignment const &ass, MapAtomCondLit::iterator it) -> MapElemCondLit::iterator;
 
     VariableVec local_;

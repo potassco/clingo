@@ -281,6 +281,9 @@ void LitSymbolic::do_print(std::ostream &out) const {
 
 auto LitSymbolic::do_output(InstantiationContext &ctx, OutputLit &out) const -> bool {
     // TODO: eval can be avoided for lookup matchers
+    if ((index_ == stratified_index || sign_ == Sign::none) && base_->domain()) {
+        return false;
+    }
     if (auto sym = atom_->eval(ctx.store(), ctx.ass())) {
         if (sign_ == Sign::once ? index_ == stratified_index && !base_->contains(*sym) : base_->is_fact(*sym)) {
             return false;
@@ -397,6 +400,9 @@ void LitProject::do_print(std::ostream &out) const {
 
 auto LitProject::do_output(InstantiationContext &ctx, OutputLit &out) const -> bool {
     // Note: eval can be avoided for lookup matchers
+    if ((index_ == stratified_index || sign_ == Sign::none) && state_->p_base().domain()) {
+        return false;
+    }
     if (auto p_sym = p_atom_->eval(ctx.store(), ctx.ass())) {
         if (sign_ == Sign::once ? index_ == stratified_index && !state_->p_base().contains(*p_sym)
                                 : state_->p_base().is_fact(*p_sym)) {

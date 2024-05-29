@@ -15,15 +15,18 @@ class NullOutputLit : public OutputLit {
     void do_lit([[maybe_unused]] Sign sign, [[maybe_unused]] Symbol sym) override {}
     void do_boolean([[maybe_unused]] bool value) override {}
     void do_cond_lit([[maybe_unused]] size_t uid) override {}
-    void do_end() override {}
 };
 
 class NullOutputStm : public OutputStm, public NullOutputLit {
   private:
+    auto do_uid() -> size_t override { return 0; }
     void do_fact([[maybe_unused]] Symbol sym) override {}
-    auto do_rule([[maybe_unused]] std::optional<Symbol> head) -> OutputLit & override { return *this; }
-    auto do_cond_lit_premise([[maybe_unused]] size_t index) -> OutputLit & override { return *this; }
-    auto do_cond_lit_conclusion([[maybe_unused]] size_t index) -> OutputLit & override { return *this; }
+    auto do_body() -> OutputLit & override { return *this; }
+    void do_rule([[maybe_unused]] std::optional<Symbol> head) override {}
+    auto do_cond() -> OutputLit & override { return *this; }
+    void do_cond_lit_premise([[maybe_unused]] size_t lit_index, [[maybe_unused]] size_t elem_index) override {}
+    void do_cond_lit_conclusion([[maybe_unused]] size_t lit_index, [[maybe_unused]] size_t elem_index) override {}
+    void do_flush() override {}
 };
 
 } // namespace

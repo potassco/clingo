@@ -47,11 +47,11 @@ auto StateCondLit::add_empty(Assignment const &ass) -> std::pair<MapAtomCondLit:
     return {it, ins};
 }
 
-void StateCondLit::add_premise(Assignment const &ass, bool fact) {
-    auto it = atom_find(ass);
+auto StateCondLit::add_premise(Assignment const &ass, MapAtomCondLit::iterator it,
+                               bool fact) -> MapElemCondLit::iterator {
     // no further elements have to be accumulated if the literal is false
     if (it.value().is_false()) {
-        return;
+        return elems_.end();
     }
     auto syms_elem = syms_elems_.push_map(Util::enumerate{local_.size() + 1}, [this, it, &ass](size_t i) {
         if (i == 0) {
@@ -76,10 +76,11 @@ void StateCondLit::add_premise(Assignment const &ass, bool fact) {
     } else if (atom.enqueue(elems_)) {
         propagate_.emplace_back(atom_index(it));
     }
+    return jt;
 }
 
-void StateCondLit::add_conclusion(Assignment const &ass, bool fact) {
-    auto it = atom_find(ass);
+auto StateCondLit::add_conclusion(Assignment const &ass, MapAtomCondLit::iterator it,
+                                  bool fact) -> MapElemCondLit::iterator {
     assert(it != atoms_.end());
     auto jt = elem_find(ass, it);
     assert(jt != elems_.end());
@@ -89,6 +90,7 @@ void StateCondLit::add_conclusion(Assignment const &ass, bool fact) {
     if (atom.enqueue(elems_)) {
         propagate_.emplace_back(atom_index(it));
     }
+    return jt;
 }
 
 auto StateCondLit::propagate() -> bool {
@@ -113,11 +115,10 @@ auto StateCondLit::base_premise() -> BaseCondLitPremise & { return base_premise_
 
 auto StateCondLit::base_lit() -> BaseCondLit & { return base_lit_; }
 
-auto StateCondLit::lit_is_fact(Assignment const &ass) -> bool {
+auto StateCondLit::lit_is_fact(MapAtomCondLit::iterator it) -> bool {
     if (rec_premise_) {
         return false;
     }
-    auto it = atom_find(ass);
     assert(it != atoms_.end());
     return it->second.is_fact(elems_);
 }
@@ -133,6 +134,10 @@ auto StateCondLit::atom_nth(size_t index) -> MapAtomCondLit::iterator { return a
 
 auto StateCondLit::atom_index(MapAtomCondLit::const_iterator it) const -> size_t {
     return std::distance(atoms_.begin(), it);
+}
+
+auto StateCondLit::elem_index(MapElemCondLit::const_iterator it) const -> size_t {
+    return std::distance(elems_.begin(), it);
 }
 
 auto StateCondLit::atom_find(Assignment const &ass) const -> MapAtomCondLit::const_iterator {
@@ -302,9 +307,15 @@ void LitCondLit::do_print(std::ostream &out) const {
 }
 
 auto LitCondLit::do_output(InstantiationContext &ctx, OutputLit &out) const -> bool {
-    if (type() == LitCondLitType::lit && !state().lit_is_fact(ctx.ass())) {
-        // TODO: fix once there is a proper output
-        out.cond_lit(0);
+    if (type() == LitCondLitType::lit) {
+        auto it = state().atom_find(ctx.ass());
+        if (state().lit_is_fact(it)) {
+            return false;
+        }
+        if (!it.value().has_uid()) {
+            it.value().set_uid(ctx.out().uid());
+        }
+        out.cond_lit(it.value().uid());
         return true;
     }
     return false;
@@ -374,16 +385,20 @@ class MatcherCondLitStrat : public OnceMatcher {
 void LitCondLitStrat::do_init([[maybe_unused]] size_t gen) {}
 
 auto LitCondLitStrat::do_report(InstantiationContext &ctx) -> bool {
-    // TODO: get uid
-    auto &out = ctx.out().cond_lit_premise(0);
     bool fact = true;
-    for (auto const &lit : premise_) {
-        if (lit->output(ctx, out)) {
-            fact = false;
+    if (auto it = state_->atom_find(ctx.ass()); !it.value().is_false()) {
+        auto &out = ctx.out().cond();
+        for (auto const &lit : premise_) {
+            if (lit->output(ctx, out)) {
+                fact = false;
+            }
         }
+        auto jt = state_->add_premise(ctx.ass(), it, fact);
+        if (!it.value().has_uid()) {
+            it.value().set_uid(ctx.out().uid());
+        }
+        ctx.out().cond_lit_premise(it.value().uid(), state_->elem_index(jt));
     }
-    out.end();
-    state_->add_premise(ctx.ass(), fact);
     // In the stratified case, the conclusion is always false. Furthermore,
     // exactly one literal is bound. Thus, we can exit instantiation early
     // here.
@@ -440,8 +455,11 @@ void LitCondLitStrat::do_print(std::ostream &out) const {
 }
 
 auto LitCondLitStrat::do_output(InstantiationContext &ctx, OutputLit &out) const -> bool {
-    if (!state_->lit_is_fact(ctx.ass())) {
-        out.cond_lit(0);
+    if (auto it = state_->atom_find(ctx.ass()); !state_->lit_is_fact(it)) {
+        if (!it.value().has_uid()) {
+            it.value().set_uid(ctx.out().uid());
+        }
+        out.cond_lit(it.value().uid());
         return true;
     }
     return false;
@@ -531,29 +549,35 @@ auto StmCondLit::do_report(InstantiationContext &ctx) -> bool {
             break;
         }
         case StmCondLitType::premise: {
-            // TODO: get uid
-            bool fact = true;
-            auto &out = ctx.out().cond_lit_premise(0);
-            for (auto const &lit : body_) {
-                if (lit->output(ctx, out)) {
-                    fact = false;
+            // TODO: quite a bit of c&p
+            if (auto it = base_->atom_find(ctx.ass()); !it.value().is_false()) {
+                bool fact = true;
+                auto &out = ctx.out().cond();
+                for (auto const &lit : body_) {
+                    if (lit->output(ctx, out)) {
+                        fact = false;
+                    }
                 }
+                auto jt = base_->add_premise(ctx.ass(), it, fact);
+                if (!it.value().has_uid()) {
+                    it.value().set_uid(ctx.out().uid());
+                }
+                ctx.out().cond_lit_premise(it.value().uid(), base_->elem_index(jt));
             }
-            out.end();
-            base_->add_premise(ctx.ass(), fact);
             break;
         }
         case StmCondLitType::conclusion: {
-            // TODO: fix once there is a proper output
-            bool fact = true;
-            auto &out = ctx.out().cond_lit_conclusion(0);
-            for (auto const &lit : body_) {
-                if (lit->output(ctx, out)) {
-                    fact = false;
+            if (auto it = base_->atom_find(ctx.ass()); !it.value().is_false()) {
+                bool fact = true;
+                auto &out = ctx.out().cond();
+                for (auto const &lit : body_) {
+                    if (lit->output(ctx, out)) {
+                        fact = false;
+                    }
                 }
+                auto jt = base_->add_conclusion(ctx.ass(), it, fact);
+                ctx.out().cond_lit_conclusion(it.value().uid(), base_->elem_index(jt));
             }
-            out.end();
-            base_->add_conclusion(ctx.ass(), fact);
             break;
         }
     }
