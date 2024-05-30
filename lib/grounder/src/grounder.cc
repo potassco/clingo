@@ -1,7 +1,5 @@
 #include <gringo/grounder/grounder.hh>
 
-#include <gringo/output/text.hh>
-
 #include <gringo/ground/condlit.hh>
 #include <gringo/ground/program.hh>
 
@@ -35,7 +33,8 @@ class Profiler {
 #endif
 
 struct Grounder::Impl {
-    Impl(Logger &log, SymbolStore &store, Input::RewriteOptions opts) : log{&log}, store{&store}, prg{opts} {}
+    Impl(Logger &log, SymbolStore &store, Input::RewriteOptions opts, OutputStm &out)
+        : log{&log}, store{&store}, prg{opts}, out{&out} {}
 
     auto add_project(Ground::UTerm const &term,
                      Ground::Base &base) -> std::pair<Ground::UTerm, Ground::LitProject::State *> {
@@ -65,6 +64,8 @@ struct Grounder::Impl {
     Util::ordered_map<Ground::UTerm, std::unique_ptr<Ground::LitProject::State>> map;
     //! The atom base.
     Util::ordered_map<std::tuple<String, size_t, bool>, std::unique_ptr<Ground::Base>> atom_base;
+    //! The output.
+    OutputStm *out;
 };
 
 namespace {
@@ -564,7 +565,7 @@ class BuilderStm {
 
 class Builder : public Input::DependencyBuilder {
   public:
-    Builder(Grounder::Impl &impl) : out_{Output::make_text_output(std::cout)}, impl_{&impl} {}
+    Builder(Grounder::Impl &impl) : impl_{&impl} {}
 
   private:
     void do_param(Input::ProgramParam const &param) override {
@@ -596,7 +597,7 @@ class Builder : public Input::DependencyBuilder {
                 dom_it.value() = std::make_unique<Ground::Base>();
             }
             dom_it->second->add(fact, Ground::AtomState::fact);
-            out_->fact(fact);
+            impl_->out->fact(fact);
         }
     }
 
@@ -650,23 +651,22 @@ class Builder : public Input::DependencyBuilder {
                     GRINGO_REPORT(*impl_->log, debug) << "      " << *stm;
                     lin.prepare(*stm, stm->body(), stm->important());
                 }
-                if (!queue.process(*impl_->log, *impl_->store, *out_)) {
+                if (!queue.process(*impl_->log, *impl_->store, *impl_->out)) {
                     return false;
                 }
             }
-            out_->flush();
+            impl_->out->flush();
         }
         return true;
     }
 
-    UOutputStm out_;
     Grounder::Impl *impl_;
 };
 
 } // namespace
 
-Grounder::Grounder(Logger &log, SymbolStore &store, Input::RewriteOptions opts)
-    : impl_{std::make_unique<Impl>(log, store, opts)} {}
+Grounder::Grounder(Logger &log, SymbolStore &store, Input::RewriteOptions opts, OutputStm &out)
+    : impl_{std::make_unique<Impl>(log, store, opts, out)} {}
 
 Grounder::~Grounder() noexcept = default;
 

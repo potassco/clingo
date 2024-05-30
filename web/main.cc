@@ -1,5 +1,7 @@
 #include <gringo/grounder/grounder.hh>
 
+#include <gringo/output/text.hh>
+
 #include <CLI/CLI.hpp>
 
 #include <iostream>
@@ -53,7 +55,8 @@ auto run(std::string const &program, std::vector<std::string> args) -> bool {
         log.enable_color(false);
         log.set_level(log_level);
         auto store = Gringo::make_symbol_store(true, false);
-        Gringo::Grounder grd{log, *store, opts};
+        auto out = Gringo::Output::make_text_output(std::cout);
+        Gringo::Grounder grd{log, *store, opts, *out};
         grd.parse(program);
         [&]() {
             if (parse_only) {

@@ -1,12 +1,14 @@
 #include <gringo/input/program.hh>
 
+#include <gringo/core/output.hh>
+
 namespace Gringo {
 
 //! A grounder for logic programs.
 class Grounder {
   public:
     struct Impl;
-    Grounder(Logger &log, SymbolStore &store, Input::RewriteOptions opts);
+    Grounder(Logger &log, SymbolStore &store, Input::RewriteOptions opts, OutputStm &out);
     ~Grounder() noexcept;
     //! Parse a program from the given string.
     void parse(std::string_view prg);
