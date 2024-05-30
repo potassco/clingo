@@ -116,7 +116,7 @@ auto StateCondLit::base_premise() -> BaseCondLitPremise & { return base_premise_
 
 auto StateCondLit::base_lit() -> BaseCondLit & { return base_lit_; }
 
-auto StateCondLit::lit_is_fact(MapAtomCondLit::iterator it) -> bool {
+auto StateCondLit::atom_is_fact(MapAtomCondLit::iterator it) -> bool {
     if (rec_premise_) {
         return false;
     }
@@ -124,7 +124,7 @@ auto StateCondLit::lit_is_fact(MapAtomCondLit::iterator it) -> bool {
     return it->second.is_fact(elems_);
 }
 
-auto StateCondLit::atom_index(Assignment &ass) const -> std::optional<size_t> {
+auto StateCondLit::atom_index(Assignment const &ass) -> std::optional<size_t> {
     if (auto it = atom_find(ass); it != atoms_.end()) {
         return atom_index(it);
     }
@@ -139,15 +139,6 @@ auto StateCondLit::atom_index(MapAtomCondLit::const_iterator it) const -> size_t
 
 auto StateCondLit::elem_index(MapElemCondLit::const_iterator it) const -> size_t {
     return std::distance(elems_.begin(), it);
-}
-
-auto StateCondLit::atom_find(Assignment const &ass) const -> MapAtomCondLit::const_iterator {
-    temp_syms_.clear();
-    for (auto var : global_) {
-        // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-        temp_syms_.emplace_back(ass[var].value());
-    }
-    return atoms_.find(temp_syms_.data());
 }
 
 auto StateCondLit::atom_find(Assignment const &ass) -> MapAtomCondLit::iterator {
@@ -308,7 +299,7 @@ void LitCondLit::do_print(std::ostream &out) const {
 auto LitCondLit::do_output(InstantiationContext &ctx, OutputLit &out) const -> bool {
     if (type() == LitCondLitType::lit) {
         auto it = state().atom_find(ctx.ass());
-        if (state().lit_is_fact(it)) {
+        if (state().atom_is_fact(it)) {
             return false;
         }
         if (!it.value().has_uid()) {
@@ -450,7 +441,7 @@ void LitCondLitStrat::do_print(std::ostream &out) const {
 }
 
 auto LitCondLitStrat::do_output(InstantiationContext &ctx, OutputLit &out) const -> bool {
-    if (auto it = state_->atom_find(ctx.ass()); !state_->lit_is_fact(it)) {
+    if (auto it = state_->atom_find(ctx.ass()); !state_->atom_is_fact(it)) {
         if (!it.value().has_uid()) {
             it.value().set_uid(ctx.out().uid());
         }

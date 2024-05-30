@@ -9,13 +9,16 @@
 
 namespace Gringo::Ground {
 
+//! The type of the literals involved in grounding conditional literals.
 enum class LitCondLitType : uint8_t {
-    empty = 0,
-    premise = 1,
-    lit = 2,
+    empty = 0,   //! Literals encountered during grounding.
+    premise = 1, //! Premises encountered during grounding.
+    lit = 2,     //! Conditional literals derived during grounding.
 };
+//! Print the type of a conditional literal grounding literal.
 auto operator<<(std::ostream &out, LitCondLitType type) -> std::ostream &;
 
+//! The 4-valued truth value of a conclusion.
 // NOLINTNEXTLINE(performance-enum-size)
 enum class TruthConclusion : uint64_t {
     true_ = 0,
@@ -24,25 +27,41 @@ enum class TruthConclusion : uint64_t {
     unknown = 3,
 };
 
+//! Capture (the state of) an element of a conditional literal.
 struct StateCondLitElem {
   public:
+    //! Initialize the element.
     StateCondLitElem(bool premise_is_fact, bool has_conclusion)
         : conclusion_truth_{has_conclusion ? TruthConclusion::unknown : TruthConclusion::false_},
           premise_is_fact_{static_cast<uint8_t>(premise_is_fact)} {}
+    //! Mark a previously unknown conclusion either as derived or fact.
     void mark_conclusion(bool fact) {
         assert(conclusion_truth_ == TruthConclusion::unknown);
         conclusion_truth_ = fact ? TruthConclusion::true_ : TruthConclusion::derived;
     }
+    //! Check if the element is true, i.e., its conclusion is true.
     [[nodiscard]] auto is_fact() const -> bool { return conclusion_truth_ == TruthConclusion::true_; }
+    //! Check if the element is blocked.
+    //!
+    //! An element is blocked if its premise is true and its conclusion is
+    //! false or has not yet been derived.
     [[nodiscard]] auto is_blocked() const -> bool {
         return premise_is_fact_ != 0 &&
                (conclusion_truth_ == TruthConclusion::false_ || conclusion_truth_ == TruthConclusion::unknown);
     }
+    //! Check if an element is false.
+    //!
+    //! An element is false if its premise is true and its conclusion false.
     [[nodiscard]] auto is_false() const {
         return premise_is_fact_ != 0 && conclusion_truth_ == TruthConclusion::false_;
     }
+    //! Check if the index of the element has already been set.
     [[nodiscard]] auto has_offset() const -> bool { return offset_ > 0; }
+    //! Set the index of the element.
     void set_offset(size_t offset) { offset_ = offset + 1; }
+    //! The index of the element in the vector of derived elements.
+    //!
+    //! The index is set once an element is propagated and added to the set of derived elements
     [[nodiscard]] auto offset() const -> size_t { return offset_ - 1; }
 
   private:
@@ -51,13 +70,23 @@ struct StateCondLitElem {
     uint64_t premise_is_fact_ : 1;
 };
 
-// we can use here that the number of local variables is fixed
+//! A map from an atom + local variables to an element of a conditional literal.
+//!
+//! We can use here that the number of local variables is fixed.
 using MapElemCondLit = Util::ordered_map<Symbol const *, StateCondLitElem, Util::SpanHash, Util::SpanEqualTo>;
 
+//! Capture (the state of) a conditional literal.
+//!
+//! This is referred to as atom in the code.
 class StateAtomCondLit {
   public:
     StateAtomCondLit() = default;
+    //! Add an element with the given index to the atom.
     void add_elem(size_t index) { elems_.emplace_back(index); }
+    //! Enqueue the atom for grounding.
+    //!
+    //! Atom that are already enqueued or have already been propagated are not enqueued.
+    //! As a consequence, an atom that has been propagated cannot be marked as false later on.
     [[nodiscard]] auto enqueue(MapElemCondLit const &elems) -> bool {
         if (enqueued_ == 0 && propagated_ == 0 &&
             (elems_propagated_ == elems_.size() || !elems.nth(elems_[elems_propagated_]).value().is_blocked())) {
@@ -66,6 +95,7 @@ class StateAtomCondLit {
         }
         return false;
     }
+    //! Propagate a previously enqueued atom.
     [[nodiscard]] auto propagate(MapElemCondLit const &elems) -> bool {
         assert(propagated_ == 0 && enqueued_ != 0);
         enqueued_ = 0;
@@ -81,18 +111,32 @@ class StateAtomCondLit {
         propagated_ = 1;
         return true;
     }
-    [[nodiscard]] auto is_blocked() const -> bool { return elems_propagated_ < elems_.size(); }
+    //! Check if all elements of the atom are facts.
+    //!
+    //! Note that this is not sufficient to check whether the atom is fact in
+    //! case the premise is recursive.
     [[nodiscard]] auto is_fact(MapElemCondLit const &elems) const -> bool {
         return std::all_of(elems_.begin(), elems_.end(),
                            [&elems](auto idx) { return elems.nth(idx).value().is_fact(); });
     }
+    //! Check if the atom has been marked false.
     [[nodiscard]] auto is_false() const -> bool { return false_ != 0; }
+    //! Check if the atom has been derived.
     [[nodiscard]] auto has_offset() const -> bool { return offset_ > 0; }
+    //! Mark the atom as derived setting its derived index.
     void set_offset(size_t offset) { offset_ = offset + 1; }
+    //! The index of the atom in the vector of derived atoms.
+    //!
+    //! The index is set once an atom is propagated and added to the set of derived atoms.
     [[nodiscard]] auto offset() const -> size_t { return offset_ - 1; }
 
+    //! Check if the atom has a unique id.
     [[nodiscard]] auto has_uid() const -> bool { return uid_ > 0; }
+    //! Get the unique id of teh atom.
+    //!
+    //! This id is used by the output to uniquely identify conditional literals.
     [[nodiscard]] auto uid() const -> uint64_t { return uid_ - 1; }
+    //! Set the unique id of the atom.
     void set_uid(size_t uid) { uid_ = uid + 1; }
 
   private:
@@ -104,6 +148,7 @@ class StateAtomCondLit {
     uint64_t uid_ = 0;
     size_t offset_ = 0;
 };
+//! A map from the global variables to a conditional literal.
 using MapAtomCondLit = Util::ordered_map<Symbol const *, StateAtomCondLit, Util::SpanHash, Util::SpanEqualTo>;
 
 class BaseCondLitEmpty : public BaseImpl<Symbol const *, BaseCondLitEmpty> {
@@ -232,27 +277,48 @@ struct StateCondLit {
     //! Return true if all contained literals are domain and the premise is not recursive.
     [[nodiscard]] auto domain() const -> bool;
 
+    //! Get the base containing all conditional literals encountered during grounding.
     [[nodiscard]] auto base_empty() -> BaseCondLitEmpty &;
+    //! Get the base containing all premises of conditional literals.
     [[nodiscard]] auto base_premise() -> BaseCondLitPremise &;
+    //! Get the base containing all conditional literals that have been derived.
+    //!
+    //! This is a subset of the empty base.
     [[nodiscard]] auto base_lit() -> BaseCondLit &;
 
-    [[nodiscard]] auto lit_is_fact(MapAtomCondLit::iterator it) -> bool;
-
-    [[nodiscard]] auto atom_find(Assignment const &ass) const -> MapAtomCondLit::const_iterator;
-
+    //! Find an atom given an assignemnt and return an iterator to it.
+    //!
+    //! Assumes that all global variables are bound.
+    //! Returns an end iterator if the atom does not exist.
     [[nodiscard]] auto atom_find(Assignment const &ass) -> MapAtomCondLit::iterator;
 
-    [[nodiscard]] auto atom_index(Assignment &ass) const -> std::optional<size_t>;
+    //! Find an atom given an assignemnt and return its index.
+    //!
+    //! Assumes that all global variables are bound.
+    [[nodiscard]] auto atom_index(Assignment const &ass) -> std::optional<size_t>;
 
-    [[nodiscard]] auto atom_nth(size_t index) -> MapAtomCondLit::iterator;
-
+    //! Turn an iterator into an atom index.
     [[nodiscard]] auto atom_index(MapAtomCondLit::const_iterator it) const -> size_t;
 
+    //! Turn an atom index into an iterator.
+    [[nodiscard]] auto atom_nth(size_t index) -> MapAtomCondLit::iterator;
+
+    //! Check if the given atom is a fact.
+    //!
+    //! Note that it is not sufficient to check the fact state of the atom.
+    [[nodiscard]] auto atom_is_fact(MapAtomCondLit::iterator it) -> bool;
+
+    //! Get an iterator to an element given an assignment.
+    //!
+    //! Assumes that the given atom iterator points to a valid atom and all
+    //! local and global variables are bound. Returns an end iterator if the
+    //! atom does not exist.
+    [[nodiscard]] auto elem_find(Assignment const &ass, MapAtomCondLit::iterator it) -> MapElemCondLit::iterator;
+
+    //! Turn an iterator into an element index.
     [[nodiscard]] auto elem_index(MapElemCondLit::const_iterator it) const -> size_t;
 
   private:
-    [[nodiscard]] auto elem_find(Assignment const &ass, MapAtomCondLit::iterator it) -> MapElemCondLit::iterator;
-
     VariableVec local_;
     VariableVec global_;
     std::vector<Symbol> mutable temp_syms_;
