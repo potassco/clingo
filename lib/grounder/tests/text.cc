@@ -30,19 +30,30 @@ TEST_CASE("grounder_text") {
         grd.parse("a. b :- a.");
         grd.prepare();
         REQUIRE(grd.ground(params));
-        REQUIRE(oss.str() == "a.\nb.\n");
+        REQUIRE(oss.str() == "a.\n"
+                             "b.\n");
     }
     SECTION("normal") {
         grd.parse("a :- not b. b :- not a.");
         grd.prepare();
         REQUIRE(grd.ground(params));
-        REQUIRE(oss.str() == "b :- not a.\na :- not b.\n");
+        REQUIRE(oss.str() == "b :- not a.\n"
+                             "a :- not b.\n");
     }
-    SECTION("condlit") {
+    SECTION("condlit_strat") {
+        grd.parse("a :- not b. b :- not a. c :- a : b.");
+        grd.prepare();
+        REQUIRE(grd.ground(params));
+        REQUIRE(oss.str() == "b :- not a.\n"
+                             "a :- not b.\n"
+                             "c :- #false: b, not a.\n");
+    }
+    SECTION("condlit_rec") {
         grd.parse("b :- b : a. a :- a : b.");
         grd.prepare();
         REQUIRE(grd.ground(params));
-        REQUIRE(oss.str() == "b :- b: a.\na :- a: b.\n");
+        REQUIRE(oss.str() == "b :- b: a.\n"
+                             "a :- a: b.\n");
     }
 }
 
