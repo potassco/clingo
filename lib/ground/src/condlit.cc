@@ -9,6 +9,37 @@
 
 namespace Gringo::Ground {
 
+// StateAtomCondLit
+
+[[nodiscard]] auto StateAtomCondLit::enqueue(MapElemCondLit const &elems) -> bool {
+    if (enqueued_ == 0 && propagated_ == 0 &&
+        (elems_propagated_ == elems_.size() || !elems.nth(elems_[elems_propagated_]).value().is_blocked())) {
+        enqueued_ = 1;
+        return true;
+    }
+    return false;
+}
+
+[[nodiscard]] auto StateAtomCondLit::propagate(MapElemCondLit const &elems) -> bool {
+    assert(propagated_ == 0 && enqueued_ != 0);
+    enqueued_ = 0;
+    for (auto n = elems_.size(); elems_propagated_ < n; ++elems_propagated_) {
+        auto const &elem = elems.nth(elems_[elems_propagated_]).value();
+        if (elem.is_blocked()) {
+            if (elem.is_false()) {
+                false_ = 1;
+            }
+            return false;
+        }
+    }
+    propagated_ = 1;
+    return true;
+}
+
+[[nodiscard]] auto StateAtomCondLit::is_fact(MapElemCondLit const &elems) const -> bool {
+    return std::all_of(elems_.begin(), elems_.end(), [&elems](auto idx) { return elems.nth(idx).value().is_fact(); });
+}
+
 // StateCondLit
 
 void StateCondLit::vars(VariableSet &res, bool all) const {
@@ -85,10 +116,8 @@ auto StateCondLit::add_conclusion(Assignment const &ass, MapAtomCondLit::iterato
     assert(it != atoms_.end());
     auto jt = elem_find(ass, it);
     assert(jt != elems_.end());
-    auto &atom = it.value();
-    auto &elem = jt.value();
-    elem.mark_conclusion(fact);
-    if (atom.enqueue(elems_)) {
+    jt.value().mark_conclusion(fact);
+    if (it.value().enqueue(elems_)) {
         propagate_.emplace_back(atom_index(it));
     }
     return jt;
@@ -98,8 +127,7 @@ auto StateCondLit::propagate() -> bool {
     bool res = false;
     for (auto atom_index : propagate_) {
         auto it = atoms_.nth(atom_index);
-        auto &atom = it.value();
-        if (atom.propagate(elems_)) {
+        if (it.value().propagate(elems_)) {
             base_lit_.add(it);
             res = true;
         }
@@ -171,8 +199,8 @@ auto MatchCondLit::signature(VariableSet const &bound, [[maybe_unused]] Variable
 
 auto MatchCondLit::match([[maybe_unused]] SymbolStore &store, Symbol const *sym, Assignment &ass) const -> bool {
     if (type_ == LitCondLitType::premise) {
-        auto atom = state_->atom_nth(Symbol::to_rep(*sym));
-        return match_(ass, atom->first, state_->vars_global()) && match_(ass, std::next(sym), state_->vars_local());
+        auto it = state_->atom_nth(Symbol::to_rep(*sym));
+        return match_(ass, it.key(), state_->vars_global()) && match_(ass, std::next(sym), state_->vars_local());
     }
     return match_(ass, sym, state_->vars_global());
 };
@@ -283,11 +311,13 @@ auto LitCondLit::do_score([[maybe_unused]] std::vector<bool> const &bound) const
 void LitCondLit::do_print(std::ostream &out) const {
     out << "#cond_lit(" << type();
     for (auto var : state().vars_global()) {
-        out << "," << "X_" << var;
+        out << ","
+            << "X_" << var;
     }
     if (type() == LitCondLitType::premise) {
         for (auto var : state().vars_local()) {
-            out << "," << "X_" << var;
+            out << ","
+                << "X_" << var;
         }
     }
     out << ")";
@@ -359,7 +389,8 @@ class MatcherCondLitStrat : public OnceMatcher {
     void do_print(std::ostream &out) const override {
         out << "#cond_lit(lit";
         for (auto var : state_->vars_global()) {
-            out << "," << "X_" << var;
+            out << ","
+                << "X_" << var;
         }
         out << ")";
     }
@@ -369,29 +400,33 @@ class MatcherCondLitStrat : public OnceMatcher {
     bool init_ = false;
 };
 
+auto report_premise(StateCondLit &state, InstantiationContext &ctx, ULitVec const &premise) -> bool {
+    bool fact = true;
+    if (auto it = state.atom_find(ctx.ass()); !it.value().is_false()) {
+        auto &out = ctx.out().cond();
+        for (auto const &lit : premise) {
+            if (lit->output(ctx, out)) {
+                fact = false;
+            }
+        }
+        auto jt = state.add_premise(ctx.ass(), it, fact);
+        if (!it.value().has_uid()) {
+            it.value().set_uid(ctx.out().uid());
+        }
+        ctx.out().cond_lit_premise(it.value().uid(), state.elem_index(jt));
+    }
+    return fact;
+}
+
 } // namespace
 
 void LitCondLitStrat::do_init([[maybe_unused]] size_t gen) {}
 
 auto LitCondLitStrat::do_report(InstantiationContext &ctx) -> bool {
-    bool fact = true;
-    if (auto it = state_->atom_find(ctx.ass()); !it.value().is_false()) {
-        auto &out = ctx.out().cond();
-        for (auto const &lit : premise_) {
-            if (lit->output(ctx, out)) {
-                fact = false;
-            }
-        }
-        auto jt = state_->add_premise(ctx.ass(), it, fact);
-        if (!it.value().has_uid()) {
-            it.value().set_uid(ctx.out().uid());
-        }
-        ctx.out().cond_lit_premise(it.value().uid(), state_->elem_index(jt));
-    }
     // In the stratified case, the conclusion is always false. Furthermore,
     // exactly one literal is bound. Thus, we can exit instantiation early
     // here.
-    return !fact;
+    return !report_premise(*state_, ctx, premise_);
 }
 
 void LitCondLitStrat::do_propagate([[maybe_unused]] Queue &queue) {}
@@ -401,10 +436,12 @@ auto LitCondLitStrat::do_priority() const -> size_t { return 0; }
 void LitCondLitStrat::do_print_head(std::ostream &out) const {
     out << "#cond_lit(premise";
     for (auto var : state_->vars_global()) {
-        out << "," << "X_" << var;
+        out << ","
+            << "X_" << var;
     }
     for (auto var : state_->vars_local()) {
-        out << "," << "X_" << var;
+        out << ","
+            << "X_" << var;
     }
     out << ")";
 }
@@ -435,7 +472,8 @@ auto LitCondLitStrat::do_score([[maybe_unused]] std::vector<bool> const &bound) 
 void LitCondLitStrat::do_print(std::ostream &out) const {
     out << "#cond_lit(lit";
     for (auto var : state_->vars_global()) {
-        out << "," << "X_" << var;
+        out << ","
+            << "X_" << var;
     }
     out << ")";
 }
@@ -499,12 +537,14 @@ auto operator<<(std::ostream &out, StmCondLitType type) -> std::ostream & {
 
 void StmCondLit::do_print_head(std::ostream &out) const {
     out << "#cond_lit(" << type_;
-    for (auto var : base_->vars_global()) {
-        out << "," << "X_" << var;
+    for (auto var : state_->vars_global()) {
+        out << ","
+            << "X_" << var;
     }
     if (type_ != StmCondLitType::empty) {
-        for (auto var : base_->vars_local()) {
-            out << "," << "X_" << var;
+        for (auto var : state_->vars_local()) {
+            out << ","
+                << "X_" << var;
         }
     }
     out << ")";
@@ -520,7 +560,7 @@ void StmCondLit::do_print(std::ostream &out) const {
 
 auto StmCondLit::do_body() const -> ULitVec const & { return body_; }
 
-auto StmCondLit::do_important() const -> VariableSet { return base_->vars(type_ != StmCondLitType::empty); }
+auto StmCondLit::do_important() const -> VariableSet { return state_->vars(type_ != StmCondLitType::empty); }
 
 void StmCondLit::do_init([[maybe_unused]] size_t gen) {
     // by construction, this statement does not increment the generation
@@ -529,29 +569,15 @@ void StmCondLit::do_init([[maybe_unused]] size_t gen) {
 auto StmCondLit::do_report(InstantiationContext &ctx) -> bool {
     switch (type_) {
         case StmCondLitType::empty: {
-            base_->add_empty(ctx.ass());
+            state_->add_empty(ctx.ass());
             break;
         }
         case StmCondLitType::premise: {
-            // TODO: quite a bit of c&p
-            if (auto it = base_->atom_find(ctx.ass()); !it.value().is_false()) {
-                bool fact = true;
-                auto &out = ctx.out().cond();
-                for (auto const &lit : body_) {
-                    if (lit->output(ctx, out)) {
-                        fact = false;
-                    }
-                }
-                auto jt = base_->add_premise(ctx.ass(), it, fact);
-                if (!it.value().has_uid()) {
-                    it.value().set_uid(ctx.out().uid());
-                }
-                ctx.out().cond_lit_premise(it.value().uid(), base_->elem_index(jt));
-            }
+            std::ignore = report_premise(*state_, ctx, body_);
             break;
         }
         case StmCondLitType::conclusion: {
-            if (auto it = base_->atom_find(ctx.ass()); !it.value().is_false()) {
+            if (auto it = state_->atom_find(ctx.ass()); !it.value().is_false()) {
                 bool fact = true;
                 auto &out = ctx.out().cond();
                 for (auto const &lit : body_) {
@@ -559,8 +585,8 @@ auto StmCondLit::do_report(InstantiationContext &ctx) -> bool {
                         fact = false;
                     }
                 }
-                auto jt = base_->add_conclusion(ctx.ass(), it, fact);
-                ctx.out().cond_lit_conclusion(it.value().uid(), base_->elem_index(jt));
+                auto jt = state_->add_conclusion(ctx.ass(), it, fact);
+                ctx.out().cond_lit_conclusion(it.value().uid(), state_->elem_index(jt));
             }
             break;
         }
@@ -571,7 +597,7 @@ auto StmCondLit::do_report(InstantiationContext &ctx) -> bool {
 void StmCondLit::do_propagate([[maybe_unused]] Queue &queue) {
     switch (type_) {
         case StmCondLitType::empty: {
-            if (base_->base_empty().has_update()) {
+            if (state_->base_empty().has_update()) {
                 if (index_ != stratified_index) {
                     queue.propagate(index_);
                 }
@@ -579,27 +605,27 @@ void StmCondLit::do_propagate([[maybe_unused]] Queue &queue) {
             break;
         }
         case StmCondLitType::premise: {
-            if (base_->base_premise().has_update()) {
+            if (state_->base_premise().has_update()) {
                 if (index_ != stratified_index) {
                     queue.propagate(index_);
                 }
             }
             // note that atoms not blocked at this point are not added to the premise base
             // thus, we have to propagate here already
-            if (base_->propagate() && base_->index() != stratified_index) {
-                queue.propagate(base_->index());
+            if (state_->propagate() && state_->index() != stratified_index) {
+                queue.propagate(state_->index());
             }
             break;
         }
         case StmCondLitType::conclusion: {
-            if (base_->base_lit().has_update()) {
+            if (state_->base_lit().has_update()) {
                 if (index_ != stratified_index) {
                     queue.propagate(index_);
                 }
             }
             // propagate further conditional literals
-            if (base_->propagate() && base_->index() != stratified_index) {
-                queue.propagate(base_->index());
+            if (state_->propagate() && state_->index() != stratified_index) {
+                queue.propagate(state_->index());
             }
             break;
         }

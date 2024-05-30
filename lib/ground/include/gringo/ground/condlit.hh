@@ -87,38 +87,14 @@ class StateAtomCondLit {
     //!
     //! Atom that are already enqueued or have already been propagated are not enqueued.
     //! As a consequence, an atom that has been propagated cannot be marked as false later on.
-    [[nodiscard]] auto enqueue(MapElemCondLit const &elems) -> bool {
-        if (enqueued_ == 0 && propagated_ == 0 &&
-            (elems_propagated_ == elems_.size() || !elems.nth(elems_[elems_propagated_]).value().is_blocked())) {
-            enqueued_ = 1;
-            return true;
-        }
-        return false;
-    }
+    [[nodiscard]] auto enqueue(MapElemCondLit const &elems) -> bool;
     //! Propagate a previously enqueued atom.
-    [[nodiscard]] auto propagate(MapElemCondLit const &elems) -> bool {
-        assert(propagated_ == 0 && enqueued_ != 0);
-        enqueued_ = 0;
-        for (auto n = elems_.size(); elems_propagated_ < n; ++elems_propagated_) {
-            auto const &elem = elems.nth(elems_[elems_propagated_]).value();
-            if (elem.is_blocked()) {
-                if (elem.is_false()) {
-                    false_ = 1;
-                }
-                return false;
-            }
-        }
-        propagated_ = 1;
-        return true;
-    }
+    [[nodiscard]] auto propagate(MapElemCondLit const &elems) -> bool;
     //! Check if all elements of the atom are facts.
     //!
     //! Note that this is not sufficient to check whether the atom is fact in
     //! case the premise is recursive.
-    [[nodiscard]] auto is_fact(MapElemCondLit const &elems) const -> bool {
-        return std::all_of(elems_.begin(), elems_.end(),
-                           [&elems](auto idx) { return elems.nth(idx).value().is_fact(); });
-    }
+    [[nodiscard]] auto is_fact(MapElemCondLit const &elems) const -> bool;
     //! Check if the atom has been marked false.
     [[nodiscard]] auto is_false() const -> bool { return false_ != 0; }
     //! Check if the atom has been derived.
@@ -132,7 +108,7 @@ class StateAtomCondLit {
 
     //! Check if the atom has a unique id.
     [[nodiscard]] auto has_uid() const -> bool { return uid_ > 0; }
-    //! Get the unique id of teh atom.
+    //! Get the unique id of the atom.
     //!
     //! This id is used by the output to uniquely identify conditional literals.
     [[nodiscard]] auto uid() const -> uint64_t { return uid_ - 1; }
@@ -151,8 +127,13 @@ class StateAtomCondLit {
 //! A map from the global variables to a conditional literal.
 using MapAtomCondLit = Util::ordered_map<Symbol const *, StateAtomCondLit, Util::SpanHash, Util::SpanEqualTo>;
 
+//! A base for not yet propagated conditional literals.
 class BaseCondLitEmpty : public BaseImpl<Symbol const *, BaseCondLitEmpty> {
   public:
+    //! Construct the base.
+    //!
+    //! The given atoms form the base. They are managed externally and the base
+    //! just provides a view on them.
     BaseCondLitEmpty(MapAtomCondLit &atoms) : atoms_{&atoms} {}
 
     //! Map a key to its index in the base.
@@ -171,10 +152,16 @@ class BaseCondLitEmpty : public BaseImpl<Symbol const *, BaseCondLitEmpty> {
     MapAtomCondLit *atoms_;
 };
 
+//! A base for premises of conditional literals.
 class BaseCondLitPremise : public BaseImpl<Symbol const *, BaseCondLitPremise> {
   public:
     using Key = Symbol const *;
 
+    //! Construct the base.
+    //!
+    //! The given elements form the base. They are managed externally and the
+    //! base just provides a view on them. Elements must be explicitly added
+    //! to the view using the add method.
     BaseCondLitPremise(MapElemCondLit &elems) : elems_{&elems} {}
 
     //! Add a blocked element to the base.
@@ -205,8 +192,14 @@ class BaseCondLitPremise : public BaseImpl<Symbol const *, BaseCondLitPremise> {
     std::vector<size_t> base_;
 };
 
+//! A base for conditional literals.
 class BaseCondLit : public BaseImpl<Symbol const *, BaseCondLit> {
   public:
+    //! Construct the base.
+    //!
+    //! The given atoms form the base. They are managed externally and the
+    //! base just provides a view on them. Atoms must be explicitly added
+    //! to the view using the add method.
     BaseCondLit(MapAtomCondLit &atoms) : atoms_{&atoms} {}
 
     //! Add a propagated atom to the base.
@@ -235,8 +228,10 @@ class BaseCondLit : public BaseImpl<Symbol const *, BaseCondLit> {
     std::vector<size_t> base_;
 };
 
+//! State to capture a set of conditional literals.
 struct StateCondLit {
   public:
+    //! Construct an empty state.
     StateCondLit(VariableVec local, VariableVec global, size_t index, bool has_conclusion, bool rec_premise,
                  bool domain)
         : local_{std::move(local)}, global_{std::move(global)}, syms_elems_{local_.size() + 1},
@@ -247,10 +242,10 @@ struct StateCondLit {
         temp_syms_.reserve(std::max(global_.size(), local_.size() + 1));
     }
 
-    //! Get the variables occuring in the conditional literal.
+    //! Get the variables occurring in the conditional literal.
     void vars(VariableSet &res, bool all) const;
 
-    //! Get the variables occuring in the conditional literal.
+    //! Get the variables occurring in the conditional literal.
     [[nodiscard]] auto vars(bool all) const -> VariableSet;
 
     //! Get the global variables of the literal.
@@ -286,13 +281,13 @@ struct StateCondLit {
     //! This is a subset of the empty base.
     [[nodiscard]] auto base_lit() -> BaseCondLit &;
 
-    //! Find an atom given an assignemnt and return an iterator to it.
+    //! Find an atom given an assignment and return an iterator to it.
     //!
     //! Assumes that all global variables are bound.
     //! Returns an end iterator if the atom does not exist.
     [[nodiscard]] auto atom_find(Assignment const &ass) -> MapAtomCondLit::iterator;
 
-    //! Find an atom given an assignemnt and return its index.
+    //! Find an atom given an assignment and return its index.
     //!
     //! Assumes that all global variables are bound.
     [[nodiscard]] auto atom_index(Assignment const &ass) -> std::optional<size_t>;
@@ -336,28 +331,39 @@ struct StateCondLit {
     bool domain_;
 };
 
+//! A term like object used to match conditional literals and their elements.
 class MatchCondLit {
   public:
+    //! The key to match against.
     using Key = Symbol const *;
+
+    //! Construct the matcher.
     MatchCondLit(StateCondLit &state, LitCondLitType type) : state_{&state}, type_{type} {
         eval_.reserve(type_ == LitCondLitType::premise
                           ? std::max(state_->vars_global().size(), state_->vars_local().size() + 1)
                           : state_->vars_global().size());
     }
 
+    //! Get the variables of the matcher.
     [[nodiscard]] auto vars() const -> VariableSet;
 
+    //! Get the signature of the matcher.
     [[nodiscard]] auto signature(VariableSet const &bound,
                                  [[maybe_unused]] VariableSet const &bind) const -> VariableVec;
 
+    //! Match a span of symbols representing an atom or element with the assignment.
     [[nodiscard]] auto match([[maybe_unused]] SymbolStore &store, Symbol const *sym, Assignment &ass) const -> bool;
 
+    //! Evaluate w.r.t. the given assignment and return a span representing an atom or element.
     [[nodiscard]] auto eval([[maybe_unused]] SymbolStore &store,
                             Assignment &ass) const -> std::optional<Symbol const *>;
 
+    //! Print a string representation of the matcher.
     friend auto operator<<(std::ostream &out, MatchCondLit const &m) -> std::ostream &;
 
+    //! Get the associated state.
     [[nodiscard]] auto state() const -> StateCondLit &;
+    //! Get the type of the matcher.
     [[nodiscard]] auto type() const -> LitCondLitType;
 
   private:
@@ -368,8 +374,10 @@ class MatchCondLit {
     LitCondLitType type_;
 };
 
+//! Helper literals to ground conditional literals.
 class LitCondLit : public Lit, private MatchCondLit {
   public:
+    //! Construct the literal.
     LitCondLit(LitCondLitType type, StateCondLit &state, size_t index) : MatchCondLit{state, type}, index_{index} {}
 
   private:
@@ -389,8 +397,10 @@ class LitCondLit : public Lit, private MatchCondLit {
     size_t index_;
 };
 
+//! Helper literal to ground stratified conditional literals.
 class LitCondLitStrat : public Lit, private InstanceCallback {
   public:
+    //! Construct the literal.
     LitCondLitStrat(StateCondLit &state, ULitVec premise) : state_{&state}, premise_{std::move(premise)} {}
 
   private:
@@ -419,17 +429,21 @@ class LitCondLitStrat : public Lit, private InstanceCallback {
     ULitVec premise_;
 };
 
+//! Type of the helper statement to ground conditional literals.
 enum class StmCondLitType : uint8_t {
     empty = 0,
     premise = 1,
     conclusion = 2,
 };
+//! Print the type.
 auto operator<<(std::ostream &out, StmCondLitType type) -> std::ostream &;
 
+//! Helper statement to ground conditional literals.
 class StmCondLit : public Stm {
   public:
+    //! Construct the statement.
     StmCondLit(StmCondLitType type, StateCondLit &base, ULitVec body, size_t prio, size_t index)
-        : base_{&base}, body_{std::move(body)}, prio_{prio}, index_{index}, type_{type} {}
+        : state_{&base}, body_{std::move(body)}, prio_{prio}, index_{index}, type_{type} {}
 
   private:
     // statement interface
@@ -444,7 +458,7 @@ class StmCondLit : public Stm {
     void do_propagate(Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override;
 
-    StateCondLit *base_;
+    StateCondLit *state_;
     ULitVec body_;
     size_t prio_;
     size_t index_;
