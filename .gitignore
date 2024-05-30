@@ -16,3 +16,4 @@ doc/latex
 example.*
 __pycache__
 .venv
+*.prof
