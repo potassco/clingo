@@ -8,17 +8,16 @@ namespace Gringo::Ground {
 
 namespace {
 
-auto eval_args(SymbolStore &store, Assignment const &ass, UTermVec const &args) -> std::optional<SymbolVec> {
-    SymbolVec res;
-    res.reserve(args.size());
+auto eval_args(SymbolStore &store, Assignment const &ass, UTermVec const &args, std::vector<Symbol> &res) -> bool {
+    res.clear();
     for (auto const &arg : args) {
         if (auto sym = arg->eval(store, ass); sym) {
             res.emplace_back(*sym);
         } else {
-            return std::nullopt;
+            return false;
         }
     }
-    return res;
+    return true;
 }
 
 auto match_args(SymbolStore &store, Assignment &ass, UTermVec const &term_args, SymbolSpan sym_args) -> bool {
@@ -531,8 +530,10 @@ auto TermTuple::do_match(SymbolStore &store, Symbol sym, Assignment &ass) const 
 }
 
 auto TermTuple::do_eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> {
-    return Util::transform(eval_args(store, ass, args_),
-                           [&store](SymbolVec args) { return store.tup(std::move(args)); });
+    if (eval_args(store, ass, args_, eval_)) {
+        return store.tup(eval_);
+    }
+    return std::nullopt;
 }
 
 auto TermTuple::do_rename(SymbolStore &store, RenameMode mode, [[maybe_unused]] String const *name,
@@ -618,8 +619,10 @@ auto TermFunction::do_match(SymbolStore &store, Symbol sym, Assignment &ass) con
 }
 
 auto TermFunction::do_eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> {
-    return Util::transform(eval_args(store, ass, args_),
-                           [&store, this](SymbolVec args) { return store.fun(name_, std::move(args), false); });
+    if (eval_args(store, ass, args_, eval_)) {
+        return store.fun(name_, eval_, false);
+    }
+    return std::nullopt;
 }
 
 auto TermFunction::do_rename(SymbolStore &store, RenameMode mode, String const *name, size_t *vars) const -> UTerm {

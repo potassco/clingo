@@ -187,107 +187,106 @@ class SlottedAlloc {
 class SymbolArray {
   public:
     SymbolArray() = default;
-    SymbolArray(Symbol *repr) : repr_{repr} {}
+    SymbolArray(Symbol *repr) : repr_{reinterpret_cast<uintptr_t>(repr)} {}
 
-    template <class Alloc> void init(Alloc &alloc, size_t hash, SymbolSpan symbols) {
-        hash_ = hash;
+    template <class Alloc> void init(Alloc &alloc, SymbolSpan symbols) {
         static_assert(alignof(Symbol) <= alignof(uint64_t));
         size_t n = symbols.size();
-        repr_ = reinterpret_cast<Symbol *>(alloc.alloc(n * sizeof(Symbol)));
-        std::copy(symbols.begin(), symbols.end(), repr_);
+        auto *repr = reinterpret_cast<Symbol *>(alloc.alloc(n * sizeof(Symbol)));
+        std::copy(symbols.begin(), symbols.end(), repr);
+        hash_ =
+            std::hash<std::string_view>{}(std::string_view(reinterpret_cast<char const *>(repr), n * sizeof(Symbol)));
+        repr_ = reinterpret_cast<uintptr_t>(repr) | 1U;
     }
 
-    template <class Alloc> void init(Alloc &alloc, size_t hash, Symbol name, SymbolSpan symbols) {
-        hash_ = hash;
+    template <class Alloc> void init(Alloc &alloc, Symbol name, SymbolSpan symbols) {
         static_assert(alignof(Symbol) <= alignof(uint64_t));
         size_t n = symbols.size() + 1;
-        repr_ = reinterpret_cast<Symbol *>(alloc.alloc(n * sizeof(Symbol)));
-        *repr_ = name;
-        std::copy(symbols.begin(), symbols.end(), repr_ + 1);
+        auto *repr = reinterpret_cast<Symbol *>(alloc.alloc(n * sizeof(Symbol)));
+        *repr = name;
+        std::copy(symbols.begin(), symbols.end(), repr + 1);
+        hash_ =
+            std::hash<std::string_view>{}(std::string_view(reinterpret_cast<char const *>(repr), n * sizeof(Symbol)));
+        repr_ = reinterpret_cast<uintptr_t>(repr) | mask_;
     }
 
     template <class Alloc> void destroy(Alloc &alloc) noexcept {
-        alloc.dealloc(repr_);
-        repr_ = nullptr;
+        alloc.dealloc(data());
+        repr_ = 0;
     }
 
     [[nodiscard]] auto span() const noexcept -> SymbolSpan { return {data(), size()}; }
     [[nodiscard]] auto head() const noexcept -> Symbol { return *data(); }
     [[nodiscard]] auto tail() const noexcept -> SymbolSpan { return {data() + 1, size() - 1}; }
-    [[nodiscard]] auto data() const noexcept -> Symbol * { return repr_; }
-    [[nodiscard]] auto size() const noexcept -> size_t { return (alloc_size(repr_) / sizeof(Symbol)); }
+    [[nodiscard]] auto data() const noexcept -> Symbol * { return reinterpret_cast<Symbol *>(repr_ & ~mask_); }
+    [[nodiscard]] auto size() const noexcept -> size_t { return (alloc_size(data()) / sizeof(Symbol)); }
     [[nodiscard]] auto hash() const noexcept -> size_t { return hash_; }
+    [[nodiscard]] auto marked() const noexcept -> bool { return (repr_ & mask_) != 0; }
+    void unmark() const noexcept { repr_ = repr_ & ~mask_; }
 
   private:
+    static constexpr uintptr_t mask_ = 1U;
     size_t hash_ = 0;
-    Symbol *repr_ = nullptr;
+    uintptr_t mutable repr_ = 0;
 };
 
 struct SymbolArrayHash {
-    auto operator()(SymbolSpan fun) const -> size_t { return operator()(std::make_pair(fun.front(), fun.subspan(1))); }
-    auto operator()(std::pair<Symbol, SymbolSpan> fun) const -> size_t {
-        using Gringo::Util::value_hash;
-        return Util::hash_combine(value_hash(fun.first),
-                                  value_hash(std::string_view{reinterpret_cast<char const *>(fun.second.data()),
-                                                              fun.second.size() * sizeof(Symbol)}));
-    }
-
     auto operator()(SymbolArray const &fun) const -> size_t { return fun.hash(); }
 };
 
 struct SymbolArrayEqual {
-    using is_transparent = void;
-    auto operator()(SymbolSpan a, SymbolSpan b) const -> bool {
-        return std::equal(a.begin(), a.end(), b.begin(), b.end());
+    auto operator()(SymbolArray const &a, SymbolArray const &b) const -> bool {
+        if (a.marked() || b.marked()) {
+            auto sa = a.span();
+            auto sb = b.span();
+            return std::equal(sa.begin(), sa.end(), sb.begin(), sb.end());
+        }
+        return a.data() == b.data();
     }
-
-    auto operator()(SymbolArray a, SymbolSpan b) const -> bool { return operator()(a.span(), b); }
-    auto operator()(SymbolSpan a, SymbolArray b) const -> bool { return operator()(a, b.span()); }
-
-    auto operator()(SymbolArray a, std::pair<Symbol, SymbolSpan> b) const -> bool {
-        return a.head() == b.first && operator()(a.tail(), b.second);
-    }
-    auto operator()(std::pair<Symbol, SymbolSpan> a, SymbolArray b) const -> bool { return operator()(b, a); }
-    auto operator()(SymbolArray a, SymbolArray b) const -> bool { return a.data() == b.data(); }
 };
 
 class CharArray {
   public:
     CharArray() = default;
 
-    template <class Alloc> void init(Alloc &alloc, size_t hash, std::string_view str) {
-        hash_ = hash;
+    template <class Alloc> void init(Alloc &alloc, std::string_view str) {
         static_assert(alignof(char) <= alignof(uint64_t));
-        repr_ = reinterpret_cast<char *>(alloc.alloc((str.size() + 1) * sizeof(char)));
-        std::copy(str.begin(), str.end(), repr_);
-        repr_[str.size()] = '\0';
+        auto *repr = reinterpret_cast<char *>(alloc.alloc((str.size() + 1) * sizeof(char)));
+        std::copy(str.begin(), str.end(), repr);
+        repr[str.size()] = '\0';
+        hash_ = std::hash<std::string_view>{}(std::string_view{repr, str.size()});
+        repr_ = reinterpret_cast<uintptr_t>(repr) | mask_;
     }
 
     template <class Alloc> void destroy(Alloc &alloc) noexcept {
-        alloc.dealloc(repr_);
-        repr_ = nullptr;
+        alloc.dealloc(data());
+        repr_ = 0;
     }
 
-    [[nodiscard]] auto view() const noexcept -> std::string_view { return {repr_, size()}; }
-    [[nodiscard]] auto data() const noexcept -> char const * { return repr_; }
-    [[nodiscard]] auto size() const noexcept -> size_t { return alloc_size(repr_) / sizeof(char) - 1; }
+    [[nodiscard]] auto view() const noexcept -> std::string_view { return {data(), size()}; }
+    [[nodiscard]] auto data() const noexcept -> char * { return reinterpret_cast<char *>(repr_ & ~mask_); }
+    [[nodiscard]] auto size() const noexcept -> size_t { return alloc_size(data()) / sizeof(char) - 1; }
     [[nodiscard]] auto hash() const noexcept -> size_t { return hash_; }
+    [[nodiscard]] auto marked() const noexcept -> bool { return (repr_ & mask_) != 0; }
+    void unmark() const noexcept { repr_ = repr_ & ~mask_; }
 
   private:
+    static constexpr uintptr_t mask_ = 1U;
     size_t hash_ = 0;
-    char *repr_ = nullptr;
+    uintptr_t mutable repr_ = 0;
 };
 
 struct CharArrayEqual {
-    using is_transparent = void;
-    auto operator()(CharArray a, std::string_view b) const -> bool { return a.view() == b; }
-    auto operator()(std::string_view a, CharArray b) const -> bool { return a == b.view(); }
-    auto operator()(CharArray a, CharArray b) const -> bool { return a.data() == b.data(); }
+    auto operator()(CharArray a, CharArray b) const -> bool {
+        if (a.marked() || b.marked()) {
+            return a.view() == b.view();
+        }
+        return a.data() == b.data();
+    }
 };
 
 struct CharArrayHash {
-    auto operator()(CharArray a) const -> size_t { return operator()(a.view()); }
-    auto operator()(std::string_view a) const -> size_t { return Gringo::Util::value_hash(a); }
+    auto operator()(CharArray a) const -> size_t { return a.hash(); }
 };
 
 template <class Allocator> class DefaultSymbolStore : public SymbolStore {
@@ -311,33 +310,21 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
 
     [[nodiscard]] auto do_fun(String name, SymbolSpan args, bool sign) -> Symbol override {
         auto fun = std::make_pair(SymbolStore::str(name), args);
-        auto hash = tuples_.hash_function()(fun);
-        auto jt = tuples_.find(fun, hash);
-        if (jt == tuples_.end()) {
-            jt = insert_(tuples_, hash, fun.first, fun.second);
-        }
+        auto jt = insert_(tuples_, fun.first, fun.second);
         auto rep = reinterpret_cast<uint64_t>(jt->data()) | (sign ? REP_SIGNED_FUN : REP_FUN);
         return Symbol::from_rep(rep);
     }
 
     [[nodiscard]] auto do_tup(SymbolSpan args) -> Symbol override {
         // Almost the same as for function except that the name does not have to be stored separately.
-        auto hash = tuples_.hash_function()(args);
-        auto jt = tuples_.find(args, hash);
-        if (jt == tuples_.end()) {
-            jt = insert_(tuples_, hash, args);
-        }
+        auto jt = insert_(tuples_, args);
         auto rep = reinterpret_cast<uint64_t>(jt->data()) | REP_TUP;
         return Symbol::from_rep(rep);
     }
 
     [[nodiscard]] auto do_string(std::string_view str) -> String override {
         assert(!str.empty());
-        auto hash = strings_.hash_function()(str);
-        auto it = strings_.find(str, hash);
-        if (it == strings_.end()) {
-            it = insert_(strings_, hash, str);
-        }
+        auto it = insert_(strings_, str);
         return String::from_rep(reinterpret_cast<uintptr_t>(it->data()));
     }
 
@@ -352,11 +339,17 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
     using StringSet = Util::unordered_set<CharArray, CharArrayHash, CharArrayEqual>;
     using TupleSet = Util::unordered_set<SymbolArray, SymbolArrayHash, SymbolArrayEqual>;
 
-    template <class T, class... Args> auto insert_(T &table, size_t hash, Args &&...args) -> typename T::iterator {
+    template <class T, class... Args> auto insert_(T &table, Args &&...args) -> typename T::iterator {
         typename T::value_type arr;
+        arr.init(alloc_, std::forward<Args>(args)...);
         try {
-            arr.init(alloc_, hash, std::forward<Args>(args)...);
-            return table.emplace(arr).first;
+            auto [jt, ins] = table.emplace(arr);
+            if (ins) {
+                jt.key().unmark();
+            } else {
+                arr.destroy(alloc_);
+            }
+            return jt;
         } catch (...) {
             arr.destroy(alloc_);
             throw;

@@ -263,7 +263,7 @@ class TermBinary : public Term {
 
 class TermTuple : public Term {
   public:
-    TermTuple(UTermVec args) : args_{std::move(args)} {}
+    TermTuple(UTermVec args) : args_{std::move(args)} { eval_.reserve(args_.size()); }
 
   private:
     [[nodiscard]] auto do_score(double size, std::vector<bool> const &bound) const -> double override;
@@ -280,11 +280,12 @@ class TermTuple : public Term {
     [[nodiscard]] auto do_compare_to(Term const &other) const -> std::strong_ordering override;
 
     UTermVec args_;
+    std::vector<Symbol> mutable eval_;
 };
 
 class TermFunction : public Term {
   public:
-    TermFunction(String name, UTermVec args) : name_{name}, args_{std::move(args)} {}
+    TermFunction(String name, UTermVec args) : name_{name}, args_{std::move(args)} { eval_.reserve(args_.size()); }
 
   private:
     [[nodiscard]] auto do_score(double size, std::vector<bool> const &bound) const -> double override;
@@ -302,6 +303,7 @@ class TermFunction : public Term {
 
     String name_;
     UTermVec args_;
+    std::vector<Symbol> mutable eval_;
 };
 
 } // namespace Gringo::Ground
