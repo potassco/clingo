@@ -380,6 +380,8 @@ auto make_atom_matcher(std::vector<bool> const &bound, Base &base, Match const &
         auto &full = ctx.add_full(base, atom.signature(lookup, bind));
         return std::make_unique<Detail::FullMatcher<Base, Match>>(full, atom, bind.release(), type);
     }
+    // Note: this could be optimized for small lookup/bind sizes
+    // especially the small bind sizes seem interesting
     auto &hash = ctx.add_hash(base, atom.signature(lookup, bind), lookup.size(), bind.size());
     return std::make_unique<Detail::HashMatcher<Base, Match>>(hash, atom, lookup.release(), bind.release(), type);
 }
