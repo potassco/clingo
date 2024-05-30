@@ -309,8 +309,7 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
     }
 
     [[nodiscard]] auto do_fun(String name, SymbolSpan args, bool sign) -> Symbol override {
-        auto fun = std::make_pair(SymbolStore::str(name), args);
-        auto jt = insert_(tuples_, fun.first, fun.second);
+        auto jt = insert_(tuples_, SymbolStore::str(name), args);
         auto rep = reinterpret_cast<uint64_t>(jt->data()) | (sign ? REP_SIGNED_FUN : REP_FUN);
         return Symbol::from_rep(rep);
     }

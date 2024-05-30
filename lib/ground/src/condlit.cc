@@ -292,13 +292,11 @@ auto LitCondLit::do_score([[maybe_unused]] std::vector<bool> const &bound) const
 void LitCondLit::do_print(std::ostream &out) const {
     out << "#cond_lit(" << type();
     for (auto var : state().vars_global()) {
-        out << ","
-            << "X_" << var;
+        out << "," << "X_" << var;
     }
     if (type() == LitCondLitType::premise) {
         for (auto var : state().vars_local()) {
-            out << ","
-                << "X_" << var;
+            out << "," << "X_" << var;
         }
     }
     out << ")";
@@ -370,8 +368,7 @@ class MatcherCondLitStrat : public OnceMatcher {
     void do_print(std::ostream &out) const override {
         out << "#cond_lit(lit";
         for (auto var : state_->vars_global()) {
-            out << ","
-                << "X_" << var;
+            out << "," << "X_" << var;
         }
         out << ")";
     }
@@ -413,12 +410,10 @@ auto LitCondLitStrat::do_priority() const -> size_t { return 0; }
 void LitCondLitStrat::do_print_head(std::ostream &out) const {
     out << "#cond_lit(premise";
     for (auto var : state_->vars_global()) {
-        out << ","
-            << "X_" << var;
+        out << "," << "X_" << var;
     }
     for (auto var : state_->vars_local()) {
-        out << ","
-            << "X_" << var;
+        out << "," << "X_" << var;
     }
     out << ")";
 }
@@ -449,8 +444,7 @@ auto LitCondLitStrat::do_score([[maybe_unused]] std::vector<bool> const &bound) 
 void LitCondLitStrat::do_print(std::ostream &out) const {
     out << "#cond_lit(lit";
     for (auto var : state_->vars_global()) {
-        out << ","
-            << "X_" << var;
+        out << "," << "X_" << var;
     }
     out << ")";
 }
@@ -515,23 +509,21 @@ auto operator<<(std::ostream &out, StmCondLitType type) -> std::ostream & {
 void StmCondLit::do_print_head(std::ostream &out) const {
     out << "#cond_lit(" << type_;
     for (auto var : base_->vars_global()) {
-        out << ","
-            << "X_" << var;
+        out << "," << "X_" << var;
     }
     if (type_ != StmCondLitType::empty) {
         for (auto var : base_->vars_local()) {
-            out << ","
-                << "X_" << var;
+            out << "," << "X_" << var;
         }
     }
     out << ")";
-    if (index_ != stratified_index) {
-        out << "[" << index_ << "]";
-    }
 }
 void StmCondLit::do_print(std::ostream &out) const {
     out << prio_ << ": ";
     print_head(out);
+    if (index_ != stratified_index) {
+        out << "[" << index_ << "]";
+    }
     out << " <- " << Util::p_range(body_, ", ", [](std::ostream &out, auto const &lit) { out << *lit; }) << ".";
 }
 

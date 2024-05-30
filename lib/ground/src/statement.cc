@@ -158,15 +158,15 @@ auto Linearizer::order_(InstanceCallback &cb, std::vector<MatcherType> const &to
 void StmRule::do_print_head(std::ostream &out) const {
     if (head_) {
         out << *head_;
-        if (!indices_.empty()) {
-            out << "[" << Util::p_range(indices_, ",") << "]";
-        }
     }
 }
 
 void StmRule::do_print(std::ostream &out) const {
     out << "max: ";
     print_head(out);
+    if (!indices_.empty()) {
+        out << "[" << Util::p_range(indices_, ",") << "]";
+    }
     out << " :- " << Util::p_range(body_, ", ", [](std::ostream &out, auto const &lit) { out << *lit; }) << ".";
 }
 

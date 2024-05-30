@@ -146,9 +146,18 @@ template <IsBase Base> class FullIndex {
 
 template <IsBase Base> class HashIndex {
   public:
+    struct Hash : private std::hash<std::string_view> {
+        Hash(size_t size) : size{size} {}
+        template <class T> auto operator()(T const *sym) const -> size_t {
+            // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
+            return std::hash<std::string_view>::operator()(
+                std::string_view{reinterpret_cast<char const *>(sym), size * sizeof(Symbol)});
+            // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
+        }
+        size_t size;
+    };
     HashIndex(Base &base, size_t bound, size_t bind)
-        : base_{&base}, bound_values_{bound}, bind_values_{bind},
-          index_{0, Util::SpanHash{bound}, Util::SpanEqualTo{bound}} {
+        : base_{&base}, bound_values_{bound}, bind_values_{bind}, index_{0, Hash{bound}, Util::SpanEqualTo{bound}} {
         assert(bound > 0 && bind > 0);
         temp_values_.reserve(bound);
     }
@@ -191,7 +200,7 @@ template <IsBase Base> class HashIndex {
     using BindVec = std::vector<std::pair<size_t, Symbol *>>;
     // Note: we need an ordered map to be able to update indices while
     // matching. The same index might be updated from different matchers.
-    using IndexMap = Util::ordered_map<Symbol *, BindVec, Util::SpanHash, Util::SpanEqualTo>;
+    using IndexMap = Util::ordered_map<Symbol *, BindVec, Hash, Util::SpanEqualTo>;
 
     auto bind_next(Assignment &ass, VariableVec &bind_vars, MatcherType type, IndexMap::iterator &it,
                    size_t &cur) -> bool {
@@ -271,6 +280,7 @@ template <IsBase Base, IsMatch Match> class LookupMatcher : public OnceMatcher {
         return sym && base_->contains(*sym, type_);
     }
     void do_print(std::ostream &out) const override { out << *match_; }
+    [[nodiscard]] auto do_type() const -> MatcherType override { return type_; }
 
     Base *base_;
     Match const *match_;
@@ -291,6 +301,7 @@ template <IsBase Base, IsMatch Match> class FullMatcher : public Matcher {
         return index_->next(ctx.store(), ctx.ass(), *match_, free_, type_, pos_, cur_);
     }
     void do_print(std::ostream &out) const override { out << *match_; }
+    [[nodiscard]] auto do_type() const -> MatcherType override { return type_; }
 
     Index *index_;
     Match const *match_;
@@ -314,6 +325,7 @@ template <IsBase Base, IsMatch Match> class HashMatcher : public Matcher {
         return index_->next(ctx.store(), ctx.ass(), bound_, bind_, *match_, type_, pos_, cur_);
     }
     void do_print(std::ostream &out) const override { out << *match_; }
+    [[nodiscard]] auto do_type() const -> MatcherType override { return type_; }
 
     Index *index_;
     Match const *match_;

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <gringo/ground/instantiator.hh>
+
 #include <gringo/core/symbol.hh>
 
 #include <gringo/util/index_sequence.hh>
@@ -27,8 +29,8 @@ enum class AtomState : uint64_t {
 
 struct AtomInfo {
     // A unique id among all atoms.
-    mutable uint64_t id : 63;
-    mutable AtomState state : 2;
+    uint64_t id : 63;
+    AtomState state : 2;
 };
 
 using Atom = std::pair<Symbol, AtomInfo>;
@@ -38,8 +40,6 @@ enum class AtomUpdate : uint8_t {
     changed = 1,
     unchanged = 2,
 };
-
-enum class MatcherType : uint8_t { new_atoms, old_atoms, all_atoms };
 
 class GenerationCounts {
   public:
@@ -167,6 +167,7 @@ template <class KeyType, class BaseType> class BaseImpl {
 class Base : public BaseImpl<Symbol, Base> {
   public:
     using BaseImpl::contains;
+    using MapAtom = Util::ordered_map<Symbol, AtomInfo>;
 
     //! Check if the base is domain.
     //!
@@ -232,16 +233,16 @@ class Base : public BaseImpl<Symbol, Base> {
         return size();
     }
     //! Get the i-th atom in the base.
-    auto nth(size_t i) const -> Util::ordered_map<Symbol, AtomInfo>::const_iterator { return atoms_.nth(derived_[i]); }
+    auto nth(size_t i) const -> MapAtom::const_iterator { return atoms_.nth(derived_[i]); }
     //! Get the i-th atom in the base.
-    auto nth(size_t i) -> Util::ordered_map<Symbol, AtomInfo>::iterator { return atoms_.nth(derived_[i]); }
+    auto nth(size_t i) -> MapAtom::iterator { return atoms_.nth(derived_[i]); }
 
   private:
-    [[nodiscard]] auto atom_index_(Util::ordered_map<Symbol, AtomInfo>::const_iterator it) const -> size_t {
+    [[nodiscard]] auto atom_index_(MapAtom::const_iterator it) const -> size_t {
         return static_cast<size_t>(std::distance(atoms_.cbegin(), it));
     }
 
-    Util::ordered_map<Symbol, AtomInfo> atoms_;
+    MapAtom atoms_;
     Util::index_sequence<size_t> derived_;
     size_t mutable domain_offset_ = 0;
 };

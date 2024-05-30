@@ -57,10 +57,10 @@ class String {
 } // namespace Gringo
 
 //! Hasher for strings.
-template <> struct std::hash<Gringo::String> {
+template <> struct std::hash<Gringo::String> : private std::hash<uint64_t> {
     //! Compute hash of string.
     auto operator()(Gringo::String str) const -> size_t {
-        return Gringo::Util::value_hash(Gringo::String::to_rep(str));
+        return std::hash<uint64_t>::operator()(Gringo::String::to_rep(str));
     }
 };
 
@@ -132,10 +132,10 @@ using SymbolVec = std::vector<Symbol>;
 } // namespace Gringo
 
 //! Hasher for symbols.
-template <> struct std::hash<Gringo::Symbol> {
+template <> struct std::hash<Gringo::Symbol> : private std::hash<uint64_t> {
     //! Compute hash of symbol.
     auto operator()(Gringo::Symbol sym) const -> size_t {
-        return Gringo::Util::value_hash_record<Gringo::Symbol>(Gringo::Symbol::to_rep(sym));
+        return std::hash<uint64_t>::operator()(Gringo::Symbol::to_rep(sym));
     }
 };
 

@@ -960,7 +960,7 @@ auto get_sign(Number const &a) -> int {
 
 auto hash_code(Number const &a) -> size_t {
     if (repr_is_int(a.repr_)) {
-        return Util::hash_mix(std::hash<int32_t>{}(repr_to_int(a.repr_)));
+        return std::hash<int32_t>{}(repr_to_int(a.repr_));
     }
     auto *int_a = repr_to_bigint(a.repr_);
     size_t hash = 0;

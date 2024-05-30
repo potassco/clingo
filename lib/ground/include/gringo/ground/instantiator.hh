@@ -28,6 +28,26 @@ class InstantiationContext {
     Assignment *ass_;
 };
 
+enum class MatcherType : uint8_t { new_atoms, old_atoms, all_atoms };
+
+inline auto operator<<(std::ostream &out, MatcherType type) -> std::ostream & {
+    switch (type) {
+        case MatcherType::all_atoms: {
+            out << "a";
+            break;
+        }
+        case MatcherType::old_atoms: {
+            out << "o";
+            break;
+        }
+        case MatcherType::new_atoms: {
+            out << "n";
+            break;
+        }
+    }
+    return out;
+}
+
 //! A matcher to match expressions.
 class Matcher {
   public:
@@ -44,12 +64,14 @@ class Matcher {
     [[nodiscard]] auto next(InstantiationContext &ctx) -> bool { return do_next(ctx); }
     //! Print the matcher to the given stream.
     void print(std::ostream &out) const { do_print(out); }
+    [[nodiscard]] auto type() const -> MatcherType { return do_type(); }
 
   private:
     virtual void do_init(SymbolStore &store, size_t gen) = 0;
     virtual void do_match(InstantiationContext &ctx) = 0;
-    virtual auto do_next(InstantiationContext &ctx) -> bool = 0;
+    [[nodiscard]] virtual auto do_next(InstantiationContext &ctx) -> bool = 0;
     virtual void do_print(std::ostream &out) const = 0;
+    [[nodiscard]] virtual auto do_type() const -> MatcherType { return MatcherType::all_atoms; }
 };
 using UMatcher = std::unique_ptr<Matcher>;
 using UMatcherVec = std::vector<UMatcher>;
@@ -118,8 +140,16 @@ class Instantiator {
     [[nodiscard]] auto instantiate(Logger &log, SymbolStore &store, OutputStm &out) -> bool;
     //! Add instantiators that need grounding to queue.
     void propagate(Queue &queue);
+    //! Print the instantiator.
+    void print(std::ostream &out) const;
     //! The priority of the instantiator.
     [[nodiscard]] auto priority() const { return icb_->priority(); }
+
+    //! Print the instantiator.
+    friend auto operator<<(std::ostream &out, Instantiator const &inst) -> std::ostream & {
+        inst.print(out);
+        return out;
+    }
 
   private:
     class BackjumpMatcher {

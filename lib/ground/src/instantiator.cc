@@ -25,7 +25,7 @@ auto Instantiator::BackjumpMatcher::first(InstantiationContext &ctx) -> bool {
 
 void Instantiator::BackjumpMatcher::print(std::ostream &out, size_t index) const {
     matcher_->print(out);
-    out << " [" << index;
+    out << " [" << matcher_->type() << "; " << index;
     if (!depend_.empty()) {
         out << ": " << Util::p_range(depend_);
     }
@@ -66,6 +66,15 @@ auto Instantiator::enqueue() -> bool {
     return old;
 }
 
+void Instantiator::print(std::ostream &out) const {
+    icb_->print_head(out);
+    out << " <- ";
+    out << Util::p_range(matchers_, "; ", [index = size_t{0}](std::ostream &out, auto const &matcher) mutable {
+        matcher.print(out, index);
+        ++index;
+    });
+}
+
 auto Instantiator::instantiate(Logger &log, SymbolStore &store, OutputStm &out) -> bool {
     enqueued_ = false;
     auto ie = matchers_.rend();
@@ -73,14 +82,7 @@ auto Instantiator::instantiate(Logger &log, SymbolStore &store, OutputStm &out) 
     auto ib = matchers_.rbegin();
     auto ctx = InstantiationContext{log, out, store, ass_};
     it->match(ctx);
-    GRINGO_REPORT(log, trace) << "  instantiate: " << Util::p_fun{[this](std::ostream &out) {
-        icb_->print_head(out);
-        out << " <- ";
-        out << Util::p_range(matchers_, "; ", [index = size_t{0}](std::ostream &out, auto const &matcher) mutable {
-            matcher.print(out, index);
-            ++index;
-        });
-    }};
+    GRINGO_REPORT(log, trace) << "  instantiate: " << *this;
     do {
         GRINGO_REPORT(log, trace) << "    start at " << std::distance(it, ie) - 1;
         if (it->next(ctx)) {
@@ -146,8 +148,10 @@ void Queue::propagate(size_t index) {
 
 auto Queue::process(Logger &log, SymbolStore &store, OutputStm &out) -> bool {
     // ground
+    GRINGO_REPORT(log, debug) << "      instantiators: ";
     for (auto i = size_t{0}; i < insts_.size(); ++i) {
         enter_(i);
+        GRINGO_REPORT(log, debug) << "        " << insts_[i];
     }
     auto current = std::vector<Instantiator *>{};
     for (auto gen = size_t{0}; size_ > 0; ++gen) {
