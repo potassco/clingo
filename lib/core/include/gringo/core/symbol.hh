@@ -121,6 +121,9 @@ class Symbol {
     //! Create a symbol from its representation.
     static auto from_rep(uint64_t rep) noexcept -> Symbol { return Symbol{rep}; }
 
+    //! Output the given symbol.
+    friend auto operator<<(std::ostream &out, Symbol const &sym) -> std::ostream &;
+
   private:
     Symbol(uint64_t repr) noexcept : rep_{repr} {}
     uint64_t rep_;
@@ -141,8 +144,42 @@ template <> struct std::hash<Gringo::Symbol> : private std::hash<uint64_t> {
 
 namespace Gringo {
 
-//! Output the given symbol.
-auto operator<<(std::ostream &out, Symbol const &sym) -> std::ostream &;
+class SymbolRef {
+  public:
+    //! Take ownership of the symbol.
+    SymbolRef(Symbol sym) noexcept;
+    //! Release ownership of the held symbol.
+    ~SymbolRef() noexcept;
+    //! Copy constructor.
+    SymbolRef(SymbolRef const &sym) noexcept : SymbolRef{sym.get()} {}
+    //! Move constructor.
+    SymbolRef(SymbolRef &&sym) noexcept : sym_{Symbol::from_rep(0)} { std::swap(sym.sym_, sym_); }
+    //! Copy assignment.
+    auto operator=(SymbolRef const &sym) noexcept -> SymbolRef & { return *this = SymbolRef(sym.get()); }
+    //! Move assignment.
+    auto operator=(SymbolRef &&sym) noexcept -> SymbolRef & {
+        std::swap(sym.sym_, sym_);
+        return *this;
+    }
+    [[nodiscard]] auto get() const -> Symbol const & { return sym_; }
+    operator Symbol const &() const { return sym_; }
+    [[nodiscard]] auto operator->() const -> Symbol const * { return &sym_; }
+    [[nodiscard]] auto operator*() const -> Symbol const & { return get(); }
+
+  private:
+    Symbol sym_;
+};
+
+class SymbolCollector {
+  public:
+    void mark(Symbol const &sym);
+};
+
+class SymbolOwner {
+  public:
+    virtual ~SymbolOwner() = default;
+    virtual void mark(SymbolCollector &gc) = 0;
+};
 
 //! A store for symbols.
 //!
@@ -178,12 +215,18 @@ class SymbolStore {
     //! The string is stored as is.
     [[nodiscard]] auto string(std::string_view str) -> String;
 
+    void add_owner(SymbolOwner &owner);
+    void remove_owner(SymbolOwner &owner) noexcept;
+    void gc();
+
   private:
     [[nodiscard]] virtual auto do_tup(SymbolSpan args) -> Symbol = 0;
     [[nodiscard]] virtual auto do_fun(String str, SymbolSpan args, bool sign) -> Symbol = 0;
     [[nodiscard]] virtual auto do_string(std::string_view str) -> String = 0;
     [[nodiscard]] virtual auto do_num(Number const &num) noexcept -> Symbol = 0;
     [[nodiscard]] virtual auto do_num(Number &&num) noexcept -> Symbol = 0;
+
+    std::vector<SymbolOwner *> owners_;
 };
 
 //! A pointer to a symbol store.
@@ -208,6 +251,15 @@ auto default_symbol_store() -> SymbolStore &;
 //! Either a default store for single-threaded use or a locked one for
 //! multi-threaded use can be created.
 auto make_symbol_store(bool slotted, bool shared) -> USymbolStore;
+
+class SingleSymbolOwner : public SymbolOwner {
+  public:
+    SingleSymbolOwner(SymbolStore &store) : store_{&store} { store_->add_owner(*this); }
+    ~SingleSymbolOwner() override { store_->remove_owner(*this); }
+
+  private:
+    SymbolStore *store_;
+};
 
 //! Generator for auxiliary names.
 class NameGen {

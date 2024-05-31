@@ -4,6 +4,7 @@
 #include <gringo/util/unordered_set.hh>
 
 #include <cstring>
+#include <iostream>
 #include <mutex>
 
 // NOLINTBEGIN(readability-magic-numbers,modernize-avoid-c-arrays,cppcoreguidelines-pro-bounds-pointer-arithmetic,cppcoreguidelines-pro-type-reinterpret-cast,cppcoreguidelines-pro-bounds-constant-array-index,performance-no-int-to-ptr)
@@ -595,6 +596,47 @@ auto operator<<(std::ostream &out, Symbol const &sym) -> std::ostream & {
     return out;
 }
 
+// SymbolRef
+
+SymbolRef::SymbolRef(Symbol sym) noexcept : sym_{sym} {}
+
+SymbolRef::~SymbolRef() noexcept {
+    // NOLINTBEGIN(performance-avoid-endl)
+    switch (sym_.type()) {
+        case SymbolType::number: {
+            std::cerr << "todo: release number" << std::endl;
+        }
+        case SymbolType::string: {
+            std::cerr << "todo: release string" << std::endl;
+        }
+        case SymbolType::function: {
+            std::cerr << "todo: release function" << std::endl;
+        }
+        case SymbolType::tuple: {
+            std::cerr << "todo: release tuple" << std::endl;
+        }
+        default: {
+            break;
+        }
+    }
+    // NOLINTEND(performance-avoid-endl)
+}
+
+void SymbolCollector::mark(Symbol const &sym) {
+    // TODO:
+    // - put unmarked symbols on a stack
+    // - while stack not empty
+    //   - pop and mark
+    //   - add unmarked children to stack
+    // - NOTE: referenced symbols are considered marked
+    static_cast<void>(this);
+    // NOLINTBEGIN(performance-avoid-endl)
+    std::cerr << "todo: mark symbol: " << sym << std::endl;
+    // NOLINTEND(performance-avoid-endl)
+}
+
+// SymbolStore
+
 auto SymbolStore::sup() noexcept -> Symbol { return Symbol::from_rep(EXT_REP_SUP); }
 
 auto SymbolStore::inf() noexcept -> Symbol { return Symbol::from_rep(EXT_REP_INF); }
@@ -635,6 +677,28 @@ auto SymbolStore::string(std::string_view str) -> String {
         return {};
     }
     return do_string(str);
+}
+
+void SymbolStore::add_owner(SymbolOwner &owner) { owners_.emplace_back(&owner); }
+
+void SymbolStore::remove_owner(SymbolOwner &owner) noexcept {
+    owners_.erase(std::find(owners_.begin(), owners_.end(), &owner));
+}
+
+void SymbolStore::gc() {
+    // TODO:
+    // - unmark all symbols
+    // - collect via owners
+    // - loop over symbols
+    //   - collect unmarked children if symbol referenced
+    // - delete unmarked symbols
+    SymbolCollector collector;
+    for (auto *owner : owners_) {
+        owner->mark(collector);
+    }
+    // NOLINTBEGIN(performance-avoid-endl)
+    std::cerr << "cleanup symbols" << std::endl;
+    // NOLINTEND(performance-avoid-endl)
 }
 
 void init_default_symbol_store(USymbolStore store) {
