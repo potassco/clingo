@@ -180,10 +180,11 @@ extern "C" auto clingo_location_to_string_size(clingo_location_t location, size_
         return false;
     }
     try {
-        auto loc = Gringo::Input::Location{{Gringo::String::from_rep(reinterpret_cast<uint64_t>(location.begin_file)),
-                                            location.begin_line, location.begin_column},
-                                           {Gringo::String::from_rep(reinterpret_cast<uint64_t>(location.end_file)),
-                                            location.end_line, location.end_column}};
+        // TODO: this is ugly -> the string must be managed
+        auto store = Gringo::make_symbol_store(false, false);
+        auto loc =
+            Gringo::Input::Location{{store->string(location.begin_file), location.begin_line, location.begin_column},
+                                    {store->string(location.end_file), location.end_line, location.end_column}};
         *size = print_size(loc);
         return true;
     } catch (...) {
@@ -196,10 +197,11 @@ extern "C" auto clingo_location_to_string(clingo_location_t location, char *stri
         return false;
     }
     try {
-        auto loc = Gringo::Input::Location{{Gringo::String::from_rep(reinterpret_cast<uint64_t>(location.begin_file)),
-                                            location.begin_line, location.begin_column},
-                                           {Gringo::String::from_rep(reinterpret_cast<uint64_t>(location.end_file)),
-                                            location.end_line, location.end_column}};
+        // TODO: this is ugly -> the string must be managed
+        auto store = Gringo::make_symbol_store(false, false);
+        auto loc =
+            Gringo::Input::Location{{store->string(location.begin_file), location.begin_line, location.begin_column},
+                                    {store->string(location.end_file), location.end_line, location.end_column}};
         print(string, size, loc);
         return true;
     } catch (...) {

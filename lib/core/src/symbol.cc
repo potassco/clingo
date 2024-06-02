@@ -3,6 +3,7 @@
 #include <gringo/util/print.hh>
 #include <gringo/util/unordered_set.hh>
 
+#include <atomic>
 #include <cstring>
 #include <iostream>
 #include <mutex>
@@ -44,7 +45,7 @@ struct Sized {
     uint64_t tag : 1;
 };
 
-auto alloc_size(void *mem) -> size_t { return (reinterpret_cast<Sized *>(mem) - 1)->size; }
+auto alloc_size(void const *mem) -> size_t { return (reinterpret_cast<Sized const *>(mem) - 1)->size; }
 
 //! Simple thread-safe allocator prefixing pointers with a size.
 //!
@@ -185,109 +186,139 @@ class SlottedAlloc {
     std::array<Head, max_slot> free_list_;
 };
 
-class SymbolArray {
+//! Helper to manage the reference count of a symbol.
+//!
+//! Only the inc and dec function should be called in parallel. Before garbage
+//! collection, all threads modifying reference counts should release memory
+//! with std::atomic_thread_fence. The thread performing the actual garbage
+//! collection should acquire memory using the same function.
+template <class T, size_t adjust> class RefCounted {
   public:
-    SymbolArray() = default;
-    SymbolArray(Symbol *repr) : repr_{reinterpret_cast<uintptr_t>(repr)} {}
+    using value_type = T;
 
-    template <class Alloc> void init(Alloc &alloc, SymbolSpan symbols) {
+    [[nodiscard]] static auto from_repr(uint64_t repr) -> RefCounted & { return *reinterpret_cast<RefCounted *>(repr); }
+    // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+    template <class Alloc> static auto alloc(Alloc &alloc, size_t n) -> RefCounted * {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,cppcoreguidelines-owning-memory)
+        return new (alloc.alloc(sizeof(RefCounted) + sizeof(value_type) * (n + adjust))) RefCounted();
+    }
+    template <class Alloc> auto dealloc(Alloc &alloc) { alloc.dealloc(this); }
+    auto data() -> T * {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+        return data_;
+    }
+    void inc() const noexcept { ref_count_.fetch_add(1, std::memory_order::relaxed); }
+    void dec() const noexcept { ref_count_.fetch_sub(1, std::memory_order::relaxed); }
+    auto referenced() const noexcept -> bool { return ref_count_.load(std::memory_order::relaxed) > 0; }
+    auto hash(size_t n) const -> size_t {
+        return std::hash<std::string_view>{}(std::string_view(reinterpret_cast<char const *>(data_), n * sizeof(T)));
+    }
+    [[nodiscard]] auto span() noexcept -> std::span<T> { return {data(), size()}; }
+    [[nodiscard]] auto head() noexcept -> T & { return *data(); }
+    [[nodiscard]] auto tail() noexcept -> std::span<T> { return {data() + 1, size() - 1}; }
+    [[nodiscard]] auto view() noexcept -> std::string_view { return {data(), size()}; }
+    auto size() const -> size_t { return ((alloc_size(this) - sizeof(RefCounted)) / sizeof(value_type)) - adjust; }
+
+  private:
+    // NOLINTNEXTLINE(modernize-use-equals-default)
+    RefCounted() {}
+
+    std::atomic_size_t mutable ref_count_ = 0;
+    T data_[0];
+};
+
+using SymbolArray = RefCounted<Symbol, 0>;
+
+class KeySymbolArray {
+  public:
+    KeySymbolArray() = default;
+
+    template <class Alloc> KeySymbolArray(Alloc &alloc, SymbolSpan symbols) {
         static_assert(alignof(Symbol) <= alignof(uint64_t));
         size_t n = symbols.size();
-        auto *repr = reinterpret_cast<Symbol *>(alloc.alloc(n * sizeof(Symbol)));
-        std::copy(symbols.begin(), symbols.end(), repr);
-        hash_ =
-            std::hash<std::string_view>{}(std::string_view(reinterpret_cast<char const *>(repr), n * sizeof(Symbol)));
-        repr_ = reinterpret_cast<uintptr_t>(repr) | 1U;
+        auto *data = SymbolArray::alloc(alloc, n);
+        std::copy(symbols.begin(), symbols.end(), data->data());
+        hash_ = data->hash(n);
+        repr_ = reinterpret_cast<uintptr_t>(data);
     }
 
-    template <class Alloc> void init(Alloc &alloc, Symbol name, SymbolSpan symbols) {
+    template <class Alloc> KeySymbolArray(Alloc &alloc, Symbol name, SymbolSpan symbols) {
         static_assert(alignof(Symbol) <= alignof(uint64_t));
         size_t n = symbols.size() + 1;
-        auto *repr = reinterpret_cast<Symbol *>(alloc.alloc(n * sizeof(Symbol)));
-        *repr = name;
-        std::copy(symbols.begin(), symbols.end(), repr + 1);
-        hash_ =
-            std::hash<std::string_view>{}(std::string_view(reinterpret_cast<char const *>(repr), n * sizeof(Symbol)));
-        repr_ = reinterpret_cast<uintptr_t>(repr) | mask_;
+        auto *data = SymbolArray::alloc(alloc, n);
+        *data->data() = name;
+        std::copy(symbols.begin(), symbols.end(), data->data() + 1);
+        hash_ = data->hash(n);
+        repr_ = reinterpret_cast<uintptr_t>(data);
     }
 
-    template <class Alloc> void destroy(Alloc &alloc) noexcept {
-        alloc.dealloc(data());
-        repr_ = 0;
-    }
+    template <class Alloc> void destroy(Alloc &alloc) const noexcept { repr().dealloc(alloc); }
 
-    [[nodiscard]] auto span() const noexcept -> SymbolSpan { return {data(), size()}; }
-    [[nodiscard]] auto head() const noexcept -> Symbol { return *data(); }
-    [[nodiscard]] auto tail() const noexcept -> SymbolSpan { return {data() + 1, size() - 1}; }
-    [[nodiscard]] auto data() const noexcept -> Symbol * { return reinterpret_cast<Symbol *>(repr_ & ~mask_); }
-    [[nodiscard]] auto size() const noexcept -> size_t { return (alloc_size(data()) / sizeof(Symbol)); }
+    void unmark() const noexcept { repr_ |= mask_; }
+
+    static auto to_repr(KeySymbolArray const &arr) -> uint64_t { return arr.repr_ & ~mask_; }
+
     [[nodiscard]] auto hash() const noexcept -> size_t { return hash_; }
-    [[nodiscard]] auto marked() const noexcept -> bool { return (repr_ & mask_) != 0; }
-    void unmark() const noexcept { repr_ = repr_ & ~mask_; }
-
-  private:
-    static constexpr uintptr_t mask_ = 1U;
-    size_t hash_ = 0;
-    uintptr_t mutable repr_ = 0;
-};
-
-struct SymbolArrayHash {
-    auto operator()(SymbolArray const &fun) const -> size_t { return fun.hash(); }
-};
-
-struct SymbolArrayEqual {
-    auto operator()(SymbolArray const &a, SymbolArray const &b) const -> bool {
+    [[maybe_unused]] friend auto operator==(KeySymbolArray const &a, KeySymbolArray const &b) -> bool {
         if (a.marked() || b.marked()) {
-            auto sa = a.span();
-            auto sb = b.span();
+            auto sa = a.repr().span();
+            auto sb = b.repr().span();
             return std::equal(sa.begin(), sa.end(), sb.begin(), sb.end());
         }
-        return a.data() == b.data();
+        return KeySymbolArray::to_repr(a) == KeySymbolArray::to_repr(b);
     }
-};
-
-class CharArray {
-  public:
-    CharArray() = default;
-
-    template <class Alloc> void init(Alloc &alloc, std::string_view str) {
-        static_assert(alignof(char) <= alignof(uint64_t));
-        auto *repr = reinterpret_cast<char *>(alloc.alloc((str.size() + 1) * sizeof(char)));
-        std::copy(str.begin(), str.end(), repr);
-        repr[str.size()] = '\0';
-        hash_ = std::hash<std::string_view>{}(std::string_view{repr, str.size()});
-        repr_ = reinterpret_cast<uintptr_t>(repr) | mask_;
-    }
-
-    template <class Alloc> void destroy(Alloc &alloc) noexcept {
-        alloc.dealloc(data());
-        repr_ = 0;
-    }
-
-    [[nodiscard]] auto view() const noexcept -> std::string_view { return {data(), size()}; }
-    [[nodiscard]] auto data() const noexcept -> char * { return reinterpret_cast<char *>(repr_ & ~mask_); }
-    [[nodiscard]] auto size() const noexcept -> size_t { return alloc_size(data()) / sizeof(char) - 1; }
-    [[nodiscard]] auto hash() const noexcept -> size_t { return hash_; }
-    [[nodiscard]] auto marked() const noexcept -> bool { return (repr_ & mask_) != 0; }
-    void unmark() const noexcept { repr_ = repr_ & ~mask_; }
 
   private:
+    KeySymbolArray(uint64_t repr) : repr_{repr} {}
+    [[nodiscard]] auto repr() const noexcept -> SymbolArray & {
+        return *reinterpret_cast<SymbolArray *>(to_repr(*this));
+    }
+    [[nodiscard]] auto marked() const noexcept -> bool { return (repr_ & mask_) == 0; }
+
+    static constexpr uintptr_t mask_ = 1U;
+    size_t hash_ = 0;
+    uintptr_t mutable repr_ = 0U;
+};
+
+using CharArray = RefCounted<char, 1>;
+
+class KeyCharArray {
+  public:
+    KeyCharArray() = default;
+
+    template <class Alloc> KeyCharArray(Alloc &alloc, std::string_view str) {
+        static_assert(alignof(char) <= alignof(uint64_t));
+        size_t n = str.size();
+        auto *repr = RefCounted<char, 1>::alloc(alloc, n);
+        std::copy(str.begin(), str.end(), repr->data());
+        std::fill_n(repr->data() + n, 1, '\0');
+        hash_ = repr->hash(n);
+        repr_ = reinterpret_cast<uintptr_t>(repr);
+    }
+
+    template <class Alloc> void destroy(Alloc &alloc) const noexcept { repr().dealloc(alloc); }
+
+    void unmark() const noexcept { repr_ |= mask_; }
+    static auto to_repr(KeyCharArray const &arr) -> uint64_t { return arr.repr_ & ~mask_; }
+
+    [[nodiscard]] auto hash() const noexcept -> size_t { return hash_; }
+    [[maybe_unused]] friend auto operator==(KeyCharArray const &a, KeyCharArray const &b) -> bool {
+        if (a.marked() || b.marked()) {
+            return a.repr().view() == b.repr().view();
+        }
+        return KeyCharArray::to_repr(a) == KeyCharArray::to_repr(b);
+    }
+
+  private:
+    KeyCharArray(uint64_t repr) : repr_{repr} {}
+    [[nodiscard]] auto repr() const noexcept -> RefCounted<char, 1> & {
+        return *reinterpret_cast<CharArray *>(to_repr(*this));
+    }
+    [[nodiscard]] auto marked() const noexcept -> bool { return (repr_ & mask_) == 0; }
+
     static constexpr uintptr_t mask_ = 1U;
     size_t hash_ = 0;
     uintptr_t mutable repr_ = 0;
-};
-
-struct CharArrayEqual {
-    auto operator()(CharArray a, CharArray b) const -> bool {
-        if (a.marked() || b.marked()) {
-            return a.view() == b.view();
-        }
-        return a.data() == b.data();
-    }
-};
-
-struct CharArrayHash {
-    auto operator()(CharArray a) const -> size_t { return a.hash(); }
 };
 
 template <class Allocator> class DefaultSymbolStore : public SymbolStore {
@@ -311,21 +342,21 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
 
     [[nodiscard]] auto do_fun(String name, SymbolSpan args, bool sign) -> Symbol override {
         auto jt = insert_(tuples_, SymbolStore::str(name), args);
-        auto rep = reinterpret_cast<uint64_t>(jt->data()) | (sign ? REP_SIGNED_FUN : REP_FUN);
+        auto rep = KeySymbolArray::to_repr(*jt) | (sign ? REP_SIGNED_FUN : REP_FUN);
         return Symbol::from_rep(rep);
     }
 
     [[nodiscard]] auto do_tup(SymbolSpan args) -> Symbol override {
         // Almost the same as for function except that the name does not have to be stored separately.
         auto jt = insert_(tuples_, args);
-        auto rep = reinterpret_cast<uint64_t>(jt->data()) | REP_TUP;
+        auto rep = KeySymbolArray::to_repr(*jt) | REP_TUP;
         return Symbol::from_rep(rep);
     }
 
     [[nodiscard]] auto do_string(std::string_view str) -> String override {
         assert(!str.empty());
         auto it = insert_(strings_, str);
-        return String::from_rep(reinterpret_cast<uintptr_t>(it->data()));
+        return String::from_rep(KeyCharArray::to_repr(*it));
     }
 
     void clear() {
@@ -336,12 +367,11 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
 
   private:
     using NumberSet = Util::unordered_set<Number>;
-    using StringSet = Util::unordered_set<CharArray, CharArrayHash, CharArrayEqual>;
-    using TupleSet = Util::unordered_set<SymbolArray, SymbolArrayHash, SymbolArrayEqual>;
+    using StringSet = Util::unordered_set<KeyCharArray>;
+    using TupleSet = Util::unordered_set<KeySymbolArray>;
 
     template <class T, class... Args> auto insert_(T &table, Args &&...args) -> typename T::iterator {
-        typename T::value_type arr;
-        arr.init(alloc_, std::forward<Args>(args)...);
+        typename T::value_type arr(alloc_, std::forward<Args>(args)...);
         try {
             auto [jt, ins] = table.emplace(arr);
             if (ins) {
@@ -357,7 +387,7 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
     }
 
     template <class T> void clear_(T &table) noexcept {
-        for (auto arr : table) {
+        for (auto const &arr : table) {
             arr.destroy(alloc_);
         }
         table.clear();
@@ -417,13 +447,15 @@ auto default_symbol_store_() -> USymbolStore & {
 
 } // namespace
 
-auto String::c_str() const -> const char * { return rep_ != 0 ? reinterpret_cast<char const *>(rep_) : ""; }
+auto String::c_str() const -> const char * { return rep_ != 0 ? CharArray::from_repr(rep_).data() : ""; }
 
-auto String::view() const -> std::string_view { return {c_str(), size()}; }
+auto String::view() const -> std::string_view {
+    return rep_ != 0 ? CharArray::from_repr(rep_).view() : std::string_view{};
+}
 
 auto String::empty() const -> bool { return *c_str() == '\0'; }
 
-auto String::size() const -> size_t { return rep_ != 0 ? alloc_size(reinterpret_cast<void *>(rep_)) - 1 : 0; }
+auto String::size() const -> size_t { return rep_ != 0 ? CharArray::from_repr(rep_).size() : 0; }
 
 auto String::starts_with(std::string_view prefix) const -> bool { return view().starts_with(prefix); }
 
@@ -450,7 +482,7 @@ auto operator<<(std::ostream &out, String const &str) -> std::ostream & {
             return String::from_rep(rep_ & ~TYPE_MASK);
         }
         default: {
-            return reinterpret_cast<Symbol *>(rep_ & ~TYPE_MASK)->str();
+            return SymbolArray::from_repr(rep_ & ~TYPE_MASK).head().str();
         }
     }
 }
@@ -463,12 +495,12 @@ auto operator<<(std::ostream &out, String const &str) -> std::ostream & {
         }
         case REP_SIGNED_FUN:
         case REP_FUN: {
-            return SymbolArray{reinterpret_cast<Symbol *>(rep_ & ~TYPE_MASK)}.tail();
+            return SymbolArray::from_repr(rep_ & ~TYPE_MASK).tail();
         }
         default: {
             assert((rep_ & TYPE_MASK) == REP_TUP);
-            auto *ptr = reinterpret_cast<Symbol *>(rep_ & ~TYPE_MASK);
-            return ptr != nullptr ? SymbolArray{ptr}.span() : SymbolSpan{};
+            auto ptr = rep_ & ~TYPE_MASK;
+            return ptr != 0 ? SymbolArray::from_repr(ptr).span() : SymbolSpan{};
         }
     }
 }
@@ -598,28 +630,54 @@ auto operator<<(std::ostream &out, Symbol const &sym) -> std::ostream & {
 
 // SymbolRef
 
-SymbolRef::SymbolRef(Symbol sym) noexcept : sym_{sym} {}
-
-SymbolRef::~SymbolRef() noexcept {
-    // NOLINTBEGIN(performance-avoid-endl)
-    switch (sym_.type()) {
-        case SymbolType::number: {
-            std::cerr << "todo: release number" << std::endl;
+SymbolRef::SymbolRef(Symbol sym) noexcept : sym_{sym} {
+    auto rep = Symbol::to_rep(sym_);
+    auto ptr = rep & ~TYPE_MASK;
+    switch (rep & TYPE_MASK) {
+        case REP_STR: {
+            if (ptr != 0) {
+                CharArray::from_repr(ptr).inc();
+            }
+            break;
         }
-        case SymbolType::string: {
-            std::cerr << "todo: release string" << std::endl;
+        case REP_SIGNED_FUN:
+        case REP_FUN:
+        case REP_TUP: {
+            if (ptr != 0) {
+                SymbolArray::from_repr(ptr).inc();
+            }
+            break;
         }
-        case SymbolType::function: {
-            std::cerr << "todo: release function" << std::endl;
-        }
-        case SymbolType::tuple: {
-            std::cerr << "todo: release tuple" << std::endl;
-        }
+        // TODO: big ints
         default: {
             break;
         }
     }
-    // NOLINTEND(performance-avoid-endl)
+}
+
+SymbolRef::~SymbolRef() noexcept {
+    auto rep = Symbol::to_rep(sym_);
+    auto ptr = rep & ~TYPE_MASK;
+    switch (rep & TYPE_MASK) {
+        case REP_STR: {
+            if (ptr != 0) {
+                CharArray::from_repr(ptr).dec();
+            }
+            break;
+        }
+        case REP_SIGNED_FUN:
+        case REP_FUN:
+        case REP_TUP: {
+            if (ptr != 0) {
+                SymbolArray::from_repr(ptr).dec();
+            }
+            break;
+        }
+        // TODO: big ints
+        default: {
+            break;
+        }
+    }
 }
 
 void SymbolCollector::mark(Symbol const &sym) {
