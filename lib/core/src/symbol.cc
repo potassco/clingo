@@ -210,7 +210,34 @@ template <class T> class RefCounted {
     }
     void inc() const noexcept { ref_count_.fetch_add(1, std::memory_order::relaxed); }
     void dec() const noexcept { ref_count_.fetch_sub(1, std::memory_order::relaxed); }
-    auto referenced() const noexcept -> bool { return ref_count_.load(std::memory_order::relaxed) > 0; }
+    //! Mark symbols.
+    //!
+    //! If the init flag is set, the count of referenced symbols is
+    //! increased by one. The idea is to be able to reset reference counts of
+    //! such symbols by subtracting one later. Such symbols have at least a
+    //! count of 2.
+    //! If the init flag is not set, set the reference count to one. This
+    //! values serves as a marker and is never incremented beyond that value
+    //! during garbage collection.
+    auto mark(bool init = false) -> bool {
+        if (init ? ref_count() > 0 : ref_count() == 0) {
+            ref_count_.fetch_add(1, std::memory_order::relaxed);
+            return true;
+        }
+        return false;
+    }
+    //! Unmark previously marked symbols.
+    //!
+    //! Returns false if the symbol has not previously been marked. Such
+    //! symbols should be deleted.
+    auto unmark() -> bool {
+        if (ref_count() > 0) {
+            ref_count_.fetch_sub(1, std::memory_order::relaxed);
+            return true;
+        }
+        return false;
+    }
+    auto ref_count() const noexcept -> size_t { return ref_count_.load(std::memory_order::relaxed); }
     auto hash(size_t n) -> size_t {
         if constexpr (std::is_same_v<T, char>) {
             return std::hash<std::string_view>{}(std::string_view(data(), n));
@@ -368,6 +395,59 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
         clear_(tuples_);
     }
 
+    void do_add_owner(SymbolOwner &owner) override { owners_.emplace_back(&owner); }
+
+    void do_remove_owner(SymbolOwner &owner) noexcept override {
+        owners_.erase(std::find(owners_.begin(), owners_.end(), &owner));
+    }
+
+    void do_gc() override {
+        SymbolCollector collector;
+        // mark referenced tuples
+        for (auto const &key : tuples_) {
+            auto &arr = SymbolArray::from_repr(KeySymbolArray::to_repr(key));
+            arr.mark(true);
+        }
+        // mark referenced strings
+        for (auto const &key : strings_) {
+            auto &arr = CharArray::from_repr(KeyCharArray::to_repr(key));
+            arr.mark(true);
+        }
+        // mark numbers
+        // TODO!
+        // mark all (unreferenced) children
+        for (auto const &key : tuples_) {
+            auto &arr = SymbolArray::from_repr(KeySymbolArray::to_repr(key));
+            if (arr.ref_count() > 1) {
+                // mark the children
+                for (auto const &sym : arr.span()) {
+                    collector.mark(sym);
+                }
+            }
+        }
+        // mark all (unreferenced) children held by owners
+        for (auto *owner : owners_) {
+            owner->mark(collector);
+        }
+        for (auto const &key : tuples_) {
+            auto &arr = SymbolArray::from_repr(KeySymbolArray::to_repr(key));
+            if (!arr.unmark()) {
+                tuples_.erase(key);
+                key.destroy(alloc_);
+            }
+        }
+        // destroy strings
+        for (auto const &key : strings_) {
+            auto &arr = CharArray::from_repr(KeyCharArray::to_repr(key));
+            if (!arr.unmark()) {
+                strings_.erase(key);
+                key.destroy(alloc_);
+            }
+        }
+        // destroy numbers
+        // TODO!
+    }
+
   private:
     using NumberSet = Util::unordered_set<Number>;
     using StringSet = Util::unordered_set<KeyCharArray>;
@@ -400,6 +480,7 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
     NumberSet numbers_;
     StringSet strings_;
     TupleSet tuples_;
+    std::vector<SymbolOwner *> owners_;
 };
 
 //! Simple thread-safe symbol store.
@@ -431,6 +512,21 @@ template <class Alloc> class SharedSymbolStore : public SymbolStore {
         assert(!str.empty());
         std::unique_lock ulock{mutex_};
         return store_.string(str);
+    }
+
+    void do_add_owner(SymbolOwner &owner) override {
+        std::unique_lock ulock{mutex_};
+        store_.add_owner(owner);
+    }
+
+    void do_remove_owner(SymbolOwner &owner) noexcept override {
+        std::unique_lock ulock{mutex_};
+        store_.add_owner(owner);
+    }
+
+    void do_gc() override {
+        // TODO: this function should be blocked
+        store_.gc();
     }
 
     ~SharedSymbolStore() noexcept override {
@@ -738,28 +834,6 @@ auto SymbolStore::string(std::string_view str) -> String {
         return {};
     }
     return do_string(str);
-}
-
-void SymbolStore::add_owner(SymbolOwner &owner) { owners_.emplace_back(&owner); }
-
-void SymbolStore::remove_owner(SymbolOwner &owner) noexcept {
-    owners_.erase(std::find(owners_.begin(), owners_.end(), &owner));
-}
-
-void SymbolStore::gc() {
-    // TODO:
-    // - unmark all symbols
-    // - collect via owners
-    // - loop over symbols
-    //   - collect unmarked children if symbol referenced
-    // - delete unmarked symbols
-    SymbolCollector collector;
-    for (auto *owner : owners_) {
-        owner->mark(collector);
-    }
-    // NOLINTBEGIN(performance-avoid-endl)
-    std::cerr << "cleanup symbols" << std::endl;
-    // NOLINTEND(performance-avoid-endl)
 }
 
 void init_default_symbol_store(USymbolStore store) {

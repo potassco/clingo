@@ -215,9 +215,9 @@ class SymbolStore {
     //! The string is stored as is.
     [[nodiscard]] auto string(std::string_view str) -> String;
 
-    void add_owner(SymbolOwner &owner);
-    void remove_owner(SymbolOwner &owner) noexcept;
-    void gc();
+    void gc() { do_gc(); }
+    void add_owner(SymbolOwner &owner) { do_add_owner(owner); }
+    void remove_owner(SymbolOwner &owner) noexcept { do_remove_owner(owner); }
 
   private:
     [[nodiscard]] virtual auto do_tup(SymbolSpan args) -> Symbol = 0;
@@ -226,7 +226,9 @@ class SymbolStore {
     [[nodiscard]] virtual auto do_num(Number const &num) noexcept -> Symbol = 0;
     [[nodiscard]] virtual auto do_num(Number &&num) noexcept -> Symbol = 0;
 
-    std::vector<SymbolOwner *> owners_;
+    virtual void do_add_owner(SymbolOwner &owner) = 0;
+    virtual void do_remove_owner(SymbolOwner &owner) noexcept = 0;
+    virtual void do_gc() = 0;
 };
 
 //! A pointer to a symbol store.
