@@ -192,9 +192,10 @@ class SlottedAlloc {
 //! collection, all threads modifying reference counts should release memory
 //! with std::atomic_thread_fence. The thread performing the actual garbage
 //! collection should acquire memory using the same function.
-template <class T, size_t adjust> class RefCounted {
+template <class T> class RefCounted {
   public:
     using value_type = T;
+    static constexpr size_t adjust = std::is_same_v<T, char> ? 1 : 0;
 
     [[nodiscard]] static auto from_repr(uint64_t repr) -> RefCounted & { return *reinterpret_cast<RefCounted *>(repr); }
     // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
@@ -210,8 +211,12 @@ template <class T, size_t adjust> class RefCounted {
     void inc() const noexcept { ref_count_.fetch_add(1, std::memory_order::relaxed); }
     void dec() const noexcept { ref_count_.fetch_sub(1, std::memory_order::relaxed); }
     auto referenced() const noexcept -> bool { return ref_count_.load(std::memory_order::relaxed) > 0; }
-    auto hash(size_t n) const -> size_t {
-        return std::hash<std::string_view>{}(std::string_view(reinterpret_cast<char const *>(data_), n * sizeof(T)));
+    auto hash(size_t n) -> size_t {
+        if constexpr (std::is_same_v<T, char>) {
+            return std::hash<std::string_view>{}(std::string_view(data(), n));
+        } else {
+            return Util::value_hash(std::span(data(), n));
+        }
     }
     [[nodiscard]] auto span() noexcept -> std::span<T> { return {data(), size()}; }
     [[nodiscard]] auto head() noexcept -> T & { return *data(); }
@@ -227,7 +232,7 @@ template <class T, size_t adjust> class RefCounted {
     T data_[0];
 };
 
-using SymbolArray = RefCounted<Symbol, 0>;
+using SymbolArray = RefCounted<Symbol>;
 
 class KeySymbolArray {
   public:
@@ -280,7 +285,7 @@ class KeySymbolArray {
     uintptr_t mutable repr_ = 0U;
 };
 
-using CharArray = RefCounted<char, 1>;
+using CharArray = RefCounted<char>;
 
 class KeyCharArray {
   public:
@@ -289,7 +294,7 @@ class KeyCharArray {
     template <class Alloc> KeyCharArray(Alloc &alloc, std::string_view str) {
         static_assert(alignof(char) <= alignof(uint64_t));
         size_t n = str.size();
-        auto *repr = RefCounted<char, 1>::alloc(alloc, n);
+        auto *repr = CharArray::alloc(alloc, n);
         std::copy(str.begin(), str.end(), repr->data());
         std::fill_n(repr->data() + n, 1, '\0');
         hash_ = repr->hash(n);
@@ -311,9 +316,7 @@ class KeyCharArray {
 
   private:
     KeyCharArray(uint64_t repr) : repr_{repr} {}
-    [[nodiscard]] auto repr() const noexcept -> RefCounted<char, 1> & {
-        return *reinterpret_cast<CharArray *>(to_repr(*this));
-    }
+    [[nodiscard]] auto repr() const noexcept -> CharArray & { return *reinterpret_cast<CharArray *>(to_repr(*this)); }
     [[nodiscard]] auto marked() const noexcept -> bool { return (repr_ & mask_) == 0; }
 
     static constexpr uintptr_t mask_ = 1U;

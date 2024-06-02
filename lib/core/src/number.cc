@@ -960,7 +960,7 @@ auto get_sign(Number const &a) -> int {
 
 auto hash_code(Number const &a) -> size_t {
     if (repr_is_int(a.repr_)) {
-        return std::hash<int32_t>{}(repr_to_int(a.repr_));
+        return Util::value_hash(repr_to_int(a.repr_));
     }
     auto *int_a = repr_to_bigint(a.repr_);
     size_t hash = 0;
@@ -970,7 +970,7 @@ auto hash_code(Number const &a) -> size_t {
         hash = std::hash<std::string_view>{}(
             std::string_view(reinterpret_cast<char const *>(int_a->digits), sizeof(mp_digit) * int_a->used));
     }
-    return Util::hash_mix(Util::hash_combine(static_cast<size_t>(int_a->sign), hash));
+    return Util::hash_combine(static_cast<size_t>(int_a->sign), hash);
 }
 
 // output
