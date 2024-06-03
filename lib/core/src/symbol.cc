@@ -395,13 +395,23 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
         clear_(tuples_);
     }
 
-    void do_add_owner(SymbolOwner &owner) override { owners_.emplace_back(&owner); }
-
-    void do_remove_owner(SymbolOwner &owner) noexcept override {
-        owners_.erase(std::find(owners_.begin(), owners_.end(), &owner));
+    void do_gc_block([[maybe_unused]] bool block) noexcept override {
+        if (block) {
+            ++blocked_;
+        } else {
+            assert(blocked_ > 0);
+            --blocked_;
+        }
     }
 
-    void do_gc() override {
+    void do_gc_add_owner(SymbolOwner const &owner) override { owners_.emplace(&owner); }
+
+    void do_gc_del_owner(SymbolOwner const &owner) noexcept override { owners_.erase(&owner); }
+
+    void do_gc([[maybe_unused]] bool no_wait) override {
+        if (blocked_ > 0) {
+            return;
+        }
         SymbolCollector collector;
         // mark referenced tuples
         for (auto const &key : tuples_) {
@@ -415,7 +425,7 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
         }
         // mark numbers
         // TODO!
-        // mark all (unreferenced) children
+        // recursively mark symbols in tuples
         for (auto const &key : tuples_) {
             auto &arr = SymbolArray::from_repr(KeySymbolArray::to_repr(key));
             if (arr.ref_count() > 1) {
@@ -425,10 +435,11 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
                 }
             }
         }
-        // mark all (unreferenced) children held by owners
-        for (auto *owner : owners_) {
+        // mark symbols held by owners
+        for (auto const *owner : owners_) {
             owner->mark(collector);
         }
+        // destroy tuples
         for (auto const &key : tuples_) {
             auto &arr = SymbolArray::from_repr(KeySymbolArray::to_repr(key));
             if (!arr.unmark()) {
@@ -452,6 +463,8 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
     using NumberSet = Util::unordered_set<Number>;
     using StringSet = Util::unordered_set<KeyCharArray>;
     using TupleSet = Util::unordered_set<KeySymbolArray>;
+    using OwnerSet =
+        Util::unordered_set<SymbolOwner const *, std::hash<SymbolOwner const *>, std::equal_to<SymbolOwner const *>>;
 
     template <class T, class... Args> auto insert_(T &table, Args &&...args) -> typename T::iterator {
         typename T::value_type arr(alloc_, std::forward<Args>(args)...);
@@ -480,7 +493,8 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
     NumberSet numbers_;
     StringSet strings_;
     TupleSet tuples_;
-    std::vector<SymbolOwner *> owners_;
+    OwnerSet owners_;
+    size_t blocked_ = 0;
 };
 
 //! Simple thread-safe symbol store.
@@ -514,19 +528,38 @@ template <class Alloc> class SharedSymbolStore : public SymbolStore {
         return store_.string(str);
     }
 
-    void do_add_owner(SymbolOwner &owner) override {
+    void do_gc_block(bool block) noexcept override {
         std::unique_lock ulock{mutex_};
-        store_.add_owner(owner);
+        if (block) {
+            ++blocked_;
+        } else {
+            assert(blocked_ > 0);
+            if (--blocked_ == 0) {
+                std::atomic_thread_fence(std::memory_order_release);
+                ulock.unlock();
+                cv_.notify_one();
+            }
+        }
     }
 
-    void do_remove_owner(SymbolOwner &owner) noexcept override {
+    void do_gc_add_owner(SymbolOwner const &owner) override {
         std::unique_lock ulock{mutex_};
-        store_.add_owner(owner);
+        store_.gc_add_owner(owner);
     }
 
-    void do_gc() override {
-        // TODO: this function should be blocked
-        store_.gc();
+    void do_gc_del_owner(SymbolOwner const &owner) noexcept override {
+        std::unique_lock ulock{mutex_};
+        store_.gc_del_owner(owner);
+    }
+
+    void do_gc(bool no_wait) override {
+        std::unique_lock ulock{mutex_};
+        if (no_wait && blocked_ > 0) {
+            return;
+        }
+        cv_.wait(ulock, [this] { return blocked_ == 0; });
+        std::atomic_thread_fence(std::memory_order_acquire);
+        store_.gc(no_wait);
     }
 
     ~SharedSymbolStore() noexcept override {
@@ -536,7 +569,9 @@ template <class Alloc> class SharedSymbolStore : public SymbolStore {
 
   private:
     std::mutex mutex_;
+    std::condition_variable cv_;
     DefaultSymbolStore<Alloc> store_;
+    size_t blocked_ = 0;
 };
 
 auto default_symbol_store_() -> USymbolStore & {
@@ -731,23 +766,23 @@ auto operator<<(std::ostream &out, Symbol const &sym) -> std::ostream & {
 
 SymbolRef::SymbolRef(Symbol sym) noexcept : sym_{sym} {
     auto rep = Symbol::to_rep(sym_);
-    auto ptr = rep & ~TYPE_MASK;
+    auto val = rep & ~TYPE_MASK;
     switch (rep & TYPE_MASK) {
         case REP_STR: {
-            if (ptr != 0) {
-                CharArray::from_repr(ptr).inc();
+            if (val != 0) {
+                CharArray::from_repr(val).inc();
             }
             break;
         }
         case REP_SIGNED_FUN:
         case REP_FUN:
         case REP_TUP: {
-            if (ptr != 0) {
-                SymbolArray::from_repr(ptr).inc();
+            if (val != 0) {
+                SymbolArray::from_repr(val).inc();
             }
             break;
         }
-        // TODO: big ints
+        // TODO: case REP_BIGINT
         default: {
             break;
         }
@@ -756,23 +791,23 @@ SymbolRef::SymbolRef(Symbol sym) noexcept : sym_{sym} {
 
 SymbolRef::~SymbolRef() noexcept {
     auto rep = Symbol::to_rep(sym_);
-    auto ptr = rep & ~TYPE_MASK;
+    auto val = rep & ~TYPE_MASK;
     switch (rep & TYPE_MASK) {
         case REP_STR: {
-            if (ptr != 0) {
-                CharArray::from_repr(ptr).dec();
+            if (val != 0) {
+                CharArray::from_repr(val).dec();
             }
             break;
         }
         case REP_SIGNED_FUN:
         case REP_FUN:
         case REP_TUP: {
-            if (ptr != 0) {
-                SymbolArray::from_repr(ptr).dec();
+            if (val != 0) {
+                SymbolArray::from_repr(val).dec();
             }
             break;
         }
-        // TODO: big ints
+        // TODO: case REP_BIGINT
         default: {
             break;
         }
@@ -780,16 +815,37 @@ SymbolRef::~SymbolRef() noexcept {
 }
 
 void SymbolCollector::mark(Symbol const &sym) {
-    // TODO:
-    // - put unmarked symbols on a stack
-    // - while stack not empty
-    //   - pop and mark
-    //   - add unmarked children to stack
-    // - NOTE: referenced symbols are considered marked
-    static_cast<void>(this);
-    // NOLINTBEGIN(performance-avoid-endl)
-    std::cerr << "todo: mark symbol: " << sym << std::endl;
-    // NOLINTEND(performance-avoid-endl)
+    stack_.emplace_back(sym);
+    while (!stack_.empty()) {
+        auto rep = Symbol::to_rep(stack_.back());
+        stack_.pop_back();
+        auto typ = rep & TYPE_MASK;
+        auto val = rep & ~TYPE_MASK;
+        switch (typ) {
+            case REP_TUP:
+            case REP_SIGNED_FUN:
+            case REP_FUN: {
+                if (val != 0) {
+                    if (auto &arr = SymbolArray::from_repr(val); arr.mark()) {
+                        for (auto const &arg : arr.span()) {
+                            stack_.emplace_back(arg);
+                        }
+                    }
+                }
+                break;
+            }
+            case REP_STR: {
+                if (val != 0) {
+                    CharArray::from_repr(val).mark();
+                }
+                break;
+            }
+            // TODO: case REP_BIGINT
+            default: {
+                break;
+            }
+        }
+    }
 }
 
 // SymbolStore

@@ -173,12 +173,15 @@ class SymbolRef {
 class SymbolCollector {
   public:
     void mark(Symbol const &sym);
+
+  private:
+    std::vector<Symbol> stack_;
 };
 
 class SymbolOwner {
   public:
     virtual ~SymbolOwner() = default;
-    virtual void mark(SymbolCollector &gc) = 0;
+    virtual void mark(SymbolCollector &gc) const = 0;
 };
 
 //! A store for symbols.
@@ -215,9 +218,22 @@ class SymbolStore {
     //! The string is stored as is.
     [[nodiscard]] auto string(std::string_view str) -> String;
 
-    void gc() { do_gc(); }
-    void add_owner(SymbolOwner &owner) { do_add_owner(owner); }
-    void remove_owner(SymbolOwner &owner) noexcept { do_remove_owner(owner); }
+    //! Block garbage collection.
+    //!
+    //! Block/unblock calls must be balanced. No symbols should be accessed
+    //! while a store is unblocked (if a call to gc is intended).
+    void gc_block() noexcept { do_gc_block(true); }
+    //! Unblock garbage collection.
+    //!
+    //! Block/unblock calls must be balanced. No symbols should be accessed
+    //! while a store is unblocked (if a call to gc is intended).
+    void gc_unblock() noexcept { do_gc_block(false); }
+    //! Add a symbol owner.
+    void gc_add_owner(SymbolOwner const &owner) { do_gc_add_owner(owner); }
+    //! Delete a symbol owner.
+    void gc_del_owner(SymbolOwner const &owner) noexcept { do_gc_del_owner(owner); }
+    //! Cleanup symbols.
+    void gc(bool no_wait) { do_gc(no_wait); }
 
   private:
     [[nodiscard]] virtual auto do_tup(SymbolSpan args) -> Symbol = 0;
@@ -226,9 +242,10 @@ class SymbolStore {
     [[nodiscard]] virtual auto do_num(Number const &num) noexcept -> Symbol = 0;
     [[nodiscard]] virtual auto do_num(Number &&num) noexcept -> Symbol = 0;
 
-    virtual void do_add_owner(SymbolOwner &owner) = 0;
-    virtual void do_remove_owner(SymbolOwner &owner) noexcept = 0;
-    virtual void do_gc() = 0;
+    virtual void do_gc_block(bool block) noexcept = 0;
+    virtual void do_gc_add_owner(SymbolOwner const &owner) = 0;
+    virtual void do_gc_del_owner(SymbolOwner const &owner) noexcept = 0;
+    virtual void do_gc(bool no_wait) = 0;
 };
 
 //! A pointer to a symbol store.
@@ -253,15 +270,6 @@ auto default_symbol_store() -> SymbolStore &;
 //! Either a default store for single-threaded use or a locked one for
 //! multi-threaded use can be created.
 auto make_symbol_store(bool slotted, bool shared) -> USymbolStore;
-
-class SingleSymbolOwner : public SymbolOwner {
-  public:
-    SingleSymbolOwner(SymbolStore &store) : store_{&store} { store_->add_owner(*this); }
-    ~SingleSymbolOwner() override { store_->remove_owner(*this); }
-
-  private:
-    SymbolStore *store_;
-};
 
 //! Generator for auxiliary names.
 class NameGen {
