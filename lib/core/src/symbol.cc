@@ -14,6 +14,8 @@ namespace Gringo {
 
 static_assert(sizeof(size_t) <= sizeof(uint64_t));
 
+auto bigint_refcount(uint64_t repr) -> std::atomic_size_t &;
+
 namespace {
 
 constexpr auto TYPE_SIZE = static_cast<uint64_t>(3);
@@ -424,7 +426,12 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
             arr.mark(true);
         }
         // mark numbers
-        // TODO!
+        for (auto const &key : numbers_) {
+            auto &cnt = bigint_refcount(Number::to_repr(key));
+            if (cnt.load(std::memory_order_relaxed) > 0) {
+                cnt.fetch_add(1, std::memory_order_relaxed);
+            }
+        }
         // recursively mark symbols in tuples
         for (auto const &key : tuples_) {
             auto &arr = SymbolArray::from_repr(KeySymbolArray::to_repr(key));
@@ -440,23 +447,35 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
             owner->mark(collector);
         }
         // destroy tuples
-        for (auto const &key : tuples_) {
-            auto &arr = SymbolArray::from_repr(KeySymbolArray::to_repr(key));
+        for (auto it = tuples_.begin(); it != tuples_.end();) {
+            auto &arr = SymbolArray::from_repr(KeySymbolArray::to_repr(*it));
             if (!arr.unmark()) {
-                tuples_.erase(key);
-                key.destroy(alloc_);
+                it->destroy(alloc_);
+                it = tuples_.erase(it);
+            } else {
+                ++it;
             }
         }
         // destroy strings
-        for (auto const &key : strings_) {
-            auto &arr = CharArray::from_repr(KeyCharArray::to_repr(key));
+        for (auto it = strings_.begin(); it != strings_.end();) {
+            auto &arr = CharArray::from_repr(KeyCharArray::to_repr(*it));
             if (!arr.unmark()) {
-                strings_.erase(key);
-                key.destroy(alloc_);
+                it->destroy(alloc_);
+                it = strings_.erase(it);
+            } else {
+                ++it;
             }
         }
         // destroy numbers
-        // TODO!
+        for (auto it = numbers_.begin(); it != numbers_.end();) {
+            auto &cnt = bigint_refcount(Number::to_repr(*it));
+            if (cnt.load(std::memory_order_relaxed) > 0) {
+                cnt.fetch_sub(0, std::memory_order_relaxed);
+                ++it;
+            } else {
+                it = numbers_.erase(it);
+            }
+        }
     }
 
   private:
@@ -782,7 +801,10 @@ SymbolRef::SymbolRef(Symbol sym) noexcept : sym_{sym} {
             }
             break;
         }
-        // TODO: case REP_BIGINT
+        case REP_BIGINT: {
+            bigint_refcount(rep).fetch_add(1, std::memory_order_relaxed);
+            break;
+        }
         default: {
             break;
         }
@@ -807,7 +829,10 @@ SymbolRef::~SymbolRef() noexcept {
             }
             break;
         }
-        // TODO: case REP_BIGINT
+        case REP_BIGINT: {
+            bigint_refcount(rep).fetch_sub(1, std::memory_order_relaxed);
+            break;
+        }
         default: {
             break;
         }
@@ -840,7 +865,13 @@ void SymbolCollector::mark(Symbol const &sym) {
                 }
                 break;
             }
-            // TODO: case REP_BIGINT
+            case REP_BIGINT: {
+                auto &cnt = bigint_refcount(rep);
+                if (cnt.load(std::memory_order_relaxed) == 0) {
+                    cnt.fetch_add(1, std::memory_order_relaxed);
+                }
+                break;
+            }
             default: {
                 break;
             }

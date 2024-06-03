@@ -222,6 +222,22 @@ class SymbolStore {
     //!
     //! Block/unblock calls must be balanced. No symbols should be accessed
     //! while a store is unblocked (if a call to gc is intended).
+    //!
+    //! TODO: Maybe use a barrier semantics.
+    //! - gc_add_thread
+    //!   ++threads
+    //! - gc_del_thread
+    //!   --threads
+    //! - gc
+    //!   ++wait
+    //!   if wait == threads:
+    //!     do_gc()
+    //!     wait = 0
+    //!     state = not state
+    //!     notify_all
+    //!   else:
+    //!     cur = state
+    //!     wait_for cur != state
     void gc_block() noexcept { do_gc_block(true); }
     //! Unblock garbage collection.
     //!
