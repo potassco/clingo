@@ -188,12 +188,27 @@ class SlottedAlloc {
     std::array<Head, max_slot> free_list_;
 };
 
+constexpr auto dec_bit = static_cast<size_t>(1) << (8 * sizeof(size_t) - 1);
+constexpr auto mark_bit = static_cast<size_t>(1) << (8 * sizeof(size_t) - 2);
+
+void inc_ref(std::atomic_size_t &ref) noexcept { ref.fetch_add(1, std::memory_order::relaxed); }
+void dec_ref(std::atomic_size_t &ref) noexcept {
+    ref.fetch_or(dec_bit, std::memory_order::relaxed);
+    ref.fetch_sub(1, std::memory_order::relaxed);
+}
+auto mark_ref(std::atomic_size_t &ref, bool only_if_referenced = false) noexcept -> bool {
+    auto val = ref.load(std::memory_order::relaxed);
+    if ((val & mark_bit) == 0 && (!only_if_referenced || val != 0)) {
+        ref.fetch_or(mark_bit, std::memory_order::relaxed);
+        return true;
+    }
+    return false;
+}
+auto unmark_ref(std::atomic_size_t &ref) noexcept -> bool {
+    return (ref.fetch_and(~(dec_bit | mark_bit), std::memory_order::relaxed) & mark_bit) != 0;
+}
+
 //! Helper to manage the reference count of a symbol.
-//!
-//! Only the inc and dec function should be called in parallel. Before garbage
-//! collection, all threads modifying reference counts should release memory
-//! with std::atomic_thread_fence. The thread performing the actual garbage
-//! collection should acquire memory using the same function.
 template <class T> class RefCounted {
   public:
     using value_type = T;
@@ -210,36 +225,6 @@ template <class T> class RefCounted {
         // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
         return data_;
     }
-    void inc() const noexcept { ref_count_.fetch_add(1, std::memory_order::relaxed); }
-    void dec() const noexcept { ref_count_.fetch_sub(1, std::memory_order::relaxed); }
-    //! Mark symbols.
-    //!
-    //! If the init flag is set, the count of referenced symbols is
-    //! increased by one. The idea is to be able to reset reference counts of
-    //! such symbols by subtracting one later. Such symbols have at least a
-    //! count of 2.
-    //! If the init flag is not set, set the reference count to one. This
-    //! values serves as a marker and is never incremented beyond that value
-    //! during garbage collection.
-    auto mark(bool init = false) -> bool {
-        if (init ? ref_count() > 0 : ref_count() == 0) {
-            ref_count_.fetch_add(1, std::memory_order::relaxed);
-            return true;
-        }
-        return false;
-    }
-    //! Unmark previously marked symbols.
-    //!
-    //! Returns false if the symbol has not previously been marked. Such
-    //! symbols should be deleted.
-    auto unmark() -> bool {
-        if (ref_count() > 0) {
-            ref_count_.fetch_sub(1, std::memory_order::relaxed);
-            return true;
-        }
-        return false;
-    }
-    auto ref_count() const noexcept -> size_t { return ref_count_.load(std::memory_order::relaxed); }
     auto hash(size_t n) -> size_t {
         if constexpr (std::is_same_v<T, char>) {
             return std::hash<std::string_view>{}(std::string_view(data(), n));
@@ -252,6 +237,7 @@ template <class T> class RefCounted {
     [[nodiscard]] auto tail() noexcept -> std::span<T> { return {data() + 1, size() - 1}; }
     [[nodiscard]] auto view() noexcept -> std::string_view { return {data(), size()}; }
     auto size() const -> size_t { return ((alloc_size(this) - sizeof(RefCounted)) / sizeof(value_type)) - adjust; }
+    auto ref_count() noexcept -> std::atomic_size_t & { return ref_count_; }
 
   private:
     // NOLINTNEXTLINE(modernize-use-equals-default)
@@ -397,50 +383,30 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
         clear_(tuples_);
     }
 
-    void do_gc_block([[maybe_unused]] bool block) noexcept override {
-        if (block) {
-            ++blocked_;
-        } else {
-            assert(blocked_ > 0);
-            --blocked_;
-        }
-    }
+    void do_gc_block([[maybe_unused]] bool block) noexcept override {}
 
     void do_gc_add_owner(SymbolOwner const &owner) override { owners_.emplace(&owner); }
 
     void do_gc_del_owner(SymbolOwner const &owner) noexcept override { owners_.erase(&owner); }
 
-    void do_gc([[maybe_unused]] bool no_wait) override {
-        if (blocked_ > 0) {
-            return;
-        }
+    void do_gc() override {
         SymbolCollector collector;
         // mark referenced tuples
         for (auto const &key : tuples_) {
-            auto &arr = SymbolArray::from_repr(KeySymbolArray::to_repr(key));
-            arr.mark(true);
-        }
-        // mark referenced strings
-        for (auto const &key : strings_) {
-            auto &arr = CharArray::from_repr(KeyCharArray::to_repr(key));
-            arr.mark(true);
-        }
-        // mark numbers
-        for (auto const &key : numbers_) {
-            auto &cnt = bigint_refcount(Number::to_repr(key));
-            if (cnt.load(std::memory_order_relaxed) > 0) {
-                cnt.fetch_add(1, std::memory_order_relaxed);
-            }
-        }
-        // recursively mark symbols in tuples
-        for (auto const &key : tuples_) {
-            auto &arr = SymbolArray::from_repr(KeySymbolArray::to_repr(key));
-            if (arr.ref_count() > 1) {
-                // mark the children
+            if (auto &arr = SymbolArray::from_repr(KeySymbolArray::to_repr(key)); mark_ref(arr.ref_count(), true)) {
+                // recursively mark children
                 for (auto const &sym : arr.span()) {
                     collector.mark(sym);
                 }
             }
+        }
+        // mark referenced strings
+        for (auto const &key : strings_) {
+            mark_ref(CharArray::from_repr(KeyCharArray::to_repr(key)).ref_count(), true);
+        }
+        // mark numbers
+        for (auto const &key : numbers_) {
+            mark_ref(bigint_refcount(Number::to_repr(key)), true);
         }
         // mark symbols held by owners
         for (auto const *owner : owners_) {
@@ -448,29 +414,25 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
         }
         // destroy tuples
         for (auto it = tuples_.begin(); it != tuples_.end();) {
-            auto &arr = SymbolArray::from_repr(KeySymbolArray::to_repr(*it));
-            if (!arr.unmark()) {
+            if (unmark_ref(SymbolArray::from_repr(KeySymbolArray::to_repr(*it)).ref_count())) {
+                ++it;
+            } else {
                 it->destroy(alloc_);
                 it = tuples_.erase(it);
-            } else {
-                ++it;
             }
         }
         // destroy strings
         for (auto it = strings_.begin(); it != strings_.end();) {
-            auto &arr = CharArray::from_repr(KeyCharArray::to_repr(*it));
-            if (!arr.unmark()) {
+            if (unmark_ref(CharArray::from_repr(KeyCharArray::to_repr(*it)).ref_count())) {
+                ++it;
+            } else {
                 it->destroy(alloc_);
                 it = strings_.erase(it);
-            } else {
-                ++it;
             }
         }
         // destroy numbers
         for (auto it = numbers_.begin(); it != numbers_.end();) {
-            auto &cnt = bigint_refcount(Number::to_repr(*it));
-            if (cnt.load(std::memory_order_relaxed) > 0) {
-                cnt.fetch_sub(0, std::memory_order_relaxed);
+            if (unmark_ref(bigint_refcount(Number::to_repr(*it)))) {
                 ++it;
             } else {
                 it = numbers_.erase(it);
@@ -513,7 +475,6 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
     StringSet strings_;
     TupleSet tuples_;
     OwnerSet owners_;
-    size_t blocked_ = 0;
 };
 
 //! Simple thread-safe symbol store.
@@ -554,7 +515,6 @@ template <class Alloc> class SharedSymbolStore : public SymbolStore {
         } else {
             assert(blocked_ > 0);
             if (--blocked_ == 0) {
-                std::atomic_thread_fence(std::memory_order_release);
                 ulock.unlock();
                 cv_.notify_one();
             }
@@ -571,14 +531,11 @@ template <class Alloc> class SharedSymbolStore : public SymbolStore {
         store_.gc_del_owner(owner);
     }
 
-    void do_gc(bool no_wait) override {
+    void do_gc() override {
         std::unique_lock ulock{mutex_};
-        if (no_wait && blocked_ > 0) {
-            return;
-        }
         cv_.wait(ulock, [this] { return blocked_ == 0; });
-        std::atomic_thread_fence(std::memory_order_acquire);
-        store_.gc(no_wait);
+        std::atomic_thread_fence(std::memory_order::seq_cst);
+        store_.gc();
     }
 
     ~SharedSymbolStore() noexcept override {
@@ -789,7 +746,7 @@ SymbolRef::SymbolRef(Symbol sym) noexcept : sym_{sym} {
     switch (rep & TYPE_MASK) {
         case REP_STR: {
             if (val != 0) {
-                CharArray::from_repr(val).inc();
+                inc_ref(CharArray::from_repr(val).ref_count());
             }
             break;
         }
@@ -797,12 +754,12 @@ SymbolRef::SymbolRef(Symbol sym) noexcept : sym_{sym} {
         case REP_FUN:
         case REP_TUP: {
             if (val != 0) {
-                SymbolArray::from_repr(val).inc();
+                inc_ref(SymbolArray::from_repr(val).ref_count());
             }
             break;
         }
         case REP_BIGINT: {
-            bigint_refcount(rep).fetch_add(1, std::memory_order_relaxed);
+            inc_ref(bigint_refcount(rep));
             break;
         }
         default: {
@@ -817,7 +774,7 @@ SymbolRef::~SymbolRef() noexcept {
     switch (rep & TYPE_MASK) {
         case REP_STR: {
             if (val != 0) {
-                CharArray::from_repr(val).dec();
+                dec_ref(CharArray::from_repr(val).ref_count());
             }
             break;
         }
@@ -825,12 +782,12 @@ SymbolRef::~SymbolRef() noexcept {
         case REP_FUN:
         case REP_TUP: {
             if (val != 0) {
-                SymbolArray::from_repr(val).dec();
+                dec_ref(SymbolArray::from_repr(val).ref_count());
             }
             break;
         }
         case REP_BIGINT: {
-            bigint_refcount(rep).fetch_sub(1, std::memory_order_relaxed);
+            dec_ref(bigint_refcount(rep));
             break;
         }
         default: {
@@ -851,7 +808,7 @@ void SymbolCollector::mark(Symbol const &sym) {
             case REP_SIGNED_FUN:
             case REP_FUN: {
                 if (val != 0) {
-                    if (auto &arr = SymbolArray::from_repr(val); arr.mark()) {
+                    if (auto &arr = SymbolArray::from_repr(val); mark_ref(arr.ref_count())) {
                         for (auto const &arg : arr.span()) {
                             stack_.emplace_back(arg);
                         }
@@ -861,21 +818,25 @@ void SymbolCollector::mark(Symbol const &sym) {
             }
             case REP_STR: {
                 if (val != 0) {
-                    CharArray::from_repr(val).mark();
+                    mark_ref(CharArray::from_repr(val).ref_count());
                 }
                 break;
             }
             case REP_BIGINT: {
-                auto &cnt = bigint_refcount(rep);
-                if (cnt.load(std::memory_order_relaxed) == 0) {
-                    cnt.fetch_add(1, std::memory_order_relaxed);
-                }
+                mark_ref(bigint_refcount(rep));
                 break;
             }
             default: {
                 break;
             }
         }
+    }
+}
+
+void SymbolCollector::mark(String const &str) {
+    static_cast<void>(this);
+    if (auto rep = String::to_rep(str); rep != 0) {
+        mark_ref(CharArray::from_repr(rep).ref_count());
     }
 }
 

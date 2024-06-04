@@ -13,6 +13,14 @@ namespace Gringo {
 //! @addtogroup core_symbol
 //! @{
 
+// TODO: there need to be two ways to create a symbol:
+// - floating ones, and
+// - reference counted ones.
+// The former can only be created while a store is blocked.
+// The String class should have an accompanying StringRef class.
+// The Ref classes should duplicate the interface.
+// The names of the Ref and non-Ref classes should probably be swapped.
+
 //! Reference to a string stored in a symbol store.
 class String {
   public:
@@ -173,6 +181,7 @@ class SymbolRef {
 class SymbolCollector {
   public:
     void mark(Symbol const &sym);
+    void mark(String const &str);
 
   private:
     std::vector<Symbol> stack_;
@@ -222,34 +231,18 @@ class SymbolStore {
     //!
     //! Block/unblock calls must be balanced. No symbols should be accessed
     //! while a store is unblocked (if a call to gc is intended).
-    //!
-    //! TODO: Maybe use a barrier semantics.
-    //! - gc_add_thread
-    //!   ++threads
-    //! - gc_del_thread
-    //!   --threads
-    //! - gc
-    //!   ++wait
-    //!   if wait == threads:
-    //!     do_gc()
-    //!     wait = 0
-    //!     state = not state
-    //!     notify_all
-    //!   else:
-    //!     cur = state
-    //!     wait_for cur != state
     void gc_block() noexcept { do_gc_block(true); }
     //! Unblock garbage collection.
     //!
-    //! Block/unblock calls must be balanced. No symbols should be accessed
-    //! while a store is unblocked (if a call to gc is intended).
+    //! Block/unblock calls must be balanced. In the multi-threaded case,
+    //! floating symbols must only be used while a store is blocked.
     void gc_unblock() noexcept { do_gc_block(false); }
     //! Add a symbol owner.
     void gc_add_owner(SymbolOwner const &owner) { do_gc_add_owner(owner); }
     //! Delete a symbol owner.
     void gc_del_owner(SymbolOwner const &owner) noexcept { do_gc_del_owner(owner); }
     //! Cleanup symbols.
-    void gc(bool no_wait) { do_gc(no_wait); }
+    void gc() { do_gc(); }
 
   private:
     [[nodiscard]] virtual auto do_tup(SymbolSpan args) -> Symbol = 0;
@@ -261,7 +254,7 @@ class SymbolStore {
     virtual void do_gc_block(bool block) noexcept = 0;
     virtual void do_gc_add_owner(SymbolOwner const &owner) = 0;
     virtual void do_gc_del_owner(SymbolOwner const &owner) noexcept = 0;
-    virtual void do_gc(bool no_wait) = 0;
+    virtual void do_gc() = 0;
 };
 
 //! A pointer to a symbol store.
