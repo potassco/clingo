@@ -63,15 +63,16 @@ template <class T> auto make_ast_vec(Owner const &owner, Gringo::Util::immutable
 template <class T> auto convert_ast_vec(clingo_ast const **ast, size_t size) -> std::vector<T>;
 
 auto convert_loc(clingo_lib_t *lib, clingo_location_t const *loc) -> Gringo::Input::Location {
-    return {{lib->store->string(loc->begin_file), loc->begin_line, loc->begin_column},
-            {lib->store->string(loc->end_file), loc->end_line, loc->end_column}};
+    return {{lib->store->string_ref(loc->begin_file), loc->begin_line, loc->begin_column},
+            {lib->store->string_ref(loc->end_file), loc->end_line, loc->end_column}};
 }
 
 auto convert_string_array(clingo_lib_t *lib, char const **array, size_t size) -> Gringo::StringRefVec {
     auto ret = Gringo::StringRefVec{};
     ret.reserve(size);
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    std::transform(array, array + size, std::back_inserter(ret), [lib](auto str) { return lib->store->string(str); });
+    std::transform(array, array + size, std::back_inserter(ret),
+                   [lib](auto str) { return lib->store->string_ref(str); });
     return ret;
 }
 
@@ -1469,8 +1470,8 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *name = va_arg(args, char const *);
                 auto anonymous = va_arg(args, int);
                 va_end(args);
-                *ast = construct_ast<Gringo::Input::TermVariable>(type, convert_loc(lib, loc), lib->store->string(name),
-                                                                  anonymous != 0);
+                *ast = construct_ast<Gringo::Input::TermVariable>(type, convert_loc(lib, loc),
+                                                                  lib->store->string_ref(name), anonymous != 0);
                 break;
             }
             case clingo_ast_type_term_symbolic: {
@@ -1504,7 +1505,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto sign = va_arg(args, int);
                 va_end(args);
                 *ast = construct_ast<Gringo::Input::TermFunction>(
-                    type, convert_loc(lib, loc), lib->store->string(name),
+                    type, convert_loc(lib, loc), lib->store->string_ref(name),
                     convert_ast_vec<Gringo::Input::ArgumentTuple>(pool, size), sign != 0);
                 break;
             }
@@ -1631,7 +1632,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto anonymous = va_arg(args, int);
                 va_end(args);
                 *ast = construct_ast<Gringo::Input::TheoryTermVariable>(type, convert_loc(lib, loc),
-                                                                        lib->store->string(name), anonymous != 0);
+                                                                        lib->store->string_ref(name), anonymous != 0);
                 break;
             }
             case clingo_ast_type_theory_term_symbolic: {
@@ -1666,7 +1667,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto size = va_arg(args, size_t);
                 va_end(args);
                 *ast = construct_ast<Gringo::Input::TheoryTermFunction>(
-                    type, convert_loc(lib, loc), lib->store->string(name),
+                    type, convert_loc(lib, loc), lib->store->string_ref(name),
                     convert_ast_vec<Gringo::Input::TheoryTerm>(arguments, size));
                 break;
             }
@@ -1714,7 +1715,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *term = va_arg(args, clingo_ast_t const *);
                 va_end(args);
                 *ast = construct_ast<Gringo::Input::TheoryRGuard::value_type>(
-                    type, lib->store->string(op), term->convert<Gringo::Input::TheoryTerm>());
+                    type, lib->store->string_ref(op), term->convert<Gringo::Input::TheoryTerm>());
                 break;
             }
             case clingo_ast_type_body_simple_literal: {
@@ -1920,7 +1921,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto op_type = va_arg(args, int);
                 va_end(args);
                 *ast = construct_ast<Gringo::Input::TheoryOpDefinition>(type, convert_loc(lib, loc),
-                                                                        lib->store->string(name), priority,
+                                                                        lib->store->string_ref(name), priority,
                                                                         static_cast<TheoryOpType>(op_type));
                 break;
             }
@@ -1933,7 +1934,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto ops_size = va_arg(args, size_t);
                 va_end(args);
                 *ast = construct_ast<Gringo::Input::TheoryTermDefinition>(
-                    type, convert_loc(lib, loc), lib->store->string(name),
+                    type, convert_loc(lib, loc), lib->store->string_ref(name),
                     convert_ast_vec<TheoryOpDefinition>(ops, ops_size));
                 break;
             }
@@ -1945,7 +1946,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *term = va_arg(args, char const *);
                 va_end(args);
                 *ast = construct_ast<Gringo::Input::TheoryRGuardDefinition>(
-                    type, convert_string_array(lib, ops, ops_size), lib->store->string(term));
+                    type, convert_string_array(lib, ops, ops_size), lib->store->string_ref(term));
                 break;
             }
             case clingo_ast_type_theory_atom_definition: {
@@ -1959,7 +1960,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto atom_type = va_arg(args, int);
                 va_end(args);
                 *ast = construct_ast<Gringo::Input::TheoryAtomDefinition>(
-                    type, convert_loc(lib, loc), lib->store->string(name), arity, lib->store->string(term),
+                    type, convert_loc(lib, loc), lib->store->string_ref(name), arity, lib->store->string_ref(term),
                     convert_ast_opt<TheoryRGuardDefinition>(guard), static_cast<TheoryAtomType>(atom_type));
                 break;
             }
@@ -1974,7 +1975,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto atoms_size = va_arg(args, size_t);
                 va_end(args);
                 *ast =
-                    construct_ast<Gringo::Input::StmTheory>(type, convert_loc(lib, loc), lib->store->string(name),
+                    construct_ast<Gringo::Input::StmTheory>(type, convert_loc(lib, loc), lib->store->string_ref(name),
                                                             convert_ast_vec<TheoryTermDefinition>(terms, terms_size),
                                                             convert_ast_vec<TheoryAtomDefinition>(atoms, atoms_size));
                 break;
@@ -2059,7 +2060,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto sign = va_arg(args, int);
                 va_end(args);
                 *ast = construct_ast<Gringo::Input::StmShowSig>(type, convert_loc(lib, loc), sign != 0,
-                                                                lib->store->string(name), arity);
+                                                                lib->store->string_ref(name), arity);
                 break;
             }
             case clingo_ast_type_statement_project: {
@@ -2083,7 +2084,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto sign = va_arg(args, int);
                 va_end(args);
                 *ast = construct_ast<Gringo::Input::StmProjectSig>(type, convert_loc(lib, loc), sign != 0,
-                                                                   lib->store->string(name), arity);
+                                                                   lib->store->string_ref(name), arity);
                 break;
             }
             case clingo_ast_type_statement_defined: {
@@ -2095,7 +2096,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto sign = va_arg(args, int);
                 va_end(args);
                 *ast = construct_ast<Gringo::Input::StmDefined>(type, convert_loc(lib, loc), sign != 0,
-                                                                lib->store->string(name), arity);
+                                                                lib->store->string_ref(name), arity);
                 break;
             }
             case clingo_ast_type_statement_external: {
@@ -2161,8 +2162,9 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const **arguments = va_arg(args, char const **);
                 auto arguments_size = va_arg(args, size_t);
                 va_end(args);
-                *ast = construct_ast<Gringo::Input::StmProgram>(type, convert_loc(lib, loc), lib->store->string(name),
-                                                                convert_string_array(lib, arguments, arguments_size));
+                *ast =
+                    construct_ast<Gringo::Input::StmProgram>(type, convert_loc(lib, loc), lib->store->string_ref(name),
+                                                             convert_string_array(lib, arguments, arguments_size));
                 break;
             }
             case clingo_ast_type_statement_script: {
@@ -2173,7 +2175,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *script_type = va_arg(args, char const *);
                 va_end(args);
                 *ast = construct_ast<Gringo::Input::StmScript>(type, convert_loc(lib, loc),
-                                                               lib->store->string(script_type), value);
+                                                               lib->store->string_ref(script_type), value);
                 break;
             }
             case clingo_ast_type_statement_const: {
@@ -2186,7 +2188,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 va_end(args);
                 *ast = construct_ast<Gringo::Input::StmConst>(type, convert_loc(lib, loc),
                                                               static_cast<ConstType>(const_type),
-                                                              lib->store->string(name), term->convert<Term>());
+                                                              lib->store->string_ref(name), term->convert<Term>());
                 break;
             }
             case clingo_ast_type_statement_comment: {
@@ -2565,8 +2567,8 @@ extern "C" void clingo_ast_rewrite_context_free(clingo_ast_rewrite_context_t *co
 extern "C" auto clingo_ast_rewrite_context_add_param(clingo_ast_rewrite_context_t *context, char const *param) -> bool {
     auto *lib = context->lib;
     CLINGO_TRY {
-        if (auto prm = lib->store->string(param); context->param_map.emplace(prm).second) {
-            auto var = lib->store->string("$" + std::to_string(context->param_unmap.size()));
+        if (auto prm = lib->store->string_ref(param); context->param_map.emplace(prm).second) {
+            auto var = lib->store->string_ref("$" + std::to_string(context->param_unmap.size()));
             context->param_unmap.emplace(var, prm);
         }
     }

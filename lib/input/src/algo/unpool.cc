@@ -32,7 +32,7 @@ class LiteralToTuple {
         std::sort(var_vec.begin(), var_vec.end());
         std::vector<Term> res;
         res.reserve(var_vec.size() + 1);
-        res.emplace_back(TermSymbol{location(orig), store_->num(n)});
+        res.emplace_back(TermSymbol{location(orig), store_->num_ref(n)});
         for (auto const &var : var_vec) {
             res.emplace_back(TermVariable{location(orig), var});
         }
@@ -65,7 +65,7 @@ class LiteralToTuple {
                 break;
             }
         }
-        res.emplace_back(TermSymbol{lit.loc(), store_->num(i)});
+        res.emplace_back(TermSymbol{lit.loc(), store_->num_ref(i)});
         res.emplace_back(lit.term());
         return res;
     }

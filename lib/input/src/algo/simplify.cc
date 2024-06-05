@@ -36,8 +36,8 @@ template <class R> void extend(R &res, AuxTermVec &aux, bool conjunctive = true)
 //! Ensure that the term only matches numbers.
 [[nodiscard]] auto as_linear_term(SymbolStore &store, Term term) -> Term {
     auto loc = location(term);
-    term = TermBinary(loc, TermSymbol{loc, store.num(1)}, BinaryOperator::times, std::move(term));
-    return TermBinary(loc, std::move(term), BinaryOperator::plus, TermSymbol{loc, store.num(0)});
+    term = TermBinary(loc, TermSymbol{loc, store.num_ref(1)}, BinaryOperator::times, std::move(term));
+    return TermBinary(loc, std::move(term), BinaryOperator::plus, TermSymbol{loc, store.num_ref(0)});
 }
 
 //! Introduce a fresh variable for the given term.
@@ -112,11 +112,12 @@ using TermResult =
     auto mxn = std::move(res.x);
     auto loc = location(mxn);
     if (!simplify || res.m != 1) {
-        mxn =
-            TermBinary(loc, TermSymbol{loc, ctx.store().num(std::move(res.m))}, BinaryOperator::times, std::move(mxn));
+        mxn = TermBinary(loc, TermSymbol{loc, ctx.store().num_ref(std::move(res.m))}, BinaryOperator::times,
+                         std::move(mxn));
     }
     if (!simplify || res.n != 0) {
-        mxn = TermBinary(loc, std::move(mxn), BinaryOperator::plus, TermSymbol{loc, ctx.store().num(std::move(res.n))});
+        mxn = TermBinary(loc, std::move(mxn), BinaryOperator::plus,
+                         TermSymbol{loc, ctx.store().num_ref(std::move(res.n))});
     }
     return mxn;
 }
@@ -361,7 +362,7 @@ class SimplifyTerm {
                     if (!constant) {
                         return type;
                     }
-                    return ctx_->store().fun(term.name(), {}, false);
+                    return ctx_->store().fun_ref(term.name(), {}, false);
                 }
                 if constexpr (std::is_same_v<T, TupleResultChanged>) {
                     if (!constant) {
@@ -373,7 +374,7 @@ class SimplifyTerm {
                         // equality comparison recurses into the structure
                         return check_change(type, term, std::move(fun));
                     }
-                    return ctx_->store().fun(term.name(), result_as_symbol_vec(std::move(res)), false);
+                    return ctx_->store().fun_ref(term.name(), result_as_symbol_vec(std::move(res)), false);
                 }
             },
             handle_tuple(flags, tuple, constant));
@@ -402,7 +403,7 @@ class SimplifyTerm {
                     if (!constant) {
                         return type;
                     }
-                    return ctx_->store().tup(result_as_symbol_vec({}));
+                    return ctx_->store().tup_ref(result_as_symbol_vec({}));
                 }
                 if constexpr (std::is_same_v<T, TupleResultChanged>) {
                     // changed term that did not evaluate to a symbol
@@ -413,7 +414,7 @@ class SimplifyTerm {
                             type, term,
                             term.update(a_pool = Util::make_vec<TupleElement>(result_as_tuple(tuple, std::move(res)))));
                     }
-                    return ctx_->store().tup(result_as_symbol_vec(std::move(res)));
+                    return ctx_->store().tup_ref(result_as_symbol_vec(std::move(res)));
                 }
                 // the term evaluated to a symbol
             },
@@ -440,7 +441,7 @@ class SimplifyTerm {
                                                                                             << "  " << term << "\n";
                     return TermResultFail{};
                 }
-                return ctx_->store().num(abs(*res.num()));
+                return ctx_->store().num_ref(abs(*res.num()));
             }
             if constexpr (std::is_same_v<T, TermResultLinear>) {
                 std::vector<Term> pool;
@@ -1053,7 +1054,7 @@ class LiteralToTuple {
 
     auto operator()(LitBool const &lit) -> TermArray {
         ++n_;
-        return Util::make_vec<Term>(TermSymbol{lit.loc(), store_.num(n_)});
+        return Util::make_vec<Term>(TermSymbol{lit.loc(), store_.num_ref(n_)});
     }
 
     auto operator()(LitComparison const &lit) -> TermArray {
@@ -1063,7 +1064,7 @@ class LiteralToTuple {
         std::sort(var_vec.begin(), var_vec.end());
         std::vector<Term> res;
         res.reserve(var_vec.size() + 1);
-        res.emplace_back(TermSymbol{lit.loc(), store_.num(n_)});
+        res.emplace_back(TermSymbol{lit.loc(), store_.num_ref(n_)});
         for (auto const &var : var_vec) {
             res.emplace_back(TermVariable{lit.loc(), var});
         }
@@ -1088,7 +1089,7 @@ class LiteralToTuple {
                 break;
             }
         }
-        res.emplace_back(TermSymbol{lit.loc(), store_.num(i)});
+        res.emplace_back(TermSymbol{lit.loc(), store_.num_ref(i)});
         res.emplace_back(lit.term());
         return res;
     }
@@ -1480,7 +1481,7 @@ template <bool head>
         auto lhs = Term{TermSymbol{lit.loc(), std::visit(
                                                   [&ctx]<class T>(T value) {
                                                       if constexpr (std::is_same_v<T, Number>) {
-                                                          return ctx.store().num(std::move(value));
+                                                          return ctx.store().num_ref(std::move(value));
                                                       }
                                                       if constexpr (std::is_same_v<T, SymbolRef>) {
                                                           return value;

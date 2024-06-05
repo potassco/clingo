@@ -18,7 +18,7 @@ TEST_CASE("grounder_text") {
     auto store = Gringo::make_symbol_store(true, false);
     auto out = Gringo::Output::make_text_output(oss);
     Gringo::Grounder grd{log, *store, opts, *out};
-    auto params = Input::ProgramParamVec{{store->string("base"), {}}};
+    auto params = Input::ProgramParamVec{{store->string_ref("base"), {}}};
 
     SECTION("fact") {
         grd.parse("a.");

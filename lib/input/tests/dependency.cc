@@ -202,7 +202,7 @@ TEST_CASE("dependency") {
         uprg.add(ph, opt_value(ph.statement("p(X,a) :- f(X).")));
         auto prg = Program{ph.ctx().options()};
         prg.join(ph, ph, uprg);
-        std::ignore = prg.analyze(ph, {ProgramParam{ph.store().string("p"), {ph.store().num(Number(1))}}}, bld);
+        std::ignore = prg.analyze(ph, {ProgramParam{ph.store().string_ref("p"), {ph.store().num_ref(Number(1))}}}, bld);
         REQUIRE(bld.res == std::vector<std::string>{"#show p/2.", "p(b).", "#program_p(1).", "% component",
                                                     "% refined component", "p($0) :- #program_p($0).", "% component",
                                                     "% refined component", "p(X,$0) :- #program_p($0); f(X)."});

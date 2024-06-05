@@ -9,7 +9,7 @@ extern "C" auto clingo_add_string(clingo_lib_t *lib, char const *string, char co
         if (lib == nullptr || string == nullptr || result == nullptr) {
             throw std::invalid_argument("invalid arguments");
         }
-        *result = lib->store->string(string).c_str();
+        *result = lib->store->string_ref(string).c_str();
     }
     CLINGO_CATCH(lib);
 }
@@ -24,7 +24,7 @@ extern "C" auto clingo_symbol_create_number_str(clingo_lib_t *lib, char const *n
         if (lib == nullptr || number == nullptr || symbol == nullptr) {
             throw std::invalid_argument("invalid arguments");
         }
-        *symbol = Gringo::SymbolRef::to_rep(lib->store->num(Gringo::Number{number}));
+        *symbol = Gringo::SymbolRef::to_rep(lib->store->num_ref(Gringo::Number{number}));
     }
     CLINGO_CATCH(lib);
 }
@@ -42,7 +42,7 @@ extern "C" auto clingo_symbol_create_string(clingo_lib_t *lib, char const *strin
         if (lib == nullptr || string == nullptr || symbol == nullptr) {
             throw std::invalid_argument("invalid arguments");
         }
-        *symbol = Gringo::SymbolRef::to_rep(lib->store->str(lib->store->string(string)));
+        *symbol = Gringo::SymbolRef::to_rep(lib->store->str_ref(lib->store->string_ref(string)));
     }
     CLINGO_CATCH(lib);
 }
@@ -53,7 +53,7 @@ extern "C" auto clingo_symbol_create_id(clingo_lib_t *lib, char const *name, boo
         if (lib == nullptr || name == nullptr || symbol == nullptr) {
             throw std::invalid_argument("invalid arguments");
         }
-        *symbol = Gringo::SymbolRef::to_rep(lib->store->fun(lib->store->string(name), {}, sign));
+        *symbol = Gringo::SymbolRef::to_rep(lib->store->fun_ref(lib->store->string_ref(name), {}, sign));
     }
     CLINGO_CATCH(lib);
 }
@@ -66,7 +66,7 @@ extern "C" auto clingo_symbol_create_tuple(clingo_lib_t *lib, clingo_symbol_t co
         }
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
         auto const *c_args = reinterpret_cast<Gringo::SymbolRef const *>(arguments);
-        *symbol = Gringo::SymbolRef::to_rep(lib->store->tup(Gringo::SymbolSpan{c_args, arguments_size}));
+        *symbol = Gringo::SymbolRef::to_rep(lib->store->tup_ref(Gringo::SymbolRefSpan{c_args, arguments_size}));
     }
     CLINGO_CATCH(lib);
 }
@@ -80,7 +80,7 @@ extern "C" auto clingo_symbol_create_function(clingo_lib_t *lib, char const *nam
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
         auto const *c_args = reinterpret_cast<Gringo::SymbolRef const *>(arguments);
         *symbol = Gringo::SymbolRef::to_rep(
-            lib->store->fun(lib->store->string(name), Gringo::SymbolSpan{c_args, arguments_size}, sign));
+            lib->store->fun_ref(lib->store->string_ref(name), Gringo::SymbolRefSpan{c_args, arguments_size}, sign));
     }
     CLINGO_CATCH(lib);
 }

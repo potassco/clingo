@@ -127,7 +127,7 @@ class IntervalMatcher : public Matcher {
             }
             auto num = val_current_;
             val_current_ += 1;
-            if (lhs_->match(ctx.store(), ctx.store().num(std::move(num)), ctx.ass())) {
+            if (lhs_->match(ctx.store(), ctx.store().num_ref(std::move(num)), ctx.ass())) {
                 return true;
             }
         }

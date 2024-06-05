@@ -20,7 +20,7 @@ auto eval_args(SymbolStore &store, Assignment const &ass, UTermVec const &args, 
     return true;
 }
 
-auto match_args(SymbolStore &store, Assignment &ass, UTermVec const &term_args, SymbolSpan sym_args) -> bool {
+auto match_args(SymbolStore &store, Assignment &ass, UTermVec const &term_args, SymbolRefSpan sym_args) -> bool {
     if (term_args.size() != sym_args.size()) {
         return false;
     }
@@ -62,7 +62,7 @@ auto TermProjection::do_match([[maybe_unused]] SymbolStore &store, [[maybe_unuse
 auto TermProjection::do_eval(SymbolStore &store,
                              [[maybe_unused]] Assignment const &ass) const -> std::optional<SymbolRef> {
     // Note: this is a sentinel symbol intended for text output
-    return store.fun(store.string("*"), {}, false);
+    return store.fun_ref(store.string_ref("*"), {}, false);
 }
 
 auto TermProjection::do_rename([[maybe_unused]] SymbolStore &store, RenameMode mode,
@@ -120,7 +120,7 @@ auto TermSymbol::do_eval([[maybe_unused]] SymbolStore &store,
 auto TermSymbol::do_rename([[maybe_unused]] SymbolStore &store, [[maybe_unused]] RenameMode mode, StringRef const *name,
                            [[maybe_unused]] size_t *vars) const -> UTerm {
     if (name != nullptr && sym_.type() == SymbolType::function) {
-        return std::make_unique<TermSymbol>(store.fun(*name, sym_.args(), sym_.has_classical_sign()));
+        return std::make_unique<TermSymbol>(store.fun_ref(*name, sym_.args(), sym_.has_classical_sign()));
     }
     if (mode == RenameMode::rename_vars && vars != nullptr) {
         return std::make_unique<TermVariable>((*vars)++);
@@ -221,7 +221,7 @@ auto TermLinear::do_match([[maybe_unused]] SymbolStore &store, SymbolRef sym, As
     // x == (s - n) / m
     auto sn = *sym.num() - n_;
     if (sn % m_ == 0) {
-        ass[var_] = store.num(std::move(sn) / m_);
+        ass[var_] = store.num_ref(std::move(sn) / m_);
         return true;
     }
     return false;
@@ -229,7 +229,7 @@ auto TermLinear::do_match([[maybe_unused]] SymbolStore &store, SymbolRef sym, As
 
 auto TermLinear::do_eval(SymbolStore &store, Assignment const &ass) const -> std::optional<SymbolRef> {
     if (auto var = ass[var_]; var && var->type() == SymbolType::number) {
-        return store.num(m_ * var->num() + n_);
+        return store.num_ref(m_ * var->num() + n_);
     }
     return std::nullopt;
 }
@@ -280,7 +280,7 @@ auto TermUnary::do_match(SymbolStore &store, SymbolRef sym, Assignment &ass) con
             return rhs_->match(store, *sym.flip_classical_sign(), ass);
         }
         if (sym.type() == SymbolType::number) {
-            return rhs_->match(store, store.num(-*sym.num()), ass);
+            return rhs_->match(store, store.num_ref(-*sym.num()), ass);
         }
         return false;
     }
@@ -292,19 +292,19 @@ auto TermUnary::do_eval(SymbolStore &store, Assignment const &ass) const -> std:
         switch (op_) {
             case UnaryOperator::minus: {
                 if (rhs->type() == SymbolType::number) {
-                    return store.num(-*rhs->num());
+                    return store.num_ref(-*rhs->num());
                 }
                 return rhs->flip_classical_sign();
             }
             case UnaryOperator::invert: {
                 if (rhs->type() == SymbolType::number) {
-                    return store.num(~*rhs->num());
+                    return store.num_ref(~*rhs->num());
                 }
                 break;
             }
             case UnaryOperator::abs: {
                 if (rhs->type() == SymbolType::number) {
-                    return store.num(abs(*rhs->num()));
+                    return store.num_ref(abs(*rhs->num()));
                 }
                 break;
             }
@@ -386,40 +386,40 @@ auto TermBinary::do_eval(SymbolStore &store, Assignment const &ass) const -> std
         if (auto rhs = rhs_->eval(store, ass); rhs && rhs->type() == SymbolType::number) {
             switch (op_) {
                 case BinaryOperator::and_: {
-                    return store.num(*lhs->num() & *rhs->num());
+                    return store.num_ref(*lhs->num() & *rhs->num());
                 }
                 case BinaryOperator::div: {
                     if (*rhs->num() != 0) {
-                        return store.num(*lhs->num() / *rhs->num());
+                        return store.num_ref(*lhs->num() / *rhs->num());
                     }
                     break;
                 }
                 case BinaryOperator::minus: {
-                    return store.num(*lhs->num() - *rhs->num());
+                    return store.num_ref(*lhs->num() - *rhs->num());
                 }
                 case BinaryOperator::mod: {
                     if (*rhs->num() != 0) {
-                        return store.num(*lhs->num() % *rhs->num());
+                        return store.num_ref(*lhs->num() % *rhs->num());
                     }
                     break;
                 }
                 case BinaryOperator::or_: {
-                    return store.num(*lhs->num() | *rhs->num());
+                    return store.num_ref(*lhs->num() | *rhs->num());
                 }
                 case BinaryOperator::plus: {
-                    return store.num(*lhs->num() + *rhs->num());
+                    return store.num_ref(*lhs->num() + *rhs->num());
                 }
                 case BinaryOperator::pow: {
                     if (*rhs->num() >= 0) {
-                        return store.num(pow(*lhs->num(), *rhs->num()));
+                        return store.num_ref(pow(*lhs->num(), *rhs->num()));
                     }
                     break;
                 }
                 case BinaryOperator::times: {
-                    return store.num(*lhs->num() * *rhs->num());
+                    return store.num_ref(*lhs->num() * *rhs->num());
                 }
                 case BinaryOperator::xor_: {
-                    return store.num(*lhs->num() ^ *rhs->num());
+                    return store.num_ref(*lhs->num() ^ *rhs->num());
                 }
             }
         }
@@ -532,7 +532,7 @@ auto TermTuple::do_match(SymbolStore &store, SymbolRef sym, Assignment &ass) con
 
 auto TermTuple::do_eval(SymbolStore &store, Assignment const &ass) const -> std::optional<SymbolRef> {
     if (eval_args(store, ass, args_, eval_)) {
-        return store.tup(eval_);
+        return store.tup_ref(eval_);
     }
     return std::nullopt;
 }
@@ -621,7 +621,7 @@ auto TermFunction::do_match(SymbolStore &store, SymbolRef sym, Assignment &ass) 
 
 auto TermFunction::do_eval(SymbolStore &store, Assignment const &ass) const -> std::optional<SymbolRef> {
     if (eval_args(store, ass, args_, eval_)) {
-        return store.fun(name_, eval_, false);
+        return store.fun_ref(name_, eval_, false);
     }
     return std::nullopt;
 }

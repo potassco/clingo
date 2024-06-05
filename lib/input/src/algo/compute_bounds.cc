@@ -291,11 +291,11 @@ class ApplyBounds {
             if (sym.value().num() == bound) {
                 return sym;
             }
-            return TermSymbol{sym.loc(), store_->num(bound)};
+            return TermSymbol{sym.loc(), store_->num_ref(bound)};
         };
         auto make_relation = [this, &lit](auto lhs, Relation rel, Location loc, auto bound) {
-            return lit.update(a_lhs = std::move(lhs), a_rhs = Util::make_vec<Guard>(
-                                                          Guard{rel, TermSymbol{loc, store_->num(std::move(bound))}}));
+            return lit.update(a_lhs = std::move(lhs), a_rhs = Util::make_vec<Guard>(Guard{
+                                                          rel, TermSymbol{loc, store_->num_ref(std::move(bound))}}));
         };
         auto make_interval = [&lit](auto var, auto loc, auto u, auto v) -> Util::ResultState<Lit> {
             if (u.value() == v.value()) {
@@ -466,15 +466,15 @@ class ComputeBounds {
         auto make_relation = [this, &loc](auto const &var, Relation rel, auto const &bound) -> Lit {
             auto term_var = TermVariable{loc, var};
             return LitComparison{loc, Sign::none, term_var,
-                                 Util::make_vec<Guard>(Guard{rel, TermSymbol{loc, ctx_->store().num(bound)}})};
+                                 Util::make_vec<Guard>(Guard{rel, TermSymbol{loc, ctx_->store().num_ref(bound)}})};
         };
         auto make_interval = [this, &loc](auto var, Number const &u, Number const &v) -> Lit {
             auto term_var = TermVariable{loc, var};
-            auto term_u = TermSymbol{loc, ctx_->store().num(u)};
+            auto term_u = TermSymbol{loc, ctx_->store().num_ref(u)};
             if (u == v) {
                 return LitComparison{loc, Sign::none, term_var, Util::make_vec<Guard>(Guard{Relation::equal, term_u})};
             }
-            auto term_v = TermSymbol{loc, ctx_->store().num(v)};
+            auto term_v = TermSymbol{loc, ctx_->store().num_ref(v)};
             return LitComparison{
                 loc, Sign::none, term_var,
                 Util::make_vec<Guard>(Guard{Relation::equal, TermBinary{loc, term_u, BinaryOperator::dots, term_v}})};

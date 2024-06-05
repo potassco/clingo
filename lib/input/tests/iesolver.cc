@@ -9,8 +9,8 @@ namespace Gringo::Input::Test {
 TEST_CASE("iesolver") {
     auto log = Logger{};
     auto &store = default_store();
-    auto x = store.string("x");
-    auto y = store.string("y");
+    auto x = store.string_ref("x");
+    auto y = store.string_ref("y");
     auto solver = IESolver{};
 
     SECTION("sat") {

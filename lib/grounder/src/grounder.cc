@@ -43,7 +43,7 @@ struct Grounder::Impl {
         auto const &p_key = *it->first;
         auto &state = it.value();
         if (ins) {
-            auto p_name = store->string("#p_" + std::to_string(map.size()));
+            auto p_name = store->string_ref("#p_" + std::to_string(map.size()));
             auto p_head = p_key.rename(*store, Ground::RenameMode::drop_projection, &p_name, nullptr);
             auto p_body = p_key.rename(*store, Ground::RenameMode::rename_projection, nullptr, &vars);
             state =

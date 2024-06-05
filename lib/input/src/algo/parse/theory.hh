@@ -132,7 +132,7 @@ struct theory_term_string : lexy::token_production {
     static constexpr char const *name = "string";
     static constexpr auto rule = Detail::location(string);
     static constexpr auto value = as_stored_string >> lexy::callback<TheoryTerm>([](Location loc, auto str) {
-                                      return TheoryTermSymbol{loc, SymbolStore::str(str)};
+                                      return TheoryTermSymbol{loc, SymbolStore::str_ref(str)};
                                   });
 };
 

@@ -273,7 +273,7 @@ class IsFact {
             return std::nullopt;
         }
         if (auto res_args = operator()(term.pool().front()); res_args) {
-            return store_->fun(term.name(), res_args.value(), false);
+            return store_->fun_ref(term.name(), res_args.value(), false);
         }
         return std::nullopt;
     }
@@ -289,7 +289,7 @@ class IsFact {
                 }
                 if constexpr (std::is_same_v<T, ArgumentTuple>) {
                     if (auto tuple = operator()(x); tuple) {
-                        return store_->tup(*tuple);
+                        return store_->tup_ref(*tuple);
                     }
                     return std::nullopt;
                 }
@@ -302,7 +302,7 @@ class IsFact {
             return std::nullopt;
         }
         if (auto arg = operator()(term.pool().front()); arg && arg->type() == SymbolType::number) {
-            return store_->num(abs(*arg->num()));
+            return store_->num_ref(abs(*arg->num()));
         }
         return std::nullopt;
     }

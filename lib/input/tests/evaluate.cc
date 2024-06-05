@@ -28,8 +28,8 @@ class ConstHelper : public ParseHelper {
 
 TEST_CASE("evaluate_unary") {
     auto store = make_symbol_store(false, false);
-    auto n1 = store->num(Number(-10));
-    auto n2 = store->num(Number(std::numeric_limits<int32_t>::min()));
+    auto n1 = store->num_ref(Number(-10));
+    auto n2 = store->num_ref(Number(std::numeric_limits<int32_t>::min()));
 
     auto r1 = evaluate(*store, UnaryOperator::invert, n1);
     REQUIRE(*opt_value(r1).num() == ~(-10));
@@ -45,10 +45,10 @@ TEST_CASE("evaluate_binary") {
     int i2 = 1 << 16;
     int i3 = 0;
     int i4 = 42;
-    auto n1 = store->num(Number(i1));
-    auto n2 = store->num(Number(i2));
-    auto n3 = store->num(Number(i3));
-    auto n4 = store->num(Number(i4));
+    auto n1 = store->num_ref(Number(i1));
+    auto n2 = store->num_ref(Number(i2));
+    auto n3 = store->num_ref(Number(i3));
+    auto n4 = store->num_ref(Number(i4));
 
     // plus
     auto res = evaluate(*store, n1, BinaryOperator::plus, n2);
@@ -108,8 +108,8 @@ TEST_CASE("evaluate_const") {
     }
 
     SECTION("depend") {
-        auto fg = ch.store().fun(ch.store().string("g"), SL{ch.store().num(Number(-18))}, true);
-        auto ff = ch.store().fun(ch.store().string("f"), SL{ch.store().num(Number(6)), fg}, false);
+        auto fg = ch.store().fun_ref(ch.store().string_ref("g"), SL{ch.store().num_ref(Number(-18))}, true);
+        auto ff = ch.store().fun_ref(ch.store().string_ref("f"), SL{ch.store().num_ref(Number(6)), fg}, false);
         stms.emplace_back(ch.const_def("#const a = 1+2."));
         stms.emplace_back(ch.const_def("#const b = 2*a."));
         stms.emplace_back(ch.const_def("#const c = f(b,-g(-a*b))."));
@@ -117,12 +117,12 @@ TEST_CASE("evaluate_const") {
         evaluate_const(ch, ch, stms, map);
         REQUIRE(!ch.logger().has_error());
         REQUIRE(map.size() == 3);
-        REQUIRE(map.contains(ch.store().string("a")));
-        REQUIRE(map.contains(ch.store().string("b")));
-        REQUIRE(map.contains(ch.store().string("c")));
-        REQUIRE(map.at(ch.store().string("a")).second == ch.store().num(Number(3)));
-        REQUIRE(map.at(ch.store().string("b")).second == ch.store().num(Number(6)));
-        REQUIRE(map.at(ch.store().string("c")).second == ff);
+        REQUIRE(map.contains(ch.store().string_ref("a")));
+        REQUIRE(map.contains(ch.store().string_ref("b")));
+        REQUIRE(map.contains(ch.store().string_ref("c")));
+        REQUIRE(map.at(ch.store().string_ref("a")).second == ch.store().num_ref(Number(3)));
+        REQUIRE(map.at(ch.store().string_ref("b")).second == ch.store().num_ref(Number(6)));
+        REQUIRE(map.at(ch.store().string_ref("c")).second == ff);
     }
 }
 

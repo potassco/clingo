@@ -133,7 +133,7 @@ struct term_string : lexy::token_production {
     static constexpr char const *name = "string";
     static constexpr auto rule = Detail::location(string);
     static constexpr auto value = as_stored_string >> lexy::callback<Term>([](Location loc, auto str) {
-                                      return TermSymbol{loc, SymbolStore::str(str)};
+                                      return TermSymbol{loc, SymbolStore::str_ref(str)};
                                   });
 };
 

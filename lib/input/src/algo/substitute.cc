@@ -18,7 +18,7 @@ namespace {
 }
 
 [[nodiscard]] auto variable_for_param(RewriteContext &ctx, Location const &loc, size_t param) {
-    return TermVariable{loc, ctx.store().string("$" + std::to_string(param))};
+    return TermVariable{loc, ctx.store().string_ref("$" + std::to_string(param))};
 }
 
 class MapParams : public Transformer<MapParams> {
@@ -32,7 +32,7 @@ class MapParams : public Transformer<MapParams> {
     // term
 
     [[nodiscard]] auto accept(Location const &loc,
-                              SymbolSpan args) const -> std::optional<std::variant<SymbolRefVec, ArgumentTuple>> {
+                              SymbolRefSpan args) const -> std::optional<std::variant<SymbolRefVec, ArgumentTuple>> {
         std::optional<std::vector<std::variant<Term, SymbolRef>>> res_args;
         bool constant = true;
         {
@@ -96,7 +96,7 @@ class MapParams : public Transformer<MapParams> {
                                     return value->flip_classical_sign();
                                 }
                                 case SymbolType::number: {
-                                    return ctx_->store().num(-*value->num());
+                                    return ctx_->store().num_ref(-*value->num());
                                 }
                                 case SymbolType::inf:
                                 case SymbolType::sup:
@@ -116,7 +116,7 @@ class MapParams : public Transformer<MapParams> {
                     return std::visit(
                         [this, &loc, &sym]<class T>(T tuple) -> std::variant<Term, SymbolRef> {
                             if constexpr (std::is_same_v<T, SymbolRefVec>) {
-                                return ctx_->store().fun(sym.name(), std::move(tuple), sym.has_sign());
+                                return ctx_->store().fun_ref(sym.name(), std::move(tuple), sym.has_sign());
                             }
                             if constexpr (std::is_same_v<T, ArgumentTuple>) {
                                 auto ret = Term{TermFunction{loc, sym.name(), {std::move(tuple)}, false}};
@@ -135,7 +135,7 @@ class MapParams : public Transformer<MapParams> {
                     return std::visit(
                         [this, &loc]<class T>(T tuple) -> std::variant<Term, SymbolRef> {
                             if constexpr (std::is_same_v<T, SymbolRefVec>) {
-                                return ctx_->store().tup(std::move(tuple));
+                                return ctx_->store().tup_ref(std::move(tuple));
                             }
                             if constexpr (std::is_same_v<T, ArgumentTuple>) {
                                 return TermTuple{loc, Util::make_vec<TupleElement>(std::move(tuple))};
@@ -180,7 +180,7 @@ class MapParams : public Transformer<MapParams> {
             return rewrite(term, a_pool);
         }
         if (auto param = ctx_->is_param(term.name()); param) {
-            return TermVariable{term.loc(), ctx_->store().string("$" + std::to_string(param.value()))};
+            return TermVariable{term.loc(), ctx_->store().string_ref("$" + std::to_string(param.value()))};
         }
         if (auto value = ctx_->is_const(term.name()); value) {
             return TermSymbol{term.loc(), value.value()};
@@ -242,7 +242,7 @@ class UnmapParams : public Transformer<UnmapParams> {
 
     [[nodiscard]] auto accept(TermVariable const &term) const -> std::optional<Term> {
         if (auto it = map_->find(term.name()); it != map_->end()) {
-            return TermSymbol{term.loc(), store_->fun(it.value(), {}, false)};
+            return TermSymbol{term.loc(), store_->fun_ref(it.value(), {}, false)};
         }
         return std::nullopt;
     }

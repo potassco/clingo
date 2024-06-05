@@ -99,7 +99,7 @@ class Evaluate {
 
     // symbols
 
-    [[nodiscard]] auto eval_args_(SymbolSpan args) const -> std::variant<bool, std::vector<SymbolRef>> {
+    [[nodiscard]] auto eval_args_(SymbolRefSpan args) const -> std::variant<bool, std::vector<SymbolRef>> {
         std::optional<std::vector<SymbolRef>> ret;
         size_t n = 0;
         for (auto sym : args) {
@@ -151,7 +151,7 @@ class Evaluate {
                             return std::nullopt;
                         }
                         if constexpr (std::is_same_v<T, std::vector<SymbolRef>>) {
-                            return store_->fun(sym.name(), res, sym.has_sign());
+                            return store_->fun_ref(sym.name(), res, sym.has_sign());
                         }
                     },
                     eval_args_(args));
@@ -166,7 +166,7 @@ class Evaluate {
                             return std::nullopt;
                         }
                         if constexpr (std::is_same_v<T, std::vector<SymbolRef>>) {
-                            return store_->tup(res);
+                            return store_->tup_ref(res);
                         }
                     },
                     eval_args_(sym.args()));
@@ -201,7 +201,7 @@ class Evaluate {
         if (!args.has_value()) {
             return std::nullopt;
         }
-        return {store_->tup(args.value())};
+        return {store_->tup_ref(args.value())};
     }
 
     auto operator()([[maybe_unused]] TermVariable const &term) const -> std::optional<SymbolRef> {
@@ -230,7 +230,7 @@ class Evaluate {
         if (!args.has_value()) {
             return std::nullopt;
         }
-        return store_->fun(term.name(), args.value(), false);
+        return store_->fun_ref(term.name(), args.value(), false);
     }
 
     struct ErrorContext {
@@ -253,7 +253,7 @@ class Evaluate {
             return std::nullopt;
         }
         if (val->type() == SymbolType::number) {
-            val = store_->num(abs(*val->num()));
+            val = store_->num_ref(abs(*val->num()));
         } else {
             val = std::nullopt;
         }
@@ -325,12 +325,12 @@ class Evaluate {
 auto evaluate(SymbolStore &store, UnaryOperator op, SymbolRef rhs) -> std::optional<SymbolRef> {
     if (op == UnaryOperator::negate) {
         if (rhs.type() == SymbolType::number) {
-            return store.num(-*rhs.num());
+            return store.num_ref(-*rhs.num());
         }
         return rhs.flip_classical_sign();
     }
     if (rhs.type() == SymbolType::number) {
-        return store.num(~*rhs.num());
+        return store.num_ref(~*rhs.num());
     }
     return std::nullopt;
 }
@@ -368,40 +368,40 @@ auto evaluate(SymbolStore &store, SymbolRef lhs, BinaryOperator op, SymbolRef rh
             break;
         }
         case BinaryOperator::xor_: {
-            return store.num(*lhs.num() ^ *rhs.num());
+            return store.num_ref(*lhs.num() ^ *rhs.num());
         }
         case BinaryOperator::or_: {
-            return store.num(*lhs.num() | *rhs.num());
+            return store.num_ref(*lhs.num() | *rhs.num());
         }
         case BinaryOperator::and_: {
-            return store.num(*lhs.num() & *rhs.num());
+            return store.num_ref(*lhs.num() & *rhs.num());
         }
         case BinaryOperator::plus: {
-            return store.num(*lhs.num() + *rhs.num());
+            return store.num_ref(*lhs.num() + *rhs.num());
         }
         case BinaryOperator::minus: {
-            return store.num(*lhs.num() - *rhs.num());
+            return store.num_ref(*lhs.num() - *rhs.num());
         }
         case BinaryOperator::times: {
-            return store.num(*lhs.num() * *rhs.num());
+            return store.num_ref(*lhs.num() * *rhs.num());
         }
         case BinaryOperator::div: {
             if (*rhs.num() == 0) {
                 return std::nullopt;
             }
-            return store.num(*lhs.num() / *rhs.num());
+            return store.num_ref(*lhs.num() / *rhs.num());
         }
         case BinaryOperator::mod: {
             if (*rhs.num() == 0) {
                 return std::nullopt;
             }
-            return store.num(*lhs.num() % *rhs.num());
+            return store.num_ref(*lhs.num() % *rhs.num());
         }
         case BinaryOperator::pow: {
             if (*rhs.num() < 0) {
                 return std::nullopt;
             }
-            return store.num(pow(*lhs.num(), *rhs.num()));
+            return store.num_ref(pow(*lhs.num(), *rhs.num()));
         }
     }
     throw std::runtime_error("cannot evaluate intervals");

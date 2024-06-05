@@ -38,7 +38,7 @@ void UnprocessedProgram::add(SymbolStore &store, Stm stm) {
                 if (parts.empty() || ensure_base) {
                     if (parts.empty() || std::get<0>(parts.back()).name() != "base" ||
                         !std::get<0>(parts.back()).args().empty()) {
-                        parts.emplace_back(StmProgram{location(stm), store.string("base"), {}}, StmVec{},
+                        parts.emplace_back(StmProgram{location(stm), store.string_ref("base"), {}}, StmVec{},
                                            SymbolRefVec{});
                     }
                     ensure_base = false;
@@ -126,7 +126,7 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
         auto gen = NameGen{store, std::move(ids), "__p_"};
         size_t i = 0;
         for (auto const &id : part.part.args()) {
-            auto var = store.string("$" + std::to_string(i));
+            auto var = store.string_ref("$" + std::to_string(i));
             res.emplace(var, gen.add_name(id) ? id : gen.new_name());
             ++i;
         }
@@ -165,7 +165,7 @@ auto Program::analyze(SymbolStore &store, ProgramParamVec const &params, Depende
                     std::vector<Argument> args;
                     args.reserve(sig_it->second);
                     for (size_t i = 0; i < sig_it->second; ++i) {
-                        args.emplace_back(TermVariable{loc, store.string("$" + std::to_string(i))});
+                        args.emplace_back(TermVariable{loc, store.string_ref("$" + std::to_string(i))});
                     }
                     auto name = std::string{};
                     auto const *prefix = "#program_";
@@ -173,7 +173,7 @@ auto Program::analyze(SymbolStore &store, ProgramParamVec const &params, Depende
                     name += prefix;
                     name += sig_it->first.c_str();
                     auto fun =
-                        TermFunction{loc, store.string(name),
+                        TermFunction{loc, store.string_ref(name),
                                      Util::make_immutable_array<ArgumentTuple>(ArgumentTuple{std::move(args)}), false};
                     auto lit = BdLit{BdLitSimple{LitSymbolic{loc, Sign::none, std::move(fun)}}};
                     for (auto const &stm : it->second.stms) {
