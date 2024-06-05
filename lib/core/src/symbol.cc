@@ -4,6 +4,7 @@
 #include <gringo/util/unordered_set.hh>
 
 #include <atomic>
+#include <condition_variable>
 #include <cstring>
 #include <iostream>
 #include <mutex>
