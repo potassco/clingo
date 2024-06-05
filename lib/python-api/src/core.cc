@@ -110,9 +110,10 @@ auto location_hash(clingo_location_t const &a) -> size_t { return clingo_locatio
 
 [[nodiscard]] auto location_repr(clingo_location_t const &loc) -> std::string {
     std::ostringstream oss;
-    oss << "Location(" << "Position(" << py::cast<std::string>(py::str{loc.begin_file}.attr("__repr__")()) << ","
-        << loc.begin_line << "," << loc.begin_column << ")," << "Position("
-        << py::cast<std::string>(py::str{loc.end_file}.attr("__repr__")()) << "," << loc.end_line << ","
+    oss << "Location("
+        << "Position(" << py::cast<std::string>(py::str{loc.begin_file}.attr("__repr__")()) << "," << loc.begin_line
+        << "," << loc.begin_column << "),"
+        << "Position(" << py::cast<std::string>(py::str{loc.end_file}.attr("__repr__")()) << "," << loc.end_line << ","
         << loc.end_column << "))";
     return oss.str();
 }

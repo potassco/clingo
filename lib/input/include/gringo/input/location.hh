@@ -14,7 +14,7 @@ namespace Gringo::Input {
 //! A point in an input source.
 struct Position {
     //! The name of a file/stream/string.
-    String file;
+    StringRef file;
     //! The line number.
     size_t line;
     //! The column number.

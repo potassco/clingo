@@ -74,7 +74,7 @@ class AssignMatcher : public OnceMatcher {
 
 class NonFactMatcher : public OnceMatcher {
   public:
-    NonFactMatcher(Base &base, Term const &term, Symbol *target) : base_{&base}, term_{&term}, target_{target} {}
+    NonFactMatcher(Base &base, Term const &term, SymbolRef *target) : base_{&base}, term_{&term}, target_{target} {}
 
   private:
     void do_init([[maybe_unused]] SymbolStore &store, size_t gen) override { base_->update(gen); }
@@ -91,7 +91,7 @@ class NonFactMatcher : public OnceMatcher {
 
     Base *base_;
     Term const *term_;
-    Symbol *target_;
+    SymbolRef *target_;
 };
 
 class IntervalMatcher : public Matcher {
@@ -167,7 +167,7 @@ auto make_comp_matcher(std::vector<bool> const &bound, Term const &lhs, Relation
     return std::make_unique<CmpMatcher>(lhs, rel, rhs);
 }
 
-auto make_non_fact_matcher(Base &base, Term const &term, Symbol *target) -> UMatcher {
+auto make_non_fact_matcher(Base &base, Term const &term, SymbolRef *target) -> UMatcher {
     return std::make_unique<NonFactMatcher>(base, term, target);
 }
 

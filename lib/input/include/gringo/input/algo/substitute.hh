@@ -8,7 +8,8 @@ namespace Gringo::Input {
 //! @{
 
 //! Replace all parameters in the given fact.
-[[nodiscard]] auto map_params(RewriteContext &ctx, Location const &loc, Symbol const &sym) -> std::variant<Symbol, Stm>;
+[[nodiscard]] auto map_params(RewriteContext &ctx, Location const &loc,
+                              SymbolRef const &sym) -> std::variant<SymbolRef, Stm>;
 
 //! Replace all parameters in the given term.
 [[nodiscard]] auto map_params(RewriteContext &ctx, Term const &term) -> std::optional<Term>;
@@ -26,14 +27,14 @@ namespace Gringo::Input {
 [[nodiscard]] auto map_params(RewriteContext &ctx, Stm const &stm) -> std::optional<Stm>;
 
 //! Replace all variables with the given names in the statement.
-[[nodiscard]] auto unmap_params(SymbolStore &store, Util::ordered_map<String, String> const &map,
+[[nodiscard]] auto unmap_params(SymbolStore &store, Util::ordered_map<StringRef, StringRef> const &map,
                                 Stm const &stm) -> std::optional<Stm>;
 
 //! Collect all ids appearing in the symbol.
-void collect_ids(Symbol const &sym, StringSet &ids);
+void collect_ids(SymbolRef const &sym, StringRefSet &ids);
 
 //! Collect all ids appearing in the statement.
-void collect_ids(Stm const &stm, StringSet &ids);
+void collect_ids(Stm const &stm, StringRefSet &ids);
 
 //! @}
 

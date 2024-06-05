@@ -15,7 +15,7 @@ namespace Gringo::Input {
 
 namespace {
 
-using Signature = std::tuple<String, size_t, bool>;
+using Signature = std::tuple<StringRef, size_t, bool>;
 using Dependency = std::tuple<size_t, Term const *, bool>;
 
 using DependencyMap = Util::unordered_map<Signature, std::vector<Dependency>>;
@@ -27,7 +27,7 @@ enum class DependencyType : uint8_t {
 };
 [[maybe_unused]] consteval void is_bit_set_enum(DependencyType flags);
 
-auto safe_sig(Term const &term) -> std::tuple<String, size_t, bool> {
+auto safe_sig(Term const &term) -> std::tuple<StringRef, size_t, bool> {
     return signature(term).value(); // NOLINT(bugprone-unchecked-optional-access)
 }
 
@@ -205,7 +205,7 @@ class AddProvide {
     ProvideVec *provide_;
 };
 
-using Assignment = Util::unordered_map<String, Term const *>;
+using Assignment = Util::unordered_map<StringRef, Term const *>;
 
 class Unifier {
   public:
@@ -217,10 +217,10 @@ class Unifier {
 
     template <class T, class U> auto unify_(T const &a, U const &b) = delete;
 
-    template <class T, class U> auto match_(Symbol const &a, U const &b) = delete;
+    template <class T, class U> auto match_(SymbolRef const &a, U const &b) = delete;
 
   private:
-    auto occurs_check_(String name, ArgumentTuple const &tup) -> bool {
+    auto occurs_check_(StringRef name, ArgumentTuple const &tup) -> bool {
         return std::all_of(tup.elems().begin(), tup.elems().end(), [name, this](auto const &arg) {
             if (auto const *term = std::get_if<Term>(&arg); term != nullptr) {
                 return occurs_check_(name, *term);
@@ -229,7 +229,7 @@ class Unifier {
         });
     }
 
-    auto occurs_check_(String name, Term const &b) -> bool {
+    auto occurs_check_(StringRef name, Term const &b) -> bool {
         // Note: assumes that arithmetic operations are wrapped within tuples/functions
         return std::visit(
             [&, this]<class T>(T const &v_b) -> bool {
@@ -278,7 +278,7 @@ class Unifier {
         return true;
     }
 
-    auto match_(Symbol const &a, Term const &b) -> bool {
+    auto match_(SymbolRef const &a, Term const &b) -> bool {
         return std::visit(
             [&, this]<class T>(T const &v_b) -> bool {
                 if constexpr (Util::matches<T, TermVariable>) {
@@ -507,9 +507,9 @@ struct Node {
 
 class VariableRenamer : public Transformer<VariableRenamer> {
   public:
-    VariableRenamer(NameGen &gen, Util::unordered_map<String, String> &map) : gen_{&gen}, map_{&map} {}
+    VariableRenamer(NameGen &gen, Util::unordered_map<StringRef, StringRef> &map) : gen_{&gen}, map_{&map} {}
     [[nodiscard]] auto accept(TermVariable const &var) const -> std::optional<Term> {
-        auto [it, ins] = map_->try_emplace(var.name(), String{});
+        auto [it, ins] = map_->try_emplace(var.name(), StringRef{});
         if (ins) {
             it.value() = gen_->new_name();
         }
@@ -518,12 +518,12 @@ class VariableRenamer : public Transformer<VariableRenamer> {
 
   private:
     NameGen *gen_;
-    Util::unordered_map<String, String> *map_;
+    Util::unordered_map<StringRef, StringRef> *map_;
 };
 
 auto rename(SymbolStore &store, Term const &term) -> std::optional<Term> {
     auto gen = NameGen{store, {}, "#U"};
-    Util::unordered_map<String, String> map;
+    Util::unordered_map<StringRef, StringRef> map;
     return VariableRenamer{gen, map}.transform(term);
 }
 

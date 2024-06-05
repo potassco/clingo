@@ -16,16 +16,15 @@ namespace Gringo {
 // TODO: there need to be two ways to create a symbol:
 // - floating ones, and
 // - reference counted ones.
-// The former can only be created while a store is blocked.
-// The String class should have an accompanying StringRef class.
+// The SymbolRef and StringRef classes should have an accompanying Symbol and String classes.
+// New symbols can only be created when the gc is not running.
 // The Ref classes should duplicate the interface.
-// The names of the Ref and non-Ref classes should probably be swapped.
 
 //! Reference to a string stored in a symbol store.
-class String {
+class StringRef {
   public:
     //! Construct an empty string.
-    constexpr String() : String{0} {};
+    constexpr StringRef() : StringRef{0} {};
 
     //! Get the underlying C string.
     [[nodiscard]] auto c_str() const -> const char *;
@@ -39,73 +38,73 @@ class String {
     [[nodiscard]] auto starts_with(std::string_view prefix) const -> bool;
 
     //! Equality compare two strings.
-    friend auto operator==(String a, String b) -> bool { return a.rep_ == b.rep_; }
+    friend auto operator==(StringRef a, StringRef b) -> bool { return a.rep_ == b.rep_; }
     //! Equality compare a string and a string view.
-    friend auto operator==(String a, std::string_view b) -> bool { return a.view() == b; }
+    friend auto operator==(StringRef a, std::string_view b) -> bool { return a.view() == b; }
     //! Equality compare a string view and a string.
-    friend auto operator==(std::string_view a, String b) -> bool { return a == b.view(); }
+    friend auto operator==(std::string_view a, StringRef b) -> bool { return a == b.view(); }
 
     //! Less than compare two strings.
-    friend auto operator<=>(String a, String b) -> std::strong_ordering { return a.view() <=> b.view(); }
+    friend auto operator<=>(StringRef a, StringRef b) -> std::strong_ordering { return a.view() <=> b.view(); }
     //! Less than compare a string view and a string.
-    friend auto operator<=>(std::string_view a, String b) -> std::strong_ordering { return a <=> b.view(); }
+    friend auto operator<=>(std::string_view a, StringRef b) -> std::strong_ordering { return a <=> b.view(); }
     //! Less than compare a string and a string view.
-    friend auto operator<=>(String a, std::string_view b) -> std::strong_ordering { return a.view() <=> b; }
+    friend auto operator<=>(StringRef a, std::string_view b) -> std::strong_ordering { return a.view() <=> b; }
 
     //! Convert a string to its representation.
-    static auto to_rep(String str) noexcept -> uint64_t { return static_cast<uint64_t>(str.rep_); }
+    static auto to_rep(StringRef str) noexcept -> uint64_t { return static_cast<uint64_t>(str.rep_); }
     //! Construct a string from its representation.
-    static auto from_rep(uint64_t rep) noexcept -> String { return String{static_cast<uintptr_t>(rep)}; }
+    static auto from_rep(uint64_t rep) noexcept -> StringRef { return StringRef{static_cast<uintptr_t>(rep)}; }
 
   private:
-    constexpr String(uintptr_t rep) noexcept : rep_{rep} {}
+    constexpr StringRef(uintptr_t rep) noexcept : rep_{rep} {}
     uintptr_t rep_;
 };
 
 } // namespace Gringo
 
 //! Hasher for strings.
-template <> struct std::hash<Gringo::String> : private std::hash<uint64_t> {
+template <> struct std::hash<Gringo::StringRef> : private std::hash<uint64_t> {
     //! Compute hash of string.
-    auto operator()(Gringo::String str) const -> size_t {
-        return Gringo::Util::value_hash(Gringo::String::to_rep(str));
+    auto operator()(Gringo::StringRef str) const -> size_t {
+        return Gringo::Util::value_hash(Gringo::StringRef::to_rep(str));
     }
 };
 
 namespace Gringo {
 
 //! A set of strings.
-using StringSet = Util::unordered_set<String>;
+using StringRefSet = Util::unordered_set<StringRef>;
 //! A vector of strings.
-using StringVec = std::vector<String>;
+using StringRefVec = std::vector<StringRef>;
 
 //! Output the given string (as is).
-auto operator<<(std::ostream &out, String const &str) -> std::ostream &;
+auto operator<<(std::ostream &out, StringRef const &str) -> std::ostream &;
 
 //! Enumeration of available symbols types.
 //!
 //! See the documentation of the corresponding functions in the SymbolStore.
 enum class SymbolType : uint8_t { number, sup, inf, string, tuple, function };
 
-class Symbol;
+class SymbolRef;
 //! A span of symbols.
-using SymbolSpan = std::span<Symbol const>;
+using SymbolSpan = std::span<SymbolRef const>;
 
 //! Variant-like class to store symbols.
-class Symbol {
+class SymbolRef {
   public:
     //! Get the type of the symbol.
     [[nodiscard]] auto type() const noexcept -> SymbolType;
     //! Get the numeric value of the symbol.
     [[nodiscard]] auto num() const noexcept -> NumberRef;
     //! Get the (raw) string value of the symbol.
-    [[nodiscard]] auto str() const noexcept -> String;
+    [[nodiscard]] auto str() const noexcept -> StringRef;
     //! Get the name of the symbol.
-    [[nodiscard]] auto name() const noexcept -> String;
+    [[nodiscard]] auto name() const noexcept -> StringRef;
     //! Get the arguments of the symbol.
     [[nodiscard]] auto args() const noexcept -> SymbolSpan;
     //! Flip the classical sign of the symbol.
-    [[nodiscard]] auto flip_classical_sign() const -> std::optional<Symbol>;
+    [[nodiscard]] auto flip_classical_sign() const -> std::optional<SymbolRef>;
     //! Check whether the symbol has a sign.
     //!
     //! Returns true for negative integers and negated functions.
@@ -116,75 +115,75 @@ class Symbol {
     [[nodiscard]] auto has_classical_sign() const -> bool;
 
     //! Compare two symbols.
-    friend auto compare(Symbol a, Symbol b) -> int;
+    friend auto compare(SymbolRef a, SymbolRef b) -> int;
 
     //! Equality compare two symbols.
-    friend auto operator==(Symbol a, Symbol b) -> bool { return a.rep_ == b.rep_; }
+    friend auto operator==(SymbolRef a, SymbolRef b) -> bool { return a.rep_ == b.rep_; }
 
     //! Less than compare two symbols.
-    friend auto operator<=>(Symbol a, Symbol b) -> std::strong_ordering { return compare(a, b) <=> 0; }
+    friend auto operator<=>(SymbolRef a, SymbolRef b) -> std::strong_ordering { return compare(a, b) <=> 0; }
 
     //! Get the representation of the symbol.
-    static auto to_rep(Symbol sym) noexcept -> uint64_t { return sym.rep_; }
+    static auto to_rep(SymbolRef sym) noexcept -> uint64_t { return sym.rep_; }
     //! Create a symbol from its representation.
-    static auto from_rep(uint64_t rep) noexcept -> Symbol { return Symbol{rep}; }
+    static auto from_rep(uint64_t rep) noexcept -> SymbolRef { return SymbolRef{rep}; }
 
     //! Output the given symbol.
-    friend auto operator<<(std::ostream &out, Symbol const &sym) -> std::ostream &;
+    friend auto operator<<(std::ostream &out, SymbolRef const &sym) -> std::ostream &;
 
   private:
-    Symbol(uint64_t repr) noexcept : rep_{repr} {}
+    SymbolRef(uint64_t repr) noexcept : rep_{repr} {}
     uint64_t rep_;
 };
 
 //! A vector of symbols.
-using SymbolVec = std::vector<Symbol>;
+using SymbolRefVec = std::vector<SymbolRef>;
 
 } // namespace Gringo
 
 //! Hasher for symbols.
-template <> struct std::hash<Gringo::Symbol> : private std::hash<uint64_t> {
+template <> struct std::hash<Gringo::SymbolRef> : private std::hash<uint64_t> {
     //! Compute hash of symbol.
-    auto operator()(Gringo::Symbol sym) const -> size_t {
-        return Gringo::Util::value_hash(Gringo::Symbol::to_rep(sym));
+    auto operator()(Gringo::SymbolRef sym) const -> size_t {
+        return Gringo::Util::value_hash(Gringo::SymbolRef::to_rep(sym));
     }
 };
 
 namespace Gringo {
 
-class SymbolRef {
+class Symbol {
   public:
     //! Take ownership of the symbol.
-    SymbolRef(Symbol sym) noexcept;
+    Symbol(SymbolRef sym) noexcept;
     //! Release ownership of the held symbol.
-    ~SymbolRef() noexcept;
+    ~Symbol() noexcept;
     //! Copy constructor.
-    SymbolRef(SymbolRef const &sym) noexcept : SymbolRef{sym.get()} {}
+    Symbol(Symbol const &sym) noexcept : Symbol{sym.get()} {}
     //! Move constructor.
-    SymbolRef(SymbolRef &&sym) noexcept : sym_{Symbol::from_rep(0)} { std::swap(sym.sym_, sym_); }
+    Symbol(Symbol &&sym) noexcept : sym_{SymbolRef::from_rep(0)} { std::swap(sym.sym_, sym_); }
     //! Copy assignment.
-    auto operator=(SymbolRef const &sym) noexcept -> SymbolRef & { return *this = SymbolRef(sym.get()); }
+    auto operator=(Symbol const &sym) noexcept -> Symbol & { return *this = Symbol(sym.get()); }
     //! Move assignment.
-    auto operator=(SymbolRef &&sym) noexcept -> SymbolRef & {
+    auto operator=(Symbol &&sym) noexcept -> Symbol & {
         std::swap(sym.sym_, sym_);
         return *this;
     }
-    [[nodiscard]] auto get() const -> Symbol const & { return sym_; }
-    operator Symbol const &() const { return sym_; }
-    [[nodiscard]] auto operator->() const -> Symbol const * { return &sym_; }
-    [[nodiscard]] auto operator*() const -> Symbol const & { return get(); }
+    [[nodiscard]] auto get() const -> SymbolRef const & { return sym_; }
+    operator SymbolRef const &() const { return sym_; }
+    [[nodiscard]] auto operator->() const -> SymbolRef const * { return &sym_; }
+    [[nodiscard]] auto operator*() const -> SymbolRef const & { return get(); }
 
   private:
-    Symbol sym_;
+    SymbolRef sym_;
 };
 
 class SymbolCollector {
   public:
-    void mark(Symbol const &sym);
-    void mark(String const &str);
+    void mark(SymbolRef const &sym);
+    void mark(StringRef const &str);
 
   private:
-    std::vector<Symbol> stack_;
+    std::vector<SymbolRef> stack_;
 };
 
 class SymbolOwner {
@@ -202,30 +201,30 @@ class SymbolStore {
   public:
     virtual ~SymbolStore() noexcept = default;
     //! Construct the infimum constant (<tt>\#inf</tt>).
-    [[nodiscard]] static auto sup() noexcept -> Symbol;
+    [[nodiscard]] static auto sup() noexcept -> SymbolRef;
     //! Construct the supremum constant (<tt>\#sup</tt>).
-    [[nodiscard]] static auto inf() noexcept -> Symbol;
+    [[nodiscard]] static auto inf() noexcept -> SymbolRef;
     //! Construct a quoted string.
     //!
     //! A raw string is stored and quoted when the symbol is output.
     //! For example: <tt>"foo\nbar"</tt>.
-    [[nodiscard]] static auto str(String str) noexcept -> Symbol;
+    [[nodiscard]] static auto str(StringRef str) noexcept -> SymbolRef;
     //! Construct a number (e.g., <tt>42</tt>).
-    [[nodiscard]] auto num(Number const &num) noexcept -> Symbol;
+    [[nodiscard]] auto num(Number const &num) noexcept -> SymbolRef;
     //! Construct a number (avoids copying the number).
-    [[nodiscard]] auto num(Number &&num) noexcept -> Symbol;
+    [[nodiscard]] auto num(Number &&num) noexcept -> SymbolRef;
     //! Construct a tuple.
     //!
     //! For example: <tt>(x,y)</tt>.
-    [[nodiscard]] auto tup(SymbolSpan args) -> Symbol;
+    [[nodiscard]] auto tup(SymbolSpan args) -> SymbolRef;
     //! Construct a function symbol.
     //!
     //! For example: <tt>f(x,y)</tt>.
-    [[nodiscard]] auto fun(String name, SymbolSpan args, bool sign) -> Symbol;
+    [[nodiscard]] auto fun(StringRef name, SymbolSpan args, bool sign) -> SymbolRef;
     //! Construct a string.
     //!
     //! The string is stored as is.
-    [[nodiscard]] auto string(std::string_view str) -> String;
+    [[nodiscard]] auto string(std::string_view str) -> StringRef;
 
     //! Block garbage collection.
     //!
@@ -245,11 +244,11 @@ class SymbolStore {
     void gc() { do_gc(); }
 
   private:
-    [[nodiscard]] virtual auto do_tup(SymbolSpan args) -> Symbol = 0;
-    [[nodiscard]] virtual auto do_fun(String str, SymbolSpan args, bool sign) -> Symbol = 0;
-    [[nodiscard]] virtual auto do_string(std::string_view str) -> String = 0;
-    [[nodiscard]] virtual auto do_num(Number const &num) noexcept -> Symbol = 0;
-    [[nodiscard]] virtual auto do_num(Number &&num) noexcept -> Symbol = 0;
+    [[nodiscard]] virtual auto do_tup(SymbolSpan args) -> SymbolRef = 0;
+    [[nodiscard]] virtual auto do_fun(StringRef str, SymbolSpan args, bool sign) -> SymbolRef = 0;
+    [[nodiscard]] virtual auto do_string(std::string_view str) -> StringRef = 0;
+    [[nodiscard]] virtual auto do_num(Number const &num) noexcept -> SymbolRef = 0;
+    [[nodiscard]] virtual auto do_num(Number &&num) noexcept -> SymbolRef = 0;
 
     virtual void do_gc_block(bool block) noexcept = 0;
     virtual void do_gc_add_owner(SymbolOwner const &owner) = 0;
@@ -286,20 +285,20 @@ class NameGen {
     //! Constructor taking a set of variables names.
     //!
     //! The generator ensures that there are no collisions with these names.
-    NameGen(SymbolStore &store, StringSet names, char const *prefix)
+    NameGen(SymbolStore &store, StringRefSet names, char const *prefix)
         : store_{store}, names_{std::move(names)}, prefix_{prefix} {}
     //! Delete move/copy constructor.
     NameGen(NameGen &&) noexcept = delete;
     //! Initialize/reset the name generator.
-    void init(StringSet names, char const *prefix) {
+    void init(StringRefSet names, char const *prefix) {
         num_ = 0;
         names_ = std::move(names);
         prefix_ = prefix;
     }
     //! Add a name returning true if it is not yet used.
-    [[nodiscard]] auto add_name(String name) -> bool { return names_.emplace(name).second; }
+    [[nodiscard]] auto add_name(StringRef name) -> bool { return names_.emplace(name).second; }
     //! Generate a unique variable name.
-    [[nodiscard]] auto new_name() -> String;
+    [[nodiscard]] auto new_name() -> StringRef;
     //! Return the associated symbol store.
     [[nodiscard]] auto store() const -> SymbolStore & { return store_; }
 
@@ -307,7 +306,7 @@ class NameGen {
     //! Symbol store to store strings.
     SymbolStore &store_;
     //! Taken variable names.
-    StringSet names_;
+    StringRefSet names_;
     //! The prefix of the generated names.
     char const *prefix_;
     //! Running number used to generate names.

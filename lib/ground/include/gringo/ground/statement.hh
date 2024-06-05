@@ -87,7 +87,7 @@ class StmRule : public Stm {
     //! This allows for updating the indices of these literals while grounding.
     std::vector<size_t> indices_;
     Ground::ULitVec body_;
-    Symbol atom_ = SymbolStore::sup();
+    SymbolRef atom_ = SymbolStore::sup();
 };
 
 } // namespace Gringo::Ground

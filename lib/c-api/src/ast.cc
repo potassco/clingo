@@ -67,8 +67,8 @@ auto convert_loc(clingo_lib_t *lib, clingo_location_t const *loc) -> Gringo::Inp
             {lib->store->string(loc->end_file), loc->end_line, loc->end_column}};
 }
 
-auto convert_string_array(clingo_lib_t *lib, char const **array, size_t size) -> Gringo::StringVec {
-    auto ret = Gringo::StringVec{};
+auto convert_string_array(clingo_lib_t *lib, char const **array, size_t size) -> Gringo::StringRefVec {
+    auto ret = Gringo::StringRefVec{};
     ret.reserve(size);
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     std::transform(array, array + size, std::back_inserter(ret), [lib](auto str) { return lib->store->string(str); });
@@ -97,7 +97,7 @@ struct clingo_ast {
     [[nodiscard]] auto get_location(clingo_ast_attribute_t attr) const -> std::optional<clingo_location_t>;
     [[nodiscard]] auto get_string(clingo_ast_attribute_t attr) const -> std::optional<char const *>;
     [[nodiscard]] auto
-    get_string_vec(clingo_ast_attribute_t attr) const -> std::optional<std::span<Gringo::String const>>;
+    get_string_vec(clingo_ast_attribute_t attr) const -> std::optional<std::span<Gringo::StringRef const>>;
     [[nodiscard]] auto get_ast(clingo_ast_attribute_t attr) const -> std::optional<std::unique_ptr<clingo_ast_t>>;
     [[nodiscard]] auto get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional<ASTVec>;
 
@@ -809,7 +809,7 @@ auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<
 #undef ATTR
 #define ATTR(attr, value)                                                                                              \
     case clingo_ast_attribute_##attr: {                                                                                \
-        return static_cast<clingo_symbol_t>(Gringo::Symbol::to_rep(cast<Type>().value));                               \
+        return static_cast<clingo_symbol_t>(Gringo::SymbolRef::to_rep(cast<Type>().value));                            \
     }
 
 [[nodiscard]] auto clingo_ast::get_symbol(clingo_ast_attribute_t attr) const -> std::optional<clingo_symbol_t> {
@@ -878,7 +878,8 @@ auto clingo_ast::get_string(clingo_ast_attribute_t attr) const -> std::optional<
         return std::span{cast<Type>().value};                                                                          \
     }
 
-auto clingo_ast::get_string_vec(clingo_ast_attribute_t attr) const -> std::optional<std::span<Gringo::String const>> {
+auto clingo_ast::get_string_vec(clingo_ast_attribute_t attr) const
+    -> std::optional<std::span<Gringo::StringRef const>> {
     // clang-format off
     SWITCH(
         TYPE(unparsed_element, UnparsedElement,
@@ -1479,7 +1480,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto sym = va_arg(args, clingo_symbol_t);
                 va_end(args);
                 *ast = construct_ast<Gringo::Input::TermSymbol>(type, convert_loc(lib, loc),
-                                                                Gringo::Symbol::from_rep(sym));
+                                                                Gringo::SymbolRef::from_rep(sym));
                 break;
             }
             case clingo_ast_type_term_tuple: {
@@ -1640,7 +1641,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto sym = va_arg(args, clingo_symbol_t);
                 va_end(args);
                 *ast = construct_ast<Gringo::Input::TheoryTermSymbol>(type, convert_loc(lib, loc),
-                                                                      Gringo::Symbol::from_rep(sym));
+                                                                      Gringo::SymbolRef::from_rep(sym));
                 break;
             }
             case clingo_ast_type_theory_term_tuple: {
@@ -2545,7 +2546,7 @@ struct clingo_ast_rewrite_context {
     Gringo::Input::ConstMap const_map;
     Gringo::Input::RewriteOptions options;
     Gringo::Input::RewriteContext ctx = {lib->log, *lib->store, options, parser, param_map, const_map};
-    Gringo::Util::ordered_map<Gringo::String, Gringo::String> param_unmap;
+    Gringo::Util::ordered_map<Gringo::StringRef, Gringo::StringRef> param_unmap;
 };
 
 extern "C" auto clingo_ast_rewrite_context_create(clingo_lib_t *lib, clingo_ast_rewrite_context_t **context) -> bool {

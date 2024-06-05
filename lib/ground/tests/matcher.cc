@@ -12,7 +12,7 @@ namespace {
 
 class NullOutputLit : public OutputLit {
   private:
-    void do_lit([[maybe_unused]] Sign sign, [[maybe_unused]] Symbol sym) override {}
+    void do_lit([[maybe_unused]] Sign sign, [[maybe_unused]] SymbolRef sym) override {}
     void do_boolean([[maybe_unused]] bool value) override {}
     void do_cond_lit([[maybe_unused]] size_t uid) override {}
 };
@@ -20,9 +20,9 @@ class NullOutputLit : public OutputLit {
 class NullOutputStm : public OutputStm, public NullOutputLit {
   private:
     auto do_uid() -> size_t override { return 0; }
-    void do_fact([[maybe_unused]] Symbol sym) override {}
+    void do_fact([[maybe_unused]] SymbolRef sym) override {}
     auto do_body() -> OutputLit & override { return *this; }
-    void do_rule([[maybe_unused]] std::optional<Symbol> head) override {}
+    void do_rule([[maybe_unused]] std::optional<SymbolRef> head) override {}
     auto do_cond() -> OutputLit & override { return *this; }
     void do_cond_lit_premise([[maybe_unused]] size_t lit_index, [[maybe_unused]] size_t elem_index) override {}
     void do_cond_lit_conclusion([[maybe_unused]] size_t lit_index, [[maybe_unused]] size_t elem_index) override {}
@@ -106,7 +106,7 @@ TEST_CASE("ground_matcher") {
 
     SECTION("nonfact") {
         auto name = store->string("f");
-        auto sym = [&](auto num) { return store->fun(name, SymbolVec{store->num(num)}, false); };
+        auto sym = [&](auto num) { return store->fun(name, SymbolRefVec{store->num(num)}, false); };
         ass = {std::nullopt};
         auto base = Base{};
         base.add(sym(1), AtomState::fact);
@@ -139,7 +139,7 @@ TEST_CASE("ground_matcher") {
 
     SECTION("full matcher") {
         auto name = store->string("f");
-        auto sym = [&](auto a, auto b) { return store->fun(name, SymbolVec{store->num(a), store->num(b)}, false); };
+        auto sym = [&](auto a, auto b) { return store->fun(name, SymbolRefVec{store->num(a), store->num(b)}, false); };
         ass = {std::nullopt};
         auto base = Base{};
         base.add(sym(1, 1), AtomState::derived);
@@ -189,7 +189,7 @@ TEST_CASE("ground_matcher") {
     SECTION("hash matcher") {
         auto name = store->string("f");
         auto sym = [&](auto a, auto b, auto c) {
-            return store->fun(name, SymbolVec{store->num(a), store->num(b), store->num(c)}, false);
+            return store->fun(name, SymbolRefVec{store->num(a), store->num(b), store->num(c)}, false);
         };
         ass = {std::nullopt, std::nullopt, std::nullopt};
         ass[0] = store->num(1);

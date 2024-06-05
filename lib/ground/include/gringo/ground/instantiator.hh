@@ -10,7 +10,7 @@
 
 namespace Gringo::Ground {
 
-using Assignment = std::vector<std::optional<Symbol>>;
+using Assignment = std::vector<std::optional<SymbolRef>>;
 
 class InstantiationContext {
   public:

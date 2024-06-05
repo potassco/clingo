@@ -20,8 +20,8 @@ auto projectable(ProjectionMap project, Term const *term) -> bool {
 }
 
 auto get_counts(ProjectionMap project, auto const &elem) {
-    Util::unordered_map<String, size_t> counts;
-    visit_variables(elem, [&project, &counts]([[maybe_unused]] Location const &loc, String var) {
+    Util::unordered_map<StringRef, size_t> counts;
+    visit_variables(elem, [&project, &counts]([[maybe_unused]] Location const &loc, StringRef var) {
         if (!project.counts().contains(var)) {
             ++counts[var];
         }
@@ -240,7 +240,7 @@ class Project : public Transformer<Project> {
 
 } // namespace
 
-auto ProjectionMap::projectable(String const &var, bool anonymous) const -> bool {
+auto ProjectionMap::projectable(StringRef const &var, bool anonymous) const -> bool {
     if (mode_ == ProjectionMode::disabled) {
         return false;
     }
@@ -251,7 +251,7 @@ auto ProjectionMap::projectable(String const &var, bool anonymous) const -> bool
     return it != counts_->end() && it->second == 1;
 }
 
-auto ProjectionMap::counts() const -> Util::unordered_map<String, size_t> const & { return *counts_; }
+auto ProjectionMap::counts() const -> Util::unordered_map<StringRef, size_t> const & { return *counts_; }
 
 auto ProjectionMap::mode() const -> ProjectionMode { return mode_; }
 
@@ -273,11 +273,11 @@ auto project(RewriteOptions const &opts, Stm const &stm) -> std::optional<Stm> {
     std::optional<Stm> res;
     if (opts.project_mode != ProjectionMode::disabled) {
         VariableSet vars = select_variables(stm, VariableContext::global);
-        Util::unordered_map<String, size_t> counts;
+        Util::unordered_map<StringRef, size_t> counts;
         counts.reserve(vars.size());
         visit_variables(
             stm,
-            [&vars, &counts]([[maybe_unused]] Location const &loc, String var) {
+            [&vars, &counts]([[maybe_unused]] Location const &loc, StringRef var) {
                 if (vars.contains(var)) {
                     ++counts[var];
                 }

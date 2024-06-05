@@ -38,8 +38,9 @@ struct theory_op_definition {
         return Detail::location(dsl::p<theory_op> >> dsl::colon + smallint + dsl::comma + type);
     }();
     static constexpr auto value = lexy::callback<TheoryOpDefinition>(
-        lexy::construct<TheoryOpDefinition>,
-        [](Location loc, String name, int arity) { return TheoryOpDefinition{loc, name, arity, TheoryOpType::unary}; });
+        lexy::construct<TheoryOpDefinition>, [](Location loc, StringRef name, int arity) {
+            return TheoryOpDefinition{loc, name, arity, TheoryOpType::unary};
+        });
 };
 
 struct theory_term_definition {
@@ -52,7 +53,7 @@ struct theory_term_definition {
     }();
     static constexpr auto value = lexy::as_list<std::vector<TheoryOpDefinition>> >>
                                   lexy::callback<TheoryTermDefinition>(lexy::construct<TheoryTermDefinition>,
-                                                                       [](Location loc, String name, lexy::nullopt) {
+                                                                       [](Location loc, StringRef name, lexy::nullopt) {
                                                                            return TheoryTermDefinition{loc, name, {}};
                                                                        });
 };
@@ -64,7 +65,7 @@ struct theory_guard_definition {
         return rels >> dsl::comma + dsl::p<identifier>;
     }();
     static constexpr auto value = []() {
-        auto sink = lexy::as_list<std::vector<String>>;
+        auto sink = lexy::as_list<std::vector<StringRef>>;
         auto cb = lexy::construct<TheoryRGuardDefinition>;
         return sink >> cb;
     }();
@@ -115,13 +116,13 @@ struct statement_theory {
     static constexpr auto value = lexy::callback<Stm>(
         // Note: called during error recovery if the expression between the
         // parenthesis did not match.
-        [](Location loc, String name) {
+        [](Location loc, StringRef name) {
             return StmTheory{loc, name, TheoryTermDefinitionArray{}, TheoryAtomDefinitionArray{}};
         },
-        [](Location loc, String name, lexy::nullopt) {
+        [](Location loc, StringRef name, lexy::nullopt) {
             return StmTheory{loc, name, TheoryTermDefinitionArray{}, TheoryAtomDefinitionArray{}};
         },
-        [](Location loc, String name, theory_definitions::value_type defs) {
+        [](Location loc, StringRef name, theory_definitions::value_type defs) {
             return StmTheory{loc, name, std::move(defs.term_defs), std::move(defs.atom_defs)};
         });
 };
@@ -287,8 +288,8 @@ struct statement_project {
     }();
     static constexpr auto value = lexy::callback<Stm>(
         [](Location loc, [[maybe_unused]] Location loc_term, bool has_sign, [[maybe_unused]] Position begin_name,
-           String name, int arity) { return StmProjectSig{loc, has_sign, name, arity}; },
-        [](Location loc, Location loc_term, bool has_sign, Position begin_name, String name, PoolArray pool,
+           StringRef name, int arity) { return StmProjectSig{loc, has_sign, name, arity}; },
+        [](Location loc, Location loc_term, bool has_sign, Position begin_name, StringRef name, PoolArray pool,
            BdLitArray body) {
             Term atom = TermFunction{begin_name + loc_term, name, std::move(pool), false};
             if (has_sign) {
@@ -296,7 +297,7 @@ struct statement_project {
             }
             return StmProject{loc, std::move(atom), std::move(body)};
         },
-        [](Location loc, Location loc_term, bool has_sign, Position begin_name, String name, BdLitArray body) {
+        [](Location loc, Location loc_term, bool has_sign, Position begin_name, StringRef name, BdLitArray body) {
             Term atom = TermFunction{begin_name + loc_term, name, PoolArray{ArgumentTuple{ArgumentArray{}}}, false};
             if (has_sign) {
                 atom = TermUnary{loc_term, UnaryOperator::negate, std::move(atom)};
@@ -360,11 +361,11 @@ struct statement_program {
         return Detail::location(kw >> id + dsl::opt(dsl::round_bracketed.opt_list(id, dsl::sep(dsl::comma))) + eos);
     }();
     static constexpr auto
-        value = lexy::as_list<std::vector<String>> >>
-                lexy::callback<Stm>([](Location loc, String name,
-                                       std::vector<String> args) { return StmProgram{loc, name, std::move(args)}; },
-                                    [](Location loc, String name, lexy::nullopt) {
-                                        return StmProgram{loc, name, std::vector<String>{}};
+        value = lexy::as_list<std::vector<StringRef>> >>
+                lexy::callback<Stm>([](Location loc, StringRef name,
+                                       std::vector<StringRef> args) { return StmProgram{loc, name, std::move(args)}; },
+                                    [](Location loc, StringRef name, lexy::nullopt) {
+                                        return StmProgram{loc, name, std::vector<StringRef>{}};
                                     });
 };
 
@@ -381,9 +382,9 @@ struct statement_const {
         return Detail::location(kw >> id + dsl::equal_sign + dsl::p<term> + eos + type);
     }();
     static constexpr auto value =
-        lexy::callback<Stm>([](Location loc, String name,
+        lexy::callback<Stm>([](Location loc, StringRef name,
                                Term value) { return StmConst{loc, ConstType::default_, name, std::move(value)}; },
-                            [](Location loc, String name, Term value, ConstType type) {
+                            [](Location loc, StringRef name, Term value, ConstType type) {
                                 return StmConst{loc, type, name, std::move(value)};
                             });
 };

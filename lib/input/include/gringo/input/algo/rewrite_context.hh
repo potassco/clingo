@@ -27,26 +27,26 @@ class TheoryTermParser {
     void add(Logger &log, TheoryOpDefinition const &def);
 
     //! Check if the given operator is in the parse table raising a runtime error if absent.
-    void check_operator(Logger &log, String op, Arity arity, Location loc) const;
+    void check_operator(Logger &log, StringRef op, Arity arity, Location loc) const;
 
     //! Parses the given unparsed term, replacing it by nested theory functions.
     auto parse(Logger &log, TheoryTermUnparsed const &term) const -> TheoryTerm;
 
   private:
-    using Table = Util::unordered_map<std::pair<String, Arity>, std::pair<int, Associativity>>;
-    using Stack = std::vector<std::pair<String, Arity>>;
+    using Table = Util::unordered_map<std::pair<StringRef, Arity>, std::pair<int, Associativity>>;
+    using Stack = std::vector<std::pair<StringRef, Arity>>;
     using Terms = std::vector<TheoryTerm>;
 
     //! Get priority and associativity of the given binary operator.
-    auto priority_and_associativity_(String op) const -> std::pair<int, Associativity>;
+    auto priority_and_associativity_(StringRef op) const -> std::pair<int, Associativity>;
 
     //! Get priority of the given unary or binary operator.
-    auto priority_(String op, Arity arity) const -> int;
+    auto priority_(StringRef op, Arity arity) const -> int;
 
     //! Returns true if the stack has to be reduced.
     //!
     //! Returns true if the priority of the given binary operator is lower than the preceeding operator on the stack.
-    auto check_(String op) const -> bool;
+    auto check_(StringRef op) const -> bool;
 
     //! Combines the last unary or binary term on the stack.
     void reduce_() const;
@@ -68,8 +68,8 @@ class TheoryAtomParser {
 
   private:
     using ParserIndex = size_t;
-    using GuardTable = std::pair<StringSet, ParserIndex>;
-    using AtomTable = Util::unordered_map<std::pair<String, size_t>,
+    using GuardTable = std::pair<StringRefSet, ParserIndex>;
+    using AtomTable = Util::unordered_map<std::pair<StringRef, size_t>,
                                           std::tuple<TheoryAtomType, ParserIndex, std::optional<GuardTable>>>;
 
     std::vector<TheoryTermParser> term_parsers_;
@@ -80,7 +80,7 @@ class TheoryAtomParser {
 using AuxTermVec = std::vector<std::pair<Term, Term>>;
 
 //! Map from identifiers to constants.
-using ParamMap = Util::ordered_set<String>;
+using ParamMap = Util::ordered_set<StringRef>;
 
 //! Helper to pass arguments to rewrite functions.
 class RewriteContext {
@@ -105,7 +105,7 @@ class RewriteContext {
     //! Delete move/copy constructor.
     RewriteContext(RewriteContext &&) noexcept = delete;
     //! Initialize/reset the name generator.
-    void init(StringSet names, char const *prefix) {
+    void init(StringRefSet names, char const *prefix) {
         aux_.clear();
         gen_.init(std::move(names), prefix);
     }
@@ -122,7 +122,7 @@ class RewriteContext {
     //! Check if the given identifier is a parameter defined by a program directive.
     //!
     //! If it is a parameter, return its index.
-    [[nodiscard]] auto is_param(String name) const -> std::optional<size_t> {
+    [[nodiscard]] auto is_param(StringRef name) const -> std::optional<size_t> {
         if (auto it = param_map_.find(name); it != param_map_.end()) {
             return std::distance(param_map_.begin(), it);
         }
@@ -131,7 +131,7 @@ class RewriteContext {
     //! Check if the given identifier is a parameter defined by a constant.
     //!
     //! If it is a parameter, return its value.
-    [[nodiscard]] auto is_const(String name) const -> std::optional<Symbol> {
+    [[nodiscard]] auto is_const(StringRef name) const -> std::optional<SymbolRef> {
         if (auto it = const_map_.find(name); it != const_map_.end()) {
             assert(!is_param(name));
             return it->second.second;

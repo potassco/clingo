@@ -24,17 +24,17 @@ extern "C" auto clingo_symbol_create_number_str(clingo_lib_t *lib, char const *n
         if (lib == nullptr || number == nullptr || symbol == nullptr) {
             throw std::invalid_argument("invalid arguments");
         }
-        *symbol = Gringo::Symbol::to_rep(lib->store->num(Gringo::Number{number}));
+        *symbol = Gringo::SymbolRef::to_rep(lib->store->num(Gringo::Number{number}));
     }
     CLINGO_CATCH(lib);
 }
 
 extern "C" auto clingo_symbol_create_infimum() -> clingo_symbol_t {
-    return Gringo::Symbol::to_rep(Gringo::SymbolStore::inf());
+    return Gringo::SymbolRef::to_rep(Gringo::SymbolStore::inf());
 }
 
 extern "C" auto clingo_symbol_create_supremum() -> clingo_symbol_t {
-    return Gringo::Symbol::to_rep(Gringo::SymbolStore::sup());
+    return Gringo::SymbolRef::to_rep(Gringo::SymbolStore::sup());
 }
 
 extern "C" auto clingo_symbol_create_string(clingo_lib_t *lib, char const *string, clingo_symbol_t *symbol) -> bool {
@@ -42,7 +42,7 @@ extern "C" auto clingo_symbol_create_string(clingo_lib_t *lib, char const *strin
         if (lib == nullptr || string == nullptr || symbol == nullptr) {
             throw std::invalid_argument("invalid arguments");
         }
-        *symbol = Gringo::Symbol::to_rep(lib->store->str(lib->store->string(string)));
+        *symbol = Gringo::SymbolRef::to_rep(lib->store->str(lib->store->string(string)));
     }
     CLINGO_CATCH(lib);
 }
@@ -53,7 +53,7 @@ extern "C" auto clingo_symbol_create_id(clingo_lib_t *lib, char const *name, boo
         if (lib == nullptr || name == nullptr || symbol == nullptr) {
             throw std::invalid_argument("invalid arguments");
         }
-        *symbol = Gringo::Symbol::to_rep(lib->store->fun(lib->store->string(name), {}, sign));
+        *symbol = Gringo::SymbolRef::to_rep(lib->store->fun(lib->store->string(name), {}, sign));
     }
     CLINGO_CATCH(lib);
 }
@@ -65,8 +65,8 @@ extern "C" auto clingo_symbol_create_tuple(clingo_lib_t *lib, clingo_symbol_t co
             throw std::invalid_argument("invalid arguments");
         }
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-        auto const *c_args = reinterpret_cast<Gringo::Symbol const *>(arguments);
-        *symbol = Gringo::Symbol::to_rep(lib->store->tup(Gringo::SymbolSpan{c_args, arguments_size}));
+        auto const *c_args = reinterpret_cast<Gringo::SymbolRef const *>(arguments);
+        *symbol = Gringo::SymbolRef::to_rep(lib->store->tup(Gringo::SymbolSpan{c_args, arguments_size}));
     }
     CLINGO_CATCH(lib);
 }
@@ -78,15 +78,15 @@ extern "C" auto clingo_symbol_create_function(clingo_lib_t *lib, char const *nam
             throw std::invalid_argument("invalid arguments");
         }
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-        auto const *c_args = reinterpret_cast<Gringo::Symbol const *>(arguments);
-        *symbol = Gringo::Symbol::to_rep(
+        auto const *c_args = reinterpret_cast<Gringo::SymbolRef const *>(arguments);
+        *symbol = Gringo::SymbolRef::to_rep(
             lib->store->fun(lib->store->string(name), Gringo::SymbolSpan{c_args, arguments_size}, sign));
     }
     CLINGO_CATCH(lib);
 }
 
 extern "C" auto clingo_symbol_number(clingo_symbol_t symbol, int32_t *number) -> bool {
-    auto sym = Gringo::Symbol::from_rep(symbol);
+    auto sym = Gringo::SymbolRef::from_rep(symbol);
     if (number == nullptr || sym.type() != Gringo::SymbolType::number) {
         return false;
     }
@@ -99,7 +99,7 @@ extern "C" auto clingo_symbol_number(clingo_symbol_t symbol, int32_t *number) ->
 }
 
 extern "C" auto clingo_symbol_name(clingo_symbol_t symbol, char const **name) -> bool {
-    auto sym = Gringo::Symbol::from_rep(symbol);
+    auto sym = Gringo::SymbolRef::from_rep(symbol);
     if (name == nullptr || sym.type() != Gringo::SymbolType::function) {
         return false;
     }
@@ -108,7 +108,7 @@ extern "C" auto clingo_symbol_name(clingo_symbol_t symbol, char const **name) ->
 }
 
 extern "C" auto clingo_symbol_string(clingo_symbol_t symbol, char const **string) -> bool {
-    auto sym = Gringo::Symbol::from_rep(symbol);
+    auto sym = Gringo::SymbolRef::from_rep(symbol);
     if (string == nullptr || sym.type() != Gringo::SymbolType::string) {
         return false;
     }
@@ -117,7 +117,7 @@ extern "C" auto clingo_symbol_string(clingo_symbol_t symbol, char const **string
 }
 
 extern "C" auto clingo_symbol_has_sign(clingo_symbol_t symbol, bool *has_sign) -> bool {
-    auto sym = Gringo::Symbol::from_rep(symbol);
+    auto sym = Gringo::SymbolRef::from_rep(symbol);
     if (has_sign == nullptr ||
         (sym.type() != Gringo::SymbolType::function && sym.type() != Gringo::SymbolType::number)) {
         return false;
@@ -128,7 +128,7 @@ extern "C" auto clingo_symbol_has_sign(clingo_symbol_t symbol, bool *has_sign) -
 
 extern "C" auto clingo_symbol_arguments(clingo_symbol_t symbol, clingo_symbol_t const **arguments,
                                         size_t *arguments_size) -> bool {
-    auto sym = Gringo::Symbol::from_rep(symbol);
+    auto sym = Gringo::SymbolRef::from_rep(symbol);
     if (arguments == nullptr || arguments_size == nullptr ||
         (sym.type() != Gringo::SymbolType::function && sym.type() != Gringo::SymbolType::tuple)) {
         return false;
@@ -148,7 +148,7 @@ static_assert(static_cast<int>(Gringo::SymbolType::tuple) == clingo_symbol_type_
 static_assert(static_cast<int>(Gringo::SymbolType::string) == clingo_symbol_type_string);
 
 extern "C" auto clingo_symbol_type(clingo_symbol_t symbol) -> clingo_symbol_type_t {
-    auto sym = Gringo::Symbol::from_rep(symbol);
+    auto sym = Gringo::SymbolRef::from_rep(symbol);
     return static_cast<clingo_symbol_type_t>(sym.type());
 }
 
@@ -157,7 +157,7 @@ extern "C" auto clingo_symbol_to_string_size(clingo_symbol_t symbol, size_t *siz
         return false;
     }
     try {
-        auto sym = Gringo::Symbol::from_rep(symbol);
+        auto sym = Gringo::SymbolRef::from_rep(symbol);
         *size = print_size(sym);
         return true;
     } catch (...) {
@@ -170,7 +170,7 @@ extern "C" auto clingo_symbol_to_string(clingo_symbol_t symbol, char *string, si
         return false;
     }
     try {
-        auto sym = Gringo::Symbol::from_rep(symbol);
+        auto sym = Gringo::SymbolRef::from_rep(symbol);
         print(string, size, sym);
         return true;
     } catch (...) {
@@ -179,19 +179,20 @@ extern "C" auto clingo_symbol_to_string(clingo_symbol_t symbol, char *string, si
 }
 
 extern "C" auto clingo_symbol_is_equal_to(clingo_symbol_t a, clingo_symbol_t b) -> bool {
-    auto sym_a = Gringo::Symbol::from_rep(a);
-    auto sym_b = Gringo::Symbol::from_rep(b);
+    auto sym_a = Gringo::SymbolRef::from_rep(a);
+    auto sym_b = Gringo::SymbolRef::from_rep(b);
     return sym_a == sym_b;
 }
 
 extern "C" auto clingo_symbol_is_less_than(clingo_symbol_t a, clingo_symbol_t b) -> bool {
-    auto sym_a = Gringo::Symbol::from_rep(a);
-    auto sym_b = Gringo::Symbol::from_rep(b);
+    auto sym_a = Gringo::SymbolRef::from_rep(a);
+    auto sym_b = Gringo::SymbolRef::from_rep(b);
     return sym_a < sym_b;
 }
 
 extern "C" auto clingo_symbol_hash(clingo_symbol_t symbol) -> size_t {
-    return Gringo::Util::hash_mix(Gringo::Util::value_hash_record<clingo_symbol_t>(Gringo::Symbol::from_rep(symbol)));
+    return Gringo::Util::hash_mix(
+        Gringo::Util::value_hash_record<clingo_symbol_t>(Gringo::SymbolRef::from_rep(symbol)));
 }
 
 extern "C" auto clingo_parse_term(clingo_lib_t *lib, char const *string, clingo_symbol_t *symbol) -> bool {
@@ -209,7 +210,7 @@ extern "C" auto clingo_parse_term(clingo_lib_t *lib, char const *string, clingo_
             lib->log.reset();
             throw std::runtime_error("parsing term failed");
         }
-        *symbol = Gringo::Symbol::to_rep(*sym);
+        *symbol = Gringo::SymbolRef::to_rep(*sym);
     }
     CLINGO_CATCH(lib);
 }

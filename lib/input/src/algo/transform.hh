@@ -111,7 +111,7 @@ template <class T> class Transformer {
     // ignore
 
     template <class E>
-        requires Util::is_among_v<E, Projection, String, Relation>
+        requires Util::is_among_v<E, Projection, StringRef, Relation>
     [[nodiscard]] auto accept_([[maybe_unused]] E const &term) const -> std::optional<E> {
         return std::nullopt;
     }

@@ -86,7 +86,7 @@ auto StateCondLit::add_premise(Assignment const &ass, MapAtomCondLit::iterator i
     }
     auto syms_elem = syms_elems_.push_map(Util::enumerate{local_.size() + 1}, [this, it, &ass](size_t i) {
         if (i == 0) {
-            return Symbol::from_rep(std::distance(atoms_.begin(), it));
+            return SymbolRef::from_rep(std::distance(atoms_.begin(), it));
         }
         // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
         return ass[local_[i - 1]].value();
@@ -180,7 +180,7 @@ auto StateCondLit::atom_find(Assignment const &ass) -> MapAtomCondLit::iterator 
 
 auto StateCondLit::elem_find(Assignment const &ass, MapAtomCondLit::iterator it) -> MapElemCondLit::iterator {
     temp_syms_.clear();
-    temp_syms_.emplace_back(Symbol::from_rep(atom_index(it)));
+    temp_syms_.emplace_back(SymbolRef::from_rep(atom_index(it)));
     for (auto var : local_) {
         // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
         temp_syms_.emplace_back(ass[var].value());
@@ -197,20 +197,21 @@ auto MatchCondLit::signature(VariableSet const &bound, [[maybe_unused]] Variable
     return {bound.begin(), bound.end()};
 };
 
-auto MatchCondLit::match([[maybe_unused]] SymbolStore &store, Symbol const *sym, Assignment &ass) const -> bool {
+auto MatchCondLit::match([[maybe_unused]] SymbolStore &store, SymbolRef const *sym, Assignment &ass) const -> bool {
     if (type_ == LitCondLitType::premise) {
-        auto it = state_->atom_nth(Symbol::to_rep(*sym));
+        auto it = state_->atom_nth(SymbolRef::to_rep(*sym));
         return match_(ass, it.key(), state_->vars_global()) && match_(ass, std::next(sym), state_->vars_local());
     }
     return match_(ass, sym, state_->vars_global());
 };
 
-auto MatchCondLit::eval([[maybe_unused]] SymbolStore &store, Assignment &ass) const -> std::optional<Symbol const *> {
+auto MatchCondLit::eval([[maybe_unused]] SymbolStore &store,
+                        Assignment &ass) const -> std::optional<SymbolRef const *> {
     eval_.clear();
     bool is_premise = type_ == LitCondLitType::premise;
     if (is_premise) {
         if (auto index = state_->atom_index(ass); index) {
-            eval_.emplace_back(Symbol::from_rep(*index));
+            eval_.emplace_back(SymbolRef::from_rep(*index));
         } else {
             return std::nullopt;
         }
@@ -240,7 +241,7 @@ auto MatchCondLit::state() const -> StateCondLit & { return *state_; }
 
 auto MatchCondLit::type() const -> LitCondLitType { return type_; }
 
-auto MatchCondLit::match_(Assignment &ass, Symbol const *sym, VariableVec const &vars) -> bool {
+auto MatchCondLit::match_(Assignment &ass, SymbolRef const *sym, VariableVec const &vars) -> bool {
     for (auto var : vars) {
         if (auto &opt = ass[var]; opt) {
             if (*opt != *sym) {

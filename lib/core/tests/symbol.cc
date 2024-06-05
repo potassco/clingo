@@ -9,7 +9,7 @@
 namespace Gringo {
 
 // Note: to enable ADL for catch
-using SL = std::initializer_list<Symbol>;
+using SL = std::initializer_list<SymbolRef>;
 auto operator==(SymbolSpan a, SL b) -> bool { return std::equal(a.begin(), a.end(), b.begin(), b.end()); }
 
 namespace Test {
@@ -23,7 +23,7 @@ template <class F> void with_store(F fun) {
     fun(*make_symbol_store(true, true));
 }
 
-auto to_str(Symbol sym) -> std::string {
+auto to_str(SymbolRef sym) -> std::string {
     std::ostringstream oss;
     oss << sym;
     return oss.str();
@@ -139,7 +139,7 @@ TEST_CASE("symbol_tuple") {
         REQUIRE(t5 == t6);
 
         size_t n = 1 << 20;
-        std::vector<Symbol> args;
+        std::vector<SymbolRef> args;
         args.reserve(n);
         for (size_t i = 0; i < n; ++i) {
             args.emplace_back(store.num(Number(static_cast<int32_t>(i))));
@@ -220,7 +220,7 @@ TEST_CASE("symbol_function") {
         REQUIRE(f6 != f7);
 
         size_t n = 1 << 20;
-        std::vector<Symbol> args;
+        std::vector<SymbolRef> args;
         args.reserve(n);
         for (size_t i = 0; i < n; ++i) {
             args.emplace_back(store.num(Number(static_cast<int32_t>(i))));

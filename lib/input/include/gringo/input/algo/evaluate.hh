@@ -10,16 +10,17 @@ namespace Gringo::Input {
 //! @{
 
 //! Evaluate the comparison.
-[[nodiscard]] auto evaluate(Symbol lhs, Relation rel, Symbol rhs) -> bool;
+[[nodiscard]] auto evaluate(SymbolRef lhs, Relation rel, SymbolRef rhs) -> bool;
 //! Evaluate the unary operator.
-[[nodiscard]] auto evaluate(SymbolStore &store, UnaryOperator op, Symbol rhs) -> std::optional<Symbol>;
+[[nodiscard]] auto evaluate(SymbolStore &store, UnaryOperator op, SymbolRef rhs) -> std::optional<SymbolRef>;
 //! Evaluate the binary operator.
-[[nodiscard]] auto evaluate(SymbolStore &store, Symbol lhs, BinaryOperator op, Symbol rhs) -> std::optional<Symbol>;
+[[nodiscard]] auto evaluate(SymbolStore &store, SymbolRef lhs, BinaryOperator op,
+                            SymbolRef rhs) -> std::optional<SymbolRef>;
 //! Evaluate the term.
 //!
 //! Note that this will fail if the term contains variables or external functions.
 [[nodiscard]] auto evaluate(Logger &log, SymbolStore &store, ConstMap const &map,
-                            Term const &term) -> std::optional<Symbol>;
+                            Term const &term) -> std::optional<SymbolRef>;
 
 //! Evaluate the given const statements storing the result in the given map.
 //!

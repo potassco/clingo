@@ -168,7 +168,7 @@ TEST_CASE("dependency") {
                     flush();
                 }
             }
-            void do_fact(std::vector<Symbol> const &facts) override {
+            void do_fact(std::vector<SymbolRef> const &facts) override {
                 for (auto const &fact : facts) {
                     oss << fact << ".";
                     flush();

@@ -29,7 +29,7 @@ struct CheckTypeResult {
     //! The number represented by the term.
     NumberRef pos_number;
     //! The identifier represented by the term.
-    String identifier;
+    StringRef identifier;
 };
 
 //! Query information about the structure of the given term.
@@ -43,7 +43,7 @@ class LinearTerm {
     //! The constant.
     [[nodiscard]] auto n() const -> NumberRef { return std::get<TermSymbol>(term_n()).value().num(); }
     //! The variable name.
-    [[nodiscard]] auto x() const -> String { return std::get<TermVariable>(term_x()).name(); }
+    [[nodiscard]] auto x() const -> StringRef { return std::get<TermVariable>(term_x()).name(); }
     //! The term for the coefficient.
     [[nodiscard]] auto term_m() const -> Term const & { return *std::get<TermBinary>(term_mx()).lhs(); }
     //! The term for the constant.
@@ -150,13 +150,13 @@ auto is_classical(HdLit const &lit) -> bool;
 //!
 //! Returns the symbol representing the fact.
 //! This function evaluates arithmetic expressions as long as they evaluate to one-elementary pools.
-auto is_fact(SymbolStore &store, StmRule const &rule) -> std::optional<Symbol>;
+auto is_fact(SymbolStore &store, StmRule const &rule) -> std::optional<SymbolRef>;
 
 //! Check if a statement is a fact.
 //!
 //! Returns the symbol representing the fact.
 //! This function evaluates arithmetic expressions as long as they evaluate to one-elementary pools.
-auto is_fact(SymbolStore &store, Stm const &stm) -> std::optional<Symbol>;
+auto is_fact(SymbolStore &store, Stm const &stm) -> std::optional<SymbolRef>;
 
 //! Check that none of the given varables are local in the statement.
 auto check_global(Logger &log, VariableSet const &global, Stm const &stm) -> bool;
@@ -167,7 +167,7 @@ inline auto is_theory_operator(std::string_view name) -> bool {
 }
 
 //! Get the signature of a term.
-auto signature(Term const &term) -> std::optional<std::tuple<String, size_t, bool>>;
+auto signature(Term const &term) -> std::optional<std::tuple<StringRef, size_t, bool>>;
 
 //! Check if a term is matchable.
 //!

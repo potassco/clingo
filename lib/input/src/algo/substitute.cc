@@ -32,8 +32,8 @@ class MapParams : public Transformer<MapParams> {
     // term
 
     [[nodiscard]] auto accept(Location const &loc,
-                              SymbolSpan args) const -> std::optional<std::variant<SymbolVec, ArgumentTuple>> {
-        std::optional<std::vector<std::variant<Term, Symbol>>> res_args;
+                              SymbolSpan args) const -> std::optional<std::variant<SymbolRefVec, ArgumentTuple>> {
+        std::optional<std::vector<std::variant<Term, SymbolRef>>> res_args;
         bool constant = true;
         {
             ssize_t i = 0;
@@ -57,10 +57,10 @@ class MapParams : public Transformer<MapParams> {
             return std::nullopt;
         }
         if (constant) {
-            auto tuple = SymbolVec{};
+            auto tuple = SymbolRefVec{};
             tuple.reserve(res_args->size());
             for (auto &&arg : *res_args) {
-                tuple.emplace_back(std::get<Symbol>(arg));
+                tuple.emplace_back(std::get<SymbolRef>(arg));
             }
             return tuple;
         }
@@ -69,7 +69,7 @@ class MapParams : public Transformer<MapParams> {
         for (auto &&arg : *res_args) {
             tuple.emplace_back(std::visit(
                 [&loc]<class T>(T x) -> Term {
-                    if constexpr (std::is_same_v<T, Symbol>) {
+                    if constexpr (std::is_same_v<T, SymbolRef>) {
                         return TermSymbol{loc, x};
                     }
                     if constexpr (std::is_same_v<T, Term>) {
@@ -82,7 +82,7 @@ class MapParams : public Transformer<MapParams> {
     }
 
     [[nodiscard]] auto accept(Location const &loc,
-                              Symbol const &sym) const -> std::optional<std::variant<Term, Symbol>> {
+                              SymbolRef const &sym) const -> std::optional<std::variant<Term, SymbolRef>> {
         switch (sym.type()) {
             case SymbolType::function: {
                 if (sym.args().empty()) {
@@ -114,8 +114,8 @@ class MapParams : public Transformer<MapParams> {
                 }
                 if (auto res_args = accept(loc, sym.args()); res_args) {
                     return std::visit(
-                        [this, &loc, &sym]<class T>(T tuple) -> std::variant<Term, Symbol> {
-                            if constexpr (std::is_same_v<T, SymbolVec>) {
+                        [this, &loc, &sym]<class T>(T tuple) -> std::variant<Term, SymbolRef> {
+                            if constexpr (std::is_same_v<T, SymbolRefVec>) {
                                 return ctx_->store().fun(sym.name(), std::move(tuple), sym.has_sign());
                             }
                             if constexpr (std::is_same_v<T, ArgumentTuple>) {
@@ -133,8 +133,8 @@ class MapParams : public Transformer<MapParams> {
             case SymbolType::tuple: {
                 if (auto res_args = accept(loc, sym.args()); res_args) {
                     return std::visit(
-                        [this, &loc]<class T>(T tuple) -> std::variant<Term, Symbol> {
-                            if constexpr (std::is_same_v<T, SymbolVec>) {
+                        [this, &loc]<class T>(T tuple) -> std::variant<Term, SymbolRef> {
+                            if constexpr (std::is_same_v<T, SymbolRefVec>) {
                                 return ctx_->store().tup(std::move(tuple));
                             }
                             if constexpr (std::is_same_v<T, ArgumentTuple>) {
@@ -160,7 +160,7 @@ class MapParams : public Transformer<MapParams> {
         if (sym.has_value()) {
             return std::visit(
                 [&term]<class T>(T const &x) -> Term {
-                    if constexpr (std::is_same_v<T, Symbol>) {
+                    if constexpr (std::is_same_v<T, SymbolRef>) {
                         return term.update(a_value = x);
                     }
                     if constexpr (std::is_same_v<T, Term>) {
@@ -232,7 +232,7 @@ class MapParams : public Transformer<MapParams> {
 
 class UnmapParams : public Transformer<UnmapParams> {
   public:
-    UnmapParams(SymbolStore &store, Util::ordered_map<String, String> const &map) : store_{&store}, map_{&map} {}
+    UnmapParams(SymbolStore &store, Util::ordered_map<StringRef, StringRef> const &map) : store_{&store}, map_{&map} {}
 
     // protect ourselves -> no unintended overloads
 
@@ -255,12 +255,12 @@ class UnmapParams : public Transformer<UnmapParams> {
 
   private:
     SymbolStore *store_;
-    Util::ordered_map<String, String> const *map_;
+    Util::ordered_map<StringRef, StringRef> const *map_;
 };
 
 struct Collect : public Visitor<Collect> {
   public:
-    Collect(StringSet &ids) : ids_{&ids} {}
+    Collect(StringRefSet &ids) : ids_{&ids} {}
 
     // protect ourselves -> no unintended overloads
 
@@ -268,7 +268,7 @@ struct Collect : public Visitor<Collect> {
 
     // term
 
-    void accept(Symbol const &sym) const {
+    void accept(SymbolRef const &sym) const {
         switch (sym.type()) {
             case SymbolType::function: {
                 if (sym.args().empty()) {
@@ -340,7 +340,7 @@ struct Collect : public Visitor<Collect> {
     }
 
   private:
-    StringSet *ids_;
+    StringRefSet *ids_;
 };
 
 } // namespace
@@ -381,14 +381,14 @@ struct Collect : public Visitor<Collect> {
 }
 
 [[nodiscard]] auto map_params(RewriteContext &ctx, Location const &loc,
-                              Symbol const &sym) -> std::variant<Symbol, Stm> {
+                              SymbolRef const &sym) -> std::variant<SymbolRef, Stm> {
     if (!ctx.has_params() || (sym.type() == SymbolType::function && sym.args().empty())) {
         return sym;
     }
     if (auto res_sym = MapParams{ctx}.accept(loc, sym); res_sym) {
         return std::visit(
-            [&loc]<class T>(T x) -> std::variant<Symbol, Stm> {
-                if constexpr (std::is_same_v<T, Symbol>) {
+            [&loc]<class T>(T x) -> std::variant<SymbolRef, Stm> {
+                if constexpr (std::is_same_v<T, SymbolRef>) {
                     return x;
                 }
                 if constexpr (std::is_same_v<T, Term>) {
@@ -401,7 +401,7 @@ struct Collect : public Visitor<Collect> {
     return sym;
 }
 
-[[nodiscard]] auto unmap_params(SymbolStore &store, Util::ordered_map<String, String> const &map,
+[[nodiscard]] auto unmap_params(SymbolStore &store, Util::ordered_map<StringRef, StringRef> const &map,
                                 Stm const &stm) -> std::optional<Stm> {
     if (!map.empty()) {
         return UnmapParams{store, map}.transform(stm);
@@ -409,12 +409,12 @@ struct Collect : public Visitor<Collect> {
     return std::nullopt;
 }
 
-void collect_ids(Symbol const &sym, StringSet &ids) {
+void collect_ids(SymbolRef const &sym, StringRefSet &ids) {
     if (sym.type() != SymbolType::function || !sym.args().empty()) {
         Collect{ids}(sym);
     }
 }
 
-void collect_ids(Stm const &stm, StringSet &ids) { Collect{ids}(stm); }
+void collect_ids(Stm const &stm, StringRefSet &ids) { Collect{ids}(stm); }
 
 } // namespace Gringo::Input

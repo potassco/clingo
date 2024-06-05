@@ -44,7 +44,7 @@ struct theory_op {
                kw_not;
     }();
 
-    static constexpr auto value = lexy::callback_with_state<String>(
+    static constexpr auto value = lexy::callback_with_state<StringRef>(
         [](auto &state, auto lexeme) { return state.string(Detail::as_string(lexeme)); },
         [](auto &state) { return state.string("not"); });
 };
@@ -52,7 +52,7 @@ struct theory_op {
 struct theory_ops {
     static constexpr char const *name = "theory operators";
     static constexpr auto rule = dsl::list(dsl::p<theory_op>);
-    static constexpr auto value = lexy::as_list<std::vector<String>>;
+    static constexpr auto value = lexy::as_list<std::vector<StringRef>>;
 };
 
 struct theory_term {
@@ -166,7 +166,7 @@ struct theory_term_unparsed : lexy::transparent_production {
                                  dsl::if_(dsl::p<theory_term_unparsed_guards>);
     static constexpr auto value = lexy::callback_with_state<TheoryTerm>(
         []([[maybe_unused]] auto &state, [[maybe_unused]] auto begin, TheoryTerm term) { return term; },
-        [](auto &state, auto begin, std::vector<String> ops, TheoryTerm term,
+        [](auto &state, auto begin, std::vector<StringRef> ops, TheoryTerm term,
            std::vector<UnparsedElement> guards = {}) {
             guards.emplace(guards.begin(), std::move(ops), std::move(term));
             auto loc = Location{state.pos(begin), location(guards.back().second).end};
@@ -215,7 +215,7 @@ template <bool HasSign> struct theory_atom {
         return Detail::location(atom);
     }();
     static constexpr auto value = lexy::callback<TheoryAtom<HasSign>>(
-        [](Location loc, Term name, std::vector<TheoryElement> elems, String op, TheoryTerm rhs) {
+        [](Location loc, Term name, std::vector<TheoryElement> elems, StringRef op, TheoryTerm rhs) {
             if constexpr (HasSign) {
                 return TheoryAtom<HasSign>{loc, Sign::none, std::move(name), std::move(elems),
                                            std::make_pair(op, std::move(rhs))};
