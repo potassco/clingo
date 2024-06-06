@@ -33,17 +33,21 @@ auto to_str(SymbolRef sym) -> std::string {
 
 TEST_CASE("symbol_number") {
     auto store = make_symbol_store(false, false);
+    auto const *s4 = "36418466314618764817364812364687641684123646418";
     auto n1 = store->num_ref(Number(1));
     auto n2 = store->num_ref(Number(2));
     auto n3 = store->num_ref(Number(-1));
+    auto n4 = store->num_ref(Number(s4));
 
     REQUIRE(n1.type() == SymbolType::number);
     REQUIRE(n2.type() == SymbolType::number);
     REQUIRE(n3.type() == SymbolType::number);
+    REQUIRE(n4.type() == SymbolType::number);
 
     REQUIRE(to_str(n1) == "1");
     REQUIRE(to_str(n2) == "2");
     REQUIRE(to_str(n3) == "-1");
+    REQUIRE(to_str(n4) == s4);
 
     REQUIRE(*n1.num() == 1);
     REQUIRE(*n2.num() == 2);
@@ -54,6 +58,9 @@ TEST_CASE("symbol_number") {
 
     REQUIRE(!n1.has_sign());
     REQUIRE(n3.has_sign());
+    REQUIRE(!n4.has_sign());
+
+    REQUIRE(store->gc() == std::make_pair(0U, 1U));
 }
 
 TEST_CASE("symbol_constant") {
@@ -78,6 +85,8 @@ TEST_CASE("string") {
         REQUIRE(sx1 == sx1);
         REQUIRE(sx1 == sx2);
         REQUIRE(!(sx1 == sy));
+
+        REQUIRE(store.gc() == std::make_pair(0U, 2U));
     });
 }
 
@@ -96,6 +105,8 @@ TEST_CASE("symbol_string") {
         REQUIRE(!(sym_sx.str() == sy));
         REQUIRE(sym_sx == sym_sx);
         REQUIRE(!(sym_sx == sym_sy));
+
+        REQUIRE(store.gc() == std::make_pair(0U, 2U));
     });
 }
 
@@ -147,6 +158,8 @@ TEST_CASE("symbol_tuple") {
         auto t = store.tup_ref(SymbolRefSpan{args.data(), args.size()});
         REQUIRE(t.type() == SymbolType::tuple);
         REQUIRE(t.args().size() == n);
+
+        REQUIRE(store.gc() == std::make_pair(0U, 5U));
     });
 }
 
@@ -229,6 +242,8 @@ TEST_CASE("symbol_function") {
         REQUIRE(t.type() == SymbolType::function);
         REQUIRE(t.name() == s1);
         REQUIRE(t.args().size() == n);
+
+        REQUIRE(store.gc() == std::make_pair(0U, 8U));
     });
 }
 

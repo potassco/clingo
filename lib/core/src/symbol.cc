@@ -6,7 +6,6 @@
 #include <atomic>
 #include <condition_variable>
 #include <cstring>
-#include <iostream>
 #include <mutex>
 
 // NOLINTBEGIN(readability-magic-numbers,modernize-avoid-c-arrays,cppcoreguidelines-pro-bounds-pointer-arithmetic,cppcoreguidelines-pro-type-reinterpret-cast,cppcoreguidelines-pro-bounds-constant-array-index,performance-no-int-to-ptr)
@@ -217,9 +216,9 @@ template <class T> class RefCounted {
 
     [[nodiscard]] static auto from_repr(uint64_t repr) -> RefCounted & { return *reinterpret_cast<RefCounted *>(repr); }
     // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
-    template <class Alloc> static auto alloc(Alloc &alloc, size_t n) -> RefCounted * {
+    template <class Alloc> static auto alloc(Alloc &alloc, size_t n, bool referenced) -> RefCounted * {
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,cppcoreguidelines-owning-memory)
-        return new (alloc.alloc(sizeof(RefCounted) + sizeof(value_type) * (n + adjust))) RefCounted();
+        return new (alloc.alloc(sizeof(RefCounted) + sizeof(value_type) * (n + adjust))) RefCounted(referenced);
     }
     template <class Alloc> auto dealloc(Alloc &alloc) { alloc.dealloc(this); }
     auto data() -> T * {
@@ -242,9 +241,9 @@ template <class T> class RefCounted {
 
   private:
     // NOLINTNEXTLINE(modernize-use-equals-default)
-    RefCounted() {}
+    RefCounted(bool referenced) : ref_count_{referenced ? 1U : 0U} {}
 
-    std::atomic_size_t mutable ref_count_ = 0;
+    std::atomic_size_t mutable ref_count_;
     T data_[0];
 };
 
@@ -254,19 +253,19 @@ class KeySymbolArray {
   public:
     KeySymbolArray() = default;
 
-    template <class Alloc> KeySymbolArray(Alloc &alloc, SymbolRefSpan symbols) {
+    template <class Alloc> KeySymbolArray(Alloc &alloc, SymbolRefSpan symbols, bool referenced) {
         static_assert(alignof(SymbolRef) <= alignof(uint64_t));
         size_t n = symbols.size();
-        auto *data = SymbolArray::alloc(alloc, n);
+        auto *data = SymbolArray::alloc(alloc, n, referenced);
         std::copy(symbols.begin(), symbols.end(), data->data());
         hash_ = data->hash(n);
         repr_ = reinterpret_cast<uintptr_t>(data);
     }
 
-    template <class Alloc> KeySymbolArray(Alloc &alloc, SymbolRef name, SymbolRefSpan symbols) {
+    template <class Alloc> KeySymbolArray(Alloc &alloc, SymbolRef name, SymbolRefSpan symbols, bool referenced) {
         static_assert(alignof(SymbolRef) <= alignof(uint64_t));
         size_t n = symbols.size() + 1;
-        auto *data = SymbolArray::alloc(alloc, n);
+        auto *data = SymbolArray::alloc(alloc, n, referenced);
         *data->data() = name;
         std::copy(symbols.begin(), symbols.end(), data->data() + 1);
         hash_ = data->hash(n);
@@ -307,10 +306,10 @@ class KeyCharArray {
   public:
     KeyCharArray() = default;
 
-    template <class Alloc> KeyCharArray(Alloc &alloc, std::string_view str) {
+    template <class Alloc> KeyCharArray(Alloc &alloc, std::string_view str, bool referenced) {
         static_assert(alignof(char) <= alignof(uint64_t));
         size_t n = str.size();
-        auto *repr = CharArray::alloc(alloc, n);
+        auto *repr = CharArray::alloc(alloc, n, referenced);
         std::copy(str.begin(), str.end(), repr->data());
         std::fill_n(repr->data() + n, 1, '\0');
         hash_ = repr->hash(n);
@@ -351,22 +350,22 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
         return SymbolRef::from_rep(Number::to_repr(*jt));
     }
 
-    [[nodiscard]] auto do_fun(StringRef name, SymbolRefSpan args, bool sign) -> SymbolRef override {
-        auto jt = insert_(tuples_, SymbolStore::str_ref(name), args);
+    [[nodiscard]] auto do_fun(StringRef name, SymbolRefSpan args, bool sign, bool referenced) -> SymbolRef override {
+        auto jt = insert_(tuples_, SymbolStore::str_ref(name), args, referenced);
         auto rep = KeySymbolArray::to_repr(*jt) | (sign ? REP_SIGNED_FUN : REP_FUN);
         return SymbolRef::from_rep(rep);
     }
 
-    [[nodiscard]] auto do_tup(SymbolRefSpan args) -> SymbolRef override {
+    [[nodiscard]] auto do_tup(SymbolRefSpan args, bool referenced) -> SymbolRef override {
         // Almost the same as for function except that the name does not have to be stored separately.
-        auto jt = insert_(tuples_, args);
+        auto jt = insert_(tuples_, args, referenced);
         auto rep = KeySymbolArray::to_repr(*jt) | REP_TUP;
         return SymbolRef::from_rep(rep);
     }
 
-    [[nodiscard]] auto do_string(std::string_view str) -> StringRef override {
+    [[nodiscard]] auto do_string(std::string_view str, bool referenced) -> StringRef override {
         assert(!str.empty());
-        auto it = insert_(strings_, str);
+        auto it = insert_(strings_, str, referenced);
         return StringRef::from_rep(KeyCharArray::to_repr(*it));
     }
 
@@ -382,7 +381,7 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
 
     void do_gc_del_owner(SymbolOwner const &owner) noexcept override { owners_.erase(&owner); }
 
-    void do_gc() override {
+    auto do_gc() -> std::pair<size_t, size_t> override {
         SymbolCollector collector;
         // mark referenced tuples
         for (auto const &key : tuples_) {
@@ -405,11 +404,16 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
         for (auto const *owner : owners_) {
             owner->mark(collector);
         }
+        auto kept = size_t{0};
+        auto collected = size_t{0};
+        ;
         // destroy tuples
         for (auto it = tuples_.begin(); it != tuples_.end();) {
             if (unmark_ref(SymbolArray::from_repr(KeySymbolArray::to_repr(*it)).ref_count())) {
+                ++kept;
                 ++it;
             } else {
+                ++collected;
                 it->destroy(alloc_);
                 it = tuples_.erase(it);
             }
@@ -417,8 +421,10 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
         // destroy strings
         for (auto it = strings_.begin(); it != strings_.end();) {
             if (unmark_ref(CharArray::from_repr(KeyCharArray::to_repr(*it)).ref_count())) {
+                ++kept;
                 ++it;
             } else {
+                ++collected;
                 it->destroy(alloc_);
                 it = strings_.erase(it);
             }
@@ -426,11 +432,14 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
         // destroy numbers
         for (auto it = numbers_.begin(); it != numbers_.end();) {
             if (unmark_ref(bigint_refcount(Number::to_repr(*it)))) {
+                ++kept;
                 ++it;
             } else {
+                ++collected;
                 it = numbers_.erase(it);
             }
         }
+        return {kept, collected};
     }
 
   private:
@@ -480,20 +489,20 @@ template <class Alloc> class SharedSymbolStore : public SymbolStore {
         return store_.do_num(std::move(num));
     }
 
-    [[nodiscard]] auto do_fun(StringRef name, SymbolRefSpan args, bool sign) -> SymbolRef override {
+    [[nodiscard]] auto do_fun(StringRef name, SymbolRefSpan args, bool sign, bool referenced) -> SymbolRef override {
         std::unique_lock ulock{mutex_};
-        return store_.fun_ref(name, args, sign);
+        return store_.do_fun(name, args, sign, referenced);
     }
 
-    [[nodiscard]] auto do_tup(SymbolRefSpan args) -> SymbolRef override {
+    [[nodiscard]] auto do_tup(SymbolRefSpan args, bool referenced) -> SymbolRef override {
         std::unique_lock ulock{mutex_};
-        return store_.tup_ref(args);
+        return store_.do_tup(args, referenced);
     }
 
-    [[nodiscard]] auto do_string(std::string_view str) -> StringRef override {
+    [[nodiscard]] auto do_string(std::string_view str, bool referenced) -> StringRef override {
         assert(!str.empty());
         std::unique_lock ulock{mutex_};
-        return store_.string_ref(str);
+        return store_.do_string(str, referenced);
     }
 
     void do_gc_block(bool block) noexcept override {
@@ -519,11 +528,11 @@ template <class Alloc> class SharedSymbolStore : public SymbolStore {
         store_.gc_del_owner(owner);
     }
 
-    void do_gc() override {
+    auto do_gc() -> std::pair<size_t, size_t> override {
         std::unique_lock ulock{mutex_};
         cv_.wait(ulock, [this] { return blocked_ == 0; });
         std::atomic_thread_fence(std::memory_order::seq_cst);
-        store_.gc();
+        return store_.gc();
     }
 
     ~SharedSymbolStore() noexcept override {
@@ -750,6 +759,8 @@ void Symbol::acquire_() const noexcept {
     auto rep = SymbolRef::to_rep(ref_);
     auto val = rep & ~TYPE_MASK;
     switch (rep & TYPE_MASK) {
+        case REP_ID:
+        case REP_SIGNED_ID:
         case REP_STR: {
             if (val != 0) {
                 inc_ref(CharArray::from_repr(val).ref_count());
@@ -778,6 +789,8 @@ void Symbol::release_() const noexcept {
     auto rep = SymbolRef::to_rep(ref_);
     auto val = rep & ~TYPE_MASK;
     switch (rep & TYPE_MASK) {
+        case REP_ID:
+        case REP_SIGNED_ID:
         case REP_STR: {
             if (val != 0) {
                 dec_ref(CharArray::from_repr(val).ref_count());
@@ -822,6 +835,8 @@ void SymbolCollector::mark(SymbolRef const &sym) {
                 }
                 break;
             }
+            case REP_ID:
+            case REP_SIGNED_ID:
             case REP_STR: {
                 if (val != 0) {
                     mark_ref(CharArray::from_repr(val).ref_count());
@@ -863,37 +878,36 @@ auto SymbolStore::str(String str) noexcept -> Symbol {
 }
 
 auto SymbolStore::num(Number num) noexcept -> Symbol {
-    static_cast<void>(this);
-    static_cast<void>(Number::release(num));
-    std::terminate();
+    if (auto res = num.as_int(); res) {
+        return {SymbolRef::from_rep(Number::to_repr(num)), false};
+    }
+    return Symbol{do_num(std::move(num)), true};
 }
 
 auto SymbolStore::tup(SymbolSpan args) -> Symbol {
-    static_cast<void>(this);
-    static_cast<void>(args);
-    throw std::runtime_error("implement me!!!");
+    return tup(SymbolRefSpan{reinterpret_cast<SymbolRef const *>(args.data()), args.size()});
 }
 
 auto SymbolStore::tup(SymbolRefSpan args) -> Symbol {
-    static_cast<void>(this);
-    static_cast<void>(args);
-    throw std::runtime_error("implement me!!!");
+    if (args.empty()) {
+        return Symbol{SymbolRef::from_rep(REP_TUP), false};
+    }
+    return Symbol{do_tup(args, true), false};
 }
 
 auto SymbolStore::fun(String const &name, SymbolSpan args, bool sign) -> Symbol {
-    static_cast<void>(this);
-    static_cast<void>(name);
-    static_cast<void>(args);
-    static_cast<void>(sign);
-    throw std::runtime_error("implement me!!!");
+    return fun(name, SymbolRefSpan{reinterpret_cast<SymbolRef const *>(args.data()), args.size()}, sign);
 }
 
-auto SymbolStore::fun(StringRef name, SymbolRefSpan args, bool sign) -> Symbol {
-    static_cast<void>(this);
-    static_cast<void>(name);
-    static_cast<void>(args);
-    static_cast<void>(sign);
-    throw std::runtime_error("implement me!!!");
+auto SymbolStore::fun(String const &name, SymbolRefSpan args, bool sign) -> Symbol {
+    // The string is passed by const ref here. In principle, an acquire could
+    // be avoided providing an overload by value. I don't think it's worth to
+    // clutter the interface, though.
+    if (args.empty()) {
+        auto rep = (sign ? REP_SIGNED_ID : REP_ID) | StringRef::to_rep(name.get());
+        return Symbol{SymbolRef::from_rep(rep), true};
+    }
+    return Symbol{do_fun(name.get(), args, sign, true), false};
 }
 
 auto SymbolStore::str_ref(StringRef str) noexcept -> SymbolRef {
@@ -911,7 +925,7 @@ auto SymbolStore::tup_ref(SymbolRefSpan args) -> SymbolRef {
     if (args.empty()) {
         return SymbolRef::from_rep(REP_TUP);
     }
-    return do_tup(args);
+    return do_tup(args, false);
 }
 
 auto SymbolStore::fun_ref(StringRef name, SymbolRefSpan args, bool sign) -> SymbolRef {
@@ -919,14 +933,14 @@ auto SymbolStore::fun_ref(StringRef name, SymbolRefSpan args, bool sign) -> Symb
         auto rep = (sign ? REP_SIGNED_ID : REP_ID) | StringRef::to_rep(name);
         return SymbolRef::from_rep(rep);
     }
-    return do_fun(name, args, sign);
+    return do_fun(name, args, sign, false);
 }
 
 auto SymbolStore::string_ref(std::string_view str) -> StringRef {
     if (str.empty()) {
         return {};
     }
-    return do_string(str);
+    return do_string(str, false);
 }
 
 void init_default_symbol_store(USymbolStore store) {

@@ -252,7 +252,11 @@ class Symbol {
     //! Number zero can exist independently of a symbol store.
     constexpr Symbol() noexcept = default;
     //! Take ownership of the symbol.
-    Symbol(SymbolRef sym) noexcept : ref_{sym} { acquire_(); }
+    Symbol(SymbolRef sym, bool acquire = true) noexcept : ref_{sym} {
+        if (acquire) {
+            acquire_();
+        }
+    }
     //! Release ownership of the held symbol.
     ~Symbol() noexcept { release_(); }
     //! Copy constructor.
@@ -410,7 +414,7 @@ class SymbolStore {
     //! For example: <tt>f(x,y)</tt>.
     [[nodiscard]] auto fun(String const &name, SymbolSpan args, bool sign) -> Symbol;
     //! @copydoc fun(String const &, SymbolSpan, bool)
-    [[nodiscard]] auto fun(StringRef name, SymbolRefSpan args, bool sign) -> Symbol;
+    [[nodiscard]] auto fun(String const &name, SymbolRefSpan args, bool sign) -> Symbol;
 
     // interface to create floating references
 
@@ -450,18 +454,18 @@ class SymbolStore {
     //! Delete a symbol owner.
     void gc_del_owner(SymbolOwner const &owner) noexcept { do_gc_del_owner(owner); }
     //! Cleanup symbols.
-    void gc() { do_gc(); }
+    auto gc() -> std::pair<size_t, size_t> { return do_gc(); }
 
   private:
-    [[nodiscard]] virtual auto do_tup(SymbolRefSpan args) -> SymbolRef = 0;
-    [[nodiscard]] virtual auto do_fun(StringRef str, SymbolRefSpan args, bool sign) -> SymbolRef = 0;
-    [[nodiscard]] virtual auto do_string(std::string_view str) -> StringRef = 0;
+    [[nodiscard]] virtual auto do_tup(SymbolRefSpan args, bool referenced) -> SymbolRef = 0;
+    [[nodiscard]] virtual auto do_fun(StringRef str, SymbolRefSpan args, bool sign, bool referenced) -> SymbolRef = 0;
+    [[nodiscard]] virtual auto do_string(std::string_view str, bool referenced) -> StringRef = 0;
     [[nodiscard]] virtual auto do_num(Number num) noexcept -> SymbolRef = 0;
 
     virtual void do_gc_block(bool block) noexcept = 0;
     virtual void do_gc_add_owner(SymbolOwner const &owner) = 0;
     virtual void do_gc_del_owner(SymbolOwner const &owner) noexcept = 0;
-    virtual void do_gc() = 0;
+    virtual auto do_gc() -> std::pair<size_t, size_t> = 0;
 };
 
 //! A pointer to a symbol store.
