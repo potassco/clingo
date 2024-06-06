@@ -984,11 +984,11 @@ auto get_sign(Number const &a) -> int {
 
 // hash code
 
-auto hash_code(Number const &a) -> size_t {
-    if (repr_is_int(a.repr_)) {
-        return Util::value_hash(repr_to_int(a.repr_));
+auto Number::hash() const noexcept -> size_t {
+    if (repr_is_int(repr_)) {
+        return Util::value_hash(repr_to_int(repr_));
     }
-    auto *int_a = repr_to_bigint(a.repr_);
+    auto *int_a = repr_to_bigint(repr_);
     size_t hash = 0;
     if (int_a->num.used == 1) {
         hash = std::hash<mp_digit>{}(int_a->num.single);

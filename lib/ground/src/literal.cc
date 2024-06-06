@@ -57,12 +57,12 @@ auto LitInterval::do_score([[maybe_unused]] std::vector<bool> const &bound) cons
         if (sl.type() != SymbolType::number || sr.type() != SymbolType::number) {
             return -1;
         }
-        auto nl = sl.num();
-        auto nr = sr.num();
-        if (*nl > *nr) {
+        auto const &nl = sl.num();
+        auto const &nr = sr.num();
+        if (nl > nr) {
             return -1;
         }
-        auto d = *nr - *nl;
+        auto d = nr - nl;
         if (auto id = d.as_int(); id) {
             return *id;
         }

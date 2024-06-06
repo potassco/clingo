@@ -236,7 +236,7 @@ class BuilderTerm {
         assert(term.op() != Input::BinaryOperator::dots);
         if (auto lin = Input::check_linear(term); lin) {
             assert(var_map_->find(lin->x()) != var_map_->end());
-            return std::make_unique<Ground::TermLinear>(*lin->m(), var_map_->find(lin->x())->second, lin->n());
+            return std::make_unique<Ground::TermLinear>(lin->m(), var_map_->find(lin->x())->second, lin->n());
         }
         return std::make_unique<Ground::TermBinary>(std::visit(*this, *term.lhs()), map_binary_op(term.op()),
                                                     std::visit(*this, *term.rhs()));

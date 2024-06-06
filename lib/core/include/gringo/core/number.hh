@@ -49,6 +49,9 @@ class Number {
 
     // comparison
 
+    //! Get a hash code of the number suitable for unordered containers.
+    [[nodiscard]] auto hash() const noexcept -> size_t;
+
     //! Compare to numbers returning a comparator.
     friend auto compare(Number const &a, Number const &b) -> int;
     //! Compare to numbers returning a comparator.
@@ -235,11 +238,6 @@ class Number {
     //! Get the sign of the given number.
     friend auto get_sign(Number const &a) -> int;
 
-    // get a hash value for the number
-
-    //! Get a hash code of the number suitable for unordered containers.
-    friend auto hash_code(Number const &a) -> size_t;
-
     // output
 
     //! Output the given number.
@@ -274,36 +272,6 @@ class Number {
     uint64_t repr_;
 };
 
-//! A const reference to a number.
-class NumberRef {
-  public:
-    //! Construct a reference to number 0.
-    NumberRef() : repr_{0} {}
-    //! Construct a reference to the number given as its representation.
-    explicit NumberRef(uint64_t repr) : repr_{repr} {}
-    //! Construct a reference to the given number.
-    explicit NumberRef(Number const &num) : repr_{Number::to_repr(num)} {}
-    //! Access members of the underlying number.
-    auto operator->() const -> Number const * { return &static_cast<Number const &>(*this); }
-    //! Convert to const ref to underlying number.
-    operator Number const &() const {
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-        return reinterpret_cast<Number const &>(repr_);
-    }
-    //! Convert to const ref to underlying number.
-    auto operator*() const -> Number const & { return static_cast<Number const &>(*this); }
-
-  private:
-    //! The representation of the number.
-    uint64_t repr_;
-};
-
 //! @}
 
 } // namespace Gringo
-
-//! Hasher for numbers.
-template <> struct std::hash<Gringo::Number> {
-    //! Compute hash of string.
-    auto operator()(Gringo::Number const &a) const -> size_t { return hash_code(a); }
-};

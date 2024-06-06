@@ -441,7 +441,7 @@ class SimplifyTerm {
                                                                                             << "  " << term << "\n";
                     return TermResultFail{};
                 }
-                return ctx_->store().num_ref(abs(*res.num()));
+                return ctx_->store().num_ref(abs(res.num()));
             }
             if constexpr (std::is_same_v<T, TermResultLinear>) {
                 std::vector<Term> pool;
@@ -640,7 +640,7 @@ class SimplifyTerm {
                     res_rhs.n = res_lhs.num() - std::move(res_rhs.n);
                     return res_rhs;
                 }
-                if (term.op() == BinaryOperator::times && *res_lhs.num() != 0) {
+                if (term.op() == BinaryOperator::times && res_lhs.num() != 0) {
                     res_rhs.m *= res_lhs.num();
                     res_rhs.n *= res_lhs.num();
                     return res_rhs;
@@ -658,7 +658,7 @@ class SimplifyTerm {
                     res_lhs.n -= res_rhs.num();
                     return res_lhs;
                 }
-                if (term.op() == BinaryOperator::times && *res_rhs.num() != 0) {
+                if (term.op() == BinaryOperator::times && res_rhs.num() != 0) {
                     res_lhs.m *= res_rhs.num();
                     res_lhs.n *= res_rhs.num();
                     return res_lhs;
@@ -823,7 +823,7 @@ class MakeMatchableTerm {
                 const auto &n = std::get<TermSymbol>(*term.rhs());
                 const auto &mx = std::get<TermBinary>(*term.lhs());
                 const auto &m = std::get<TermSymbol>(*mx.lhs());
-                if (*n.value().num() == 0 && *m.value().num() == 1) {
+                if (n.value().num() == 0 && m.value().num() == 1) {
                     for (auto &[lhs, rhs] : ctx_->aux()) {
                         if (*mx.rhs() == lhs) {
                             if (always_numeric(rhs)) {
@@ -1318,14 +1318,15 @@ auto value(TermArray const &tuple) -> std::optional<Symbol> {
 }
 
 //! Get the weight of a tuple as a number (zero if it has none).
-auto weight(TermArray const &tuple) -> NumberRef {
+auto weight(TermArray const &tuple) -> Number const & {
     if (!tuple.empty()) {
         auto const &sym = std::get<TermSymbol>(tuple.front());
         if (sym.value().type() == SymbolType::number) {
             return sym.value().num();
         }
     }
-    return NumberRef{Number{0}};
+    static auto zero = Number{0};
+    return zero;
 }
 
 //! Accumulate the given symbol to res.
@@ -1338,8 +1339,8 @@ void accumulate(AggregateFunction fun, TermArray const &tuple, std::variant<Numb
             break;
         }
         case AggregateFunction::sump: {
-            auto val = weight(tuple);
-            if (*val >= 0) {
+            auto const &val = weight(tuple);
+            if (val >= 0) {
                 std::get<Number>(res) += val;
             }
             break;
@@ -1396,10 +1397,10 @@ void accumulate(AggregateFunction fun, TermArray const &tuple, std::variant<Numb
             break;
         }
         case AggregateFunction::sum: {
-            return sym->value().type() == SymbolType::number && *sym->value().num() != 0;
+            return sym->value().type() == SymbolType::number && sym->value().num() != 0;
         }
         case AggregateFunction::sump: {
-            return sym->value().type() == SymbolType::number && *sym->value().num() > 0;
+            return sym->value().type() == SymbolType::number && sym->value().num() > 0;
         }
         case AggregateFunction::min: {
             return sym->value().type() != SymbolType::sup;

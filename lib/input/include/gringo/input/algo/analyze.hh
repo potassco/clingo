@@ -27,7 +27,7 @@ struct CheckTypeResult {
     //! Whether the term is signed.
     bool has_sign = false;
     //! The number represented by the term.
-    NumberRef pos_number;
+    Number const *pos_number = nullptr;
     //! The identifier represented by the term.
     String identifier;
 };
@@ -39,9 +39,9 @@ auto check_type(Term const &term, TermCheckType type, CheckTypeResult *res = nul
 class LinearTerm {
   public:
     //! The coefficient.
-    [[nodiscard]] auto m() const -> NumberRef { return std::get<TermSymbol>(term_m()).value().num(); }
+    [[nodiscard]] auto m() const -> Number const & { return std::get<TermSymbol>(term_m()).value().num(); }
     //! The constant.
-    [[nodiscard]] auto n() const -> NumberRef { return std::get<TermSymbol>(term_n()).value().num(); }
+    [[nodiscard]] auto n() const -> Number const & { return std::get<TermSymbol>(term_n()).value().num(); }
     //! The variable name.
     [[nodiscard]] auto x() const -> String { return std::get<TermVariable>(term_x()).name(); }
     //! The term for the coefficient.

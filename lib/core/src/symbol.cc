@@ -589,9 +589,9 @@ void SharedString::release_() const noexcept {
 
 // SymbolRef
 
-auto Symbol::num() const noexcept -> NumberRef {
+auto Symbol::num() const noexcept -> Number const & {
     assert(type() == SymbolType::number);
-    return NumberRef{rep_};
+    return *reinterpret_cast<Number const *>(this);
 }
 
 auto Symbol::str() const noexcept -> String {
@@ -655,7 +655,7 @@ auto Symbol::has_sign() const -> bool {
             return true;
         }
         case REP_BIGINT: {
-            return *num() < 0;
+            return num() < 0;
         }
         default: {
             return false;
@@ -724,7 +724,7 @@ auto operator<<(std::ostream &out, Symbol const &sym) -> std::ostream & {
             break;
         }
         case SymbolType::number: {
-            out << *sym.num();
+            out << sym.num();
             break;
         }
         case SymbolType::string: {
@@ -1014,7 +1014,7 @@ auto compare(Symbol a, Symbol b) -> int {
     }
     switch (type_a) {
         case SymbolType::number: {
-            return compare(*a.num(), *b.num());
+            return compare(a.num(), b.num());
         }
         case SymbolType::string: {
             return std::strcmp(a.str().c_str(), a.str().c_str());

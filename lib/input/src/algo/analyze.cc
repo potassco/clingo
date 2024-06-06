@@ -19,10 +19,10 @@ struct CheckType {
     auto operator()(TermSymbol const &term) const -> bool {
         switch (term.value().type()) {
             case SymbolType::number: {
-                auto num = term.value().num();
-                if (type == TermCheckType::pos_number && *num >= 0) {
+                auto const &num = term.value().num();
+                if (type == TermCheckType::pos_number && num >= 0) {
                     if (res != nullptr) {
-                        res->pos_number = num;
+                        res->pos_number = &num;
                     }
                     return true;
                 }
@@ -300,7 +300,7 @@ class IsFact {
             return std::nullopt;
         }
         if (auto arg = operator()(term.pool().front()); arg && arg->type() == SymbolType::number) {
-            return store_->num_ref(abs(*arg->num()));
+            return store_->num_ref(abs(arg->num()));
         }
         return std::nullopt;
     }
@@ -372,7 +372,7 @@ auto check_type(Term const &term, TermCheckType type, CheckTypeResult *res) -> b
         return false;
     }
     auto const *m = std::get_if<TermSymbol>(&mul->lhs().get());
-    if (m == nullptr || m->value().type() != SymbolType::number || *m->value().num() == 0) {
+    if (m == nullptr || m->value().type() != SymbolType::number || m->value().num() == 0) {
         return false;
     }
     return std::get_if<TermVariable>(&mul->rhs().get()) != nullptr;

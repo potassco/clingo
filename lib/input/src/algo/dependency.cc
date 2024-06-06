@@ -294,13 +294,13 @@ class Unifier {
                     return a.type() == SymbolType::function && a.name() == v_b.name() && !v_b.external() &&
                            !a.has_classical_sign() && match_(a.args(), v_b.pool().at(0));
                 } else if constexpr (Util::matches<T, TermAbs>) {
-                    return a.type() == SymbolType::number && *a.num() >= 0;
+                    return a.type() == SymbolType::number && a.num() >= 0;
                 } else if constexpr (Util::matches<T, TermUnary>) {
                     if (v_b.op() == UnaryOperator::invert) {
                         return a.type() == SymbolType::number;
                     }
                     if (a.type() == SymbolType::number) {
-                        return match_(store_->num_ref(-*a.num()), v_b.rhs());
+                        return match_(store_->num_ref(-a.num()), v_b.rhs());
                     }
                     if (a.type() == SymbolType::function) {
                         return match_(*a.flip_classical_sign(), v_b.rhs());
@@ -312,7 +312,7 @@ class Unifier {
                         return false;
                     }
                     if (auto l_b = check_linear(v_b); l_b) {
-                        auto c = *a.num() - *l_b->n();
+                        auto c = a.num() - l_b->n();
                         return c % l_b->m() == 0 && match_(store_->num_ref(c / l_b->m()), l_b->term_x());
                     }
                     return true;
@@ -342,13 +342,13 @@ class Unifier {
     }
 
     auto unify_(LinearTerm const &a, LinearTerm const &b) -> bool {
-        auto n = *a.n() - *b.n();
-        if (n % *b.m() != 0) {
+        auto n = a.n() - b.n();
+        if (n % b.m() != 0) {
             return true;
         }
         // var = m_a / m_b * tx + (n_a - n_b) / m_b
-        auto m = *a.m() / *b.m();
-        n /= *b.m();
+        auto m = a.m() / b.m();
+        n /= b.m();
         terms_.emplace_back(TermBinary{
             a.term_mxn().loc(),
             TermBinary{location(a.term_mx()), TermSymbol{location(a.term_m()), store_->num_ref(std::move(m))},
@@ -433,8 +433,8 @@ class Unifier {
                                 return false;
                             }
                             if (l_a->x() == l_b->x()) {
-                                auto n = (*l_b->n() - *l_a->n());
-                                auto d = (*l_a->m() - *l_b->m());
+                                auto n = (l_b->n() - l_a->n());
+                                auto d = (l_a->m() - l_b->m());
                                 if (d != 0 && n % d == 0) {
                                     terms_.emplace_back(
                                         TermSymbol{v_a.loc(), store_->num_ref(std::move(n) / std::move(d))});
@@ -445,23 +445,22 @@ class Unifier {
                             if (auto it = ass_.find(l_b->x()); it != ass_.end() && never_numeric(*it->second)) {
                                 return false;
                             }
-                            if (*l_a->m() % *l_b->m() == 0) {
+                            if (l_a->m() % l_b->m() == 0) {
                                 return unify_(*l_a, *l_b);
                             }
-                            if (*l_b->m() % *l_a->m() == 0) {
+                            if (l_b->m() % l_a->m() == 0) {
                                 return unify_(*l_b, *l_a);
                             }
                         }
                         return true;
                     } else if constexpr (Util::matches<B, TermUnary>) {
                         if (auto l_a = check_linear(v_a); l_a && v_b.op() == UnaryOperator::negate) {
-                            terms_.emplace_back(
-                                TermBinary{l_a->term_mxn().loc(),
-                                           TermBinary{location(l_a->term_mx()),
-                                                      TermSymbol{location(l_a->term_m()), store_->num_ref(-*l_a->m())},
-                                                      BinaryOperator::times, l_a->term_x()},
-                                           BinaryOperator::plus,
-                                           TermSymbol{location(l_a->term_n()), store_->num_ref(-*l_a->n())}});
+                            terms_.emplace_back(TermBinary{
+                                l_a->term_mxn().loc(),
+                                TermBinary{location(l_a->term_mx()),
+                                           TermSymbol{location(l_a->term_m()), store_->num_ref(-l_a->m())},
+                                           BinaryOperator::times, l_a->term_x()},
+                                BinaryOperator::plus, TermSymbol{location(l_a->term_n()), store_->num_ref(-l_a->n())}});
                             // -a ~ --b
                             return unify_(terms_.back(), *v_b.rhs());
                         }

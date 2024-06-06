@@ -96,7 +96,7 @@ class MapParams : public Transformer<MapParams> {
                                     return value->flip_classical_sign();
                                 }
                                 case SymbolType::number: {
-                                    return ctx_->store().num_ref(-*value->num());
+                                    return ctx_->store().num_ref(-value->num());
                                 }
                                 case SymbolType::inf:
                                 case SymbolType::sup:

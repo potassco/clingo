@@ -32,11 +32,11 @@ TEST_CASE("evaluate_unary") {
     auto n2 = store->num_ref(Number(std::numeric_limits<int32_t>::min()));
 
     auto r1 = evaluate(*store, UnaryOperator::invert, n1);
-    REQUIRE(*opt_value(r1).num() == ~(-10));
+    REQUIRE(opt_value(r1).num() == ~(-10));
     auto r2 = evaluate(*store, UnaryOperator::negate, n1);
-    REQUIRE(*opt_value(r2).num() == 10);
+    REQUIRE(opt_value(r2).num() == 10);
     auto r3 = evaluate(*store, UnaryOperator::negate, n2);
-    REQUIRE(*opt_value(r3).num() == Number("2147483648"));
+    REQUIRE(opt_value(r3).num() == Number("2147483648"));
 }
 
 TEST_CASE("evaluate_binary") {
@@ -52,39 +52,39 @@ TEST_CASE("evaluate_binary") {
 
     // plus
     auto res = evaluate(*store, n1, BinaryOperator::plus, n2);
-    REQUIRE(*opt_value(res).num() == i1 + i2);
+    REQUIRE(opt_value(res).num() == i1 + i2);
     // minus
     res = evaluate(*store, n1, BinaryOperator::minus, n2);
-    REQUIRE(*opt_value(res).num() == i1 - i2);
+    REQUIRE(opt_value(res).num() == i1 - i2);
     // times
     res = evaluate(*store, n1, BinaryOperator::times, n2);
-    REQUIRE(*opt_value(res).num() == i1 * i2);
+    REQUIRE(opt_value(res).num() == i1 * i2);
     res = evaluate(*store, n2, BinaryOperator::times, n2);
-    REQUIRE(*opt_value(res).num() == Number("4294967296"));
+    REQUIRE(opt_value(res).num() == Number("4294967296"));
     // div
     res = evaluate(*store, n1, BinaryOperator::div, n2);
-    REQUIRE(*opt_value(res).num() == i1 / i2);
+    REQUIRE(opt_value(res).num() == i1 / i2);
     res = evaluate(*store, n2, BinaryOperator::div, n3);
     REQUIRE(!res.has_value());
     // mod
     res = evaluate(*store, n1, BinaryOperator::mod, n2);
-    REQUIRE(*opt_value(res).num() == i1 % i2);
+    REQUIRE(opt_value(res).num() == i1 % i2);
     res = evaluate(*store, n2, BinaryOperator::mod, n3);
     REQUIRE(!res.has_value());
     // pow
     res = evaluate(*store, n4, BinaryOperator::pow, n1);
-    REQUIRE(*opt_value(res).num() == static_cast<int32_t>(std::pow(i4, i1)));
+    REQUIRE(opt_value(res).num() == static_cast<int32_t>(std::pow(i4, i1)));
     res = evaluate(*store, n2, BinaryOperator::pow, n1);
-    REQUIRE(*opt_value(res).num() == Number("281474976710656"));
+    REQUIRE(opt_value(res).num() == Number("281474976710656"));
     // xor_
     res = evaluate(*store, n1, BinaryOperator::xor_, n2);
-    REQUIRE(*opt_value(res).num() == (i1 ^ i2));
+    REQUIRE(opt_value(res).num() == (i1 ^ i2));
     // or_
     res = evaluate(*store, n1, BinaryOperator::or_, n2);
-    REQUIRE(*opt_value(res).num() == (i1 | i2));
+    REQUIRE(opt_value(res).num() == (i1 | i2));
     // and_
     res = evaluate(*store, n1, BinaryOperator::and_, n2);
-    REQUIRE(*opt_value(res).num() == (i1 & i2));
+    REQUIRE(opt_value(res).num() == (i1 & i2));
 }
 
 TEST_CASE("evaluate_const") {

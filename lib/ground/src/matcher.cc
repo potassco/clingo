@@ -113,8 +113,8 @@ class IntervalMatcher : public Matcher {
             // Note: that the case free is empty could be handled a little more
             // efficiently. I would not expect a big impact, though.
             else if (auto lhs = lhs_->eval(ctx.store(), ctx.ass()); lhs && lhs->type() == SymbolType::number &&
-                                                                    *lower->num() <= *lhs->num() &&
-                                                                    *lhs->num() <= *upper->num()) {
+                                                                    lower->num() <= lhs->num() &&
+                                                                    lhs->num() <= upper->num()) {
                 val_current_ = lhs->num();
                 val_upper_ = lhs->num();
             }

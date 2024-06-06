@@ -165,7 +165,7 @@ class Symbol {
     //! Get the type of the symbol.
     [[nodiscard]] auto type() const noexcept -> SymbolType;
     //! Get the numeric value of the symbol.
-    [[nodiscard]] auto num() const noexcept -> NumberRef;
+    [[nodiscard]] auto num() const noexcept -> Number const &;
     //! Get the (raw) string value of the symbol.
     [[nodiscard]] auto str() const noexcept -> String;
     //! Get the name of the symbol.

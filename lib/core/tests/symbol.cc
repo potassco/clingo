@@ -49,9 +49,9 @@ TEST_CASE("symbol_number") {
     REQUIRE(to_str(n3) == "-1");
     REQUIRE(to_str(n4) == s4);
 
-    REQUIRE(*n1.num() == 1);
-    REQUIRE(*n2.num() == 2);
-    REQUIRE(*n3.num() == -1);
+    REQUIRE(n1.num() == 1);
+    REQUIRE(n2.num() == 2);
+    REQUIRE(n3.num() == -1);
 
     REQUIRE(n1 == n1);
     REQUIRE(!(n1 == n2));

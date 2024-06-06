@@ -326,11 +326,11 @@ class ApplyBounds {
             }
             state.both = 1;
             auto res_u = std::optional<TermSymbol>{};
-            if (*u->value().num() < it->second.value(IEInterval::Lower)) {
+            if (u->value().num() < it->second.value(IEInterval::Lower)) {
                 res_u = make_symbol(*u, it->second.value(IEInterval::Lower));
             }
             auto res_t = std::optional<TermSymbol>{};
-            if (*t->value().num() > it->second.value(IEInterval::Upper)) {
+            if (t->value().num() > it->second.value(IEInterval::Upper)) {
                 res_t = make_symbol(*t, it->second.value(IEInterval::Upper));
             }
             if (res_u || res_t) {
@@ -394,7 +394,7 @@ class ApplyBounds {
             // mark as covered
             state.set_value(bound_type);
             // update if changed
-            if (cmp(bound, rel, *sym->value().num() + Number{bound_type == IEInterval::Lower ? 1 : -1})) {
+            if (cmp(bound, rel, sym->value().num() + Number{bound_type == IEInterval::Lower ? 1 : -1})) {
                 auto rel = bound_type == IEInterval::Lower > 0 ? Relation::greater_equal : Relation::less_equal;
                 return {true, make_relation(lhs, rel, location(rhs), std::move(bound))};
             }

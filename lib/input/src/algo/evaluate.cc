@@ -251,7 +251,7 @@ class Evaluate {
             return std::nullopt;
         }
         if (val->type() == SymbolType::number) {
-            val = store_->num_ref(abs(*val->num()));
+            val = store_->num_ref(abs(val->num()));
         } else {
             val = std::nullopt;
         }
@@ -323,12 +323,12 @@ class Evaluate {
 auto evaluate(SymbolStore &store, UnaryOperator op, Symbol rhs) -> std::optional<Symbol> {
     if (op == UnaryOperator::negate) {
         if (rhs.type() == SymbolType::number) {
-            return store.num_ref(-*rhs.num());
+            return store.num_ref(-rhs.num());
         }
         return rhs.flip_classical_sign();
     }
     if (rhs.type() == SymbolType::number) {
-        return store.num_ref(~*rhs.num());
+        return store.num_ref(~rhs.num());
     }
     return std::nullopt;
 }
@@ -366,40 +366,40 @@ auto evaluate(SymbolStore &store, Symbol lhs, BinaryOperator op, Symbol rhs) -> 
             break;
         }
         case BinaryOperator::xor_: {
-            return store.num_ref(*lhs.num() ^ *rhs.num());
+            return store.num_ref(lhs.num() ^ rhs.num());
         }
         case BinaryOperator::or_: {
-            return store.num_ref(*lhs.num() | *rhs.num());
+            return store.num_ref(lhs.num() | rhs.num());
         }
         case BinaryOperator::and_: {
-            return store.num_ref(*lhs.num() & *rhs.num());
+            return store.num_ref(lhs.num() & rhs.num());
         }
         case BinaryOperator::plus: {
-            return store.num_ref(*lhs.num() + *rhs.num());
+            return store.num_ref(lhs.num() + rhs.num());
         }
         case BinaryOperator::minus: {
-            return store.num_ref(*lhs.num() - *rhs.num());
+            return store.num_ref(lhs.num() - rhs.num());
         }
         case BinaryOperator::times: {
-            return store.num_ref(*lhs.num() * *rhs.num());
+            return store.num_ref(lhs.num() * rhs.num());
         }
         case BinaryOperator::div: {
-            if (*rhs.num() == 0) {
+            if (rhs.num() == 0) {
                 return std::nullopt;
             }
-            return store.num_ref(*lhs.num() / *rhs.num());
+            return store.num_ref(lhs.num() / rhs.num());
         }
         case BinaryOperator::mod: {
-            if (*rhs.num() == 0) {
+            if (rhs.num() == 0) {
                 return std::nullopt;
             }
-            return store.num_ref(*lhs.num() % *rhs.num());
+            return store.num_ref(lhs.num() % rhs.num());
         }
         case BinaryOperator::pow: {
-            if (*rhs.num() < 0) {
+            if (rhs.num() < 0) {
                 return std::nullopt;
             }
-            return store.num_ref(pow(*lhs.num(), *rhs.num()));
+            return store.num_ref(pow(lhs.num(), rhs.num()));
         }
     }
     throw std::runtime_error("cannot evaluate intervals");

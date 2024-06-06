@@ -90,7 +90,7 @@ extern "C" auto clingo_symbol_number(clingo_symbol_t symbol, int32_t *number) ->
     if (number == nullptr || sym.type() != Gringo::SymbolType::number) {
         return false;
     }
-    auto num = sym.num()->as_int();
+    auto num = sym.num().as_int();
     if (!num) {
         return false;
     }

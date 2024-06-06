@@ -218,7 +218,7 @@ auto TermLinear::do_match([[maybe_unused]] SymbolStore &store, Symbol sym, Assig
         return m_ * var->num() + n_ == sym.num();
     }
     // x == (s - n) / m
-    auto sn = *sym.num() - n_;
+    auto sn = sym.num() - n_;
     if (sn % m_ == 0) {
         ass[var_] = store.num_ref(std::move(sn) / m_);
         return true;
@@ -279,7 +279,7 @@ auto TermUnary::do_match(SymbolStore &store, Symbol sym, Assignment &ass) const 
             return rhs_->match(store, *sym.flip_classical_sign(), ass);
         }
         if (sym.type() == SymbolType::number) {
-            return rhs_->match(store, store.num_ref(-*sym.num()), ass);
+            return rhs_->match(store, store.num_ref(-sym.num()), ass);
         }
         return false;
     }
@@ -291,19 +291,19 @@ auto TermUnary::do_eval(SymbolStore &store, Assignment const &ass) const -> std:
         switch (op_) {
             case UnaryOperator::minus: {
                 if (rhs->type() == SymbolType::number) {
-                    return store.num_ref(-*rhs->num());
+                    return store.num_ref(-rhs->num());
                 }
                 return rhs->flip_classical_sign();
             }
             case UnaryOperator::invert: {
                 if (rhs->type() == SymbolType::number) {
-                    return store.num_ref(~*rhs->num());
+                    return store.num_ref(~rhs->num());
                 }
                 break;
             }
             case UnaryOperator::abs: {
                 if (rhs->type() == SymbolType::number) {
-                    return store.num_ref(abs(*rhs->num()));
+                    return store.num_ref(abs(rhs->num()));
                 }
                 break;
             }
@@ -385,40 +385,40 @@ auto TermBinary::do_eval(SymbolStore &store, Assignment const &ass) const -> std
         if (auto rhs = rhs_->eval(store, ass); rhs && rhs->type() == SymbolType::number) {
             switch (op_) {
                 case BinaryOperator::and_: {
-                    return store.num_ref(*lhs->num() & *rhs->num());
+                    return store.num_ref(lhs->num() & rhs->num());
                 }
                 case BinaryOperator::div: {
-                    if (*rhs->num() != 0) {
-                        return store.num_ref(*lhs->num() / *rhs->num());
+                    if (rhs->num() != 0) {
+                        return store.num_ref(lhs->num() / rhs->num());
                     }
                     break;
                 }
                 case BinaryOperator::minus: {
-                    return store.num_ref(*lhs->num() - *rhs->num());
+                    return store.num_ref(lhs->num() - rhs->num());
                 }
                 case BinaryOperator::mod: {
-                    if (*rhs->num() != 0) {
-                        return store.num_ref(*lhs->num() % *rhs->num());
+                    if (rhs->num() != 0) {
+                        return store.num_ref(lhs->num() % rhs->num());
                     }
                     break;
                 }
                 case BinaryOperator::or_: {
-                    return store.num_ref(*lhs->num() | *rhs->num());
+                    return store.num_ref(lhs->num() | rhs->num());
                 }
                 case BinaryOperator::plus: {
-                    return store.num_ref(*lhs->num() + *rhs->num());
+                    return store.num_ref(lhs->num() + rhs->num());
                 }
                 case BinaryOperator::pow: {
-                    if (*rhs->num() >= 0) {
-                        return store.num_ref(pow(*lhs->num(), *rhs->num()));
+                    if (rhs->num() >= 0) {
+                        return store.num_ref(pow(lhs->num(), rhs->num()));
                     }
                     break;
                 }
                 case BinaryOperator::times: {
-                    return store.num_ref(*lhs->num() * *rhs->num());
+                    return store.num_ref(lhs->num() * rhs->num());
                 }
                 case BinaryOperator::xor_: {
-                    return store.num_ref(*lhs->num() ^ *rhs->num());
+                    return store.num_ref(lhs->num() ^ rhs->num());
                 }
             }
         }
