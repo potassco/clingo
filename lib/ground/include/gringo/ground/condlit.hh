@@ -73,7 +73,7 @@ struct StateCondLitElem {
 //! A map from an atom + local variables to an element of a conditional literal.
 //!
 //! We can use here that the number of local variables is fixed.
-using MapElemCondLit = Util::ordered_map<SymbolRef const *, StateCondLitElem, Util::SpanHash, Util::SpanEqualTo>;
+using MapElemCondLit = Util::ordered_map<Symbol const *, StateCondLitElem, Util::SpanHash, Util::SpanEqualTo>;
 
 //! Capture (the state of) a conditional literal.
 //!
@@ -125,10 +125,10 @@ class StateAtomCondLit {
     size_t offset_ = 0;
 };
 //! A map from the global variables to a conditional literal.
-using MapAtomCondLit = Util::ordered_map<SymbolRef const *, StateAtomCondLit, Util::SpanHash, Util::SpanEqualTo>;
+using MapAtomCondLit = Util::ordered_map<Symbol const *, StateAtomCondLit, Util::SpanHash, Util::SpanEqualTo>;
 
 //! A base for not yet propagated conditional literals.
-class BaseCondLitEmpty : public BaseImpl<SymbolRef const *, BaseCondLitEmpty> {
+class BaseCondLitEmpty : public BaseImpl<Symbol const *, BaseCondLitEmpty> {
   public:
     //! Construct the base.
     //!
@@ -153,9 +153,9 @@ class BaseCondLitEmpty : public BaseImpl<SymbolRef const *, BaseCondLitEmpty> {
 };
 
 //! A base for premises of conditional literals.
-class BaseCondLitPremise : public BaseImpl<SymbolRef const *, BaseCondLitPremise> {
+class BaseCondLitPremise : public BaseImpl<Symbol const *, BaseCondLitPremise> {
   public:
-    using Key = SymbolRef const *;
+    using Key = Symbol const *;
 
     //! Construct the base.
     //!
@@ -193,7 +193,7 @@ class BaseCondLitPremise : public BaseImpl<SymbolRef const *, BaseCondLitPremise
 };
 
 //! A base for conditional literals.
-class BaseCondLit : public BaseImpl<SymbolRef const *, BaseCondLit> {
+class BaseCondLit : public BaseImpl<Symbol const *, BaseCondLit> {
   public:
     //! Construct the base.
     //!
@@ -316,9 +316,9 @@ struct StateCondLit {
   private:
     VariableVec local_;
     VariableVec global_;
-    std::vector<SymbolRef> mutable temp_syms_;
-    Util::SpanStack<SymbolRef> syms_elems_;
-    Util::SpanStack<SymbolRef> syms_atoms_;
+    std::vector<Symbol> mutable temp_syms_;
+    Util::SpanStack<Symbol> syms_elems_;
+    Util::SpanStack<Symbol> syms_atoms_;
     MapAtomCondLit atoms_;
     MapElemCondLit elems_;
     std::vector<size_t> propagate_;
@@ -335,7 +335,7 @@ struct StateCondLit {
 class MatchCondLit {
   public:
     //! The key to match against.
-    using Key = SymbolRef const *;
+    using Key = Symbol const *;
 
     //! Construct the matcher.
     MatchCondLit(StateCondLit &state, LitCondLitType type) : state_{&state}, type_{type} {
@@ -352,11 +352,11 @@ class MatchCondLit {
                                  [[maybe_unused]] VariableSet const &bind) const -> VariableVec;
 
     //! Match a span of symbols representing an atom or element with the assignment.
-    [[nodiscard]] auto match([[maybe_unused]] SymbolStore &store, SymbolRef const *sym, Assignment &ass) const -> bool;
+    [[nodiscard]] auto match([[maybe_unused]] SymbolStore &store, Symbol const *sym, Assignment &ass) const -> bool;
 
     //! Evaluate w.r.t. the given assignment and return a span representing an atom or element.
     [[nodiscard]] auto eval([[maybe_unused]] SymbolStore &store,
-                            Assignment &ass) const -> std::optional<SymbolRef const *>;
+                            Assignment &ass) const -> std::optional<Symbol const *>;
 
     //! Print a string representation of the matcher.
     friend auto operator<<(std::ostream &out, MatchCondLit const &m) -> std::ostream &;
@@ -367,9 +367,9 @@ class MatchCondLit {
     [[nodiscard]] auto type() const -> LitCondLitType;
 
   private:
-    [[nodiscard]] static auto match_(Assignment &ass, SymbolRef const *sym, VariableVec const &vars) -> bool;
+    [[nodiscard]] static auto match_(Assignment &ass, Symbol const *sym, VariableVec const &vars) -> bool;
 
-    std::vector<SymbolRef> mutable eval_;
+    std::vector<Symbol> mutable eval_;
     StateCondLit *state_;
     LitCondLitType type_;
 };

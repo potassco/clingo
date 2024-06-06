@@ -43,7 +43,7 @@ class tuple_trail {
 } // namespace Detail
 
 struct store_string_ {
-    using return_type = StringRef;
+    using return_type = String;
 
     template <typename... Args>
     auto operator()(auto &state,
@@ -52,13 +52,13 @@ struct store_string_ {
     }
 
     template <class State> struct sink_callback_ {
-        using return_type = StringRef;
+        using return_type = String;
 
         constexpr sink_callback_(State &state) : state{&state} {}
 
         template <typename... Args> auto operator()(Args &&...args) { return sink(std::forward<Args>(args)...); }
 
-        auto finish() && -> StringRef { return state->string(std::move(sink).finish()); }
+        auto finish() && -> String { return state->string(std::move(sink).finish()); }
 
         State *state;
         decltype(Detail::as_string.sink()) sink = Detail::as_string.sink();

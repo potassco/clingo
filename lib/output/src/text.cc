@@ -78,7 +78,7 @@ class OutputBody : public OutputLit {
             has_body_ = true;
         }
     }
-    void do_lit(Sign sign, SymbolRef sym) override {
+    void do_lit(Sign sign, Symbol sym) override {
         sep();
         buf_ << sign << sym;
     }
@@ -115,7 +115,7 @@ class OutputCond : public OutputSimple {
             has_lits_ = true;
         }
     }
-    void do_lit(Sign sign, SymbolRef sym) override {
+    void do_lit(Sign sign, Symbol sym) override {
         sep();
         buf_ << sign << sym;
     }
@@ -133,12 +133,12 @@ class OutputText : public OutputStm {
     OutputText(std::ostream &out) : out_{&out} {};
 
   private:
-    void do_fact(SymbolRef sym) override { *out_ << sym << ".\n"; }
+    void do_fact(Symbol sym) override { *out_ << sym << ".\n"; }
     auto do_body() -> OutputLit & override {
         body_.start();
         return body_;
     }
-    void do_rule(std::optional<SymbolRef> head) override {
+    void do_rule(std::optional<Symbol> head) override {
         if (!body_.delayed()) {
             if (head) {
                 *out_ << *head;

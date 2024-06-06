@@ -31,26 +31,26 @@ struct RewriteOptions {
 };
 
 //! Map from identifiers to constants.
-using ConstMap = Util::ordered_map<StringRef, std::pair<StmConst, SymbolRef>>;
+using ConstMap = Util::ordered_map<String, std::pair<StmConst, Symbol>>;
 
 //! A program part.
 struct ProgramPart {
     //! The (first) program part statement that introduced the part.
     StmProgram part;
     //! The facts in the program part.
-    SymbolRefVec facts;
+    SymbolVec facts;
     //! The statements in the program part.
     StmVec stms;
 };
 
-using ProgramSig = std::pair<StringRef, size_t>;
-using ProgramParam = std::pair<StringRef, std::vector<SymbolRef>>;
+using ProgramSig = std::pair<String, size_t>;
+using ProgramParam = std::pair<String, std::vector<Symbol>>;
 using ProgramParamVec = std::vector<ProgramParam>;
 
 //! Program grouping unprocessed statements.
 struct UnprocessedProgram {
     //! Statements as input grouped by parts.
-    using PartVec = std::vector<std::tuple<StmProgram, StmVec, SymbolRefVec>>;
+    using PartVec = std::vector<std::tuple<StmProgram, StmVec, SymbolVec>>;
 
     //! Add a statement.
     void add(SymbolStore &store, Stm stm);
@@ -106,14 +106,14 @@ class DependencyBuilder {
     //! Add meta statements.
     void meta(std::vector<Stm> const &stms) { do_meta(stms); }
     //! Add facts.
-    void fact(std::vector<SymbolRef> const &facts) { do_fact(facts); }
+    void fact(std::vector<Symbol> const &facts) { do_fact(facts); }
     //! Add components.
     [[nodiscard]] auto components(Components const &comps) -> bool { return do_components(comps); }
 
   private:
     virtual void do_param(ProgramParam const &param) = 0;
     virtual void do_meta(std::vector<Stm> const &stms) = 0;
-    virtual void do_fact(std::vector<SymbolRef> const &facts) = 0;
+    virtual void do_fact(std::vector<Symbol> const &facts) = 0;
     [[nodiscard]] virtual auto do_components(Components const &comps) -> bool = 0;
 };
 
@@ -146,7 +146,7 @@ class Program {
         for (auto const &[sig, part] : parts_) {
             auto pum = param_map_(store, part);
             auto loc = part.part.loc();
-            StringRefVec ids;
+            StringVec ids;
             ids.reserve(sig.second);
             std::transform(pum.begin(), pum.end(), std::back_inserter(ids), [](auto x) { return x.second; });
             fun(StmProgram{loc, sig.first, std::move(ids)});
@@ -170,15 +170,15 @@ class Program {
     //! The signature of a program part.
     //!
     //! (Parameters are numbered from 1 to n.)
-    using Signature = std::pair<StringRef, size_t>;
+    using Signature = std::pair<String, size_t>;
     //! Map from signatures to actual program parts.
     using PartMap = Util::ordered_map<Signature, ProgramPart>;
     //! Map from parameters to their replacements.
-    using ParamUnmap = Util::ordered_map<StringRef, StringRef>;
+    using ParamUnmap = Util::ordered_map<String, String>;
 
     //! Gather all identifiers appearing in a program part.
     [[nodiscard]] static auto param_map_(SymbolStore &store,
-                                         ProgramPart const &part) -> Util::ordered_map<StringRef, StringRef>;
+                                         ProgramPart const &part) -> Util::ordered_map<String, String>;
     //! Replace all bound paramets in a statement by parsable ids.
     [[nodiscard]] static auto unmap_(SymbolStore &store, ParamUnmap const &pum, Stm const &stm) -> std::optional<Stm>;
 

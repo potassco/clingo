@@ -18,12 +18,12 @@ namespace Gringo::Input {
 //! @{
 
 //! An array of strings.
-using StringArray = Util::immutable_array<StringRef>;
+using StringArray = Util::immutable_array<String>;
 
 //! A set of variable names.
-using VariableSet = StringRefSet;
+using VariableSet = StringSet;
 //! A vector of variable names.
-using VariableVec = StringRefVec;
+using VariableVec = StringVec;
 
 class TermVariable;
 class TermSymbol;
@@ -90,19 +90,19 @@ class TermVariable : public Expression<TermVariable> {
     }
 
     //! Construct a variable.
-    explicit TermVariable(Location loc, StringRef name, bool is_anonymous = false)
+    explicit TermVariable(Location loc, String name, bool is_anonymous = false)
         : loc_{loc}, name_{name}, anonymous_{is_anonymous} {}
 
     //! The location of the variable.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The name of the variable.
-    [[nodiscard]] auto name() const -> StringRef { return name_; }
+    [[nodiscard]] auto name() const -> String { return name_; }
     //! Whether the variable is anonymous.
     [[nodiscard]] auto anonymous() const -> bool { return anonymous_; }
 
   private:
     Location loc_;
-    StringRef name_;
+    String name_;
     bool anonymous_;
 };
 
@@ -115,16 +115,16 @@ class TermSymbol : public Expression<TermSymbol> {
     static constexpr auto attributes() { return std::tuple{a_loc = &TermSymbol::loc_, a_value = &TermSymbol::value_}; }
 
     //! Construct term with the given symbol.
-    explicit TermSymbol(Location loc, SymbolRef value) : loc_{loc}, value_{value} {}
+    explicit TermSymbol(Location loc, Symbol value) : loc_{loc}, value_{value} {}
 
     //! The location of the symbol.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The associated symbol.
-    [[nodiscard]] auto value() const -> SymbolRef { return value_; }
+    [[nodiscard]] auto value() const -> Symbol { return value_; }
 
   private:
     Location loc_;
-    SymbolRef value_;
+    Symbol value_;
 };
 
 //! A tuple element.
@@ -168,12 +168,12 @@ class TermFunction : public RecursiveExpression<TermFunction> {
     //!
     //! The function takes a pool of term tuples, which will be reduced to a single element after calling
     //! Term::unpool().
-    explicit TermFunction(Location loc, StringRef name, PoolArray pool, bool external);
+    explicit TermFunction(Location loc, String name, PoolArray pool, bool external);
 
     //! The location of the function.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The name of the function.
-    [[nodiscard]] auto name() const -> StringRef { return name_; }
+    [[nodiscard]] auto name() const -> String { return name_; }
     //! The argument pool of the function.
     [[nodiscard]] auto pool() const -> PoolArray const & { return pool_; }
     //! Whether this is an external function.
@@ -181,7 +181,7 @@ class TermFunction : public RecursiveExpression<TermFunction> {
 
   private:
     Location loc_;
-    StringRef name_;
+    String name_;
     PoolArray pool_;
     bool external_;
 };
@@ -311,7 +311,7 @@ inline auto operator<=>(TermTuple const &a, TermTuple const &b) -> std::strong_o
 
 // TermFunction
 
-inline TermFunction::TermFunction(Location loc, StringRef name, PoolArray pool, bool external)
+inline TermFunction::TermFunction(Location loc, String name, PoolArray pool, bool external)
     : loc_{loc}, name_(name), pool_{std::move(pool)}, external_{external} {}
 
 inline auto operator==(TermFunction const &a, TermFunction const &b) -> bool { return a.equal(b); }

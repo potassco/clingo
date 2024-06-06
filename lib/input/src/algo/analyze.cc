@@ -244,16 +244,14 @@ class IsFact {
 
     template <class T> auto operator()(T const &x) const -> bool = delete;
 
-    auto operator()(Term const &term) const -> std::optional<SymbolRef> { return std::visit(*this, term); }
+    auto operator()(Term const &term) const -> std::optional<Symbol> { return std::visit(*this, term); }
 
-    auto operator()([[maybe_unused]] TermVariable const &term) const -> std::optional<SymbolRef> {
-        return std::nullopt;
-    }
+    auto operator()([[maybe_unused]] TermVariable const &term) const -> std::optional<Symbol> { return std::nullopt; }
 
-    auto operator()(TermSymbol const &term) const -> std::optional<SymbolRef> { return term.value(); }
+    auto operator()(TermSymbol const &term) const -> std::optional<Symbol> { return term.value(); }
 
-    auto operator()(ArgumentTuple const &tuple) const -> std::optional<SymbolRefVec> {
-        SymbolRefVec res;
+    auto operator()(ArgumentTuple const &tuple) const -> std::optional<SymbolVec> {
+        SymbolVec res;
         for (auto const &x : tuple.elems()) {
             auto const *term = std::get_if<Term>(&x);
             if (term == nullptr) {
@@ -268,7 +266,7 @@ class IsFact {
         return res;
     }
 
-    auto operator()(TermFunction const &term) const -> std::optional<SymbolRef> {
+    auto operator()(TermFunction const &term) const -> std::optional<Symbol> {
         if (term.pool().size() != 1 || term.external()) {
             return std::nullopt;
         }
@@ -278,12 +276,12 @@ class IsFact {
         return std::nullopt;
     }
 
-    auto operator()(TermTuple const &term) const -> std::optional<SymbolRef> {
+    auto operator()(TermTuple const &term) const -> std::optional<Symbol> {
         if (term.pool().size() != 1) {
             return std::nullopt;
         }
         return std::visit(
-            [this]<class T>(T const &x) -> std::optional<SymbolRef> {
+            [this]<class T>(T const &x) -> std::optional<Symbol> {
                 if constexpr (std::is_same_v<T, Term>) {
                     return operator()(x);
                 }
@@ -297,7 +295,7 @@ class IsFact {
             term.pool().front());
     }
 
-    auto operator()(TermAbs const &term) const -> std::optional<SymbolRef> {
+    auto operator()(TermAbs const &term) const -> std::optional<Symbol> {
         if (term.pool().size() != 1) {
             return std::nullopt;
         }
@@ -307,14 +305,14 @@ class IsFact {
         return std::nullopt;
     }
 
-    auto operator()(TermUnary const &term) const -> std::optional<SymbolRef> {
+    auto operator()(TermUnary const &term) const -> std::optional<Symbol> {
         if (auto rhs = operator()(*term.rhs()); rhs) {
             return evaluate(*store_, term.op(), rhs.value());
         }
         return std::nullopt;
     }
 
-    auto operator()(TermBinary const &term) const -> std::optional<SymbolRef> {
+    auto operator()(TermBinary const &term) const -> std::optional<Symbol> {
         if (term.op() == BinaryOperator::dots) {
             return std::nullopt;
         }
@@ -329,13 +327,13 @@ class IsFact {
 };
 
 struct GetSignature {
-    auto operator()(TermFunction const &term) -> std::optional<std::tuple<StringRef, size_t, bool>> {
+    auto operator()(TermFunction const &term) -> std::optional<std::tuple<String, size_t, bool>> {
         if (term.pool().size() == 1) {
             return std::tuple{term.name(), term.pool().front().elems().size(), false};
         }
         return std::nullopt;
     }
-    auto operator()(TermUnary const &term) -> std::optional<std::tuple<StringRef, size_t, bool>> {
+    auto operator()(TermUnary const &term) -> std::optional<std::tuple<String, size_t, bool>> {
         if (term.op() == UnaryOperator::negate) {
             return Util::transform(std::visit(*this, *term.rhs()), [](auto sig) {
                 return std::tuple{std::get<0>(sig), std::get<1>(sig), !std::get<2>(sig)};
@@ -343,14 +341,14 @@ struct GetSignature {
         }
         return std::nullopt;
     }
-    auto operator()(TermSymbol const &term) -> std::optional<std::tuple<StringRef, size_t, bool>> {
+    auto operator()(TermSymbol const &term) -> std::optional<std::tuple<String, size_t, bool>> {
         auto val = term.value();
         if (val.type() == SymbolType::function) {
             return std::tuple{val.name(), val.args().size(), val.has_sign()};
         }
         return std::nullopt;
     }
-    auto operator()([[maybe_unused]] auto const &term) -> std::optional<std::tuple<StringRef, size_t, bool>> {
+    auto operator()([[maybe_unused]] auto const &term) -> std::optional<std::tuple<String, size_t, bool>> {
         return std::nullopt;
     }
 };
@@ -429,7 +427,7 @@ auto is_test(BdLit const &lit) -> bool { return IsTest{}(lit); }
 
 auto is_classical(HdLit const &lit) -> bool { return IsClassical{}(lit); }
 
-auto is_fact(SymbolStore &store, StmRule const &rule) -> std::optional<SymbolRef> {
+auto is_fact(SymbolStore &store, StmRule const &rule) -> std::optional<Symbol> {
     if (auto const *head = std::get_if<HdLitSimple>(&rule.head()); head != nullptr && rule.body().empty()) {
         if (auto const *lit = std::get_if<LitSymbolic>(&head->lit()); lit != nullptr && lit->sign() == Sign::none) {
             return IsFact{store}(lit->term());
@@ -438,7 +436,7 @@ auto is_fact(SymbolStore &store, StmRule const &rule) -> std::optional<SymbolRef
     return std::nullopt;
 }
 
-auto is_fact(SymbolStore &store, Stm const &stm) -> std::optional<SymbolRef> {
+auto is_fact(SymbolStore &store, Stm const &stm) -> std::optional<Symbol> {
     if (auto const *rule = std::get_if<StmRule>(&stm); rule != nullptr) {
         return is_fact(store, *rule);
     }
@@ -447,10 +445,10 @@ auto is_fact(SymbolStore &store, Stm const &stm) -> std::optional<SymbolRef> {
 
 auto check_global(Logger &log, VariableSet const &global, Stm const &stm) -> bool {
     VariableSet new_global = select_variables(stm, VariableContext::global, global.size());
-    std::vector<StringRef> unsafe;
+    std::vector<String> unsafe;
     visit_variables(
         stm,
-        [&]([[maybe_unused]] Location const &loc, StringRef var) {
+        [&]([[maybe_unused]] Location const &loc, String var) {
             if (!var.starts_with("$") && global.contains(var) != new_global.contains(var)) {
                 unsafe.emplace_back(var);
             }
@@ -470,7 +468,7 @@ auto check_global(Logger &log, VariableSet const &global, Stm const &stm) -> boo
 
 auto is_matchable(Term const &term) -> bool { return std::visit(IsMatchable{}, term); }
 
-auto signature(Term const &term) -> std::optional<std::tuple<StringRef, size_t, bool>> {
+auto signature(Term const &term) -> std::optional<std::tuple<String, size_t, bool>> {
     return std::visit(GetSignature{}, term);
 }
 

@@ -66,7 +66,7 @@ auto make_interval_matcher(std::vector<bool> const &bound, Term const &lhs, Term
 auto make_comp_matcher(std::vector<bool> const &bound, Term const &lhs, Relation rel, Term const &rhs) -> UMatcher;
 
 // Note: candidate for generalization
-auto make_non_fact_matcher(Base &base, Term const &term, SymbolRef *target) -> UMatcher;
+auto make_non_fact_matcher(Base &base, Term const &term, Symbol *target) -> UMatcher;
 
 template <IsBase Base, IsMatch Match>
 auto make_atom_matcher(std::vector<bool> const &bound, Base &base, Match const &atom, MatcherType type) -> UMatcher;
@@ -151,7 +151,7 @@ template <IsBase Base> class HashIndex {
         template <class T> auto operator()(T const *sym) const -> size_t {
             // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
             return std::hash<std::string_view>::operator()(
-                std::string_view{reinterpret_cast<char const *>(sym), size * sizeof(SymbolRef)});
+                std::string_view{reinterpret_cast<char const *>(sym), size * sizeof(Symbol)});
             // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
         }
         size_t size;
@@ -197,10 +197,10 @@ template <IsBase Base> class HashIndex {
     }
 
   private:
-    using BindVec = std::vector<std::pair<size_t, SymbolRef *>>;
+    using BindVec = std::vector<std::pair<size_t, Symbol *>>;
     // Note: we need an ordered map to be able to update indices while
     // matching. The same index might be updated from different matchers.
-    using IndexMap = Util::ordered_map<SymbolRef *, BindVec, Hash, Util::SpanEqualTo>;
+    using IndexMap = Util::ordered_map<Symbol *, BindVec, Hash, Util::SpanEqualTo>;
 
     auto bind_next(Assignment &ass, VariableVec &bind_vars, MatcherType type, IndexMap::iterator &it,
                    size_t &cur) -> bool {
@@ -216,8 +216,7 @@ template <IsBase Base> class HashIndex {
     }
     template <IsMatch Match>
     auto import_next(SymbolStore &store, Assignment &ass, VariableVec &bound_vars, VariableVec &bind_vars,
-                     Match const &m, MatcherType type, std::span<SymbolRef> bound_vals, size_t &pos,
-                     size_t &cur) -> bool {
+                     Match const &m, MatcherType type, std::span<Symbol> bound_vals, size_t &pos, size_t &cur) -> bool {
         auto n = base_->end(type);
         // there can be no more matches
         if (imported_ >= n) {
@@ -263,9 +262,9 @@ template <IsBase Base> class HashIndex {
     }
 
     Base *base_;
-    std::vector<SymbolRef> temp_values_;
-    Util::SpanStack<SymbolRef> bound_values_;
-    Util::SpanStack<SymbolRef> bind_values_;
+    std::vector<Symbol> temp_values_;
+    Util::SpanStack<Symbol> bound_values_;
+    Util::SpanStack<Symbol> bind_values_;
     IndexMap index_;
     size_t imported_ = 0;
 };

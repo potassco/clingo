@@ -56,13 +56,13 @@ class TheoryOpDefinition : public Expression<TheoryOpDefinition> {
     }
 
     //! Construct a theory operator definition.
-    explicit TheoryOpDefinition(Location loc, StringRef op, int prio, TheoryOpType type)
+    explicit TheoryOpDefinition(Location loc, String op, int prio, TheoryOpType type)
         : loc_{loc}, op_{op}, prio_{prio}, type_{type} {}
 
     //! The location of the definition.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The representation of the operator.
-    [[nodiscard]] auto op() const -> StringRef { return op_; }
+    [[nodiscard]] auto op() const -> String { return op_; }
     //! The priority of the operator.
     [[nodiscard]] auto prio() const -> int { return prio_; }
     //! The type of the operator.
@@ -70,7 +70,7 @@ class TheoryOpDefinition : public Expression<TheoryOpDefinition> {
 
   private:
     Location loc_;
-    StringRef op_;
+    String op_;
     int prio_;
     TheoryOpType type_;
 };
@@ -90,19 +90,19 @@ class TheoryTermDefinition : public Expression<TheoryTermDefinition> {
     }
 
     //! Construct a theory term definition.
-    explicit TheoryTermDefinition(Location loc, StringRef name, TheoryOpDefinitionArray op_defs)
+    explicit TheoryTermDefinition(Location loc, String name, TheoryOpDefinitionArray op_defs)
         : loc_{loc}, name_{name}, op_defs_{std::move(op_defs)} {}
 
     //! The location of the definition.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The name of the definition.
-    [[nodiscard]] auto name() const -> StringRef { return name_; }
+    [[nodiscard]] auto name() const -> String { return name_; }
     //! The associated operator definitions.
     [[nodiscard]] auto op_defs() const -> TheoryOpDefinitionArray const & { return op_defs_; }
 
   private:
     Location loc_;
-    StringRef name_;
+    String name_;
     TheoryOpDefinitionArray op_defs_;
 };
 
@@ -122,7 +122,7 @@ enum class TheoryAtomType : uint8_t {
 //! An optional definition for the right-hand-side of a theory atom.
 //!
 //! It consists of a list of possible operators and a name of a term definition.
-using TheoryRGuardDefinition = std::pair<StringArray, StringRef>;
+using TheoryRGuardDefinition = std::pair<StringArray, String>;
 
 //! A theory atom definition.
 //!
@@ -137,18 +137,18 @@ class TheoryAtomDefinition : public Expression<TheoryAtomDefinition> {
     }
 
     //! Construct a theory atom definition.
-    explicit TheoryAtomDefinition(Location loc, StringRef name, int arity, StringRef term,
+    explicit TheoryAtomDefinition(Location loc, String name, int arity, String term,
                                   std::optional<TheoryRGuardDefinition> rhs, TheoryAtomType type)
         : loc_{loc}, name_(name), arity_(arity), term_(term), rhs_(std::move(rhs)), type_(type) {}
 
     //! The location of the definition.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The name of the atom.
-    [[nodiscard]] auto name() const -> StringRef { return name_; }
+    [[nodiscard]] auto name() const -> String { return name_; }
     //! The arity of the atom.
     [[nodiscard]] auto arity() const -> int { return arity_; }
     //! The name of the term definition used in elements.
-    [[nodiscard]] auto term() const -> StringRef { return term_; }
+    [[nodiscard]] auto term() const -> String { return term_; }
     //! The definition for the right hand side of the atom.
     [[nodiscard]] auto rhs() const -> std::optional<TheoryRGuardDefinition> const & { return rhs_; }
     //! The type of the atom.
@@ -156,9 +156,9 @@ class TheoryAtomDefinition : public Expression<TheoryAtomDefinition> {
 
   private:
     Location loc_;
-    StringRef name_;
+    String name_;
     int arity_;
-    StringRef term_;
+    String term_;
     std::optional<TheoryRGuardDefinition> rhs_;
     TheoryAtomType type_;
 };
@@ -178,14 +178,14 @@ class StmTheory : public Expression<StmTheory> {
     }
 
     //! Construct a theory definition.
-    explicit StmTheory(Location loc, StringRef name, TheoryTermDefinitionArray term_defs,
+    explicit StmTheory(Location loc, String name, TheoryTermDefinitionArray term_defs,
                        TheoryAtomDefinitionArray atom_defs)
         : loc_{loc}, name_{name}, term_defs_{std::move(term_defs)}, atom_defs_{std::move(atom_defs)} {}
 
     //! The location of the definition.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The name of the definition.
-    [[nodiscard]] auto name() const -> StringRef { return name_; }
+    [[nodiscard]] auto name() const -> String { return name_; }
     //! The theory term definitions.
     [[nodiscard]] auto term_defs() const -> TheoryTermDefinitionArray const & { return term_defs_; }
     //! The theory atom definitions.
@@ -193,7 +193,7 @@ class StmTheory : public Expression<StmTheory> {
 
   private:
     Location loc_;
-    StringRef name_;
+    String name_;
     TheoryTermDefinitionArray term_defs_;
     TheoryAtomDefinitionArray atom_defs_;
 };
@@ -346,7 +346,7 @@ class StmShowSig : public Expression<StmShowSig> {
     }
 
     //! Construct a show signature statement.
-    explicit StmShowSig(Location loc, bool sign, StringRef name, int arity)
+    explicit StmShowSig(Location loc, bool sign, String name, int arity)
         : loc_{loc}, name_{name}, arity_{arity}, sign_{sign} {}
 
     //! The location of the statement.
@@ -354,13 +354,13 @@ class StmShowSig : public Expression<StmShowSig> {
     //! Whether the signature is negative.
     [[nodiscard]] auto sign() const -> bool { return sign_; }
     //! The name.
-    [[nodiscard]] auto name() const -> StringRef { return name_; }
+    [[nodiscard]] auto name() const -> String { return name_; }
     //! The arity.
     [[nodiscard]] auto arity() const -> int { return arity_; }
 
   private:
     Location loc_;
-    StringRef name_;
+    String name_;
     int arity_;
     bool sign_;
 };
@@ -404,7 +404,7 @@ class StmProjectSig : public Expression<StmProjectSig> {
     }
 
     //! Construct a project signature statement.
-    explicit StmProjectSig(Location loc, bool sign, StringRef name, int arity)
+    explicit StmProjectSig(Location loc, bool sign, String name, int arity)
         : loc_{loc}, sign_{sign}, name_{name}, arity_{arity} {}
 
     //! The location of the statement.
@@ -412,14 +412,14 @@ class StmProjectSig : public Expression<StmProjectSig> {
     //! Whether the signature is negative.
     [[nodiscard]] auto sign() const -> bool { return sign_; }
     //! The name.
-    [[nodiscard]] auto name() const -> StringRef { return name_; }
+    [[nodiscard]] auto name() const -> String { return name_; }
     //! The arity.
     [[nodiscard]] auto arity() const -> int { return arity_; }
 
   private:
     Location loc_;
     bool sign_;
-    StringRef name_;
+    String name_;
     int arity_;
 };
 
@@ -435,7 +435,7 @@ class StmDefined : public Expression<StmDefined> {
     }
 
     //! Construct a defined statement.
-    explicit StmDefined(Location loc, bool sign, StringRef name, int arity)
+    explicit StmDefined(Location loc, bool sign, String name, int arity)
         : loc_{loc}, sign_{sign}, name_{name}, arity_{arity} {}
 
     //! The location of the statement.
@@ -443,7 +443,7 @@ class StmDefined : public Expression<StmDefined> {
     //! Whether the signature is negative.
     [[nodiscard]] auto sign() const -> bool { return sign_; }
     //! The name.
-    [[nodiscard]] auto name() const -> StringRef { return name_; }
+    [[nodiscard]] auto name() const -> String { return name_; }
     //! The arity.
     [[nodiscard]] auto arity() const -> int { return arity_; }
 
@@ -452,7 +452,7 @@ class StmDefined : public Expression<StmDefined> {
     //! Whether the signature is negative.
     bool sign_;
     //! The name.
-    StringRef name_;
+    String name_;
     //! The arity.
     int arity_;
 };
@@ -597,19 +597,19 @@ class StmScript : public Expression<StmScript> {
     }
 
     //! Construct a script statement.
-    explicit StmScript(Location loc, StringRef type, std::string value)
+    explicit StmScript(Location loc, String type, std::string value)
         : loc_{loc}, type_(type), value_(std::move(value)) {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The code type.
-    [[nodiscard]] auto type() const -> StringRef { return type_; }
+    [[nodiscard]] auto type() const -> String { return type_; }
     //! The code.
     [[nodiscard]] auto value() const -> std::string const & { return value_; }
 
   private:
     Location loc_;
-    StringRef type_;
+    String type_;
     std::string value_;
 };
 
@@ -659,19 +659,18 @@ class StmProgram : public Expression<StmProgram> {
     }
 
     //! Construct an program statement.
-    explicit StmProgram(Location loc, StringRef name, StringArray args)
-        : loc_{loc}, name_(name), args_(std::move(args)) {}
+    explicit StmProgram(Location loc, String name, StringArray args) : loc_{loc}, name_(name), args_(std::move(args)) {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The name of the program.
-    [[nodiscard]] auto name() const -> StringRef const & { return name_; }
+    [[nodiscard]] auto name() const -> String const & { return name_; }
     //! The arguments of the program.
     [[nodiscard]] auto args() const -> StringArray const & { return args_; }
 
   private:
     Location loc_;
-    StringRef name_;
+    String name_;
     StringArray args_;
 };
 
@@ -695,7 +694,7 @@ class StmConst : public Expression<StmConst> {
     }
 
     //! Construct a const statement.
-    explicit StmConst(Location loc, ConstType type, StringRef name, Term value)
+    explicit StmConst(Location loc, ConstType type, String name, Term value)
         : loc_{loc}, type_(type), name_(name), value_(std::move(value)) {}
 
     //! The location of the statement.
@@ -703,14 +702,14 @@ class StmConst : public Expression<StmConst> {
     //! The type of the statement.
     [[nodiscard]] auto type() const -> ConstType const & { return type_; }
     //! The name of the constant.
-    [[nodiscard]] auto name() const -> StringRef const & { return name_; }
+    [[nodiscard]] auto name() const -> String const & { return name_; }
     //! The value of the constant
     [[nodiscard]] auto value() const -> Term const & { return value_; }
 
   private:
     Location loc_;
     ConstType type_;
-    StringRef name_;
+    String name_;
     Term value_;
 };
 

@@ -23,7 +23,7 @@ struct IETerm {
     //! The integer coefficient of the term.
     Number coefficient;
     //! The variable of the term or the empty string if there is no variable.
-    StringRef variable;
+    String variable;
 };
 //! A vector of terms representing a sum of terms.
 using IETermVec = std::vector<IETerm>;
@@ -92,7 +92,7 @@ class IEInterval {
 };
 
 //! A map from variables to intervals.
-using IEDomain = Util::ordered_map<StringRef, IEInterval>;
+using IEDomain = Util::ordered_map<String, IEInterval>;
 
 //! A (partial) solver for inequalities.
 class IESolver {
@@ -108,7 +108,7 @@ class IESolver {
     //! Get the domains of variables.
     [[nodiscard]] auto domain() const -> IEDomain const & { return domain_; }
     //! Return true if the solver strengthens the domain of the given variable.
-    [[nodiscard]] auto strengthens(StringRef var) const -> bool;
+    [[nodiscard]] auto strengthens(String var) const -> bool;
 
   private:
     //! Update the bound of the given term's variable.

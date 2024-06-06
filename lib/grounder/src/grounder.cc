@@ -63,7 +63,7 @@ struct Grounder::Impl {
     //! Dictionary to map terms with projections to their replacement predicates.
     Util::ordered_map<Ground::UTerm, std::unique_ptr<Ground::LitProject::State>> map;
     //! The atom base.
-    Util::ordered_map<std::tuple<StringRef, size_t, bool>, std::unique_ptr<Ground::Base>> atom_base;
+    Util::ordered_map<std::tuple<String, size_t, bool>, std::unique_ptr<Ground::Base>> atom_base;
     //! The output.
     OutputStm *out;
 };
@@ -187,7 +187,7 @@ auto map_binary_op(Input::BinaryOperator op) -> Ground::BinaryOperator {
 
 class BuilderTerm {
   public:
-    BuilderTerm(bool &has_projection, Util::unordered_map<StringRef, size_t> &var_map)
+    BuilderTerm(bool &has_projection, Util::unordered_map<String, size_t> &var_map)
         : has_projection_{&has_projection}, var_map_{&var_map} {}
 
     auto operator()(Input::TermVariable const &term) const -> Ground::UTerm {
@@ -244,13 +244,13 @@ class BuilderTerm {
 
   private:
     bool *has_projection_;
-    Util::unordered_map<StringRef, size_t> *var_map_;
+    Util::unordered_map<String, size_t> *var_map_;
 };
 
 struct BuildContext {
     BuildContext(Grounder::Impl &impl, Input::Component const &comp,
                  Util::unordered_map<Input::Term const *, std::vector<size_t>> &def_map, Ground::Component &gcomp,
-                 Util::unordered_map<StringRef, size_t> &var_map, Ground::ULitVec &body,
+                 Util::unordered_map<String, size_t> &var_map, Ground::ULitVec &body,
                  std::forward_list<Ground::StateCondLit> &clit_base)
         : impl{&impl}, comp{&comp}, def_map{&def_map}, gcomp{&gcomp}, var_map{&var_map}, body{&body},
           clit_base_{&clit_base} {}
@@ -308,7 +308,7 @@ struct BuildContext {
     Input::Component const *comp = nullptr;
     Util::unordered_map<Input::Term const *, std::vector<size_t>> *def_map = nullptr;
     Ground::Component *gcomp = nullptr;
-    Util::unordered_map<StringRef, size_t> *var_map = nullptr;
+    Util::unordered_map<String, size_t> *var_map = nullptr;
     Ground::ULitVec *body = nullptr;
     std::forward_list<Ground::StateCondLit> *clit_base_ = nullptr;
     size_t priority = 0;
@@ -588,10 +588,10 @@ class Builder : public Input::DependencyBuilder {
         }
     }
 
-    void do_fact(std::vector<SymbolRef> const &facts) override {
+    void do_fact(std::vector<Symbol> const &facts) override {
         for (auto const &fact : facts) {
             // TODO: remove c&p
-            auto sig = std::tuple<StringRef, size_t, bool>(fact.name(), fact.args().size(), fact.has_sign());
+            auto sig = std::tuple<String, size_t, bool>(fact.name(), fact.args().size(), fact.has_sign());
             auto dom_it = impl_->atom_base.try_emplace(sig, nullptr).first;
             if (dom_it->second == nullptr) {
                 dom_it.value() = std::make_unique<Ground::Base>();
@@ -610,10 +610,10 @@ class Builder : public Input::DependencyBuilder {
                 auto gcomp = Ground::Component{};
                 auto clit_base = std::forward_list<Ground::StateCondLit>{};
                 for (auto const &stm : ref_comp.stms) {
-                    Util::unordered_map<StringRef, size_t> var_map;
+                    Util::unordered_map<String, size_t> var_map;
                     Input::visit_variables(
                         *stm,
-                        [&var_map]([[maybe_unused]] Input::Location const &loc, StringRef var) {
+                        [&var_map]([[maybe_unused]] Input::Location const &loc, String var) {
                             var_map.try_emplace(var, var_map.size());
                         },
                         Input::VariableContext::all);

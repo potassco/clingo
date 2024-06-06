@@ -33,7 +33,7 @@ struct AtomInfo {
     AtomState state : 2;
 };
 
-using Atom = std::pair<SymbolRef, AtomInfo>;
+using Atom = std::pair<Symbol, AtomInfo>;
 
 enum class AtomUpdate : uint8_t {
     added = 0,
@@ -164,10 +164,10 @@ template <class KeyType, class BaseType> class BaseImpl {
 //! An atom base can also stores unknown atoms. For such atoms it is not yet
 //! know whether there will be a rule deriving them. The only purpose is to
 //! store them here is to associated them with a unique id.
-class Base : public BaseImpl<SymbolRef, Base> {
+class Base : public BaseImpl<Symbol, Base> {
   public:
     using BaseImpl::contains;
-    using MapAtom = Util::ordered_map<SymbolRef, AtomInfo>;
+    using MapAtom = Util::ordered_map<Symbol, AtomInfo>;
 
     //! Check if the base is domain.
     //!
@@ -184,20 +184,20 @@ class Base : public BaseImpl<SymbolRef, Base> {
     //!
     //! This function does not take into account to which generation an atom belongs.
     //! It can also return true for atoms added to upcoming generations.
-    auto is_fact(SymbolRef sym) const -> bool {
+    auto is_fact(Symbol sym) const -> bool {
         auto it = atoms_.find(sym);
         return it != atoms_.end() && it->second.state == AtomState::fact;
     }
     //! Check if the base contains the given atom.
     //!
     //! This might includes atoms that have not (yet) been derived.
-    [[nodiscard]] auto contains(SymbolRef const &sym) const -> bool {
+    [[nodiscard]] auto contains(Symbol const &sym) const -> bool {
         auto it = atoms_.find(sym);
         return it != atoms_.end();
     }
 
     //! Add an atom to the base.
-    auto add(SymbolRef atom, AtomState state) -> AtomUpdate {
+    auto add(Symbol atom, AtomState state) -> AtomUpdate {
         auto [it, ins] = atoms_.try_emplace(atom, 0, state);
         if (ins) {
             if (state != AtomState::unknown) {
@@ -226,7 +226,7 @@ class Base : public BaseImpl<SymbolRef, Base> {
     //! Get the atom index of the given symbol.
     //!
     //! Note that only derived atoms have indices.
-    auto index(SymbolRef const &sym) const -> size_t {
+    auto index(Symbol const &sym) const -> size_t {
         if (auto it = atoms_.find(sym); it != atoms_.end() && it->second.state != AtomState::unknown) {
             return derived_.find(atom_index_(it));
         }

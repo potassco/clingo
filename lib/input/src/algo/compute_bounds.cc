@@ -108,7 +108,7 @@ class ExtractTerms {
 
     auto operator()(TermSymbol const &term) const -> bool {
         if (term.value().type() == SymbolType::number) {
-            auto x = IETerm{term.value().num(), StringRef{}};
+            auto x = IETerm{term.value().num(), String{}};
             if (!add_) {
                 x.coefficient *= -1;
             }
@@ -159,7 +159,7 @@ class ExtractTerms {
                 if (!add_) {
                     fixed *= -fixed;
                 }
-                add_term(*terms_, IETerm{std::move(fixed), StringRef{}});
+                add_term(*terms_, IETerm{std::move(fixed), String{}});
                 if (!lhs.empty()) {
                     lhs.swap(rhs);
                     fixed_lhs.swap(fixed_rhs);

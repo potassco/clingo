@@ -54,7 +54,7 @@ void TheoryTermParser::add(Logger &log, TheoryOpDefinition const &def) {
     }
 }
 
-void TheoryTermParser::check_operator(Logger &log, StringRef op, Arity arity, Location loc) const {
+void TheoryTermParser::check_operator(Logger &log, String op, Arity arity, Location loc) const {
     if (!table_.contains(std::pair(op, arity))) {
         GRINGO_REPORT_LOC(log, error, loc) << "cannot parse operator `" << op << "`";
     }
@@ -88,21 +88,21 @@ auto TheoryTermParser::parse(Logger &log, TheoryTermUnparsed const &term) const 
     return std::move(terms_.back());
 }
 
-auto TheoryTermParser::priority_and_associativity_(StringRef op) const -> std::pair<int, Associativity> {
+auto TheoryTermParser::priority_and_associativity_(String op) const -> std::pair<int, Associativity> {
     if (auto it = table_.find(std::pair(op, Arity::binary)); it != table_.end()) {
         return it->second;
     }
     return {0, Associativity::left};
 }
 
-auto TheoryTermParser::priority_(StringRef op, Arity arity) const -> int {
+auto TheoryTermParser::priority_(String op, Arity arity) const -> int {
     if (auto it = table_.find(std::pair(op, arity)); it != table_.end()) {
         return it->second.first;
     }
     return 0;
 }
 
-auto TheoryTermParser::check_(StringRef op) const -> bool {
+auto TheoryTermParser::check_(String op) const -> bool {
     if (stack_.empty()) {
         return false;
     }
@@ -129,7 +129,7 @@ void TheoryTermParser::reduce_() const {
 }
 
 void TheoryAtomParser::add_theory(Logger &log, StmTheory const &stm) {
-    Util::ordered_set<StringRef> term_defs;
+    Util::ordered_set<String> term_defs;
     term_defs.reserve(stm.term_defs().size());
     term_parsers_.reserve(stm.term_defs().size());
     for (auto const &term_def : stm.term_defs()) {
@@ -148,7 +148,7 @@ void TheoryAtomParser::add_theory(Logger &log, StmTheory const &stm) {
         if (auto const &rhs = atom_def.rhs(); rhs) {
             auto const &[ops, term] = *rhs;
             if (auto it = term_defs.find(term); it != term_defs.end()) {
-                guard.emplace(StringRefSet{ops.begin(), ops.end()}, std::distance(term_defs.begin(), it));
+                guard.emplace(StringSet{ops.begin(), ops.end()}, std::distance(term_defs.begin(), it));
             } else {
                 GRINGO_REPORT_LOC(log, error, atom_def.loc()) << "term definition not found `" << term << "`";
             }

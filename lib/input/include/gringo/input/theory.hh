@@ -31,16 +31,16 @@ class TheoryTermSymbol : public Expression<TheoryTermSymbol> {
     }
 
     //! Construct a symbolic theory term.
-    explicit TheoryTermSymbol(Location loc, SymbolRef value) : loc_{loc}, value_{value} {}
+    explicit TheoryTermSymbol(Location loc, Symbol value) : loc_{loc}, value_{value} {}
 
     //! The location of the symbol.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The symbol.
-    [[nodiscard]] auto value() const -> SymbolRef { return value_; }
+    [[nodiscard]] auto value() const -> Symbol { return value_; }
 
   private:
     Location loc_;
-    SymbolRef value_;
+    Symbol value_;
 };
 
 //! A variable theory term.
@@ -55,19 +55,19 @@ class TheoryTermVariable : public Expression<TheoryTermVariable> {
     }
 
     //! Construct a variable theory term.
-    explicit TheoryTermVariable(Location loc, StringRef name, bool is_anonymous = false)
+    explicit TheoryTermVariable(Location loc, String name, bool is_anonymous = false)
         : loc_{loc}, name_{name}, anonymous_{is_anonymous} {}
 
     //! The location of the variable.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The name of the variable.
-    [[nodiscard]] auto name() const -> StringRef { return name_; }
+    [[nodiscard]] auto name() const -> String { return name_; }
     //! Whether the variable is anonymous.
     [[nodiscard]] auto anonymous() const -> bool { return anonymous_; }
 
   private:
     Location loc_;
-    StringRef name_;
+    String name_;
     bool anonymous_;
 };
 
@@ -119,20 +119,20 @@ class TheoryTermFunction : public RecursiveExpression<TheoryTermFunction> {
     }
 
     //! Construct a function theory term.
-    explicit TheoryTermFunction(Location loc, StringRef name);
+    explicit TheoryTermFunction(Location loc, String name);
     //! Construct a function theory term.
-    explicit TheoryTermFunction(Location loc, StringRef name, TheoryTermArray args);
+    explicit TheoryTermFunction(Location loc, String name, TheoryTermArray args);
 
     //! The location of the symbol.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The name of the function.
-    [[nodiscard]] auto name() const -> StringRef { return name_; }
+    [[nodiscard]] auto name() const -> String { return name_; }
     //! The arguments of the function.
     [[nodiscard]] auto args() const -> TheoryTermArray const & { return args_; }
 
   private:
     Location loc_;
-    StringRef name_;
+    String name_;
     TheoryTermArray args_;
 };
 
@@ -171,7 +171,7 @@ class TheoryTermUnparsed : public RecursiveExpression<TheoryTermUnparsed> {
 };
 
 //! The optional right guard of the theory atom.
-using TheoryRGuard = std::optional<std::pair<StringRef, TheoryTerm>>;
+using TheoryRGuard = std::optional<std::pair<String, TheoryTerm>>;
 
 //! An element of the theory atom.
 class TheoryElement : public Expression<TheoryElement> {
@@ -270,10 +270,10 @@ inline auto operator<=>(TheoryTermTuple const &a, TheoryTermTuple const &b) -> s
 
 // TheoryTermFunction
 
-inline TheoryTermFunction::TheoryTermFunction(Location loc, StringRef name, TheoryTermArray args)
+inline TheoryTermFunction::TheoryTermFunction(Location loc, String name, TheoryTermArray args)
     : loc_{loc}, name_(name), args_{std::move(args)} {}
 
-inline TheoryTermFunction::TheoryTermFunction(Location loc, StringRef name) : TheoryTermFunction{loc, name, {}} {}
+inline TheoryTermFunction::TheoryTermFunction(Location loc, String name) : TheoryTermFunction{loc, name, {}} {}
 
 inline auto operator==(TheoryTermFunction const &a, TheoryTermFunction const &b) -> bool { return a.equal(b); }
 

@@ -10,7 +10,7 @@ namespace Gringo::Input::Test {
 
 namespace {
 
-using SL = std::initializer_list<SymbolRef>;
+using SL = std::initializer_list<Symbol>;
 
 class ConstHelper : public ParseHelper {
   public:

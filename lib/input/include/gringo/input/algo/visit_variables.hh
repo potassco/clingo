@@ -18,7 +18,7 @@ enum class VariableContext : uint8_t {
 };
 
 //! A function to visit variable occurrences.
-using VarVisitFun = std::function<void(Location const &loc, StringRef var)>;
+using VarVisitFun = std::function<void(Location const &loc, String var)>;
 
 //! Visit variables with the given function.
 void visit_variables(Term const &term, VarVisitFun fun);
@@ -51,7 +51,7 @@ template <class T> [[nodiscard]] inline auto select_variables(T const &x, size_t
     if (size_hint > 0) {
         vars.reserve(size_hint);
     }
-    visit_variables(x, [&]([[maybe_unused]] Location const &loc, StringRef const &var) { vars.emplace(var); });
+    visit_variables(x, [&]([[maybe_unused]] Location const &loc, String const &var) { vars.emplace(var); });
     return vars;
 }
 
@@ -62,7 +62,7 @@ template <class T>
     if (size_hint > 0) {
         vars.reserve(size_hint);
     }
-    visit_variables(x, [&]([[maybe_unused]] Location const &loc, StringRef const &var) { vars.emplace(var); }, context);
+    visit_variables(x, [&]([[maybe_unused]] Location const &loc, String const &var) { vars.emplace(var); }, context);
     return vars;
 }
 

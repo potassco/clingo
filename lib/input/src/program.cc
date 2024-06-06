@@ -33,13 +33,13 @@ void UnprocessedProgram::add(SymbolStore &store, Stm stm) {
                 const_stms.emplace_back(std::move(stm));
             } else if constexpr (Util::matches<T, StmProgram>) {
                 ensure_base = false;
-                parts.emplace_back(stm, StmVec{}, SymbolRefVec{});
+                parts.emplace_back(stm, StmVec{}, SymbolVec{});
             } else {
                 if (parts.empty() || ensure_base) {
                     if (parts.empty() || std::get<0>(parts.back()).name() != "base" ||
                         !std::get<0>(parts.back()).args().empty()) {
                         parts.emplace_back(StmProgram{location(stm), store.string_ref("base"), {}}, StmVec{},
-                                           SymbolRefVec{});
+                                           SymbolVec{});
                     }
                     ensure_base = false;
                 }
@@ -82,7 +82,7 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
         for (auto &fact : facts) {
             std::visit(
                 [&part]<class T>(T &&x) {
-                    if constexpr (Util::matches<T, SymbolRef>) {
+                    if constexpr (Util::matches<T, Symbol>) {
                         part.first.value().facts.emplace_back(x);
                     }
                     if constexpr (Util::matches<T, Stm>) {
@@ -113,10 +113,10 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
 }
 
 [[nodiscard]] auto Program::param_map_(SymbolStore &store,
-                                       ProgramPart const &part) -> Util::ordered_map<StringRef, StringRef> {
-    Util::ordered_map<StringRef, StringRef> res;
+                                       ProgramPart const &part) -> Util::ordered_map<String, String> {
+    Util::ordered_map<String, String> res;
     if (!part.part.args().empty()) {
-        StringRefSet ids;
+        StringSet ids;
         for (auto const &facts : part.facts) {
             collect_ids(facts, ids);
         }

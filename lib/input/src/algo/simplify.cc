@@ -92,7 +92,7 @@ struct TermResultLinear {
     Number n;
 };
 //! The evaluation resulted in a symbol.
-using TermResultSymbol = SymbolRef;
+using TermResultSymbol = Symbol;
 //! The evaluation did not change the term.
 using TermResultUnchanged = TermType;
 //! Variant for the different evaluation results.
@@ -195,7 +195,7 @@ class VarToLinear {
 };
 
 //! Result indicating a changed tuple.
-using TupleResultChanged = std::vector<std::variant<Projection, SymbolRef, Term>>;
+using TupleResultChanged = std::vector<std::variant<Projection, Symbol, Term>>;
 //! Result indicating an unchanged tuple.
 struct TupleResultUnchanged {};
 //! Result indicating a tuples that failed to simplify.
@@ -206,11 +206,11 @@ using TupleResult = std::variant<TupleResultFail, TupleResultUnchanged, TupleRes
 //! Convert the given simplified arguments to a symbol vector.
 //!
 //! The result vector must only store symbols.
-auto result_as_symbol_vec(TupleResultChanged const &args_tuple) -> std::vector<SymbolRef> {
-    std::vector<SymbolRef> args;
+auto result_as_symbol_vec(TupleResultChanged const &args_tuple) -> std::vector<Symbol> {
+    std::vector<Symbol> args;
     args.reserve(args_tuple.size());
     for (auto const &arg : args_tuple) {
-        args.emplace_back(std::get<SymbolRef>(arg));
+        args.emplace_back(std::get<Symbol>(arg));
     }
     return args;
 }
@@ -223,7 +223,7 @@ auto result_as_tuple(ArgumentTuple const &tuple, TupleResultChanged args_tuple) 
     for (auto &arg : args_tuple) {
         std::visit(
             [&]<class T>(T val) {
-                if constexpr (std::is_same_v<T, SymbolRef>) {
+                if constexpr (std::is_same_v<T, Symbol>) {
                     args.emplace_back(TermSymbol{location(std::get<Term>(*it)), val});
                 } else {
                     args.emplace_back(std::move(val));
@@ -621,7 +621,7 @@ class SimplifyTerm {
             }
 
             // evaluate to symbol
-            if constexpr (std::is_same_v<T, SymbolRef> && std::is_same_v<U, SymbolRef>) {
+            if constexpr (std::is_same_v<T, Symbol> && std::is_same_v<U, Symbol>) {
                 auto res = evaluate(ctx_->store(), res_lhs, term.op(), res_rhs);
                 if (!res.has_value()) {
                     GRINGO_REPORT_LOC(ctx_->logger(), info_operation_undefined, term.loc()) << "operation undefined:\n"
@@ -630,7 +630,7 @@ class SimplifyTerm {
                 }
                 return res.value();
             }
-            if constexpr (std::is_same_v<T, SymbolRef> && std::is_same_v<U, TermResultLinear>) {
+            if constexpr (std::is_same_v<T, Symbol> && std::is_same_v<U, TermResultLinear>) {
                 if (term.op() == BinaryOperator::plus) {
                     res_rhs.n += res_lhs.num();
                     return res_rhs;
@@ -649,7 +649,7 @@ class SimplifyTerm {
                                     term.update(a_lhs = ResultAsTerm{*ctx_, term.lhs()}(std::move(res_lhs)),
                                                 a_rhs = ResultAsTerm{*ctx_, term.rhs()}(std::move(res_rhs))));
             }
-            if constexpr (std::is_same_v<T, TermResultLinear> && std::is_same_v<U, SymbolRef>) {
+            if constexpr (std::is_same_v<T, TermResultLinear> && std::is_same_v<U, Symbol>) {
                 if (term.op() == BinaryOperator::plus) {
                     res_lhs.n += res_rhs.num();
                     return res_lhs;
@@ -930,7 +930,7 @@ class SimplifyLiteral {
         // (in the head it is inequality)
         auto assign = disjunctive ? Relation::not_equal : Relation::equal;
 
-        auto get_constant = [](Term const &orig, std::optional<Term> const &res) -> std::optional<SymbolRef> {
+        auto get_constant = [](Term const &orig, std::optional<Term> const &res) -> std::optional<Symbol> {
             if (res.has_value()) {
                 if (auto const *sym = std::get_if<TermSymbol>(&res.value()); sym != nullptr) {
                     return sym->value();
@@ -1292,7 +1292,7 @@ class LiteralToTuple {
 //! Get the neutral value of the given aggregate.
 //!
 //! This correponds to the aggregate function applied to the empty set.
-auto neutral_value(AggregateFunction fun) -> std::variant<Number, SymbolRef> {
+auto neutral_value(AggregateFunction fun) -> std::variant<Number, Symbol> {
     switch (fun) {
         case AggregateFunction::sum:
         case AggregateFunction::sump:
@@ -1310,7 +1310,7 @@ auto neutral_value(AggregateFunction fun) -> std::variant<Number, SymbolRef> {
 }
 
 //! Get the weight of a tuple (if it has one).
-auto value(TermArray const &tuple) -> std::optional<SymbolRef> {
+auto value(TermArray const &tuple) -> std::optional<Symbol> {
     if (!tuple.empty()) {
         return std::get<TermSymbol>(tuple.front()).value();
     }
@@ -1331,7 +1331,7 @@ auto weight(TermArray const &tuple) -> NumberRef {
 //! Accumulate the given symbol to res.
 //!
 //! For count aggregates this should simply be one.
-void accumulate(AggregateFunction fun, TermArray const &tuple, std::variant<Number, SymbolRef> &res) {
+void accumulate(AggregateFunction fun, TermArray const &tuple, std::variant<Number, Symbol> &res) {
     switch (fun) {
         case AggregateFunction::sum: {
             std::get<Number>(res) += weight(tuple);
@@ -1350,14 +1350,14 @@ void accumulate(AggregateFunction fun, TermArray const &tuple, std::variant<Numb
         }
         case AggregateFunction::min: {
             auto val = value(tuple);
-            if (val.has_value() && *val < std::get<SymbolRef>(res)) {
+            if (val.has_value() && *val < std::get<Symbol>(res)) {
                 res = *val;
             }
             break;
         }
         case AggregateFunction::max: {
             auto val = value(tuple);
-            if (val.has_value() && *val > std::get<SymbolRef>(res)) {
+            if (val.has_value() && *val > std::get<Symbol>(res)) {
                 res = *val;
             }
             break;
@@ -1483,7 +1483,7 @@ template <bool head>
                                                       if constexpr (std::is_same_v<T, Number>) {
                                                           return ctx.store().num_ref(std::move(value));
                                                       }
-                                                      if constexpr (std::is_same_v<T, SymbolRef>) {
+                                                      if constexpr (std::is_same_v<T, Symbol>) {
                                                           return value;
                                                       }
                                                   },

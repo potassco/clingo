@@ -14,7 +14,7 @@ namespace {
 //! Get variables a term provides or depends on.
 class GetDep {
   public:
-    GetDep(const VariableSet &ignore, StringRefVec &provide, StringRefVec &depend)
+    GetDep(const VariableSet &ignore, StringVec &provide, StringVec &depend)
         : ignore_{&ignore}, provide_{&provide}, depend_{&depend} {}
 
     void operator()(auto const &x, bool can_provide) const = delete;
@@ -76,8 +76,8 @@ class GetDep {
 
   private:
     VariableSet const *ignore_;
-    StringRefVec *provide_;
-    StringRefVec *depend_;
+    StringVec *provide_;
+    StringVec *depend_;
 };
 
 //! Turn literals into nodes that depend or provide variables.
@@ -91,13 +91,13 @@ template <class CB> class MakeNode {
     void operator()(Lit const &lit, bool can_provide) { std::visit(*this, lit, std::variant<bool>{can_provide}); }
 
     void operator()([[maybe_unused]] LitBool const &lit, [[maybe_unused]] bool can_provide) {
-        std::invoke(cb_, StringRefVec{}, StringRefVec{}, false);
+        std::invoke(cb_, StringVec{}, StringVec{}, false);
     }
 
     void operator()(LitComparison const &lit, bool can_provide) {
         auto add = [this, &lit](bool lhs, bool rhs) {
-            StringRefVec provide;
-            StringRefVec depend;
+            StringVec provide;
+            StringVec depend;
             GetDep{*provided_, provide, depend}(lit.lhs(), lhs);
             GetDep{*provided_, provide, depend}(lit.rhs().front().second, rhs);
             if (!rhs || !provide.empty()) {
@@ -113,8 +113,8 @@ template <class CB> class MakeNode {
     }
 
     void operator()(LitSymbolic const &lit, bool can_provide) {
-        StringRefVec provide;
-        StringRefVec depend;
+        StringVec provide;
+        StringVec depend;
         GetDep{*provided_, provide, depend}(lit.term(), can_provide && lit.sign() == Sign::none);
         std::invoke(cb_, std::move(provide), std::move(depend), false);
     }
@@ -135,7 +135,7 @@ template <class CB> class MakeNode {
                 }
             },
             VariableContext::all);
-        std::invoke(cb_, StringRefVec{}, std::move(depend), false);
+        std::invoke(cb_, StringVec{}, std::move(depend), false);
     }
 
     void operator()(BdLitAggregate const &lit, bool can_provide) {
@@ -174,7 +174,7 @@ template <class CB> class MakeNode {
                 }
             },
             VariableContext::all);
-        std::invoke(cb_, StringRefVec{}, std::move(depend), false);
+        std::invoke(cb_, StringVec{}, std::move(depend), false);
     }
 
   private:
@@ -184,12 +184,12 @@ template <class CB> class MakeNode {
 };
 
 template <class Lit> struct Node {
-    Node(Lit const &lit, size_t done, StringRefVec provide, StringRefVec depend, bool swap)
+    Node(Lit const &lit, size_t done, StringVec provide, StringVec depend, bool swap)
         : lit{&lit}, done{done}, provide{std::move(provide)}, depend{std::move(depend)}, swap{swap} {}
     Lit const *lit;
     size_t done;
-    StringRefVec provide;
-    StringRefVec depend;
+    StringVec provide;
+    StringVec depend;
     bool swap;
 };
 template <class Lit> using NodeVec = std::vector<Node<Lit>>;
@@ -228,7 +228,7 @@ template <class Span>
     size_t index = 0;
     GRINGO_REPORT(log, trace) << "literal dependencies";
     for (auto const &lit : lits) {
-        auto add_node = [&log, &lit, &nodes, &index](StringRefVec provide, StringRefVec depend, bool swap) {
+        auto add_node = [&log, &lit, &nodes, &index](StringVec provide, StringVec depend, bool swap) {
             GRINGO_REPORT(log, trace) << "  " << lit << ", {" << Util::p_range{provide} << "}, {"
                                       << Util::p_range{depend} << "}";
             nodes.emplace_back(lit, index, std::move(provide), std::move(depend), swap);

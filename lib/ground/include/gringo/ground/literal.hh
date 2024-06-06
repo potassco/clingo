@@ -157,7 +157,7 @@ constexpr auto stratified_index = std::numeric_limits<size_t>::max();
 //! It is meant to prune rules whose heads have already been derived as facts.
 class LitFactCheck : public Lit {
   public:
-    LitFactCheck(Base &base, Term const &atom, SymbolRef *target) : base_{&base}, atom_{&atom}, target_{target} {}
+    LitFactCheck(Base &base, Term const &atom, Symbol *target) : base_{&base}, atom_{&atom}, target_{target} {}
 
   private:
     void do_vars(VariableSet &vars, VarSelectMode mode) const override;
@@ -178,7 +178,7 @@ class LitFactCheck : public Lit {
 
     Base *base_;
     Term const *atom_;
-    SymbolRef *target_;
+    Symbol *target_;
 };
 
 class LitSymbolic : public Lit {
@@ -219,17 +219,17 @@ class LitProject : public Lit {
   public:
     class State {
       public:
-        State(StringRef name, size_t vars, Base &base, UTerm p_head, UTerm p_body)
+        State(String name, size_t vars, Base &base, UTerm p_head, UTerm p_body)
             : name_{name}, base_{&base}, p_head_{std::move(p_head)}, p_body_{std::move(p_body)} {
             ass_.resize(vars);
         }
         [[nodiscard]] auto base() const -> Base & { return *base_; }
         [[nodiscard]] auto p_base() -> Base & { return p_base_; }
-        [[nodiscard]] auto name() const -> StringRef const & { return name_; }
+        [[nodiscard]] auto name() const -> String const & { return name_; }
         void init(SymbolStore &store, size_t gen);
 
       private:
-        StringRef name_;
+        String name_;
         Base *base_;
         Base p_base_;
         UTerm p_head_;

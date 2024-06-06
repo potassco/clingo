@@ -9,8 +9,8 @@
 namespace Gringo {
 
 // Note: to enable ADL for catch
-using SL = std::initializer_list<SymbolRef>;
-auto operator==(SymbolRefSpan a, SL b) -> bool { return std::equal(a.begin(), a.end(), b.begin(), b.end()); }
+using SL = std::initializer_list<Symbol>;
+auto operator==(SymbolSpan a, SL b) -> bool { return std::equal(a.begin(), a.end(), b.begin(), b.end()); }
 
 namespace Test {
 
@@ -23,7 +23,7 @@ template <class F> void with_store(F fun) {
     fun(*make_symbol_store(true, true));
 }
 
-auto to_str(SymbolRef sym) -> std::string {
+auto to_str(Symbol sym) -> std::string {
     std::ostringstream oss;
     oss << sym;
     return oss.str();
@@ -150,12 +150,12 @@ TEST_CASE("symbol_tuple") {
         REQUIRE(t5 == t6);
 
         size_t n = 1 << 20;
-        std::vector<SymbolRef> args;
+        std::vector<Symbol> args;
         args.reserve(n);
         for (size_t i = 0; i < n; ++i) {
             args.emplace_back(store.num_ref(Number(static_cast<int32_t>(i))));
         }
-        auto t = store.tup_ref(SymbolRefSpan{args.data(), args.size()});
+        auto t = store.tup_ref(SymbolSpan{args.data(), args.size()});
         REQUIRE(t.type() == SymbolType::tuple);
         REQUIRE(t.args().size() == n);
 
@@ -233,12 +233,12 @@ TEST_CASE("symbol_function") {
         REQUIRE(f6 != f7);
 
         size_t n = 1 << 20;
-        std::vector<SymbolRef> args;
+        std::vector<Symbol> args;
         args.reserve(n);
         for (size_t i = 0; i < n; ++i) {
             args.emplace_back(store.num_ref(Number(static_cast<int32_t>(i))));
         }
-        auto t = store.fun_ref(s1, SymbolRefSpan{args.data(), args.size()}, false);
+        auto t = store.fun_ref(s1, SymbolSpan{args.data(), args.size()}, false);
         REQUIRE(t.type() == SymbolType::function);
         REQUIRE(t.name() == s1);
         REQUIRE(t.args().size() == n);

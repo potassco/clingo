@@ -12,7 +12,7 @@ namespace {
 
 class NullOutputLit : public OutputLit {
   private:
-    void do_lit([[maybe_unused]] Sign sign, [[maybe_unused]] SymbolRef sym) override {}
+    void do_lit([[maybe_unused]] Sign sign, [[maybe_unused]] Symbol sym) override {}
     void do_boolean([[maybe_unused]] bool value) override {}
     void do_cond_lit([[maybe_unused]] size_t uid) override {}
 };
@@ -20,9 +20,9 @@ class NullOutputLit : public OutputLit {
 class NullOutputStm : public OutputStm, public NullOutputLit {
   private:
     auto do_uid() -> size_t override { return 0; }
-    void do_fact([[maybe_unused]] SymbolRef sym) override {}
+    void do_fact([[maybe_unused]] Symbol sym) override {}
     auto do_body() -> OutputLit & override { return *this; }
-    void do_rule([[maybe_unused]] std::optional<SymbolRef> head) override {}
+    void do_rule([[maybe_unused]] std::optional<Symbol> head) override {}
     auto do_cond() -> OutputLit & override { return *this; }
     void do_cond_lit_premise([[maybe_unused]] size_t lit_index, [[maybe_unused]] size_t elem_index) override {}
     void do_cond_lit_conclusion([[maybe_unused]] size_t lit_index, [[maybe_unused]] size_t elem_index) override {}
@@ -106,7 +106,7 @@ TEST_CASE("ground_matcher") {
 
     SECTION("nonfact") {
         auto name = store->string_ref("f");
-        auto sym = [&](auto num) { return store->fun_ref(name, SymbolRefVec{store->num_ref(num)}, false); };
+        auto sym = [&](auto num) { return store->fun_ref(name, SymbolVec{store->num_ref(num)}, false); };
         ass = {std::nullopt};
         auto base = Base{};
         base.add(sym(1), AtomState::fact);
@@ -140,7 +140,7 @@ TEST_CASE("ground_matcher") {
     SECTION("full matcher") {
         auto name = store->string_ref("f");
         auto sym = [&](auto a, auto b) {
-            return store->fun_ref(name, SymbolRefVec{store->num_ref(a), store->num_ref(b)}, false);
+            return store->fun_ref(name, SymbolVec{store->num_ref(a), store->num_ref(b)}, false);
         };
         ass = {std::nullopt};
         auto base = Base{};
@@ -191,7 +191,7 @@ TEST_CASE("ground_matcher") {
     SECTION("hash matcher") {
         auto name = store->string_ref("f");
         auto sym = [&](auto a, auto b, auto c) {
-            return store->fun_ref(name, SymbolRefVec{store->num_ref(a), store->num_ref(b), store->num_ref(c)}, false);
+            return store->fun_ref(name, SymbolVec{store->num_ref(a), store->num_ref(b), store->num_ref(c)}, false);
         };
         ass = {std::nullopt, std::nullopt, std::nullopt};
         ass[0] = store->num_ref(1);

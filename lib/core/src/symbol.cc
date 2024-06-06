@@ -247,14 +247,14 @@ template <class T> class RefCounted {
     T data_[0];
 };
 
-using SymbolArray = RefCounted<SymbolRef>;
+using SymbolArray = RefCounted<Symbol>;
 
 class KeySymbolArray {
   public:
     KeySymbolArray() = default;
 
-    template <class Alloc> KeySymbolArray(Alloc &alloc, SymbolRefSpan symbols, bool referenced) {
-        static_assert(alignof(SymbolRef) <= alignof(uint64_t));
+    template <class Alloc> KeySymbolArray(Alloc &alloc, SymbolSpan symbols, bool referenced) {
+        static_assert(alignof(Symbol) <= alignof(uint64_t));
         size_t n = symbols.size();
         auto *data = SymbolArray::alloc(alloc, n, referenced);
         std::copy(symbols.begin(), symbols.end(), data->data());
@@ -262,8 +262,8 @@ class KeySymbolArray {
         repr_ = reinterpret_cast<uintptr_t>(data);
     }
 
-    template <class Alloc> KeySymbolArray(Alloc &alloc, SymbolRef name, SymbolRefSpan symbols, bool referenced) {
-        static_assert(alignof(SymbolRef) <= alignof(uint64_t));
+    template <class Alloc> KeySymbolArray(Alloc &alloc, Symbol name, SymbolSpan symbols, bool referenced) {
+        static_assert(alignof(Symbol) <= alignof(uint64_t));
         size_t n = symbols.size() + 1;
         auto *data = SymbolArray::alloc(alloc, n, referenced);
         *data->data() = name;
@@ -345,28 +345,28 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
     DefaultSymbolStore(DefaultSymbolStore &&) noexcept = delete;
     ~DefaultSymbolStore() noexcept override { clear(); }
 
-    [[nodiscard]] auto do_num(Number num) noexcept -> SymbolRef override {
+    [[nodiscard]] auto do_num(Number num) noexcept -> Symbol override {
         auto jt = numbers_.insert(std::move(num)).first;
-        return SymbolRef::from_rep(Number::to_repr(*jt));
+        return Symbol::from_rep(Number::to_repr(*jt));
     }
 
-    [[nodiscard]] auto do_fun(StringRef name, SymbolRefSpan args, bool sign, bool referenced) -> SymbolRef override {
+    [[nodiscard]] auto do_fun(String name, SymbolSpan args, bool sign, bool referenced) -> Symbol override {
         auto jt = insert_(tuples_, SymbolStore::str_ref(name), args, referenced);
         auto rep = KeySymbolArray::to_repr(*jt) | (sign ? REP_SIGNED_FUN : REP_FUN);
-        return SymbolRef::from_rep(rep);
+        return Symbol::from_rep(rep);
     }
 
-    [[nodiscard]] auto do_tup(SymbolRefSpan args, bool referenced) -> SymbolRef override {
+    [[nodiscard]] auto do_tup(SymbolSpan args, bool referenced) -> Symbol override {
         // Almost the same as for function except that the name does not have to be stored separately.
         auto jt = insert_(tuples_, args, referenced);
         auto rep = KeySymbolArray::to_repr(*jt) | REP_TUP;
-        return SymbolRef::from_rep(rep);
+        return Symbol::from_rep(rep);
     }
 
-    [[nodiscard]] auto do_string(std::string_view str, bool referenced) -> StringRef override {
+    [[nodiscard]] auto do_string(std::string_view str, bool referenced) -> String override {
         assert(!str.empty());
         auto it = insert_(strings_, str, referenced);
-        return StringRef::from_rep(KeyCharArray::to_repr(*it));
+        return String::from_rep(KeyCharArray::to_repr(*it));
     }
 
     void clear() {
@@ -484,22 +484,22 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
 //! More fine-grained locking is possible and also a shared lock is interesting.
 template <class Alloc> class SharedSymbolStore : public SymbolStore {
   public:
-    [[nodiscard]] auto do_num(Number num) noexcept -> SymbolRef override {
+    [[nodiscard]] auto do_num(Number num) noexcept -> Symbol override {
         std::unique_lock ulock{mutex_};
         return store_.do_num(std::move(num));
     }
 
-    [[nodiscard]] auto do_fun(StringRef name, SymbolRefSpan args, bool sign, bool referenced) -> SymbolRef override {
+    [[nodiscard]] auto do_fun(String name, SymbolSpan args, bool sign, bool referenced) -> Symbol override {
         std::unique_lock ulock{mutex_};
         return store_.do_fun(name, args, sign, referenced);
     }
 
-    [[nodiscard]] auto do_tup(SymbolRefSpan args, bool referenced) -> SymbolRef override {
+    [[nodiscard]] auto do_tup(SymbolSpan args, bool referenced) -> Symbol override {
         std::unique_lock ulock{mutex_};
         return store_.do_tup(args, referenced);
     }
 
-    [[nodiscard]] auto do_string(std::string_view str, bool referenced) -> StringRef override {
+    [[nodiscard]] auto do_string(std::string_view str, bool referenced) -> String override {
         assert(!str.empty());
         std::unique_lock ulock{mutex_};
         return store_.do_string(str, referenced);
@@ -556,55 +556,55 @@ auto default_symbol_store_() -> USymbolStore & {
 
 // StringRef
 
-auto StringRef::c_str() const -> const char * { return rep_ != 0 ? CharArray::from_repr(rep_).data() : ""; }
+auto String::c_str() const -> const char * { return rep_ != 0 ? CharArray::from_repr(rep_).data() : ""; }
 
-auto StringRef::view() const -> std::string_view {
+auto String::view() const -> std::string_view {
     return rep_ != 0 ? CharArray::from_repr(rep_).view() : std::string_view{};
 }
 
-auto StringRef::empty() const -> bool { return *c_str() == '\0'; }
+auto String::empty() const -> bool { return *c_str() == '\0'; }
 
-auto StringRef::size() const -> size_t { return rep_ != 0 ? CharArray::from_repr(rep_).size() : 0; }
+auto String::size() const -> size_t { return rep_ != 0 ? CharArray::from_repr(rep_).size() : 0; }
 
-auto StringRef::starts_with(std::string_view prefix) const -> bool { return view().starts_with(prefix); }
+auto String::starts_with(std::string_view prefix) const -> bool { return view().starts_with(prefix); }
 
-auto operator<<(std::ostream &out, StringRef const &str) -> std::ostream & {
+auto operator<<(std::ostream &out, String const &str) -> std::ostream & {
     out << str.view();
     return out;
 }
 
 // String
 
-void String::acquire_() const noexcept {
-    if (auto rep = StringRef::to_rep(ref_); rep != 0) {
+void SharedString::acquire_() const noexcept {
+    if (auto rep = String::to_rep(ref_); rep != 0) {
         inc_ref(CharArray::from_repr(rep).ref_count());
     }
 }
 
-void String::release_() const noexcept {
-    if (auto rep = StringRef::to_rep(ref_); rep != 0) {
+void SharedString::release_() const noexcept {
+    if (auto rep = String::to_rep(ref_); rep != 0) {
         dec_ref(CharArray::from_repr(rep).ref_count());
     }
 }
 
 // SymbolRef
 
-auto SymbolRef::num() const noexcept -> NumberRef {
+auto Symbol::num() const noexcept -> NumberRef {
     assert(type() == SymbolType::number);
     return NumberRef{rep_};
 }
 
-auto SymbolRef::str() const noexcept -> StringRef {
+auto Symbol::str() const noexcept -> String {
     assert(type() == SymbolType::string);
-    return StringRef::from_rep(rep_ & ~TYPE_MASK);
+    return String::from_rep(rep_ & ~TYPE_MASK);
 }
 
-auto SymbolRef::name() const noexcept -> StringRef {
+auto Symbol::name() const noexcept -> String {
     assert(type() == SymbolType::function);
     switch (rep_ & TYPE_MASK) {
         case REP_ID:
         case REP_SIGNED_ID: {
-            return StringRef::from_rep(rep_ & ~TYPE_MASK);
+            return String::from_rep(rep_ & ~TYPE_MASK);
         }
         default: {
             return SymbolArray::from_repr(rep_ & ~TYPE_MASK).head().str();
@@ -612,11 +612,11 @@ auto SymbolRef::name() const noexcept -> StringRef {
     }
 }
 
-auto SymbolRef::args() const noexcept -> SymbolRefSpan {
+auto Symbol::args() const noexcept -> SymbolSpan {
     switch (rep_ & TYPE_MASK) {
         case REP_SIGNED_ID:
         case REP_ID: {
-            return SymbolRefSpan{};
+            return SymbolSpan{};
         }
         case REP_SIGNED_FUN:
         case REP_FUN: {
@@ -625,12 +625,12 @@ auto SymbolRef::args() const noexcept -> SymbolRefSpan {
         default: {
             assert((rep_ & TYPE_MASK) == REP_TUP);
             auto ptr = rep_ & ~TYPE_MASK;
-            return ptr != 0 ? SymbolArray::from_repr(ptr).span() : SymbolRefSpan{};
+            return ptr != 0 ? SymbolArray::from_repr(ptr).span() : SymbolSpan{};
         }
     }
 }
 
-auto SymbolRef::has_classical_sign() const -> bool {
+auto Symbol::has_classical_sign() const -> bool {
     switch (rep_ & TYPE_MASK) {
         case REP_SIGNED_ID:
         case REP_SIGNED_FUN: {
@@ -642,7 +642,7 @@ auto SymbolRef::has_classical_sign() const -> bool {
     }
 }
 
-auto SymbolRef::has_sign() const -> bool {
+auto Symbol::has_sign() const -> bool {
     switch (rep_ & TYPE_MASK) {
         case REP_NUM_OR_CONSTANT: {
             if ((rep_ & EXT_TYPE_MASK) == EXT_REP_NUM) {
@@ -663,19 +663,19 @@ auto SymbolRef::has_sign() const -> bool {
     }
 }
 
-auto SymbolRef::flip_classical_sign() const -> std::optional<SymbolRef> {
+auto Symbol::flip_classical_sign() const -> std::optional<Symbol> {
     switch (rep_ & TYPE_MASK) {
         case REP_SIGNED_ID: {
-            return SymbolRef{(rep_ & ~TYPE_MASK) | REP_ID};
+            return Symbol{(rep_ & ~TYPE_MASK) | REP_ID};
         }
         case REP_SIGNED_FUN: {
-            return SymbolRef{(rep_ & ~TYPE_MASK) | REP_FUN};
+            return Symbol{(rep_ & ~TYPE_MASK) | REP_FUN};
         }
         case REP_ID: {
-            return SymbolRef{(rep_ & ~TYPE_MASK) | REP_SIGNED_ID};
+            return Symbol{(rep_ & ~TYPE_MASK) | REP_SIGNED_ID};
         }
         case REP_FUN: {
-            return SymbolRef{(rep_ & ~TYPE_MASK) | REP_SIGNED_FUN};
+            return Symbol{(rep_ & ~TYPE_MASK) | REP_SIGNED_FUN};
         }
         default: {
             return std::nullopt;
@@ -683,7 +683,7 @@ auto SymbolRef::flip_classical_sign() const -> std::optional<SymbolRef> {
     }
 }
 
-auto SymbolRef::type() const noexcept -> SymbolType {
+auto Symbol::type() const noexcept -> SymbolType {
     switch (rep_ & TYPE_MASK) {
         case REP_NUM_OR_CONSTANT: {
             switch (rep_ & EXT_TYPE_MASK) {
@@ -713,7 +713,7 @@ auto SymbolRef::type() const noexcept -> SymbolType {
     }
 }
 
-auto operator<<(std::ostream &out, SymbolRef const &sym) -> std::ostream & {
+auto operator<<(std::ostream &out, Symbol const &sym) -> std::ostream & {
     switch (sym.type()) {
         case SymbolType::inf: {
             out << "#inf";
@@ -755,8 +755,8 @@ auto operator<<(std::ostream &out, SymbolRef const &sym) -> std::ostream & {
 
 // Symbol
 
-void Symbol::acquire_() const noexcept {
-    auto rep = SymbolRef::to_rep(ref_);
+void SharedSymbol::acquire_() const noexcept {
+    auto rep = Symbol::to_rep(ref_);
     auto val = rep & ~TYPE_MASK;
     switch (rep & TYPE_MASK) {
         case REP_ID:
@@ -785,8 +785,8 @@ void Symbol::acquire_() const noexcept {
     }
 }
 
-void Symbol::release_() const noexcept {
-    auto rep = SymbolRef::to_rep(ref_);
+void SharedSymbol::release_() const noexcept {
+    auto rep = Symbol::to_rep(ref_);
     auto val = rep & ~TYPE_MASK;
     switch (rep & TYPE_MASK) {
         case REP_ID:
@@ -815,10 +815,10 @@ void Symbol::release_() const noexcept {
     }
 }
 
-void SymbolCollector::mark(SymbolRef const &sym) {
+void SymbolCollector::mark(Symbol const &sym) {
     stack_.emplace_back(sym);
     while (!stack_.empty()) {
-        auto rep = SymbolRef::to_rep(stack_.back());
+        auto rep = Symbol::to_rep(stack_.back());
         stack_.pop_back();
         auto typ = rep & TYPE_MASK;
         auto val = rep & ~TYPE_MASK;
@@ -854,89 +854,87 @@ void SymbolCollector::mark(SymbolRef const &sym) {
     }
 }
 
-void SymbolCollector::mark(StringRef const &str) {
+void SymbolCollector::mark(String const &str) {
     static_cast<void>(this);
-    if (auto rep = StringRef::to_rep(str); rep != 0) {
+    if (auto rep = String::to_rep(str); rep != 0) {
         mark_ref(CharArray::from_repr(rep).ref_count());
     }
 }
 
 // SymbolStore
 
-auto SymbolStore::string(std::string_view str) -> String {
+auto SymbolStore::string(std::string_view str) -> SharedString {
     static_cast<void>(this);
     static_cast<void>(str);
     throw std::runtime_error("implement me!!!");
 }
 
-auto SymbolStore::sup() noexcept -> SymbolRef { return SymbolRef::from_rep(EXT_REP_SUP); }
+auto SymbolStore::sup() noexcept -> Symbol { return Symbol::from_rep(EXT_REP_SUP); }
 
-auto SymbolStore::inf() noexcept -> SymbolRef { return SymbolRef::from_rep(EXT_REP_INF); }
+auto SymbolStore::inf() noexcept -> Symbol { return Symbol::from_rep(EXT_REP_INF); }
 
-auto SymbolStore::str(String str) noexcept -> Symbol {
-    return Symbol::from_rep(String::to_rep(std::move(str)) | REP_STR);
+auto SymbolStore::str(SharedString str) noexcept -> SharedSymbol {
+    return SharedSymbol::from_rep(SharedString::to_rep(std::move(str)) | REP_STR);
 }
 
-auto SymbolStore::num(Number num) noexcept -> Symbol {
+auto SymbolStore::num(Number num) noexcept -> SharedSymbol {
     if (auto res = num.as_int(); res) {
-        return {SymbolRef::from_rep(Number::to_repr(num)), false};
+        return SharedSymbol{Symbol::from_rep(Number::to_repr(num)), false};
     }
-    return Symbol{do_num(std::move(num)), true};
+    return SharedSymbol{do_num(std::move(num)), true};
 }
 
-auto SymbolStore::tup(SymbolSpan args) -> Symbol {
-    return tup(SymbolRefSpan{reinterpret_cast<SymbolRef const *>(args.data()), args.size()});
+auto SymbolStore::tup(SharedSymbolSpan args) -> SharedSymbol {
+    return tup(SymbolSpan{reinterpret_cast<Symbol const *>(args.data()), args.size()});
 }
 
-auto SymbolStore::tup(SymbolRefSpan args) -> Symbol {
+auto SymbolStore::tup(SymbolSpan args) -> SharedSymbol {
     if (args.empty()) {
-        return Symbol{SymbolRef::from_rep(REP_TUP), false};
+        return SharedSymbol{Symbol::from_rep(REP_TUP), false};
     }
-    return Symbol{do_tup(args, true), false};
+    return SharedSymbol{do_tup(args, true), false};
 }
 
-auto SymbolStore::fun(String const &name, SymbolSpan args, bool sign) -> Symbol {
-    return fun(name, SymbolRefSpan{reinterpret_cast<SymbolRef const *>(args.data()), args.size()}, sign);
+auto SymbolStore::fun(SharedString const &name, SharedSymbolSpan args, bool sign) -> SharedSymbol {
+    return fun(name, SymbolSpan{reinterpret_cast<Symbol const *>(args.data()), args.size()}, sign);
 }
 
-auto SymbolStore::fun(String const &name, SymbolRefSpan args, bool sign) -> Symbol {
+auto SymbolStore::fun(SharedString const &name, SymbolSpan args, bool sign) -> SharedSymbol {
     // The string is passed by const ref here. In principle, an acquire could
     // be avoided providing an overload by value. I don't think it's worth to
     // clutter the interface, though.
     if (args.empty()) {
-        auto rep = (sign ? REP_SIGNED_ID : REP_ID) | StringRef::to_rep(name.get());
-        return Symbol{SymbolRef::from_rep(rep), true};
+        auto rep = (sign ? REP_SIGNED_ID : REP_ID) | String::to_rep(name.get());
+        return SharedSymbol{Symbol::from_rep(rep), true};
     }
-    return Symbol{do_fun(name.get(), args, sign, true), false};
+    return SharedSymbol{do_fun(name.get(), args, sign, true), false};
 }
 
-auto SymbolStore::str_ref(StringRef str) noexcept -> SymbolRef {
-    return SymbolRef::from_rep(StringRef::to_rep(str) | REP_STR);
-}
+auto SymbolStore::str_ref(String str) noexcept -> Symbol { return Symbol::from_rep(String::to_rep(str) | REP_STR); }
 
-auto SymbolStore::num_ref(Number num) noexcept -> SymbolRef {
+auto SymbolStore::num_ref(Number num) noexcept -> Symbol {
     if (auto res = num.as_int(); res) {
-        return SymbolRef::from_rep(Number::to_repr(num));
+        return Symbol::from_rep(Number::to_repr(num));
     }
     return do_num(std::move(num));
 }
 
-auto SymbolStore::tup_ref(SymbolRefSpan args) -> SymbolRef {
+auto SymbolStore::tup_ref(SymbolSpan args) -> Symbol {
     if (args.empty()) {
-        return SymbolRef::from_rep(REP_TUP);
+        return Symbol::from_rep(REP_TUP);
     }
     return do_tup(args, false);
 }
 
-auto SymbolStore::fun_ref(StringRef name, SymbolRefSpan args, bool sign) -> SymbolRef {
+auto SymbolStore::fun_ref(String name, SymbolSpan args, bool sign) -> Symbol {
     if (args.empty()) {
-        auto rep = (sign ? REP_SIGNED_ID : REP_ID) | StringRef::to_rep(name);
-        return SymbolRef::from_rep(rep);
+        auto rep = (sign ? REP_SIGNED_ID : REP_ID) | String::to_rep(name);
+        return Symbol::from_rep(rep);
     }
     return do_fun(name, args, sign, false);
 }
 
-auto SymbolStore::string_ref(std::string_view str) -> StringRef {
+auto SymbolStore::string_ref(std::string_view str) -> String {
     if (str.empty()) {
         return {};
     }
@@ -972,7 +970,7 @@ auto make_symbol_store(bool slotted, bool shared) -> USymbolStore {
     return std::make_unique<DefaultSymbolStore<SimpleAlloc>>();
 }
 
-auto NameGen::new_name() -> StringRef {
+auto NameGen::new_name() -> String {
     while (true) {
         auto name = store_.string_ref(prefix_ + std::to_string(num_));
         ++num_;
@@ -982,7 +980,7 @@ auto NameGen::new_name() -> StringRef {
     }
 }
 
-auto compare(SymbolRef a, SymbolRef b) -> int {
+auto compare(Symbol a, Symbol b) -> int {
     if (a == b) {
         return 0;
     }

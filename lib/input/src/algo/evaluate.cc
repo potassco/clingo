@@ -17,7 +17,7 @@ struct StateDep {
     //! The const directive at hand.
     StmConst stm;
     //! The constants that depend on this directive.
-    std::vector<StringRef> rev;
+    std::vector<String> rev;
     //! The number of constants this directive depends on.
     size_t dep = 0;
     //! A generation counter to ensure that values are only inserted once into rev.
@@ -26,7 +26,7 @@ struct StateDep {
 
 class BuildDep {
   public:
-    BuildDep(Util::ordered_map<StringRef, size_t> &map, Graph &dep, size_t id) : map_{&map}, dep_{&dep}, id_{id} {}
+    BuildDep(Util::ordered_map<String, size_t> &map, Graph &dep, size_t id) : map_{&map}, dep_{&dep}, id_{id} {}
 
     // protect ourselves -> no unintended overloads
 
@@ -73,7 +73,7 @@ class BuildDep {
     }
 
     //! Add a dependency to the graph.
-    void add_(StringRef const &name) const {
+    void add_(String const &name) const {
         if (auto it = map_->find(name); it != map_->end()) {
             dep_->add_edge(id_, it->second);
         }
@@ -81,7 +81,7 @@ class BuildDep {
 
   private:
     //! A map from constant names to indices of const statements.
-    Util::ordered_map<StringRef, size_t> *map_;
+    Util::ordered_map<String, size_t> *map_;
     //! The dependency graph to build.
     Graph *dep_;
     //! The id of the const statement at hand.
@@ -95,12 +95,12 @@ class Evaluate {
 
     // protect ourselves -> no unintended overloads
 
-    template <class T> auto operator()(T const &x) const -> std::optional<SymbolRef> = delete;
+    template <class T> auto operator()(T const &x) const -> std::optional<Symbol> = delete;
 
     // symbols
 
-    [[nodiscard]] auto eval_args_(SymbolRefSpan args) const -> std::variant<bool, std::vector<SymbolRef>> {
-        std::optional<std::vector<SymbolRef>> ret;
+    [[nodiscard]] auto eval_args_(SymbolSpan args) const -> std::variant<bool, std::vector<Symbol>> {
+        std::optional<std::vector<Symbol>> ret;
         size_t n = 0;
         for (auto sym : args) {
             auto arg_eval = operator()(sym);
@@ -121,7 +121,7 @@ class Evaluate {
         return true;
     }
 
-    auto operator()(SymbolRef sym) const -> std::optional<SymbolRef> {
+    auto operator()(Symbol sym) const -> std::optional<Symbol> {
         switch (sym.type()) {
             case SymbolType::inf:
             case SymbolType::sup:
@@ -143,14 +143,14 @@ class Evaluate {
                     return rep;
                 }
                 return std::visit(
-                    [this, sym]<class T>(T res) -> std::optional<SymbolRef> {
+                    [this, sym]<class T>(T res) -> std::optional<Symbol> {
                         if constexpr (std::is_same_v<T, bool>) {
                             if (res) {
                                 return sym;
                             }
                             return std::nullopt;
                         }
-                        if constexpr (std::is_same_v<T, std::vector<SymbolRef>>) {
+                        if constexpr (std::is_same_v<T, std::vector<Symbol>>) {
                             return store_->fun_ref(sym.name(), res, sym.has_sign());
                         }
                     },
@@ -158,14 +158,14 @@ class Evaluate {
             }
             case SymbolType::tuple: {
                 return std::visit(
-                    [this, sym]<class T>(T res) -> std::optional<SymbolRef> {
+                    [this, sym]<class T>(T res) -> std::optional<Symbol> {
                         if constexpr (std::is_same_v<T, bool>) {
                             if (res) {
                                 return sym;
                             }
                             return std::nullopt;
                         }
-                        if constexpr (std::is_same_v<T, std::vector<SymbolRef>>) {
+                        if constexpr (std::is_same_v<T, std::vector<Symbol>>) {
                             return store_->tup_ref(res);
                         }
                     },
@@ -177,14 +177,14 @@ class Evaluate {
 
     // term
 
-    auto operator()(Term const &term) const -> std::optional<SymbolRef> { return std::visit(*this, term); }
+    auto operator()(Term const &term) const -> std::optional<Symbol> { return std::visit(*this, term); }
 
-    auto operator()([[maybe_unused]] Projection const &pro) const -> std::optional<SymbolRef> { return std::nullopt; }
+    auto operator()([[maybe_unused]] Projection const &pro) const -> std::optional<Symbol> { return std::nullopt; }
 
-    auto operator()(Argument const &elem) const -> std::optional<SymbolRef> { return std::visit(*this, elem); };
+    auto operator()(Argument const &elem) const -> std::optional<Symbol> { return std::visit(*this, elem); };
 
-    [[nodiscard]] auto eval_(ArgumentTuple const &tuple) const -> std::optional<std::vector<SymbolRef>> {
-        std::vector<SymbolRef> args;
+    [[nodiscard]] auto eval_(ArgumentTuple const &tuple) const -> std::optional<std::vector<Symbol>> {
+        std::vector<Symbol> args;
         args.reserve(tuple.elems().size());
         for (auto const &elem : tuple.elems()) {
             auto res = operator()(elem);
@@ -196,7 +196,7 @@ class Evaluate {
         return {std::move(args)};
     }
 
-    auto operator()(ArgumentTuple const &tuple) const -> std::optional<SymbolRef> {
+    auto operator()(ArgumentTuple const &tuple) const -> std::optional<Symbol> {
         auto args = eval_(tuple);
         if (!args.has_value()) {
             return std::nullopt;
@@ -204,20 +204,18 @@ class Evaluate {
         return {store_->tup_ref(args.value())};
     }
 
-    auto operator()([[maybe_unused]] TermVariable const &term) const -> std::optional<SymbolRef> {
-        return std::nullopt;
-    }
+    auto operator()([[maybe_unused]] TermVariable const &term) const -> std::optional<Symbol> { return std::nullopt; }
 
-    auto operator()(TermSymbol const &term) const -> std::optional<SymbolRef> { return operator()(term.value()); }
+    auto operator()(TermSymbol const &term) const -> std::optional<Symbol> { return operator()(term.value()); }
 
-    auto operator()(TermTuple const &term) const -> std::optional<SymbolRef> {
+    auto operator()(TermTuple const &term) const -> std::optional<Symbol> {
         if (term.pool().size() != 1) {
             return std::nullopt;
         }
         return std::visit(*this, term.pool().front());
     }
 
-    auto operator()(TermFunction const &term) const -> std::optional<SymbolRef> {
+    auto operator()(TermFunction const &term) const -> std::optional<Symbol> {
         if (term.pool().size() != 1 || term.external()) {
             return std::nullopt;
         }
@@ -244,7 +242,7 @@ class Evaluate {
         StmConst const *root;
     };
 
-    auto operator()(TermAbs const &term) const -> std::optional<SymbolRef> {
+    auto operator()(TermAbs const &term) const -> std::optional<Symbol> {
         if (term.pool().size() != 1) {
             return std::nullopt;
         }
@@ -266,7 +264,7 @@ class Evaluate {
         return val;
     }
 
-    auto operator()(TermUnary const &term) const -> std::optional<SymbolRef> {
+    auto operator()(TermUnary const &term) const -> std::optional<Symbol> {
         auto rhs = operator()(*term.rhs());
         if (!rhs.has_value()) {
             return std::nullopt;
@@ -286,7 +284,7 @@ class Evaluate {
         return res;
     }
 
-    auto operator()(TermBinary const &term) const -> std::optional<SymbolRef> {
+    auto operator()(TermBinary const &term) const -> std::optional<Symbol> {
         auto lhs = operator()(*term.lhs());
         auto rhs = operator()(*term.rhs());
         if (term.op() == BinaryOperator::dots || !lhs.has_value() || !rhs.has_value()) {
@@ -316,13 +314,13 @@ class Evaluate {
 };
 
 [[maybe_unused]] auto evaluate(Logger &log, SymbolStore &store, ConstMap const &map,
-                               StmConst const &stm) -> std::optional<SymbolRef> {
+                               StmConst const &stm) -> std::optional<Symbol> {
     return std::visit(Evaluate{log, store, map, &stm}, stm.value());
 }
 
 } // namespace
 
-auto evaluate(SymbolStore &store, UnaryOperator op, SymbolRef rhs) -> std::optional<SymbolRef> {
+auto evaluate(SymbolStore &store, UnaryOperator op, Symbol rhs) -> std::optional<Symbol> {
     if (op == UnaryOperator::negate) {
         if (rhs.type() == SymbolType::number) {
             return store.num_ref(-*rhs.num());
@@ -335,7 +333,7 @@ auto evaluate(SymbolStore &store, UnaryOperator op, SymbolRef rhs) -> std::optio
     return std::nullopt;
 }
 
-auto evaluate(SymbolRef lhs, Relation rel, SymbolRef rhs) -> bool {
+auto evaluate(Symbol lhs, Relation rel, Symbol rhs) -> bool {
     switch (rel) {
         case Relation::equal: {
             return lhs == rhs;
@@ -359,7 +357,7 @@ auto evaluate(SymbolRef lhs, Relation rel, SymbolRef rhs) -> bool {
     return lhs >= rhs;
 }
 
-auto evaluate(SymbolStore &store, SymbolRef lhs, BinaryOperator op, SymbolRef rhs) -> std::optional<SymbolRef> {
+auto evaluate(SymbolStore &store, Symbol lhs, BinaryOperator op, Symbol rhs) -> std::optional<Symbol> {
     if (lhs.type() != SymbolType::number || rhs.type() != SymbolType::number) {
         return std::nullopt;
     }
@@ -409,7 +407,7 @@ auto evaluate(SymbolStore &store, SymbolRef lhs, BinaryOperator op, SymbolRef rh
 
 void evaluate_const(Logger &log, SymbolStore &store, std::vector<StmConst> const &stms, ConstMap &res) {
     // build map
-    Util::ordered_map<StringRef, size_t> map;
+    Util::ordered_map<String, size_t> map;
     size_t id_stm = 0;
     for (auto const &stm_a : stms) {
         auto res = map.try_emplace(stm_a.name(), id_stm);
@@ -472,7 +470,7 @@ void evaluate_const(Logger &log, SymbolStore &store, std::vector<StmConst> const
     });
 }
 
-auto evaluate(Logger &log, SymbolStore &store, ConstMap const &map, Term const &term) -> std::optional<SymbolRef> {
+auto evaluate(Logger &log, SymbolStore &store, ConstMap const &map, Term const &term) -> std::optional<Symbol> {
     return std::visit(Evaluate{log, store, map, nullptr}, term);
 }
 

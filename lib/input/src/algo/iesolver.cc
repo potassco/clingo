@@ -220,7 +220,7 @@ auto IESolver::compute(Logger &log) -> bool {
     return true;
 }
 
-auto IESolver::strengthens(StringRef var) const -> bool {
+auto IESolver::strengthens(String var) const -> bool {
     if (parent_ == nullptr) {
         return true;
     }
