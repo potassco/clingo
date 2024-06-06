@@ -133,7 +133,7 @@ class TermSymbol : public Term {
   public:
     TermSymbol(Symbol sym) : sym_{sym} {}
 
-    [[nodiscard]] auto symbol() const -> Symbol { return sym_; }
+    [[nodiscard]] auto symbol() const -> Symbol const & { return sym_; }
 
   private:
     [[nodiscard]] auto do_score(double size, std::vector<bool> const &bound) const -> double override;

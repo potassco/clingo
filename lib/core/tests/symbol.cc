@@ -12,6 +12,8 @@ namespace Gringo {
 using SL = std::initializer_list<Symbol>;
 auto operator==(SymbolSpan a, SL b) -> bool { return std::equal(a.begin(), a.end(), b.begin(), b.end()); }
 
+constexpr auto operator"" _uz(unsigned long long n) -> std::size_t { return n; }
+
 namespace Test {
 
 namespace {
@@ -60,7 +62,7 @@ TEST_CASE("symbol_number") {
     REQUIRE(n3.has_sign());
     REQUIRE(!n4.has_sign());
 
-    REQUIRE(store->gc() == std::make_pair(0U, 1U));
+    REQUIRE(store->gc() == std::make_pair(0_uz, 1_uz));
 }
 
 TEST_CASE("symbol_constant") {
@@ -86,7 +88,7 @@ TEST_CASE("string") {
         REQUIRE(sx1 == sx2);
         REQUIRE(!(sx1 == sy));
 
-        REQUIRE(store.gc() == std::make_pair(0U, 2U));
+        REQUIRE(store.gc() == std::make_pair(0_uz, 2_uz));
     });
 }
 
@@ -106,7 +108,7 @@ TEST_CASE("symbol_string") {
         REQUIRE(sym_sx == sym_sx);
         REQUIRE(!(sym_sx == sym_sy));
 
-        REQUIRE(store.gc() == std::make_pair(0U, 2U));
+        REQUIRE(store.gc() == std::make_pair(0_uz, 2_uz));
     });
 }
 
@@ -159,7 +161,7 @@ TEST_CASE("symbol_tuple") {
         REQUIRE(t.type() == SymbolType::tuple);
         REQUIRE(t.args().size() == n);
 
-        REQUIRE(store.gc() == std::make_pair(0U, 5U));
+        REQUIRE(store.gc() == std::make_pair(0_uz, 5_uz));
     });
 }
 
@@ -243,7 +245,7 @@ TEST_CASE("symbol_function") {
         REQUIRE(t.name() == s1);
         REQUIRE(t.args().size() == n);
 
-        REQUIRE(store.gc() == std::make_pair(0U, 8U));
+        REQUIRE(store.gc() == std::make_pair(0_uz, 8_uz));
     });
 }
 

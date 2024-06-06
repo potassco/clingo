@@ -36,7 +36,7 @@ class TheoryTermSymbol : public Expression<TheoryTermSymbol> {
     //! The location of the symbol.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The symbol.
-    [[nodiscard]] auto value() const -> Symbol { return value_; }
+    [[nodiscard]] auto value() const -> Symbol const & { return value_; }
 
   private:
     Location loc_;

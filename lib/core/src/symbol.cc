@@ -406,7 +406,6 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
         }
         auto kept = size_t{0};
         auto collected = size_t{0};
-        ;
         // destroy tuples
         for (auto it = tuples_.begin(); it != tuples_.end();) {
             if (unmark_ref(SymbolArray::from_repr(KeySymbolArray::to_repr(*it)).ref_count())) {
