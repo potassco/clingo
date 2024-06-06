@@ -249,6 +249,24 @@ TEST_CASE("symbol_function") {
     });
 }
 
+TEST_CASE("symbol_shared") {
+    with_store([](SymbolStore &store) {
+        auto s1 = store.string("f");
+        auto s2 = store.string_ref("g");
+        auto s3 = store.string_ref("h"); // collected
+
+        auto n0 = store.num(Number("23456789024378972095798457"));
+        auto n1 = store.num_ref(Number("23456789024378972095798458"));
+        auto n2 = store.num_ref(Number("23456789024378972095798459")); // collected
+
+        auto f1 = store.fun(*s1, SL{*n0}, false);
+        auto f2 = store.fun(s2, SL{n1}, false);
+        [[maybe_unused]] auto f3 = store.fun_ref(s3, SL{n2}, false); // collected
+
+        REQUIRE(store.gc() == std::make_pair(6_uz, 3_uz));
+    });
+}
+
 // NOLINTEND(readability-magic-numbers)
 
 } // namespace Test

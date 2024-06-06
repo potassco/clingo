@@ -863,9 +863,10 @@ void SymbolCollector::mark(String const &str) {
 // SymbolStore
 
 auto SymbolStore::string(std::string_view str) -> SharedString {
-    static_cast<void>(this);
-    static_cast<void>(str);
-    throw std::runtime_error("implement me!!!");
+    if (str.empty()) {
+        return {};
+    }
+    return SharedString{do_string(str, true), true};
 }
 
 auto SymbolStore::sup() noexcept -> Symbol { return Symbol::from_rep(EXT_REP_SUP); }
@@ -895,18 +896,18 @@ auto SymbolStore::tup(SymbolSpan args) -> SharedSymbol {
 }
 
 auto SymbolStore::fun(SharedString const &name, SharedSymbolSpan args, bool sign) -> SharedSymbol {
-    return fun(name, SymbolSpan{reinterpret_cast<Symbol const *>(args.data()), args.size()}, sign);
+    return fun(*name, SymbolSpan{reinterpret_cast<Symbol const *>(args.data()), args.size()}, sign);
 }
 
-auto SymbolStore::fun(SharedString const &name, SymbolSpan args, bool sign) -> SharedSymbol {
+auto SymbolStore::fun(String name, SymbolSpan args, bool sign) -> SharedSymbol {
     // The string is passed by const ref here. In principle, an acquire could
     // be avoided providing an overload by value. I don't think it's worth to
     // clutter the interface, though.
     if (args.empty()) {
-        auto rep = (sign ? REP_SIGNED_ID : REP_ID) | String::to_rep(name.get());
+        auto rep = (sign ? REP_SIGNED_ID : REP_ID) | String::to_rep(name);
         return SharedSymbol{Symbol::from_rep(rep), true};
     }
-    return SharedSymbol{do_fun(name.get(), args, sign, true), false};
+    return SharedSymbol{do_fun(name, args, sign, true), false};
 }
 
 auto SymbolStore::str_ref(String str) noexcept -> Symbol { return Symbol::from_rep(String::to_rep(str) | REP_STR); }

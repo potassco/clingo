@@ -80,7 +80,11 @@ class SharedString {
     //! Construct an empty string.
     constexpr SharedString() = default;
     //! Take ownership of the string reference.
-    explicit SharedString(String ref) noexcept : ref_{ref} { acquire_(); }
+    explicit SharedString(String ref, bool acquire = true) noexcept : ref_{ref} {
+        if (acquire) {
+            acquire_();
+        }
+    }
     //! Release ownership of the held string reference.
     ~SharedString() noexcept { release_(); }
     //! Copy constructor.
@@ -252,6 +256,10 @@ class SharedSymbol {
     //!
     //! The lifetime is tied to the symbol.
     [[nodiscard]] auto get() const -> Symbol const & { return ref_; }
+    //! Get the contained string reference.
+    [[nodiscard]] auto operator*() const -> Symbol const & { return ref_; }
+    //! Get the contained string reference.
+    [[nodiscard]] auto operator->() const -> Symbol const * { return &ref_; }
     //! Get an integer representation of the symbol.
     //!
     //! The representation increments the reference count of the symbol.
@@ -343,7 +351,7 @@ class SymbolStore {
     //! For example: <tt>f(x,y)</tt>.
     [[nodiscard]] auto fun(SharedString const &name, SharedSymbolSpan args, bool sign) -> SharedSymbol;
     //! @copydoc fun(String const &, SymbolSpan, bool)
-    [[nodiscard]] auto fun(SharedString const &name, SymbolSpan args, bool sign) -> SharedSymbol;
+    [[nodiscard]] auto fun(String name, SymbolSpan args, bool sign) -> SharedSymbol;
 
     // interface to create floating references
 
