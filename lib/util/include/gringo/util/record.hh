@@ -157,6 +157,11 @@ template <class Base, auto Tag, auto... Tags>
     return compare<Base, Tags...>(a, b);
 }
 
+//! Helper to compare record attributes.
+template <class Base, auto... Tags> [[nodiscard]] auto equal(Base const &a, Base const &b) -> bool {
+    return ((a.template get_value<Tags>() == b.template get_value<Tags>()) && ...);
+}
+
 } // namespace Comp
 
 //! Record base class to enable keyword argument based record updates.
@@ -189,8 +194,7 @@ template <class Rec> class Base {
     //! Equality compare to records.
     [[nodiscard]] auto equal(Base const &other) const -> bool {
         return [&]<auto... Tags>(std::index_sequence<Tags...>) {
-            using Comp::operator==;
-            return ((get_value<Tags>() == other.get_value<Tags>()) && ...);
+            return Comp::equal<Base, Tags...>(*this, other);
         }(comparison_sequence<Rec, 0>());
     }
     //! Compare to records.
