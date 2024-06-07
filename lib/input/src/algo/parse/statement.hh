@@ -359,13 +359,13 @@ struct statement_program {
         auto id = dsl::p<identifier>;
         return Detail::location(kw >> id + dsl::opt(dsl::round_bracketed.opt_list(id, dsl::sep(dsl::comma))) + eos);
     }();
-    static constexpr auto value =
-        lexy::as_list<SharedStringVec> >>
-        lexy::callback<Stm>([](Location loc, String name,
-                               std::vector<SharedString> args) { return StmProgram{loc, name, std::move(args)}; },
-                            [](Location loc, String name, lexy::nullopt) {
-                                return StmProgram{loc, name, SharedStringVec{}};
-                            });
+    static constexpr auto
+        value = lexy::as_list<StringVec> >>
+                lexy::callback<Stm>([](Location loc, String name,
+                                       StringVec args) { return StmProgram{loc, name, std::move(args)}; },
+                                    [](Location loc, String name, lexy::nullopt) {
+                                        return StmProgram{loc, name, StringVec{}};
+                                    });
 };
 
 struct statement_const {

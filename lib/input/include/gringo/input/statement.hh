@@ -655,19 +655,22 @@ class StmProgram : public Expression<StmProgram> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
-        return std::tuple{a_loc = &StmProgram::loc_, a_name = &StmProgram::name, a_args = &StmProgram::args_};
+        return std::tuple{a_loc = &StmProgram::loc_, a_name = &StmProgram::name, a_args = &StmProgram::args};
     }
 
     //! Construct an program statement.
-    explicit StmProgram(Location loc, String name, SharedStringArray args)
-        : loc_{loc}, name_(name), args_(std::move(args)) {}
+    explicit StmProgram(Location loc, String name, StringSpan args)
+        : loc_{loc}, name_(name), args_{args.begin(), args.end(), [](auto const &x) { return x; }} {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The name of the program.
     [[nodiscard]] auto name() const -> String const & { return *name_; }
     //! The arguments of the program.
-    [[nodiscard]] auto args() const -> SharedStringArray const & { return args_; }
+    [[nodiscard]] auto args() const -> StringSpan {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+        return {reinterpret_cast<String const *>(args_.data()), args_.size()};
+    }
 
   private:
     Location loc_;

@@ -146,10 +146,9 @@ class Program {
         for (auto const &[sig, part] : parts_) {
             auto pum = param_map_(store, part);
             auto loc = part.part.loc();
-            SharedStringVec ids;
+            StringVec ids;
             ids.reserve(sig.second);
-            std::transform(pum.begin(), pum.end(), std::back_inserter(ids),
-                           [](auto const &x) { return SharedString{x.second}; });
+            std::transform(pum.begin(), pum.end(), std::back_inserter(ids), [](auto const &x) { return x.second; });
             fun(StmProgram{loc, sig.first, std::move(ids)});
             for (auto const &fact : part.facts) {
                 fun(Stm{StmRule{loc, HdLitSimple{LitSymbolic{loc, Sign::none, TermSymbol{loc, fact}}}, BdLitArray{}}});

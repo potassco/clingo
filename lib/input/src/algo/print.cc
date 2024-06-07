@@ -683,7 +683,7 @@ class Print {
         *out_ << "#program " << stm.name();
         if (!stm.args().empty()) {
             *out_ << "(";
-            apply_to_range_with(stm.args(), ",", [this](auto const &x) { *out_ << *x; });
+            print_range(stm.args());
             *out_ << ")";
         }
         *out_ << ".";

@@ -76,7 +76,7 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
         auto part = parts_.try_emplace(Signature{program_stm.name(), program_stm.args().size()}, program_stm);
         param_map.clear();
         std::for_each(program_stm.args().begin(), program_stm.args().end(),
-                      [&param_map](auto const &x) { param_map.emplace(*x); });
+                      [&param_map](auto const &x) { param_map.emplace(x); });
         auto &res_part = part.first.value();
 
         // process facts
@@ -128,7 +128,7 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
         size_t i = 0;
         for (auto const &id : part.part.args()) {
             auto var = store.string_ref("$" + std::to_string(i));
-            res.emplace(var, gen.add_name(*id) ? *id : gen.new_name());
+            res.emplace(var, gen.add_name(id) ? id : gen.new_name());
             ++i;
         }
     }

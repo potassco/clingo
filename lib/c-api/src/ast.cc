@@ -67,7 +67,17 @@ auto convert_loc(clingo_lib_t *lib, clingo_location_t const *loc) -> Gringo::Inp
             {lib->store->string_ref(loc->end_file), loc->end_line, loc->end_column}};
 }
 
-auto convert_string_array(clingo_lib_t *lib, char const **array, size_t size) -> Gringo::SharedStringVec {
+auto convert_string_array(clingo_lib_t *lib, char const **array, size_t size) -> Gringo::StringVec {
+    auto ret = Gringo::StringVec{};
+    ret.reserve(size);
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    std::transform(array, array + size, std::back_inserter(ret),
+                   [lib](auto str) { return lib->store->string_ref(str); });
+    return ret;
+}
+
+// TODO: has to go
+auto convert_shared_string_array(clingo_lib_t *lib, char const **array, size_t size) -> Gringo::SharedStringVec {
     auto ret = Gringo::SharedStringVec{};
     ret.reserve(size);
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
@@ -883,6 +893,18 @@ auto clingo_ast::get_string(clingo_ast_attribute_t attr) const -> std::optional<
         return std::span{cast<Type>().value};                                                                          \
     }
 
+// TODO: hack must go!!!
+inline auto as_shared_string_ptr(Gringo::String const *ptr) -> Gringo::SharedString const * {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    return reinterpret_cast<Gringo::SharedString const *>(ptr);
+}
+#undef ATTRP
+#define ATTRP(attr, value)                                                                                             \
+    case clingo_ast_attribute_##attr: {                                                                                \
+        auto val = cast<Type>().value;                                                                                 \
+        return std::span{as_shared_string_ptr(val.data()), val.size()};                                                \
+    }
+
 auto clingo_ast::get_string_vec(clingo_ast_attribute_t attr) const
     -> std::optional<std::span<Gringo::SharedString const>> {
     // clang-format off
@@ -892,7 +914,7 @@ auto clingo_ast::get_string_vec(clingo_ast_attribute_t attr) const
         TYPE(theory_guard_definition, TheoryRGuardDefinition,
             ATTR(operators, first))
         TYPE(statement_program, StmProgram,
-            ATTR(arguments, args())))
+            ATTRP(arguments, args())))
     // clang-format on
 }
 
@@ -1626,7 +1648,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto size = va_arg(args, size_t);
                 auto const *term = va_arg(args, clingo_ast_t const *);
                 va_end(args);
-                *ast = construct_ast<Gringo::Input::UnparsedElement>(type, convert_string_array(lib, ops, size),
+                *ast = construct_ast<Gringo::Input::UnparsedElement>(type, convert_shared_string_array(lib, ops, size),
                                                                      term->convert<Gringo::Input::TheoryTerm>());
                 break;
             }
@@ -1952,7 +1974,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *term = va_arg(args, char const *);
                 va_end(args);
                 *ast = construct_ast<Gringo::Input::TheoryRGuardDefinition>(
-                    type, convert_string_array(lib, ops, ops_size), lib->store->string_ref(term));
+                    type, convert_shared_string_array(lib, ops, ops_size), lib->store->string_ref(term));
                 break;
             }
             case clingo_ast_type_theory_atom_definition: {

@@ -79,6 +79,18 @@ template <typename T> class immutable_array {
         }
     }
 
+    //! Construct array coping from the given iterator range.
+    template <class It, class Pred> immutable_array(It first, It last, Pred conv) {
+        if (first != last) {
+            auto vec = vector_type{};
+            vec.reserve(std::distance(first, last));
+            for (auto it = first; it != last; ++it) {
+                vec.emplace_back(conv(*it));
+            }
+            vec_ = Util::make_immutable<vector_type>(std::move(vec));
+        }
+    }
+
     //! Get the element at the given index.
     //!
     //! Throws in case the index is to large.

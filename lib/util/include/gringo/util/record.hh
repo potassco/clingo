@@ -130,6 +130,35 @@ template <class Rec, size_t n, size_t... I> [[nodiscard]] static constexpr auto 
     }
 }
 
+namespace Comp {
+
+//! Compare spans by value.
+template <class T, size_t E> auto operator==(std::span<T, E> const &a, std::span<T, E> const &b) {
+    return std::equal(a.begin(), a.end(), b.begin(), b.end());
+}
+
+//! Compare spans by value.
+template <class T, size_t E> auto operator<=>(std::span<T, E> const &a, std::span<T, E> const &b) {
+    return std::lexicographical_compare_three_way(a.begin(), a.end(), b.begin(), b.end());
+}
+
+//! Helper to compare record attributes.
+template <class Base>
+[[nodiscard]] auto compare([[maybe_unused]] Base const &a, [[maybe_unused]] Base const &b) -> std::strong_ordering {
+    return std::strong_ordering::equal;
+}
+
+//! Helper to compare record attributes.
+template <class Base, auto Tag, auto... Tags>
+[[nodiscard]] auto compare(Base const &a, Base const &b) -> std::strong_ordering {
+    if (auto comp = a.template get_value<Tag>() <=> b.template get_value<Tag>(); comp != 0) {
+        return comp;
+    }
+    return compare<Base, Tags...>(a, b);
+}
+
+} // namespace Comp
+
 //! Record base class to enable keyword argument based record updates.
 //!
 //! Also generates convenient functions and enables meta programming involving the named attributes of the record.
@@ -160,13 +189,14 @@ template <class Rec> class Base {
     //! Equality compare to records.
     [[nodiscard]] auto equal(Base const &other) const -> bool {
         return [&]<auto... Tags>(std::index_sequence<Tags...>) {
+            using Comp::operator==;
             return ((get_value<Tags>() == other.get_value<Tags>()) && ...);
         }(comparison_sequence<Rec, 0>());
     }
     //! Compare to records.
     [[nodiscard]] auto compare(Base const &other) const -> std::strong_ordering {
         return [&]<auto... Tags>(std::index_sequence<Tags...>) {
-            return std::forward_as_tuple(get_value<Tags>()...) <=> std::forward_as_tuple(other.get_value<Tags>()...);
+            return Comp::compare<Base, Tags...>(*this, other);
         }(comparison_sequence<Rec, 0>());
     }
     //! Compute the hash of the record.

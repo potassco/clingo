@@ -148,6 +148,11 @@ class SharedString {
     String ref_;
 };
 
+inline auto as_string_ptr(SharedString const *ptr) -> String const * {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    return reinterpret_cast<String const *>(ptr);
+}
+
 //! A vector of strings.
 using SharedStringVec = std::vector<SharedString>;
 

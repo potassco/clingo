@@ -17,6 +17,10 @@ namespace Gringo::Input {
 //! @addtogroup input_term
 //! @{
 
+//! An span of strings.
+using StringSpan = std::span<String const>;
+//! A vector of strings.
+using StringVec = std::vector<String>;
 //! An array of strings.
 using SharedStringArray = Util::immutable_array<SharedString>;
 
