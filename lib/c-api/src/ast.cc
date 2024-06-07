@@ -32,8 +32,7 @@ template <class T> auto make_ast(Owner const &owner, std::optional<T> const &opt
 template <class... T> auto make_ast(Owner const &owner, std::variant<T...> const &var) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::LGuard::value_type const &guard) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::RGuard::value_type const &guard) -> std::unique_ptr<clingo_ast_t>;
-auto make_ast(Owner const &owner,
-              Gringo::Input::TheoryRGuard::value_type const &guard) -> std::unique_ptr<clingo_ast_t>;
+auto make_ast(Owner const &owner, Gringo::Input::TheoryRGuard const &guard) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::Projection const &projection) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::Term const &term) -> std::unique_ptr<clingo_ast_t>;
 auto make_ast(Owner const &owner, Gringo::Input::TheoryTerm const &term) -> std::unique_ptr<clingo_ast_t>;
@@ -76,15 +75,6 @@ auto convert_string_array(clingo_lib_t *lib, char const **array, size_t size) ->
     return ret;
 }
 
-// TODO: has to go
-auto convert_shared_string_array(clingo_lib_t *lib, char const **array, size_t size) -> Gringo::SharedStringVec {
-    auto ret = Gringo::SharedStringVec{};
-    ret.reserve(size);
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    std::transform(array, array + size, std::back_inserter(ret), [lib](auto str) { return lib->store->string(str); });
-    return ret;
-}
-
 [[maybe_unused]] auto make_loc(Gringo::Input::Location const &loc) -> clingo_location_t {
     return {loc.begin.file.c_str(), loc.end.file.c_str(), loc.begin.line,
             loc.end.line,           loc.begin.column,     loc.end.column};
@@ -106,8 +96,7 @@ struct clingo_ast {
     [[nodiscard]] auto get_symbol(clingo_ast_attribute_t attr) const -> std::optional<clingo_symbol_t>;
     [[nodiscard]] auto get_location(clingo_ast_attribute_t attr) const -> std::optional<clingo_location_t>;
     [[nodiscard]] auto get_string(clingo_ast_attribute_t attr) const -> std::optional<char const *>;
-    [[nodiscard]] auto
-    get_string_vec(clingo_ast_attribute_t attr) const -> std::optional<std::span<Gringo::SharedString const>>;
+    [[nodiscard]] auto get_string_vec(clingo_ast_attribute_t attr) const -> std::optional<Gringo::StringSpan>;
     [[nodiscard]] auto get_ast(clingo_ast_attribute_t attr) const -> std::optional<std::unique_ptr<clingo_ast_t>>;
     [[nodiscard]] auto get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional<ASTVec>;
 
@@ -263,8 +252,7 @@ auto make_ast(Owner const &owner, Gringo::Input::RGuard::value_type const &guard
     return std::make_unique<clingo_ast>(owner, clingo_ast_type_right_guard, &guard);
 }
 
-auto make_ast(Owner const &owner,
-              Gringo::Input::TheoryRGuard::value_type const &guard) -> std::unique_ptr<clingo_ast_t> {
+auto make_ast(Owner const &owner, Gringo::Input::TheoryRGuard const &guard) -> std::unique_ptr<clingo_ast_t> {
     return std::make_unique<clingo_ast>(owner, clingo_ast_type_theory_right_guard, &guard);
 }
 
@@ -600,7 +588,7 @@ auto clingo_ast::visit(V &&visit) const -> std::invoke_result_t<V, Gringo::Input
             return std::invoke(std::forward<V>(visit), cast<TheoryElement>());
         }
         case clingo_ast_type_theory_right_guard: {
-            return std::invoke(std::forward<V>(visit), cast<TheoryRGuard::value_type>());
+            return std::invoke(std::forward<V>(visit), cast<TheoryRGuard>());
         }
         case clingo_ast_type_body_simple_literal: {
             return std::invoke(std::forward<V>(visit), cast<BdLitSimple>());
@@ -837,11 +825,6 @@ auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<
     case clingo_ast_attribute_##attr: {                                                                                \
         return cast<Type>().value.c_str();                                                                             \
     }
-#undef ATTRP
-#define ATTRP(attr, value)                                                                                             \
-    case clingo_ast_attribute_##attr: {                                                                                \
-        return cast<Type>().value->c_str();                                                                            \
-    }
 
 auto clingo_ast::get_string(clingo_ast_attribute_t attr) const -> std::optional<char const *> {
     // clang-format off
@@ -854,14 +837,14 @@ auto clingo_ast::get_string(clingo_ast_attribute_t attr) const -> std::optional<
             ATTR(name, name()))
         TYPE(theory_term_function, TheoryTermFunction,
             ATTR(name, name()))
-        TYPE(theory_right_guard, TheoryRGuard::value_type,
-            ATTRP(theory_operator, first))
+        TYPE(theory_right_guard, TheoryRGuard,
+            ATTR(theory_operator, op()))
         TYPE(theory_operator_definition, TheoryOpDefinition,
             ATTR(name, op()))
         TYPE(theory_term_definition, TheoryTermDefinition,
             ATTR(name, name()))
         TYPE(theory_guard_definition, TheoryRGuardDefinition,
-            ATTRP(term, second))
+            ATTR(term, term()))
         TYPE(theory_atom_definition, TheoryAtomDefinition,
             ATTR(name, name())
             ATTR(term, term()))
@@ -890,31 +873,18 @@ auto clingo_ast::get_string(clingo_ast_attribute_t attr) const -> std::optional<
 #undef ATTR
 #define ATTR(attr, value)                                                                                              \
     case clingo_ast_attribute_##attr: {                                                                                \
-        return std::span{cast<Type>().value};                                                                          \
+        return cast<Type>().value;                                                                                     \
     }
 
-// TODO: hack must go!!!
-inline auto as_shared_string_ptr(Gringo::String const *ptr) -> Gringo::SharedString const * {
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-    return reinterpret_cast<Gringo::SharedString const *>(ptr);
-}
-#undef ATTRP
-#define ATTRP(attr, value)                                                                                             \
-    case clingo_ast_attribute_##attr: {                                                                                \
-        auto val = cast<Type>().value;                                                                                 \
-        return std::span{as_shared_string_ptr(val.data()), val.size()};                                                \
-    }
-
-auto clingo_ast::get_string_vec(clingo_ast_attribute_t attr) const
-    -> std::optional<std::span<Gringo::SharedString const>> {
+auto clingo_ast::get_string_vec(clingo_ast_attribute_t attr) const -> std::optional<Gringo::StringSpan> {
     // clang-format off
     SWITCH(
         TYPE(unparsed_element, UnparsedElement,
-            ATTR(operators, first))
+            ATTR(operators, ops()))
         TYPE(theory_guard_definition, TheoryRGuardDefinition,
-            ATTR(operators, first))
+            ATTR(operators, ops()))
         TYPE(statement_program, StmProgram,
-            ATTRP(arguments, args())))
+            ATTR(arguments, args())))
     // clang-format on
 }
 
@@ -933,7 +903,7 @@ auto clingo_ast::get_ast(clingo_ast_attribute_t attr) const -> std::optional<std
             ATTR(left, lhs())
             ATTR(right, rhs()))
         TYPE(unparsed_element, UnparsedElement,
-            ATTR(term, second))
+            ATTR(term, term()))
         TYPE(literal_comparison, LitComparison,
             ATTR(left, lhs()))
         TYPE(literal_symbolic, LitSymbolic,
@@ -950,8 +920,8 @@ auto clingo_ast::get_ast(clingo_ast_attribute_t attr) const -> std::optional<std
             ATTR(term, first))
         TYPE(right_guard, RGuard::value_type,
             ATTR(term, second))
-        TYPE(theory_right_guard, TheoryRGuard::value_type,
-            ATTR(term, second))
+        TYPE(theory_right_guard, TheoryRGuard,
+            ATTR(term, term()))
         TYPE(set_aggregate_element, SetAggregateElement,
             ATTR(literal, lit()))
         TYPE(head_aggregate_element, HdLitAggregateElement,
@@ -1099,13 +1069,13 @@ void clingo_ast::print(std::ostream &out) const {
     visit([&out]<class T>(T const &x) {
         if constexpr (Gringo::Util::matches<T, RGuard::value_type>) {
             out << " " << x.first << " " << x.second;
-        } else if constexpr (Gringo::Util::matches<T, TheoryRGuard::value_type>) {
-            out << " " << *x.first << " " << x.second;
+        } else if constexpr (Gringo::Util::matches<T, TheoryRGuard>) {
+            out << " " << x.op() << " " << x.term();
         } else if constexpr (std::is_same_v<T, UnparsedElement>) {
-            for (auto const &op : x.first) {
-                out << *op << " ";
+            for (auto const &op : x.ops()) {
+                out << op << " ";
             }
-            out << x.second;
+            out << x.term();
         } else if constexpr (std::is_same_v<T, ArgumentTuple>) {
             bool comma = false;
             for (auto const &elem : x.elems()) {
@@ -1257,11 +1227,9 @@ template <>
     throw std::runtime_error("right guard expected");
 }
 
-template <>
-[[nodiscard]] auto
-clingo_ast::convert<Gringo::Input::TheoryRGuard::value_type>() const -> Gringo::Input::TheoryRGuard::value_type {
+template <> [[nodiscard]] auto clingo_ast::convert<Gringo::Input::TheoryRGuard>() const -> Gringo::Input::TheoryRGuard {
     if (type_ == clingo_ast_type_theory_right_guard) {
-        return cast<Gringo::Input::TheoryRGuard::value_type>();
+        return cast<Gringo::Input::TheoryRGuard>();
     }
     throw std::runtime_error("theory right guard expected");
 }
@@ -1648,7 +1616,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto size = va_arg(args, size_t);
                 auto const *term = va_arg(args, clingo_ast_t const *);
                 va_end(args);
-                *ast = construct_ast<Gringo::Input::UnparsedElement>(type, convert_shared_string_array(lib, ops, size),
+                *ast = construct_ast<Gringo::Input::UnparsedElement>(type, convert_string_array(lib, ops, size),
                                                                      term->convert<Gringo::Input::TheoryTerm>());
                 break;
             }
@@ -1742,8 +1710,8 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *op = va_arg(args, char const *);
                 auto const *term = va_arg(args, clingo_ast_t const *);
                 va_end(args);
-                *ast = construct_ast<Gringo::Input::TheoryRGuard::value_type>(
-                    type, lib->store->string_ref(op), term->convert<Gringo::Input::TheoryTerm>());
+                *ast = construct_ast<Gringo::Input::TheoryRGuard>(type, lib->store->string_ref(op),
+                                                                  term->convert<Gringo::Input::TheoryTerm>());
                 break;
             }
             case clingo_ast_type_body_simple_literal: {
@@ -1817,7 +1785,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 *ast = construct_ast<Gringo::Input::BdLitTheoryAtom>(
                     type, convert_loc(lib, loc), static_cast<Gringo::Sign>(sign), term->convert<Gringo::Input::Term>(),
                     convert_ast_vec<Gringo::Input::TheoryElement>(elems, elems_size),
-                    convert_ast_opt<Gringo::Input::TheoryRGuard::value_type>(rhs));
+                    convert_ast_opt<Gringo::Input::TheoryRGuard>(rhs));
                 break;
             }
             case clingo_ast_type_body_conditional_literal: {
@@ -1900,7 +1868,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 *ast = construct_ast<Gringo::Input::HdLitTheoryAtom>(
                     type, convert_loc(lib, loc), term->convert<Gringo::Input::Term>(),
                     convert_ast_vec<Gringo::Input::TheoryElement>(elems, elems_size),
-                    convert_ast_opt<Gringo::Input::TheoryRGuard::value_type>(rhs));
+                    convert_ast_opt<Gringo::Input::TheoryRGuard>(rhs));
                 break;
             }
             case clingo_ast_type_head_conditional_literal: {
@@ -1974,7 +1942,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *term = va_arg(args, char const *);
                 va_end(args);
                 *ast = construct_ast<Gringo::Input::TheoryRGuardDefinition>(
-                    type, convert_shared_string_array(lib, ops, ops_size), lib->store->string_ref(term));
+                    type, convert_string_array(lib, ops, ops_size), lib->store->string_ref(term));
                 break;
             }
             case clingo_ast_type_theory_atom_definition: {
@@ -2363,7 +2331,7 @@ extern "C" auto clingo_ast_attribute_get_string_array(clingo_ast_t *ast, clingo_
         if (auto vec = ast->get_string_vec(attribute); vec) {
             *size = vec->size();
             if (value != nullptr) {
-                std::transform(vec->begin(), vec->end(), value, [](auto str) { return str->c_str(); });
+                std::transform(vec->begin(), vec->end(), value, [](auto const &str) { return str.c_str(); });
             }
             return true;
         }

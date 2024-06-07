@@ -122,7 +122,25 @@ enum class TheoryAtomType : uint8_t {
 //! An optional definition for the right-hand-side of a theory atom.
 //!
 //! It consists of a list of possible operators and a name of a term definition.
-using TheoryRGuardDefinition = std::pair<SharedStringArray, SharedString>;
+class TheoryRGuardDefinition : public Expression<TheoryRGuardDefinition> {
+  public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_ops = &TheoryRGuardDefinition::ops, a_term = &TheoryRGuardDefinition::term_};
+    }
+    //! Construct a right guard definition.
+    explicit TheoryRGuardDefinition(StringSpan ops, String term)
+        : ops_{ops.begin(), ops.end(), [](auto const &x) { return x; }}, term_{term} {}
+
+    //! The list of operator names.
+    [[nodiscard]] auto ops() const -> StringSpan { return as_string_span(ops_); }
+    //! The name of the term definition.
+    [[nodiscard]] auto term() const -> String const & { return *term_; }
+
+  private:
+    SharedStringArray ops_;
+    SharedString term_;
+};
 
 //! A theory atom definition.
 //!
@@ -667,10 +685,7 @@ class StmProgram : public Expression<StmProgram> {
     //! The name of the program.
     [[nodiscard]] auto name() const -> String const & { return *name_; }
     //! The arguments of the program.
-    [[nodiscard]] auto args() const -> StringSpan {
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-        return {reinterpret_cast<String const *>(args_.data()), args_.size()};
-    }
+    [[nodiscard]] auto args() const -> StringSpan { return as_string_span(args_); }
 
   private:
     Location loc_;

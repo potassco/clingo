@@ -98,6 +98,8 @@ template <class T> class Visitor {
 
     // theory terms
 
+    void accept_(UnparsedElement const &elem) const { return visit(elem.term()); }
+
     void accept_(TheoryTermTuple const &term) const { visit(term.elems()); }
 
     void accept_(TheoryTermFunction const &term) const { visit(term.args()); }
@@ -124,6 +126,8 @@ template <class T> class Visitor {
     }
 
     // theory
+
+    void accept_(TheoryRGuard const &guard) const { visit(guard.term()); }
 
     void accept_(TheoryElement const &elem) const { visit(elem.tuple(), elem.cond()); }
 

@@ -64,7 +64,7 @@ struct theory_guard_definition {
         return rels >> dsl::comma + dsl::p<identifier>;
     }();
     static constexpr auto value = []() {
-        auto sink = lexy::as_list<SharedStringVec>;
+        auto sink = lexy::as_list<StringVec>;
         auto cb = lexy::construct<TheoryRGuardDefinition>;
         return sink >> cb;
     }();

@@ -13,6 +13,7 @@ class TheoryTermVariable;
 class TheoryTermTuple;
 class TheoryTermFunction;
 class TheoryTermUnparsed;
+class UnparsedElement;
 
 //! A variant for the different theory terms.
 using TheoryTerm =
@@ -136,8 +137,6 @@ class TheoryTermFunction : public RecursiveExpression<TheoryTermFunction> {
     TheoryTermArray args_;
 };
 
-//! An element having the form of a right guard.
-using UnparsedElement = std::pair<SharedStringArray, TheoryTerm>;
 //! A vector of elements.
 //!
 //! In this context, it has to have at least length one.
@@ -170,8 +169,46 @@ class TheoryTermUnparsed : public RecursiveExpression<TheoryTermUnparsed> {
     UnparsedElementArray elems_;
 };
 
-//! The optional right guard of the theory atom.
-using TheoryRGuard = std::optional<std::pair<SharedString, TheoryTerm>>;
+//! An element having the form of a right guard.
+class UnparsedElement : public Expression<UnparsedElement> {
+  public:
+    //! The record attributes.
+    static constexpr auto attributes() {
+        return std::tuple{a_ops = &UnparsedElement::ops, a_term = &UnparsedElement::term_};
+    }
+
+    //! Construct the element.
+    UnparsedElement(StringSpan ops, TheoryTerm term)
+        : ops_{ops.begin(), ops.end(), [](auto const &x) { return x; }}, term_{std::move(term)} {}
+
+    //! The list of operator names.
+    [[nodiscard]] auto ops() const -> StringSpan { return as_string_span(ops_); }
+    //! The term.
+    [[nodiscard]] auto term() const -> TheoryTerm const & { return term_; }
+
+  private:
+    SharedStringArray ops_;
+    TheoryTerm term_;
+};
+
+//! The right guard of the theory atom.
+class TheoryRGuard : public Expression<TheoryRGuard> {
+  public:
+    //! The record attributes.
+    static constexpr auto attributes() { return std::tuple{a_op = &TheoryRGuard::op, a_term = &TheoryRGuard::term_}; }
+
+    //! Construct the guard.
+    explicit TheoryRGuard(String op, TheoryTerm term) : op_{op}, term_{std::move(term)} {}
+
+    //! The tuple of the theory element.
+    [[nodiscard]] auto op() const -> String const & { return *op_; }
+    //! The condition of the theory element.
+    [[nodiscard]] auto term() const -> TheoryTerm const & { return term_; }
+
+  private:
+    SharedString op_;
+    TheoryTerm term_;
+};
 
 //! An element of the theory atom.
 class TheoryElement : public Expression<TheoryElement> {
@@ -222,13 +259,13 @@ class TheoryAtom : public std::conditional_t<HasSign, Signed, Unsigned>, public 
     }
 
     //! Construct a theory atom.
-    explicit TheoryAtom(Location loc, Term name, TheoryElementArray elems, TheoryRGuard rhs)
+    explicit TheoryAtom(Location loc, Term name, TheoryElementArray elems, std::optional<TheoryRGuard> rhs)
         : loc_{loc}, name_{std::move(name)}, elems_{std::move(elems)}, rhs_{std::move(rhs)} {
         static_assert(!HasSign);
     }
 
     //! Construct a theory atom.
-    explicit TheoryAtom(Location loc, Sign sign, Term name, TheoryElementArray elems, TheoryRGuard rhs)
+    explicit TheoryAtom(Location loc, Sign sign, Term name, TheoryElementArray elems, std::optional<TheoryRGuard> rhs)
         : Signed{sign}, loc_{loc}, name_{std::move(name)}, elems_{std::move(elems)}, rhs_{std::move(rhs)} {
         static_assert(HasSign);
     }
@@ -240,13 +277,13 @@ class TheoryAtom : public std::conditional_t<HasSign, Signed, Unsigned>, public 
     //! The elements of the atom.
     [[nodiscard]] auto elems() const -> TheoryElementArray const & { return elems_; }
     //! The optional right guard of the atom.
-    [[nodiscard]] auto rhs() const -> TheoryRGuard const & { return rhs_; }
+    [[nodiscard]] auto rhs() const -> std::optional<TheoryRGuard> const & { return rhs_; }
 
   private:
     Location loc_;
     Term name_;
     TheoryElementArray elems_;
-    TheoryRGuard rhs_;
+    std::optional<TheoryRGuard> rhs_;
 };
 
 //! A head theory atom.

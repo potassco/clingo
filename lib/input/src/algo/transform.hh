@@ -142,6 +142,10 @@ template <class T> class Transformer {
 
     // theory
 
+    [[nodiscard]] auto accept_(UnparsedElement const &elem) const -> std::optional<UnparsedElement> {
+        return rewrite(elem, a_term);
+    }
+
     [[nodiscard]] auto accept_(TheoryTermUnparsed const &term) const -> std::optional<TheoryTerm> {
         return rewrite(term, a_elems);
     }
@@ -158,6 +162,10 @@ template <class T> class Transformer {
 
     [[nodiscard]] auto accept_(TheoryTermFunction const &term) const -> std::optional<TheoryTerm> {
         return rewrite(term, a_args);
+    }
+
+    [[nodiscard]] auto accept_(TheoryRGuard const &guard) const -> std::optional<TheoryRGuard> {
+        return rewrite(guard, a_term);
     }
 
     // literal

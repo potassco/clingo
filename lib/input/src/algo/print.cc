@@ -321,15 +321,15 @@ class Print {
 
     void operator()(TheoryTermUnparsed const &term) const {
         const auto &elems = term.elems();
-        bool needs_parens = elems.size() != 1 || !elems.front().first.empty();
+        bool needs_parens = elems.size() != 1 || !elems.front().ops().empty();
         if (needs_parens) {
             *out_ << "(";
         }
         apply_to_range_with(elems, " ", [this](auto const &elem) {
-            for (auto const &op : elem.first) {
-                *out_ << *op << " ";
+            for (auto const &op : elem.ops()) {
+                *out_ << op << " ";
             }
-            operator()(elem.second);
+            operator()(elem.term());
         });
         if (needs_parens) {
             *out_ << ")";
@@ -404,8 +404,8 @@ class Print {
             *out_ << (elems.empty() ? "}" : " }");
         }
         if (auto const &rhs = atom.rhs(); rhs) {
-            *out_ << " " << *rhs->first << " ";
-            operator()(rhs->second);
+            *out_ << " " << rhs->op() << " ";
+            operator()(rhs->term());
         }
     }
 
@@ -534,8 +534,8 @@ class Print {
 
     void operator()(TheoryRGuardDefinition const &def) const {
         *out_ << "{";
-        apply_to_range_with(def.first, ",", [this](auto const &x) { *out_ << *x; });
-        *out_ << "}, " << *def.second;
+        print_range(def.ops(), ",");
+        *out_ << "}, " << def.term();
     }
 
     void operator()(TheoryAtomDefinition const &def, char const *pre = "  ") const {

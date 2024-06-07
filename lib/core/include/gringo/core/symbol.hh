@@ -70,6 +70,8 @@ class String {
 using StringSet = Util::unordered_set<String>;
 //! A vector of strings.
 using StringVec = std::vector<String>;
+//! A span of strings.
+using StringSpan = std::span<String const>;
 
 //! Class managing the lifetime of a String.
 //!
@@ -148,13 +150,21 @@ class SharedString {
     String ref_;
 };
 
+//! A vector of strings.
+using SharedStringVec = std::vector<SharedString>;
+//! An array of strings.
+using SharedStringArray = Util::immutable_array<SharedString>;
+
 inline auto as_string_ptr(SharedString const *ptr) -> String const * {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     return reinterpret_cast<String const *>(ptr);
 }
 
-//! A vector of strings.
-using SharedStringVec = std::vector<SharedString>;
+inline auto as_string_span(SharedStringVec const &vec) -> StringSpan { return {as_string_ptr(vec.data()), vec.size()}; }
+
+inline auto as_string_span(SharedStringArray const &vec) -> StringSpan {
+    return {as_string_ptr(vec.data()), vec.size()};
+}
 
 //! Enumeration of available symbols types.
 //!
