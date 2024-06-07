@@ -327,7 +327,7 @@ class Print {
         }
         apply_to_range_with(elems, " ", [this](auto const &elem) {
             for (auto const &op : elem.first) {
-                *out_ << op << " ";
+                *out_ << *op << " ";
             }
             operator()(elem.second);
         });
@@ -404,7 +404,7 @@ class Print {
             *out_ << (elems.empty() ? "}" : " }");
         }
         if (auto const &rhs = atom.rhs(); rhs) {
-            *out_ << " " << rhs->first << " ";
+            *out_ << " " << *rhs->first << " ";
             operator()(rhs->second);
         }
     }
@@ -534,8 +534,8 @@ class Print {
 
     void operator()(TheoryRGuardDefinition const &def) const {
         *out_ << "{";
-        print_range(def.first);
-        *out_ << "}, " << def.second;
+        apply_to_range_with(def.first, ",", [this](auto const &x) { *out_ << *x; });
+        *out_ << "}, " << *def.second;
     }
 
     void operator()(TheoryAtomDefinition const &def, char const *pre = "  ") const {
@@ -683,7 +683,7 @@ class Print {
         *out_ << "#program " << stm.name();
         if (!stm.args().empty()) {
             *out_ << "(";
-            print_range(stm.args());
+            apply_to_range_with(stm.args(), ",", [this](auto const &x) { *out_ << *x; });
             *out_ << ")";
         }
         *out_ << ".";

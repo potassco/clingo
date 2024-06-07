@@ -27,13 +27,11 @@ class TheoryTermSymbol : public Expression<TheoryTermSymbol> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
-        return std::tuple{a_loc = &TheoryTermSymbol::loc_, a_value = &TheoryTermSymbol::value_};
+        return std::tuple{a_loc = &TheoryTermSymbol::loc_, a_value = &TheoryTermSymbol::value};
     }
 
     //! Construct a symbolic theory term.
     explicit TheoryTermSymbol(Location loc, Symbol value) : loc_{loc}, value_{value} {}
-    //! Construct a symbolic theory term.
-    explicit TheoryTermSymbol(Location loc, SharedSymbol value) : loc_{loc}, value_{std::move(value)} {}
 
     //! The location of the symbol.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
@@ -52,7 +50,7 @@ class TheoryTermVariable : public Expression<TheoryTermVariable> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
-        return std::tuple{a_loc = &TheoryTermVariable::loc_, a_name = &TheoryTermVariable::name_,
+        return std::tuple{a_loc = &TheoryTermVariable::loc_, a_name = &TheoryTermVariable::name,
                           a_anonymous = &TheoryTermVariable::anonymous_};
     }
 
@@ -63,13 +61,13 @@ class TheoryTermVariable : public Expression<TheoryTermVariable> {
     //! The location of the variable.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The name of the variable.
-    [[nodiscard]] auto name() const -> String { return name_; }
+    [[nodiscard]] auto name() const -> String const & { return *name_; }
     //! Whether the variable is anonymous.
     [[nodiscard]] auto anonymous() const -> bool { return anonymous_; }
 
   private:
     Location loc_;
-    String name_;
+    SharedString name_;
     bool anonymous_;
 };
 
@@ -116,7 +114,7 @@ class TheoryTermFunction : public RecursiveExpression<TheoryTermFunction> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
-        return std::tuple{a_loc = &TheoryTermFunction::loc_, a_name = &TheoryTermFunction::name_,
+        return std::tuple{a_loc = &TheoryTermFunction::loc_, a_name = &TheoryTermFunction::name,
                           a_args = &TheoryTermFunction::args_};
     }
 
@@ -128,18 +126,18 @@ class TheoryTermFunction : public RecursiveExpression<TheoryTermFunction> {
     //! The location of the symbol.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The name of the function.
-    [[nodiscard]] auto name() const -> String { return name_; }
+    [[nodiscard]] auto name() const -> String const & { return *name_; }
     //! The arguments of the function.
     [[nodiscard]] auto args() const -> TheoryTermArray const & { return args_; }
 
   private:
     Location loc_;
-    String name_;
+    SharedString name_;
     TheoryTermArray args_;
 };
 
 //! An element having the form of a right guard.
-using UnparsedElement = std::pair<StringArray, TheoryTerm>;
+using UnparsedElement = std::pair<SharedStringArray, TheoryTerm>;
 //! A vector of elements.
 //!
 //! In this context, it has to have at least length one.
@@ -173,7 +171,7 @@ class TheoryTermUnparsed : public RecursiveExpression<TheoryTermUnparsed> {
 };
 
 //! The optional right guard of the theory atom.
-using TheoryRGuard = std::optional<std::pair<String, TheoryTerm>>;
+using TheoryRGuard = std::optional<std::pair<SharedString, TheoryTerm>>;
 
 //! An element of the theory atom.
 class TheoryElement : public Expression<TheoryElement> {

@@ -77,9 +77,9 @@ template <class T> class Visitor {
     // igonre
 
     template <class U>
-        requires Util::is_among_v<U, Projection, String, Relation, TermSymbol, TermVariable, TheoryTermSymbol,
-                                  TheoryTermVariable, LitBool, StmTheory, StmShowSig, StmProjectSig, StmDefined,
-                                  StmScript, StmInclude, StmProgram, StmComment>
+        requires Util::is_among_v<U, Projection, String, SharedString, Relation, TermSymbol, TermVariable,
+                                  TheoryTermSymbol, TheoryTermVariable, LitBool, StmTheory, StmShowSig, StmProjectSig,
+                                  StmDefined, StmScript, StmInclude, StmProgram, StmComment>
     void accept_([[maybe_unused]] U const &x) const {}
 
     // terms

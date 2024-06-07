@@ -64,7 +64,7 @@ struct theory_guard_definition {
         return rels >> dsl::comma + dsl::p<identifier>;
     }();
     static constexpr auto value = []() {
-        auto sink = lexy::as_list<std::vector<String>>;
+        auto sink = lexy::as_list<SharedStringVec>;
         auto cb = lexy::construct<TheoryRGuardDefinition>;
         return sink >> cb;
     }();
@@ -359,13 +359,13 @@ struct statement_program {
         auto id = dsl::p<identifier>;
         return Detail::location(kw >> id + dsl::opt(dsl::round_bracketed.opt_list(id, dsl::sep(dsl::comma))) + eos);
     }();
-    static constexpr auto
-        value = lexy::as_list<std::vector<String>> >>
-                lexy::callback<Stm>([](Location loc, String name,
-                                       std::vector<String> args) { return StmProgram{loc, name, std::move(args)}; },
-                                    [](Location loc, String name, lexy::nullopt) {
-                                        return StmProgram{loc, name, std::vector<String>{}};
-                                    });
+    static constexpr auto value =
+        lexy::as_list<SharedStringVec> >>
+        lexy::callback<Stm>([](Location loc, String name,
+                               std::vector<SharedString> args) { return StmProgram{loc, name, std::move(args)}; },
+                            [](Location loc, String name, lexy::nullopt) {
+                                return StmProgram{loc, name, SharedStringVec{}};
+                            });
 };
 
 struct statement_const {

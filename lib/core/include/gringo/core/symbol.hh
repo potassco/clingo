@@ -148,6 +148,9 @@ class SharedString {
     String ref_;
 };
 
+//! A vector of strings.
+using SharedStringVec = std::vector<SharedString>;
+
 //! Enumeration of available symbols types.
 //!
 //! See the documentation of the corresponding functions in the SymbolStore.

@@ -67,13 +67,13 @@ auto TheoryTermParser::parse(Logger &log, TheoryTermUnparsed const &term) const 
     auto arity = Arity::unary;
     for (auto const &elem : term.elems()) {
         for (auto const &op : elem.first) {
-            check_operator(log, op, arity, term.loc());
+            check_operator(log, *op, arity, term.loc());
 
-            while (arity == Arity::binary && check_(op)) {
+            while (arity == Arity::binary && check_(*op)) {
                 reduce_();
             }
 
-            stack_.emplace_back(op, arity);
+            stack_.emplace_back(*op, arity);
             arity = Arity::unary;
         }
 
@@ -147,10 +147,13 @@ void TheoryAtomParser::add_theory(Logger &log, StmTheory const &stm) {
         auto guard = std::optional<GuardTable>{};
         if (auto const &rhs = atom_def.rhs(); rhs) {
             auto const &[ops, term] = *rhs;
-            if (auto it = term_defs.find(term); it != term_defs.end()) {
-                guard.emplace(StringSet{ops.begin(), ops.end()}, std::distance(term_defs.begin(), it));
+            if (auto it = term_defs.find(*term); it != term_defs.end()) {
+                auto op_set = StringSet{};
+                op_set.reserve(ops.size());
+                std::for_each(ops.begin(), ops.end(), [&op_set](auto const &x) { op_set.emplace(*x); });
+                guard.emplace(std::move(op_set), std::distance(term_defs.begin(), it));
             } else {
-                GRINGO_REPORT_LOC(log, error, atom_def.loc()) << "term definition not found `" << term << "`";
+                GRINGO_REPORT_LOC(log, error, atom_def.loc()) << "term definition not found `" << *term << "`";
             }
         }
         if (auto it = term_defs.find(atom_def.term()); it != term_defs.end()) {
@@ -211,7 +214,7 @@ auto TheoryAtomParser::parse(Logger &log, TheoryAtom<has_sign> const &atom,
             return std::nullopt;
         }
         auto const &[guard_set, guard_index] = *guard;
-        if (!guard_set.contains(atom.rhs()->first)) {
+        if (!guard_set.contains(*atom.rhs()->first)) {
             GRINGO_REPORT_LOC(log, error, atom.loc()) << "unexpected guard in theory atom";
             // maybe clear guard and elems...
             return std::nullopt;

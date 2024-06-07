@@ -67,12 +67,11 @@ auto convert_loc(clingo_lib_t *lib, clingo_location_t const *loc) -> Gringo::Inp
             {lib->store->string_ref(loc->end_file), loc->end_line, loc->end_column}};
 }
 
-auto convert_string_array(clingo_lib_t *lib, char const **array, size_t size) -> Gringo::StringVec {
-    auto ret = Gringo::StringVec{};
+auto convert_string_array(clingo_lib_t *lib, char const **array, size_t size) -> Gringo::SharedStringVec {
+    auto ret = Gringo::SharedStringVec{};
     ret.reserve(size);
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    std::transform(array, array + size, std::back_inserter(ret),
-                   [lib](auto str) { return lib->store->string_ref(str); });
+    std::transform(array, array + size, std::back_inserter(ret), [lib](auto str) { return lib->store->string(str); });
     return ret;
 }
 
@@ -98,7 +97,7 @@ struct clingo_ast {
     [[nodiscard]] auto get_location(clingo_ast_attribute_t attr) const -> std::optional<clingo_location_t>;
     [[nodiscard]] auto get_string(clingo_ast_attribute_t attr) const -> std::optional<char const *>;
     [[nodiscard]] auto
-    get_string_vec(clingo_ast_attribute_t attr) const -> std::optional<std::span<Gringo::String const>>;
+    get_string_vec(clingo_ast_attribute_t attr) const -> std::optional<std::span<Gringo::SharedString const>>;
     [[nodiscard]] auto get_ast(clingo_ast_attribute_t attr) const -> std::optional<std::unique_ptr<clingo_ast_t>>;
     [[nodiscard]] auto get_ast_vec(clingo_ast_attribute_t attr) const -> std::optional<ASTVec>;
 
@@ -828,6 +827,11 @@ auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<
     case clingo_ast_attribute_##attr: {                                                                                \
         return cast<Type>().value.c_str();                                                                             \
     }
+#undef ATTRP
+#define ATTRP(attr, value)                                                                                             \
+    case clingo_ast_attribute_##attr: {                                                                                \
+        return cast<Type>().value->c_str();                                                                            \
+    }
 
 auto clingo_ast::get_string(clingo_ast_attribute_t attr) const -> std::optional<char const *> {
     // clang-format off
@@ -841,13 +845,13 @@ auto clingo_ast::get_string(clingo_ast_attribute_t attr) const -> std::optional<
         TYPE(theory_term_function, TheoryTermFunction,
             ATTR(name, name()))
         TYPE(theory_right_guard, TheoryRGuard::value_type,
-            ATTR(theory_operator, first))
+            ATTRP(theory_operator, first))
         TYPE(theory_operator_definition, TheoryOpDefinition,
             ATTR(name, op()))
         TYPE(theory_term_definition, TheoryTermDefinition,
             ATTR(name, name()))
         TYPE(theory_guard_definition, TheoryRGuardDefinition,
-            ATTR(term, second))
+            ATTRP(term, second))
         TYPE(theory_atom_definition, TheoryAtomDefinition,
             ATTR(name, name())
             ATTR(term, term()))
@@ -879,7 +883,8 @@ auto clingo_ast::get_string(clingo_ast_attribute_t attr) const -> std::optional<
         return std::span{cast<Type>().value};                                                                          \
     }
 
-auto clingo_ast::get_string_vec(clingo_ast_attribute_t attr) const -> std::optional<std::span<Gringo::String const>> {
+auto clingo_ast::get_string_vec(clingo_ast_attribute_t attr) const
+    -> std::optional<std::span<Gringo::SharedString const>> {
     // clang-format off
     SWITCH(
         TYPE(unparsed_element, UnparsedElement,
@@ -1070,11 +1075,13 @@ auto clingo_ast::copy() const -> std::unique_ptr<clingo_ast_t> { return std::mak
 void clingo_ast::print(std::ostream &out) const {
     using namespace Gringo::Input;
     visit([&out]<class T>(T const &x) {
-        if constexpr (Gringo::Util::matches<T, TheoryRGuard::value_type, RGuard::value_type>) {
+        if constexpr (Gringo::Util::matches<T, RGuard::value_type>) {
             out << " " << x.first << " " << x.second;
+        } else if constexpr (Gringo::Util::matches<T, TheoryRGuard::value_type>) {
+            out << " " << *x.first << " " << x.second;
         } else if constexpr (std::is_same_v<T, UnparsedElement>) {
             for (auto const &op : x.first) {
-                out << op << " ";
+                out << *op << " ";
             }
             out << x.second;
         } else if constexpr (std::is_same_v<T, ArgumentTuple>) {
@@ -2334,7 +2341,7 @@ extern "C" auto clingo_ast_attribute_get_string_array(clingo_ast_t *ast, clingo_
         if (auto vec = ast->get_string_vec(attribute); vec) {
             *size = vec->size();
             if (value != nullptr) {
-                std::transform(vec->begin(), vec->end(), value, [](auto str) { return str.c_str(); });
+                std::transform(vec->begin(), vec->end(), value, [](auto str) { return str->c_str(); });
             }
             return true;
         }

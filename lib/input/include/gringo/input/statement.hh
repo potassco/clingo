@@ -51,7 +51,7 @@ class TheoryOpDefinition : public Expression<TheoryOpDefinition> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
-        return std::tuple{a_loc = &TheoryOpDefinition::loc_, a_op = &TheoryOpDefinition::op_,
+        return std::tuple{a_loc = &TheoryOpDefinition::loc_, a_op = &TheoryOpDefinition::op,
                           a_prio = &TheoryOpDefinition::prio_, a_type = &TheoryOpDefinition::type_};
     }
 
@@ -62,7 +62,7 @@ class TheoryOpDefinition : public Expression<TheoryOpDefinition> {
     //! The location of the definition.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The representation of the operator.
-    [[nodiscard]] auto op() const -> String { return op_; }
+    [[nodiscard]] auto op() const -> String const & { return *op_; }
     //! The priority of the operator.
     [[nodiscard]] auto prio() const -> int { return prio_; }
     //! The type of the operator.
@@ -70,7 +70,7 @@ class TheoryOpDefinition : public Expression<TheoryOpDefinition> {
 
   private:
     Location loc_;
-    String op_;
+    SharedString op_;
     int prio_;
     TheoryOpType type_;
 };
@@ -85,7 +85,7 @@ class TheoryTermDefinition : public Expression<TheoryTermDefinition> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
-        return std::tuple{a_loc = &TheoryTermDefinition::loc_, a_name = &TheoryTermDefinition::name_,
+        return std::tuple{a_loc = &TheoryTermDefinition::loc_, a_name = &TheoryTermDefinition::name,
                           a_op_defs = &TheoryTermDefinition::op_defs_};
     }
 
@@ -96,13 +96,13 @@ class TheoryTermDefinition : public Expression<TheoryTermDefinition> {
     //! The location of the definition.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The name of the definition.
-    [[nodiscard]] auto name() const -> String { return name_; }
+    [[nodiscard]] auto name() const -> String const & { return *name_; }
     //! The associated operator definitions.
     [[nodiscard]] auto op_defs() const -> TheoryOpDefinitionArray const & { return op_defs_; }
 
   private:
     Location loc_;
-    String name_;
+    SharedString name_;
     TheoryOpDefinitionArray op_defs_;
 };
 
@@ -122,7 +122,7 @@ enum class TheoryAtomType : uint8_t {
 //! An optional definition for the right-hand-side of a theory atom.
 //!
 //! It consists of a list of possible operators and a name of a term definition.
-using TheoryRGuardDefinition = std::pair<StringArray, String>;
+using TheoryRGuardDefinition = std::pair<SharedStringArray, SharedString>;
 
 //! A theory atom definition.
 //!
@@ -131,8 +131,8 @@ class TheoryAtomDefinition : public Expression<TheoryAtomDefinition> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
-        return std::tuple{a_loc = &TheoryAtomDefinition::loc_,     a_name = &TheoryAtomDefinition::name_,
-                          a_arity = &TheoryAtomDefinition::arity_, a_term = &TheoryAtomDefinition::term_,
+        return std::tuple{a_loc = &TheoryAtomDefinition::loc_,     a_name = &TheoryAtomDefinition::name,
+                          a_arity = &TheoryAtomDefinition::arity_, a_term = &TheoryAtomDefinition::term,
                           a_rhs = &TheoryAtomDefinition::rhs_,     a_type = &TheoryAtomDefinition::type_};
     }
 
@@ -144,11 +144,11 @@ class TheoryAtomDefinition : public Expression<TheoryAtomDefinition> {
     //! The location of the definition.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The name of the atom.
-    [[nodiscard]] auto name() const -> String { return name_; }
+    [[nodiscard]] auto name() const -> String const & { return *name_; }
     //! The arity of the atom.
     [[nodiscard]] auto arity() const -> int { return arity_; }
     //! The name of the term definition used in elements.
-    [[nodiscard]] auto term() const -> String { return term_; }
+    [[nodiscard]] auto term() const -> String const & { return *term_; }
     //! The definition for the right hand side of the atom.
     [[nodiscard]] auto rhs() const -> std::optional<TheoryRGuardDefinition> const & { return rhs_; }
     //! The type of the atom.
@@ -156,9 +156,9 @@ class TheoryAtomDefinition : public Expression<TheoryAtomDefinition> {
 
   private:
     Location loc_;
-    String name_;
+    SharedString name_;
     int arity_;
-    String term_;
+    SharedString term_;
     std::optional<TheoryRGuardDefinition> rhs_;
     TheoryAtomType type_;
 };
@@ -173,7 +173,7 @@ class StmTheory : public Expression<StmTheory> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
-        return std::tuple{a_loc = &StmTheory::loc_, a_name = &StmTheory::name_, a_term_defs = &StmTheory::term_defs_,
+        return std::tuple{a_loc = &StmTheory::loc_, a_name = &StmTheory::name, a_term_defs = &StmTheory::term_defs_,
                           a_atom_defs = &StmTheory::atom_defs};
     }
 
@@ -185,7 +185,7 @@ class StmTheory : public Expression<StmTheory> {
     //! The location of the definition.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The name of the definition.
-    [[nodiscard]] auto name() const -> String { return name_; }
+    [[nodiscard]] auto name() const -> String const & { return *name_; }
     //! The theory term definitions.
     [[nodiscard]] auto term_defs() const -> TheoryTermDefinitionArray const & { return term_defs_; }
     //! The theory atom definitions.
@@ -193,7 +193,7 @@ class StmTheory : public Expression<StmTheory> {
 
   private:
     Location loc_;
-    String name_;
+    SharedString name_;
     TheoryTermDefinitionArray term_defs_;
     TheoryAtomDefinitionArray atom_defs_;
 };
@@ -341,7 +341,7 @@ class StmShowSig : public Expression<StmShowSig> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
-        return std::tuple{a_loc = &StmShowSig::loc_, a_name = &StmShowSig::name_, a_sign = &StmShowSig::sign_,
+        return std::tuple{a_loc = &StmShowSig::loc_, a_name = &StmShowSig::name, a_sign = &StmShowSig::sign_,
                           a_arity = &StmShowSig::arity_};
     }
 
@@ -354,13 +354,13 @@ class StmShowSig : public Expression<StmShowSig> {
     //! Whether the signature is negative.
     [[nodiscard]] auto sign() const -> bool { return sign_; }
     //! The name.
-    [[nodiscard]] auto name() const -> String { return name_; }
+    [[nodiscard]] auto name() const -> String const & { return *name_; }
     //! The arity.
     [[nodiscard]] auto arity() const -> int { return arity_; }
 
   private:
     Location loc_;
-    String name_;
+    SharedString name_;
     int arity_;
     bool sign_;
 };
@@ -399,7 +399,7 @@ class StmProjectSig : public Expression<StmProjectSig> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
-        return std::tuple{a_loc = &StmProjectSig::loc_, a_name = &StmProjectSig::name_, a_sign = &StmProjectSig::sign_,
+        return std::tuple{a_loc = &StmProjectSig::loc_, a_name = &StmProjectSig::name, a_sign = &StmProjectSig::sign_,
                           a_arity = &StmProjectSig::arity_};
     }
 
@@ -412,14 +412,14 @@ class StmProjectSig : public Expression<StmProjectSig> {
     //! Whether the signature is negative.
     [[nodiscard]] auto sign() const -> bool { return sign_; }
     //! The name.
-    [[nodiscard]] auto name() const -> String { return name_; }
+    [[nodiscard]] auto name() const -> String const & { return *name_; }
     //! The arity.
     [[nodiscard]] auto arity() const -> int { return arity_; }
 
   private:
     Location loc_;
     bool sign_;
-    String name_;
+    SharedString name_;
     int arity_;
 };
 
@@ -430,7 +430,7 @@ class StmDefined : public Expression<StmDefined> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
-        return std::tuple{a_loc = &StmDefined::loc_, a_name = &StmDefined::name_, a_sign = &StmDefined::sign_,
+        return std::tuple{a_loc = &StmDefined::loc_, a_name = &StmDefined::name, a_sign = &StmDefined::sign_,
                           a_arity = &StmDefined::arity_};
     }
 
@@ -443,7 +443,7 @@ class StmDefined : public Expression<StmDefined> {
     //! Whether the signature is negative.
     [[nodiscard]] auto sign() const -> bool { return sign_; }
     //! The name.
-    [[nodiscard]] auto name() const -> String { return name_; }
+    [[nodiscard]] auto name() const -> String const & { return *name_; }
     //! The arity.
     [[nodiscard]] auto arity() const -> int { return arity_; }
 
@@ -452,7 +452,7 @@ class StmDefined : public Expression<StmDefined> {
     //! Whether the signature is negative.
     bool sign_;
     //! The name.
-    String name_;
+    SharedString name_;
     //! The arity.
     int arity_;
 };
@@ -593,7 +593,7 @@ class StmScript : public Expression<StmScript> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
-        return std::tuple{a_loc = &StmScript::loc_, a_type = &StmScript::type_, a_value = &StmScript::value_};
+        return std::tuple{a_loc = &StmScript::loc_, a_type = &StmScript::type, a_value = &StmScript::value_};
     }
 
     //! Construct a script statement.
@@ -603,13 +603,13 @@ class StmScript : public Expression<StmScript> {
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The code type.
-    [[nodiscard]] auto type() const -> String { return type_; }
+    [[nodiscard]] auto type() const -> String const & { return *type_; }
     //! The code.
     [[nodiscard]] auto value() const -> std::string const & { return value_; }
 
   private:
     Location loc_;
-    String type_;
+    SharedString type_;
     std::string value_;
 };
 
@@ -655,23 +655,24 @@ class StmProgram : public Expression<StmProgram> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
-        return std::tuple{a_loc = &StmProgram::loc_, a_name = &StmProgram::name_, a_args = &StmProgram::args_};
+        return std::tuple{a_loc = &StmProgram::loc_, a_name = &StmProgram::name, a_args = &StmProgram::args_};
     }
 
     //! Construct an program statement.
-    explicit StmProgram(Location loc, String name, StringArray args) : loc_{loc}, name_(name), args_(std::move(args)) {}
+    explicit StmProgram(Location loc, String name, SharedStringArray args)
+        : loc_{loc}, name_(name), args_(std::move(args)) {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The name of the program.
-    [[nodiscard]] auto name() const -> String const & { return name_; }
+    [[nodiscard]] auto name() const -> String const & { return *name_; }
     //! The arguments of the program.
-    [[nodiscard]] auto args() const -> StringArray const & { return args_; }
+    [[nodiscard]] auto args() const -> SharedStringArray const & { return args_; }
 
   private:
     Location loc_;
-    String name_;
-    StringArray args_;
+    SharedString name_;
+    SharedStringArray args_;
 };
 
 //! Enumeration of constant statement types.
@@ -689,7 +690,7 @@ class StmConst : public Expression<StmConst> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
-        return std::tuple{a_loc = &StmConst::loc_, a_type = &StmConst::type_, a_name = &StmConst::name_,
+        return std::tuple{a_loc = &StmConst::loc_, a_type = &StmConst::type_, a_name = &StmConst::name,
                           a_value = &StmConst::value_};
     }
 
@@ -702,14 +703,14 @@ class StmConst : public Expression<StmConst> {
     //! The type of the statement.
     [[nodiscard]] auto type() const -> ConstType const & { return type_; }
     //! The name of the constant.
-    [[nodiscard]] auto name() const -> String const & { return name_; }
+    [[nodiscard]] auto name() const -> String const & { return *name_; }
     //! The value of the constant
     [[nodiscard]] auto value() const -> Term const & { return value_; }
 
   private:
     Location loc_;
     ConstType type_;
-    String name_;
+    SharedString name_;
     Term value_;
 };
 

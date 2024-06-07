@@ -18,7 +18,7 @@ namespace Gringo::Input {
 //! @{
 
 //! An array of strings.
-using StringArray = Util::immutable_array<String>;
+using SharedStringArray = Util::immutable_array<SharedString>;
 
 //! A set of variable names.
 using VariableSet = StringSet;
@@ -85,7 +85,7 @@ class TermVariable : public Expression<TermVariable> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
-        return std::tuple{a_loc = &TermVariable::loc_, a_name = &TermVariable::name_,
+        return std::tuple{a_loc = &TermVariable::loc_, a_name = &TermVariable::name,
                           a_anonymous = &TermVariable::anonymous_};
     }
 
@@ -96,13 +96,13 @@ class TermVariable : public Expression<TermVariable> {
     //! The location of the variable.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The name of the variable.
-    [[nodiscard]] auto name() const -> String { return name_; }
+    [[nodiscard]] auto name() const -> String const & { return *name_; }
     //! Whether the variable is anonymous.
     [[nodiscard]] auto anonymous() const -> bool { return anonymous_; }
 
   private:
     Location loc_;
-    String name_;
+    SharedString name_;
     bool anonymous_;
 };
 
@@ -112,11 +112,10 @@ class TermVariable : public Expression<TermVariable> {
 class TermSymbol : public Expression<TermSymbol> {
   public:
     //! The record attributes.
-    static constexpr auto attributes() { return std::tuple{a_loc = &TermSymbol::loc_, a_value = &TermSymbol::value_}; }
+    static constexpr auto attributes() { return std::tuple{a_loc = &TermSymbol::loc_, a_value = &TermSymbol::value}; }
 
     //! Construct term with the given symbol.
     explicit TermSymbol(Location loc, Symbol value) : loc_{loc}, value_{value} {}
-    explicit TermSymbol(Location loc, SharedSymbol value) : loc_{loc}, value_{std::move(value)} {}
 
     //! The location of the symbol.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
@@ -161,7 +160,7 @@ class TermFunction : public RecursiveExpression<TermFunction> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
-        return std::tuple{a_loc = &TermFunction::loc_, a_name = &TermFunction::name_, a_pool = &TermFunction::pool_,
+        return std::tuple{a_loc = &TermFunction::loc_, a_name = &TermFunction::name, a_pool = &TermFunction::pool_,
                           a_exteral = &TermFunction::external_};
     }
 
@@ -174,7 +173,7 @@ class TermFunction : public RecursiveExpression<TermFunction> {
     //! The location of the function.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The name of the function.
-    [[nodiscard]] auto name() const -> String { return name_; }
+    [[nodiscard]] auto name() const -> String const & { return *name_; }
     //! The argument pool of the function.
     [[nodiscard]] auto pool() const -> PoolArray const & { return pool_; }
     //! Whether this is an external function.
@@ -182,7 +181,7 @@ class TermFunction : public RecursiveExpression<TermFunction> {
 
   private:
     Location loc_;
-    String name_;
+    SharedString name_;
     PoolArray pool_;
     bool external_;
 };
