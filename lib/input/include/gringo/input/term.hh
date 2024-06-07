@@ -116,15 +116,16 @@ class TermSymbol : public Expression<TermSymbol> {
 
     //! Construct term with the given symbol.
     explicit TermSymbol(Location loc, Symbol value) : loc_{loc}, value_{value} {}
+    explicit TermSymbol(Location loc, SharedSymbol value) : loc_{loc}, value_{std::move(value)} {}
 
     //! The location of the symbol.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The associated symbol.
-    [[nodiscard]] auto value() const -> Symbol const & { return value_; }
+    [[nodiscard]] auto value() const -> Symbol const & { return *value_; }
 
   private:
     Location loc_;
-    Symbol value_;
+    SharedSymbol value_;
 };
 
 //! A tuple element.

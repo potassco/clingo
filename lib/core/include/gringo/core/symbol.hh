@@ -338,19 +338,21 @@ class SymbolStore {
     //! A raw string is stored and quoted when the symbol is output.
     //! For example: <tt>"foo\nbar"</tt>.
     [[nodiscard]] static auto str(SharedString str) noexcept -> SharedSymbol;
+    //! @copydoc str(SharedString)
+    [[nodiscard]] static auto str(String str) noexcept -> SharedSymbol;
     //! Construct a number.
     [[nodiscard]] auto num(Number num) noexcept -> SharedSymbol;
     //! Construct a tuple.
     //!
     //! For example: <tt>(x,y)</tt>.
     [[nodiscard]] auto tup(SharedSymbolSpan args) -> SharedSymbol;
-    //! @copydoc tup(SymbolSpan)
+    //! @copydoc tup(SharedSymbolSpan)
     [[nodiscard]] auto tup(SymbolSpan args) -> SharedSymbol;
     //! Construct a function symbol.
     //!
     //! For example: <tt>f(x,y)</tt>.
     [[nodiscard]] auto fun(SharedString const &name, SharedSymbolSpan args, bool sign) -> SharedSymbol;
-    //! @copydoc fun(String const &, SymbolSpan, bool)
+    //! @copydoc fun(SharedString const &, SharedSymbolSpan, bool)
     [[nodiscard]] auto fun(String name, SymbolSpan args, bool sign) -> SharedSymbol;
 
     // interface to create floating references

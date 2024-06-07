@@ -873,6 +873,8 @@ auto SymbolStore::sup() noexcept -> Symbol { return Symbol::from_rep(EXT_REP_SUP
 
 auto SymbolStore::inf() noexcept -> Symbol { return Symbol::from_rep(EXT_REP_INF); }
 
+auto SymbolStore::str(String str) noexcept -> SharedSymbol { return SymbolStore::str(SharedString{str}); }
+
 auto SymbolStore::str(SharedString str) noexcept -> SharedSymbol {
     return SharedSymbol::from_rep(SharedString::to_rep(std::move(str)) | REP_STR);
 }
