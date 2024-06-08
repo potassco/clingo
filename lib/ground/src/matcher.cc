@@ -87,7 +87,7 @@ class NonFactMatcher : public OnceMatcher {
         }
         return false;
     }
-    void do_print(std::ostream &out) const override { out << "#not fact " << *term_; }
+    void do_print(std::ostream &out) const override { out << "#not_fact " << *term_; }
 
     Base *base_;
     Term const *term_;
