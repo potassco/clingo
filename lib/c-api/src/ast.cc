@@ -7,10 +7,10 @@
 #include <gringo/input/algo/rewrite_theory.hh>
 #include <gringo/input/algo/substitute.hh>
 
-#include "gringo/util/type_traits.hh"
 #include <gringo/util/algorithm.hh>
 #include <gringo/util/ordered_map.hh>
 #include <gringo/util/ordered_set.hh>
+#include <gringo/util/type_traits.hh>
 
 #include <any>
 #include <cstdarg>
@@ -2146,8 +2146,8 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *value = va_arg(args, char const *);
                 auto include_type = va_arg(args, int);
                 va_end(args);
-                *ast = construct_ast<Gringo::Input::StmInclude>(type, convert_loc(lib, loc),
-                                                                static_cast<IncludeType>(include_type), value);
+                *ast = construct_ast<Gringo::Input::StmInclude>(
+                    type, convert_loc(lib, loc), static_cast<IncludeType>(include_type), lib->store->string_ref(value));
                 break;
             }
             case clingo_ast_type_statement_program: {
@@ -2170,8 +2170,8 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *value = va_arg(args, char const *);
                 auto const *script_type = va_arg(args, char const *);
                 va_end(args);
-                *ast = construct_ast<Gringo::Input::StmScript>(type, convert_loc(lib, loc),
-                                                               lib->store->string_ref(script_type), value);
+                *ast = construct_ast<Gringo::Input::StmScript>(
+                    type, convert_loc(lib, loc), lib->store->string_ref(script_type), lib->store->string_ref(value));
                 break;
             }
             case clingo_ast_type_statement_const: {
@@ -2194,8 +2194,8 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *value = va_arg(args, char const *);
                 auto comment_type = va_arg(args, int);
                 va_end(args);
-                *ast = construct_ast<Gringo::Input::StmComment>(type, convert_loc(lib, loc),
-                                                                static_cast<CommentType>(comment_type), value);
+                *ast = construct_ast<Gringo::Input::StmComment>(
+                    type, convert_loc(lib, loc), static_cast<CommentType>(comment_type), lib->store->string_ref(value));
                 break;
             }
         }

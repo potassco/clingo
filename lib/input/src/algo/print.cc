@@ -674,7 +674,7 @@ class Print {
             *out_ << "#include <" << stm.value() << ">.";
         } else {
             *out_ << "#include ";
-            Util::print_quoted(*out_, stm.value());
+            Util::print_quoted(*out_, stm.value().view());
             *out_ << ".";
         }
     }

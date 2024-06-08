@@ -104,7 +104,7 @@ auto TermProjection::do_compare_to([[maybe_unused]] Term const &other) const -> 
 
 auto TermSymbol::do_match([[maybe_unused]] SymbolStore &store, Symbol sym,
                           [[maybe_unused]] Assignment &ass) const -> bool {
-    return sym == sym_;
+    return sym == *sym_;
 }
 
 auto TermSymbol::do_score([[maybe_unused]] double size,
@@ -114,31 +114,31 @@ auto TermSymbol::do_score([[maybe_unused]] double size,
 
 auto TermSymbol::do_eval([[maybe_unused]] SymbolStore &store,
                          [[maybe_unused]] Assignment const &ass) const -> std::optional<Symbol> {
-    return sym_;
+    return *sym_;
 }
 
 auto TermSymbol::do_rename([[maybe_unused]] SymbolStore &store, [[maybe_unused]] RenameMode mode, String const *name,
                            [[maybe_unused]] size_t *vars) const -> UTerm {
-    if (name != nullptr && sym_.type() == SymbolType::function) {
-        return std::make_unique<TermSymbol>(store.fun_ref(*name, sym_.args(), sym_.has_classical_sign()));
+    if (name != nullptr && sym_->type() == SymbolType::function) {
+        return std::make_unique<TermSymbol>(store.fun_ref(*name, sym_->args(), sym_->has_classical_sign()));
     }
     if (mode == RenameMode::rename_vars && vars != nullptr) {
         return std::make_unique<TermVariable>((*vars)++);
     }
-    return std::make_unique<TermSymbol>(sym_);
+    return std::make_unique<TermSymbol>(*sym_);
 }
 
 auto TermSymbol::do_rename([[maybe_unused]] Util::unordered_map<size_t, size_t> &vars) const -> UTerm {
-    return std::make_unique<TermSymbol>(sym_);
+    return std::make_unique<TermSymbol>(*sym_);
 }
 
 void TermSymbol::do_vars([[maybe_unused]] VariableSet &vars, [[maybe_unused]] bool provide) const {}
 
-void TermSymbol::do_print(std::ostream &out) const { out << sym_; }
+void TermSymbol::do_print(std::ostream &out) const { out << *sym_; }
 
-auto TermSymbol::do_copy() const -> UTerm { return std::make_unique<TermSymbol>(sym_); }
+auto TermSymbol::do_copy() const -> UTerm { return std::make_unique<TermSymbol>(*sym_); }
 
-auto TermSymbol::do_hash() const -> size_t { return Util::value_hash_record<TermSymbol>(sym_); }
+auto TermSymbol::do_hash() const -> size_t { return Util::value_hash_record<TermSymbol>(*sym_); }
 
 auto TermSymbol::do_equal_to(Term const &other) const -> bool {
     auto const *x = dynamic_cast<TermSymbol const *>(&other);
@@ -614,19 +614,19 @@ auto TermFunction::do_score(double size, std::vector<bool> const &bound) const -
 }
 
 auto TermFunction::do_match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
-    return sym.type() == SymbolType::function && !sym.has_classical_sign() && sym.name() == name_ &&
+    return sym.type() == SymbolType::function && !sym.has_classical_sign() && sym.name() == *name_ &&
            match_args(store, ass, args_, sym.args());
 }
 
 auto TermFunction::do_eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> {
     if (eval_args(store, ass, args_, eval_)) {
-        return store.fun_ref(name_, eval_, false);
+        return store.fun_ref(*name_, eval_, false);
     }
     return std::nullopt;
 }
 
 auto TermFunction::do_rename(SymbolStore &store, RenameMode mode, String const *name, size_t *vars) const -> UTerm {
-    return std::make_unique<TermFunction>(name != nullptr ? *name : name_, rename_args(args_, store, mode, vars));
+    return std::make_unique<TermFunction>(name != nullptr ? *name : *name_, rename_args(args_, store, mode, vars));
 }
 
 auto TermFunction::do_rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm {
@@ -635,7 +635,7 @@ auto TermFunction::do_rename(Util::unordered_map<size_t, size_t> &vars) const ->
     for (auto const &arg : args_) {
         args.emplace_back(arg->rename(vars));
     }
-    return std::make_unique<TermFunction>(name_, std::move(args));
+    return std::make_unique<TermFunction>(*name_, std::move(args));
 }
 
 void TermFunction::do_vars(VariableSet &vars, bool provide) const {
@@ -645,7 +645,7 @@ void TermFunction::do_vars(VariableSet &vars, bool provide) const {
 }
 
 void TermFunction::do_print(std::ostream &out) const {
-    out << name_;
+    out << *name_;
     if (auto n = args_.size(); n >= 1) {
         out << "(";
         for (auto const &arg : args_) {
@@ -664,7 +664,7 @@ auto TermFunction::do_copy() const -> UTerm {
     for (auto const &arg : args_) {
         args.emplace_back(arg->copy());
     }
-    return std::make_unique<TermFunction>(name_, std::move(args));
+    return std::make_unique<TermFunction>(*name_, std::move(args));
 }
 
 auto TermFunction::do_hash() const -> size_t { return Util::value_hash_record<TermFunction>(name_, args_); }

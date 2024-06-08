@@ -321,7 +321,7 @@ struct statement_script {
         auto end = LEXY_KEYWORD("#end", keyword_base);
         return Detail::location(script >> open + type + dsl::delimited(close, end)(dsl::code_point) + eos);
     }();
-    static constexpr auto value = Detail::as_string >> Detail::construct_v<StmScript, Stm>;
+    static constexpr auto value = as_stored_string >> Detail::construct_v<StmScript, Stm>;
 };
 
 struct statement_external {
@@ -349,14 +349,13 @@ struct statement_include {
         auto sys = dsl::delimited(LEXY_LIT("<"), LEXY_LIT(">"))(dsl::ascii::alpha_digit_underscore);
         return Detail::location(kw >> (string | sys >> dsl::nullopt | dsl::error<expected_path>)+eos);
     }();
-    static constexpr auto value = Detail::as_string >>
-                                  lexy::callback<Stm>(
-                                      [](Location loc, std::string path) {
-                                          return StmInclude{std::move(loc), IncludeType::system, std::move(path)};
-                                      },
-                                      [](Location loc, std::string path, lexy::nullopt) {
-                                          return StmInclude{std::move(loc), IncludeType::inbuild, std::move(path)};
-                                      });
+    static constexpr auto
+        value = as_stored_string >>
+                lexy::callback<Stm>([](Location loc,
+                                       String path) { return StmInclude{std::move(loc), IncludeType::system, path}; },
+                                    [](Location loc, String path, lexy::nullopt) {
+                                        return StmInclude{std::move(loc), IncludeType::inbuild, path};
+                                    });
 };
 
 struct statement_program {

@@ -611,24 +611,23 @@ class StmScript : public Expression<StmScript> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
-        return std::tuple{a_loc = &StmScript::loc_, a_type = &StmScript::type, a_value = &StmScript::value_};
+        return std::tuple{a_loc = &StmScript::loc_, a_type = &StmScript::type, a_value = &StmScript::value};
     }
 
     //! Construct a script statement.
-    explicit StmScript(Location loc, String type, std::string value)
-        : loc_{std::move(loc)}, type_(type), value_(std::move(value)) {}
+    explicit StmScript(Location loc, String type, String value) : loc_{std::move(loc)}, type_(type), value_(value) {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The code type.
     [[nodiscard]] auto type() const -> String const & { return *type_; }
     //! The code.
-    [[nodiscard]] auto value() const -> std::string const & { return value_; }
+    [[nodiscard]] auto value() const -> String const & { return *value_; }
 
   private:
     Location loc_;
     SharedString type_;
-    std::string value_;
+    SharedString value_;
 };
 
 //! Enumeration of include types.
@@ -646,24 +645,24 @@ class StmInclude : public Expression<StmInclude> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
-        return std::tuple{a_loc = &StmInclude::loc_, a_type = &StmInclude::type_, a_value = &StmInclude::value_};
+        return std::tuple{a_loc = &StmInclude::loc_, a_type = &StmInclude::type_, a_value = &StmInclude::value};
     }
 
     //! Construct an include statement.
-    explicit StmInclude(Location loc, IncludeType type, std::string value)
-        : loc_{std::move(loc)}, type_(type), value_(std::move(value)) {}
+    explicit StmInclude(Location loc, IncludeType type, String value)
+        : loc_{std::move(loc)}, type_(type), value_(value) {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The include type.
     [[nodiscard]] auto type() const -> IncludeType { return type_; }
     //! The path.
-    [[nodiscard]] auto value() const -> std::string const & { return value_; }
+    [[nodiscard]] auto value() const -> String const & { return *value_; }
 
   private:
     Location loc_;
     IncludeType type_;
-    std::string value_;
+    SharedString value_;
 };
 
 //! A program statement.
@@ -747,24 +746,24 @@ class StmComment : public Expression<StmComment> {
   public:
     //! The record attributes.
     static constexpr auto attributes() {
-        return std::tuple{a_loc = &StmComment::loc_, a_type = &StmComment::type_, a_value = &StmComment::value_};
+        return std::tuple{a_loc = &StmComment::loc_, a_type = &StmComment::type_, a_value = &StmComment::value};
     }
 
     //! Construct a comment.
-    explicit StmComment(Location loc, CommentType type, std::string value)
-        : loc_{std::move(loc)}, type_{type}, value_{std::move(value)} {}
+    explicit StmComment(Location loc, CommentType type, String value)
+        : loc_{std::move(loc)}, type_{type}, value_{value} {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The type of the comment.
     [[nodiscard]] auto type() const -> CommentType { return type_; }
     //! The content of the comment including comment markers.
-    [[nodiscard]] auto value() const -> std::string const & { return value_; }
+    [[nodiscard]] auto value() const -> String const & { return *value_; }
 
   private:
     Location loc_;
     CommentType type_;
-    std::string value_;
+    SharedString value_;
 };
 
 //! Variant of available statements.

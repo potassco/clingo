@@ -146,6 +146,8 @@ template <class KeyType, class BaseType> class BaseImpl {
         return static_cast<T &>(*context_);
     }
 
+    void clear_context() { context_ = nullptr; }
+
     [[nodiscard]] auto has_update() const -> bool { return counts_.has_update(base().size()); }
 
   private:
@@ -236,6 +238,14 @@ class Base : public BaseImpl<Symbol, Base> {
     auto nth(size_t i) const -> MapAtom::const_iterator { return atoms_.nth(derived_[i]); }
     //! Get the i-th atom in the base.
     auto nth(size_t i) -> MapAtom::iterator { return atoms_.nth(derived_[i]); }
+
+    //! Mark all symbols held by the base.
+    void mark(SymbolCollector &gc) {
+        clear_context();
+        for (auto const &[sym, atom] : atoms_) {
+            gc.mark(sym);
+        }
+    }
 
   private:
     [[nodiscard]] auto atom_index_(MapAtom::const_iterator it) const -> size_t {

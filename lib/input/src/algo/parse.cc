@@ -109,8 +109,8 @@ template <class It> class State {
     }
 
     //! Add a comment.
-    void push(Location loc, CommentType type, std::string comment) {
-        comments_.emplace(std::move(loc), type, std::move(comment));
+    void push(Location loc, CommentType type, std::string_view comment) {
+        comments_.emplace(std::move(loc), type, store_->string_ref(comment));
     }
 
     //! Mark all currently available comments for popping.

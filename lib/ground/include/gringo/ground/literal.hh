@@ -225,11 +225,11 @@ class LitProject : public Lit {
         }
         [[nodiscard]] auto base() const -> Base & { return *base_; }
         [[nodiscard]] auto p_base() -> Base & { return p_base_; }
-        [[nodiscard]] auto name() const -> String const & { return name_; }
+        [[nodiscard]] auto name() const -> String const & { return *name_; }
         void init(SymbolStore &store, size_t gen);
 
       private:
-        String name_;
+        SharedString name_;
         Base *base_;
         Base p_base_;
         UTerm p_head_;

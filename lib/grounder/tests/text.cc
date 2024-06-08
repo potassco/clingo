@@ -54,6 +54,10 @@ TEST_CASE("grounder_text") {
         REQUIRE(grd.ground(params));
         REQUIRE(oss.str() == "b :- b: a.\n"
                              "a :- a: b.\n");
+        log.set_level(LogLevel::trace);
+        auto res = store->gc();
+        REQUIRE(res.first == 4);
+        REQUIRE(res.second == 0);
     }
 }
 

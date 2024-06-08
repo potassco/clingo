@@ -32,9 +32,28 @@ class Profiler {
 } // namespace
 #endif
 
-struct Grounder::Impl {
+struct Grounder::Impl : Gringo::SymbolOwner {
     Impl(Logger &log, SymbolStore &store, Input::RewriteOptions opts, OutputStm &out)
-        : log{&log}, store{&store}, prg{opts}, out{&out} {}
+        : log{&log}, store{&store}, prg{opts}, out{&out} {
+        this->store->gc_add_owner(*this);
+    }
+    ~Impl() override { store->gc_del_owner(*this); }
+
+    void mark(SymbolCollector &gc) const override {
+        GRINGO_REPORT(*log, trace) << "mark owners";
+        for (auto const &[key, base] : atom_base) {
+            GRINGO_REPORT(*log, trace) << "  mark domain: " << (std::get<2>(key) ? "-" : "") << std::get<0>(key) << "/"
+                                       << std::get<1>(key);
+            gc.mark(std::get<0>(key));
+            base->mark(gc);
+        }
+        for (auto const &[key, state] : map) {
+            GRINGO_REPORT(*log, trace) << "  mark projection domain: " << *key;
+            state->p_base().mark(gc);
+        }
+        GRINGO_REPORT(*log, warn)
+            << "  todo mark: (unprocessed) program or reference count contained strings and symbols";
+    }
 
     auto add_project(Ground::UTerm const &term,
                      Ground::Base &base) -> std::pair<Ground::UTerm, Ground::LitProject::State *> {
@@ -128,7 +147,7 @@ class Parser {
         for (; !includes_.empty(); includes_.pop_front()) {
             auto const &[parent, include] = includes_.front();
             if (include.type() == Input::IncludeType::system) {
-                auto path = std::filesystem::path(include.value());
+                auto path = std::filesystem::path(include.value().c_str());
                 if (path.is_relative() && parent != root_) {
                     if (process_path(parent / path, false)) {
                         continue;

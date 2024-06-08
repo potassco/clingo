@@ -133,7 +133,7 @@ class TermSymbol : public Term {
   public:
     TermSymbol(Symbol sym) : sym_{sym} {}
 
-    [[nodiscard]] auto symbol() const -> Symbol const & { return sym_; }
+    [[nodiscard]] auto symbol() const -> Symbol const & { return *sym_; }
 
   private:
     [[nodiscard]] auto do_score(double size, std::vector<bool> const &bound) const -> double override;
@@ -149,7 +149,7 @@ class TermSymbol : public Term {
     [[nodiscard]] auto do_equal_to(Term const &other) const -> bool override;
     [[nodiscard]] auto do_compare_to(Term const &other) const -> std::strong_ordering override;
 
-    Symbol sym_;
+    SharedSymbol sym_;
 };
 
 class TermVariable : public Term {
@@ -301,7 +301,7 @@ class TermFunction : public Term {
     [[nodiscard]] auto do_equal_to(Term const &other) const -> bool override;
     [[nodiscard]] auto do_compare_to(Term const &other) const -> std::strong_ordering override;
 
-    String name_;
+    SharedString name_;
     UTermVec args_;
     std::vector<Symbol> mutable eval_;
 };
