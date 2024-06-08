@@ -34,6 +34,8 @@ class OutputStm {
 
     void flush() { do_flush(); }
 
+    void mark(SymbolCollector &gc) { do_mark(gc); }
+
   private:
     virtual auto do_uid() -> size_t = 0;
 
@@ -47,6 +49,8 @@ class OutputStm {
     virtual void do_cond_lit_conclusion(size_t lit_uid, size_t elem_uid) = 0;
 
     virtual void do_flush() = 0;
+
+    virtual void do_mark(SymbolCollector &gc) = 0;
 };
 
 using UOutputStm = std::unique_ptr<OutputStm>;

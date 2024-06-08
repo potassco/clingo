@@ -27,6 +27,7 @@ class NullOutputStm : public OutputStm, public NullOutputLit {
     void do_cond_lit_premise([[maybe_unused]] size_t lit_index, [[maybe_unused]] size_t elem_index) override {}
     void do_cond_lit_conclusion([[maybe_unused]] size_t lit_index, [[maybe_unused]] size_t elem_index) override {}
     void do_flush() override {}
+    void do_mark([[maybe_unused]] SymbolCollector &gc) override {}
 };
 
 } // namespace

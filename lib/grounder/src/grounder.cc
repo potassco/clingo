@@ -53,8 +53,7 @@ struct Grounder::Impl : Gringo::SymbolOwner {
         }
         unprocessed_prg.mark(gc);
         prg.mark(gc);
-        GRINGO_REPORT(*log, warn)
-            << "  todo mark: (unprocessed) program or reference count contained strings and symbols";
+        out->mark(gc);
     }
 
     auto add_project(Ground::UTerm const &term,

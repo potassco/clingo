@@ -193,6 +193,8 @@ class OutputText : public OutputStm {
         body_.flush(*out_);
     }
 
+    void do_mark([[maybe_unused]] SymbolCollector &gc) override {}
+
     std::ostream *out_;
     OutputBody body_;
     OutputCond cond_;
