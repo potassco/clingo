@@ -13,51 +13,58 @@
 
 namespace Gringo::Input {
 
+void UnprocessedProgram::mark(SymbolCollector &gc) const {
+    for (auto const &[part, stms, facts] : parts_) {
+        for (auto const &sym : facts) {
+            gc.mark(sym);
+        }
+    }
+}
+
 void UnprocessedProgram::clear() {
-    parts.clear();
-    const_stms.clear();
-    thy_stms.clear();
-    meta_stms.clear();
+    parts_.clear();
+    const_stms_.clear();
+    thy_stms_.clear();
+    meta_stms_.clear();
 }
 
 void UnprocessedProgram::add(SymbolStore &store, Stm stm) {
     std::visit(
         [&]<class T>(T const &stm) {
             if constexpr (Util::is_among_v<T, StmShowSig, StmProjectSig, StmScript, StmDefined>) {
-                meta_stms.emplace_back(std::move(stm));
+                meta_stms_.emplace_back(std::move(stm));
             } else if constexpr (Util::is_among_v<T, StmInclude, StmComment>) {
                 // ignore
             } else if constexpr (Util::matches<T, StmTheory>) {
-                thy_stms.emplace_back(std::move(stm));
+                thy_stms_.emplace_back(std::move(stm));
             } else if constexpr (Util::matches<T, StmConst>) {
-                const_stms.emplace_back(std::move(stm));
+                const_stms_.emplace_back(std::move(stm));
             } else if constexpr (Util::matches<T, StmProgram>) {
-                ensure_base = false;
-                parts.emplace_back(stm, StmVec{}, SymbolVec{});
+                ensure_base_ = false;
+                parts_.emplace_back(stm, StmVec{}, SymbolVec{});
             } else {
-                if (parts.empty() || ensure_base) {
-                    if (parts.empty() || std::get<0>(parts.back()).name() != "base" ||
-                        !std::get<0>(parts.back()).args().empty()) {
-                        parts.emplace_back(StmProgram{location(stm), store.string_ref("base"), {}}, StmVec{},
-                                           SymbolVec{});
+                if (parts_.empty() || ensure_base_) {
+                    if (parts_.empty() || parts_.back().part.name() != "base" || !parts_.back().part.args().empty()) {
+                        parts_.emplace_back(StmProgram{location(stm), store.string_ref("base"), {}}, StmVec{},
+                                            SymbolVec{});
                     }
-                    ensure_base = false;
+                    ensure_base_ = false;
                 }
                 if constexpr (Util::matches<T, StmRule>) {
                     if (auto fact = is_fact(store, stm); fact) {
-                        std::get<2>(parts.back()).emplace_back(std::move(fact).value());
+                        parts_.back().facts.emplace_back(std::move(fact).value());
                         return;
                     }
                 }
-                std::get<1>(parts.back()).emplace_back(std::move(stm));
+                parts_.back().stms.emplace_back(std::move(stm));
             }
         },
         stm);
 }
 
-void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
+void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram const &prg) {
     // setup rewrite context
-    thy_stms_.insert(thy_stms_.end(), prg.thy_stms.begin(), prg.thy_stms.end());
+    thy_stms_.insert(thy_stms_.end(), prg.thy_stms().begin(), prg.thy_stms().end());
     auto parser = TheoryAtomParser{};
     for (auto const &stm : thy_stms_) {
         parser.add_theory(log, stm);
@@ -66,13 +73,13 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
     auto ctx = RewriteContext{log, store, opts_, parser, param_map, const_map_};
 
     // process meta statements
-    evaluate_const(log, store, prg.const_stms, const_map_);
-    for (auto &stm : prg.meta_stms) {
+    evaluate_const(log, store, prg.const_stms(), const_map_);
+    for (auto const &stm : prg.meta_stms()) {
         rewrite(ctx, stm, meta_stms_);
     }
 
     // process program parts
-    for (auto &[program_stm, stms, facts] : prg.parts) {
+    for (auto const &[program_stm, stms, facts] : prg.parts()) {
         auto part = parts_.try_emplace(Signature{program_stm.name(), program_stm.args().size()}, program_stm);
         param_map.clear();
         std::for_each(program_stm.args().begin(), program_stm.args().end(),
@@ -80,7 +87,7 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
         auto &res_part = part.first.value();
 
         // process facts
-        for (auto &fact : facts) {
+        for (auto const &fact : facts) {
             std::visit(
                 [&part]<class T>(T &&x) {
                     if constexpr (Util::matches<T, Symbol>) {
@@ -94,7 +101,7 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram prg) {
         }
 
         // process rules
-        for (auto &stm : stms) {
+        for (auto const &stm : stms) {
             auto n = std::ssize(res_part.stms);
             rewrite(ctx, stm, res_part.stms);
             auto jt = res_part.stms.begin() + n;
@@ -197,6 +204,19 @@ auto Program::analyze(SymbolStore &store, ProgramParamVec const &params, Depende
         }
     }
     return bld.components(Gringo::Input::analyze(store, stms));
+}
+
+void Program::mark(SymbolCollector &gc) const {
+    for (auto const &[sig, part] : parts_) {
+        gc.mark(sig.first);
+        for (auto const &sym : part.facts) {
+            gc.mark(sym);
+        }
+    }
+    for (auto const &[var, assign] : const_map_) {
+        gc.mark(var);
+        gc.mark(assign.second);
+    }
 }
 
 } // namespace Gringo::Input

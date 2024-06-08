@@ -51,6 +51,8 @@ struct Grounder::Impl : Gringo::SymbolOwner {
             GRINGO_REPORT(*log, trace) << "  mark projection domain: " << *key;
             state->p_base().mark(gc);
         }
+        unprocessed_prg.mark(gc);
+        prg.mark(gc);
         GRINGO_REPORT(*log, warn)
             << "  todo mark: (unprocessed) program or reference count contained strings and symbols";
     }
@@ -99,7 +101,7 @@ class Parser {
     // NOLINTBEGIN(cppcoreguidelines-missing-std-forward,bugprone-unchecked-optional-access)
     //! Scan statements.
     template <class Scanner> void process(std::filesystem::path const &dir, Scanner &&scanner) {
-        prg_->ensure_base = true;
+        prg_->ensure_base();
         for (auto stm = scanner.scan(); stm; stm = scanner.scan()) {
             if (auto *include = std::get_if<Input::StmInclude>(&*stm); include != nullptr) {
                 includes_.emplace_back(dir, *include);
@@ -716,7 +718,7 @@ void Grounder::parse(std::vector<std::string> const &files) {
 
 void Grounder::prepare() {
     GRINGO_REPORT(*impl_->log, debug) << "preparing...";
-    impl_->prg.join(*impl_->log, *impl_->store, std::move(impl_->unprocessed_prg));
+    impl_->prg.join(*impl_->log, *impl_->store, impl_->unprocessed_prg);
     impl_->unprocessed_prg.clear();
 }
 
@@ -731,16 +733,16 @@ auto Grounder::ground(Input::ProgramParamVec const &params) -> bool {
 }
 
 void Grounder::output_unprocessed_program(std::ostream &out) {
-    for (auto const &stm : impl_->unprocessed_prg.const_stms) {
+    for (auto const &stm : impl_->unprocessed_prg.const_stms()) {
         out << stm << "\n";
     }
-    for (auto const &stm : impl_->unprocessed_prg.thy_stms) {
+    for (auto const &stm : impl_->unprocessed_prg.thy_stms()) {
         out << stm << "\n";
     }
-    for (auto const &stm : impl_->unprocessed_prg.meta_stms) {
+    for (auto const &stm : impl_->unprocessed_prg.meta_stms()) {
         out << stm << "\n";
     }
-    for (auto const &[prg_stm, stms, facts] : impl_->unprocessed_prg.parts) {
+    for (auto const &[prg_stm, stms, facts] : impl_->unprocessed_prg.parts()) {
         out << prg_stm << "\n";
         for (auto fact : facts) {
             out << fact << ".\n";

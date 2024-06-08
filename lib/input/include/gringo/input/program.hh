@@ -37,20 +37,23 @@ using ConstMap = Util::ordered_map<String, std::pair<StmConst, Symbol>>;
 struct ProgramPart {
     //! The (first) program part statement that introduced the part.
     StmProgram part;
-    //! The facts in the program part.
-    SymbolVec facts;
     //! The statements in the program part.
     StmVec stms;
+    //! The facts in the program part.
+    SymbolVec facts;
 };
+//! Statements grouped by parts.
+using ProgramPartVec = std::vector<ProgramPart>;
 
 using ProgramSig = std::pair<String, size_t>;
 using ProgramParam = std::pair<String, std::vector<Symbol>>;
 using ProgramParamVec = std::vector<ProgramParam>;
 
 //! Program grouping unprocessed statements.
-struct UnprocessedProgram {
-    //! Statements as input grouped by parts.
-    using PartVec = std::vector<std::tuple<StmProgram, StmVec, SymbolVec>>;
+class UnprocessedProgram {
+  public:
+    //! Ensure that the next statement is added to the base part.
+    void ensure_base() { ensure_base_ = true; }
 
     //! Add a statement.
     void add(SymbolStore &store, Stm stm);
@@ -58,16 +61,24 @@ struct UnprocessedProgram {
     //! Reset the program to its initial state removing all added statements.
     void clear();
 
+    //! Mark symbols occuring in the program.
+    void mark(SymbolCollector &gc) const;
+
     //! Unprocessed statemtents.
-    PartVec parts;
+    [[nodiscard]] auto parts() const -> ProgramPartVec const & { return parts_; }
     //! Unprocessed const statements.
-    std::vector<StmConst> const_stms;
+    [[nodiscard]] auto const_stms() const -> std::vector<StmConst> const & { return const_stms_; }
     //! Theory statements.
-    std::vector<StmTheory> thy_stms;
+    [[nodiscard]] auto thy_stms() const -> std::vector<StmTheory> const & { return thy_stms_; }
     //! Meta statements.
-    std::vector<Stm> meta_stms;
+    [[nodiscard]] auto meta_stms() const -> StmVec const & { return meta_stms_; }
     //! Ensure base.
-    bool ensure_base = true;
+  private:
+    ProgramPartVec parts_;
+    std::vector<StmConst> const_stms_;
+    std::vector<StmTheory> thy_stms_;
+    StmVec meta_stms_;
+    bool ensure_base_ = true;
 };
 
 //! The type of a component.
@@ -128,7 +139,7 @@ class Program {
     //!
     //! If fresh const statements are added, they will be merged with the previous ones.
     //! However, they are only applied once to newly added statements.
-    void join(Logger &log, SymbolStore &store, UnprocessedProgram prg);
+    void join(Logger &log, SymbolStore &store, UnprocessedProgram const &prg);
     //! Visit all the statements in the program.
     //!
     //! See the notes regarding const statements above.
@@ -165,6 +176,9 @@ class Program {
 
     //! Prepare the statements in a program for grounding.
     [[nodiscard]] auto analyze(SymbolStore &store, ProgramParamVec const &params, DependencyBuilder &bld) const -> bool;
+
+    //! Mark symbols occuring in the program.
+    void mark(SymbolCollector &gc) const;
 
   private:
     //! The signature of a program part.
