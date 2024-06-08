@@ -692,6 +692,7 @@ Grounder::~Grounder() noexcept = default;
 
 void Grounder::parse(std::string_view prg) {
     GRINGO_REPORT(*impl_->log, debug) << "parsing...";
+    GCLock lock{*impl_->store};
     auto prs = Parser{*impl_->log, *impl_->store, impl_->unprocessed_prg};
     auto scanner = Input::scan_string(*impl_->log, *impl_->store, prg);
     prs.process(scanner);
@@ -700,6 +701,7 @@ void Grounder::parse(std::string_view prg) {
 
 void Grounder::parse(std::vector<std::string> const &files) {
     GRINGO_REPORT(*impl_->log, debug) << "parsing...";
+    GCLock lock{*impl_->store};
     auto prs = Parser{*impl_->log, *impl_->store, impl_->unprocessed_prg};
     if (files.empty()) {
         prs.process_stdin();
@@ -717,6 +719,7 @@ void Grounder::parse(std::vector<std::string> const &files) {
 
 void Grounder::prepare() {
     GRINGO_REPORT(*impl_->log, debug) << "preparing...";
+    GCLock lock{*impl_->store};
     impl_->prg.join(*impl_->log, *impl_->store, impl_->unprocessed_prg);
     impl_->unprocessed_prg.clear();
 }
@@ -726,6 +729,7 @@ auto Grounder::ground(Input::ProgramParamVec const &params) -> bool {
     Profiler prof{"clingo-ground.prof"};
 #endif
     GRINGO_REPORT(*impl_->log, debug) << "grounding...";
+    GCLock lock{*impl_->store};
     auto bld = Builder{*impl_};
     bool ret = impl_->prg.analyze(*impl_->store, params, bld);
     return ret;

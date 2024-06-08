@@ -428,6 +428,16 @@ class SymbolStore {
 //! A pointer to a symbol store.
 using USymbolStore = std::unique_ptr<SymbolStore>;
 
+//! Helper to block garbage collection.
+class GCLock {
+  public:
+    GCLock(SymbolStore &store) : store_{&store} { store_->gc_block(); }
+    ~GCLock() { store_->gc_unblock(); }
+
+  private:
+    SymbolStore *store_;
+};
+
 //! Initialize the default symbol store.
 //!
 //! Fails if there is already a default one.
