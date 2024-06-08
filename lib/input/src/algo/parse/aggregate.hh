@@ -4,6 +4,8 @@
 
 #include <gringo/input/aggregate.hh>
 
+#include <utility>
+
 namespace Gringo::Input::Grammar {
 
 namespace Detail {
@@ -57,7 +59,7 @@ struct set_aggregate_element {
     static constexpr char const *name = "conditional literal";
     static constexpr auto rule = Detail::location(dsl::p<literal> + dsl::p<if_condition>);
     static constexpr auto value = lexy::callback<SetAggregateElement>([](Location loc, Lit lit, std::vector<Lit> cond) {
-        return SetAggregateElement{loc, std::move(lit), std::move(cond)};
+        return SetAggregateElement{std::move(loc), std::move(lit), std::move(cond)};
     });
 };
 

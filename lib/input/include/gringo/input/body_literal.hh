@@ -4,6 +4,8 @@
 #include <gringo/input/literal.hh>
 #include <gringo/input/theory.hh>
 
+#include <utility>
+
 namespace Gringo::Input {
 
 //! @addtogroup input_body
@@ -54,7 +56,7 @@ class BdLitAggregateElement : public Expression<BdLitAggregateElement> {
 
     //! Construct a body aggregate element.
     explicit BdLitAggregateElement(Location loc, TermArray tuple, LitArray cond)
-        : loc_{loc}, tuple_{std::move(tuple)}, cond_{std::move(cond)} {}
+        : loc_{std::move(loc)}, tuple_{std::move(tuple)}, cond_{std::move(cond)} {}
     //! The location of the element.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The tuple of the element.
@@ -85,7 +87,8 @@ class BdLitAggregate : public Expression<BdLitAggregate> {
     //! Construct a body aggregate.
     explicit BdLitAggregate(Location loc, Sign sign, LGuard lhs, AggregateFunction fun,
                             BdLitAggregateElementArray elems, RGuard rhs)
-        : loc_{loc}, sign_{sign}, fun_(fun), elems_(std::move(elems)), lhs_{std::move(lhs)}, rhs_{std::move(rhs)} {}
+        : loc_{std::move(loc)}, sign_{sign}, fun_(fun), elems_(std::move(elems)), lhs_{std::move(lhs)},
+          rhs_{std::move(rhs)} {}
 
     //! The location of the literal.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }

@@ -3,6 +3,8 @@
 #include <gringo/input/body_literal.hh>
 #include <gringo/input/head_literal.hh>
 
+#include <utility>
+
 namespace Gringo::Input {
 
 //! @addtogroup input_statement
@@ -20,7 +22,7 @@ class StmRule : public Expression<StmRule> {
 
     //! Construct a rule.
     explicit StmRule(Location loc, HdLit head, BdLitArray body)
-        : loc_{loc}, head_{std::move(head)}, body_{std::move(body)} {}
+        : loc_{std::move(loc)}, head_{std::move(head)}, body_{std::move(body)} {}
 
     //! The location of the rule.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
@@ -57,7 +59,7 @@ class TheoryOpDefinition : public Expression<TheoryOpDefinition> {
 
     //! Construct a theory operator definition.
     explicit TheoryOpDefinition(Location loc, String op, int prio, TheoryOpType type)
-        : loc_{loc}, op_{op}, prio_{prio}, type_{type} {}
+        : loc_{std::move(loc)}, op_{op}, prio_{prio}, type_{type} {}
 
     //! The location of the definition.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
@@ -91,7 +93,7 @@ class TheoryTermDefinition : public Expression<TheoryTermDefinition> {
 
     //! Construct a theory term definition.
     explicit TheoryTermDefinition(Location loc, String name, TheoryOpDefinitionArray op_defs)
-        : loc_{loc}, name_{name}, op_defs_{std::move(op_defs)} {}
+        : loc_{std::move(loc)}, name_{name}, op_defs_{std::move(op_defs)} {}
 
     //! The location of the definition.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
@@ -157,7 +159,7 @@ class TheoryAtomDefinition : public Expression<TheoryAtomDefinition> {
     //! Construct a theory atom definition.
     explicit TheoryAtomDefinition(Location loc, String name, int arity, String term,
                                   std::optional<TheoryRGuardDefinition> rhs, TheoryAtomType type)
-        : loc_{loc}, name_(name), arity_(arity), term_(term), rhs_(std::move(rhs)), type_(type) {}
+        : loc_{std::move(loc)}, name_(name), arity_(arity), term_(term), rhs_(std::move(rhs)), type_(type) {}
 
     //! The location of the definition.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
@@ -198,7 +200,7 @@ class StmTheory : public Expression<StmTheory> {
     //! Construct a theory definition.
     explicit StmTheory(Location loc, String name, TheoryTermDefinitionArray term_defs,
                        TheoryAtomDefinitionArray atom_defs)
-        : loc_{loc}, name_{name}, term_defs_{std::move(term_defs)}, atom_defs_{std::move(atom_defs)} {}
+        : loc_{std::move(loc)}, name_{name}, term_defs_{std::move(term_defs)}, atom_defs_{std::move(atom_defs)} {}
 
     //! The location of the definition.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
@@ -282,7 +284,7 @@ class StmOptimize : public Expression<StmOptimize> {
 
     //! Construct a weak constraint.
     explicit StmOptimize(Location loc, OptimizeType type, OptimizeElementArray elems)
-        : loc_{loc}, type_{type}, elems_{std::move(elems)} {}
+        : loc_{std::move(loc)}, type_{type}, elems_{std::move(elems)} {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
@@ -310,7 +312,7 @@ class StmWeakConstraint : public Expression<StmWeakConstraint> {
 
     //! Construct a weak constraint.
     explicit StmWeakConstraint(Location loc, BdLitArray body, OptimizeTuple tuple)
-        : loc_{loc}, body_{std::move(body)}, tuple_{std::move(tuple)} {}
+        : loc_{std::move(loc)}, body_{std::move(body)}, tuple_{std::move(tuple)} {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
@@ -337,7 +339,7 @@ class StmShow : public Expression<StmShow> {
 
     //! Construct a show statement.
     explicit StmShow(Location loc, Term term, BdLitArray body)
-        : loc_{loc}, term_(std::move(term)), body_(std::move(body)) {}
+        : loc_{std::move(loc)}, term_(std::move(term)), body_(std::move(body)) {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
@@ -365,7 +367,7 @@ class StmShowSig : public Expression<StmShowSig> {
 
     //! Construct a show signature statement.
     explicit StmShowSig(Location loc, bool sign, String name, int arity)
-        : loc_{loc}, name_{name}, arity_{arity}, sign_{sign} {}
+        : loc_{std::move(loc)}, name_{name}, arity_{arity}, sign_{sign} {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
@@ -395,7 +397,7 @@ class StmProject : public Expression<StmProject> {
 
     //! Construct a project statement.
     explicit StmProject(Location loc, Term atom, BdLitArray body)
-        : loc_{loc}, atom_(std::move(atom)), body_(std::move(body)) {}
+        : loc_{std::move(loc)}, atom_(std::move(atom)), body_(std::move(body)) {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
@@ -423,7 +425,7 @@ class StmProjectSig : public Expression<StmProjectSig> {
 
     //! Construct a project signature statement.
     explicit StmProjectSig(Location loc, bool sign, String name, int arity)
-        : loc_{loc}, sign_{sign}, name_{name}, arity_{arity} {}
+        : loc_{std::move(loc)}, sign_{sign}, name_{name}, arity_{arity} {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
@@ -454,7 +456,7 @@ class StmDefined : public Expression<StmDefined> {
 
     //! Construct a defined statement.
     explicit StmDefined(Location loc, bool sign, String name, int arity)
-        : loc_{loc}, sign_{sign}, name_{name}, arity_{arity} {}
+        : loc_{std::move(loc)}, sign_{sign}, name_{name}, arity_{arity} {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
@@ -488,7 +490,7 @@ class StmExternal : public Expression<StmExternal> {
 
     //! Construct an external statement.
     explicit StmExternal(Location loc, Term atom, BdLitArray body, std::optional<Term> type = std::nullopt)
-        : loc_{loc}, atom_(std::move(atom)), body_(std::move(body)), type_{std::move(type)} {}
+        : loc_{std::move(loc)}, atom_(std::move(atom)), body_(std::move(body)), type_{std::move(type)} {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
@@ -539,7 +541,7 @@ class StmEdge : public Expression<StmEdge> {
 
     //! Construct an edge statement.
     explicit StmEdge(Location loc, EdgeArray edges, BdLitArray body = {})
-        : loc_{loc}, edges_{std::move(edges)}, body_{std::move(body)} {}
+        : loc_{std::move(loc)}, edges_{std::move(edges)}, body_{std::move(body)} {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
@@ -568,19 +570,17 @@ class StmHeuristic : public Expression<StmHeuristic> {
 
     //! Construct a heuristic statement.
     explicit StmHeuristic(Location loc, Term atom, BdLitArray body, Term weight, std::optional<Term> prio, Term type)
-        : loc_{loc}, atom_{std::move(atom)}, body_{std::move(body)}, weight_(std::move(weight)), prio_(std::move(prio)),
-          type_(std::move(type)) {}
+        : loc_{std::move(loc)}, atom_{std::move(atom)}, body_{std::move(body)}, weight_(std::move(weight)),
+          prio_(std::move(prio)), type_(std::move(type)) {}
     //! Construct a heuristic statement.
     explicit StmHeuristic(Location loc, Term atom, BdLitArray body, Term weight, Term prio, Term type)
-        : StmHeuristic{loc,
-                       std::move(atom),
-                       std::move(body),
-                       std::move(weight),
-                       std::make_optional(std::move(prio)),
-                       std::move(type)} {}
+        : StmHeuristic{
+              std::move(loc), std::move(atom), std::move(body), std::move(weight), std::make_optional(std::move(prio)),
+              std::move(type)} {}
     //! Construct a heuristic statement.
     explicit StmHeuristic(Location loc, Term atom, BdLitArray body, Term weight, Term type)
-        : StmHeuristic{loc, std::move(atom), std::move(body), std::move(weight), std::nullopt, std::move(type)} {}
+        : StmHeuristic{std::move(loc),    std::move(atom), std::move(body),
+                       std::move(weight), std::nullopt,    std::move(type)} {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
@@ -616,7 +616,7 @@ class StmScript : public Expression<StmScript> {
 
     //! Construct a script statement.
     explicit StmScript(Location loc, String type, std::string value)
-        : loc_{loc}, type_(type), value_(std::move(value)) {}
+        : loc_{std::move(loc)}, type_(type), value_(std::move(value)) {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
@@ -651,7 +651,7 @@ class StmInclude : public Expression<StmInclude> {
 
     //! Construct an include statement.
     explicit StmInclude(Location loc, IncludeType type, std::string value)
-        : loc_{loc}, type_(type), value_(std::move(value)) {}
+        : loc_{std::move(loc)}, type_(type), value_(std::move(value)) {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
@@ -678,7 +678,7 @@ class StmProgram : public Expression<StmProgram> {
 
     //! Construct an program statement.
     explicit StmProgram(Location loc, String name, StringSpan args)
-        : loc_{loc}, name_(name), args_{args.begin(), args.end(), [](auto const &x) { return x; }} {}
+        : loc_{std::move(loc)}, name_(name), args_{args.begin(), args.end(), [](auto const &x) { return x; }} {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
@@ -714,7 +714,7 @@ class StmConst : public Expression<StmConst> {
 
     //! Construct a const statement.
     explicit StmConst(Location loc, ConstType type, String name, Term value)
-        : loc_{loc}, type_(type), name_(name), value_(std::move(value)) {}
+        : loc_{std::move(loc)}, type_(type), name_(name), value_(std::move(value)) {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
@@ -752,7 +752,7 @@ class StmComment : public Expression<StmComment> {
 
     //! Construct a comment.
     explicit StmComment(Location loc, CommentType type, std::string value)
-        : loc_{loc}, type_{type}, value_{std::move(value)} {}
+        : loc_{std::move(loc)}, type_{type}, value_{std::move(value)} {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }

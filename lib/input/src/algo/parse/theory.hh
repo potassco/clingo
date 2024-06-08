@@ -4,6 +4,8 @@
 
 #include <gringo/input/theory.hh>
 
+#include <utility>
+
 namespace Gringo::Input::Grammar {
 
 namespace Detail {
@@ -17,13 +19,13 @@ struct theory_tuple_trail {
 
 template <TheoryTermTupleType type>
 static constexpr auto theory_tuple = lexy::callback<TheoryTerm>(
-    [](Location loc, lexy::nullopt) { return TheoryTermTuple{loc, type, std::vector<TheoryTerm>{}}; },
-    [](Location loc, std::vector<TheoryTerm> elems) { return TheoryTermTuple{loc, type, std::move(elems)}; },
+    [](Location loc, lexy::nullopt) { return TheoryTermTuple{std::move(loc), type, std::vector<TheoryTerm>{}}; },
+    [](Location loc, std::vector<TheoryTerm> elems) { return TheoryTermTuple{std::move(loc), type, std::move(elems)}; },
     [](Location loc, Detail::theory_tuple_trail elems) -> TheoryTerm {
         if (elems.vec.size() == 1 && !elems.trail) {
             return std::move(elems.vec.back());
         }
-        return TheoryTermTuple{loc, TheoryTermTupleType::tuple, std::move(elems.vec)};
+        return TheoryTermTuple{std::move(loc), TheoryTermTupleType::tuple, std::move(elems.vec)};
     });
 
 } // namespace Detail
@@ -97,8 +99,8 @@ struct theory_term_function {
     static constexpr auto value =
         lexy::callback_with_state<TheoryTerm>([](auto &state, auto id, std::vector<TheoryTerm> args = {}) {
             auto begin = state.pos(id.begin());
-            auto end = args.empty() ? state.pos(id.end()) : location(args.back()).end;
-            return TheoryTermFunction{Location{std::move(begin), std::move(end)}, state.string(Detail::as_string(id)),
+            auto end = args.empty() ? state.pos(id.end()) : location(args.back()).end();
+            return TheoryTermFunction{std::move(begin) + std::move(end), state.string(Detail::as_string(id)),
                                       std::move(args)};
         });
 };
@@ -124,7 +126,7 @@ struct theory_term_number : lexy::token_production {
     static constexpr auto rule = Detail::position(number >> Detail::position);
     static constexpr auto value =
         lexy::callback_with_state<TheoryTerm>([](auto &state, Position begin, auto num, Position end) {
-            return TheoryTermSymbol(Location{begin, end}, state.num(std::move(num)));
+            return TheoryTermSymbol(std::move(begin) + std::move(end), state.num(std::move(num)));
         });
 };
 
@@ -140,7 +142,7 @@ struct theory_term_constant : lexy::token_production {
     static constexpr char const *name = "constant";
     static constexpr auto rule = Detail::location(constant);
     static constexpr auto value = lexy::callback<TheoryTerm>([](Location loc, Constant val) {
-        return TheoryTermSymbol(loc, val == Constant::infimum ? SymbolStore::inf() : SymbolStore::sup());
+        return TheoryTermSymbol(std::move(loc), val == Constant::infimum ? SymbolStore::inf() : SymbolStore::sup());
     });
 };
 
@@ -168,13 +170,13 @@ struct theory_term_unparsed : lexy::transparent_production {
         []([[maybe_unused]] auto &state, [[maybe_unused]] auto begin, TheoryTerm term) { return term; },
         [](auto &state, auto begin, StringVec ops, TheoryTerm term, std::vector<UnparsedElement> guards = {}) {
             guards.emplace(guards.begin(), std::move(ops), std::move(term));
-            auto loc = Location{state.pos(begin), location(guards.back().term()).end};
-            return TheoryTermUnparsed{loc, std::move(guards)};
+            auto loc = state.pos(begin) + location(guards.back().term());
+            return TheoryTermUnparsed{std::move(loc), std::move(guards)};
         },
         [](auto &state, auto begin, TheoryTerm term, std::vector<UnparsedElement> guards) {
             guards.emplace(guards.begin(), StringVec{}, std::move(term));
-            auto loc = Location{state.pos(begin), location(guards.back().term()).end};
-            return TheoryTermUnparsed{loc, std::move(guards)};
+            auto loc = state.pos(begin) + location(guards.back().term());
+            return TheoryTermUnparsed{std::move(loc), std::move(guards)};
         });
 };
 
@@ -190,10 +192,10 @@ struct theory_atom_element {
         Detail::location(dsl::p<condition> | dsl::else_ >> dsl::p<theory_atom_element_tuple> + dsl::p<if_condition>);
     static constexpr auto value = lexy::callback<TheoryElement>(
         [](Location loc, std::vector<TheoryTerm> tuple, std::vector<Lit> cond) {
-            return TheoryElement{loc, std::move(tuple), std::move(cond)};
+            return TheoryElement{std::move(loc), std::move(tuple), std::move(cond)};
         },
         [](Location loc, std::vector<Lit> cond) {
-            return TheoryElement{loc, std::vector<TheoryTerm>{}, std::move(cond)};
+            return TheoryElement{std::move(loc), std::vector<TheoryTerm>{}, std::move(cond)};
         });
 };
 

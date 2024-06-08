@@ -3,6 +3,8 @@
 #include <gringo/input/literal.hh>
 #include <gringo/input/term.hh>
 
+#include <utility>
+
 namespace Gringo::Input {
 
 //! @addtogroup input_theory
@@ -32,7 +34,7 @@ class TheoryTermSymbol : public Expression<TheoryTermSymbol> {
     }
 
     //! Construct a symbolic theory term.
-    explicit TheoryTermSymbol(Location loc, Symbol value) : loc_{loc}, value_{value} {}
+    explicit TheoryTermSymbol(Location loc, Symbol value) : loc_{std::move(loc)}, value_{value} {}
 
     //! The location of the symbol.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
@@ -57,7 +59,7 @@ class TheoryTermVariable : public Expression<TheoryTermVariable> {
 
     //! Construct a variable theory term.
     explicit TheoryTermVariable(Location loc, String name, bool is_anonymous = false)
-        : loc_{loc}, name_{name}, anonymous_{is_anonymous} {}
+        : loc_{std::move(loc)}, name_{name}, anonymous_{is_anonymous} {}
 
     //! The location of the variable.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
@@ -221,7 +223,7 @@ class TheoryElement : public Expression<TheoryElement> {
 
     //! Construct a theory element.
     explicit TheoryElement(Location loc, TheoryTermArray tuple, LitArray cond)
-        : loc_{loc}, tuple_{std::move(tuple)}, cond_{std::move(cond)} {}
+        : loc_{std::move(loc)}, tuple_{std::move(tuple)}, cond_{std::move(cond)} {}
 
     //! The location of the theory element.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
@@ -260,13 +262,13 @@ class TheoryAtom : public std::conditional_t<HasSign, Signed, Unsigned>, public 
 
     //! Construct a theory atom.
     explicit TheoryAtom(Location loc, Term name, TheoryElementArray elems, std::optional<TheoryRGuard> rhs)
-        : loc_{loc}, name_{std::move(name)}, elems_{std::move(elems)}, rhs_{std::move(rhs)} {
+        : loc_{std::move(loc)}, name_{std::move(name)}, elems_{std::move(elems)}, rhs_{std::move(rhs)} {
         static_assert(!HasSign);
     }
 
     //! Construct a theory atom.
     explicit TheoryAtom(Location loc, Sign sign, Term name, TheoryElementArray elems, std::optional<TheoryRGuard> rhs)
-        : Signed{sign}, loc_{loc}, name_{std::move(name)}, elems_{std::move(elems)}, rhs_{std::move(rhs)} {
+        : Signed{sign}, loc_{std::move(loc)}, name_{std::move(name)}, elems_{std::move(elems)}, rhs_{std::move(rhs)} {
         static_assert(HasSign);
     }
 
@@ -297,7 +299,7 @@ using BdLitTheoryAtom = TheoryAtom<true>;
 // TheoryTermTuple
 
 inline TheoryTermTuple::TheoryTermTuple(Location loc, TheoryTermTupleType type, TheoryTermArray elems)
-    : loc_{loc}, type_(type), elems_{std::move(elems)} {}
+    : loc_{std::move(loc)}, type_(type), elems_{std::move(elems)} {}
 
 inline auto operator==(TheoryTermTuple const &a, TheoryTermTuple const &b) -> bool { return a.equal(b); }
 
@@ -308,9 +310,10 @@ inline auto operator<=>(TheoryTermTuple const &a, TheoryTermTuple const &b) -> s
 // TheoryTermFunction
 
 inline TheoryTermFunction::TheoryTermFunction(Location loc, String name, TheoryTermArray args)
-    : loc_{loc}, name_(name), args_{std::move(args)} {}
+    : loc_{std::move(loc)}, name_(name), args_{std::move(args)} {}
 
-inline TheoryTermFunction::TheoryTermFunction(Location loc, String name) : TheoryTermFunction{loc, name, {}} {}
+inline TheoryTermFunction::TheoryTermFunction(Location loc, String name)
+    : TheoryTermFunction{std::move(loc), name, {}} {}
 
 inline auto operator==(TheoryTermFunction const &a, TheoryTermFunction const &b) -> bool { return a.equal(b); }
 
@@ -321,7 +324,7 @@ inline auto operator<=>(TheoryTermFunction const &a, TheoryTermFunction const &b
 // TheoryTermUnparsed
 
 inline TheoryTermUnparsed::TheoryTermUnparsed(Location loc, UnparsedElementArray elems)
-    : loc_{loc}, elems_{std::move(elems)} {}
+    : loc_{std::move(loc)}, elems_{std::move(elems)} {}
 
 inline auto operator==(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> bool { return a.equal(b); }
 

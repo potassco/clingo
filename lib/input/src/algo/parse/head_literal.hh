@@ -4,6 +4,8 @@
 
 #include <gringo/input/head_literal.hh>
 
+#include <utility>
+
 namespace Gringo::Input::Grammar {
 
 namespace Detail {
@@ -16,12 +18,12 @@ inline auto construct_disj_elem(auto loc, auto lit, auto cond) -> HdLitDisjuncti
 }
 
 inline auto construct_head_aggr(Term term, Relation rel, const HdLitAggregate &aggr) -> HdLitAggregate {
-    return HdLitAggregate{location(term).begin + aggr.loc(), LGuard::value_type{std::move(term), rel}, aggr.fun(),
+    return HdLitAggregate{location(term) + aggr.loc(), LGuard::value_type{std::move(term), rel}, aggr.fun(),
                           aggr.elems(), aggr.rhs()};
 }
 
 inline auto construct_head_aggr(Term term, Relation rel, const HdLitSetAggregate &aggr) -> HdLitSetAggregate {
-    return HdLitSetAggregate{location(term).begin + aggr.loc(), LGuard::value_type{std::move(term), rel}, aggr.elems(),
+    return HdLitSetAggregate{location(term) + aggr.loc(), LGuard::value_type{std::move(term), rel}, aggr.elems(),
                              aggr.rhs()};
 }
 
@@ -66,10 +68,10 @@ struct head_aggregate_element {
     }();
     static constexpr auto value = lexy::callback<HdLitAggregateElement>(
         [](Location loc, Lit lit, std::vector<Lit> cond) {
-            return HdLitAggregateElement{loc, TermArray{}, std::move(lit), std::move(cond)};
+            return HdLitAggregateElement{std::move(loc), TermArray{}, std::move(lit), std::move(cond)};
         },
         [](Location loc, TermArray tuple, Lit lit, std::vector<Lit> cond) {
-            return HdLitAggregateElement{loc, std::move(tuple), std::move(lit), std::move(cond)};
+            return HdLitAggregateElement{std::move(loc), std::move(tuple), std::move(lit), std::move(cond)};
         });
 };
 
@@ -89,13 +91,14 @@ struct head_aggregate {
         Detail::location(dsl::p<aggregate_function> >> dsl::p<head_aggregate_elements> + aggregate_right_guard);
     static constexpr auto value = lexy::callback<HdLitAggregate>(
         [](Location loc, AggregateFunction fun, std::vector<HdLitAggregateElement> elems) {
-            return HdLitAggregate(loc, std::nullopt, fun, std::move(elems), std::nullopt);
+            return HdLitAggregate(std::move(loc), std::nullopt, fun, std::move(elems), std::nullopt);
         },
         [](Location loc, AggregateFunction fun, std::vector<HdLitAggregateElement> elems, Relation rel, Term rhs) {
-            return HdLitAggregate(loc, std::nullopt, fun, std::move(elems), RGuard::value_type{rel, std::move(rhs)});
+            return HdLitAggregate(std::move(loc), std::nullopt, fun, std::move(elems),
+                                  RGuard::value_type{rel, std::move(rhs)});
         },
         [](Location loc, AggregateFunction fun, std::vector<HdLitAggregateElement> elems, Term rhs) {
-            return HdLitAggregate(loc, std::nullopt, fun, std::move(elems),
+            return HdLitAggregate(std::move(loc), std::nullopt, fun, std::move(elems),
                                   RGuard::value_type{Relation::less_equal, std::move(rhs)});
         });
 };
@@ -155,8 +158,9 @@ struct head_literal {
             if (elems.empty() && !cond) {
                 return HdLitSimple{std::move(rel_lit)};
             }
-            auto loc_lit = location(rel_lit) + end;
-            elems.insert(elems.begin(), Detail::construct_disj_elem(loc_lit, std::move(rel_lit), std::move(cond)));
+            auto loc_lit = location(rel_lit) + std::move(end);
+            elems.insert(elems.begin(),
+                         Detail::construct_disj_elem(std::move(loc_lit), std::move(rel_lit), std::move(cond)));
             return HdLitDisjunction{location(elems.front()) + location(elems.back()), std::move(elems)};
         },
         [](Term term, std::optional<std::vector<Lit>> cond, Position end,
@@ -165,8 +169,9 @@ struct head_literal {
             if (elems.empty() && !cond) {
                 return HdLitSimple{std::move(sym_lit)};
             }
-            auto loc_lit = location(sym_lit) + end;
-            elems.insert(elems.begin(), Detail::construct_disj_elem(loc_lit, std::move(sym_lit), std::move(cond)));
+            auto loc_lit = location(sym_lit) + std::move(end);
+            elems.insert(elems.begin(),
+                         Detail::construct_disj_elem(std::move(loc_lit), std::move(sym_lit), std::move(cond)));
             return HdLitDisjunction{location(elems.front()) + location(elems.back()), std::move(elems)};
         });
 };

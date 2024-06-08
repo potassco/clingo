@@ -3,6 +3,7 @@
 #include <gringo/input/literal.hh>
 
 #include <optional>
+#include <utility>
 
 namespace Gringo::Input {
 
@@ -61,7 +62,7 @@ class SetAggregateElement : public Expression<SetAggregateElement> {
 
     //! Construct a set aggregate element.
     explicit SetAggregateElement(Location loc, Lit lit, LitArray cond)
-        : loc_{loc}, lit_{std::move(lit)}, cond_{std::move(cond)} {}
+        : loc_{std::move(loc)}, lit_{std::move(lit)}, cond_{std::move(cond)} {}
     //! The location of the element.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The literal.
@@ -100,13 +101,13 @@ class SetAggregate : public std::conditional_t<HasSign, Signed, Unsigned>, publi
 
     //! Construct a set aggregate.
     explicit SetAggregate(Location loc, LGuard lhs, SetAggregateElementArray elems, RGuard rhs)
-        : loc_{loc}, elems_{std::move(elems)}, lhs_(std::move(lhs)), rhs_(std::move(rhs)) {
+        : loc_{std::move(loc)}, elems_{std::move(elems)}, lhs_(std::move(lhs)), rhs_(std::move(rhs)) {
         static_assert(!HasSign);
     }
 
     //! Construct a set aggregate.
     explicit SetAggregate(Location loc, Sign sign, LGuard lhs, SetAggregateElementArray elems, RGuard rhs)
-        : Signed{sign}, loc_{loc}, elems_{std::move(elems)}, lhs_(std::move(lhs)), rhs_(std::move(rhs)) {
+        : Signed{sign}, loc_{std::move(loc)}, elems_{std::move(elems)}, lhs_(std::move(lhs)), rhs_(std::move(rhs)) {
         static_assert(HasSign);
     }
 

@@ -1,6 +1,8 @@
 #include "add_sign.hh"
 
-#include "gringo/util/type_traits.hh"
+#include <gringo/util/type_traits.hh>
+
+#include <utility>
 
 namespace Gringo::Input {
 
@@ -40,14 +42,14 @@ struct AddSign {
 
 auto add_sign(Lit const &lit, Sign sign, std::optional<Position> pos) -> std::optional<Lit> {
     if (sign != Sign::none) {
-        return AddSign{sign, pos}(lit);
+        return AddSign{sign, std::move(pos)}(lit);
     }
     return std::nullopt;
 }
 
 auto add_sign(BdLit const &lit, Sign sign, std::optional<Position> pos) -> std::optional<BdLit> {
     if (sign != Sign::none) {
-        return AddSign{sign, pos}(lit);
+        return AddSign{sign, std::move(pos)}(lit);
     }
     return std::nullopt;
 }

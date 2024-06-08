@@ -50,7 +50,7 @@ struct CheckSyntax {
         return true;
     }
 
-    auto operator()(Projection pro, SyntaxCheck check) const -> bool {
+    auto operator()(Projection const &pro, SyntaxCheck check) const -> bool {
         if (!test(check, SyntaxCheck::project)) {
             GRINGO_REPORT_LOC(*log_, error, pro.loc()) << "projection not permitted in this context";
             return false;

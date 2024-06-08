@@ -4,6 +4,8 @@
 #include <gringo/input/literal.hh>
 #include <gringo/input/theory.hh>
 
+#include <utility>
+
 namespace Gringo::Input {
 
 //! @addtogroup input_head
@@ -40,7 +42,8 @@ class HdLitDisjunction : public Expression<HdLitDisjunction> {
     }
 
     //! Wrap a literal in a head literal.
-    explicit HdLitDisjunction(Location loc, HdLitDisjunctionElementArray elems) : loc_{loc}, elems_{std::move(elems)} {}
+    explicit HdLitDisjunction(Location loc, HdLitDisjunctionElementArray elems)
+        : loc_{std::move(loc)}, elems_{std::move(elems)} {}
     //! The location of the disjunction.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The elements of the disjunction.
@@ -62,7 +65,7 @@ class HdLitAggregateElement : public Expression<HdLitAggregateElement> {
 
     //! Construct a head aggregate element.
     explicit HdLitAggregateElement(Location loc, TermArray tuple, Lit lit, LitArray cond)
-        : loc_{loc}, tuple_{std::move(tuple)}, lit_{std::move(lit)}, cond_{std::move(cond)} {}
+        : loc_{std::move(loc)}, tuple_{std::move(tuple)}, lit_{std::move(lit)}, cond_{std::move(cond)} {}
     //! The location of the element.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }
     //! The tuple of the element.
@@ -95,14 +98,14 @@ class HdLitAggregate : public Expression<HdLitAggregate> {
     //! Construct a head set aggregate.
     explicit HdLitAggregate(Location loc, LGuard lhs, AggregateFunction fun, HdLitAggregateElementArray elems,
                             RGuard rhs)
-        : loc_{loc}, fun_(fun), elems_(std::move(elems)), lhs_{std::move(lhs)}, rhs_{std::move(rhs)} {}
+        : loc_{std::move(loc)}, fun_(fun), elems_(std::move(elems)), lhs_{std::move(lhs)}, rhs_{std::move(rhs)} {}
     //! Construct a head set aggregate.
     explicit HdLitAggregate(Location loc, AggregateFunction fun, HdLitAggregateElementArray elems)
-        : HdLitAggregate{loc, std::nullopt, fun, std::move(elems), std::nullopt} {}
+        : HdLitAggregate{std::move(loc), std::nullopt, fun, std::move(elems), std::nullopt} {}
     //! Construct a head set aggregate.
     explicit HdLitAggregate(Location loc, AggregateFunction fun, HdLitAggregateElementArray elems, Relation rel,
                             Term rhs)
-        : HdLitAggregate{loc, std::nullopt, fun, std::move(elems), std::make_pair(rel, std::move(rhs))} {}
+        : HdLitAggregate{std::move(loc), std::nullopt, fun, std::move(elems), std::make_pair(rel, std::move(rhs))} {}
 
     //! The location of the aggregate.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }

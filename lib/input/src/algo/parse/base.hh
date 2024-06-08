@@ -117,19 +117,25 @@ struct post_position_dsl_ : post_position_ {
 template <typename Rule> struct location_rule_ : lexyd::_copy_base<Rule> {
     struct location_ {};
 
-    LEXY_PARSER_FUNC static auto map_location_([[maybe_unused]] location_ ph, Location &loc) { return loc; }
+    LEXY_PARSER_FUNC static auto map_location_([[maybe_unused]] location_ ph, auto &context, auto begin, auto end) {
+        auto pos = context.control_block->parse_state->pos(begin);
+        return Location{std::move(pos), context.control_block->parse_state->post_pos(end)};
+    }
 
-    template <class T> LEXY_PARSER_FUNC static auto map_location_(T arg, [[maybe_unused]] Location &loc) { return arg; }
+    template <class T>
+    LEXY_PARSER_FUNC static auto map_location_(T arg, [[maybe_unused]] auto &context, [[maybe_unused]] auto &begin,
+                                               [[maybe_unused]] auto &end) {
+        return arg;
+    }
 
     struct pp : lexyd::rule_base {
         template <typename NextParser> struct p {
             template <typename Context, typename Reader, typename... Args>
-            LEXY_PARSER_FUNC static auto parse(Context &context, Reader &reader, Position begin,
-                                               Args &&...args) -> bool {
+            LEXY_PARSER_FUNC static auto parse(Context &context, Reader &reader, auto begin, Args &&...args) -> bool {
                 auto end = reader.position();
-                auto loc = Location{begin, context.control_block->parse_state->post_pos(end)};
                 context.on(lexyd::_ev::token{}, lexy::position_token_kind, end, end);
-                return NextParser::parse(context, reader, map_location_(std::forward<Args>(args), loc)...);
+                return NextParser::parse(context, reader,
+                                         map_location_(std::forward<Args>(args), context, begin, end)...);
             }
         };
     };
@@ -147,10 +153,8 @@ template <typename Rule> struct location_rule_ : lexyd::_copy_base<Rule> {
         template <typename NextParser, typename Context, typename... Args>
         LEXY_PARSER_FUNC auto finish(Context &context, Reader &reader, Args &&...args) {
             auto begin = reader.position();
-            auto pos = context.control_block->parse_state->pos(begin);
             context.on(lexyd::_ev::token{}, lexy::position_token_kind, begin, begin);
-            return rule.template finish<NextParser>(context, reader, std::move(pos), std::forward<Args>(args)...,
-                                                    location_{});
+            return rule.template finish<NextParser>(context, reader, begin, std::forward<Args>(args)..., location_{});
         }
     };
 
@@ -159,10 +163,9 @@ template <typename Rule> struct location_rule_ : lexyd::_copy_base<Rule> {
         template <typename Context, typename Reader, typename... Args>
         LEXY_PARSER_FUNC static auto parse(Context &context, Reader &reader, Args &&...args) -> bool {
             auto begin = reader.position();
-            auto pos = context.control_block->parse_state->pos(begin);
             context.on(lexyd::_ev::token{}, lexy::position_token_kind, begin, begin);
-            return lexy::parser_for<rule_pp, NextParser>::parse(context, reader, std::move(pos),
-                                                                std::forward<Args>(args)..., location_{});
+            return lexy::parser_for<rule_pp, NextParser>::parse(context, reader, begin, std::forward<Args>(args)...,
+                                                                location_{});
         }
     };
 };

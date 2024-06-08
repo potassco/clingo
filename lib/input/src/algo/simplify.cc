@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <ctime>
+#include <utility>
 
 namespace Gringo::Input {
 
@@ -31,7 +32,7 @@ template <class R> void extend(R &res, AuxTermVec &aux, bool conjunctive = true)
 }
 
 //! Return a Boolean literal with the given location and truth value.
-[[nodiscard]] auto make_constant(Location loc, bool truth) -> Lit { return LitBool{loc, Sign::none, truth}; }
+[[nodiscard]] auto make_constant(Location loc, bool truth) -> Lit { return LitBool{std::move(loc), Sign::none, truth}; }
 
 //! Ensure that the term only matches numbers.
 [[nodiscard]] auto as_linear_term(SymbolStore &store, Term term) -> Term {
