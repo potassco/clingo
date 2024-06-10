@@ -88,7 +88,7 @@ class SharedString {
         }
     }
     //! Release ownership of the held string reference.
-    ~SharedString() noexcept { release_(); }
+    ~SharedString() { release_(); }
     //! Copy constructor.
     SharedString(SharedString const &other) noexcept : ref_{other.ref_} { acquire_(); }
     //! Move constructor.
@@ -247,7 +247,7 @@ class SharedSymbol {
         }
     }
     //! Release ownership of the held symbol.
-    ~SharedSymbol() noexcept { release_(); }
+    ~SharedSymbol() { release_(); }
     //! Copy constructor.
     SharedSymbol(SharedSymbol const &sym) noexcept : ref_{sym.ref_} { acquire_(); }
     //! Move constructor.

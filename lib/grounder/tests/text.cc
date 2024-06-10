@@ -59,6 +59,15 @@ TEST_CASE("grounder_text") {
         REQUIRE(res.first == 4);
         REQUIRE(res.second == 0);
     }
+    SECTION("condlit_rec") {
+        grd.parse("p(1..3). q(3..5). r(X) :- p(X); q(X).");
+        grd.prepare();
+        REQUIRE(grd.ground(params));
+        log.set_level(LogLevel::trace);
+        auto res = store->gc();
+        REQUIRE(res.first == 15);
+        REQUIRE(res.second == 2);
+    }
 }
 
 } // namespace Gringo::Test
