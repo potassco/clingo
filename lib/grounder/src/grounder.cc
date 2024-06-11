@@ -89,6 +89,15 @@ struct Grounder::Impl : Gringo::SymbolOwner {
         return {term->rename(*store, Ground::RenameMode::drop_projection, &state->name(), nullptr), state.get()};
     }
 
+    auto add_base(String name, size_t arity, bool sign) {
+        auto sig = std::tuple<String, size_t, bool>(name, arity, sign);
+        auto dom_it = atom_base.try_emplace(sig, nullptr).first;
+        if (dom_it->second == nullptr) {
+            dom_it.value() = std::make_unique<Ground::Base>();
+        }
+        return dom_it;
+    }
+
     //! The logger used by the grounder.
     Logger *log;
     //! The store used by the grounder.
@@ -606,17 +615,11 @@ class Builder : public Input::DependencyBuilder {
 
   private:
     void do_param(Input::ProgramParam const &param) override {
-        std::cout << "#program_" << *param.first << "(";
-        bool comma = false;
-        for (auto const &sym : param.second) {
-            if (comma) {
-                std::cout << ",";
-            } else {
-                comma = true;
-            }
-            std::cout << *sym;
-        }
-        std::cout << ").\n";
+        buf_.str({});
+        buf_ << "#program_" << *param.first;
+        auto dom_it = impl_->add_base(impl_->store->string_ref(buf_.view()), param.second.size(), false);
+        dom_it.value()->add(impl_->store->fun_ref(std::get<0>(dom_it.key()), as_symbol_span(param.second), false),
+                            Ground::AtomState::fact);
     }
 
     void do_meta(std::vector<Input::Stm> const &stms) override {
@@ -627,12 +630,7 @@ class Builder : public Input::DependencyBuilder {
 
     void do_fact(std::vector<Symbol> const &facts) override {
         for (auto const &fact : facts) {
-            // TODO: remove c&p
-            auto sig = std::tuple<String, size_t, bool>(fact.name(), fact.args().size(), fact.has_sign());
-            auto dom_it = impl_->atom_base.try_emplace(sig, nullptr).first;
-            if (dom_it->second == nullptr) {
-                dom_it.value() = std::make_unique<Ground::Base>();
-            }
+            auto dom_it = impl_->add_base(fact.name(), fact.args().size(), fact.has_sign());
             dom_it->second->add(fact, Ground::AtomState::fact);
             impl_->out->fact(fact);
         }
@@ -698,6 +696,7 @@ class Builder : public Input::DependencyBuilder {
     }
 
     Grounder::Impl *impl_;
+    std::ostringstream buf_;
 };
 
 } // namespace
