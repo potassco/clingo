@@ -33,6 +33,7 @@ class OutputStm {
     void cond_lit_conclusion(size_t lit_uid, size_t elem_uid) { do_cond_lit_conclusion(lit_uid, elem_uid); }
 
     void flush() { do_flush(); }
+    void end_step() { do_end_step(); }
 
     void mark(SymbolCollector &gc) { do_mark(gc); }
 
@@ -49,6 +50,7 @@ class OutputStm {
     virtual void do_cond_lit_conclusion(size_t lit_uid, size_t elem_uid) = 0;
 
     virtual void do_flush() = 0;
+    virtual void do_end_step() = 0;
 
     virtual void do_mark(SymbolCollector &gc) = 0;
 };

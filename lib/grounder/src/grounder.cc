@@ -39,6 +39,7 @@ struct Grounder::Impl : Gringo::SymbolOwner {
     }
     ~Impl() override { store->gc_del_owner(*this); }
 
+    //! Mark symbols held by the grounder protecting them from garbage collection.
     void mark(SymbolCollector &gc) const override {
         GRINGO_REPORT(*log, trace) << "mark owners";
         for (auto const &[key, base] : atom_base) {
@@ -47,7 +48,7 @@ struct Grounder::Impl : Gringo::SymbolOwner {
             gc.mark(std::get<0>(key));
             base->mark(gc);
         }
-        for (auto const &[key, state] : map) {
+        for (auto const &[key, state] : project_base) {
             GRINGO_REPORT(*log, trace) << "  mark projection domain: " << *key;
             state->p_base().mark(gc);
         }
@@ -56,14 +57,30 @@ struct Grounder::Impl : Gringo::SymbolOwner {
         out->mark(gc);
     }
 
+    //! Cleanup step-local state accumulated during grounding.
+    //!
+    //! - Clear indices associated with domains.
+    //! - Inform output that grounding is finished.
+    void post_ground() {
+        for (auto const &[key, base] : atom_base) {
+            base->clear_context();
+        }
+        for (auto const &[key, state] : project_base) {
+            state->p_base().clear_context();
+        }
+        out->end_step();
+    }
+
+    //! Clear indices associated with domains.
     auto add_project(Ground::UTerm const &term,
                      Ground::Base &base) -> std::pair<Ground::UTerm, Ground::LitProject::State *> {
         size_t vars = 0;
-        auto [it, ins] = map.try_emplace(term->rename(*store, Ground::RenameMode::rename_vars, nullptr, &vars));
+        auto [it, ins] =
+            project_base.try_emplace(term->rename(*store, Ground::RenameMode::rename_vars, nullptr, &vars));
         auto const &p_key = *it->first;
         auto &state = it.value();
         if (ins) {
-            auto p_name = store->string_ref("#p_" + std::to_string(map.size()));
+            auto p_name = store->string_ref("#p_" + std::to_string(project_base.size()));
             auto p_head = p_key.rename(*store, Ground::RenameMode::drop_projection, &p_name, nullptr);
             auto p_body = p_key.rename(*store, Ground::RenameMode::rename_projection, nullptr, &vars);
             state =
@@ -81,7 +98,7 @@ struct Grounder::Impl : Gringo::SymbolOwner {
     //! The program stored in the grounder.
     Input::Program prg;
     //! Dictionary to map terms with projections to their replacement predicates.
-    Util::ordered_map<Ground::UTerm, std::unique_ptr<Ground::LitProject::State>> map;
+    Util::ordered_map<Ground::UTerm, std::unique_ptr<Ground::LitProject::State>> project_base;
     //! The atom base.
     Util::ordered_map<std::tuple<String, size_t, bool>, std::unique_ptr<Ground::Base>> atom_base;
     //! The output.
@@ -589,7 +606,7 @@ class Builder : public Input::DependencyBuilder {
 
   private:
     void do_param(Input::ProgramParam const &param) override {
-        std::cout << "#program_" << param.first << "(";
+        std::cout << "#program_" << *param.first << "(";
         bool comma = false;
         for (auto const &sym : param.second) {
             if (comma) {
@@ -597,7 +614,7 @@ class Builder : public Input::DependencyBuilder {
             } else {
                 comma = true;
             }
-            std::cout << sym;
+            std::cout << *sym;
         }
         std::cout << ").\n";
     }
@@ -725,13 +742,14 @@ void Grounder::prepare() {
 }
 
 auto Grounder::ground(Input::ProgramParamVec const &params) -> bool {
+    GRINGO_REPORT(*impl_->log, debug) << "grounding...";
+    GCLock lock{*impl_->store};
 #ifdef PARSER_PROFILE
     Profiler prof{"clingo-ground.prof"};
 #endif
-    GRINGO_REPORT(*impl_->log, debug) << "grounding...";
-    GCLock lock{*impl_->store};
     auto bld = Builder{*impl_};
     bool ret = impl_->prg.analyze(*impl_->store, params, bld);
+    impl_->post_ground();
     return ret;
 }
 

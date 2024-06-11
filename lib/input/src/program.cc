@@ -160,7 +160,7 @@ auto Program::analyze(SymbolStore &store, ProgramParamVec const &params, Depende
         if (!seen.emplace(param).second) {
             continue;
         }
-        auto [sig_it, sig_ins] = sigs.emplace(Signature{param.first, param.second.size()});
+        auto [sig_it, sig_ins] = sigs.emplace(Signature{*param.first, param.second.size()});
         if (auto it = parts_.find(*sig_it); it != parts_.end()) {
             // note that facts are not subject to parameters
             bld.fact(it->second.facts);

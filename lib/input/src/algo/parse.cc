@@ -1,3 +1,4 @@
+#include "parse/params.hh"
 #include "parse/statement.hh"
 
 #include <gringo/input/algo/check_syntax.hh>
@@ -401,6 +402,22 @@ auto parse_body_literal(Logger &log, SymbolStore &store, std::string_view str) -
 
 auto parse_statement(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<Stm> {
     return check(log, parse<Grammar::statement>(log, store, str), check_statement);
+}
+
+template <class P> struct symbol_root : SymbolGrammar::control {
+    static constexpr auto name = P::name;
+    static constexpr auto rule = lexy::dsl::p<P> + lexy::dsl::eof;
+    static constexpr auto value = lexy::forward<typename decltype(P::value)::return_type>;
+};
+
+auto parse_parts(Logger &log, SymbolStore &store, std::string_view str) -> std::vector<Input::ProgramParamVec> {
+    auto lock = GCLock{store};
+    static_cast<void>(str);
+    auto input = lexy::string_input<Grammar::encoding>{str};
+    if (auto res = lexy::parse<root<SymbolGrammar::program_param_vec_vec>>(input, store, report_error{log}); res) {
+        return std::move(res).value();
+    }
+    throw std::runtime_error("parsing failed");
 }
 
 } // namespace Gringo::Input

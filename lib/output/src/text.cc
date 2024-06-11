@@ -70,6 +70,11 @@ class OutputBody : public OutputLit {
         delayed_.clear();
     }
 
+    void end_step() {
+        delayed_.clear();
+        defined_.clear();
+    }
+
   private:
     void sep() {
         if (has_body_) {
@@ -191,6 +196,12 @@ class OutputText : public OutputStm {
         cond_lit_elems_.clear();
         cond_lits_.clear();
         body_.flush(*out_);
+    }
+
+    void do_end_step() override {
+        cond_lit_elems_.clear();
+        cond_lits_.clear();
+        out_->flush();
     }
 
     void do_mark([[maybe_unused]] SymbolCollector &gc) override {}

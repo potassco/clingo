@@ -154,16 +154,25 @@ class SharedString {
 using SharedStringVec = std::vector<SharedString>;
 //! An array of strings.
 using SharedStringArray = Util::immutable_array<SharedString>;
+//! A vector of strings.
+using SharedStringSpan = std::span<SharedString const>;
 
 inline auto as_string_ptr(SharedString const *ptr) -> String const * {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     return reinterpret_cast<String const *>(ptr);
 }
 
-inline auto as_string_span(SharedStringVec const &vec) -> StringSpan { return {as_string_ptr(vec.data()), vec.size()}; }
-
-inline auto as_string_span(SharedStringArray const &vec) -> StringSpan {
+template <class T> inline auto as_string_span(T const &vec) -> StringSpan {
     return {as_string_ptr(vec.data()), vec.size()};
+}
+
+inline auto as_shared_string_ptr(String const *ptr) -> SharedString const * {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    return reinterpret_cast<SharedString const *>(ptr);
+}
+
+template <class T> inline auto as_shared_string_span(T const &vec) -> SharedStringSpan {
+    return {as_shared_string_ptr(vec.data()), vec.size()};
 }
 
 //! Enumeration of available symbols types.
@@ -316,6 +325,24 @@ class SharedSymbol {
 using SharedSymbolSpan = std::span<SharedSymbol const>;
 //! A vector of symbols.
 using SharedSymbolVec = std::vector<SharedSymbol>;
+
+inline auto as_symbol_ptr(SharedSymbol const *ptr) -> Symbol const * {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    return reinterpret_cast<Symbol const *>(ptr);
+}
+
+template <class T> inline auto as_symbol_span(T const &vec) -> SymbolSpan {
+    return {as_symbol_ptr(vec.data()), vec.size()};
+}
+
+inline auto as_shared_symbol_ptr(Symbol const *ptr) -> SharedSymbol const * {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    return reinterpret_cast<SharedSymbol const *>(ptr);
+}
+
+template <class T> inline auto as_shared_symbol_span(T const &vec) -> SharedSymbolSpan {
+    return {as_shared_symbol_ptr(vec.data()), vec.size()};
+}
 
 class SymbolCollector {
   public:

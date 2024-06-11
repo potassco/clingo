@@ -41,6 +41,9 @@ class Scanner {
     std::unique_ptr<ScannerImpl> impl_;
 };
 
+using ProgramParam = std::pair<SharedString, std::vector<SharedSymbol>>;
+using ProgramParamVec = std::vector<ProgramParam>;
+
 //! Parse a term.
 auto parse_term(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<Term>;
 //! Parse a theory term.
@@ -53,6 +56,8 @@ auto parse_head_literal(Logger &log, SymbolStore &store, std::string_view str) -
 auto parse_body_literal(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<BdLit>;
 //! Parse a statement.
 auto parse_statement(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<Stm>;
+//! Parse program params to ground.
+auto parse_parts(Logger &log, SymbolStore &store, std::string_view str) -> std::vector<ProgramParamVec>;
 
 //! Return a scanner to parse statements one by one.
 auto scan_stream(Logger &log, SymbolStore &store, std::istream &in) -> Scanner;

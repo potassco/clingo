@@ -45,8 +45,8 @@ struct ProgramPart {
 //! Statements grouped by parts.
 using ProgramPartVec = std::vector<ProgramPart>;
 
-using ProgramSig = std::pair<String, size_t>;
-using ProgramParam = std::pair<String, std::vector<Symbol>>;
+using ProgramSig = std::pair<SharedString, size_t>;
+using ProgramParam = std::pair<SharedString, std::vector<SharedSymbol>>;
 using ProgramParamVec = std::vector<ProgramParam>;
 
 //! Program grouping unprocessed statements.
