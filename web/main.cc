@@ -1,5 +1,7 @@
 #include <gringo/grounder/grounder.hh>
 
+#include <gringo/input/algo/parse.hh>
+
 #include <gringo/output/text.hh>
 
 #include <CLI/CLI.hpp>
@@ -14,9 +16,11 @@ auto run(std::string const &program, std::vector<std::string> args) -> bool {
     auto opts = RewriteOptions{};
     auto mode = AppMode::ground;
     auto log_level = Gringo::LogLevel::info;
+    auto params_str = std::optional<std::string>{};
 
     CLI::App app{"ASP preprocessor that wants to become a grounder"};
 
+    app.add_option_no_stream("--params", params_str, "program parts to ground");
     app.add_option("--log-level", "{error,warn,info,debug,trace}")->check([&log_level](std::string const &value) {
         using P = std::pair<char const *, Gringo::LogLevel>;
         auto levels = std::array{P{"trace", Gringo::LogLevel::trace}, P{"debug", Gringo::LogLevel::debug},
@@ -72,6 +76,10 @@ auto run(std::string const &program, std::vector<std::string> args) -> bool {
         Gringo::Grounder grd{log, *store, opts, *out};
         grd.parse(program);
         [&]() {
+            auto params = std::optional<std::vector<Gringo::Input::ProgramParamVec>>();
+            if (params_str) {
+                params = Gringo::Input::parse_parts(log, *store, *params_str);
+            }
             if (mode == AppMode::parse) {
                 grd.output_unprocessed_program(std::cout);
                 return;
@@ -81,7 +89,15 @@ auto run(std::string const &program, std::vector<std::string> args) -> bool {
                 grd.output_program(std::cout);
                 return;
             }
-            std::ignore = grd.ground(Gringo::Input::ProgramParamVec{{store->string_ref("base"), {}}});
+            if (params) {
+                for (auto const &param : *params) {
+                    if (!grd.ground(param)) {
+                        break;
+                    }
+                }
+            } else {
+                std::ignore = grd.ground(Gringo::Input::ProgramParamVec{{store->string("base"), {}}});
+            }
         }();
     } catch (std::exception const &e) {
         fprintf(stderr, "%s: %s\n", log.message_prefix(Gringo::MessageCode::error), e.what());
