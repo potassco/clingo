@@ -17,9 +17,11 @@ auto run(std::string const &program, std::vector<std::string> args) -> bool {
     auto mode = AppMode::ground;
     auto log_level = Gringo::LogLevel::info;
     auto params_str = std::optional<std::string>{};
+    std::vector<std::string> const_defs;
 
     CLI::App app{"ASP preprocessor that wants to become a grounder"};
 
+    app.add_option_no_stream("--const,-c", const_defs, "constant definition");
     app.add_option_no_stream("--params", params_str, "program parts to ground");
     app.add_option("--log-level", "{error,warn,info,debug,trace}")->check([&log_level](std::string const &value) {
         using P = std::pair<char const *, Gringo::LogLevel>;
@@ -74,12 +76,16 @@ auto run(std::string const &program, std::vector<std::string> args) -> bool {
         auto store = Gringo::make_symbol_store(true, false);
         auto out = Gringo::Output::make_text_output(std::cout);
         Gringo::Grounder grd{log, *store, opts, *out};
+        auto params = std::optional<std::vector<Gringo::Input::ProgramParamVec>>();
+        if (params_str) {
+            params = Gringo::Input::parse_parts(log, *store, *params_str);
+        }
+        for (auto const &str : const_defs) {
+            auto def = parse_const(log, *store, str);
+            grd.add_const(*def.first, *def.second);
+        }
         grd.parse(program);
         [&]() {
-            auto params = std::optional<std::vector<Gringo::Input::ProgramParamVec>>();
-            if (params_str) {
-                params = Gringo::Input::parse_parts(log, *store, *params_str);
-            }
             if (mode == AppMode::parse) {
                 grd.output_unprocessed_program(std::cout);
                 return;
