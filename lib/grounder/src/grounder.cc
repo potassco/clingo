@@ -33,6 +33,8 @@ class Profiler {
 #endif
 
 struct Grounder::Impl : Gringo::SymbolOwner {
+    using BaseMap = Util::ordered_map<std::tuple<String, size_t, bool>, std::unique_ptr<Ground::Base>>;
+
     Impl(Logger &log, SymbolStore &store, Input::RewriteOptions opts, OutputStm &out)
         : log{&log}, store{&store}, prg{opts}, out{&out} {
         this->store->gc_add_owner(*this);
@@ -45,6 +47,12 @@ struct Grounder::Impl : Gringo::SymbolOwner {
         for (auto const &[key, base] : atom_base) {
             GRINGO_REPORT(*log, trace) << "  mark domain: " << (std::get<2>(key) ? "-" : "") << std::get<0>(key) << "/"
                                        << std::get<1>(key);
+            gc.mark(std::get<0>(key));
+            base->mark(gc);
+        }
+        for (auto const &[key, base] : aux_base) {
+            GRINGO_REPORT(*log, trace) << "  mark aux domain: " << (std::get<2>(key) ? "-" : "") << std::get<0>(key)
+                                       << "/" << std::get<1>(key);
             gc.mark(std::get<0>(key));
             base->mark(gc);
         }
@@ -68,7 +76,7 @@ struct Grounder::Impl : Gringo::SymbolOwner {
         for (auto const &[key, state] : project_base) {
             state->p_base().clear_context();
         }
-        out->end_step();
+        aux_base.clear();
     }
 
     //! Clear indices associated with domains.
@@ -89,14 +97,16 @@ struct Grounder::Impl : Gringo::SymbolOwner {
         return {term->rename(*store, Ground::RenameMode::drop_projection, &state->name(), nullptr), state.get()};
     }
 
-    auto add_base(String name, size_t arity, bool sign) {
-        auto sig = std::tuple<String, size_t, bool>(name, arity, sign);
-        auto dom_it = atom_base.try_emplace(sig, nullptr).first;
+    auto add_base(std::tuple<String, size_t, bool> sig) {
+        bool aux = std::get<0>(sig).starts_with("#");
+        auto dom_it = (aux ? aux_base : atom_base).try_emplace(std::move(sig), nullptr).first;
         if (dom_it->second == nullptr) {
             dom_it.value() = std::make_unique<Ground::Base>();
         }
         return dom_it;
     }
+
+    auto add_base(String name, size_t arity, bool sign) { return add_base({name, arity, sign}); }
 
     //! The logger used by the grounder.
     Logger *log;
@@ -109,9 +119,13 @@ struct Grounder::Impl : Gringo::SymbolOwner {
     //! Dictionary to map terms with projections to their replacement predicates.
     Util::ordered_map<Ground::UTerm, std::unique_ptr<Ground::LitProject::State>> project_base;
     //! The atom base.
-    Util::ordered_map<std::tuple<String, size_t, bool>, std::unique_ptr<Ground::Base>> atom_base;
+    BaseMap atom_base;
+    //! A base for auxiliary atoms.
+    BaseMap aux_base;
     //! The output.
     OutputStm *out;
+    //! Indicate that the logic program might still be satisfiable.
+    bool is_sat = true;
 };
 
 namespace {
@@ -402,11 +416,7 @@ template <class F> class BuilderLit {
         auto term = std::visit(bld_term, lit.term());
         auto idx = ctx_->index(lit);
         // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-        auto sig = Input::signature(lit.term()).value();
-        auto dom_it = ctx_->impl->atom_base.try_emplace(sig, nullptr).first;
-        if (dom_it->second == nullptr) {
-            dom_it.value() = std::make_unique<Ground::Base>();
-        }
+        auto dom_it = ctx_->impl->add_base(Input::signature(lit.term()).value());
         if (has_projection) {
             auto [p_term, state] = ctx_->impl->add_project(term, *dom_it.value());
             cb_(std::make_unique<Ground::LitProject>(*state, lit.sign(), std::move(term), std::move(p_term), idx));
@@ -435,10 +445,7 @@ class BuilderHdLit {
         auto head = std::visit(
             [&]<class T>(T const &lit) -> std::optional<std::pair<Ground::UTerm, Ground::Base &>> {
                 if constexpr (Util::matches<T, Input::LitSymbolic>) {
-                    auto dom_it = ctx_->impl->atom_base.try_emplace(*signature(lit.term()), nullptr).first;
-                    if (dom_it->second == nullptr) {
-                        dom_it.value() = std::make_unique<Ground::Base>();
-                    }
+                    auto dom_it = ctx_->impl->add_base(*signature(lit.term()));
                     auto &base = *dom_it->second;
                     assert(lit.sign() == Sign::none);
                     if (auto it = ctx_->def_map->find(&lit.term()); it != ctx_->def_map->end()) {
@@ -708,36 +715,42 @@ Grounder::~Grounder() noexcept = default;
 
 void Grounder::parse(std::string_view prg) {
     GRINGO_REPORT(*impl_->log, debug) << "parsing...";
-    GCLock lock{*impl_->store};
-    auto prs = Parser{*impl_->log, *impl_->store, impl_->unprocessed_prg};
-    auto scanner = Input::scan_string(*impl_->log, *impl_->store, prg);
-    prs.process(scanner);
-    prs.process_includes();
+    if (impl_->is_sat) {
+        GCLock lock{*impl_->store};
+        auto prs = Parser{*impl_->log, *impl_->store, impl_->unprocessed_prg};
+        auto scanner = Input::scan_string(*impl_->log, *impl_->store, prg);
+        prs.process(scanner);
+        prs.process_includes();
+    }
 }
 
 void Grounder::parse(std::vector<std::string> const &files) {
     GRINGO_REPORT(*impl_->log, debug) << "parsing...";
-    GCLock lock{*impl_->store};
-    auto prs = Parser{*impl_->log, *impl_->store, impl_->unprocessed_prg};
-    if (files.empty()) {
-        prs.process_stdin();
-        prs.process_includes();
-    }
-    for (auto const &file : files) {
-        if (file == "-") {
+    if (impl_->is_sat) {
+        GCLock lock{*impl_->store};
+        auto prs = Parser{*impl_->log, *impl_->store, impl_->unprocessed_prg};
+        if (files.empty()) {
             prs.process_stdin();
-        } else {
-            prs.process_path(std::filesystem::path(file), true);
+            prs.process_includes();
         }
-        prs.process_includes();
+        for (auto const &file : files) {
+            if (file == "-") {
+                prs.process_stdin();
+            } else {
+                prs.process_path(std::filesystem::path(file), true);
+            }
+            prs.process_includes();
+        }
     }
 }
 
 void Grounder::prepare() {
     GRINGO_REPORT(*impl_->log, debug) << "preparing...";
-    GCLock lock{*impl_->store};
-    impl_->prg.join(*impl_->log, *impl_->store, impl_->unprocessed_prg);
-    impl_->unprocessed_prg.clear();
+    if (impl_->is_sat) {
+        GCLock lock{*impl_->store};
+        impl_->prg.join(*impl_->log, *impl_->store, impl_->unprocessed_prg);
+        impl_->unprocessed_prg.clear();
+    }
 }
 
 auto Grounder::ground(Input::ProgramParamVec const &params) -> bool {
@@ -746,10 +759,13 @@ auto Grounder::ground(Input::ProgramParamVec const &params) -> bool {
 #ifdef PARSER_PROFILE
     Profiler prof{"clingo-ground.prof"};
 #endif
-    auto bld = Builder{*impl_};
-    bool ret = impl_->prg.analyze(*impl_->store, params, bld);
-    impl_->post_ground();
-    return ret;
+    if (impl_->is_sat) {
+        auto bld = Builder{*impl_};
+        impl_->is_sat = impl_->prg.analyze(*impl_->store, params, bld);
+        impl_->post_ground();
+    }
+    impl_->out->end_step();
+    return impl_->is_sat;
 }
 
 void Grounder::output_unprocessed_program(std::ostream &out) {
@@ -775,6 +791,7 @@ void Grounder::output_unprocessed_program(std::ostream &out) {
 }
 
 void Grounder::output_program(std::ostream &out) {
+    GCLock lock{*impl_->store};
     impl_->prg.visit_stms(*impl_->store, [&out](auto const &stm) { out << stm << "\n"; });
     out.flush();
 }
