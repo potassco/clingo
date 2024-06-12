@@ -5,8 +5,6 @@
 #include <gringo/util/enumerate.hh>
 #include <gringo/util/span_stack.hh>
 
-#include <iostream>
-
 namespace Gringo::Ground {
 
 //! The type of the literals involved in grounding conditional literals.

@@ -3,10 +3,6 @@
 #include <gringo/util/print.hh>
 #include <gringo/util/unordered_map.hh>
 
-// TODO:
-#include <iostream>
-#include <sstream>
-
 namespace Gringo::Ground {
 
 void Linearizer::start(Queue &queue, bool domain) {
@@ -190,7 +186,6 @@ auto StmRule::do_report(InstantiationContext &ctx) -> bool {
     bool fact = true;
     auto &out = ctx.out().body();
     for (auto const &lit : body_) {
-        std::ostringstream tmp_lit;
         if (lit->output(ctx, out)) {
             fact = false;
         }

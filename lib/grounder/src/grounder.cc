@@ -34,6 +34,7 @@ class Profiler {
 
 struct Grounder::Impl : Gringo::SymbolOwner {
     using BaseMap = Util::ordered_map<std::tuple<String, size_t, bool>, std::unique_ptr<Ground::Base>>;
+    using ProjectMap = Util::ordered_map<Ground::UTerm, std::unique_ptr<Ground::LitProject::State>>;
 
     Impl(Logger &log, SymbolStore &store, Input::RewriteOptions opts, OutputStm &out)
         : log{&log}, store{&store}, prg{opts}, out{&out} {
@@ -117,7 +118,7 @@ struct Grounder::Impl : Gringo::SymbolOwner {
     //! The program stored in the grounder.
     Input::Program prg;
     //! Dictionary to map terms with projections to their replacement predicates.
-    Util::ordered_map<Ground::UTerm, std::unique_ptr<Ground::LitProject::State>> project_base;
+    ProjectMap project_base;
     //! The atom base.
     BaseMap atom_base;
     //! A base for auxiliary atoms.
