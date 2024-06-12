@@ -714,6 +714,17 @@ Grounder::Grounder(Logger &log, SymbolStore &store, Input::RewriteOptions opts, 
 
 Grounder::~Grounder() noexcept = default;
 
+void Grounder::add_const(String name, Symbol value) {
+    if (impl_->is_sat) {
+        auto lock = GCLock{*impl_->store};
+        auto str = impl_->store->string_ref("<cli>");
+        auto loc = Input::Location(Input::Position{str, 1, 1}, Input::Position{str, 1, 1});
+        auto val = Input::TermSymbol{loc, value};
+        impl_->unprocessed_prg.add(*impl_->store,
+                                   Input::StmConst{std::move(loc), Input::ConstType::override_, name, std::move(val)});
+    }
+}
+
 void Grounder::parse(std::string_view prg) {
     GRINGO_REPORT(*impl_->log, debug) << "parsing...";
     if (impl_->is_sat) {

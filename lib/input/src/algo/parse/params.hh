@@ -265,4 +265,10 @@ struct program_param_vec_vec {
     static constexpr auto value = lexy::as_list<std::vector<ProgramParamVec>>;
 };
 
+struct const_def {
+    static constexpr char const *name = "const definition";
+    static constexpr auto rule = []() { return dsl::p<identifier> + LEXY_LIT("=") + dsl::p<symbol>; }();
+    static constexpr auto value = lexy::construct<std::pair<String, Symbol>>;
+};
+
 } // namespace Gringo::Input::SymbolGrammar

@@ -14,6 +14,8 @@ class Grounder {
     void parse(std::string_view prg);
     //! Parse the given files.
     void parse(std::vector<std::string> const &files);
+    //! Define a constant.
+    void add_const(String name, Symbol value);
     //! Prepare a program for grounding.
     void prepare();
     //! Ground the program.

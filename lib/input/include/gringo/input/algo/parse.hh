@@ -58,6 +58,8 @@ auto parse_body_literal(Logger &log, SymbolStore &store, std::string_view str) -
 auto parse_statement(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<Stm>;
 //! Parse program params to ground.
 auto parse_parts(Logger &log, SymbolStore &store, std::string_view str) -> std::vector<ProgramParamVec>;
+//! Parse constant definitions of form `name = value`.
+auto parse_const(Logger &log, SymbolStore &store, std::string_view str) -> std::pair<SharedString, SharedSymbol>;
 
 //! Return a scanner to parse statements one by one.
 auto scan_stream(Logger &log, SymbolStore &store, std::istream &in) -> Scanner;

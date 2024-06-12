@@ -17,6 +17,7 @@ auto run(int argc, char *argv[]) -> int {
     auto opts = RewriteOptions{};
     auto mode = AppMode::ground;
     std::vector<std::string> files;
+    std::vector<std::string> const_defs;
     auto log_level = Gringo::LogLevel::info;
     auto params_str = std::optional<std::string>{};
 
@@ -25,6 +26,7 @@ auto run(int argc, char *argv[]) -> int {
     app.add_option("files", files, "files to parse");
     // later...
     // ->check(CLI::ExistingFile);
+    app.add_option_no_stream("--const,-c", const_defs, "constant definition");
     app.add_option_no_stream("--params", params_str, "program parts to ground");
     app.add_option("--log-level", "{error,warn,info,debug,trace}")->check([&log_level](std::string const &value) {
         using P = std::pair<char const *, Gringo::LogLevel>;
@@ -81,6 +83,10 @@ auto run(int argc, char *argv[]) -> int {
             auto params = std::optional<std::vector<Gringo::Input::ProgramParamVec>>();
             if (params_str) {
                 params = Gringo::Input::parse_parts(log, *store, *params_str);
+            }
+            for (auto const &str : const_defs) {
+                auto def = parse_const(log, *store, str);
+                grd.add_const(*def.first, *def.second);
             }
             grd.parse(files);
             if (mode == AppMode::parse) {

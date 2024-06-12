@@ -412,10 +412,18 @@ template <class P> struct symbol_root : SymbolGrammar::control {
 
 auto parse_parts(Logger &log, SymbolStore &store, std::string_view str) -> std::vector<Input::ProgramParamVec> {
     auto lock = GCLock{store};
-    static_cast<void>(str);
     auto input = lexy::string_input<Grammar::encoding>{str};
     if (auto res = lexy::parse<root<SymbolGrammar::program_param_vec_vec>>(input, store, report_error{log}); res) {
         return std::move(res).value();
+    }
+    throw std::runtime_error("parsing failed");
+}
+
+auto parse_const(Logger &log, SymbolStore &store, std::string_view str) -> std::pair<SharedString, SharedSymbol> {
+    auto lock = GCLock{store};
+    auto input = lexy::string_input<Grammar::encoding>{str};
+    if (auto res = lexy::parse<root<SymbolGrammar::const_def>>(input, store, report_error{log}); res) {
+        return {SharedString{res.value().first}, SharedSymbol{res.value().second}};
     }
     throw std::runtime_error("parsing failed");
 }
