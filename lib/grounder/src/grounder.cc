@@ -480,6 +480,32 @@ class BuilderBdLit {
         oss << "implement me: handle body literal " << lit;
         throw std::logic_error(oss.str());
     }
+    void operator()(Input::BdLitAggregate const &lit) const {
+        /*
+        - monotone or recursive
+          - example
+            h(X) :- b(X), #count { Y: e(X,Y) } >= 1, c(X).
+          - translation
+            #elem(X,0) :- b(X), 0 >= 1.
+            #elem(X,1,Y) :- b(X), e(X,Y).
+            h(X) :- b(X), #aggr(X), c(X).
+          - propagate
+            - accumulating elements also adds #aggr domain elements
+            - such elements can be added whenever the necessary threshold is reached
+        - not monotone and not recursive
+          - example
+            h(X) :- b(X), #count { Y: e(X,Y) } >= 1, c(X).
+          - translation
+            h(X) :- b(X), #aggr(X), c(X).
+            - nested
+              #elem(X,1,Y) :- #aggr(X), e(X,Y).
+        - assignment
+          - special case for later
+        */
+        std::ostringstream oss;
+        oss << "implement me: handle body aggregate " << lit;
+        throw std::logic_error(oss.str());
+    }
     void operator()(Input::BdLitSimple const &lit) const {
         // we need to know whether the literal is recursive
         // if it is, then it has to be updated while grounding
