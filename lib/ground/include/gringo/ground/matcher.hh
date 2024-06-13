@@ -146,13 +146,10 @@ template <IsBase Base> class FullIndex {
 
 template <IsBase Base> class HashIndex {
   public:
-    struct Hash : private std::hash<std::string_view> {
+    struct Hash {
         Hash(size_t size) : size{size} {}
         template <class T> auto operator()(T const *sym) const -> size_t {
-            // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
-            return std::hash<std::string_view>::operator()(
-                std::string_view{reinterpret_cast<char const *>(sym), size * sizeof(Symbol)});
-            // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
+            return Util::value_hash_range(std::span{sym, size});
         }
         size_t size;
     };
