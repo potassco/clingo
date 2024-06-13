@@ -545,7 +545,7 @@ class BinaryOperator(IntEnum):
     """
 
 
-class CommentType(OrderedEnum):
+class CommentType(IntEnum):
     """
     Enumeration of comment types.
     """
