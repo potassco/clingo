@@ -3,6 +3,9 @@
 #include <cstdint>
 #include <ostream>
 
+//! @addtogroup core
+//! @{
+
 namespace Gringo {
 
 //! Enumeration of signs (default negation).
@@ -39,5 +42,7 @@ enum class Relation : uint8_t {
 
 //! Output the given relation.
 auto operator<<(std::ostream &out, Relation rel) -> std::ostream &;
+
+//! @}
 
 } // namespace Gringo

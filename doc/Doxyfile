@@ -944,12 +944,12 @@ WARN_LOGFILE           =
 # Note: If this tag is empty the current directory is searched.
 
 INPUT                  = mainpage.hh \
-                         ../lib/gringo/include \
-                         ../lib/gringo/include/gringo \
-                         ../lib/gringo/include/gringo/util \
-                         ../lib/gringo/include/gringo/core \
-                         ../lib/gringo/include/gringo/input \
-                         ../lib/gringo/include/gringo/input/algo \
+                         ../lib/util/include/gringo/util \
+                         ../lib/core/include/gringo/core \
+                         ../lib/input/include/gringo/input \
+                         ../lib/input/include/gringo/input/algo \
+                         ../lib/output/include/gringo/output \
+                         ../lib/grounder/include/gringo/grounder \
                          ../lib/c-api/include
 
 # This tag can be used to specify the character encoding of the source files

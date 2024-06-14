@@ -1,8 +1,7 @@
 #include "lib.hh"
 #include "streams.hh"
 
-#include <gringo/input/algo/print.hh>
-#include <gringo/input/location.hh>
+#include <gringo/core/location.hh>
 
 #include <cstring>
 

@@ -21,17 +21,6 @@ auto operator<<(std::ostream &out, AggregateFunction fun) -> std::ostream &;
 
 //! @}
 
-//! @name Locations
-//! @{
-
-//! Output the position to the given stream.
-auto operator<<(std::ostream &out, Position const &pos) -> std::ostream &;
-
-//! Output the location to the given stream.
-auto operator<<(std::ostream &out, Location const &loc) -> std::ostream &;
-
-//! @}
-
 //! @name Terms
 //! @{
 

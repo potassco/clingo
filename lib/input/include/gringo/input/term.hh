@@ -1,8 +1,8 @@
 #pragma once
 
 #include <gringo/input/attributes.hh>
-#include <gringo/input/location.hh>
 
+#include <gringo/core/location.hh>
 #include <gringo/core/symbol.hh>
 
 #include <gringo/util/hash.hh>

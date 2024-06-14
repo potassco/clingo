@@ -27,6 +27,12 @@ class Position {
     //! Compare two positions.
     friend auto operator<=>(Position const &a, Position const &b) = default;
 
+    //! Output the position to the given stream.
+    friend auto operator<<(std::ostream &out, Position const &pos) -> std::ostream & {
+        out << pos.file() << ":" << pos.line() << ":" << pos.column();
+        return out;
+    }
+
   private:
     SharedString file_;
     size_t line_;
@@ -85,6 +91,19 @@ class Location {
     friend auto operator==(Location const &a, Location const &b) -> bool = default;
     //! Compare two positions.
     friend auto operator<=>(Location const &a, Location const &b) = default;
+
+    //! Output the location to the given stream.
+    friend auto operator<<(std::ostream &out, Location const &loc) -> std::ostream & {
+        out << loc.begin() << "-";
+        if (loc.end().file() != loc.begin().file()) {
+            out << loc.end();
+        } else if (loc.end().line() != loc.begin().line()) {
+            out << loc.end().line() << ":" << loc.end().column();
+        } else {
+            out << loc.end().column();
+        }
+        return out;
+    }
 
   private:
     Position begin_;

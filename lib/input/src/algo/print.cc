@@ -783,23 +783,6 @@ auto operator<<(std::ostream &out, AggregateFunction fun) -> std::ostream & {
     return out;
 }
 
-auto operator<<(std::ostream &out, Position const &pos) -> std::ostream & {
-    out << pos.file() << ":" << pos.line() << ":" << pos.column();
-    return out;
-}
-
-auto operator<<(std::ostream &out, Location const &loc) -> std::ostream & {
-    out << loc.begin() << "-";
-    if (loc.end().file() != loc.begin().file()) {
-        out << loc.end();
-    } else if (loc.end().line() != loc.begin().line()) {
-        out << loc.end().line() << ":" << loc.end().column();
-    } else {
-        out << loc.end().column();
-    }
-    return out;
-}
-
 // terms
 
 auto operator<<(std::ostream &out, [[maybe_unused]] Projection const &projection) -> std::ostream & {

@@ -89,6 +89,11 @@
 //! @{
 //! @}
 
+//! @defgroup core_output Output
+//! Interfaces to output logic programs.
+//! @{
+//! @}
+
 //! @}
 
 //! @defgroup input Input
@@ -182,6 +187,16 @@
 
 //! @}
 
+//! @}
+
+//! @defgroup output Output
+//! Data structures and functions to output logic programs.
+//! @{
+//! @}
+
+//! @defgroup grounder Grounder
+//! Functions for parising, rewriting, grounding, and outputting.
+//! @{
 //! @}
 
 //! @}

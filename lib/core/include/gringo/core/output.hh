@@ -5,11 +5,21 @@
 
 namespace Gringo {
 
+//! @addtogroup core_output
+//! @{
+
+//! Interface to output literals.
 class OutputLit {
   public:
+    //! Destroy the output.
     virtual ~OutputLit() = default;
+    //! Output the given symbolic literal.
     void lit(Sign sign, Symbol sym) { do_lit(sign, sym); }
+    //! Output the given boolean constant.
     void boolean(bool value) { do_boolean(value); }
+    //! Output the given conditional literal.
+    //!
+    //! Note that its elemens have to be accumulated before using the statement output.
     void cond_lit(size_t uid) { do_cond_lit(uid); }
 
   private:
@@ -18,23 +28,44 @@ class OutputLit {
     virtual void do_cond_lit(size_t uid) = 0;
 };
 
+//! Interface to output statements.
 class OutputStm {
   public:
+    //! Destroy the output.
     virtual ~OutputStm() = default;
+
+    //! Generate a new unique id.
     auto uid() -> size_t { return do_uid(); }
 
+    //! Output the given fact.
     void fact(Symbol sym) { do_fact(sym); }
 
+    //! Get an output for body literals.
     auto body() -> OutputLit & { return do_body(); }
+    //! Output the given rule.
+    //!
+    //! The body of the rule has to be output first.
     void rule(std::optional<Symbol> head) { do_rule(head); }
 
+    //! Return an output for conditional literals.
+    //!
+    //! This allows for adding literal to the premise or condition of the literal.
     auto cond() -> OutputLit & { return do_cond(); }
+    //! Add elements to the premise of a conditional literal.
     void cond_lit_premise(size_t lit_uid, size_t elem_uid) { do_cond_lit_premise(lit_uid, elem_uid); }
+    //! Add elements to the conclusion of a conditional literal.
+    //!
+    //! At most one element must be added to the conclusion.
     void cond_lit_conclusion(size_t lit_uid, size_t elem_uid) { do_cond_lit_conclusion(lit_uid, elem_uid); }
 
+    //! Flush all delayed rule assuming they are completely defined.
+    //!
+    //! Should be called after grounding a component.
     void flush() { do_flush(); }
+    //! End the current (incremental) grounding step.
     void end_step() { do_end_step(); }
 
+    //! Mark owned symbols.
     void mark(SymbolCollector &gc) { do_mark(gc); }
 
   private:
@@ -55,6 +86,9 @@ class OutputStm {
     virtual void do_mark(SymbolCollector &gc) = 0;
 };
 
+//! Unique pointer for statement output.
 using UOutputStm = std::unique_ptr<OutputStm>;
+
+//! @}
 
 } // namespace Gringo
