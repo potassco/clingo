@@ -13,13 +13,19 @@ struct p_self {
     void operator()(std::ostream &out, auto const &x) { out << x; }
 };
 
-template <class F> struct p_fun {
-    p_fun(F fun) : fun{std::move(fun)} {}
+//! Helper to inject a function to print something.
+template <class F> class p_fun {
+  public:
+    //! Construct the helper.
+    p_fun(F fun) : fun_{std::move(fun)} {}
+    //! Call the function while outputting.
     friend auto operator<<(std::ostream &out, p_fun const &x) -> std::ostream & {
-        x.fun(out);
+        x.fun_(out);
         return out;
     }
-    F fun;
+
+  private:
+    F fun_;
 };
 
 //! Wrapper for range with a separator and a mapper for printing.

@@ -157,20 +157,24 @@ using SharedStringArray = Util::immutable_array<SharedString>;
 //! A vector of strings.
 using SharedStringSpan = std::span<SharedString const>;
 
+//! Convert a shared string pointer into a string pointer.
 inline auto as_string_ptr(SharedString const *ptr) -> String const * {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     return reinterpret_cast<String const *>(ptr);
 }
 
+//! Convert a collection of shared strings into a string span.
 template <class T> inline auto as_string_span(T const &vec) -> StringSpan {
     return {as_string_ptr(vec.data()), vec.size()};
 }
 
+//! Convert a string pointer into a shared string pointer.
 inline auto as_shared_string_ptr(String const *ptr) -> SharedString const * {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     return reinterpret_cast<SharedString const *>(ptr);
 }
 
+//! Convert a collection of strings into a shared string span.
 template <class T> inline auto as_shared_string_span(T const &vec) -> SharedStringSpan {
     return {as_shared_string_ptr(vec.data()), vec.size()};
 }
@@ -295,6 +299,9 @@ class SharedSymbol {
         sym.acquire_();
         return Symbol::to_rep(sym.ref_);
     }
+    //! Create a shared symbol from its representation.
+    //!
+    //! No reference counts are touched here.
     [[nodiscard]] static auto from_rep(uint64_t repr) -> SharedSymbol {
         auto ret = SharedSymbol();
         ret.ref_ = Symbol::from_rep(repr);
@@ -326,36 +333,46 @@ using SharedSymbolSpan = std::span<SharedSymbol const>;
 //! A vector of symbols.
 using SharedSymbolVec = std::vector<SharedSymbol>;
 
+//! Convert a shared symbol pointer into a symbol pointer.
 inline auto as_symbol_ptr(SharedSymbol const *ptr) -> Symbol const * {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     return reinterpret_cast<Symbol const *>(ptr);
 }
 
+//! Convert a shared symbol collection into a symbol span.
 template <class T> inline auto as_symbol_span(T const &vec) -> SymbolSpan {
     return {as_symbol_ptr(vec.data()), vec.size()};
 }
 
+//! Convert a symbol pointer into a shared symbol pointer.
 inline auto as_shared_symbol_ptr(Symbol const *ptr) -> SharedSymbol const * {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     return reinterpret_cast<SharedSymbol const *>(ptr);
 }
 
+//! Convert a symbol collection into a shared symbol span.
 template <class T> inline auto as_shared_symbol_span(T const &vec) -> SharedSymbolSpan {
     return {as_shared_symbol_ptr(vec.data()), vec.size()};
 }
 
+//! Helper class to mark owned symbols.
 class SymbolCollector {
   public:
+    //! Mark a symbol and its descendants.
     void mark(Symbol const &sym);
+    //! Mark a string.
     void mark(String const &str);
 
   private:
     std::vector<Symbol> stack_;
 };
 
+//! Interface for classes owning references to symbols.
 class SymbolOwner {
   public:
+    //! Destroy the symbol owner.
     virtual ~SymbolOwner() = default;
+    //! Function called to mark all owned symbols.
     virtual void mark(SymbolCollector &gc) const = 0;
 };
 
@@ -458,7 +475,9 @@ using USymbolStore = std::unique_ptr<SymbolStore>;
 //! Helper to block garbage collection.
 class GCLock {
   public:
+    //! Block garbage collection.
     GCLock(SymbolStore &store) : store_{&store} { store_->gc_block(); }
+    //! Unblock garbage collection.
     ~GCLock() { store_->gc_unblock(); }
 
   private:

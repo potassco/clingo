@@ -3,10 +3,10 @@
 #include <cstdint>
 #include <ostream>
 
+namespace Gringo {
+
 //! @addtogroup core
 //! @{
-
-namespace Gringo {
 
 //! Enumeration of signs (default negation).
 enum class Sign : uint8_t {

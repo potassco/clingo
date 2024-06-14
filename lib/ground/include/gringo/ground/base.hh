@@ -9,38 +9,50 @@
 
 namespace Gringo::Ground {
 
+//! @addtogroup ground_base
+//! @{
+
+//! Enumeration to capture the state of an atom.
 // NOLINTNEXTLINE(performance-enum-size)
 enum class AtomState : uint64_t {
-    // Indicates that the atom is derived by a fact.
+    //! Indicates that the atom is derived by a fact.
     fact = 0,
-    // Indicates that the atom is derived by some rule but not a fact.
+    //! Indicates that the atom is derived by some rule but not a fact.
     derived = 1,
-    // Indicates that the atom is derived by some external but not a rule or fact.
+    //! Indicates that the atom is derived by some external but not a rule or fact.
     external = 2,
-    // At the time rule (1) is grounded, atom x is not yet defined.
-    // Once (2) has been grounded, there is a definition for it.
-    //
-    //   a :- not x. (1)
-    //   x :- a.     (2)
-    //
-    // The flag indicates atoms that have neither been derived by facts, rules, or externals.
+    //! Indicates that the atom has not yet been derived by a rule.
+    //!
+    //! At the time rule (1) is grounded, atom x is not yet defined.
+    //! Once (2) has been grounded, there is a definition for it.
+    //!
+    //!   a :- not x. (1)
+    //!   x :- a.     (2)
+    //!
+    //! The flag indicates atoms that have neither been derived by facts, rules, or externals.
     unknown = 3,
 };
 
+//! Capture the state of an atom.
 struct AtomInfo {
-    // A unique id among all atoms.
-    uint64_t id : 63;
-    AtomState state : 2;
+    uint64_t id : 63;    //!< A unique id among all atoms.
+    AtomState state : 2; //!< The atom state.
 };
 
+//! An atom consisting of a symbol and its (mutable) state.
 using Atom = std::pair<Symbol, AtomInfo>;
 
+//! Enumeration indicating state updates of atoms.
 enum class AtomUpdate : uint8_t {
-    added = 0,
-    changed = 1,
-    unchanged = 2,
+    added = 0,     //!< A freshly added atom.
+    changed = 1,   //!< An update atom.
+    unchanged = 2, //!< An atom whose state did not change.
 };
 
+//! Helper class to manage generation counts.
+//!
+//! Old, new, and the all generation are considered. The latter is the union of
+//! the prior.
 class GenerationCounts {
   public:
     //! Update the generation counts.
@@ -76,6 +88,10 @@ class GenerationCounts {
     //! Check if there is an update.
     [[nodiscard]] auto has_update(size_t size) const -> bool { return all_offset_ < size; }
 
+    //! Update the current generations.
+    //!
+    //! Generations should always increase. They can however be reset by
+    //! setting the generation to 0.
     void update(size_t generation, size_t size) {
         // initialize the domain
         // (all atoms are marked as new)
@@ -108,17 +124,22 @@ class GenerationCounts {
     size_t generation_ = 0;
 };
 
-// TODO:
-// - used to store indices for the domain
-// - implemented in an any-like fashion because we do not need details here
-// - for base cleanup it would be easy to add a method
+//! A context object.
+//!
+//! Currently, the interface is empty and one could use a std::any as well.
+//! The class exists for easy extensibility.
 class BaseContext {
   public:
+    //! Destroy the context.
     virtual ~BaseContext() = default;
 };
 
+//! The base implementation of an atom base.
+//!
+//! It implements generation counting and support for adding a context object.
 template <class KeyType, class BaseType> class BaseImpl {
   public:
+    //! The key identifies an atom and is usually associated with further state.
     using Key = KeyType;
 
     //! Get the index of the first atom in the given generation.
@@ -135,6 +156,9 @@ template <class KeyType, class BaseType> class BaseImpl {
     //! Update the generation counts.
     void update(size_t generation) { counts_.update(generation, base().size()); }
 
+    //! Get the context of the base with the desired type.
+    //!
+    //! Creates one if the base has none yet.
     template <class T> auto context() -> T & {
         if (context_ != nullptr) {
             if (auto res = dynamic_cast<T *>(context_.get()); res != nullptr) {
@@ -146,8 +170,10 @@ template <class KeyType, class BaseType> class BaseImpl {
         return static_cast<T &>(*context_);
     }
 
+    //! Clear the current context.
     void clear_context() { context_ = nullptr; }
 
+    //! Check if the base has an update.
     [[nodiscard]] auto has_update() const -> bool { return counts_.has_update(base().size()); }
 
   private:
@@ -169,6 +195,7 @@ template <class KeyType, class BaseType> class BaseImpl {
 class Base : public BaseImpl<Symbol, Base> {
   public:
     using BaseImpl::contains;
+    //! Map containing the atoms.
     using MapAtom = Util::ordered_map<Symbol, AtomInfo>;
 
     //! Check if the base is domain.
@@ -258,5 +285,7 @@ class Base : public BaseImpl<Symbol, Base> {
 };
 
 using UBase = std::unique_ptr<Base>;
+
+//! @}
 
 } // namespace Gringo::Ground

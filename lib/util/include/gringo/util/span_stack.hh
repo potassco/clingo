@@ -6,6 +6,10 @@
 
 namespace Gringo::Util {
 
+//! @addtogroup util_algorithm
+//! @{
+
+//! Allocation size in bytes for chunks.
 constexpr auto page_size = size_t{4096};
 
 //! Compactly store fixed size arrays avoiding reallocations.
@@ -106,21 +110,33 @@ template <class T> class SpanStack {
 //! Hasher for spans of fixed size.
 //!
 //! The size must be given upon construction.
-struct SpanHash {
-    SpanHash(size_t size) : size{size} {}
-    template <class T> auto operator()(T const *sym) const -> size_t { return value_hash(std::span(sym, size)); }
-    size_t size;
+class SpanHash {
+  public:
+    //! Initialize with the given size.
+    SpanHash(size_t size) : size_{size} {}
+    //! Get the hash of the symbol array.
+    template <class T> auto operator()(T const *sym) const -> size_t { return value_hash(std::span(sym, size_)); }
+
+  private:
+    size_t size_;
 };
 
-//! Comparision operator for spans of fixed size.
+//! Comparison operator for spans of fixed size.
 //!
 //! The size must be given upon construction.
 struct SpanEqualTo {
-    SpanEqualTo(size_t size) : size{size} {}
+  public:
+    //! Initialize with the given size.
+    SpanEqualTo(size_t size) : size_{size} {}
+    //! Compare two symbols arrays.
     template <class T> auto operator()(T const *a, T const *b) const -> bool {
-        return value_equal_to{}(std::span(a, size), std::span(b, size));
+        return value_equal_to{}(std::span(a, size_), std::span(b, size_));
     }
-    size_t size;
+
+  private:
+    size_t size_;
 };
+
+//! @}
 
 } // namespace Gringo::Util

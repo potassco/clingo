@@ -189,6 +189,58 @@
 
 //! @}
 
+//! @defgroup ground Grounding
+//! Data structures and functions to ground logic programs.
+//! @{
+
+//! @defgroup ground_base Atom Bases
+//! Data structures and functions to represent bases for atoms, aggregate atoms, and similar.
+//! @{
+//! @}
+
+//! @defgroup ground_matcher Matchers
+//! Data structures and functions to match symbols and expressions.
+//! @{
+//! @}
+
+//! @defgroup ground_instantiator Instantiators
+//! Data structures and functions to compute joins.
+//! @{
+//! @}
+
+//! @defgroup ground_language Language
+//! Data structures and functions to represent groundable expressions.
+//! @{
+
+//! @defgroup ground_term Terms
+//! Data structures and functions to ground terms.
+//! @{
+//! @}
+
+//! @defgroup ground_literal Literals
+//! Data structures and functions to ground literals.
+//! @{
+//! @}
+
+//! @defgroup ground_condlit Conditional Literals
+//! Data structures and functions to ground conditional literals.
+//! @{
+//! @}
+
+//! @defgroup ground_stm Statements
+//! Data structures and functions to ground statements.
+//! @{
+//! @}
+
+//! @defgroup ground_program Programs
+//! Data structures and functions to ground programs.
+//! @{
+//! @}
+
+//! @}
+
+//! @}
+
 //! @defgroup output Output
 //! Data structures and functions to output logic programs.
 //! @{

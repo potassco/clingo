@@ -2,10 +2,10 @@
 
 #include <gringo/core/output.hh>
 
+namespace Gringo::Output {
+
 //! @addtogroup output
 //! @{
-
-namespace Gringo::Output {
 
 //! Create a text output.
 auto make_text_output(std::ostream &out) -> UOutputStm;

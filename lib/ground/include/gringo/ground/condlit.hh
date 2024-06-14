@@ -7,6 +7,9 @@
 
 namespace Gringo::Ground {
 
+//! @addtogroup ground_condlit
+//! @{
+
 //! The type of the literals involved in grounding conditional literals.
 enum class LitCondLitType : uint8_t {
     empty = 0,   //! Literals encountered during grounding.
@@ -153,6 +156,7 @@ class BaseCondLitEmpty : public BaseImpl<Symbol const *, BaseCondLitEmpty> {
 //! A base for premises of conditional literals.
 class BaseCondLitPremise : public BaseImpl<Symbol const *, BaseCondLitPremise> {
   public:
+    //! Key to identify atoms.
     using Key = Symbol const *;
 
     //! Construct the base.
@@ -462,5 +466,7 @@ class StmCondLit : public Stm {
     size_t index_;
     StmCondLitType type_;
 };
+
+//! @}
 
 } // namespace Gringo::Ground

@@ -12,6 +12,9 @@
 
 namespace Gringo::Ground {
 
+//! @addtogroup ground_matcher
+//! @{
+
 using VariableSet = Util::ordered_set<size_t>;
 using VariableVec = VariableSet::values_container_type;
 
@@ -382,5 +385,7 @@ auto make_atom_matcher(std::vector<bool> const &bound, Base &base, Match const &
     auto &hash = ctx.add_hash(base, atom.signature(lookup, bind), lookup.size(), bind.size());
     return std::make_unique<Detail::HashMatcher<Base, Match>>(hash, atom, lookup.release(), bind.release(), type);
 }
+
+//! @}
 
 } // namespace Gringo::Ground

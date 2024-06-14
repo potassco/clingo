@@ -10,6 +10,9 @@
 
 namespace Gringo::Ground {
 
+//! @addtogroup ground_literal
+//! @{
+
 enum class VarSelectMode : uint8_t {
     depend = 1,
     provide = 2,
@@ -262,5 +265,7 @@ class LitProject : public Lit {
     size_t index_;
     Sign sign_;
 };
+
+//! @}
 
 } // namespace Gringo::Ground

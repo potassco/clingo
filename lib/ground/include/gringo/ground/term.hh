@@ -8,6 +8,9 @@
 
 namespace Gringo::Ground {
 
+//! @addtogroup ground_term
+//! @{
+
 using Assignment = std::vector<std::optional<Symbol>>;
 
 enum class RenameMode : uint8_t {
@@ -305,5 +308,7 @@ class TermFunction : public Term {
     UTermVec args_;
     std::vector<Symbol> mutable eval_;
 };
+
+//! @}
 
 } // namespace Gringo::Ground

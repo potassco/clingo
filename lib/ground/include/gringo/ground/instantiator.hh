@@ -10,15 +10,25 @@
 
 namespace Gringo::Ground {
 
+//! @addtogroup ground_instantiator
+//! @{
+
+//! Assignment mapping variables to symbols.
 using Assignment = std::vector<std::optional<Symbol>>;
 
+//! Context object to capture state used during instantiation.
 class InstantiationContext {
   public:
+    //! Construct an instantiation state.
     InstantiationContext(Logger &log, OutputStm &out, SymbolStore &store, Assignment &ass)
         : log_{&log}, out_{&out}, store_{&store}, ass_{&ass} {}
+    //! Get the logger.
     [[nodiscard]] auto log() const -> Logger & { return *log_; }
+    //! Get the output.
     [[nodiscard]] auto out() const -> OutputStm & { return *out_; }
+    //! Get the store.
     [[nodiscard]] auto store() const -> SymbolStore & { return *store_; }
+    //! Get the assignment.
     [[nodiscard]] auto ass() const -> Assignment & { return *ass_; }
 
   private:
@@ -28,8 +38,14 @@ class InstantiationContext {
     Assignment *ass_;
 };
 
-enum class MatcherType : uint8_t { new_atoms, old_atoms, all_atoms };
+//! Enumeration of matcher types.
+enum class MatcherType : uint8_t {
+    new_atoms, //! Indicates a matcher for freshly added atoms.
+    old_atoms, //! Indicates a matcher for previously added atoms.
+    all_atoms  //! Indicates a matcher for all atoms.
+};
 
+//! Print a short indicator for the matcher type.
 inline auto operator<<(std::ostream &out, MatcherType type) -> std::ostream & {
     switch (type) {
         case MatcherType::all_atoms: {
@@ -64,6 +80,7 @@ class Matcher {
     [[nodiscard]] auto next(InstantiationContext &ctx) -> bool { return do_next(ctx); }
     //! Print the matcher to the given stream.
     void print(std::ostream &out) const { do_print(out); }
+    //! Get the type of the matcher.
     [[nodiscard]] auto type() const -> MatcherType { return do_type(); }
 
   private:
@@ -73,7 +90,9 @@ class Matcher {
     virtual void do_print(std::ostream &out) const = 0;
     [[nodiscard]] virtual auto do_type() const -> MatcherType { return MatcherType::all_atoms; }
 };
+//! A unique pointer to a matcher.
 using UMatcher = std::unique_ptr<Matcher>;
+//! A vector of matchers.
 using UMatcherVec = std::vector<UMatcher>;
 
 class Queue;
@@ -107,7 +126,7 @@ class InstanceCallback {
     virtual void do_print_head(std::ostream &out) const = 0;
 };
 
-//! An instantiator implementinig the basic grounding algorithm.
+//! An instantiator implementing the basic grounding algorithm.
 class Instantiator {
   public:
     //! A vector of Matcher indices.
@@ -176,14 +195,17 @@ class Instantiator {
     bool enqueued_ = false;
 };
 
+//! A vector of instantiators.
 using InstantiatorVec = std::vector<Instantiator>;
 
-//! A queue to proccess instantiators.
+//! A queue to process instantiators.
 class Queue {
   public:
+    //! Construct an empty queue.
     Queue() = default;
     //! Register an instantiator with the queue.
     void insert(Instantiator inst, std::optional<size_t> index);
+    //! Propagate instantiators with the given index.
     void propagate(size_t index);
     //! Process previously enqueued instantiators.
     [[nodiscard]] auto process(Logger &log, SymbolStore &store, OutputStm &out) -> bool;
@@ -200,5 +222,7 @@ class Queue {
     size_t size_ = 0;
     size_t max_prio_ = 0;
 };
+
+//! @}
 
 } // namespace Gringo::Ground

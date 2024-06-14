@@ -6,6 +6,9 @@
 
 namespace Gringo::Ground {
 
+//! @addtogroup ground_stm
+//! @{
+
 class Stm : public InstanceCallback {
   public:
     void print(std::ostream &out) const { do_print(out); }
@@ -89,5 +92,7 @@ class StmRule : public Stm {
     Ground::ULitVec body_;
     Symbol atom_ = SymbolStore::sup();
 };
+
+//! @}
 
 } // namespace Gringo::Ground

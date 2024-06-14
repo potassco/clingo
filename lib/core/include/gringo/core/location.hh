@@ -14,6 +14,7 @@ namespace Gringo::Input {
 //! A point in an input source.
 class Position {
   public:
+    //! Construct a position.
     Position(String file, size_t line, size_t column) : file_{file}, line_{line}, column_{column} {}
     //! The name of a file/stream/string.
     [[nodiscard]] auto file() const -> String const & { return *file_; }
@@ -42,6 +43,7 @@ class Position {
 //! The Location of an expression in an input source.
 class Location {
   public:
+    //! Construct a location.
     Location(Position begin, Position end) : begin_{std::move(begin)}, end_{std::move(end)} {}
 
     //! The position where the expression starts.

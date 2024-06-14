@@ -2,10 +2,10 @@
 
 #include <type_traits>
 
+namespace Gringo {
+
 //! @addtogroup util_enum
 //! @{
-
-namespace Gringo {
 
 namespace Detail {
 
@@ -70,5 +70,7 @@ template <Detail::BitSetEnum T> inline auto operator-=(T &a, T b) -> T & {
 
 //! Test if a is a superset of b.
 template <Detail::BitSetEnum T> [[nodiscard]] inline auto test(T a, T b) -> bool { return (a & b) == b; }
+
+//! @}
 
 } // namespace Gringo

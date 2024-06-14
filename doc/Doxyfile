@@ -948,6 +948,7 @@ INPUT                  = mainpage.hh \
                          ../lib/core/include/gringo/core \
                          ../lib/input/include/gringo/input \
                          ../lib/input/include/gringo/input/algo \
+                         ../lib/ground/include/gringo/ground \
                          ../lib/output/include/gringo/output \
                          ../lib/grounder/include/gringo/grounder \
                          ../lib/c-api/include
