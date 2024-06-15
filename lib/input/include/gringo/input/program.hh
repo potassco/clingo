@@ -45,10 +45,6 @@ struct ProgramPart {
 //! Statements grouped by parts.
 using ProgramPartVec = std::vector<ProgramPart>;
 
-using ProgramSig = std::pair<SharedString, size_t>;
-using ProgramParam = std::pair<SharedString, std::vector<SharedSymbol>>;
-using ProgramParamVec = std::vector<ProgramParam>;
-
 //! Program grouping unprocessed statements.
 class UnprocessedProgram {
   public:
@@ -86,7 +82,8 @@ enum class ComponentType : uint8_t {
     domain = 1,      //!< The component evaluates to facts.
     single_pass = 2, //!< The component can be grounded in one pass.
 };
-consteval void is_bit_set_enum(ComponentType flags);
+//! Indicate that the component type is a bitset.
+[[maybe_unused]] consteval void is_bit_set_enum(ComponentType flags);
 
 //! A refined component.
 //!

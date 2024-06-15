@@ -189,6 +189,8 @@ class Symbol;
 using SymbolSpan = std::span<Symbol const>;
 //! A vector of symbols.
 using SymbolVec = std::vector<Symbol>;
+//! Assignment mapping variables to symbols.
+using Assignment = std::vector<std::optional<Symbol>>;
 
 //! Variant-like class to store symbols stored in a symbol store.
 class Symbol {

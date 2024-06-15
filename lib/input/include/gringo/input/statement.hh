@@ -692,6 +692,13 @@ class StmProgram : public Expression<StmProgram> {
     SharedStringArray args_;
 };
 
+//! Concrete symbols for a program statement.
+//!
+//! @see StmProgram
+using ProgramParam = std::pair<SharedString, std::vector<SharedSymbol>>;
+//! A list of program params.
+using ProgramParamVec = std::vector<ProgramParam>;
+
 //! Enumeration of constant statement types.
 //!
 //! @see StatementConst

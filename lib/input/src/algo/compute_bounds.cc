@@ -7,8 +7,6 @@
 
 namespace Gringo::Input {
 
-using Util::TruthValue;
-
 namespace {
 
 //! Struct to indicate whether there is a relation literal (or interval) that asserts a bound.

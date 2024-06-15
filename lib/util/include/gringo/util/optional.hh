@@ -121,13 +121,6 @@ auto transform_vec(std::optional<std::vector<T>> &&vec, F const &f) -> Detail::t
     });
 }
 
-//! Truth values for expressions.
-enum class TruthValue : uint8_t {
-    top,     //!< Indicate a true expression.
-    bot,     //!< Indicate a false expression.
-    unknown, //!< Indicate an expression with an unknown truth value.
-};
-
 //! The result of a simplification.
 //!
 //! The result consists of a state resulting from simplification

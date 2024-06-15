@@ -43,6 +43,13 @@ enum class Relation : uint8_t {
 //! Output the given relation.
 auto operator<<(std::ostream &out, Relation rel) -> std::ostream &;
 
+//! Truth values for expressions.
+enum class TruthValue : uint8_t {
+    top,     //!< Indicate a true expression.
+    bot,     //!< Indicate a false expression.
+    unknown, //!< Indicate an expression with an unknown truth value.
+};
+
 //! @}
 
 } // namespace Gringo

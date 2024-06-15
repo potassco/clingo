@@ -41,9 +41,6 @@ class Scanner {
     std::unique_ptr<ScannerImpl> impl_;
 };
 
-using ProgramParam = std::pair<SharedString, std::vector<SharedSymbol>>;
-using ProgramParamVec = std::vector<ProgramParam>;
-
 //! Parse a term.
 auto parse_term(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<Term>;
 //! Parse a theory term.

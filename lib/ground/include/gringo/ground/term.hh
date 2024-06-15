@@ -11,8 +11,7 @@ namespace Gringo::Ground {
 //! @addtogroup ground_term
 //! @{
 
-using Assignment = std::vector<std::optional<Symbol>>;
-
+//! Modes determining how to handle variables in terms.
 enum class RenameMode : uint8_t {
     rename_vars,       //!< Succesively rename variables in order of traversal.
     rename_projection, //!< Succesively introduce variables for projections in order of traversal.

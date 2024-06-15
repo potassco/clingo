@@ -13,9 +13,6 @@ namespace Gringo::Ground {
 //! @addtogroup ground_instantiator
 //! @{
 
-//! Assignment mapping variables to symbols.
-using Assignment = std::vector<std::optional<Symbol>>;
-
 //! Context object to capture state used during instantiation.
 class InstantiationContext {
   public:
