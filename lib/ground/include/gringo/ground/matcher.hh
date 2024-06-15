@@ -15,9 +15,19 @@ namespace Gringo::Ground {
 //! @addtogroup ground_matcher
 //! @{
 
+//! A set of variables.
 using VariableSet = Util::ordered_set<size_t>;
+//! A vector of variables.
 using VariableVec = VariableSet::values_container_type;
 
+//! Concept for atom bases.
+//!
+//! An atom base must support the following:
+//! - begin and end functions returning offsets for the given generation,
+//! - a contains function to check if it contains an atom identified by its key,
+//! - an n-th function that returns a pair where the first value is the key,
+//! - and update function to update the current generation,
+//! - a context function to add arbitrary contexts.
 template <class Base>
 concept IsBase = requires(Base &b) {
     b.begin(std::declval<MatcherType>());
