@@ -19,7 +19,7 @@ auto rewrite_program(std::vector<char const *> const &stms) -> SV {
         }
     }
     Program prg{RewriteOptions{}};
-    prg.join(ph, ph, std::move(upr));
+    prg.join(ph, ph, upr);
     SV ret;
     prg.visit_stms(ph, [&ret](auto const &stm) { ret.emplace_back(to_str(stm)); });
     return ret;
