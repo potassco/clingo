@@ -5,6 +5,7 @@
 #include <gringo/input/algo/dependency.hh>
 #include <gringo/input/algo/print.hh>
 
+#include <gringo/util/macro.hh>
 #include <gringo/util/ordered_set.hh>
 #include <gringo/util/type_traits.hh>
 #include <gringo/util/unordered_map.hh>
@@ -25,7 +26,9 @@ enum class DependencyType : uint8_t {
     positive = 1,
     negative = 2,
 };
+GRINGO_IGNORE_UNUSED_FUNCTION_B
 [[maybe_unused]] consteval void is_bit_set_enum(DependencyType flags);
+GRINGO_IGNORE_UNUSED_FUNCTION_E
 
 auto safe_sig(Term const &term) -> std::tuple<String, size_t, bool> {
     return signature(term).value(); // NOLINT(bugprone-unchecked-optional-access)

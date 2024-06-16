@@ -1,6 +1,7 @@
 #pragma once
 
 #include <gringo/util/hash.hh>
+#include <gringo/util/macro.hh>
 
 #include <span>
 
@@ -94,7 +95,9 @@ template <class T> class SpanStack {
       private:
         Chunk *next_;
         size_t size_ = 0;
+        GRINGO_IGNORE_ZERO_SIZED_ARRAY_B
         T data_[0]; // NOLINT
+        GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
     };
     // NOLINTEND(cppcoreguidelines-pro-bounds-array-to-pointer-decay,cppcoreguidelines-pro-bounds-pointer-arithmetic)
 

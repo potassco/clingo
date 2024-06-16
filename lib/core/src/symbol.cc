@@ -1,5 +1,6 @@
 #include <gringo/core/symbol.hh>
 
+#include <gringo/util/macro.hh>
 #include <gringo/util/print.hh>
 #include <gringo/util/unordered_set.hh>
 
@@ -244,7 +245,9 @@ template <class T> class RefCounted {
     RefCounted(bool referenced) : ref_count_{referenced ? 1U : 0U} {}
 
     std::atomic_size_t mutable ref_count_;
+    GRINGO_IGNORE_ZERO_SIZED_ARRAY_B
     T data_[0];
+    GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
 };
 
 using SymbolArray = RefCounted<Symbol>;
