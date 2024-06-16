@@ -6,11 +6,17 @@
 
 #include <gringo/util/index_sequence.hh>
 #include <gringo/util/ordered_map.hh>
+#include <gringo/util/ordered_set.hh>
 
 namespace Gringo::Ground {
 
 //! @addtogroup ground_base
 //! @{
+
+//! A set of variables.
+using VariableSet = Util::ordered_set<size_t>;
+//! A vector of variables.
+using VariableVec = VariableSet::values_container_type;
 
 //! Enumeration to capture the state of an atom.
 // NOLINTNEXTLINE(performance-enum-size)
@@ -284,6 +290,7 @@ class Base : public BaseImpl<Symbol, Base> {
     size_t mutable domain_offset_ = 0;
 };
 
+//! A unique pointer holding a base.
 using UBase = std::unique_ptr<Base>;
 
 //! @}

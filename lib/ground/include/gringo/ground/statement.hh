@@ -9,14 +9,22 @@ namespace Gringo::Ground {
 //! @addtogroup ground_stm
 //! @{
 
+//! Base class for groundable statements.
 class Stm : public InstanceCallback {
   public:
-    void print(std::ostream &out) const { do_print(out); }
+    //! Get the body of the statement.
     [[nodiscard]] auto body() const -> ULitVec const & { return do_body(); }
+    //! Get the important variables in the statement.
+    //!
+    //! This comprises all variables that have to be bound to provide relevant
+    //! instances. Relevant important variables from the body are gathered
+    //! separately. For example, normal rules should provide the variables in
+    //! the rule head, and integrity constraint can return an empty set.
     [[nodiscard]] auto important() const -> VariableSet { return do_important(); }
 
+    //! Print the statement.
     friend auto operator<<(std::ostream &out, Stm const &stm) -> std::ostream & {
-        stm.print(out);
+        stm.do_print(out);
         return out;
     }
 
@@ -26,7 +34,9 @@ class Stm : public InstanceCallback {
     [[nodiscard]] virtual auto do_important() const -> VariableSet = 0;
 };
 
+//! A unique pointer holding a statement.
 using UStm = std::unique_ptr<Stm>;
+//! A vector of statements.
 using UStmVec = std::vector<UStm>;
 
 //! Helper class to prepare statements for grounding.
@@ -55,8 +65,10 @@ class Linearizer {
     bool domain_ = false;
 };
 
+//! A statement capturing normal rules and integrity constraints.
 class StmRule : public Stm {
   public:
+    //! Construct the statement.
     StmRule(std::optional<std::pair<Ground::UTerm, Base &>> head, std::vector<size_t> indices, Ground::ULitVec body)
         : head_{head ? std::move(head->first) : nullptr}, base_{head ? &head->second : nullptr},
           indices_{std::move(indices)}, body_{std::move(body)} {

@@ -15,16 +15,11 @@ namespace Gringo::Ground {
 //! @addtogroup ground_matcher
 //! @{
 
-//! A set of variables.
-using VariableSet = Util::ordered_set<size_t>;
-//! A vector of variables.
-using VariableVec = VariableSet::values_container_type;
-
 //! Concept for atom bases.
 //!
 //! An atom base must support the following:
 //! - begin and end functions returning offsets for the given generation,
-//! - a contains function to check if it contains an atom identified by its key,
+//! - a contains function to check if it contains a (ground) atom identified by its key,
 //! - an n-th function that returns a pair where the first value is the key,
 //! - and update function to update the current generation,
 //! - a context function to add arbitrary contexts.
@@ -40,6 +35,14 @@ concept IsBase = requires(Base &b) {
     { b.nth(std::declval<size_t>())->first } -> std::same_as<typename Base::Key const &>;
 };
 
+//! Concept for matchable expressions.
+//!
+//! A match must support the following:
+//! - a vars function to get all variables in the expression,
+//! - a match function to match a ground expression and an assignment,
+//! - an eval function returning an optional ground expression given an assignment,
+//! - a signature function to obtain a signature grouping compatible expressions,
+//! - the match must be printable.
 template <class Match>
 concept IsMatch = requires(Match const &m) {
     { m.vars() } -> std::same_as<VariableSet>;
@@ -49,12 +52,19 @@ concept IsMatch = requires(Match const &m) {
     std::declval<std::ostream &>() << m;
 };
 
+//! A matcher that matches only provides one match.
+//!
+//! By default it provides exactly one match. Its do_once method can be
+//! overriden to restrict matches further.
 class OnceMatcher : public Matcher {
   public:
+    //! Construct the matcher.
     OnceMatcher() = default;
-    [[nodiscard]] auto once(InstantiationContext &ctx) -> bool { return do_once(ctx); }
 
   private:
+    //! Return true if the matcher matches.
+    //!
+    //! Only called once.
     virtual auto do_once([[maybe_unused]] InstantiationContext &ctx) -> bool { return true; }
 
     void do_init([[maybe_unused]] SymbolStore &store, [[maybe_unused]] size_t gen) override {}
@@ -71,16 +81,33 @@ class OnceMatcher : public Matcher {
     bool match_ = false;
 };
 
+//! Construct a matcher matching only once.
 auto make_once_matcher() -> UMatcher;
 
+//! Construct an interval matcher.
+//!
+//! It matches [lhs] with all values from the interval [lower, upper]. All
+//! variables in lower and upper must be bound.
 auto make_interval_matcher(std::vector<bool> const &bound, Term const &lhs, Term const &lower,
                            Term const &upper) -> UMatcher;
 
+//! Construct a matcher for comparisons.
+//!
+//! It matches if `lhs rel rhs` holds. All variables in lhs and rhs must be
+//! bound.
 auto make_comp_matcher(std::vector<bool> const &bound, Term const &lhs, Relation rel, Term const &rhs) -> UMatcher;
 
-// Note: candidate for generalization
+//! Construct a matcher for facts.
+//!
+//! Matches if the term represents a fact. If target is given, the evaluated
+//! term is stored in it.
+//!
+//! @note: candidate for generalization
 auto make_non_fact_matcher(Base &base, Term const &term, Symbol *target) -> UMatcher;
 
+//! Construct a matcher for an atom.
+//!
+//! A base and an atom implementing the IsBase and IsMatch concepts must be given.
 template <IsBase Base, IsMatch Match>
 auto make_atom_matcher(std::vector<bool> const &bound, Base &base, Match const &atom, MatcherType type) -> UMatcher;
 

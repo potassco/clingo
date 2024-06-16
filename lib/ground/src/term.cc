@@ -346,7 +346,7 @@ void TermUnary::do_print(std::ostream &out) const {
             break;
         }
     }
-    rhs_->print(out);
+    out << *rhs_;
     if (op_ == UnaryOperator::abs) {
         out << "|";
     }
@@ -450,7 +450,7 @@ void TermBinary::do_vars(VariableSet &vars, bool provide) const {
 
 void TermBinary::do_print(std::ostream &out) const {
     out << "(";
-    lhs_->print(out);
+    out << *lhs_;
     switch (op_) {
         case BinaryOperator::and_: {
             out << "&";
@@ -489,7 +489,7 @@ void TermBinary::do_print(std::ostream &out) const {
             break;
         }
     }
-    rhs_->print(out);
+    out << *rhs_;
     out << ")";
 }
 
@@ -564,7 +564,7 @@ void TermTuple::do_print(std::ostream &out) const {
         ++n;
     }
     for (auto const &arg : args_) {
-        arg->print(out);
+        out << *arg;
         if (--n; n > 0) {
             out << ",";
         }
@@ -649,7 +649,7 @@ void TermFunction::do_print(std::ostream &out) const {
     if (auto n = args_.size(); n >= 1) {
         out << "(";
         for (auto const &arg : args_) {
-            arg->print(out);
+            out << *arg;
             if (--n; n > 0) {
                 out << ",";
             }

@@ -11,6 +11,11 @@ namespace Gringo::Ground {
 //! @addtogroup ground_term
 //! @{
 
+//! A set of variables.
+using VariableSet = Util::ordered_set<size_t>;
+//! A vector of variables.
+using VariableVec = VariableSet::values_container_type;
+
 //! Modes determining how to handle variables in terms.
 enum class RenameMode : uint8_t {
     rename_vars,       //!< Succesively rename variables in order of traversal.
@@ -18,11 +23,10 @@ enum class RenameMode : uint8_t {
     drop_projection,   //!< Drop projections from tuples and functions.
 };
 
-using VariableSet = Util::ordered_set<size_t>;
-using VariableVec = VariableSet::values_container_type;
-
 class Term;
+//! A unique pointer holding a term.
 using UTerm = std::unique_ptr<Term>;
+//! A vector of terms.
 using UTermVec = std::vector<UTerm>;
 
 //! Term interface.
@@ -61,10 +65,9 @@ class Term {
     [[nodiscard]] auto rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm { return do_rename(vars); }
     //! Collect all variables in the term.
     void vars(VariableSet &vars, bool provide = false) const { do_vars(vars, provide); }
-    //! Output the term.
-    void print(std::ostream &out) const { do_print(out); }
     //! Create a copy of the term.
     [[nodiscard]] auto copy() const -> UTerm { return do_copy(); }
+    //! Compute a hash for the term.
     [[nodiscard]] auto hash() const -> size_t { return do_hash(); }
 
     //! Compute a siganture of the term.
@@ -90,10 +93,13 @@ class Term {
         return set;
     }
 
+    //! Compare two terms.
     friend auto operator==(Term const &a, Term const &b) -> bool { return a.do_equal_to(b); }
+    //! Compare two terms.
     friend auto operator<=>(Term const &a, Term const &b) -> std::strong_ordering { return a.do_compare_to(b); }
+    //! Print the term.
     friend auto operator<<(std::ostream &out, Term const &term) -> std::ostream & {
-        term.print(out);
+        term.do_print(out);
         return out;
     }
 
@@ -112,8 +118,10 @@ class Term {
     [[nodiscard]] virtual auto do_compare_to(Term const &other) const -> std::strong_ordering = 0;
 };
 
+//! A term capturing a projection.
 class TermProjection : public Term {
   public:
+    //! Construct the term.
     TermProjection() = default;
 
   private:
@@ -131,10 +139,13 @@ class TermProjection : public Term {
     [[nodiscard]] auto do_compare_to(Term const &other) const -> std::strong_ordering override;
 };
 
+//! A term capturing a symbol.
 class TermSymbol : public Term {
   public:
+    //! Construct the term.
     TermSymbol(Symbol sym) : sym_{sym} {}
 
+    //! Get the symbol of the term.
     [[nodiscard]] auto symbol() const -> Symbol const & { return *sym_; }
 
   private:
@@ -154,8 +165,10 @@ class TermSymbol : public Term {
     SharedSymbol sym_;
 };
 
+//! A term capturing a variable.
 class TermVariable : public Term {
   public:
+    //! Construct the term.
     TermVariable(size_t var) : var_{var} {}
 
   private:
@@ -175,8 +188,10 @@ class TermVariable : public Term {
     size_t var_;
 };
 
+//! A term capturing a linear term.
 class TermLinear : public Term {
   public:
+    //! Construct the term.
     TermLinear(Number m, size_t var, Number n) : m_{std::move(m)}, n_{std::move(n)}, var_{var} {}
 
   private:
@@ -205,8 +220,10 @@ enum class UnaryOperator : uint8_t {
     abs = 2,    //!< The arithmetic absolute operation.
 };
 
+//! A term capturing a unary term.
 class TermUnary : public Term {
   public:
+    //! Construct the term.
     TermUnary(UnaryOperator op, UTerm rhs) : rhs_{std::move(rhs)}, op_{op} {}
 
   private:
@@ -240,8 +257,10 @@ enum class BinaryOperator : uint8_t {
     xor_,  //!< The XOR bit operation.
 };
 
+//! A term capturing a binary term.
 class TermBinary : public Term {
   public:
+    //! Construct the term.
     TermBinary(UTerm lhs, BinaryOperator op, UTerm rhs) : lhs_{std::move(lhs)}, rhs_{std::move(rhs)}, op_{op} {}
 
   private:
@@ -263,8 +282,10 @@ class TermBinary : public Term {
     BinaryOperator op_;
 };
 
+//! A term capturing a tuple.
 class TermTuple : public Term {
   public:
+    //! Construct the term.
     TermTuple(UTermVec args) : args_{std::move(args)} { eval_.reserve(args_.size()); }
 
   private:
@@ -285,8 +306,10 @@ class TermTuple : public Term {
     std::vector<Symbol> mutable eval_;
 };
 
+//! A term capturing a tuple.
 class TermFunction : public Term {
   public:
+    //! Construct the term.
     TermFunction(String name, UTermVec args) : name_{name}, args_{std::move(args)} { eval_.reserve(args_.size()); }
 
   private:
