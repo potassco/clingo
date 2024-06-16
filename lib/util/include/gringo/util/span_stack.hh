@@ -6,7 +6,7 @@
 
 namespace Gringo::Util {
 
-//! @addtogroup util_algorithm
+//! @addtogroup util_container
 //! @{
 
 //! Allocation size in bytes for chunks.

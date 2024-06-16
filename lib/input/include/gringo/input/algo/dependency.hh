@@ -6,6 +6,9 @@
 
 namespace Gringo::Input {
 
+//! @addtogroup input_rewrite
+//! @{
+
 // examples:
 // - h :- a : b, not c; d; not e.
 //   - depend:
@@ -58,5 +61,7 @@ auto unify(SymbolStore &store, Term const &a, Term const &b) -> bool;
 //!
 //! This function is intended for debugging.
 void visualize(Components const &comps, std::ostream &out);
+
+//! @}
 
 } // namespace Gringo::Input

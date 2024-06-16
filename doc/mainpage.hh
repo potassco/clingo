@@ -48,8 +48,8 @@
 //! @{
 //! @}
 
-//! @defgroup util_container Additonal Containers
-//! Additional containers currently including hash based containers.
+//! @defgroup util_container Generic Containers
+//! Generic containers used throughout the library.
 //! @{
 //! @}
 

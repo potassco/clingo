@@ -5,6 +5,9 @@
 
 namespace Gringo::Util {
 
+//! @addtogroup util_container
+//! @{
+
 //! Container to store integer sequences.
 //!
 //! Consecutive integers are stored in an interval.
@@ -54,5 +57,7 @@ template <class T> class index_sequence {
     std::vector<std::tuple<T, T, T>> values_;
     size_t mutable last_ = 0;
 };
+
+//! @}
 
 } // namespace Gringo::Util

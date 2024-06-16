@@ -7,6 +7,9 @@
 
 namespace Gringo::Input {
 
+//! @addtogroup input_rewrite
+//! @{
+
 //! Enum for unary/binary operator arities.
 enum class Arity : uint8_t {
     unary = 0,  //!< unary arity
@@ -165,5 +168,7 @@ class RewriteContext {
     NameGen gen_;                    //!< Generator to create fresh variable names.
     std::vector<AuxTermVec> aux_;    //!< Vector of variable term pairs.
 };
+
+//! @}
 
 } // namespace Gringo::Input
