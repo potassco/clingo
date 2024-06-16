@@ -234,9 +234,16 @@ template <IsBase Base> class HashIndex {
     }
 
   private:
+    // TODO: adjust
+    // - should be changed to: pair<new_offset, vector<tuple<hash, index, symbols[0]>>>
+    // - the new_offset could be used to quickly jump to the new generation
+    //   (even though going backwards or a binary search would also be an option)
+    // - the hash should be stored for faster lookup
+    // - the index to check the current generation
+    // - the index could also be reported to the literal to avoid later evals/lookups
     using BindVec = std::vector<std::pair<size_t, Symbol *>>;
-    // Note: we need an ordered map to be able to update indices while
-    // matching. The same index might be updated from different matchers.
+    // TODO:
+    // - get rid of the ordered map by importing all symbols
     using IndexMap = Util::ordered_map<Symbol *, BindVec, Hash, Util::SpanEqualTo>;
 
     auto bind_next(Assignment &ass, VariableVec &bind_vars, MatcherType type, IndexMap::iterator &it,
