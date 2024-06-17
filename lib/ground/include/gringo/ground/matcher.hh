@@ -4,7 +4,6 @@
 #include <gringo/ground/instantiator.hh>
 #include <gringo/ground/term.hh>
 
-#include <gringo/util/ordered_set.hh>
 #include <gringo/util/span_stack.hh>
 #include <gringo/util/unordered_map.hh>
 
@@ -249,7 +248,7 @@ template <IsBase Base> class HashIndex {
         size_t offset_ = 0;
         SymbolVec symbols_;
     };
-    using IndexMap = Util::ordered_map<Key, Val, Util::value_hasher, KeyEqual>;
+    using IndexMap = Util::unordered_map<Key, Val, Util::value_hasher, KeyEqual>;
 
   public:
     using KeyIterator = IndexMap::iterator;
@@ -293,7 +292,7 @@ template <IsBase Base> class HashIndex {
                     kt.value().add(ass, bind_vars, imported_);
                 }
             }
-            // restore the assignment if there was no match
+            // restore the assignment
             auto kt = temp_values_.begin();
             for (auto const &var : bound_vars) {
                 ass[var] = *kt++;
