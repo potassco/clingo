@@ -272,6 +272,27 @@ template <IsBase Base> class HashIndex {
                 symbols_.emplace_back(*ass[var]);
             }
         }
+        auto first(Assignment &ass, VariableVec &bind_vars, size_t begin, size_t end, SymbolVec::iterator &it) -> bool {
+            it = symbols_.begin();
+            if (begin > 0) {
+                size_t n = bind_vars.size() + 1;
+                std::advance(it, offset_ * n);
+                for (; it != symbols_.end() && Symbol::to_rep(*it) < begin;
+                     it += static_cast<ssize_t>(n), offset_ += n) {
+                }
+            }
+            return next(ass, bind_vars, end, it);
+        }
+        auto next(Assignment &ass, VariableVec &bind_vars, size_t end, SymbolVec::iterator &it) -> bool {
+            if (it != symbols_.end() && Symbol::to_rep(*it) < end) {
+                ++it;
+                for (auto const &var : bind_vars) {
+                    ass[var] = *it++;
+                }
+                return true;
+            }
+            return false;
+        }
 
       private:
         size_t offset_ = 0;
@@ -279,15 +300,16 @@ template <IsBase Base> class HashIndex {
     };
     using IndexMap2 = Util::ordered_map<Key, Val, Util::value_hasher, KeyEqual>;
     template <IsMatch Match>
-    void import_(SymbolStore &store, Assignment &ass, VariableVec &bound_vars, VariableVec &bind_vars, Match const &m) {
+    auto first_(SymbolStore &store, Assignment &ass, VariableVec &bound_vars, VariableVec &bind_vars, Match const &m,
+                MatcherType type, IndexMap2::iterator &it, SymbolVec::iterator &jt) {
+        // store the bound values
+        SymbolVec bound_vals;
+        bound_vals.reserve(bind_vars.size());
+        for (auto const &var : bound_vars) {
+            bound_vals.emplace_back(*ass[var]);
+        }
         auto n = base_->end(MatcherType::all_atoms);
         if (imported_ < n) {
-            // store the bound values
-            SymbolVec bound_vals;
-            bound_vals.reserve(bind_vars.size());
-            for (auto const &var : bound_vars) {
-                bound_vals.emplace_back(*ass[var]);
-            }
             // import
             for (; imported_ < n; ++imported_) {
                 // unbind all vars for matching
@@ -316,6 +338,13 @@ template <IsBase Base> class HashIndex {
                 ass[var] = *jt++;
             }
         }
+        auto bound_hash = Util::value_hash(std::span(bound_vals.data(), bound_vars.size()));
+        it = index2_.find(Key{bound_vals.data(), bound_hash});
+        return it != index2_.end() && it.value().first(ass, bind_vars, base_->begin(type), base_->end(type), jt);
+    }
+    auto next_(Assignment &ass, VariableVec &bind_vars, MatcherType type, IndexMap2::iterator &it,
+               SymbolVec::iterator &jt) -> bool {
+        return it.value().next(ass, bind_vars, base_->end(type), jt);
     }
 
     // TODO: adjust
