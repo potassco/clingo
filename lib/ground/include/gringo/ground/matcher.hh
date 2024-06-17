@@ -201,6 +201,10 @@ template <IsBase Base> class HashIndex {
     void init(size_t gen) { base_->update(gen); }
 
     static auto match() -> std::pair<size_t, size_t> {
+        /*
+        import()
+        return bind_first();
+         */
         return {std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max()};
     }
 
@@ -234,18 +238,96 @@ template <IsBase Base> class HashIndex {
     }
 
   private:
+    class Key {
+      public:
+        Key(Symbol const *syms, size_t hash)
+            : hash_{hash},
+              // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+              syms_{reinterpret_cast<uintptr_t>(syms) | mask_} {}
+        [[nodiscard]] auto hash() const -> size_t { hash_; }
+        [[nodiscard]] auto marked() const -> bool { return (syms_ & mask_) != 0; }
+        void unmark() const { syms_ = syms_ & ~mask_; }
+        [[nodiscard]] auto symbols() const -> Symbol const * { return static_cast<Symbol const *>(syms_ & ~mask_); }
+
+      private:
+        static constexpr uintptr_t mask_ = 1;
+        size_t hash_;
+        mutable uintptr_t syms_;
+    };
+    struct KeyEqual {
+        auto operator()(Key const &a, Key const &b) {
+            if (a.marked() || b.marked()) {
+                return std::equal(a.symbols(), std::next(a.symbols(), size), b.symbols(), std::next(b.symbols(), size));
+            }
+            return a.symbols_ == b.symbols_;
+        }
+        size_t size;
+    };
+    struct Val {
+      public:
+        Val() = default;
+        void add(Assignment const &ass, VariableVec &bind_vars, size_t index) {
+            symbols_.emplace_back(Symbol::from_rep(index));
+            for (auto const &var : bind_vars) {
+                symbols_.emplace_back(*ass[var]);
+            }
+        }
+
+      private:
+        size_t offset_ = 0;
+        SymbolVec symbols_;
+    };
+    using IndexMap2 = Util::ordered_map<Key, Val, Util::value_hasher, KeyEqual>;
+    template <IsMatch Match>
+    void import_(SymbolStore &store, Assignment &ass, VariableVec &bound_vars, VariableVec &bind_vars, Match const &m) {
+        auto n = base_->end(MatcherType::all_atoms);
+        if (imported_ < n) {
+            // store the bound values
+            SymbolVec bound_vals;
+            bound_vals.reserve(bind_vars.size());
+            for (auto const &var : bound_vars) {
+                bound_vals.emplace_back(*ass[var]);
+            }
+            // import
+            for (; imported_ < n; ++imported_) {
+                // unbind all vars for matching
+                for (auto const &var : bound_vars) {
+                    ass[var] = std::nullopt;
+                }
+                for (auto const &var : bind_vars) {
+                    ass[var] = std::nullopt;
+                }
+                // try to match
+                if (m.match(store, base_->nth(imported_)->first, ass)) {
+                    auto key_syms = bound_values_.push_map(bound_vars, [&ass](auto const &var) { return *ass[var]; });
+                    auto key_hash = Util::value_hash(std::span(key_syms, bound_vars.size()));
+                    auto [jt, ins] = index2_.try_emplace(Key{key_syms, key_hash});
+                    if (ins) {
+                        jt.key().unmark();
+                    } else {
+                        bound_values_.pop();
+                    }
+                    jt.value().add(ass, bind_vars, imported_);
+                }
+            }
+            // restore the assignment if there was no match
+            auto jt = bound_vals.begin();
+            for (auto const &var : bound_vars) {
+                ass[var] = *jt++;
+            }
+        }
+    }
+
     // TODO: adjust
-    // - should be changed to: pair<new_offset, vector<tuple<hash, index, symbols[0]>>>
+    // - should be changed to: pair<new_offset, vector<tuple<index, symbols[0]>>>
     // - the new_offset could be used to quickly jump to the new generation
     //   (even though going backwards or a binary search would also be an option)
-    // - the hash should be stored for faster lookup
     // - the index to check the current generation
     // - the index could also be reported to the literal to avoid later evals/lookups
     using BindVec = std::vector<std::pair<size_t, Symbol *>>;
     // TODO:
     // - get rid of the ordered map by importing all symbols
     using IndexMap = Util::ordered_map<Symbol *, BindVec, Hash, Util::SpanEqualTo>;
-
     auto bind_next(Assignment &ass, VariableVec &bind_vars, MatcherType type, IndexMap::iterator &it,
                    size_t &cur) -> bool {
         if (auto [i, bind_vals] = it->second[cur]; i < base_->end(type)) {
@@ -258,6 +340,7 @@ template <IsBase Base> class HashIndex {
         }
         return false;
     }
+
     template <IsMatch Match>
     auto import_next(SymbolStore &store, Assignment &ass, VariableVec &bound_vars, VariableVec &bind_vars,
                      Match const &m, MatcherType type, std::span<Symbol> bound_vals, size_t &pos, size_t &cur) -> bool {
@@ -310,6 +393,7 @@ template <IsBase Base> class HashIndex {
     Util::SpanStack<Symbol> bound_values_;
     Util::SpanStack<Symbol> bind_values_;
     IndexMap index_;
+    IndexMap2 index2_;
     size_t imported_ = 0;
 };
 
