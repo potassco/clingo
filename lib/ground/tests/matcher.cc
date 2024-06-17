@@ -245,7 +245,7 @@ TEST_CASE("ground_matcher") {
         base.add(sym(1, 5, 6), AtomState::derived);
         m1->init(*store, 1);
         m2->init(*store, 1);
-        m2->match(ctx);
+        m1->match(ctx);
         REQUIRE(m1->next(ctx));
         REQUIRE(ass[1] == store->num_ref(5));
         m2->match(ctx);
