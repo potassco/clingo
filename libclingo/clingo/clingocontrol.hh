@@ -254,6 +254,13 @@ public:
     bool blocked() override;
     std::string str();
     void assignExternal(Potassco::Atom_t ext, Potassco::Value_t) override;
+    void assignExternal(Symbol ext, Potassco::Value_t val) override {
+        update();
+        auto res = out_->find(ext);
+        if (res.second != nullptr && res.first != res.second->end() && res.first->hasUid()) {
+            assignExternal(res.first->uid(), val);
+        }
+    }
     Symbol getConst(std::string const &name) const override;
     bool isConflicting() const noexcept override;
     Potassco::AbstractStatistics const *statistics() const override;

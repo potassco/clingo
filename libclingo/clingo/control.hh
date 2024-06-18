@@ -245,6 +245,7 @@ struct clingo_control {
     virtual Gringo::Symbol getConst(std::string const &name) const = 0;
     virtual bool blocked() = 0;
     virtual void assignExternal(Potassco::Atom_t ext, Potassco::Value_t val) = 0;
+    virtual void assignExternal(Gringo::Symbol ext, Potassco::Value_t val) = 0;
     virtual bool isConflicting() const noexcept = 0;
     virtual Potassco::AbstractStatistics const *statistics() const = 0;
     virtual void useEnumAssumption(bool enable) = 0;

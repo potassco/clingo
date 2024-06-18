@@ -193,6 +193,13 @@ struct IncrementalControl : Control, private Output::ASPIFOutBackend {
         update();
         if (auto *b = out.backend()) { b->external(ext, val); }
     }
+    void assignExternal(Symbol ext, Potassco::Value_t val) override {
+        update();
+        auto res = out.find(ext);
+        if (res.second != nullptr && res.first != res.second->end() && res.first->hasUid()) {
+            assignExternal(res.first->uid(), val);
+        }
+    }
     SymbolicAtoms const &getDomain() const override { throw std::runtime_error("domain introspection not supported"); }
     ConfigProxy &getConf() override { throw std::runtime_error("configuration not supported"); }
     void registerPropagator(UProp, bool) override { throw std::runtime_error("theory propagators not supported"); }
