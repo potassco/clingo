@@ -28,7 +28,7 @@ jobs:
         submodules: recursive
 
     - name: setup miniconda
-      uses: conda-incubator/setup-miniconda@v2
+      uses: conda-incubator/setup-miniconda@v3
       with:
         auto-update-conda: true
         python-version: ${{ matrix.python-version }}
