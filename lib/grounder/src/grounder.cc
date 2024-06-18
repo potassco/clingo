@@ -1,5 +1,6 @@
 #include <gringo/grounder/grounder.hh>
 
+#include <gringo/ground/aggregate.hh>
 #include <gringo/ground/condlit.hh>
 #include <gringo/ground/program.hh>
 
