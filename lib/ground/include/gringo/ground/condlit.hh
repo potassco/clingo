@@ -12,9 +12,9 @@ namespace Gringo::Ground {
 
 //! The type of the literals involved in grounding conditional literals.
 enum class LitCondLitType : uint8_t {
-    empty = 0,   //! Literals encountered during grounding.
-    premise = 1, //! Premises encountered during grounding.
-    lit = 2,     //! Conditional literals derived during grounding.
+    empty = 0,   //!< Literals encountered during grounding.
+    premise = 1, //!< Premises encountered during grounding.
+    lit = 2,     //!< Conditional literals derived during grounding.
 };
 //! Print the type of a conditional literal grounding literal.
 auto operator<<(std::ostream &out, LitCondLitType type) -> std::ostream &;
@@ -22,10 +22,10 @@ auto operator<<(std::ostream &out, LitCondLitType type) -> std::ostream &;
 //! The 4-valued truth value of a conclusion.
 // NOLINTNEXTLINE(performance-enum-size)
 enum class TruthConclusion : uint64_t {
-    true_ = 0,
-    false_ = 1,
-    derived = 2,
-    unknown = 3,
+    true_ = 0,   //!< The conclusion is true.
+    false_ = 1,  //!< The conclusion is false.
+    derived = 2, //!< There is rule that can derived the conclusion.
+    unknown = 3, //!< There is no rule yet that could derive the conclusion.
 };
 
 //! Capture (the state of) an element of a conditional literal.
@@ -433,9 +433,9 @@ class LitCondLitStrat : public Lit, private InstanceCallback {
 
 //! Type of the helper statement to ground conditional literals.
 enum class StmCondLitType : uint8_t {
-    empty = 0,
-    premise = 1,
-    conclusion = 2,
+    empty = 0,      //!< Gather conditional literals for grounding.
+    premise = 1,    //!< Gather premises of conditional literals.
+    conclusion = 2, //!< Gather conclusions of conditional literals.
 };
 //! Print the type.
 auto operator<<(std::ostream &out, StmCondLitType type) -> std::ostream &;
