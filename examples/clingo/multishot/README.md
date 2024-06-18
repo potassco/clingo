@@ -6,7 +6,7 @@ Examples
 
 The branch-and-bound example:
 
-    $ python opt.py tohE.lp tohI.lp tohB.lp -c n=20
+    $ python opt.py tohB.lp tohI.lp -c n=20
     opt-example version 1.0
     Reading from tohE.lp ...
     Solving...
