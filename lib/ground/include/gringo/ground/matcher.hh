@@ -297,39 +297,6 @@ template <IsBase Base> class HashIndex {
         size_t size;
     };
 
-    struct BindVals {
-      public:
-        BindVals() = default;
-        void add(Assignment const &ass, VariableVec &bind_vars, size_t index) {
-            symbols_.emplace_back(Symbol::from_rep(index));
-            for (auto const &var : bind_vars) {
-                symbols_.emplace_back(*ass[var]);
-            }
-        }
-        void match(size_t vars, size_t begin, SymbolVec::iterator &it) {
-            it = symbols_.begin();
-            if (begin > 0) {
-                auto n = static_cast<ssize_t>(vars + 1);
-                std::advance(it, offset_);
-                for (; it != symbols_.end() && Symbol::to_rep(*it) < begin; it += n, offset_ += n) {
-                }
-            }
-        }
-        auto next(Assignment &ass, VariableVec &bind_vars, size_t end, SymbolVec::iterator &it) -> bool {
-            if (it != symbols_.end() && Symbol::to_rep(*it) < end) {
-                ++it;
-                for (auto const &var : bind_vars) {
-                    ass[var] = *it++;
-                }
-                return true;
-            }
-            return false;
-        }
-
-      private:
-        size_t offset_ = 0;
-        SymbolVec symbols_;
-    };
     using IndexMap = Util::unordered_map<Key, BindVals, Util::value_hasher, KeyEqual>;
 
   public:
