@@ -183,6 +183,88 @@ template <IsBase Base> class FullIndex {
     size_t imported_ = 0;
 };
 
+struct BindVals {
+  public:
+    BindVals() = default;
+    void add(Assignment const &ass, VariableVec &bind_vars, size_t index) {
+        symbols_.emplace_back(Symbol::from_rep(index));
+        for (auto const &var : bind_vars) {
+            symbols_.emplace_back(*ass[var]);
+        }
+    }
+    void match(size_t vars, size_t begin, SymbolVec::iterator &it) {
+        it = symbols_.begin();
+        if (begin > 0) {
+            auto n = static_cast<ssize_t>(vars + 1);
+            std::advance(it, offset_);
+            for (; it != symbols_.end() && Symbol::to_rep(*it) < begin; it += n, offset_ += n) {
+            }
+        }
+    }
+    auto next(Assignment &ass, VariableVec &bind_vars, size_t end, SymbolVec::iterator &it) -> bool {
+        if (it != symbols_.end() && Symbol::to_rep(*it) < end) {
+            ++it;
+            for (auto const &var : bind_vars) {
+                ass[var] = *it++;
+            }
+            return true;
+        }
+        return false;
+    }
+
+  private:
+    size_t offset_ = 0;
+    SymbolVec symbols_;
+};
+
+template <IsBase Base> class SingleIndex {
+  private:
+    using IndexMap = Util::unordered_map<Symbol, BindVals>;
+
+  public:
+    using KeyIterator = IndexMap::iterator;
+    using ValIterator = SymbolVec::iterator;
+
+    SingleIndex(Base &base) : base_{&base} {}
+    void init(size_t gen) { base_->update(gen); }
+
+    template <IsMatch Match>
+    void match(SymbolStore &store, Assignment &ass, size_t bound_var, VariableVec &bind_vars, Match const &m,
+               MatcherType type, KeyIterator &it, ValIterator &jt) {
+        // store the bound values
+        auto bound_val = *ass[bound_var];
+        // import
+        if (auto n = base_->end(MatcherType::all_atoms); imported_ < n) {
+            for (; imported_ < n; ++imported_) {
+                // unbind all vars for matching
+                ass[bound_var] = std::nullopt;
+                for (auto const &var : bind_vars) {
+                    ass[var] = std::nullopt;
+                }
+                // try to match
+                if (m.match(store, base_->nth(imported_)->first, ass)) {
+                    index_.try_emplace(*ass[bound_var]).first.value().add(ass, bind_vars, imported_);
+                }
+            }
+            // restore the assignment
+            ass[bound_var] = bound_val;
+        }
+        // find match
+        if (it = index_.find(bound_val); it != index_.end()) {
+            it.value().match(bind_vars.size(), base_->begin(type), jt);
+        }
+    }
+
+    auto next(Assignment &ass, VariableVec &bind_vars, MatcherType type, KeyIterator it, ValIterator &jt) -> bool {
+        return it != index_.end() && it.value().next(ass, bind_vars, base_->end(type), jt);
+    }
+
+  private:
+    Base *base_;
+    IndexMap index_;
+    size_t imported_ = 0;
+};
+
 template <IsBase Base> class HashIndex {
   private:
     class Key {
@@ -215,9 +297,9 @@ template <IsBase Base> class HashIndex {
         size_t size;
     };
 
-    struct Val {
+    struct BindVals {
       public:
-        Val() = default;
+        BindVals() = default;
         void add(Assignment const &ass, VariableVec &bind_vars, size_t index) {
             symbols_.emplace_back(Symbol::from_rep(index));
             for (auto const &var : bind_vars) {
@@ -248,7 +330,7 @@ template <IsBase Base> class HashIndex {
         size_t offset_ = 0;
         SymbolVec symbols_;
     };
-    using IndexMap = Util::unordered_map<Key, Val, Util::value_hasher, KeyEqual>;
+    using IndexMap = Util::unordered_map<Key, BindVals, Util::value_hasher, KeyEqual>;
 
   public:
     using KeyIterator = IndexMap::iterator;
@@ -359,6 +441,35 @@ template <IsBase Base, IsMatch Match> class FullMatcher : public Matcher {
     size_t cur_ = 0;
 };
 
+template <IsBase Base, IsMatch Match> class SingleMatcher : public Matcher {
+  public:
+    using Index = SingleIndex<Base>;
+    using KeyIterator = Index::KeyIterator;
+    using ValIterator = Index::ValIterator;
+
+    SingleMatcher(Index &index, Match const &m, size_t bound, VariableVec bind, MatcherType type)
+        : index_{&index}, match_{&m}, bound_{bound}, bind_{std::move(bind)}, type_{type} {}
+
+  private:
+    void do_init([[maybe_unused]] SymbolStore &store, size_t gen) override { index_->init(gen); }
+    void do_match([[maybe_unused]] InstantiationContext &ctx) override {
+        return index_->match(ctx.store(), ctx.ass(), bound_, bind_, *match_, type_, pos_, cur_);
+    }
+    auto do_next(InstantiationContext &ctx) -> bool override {
+        return index_->next(ctx.ass(), bind_, type_, pos_, cur_);
+    }
+    void do_print(std::ostream &out) const override { out << *match_; }
+    [[nodiscard]] auto do_type() const -> MatcherType override { return type_; }
+
+    Index *index_;
+    Match const *match_;
+    size_t bound_;
+    VariableVec bind_;
+    MatcherType type_;
+    KeyIterator pos_;
+    ValIterator cur_;
+};
+
 template <IsBase Base, IsMatch Match> class HashMatcher : public Matcher {
   public:
     using Index = HashIndex<Base>;
@@ -398,6 +509,14 @@ template <IsBase Base, class Sig> class IndexSet : public BaseContext {
         return *it->second;
     }
 
+    auto add_single(Base &base, Sig sig) -> SingleIndex<Base> & {
+        auto it = single_.try_emplace(std::move(sig), nullptr).first;
+        if (it->second == nullptr) {
+            it.value() = std::make_unique<SingleIndex<Base>>(base);
+        }
+        return *it->second;
+    }
+
     auto add_hash(Base &base, Sig sig, size_t bound) -> HashIndex<Base> & {
         auto it = hash_.try_emplace(std::move(sig), nullptr).first;
         if (it->second == nullptr) {
@@ -410,6 +529,7 @@ template <IsBase Base, class Sig> class IndexSet : public BaseContext {
     // Note: the full index does not need to capture the bound variables
     Util::unordered_map<Sig, std::unique_ptr<FullIndex<Base>>> full_;
     Util::unordered_map<Sig, std::unique_ptr<HashIndex<Base>>> hash_;
+    Util::unordered_map<Sig, std::unique_ptr<SingleIndex<Base>>> single_;
 };
 
 } // namespace Detail
@@ -424,16 +544,22 @@ auto make_atom_matcher(std::vector<bool> const &bound, Base &base, Match const &
         }
         return bound[var];
     });
+    // all variables are bound: evaluate + lookup in domain
     if (bind.empty()) {
         return std::make_unique<Detail::LookupMatcher<Base, Match>>(base, atom, type);
     }
     auto &ctx = base.template context<Detail::IndexSet<Base, decltype(atom.signature(lookup, bind))>>();
+    // no variables are bound: build an index optimized for sequences
     if (lookup.empty()) {
         auto &full = ctx.add_full(base, atom.signature(lookup, bind));
         return std::make_unique<Detail::FullMatcher<Base, Match>>(full, atom, bind.release(), type);
     }
-    // Note: this could be optimized for small lookup/bind sizes
-    // especially the small bind sizes seem interesting
+    // exactly one variable is bound and some are unbound: optimized special case
+    if (lookup.size() == 1) {
+        auto &hash = ctx.add_single(base, atom.signature(lookup, bind));
+        return std::make_unique<Detail::SingleMatcher<Base, Match>>(hash, atom, lookup.front(), bind.release(), type);
+    }
+    // at least two variables are bound and some are unbound: general case
     auto &hash = ctx.add_hash(base, atom.signature(lookup, bind), lookup.size());
     return std::make_unique<Detail::HashMatcher<Base, Match>>(hash, atom, lookup.release(), bind.release(), type);
 }
