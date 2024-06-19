@@ -503,6 +503,19 @@ class BuilderBdLit {
         - assignment
           - special case for later
         */
+        // analyze: stratified, monotonicity, domain (per cond?), assign, indices, priorities
+        // TODO: ...
+        auto state = std::make_unique<Ground::StateAggr>();
+        // TODO: store state in ctx
+        // #elem(X,0) :- b(X), 0 >= 1.
+        // TODO: ...
+        for (auto const &elem : lit.elems()) {
+            static_cast<void>(elem);
+            // #elem(X,num,tuple) :- body(vars), elem(vars)
+            // TODO: ...
+        }
+
+        ctx_->body->emplace_back(std::make_unique<Ground::LitAggr>(*state));
         std::ostringstream oss;
         oss << "implement me: handle body aggregate " << lit;
         throw std::logic_error(oss.str());
