@@ -16,8 +16,8 @@ jobs:
       fail-fast: false
       matrix:
         os:
-        #- ubuntu-latest
-        #- macos-latest
+        - ubuntu-latest
+        - macos-latest
         - windows-2019
         python-version: ['3.8']
 
