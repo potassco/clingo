@@ -13,9 +13,10 @@ conda:
     os: 
         - 'ubuntu-latest'
         - 'macos-latest'
-        - 'windows-latest'
+        - 'windows-2019'
     macosx-sdk:
-      'MacOSX10.9.sdk.tar.xz'
+      - 'MacOSX10.9.sdk.tar.xz'
+      - 'MacOSX11.3.sdk.tar.xz'
     channels_release:
       - 'potassco'
     channels_dev:
@@ -121,7 +122,8 @@ conda:
 
       # from https://github.com/phracker/MacOSX-SDKs
       CONDA_BUILD_SYSROOT:
-      - /opt/MacOSX10.9.sdk # [osx]
+      - /opt/MacOSX10.9.sdk # [osx and not arm64]
+      - /opt/MacOSX11.3.sdk # [osx and arm64]
 
 ppa:
     package_name:

@@ -45,8 +45,8 @@ jobs:
       shell: pwsh
       run: |
         Invoke-WebRequest -Uri 'https://github.com/phracker/MacOSX-SDKs/releases/download/11.3/MacOSX10.9.sdk.tar.xz' -OutFile 'MacOSX10.9.sdk.tar.xz'
-        Invoke-WebRequest -Uri 'https://github.com/phracker/MacOSX-SDKs/releases/download/11.3/MacOSX11.3.sdk.tar.xz' -OutFile 'MacOSX11.3.sdk.tar.xz'
         sudo tar xf MacOSX10.9.sdk.tar.xz -C /opt
+        Invoke-WebRequest -Uri 'https://github.com/phracker/MacOSX-SDKs/releases/download/11.3/MacOSX11.3.sdk.tar.xz' -OutFile 'MacOSX11.3.sdk.tar.xz'
         sudo tar xf MacOSX11.3.sdk.tar.xz -C /opt
 
     - name: print info
@@ -71,7 +71,7 @@ jobs:
       env:
         ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
 
-    - name: publish conda package (wip)
+    - name: publish conda package (wip; arm64)
       if: ${{ github.event.inputs.wip == 'true' && matrix.os == 'macos-latest' }}
       shell: pwsh
       run: |
@@ -80,7 +80,7 @@ jobs:
         CONDA_SUBDIR: osx-64
         ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
 
-    - name: publish conda package (release)
+    - name: publish conda package (release; arm64)
       if: ${{ github.event.inputs.wip == 'false' && matrix.os == 'macos-latest' }}
       shell: pwsh
       run: |
