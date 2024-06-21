@@ -179,7 +179,7 @@ constexpr auto stratified_index = std::numeric_limits<size_t>::max();
 class LitFactCheck : public Lit {
   public:
     //! Construct the literal.
-    LitFactCheck(Base &base, Term const &atom, Symbol *target) : base_{&base}, atom_{&atom}, target_{target} {}
+    LitFactCheck(Base &base, Term const &atom, Symbol &target) : base_{&base}, atom_{&atom}, target_{&target} {}
 
   private:
     //! Construct the literal.
@@ -235,6 +235,8 @@ class LitSymbolic : public Lit {
     //!
     //! Note that only recursive literals have indices.
     size_t index_;
+    size_t offset_ = 0;
+    Symbol symbol_;
 };
 
 //! A literal similar to a symbolic literal.
@@ -294,6 +296,8 @@ class LitProject : public Lit {
     UTerm atom_;
     UTerm p_atom_;
     size_t index_;
+    size_t offset_ = 0;
+    Symbol symbol_;
     Sign sign_;
 };
 

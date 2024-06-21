@@ -397,6 +397,7 @@ class LitCondLit : public Lit, private MatchCondLit {
     [[nodiscard]] auto do_compare_to(Lit const &other) const -> std::weak_ordering override;
 
     size_t index_;
+    size_t offset_ = 0;
 };
 
 //! Helper literal to ground stratified conditional literals.

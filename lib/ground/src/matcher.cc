@@ -74,15 +74,13 @@ class AssignMatcher : public OnceMatcher {
 
 class NonFactMatcher : public OnceMatcher {
   public:
-    NonFactMatcher(Base &base, Term const &term, Symbol *target) : base_{&base}, term_{&term}, target_{target} {}
+    NonFactMatcher(Base &base, Term const &term, Symbol &target) : base_{&base}, term_{&term}, target_{&target} {}
 
   private:
     void do_init([[maybe_unused]] SymbolStore &store, size_t gen) override { base_->update(gen); }
     auto do_once(InstantiationContext &ctx) -> bool override {
         if (auto sym = term_->eval(ctx.store(), ctx.ass())) {
-            if (target_ != nullptr) {
-                *target_ = *sym;
-            }
+            *target_ = *sym;
             return !base_->is_fact(*sym);
         }
         return false;
@@ -167,7 +165,7 @@ auto make_comp_matcher(std::vector<bool> const &bound, Term const &lhs, Relation
     return std::make_unique<CmpMatcher>(lhs, rel, rhs);
 }
 
-auto make_non_fact_matcher(Base &base, Term const &term, Symbol *target) -> UMatcher {
+auto make_non_fact_matcher(Base &base, Term const &term, Symbol &target) -> UMatcher {
     return std::make_unique<NonFactMatcher>(base, term, target);
 }
 

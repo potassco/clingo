@@ -115,13 +115,15 @@ TEST_CASE("ground_matcher") {
         base.add(sym(2), AtomState::derived);
         auto a1 = std::make_unique<TermVariable>(0);
         auto term = std::make_unique<TermFunction>(name, Util::make_vec<UTerm>(std::move(a1)));
-        auto matcher = make_non_fact_matcher(base, *term, nullptr);
+        auto symbol = Symbol{};
+        auto matcher = make_non_fact_matcher(base, *term, symbol);
         matcher->init(*store, 0);
         base.add(sym(3), AtomState::derived);
         base.add(sym(4), AtomState::fact);
         ass[0] = store->num_ref(0);
         matcher->match(ctx);
         REQUIRE(matcher->next(ctx));
+        REQUIRE(symbol == store->fun_ref(name, SymbolVec{*ass[0]}, false));
         REQUIRE(!matcher->next(ctx));
         ass[0] = store->num_ref(1);
         matcher->match(ctx);
@@ -129,10 +131,12 @@ TEST_CASE("ground_matcher") {
         ass[0] = store->num_ref(2);
         matcher->match(ctx);
         REQUIRE(matcher->next(ctx));
+        REQUIRE(symbol == store->fun_ref(name, SymbolVec{*ass[0]}, false));
         REQUIRE(!matcher->next(ctx));
         ass[0] = store->num_ref(3);
         matcher->match(ctx);
         REQUIRE(matcher->next(ctx));
+        REQUIRE(symbol == store->fun_ref(name, SymbolVec{*ass[0]}, false));
         REQUIRE(!matcher->next(ctx));
         ass[0] = store->num_ref(4);
         matcher->match(ctx);
@@ -154,7 +158,8 @@ TEST_CASE("ground_matcher") {
         auto term = std::make_unique<TermFunction>(name, Util::make_vec<UTerm>(std::move(a1), std::move(a2)));
         std::vector<bool> const bound = {false};
         // match all
-        auto m1 = make_atom_matcher(bound, base, *term, MatcherType::all_atoms);
+        auto o1 = size_t{0};
+        auto m1 = make_atom_matcher(bound, base, *term, MatcherType::all_atoms, o1);
         m1->init(*store, 0);
         m1->match(ctx);
         base.add(sym(1, 4), AtomState::derived);
@@ -175,7 +180,7 @@ TEST_CASE("ground_matcher") {
         REQUIRE(!m1->next(ctx));
         base.add(sym(1, 6), AtomState::derived);
         // match old
-        m1 = make_atom_matcher(bound, base, *term, MatcherType::old_atoms);
+        m1 = make_atom_matcher(bound, base, *term, MatcherType::old_atoms, o1);
         m1->init(*store, 1);
         REQUIRE(m1->next(ctx));
         REQUIRE(ass[0] == store->num_ref(1));
@@ -183,7 +188,7 @@ TEST_CASE("ground_matcher") {
         REQUIRE(ass[0] == store->num_ref(3));
         REQUIRE(!m1->next(ctx));
         // match new
-        m1 = make_atom_matcher(bound, base, *term, MatcherType::new_atoms);
+        m1 = make_atom_matcher(bound, base, *term, MatcherType::new_atoms, o1);
         m1->init(*store, 1);
         m1->match(ctx);
         REQUIRE(m1->next(ctx));
@@ -211,8 +216,10 @@ TEST_CASE("ground_matcher") {
             std::make_unique<TermFunction>(name, Util::make_vec<UTerm>(std::move(b1), std::move(b2), std::move(b3)));
         std::vector<bool> const v1 = {true, false, false};
         std::vector<bool> const v2 = {true, true, false};
-        auto m1 = make_atom_matcher(v1, base, *t1, MatcherType::new_atoms);
-        auto m2 = make_atom_matcher(v2, base, *t2, MatcherType::new_atoms);
+        auto o1 = size_t{0};
+        auto m1 = make_atom_matcher(v1, base, *t1, MatcherType::new_atoms, o1);
+        auto o2 = size_t{0};
+        auto m2 = make_atom_matcher(v2, base, *t2, MatcherType::new_atoms, o2);
         base.add(sym(1, 1, 1), AtomState::derived);
         base.add(sym(1, 1, 2), AtomState::derived);
         base.add(sym(2, 2, 2), AtomState::derived);

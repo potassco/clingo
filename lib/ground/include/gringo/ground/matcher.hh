@@ -9,6 +9,8 @@
 
 #include <gringo/core/core.hh>
 
+#include <limits>
+
 namespace Gringo::Ground {
 
 //! @addtogroup ground_matcher
@@ -50,6 +52,8 @@ concept IsMatch = requires(Match const &m) {
     m.signature(std::declval<VariableSet const &>(), std::declval<VariableSet const &>());
     std::declval<std::ostream &>() << m;
 };
+
+static constexpr auto invalid_offset = std::numeric_limits<size_t>::max();
 
 //! A matcher that matches only provides one match.
 //!
@@ -102,13 +106,14 @@ auto make_comp_matcher(std::vector<bool> const &bound, Term const &lhs, Relation
 //! term is stored in it.
 //!
 //! @note: candidate for generalization
-auto make_non_fact_matcher(Base &base, Term const &term, Symbol *target) -> UMatcher;
+auto make_non_fact_matcher(Base &base, Term const &term, Symbol &target) -> UMatcher;
 
 //! Construct a matcher for an atom.
 //!
 //! A base and an atom implementing the IsBase and IsMatch concepts must be given.
 template <IsBase Base, IsMatch Match>
-auto make_atom_matcher(std::vector<bool> const &bound, Base &base, Match const &atom, MatcherType type) -> UMatcher;
+auto make_atom_matcher(std::vector<bool> const &bound, Base &base, Match const &atom, MatcherType type,
+                       size_t &offset) -> UMatcher;
 
 namespace Detail {
 
@@ -201,9 +206,9 @@ struct BindVals {
             }
         }
     }
-    auto next(Assignment &ass, VariableVec &bind_vars, size_t end, SymbolVec::iterator &it) -> bool {
+    auto next(Assignment &ass, VariableVec &bind_vars, size_t end, SymbolVec::iterator &it, size_t &offset) -> bool {
         if (it != symbols_.end() && Symbol::to_rep(*it) < end) {
-            ++it;
+            offset = Symbol::to_rep(*it++);
             for (auto const &var : bind_vars) {
                 ass[var] = *it++;
             }
@@ -255,8 +260,9 @@ template <IsBase Base> class SingleIndex {
         }
     }
 
-    auto next(Assignment &ass, VariableVec &bind_vars, MatcherType type, KeyIterator it, ValIterator &jt) -> bool {
-        return it != index_.end() && it.value().next(ass, bind_vars, base_->end(type), jt);
+    auto next(Assignment &ass, VariableVec &bind_vars, MatcherType type, KeyIterator it, ValIterator &jt,
+              size_t &offset) -> bool {
+        return it != index_.end() && it.value().next(ass, bind_vars, base_->end(type), jt, offset);
     }
 
   private:
@@ -354,8 +360,9 @@ template <IsBase Base> class HashIndex {
         }
     }
 
-    auto next(Assignment &ass, VariableVec &bind_vars, MatcherType type, KeyIterator it, ValIterator &jt) -> bool {
-        return it != index_.end() && it.value().next(ass, bind_vars, base_->end(type), jt);
+    auto next(Assignment &ass, VariableVec &bind_vars, MatcherType type, KeyIterator it, ValIterator &jt,
+              size_t &offset) -> bool {
+        return it != index_.end() && it.value().next(ass, bind_vars, base_->end(type), jt, offset);
     }
 
   private:
@@ -368,13 +375,19 @@ template <IsBase Base> class HashIndex {
 
 template <IsBase Base, IsMatch Match> class LookupMatcher : public OnceMatcher {
   public:
-    LookupMatcher(Base &base, Match const &m, MatcherType type) : base_{&base}, match_{&m}, type_{type} {}
+    LookupMatcher(Base &base, Match const &m, MatcherType type, size_t &offset)
+        : base_{&base}, match_{&m}, type_{type}, offset_{&offset} {}
 
   private:
     void do_init([[maybe_unused]] SymbolStore &store, size_t gen) override { base_->update(gen); }
     auto do_once(InstantiationContext &ctx) -> bool override {
-        auto sym = match_->eval(ctx.store(), ctx.ass());
-        return sym && base_->contains(*sym, type_);
+        if (auto sym = match_->eval(ctx.store(), ctx.ass()); sym) {
+            if (auto idx = base_->contains(*sym, type_); idx) {
+                *offset_ = *idx;
+                return true;
+            }
+        }
+        return false;
     }
     void do_print(std::ostream &out) const override { out << *match_; }
     [[nodiscard]] auto do_type() const -> MatcherType override { return type_; }
@@ -382,30 +395,33 @@ template <IsBase Base, IsMatch Match> class LookupMatcher : public OnceMatcher {
     Base *base_;
     Match const *match_;
     MatcherType type_;
+    size_t *offset_;
 };
 
 template <IsBase Base, IsMatch Match> class FullMatcher : public Matcher {
   public:
     using Index = FullIndex<Base>;
 
-    FullMatcher(Index &index, Match const &m, VariableVec free, MatcherType type)
-        : index_{&index}, match_{&m}, free_{std::move(free)}, type_{type} {}
+    FullMatcher(Index &index, Match const &m, VariableVec free, MatcherType type, size_t &offset)
+        : index_{&index}, offset_{&offset}, match_{&m}, free_{std::move(free)}, type_{type} {}
 
   private:
     void do_init([[maybe_unused]] SymbolStore &store, size_t gen) override { index_->init(gen); }
     void do_match([[maybe_unused]] InstantiationContext &ctx) override { std::tie(pos_, cur_) = index_->match(type_); }
     auto do_next(InstantiationContext &ctx) -> bool override {
+        *offset_ = cur_;
         return index_->next(ctx.store(), ctx.ass(), *match_, free_, type_, pos_, cur_);
     }
     void do_print(std::ostream &out) const override { out << *match_; }
     [[nodiscard]] auto do_type() const -> MatcherType override { return type_; }
 
     Index *index_;
+    size_t *offset_;
     Match const *match_;
     VariableVec free_;
-    MatcherType type_;
     size_t pos_ = 0;
     size_t cur_ = 0;
+    MatcherType type_;
 };
 
 template <IsBase Base, IsMatch Match> class SingleMatcher : public Matcher {
@@ -414,8 +430,8 @@ template <IsBase Base, IsMatch Match> class SingleMatcher : public Matcher {
     using KeyIterator = Index::KeyIterator;
     using ValIterator = Index::ValIterator;
 
-    SingleMatcher(Index &index, Match const &m, size_t bound, VariableVec bind, MatcherType type)
-        : index_{&index}, match_{&m}, bound_{bound}, bind_{std::move(bind)}, type_{type} {}
+    SingleMatcher(Index &index, Match const &m, size_t bound, VariableVec bind, MatcherType type, size_t &offset)
+        : index_{&index}, match_{&m}, offset_{&offset}, bound_{bound}, bind_{std::move(bind)}, type_{type} {}
 
   private:
     void do_init([[maybe_unused]] SymbolStore &store, size_t gen) override { index_->init(gen); }
@@ -423,13 +439,14 @@ template <IsBase Base, IsMatch Match> class SingleMatcher : public Matcher {
         return index_->match(ctx.store(), ctx.ass(), bound_, bind_, *match_, type_, pos_, cur_);
     }
     auto do_next(InstantiationContext &ctx) -> bool override {
-        return index_->next(ctx.ass(), bind_, type_, pos_, cur_);
+        return index_->next(ctx.ass(), bind_, type_, pos_, cur_, *offset_);
     }
     void do_print(std::ostream &out) const override { out << *match_; }
     [[nodiscard]] auto do_type() const -> MatcherType override { return type_; }
 
     Index *index_;
     Match const *match_;
+    size_t *offset_;
     size_t bound_;
     VariableVec bind_;
     MatcherType type_;
@@ -443,8 +460,8 @@ template <IsBase Base, IsMatch Match> class HashMatcher : public Matcher {
     using KeyIterator = Index::KeyIterator;
     using ValIterator = Index::ValIterator;
 
-    HashMatcher(Index &index, Match const &m, VariableVec bound, VariableVec bind, MatcherType type)
-        : index_{&index}, match_{&m}, bound_{std::move(bound)}, bind_{std::move(bind)}, type_{type} {}
+    HashMatcher(Index &index, Match const &m, VariableVec bound, VariableVec bind, MatcherType type, size_t &offset)
+        : index_{&index}, match_{&m}, offset_{&offset}, bound_{std::move(bound)}, bind_{std::move(bind)}, type_{type} {}
 
   private:
     void do_init([[maybe_unused]] SymbolStore &store, size_t gen) override { index_->init(gen); }
@@ -452,13 +469,14 @@ template <IsBase Base, IsMatch Match> class HashMatcher : public Matcher {
         return index_->match(ctx.store(), ctx.ass(), bound_, bind_, *match_, type_, pos_, cur_);
     }
     auto do_next(InstantiationContext &ctx) -> bool override {
-        return index_->next(ctx.ass(), bind_, type_, pos_, cur_);
+        return index_->next(ctx.ass(), bind_, type_, pos_, cur_, *offset_);
     }
     void do_print(std::ostream &out) const override { out << *match_; }
     [[nodiscard]] auto do_type() const -> MatcherType override { return type_; }
 
     Index *index_;
     Match const *match_;
+    size_t *offset_;
     VariableVec bound_;
     VariableVec bind_;
     MatcherType type_;
@@ -502,7 +520,8 @@ template <IsBase Base, class Sig> class IndexSet : public BaseContext {
 } // namespace Detail
 
 template <IsBase Base, IsMatch Match>
-auto make_atom_matcher(std::vector<bool> const &bound, Base &base, Match const &atom, MatcherType type) -> UMatcher {
+auto make_atom_matcher(std::vector<bool> const &bound, Base &base, Match const &atom, MatcherType type,
+                       size_t &offset) -> UMatcher {
     VariableSet bind = atom.vars();
     VariableSet lookup;
     erase_if(bind, [&bound, &lookup](auto const &var) {
@@ -513,22 +532,24 @@ auto make_atom_matcher(std::vector<bool> const &bound, Base &base, Match const &
     });
     // all variables are bound: evaluate + lookup in domain
     if (bind.empty()) {
-        return std::make_unique<Detail::LookupMatcher<Base, Match>>(base, atom, type);
+        return std::make_unique<Detail::LookupMatcher<Base, Match>>(base, atom, type, offset);
     }
     auto &ctx = base.template context<Detail::IndexSet<Base, decltype(atom.signature(lookup, bind))>>();
     // no variables are bound: build an index optimized for sequences
     if (lookup.empty()) {
         auto &full = ctx.add_full(base, atom.signature(lookup, bind));
-        return std::make_unique<Detail::FullMatcher<Base, Match>>(full, atom, bind.release(), type);
+        return std::make_unique<Detail::FullMatcher<Base, Match>>(full, atom, bind.release(), type, offset);
     }
     // exactly one variable is bound and some are unbound: optimized special case
     if (lookup.size() == 1) {
         auto &hash = ctx.add_single(base, atom.signature(lookup, bind));
-        return std::make_unique<Detail::SingleMatcher<Base, Match>>(hash, atom, lookup.front(), bind.release(), type);
+        return std::make_unique<Detail::SingleMatcher<Base, Match>>(hash, atom, lookup.front(), bind.release(), type,
+                                                                    offset);
     }
     // at least two variables are bound and some are unbound: general case
     auto &hash = ctx.add_hash(base, atom.signature(lookup, bind), lookup.size());
-    return std::make_unique<Detail::HashMatcher<Base, Match>>(hash, atom, lookup.release(), bind.release(), type);
+    return std::make_unique<Detail::HashMatcher<Base, Match>>(hash, atom, lookup.release(), bind.release(), type,
+                                                              offset);
 }
 
 //! @}

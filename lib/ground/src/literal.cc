@@ -241,7 +241,7 @@ auto LitFactCheck::do_recursive() const -> bool { return false; }
 
 auto LitFactCheck::do_matcher([[maybe_unused]] MatcherType type, [[maybe_unused]] std::vector<bool> const &bound)
     -> std::pair<UMatcher, std::optional<size_t>> {
-    return {make_non_fact_matcher(*base_, *atom_, target_), std::nullopt};
+    return {make_non_fact_matcher(*base_, *atom_, *target_), std::nullopt};
 }
 
 auto LitFactCheck::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return 0; }
@@ -253,7 +253,7 @@ auto LitFactCheck::do_output([[maybe_unused]] InstantiationContext &ctx,
     return false;
 }
 
-auto LitFactCheck::do_copy() const -> ULit { return std::make_unique<LitFactCheck>(*base_, *atom_, target_); }
+auto LitFactCheck::do_copy() const -> ULit { return std::make_unique<LitFactCheck>(*base_, *atom_, *target_); }
 
 auto LitFactCheck::do_hash() const -> size_t { return Util::value_hash_record<LitFactCheck>(*atom_); }
 
@@ -280,11 +280,19 @@ void LitSymbolic::do_print(std::ostream &out) const {
 }
 
 auto LitSymbolic::do_output(InstantiationContext &ctx, OutputLit &out) const -> bool {
-    // TODO: eval can be avoided for lookup matchers
     if ((index_ == stratified_index || sign_ == Sign::none) && base_->domain()) {
         return false;
     }
-    if (auto sym = atom_->eval(ctx.store(), ctx.ass())) {
+    auto get_symbol = [&, this]() -> std::optional<Symbol> {
+        if (offset_ != invalid_offset) {
+            return base_->nth(offset_).key();
+        }
+        if (sign_ == Sign::once) {
+            return symbol_;
+        }
+        return atom_->eval(ctx.store(), ctx.ass());
+    };
+    if (auto sym = get_symbol(); sym) {
         if (sign_ == Sign::once ? index_ == stratified_index && !base_->contains(*sym) : base_->is_fact(*sym)) {
             return false;
         }
@@ -329,8 +337,9 @@ void LitSymbolic::do_vars(VariableSet &vars, VarSelectMode mode) const {
 
 auto LitSymbolic::do_matcher(MatcherType type,
                              std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
+    offset_ = invalid_offset;
     if (sign_ == Sign::once) {
-        return {make_non_fact_matcher(*base_, *atom_, nullptr), std::nullopt};
+        return {make_non_fact_matcher(*base_, *atom_, symbol_), std::nullopt};
     }
     if (sign_ == Sign::twice && index_ != stratified_index) {
         return {make_once_matcher(), std::nullopt};
@@ -340,7 +349,7 @@ auto LitSymbolic::do_matcher(MatcherType type,
     if (index_ != stratified_index && type == MatcherType::new_atoms) {
         index = index_;
     }
-    return {make_atom_matcher(bound, *base_, *atom_, type), index};
+    return {make_atom_matcher(bound, *base_, *atom_, type, offset_), index};
 }
 
 auto LitSymbolic::do_score(std::vector<bool> const &bound) const -> double {
@@ -403,7 +412,16 @@ auto LitProject::do_output(InstantiationContext &ctx, OutputLit &out) const -> b
     if ((index_ == stratified_index || sign_ == Sign::none) && state_->p_base().domain()) {
         return false;
     }
-    if (auto p_sym = p_atom_->eval(ctx.store(), ctx.ass())) {
+    auto get_symbol = [&, this]() -> std::optional<Symbol> {
+        if (offset_ != invalid_offset) {
+            return state_->p_base().nth(offset_).key();
+        }
+        if (sign_ == Sign::once) {
+            return symbol_;
+        }
+        return p_atom_->eval(ctx.store(), ctx.ass());
+    };
+    if (auto p_sym = get_symbol()) {
         if (sign_ == Sign::once ? index_ == stratified_index && !state_->p_base().contains(*p_sym)
                                 : state_->p_base().is_fact(*p_sym)) {
             return false;
@@ -470,8 +488,9 @@ auto LitProject::do_matcher(MatcherType type,
     auto m = [this]<class T>(T &&matcher) {
         return std::make_unique<MatcherProject>(*state_, std::forward<T>(matcher));
     };
+    offset_ = invalid_offset;
     if (sign_ == Sign::once) {
-        return {m(make_non_fact_matcher(state_->p_base(), *p_atom_, nullptr)), std::nullopt};
+        return {m(make_non_fact_matcher(state_->p_base(), *p_atom_, symbol_)), std::nullopt};
     }
     if (sign_ == Sign::twice && index_ != stratified_index) {
         return {m(make_once_matcher()), std::nullopt};
@@ -480,7 +499,7 @@ auto LitProject::do_matcher(MatcherType type,
     if (index_ != stratified_index && type == MatcherType::new_atoms) {
         index = index_;
     }
-    return {m(make_atom_matcher(bound, state_->p_base(), *p_atom_, type)), index};
+    return {m(make_atom_matcher(bound, state_->p_base(), *p_atom_, type, offset_)), index};
 }
 
 auto LitProject::do_score(std::vector<bool> const &bound) const -> double {

@@ -73,7 +73,7 @@ class StmRule : public Stm {
         : head_{head ? std::move(head->first) : nullptr}, base_{head ? &head->second : nullptr},
           indices_{std::move(indices)}, body_{std::move(body)} {
         if (head_) {
-            body_.emplace_back(std::make_unique<LitFactCheck>(*base_, *head_, &atom_));
+            body_.emplace_back(std::make_unique<LitFactCheck>(*base_, *head_, atom_));
         }
     }
 

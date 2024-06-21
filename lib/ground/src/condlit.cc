@@ -298,12 +298,12 @@ auto LitCondLit::do_matcher(MatcherType type,
     }
     auto &match = static_cast<MatchCondLit &>(*this);
     if (this->type() == LitCondLitType::empty) {
-        return {make_atom_matcher(bound, state().base_empty(), match, type), index};
+        return {make_atom_matcher(bound, state().base_empty(), match, type, offset_), index};
     }
     if (this->type() == LitCondLitType::premise) {
-        return {make_atom_matcher(bound, state().base_premise(), match, type), index};
+        return {make_atom_matcher(bound, state().base_premise(), match, type, offset_), index};
     }
-    return {make_atom_matcher(bound, state().base_lit(), match, type), index};
+    return {make_atom_matcher(bound, state().base_lit(), match, type, offset_), index};
 }
 
 auto LitCondLit::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return 1; }

@@ -155,8 +155,11 @@ template <class KeyType, class BaseType> class BaseImpl {
     [[nodiscard]] auto end(MatcherType type) const -> size_t { return counts_.end(type); }
 
     //! Check if the base contains the given atom with in the given generation.
-    [[nodiscard]] auto contains(Key const &sym, MatcherType type) const -> bool {
-        return counts_.contains(base().index(sym), type);
+    [[nodiscard]] auto contains(Key const &sym, MatcherType type) const -> std::optional<size_t> {
+        if (auto idx = base().index(sym); counts_.contains(idx, type)) {
+            return idx;
+        }
+        return std::nullopt;
     }
 
     //! Update the generation counts.
