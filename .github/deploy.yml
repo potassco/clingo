@@ -159,6 +159,12 @@ ppa:
     sync_script: |
         sed -i "s/export CLINGO_BUILD_REVISION =.*/export CLINGO_BUILD_REVISION = $(git rev-parse --short HEAD)/" ${rep}/debian/rules
     distributions:
+        noble:
+            source:
+                Build-Depends: 'debhelper-compat (= 13), dh-python, cmake, python3-dev, liblua5.4-dev, python3-cffi, bison, re2c'
+            packages:
+                clingo:
+                    Depends: '${shlibs:Depends}, ${misc:Depends}, liblua5.4-0, libclingo (= ${binary:Version}), python3-clingo'
         jammy:
         focal:
         bionic:

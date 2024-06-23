@@ -71,7 +71,7 @@ jobs:
       env:
         ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
 
-    - name: publish conda package (wip; arm64)
+    - name: publish conda package (wip; osx-64)
       if: ${{ github.event.inputs.wip == 'true' && matrix.os == 'macos-latest' }}
       shell: pwsh
       run: |
@@ -80,7 +80,7 @@ jobs:
         CONDA_SUBDIR: osx-64
         ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
 
-    - name: publish conda package (release; arm64)
+    - name: publish conda package (release; osx-64)
       if: ${{ github.event.inputs.wip == 'false' && matrix.os == 'macos-latest' }}
       shell: pwsh
       run: |
