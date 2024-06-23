@@ -24,7 +24,7 @@ jobs:
     - name: Install prerequisites
       run: |
         sudo apt-get update
-        sudo apt-get install pbuilder pbuilder-scripts debootstrap devscripts dh-make dput dh-python
+        sudo apt-get install pbuilder pbuilder-scripts debootstrap devscripts dh-make dput dh-python dh-lua
 
     - name: Checkout repo
       uses: actions/checkout@v3

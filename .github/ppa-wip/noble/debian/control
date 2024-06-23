@@ -2,7 +2,7 @@ Source: clingo
 Section: devel
 Priority: optional
 Maintainer: Roland Kaminski <kaminski@cs.uni-potsdam.de>
-Build-Depends: debhelper-compat (= 13), dh-python, cmake, python3-dev, liblua5.4-dev, python3-cffi, bison, re2c
+Build-Depends: debhelper-compat (= 13), dh-python, dh-lua, cmake, python3-dev, python3-cffi, bison, re2c
 Standards-Version: 4.4.1
 Homepage: https://potassco.org/clingo
 Vcs-Browser: https://github.com/potassco/clingo
@@ -11,7 +11,7 @@ Vcs-Git: https://github.com/potassco/clingo.git
 Package: clingo
 Architecture: any
 Section: devel
-Depends: ${shlibs:Depends}, ${misc:Depends}, liblua5.4-0, libclingo (= ${binary:Version}), python3-clingo
+Depends: ${shlibs:Depends}, ${misc:Depends}, libclingo (= ${binary:Version}), python3-clingo
 Description: A solver for logic programs
  Clingo is part of the Potassco project for Answer Set Programming (ASP). ASP
  offers a simple and powerful modeling language to describe combinatorial
