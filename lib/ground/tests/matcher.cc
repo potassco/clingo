@@ -6,7 +6,7 @@
 
 namespace Gringo::Ground::Test {
 
-// NOLINTBEGIN(readability-magic-numbers)
+// NOLINTBEGIN(readability-magic-numbers,bugprone-unchecked-optional-access)
 
 namespace {
 
@@ -263,6 +263,6 @@ TEST_CASE("ground_matcher") {
     }
 }
 
-// NOLINTEND(readability-magic-numbers)
+// NOLINTEND(readability-magic-numbers,bugprone-unchecked-optional-access)
 
 } // namespace Gringo::Ground::Test

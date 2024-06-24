@@ -194,6 +194,7 @@ struct BindVals {
     void add(Assignment const &ass, VariableVec &bind_vars, size_t index) {
         symbols_.emplace_back(Symbol::from_rep(index));
         for (auto const &var : bind_vars) {
+            // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
             symbols_.emplace_back(*ass[var]);
         }
     }
