@@ -57,6 +57,7 @@ jobs:
       run: >
         PYTHONHOME=$CONDA_PREFIX
         ctest
+        --output-on-failure
         --build-config "${{ matrix.build_type }}"
         --build-generator "${{ matrix.generator }}"
         --build-and-test . build
