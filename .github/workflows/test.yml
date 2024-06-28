@@ -15,7 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         os: ['ubuntu-latest', 'macos-latest', 'windows-latest']
-        python-version: ['3.10']
+        python-version: ['3.11']
         include:
           - os: 'ubuntu-latest'
             generator: 'Ninja'
