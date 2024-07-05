@@ -30,7 +30,7 @@ The following example shows basic (multishot) grounding and solving:
     >>> print(ctl.solve(on_model=print))
     q
     SAT
-    >>> ctl.ground([("b", [Number(1)]), ("p", [Number(2)])])
+    >>> ctl.ground([("b", [Number(1)]), ("b", [Number(2)])])
     >>> print(ctl.solve(on_model=print))
     q q(1) q(2)
     SAT
