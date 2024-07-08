@@ -1,7 +1,8 @@
 SHELL := /bin/zsh
 
 all: configure
-	$(MAKE) -C build $@
+	mkdir -p build/debug
+	$(MAKE) -C build/debug $@
 
 doc:
 	cd doc && doxygen
@@ -10,29 +11,29 @@ test_doc: doc
 	python -m http.server --directory=doc/html
 
 test: all
-	$(MAKE) CTEST_OUTPUT_ON_FAILURE=1 -C build $@
+	$(MAKE) CTEST_OUTPUT_ON_FAILURE=1 -C build/debug $@
 
 compdb: all
-	compdb -p "build" list -1 > compile_commands.json
+	compdb -p "build/debug" list -1 > compile_commands.json
 
-build/CMakeCache.txt:
+build/debug/CMakeCache.txt:
 	@$(MAKE) -C . reconfigure
 
-configure: build/CMakeCache.txt
+configure: build/debug/CMakeCache.txt
 
 reconfigure:
 	@[ -z ${CONDA_PREFIX+x} ] || $(MAKE) -C . reconfigure-conda
 	@[ ! -z ${CONDA_PREFIX+x} ] || $(MAKE) -C . reconfigure-default
 
 reconfigure-default:
-	cmake -S. -Bbuild \
+	cmake -S. -Bbuild/debug \
 		-DCMAKE_BUILD_TYPE="Debug" \
 		-DCMAKE_CXX_FLAGS="-Wall -Wextra -pedantic" \
 		-DCMAKE_EXPORT_COMPILE_COMMANDS="On" \
 		-DPARSER_BUILD_TESTS=On
 
 reconfigure-clang:
-	cmake -S. -Bbuild \
+	cmake -S. -Bbuild/debug \
 		-DCMAKE_BUILD_TYPE="Debug" \
 		-DCMAKE_EXPORT_COMPILE_COMMANDS="On" \
 		-DCMAKE_CXX_COMPILER="clang++" \
@@ -42,7 +43,7 @@ reconfigure-clang:
 		-DPARSER_BUILD_TESTS=On
 
 reconfigure-gcc:
-	cmake -S. -Bbuild \
+	cmake -S. -Bbuild/debug \
 		-DCMAKE_BUILD_TYPE="Debug" \
 		-DCMAKE_EXPORT_COMPILE_COMMANDS="On" \
 		-DCMAKE_CXX_COMPILER="g++" \
@@ -51,7 +52,7 @@ reconfigure-gcc:
 		-DPARSER_BUILD_TESTS=On
 
 reconfigure-conda:
-	cmake -S. -Bbuild \
+	cmake -S. -Bbuild/debug \
 		-DCMAKE_BUILD_TYPE="Debug" \
 		-DCMAKE_EXPORT_COMPILE_COMMANDS="On" \
 		-DCMAKE_CXX_COMPILER="clang++" \
@@ -61,7 +62,7 @@ reconfigure-conda:
 		-DPARSER_BUILD_TESTS=On
 
 reconfigure-iwyn:
-	cmake -S. -Bbuild \
+	cmake -S. -Bbuild/debug \
 		-DCMAKE_CXX_INCLUDE_WHAT_YOU_USE="include-what-you-use;-w;-Xiwyu" \
 		-DCMAKE_BUILD_TYPE="Debug" \
 		-DCMAKE_EXPORT_COMPILE_COMMANDS="On" \
@@ -80,29 +81,29 @@ Makefile:
 	@:
 
 release:
-	mkdir -p build_release
-	current="$$(pwd -P)" && cd build_release && cd "$$(pwd -P)" && cmake \
+	mkdir -p build/release
+	current="$$(pwd -P)" && cd build/release && cd "$$(pwd -P)" && cmake \
 		-DCMAKE_BUILD_TYPE=release \
 		-DPARSER_BUILD_TESTS=On \
 		-DCMAKE_CXX_FLAGS="-Wall -Wextra -pedantic" \
 		"$${current}"
-	$(MAKE) -C build_release
-	$(MAKE) -C build_release test
+	$(MAKE) -C build/release
+	$(MAKE) -C build/release test
 
 profile:
-	mkdir -p build_profile
-	current="$$(pwd -P)" && cd build_profile && cd "$$(pwd -P)" && cmake \
+	mkdir -p build/profile
+	current="$$(pwd -P)" && cd build/profile && cd "$$(pwd -P)" && cmake \
 		-DCMAKE_BUILD_TYPE=release \
 		-DPARSER_BUILD_TESTS=On \
 		-DCMAKE_CXX_FLAGS="-Wall -Wextra -pedantic" \
 		-DPARSER_PROFILE=ON \
 		"$${current}"
-	$(MAKE) -C build_profile
-	$(MAKE) -C build_profile test
+	$(MAKE) -C build/profile
+	$(MAKE) -C build/profile test
 
 release_clang:
-	mkdir -p build_release_clang
-	current="$$(pwd -P)" && cd build_release_clang && cd "$$(pwd -P)" && cmake \
+	mkdir -p build/release_clang
+	current="$$(pwd -P)" && cd build/release_clang && cd "$$(pwd -P)" && cmake \
 		-DCMAKE_BUILD_TYPE=release \
 		-DPARSER_BUILD_TESTS=On \
 		-DCMAKE_CXX_COMPILER="clang++" \
@@ -110,12 +111,12 @@ release_clang:
 		-DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld -L${CONDA_PREFIX}/lib" \
 		-DCMAKE_CXX_FLAGS="-stdlib=libc++ -Wall -Wextra -pedantic" \
 		"$${current}"
-	$(MAKE) -C build_release_clang
-	$(MAKE) -C build_release_clang test
+	$(MAKE) -C build/release_clang
+	$(MAKE) -C build/release_clang test
 
 web:
-	mkdir -p build_web
-	current="$$(pwd -P)" && cd build_web && cd "$$(pwd -P)" && source emsdk_env.sh && emcmake cmake \
+	mkdir -p build/web
+	current="$$(pwd -P)" && cd build/web && cd "$$(pwd -P)" && source emsdk_env.sh && emcmake cmake \
 		-DCMAKE_BUILD_TYPE=release \
 		-DCMAKE_EXE_LINKER_FLAGS="" \
 		-DCMAKE_C_FLAGS="-Wall -Wextra -pedantic" \
@@ -123,26 +124,26 @@ web:
 		-DPARSER_BUILD_TESTS=On \
 		-DPARSER_BUILD_WEB=On \
 		"$${current}"
-	$(MAKE) -C build_web
-	$(MAKE) -C build_web test
+	$(MAKE) -C build/web
+	$(MAKE) -C build/web test
 
 gen:
-	PYTHONPATH=build/lib/python-api python scripts/generate.py > lib/python-api/src/ast.cc
+	PYTHONPATH=build/debug/lib/python-api python scripts/generate.py > lib/python-api/src/ast.cc
 
 format_yaml:
-	PYTHONPATH=build/lib/python-api python scripts/format_yaml.py
+	PYTHONPATH=build/debug/lib/python-api python scripts/format_yaml.py
 
 venv: SHELL:=/bin/bash
 venv:
 	python -m venv .venv
 	source .venv/bin/activate && pip install pynvim pyyaml jinja2 mypy pybind11-stubgen
-	ln -rft .venv/lib/python*/site-packages -s build/lib/python-api/clingo.*.so
+	ln -rft .venv/lib/python*/site-packages -s build/debug/lib/python-api/clingo.*.so
 
 stubs: SHELL:=/bin/bash
 stubs:
-	PYTHONPATH=build/lib/python-api python scripts/stubs.py
+	PYTHONPATH=build/debug/lib/python-api python scripts/stubs.py
 
 %: configure
-	cmake --build build --target $@ --parallel
+	cmake --build build/debug --target $@ --parallel
 
 .PHONY: all doc test compdb configure reconfigure format web
