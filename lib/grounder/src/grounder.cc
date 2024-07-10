@@ -366,13 +366,13 @@ struct BuildContext {
         return {has_conclusion, rec_conclusion, rec_premise, empty_index, premise_index, lit_index};
     }
 
-    Grounder::Impl *impl = nullptr;
-    Input::Component const *comp = nullptr;
-    Util::unordered_map<Input::Term const *, std::vector<size_t>> *def_map = nullptr;
-    Ground::Component *gcomp = nullptr;
-    Util::unordered_map<String, size_t> *var_map = nullptr;
-    Ground::ULitVec *body = nullptr;
-    std::forward_list<Ground::StateCondLit> *clit_base_ = nullptr;
+    Grounder::Impl *impl;
+    Input::Component const *comp;
+    Util::unordered_map<Input::Term const *, std::vector<size_t>> *def_map;
+    Ground::Component *gcomp;
+    Util::unordered_map<String, size_t> *var_map;
+    Ground::ULitVec *body;
+    std::forward_list<Ground::StateCondLit> *clit_base_;
     size_t priority = 0;
     size_t index_ = 0;
 };
