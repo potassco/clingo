@@ -1445,11 +1445,8 @@ clingo_ast_attribute_names_t g_clingo_ast_attribute_names = {
 #undef A
 #undef C
 
-extern "C" bool clingo_ast_build(clingo_ast_type_t type, clingo_ast_t **ast, ...) {
+static bool clingo_ast_build_(clingo_ast_type_t type, clingo_ast_t **ast, va_list &args) {
     GRINGO_CLINGO_TRY {
-        va_list args;
-        va_start(args, ast);
-
         Input::SAST sast{static_cast<clingo_ast_type_e>(type)};
 
         auto const &cons = g_clingo_ast_constructors.constructors[type];
@@ -1496,6 +1493,22 @@ extern "C" bool clingo_ast_build(clingo_ast_type_t type, clingo_ast_t **ast, ...
         *ast = reinterpret_cast<clingo_ast_t*>(sast.release());
     }
     GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_ast_build_stack(void *, void *, void *, void *, void *, void *, clingo_ast_type_t type, clingo_ast_t **ast, ...) {
+    va_list args;
+    va_start(args, ast);
+    auto ret = clingo_ast_build_(type, ast, args);
+    va_end(args);
+    return ret;
+}
+
+extern "C" bool clingo_ast_build(clingo_ast_type_t type, clingo_ast_t **ast, ...) {
+    va_list args;
+    va_start(args, ast);
+    auto ret = clingo_ast_build_(type, ast, args);
+    va_end(args);
+    return ret;
 }
 
 extern "C" bool clingo_ast_get_type(clingo_ast_t *ast, clingo_ast_type_t *type) {

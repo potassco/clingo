@@ -350,6 +350,8 @@ from .core import Logger, OrderedEnum
 from .control import Control
 from .symbol import Symbol
 
+import platform
+
 __all__ = [
     "AST",
     "ASTSequence",
@@ -421,6 +423,7 @@ __all__ = [
 
 # pylint: disable=protected-access,invalid-name,too-many-lines,too-many-ancestors
 
+IS_ARM = platform.machine().startswith("arm")
 
 class ASTType(OrderedEnum):
     """
@@ -1495,6 +1498,11 @@ class Transformer:
         """
         return self.visit(ast, *args, **kwargs)
 
+def _ast_build(*args):
+    if IS_ARM:
+        _handle_error(_lib.clingo_ast_build_stack(_ffi.NULL, _ffi.NULL, _ffi.NULL, _ffi.NULL, _ffi.NULL, _ffi.NULL, *args))
+    else:
+        _handle_error(_lib.clingo_ast_build(*args))
 
 def Id(location: Location, name: str) -> AST:
     """
@@ -1502,14 +1510,7 @@ def Id(location: Location, name: str) -> AST:
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
-            _lib.clingo_ast_type_id,
-            p_ast,
-            c_location[0],
-            _ffi.new("char const[]", name.encode()),
-        )
-    )
+    _ast_build(_lib.clingo_ast_type_id, p_ast, c_location[0], _ffi.new("char const[]", name.encode()))
     return AST(p_ast[0])
 
 
@@ -1519,14 +1520,12 @@ def Variable(location: Location, name: str) -> AST:
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_variable,
             p_ast,
             c_location[0],
             _ffi.new("char const[]", name.encode()),
         )
-    )
     return AST(p_ast[0])
 
 
@@ -1536,14 +1535,12 @@ def SymbolicTerm(location: Location, symbol: Symbol) -> AST:
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_symbolic_term,
             p_ast,
             c_location[0],
             _ffi.cast("clingo_symbol_t", symbol._rep),
         )
-    )
     return AST(p_ast[0])
 
 
@@ -1553,15 +1550,13 @@ def UnaryOperation(location: Location, operator_type: int, argument: AST) -> AST
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_unary_operation,
             p_ast,
             c_location[0],
             _ffi.cast("int", operator_type),
             argument._rep,
         )
-    )
     return AST(p_ast[0])
 
 
@@ -1573,8 +1568,7 @@ def BinaryOperation(
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_binary_operation,
             p_ast,
             c_location[0],
@@ -1582,7 +1576,6 @@ def BinaryOperation(
             left._rep,
             right._rep,
         )
-    )
     return AST(p_ast[0])
 
 
@@ -1592,11 +1585,9 @@ def Interval(location: Location, left: AST, right: AST) -> AST:
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_interval, p_ast, c_location[0], left._rep, right._rep
         )
-    )
     return AST(p_ast[0])
 
 
@@ -1608,8 +1599,7 @@ def Function(
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_function,
             p_ast,
             c_location[0],
@@ -1618,7 +1608,6 @@ def Function(
             _ffi.cast("size_t", len(arguments)),
             _ffi.cast("int", external),
         )
-    )
     return AST(p_ast[0])
 
 
@@ -1628,15 +1617,13 @@ def Pool(location: Location, arguments: Sequence[AST]) -> AST:
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_pool,
             p_ast,
             c_location[0],
             _ffi.new("clingo_ast_t*[]", [x._rep for x in arguments]),
             _ffi.cast("size_t", len(arguments)),
         )
-    )
     return AST(p_ast[0])
 
 
@@ -1645,11 +1632,9 @@ def BooleanConstant(value: int) -> AST:
     Construct an AST node of type `ASTType.BooleanConstant`.
     """
     p_ast = _ffi.new("clingo_ast_t**")
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_boolean_constant, p_ast, _ffi.cast("int", value)
         )
-    )
     return AST(p_ast[0])
 
 
@@ -1658,9 +1643,7 @@ def SymbolicAtom(symbol: AST) -> AST:
     Construct an AST node of type `ASTType.SymbolicAtom`.
     """
     p_ast = _ffi.new("clingo_ast_t**")
-    _handle_error(
-        _lib.clingo_ast_build(_lib.clingo_ast_type_symbolic_atom, p_ast, symbol._rep)
-    )
+    _ast_build(_lib.clingo_ast_type_symbolic_atom, p_ast, symbol._rep)
     return AST(p_ast[0])
 
 
@@ -1669,15 +1652,13 @@ def Comparison(term: AST, guards: Sequence[AST]) -> AST:
     Construct an AST node of type `ASTType.Comparison`.
     """
     p_ast = _ffi.new("clingo_ast_t**")
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_comparison,
             p_ast,
             term._rep,
             _ffi.new("clingo_ast_t*[]", [x._rep for x in guards]),
             _ffi.cast("size_t", len(guards)),
         )
-    )
     return AST(p_ast[0])
 
 
@@ -1686,11 +1667,9 @@ def Guard(comparison: int, term: AST) -> AST:
     Construct an AST node of type `ASTType.Guard`.
     """
     p_ast = _ffi.new("clingo_ast_t**")
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_guard, p_ast, _ffi.cast("int", comparison), term._rep
         )
-    )
     return AST(p_ast[0])
 
 
@@ -1702,8 +1681,7 @@ def ConditionalLiteral(
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_conditional_literal,
             p_ast,
             c_location[0],
@@ -1711,7 +1689,6 @@ def ConditionalLiteral(
             _ffi.new("clingo_ast_t*[]", [x._rep for x in condition]),
             _ffi.cast("size_t", len(condition)),
         )
-    )
     return AST(p_ast[0])
 
 
@@ -1726,8 +1703,7 @@ def Aggregate(
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_aggregate,
             p_ast,
             c_location[0],
@@ -1736,7 +1712,6 @@ def Aggregate(
             _ffi.cast("size_t", len(elements)),
             _ffi.NULL if right_guard is None else right_guard._rep,
         )
-    )
     return AST(p_ast[0])
 
 
@@ -1745,8 +1720,7 @@ def BodyAggregateElement(terms: Sequence[AST], condition: Sequence[AST]) -> AST:
     Construct an AST node of type `ASTType.BodyAggregateElement`.
     """
     p_ast = _ffi.new("clingo_ast_t**")
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_body_aggregate_element,
             p_ast,
             _ffi.new("clingo_ast_t*[]", [x._rep for x in terms]),
@@ -1754,7 +1728,6 @@ def BodyAggregateElement(terms: Sequence[AST], condition: Sequence[AST]) -> AST:
             _ffi.new("clingo_ast_t*[]", [x._rep for x in condition]),
             _ffi.cast("size_t", len(condition)),
         )
-    )
     return AST(p_ast[0])
 
 
@@ -1770,8 +1743,7 @@ def BodyAggregate(
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_body_aggregate,
             p_ast,
             c_location[0],
@@ -1781,7 +1753,6 @@ def BodyAggregate(
             _ffi.cast("size_t", len(elements)),
             _ffi.NULL if right_guard is None else right_guard._rep,
         )
-    )
     return AST(p_ast[0])
 
 
@@ -1790,15 +1761,13 @@ def HeadAggregateElement(terms: Sequence[AST], condition: AST) -> AST:
     Construct an AST node of type `ASTType.HeadAggregateElement`.
     """
     p_ast = _ffi.new("clingo_ast_t**")
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_head_aggregate_element,
             p_ast,
             _ffi.new("clingo_ast_t*[]", [x._rep for x in terms]),
             _ffi.cast("size_t", len(terms)),
             condition._rep,
         )
-    )
     return AST(p_ast[0])
 
 
@@ -1814,8 +1783,7 @@ def HeadAggregate(
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_head_aggregate,
             p_ast,
             c_location[0],
@@ -1825,7 +1793,6 @@ def HeadAggregate(
             _ffi.cast("size_t", len(elements)),
             _ffi.NULL if right_guard is None else right_guard._rep,
         )
-    )
     return AST(p_ast[0])
 
 
@@ -1835,15 +1802,13 @@ def Disjunction(location: Location, elements: Sequence[AST]) -> AST:
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_disjunction,
             p_ast,
             c_location[0],
             _ffi.new("clingo_ast_t*[]", [x._rep for x in elements]),
             _ffi.cast("size_t", len(elements)),
         )
-    )
     return AST(p_ast[0])
 
 
@@ -1853,8 +1818,7 @@ def TheorySequence(location: Location, sequence_type: int, terms: Sequence[AST])
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_theory_sequence,
             p_ast,
             c_location[0],
@@ -1862,7 +1826,6 @@ def TheorySequence(location: Location, sequence_type: int, terms: Sequence[AST])
             _ffi.new("clingo_ast_t*[]", [x._rep for x in terms]),
             _ffi.cast("size_t", len(terms)),
         )
-    )
     return AST(p_ast[0])
 
 
@@ -1872,8 +1835,7 @@ def TheoryFunction(location: Location, name: str, arguments: Sequence[AST]) -> A
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_theory_function,
             p_ast,
             c_location[0],
@@ -1881,7 +1843,6 @@ def TheoryFunction(location: Location, name: str, arguments: Sequence[AST]) -> A
             _ffi.new("clingo_ast_t*[]", [x._rep for x in arguments]),
             _ffi.cast("size_t", len(arguments)),
         )
-    )
     return AST(p_ast[0])
 
 
@@ -1891,15 +1852,13 @@ def TheoryUnparsedTermElement(operators: Sequence[str], term: AST) -> AST:
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_operators = [_ffi.new("char[]", x.encode()) for x in operators]
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_theory_unparsed_term_element,
             p_ast,
             _ffi.new("char*[]", c_operators),
             _ffi.cast("size_t", len(operators)),
             term._rep,
         )
-    )
     return AST(p_ast[0])
 
 
@@ -1909,15 +1868,13 @@ def TheoryUnparsedTerm(location: Location, elements: Sequence[AST]) -> AST:
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_theory_unparsed_term,
             p_ast,
             c_location[0],
             _ffi.new("clingo_ast_t*[]", [x._rep for x in elements]),
             _ffi.cast("size_t", len(elements)),
         )
-    )
     return AST(p_ast[0])
 
 
@@ -1926,14 +1883,12 @@ def TheoryGuard(operator_name: str, term: AST) -> AST:
     Construct an AST node of type `ASTType.TheoryGuard`.
     """
     p_ast = _ffi.new("clingo_ast_t**")
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_theory_guard,
             p_ast,
             _ffi.new("char const[]", operator_name.encode()),
             term._rep,
         )
-    )
     return AST(p_ast[0])
 
 
@@ -1942,8 +1897,7 @@ def TheoryAtomElement(terms: Sequence[AST], condition: Sequence[AST]) -> AST:
     Construct an AST node of type `ASTType.TheoryAtomElement`.
     """
     p_ast = _ffi.new("clingo_ast_t**")
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_theory_atom_element,
             p_ast,
             _ffi.new("clingo_ast_t*[]", [x._rep for x in terms]),
@@ -1951,7 +1905,6 @@ def TheoryAtomElement(terms: Sequence[AST], condition: Sequence[AST]) -> AST:
             _ffi.new("clingo_ast_t*[]", [x._rep for x in condition]),
             _ffi.cast("size_t", len(condition)),
         )
-    )
     return AST(p_ast[0])
 
 
@@ -1963,8 +1916,7 @@ def TheoryAtom(
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_theory_atom,
             p_ast,
             c_location[0],
@@ -1973,7 +1925,6 @@ def TheoryAtom(
             _ffi.cast("size_t", len(elements)),
             _ffi.NULL if guard is None else guard._rep,
         )
-    )
     return AST(p_ast[0])
 
 
@@ -1983,15 +1934,13 @@ def Literal(location: Location, sign: int, atom: AST) -> AST:
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_literal,
             p_ast,
             c_location[0],
             _ffi.cast("int", sign),
             atom._rep,
         )
-    )
     return AST(p_ast[0])
 
 
@@ -2003,8 +1952,7 @@ def TheoryOperatorDefinition(
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_theory_operator_definition,
             p_ast,
             c_location[0],
@@ -2012,7 +1960,6 @@ def TheoryOperatorDefinition(
             _ffi.cast("int", priority),
             _ffi.cast("int", operator_type),
         )
-    )
     return AST(p_ast[0])
 
 
@@ -2024,8 +1971,7 @@ def TheoryTermDefinition(
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_theory_term_definition,
             p_ast,
             c_location[0],
@@ -2033,7 +1979,6 @@ def TheoryTermDefinition(
             _ffi.new("clingo_ast_t*[]", [x._rep for x in operators]),
             _ffi.cast("size_t", len(operators)),
         )
-    )
     return AST(p_ast[0])
 
 
@@ -2043,15 +1988,13 @@ def TheoryGuardDefinition(operators: Sequence[str], term: str) -> AST:
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_operators = [_ffi.new("char[]", x.encode()) for x in operators]
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_theory_guard_definition,
             p_ast,
             _ffi.new("char*[]", c_operators),
             _ffi.cast("size_t", len(operators)),
             _ffi.new("char const[]", term.encode()),
         )
-    )
     return AST(p_ast[0])
 
 
@@ -2068,8 +2011,7 @@ def TheoryAtomDefinition(
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_theory_atom_definition,
             p_ast,
             c_location[0],
@@ -2079,7 +2021,6 @@ def TheoryAtomDefinition(
             _ffi.new("char const[]", term.encode()),
             _ffi.NULL if guard is None else guard._rep,
         )
-    )
     return AST(p_ast[0])
 
 
@@ -2089,8 +2030,7 @@ def Rule(location: Location, head: AST, body: Sequence[AST]) -> AST:
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_rule,
             p_ast,
             c_location[0],
@@ -2098,7 +2038,6 @@ def Rule(location: Location, head: AST, body: Sequence[AST]) -> AST:
             _ffi.new("clingo_ast_t*[]", [x._rep for x in body]),
             _ffi.cast("size_t", len(body)),
         )
-    )
     return AST(p_ast[0])
 
 
@@ -2108,8 +2047,7 @@ def Definition(location: Location, name: str, value: AST, is_default: int) -> AS
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_definition,
             p_ast,
             c_location[0],
@@ -2117,7 +2055,6 @@ def Definition(location: Location, name: str, value: AST, is_default: int) -> AS
             value._rep,
             _ffi.cast("int", is_default),
         )
-    )
     return AST(p_ast[0])
 
 
@@ -2127,8 +2064,7 @@ def ShowSignature(location: Location, name: str, arity: int, positive: int) -> A
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_show_signature,
             p_ast,
             c_location[0],
@@ -2136,7 +2072,6 @@ def ShowSignature(location: Location, name: str, arity: int, positive: int) -> A
             _ffi.cast("int", arity),
             _ffi.cast("int", positive),
         )
-    )
     return AST(p_ast[0])
 
 
@@ -2146,8 +2081,7 @@ def ShowTerm(location: Location, term: AST, body: Sequence[AST]) -> AST:
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_show_term,
             p_ast,
             c_location[0],
@@ -2155,7 +2089,6 @@ def ShowTerm(location: Location, term: AST, body: Sequence[AST]) -> AST:
             _ffi.new("clingo_ast_t*[]", [x._rep for x in body]),
             _ffi.cast("size_t", len(body)),
         )
-    )
     return AST(p_ast[0])
 
 
@@ -2171,8 +2104,7 @@ def Minimize(
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_minimize,
             p_ast,
             c_location[0],
@@ -2183,7 +2115,6 @@ def Minimize(
             _ffi.new("clingo_ast_t*[]", [x._rep for x in body]),
             _ffi.cast("size_t", len(body)),
         )
-    )
     return AST(p_ast[0])
 
 
@@ -2193,15 +2124,13 @@ def Script(location: Location, name: str, code: str) -> AST:
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_script,
             p_ast,
             c_location[0],
             _ffi.new("char const[]", name.encode()),
             _ffi.new("char const[]", code.encode()),
         )
-    )
     return AST(p_ast[0])
 
 
@@ -2211,8 +2140,7 @@ def Program(location: Location, name: str, parameters: Sequence[AST]) -> AST:
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_program,
             p_ast,
             c_location[0],
@@ -2220,7 +2148,6 @@ def Program(location: Location, name: str, parameters: Sequence[AST]) -> AST:
             _ffi.new("clingo_ast_t*[]", [x._rep for x in parameters]),
             _ffi.cast("size_t", len(parameters)),
         )
-    )
     return AST(p_ast[0])
 
 
@@ -2232,8 +2159,7 @@ def External(
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_external,
             p_ast,
             c_location[0],
@@ -2242,7 +2168,6 @@ def External(
             _ffi.cast("size_t", len(body)),
             external_type._rep,
         )
-    )
     return AST(p_ast[0])
 
 
@@ -2252,8 +2177,7 @@ def Edge(location: Location, node_u: AST, node_v: AST, body: Sequence[AST]) -> A
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_edge,
             p_ast,
             c_location[0],
@@ -2262,7 +2186,6 @@ def Edge(location: Location, node_u: AST, node_v: AST, body: Sequence[AST]) -> A
             _ffi.new("clingo_ast_t*[]", [x._rep for x in body]),
             _ffi.cast("size_t", len(body)),
         )
-    )
     return AST(p_ast[0])
 
 
@@ -2279,8 +2202,7 @@ def Heuristic(
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_heuristic,
             p_ast,
             c_location[0],
@@ -2291,7 +2213,6 @@ def Heuristic(
             priority._rep,
             modifier._rep,
         )
-    )
     return AST(p_ast[0])
 
 
@@ -2301,8 +2222,7 @@ def ProjectAtom(location: Location, atom: AST, body: Sequence[AST]) -> AST:
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_project_atom,
             p_ast,
             c_location[0],
@@ -2310,7 +2230,6 @@ def ProjectAtom(location: Location, atom: AST, body: Sequence[AST]) -> AST:
             _ffi.new("clingo_ast_t*[]", [x._rep for x in body]),
             _ffi.cast("size_t", len(body)),
         )
-    )
     return AST(p_ast[0])
 
 
@@ -2320,8 +2239,7 @@ def ProjectSignature(location: Location, name: str, arity: int, positive: int) -
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_project_signature,
             p_ast,
             c_location[0],
@@ -2329,7 +2247,6 @@ def ProjectSignature(location: Location, name: str, arity: int, positive: int) -
             _ffi.cast("int", arity),
             _ffi.cast("int", positive),
         )
-    )
     return AST(p_ast[0])
 
 
@@ -2339,8 +2256,7 @@ def Defined(location: Location, name: str, arity: int, positive: int) -> AST:
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_defined,
             p_ast,
             c_location[0],
@@ -2348,7 +2264,6 @@ def Defined(location: Location, name: str, arity: int, positive: int) -> AST:
             _ffi.cast("int", arity),
             _ffi.cast("int", positive),
         )
-    )
     return AST(p_ast[0])
 
 
@@ -2360,8 +2275,7 @@ def TheoryDefinition(
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_theory_definition,
             p_ast,
             c_location[0],
@@ -2371,7 +2285,6 @@ def TheoryDefinition(
             _ffi.new("clingo_ast_t*[]", [x._rep for x in atoms]),
             _ffi.cast("size_t", len(atoms)),
         )
-    )
     return AST(p_ast[0])
 
 
@@ -2381,13 +2294,11 @@ def Comment(location: Location, value: str, comment_type: int) -> AST:
     """
     p_ast = _ffi.new("clingo_ast_t**")
     c_location = _c_location(location)
-    _handle_error(
-        _lib.clingo_ast_build(
+    _ast_build(
             _lib.clingo_ast_type_comment,
             p_ast,
             c_location[0],
             _ffi.new("char const[]", value.encode()),
             _ffi.cast("int", comment_type),
         )
-    )
     return AST(p_ast[0])

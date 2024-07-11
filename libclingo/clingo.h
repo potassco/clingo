@@ -3372,6 +3372,7 @@ typedef struct clingo_ast clingo_ast_t;
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if one of the arguments is incompatible with the type
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_build(clingo_ast_type_t type, clingo_ast_t **ast, ...);
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_build_stack(void *, void *, void *, void *, void *, void *, clingo_ast_type_t type, clingo_ast_t **ast, ...);
 
 //! @}
 
