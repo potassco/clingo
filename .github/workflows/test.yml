@@ -51,6 +51,7 @@ jobs:
         conda info
         conda list
         python -m site
+        python -m pip install --force cffi
 
     - name: build and test
       shell: bash -l {0}
