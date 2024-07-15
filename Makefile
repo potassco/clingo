@@ -8,13 +8,14 @@ doc:
 	cd doc && doxygen
 
 test_doc: doc
-	python -m http.server --directory=doc/html
+	python3 -m http.server --directory=doc/html
 
 test: all
 	$(MAKE) CTEST_OUTPUT_ON_FAILURE=1 -C build/debug $@
 
 compdb: all
 	compdb -p "build/debug" list -1 > compile_commands.json
+	python3 "scripts/compdb-cpp-headers.py"
 
 build/debug/CMakeCache.txt:
 	@$(MAKE) -C . reconfigure
@@ -135,7 +136,7 @@ format_yaml:
 
 venv: SHELL:=/bin/bash
 venv:
-	python -m venv .venv
+	python3 -m venv .venv
 	source .venv/bin/activate && pip install pynvim pyyaml jinja2 mypy pybind11-stubgen
 	ln -rft .venv/lib/python*/site-packages -s build/debug/lib/python-api/clingo.*.so
 
