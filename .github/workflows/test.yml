@@ -52,6 +52,12 @@ jobs:
         conda list
         python -m site
 
+    - name: fix cffi
+      if: runner.os == 'macOS'
+      shell: bash -l {0}
+      run: |
+        pip install cffi --force
+
     - name: build and test
       shell: bash -l {0}
       run: >
