@@ -8,14 +8,12 @@ namespace Gringo {
 static auto lex(LexerState &state) -> int;
 
 void test() {
-    std::istringstream iss("abxa");
+    std::istringstream iss(R"(425 _abc _ _ABC "\n1x'_:" #xxx)");
     auto state = LexerState{std::make_unique<std::istringstream>(std::move(iss))};
     // NOLINTBEGIN(performance-avoid-endl)
-    std::cerr << "token: " << lex(state) << std::endl;
-    std::cerr << "token: " << lex(state) << std::endl;
-    std::cerr << "token: " << lex(state) << std::endl;
-    std::cerr << "token: " << lex(state) << std::endl;
-    std::cerr << "token: " << lex(state) << std::endl;
+    for (auto token = lex(state); token != 0; token = lex(state)) {
+        std::cerr << "token: " << token << std::endl;
+    }
     // NOLINTEND(performance-avoid-endl)
 }
 

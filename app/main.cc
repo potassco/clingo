@@ -116,7 +116,12 @@ auto run(int argc, char *argv[]) -> int {
     return log.has_error() ? 1 : 0;
 }
 
+namespace Gringo {
+void test();
+}
+
 auto main(int argc, char *argv[]) -> int {
+    Gringo::test();
     try {
         return run(argc, argv);
     } catch (std::exception const &e) {

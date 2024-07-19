@@ -1,20 +1,47 @@
+/*!re2c
+    re2c:api:style             = free-form;
+    re2c:define:YYCTYPE        = char;
+    re2c:define:YYCURSOR       = state.cursor();
+    re2c:define:YYMARKER       = state.marker();
+    re2c:define:YYCTXMARKER    = state.ctxmarker();
+    re2c:define:YYLIMIT        = state.limit();
+    re2c:define:YYFILL         = state.fill();
+    re2c:define:YYGETCONDITION = condition;
+    re2c:define:YYSETCONDITION = "condition = @@;";
+    re2c:eof                   = 0;
+    re2c:cond:goto             = "continue;";
+
+    DEC        = "0"|([1-9][0-9]*);
+    HEX        = "0x"([0-9A-Fa-f]+);
+    OCT        = "0o"([1-7]+);
+    BIN        = "0b"([0-1]+);
+    NUMBER     = DEC | HEX | OCT | BIN;
+    SKIP       = [\t\r ]*;
+    NL         = "\n";
+    IDENTIFIER = [_']*[a-z]['A-Za-z0-9_]*;
+    VARIABLE   = [_']*[A-Z]['A-Za-z0-9_]*;
+    STRING     = "\"" ([^\\"\n]|"\\\""|"\\\\"|"\\n")* "\"";
+    THEORYOP   = [/!<=>+\-*\\?&@|:;~\^\.]+;
+    KEYWORD    = "#" [a-zA-Z0-9_]*;
+*/
+
+/*!conditions:re2c*/
+
 static auto lex(LexerState &state) -> int {
+    int condition = yycnormal;
     for (;;) {
         state.start();
     /*!re2c
-        re2c:api:style = free-form;
-        re2c:define:YYCTYPE     = char;
-        re2c:define:YYCURSOR    = state.cursor();
-        re2c:define:YYMARKER    = state.marker();
-        re2c:define:YYCTXMARKER = state.ctxmarker();
-        re2c:define:YYLIMIT     = state.limit();
-        re2c:define:YYFILL      = state.fill();
-        re2c:eof = 0;
-
-        $    { return 0; }
-        "a"  { return 1; }
-        "b"  { return 2; }
-        *    { return 3; }
+        <normal> NUMBER     { return 1; }
+        <normal> IDENTIFIER { return 2; }
+        <normal> "_"        { return 3; }
+        <normal> VARIABLE   { return 4; }
+        <normal> STRING     { return 5; }
+        <normal> SKIP       { continue; }
+        <normal> NL         { continue; }
+        <normal> KEYWORD    { return 6; }
+        <*> *               { return 6; }
+        <*> $               { return 0; }
     */
     }
 }
