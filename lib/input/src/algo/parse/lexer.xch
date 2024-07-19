@@ -1,0 +1,20 @@
+static auto lex(LexerState &state) -> int {
+    for (;;) {
+        state.start();
+    /*!re2c
+        re2c:api:style = free-form;
+        re2c:define:YYCTYPE     = char;
+        re2c:define:YYCURSOR    = state.cursor();
+        re2c:define:YYMARKER    = state.marker();
+        re2c:define:YYCTXMARKER = state.ctxmarker();
+        re2c:define:YYLIMIT     = state.limit();
+        re2c:define:YYFILL      = state.fill();
+        re2c:eof = 0;
+
+        $    { return 0; }
+        "a"  { return 1; }
+        "b"  { return 2; }
+        *    { return 3; }
+    */
+    }
+}

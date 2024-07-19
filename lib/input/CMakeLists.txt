@@ -1,4 +1,8 @@
+re2c_target_or_gen("src/algo/parse/lexer.xch")
+
 add_library(gringo_input
+    ${RE2C_lexer_OUTPUT}
+    "src/algo/parse/lexer.cc"
     "src/algo/add_sign.cc"
     "src/algo/analyze.cc"
     "src/algo/check_syntax.cc"
@@ -24,7 +28,9 @@ add_library(gringo_input
     )
 
 target_link_libraries(gringo_input PUBLIC gringo_core PRIVATE foonathan::lexy::core foonathan::lexy::file)
-target_include_directories(gringo_input PUBLIC "include")
+target_include_directories(gringo_input PUBLIC "include"
+    PRIVATE
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src>")
 set_property(TARGET gringo_input lexy_core lexy_file PROPERTY POSITION_INDEPENDENT_CODE ON)
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     # no-parentheses: for lexy using >> and + in combination
