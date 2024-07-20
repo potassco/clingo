@@ -27,8 +27,11 @@
 
 /*!conditions:re2c*/
 
-static auto lex(LexerState &state) -> TokenType {
+static auto lex(LexerState &state, Condition cond) -> TokenType {
     int condition = yycnormal;
+    switch (cond) {
+        case Condition::normal: { break; }
+    }
     for (;;) {
         state.start();
     /*!re2c
@@ -48,6 +51,9 @@ static auto lex(LexerState &state) -> TokenType {
         <normal> "^"        { return TokenType::caret; }
         <normal> "&"        { return TokenType::amp; }
         <normal> "|"        { return TokenType::bar; }
+        <normal> ","        { return TokenType::comma; }
+        <normal> ";"        { return TokenType::sem; }
+        <normal> ":"        { return TokenType::colon; }
         <normal> SKIP       { continue; }
         <normal> NL         { continue; }
         <normal> KEYWORD    { return TokenType::error; }

@@ -46,8 +46,6 @@ class LexerState {
     auto ctxmarker() -> char *& { return ctxmarker_; }
     //! Pointer marking the end of the input.
     auto limit() -> char *& { return limit_; }
-    //! State variable to capture start conditions.
-    auto condition() -> int & { return condition_; }
     //! Fill the input buffer discarding input before the position marked with start.
     //!
     //! Reallocates if no characters can be discarded
@@ -63,7 +61,6 @@ class LexerState {
     char *ctxmarker_ = nullptr;
     char *token_ = nullptr;
     char *limit_ = nullptr;
-    int condition_ = 0;
     bool eof_ = false;
 };
 
