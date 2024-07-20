@@ -1,7 +1,7 @@
-re2c_target_or_gen("src/algo/parse/lexer.xch")
+re2c_target_or_gen("src/algo/parse/lexer_impl.xch")
 
 add_library(gringo_input
-    ${RE2C_lexer_OUTPUT}
+    ${RE2C_lexer_impl_OUTPUT}
     "src/algo/parse/lexer.cc"
     "src/algo/add_sign.cc"
     "src/algo/analyze.cc"
@@ -44,6 +44,7 @@ if (PARSER_BUILD_TESTS)
         "tests/dependency.cc"
         "tests/evaluate.cc"
         "tests/iesolver.cc"
+        "tests/lexer.cc"
         "tests/parse.cc"
         "tests/program.cc"
         "tests/project_anonymous.cc"

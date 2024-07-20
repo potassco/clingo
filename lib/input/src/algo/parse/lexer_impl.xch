@@ -27,21 +27,32 @@
 
 /*!conditions:re2c*/
 
-static auto lex(LexerState &state) -> int {
+static auto lex(LexerState &state) -> TokenType {
     int condition = yycnormal;
     for (;;) {
         state.start();
     /*!re2c
-        <normal> NUMBER     { return 1; }
-        <normal> IDENTIFIER { return 2; }
-        <normal> "_"        { return 3; }
-        <normal> VARIABLE   { return 4; }
-        <normal> STRING     { return 5; }
+        <normal> NUMBER     { return TokenType::num; }
+        <normal> IDENTIFIER { return TokenType::id; }
+        <normal> "_"        { return TokenType::anon; }
+        <normal> VARIABLE   { return TokenType::var; }
+        <normal> STRING     { return TokenType::str; }
+        <normal> "("        { return TokenType::lpar; }
+        <normal> ")"        { return TokenType::rpar; }
+        <normal> "+"        { return TokenType::plus; }
+        <normal> "-"        { return TokenType::minus; }
+        <normal> "*"        { return TokenType::star; }
+        <normal> "/"        { return TokenType::slash; }
+        <normal> "\\"       { return TokenType::bslash; }
+        <normal> "?"        { return TokenType::qmark; }
+        <normal> "^"        { return TokenType::caret; }
+        <normal> "&"        { return TokenType::amp; }
+        <normal> "|"        { return TokenType::bar; }
         <normal> SKIP       { continue; }
         <normal> NL         { continue; }
-        <normal> KEYWORD    { return 6; }
-        <*> *               { return 6; }
-        <*> $               { return 0; }
+        <normal> KEYWORD    { return TokenType::error; }
+        <*> *               { return TokenType::error; }
+        <*> $               { return TokenType::end; }
     */
     }
 }
