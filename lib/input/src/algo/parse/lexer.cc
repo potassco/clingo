@@ -17,6 +17,7 @@ enum class TokenType : uint8_t {
     caret,
     colon,
     comma,
+    dstar,
     end,
     error,
     id,
@@ -41,90 +42,137 @@ class Parser {
   public:
     Parser(std::unique_ptr<std::istream> in) : state_{std::move(in)} {}
 
+    void parse() {
+        // stack:
+        // function: name args
+        //
+        consume();
+        if (parse_term() && branch(TokenType::end)) {
+            std::cerr << "parsing successful" << std::endl;
+        } else {
+            std::cerr << "parsing failed" << std::endl;
+        }
+    }
+
+  private:
+    enum class Prod : uint8_t { term, fun, add, sub, mul, exp, uminus };
+
+    static auto priority(Prod prod) -> int {
+        switch (prod) {
+            case Prod::exp: {
+                return 3;
+            }
+            case Prod::uminus: {
+                return 2;
+            }
+            case Prod::mul: {
+                return 1;
+            }
+            default: {
+                assert(prod == Prod::add || prod == Prod::sub);
+                return 0;
+            }
+        }
+    };
+
+    static auto right_assoc(Prod prod) { return prod == Prod::exp; }
+
+    void consume() { token_ = lex(state_, Condition::normal); }
+
+    auto branch(TokenType token) -> bool {
+        if (token_ == token) {
+            consume();
+            return true;
+        }
+        return false;
+    }
+
+    auto branch_binop() -> std::optional<Prod> {
+        if (branch(TokenType::dstar)) {
+            return Prod::mul;
+        }
+        if (branch(TokenType::star)) {
+            return Prod::mul;
+        }
+        if (branch(TokenType::minus)) {
+            return Prod::sub;
+        }
+        if (branch(TokenType::plus)) {
+            return Prod::add;
+        }
+        return std::nullopt;
+    };
+
+    auto branch_unop() -> std::optional<Prod> {
+        if (branch(TokenType::minus)) {
+            return Prod::uminus;
+        }
+        return std::nullopt;
+    };
+
     auto parse_term() -> bool {
         // TODO:
         // - tuples/terms in parenthesis
         // - remaining arithmetic operations
-        //   (written compactly)
         // - external functions
         // - error reporting
         // - term building using a separate stack
         stack_.emplace_back(Prod::term);
+
         auto cont_expression = [this] {
             stack_.pop_back();
-            if (branch(TokenType::plus)) {
-                stack_.emplace_back(Prod::add);
-                stack_.emplace_back(Prod::term);
-            }
-            if (branch(TokenType::star)) {
-                stack_.emplace_back(Prod::mul);
+            if (auto prod = branch_binop(); prod) {
+                stack_.emplace_back(*prod);
                 stack_.emplace_back(Prod::term);
             }
         };
 
         while (!stack_.empty()) {
             switch (stack_.back()) {
-                case Prod::add: {
-                    // Term -> Term '+' (Term . '*' Term)
-                    if (branch(TokenType::star)) {
-                        // shift
-                        stack_.push_back(Prod::mul);
-                        stack_.push_back(Prod::term);
-                        continue;
-                    }
-                    // Term -> (Term '+' Term) . '+' Term
-                    if (branch(TokenType::plus)) {
-                        // reduce + shift
-                        stack_.back() = Prod::add;
-                        stack_.push_back(Prod::term);
-                        continue;
-                    }
-                    // Term -> (Term '+' Term) .
-                    stack_.pop_back();
-                    continue;
-                }
+                case Prod::exp:
+                case Prod::add:
+                case Prod::sub:
                 case Prod::mul: {
-                    // Term -> (Term '*' Term) . '*' Term
-                    if (branch(TokenType::star)) {
-                        // reduce + shift
-                        stack_.back() = Prod::mul;
+                    auto pre = stack_.back();
+                    if (auto cur = branch_binop(); cur) {
+                        auto pp = priority(pre);
+                        auto pc = priority(*cur);
+                        if (pp < pc || (pp == pc && right_assoc(*cur))) {
+                            // Term -> Term pre (Term . cur Term)
+                            stack_.push_back(*cur);
+                        } else {
+                            // Term -> (Term pre Term) . cur Term
+                            stack_.back() = *cur;
+                        }
                         stack_.push_back(Prod::term);
-                        continue;
+                    } else {
+                        // Term -> (Term pre Term) .
+                        stack_.pop_back();
                     }
-                    // Term -> (Term '*' Term) . '+' Term
-                    if (branch(TokenType::plus)) {
-                        // reduce + shift
-                        stack_.back() = Prod::mul;
-                        stack_.push_back(Prod::term);
-                        continue;
-                    }
-                    // Term -> (Term '*' Term) .
-                    stack_.pop_back();
                     continue;
                 }
                 case Prod::uminus: {
-                    // Term -> ('-' Term) . '*' Term
-                    if (branch(TokenType::star)) {
-                        // reduce + shift
-                        stack_.back() = Prod::mul;
+                    auto pre = stack_.back();
+                    if (auto cur = branch_unop(); cur) {
+                        if (priority(pre) < priority(*cur)) {
+                            // Term -> pre (Term . cur Term)
+                            stack_.push_back(*cur);
+                        } else {
+                            // Term -> (pre Term) . cur Term
+                            stack_.back() = *cur;
+                        }
                         stack_.push_back(Prod::term);
-                        continue;
+
+                    } else {
+                        // Term -> (pre Term) .
+                        stack_.pop_back();
                     }
-                    // Term -> ('-' Term) . '+' Term
-                    if (branch(TokenType::plus)) {
-                        // reduce + shift
-                        stack_.back() = Prod::add;
-                        stack_.push_back(Prod::term);
-                        continue;
-                    }
-                    // Term -> ('-' Term) .
-                    stack_.pop_back();
                     continue;
                 }
                 case Prod::term: {
                     // Term -> . '-' Term
-                    if (branch(TokenType::minus)) {
-                        stack_.back() = Prod::uminus;
+                    if (auto unop = branch_unop(); unop) {
+                        stack_.back() = *unop;
                         stack_.push_back(Prod::term);
                         continue;
                     }
@@ -195,36 +243,6 @@ class Parser {
         return true;
     }
 
-    auto branch(TokenType token) -> bool {
-        if (token_ == token) {
-            consume();
-            return true;
-        }
-        return false;
-    }
-
-    auto require(TokenType token) -> bool {
-        auto ret = token_ == token;
-        consume();
-        return ret;
-    }
-
-    void consume() { token_ = lex(state_, Condition::normal); }
-
-    void parse() {
-        // stack:
-        // function: name args
-        //
-        consume();
-        if (parse_term() && require(TokenType::end)) {
-            std::cerr << "parsing successful" << std::endl;
-        } else {
-            std::cerr << "parsing failed" << std::endl;
-        }
-    }
-
-  private:
-    enum class Prod : uint8_t { term, fun, add, mul, uminus };
     LexerState state_;
     std::vector<Prod> stack_;
     TokenType token_ = TokenType::error;

@@ -45,6 +45,7 @@ static auto lex(LexerState &state, Condition cond) -> TokenType {
         <normal> "+"        { return TokenType::plus; }
         <normal> "-"        { return TokenType::minus; }
         <normal> "*"        { return TokenType::star; }
+        <normal> "**"       { return TokenType::dstar; }
         <normal> "/"        { return TokenType::slash; }
         <normal> "\\"       { return TokenType::bslash; }
         <normal> "?"        { return TokenType::qmark; }
