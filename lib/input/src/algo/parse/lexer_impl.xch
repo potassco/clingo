@@ -55,6 +55,9 @@ static auto lex(LexerState &state, Condition cond) -> TokenType {
         <normal> ","        { return TokenType::comma; }
         <normal> ";"        { return TokenType::sem; }
         <normal> ":"        { return TokenType::colon; }
+        <normal> "~"        { return TokenType::tilde; }
+        <normal> "."        { return TokenType::dot; }
+        <normal> ".."       { return TokenType::ddot; }
         <normal> SKIP       { continue; }
         <normal> NL         { continue; }
         <normal> KEYWORD    { return TokenType::error; }

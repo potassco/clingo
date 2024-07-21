@@ -17,6 +17,8 @@ enum class TokenType : uint8_t {
     caret,
     colon,
     comma,
+    dot,
+    ddot,
     dstar,
     end,
     error,
@@ -31,6 +33,7 @@ enum class TokenType : uint8_t {
     slash,
     star,
     str,
+    tilde,
     var,
 };
 
@@ -55,24 +58,45 @@ class Parser {
     }
 
   private:
-    enum class Prod : uint8_t { term, fun, add, sub, mul, exp, uminus };
+    enum class Prod : uint8_t { term, fun, add, sub, mul, exp, uminus, bneg, div, mod, band, bor, bxor, interval };
 
     static auto priority(Prod prod) -> int {
+        // NOLINTBEGIN(readability-magic-numbers)
         switch (prod) {
             case Prod::exp: {
+                return 7;
+            }
+            case Prod::bneg:
+            case Prod::uminus: {
+                return 6;
+            }
+            case Prod::div:
+            case Prod::mod:
+            case Prod::mul: {
+                return 5;
+            }
+            case Prod::sub:
+            case Prod::add: {
+                return 4;
+            }
+            case Prod::band: {
                 return 3;
             }
-            case Prod::uminus: {
+            case Prod::bor: {
                 return 2;
             }
-            case Prod::mul: {
+            case Prod::bxor: {
                 return 1;
             }
+            case Prod::interval: {
+                return 0;
+            }
             default: {
-                assert(prod == Prod::add || prod == Prod::sub);
+                assert(prod == Prod::interval);
                 return 0;
             }
         }
+        // NOLINTEND(readability-magic-numbers)
     };
 
     static auto right_assoc(Prod prod) { return prod == Prod::exp; }
@@ -89,7 +113,13 @@ class Parser {
 
     auto branch_binop() -> std::optional<Prod> {
         if (branch(TokenType::dstar)) {
-            return Prod::mul;
+            return Prod::exp;
+        }
+        if (branch(TokenType::slash)) {
+            return Prod::div;
+        }
+        if (branch(TokenType::bslash)) {
+            return Prod::mod;
         }
         if (branch(TokenType::star)) {
             return Prod::mul;
@@ -100,12 +130,27 @@ class Parser {
         if (branch(TokenType::plus)) {
             return Prod::add;
         }
+        if (branch(TokenType::amp)) {
+            return Prod::band;
+        }
+        if (branch(TokenType::bar)) {
+            return Prod::bor;
+        }
+        if (branch(TokenType::caret)) {
+            return Prod::bxor;
+        }
+        if (branch(TokenType::ddot)) {
+            return Prod::interval;
+        }
         return std::nullopt;
     };
 
     auto branch_unop() -> std::optional<Prod> {
         if (branch(TokenType::minus)) {
             return Prod::uminus;
+        }
+        if (branch(TokenType::tilde)) {
+            return Prod::bneg;
         }
         return std::nullopt;
     };
@@ -130,9 +175,15 @@ class Parser {
         while (!stack_.empty()) {
             switch (stack_.back()) {
                 case Prod::exp:
-                case Prod::add:
+                case Prod::div:
+                case Prod::mod:
+                case Prod::mul:
                 case Prod::sub:
-                case Prod::mul: {
+                case Prod::add:
+                case Prod::band:
+                case Prod::bor:
+                case Prod::bxor:
+                case Prod::interval: {
                     auto pre = stack_.back();
                     if (auto cur = branch_binop(); cur) {
                         auto pp = priority(pre);
@@ -151,7 +202,8 @@ class Parser {
                     }
                     continue;
                 }
-                case Prod::uminus: {
+                case Prod::uminus:
+                case Prod::bneg: {
                     auto pre = stack_.back();
                     if (auto cur = branch_unop(); cur) {
                         if (priority(pre) < priority(*cur)) {
