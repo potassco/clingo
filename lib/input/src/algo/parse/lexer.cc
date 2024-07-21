@@ -41,52 +41,158 @@ class Parser {
   public:
     Parser(std::unique_ptr<std::istream> in) : state_{std::move(in)} {}
 
-    auto parse_fun() -> bool {
-        if (!branch(TokenType::lpar)) {
-            return true;
-        }
-        if (branch(TokenType::comma)) {
-            return require(TokenType::rpar);
-        }
-        while (true) {
-            if (branch(TokenType::rpar)) {
-                return true;
-            }
-            if (!parse_atomic_term()) {
-                return false;
-            }
-            if (!branch(TokenType::comma)) {
-                return require(TokenType::rpar);
-            }
-        }
-    }
-
-    auto parse_atomic_term() -> bool {
-        if (branch(TokenType::num)) {
-            return true;
-        }
-        if (branch(TokenType::str)) {
-            return true;
-        }
-        if (branch(TokenType::anon)) {
-            return true;
-        }
-        if (branch(TokenType::var)) {
-            return true;
-        }
-        if (branch(TokenType::id)) {
-            return parse_fun();
-        }
-        // TODO: tuples
-        if (branch(TokenType::lpar)) {
-            return parse_term() && require(TokenType::rpar);
-        }
-        return false;
-    }
-
     auto parse_term() -> bool {
-        // TODO
-        return parse_atomic_term();
+        // TODO:
+        // - tuples/terms in parenthesis
+        // - remaining arithmetic operations
+        //   (written compactly)
+        // - external functions
+        // - error reporting
+        // - term building using a separate stack
+        stack_.emplace_back(Prod::term);
+        auto cont_expression = [this] {
+            stack_.pop_back();
+            if (branch(TokenType::plus)) {
+                stack_.emplace_back(Prod::add);
+                stack_.emplace_back(Prod::term);
+            }
+            if (branch(TokenType::star)) {
+                stack_.emplace_back(Prod::mul);
+                stack_.emplace_back(Prod::term);
+            }
+        };
+
+        while (!stack_.empty()) {
+            switch (stack_.back()) {
+                case Prod::add: {
+                    // Term -> Term '+' (Term . '*' Term)
+                    if (branch(TokenType::star)) {
+                        // shift
+                        stack_.push_back(Prod::mul);
+                        stack_.push_back(Prod::term);
+                        continue;
+                    }
+                    // Term -> (Term '+' Term) . '+' Term
+                    if (branch(TokenType::plus)) {
+                        // reduce + shift
+                        stack_.back() = Prod::add;
+                        stack_.push_back(Prod::term);
+                        continue;
+                    }
+                    // Term -> (Term '+' Term) .
+                    stack_.pop_back();
+                    continue;
+                }
+                case Prod::mul: {
+                    // Term -> (Term '*' Term) . '*' Term
+                    if (branch(TokenType::star)) {
+                        // reduce + shift
+                        stack_.back() = Prod::mul;
+                        stack_.push_back(Prod::term);
+                        continue;
+                    }
+                    // Term -> (Term '*' Term) . '+' Term
+                    if (branch(TokenType::plus)) {
+                        // reduce + shift
+                        stack_.back() = Prod::mul;
+                        stack_.push_back(Prod::term);
+                        continue;
+                    }
+                    // Term -> (Term '*' Term) .
+                    stack_.pop_back();
+                    continue;
+                }
+                case Prod::uminus: {
+                    // Term -> ('-' Term) . '*' Term
+                    if (branch(TokenType::star)) {
+                        // reduce + shift
+                        stack_.back() = Prod::mul;
+                        stack_.push_back(Prod::term);
+                        continue;
+                    }
+                    // Term -> ('-' Term) . '+' Term
+                    if (branch(TokenType::plus)) {
+                        // reduce + shift
+                        stack_.back() = Prod::add;
+                        stack_.push_back(Prod::term);
+                        continue;
+                    }
+                    // Term -> ('-' Term) .
+                    stack_.pop_back();
+                    continue;
+                }
+                case Prod::term: {
+                    // Term -> . '-' Term
+                    if (branch(TokenType::minus)) {
+                        stack_.back() = Prod::uminus;
+                        stack_.push_back(Prod::term);
+                        continue;
+                    }
+                    // Term -> . num
+                    if (branch(TokenType::num)) {
+                        cont_expression();
+                        continue;
+                    }
+                    // Term -> . str
+                    if (branch(TokenType::str)) {
+                        cont_expression();
+                        continue;
+                    }
+                    // Term -> . '_'
+                    if (branch(TokenType::anon)) {
+                        cont_expression();
+                        continue;
+                    }
+                    // Term -> . var
+                    if (branch(TokenType::var)) {
+                        cont_expression();
+                        continue;
+                    }
+                    // Term -> . id ('(' ';'* (')' | Term Fun))?
+                    if (branch(TokenType::id)) {
+                        if (branch(TokenType::lpar)) {
+                            while (branch(TokenType::sem)) {
+                            }
+                            if (!branch(TokenType::rpar)) {
+                                stack_.back() = Prod::fun;
+                                stack_.push_back(Prod::term);
+                                continue;
+                            }
+                        }
+                        cont_expression();
+                        continue;
+                    }
+                    // TODO: report that '-', num, str, '_', var, or identifier is expected
+                    return false;
+                }
+                case Prod::fun: {
+                    // Fun -> . ')'
+                    if (branch(TokenType::rpar)) {
+                        cont_expression();
+                        continue;
+                    }
+                    // Fun -> . ',' Term Fun
+                    if (branch(TokenType::comma)) {
+                        stack_.push_back(Prod::term);
+                        continue;
+                    }
+                    // Fun -> . ';'+ ( ')' | Term Fun )
+                    if (branch(TokenType::sem)) {
+                        while (branch(TokenType::sem)) {
+                        }
+                        if (branch(TokenType::rpar)) {
+                            stack_.pop_back();
+                            continue;
+                        }
+                        stack_.push_back(Prod::term);
+                        continue;
+                    }
+                    // TODO: report that ')', ',', or ';' is expected.
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     auto branch(TokenType token) -> bool {
@@ -110,77 +216,15 @@ class Parser {
         // function: name args
         //
         consume();
-        if (parse2() && require(TokenType::end)) {
+        if (parse_term() && require(TokenType::end)) {
             std::cerr << "parsing successful" << std::endl;
         } else {
             std::cerr << "parsing failed" << std::endl;
         }
     }
 
-    auto parse2() -> bool {
-        stack_.emplace_back(Prod::term);
-        while (!stack_.empty()) {
-            switch (stack_.back()) {
-                case Prod::term: {
-                    if (branch(TokenType::num)) {
-                        stack_.pop_back();
-                        continue;
-                    }
-                    if (branch(TokenType::str)) {
-                        stack_.pop_back();
-                        continue;
-                    }
-                    if (branch(TokenType::anon)) {
-                        stack_.pop_back();
-                        continue;
-                    }
-                    if (branch(TokenType::var)) {
-                        stack_.pop_back();
-                        continue;
-                    }
-                    if (branch(TokenType::id)) {
-                        if (branch(TokenType::lpar)) {
-                            while (branch(TokenType::sem)) {
-                            }
-                            if (!branch(TokenType::rpar)) {
-                                stack_.back() = Prod::fun;
-                                stack_.push_back(Prod::term);
-                                continue;
-                            }
-                        }
-                        stack_.pop_back();
-                        continue;
-                    }
-                    return false;
-                }
-                case Prod::fun: {
-                    if (branch(TokenType::rpar)) {
-                        stack_.pop_back();
-                        continue;
-                    }
-                    if (branch(TokenType::comma)) {
-                        stack_.push_back(Prod::term);
-                        continue;
-                    }
-                    if (branch(TokenType::sem)) {
-                        while (branch(TokenType::sem)) {
-                        }
-                        if (branch(TokenType::rpar)) {
-                            stack_.pop_back();
-                            continue;
-                        }
-                        stack_.push_back(Prod::term);
-                        continue;
-                    }
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
-
   private:
-    enum class Prod : uint8_t { term, fun };
+    enum class Prod : uint8_t { term, fun, add, mul, uminus };
     LexerState state_;
     std::vector<Prod> stack_;
     TokenType token_ = TokenType::error;
@@ -189,7 +233,7 @@ class Parser {
 // NOLINTEND(performance-avoid-endl)
 
 void test() {
-    std::istringstream iss(R"(f("a", _, X, 1, g(;f,x;;g;)))");
+    std::istringstream iss(R"(f("a", _, X * 2 + 1, -1+2*3, g(;f,x;;g;)))");
     auto parser = Parser{std::make_unique<std::istringstream>(std::move(iss))};
     parser.parse();
 }
