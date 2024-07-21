@@ -58,7 +58,7 @@ class Parser {
     }
 
   private:
-    enum class Prod : uint8_t { term, fun, add, sub, mul, exp, uminus, bneg, div, mod, band, bor, bxor, interval };
+    enum class Prod : uint8_t { term, fun, add, sub, mul, exp, uminus, bneg, div, mod, band, bor, bxor, interval, tup };
 
     static auto priority(Prod prod) -> int {
         // NOLINTBEGIN(readability-magic-numbers)
@@ -155,21 +155,113 @@ class Parser {
         return std::nullopt;
     };
 
+    //! Continue parsing an expression after a term.
+    void cont_expression() {
+        stack_.pop_back();
+        if (auto prod = branch_binop(); prod) {
+            stack_.emplace_back(*prod);
+            stack_.emplace_back(Prod::term);
+        }
+    }
+
+    //! Continue parsing a tuple after tokens '(' or ';'.
+    auto init_tuple() -> bool {
+        // First handle prefixes consisting of empty tuple arguments with
+        // optional trailing commas. Then either finish the tuple with a
+        // closing parenthesis or by continuing to parse the next term
+        // arguments.
+        while (true) {
+            if (branch(TokenType::sem)) {
+                continue;
+            }
+            if (branch(TokenType::comma)) {
+                if (branch(TokenType::rpar)) {
+                    cont_expression();
+                    return true;
+                }
+                if (branch(TokenType::sem)) {
+                    continue;
+                }
+                // TODO: report that ')' or ';' is expected
+                return false;
+            }
+            if (branch(TokenType::rpar)) {
+                cont_expression();
+                return true;
+            }
+            stack_.back() = Prod::tup;
+            stack_.push_back(Prod::term);
+            return true;
+        }
+    }
+
+    //! Continue parsing a tuple after a term argument.
+    auto cont_tuple() -> bool {
+        if (branch(TokenType::rpar)) {
+            cont_expression();
+            return true;
+        }
+        if (branch(TokenType::sem)) {
+            return init_tuple();
+        }
+        if (branch(TokenType::comma)) {
+            if (branch(TokenType::rpar)) {
+                cont_expression();
+                return true;
+            }
+            if (branch(TokenType::sem)) {
+                return init_tuple();
+            }
+            stack_.push_back(Prod::term);
+            return true;
+        }
+        // TODO: report that ')', ';', or ',' is expected
+        return false;
+    }
+
+    //! Continue parsing a function arguments after tokens '(' or ';'.
+    void init_fun() {
+        while (branch(TokenType::sem)) {
+        }
+        if (branch(TokenType::rpar)) {
+            cont_expression();
+        } else {
+            stack_.back() = Prod::fun;
+            stack_.push_back(Prod::term);
+        }
+    }
+
+    //! Continue parsing function arguments after a term argument.
+    auto cont_fun() -> bool {
+        // Fun -> . ')'
+        if (branch(TokenType::rpar)) {
+            cont_expression();
+            return true;
+        }
+        // Fun -> . ',' Term Fun
+        if (branch(TokenType::comma)) {
+            stack_.push_back(Prod::term);
+            return true;
+        }
+        // Fun -> . ';'+ ( ')' | Term Fun )
+        if (branch(TokenType::sem)) {
+            init_fun();
+            return true;
+        }
+        // TODO: report that ')', ',', or ';' is expected.
+        return false;
+    }
+
+    //! Parse a term.
+    //!
+    //! Uses a hand written bottom up parser with a stack to avoid stack
+    //! overflows.
     auto parse_term() -> bool {
         // TODO:
-        // - tuples/terms in parenthesis
         // - external functions
         // - error reporting
         // - term building using a separate stack
         stack_.emplace_back(Prod::term);
-
-        auto cont_expression = [this] {
-            stack_.pop_back();
-            if (auto prod = branch_binop(); prod) {
-                stack_.emplace_back(*prod);
-                stack_.emplace_back(Prod::term);
-            }
-        };
 
         while (!stack_.empty()) {
             switch (stack_.back()) {
@@ -247,46 +339,35 @@ class Parser {
                         cont_expression();
                         continue;
                     }
-                    // Term -> . id ('(' ';'* (')' | Term Fun))?
+                    // Term -> . id '(' ...
                     if (branch(TokenType::id)) {
                         if (branch(TokenType::lpar)) {
-                            while (branch(TokenType::sem)) {
-                            }
-                            if (!branch(TokenType::rpar)) {
-                                stack_.back() = Prod::fun;
-                                stack_.push_back(Prod::term);
-                                continue;
-                            }
+                            init_fun();
+                        } else {
+                            cont_expression();
                         }
-                        cont_expression();
                         continue;
                     }
-                    // TODO: report that '-', num, str, '_', var, or identifier is expected
+                    // Term -> . '(' ...
+                    if (branch(TokenType::lpar)) {
+                        if (init_tuple()) {
+                            continue;
+                        }
+                        return false;
+                    }
+                    // TODO: report that '-', num, str, '_', var, identifier, or '(' is expected
+                    return false;
+                }
+                case Prod::tup: {
+                    if (cont_tuple()) {
+                        continue;
+                    }
                     return false;
                 }
                 case Prod::fun: {
-                    // Fun -> . ')'
-                    if (branch(TokenType::rpar)) {
-                        cont_expression();
+                    if (cont_fun()) {
                         continue;
                     }
-                    // Fun -> . ',' Term Fun
-                    if (branch(TokenType::comma)) {
-                        stack_.push_back(Prod::term);
-                        continue;
-                    }
-                    // Fun -> . ';'+ ( ')' | Term Fun )
-                    if (branch(TokenType::sem)) {
-                        while (branch(TokenType::sem)) {
-                        }
-                        if (branch(TokenType::rpar)) {
-                            stack_.pop_back();
-                            continue;
-                        }
-                        stack_.push_back(Prod::term);
-                        continue;
-                    }
-                    // TODO: report that ')', ',', or ';' is expected.
                     return false;
                 }
             }
@@ -302,7 +383,7 @@ class Parser {
 // NOLINTEND(performance-avoid-endl)
 
 void test() {
-    std::istringstream iss(R"(f("a", _, X * 2 + 1, -1+2*3, g(;f,x;;g;)))");
+    std::istringstream iss(R"(f((), (a), (a,), (,), (,;), (;;a,;,;;), "a", _, X * 2 + 1, -1+2*3, g(;f,x;;g;)))");
     auto parser = Parser{std::make_unique<std::istringstream>(std::move(iss))};
     parser.parse();
 }
