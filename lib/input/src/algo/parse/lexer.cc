@@ -158,7 +158,6 @@ class Parser {
     auto parse_term() -> bool {
         // TODO:
         // - tuples/terms in parenthesis
-        // - remaining arithmetic operations
         // - external functions
         // - error reporting
         // - term building using a separate stack
