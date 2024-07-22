@@ -6,7 +6,7 @@ namespace Gringo::Input {
 
 class Parser {
   public:
-    Parser(std::unique_ptr<std::istream> in);
+    Parser(std::istream &in);
     Parser(Parser const &other) = delete;
     Parser(Parser &&other) noexcept;
     auto operator=(Parser const &other) -> Parser & = delete;

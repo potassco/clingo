@@ -6,7 +6,6 @@
 #include <cstring>
 #include <iostream>
 #include <istream>
-#include <memory>
 
 namespace Gringo {
 
@@ -21,7 +20,7 @@ class LexerState {
     //!
     //! This initializes the buffer filling it with zeros and moving the cursor to the end
     //! triggering a call to fill() when calling a lexer the first time.
-    LexerState(std::unique_ptr<std::istream> in) : in_{std::move(in)} {
+    LexerState(std::istream &in) : in_{&in} {
         buffer_.resize(default_buffer_size, '\0');
         buffer_.resize(buffer_.capacity());
         // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
@@ -39,6 +38,8 @@ class LexerState {
     //! Mark the beginning of a token.
     void start() { token_ = cursor_; }
     //! Pointer to the current input position.
+    auto token() -> char *& { return token_; }
+    //! Pointer to the current input position.
     auto cursor() -> char *& { return cursor_; }
     //! Pointer to the position of latest matched rule.
     auto marker() -> char *& { return marker_; }
@@ -54,7 +55,7 @@ class LexerState {
     auto fill() -> bool;
 
   private:
-    std::unique_ptr<std::istream> in_;
+    std::istream *in_ = nullptr;
     std::vector<char> buffer_;
     char *cursor_ = nullptr;
     char *marker_ = nullptr;

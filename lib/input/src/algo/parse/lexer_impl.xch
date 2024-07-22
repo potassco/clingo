@@ -58,6 +58,7 @@ auto Parser::Impl::lex_(Condition cond) -> TokenType {
         <normal> "~"        { return TokenType::tilde; }
         <normal> "."        { return TokenType::dot; }
         <normal> ".."       { return TokenType::ddot; }
+        <normal> "@"        { return TokenType::amp; }
         <normal> SKIP       { continue; }
         <normal> NL         { continue; }
         <normal> KEYWORD    { return TokenType::error; }

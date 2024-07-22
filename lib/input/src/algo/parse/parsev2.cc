@@ -3,7 +3,6 @@
 #include "lexer_state.hh"
 
 #include <iostream>
-#include <sstream>
 
 namespace Gringo::Input {
 
@@ -43,7 +42,7 @@ enum class TokenType : uint8_t {
 
 class Parser::Impl {
   public:
-    Impl(std::unique_ptr<std::istream> in) : state_{std::move(in)} {}
+    Impl(std::istream &in) : state_{in} {}
 
     auto parse_term() -> bool {
         consume_();
@@ -244,6 +243,7 @@ class Parser::Impl {
             return true;
         }
         // TODO: report that ')', ',', or ';' is expected.
+        std::cerr << "')', ',', or ';' expected" << std::endl;
         return false;
     }
 
@@ -346,6 +346,7 @@ class Parser::Impl {
                     }
                     if (ext) {
                         // TODO: id expected
+                        std::cerr << "id expected" << std::endl;
                         return false;
                     }
                     // Term -> . '(' ...
@@ -356,6 +357,8 @@ class Parser::Impl {
                         return false;
                     }
                     // TODO: report that '-', num, str, '_', var, identifier, or '(' is expected
+                    std::cerr << "'-', '_', '(', <number>, <string>, <variable>, or <identifier> expected but token is "
+                              << static_cast<int>(token_) << std::endl;
                     return false;
                 }
                 case Prod::tup: {
@@ -382,7 +385,7 @@ class Parser::Impl {
 
 // NOLINTEND(performance-avoid-endl)
 
-Parser::Parser(std::unique_ptr<std::istream> in) : impl_{std::make_unique<Impl>(std::move(in))} {}
+Parser::Parser(std::istream &in) : impl_{std::make_unique<Impl>(in)} {}
 
 Parser::Parser(Parser &&other) noexcept = default;
 
@@ -391,12 +394,6 @@ auto Parser::operator=(Parser &&other) noexcept -> Parser & = default;
 Parser::~Parser() noexcept = default;
 
 auto Parser::parse_term() -> bool { return impl_->parse_term(); }
-
-void test() {
-    std::istringstream iss(R"(f((), (a), (@a,), (,), (,;), (;;a,;,;;), "a", _, X * 2 + 1, -1+2*3, g(;f,x;;g;)))");
-    auto parser = Parser{std::make_unique<std::istringstream>(std::move(iss))};
-    parser.parse_term();
-}
 
 #include "algo/parse/lexer_impl.hh"
 
