@@ -10,4 +10,10 @@ TEST_CASE("lex_test") {
     REQUIRE(parser.parse_term());
 }
 
+TEST_CASE("lex_test2") {
+    std::istringstream iss(R"(f(x,))");
+    auto parser = Parser{iss};
+    REQUIRE(parser.parse_term());
+}
+
 } // namespace Gringo::Input::Test

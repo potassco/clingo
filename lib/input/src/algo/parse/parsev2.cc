@@ -38,6 +38,87 @@ enum class TokenType : uint8_t {
     var,
 };
 
+static auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
+    switch (token) {
+        case TokenType::amp: {
+            return out << "'&'";
+        }
+        case TokenType::anon: {
+            return out << "'_'";
+        }
+        case TokenType::bar: {
+            return out << "'|'";
+        }
+        case TokenType::bslash: {
+            return out << "'\\'";
+        }
+        case TokenType::caret: {
+            return out << "'^'";
+        }
+        case TokenType::colon: {
+            return out << "':'";
+        }
+        case TokenType::comma: {
+            return out << "','";
+        }
+        case TokenType::dot: {
+            return out << "'.'";
+        }
+        case TokenType::ddot: {
+            return out << "'..'";
+        }
+        case TokenType::dstar: {
+            return out << "'**'";
+        }
+        case TokenType::end: {
+            return out << "<eof>";
+        }
+        case TokenType::error: {
+            return out << "<error>";
+        }
+        case TokenType::id: {
+            return out << "<identifier>";
+        }
+        case TokenType::lpar: {
+            return out << "'('";
+        }
+        case TokenType::minus: {
+            return out << "'-'";
+        }
+        case TokenType::num: {
+            return out << "<number>";
+        }
+        case TokenType::plus: {
+            return out << "'+'";
+        }
+        case TokenType::qmark: {
+            return out << "'?'";
+        }
+        case TokenType::rpar: {
+            return out << "')'";
+        }
+        case TokenType::sem: {
+            return out << "';'";
+        }
+        case TokenType::slash: {
+            return out << "'/'";
+        }
+        case TokenType::star: {
+            return out << "'*'";
+        }
+        case TokenType::str: {
+            return out << "<string>";
+        }
+        case TokenType::tilde: {
+            return out << "'~'";
+        }
+        case TokenType::var: {
+            return out << "<var>";
+        }
+    }
+    return out;
+}
+
 // NOLINTBEGIN(performance-avoid-endl)
 
 class Parser::Impl {
@@ -53,6 +134,13 @@ class Parser::Impl {
     enum class Prod : uint8_t { term, fun, add, sub, mul, exp, uminus, bneg, div, mod, band, bor, bxor, interval, tup };
 
     auto lex_(Condition cond) -> TokenType;
+
+    auto expected(auto... expected) -> bool {
+        std::cerr << "<input>:" << state_.token_line() << ":" << state_.token_column() << ": expected one of ";
+        ((std::cerr << " " << expected), ...);
+        std::cerr << " but got " << token_;
+        return false;
+    }
 
     static auto priority(Prod prod) -> int {
         // NOLINTBEGIN(readability-magic-numbers)
@@ -176,8 +264,7 @@ class Parser::Impl {
                 if (branch_(TokenType::sem)) {
                     continue;
                 }
-                // TODO: report that ')' or ';' is expected
-                return false;
+                return expected(TokenType::rpar, TokenType::sem);
             }
             if (branch_(TokenType::rpar)) {
                 cont_expression();
@@ -209,8 +296,7 @@ class Parser::Impl {
             stack_.push_back(Prod::term);
             return true;
         }
-        // TODO: report that ')', ';', or ',' is expected
-        return false;
+        return expected(TokenType::rpar, TokenType::sem, TokenType::comma);
     }
 
     //! Continue parsing a function arguments after tokens '(' or ';'.
@@ -242,9 +328,7 @@ class Parser::Impl {
             init_fun();
             return true;
         }
-        // TODO: report that ')', ',', or ';' is expected.
-        std::cerr << "')', ',', or ';' expected" << std::endl;
-        return false;
+        return expected(TokenType::rpar, TokenType::comma, TokenType::sem);
     }
 
     //! Parse a term.
@@ -253,8 +337,7 @@ class Parser::Impl {
     //! overflows.
     auto parse_term_() -> bool {
         // TODO:
-        // - external functions
-        // - error reporting
+        // - error reporting via logger (almost there)
         // - term building using a separate stack
         stack_.emplace_back(Prod::term);
 
@@ -345,9 +428,7 @@ class Parser::Impl {
                         continue;
                     }
                     if (ext) {
-                        // TODO: id expected
-                        std::cerr << "id expected" << std::endl;
-                        return false;
+                        return expected(TokenType::id);
                     }
                     // Term -> . '(' ...
                     if (branch_(TokenType::lpar)) {
@@ -356,10 +437,8 @@ class Parser::Impl {
                         }
                         return false;
                     }
-                    // TODO: report that '-', num, str, '_', var, identifier, or '(' is expected
-                    std::cerr << "'-', '_', '(', <number>, <string>, <variable>, or <identifier> expected but token is "
-                              << static_cast<int>(token_) << std::endl;
-                    return false;
+                    return expected(TokenType::minus, TokenType::anon, TokenType::lpar, TokenType::num, TokenType::str,
+                                    TokenType::var, TokenType::id);
                 }
                 case Prod::tup: {
                     if (cont_tuple()) {
