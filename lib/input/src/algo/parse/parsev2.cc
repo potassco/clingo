@@ -1,3 +1,5 @@
+#include <gringo/input/algo/parsev2.hh>
+
 #include "lexer_state.hh"
 
 #include <iostream>
@@ -37,28 +39,21 @@ enum class TokenType : uint8_t {
     var,
 };
 
-static auto lex(LexerState &state, Condition cond) -> TokenType;
-
 // NOLINTBEGIN(performance-avoid-endl)
 
-class Parser {
+class Parser::Impl {
   public:
-    Parser(std::unique_ptr<std::istream> in) : state_{std::move(in)} {}
+    Impl(std::unique_ptr<std::istream> in) : state_{std::move(in)} {}
 
-    void parse() {
-        // stack:
-        // function: name args
-        //
-        consume();
-        if (parse_term() && branch(TokenType::end)) {
-            std::cerr << "parsing successful" << std::endl;
-        } else {
-            std::cerr << "parsing failed" << std::endl;
-        }
+    auto parse_term() -> bool {
+        consume_();
+        return parse_term_() && branch_(TokenType::end);
     }
 
   private:
     enum class Prod : uint8_t { term, fun, add, sub, mul, exp, uminus, bneg, div, mod, band, bor, bxor, interval, tup };
+
+    auto lex_(Condition cond) -> TokenType;
 
     static auto priority(Prod prod) -> int {
         // NOLINTBEGIN(readability-magic-numbers)
@@ -99,57 +94,57 @@ class Parser {
         // NOLINTEND(readability-magic-numbers)
     };
 
-    static auto right_assoc(Prod prod) { return prod == Prod::exp; }
+    static auto right_assoc(Prod prod) -> bool { return prod == Prod::exp; }
 
-    void consume() { token_ = lex(state_, Condition::normal); }
+    void consume_() { token_ = lex_(Condition::normal); }
 
-    auto branch(TokenType token) -> bool {
+    auto branch_(TokenType token) -> bool {
         if (token_ == token) {
-            consume();
+            consume_();
             return true;
         }
         return false;
     }
 
     auto branch_binop() -> std::optional<Prod> {
-        if (branch(TokenType::dstar)) {
+        if (branch_(TokenType::dstar)) {
             return Prod::exp;
         }
-        if (branch(TokenType::slash)) {
+        if (branch_(TokenType::slash)) {
             return Prod::div;
         }
-        if (branch(TokenType::bslash)) {
+        if (branch_(TokenType::bslash)) {
             return Prod::mod;
         }
-        if (branch(TokenType::star)) {
+        if (branch_(TokenType::star)) {
             return Prod::mul;
         }
-        if (branch(TokenType::minus)) {
+        if (branch_(TokenType::minus)) {
             return Prod::sub;
         }
-        if (branch(TokenType::plus)) {
+        if (branch_(TokenType::plus)) {
             return Prod::add;
         }
-        if (branch(TokenType::amp)) {
+        if (branch_(TokenType::amp)) {
             return Prod::band;
         }
-        if (branch(TokenType::bar)) {
+        if (branch_(TokenType::bar)) {
             return Prod::bor;
         }
-        if (branch(TokenType::caret)) {
+        if (branch_(TokenType::caret)) {
             return Prod::bxor;
         }
-        if (branch(TokenType::ddot)) {
+        if (branch_(TokenType::ddot)) {
             return Prod::interval;
         }
         return std::nullopt;
     };
 
     auto branch_unop() -> std::optional<Prod> {
-        if (branch(TokenType::minus)) {
+        if (branch_(TokenType::minus)) {
             return Prod::uminus;
         }
-        if (branch(TokenType::tilde)) {
+        if (branch_(TokenType::tilde)) {
             return Prod::bneg;
         }
         return std::nullopt;
@@ -171,21 +166,21 @@ class Parser {
         // closing parenthesis or by continuing to parse the next term
         // arguments.
         while (true) {
-            if (branch(TokenType::sem)) {
+            if (branch_(TokenType::sem)) {
                 continue;
             }
-            if (branch(TokenType::comma)) {
-                if (branch(TokenType::rpar)) {
+            if (branch_(TokenType::comma)) {
+                if (branch_(TokenType::rpar)) {
                     cont_expression();
                     return true;
                 }
-                if (branch(TokenType::sem)) {
+                if (branch_(TokenType::sem)) {
                     continue;
                 }
                 // TODO: report that ')' or ';' is expected
                 return false;
             }
-            if (branch(TokenType::rpar)) {
+            if (branch_(TokenType::rpar)) {
                 cont_expression();
                 return true;
             }
@@ -197,19 +192,19 @@ class Parser {
 
     //! Continue parsing a tuple after a term argument.
     auto cont_tuple() -> bool {
-        if (branch(TokenType::rpar)) {
+        if (branch_(TokenType::rpar)) {
             cont_expression();
             return true;
         }
-        if (branch(TokenType::sem)) {
+        if (branch_(TokenType::sem)) {
             return init_tuple();
         }
-        if (branch(TokenType::comma)) {
-            if (branch(TokenType::rpar)) {
+        if (branch_(TokenType::comma)) {
+            if (branch_(TokenType::rpar)) {
                 cont_expression();
                 return true;
             }
-            if (branch(TokenType::sem)) {
+            if (branch_(TokenType::sem)) {
                 return init_tuple();
             }
             stack_.push_back(Prod::term);
@@ -221,9 +216,9 @@ class Parser {
 
     //! Continue parsing a function arguments after tokens '(' or ';'.
     void init_fun() {
-        while (branch(TokenType::sem)) {
+        while (branch_(TokenType::sem)) {
         }
-        if (branch(TokenType::rpar)) {
+        if (branch_(TokenType::rpar)) {
             cont_expression();
         } else {
             stack_.back() = Prod::fun;
@@ -234,17 +229,17 @@ class Parser {
     //! Continue parsing function arguments after a term argument.
     auto cont_fun() -> bool {
         // Fun -> . ')'
-        if (branch(TokenType::rpar)) {
+        if (branch_(TokenType::rpar)) {
             cont_expression();
             return true;
         }
         // Fun -> . ',' Term Fun
-        if (branch(TokenType::comma)) {
+        if (branch_(TokenType::comma)) {
             stack_.push_back(Prod::term);
             return true;
         }
         // Fun -> . ';'+ ( ')' | Term Fun )
-        if (branch(TokenType::sem)) {
+        if (branch_(TokenType::sem)) {
             init_fun();
             return true;
         }
@@ -256,7 +251,7 @@ class Parser {
     //!
     //! Uses a hand written bottom up parser with a stack to avoid stack
     //! overflows.
-    auto parse_term() -> bool {
+    auto parse_term_() -> bool {
         // TODO:
         // - external functions
         // - error reporting
@@ -320,36 +315,41 @@ class Parser {
                         continue;
                     }
                     // Term -> . num
-                    if (branch(TokenType::num)) {
+                    if (branch_(TokenType::num)) {
                         cont_expression();
                         continue;
                     }
                     // Term -> . str
-                    if (branch(TokenType::str)) {
+                    if (branch_(TokenType::str)) {
                         cont_expression();
                         continue;
                     }
                     // Term -> . '_'
-                    if (branch(TokenType::anon)) {
+                    if (branch_(TokenType::anon)) {
                         cont_expression();
                         continue;
                     }
                     // Term -> . var
-                    if (branch(TokenType::var)) {
+                    if (branch_(TokenType::var)) {
                         cont_expression();
                         continue;
                     }
                     // Term -> . id '(' ...
-                    if (branch(TokenType::id)) {
-                        if (branch(TokenType::lpar)) {
+                    bool ext = branch_(TokenType::amp);
+                    if (branch_(TokenType::id)) {
+                        if (branch_(TokenType::lpar)) {
                             init_fun();
                         } else {
                             cont_expression();
                         }
                         continue;
                     }
+                    if (ext) {
+                        // TODO: id expected
+                        return false;
+                    }
                     // Term -> . '(' ...
-                    if (branch(TokenType::lpar)) {
+                    if (branch_(TokenType::lpar)) {
                         if (init_tuple()) {
                             continue;
                         }
@@ -382,10 +382,20 @@ class Parser {
 
 // NOLINTEND(performance-avoid-endl)
 
+Parser::Parser(std::unique_ptr<std::istream> in) : impl_{std::make_unique<Impl>(std::move(in))} {}
+
+Parser::Parser(Parser &&other) noexcept = default;
+
+auto Parser::operator=(Parser &&other) noexcept -> Parser & = default;
+
+Parser::~Parser() noexcept = default;
+
+auto Parser::parse_term() -> bool { return impl_->parse_term(); }
+
 void test() {
-    std::istringstream iss(R"(f((), (a), (a,), (,), (,;), (;;a,;,;;), "a", _, X * 2 + 1, -1+2*3, g(;f,x;;g;)))");
+    std::istringstream iss(R"(f((), (a), (@a,), (,), (,;), (;;a,;,;;), "a", _, X * 2 + 1, -1+2*3, g(;f,x;;g;)))");
     auto parser = Parser{std::make_unique<std::istringstream>(std::move(iss))};
-    parser.parse();
+    parser.parse_term();
 }
 
 #include "algo/parse/lexer_impl.hh"

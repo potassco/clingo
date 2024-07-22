@@ -1,11 +1,11 @@
 /*!re2c
     re2c:api:style             = free-form;
     re2c:define:YYCTYPE        = char;
-    re2c:define:YYCURSOR       = state.cursor();
-    re2c:define:YYMARKER       = state.marker();
-    re2c:define:YYCTXMARKER    = state.ctxmarker();
-    re2c:define:YYLIMIT        = state.limit();
-    re2c:define:YYFILL         = state.fill();
+    re2c:define:YYCURSOR       = state_.cursor();
+    re2c:define:YYMARKER       = state_.marker();
+    re2c:define:YYCTXMARKER    = state_.ctxmarker();
+    re2c:define:YYLIMIT        = state_.limit();
+    re2c:define:YYFILL         = state_.fill();
     re2c:define:YYGETCONDITION = condition;
     re2c:define:YYSETCONDITION = "condition = @@;";
     re2c:eof                   = 0;
@@ -27,13 +27,13 @@
 
 /*!conditions:re2c*/
 
-static auto lex(LexerState &state, Condition cond) -> TokenType {
+auto Parser::Impl::lex_(Condition cond) -> TokenType {
     int condition = yycnormal;
     switch (cond) {
         case Condition::normal: { break; }
     }
     for (;;) {
-        state.start();
+        state_.start();
     /*!re2c
         <normal> NUMBER     { return TokenType::num; }
         <normal> IDENTIFIER { return TokenType::id; }

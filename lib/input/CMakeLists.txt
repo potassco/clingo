@@ -2,7 +2,7 @@ re2c_target_or_gen("src/algo/parse/lexer_impl.xch")
 
 add_library(gringo_input
     ${RE2C_lexer_impl_OUTPUT}
-    "src/algo/parse/lexer.cc"
+    "src/algo/parse/parsev2.cc"
     "src/algo/add_sign.cc"
     "src/algo/analyze.cc"
     "src/algo/check_syntax.cc"
