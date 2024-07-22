@@ -79,6 +79,9 @@ class LexerState {
         }
         return cursor_column_;
     }
+    //! Get the string view from start till current cursor.
+    [[nodiscard]] auto view() -> std::string_view { return {token_, cursor_}; }
+
     //! Fill the input buffer discarding input before the position marked with start.
     //!
     //! Reallocates if no characters can be discarded
