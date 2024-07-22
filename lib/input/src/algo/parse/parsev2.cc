@@ -4,6 +4,8 @@
 
 #include "lexer_state.hh"
 
+// TODO: remove
+#include <gringo/input/algo/print.hh>
 #include <iostream>
 
 namespace Gringo::Input {
@@ -70,6 +72,7 @@ enum class Condition : uint8_t {
 
 enum class TokenType : uint8_t {
     amp,
+    at,
     anon,
     bar,
     bslash,
@@ -100,6 +103,9 @@ static auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
     switch (token) {
         case TokenType::amp: {
             return out << "'&'";
+        }
+        case TokenType::at: {
+            return out << "'@'";
         }
         case TokenType::anon: {
             return out << "'_'";
@@ -186,9 +192,18 @@ class Parser::Impl {
     Impl(std::istream &in) : state_{in}, store_{&default_symbol_store()} {}
 
     //! Parse a term.
-    auto parse_term() -> bool {
+    auto parse_term() -> std::optional<Term> {
         consume_();
-        return parse_term_() && branch_(TokenType::end);
+        if (parse_term_() && branch_(TokenType::end)) {
+            for (auto &term : terms_) {
+                std::cerr << "term: " << term << std::endl;
+            }
+            assert(terms_.size() == 1);
+            auto ret = std::move(terms_.back());
+            terms_.pop_back();
+            return ret;
+        }
+        return std::nullopt;
     }
 
   private:
@@ -372,7 +387,7 @@ class Parser::Impl {
     }
 
     //! Continue parsing a tuple after tokens '(' or ';'.
-    auto init_tuple() -> bool {
+    auto init_tuple_args_() -> bool {
         // First handle prefixes consisting of empty tuple arguments with
         // optional trailing commas. Then either finish the tuple with a
         // closing parenthesis or by continuing to parse the next term
@@ -383,6 +398,8 @@ class Parser::Impl {
             }
             if (branch_(TokenType::comma)) {
                 if (branch_(TokenType::rpar)) {
+                    // TODO: dummy
+                    terms_.emplace_back(TermSymbol{loc_(), SymbolStore::inf()});
                     cont_expression();
                     return true;
                 }
@@ -392,6 +409,8 @@ class Parser::Impl {
                 return expected(TokenType::rpar, TokenType::sem);
             }
             if (branch_(TokenType::rpar)) {
+                // TODO: dummy
+                terms_.emplace_back(TermSymbol{loc_(), SymbolStore::inf()});
                 cont_expression();
                 return true;
             }
@@ -402,21 +421,27 @@ class Parser::Impl {
     }
 
     //! Continue parsing a tuple after a term argument.
-    auto cont_tuple() -> bool {
+    auto cont_tup_args_() -> bool {
+        // TODO: add to tuple args
+        terms_.pop_back();
         if (branch_(TokenType::rpar)) {
+            // TODO: dummy
+            terms_.emplace_back(TermSymbol{loc_(), SymbolStore::inf()});
             cont_expression();
             return true;
         }
         if (branch_(TokenType::sem)) {
-            return init_tuple();
+            return init_tuple_args_();
         }
         if (branch_(TokenType::comma)) {
             if (branch_(TokenType::rpar)) {
+                // TODO: dummy
+                terms_.emplace_back(TermSymbol{loc_(), SymbolStore::inf()});
                 cont_expression();
                 return true;
             }
             if (branch_(TokenType::sem)) {
-                return init_tuple();
+                return init_tuple_args_();
             }
             stack_.push_back(Prod::term);
             return true;
@@ -424,12 +449,33 @@ class Parser::Impl {
         return expected(TokenType::rpar, TokenType::sem, TokenType::comma);
     }
 
+    //! Finish an argument tuple adding it the vector of all arguments.
+    void finish_fun_tup_() {
+        auto &fun = funs_.back();
+        std::get<0>(fun).emplace_back(std::move(std::get<1>(fun)));
+        std::get<1>(fun).clear();
+    }
+
+    //! Finish a function adding it as a term.
+    void finish_fun_() {
+        finish_fun_tup_();
+        auto file = store_->string_ref("<input>");
+        auto &[args, tup, line, column, name, ext] = funs_.back();
+        terms_.emplace_back(TermFunction{
+            Location{Position{file, line, column}, Position{file, state_.cursor_line(), state_.cursor_column()}}, name,
+            PoolArray{std::move(args)}, ext});
+        funs_.pop_back();
+        consume_();
+        cont_expression();
+    }
+
     //! Continue parsing a function arguments after tokens '(' or ';'.
-    void init_fun() {
+    void init_fun_args_() {
         while (branch_(TokenType::sem)) {
+            finish_fun_tup_();
         }
-        if (branch_(TokenType::rpar)) {
-            cont_expression();
+        if (token_ == TokenType::rpar) {
+            finish_fun_();
         } else {
             stack_.back() = Prod::fun;
             stack_.push_back(Prod::term);
@@ -437,10 +483,13 @@ class Parser::Impl {
     }
 
     //! Continue parsing function arguments after a term argument.
-    auto cont_fun() -> bool {
+    auto cont_fun_args_() -> bool {
+        assert(!funs_.empty() && !terms_.empty());
+        std::get<1>(funs_.back()).emplace_back(std::move(terms_.back()));
+        terms_.pop_back();
         // Fun -> . ')'
-        if (branch_(TokenType::rpar)) {
-            cont_expression();
+        if (token_ == TokenType::rpar) {
+            finish_fun_();
             return true;
         }
         // Fun -> . ',' Term Fun
@@ -450,10 +499,37 @@ class Parser::Impl {
         }
         // Fun -> . ';'+ ( ')' | Term Fun )
         if (branch_(TokenType::sem)) {
-            init_fun();
+            finish_fun_tup_();
+            init_fun_args_();
             return true;
         }
         return expected(TokenType::rpar, TokenType::comma, TokenType::sem);
+    }
+
+    //! Continue parsing a function assuming an at or id token was read.
+    auto cont_fun_() -> bool {
+        auto file = store_->string_ref("<input>");
+        auto line = state_.token_line();
+        auto column = state_.token_column();
+        bool ext = token_ == TokenType::at;
+        if (ext) {
+            consume_();
+            if (token_ != TokenType::id) {
+                return expected(TokenType::id);
+            }
+        }
+        auto name = store_->string_ref(state_.view());
+        consume_();
+        if (branch_(TokenType::lpar)) {
+            funs_.emplace_back(std::vector<ArgumentTuple>{}, std::vector<Argument>{}, line, column, name, ext);
+            init_fun_args_();
+        } else {
+            terms_.emplace_back(TermSymbol{
+                Location{Position{file, line, column}, Position{file, state_.cursor_line(), state_.cursor_column()}},
+                store_->fun_ref(name, {}, false)});
+            cont_expression();
+        }
+        return true;
     }
 
     //! Continue parsing a number term assuming a num token is on the stack.
@@ -522,6 +598,11 @@ class Parser::Impl {
                 case Prod::interval:
                 case Prod::uminus:
                 case Prod::bneg: {
+                    // TODO: construct term here
+                    if (stack_.back() != Prod::uminus && stack_.back() != Prod::bneg) {
+                        // for now just drop everything on the right
+                        terms_.pop_back();
+                    }
                     cont_expression();
                     continue;
                 }
@@ -555,23 +636,16 @@ class Parser::Impl {
                         continue;
                     }
                     // Term -> . id '(' ...
-                    bool ext = branch_(TokenType::amp);
-                    if (branch_(TokenType::id)) {
-                        // TODO: put function with arguments on (separate) stack
-                        if (branch_(TokenType::lpar)) {
-                            init_fun();
-                        } else {
-                            cont_expression();
+                    if (token_ == TokenType::id || token_ == TokenType::at) {
+                        if (!cont_fun_()) {
+                            return false;
                         }
                         continue;
                     }
-                    if (ext) {
-                        return expected(TokenType::id);
-                    }
                     // Term -> . '(' ...
                     if (branch_(TokenType::lpar)) {
-                        // TODO: put tuple with arguments on (separate) stack
-                        if (init_tuple()) {
+                        // TODO
+                        if (init_tuple_args_()) {
                             continue;
                         }
                         return false;
@@ -580,13 +654,13 @@ class Parser::Impl {
                                     TokenType::var, TokenType::id);
                 }
                 case Prod::tup: {
-                    if (cont_tuple()) {
+                    if (cont_tup_args_()) {
                         continue;
                     }
                     return false;
                 }
                 case Prod::fun: {
-                    if (cont_fun()) {
+                    if (cont_fun_args_()) {
                         continue;
                     }
                     return false;
@@ -599,6 +673,7 @@ class Parser::Impl {
     LexerState state_;
     std::vector<Prod> stack_;
     std::vector<Term> terms_;
+    std::vector<std::tuple<std::vector<ArgumentTuple>, std::vector<Argument>, size_t, size_t, String, bool>> funs_;
     std::string buf_;
     SymbolStore *store_;
     TokenType token_ = TokenType::error;
@@ -614,7 +689,7 @@ auto Parser::operator=(Parser &&other) noexcept -> Parser & = default;
 
 Parser::~Parser() noexcept = default;
 
-auto Parser::parse_term() -> bool { return impl_->parse_term(); }
+auto Parser::parse_term() -> std::optional<Term> { return impl_->parse_term(); }
 
 #include "algo/parse/lexer_impl.hh"
 

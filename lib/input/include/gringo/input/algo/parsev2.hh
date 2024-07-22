@@ -1,6 +1,8 @@
 #pragma once
 
-#include <memory>
+#include <gringo/input/term.hh>
+
+#include <istream>
 
 namespace Gringo::Input {
 
@@ -13,7 +15,7 @@ class Parser {
     auto operator=(Parser &&other) noexcept -> Parser &;
     ~Parser() noexcept;
 
-    auto parse_term() -> bool;
+    auto parse_term() -> std::optional<Term>;
 
   private:
     class Impl;
