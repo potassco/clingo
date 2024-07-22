@@ -582,6 +582,7 @@ class Parser::Impl {
         // TODO:
         // - error reporting via logger (almost there)
         // - term building using a separate stack (partial)
+        // - the abs term is missing
         stack_.emplace_back(Prod::term);
 
         while (!stack_.empty()) {
