@@ -474,32 +474,14 @@ class Parser::Impl {
     auto cont_tup_() -> bool {
         assert(token_ == TokenType::lpar);
         tups_.emplace_back(state_.token_line(), state_.token_column());
-        return cont_tuple_args_(false);
-    }
-
-    //! Finish a tuple after reading a ')' token.
-    void finish_tup_() {
-        assert(token_ == TokenType::rpar);
-        auto file = store_->string_ref("<input>");
-        auto &tup = tups_.back();
-        tup.finish_pool();
-        if (auto *term = std::get_if<Term>(tup.args.size() == 1 ? &tup.args.front() : nullptr); term != nullptr) {
-            terms_.emplace_back(std::move(*term));
-        } else {
-            terms_.emplace_back(TermTuple{Location{Position{file, tup.line, tup.column},
-                                                   Position{file, state_.cursor_line(), state_.cursor_column()}},
-                                          TupleElementArray{std::move(tup.args)}});
-        }
-        tups_.pop_back();
-        consume_();
-        cont_expr_();
+        return cont_tup_args_(false);
     }
 
     //! Continue parsing tuple arguments.
     //!
     //! If arg is true, continue parsing a tuple after a term argument.
     //! Otherwise, continue parsing a tuple after tokens '(' or ';'.
-    auto cont_tuple_args_(bool arg) -> bool {
+    auto cont_tup_args_(bool arg) -> bool {
         assert(!tups_.empty());
         auto &tup = tups_.back();
         if (arg) {
@@ -581,6 +563,24 @@ class Parser::Impl {
             stack_.push_back(Prod::term);
             return true;
         }
+    }
+
+    //! Finish a tuple after reading a ')' token.
+    void finish_tup_() {
+        assert(token_ == TokenType::rpar);
+        auto file = store_->string_ref("<input>");
+        auto &tup = tups_.back();
+        tup.finish_pool();
+        if (auto *term = std::get_if<Term>(tup.args.size() == 1 ? &tup.args.front() : nullptr); term != nullptr) {
+            terms_.emplace_back(std::move(*term));
+        } else {
+            terms_.emplace_back(TermTuple{Location{Position{file, tup.line, tup.column},
+                                                   Position{file, state_.cursor_line(), state_.cursor_column()}},
+                                          TupleElementArray{std::move(tup.args)}});
+        }
+        tups_.pop_back();
+        consume_();
+        cont_expr_();
     }
 
     //! Continue parsing a function assuming an at or id token was read.
@@ -824,7 +824,7 @@ class Parser::Impl {
                                     TokenType::var, TokenType::id);
                 }
                 case Prod::tup: {
-                    if (!cont_tuple_args_(true)) {
+                    if (!cont_tup_args_(true)) {
                         return false;
                     }
                     continue;
