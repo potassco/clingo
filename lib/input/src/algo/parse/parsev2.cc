@@ -10,6 +10,8 @@
 
 namespace Gringo::Input {
 
+namespace {
+
 void quote(std::string_view in, auto out) {
     for (auto c : in) {
         switch (c) {
@@ -99,7 +101,7 @@ enum class TokenType : uint8_t {
     var,
 };
 
-static auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
+auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
     switch (token) {
         case TokenType::amp: {
             return out << "'&'";
@@ -183,6 +185,151 @@ static auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
     return out;
 }
 
+//! The available productions.
+enum class Prod : uint8_t { term, fun, add, sub, mul, exp, uminus, bneg, div, mod, band, bor, bxor, interval, tup };
+
+//! Check if the given production is an arithmetic operation or interval.
+auto is_op(Prod prod) -> bool {
+    switch (prod) {
+        case Prod::exp:
+        case Prod::div:
+        case Prod::mod:
+        case Prod::mul:
+        case Prod::sub:
+        case Prod::add:
+        case Prod::band:
+        case Prod::bor:
+        case Prod::bxor:
+        case Prod::interval:
+        case Prod::uminus:
+        case Prod::bneg: {
+            return true;
+        }
+        default: {
+            return false;
+        }
+    }
+};
+
+//! Get the priority of an arithmetic operation or interval.
+auto priority(Prod prod) -> int {
+    // NOLINTBEGIN(readability-magic-numbers)
+    switch (prod) {
+        case Prod::exp: {
+            return 7;
+        }
+        case Prod::bneg:
+        case Prod::uminus: {
+            return 6;
+        }
+        case Prod::div:
+        case Prod::mod:
+        case Prod::mul: {
+            return 5;
+        }
+        case Prod::sub:
+        case Prod::add: {
+            return 4;
+        }
+        case Prod::band: {
+            return 3;
+        }
+        case Prod::bor: {
+            return 2;
+        }
+        case Prod::bxor: {
+            return 1;
+        }
+        case Prod::interval: {
+            return 0;
+        }
+        default: {
+            assert(prod == Prod::interval);
+            return 0;
+        }
+    }
+    // NOLINTEND(readability-magic-numbers)
+};
+
+//! Check if the given binary operation is left associative.
+auto left_assoc_(Prod prod) -> bool { return prod != Prod::exp; }
+
+//! Map the given token to a production of a binary operation if possible.
+auto map_binop(TokenType token) -> std::optional<Prod> {
+    switch (token) {
+        case TokenType::dstar: {
+            return Prod::exp;
+        }
+        case TokenType::slash: {
+            return Prod::div;
+        }
+        case TokenType::bslash: {
+            return Prod::mod;
+        }
+        case TokenType::star: {
+            return Prod::mul;
+        }
+        case TokenType::minus: {
+            return Prod::sub;
+        }
+        case TokenType::plus: {
+            return Prod::add;
+        }
+        case TokenType::amp: {
+            return Prod::band;
+        }
+        case TokenType::bar: {
+            return Prod::bor;
+        }
+        case TokenType::caret: {
+            return Prod::bxor;
+        }
+        case TokenType::ddot: {
+            return Prod::interval;
+        }
+        default: {
+            return std::nullopt;
+        }
+    }
+};
+
+//! Map the given token to a production of a unary operation if possible.
+auto map_unop(TokenType token) -> std::optional<Prod> {
+    switch (token) {
+        case TokenType::minus: {
+            return Prod::uminus;
+        }
+        case TokenType::tilde: {
+            return Prod::bneg;
+        }
+        default: {
+            return std::nullopt;
+        }
+    }
+};
+
+struct Fun {
+    Fun(size_t line, size_t column, String name, bool external)
+        : line{line}, column{column}, name{name}, external{external} {}
+    std::vector<ArgumentTuple> args;
+    std::vector<Argument> tup;
+    size_t line;
+    size_t column;
+    String name;
+    bool external;
+};
+
+struct Tup {
+    Tup(size_t line, size_t column) : line{line}, column{column} {}
+    std::vector<TupleElement> args;
+    std::vector<Argument> tup;
+    size_t line;
+    size_t column;
+    bool term = true;
+};
+
+} // namespace
+
 // NOLINTBEGIN(performance-avoid-endl)
 
 class Parser::Impl {
@@ -195,9 +342,6 @@ class Parser::Impl {
     auto parse_term() -> std::optional<Term> {
         consume_();
         if (parse_term_() && branch_(TokenType::end)) {
-            for (auto &term : terms_) {
-                std::cerr << "term: " << term << std::endl;
-            }
             assert(terms_.size() == 1);
             auto ret = std::move(terms_.back());
             terms_.pop_back();
@@ -207,9 +351,6 @@ class Parser::Impl {
     }
 
   private:
-    //! The available productions.
-    enum class Prod : uint8_t { term, fun, add, sub, mul, exp, uminus, bneg, div, mod, band, bor, bxor, interval, tup };
-
     //! Compute the next token.
     auto lex_(Condition cond) -> TokenType;
 
@@ -228,72 +369,6 @@ class Parser::Impl {
         return false;
     }
 
-    //! Check if the given production is an arithmetic operation or interval.
-    static auto is_op(Prod prod) -> bool {
-        switch (prod) {
-            case Prod::exp:
-            case Prod::div:
-            case Prod::mod:
-            case Prod::mul:
-            case Prod::sub:
-            case Prod::add:
-            case Prod::band:
-            case Prod::bor:
-            case Prod::bxor:
-            case Prod::interval:
-            case Prod::uminus:
-            case Prod::bneg: {
-                return true;
-            }
-            default: {
-                return false;
-            }
-        }
-    };
-
-    //! Get the priority of an arithmetic operation or interval.
-    static auto priority(Prod prod) -> int {
-        // NOLINTBEGIN(readability-magic-numbers)
-        switch (prod) {
-            case Prod::exp: {
-                return 7;
-            }
-            case Prod::bneg:
-            case Prod::uminus: {
-                return 6;
-            }
-            case Prod::div:
-            case Prod::mod:
-            case Prod::mul: {
-                return 5;
-            }
-            case Prod::sub:
-            case Prod::add: {
-                return 4;
-            }
-            case Prod::band: {
-                return 3;
-            }
-            case Prod::bor: {
-                return 2;
-            }
-            case Prod::bxor: {
-                return 1;
-            }
-            case Prod::interval: {
-                return 0;
-            }
-            default: {
-                assert(prod == Prod::interval);
-                return 0;
-            }
-        }
-        // NOLINTEND(readability-magic-numbers)
-    };
-
-    //! Check if the given binary operation is left associative.
-    static auto left_assoc_(Prod prod) -> bool { return prod != Prod::exp; }
-
     //! Compute the next token discarding the last one.
     void consume_() { token_ = lex_(Condition::normal); }
 
@@ -308,68 +383,14 @@ class Parser::Impl {
         return false;
     }
 
-    //! Check if the current token is a binary operation.
-    auto check_binop_() -> std::optional<Prod> {
-        switch (token_) {
-            case TokenType::dstar: {
-                return Prod::exp;
-            }
-            case TokenType::slash: {
-                return Prod::div;
-            }
-            case TokenType::bslash: {
-                return Prod::mod;
-            }
-            case TokenType::star: {
-                return Prod::mul;
-            }
-            case TokenType::minus: {
-                return Prod::sub;
-            }
-            case TokenType::plus: {
-                return Prod::add;
-            }
-            case TokenType::amp: {
-                return Prod::band;
-            }
-            case TokenType::bar: {
-                return Prod::bor;
-            }
-            case TokenType::caret: {
-                return Prod::bxor;
-            }
-            case TokenType::ddot: {
-                return Prod::interval;
-            }
-            default: {
-                return std::nullopt;
-            }
-        }
-    };
-
-    //! Check if the current token is a unary operation.
-    auto check_unop_() -> std::optional<Prod> {
-        switch (token_) {
-            case TokenType::minus: {
-                return Prod::uminus;
-            }
-            case TokenType::tilde: {
-                return Prod::bneg;
-            }
-            default: {
-                return std::nullopt;
-            }
-        }
-    };
-
     //! Continue parsing an expression if followed by a binary operation.
     //!
     //! Depending on the priority of the previous operator on the stack, this
     //! function either shifts the next binary operation or does nothing which
     //! results in a reduction in the next iteration.
-    void cont_expression() {
+    void cont_expr_() {
         stack_.pop_back();
-        if (auto cur = check_binop_(); cur) {
+        if (auto cur = map_binop(token_); cur) {
             // reduce
             if (!stack_.empty() && is_op(stack_.back())) {
                 auto pre = stack_.back();
@@ -386,32 +407,71 @@ class Parser::Impl {
         }
     }
 
+    //! Continue parsing a tuple after a '(' token.
+    auto cont_tup_() -> bool {
+        assert(token_ == TokenType::lpar);
+        tups_.emplace_back(state_.token_line(), state_.token_column());
+        return init_tuple_args_();
+    }
+
+    //! Finish a tuple after reading a ')' token.
+    void finish_tup_() {
+        assert(token_ == TokenType::rpar);
+        finish_tuple_tup();
+        auto file = store_->string_ref("<input>");
+        auto &tup = tups_.back();
+        if (auto *term = std::get_if<Term>(tup.args.size() == 1 ? &tup.args.front() : nullptr); term != nullptr) {
+            terms_.emplace_back(std::move(*term));
+        } else {
+            terms_.emplace_back(TermTuple{Location{Position{file, tup.line, tup.column},
+                                                   Position{file, state_.cursor_line(), state_.cursor_column()}},
+                                          TupleElementArray{std::move(tup.args)}});
+        }
+        tups_.pop_back();
+        consume_();
+        cont_expr_();
+    }
+
+    //! Finish an argument tuple adding it the vector of all arguments.
+    void finish_tuple_tup() {
+        auto &tup = tups_.back();
+        if (tup.term && tup.tup.size() == 1) {
+            tup.args.emplace_back(std::move(std::get<Term>(tup.tup.front())));
+        } else {
+            tup.args.emplace_back(ArgumentTuple{std::move(tup.tup)});
+        }
+        tup.term = true;
+        tup.tup.clear();
+    }
+
     //! Continue parsing a tuple after tokens '(' or ';'.
     auto init_tuple_args_() -> bool {
+        assert(token_ == TokenType::lpar || token_ == TokenType::sem);
+        consume_();
         // First handle prefixes consisting of empty tuple arguments with
         // optional trailing commas. Then either finish the tuple with a
         // closing parenthesis or by continuing to parse the next term
         // arguments.
+        auto &tup = tups_.back();
         while (true) {
             if (branch_(TokenType::sem)) {
+                finish_tuple_tup();
                 continue;
             }
             if (branch_(TokenType::comma)) {
-                if (branch_(TokenType::rpar)) {
-                    // TODO: dummy
-                    terms_.emplace_back(TermSymbol{loc_(), SymbolStore::inf()});
-                    cont_expression();
+                tup.term = false;
+                if (token_ == TokenType::rpar) {
+                    finish_tup_();
                     return true;
                 }
                 if (branch_(TokenType::sem)) {
+                    finish_tuple_tup();
                     continue;
                 }
                 return expected(TokenType::rpar, TokenType::sem);
             }
-            if (branch_(TokenType::rpar)) {
-                // TODO: dummy
-                terms_.emplace_back(TermSymbol{loc_(), SymbolStore::inf()});
-                cont_expression();
+            if (token_ == TokenType::rpar) {
+                finish_tup_();
                 return true;
             }
             stack_.back() = Prod::tup;
@@ -421,26 +481,27 @@ class Parser::Impl {
     }
 
     //! Continue parsing a tuple after a term argument.
-    auto cont_tup_args_() -> bool {
-        // TODO: add to tuple args
+    auto cont_tuple_args_() -> bool {
+        assert(!terms_.empty());
+        auto &tup = tups_.back();
+        tup.tup.emplace_back(std::move(terms_.back()));
         terms_.pop_back();
-        if (branch_(TokenType::rpar)) {
-            // TODO: dummy
-            terms_.emplace_back(TermSymbol{loc_(), SymbolStore::inf()});
-            cont_expression();
+        if (token_ == TokenType::rpar) {
+            finish_tup_();
             return true;
         }
-        if (branch_(TokenType::sem)) {
+        if (token_ == TokenType::sem) {
+            finish_tuple_tup();
             return init_tuple_args_();
         }
         if (branch_(TokenType::comma)) {
-            if (branch_(TokenType::rpar)) {
-                // TODO: dummy
-                terms_.emplace_back(TermSymbol{loc_(), SymbolStore::inf()});
-                cont_expression();
+            tup.term = false;
+            if (token_ == TokenType::rpar) {
+                finish_tup_();
                 return true;
             }
-            if (branch_(TokenType::sem)) {
+            if (token_ == TokenType::sem) {
+                finish_tuple_tup();
                 return init_tuple_args_();
             }
             stack_.push_back(Prod::term);
@@ -452,25 +513,28 @@ class Parser::Impl {
     //! Finish an argument tuple adding it the vector of all arguments.
     void finish_fun_tup_() {
         auto &fun = funs_.back();
-        std::get<0>(fun).emplace_back(std::move(std::get<1>(fun)));
-        std::get<1>(fun).clear();
+        fun.args.emplace_back(std::move(fun.tup));
+        fun.tup.clear();
     }
 
-    //! Finish a function adding it as a term.
+    //! Finish a function after reading a ')' token.
     void finish_fun_() {
+        assert(token_ == TokenType::rpar);
         finish_fun_tup_();
         auto file = store_->string_ref("<input>");
-        auto &[args, tup, line, column, name, ext] = funs_.back();
-        terms_.emplace_back(TermFunction{
-            Location{Position{file, line, column}, Position{file, state_.cursor_line(), state_.cursor_column()}}, name,
-            PoolArray{std::move(args)}, ext});
+        auto &fun = funs_.back();
+        terms_.emplace_back(TermFunction{Location{Position{file, fun.line, fun.column},
+                                                  Position{file, state_.cursor_line(), state_.cursor_column()}},
+                                         fun.name, PoolArray{std::move(fun.args)}, fun.external});
         funs_.pop_back();
         consume_();
-        cont_expression();
+        cont_expr_();
     }
 
     //! Continue parsing a function arguments after tokens '(' or ';'.
     void init_fun_args_() {
+        assert(token_ == TokenType::lpar || token_ == TokenType::sem);
+        consume_();
         while (branch_(TokenType::sem)) {
             finish_fun_tup_();
         }
@@ -484,8 +548,8 @@ class Parser::Impl {
 
     //! Continue parsing function arguments after a term argument.
     auto cont_fun_args_() -> bool {
-        assert(!funs_.empty() && !terms_.empty());
-        std::get<1>(funs_.back()).emplace_back(std::move(terms_.back()));
+        assert(!terms_.empty());
+        funs_.back().tup.emplace_back(std::move(terms_.back()));
         terms_.pop_back();
         // Fun -> . ')'
         if (token_ == TokenType::rpar) {
@@ -498,7 +562,7 @@ class Parser::Impl {
             return true;
         }
         // Fun -> . ';'+ ( ')' | Term Fun )
-        if (branch_(TokenType::sem)) {
+        if (token_ == TokenType::sem) {
             finish_fun_tup_();
             init_fun_args_();
             return true;
@@ -520,14 +584,14 @@ class Parser::Impl {
         }
         auto name = store_->string_ref(state_.view());
         consume_();
-        if (branch_(TokenType::lpar)) {
-            funs_.emplace_back(std::vector<ArgumentTuple>{}, std::vector<Argument>{}, line, column, name, ext);
+        if (token_ == TokenType::lpar) {
+            funs_.emplace_back(line, column, name, ext);
             init_fun_args_();
         } else {
             terms_.emplace_back(TermSymbol{
                 Location{Position{file, line, column}, Position{file, state_.cursor_line(), state_.cursor_column()}},
                 store_->fun_ref(name, {}, false)});
-            cont_expression();
+            cont_expr_();
         }
         return true;
     }
@@ -551,7 +615,7 @@ class Parser::Impl {
         std::copy_if(view.begin(), view.end(), std::back_inserter(buf_), [](char c) { return c != '\''; });
         terms_.emplace_back(TermSymbol{loc_(), store_->num_ref(Number{buf_.c_str(), base})});
         consume_();
-        cont_expression();
+        cont_expr_();
     }
 
     //! Continue parsing a string term assuming a str token is on the stack.
@@ -563,7 +627,7 @@ class Parser::Impl {
         auto str = store_->string_ref(std::string_view{buf_.begin(), buf_.end()});
         terms_.emplace_back(TermSymbol{loc_(), SymbolStore::str_ref(str)});
         consume_();
-        cont_expression();
+        cont_expr_();
     }
 
     //! Continue parsing a variable term assuming a var or anon token is on the stack.
@@ -571,7 +635,7 @@ class Parser::Impl {
         auto str = store_->string_ref(state_.view());
         terms_.emplace_back(TermVariable{loc_(), str, anonymous});
         consume_();
-        cont_expression();
+        cont_expr_();
     }
 
     //! Parse a term.
@@ -583,6 +647,7 @@ class Parser::Impl {
         // - error reporting via logger (almost there)
         // - term building using a separate stack (partial)
         // - the abs term is missing
+        // - projection
         stack_.emplace_back(Prod::term);
 
         while (!stack_.empty()) {
@@ -604,12 +669,12 @@ class Parser::Impl {
                         // for now just drop everything on the right
                         terms_.pop_back();
                     }
-                    cont_expression();
+                    cont_expr_();
                     continue;
                 }
                 case Prod::term: {
                     // Term -> . '-' Term
-                    if (auto unop = check_unop_(); unop) {
+                    if (auto unop = map_unop(token_); unop) {
                         // TODO: remember location
                         consume_();
                         stack_.back() = *unop;
@@ -644,18 +709,17 @@ class Parser::Impl {
                         continue;
                     }
                     // Term -> . '(' ...
-                    if (branch_(TokenType::lpar)) {
-                        // TODO
-                        if (init_tuple_args_()) {
-                            continue;
+                    if (token_ == TokenType::lpar) {
+                        if (!cont_tup_()) {
+                            return false;
                         }
-                        return false;
+                        continue;
                     }
                     return expected(TokenType::minus, TokenType::anon, TokenType::lpar, TokenType::num, TokenType::str,
                                     TokenType::var, TokenType::id);
                 }
                 case Prod::tup: {
-                    if (cont_tup_args_()) {
+                    if (cont_tuple_args_()) {
                         continue;
                     }
                     return false;
@@ -674,7 +738,8 @@ class Parser::Impl {
     LexerState state_;
     std::vector<Prod> stack_;
     std::vector<Term> terms_;
-    std::vector<std::tuple<std::vector<ArgumentTuple>, std::vector<Argument>, size_t, size_t, String, bool>> funs_;
+    std::vector<Fun> funs_;
+    std::vector<Tup> tups_;
     std::string buf_;
     SymbolStore *store_;
     TokenType token_ = TokenType::error;
