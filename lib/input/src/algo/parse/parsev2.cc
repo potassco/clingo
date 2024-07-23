@@ -514,29 +514,45 @@ class Parser::Impl {
             assert(token_ == TokenType::lpar || token_ == TokenType::sem);
             consume_();
         }
-        if (arg) {
-            if (token_ == TokenType::rpar) {
-                finish_tup_();
-                return true;
-            } else if (branch_(TokenType::comma)) {
-                tup.term = false;
+        while (true) {
+            if (arg) {
+                // closing parenthesis after term or projection
                 if (token_ == TokenType::rpar) {
                     finish_tup_();
                     return true;
-                } else if (token_ != TokenType::sem) {
-                    stack_.push_back(Prod::term);
-                    return true;
                 }
-            } else if (token_ != TokenType::sem) {
-                return expected(TokenType::rpar, TokenType::sem, TokenType::comma);
+                // comma after term or projection
+                if (branch_(TokenType::comma)) {
+                    tup.term = false;
+                    if (token_ == TokenType::star) {
+                        tup.tup.emplace_back(Projection{loc_()});
+                        consume_();
+                        continue;
+                    }
+                    if (token_ == TokenType::rpar) {
+                        finish_tup_();
+                        return true;
+                    }
+                    if (token_ != TokenType::sem) {
+                        stack_.push_back(Prod::term);
+                        return true;
+                    }
+                    // semicolon after term or projection falls through
+                } else if (token_ != TokenType::sem) {
+                    return expected(TokenType::rpar, TokenType::sem, TokenType::comma);
+                }
             }
-        }
 
-        while (true) {
-            if (branch_(TokenType::sem)) {
+            // finish pools
+            while (branch_(TokenType::sem)) {
                 tup.finish_pool();
-                continue;
             }
+            // closing parenthesis after empty tuple
+            if (token_ == TokenType::rpar) {
+                finish_tup_();
+                return true;
+            }
+            // coma indicating empty tuple
             if (branch_(TokenType::comma)) {
                 tup.term = false;
                 if (token_ == TokenType::rpar) {
@@ -545,14 +561,22 @@ class Parser::Impl {
                 }
                 if (branch_(TokenType::sem)) {
                     tup.finish_pool();
+                    arg = false;
                     continue;
                 }
                 return expected(TokenType::rpar, TokenType::sem);
             }
-            if (token_ == TokenType::rpar) {
-                finish_tup_();
-                return true;
+            // leading star that must be part of a tuple
+            if (token_ == TokenType::star) {
+                tup.tup.emplace_back(Projection{loc_()});
+                consume_();
+                if (token_ == TokenType::comma) {
+                    arg = true;
+                    continue;
+                }
+                return expected(TokenType::comma);
             }
+            // parse a term
             stack_.back() = Prod::tup;
             stack_.push_back(Prod::term);
             return true;
@@ -596,7 +620,7 @@ class Parser::Impl {
     //!
     //! If arg is false, then continue after tokens '(' or ';'.
     //! If arg is true, then continue after an argument.
-    bool cont_fun_args_(bool arg) {
+    auto cont_fun_args_(bool arg) -> bool {
         auto &fun = funs_.back();
         if (arg) {
             assert(!terms_.empty());
