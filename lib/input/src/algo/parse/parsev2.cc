@@ -645,6 +645,7 @@ class Parser::Impl {
     auto parse_term_() -> bool {
         // TODO:
         // - error reporting via logger (almost there)
+        // - properly handle filename
         // - term building using a separate stack (partial)
         // - the abs term is missing
         // - projection
