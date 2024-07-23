@@ -15,7 +15,7 @@ option(PARSER_BUILD_TESTS "enable tests" ON)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(macros)
 
-find_package(RE2C REQUIRED)
+find_package(RE2C "2.0" REQUIRED)
 
 if (PARSER_BUILD_WEB)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s DISABLE_EXCEPTION_CATCHING=0")
