@@ -4,10 +4,6 @@
 
 #include "lexer_state.hh"
 
-// TODO: remove
-#include <gringo/input/algo/print.hh>
-#include <iostream>
-
 namespace Gringo::Input {
 
 namespace {
@@ -419,10 +415,8 @@ struct Tup {
 
 class Parser::Impl {
   public:
-    //! @todo: pass logger
-    //! @todo: pass symbol store
-    //! @todo: pass file name
-    Impl(std::istream &in) : state_{in}, store_{&default_symbol_store()}, file_{store_->string("<input>")} {}
+    Impl(Logger &log, SymbolStore &store, std::istream &in, String file)
+        : state_{in}, log_{&log}, store_{&store}, file_{file} {}
 
     //! Parse a term.
     auto parse_term() -> std::optional<Term> {
@@ -448,9 +442,12 @@ class Parser::Impl {
 
     //! Report an error message indicating that one of the given tokens was expected.
     auto expected(auto... expected) -> bool {
-        std::cerr << *file_ << ":" << state_.token_line() << ":" << state_.token_column() << ": expected one of ";
-        ((std::cerr << " " << expected), ...);
-        std::cerr << " but got " << token_;
+        if (log_->check(MessageCode::error)) {
+            auto rep = Report{*log_, MessageCode::error, loc_()};
+            rep.out() << "expected one of ";
+            ((rep.out() << " " << expected), ...);
+            rep.out() << " but got " << token_;
+        }
         return false;
     }
 
@@ -896,10 +893,11 @@ class Parser::Impl {
     }
 
     LexerState state_;
+    Logger *log_;
     SymbolStore *store_;
     SharedString file_;
     std::vector<Prod> stack_;
-    // TODO: colud be combined in one stack of variants
+    // TODO: could be combined in one stack of variants
     std::vector<Term> terms_;
     std::vector<Abs> abs_;
     std::vector<Fun> funs_;
@@ -911,7 +909,8 @@ class Parser::Impl {
 
 // NOLINTEND(performance-avoid-endl)
 
-Parser::Parser(std::istream &in) : impl_{std::make_unique<Impl>(in)} {}
+Parser::Parser(Logger &log, SymbolStore &store, std::istream &in, String file)
+    : impl_{std::make_unique<Impl>(log, store, in, file)} {}
 
 Parser::Parser(Parser &&other) noexcept = default;
 

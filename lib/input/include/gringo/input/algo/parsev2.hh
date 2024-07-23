@@ -2,13 +2,15 @@
 
 #include <gringo/input/term.hh>
 
+#include <gringo/core/logger.hh>
+
 #include <istream>
 
 namespace Gringo::Input {
 
 class Parser {
   public:
-    Parser(std::istream &in);
+    Parser(Logger &log, SymbolStore &store, std::istream &in, String file);
     Parser(Parser const &other) = delete;
     Parser(Parser &&other) noexcept;
     auto operator=(Parser const &other) -> Parser & = delete;

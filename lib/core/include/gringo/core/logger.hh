@@ -122,7 +122,7 @@ class Report {
     //! Construct reporter.
     Report(Logger &p, MessageCode code) : log_(p), code_(code) { out_ << log_.message_prefix(code) << ": "; }
     //! Construct reporter with additional location information.
-    template <class Loc> Report(Logger &p, MessageCode code, Loc &loc) : log_(p), code_(code) {
+    template <class Loc> Report(Logger &p, MessageCode code, Loc const &loc) : log_(p), code_(code) {
         out_ << loc << ": " << log_.message_prefix(code) << ": ";
     }
     //! Destroy the reporter and output message.
