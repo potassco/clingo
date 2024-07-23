@@ -291,7 +291,7 @@ auto map_binop(TokenType token) -> std::optional<Prod> {
             return std::nullopt;
         }
     }
-};
+}
 
 //! Map the given token to a production of a unary operation if possible.
 auto map_unop(TokenType token) -> std::optional<Prod> {
@@ -306,7 +306,55 @@ auto map_unop(TokenType token) -> std::optional<Prod> {
             return std::nullopt;
         }
     }
-};
+}
+
+auto map_binop(Prod prod) -> BinaryOperator {
+    switch (prod) {
+        case Prod::exp: {
+            return BinaryOperator::pow;
+        }
+        case Prod::div: {
+            return BinaryOperator::div;
+        }
+        case Prod::mod: {
+            return BinaryOperator::mod;
+        }
+        case Prod::mul: {
+            return BinaryOperator::times;
+        }
+        case Prod::sub: {
+            return BinaryOperator::minus;
+        }
+        case Prod::add: {
+            return BinaryOperator::plus;
+        }
+        case Prod::band: {
+            return BinaryOperator::and_;
+        }
+        case Prod::bor: {
+            return BinaryOperator::or_;
+        }
+        case Prod::bxor: {
+            return BinaryOperator::xor_;
+        }
+        default: {
+            assert(prod == Prod::interval);
+            return BinaryOperator::dots;
+        }
+    }
+}
+
+auto map_unop(Prod prod) -> UnaryOperator {
+    switch (prod) {
+        case Prod::bneg: {
+            return UnaryOperator::invert;
+        }
+        default: {
+            assert(prod == Prod::uminus);
+            return UnaryOperator::negate;
+        }
+    }
+}
 
 struct Fun {
     Fun(size_t line, size_t column, String name, bool external)
@@ -646,9 +694,8 @@ class Parser::Impl {
         // TODO:
         // - error reporting via logger (almost there)
         // - properly handle filename
-        // - term building using a separate stack (partial)
-        // - the abs term is missing
-        // - projection
+        // - abs term is missing
+        // - projection is missing
         stack_.emplace_back(Prod::term);
 
         while (!stack_.empty()) {
@@ -662,14 +709,24 @@ class Parser::Impl {
                 case Prod::band:
                 case Prod::bor:
                 case Prod::bxor:
-                case Prod::interval:
+                case Prod::interval: {
+                    assert(terms_.size() >= 2);
+                    auto rhs = std::move(terms_.back());
+                    terms_.pop_back();
+                    auto lhs = std::move(terms_.back());
+                    terms_.pop_back();
+                    auto loc = location(lhs) + location(rhs);
+                    terms_.emplace_back(TermBinary{loc, std::move(lhs), map_binop(stack_.back()), std::move(rhs)});
+                    cont_expr_();
+                    continue;
+                }
                 case Prod::uminus:
                 case Prod::bneg: {
-                    // TODO: construct term here
-                    if (stack_.back() != Prod::uminus && stack_.back() != Prod::bneg) {
-                        // for now just drop everything on the right
-                        terms_.pop_back();
-                    }
+                    assert(!terms_.empty());
+                    auto rhs = std::move(terms_.back());
+                    terms_.pop_back();
+                    auto loc = location(rhs);
+                    terms_.emplace_back(TermUnary{loc, map_unop(stack_.back()), std::move(rhs)});
                     cont_expr_();
                     continue;
                 }
@@ -737,12 +794,12 @@ class Parser::Impl {
     }
 
     LexerState state_;
+    SymbolStore *store_;
     std::vector<Prod> stack_;
     std::vector<Term> terms_;
     std::vector<Fun> funs_;
     std::vector<Tup> tups_;
     std::string buf_;
-    SymbolStore *store_;
     TokenType token_ = TokenType::error;
 };
 
