@@ -4,6 +4,8 @@
 
 namespace Gringo::Input::Test {
 
+// TODO: restructure + adapt existing tests for term parsing
+
 TEST_CASE("lex_test") {
     std::istringstream iss(R"(f((), (a), (@a,), (,), (,;), (;;a,;,;;), "a", _, X * 2 + 1, -1+2*3, g(;f,x;;g;)))");
     auto parser = Parser{iss};
