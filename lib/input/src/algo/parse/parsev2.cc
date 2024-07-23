@@ -186,7 +186,24 @@ auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
 }
 
 //! The available productions.
-enum class Prod : uint8_t { term, fun, add, sub, mul, exp, uminus, bneg, div, mod, band, bor, bxor, interval, tup };
+enum class Prod : uint8_t {
+    term,
+    fun,
+    add,
+    sub,
+    mul,
+    exp,
+    uminus,
+    bneg,
+    div,
+    mod,
+    band,
+    bor,
+    bxor,
+    interval,
+    tup,
+    abs
+};
 
 //! Check if the given production is an arithmetic operation or interval.
 auto is_op(Prod prod) -> bool {
@@ -278,7 +295,7 @@ auto map_binop(TokenType token) -> std::optional<Prod> {
         case TokenType::amp: {
             return Prod::band;
         }
-        case TokenType::bar: {
+        case TokenType::qmark: {
             return Prod::bor;
         }
         case TokenType::caret: {
@@ -354,6 +371,13 @@ auto map_unop(Prod prod) -> UnaryOperator {
     }
 }
 
+struct Abs {
+    Abs(size_t line, size_t column) : line{line}, column{column} {}
+    std::vector<Term> args;
+    size_t line;
+    size_t column;
+};
+
 struct Fun {
     Fun(size_t line, size_t column, String name, bool external)
         : line{line}, column{column}, name{name}, external{external} {}
@@ -397,7 +421,8 @@ class Parser::Impl {
   public:
     //! @todo: pass logger
     //! @todo: pass symbol store
-    Impl(std::istream &in) : state_{in}, store_{&default_symbol_store()} {}
+    //! @todo: pass file name
+    Impl(std::istream &in) : state_{in}, store_{&default_symbol_store()}, file_{store_->string("<input>")} {}
 
     //! Parse a term.
     auto parse_term() -> std::optional<Term> {
@@ -417,14 +442,13 @@ class Parser::Impl {
 
     //! Compute the location of the current token.
     auto loc_() -> Location {
-        auto file = store_->string_ref("<input>");
-        return Location{Position{file, state_.token_line(), state_.token_column()},
-                        Position{file, state_.cursor_line(), state_.cursor_column()}};
+        return Location{Position{*file_, state_.token_line(), state_.token_column()},
+                        Position{*file_, state_.cursor_line(), state_.cursor_column()}};
     }
 
     //! Report an error message indicating that one of the given tokens was expected.
     auto expected(auto... expected) -> bool {
-        std::cerr << "<input>:" << state_.token_line() << ":" << state_.token_column() << ": expected one of ";
+        std::cerr << *file_ << ":" << state_.token_line() << ":" << state_.token_column() << ": expected one of ";
         ((std::cerr << " " << expected), ...);
         std::cerr << " but got " << token_;
         return false;
@@ -468,6 +492,38 @@ class Parser::Impl {
         }
     }
 
+    //! Continue parsing an abs term after a '|' token.
+    void cont_abs_() {
+        assert(token_ == TokenType::bar);
+        abs_.emplace_back(state_.token_line(), state_.token_column());
+        consume_();
+        stack_.back() = Prod::abs;
+        stack_.emplace_back(Prod::term);
+    }
+
+    //! Continue parsing arguments of an abs term.
+    auto cont_abs_args_() -> bool {
+        assert(!terms_.empty());
+        auto &abs = abs_.back();
+        abs.args.emplace_back(std::move(terms_.back()));
+        terms_.pop_back();
+        if (token_ == TokenType::bar) {
+            auto loc = Location{Position{*file_, abs.line, abs.column},
+                                Position{*file_, state_.cursor_line(), state_.cursor_column()}};
+            terms_.emplace_back(TermAbs{std::move(loc), std::move(abs_.back().args)});
+            abs_.pop_back();
+            consume_();
+            cont_expr_();
+            return true;
+        }
+        if (token_ == TokenType::sem) {
+            consume_();
+            stack_.emplace_back(Prod::term);
+            return true;
+        }
+        return expected(TokenType::bar, TokenType::sem);
+    }
+
     //! Continue parsing a tuple after a '(' token.
     auto cont_tup_() -> bool {
         assert(token_ == TokenType::lpar);
@@ -487,10 +543,6 @@ class Parser::Impl {
             tup.tup.emplace_back(std::move(terms_.back()));
             terms_.pop_back();
         } else {
-            // First handle prefixes consisting of empty tuple arguments with
-            // optional trailing commas. Then either finish the tuple with a
-            // closing parenthesis or by continuing to parse the next term
-            // arguments.
             assert(token_ == TokenType::lpar || token_ == TokenType::sem);
             consume_();
         }
@@ -566,14 +618,13 @@ class Parser::Impl {
     //! Finish a tuple after reading a ')' token.
     void finish_tup_() {
         assert(token_ == TokenType::rpar);
-        auto file = store_->string_ref("<input>");
         auto &tup = tups_.back();
         tup.finish_pool();
         if (auto *term = std::get_if<Term>(tup.args.size() == 1 ? &tup.args.front() : nullptr); term != nullptr) {
             terms_.emplace_back(std::move(*term));
         } else {
-            terms_.emplace_back(TermTuple{Location{Position{file, tup.line, tup.column},
-                                                   Position{file, state_.cursor_line(), state_.cursor_column()}},
+            terms_.emplace_back(TermTuple{Location{Position{*file_, tup.line, tup.column},
+                                                   Position{*file_, state_.cursor_line(), state_.cursor_column()}},
                                           TupleElementArray{std::move(tup.args)}});
         }
         tups_.pop_back();
@@ -583,7 +634,6 @@ class Parser::Impl {
 
     //! Continue parsing a function assuming an at or id token was read.
     auto cont_fun_() -> bool {
-        auto file = store_->string_ref("<input>");
         auto line = state_.token_line();
         auto column = state_.token_column();
         bool ext = token_ == TokenType::at;
@@ -601,8 +651,8 @@ class Parser::Impl {
                 return false;
             }
         } else {
-            auto loc =
-                Location{Position{file, line, column}, Position{file, state_.cursor_line(), state_.cursor_column()}};
+            auto loc = Location{Position{*file_, line, column},
+                                Position{*file_, state_.cursor_line(), state_.cursor_column()}};
             if (ext) {
                 terms_.emplace_back(TermFunction{std::move(loc), name,
                                                  Util::make_immutable_array<ArgumentTuple>(ArgumentTuple{{}}), true});
@@ -676,11 +726,10 @@ class Parser::Impl {
     //! Finish a function after reading a ')' token.
     void finish_fun_() {
         assert(token_ == TokenType::rpar);
-        auto file = store_->string_ref("<input>");
         auto &fun = funs_.back();
         fun.finish_pool();
-        terms_.emplace_back(TermFunction{Location{Position{file, fun.line, fun.column},
-                                                  Position{file, state_.cursor_line(), state_.cursor_column()}},
+        terms_.emplace_back(TermFunction{Location{Position{*file_, fun.line, fun.column},
+                                                  Position{*file_, state_.cursor_line(), state_.cursor_column()}},
                                          fun.name, PoolArray{std::move(fun.args)}, fun.external});
         funs_.pop_back();
         consume_();
@@ -732,21 +781,11 @@ class Parser::Impl {
         cont_expr_();
     }
 
-    //! Continue parsing an abs term after a '|' token.
-    void cont_abs_() {
-        static_cast<void>(this);
-        throw std::runtime_error("implement me!!!");
-    }
-
     //! Parse a term.
     //!
     //! Uses a hand written bottom up parser with a stack to avoid stack
     //! overflows.
     auto parse_term_() -> bool {
-        // TODO:
-        // - error reporting via logger (almost there)
-        // - properly handle filename
-        // - abs term is missing
         stack_.emplace_back(Prod::term);
 
         while (!stack_.empty()) {
@@ -776,7 +815,7 @@ class Parser::Impl {
                     assert(!terms_.empty());
                     auto rhs = std::move(terms_.back());
                     terms_.pop_back();
-                    auto loc = location(rhs);
+                    auto loc = Position{*file_, locs_.back().first, locs_.back().second} + location(rhs);
                     terms_.emplace_back(TermUnary{loc, map_unop(stack_.back()), std::move(rhs)});
                     cont_expr_();
                     continue;
@@ -786,7 +825,7 @@ class Parser::Impl {
                         case TokenType::minus:
                         case TokenType::tilde: {
                             auto unop = map_unop(token_);
-                            // TODO: remember location
+                            locs_.emplace_back(state_.token_line(), state_.token_column());
                             consume_();
                             stack_.back() = unop;
                             stack_.push_back(Prod::term);
@@ -826,10 +865,18 @@ class Parser::Impl {
                             continue;
                         }
                         default: {
-                            return expected(TokenType::tilde, TokenType::minus, TokenType::anon, TokenType::lpar,
-                                            TokenType::num, TokenType::str, TokenType::var, TokenType::id);
+                            // Note: could also report that a term is expected
+                            return expected(TokenType::bar, TokenType::tilde, TokenType::minus, TokenType::anon,
+                                            TokenType::lpar, TokenType::num, TokenType::str, TokenType::var,
+                                            TokenType::id);
                         }
                     }
+                }
+                case Prod::abs: {
+                    if (!cont_abs_args_()) {
+                        return false;
+                    }
+                    continue;
                 }
                 case Prod::tup: {
                     if (!cont_tup_args_(true)) {
@@ -850,10 +897,14 @@ class Parser::Impl {
 
     LexerState state_;
     SymbolStore *store_;
+    SharedString file_;
     std::vector<Prod> stack_;
+    // TODO: colud be combined in one stack of variants
     std::vector<Term> terms_;
+    std::vector<Abs> abs_;
     std::vector<Fun> funs_;
     std::vector<Tup> tups_;
+    std::vector<std::pair<size_t, size_t>> locs_;
     std::string buf_;
     TokenType token_ = TokenType::error;
 };

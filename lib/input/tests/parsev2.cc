@@ -11,6 +11,12 @@ TEST_CASE("lex_test") {
 }
 
 TEST_CASE("lex_test2") {
+    std::istringstream iss("||a;b|;c|");
+    auto parser = Parser{iss};
+    REQUIRE(to_str(parser.parse_term()) == "||a;b|;c|");
+}
+
+TEST_CASE("lex_test3") {
     std::istringstream iss(R"(f(x,))");
     auto parser = Parser{iss};
     REQUIRE(parser.parse_term());
