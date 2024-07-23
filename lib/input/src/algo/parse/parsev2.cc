@@ -743,7 +743,6 @@ class Parser::Impl {
         // - error reporting via logger (almost there)
         // - properly handle filename
         // - abs term is missing
-        // - projection is missing in tuples
         stack_.emplace_back(Prod::term);
 
         while (!stack_.empty()) {
