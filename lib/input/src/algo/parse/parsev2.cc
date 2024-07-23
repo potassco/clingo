@@ -359,7 +359,7 @@ auto map_unop(Prod prod) -> UnaryOperator {
 struct Fun {
     Fun(size_t line, size_t column, String name, bool external)
         : line{line}, column{column}, name{name}, external{external} {}
-    void finish_tup() {
+    void finish_pool() {
         args.emplace_back(std::move(tup));
         tup.clear();
     }
@@ -373,6 +373,17 @@ struct Fun {
 
 struct Tup {
     Tup(size_t line, size_t column) : line{line}, column{column} {}
+
+    void finish_pool() {
+        if (term && tup.size() == 1) {
+            args.emplace_back(std::move(std::get<Term>(tup.front())));
+        } else {
+            args.emplace_back(ArgumentTuple{std::move(tup)});
+        }
+        term = true;
+        tup.clear();
+    }
+
     std::vector<TupleElement> args;
     std::vector<Argument> tup;
     size_t line;
@@ -463,15 +474,15 @@ class Parser::Impl {
     auto cont_tup_() -> bool {
         assert(token_ == TokenType::lpar);
         tups_.emplace_back(state_.token_line(), state_.token_column());
-        return init_tuple_args_();
+        return cont_tuple_args_(false);
     }
 
     //! Finish a tuple after reading a ')' token.
     void finish_tup_() {
         assert(token_ == TokenType::rpar);
-        finish_tuple_tup();
         auto file = store_->string_ref("<input>");
         auto &tup = tups_.back();
+        tup.finish_pool();
         if (auto *term = std::get_if<Term>(tup.args.size() == 1 ? &tup.args.front() : nullptr); term != nullptr) {
             terms_.emplace_back(std::move(*term));
         } else {
@@ -484,30 +495,46 @@ class Parser::Impl {
         cont_expr_();
     }
 
-    //! Finish an argument tuple adding it the vector of all arguments.
-    void finish_tuple_tup() {
+    //! Continue parsing tuple arguments.
+    //!
+    //! If arg is true, continue parsing a tuple after a term argument.
+    //! Otherwise, continue parsing a tuple after tokens '(' or ';'.
+    auto cont_tuple_args_(bool arg) -> bool {
+        assert(!tups_.empty());
         auto &tup = tups_.back();
-        if (tup.term && tup.tup.size() == 1) {
-            tup.args.emplace_back(std::move(std::get<Term>(tup.tup.front())));
+        if (arg) {
+            assert(!terms_.empty());
+            tup.tup.emplace_back(std::move(terms_.back()));
+            terms_.pop_back();
         } else {
-            tup.args.emplace_back(ArgumentTuple{std::move(tup.tup)});
+            // First handle prefixes consisting of empty tuple arguments with
+            // optional trailing commas. Then either finish the tuple with a
+            // closing parenthesis or by continuing to parse the next term
+            // arguments.
+            assert(token_ == TokenType::lpar || token_ == TokenType::sem);
+            consume_();
         }
-        tup.term = true;
-        tup.tup.clear();
-    }
+        if (arg) {
+            if (token_ == TokenType::rpar) {
+                finish_tup_();
+                return true;
+            } else if (branch_(TokenType::comma)) {
+                tup.term = false;
+                if (token_ == TokenType::rpar) {
+                    finish_tup_();
+                    return true;
+                } else if (token_ != TokenType::sem) {
+                    stack_.push_back(Prod::term);
+                    return true;
+                }
+            } else if (token_ != TokenType::sem) {
+                return expected(TokenType::rpar, TokenType::sem, TokenType::comma);
+            }
+        }
 
-    //! Continue parsing a tuple after tokens '(' or ';'.
-    auto init_tuple_args_() -> bool {
-        assert(token_ == TokenType::lpar || token_ == TokenType::sem);
-        consume_();
-        // First handle prefixes consisting of empty tuple arguments with
-        // optional trailing commas. Then either finish the tuple with a
-        // closing parenthesis or by continuing to parse the next term
-        // arguments.
-        auto &tup = tups_.back();
         while (true) {
             if (branch_(TokenType::sem)) {
-                finish_tuple_tup();
+                tup.finish_pool();
                 continue;
             }
             if (branch_(TokenType::comma)) {
@@ -517,7 +544,7 @@ class Parser::Impl {
                     return true;
                 }
                 if (branch_(TokenType::sem)) {
-                    finish_tuple_tup();
+                    tup.finish_pool();
                     continue;
                 }
                 return expected(TokenType::rpar, TokenType::sem);
@@ -532,48 +559,37 @@ class Parser::Impl {
         }
     }
 
-    //! Continue parsing a tuple after a term argument.
-    auto cont_tuple_args_() -> bool {
-        assert(!terms_.empty());
-        auto &tup = tups_.back();
-        tup.tup.emplace_back(std::move(terms_.back()));
-        terms_.pop_back();
-        if (token_ == TokenType::rpar) {
-            finish_tup_();
-            return true;
-        }
-        if (token_ == TokenType::sem) {
-            finish_tuple_tup();
-            return init_tuple_args_();
-        }
-        if (branch_(TokenType::comma)) {
-            tup.term = false;
-            if (token_ == TokenType::rpar) {
-                finish_tup_();
-                return true;
-            }
-            if (token_ == TokenType::sem) {
-                finish_tuple_tup();
-                return init_tuple_args_();
-            }
-            stack_.push_back(Prod::term);
-            return true;
-        }
-        return expected(TokenType::rpar, TokenType::sem, TokenType::comma);
-    }
-
-    //! Finish a function after reading a ')' token.
-    void finish_fun_() {
-        assert(token_ == TokenType::rpar);
+    //! Continue parsing a function assuming an at or id token was read.
+    auto cont_fun_() -> bool {
         auto file = store_->string_ref("<input>");
-        auto &fun = funs_.back();
-        fun.finish_tup();
-        terms_.emplace_back(TermFunction{Location{Position{file, fun.line, fun.column},
-                                                  Position{file, state_.cursor_line(), state_.cursor_column()}},
-                                         fun.name, PoolArray{std::move(fun.args)}, fun.external});
-        funs_.pop_back();
+        auto line = state_.token_line();
+        auto column = state_.token_column();
+        bool ext = token_ == TokenType::at;
+        if (ext) {
+            consume_();
+            if (token_ != TokenType::id) {
+                return expected(TokenType::id);
+            }
+        }
+        auto name = store_->string_ref(state_.view());
         consume_();
-        cont_expr_();
+        if (token_ == TokenType::lpar) {
+            funs_.emplace_back(line, column, name, ext);
+            if (!cont_fun_args_(false)) {
+                return false;
+            }
+        } else {
+            auto loc =
+                Location{Position{file, line, column}, Position{file, state_.cursor_line(), state_.cursor_column()}};
+            if (ext) {
+                terms_.emplace_back(TermFunction{std::move(loc), name,
+                                                 Util::make_immutable_array<ArgumentTuple>(ArgumentTuple{{}}), true});
+            } else {
+                terms_.emplace_back(TermSymbol{std::move(loc), store_->fun_ref(name, {}, false)});
+            }
+            cont_expr_();
+        }
+        return true;
     }
 
     //! Continue parsing function arguments.
@@ -615,7 +631,7 @@ class Parser::Impl {
             }
             // finish argument pools
             while (branch_(TokenType::sem)) {
-                fun.finish_tup();
+                fun.finish_pool();
             }
             // finish all argument pools
             if (token_ == TokenType::rpar) {
@@ -635,37 +651,18 @@ class Parser::Impl {
         }
     }
 
-    //! Continue parsing a function assuming an at or id token was read.
-    auto cont_fun_() -> bool {
+    //! Finish a function after reading a ')' token.
+    void finish_fun_() {
+        assert(token_ == TokenType::rpar);
         auto file = store_->string_ref("<input>");
-        auto line = state_.token_line();
-        auto column = state_.token_column();
-        bool ext = token_ == TokenType::at;
-        if (ext) {
-            consume_();
-            if (token_ != TokenType::id) {
-                return expected(TokenType::id);
-            }
-        }
-        auto name = store_->string_ref(state_.view());
+        auto &fun = funs_.back();
+        fun.finish_pool();
+        terms_.emplace_back(TermFunction{Location{Position{file, fun.line, fun.column},
+                                                  Position{file, state_.cursor_line(), state_.cursor_column()}},
+                                         fun.name, PoolArray{std::move(fun.args)}, fun.external});
+        funs_.pop_back();
         consume_();
-        if (token_ == TokenType::lpar) {
-            funs_.emplace_back(line, column, name, ext);
-            if (!cont_fun_args_(false)) {
-                return false;
-            }
-        } else {
-            auto loc =
-                Location{Position{file, line, column}, Position{file, state_.cursor_line(), state_.cursor_column()}};
-            if (ext) {
-                terms_.emplace_back(TermFunction{std::move(loc), name,
-                                                 Util::make_immutable_array<ArgumentTuple>(ArgumentTuple{{}}), true});
-            } else {
-                terms_.emplace_back(TermSymbol{std::move(loc), store_->fun_ref(name, {}, false)});
-            }
-            cont_expr_();
-        }
-        return true;
+        cont_expr_();
     }
 
     //! Continue parsing a number term assuming a num token is on the stack.
@@ -804,7 +801,7 @@ class Parser::Impl {
                                     TokenType::var, TokenType::id);
                 }
                 case Prod::tup: {
-                    if (!cont_tuple_args_()) {
+                    if (!cont_tuple_args_(true)) {
                         return false;
                     }
                     continue;
