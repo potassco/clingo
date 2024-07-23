@@ -359,6 +359,10 @@ auto map_unop(Prod prod) -> UnaryOperator {
 struct Fun {
     Fun(size_t line, size_t column, String name, bool external)
         : line{line}, column{column}, name{name}, external{external} {}
+    void finish_tup() {
+        args.emplace_back(std::move(tup));
+        tup.clear();
+    }
     std::vector<ArgumentTuple> args;
     std::vector<Argument> tup;
     size_t line;
@@ -558,19 +562,12 @@ class Parser::Impl {
         return expected(TokenType::rpar, TokenType::sem, TokenType::comma);
     }
 
-    //! Finish an argument tuple adding it the vector of all arguments.
-    void finish_fun_tup_() {
-        auto &fun = funs_.back();
-        fun.args.emplace_back(std::move(fun.tup));
-        fun.tup.clear();
-    }
-
     //! Finish a function after reading a ')' token.
     void finish_fun_() {
         assert(token_ == TokenType::rpar);
-        finish_fun_tup_();
         auto file = store_->string_ref("<input>");
         auto &fun = funs_.back();
+        fun.finish_tup();
         terms_.emplace_back(TermFunction{Location{Position{file, fun.line, fun.column},
                                                   Position{file, state_.cursor_line(), state_.cursor_column()}},
                                          fun.name, PoolArray{std::move(fun.args)}, fun.external});
@@ -579,43 +576,63 @@ class Parser::Impl {
         cont_expr_();
     }
 
-    //! Continue parsing a function arguments after tokens '(' or ';'.
-    void init_fun_args_() {
-        assert(token_ == TokenType::lpar || token_ == TokenType::sem);
-        consume_();
-        while (branch_(TokenType::sem)) {
-            finish_fun_tup_();
-        }
-        if (token_ == TokenType::rpar) {
-            finish_fun_();
+    //! Continue parsing function arguments.
+    //!
+    //! If arg is false, then continue after tokens '(' or ';'.
+    //! If arg is true, then continue after an argument.
+    bool cont_fun_args_(bool arg) {
+        auto &fun = funs_.back();
+        if (arg) {
+            assert(!terms_.empty());
+            fun.tup.emplace_back(std::move(terms_.back()));
+            terms_.pop_back();
         } else {
-            stack_.back() = Prod::fun;
-            stack_.push_back(Prod::term);
+            assert(token_ == TokenType::lpar || token_ == TokenType::sem);
+            consume_();
         }
-    }
-
-    //! Continue parsing function arguments after a term argument.
-    auto cont_fun_args_() -> bool {
-        assert(!terms_.empty());
-        funs_.back().tup.emplace_back(std::move(terms_.back()));
-        terms_.pop_back();
-        // Fun -> . ')'
-        if (token_ == TokenType::rpar) {
-            finish_fun_();
-            return true;
+        while (true) {
+            if (arg) {
+                // finish all argument pools
+                if (token_ == TokenType::rpar) {
+                    finish_fun_();
+                    return true;
+                }
+                // a comma that must be followed by another term or projection
+                if (branch_(TokenType::comma)) {
+                    if (token_ == TokenType::star) {
+                        fun.tup.emplace_back(Projection{loc_()});
+                        consume_();
+                        continue;
+                    }
+                    stack_.push_back(Prod::term);
+                    return true;
+                }
+                // fail if the argument pool is not closed
+                // otherwise, finish the pool below
+                if (token_ != TokenType::sem) {
+                    return expected(TokenType::rpar, TokenType::comma, TokenType::sem);
+                }
+            }
+            // finish argument pools
+            while (branch_(TokenType::sem)) {
+                fun.finish_tup();
+            }
+            // finish all argument pools
+            if (token_ == TokenType::rpar) {
+                finish_fun_();
+                return true;
+            }
+            // the pool must begin with a term
+            if (token_ != TokenType::star) {
+                stack_.back() = Prod::fun;
+                stack_.push_back(Prod::term);
+                return true;
+            }
+            // the pool begins with a projection
+            fun.tup.emplace_back(Projection{loc_()});
+            consume_();
+            arg = true;
         }
-        // Fun -> . ',' Term Fun
-        if (branch_(TokenType::comma)) {
-            stack_.push_back(Prod::term);
-            return true;
-        }
-        // Fun -> . ';'+ ( ')' | Term Fun )
-        if (token_ == TokenType::sem) {
-            finish_fun_tup_();
-            init_fun_args_();
-            return true;
-        }
-        return expected(TokenType::rpar, TokenType::comma, TokenType::sem);
     }
 
     //! Continue parsing a function assuming an at or id token was read.
@@ -634,11 +651,18 @@ class Parser::Impl {
         consume_();
         if (token_ == TokenType::lpar) {
             funs_.emplace_back(line, column, name, ext);
-            init_fun_args_();
+            if (!cont_fun_args_(false)) {
+                return false;
+            }
         } else {
-            terms_.emplace_back(TermSymbol{
-                Location{Position{file, line, column}, Position{file, state_.cursor_line(), state_.cursor_column()}},
-                store_->fun_ref(name, {}, false)});
+            auto loc =
+                Location{Position{file, line, column}, Position{file, state_.cursor_line(), state_.cursor_column()}};
+            if (ext) {
+                terms_.emplace_back(TermFunction{std::move(loc), name,
+                                                 Util::make_immutable_array<ArgumentTuple>(ArgumentTuple{{}}), true});
+            } else {
+                terms_.emplace_back(TermSymbol{std::move(loc), store_->fun_ref(name, {}, false)});
+            }
             cont_expr_();
         }
         return true;
@@ -646,6 +670,7 @@ class Parser::Impl {
 
     //! Continue parsing a number term assuming a num token is on the stack.
     void cont_num_() {
+        assert(token_ == TokenType::num);
         auto view = state_.view();
         auto base = Base::dec;
         if (view.starts_with("0b")) {
@@ -668,6 +693,7 @@ class Parser::Impl {
 
     //! Continue parsing a string term assuming a str token is on the stack.
     void cont_str_() {
+        assert(token_ == TokenType::str);
         auto view = state_.view();
         buf_.clear();
         buf_.reserve(view.size() - 2);
@@ -680,6 +706,7 @@ class Parser::Impl {
 
     //! Continue parsing a variable term assuming a var or anon token is on the stack.
     void cont_var_(bool anonymous) {
+        assert(token_ == (anonymous ? TokenType::anon : TokenType::var));
         auto str = store_->string_ref(state_.view());
         terms_.emplace_back(TermVariable{loc_(), str, anonymous});
         consume_();
@@ -695,7 +722,7 @@ class Parser::Impl {
         // - error reporting via logger (almost there)
         // - properly handle filename
         // - abs term is missing
-        // - projection is missing
+        // - projection is missing in tuples
         stack_.emplace_back(Prod::term);
 
         while (!stack_.empty()) {
@@ -777,16 +804,16 @@ class Parser::Impl {
                                     TokenType::var, TokenType::id);
                 }
                 case Prod::tup: {
-                    if (cont_tuple_args_()) {
-                        continue;
+                    if (!cont_tuple_args_()) {
+                        return false;
                     }
-                    return false;
+                    continue;
                 }
                 case Prod::fun: {
-                    if (cont_fun_args_()) {
-                        continue;
+                    if (!cont_fun_args_(true)) {
+                        return false;
                     }
-                    return false;
+                    continue;
                 }
             }
         }
