@@ -294,16 +294,14 @@ auto map_binop(TokenType token) -> std::optional<Prod> {
 }
 
 //! Map the given token to a production of a unary operation if possible.
-auto map_unop(TokenType token) -> std::optional<Prod> {
+auto map_unop(TokenType token) -> Prod {
     switch (token) {
         case TokenType::minus: {
             return Prod::uminus;
         }
-        case TokenType::tilde: {
-            return Prod::bneg;
-        }
         default: {
-            return std::nullopt;
+            assert(token == TokenType::tilde);
+            return Prod::bneg;
         }
     }
 }
@@ -734,6 +732,12 @@ class Parser::Impl {
         cont_expr_();
     }
 
+    //! Continue parsing an abs term after a '|' token.
+    void cont_abs_() {
+        static_cast<void>(this);
+        throw std::runtime_error("implement me!!!");
+    }
+
     //! Parse a term.
     //!
     //! Uses a hand written bottom up parser with a stack to avoid stack
@@ -778,50 +782,54 @@ class Parser::Impl {
                     continue;
                 }
                 case Prod::term: {
-                    // Term -> . '-' Term
-                    if (auto unop = map_unop(token_); unop) {
-                        // TODO: remember location
-                        consume_();
-                        stack_.back() = *unop;
-                        stack_.push_back(Prod::term);
-                        continue;
-                    }
-                    // Term -> . num
-                    if (token_ == TokenType::num) {
-                        cont_num_();
-                        continue;
-                    }
-                    // Term -> . str
-                    if (token_ == TokenType::str) {
-                        cont_str_();
-                        continue;
-                    }
-                    // Term -> . '_'
-                    if (token_ == TokenType::anon) {
-                        cont_var_(true);
-                        continue;
-                    }
-                    // Term -> . var
-                    if (token_ == TokenType::var) {
-                        cont_var_(false);
-                        continue;
-                    }
-                    // Term -> . id '(' ...
-                    if (token_ == TokenType::id || token_ == TokenType::at) {
-                        if (!cont_fun_()) {
-                            return false;
+                    switch (token_) {
+                        case TokenType::minus:
+                        case TokenType::tilde: {
+                            auto unop = map_unop(token_);
+                            // TODO: remember location
+                            consume_();
+                            stack_.back() = unop;
+                            stack_.push_back(Prod::term);
+                            continue;
                         }
-                        continue;
-                    }
-                    // Term -> . '(' ...
-                    if (token_ == TokenType::lpar) {
-                        if (!cont_tup_()) {
-                            return false;
+                        case TokenType::num: {
+                            cont_num_();
+                            continue;
                         }
-                        continue;
+                        case TokenType::str: {
+                            cont_str_();
+                            continue;
+                        }
+                        case TokenType::anon: {
+                            cont_var_(true);
+                            continue;
+                        }
+                        case TokenType::var: {
+                            cont_var_(false);
+                            continue;
+                        }
+                        case TokenType::bar: {
+                            cont_abs_();
+                            continue;
+                        }
+                        case TokenType::id:
+                        case TokenType::at: {
+                            if (!cont_fun_()) {
+                                return false;
+                            }
+                            continue;
+                        }
+                        case TokenType::lpar: {
+                            if (!cont_tup_()) {
+                                return false;
+                            }
+                            continue;
+                        }
+                        default: {
+                            return expected(TokenType::tilde, TokenType::minus, TokenType::anon, TokenType::lpar,
+                                            TokenType::num, TokenType::str, TokenType::var, TokenType::id);
+                        }
                     }
-                    return expected(TokenType::minus, TokenType::anon, TokenType::lpar, TokenType::num, TokenType::str,
-                                    TokenType::var, TokenType::id);
                 }
                 case Prod::tup: {
                     if (!cont_tup_args_(true)) {
