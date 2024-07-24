@@ -2379,7 +2379,7 @@ extern "C" auto clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_
         switch (type) {
             case clingo_ast_parse_type_term: {
                 auto term = Gringo::Input::parse_term(lib->log, *lib->store, string);
-                if (lib->log.has_error() || !term) {
+                if (!term) {
                     lib->log.reset();
                     throw std::runtime_error("parsing term failed");
                 }
@@ -2390,7 +2390,7 @@ extern "C" auto clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_
             }
             case clingo_ast_parse_type_theory_term: {
                 auto term = Gringo::Input::parse_theory_term(lib->log, *lib->store, string);
-                if (lib->log.has_error() || !term) {
+                if (!term) {
                     lib->log.reset();
                     throw std::runtime_error("parsing theory term failed");
                 }
@@ -2401,7 +2401,7 @@ extern "C" auto clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_
             }
             case clingo_ast_parse_type_literal: {
                 auto lit = Gringo::Input::parse_literal(lib->log, *lib->store, string);
-                if (lib->log.has_error() || !lit) {
+                if (!lit) {
                     lib->log.reset();
                     throw std::runtime_error("parsing literal failed");
                 }
@@ -2412,7 +2412,7 @@ extern "C" auto clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_
             }
             case clingo_ast_parse_type_head_literal: {
                 auto lit = Gringo::Input::parse_head_literal(lib->log, *lib->store, string);
-                if (lib->log.has_error() || !lit) {
+                if (!lit) {
                     lib->log.reset();
                     throw std::runtime_error("parsing head literal failed");
                 }
@@ -2423,7 +2423,7 @@ extern "C" auto clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_
             }
             case clingo_ast_parse_type_body_literal: {
                 auto lit = Gringo::Input::parse_body_literal(lib->log, *lib->store, string);
-                if (lib->log.has_error() || !lit) {
+                if (!lit) {
                     lib->log.reset();
                     throw std::runtime_error("parsing body literal failed");
                 }
@@ -2434,7 +2434,7 @@ extern "C" auto clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_
             }
             case clingo_ast_parse_type_statement: {
                 auto lit = Gringo::Input::parse_statement(lib->log, *lib->store, string);
-                if (lib->log.has_error() || !lit) {
+                if (!lit) {
                     lib->log.reset();
                     throw std::runtime_error("parsing statement failed");
                 }
@@ -2457,6 +2457,7 @@ struct clingo_ast_scanner {
     [[nodiscard]] auto next() -> std::unique_ptr<clingo_ast_t> {
         while (!scanners_.empty()) {
             auto stm = scanners_.front().scan();
+            parse_error_ = parse_error_ || scanners_.front().has_error();
             if (stm) {
                 auto owner = Gringo::Util::make_immutable<std::any>(*std::move(stm));
                 auto const *ptr = std::any_cast<Gringo::Input::Stm>(&owner.get());
@@ -2481,11 +2482,13 @@ struct clingo_ast_scanner {
             scanners_.emplace_front(Gringo::Input::scan_file(lib_->log, *lib_->store, path));
         }
     }
+    [[nodiscard]] auto has_error() const -> bool { return parse_error_; }
 
   private:
     clingo_lib_t *lib_;
     std::forward_list<std::string> strings_;
     std::forward_list<Gringo::Input::Scanner> scanners_;
+    bool parse_error_ = false;
 };
 
 extern "C" auto clingo_ast_scan_string(clingo_lib_t *lib, char const *program, clingo_ast_scanner_t **scanner) -> bool {
@@ -2526,6 +2529,10 @@ extern "C" auto clingo_ast_scanner_next(clingo_ast_scanner_t *scanner, clingo_as
         *ast = scanner->next().release();
     }
     CLINGO_CATCH(scanner != nullptr ? scanner->lib() : nullptr);
+}
+
+extern "C" auto clingo_ast_scanner_has_error(clingo_ast_scanner_t *scanner) -> bool {
+    return scanner != nullptr && scanner->has_error();
 }
 
 extern "C" void clingo_ast_scanner_close(clingo_ast_scanner_t *scanner) {
@@ -2582,8 +2589,7 @@ extern "C" auto clingo_ast_rewrite_context_add_theory(clingo_ast_rewrite_context
     CLINGO_TRY {
         auto stm = theory->convert<Gringo::Input::StmTheory>();
         context->parser.add_theory(lib->log, stm);
-        if (lib->log.has_error()) {
-            lib->log.reset();
+        if (context->parser.has_error()) {
             throw std::runtime_error("adding theory failed");
         }
     }
@@ -2622,10 +2628,6 @@ extern "C" auto clingo_ast_rewrite(clingo_ast_rewrite_context_t *context, clingo
         auto stms = StmVec{};
         auto stm = statement->convert<Stm>();
         rewrite(context->ctx, stm, stms);
-        if (lib->log.has_error()) {
-            lib->log.reset();
-            throw std::runtime_error("rewriting statement failed");
-        }
         ASTVec res{stms.size()};
         int i = 0;
         for (auto &stm : stms) {

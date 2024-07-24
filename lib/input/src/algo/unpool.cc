@@ -592,7 +592,10 @@ auto unpool(RewriteContext &ctx, Stm const &stm) -> std::optional<StmVec> {
         VariableSet global = select_variables(stm, VariableContext::global);
         for (auto const &unpooled : stms.value()) {
             if (!check_global(ctx.logger(), global, unpooled)) {
-                return StmVec{};
+                // TODO: the failure could also be stored in the rewrite
+                // context to be able to continue. Previous code:
+                //   return StmVec{};".
+                throw std::runtime_error("unsafe program");
             }
         }
     }

@@ -35,6 +35,9 @@ class Scanner {
     //! Scan the next statement.
     auto scan() -> std::optional<Stm>;
 
+    //! Check if there was a parse error.
+    [[nodiscard]] auto has_error() const -> bool;
+
   private:
     Scanner(std::unique_ptr<ScannerImpl> impl);
 

@@ -281,7 +281,7 @@ auto check_provided(VariableSet const &bound, VariableSet const &provided, auto 
     return is_provided(provided, depend);
 }
 
-auto report(Logger &log, VariableSet const &vars, VariableSet const &bound, auto const &x) {
+void report(Logger &log, VariableSet const &vars, VariableSet const &bound, auto const &x) {
     VariableVec unsafe;
     unsafe.reserve(vars.size() - bound.size());
     std::copy_if(vars.begin(), vars.end(), std::back_inserter(unsafe),

@@ -115,19 +115,22 @@ void write_error(Gringo::Logger &log, const lexy::error_context<Input> &context,
 class report_error {
   public:
     //! Construct a reporter for errors.
-    constexpr report_error(Gringo::Logger &log, char const *path = nullptr) : log_{&log}, path_{path} {}
+    constexpr report_error(Gringo::Logger &log, bool &error, char const *path = nullptr)
+        : log_{&log}, error_{&error}, path_{path} {}
 
     //! Get the corresponding error sink.
-    [[nodiscard]] constexpr auto sink() const { return sink_{log_, opts_, path_, 0}; }
+    [[nodiscard]] constexpr auto sink() const { return sink_{log_, opts_, error_, path_, 0}; }
 
   private:
     Gringo::Logger *log_;
     lexy::visualization_options opts_;
+    bool *error_;
     const char *path_ = nullptr;
 
     struct sink_ {
         Gringo::Logger *log_ = nullptr;
         lexy::visualization_options opts_;
+        bool *error_ = nullptr;
         const char *path_ = nullptr;
         std::size_t _count = 0;
 
@@ -135,6 +138,7 @@ class report_error {
 
         template <typename Input, typename Reader, typename Tag>
         void operator()(const lexy::error_context<Input> &context, const lexy::error<Reader, Tag> &error) {
+            *error_ = true;
             write_error(*log_, context, error, opts_, path_);
             ++_count;
         }

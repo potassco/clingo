@@ -110,7 +110,7 @@ auto run(std::string const &program, std::vector<std::string> args) -> bool {
         fflush(stderr);
         return false;
     }
-    return !log.has_error();
+    return true;
 }
 
 #ifdef CLINGO_BUILD_WEB

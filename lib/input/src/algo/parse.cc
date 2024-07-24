@@ -183,10 +183,11 @@ template <class P> struct root : Grammar::control {
 template <typename Control>
 auto parse(Logger &log, SymbolStore &store,
            std::string_view str) -> std::optional<typename decltype(Control::value)::return_type> {
+    auto error = false;
     auto input = lexy::string_input<Grammar::encoding>{str};
     auto state = State{store, store.string("<string>"), input.reader().position()};
-    auto res = lexy::parse<root<Control>>(input, state, report_error{log});
-    if (res.has_value()) {
+    auto res = lexy::parse<root<Control>>(input, state, report_error{log, error});
+    if (!error && res.has_value()) {
         return std::move(res).value();
     }
     return std::nullopt;
@@ -232,6 +233,7 @@ class ScannerImpl {
   public:
     virtual ~ScannerImpl() noexcept = default;
     virtual auto scan() -> std::optional<Stm> = 0;
+    [[nodiscard]] virtual auto has_error() const -> bool = 0;
     virtual auto logger() -> Logger & = 0;
 
     static auto scan_(auto &self) -> std::optional<Stm> {
@@ -285,12 +287,16 @@ auto Scanner::operator=(Scanner &&other) noexcept -> Scanner & = default;
 
 auto Scanner::scan() -> std::optional<Stm> { return check(impl_->logger(), impl_->scan(), check_statement); }
 
+[[nodiscard]] auto Scanner::has_error() const -> bool { return impl_->has_error(); }
+
 class StreamScanner : public ScannerImpl {
   public:
     StreamScanner(Logger &log, SymbolStore &store, std::istream &in)
         : log_{log}, base_input_{in}, state_{store, store.string("<stream>"), base_input_.reader().position()},
-          input_{base_input_, state_}, scanner_{lexy::scan<Grammar::control>(input_, state_, report_error{log})} {}
+          input_{base_input_, state_},
+          scanner_{lexy::scan<Grammar::control>(input_, state_, report_error{log, error_})} {}
     auto scan() -> std::optional<Stm> override { return scan_(*this); }
+    [[nodiscard]] auto has_error() const -> bool override { return error_; }
     auto logger() -> Logger & override { return log_; }
 
   private:
@@ -309,6 +315,7 @@ class StreamScanner : public ScannerImpl {
     State state_;
     Input input_;
     Scanner scanner_;
+    bool error_ = false;
     bool init_ = true;
 };
 
@@ -317,8 +324,9 @@ class FileScanner : public ScannerImpl {
     FileScanner(Logger &log, SymbolStore &store, char const *path)
         : log_{log}, handle_{lexy::read_file<Grammar::encoding>(path)}, base_input_{handle_.buffer()},
           state_{store, store.string(path), base_input_.reader().position()}, input_{base_input_, state_},
-          scanner_{lexy::scan<Grammar::control>(input_, state_, report_error{log})} {}
+          scanner_{lexy::scan<Grammar::control>(input_, state_, report_error{log, error_})} {}
     auto scan() -> std::optional<Stm> override { return scan_(*this); }
+    [[nodiscard]] auto has_error() const -> bool override { return error_; }
     auto logger() -> Logger & override { return log_; }
 
   private:
@@ -339,6 +347,7 @@ class FileScanner : public ScannerImpl {
     State state_;
     Input input_;
     Scanner scanner_;
+    bool error_ = false;
     bool init_ = true;
 };
 
@@ -346,8 +355,10 @@ class StringScanner : public ScannerImpl {
   public:
     StringScanner(Logger &log, SymbolStore &store, std::string_view content)
         : log_{log}, base_input_{content}, state_{store, store.string("<string>"), base_input_.reader().position()},
-          input_{base_input_, state_}, scanner_{lexy::scan<Grammar::control>(input_, state_, report_error{log})} {}
+          input_{base_input_, state_},
+          scanner_{lexy::scan<Grammar::control>(input_, state_, report_error{log, error_})} {}
     auto scan() -> std::optional<Stm> override { return scan_(*this); }
+    [[nodiscard]] auto has_error() const -> bool override { return error_; }
     auto logger() -> Logger & override { return log_; }
 
   private:
@@ -366,6 +377,7 @@ class StringScanner : public ScannerImpl {
     State state_;
     Input input_;
     Scanner scanner_;
+    bool error_ = false;
     bool init_ = true;
 };
 
@@ -414,7 +426,9 @@ template <class P> struct symbol_root : SymbolGrammar::control {
 auto parse_parts(Logger &log, SymbolStore &store, std::string_view str) -> std::vector<Input::ProgramParamVec> {
     auto lock = GCLock{store};
     auto input = lexy::string_input<Grammar::encoding>{str};
-    if (auto res = lexy::parse<root<SymbolGrammar::program_param_vec_vec>>(input, store, report_error{log}); res) {
+    auto error = false;
+    if (auto res = lexy::parse<root<SymbolGrammar::program_param_vec_vec>>(input, store, report_error{log, error});
+        res && !error) {
         return std::move(res).value();
     }
     throw std::runtime_error("parsing failed");
@@ -423,7 +437,8 @@ auto parse_parts(Logger &log, SymbolStore &store, std::string_view str) -> std::
 auto parse_const(Logger &log, SymbolStore &store, std::string_view str) -> std::pair<SharedString, SharedSymbol> {
     auto lock = GCLock{store};
     auto input = lexy::string_input<Grammar::encoding>{str};
-    if (auto res = lexy::parse<root<SymbolGrammar::const_def>>(input, store, report_error{log}); res) {
+    auto error = false;
+    if (auto res = lexy::parse<root<SymbolGrammar::const_def>>(input, store, report_error{log, error}); res && !error) {
         return {SharedString{res.value().first}, SharedSymbol{res.value().second}};
     }
     throw std::runtime_error("parsing failed");

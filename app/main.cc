@@ -113,7 +113,7 @@ auto run(int argc, char *argv[]) -> int {
         fflush(stderr);
         return 1;
     }
-    return log.has_error() ? 1 : 0;
+    return 0;
 }
 
 auto main(int argc, char *argv[]) -> int {

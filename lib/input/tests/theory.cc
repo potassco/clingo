@@ -23,14 +23,13 @@ auto rewrite_statement(std::string const &str) -> std::string {
             &p/0: a, {<,>}, b, any
 
         }.)")));
-    REQUIRE(!ph.logger().has_error());
     ph.parser().add_theory(ph.logger(), thy);
 
-    if (auto stm = ph.statement(str); stm && !ph.logger().has_error()) {
-        if (auto rev = rewrite_theory(ph, *stm); rev && !ph.logger().has_error()) {
+    if (auto stm = ph.statement(str); stm) {
+        if (auto rev = rewrite_theory(ph, *stm); rev) {
             return to_str(*rev);
         }
-        if (ph.logger().has_error()) {
+        if (ph.parser().has_error()) {
             return "<error>";
         }
         return to_str(*stm);

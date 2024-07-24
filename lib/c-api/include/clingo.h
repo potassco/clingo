@@ -1019,6 +1019,12 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_scan_files(clingo_lib_t *lib, char con
 //! @param[out] ast the resulting ast
 //! @return whether the call was successful or an error has been set
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_scanner_next(clingo_ast_scanner_t *scanner, clingo_ast_t **ast);
+
+//! Check if there was a parse error.
+//!
+//! @param[in] scanner the scanner
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_scanner_has_error(clingo_ast_scanner_t *scanner);
+
 //! Close the scanner and free any resources it uses.
 //!
 //! @param[in] scanner the scanner

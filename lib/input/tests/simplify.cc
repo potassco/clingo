@@ -58,9 +58,6 @@ template <class F, class T> auto simplify_str_(ParseHelper &ph, std::optional<T>
                 }
             }
         }
-        if (ph.logger().has_error()) {
-            oss << ", E";
-        }
         return std::move(oss).str();
     }
     return "<failed>";

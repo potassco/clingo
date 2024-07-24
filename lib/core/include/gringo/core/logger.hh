@@ -52,13 +52,6 @@ enum class MessageCode : uint8_t {
     error = 8,                    //! An error.
 };
 
-//! Exception thrown when there is an error and the message limit has been reached.
-class MessageLimitError : public std::runtime_error {
-  public:
-    //! Construct the error.
-    MessageLimitError(char const *msg) : std::runtime_error(msg) {}
-};
-
 //! Log levels for course grain configuration of logging.
 enum class LogLevel : uint8_t {
     trace = static_cast<uint8_t>(MessageCode::trace), //!< Trace as much as possible.
@@ -81,8 +74,6 @@ class Logger {
 
     //! Check if a message with the given code should be reported.
     [[nodiscard]] auto check(MessageCode code) -> bool;
-    //! Check if the logger is in the error state.
-    [[nodiscard]] auto has_error() const -> bool;
     //! Enable or disable a message code.
     //!
     //! Note that errors cannot be disabled and are always reported.
@@ -112,7 +103,6 @@ class Logger {
     size_t limit_;
     size_t cur_limit_;
     std::bitset<static_cast<int>(MessageCode::error) + 1> disabled_;
-    bool error_ = false;
     bool color_;
 };
 
@@ -137,19 +127,8 @@ class Report {
 };
 
 inline auto Logger::check(MessageCode code) -> bool {
-    // unconditionally report errors
-    if (code >= MessageCode::error) {
-        error_ = true;
-        if (cur_limit_ == 0) {
-            throw MessageLimitError("too many messages.");
-        }
-        if (cur_limit_ != std::numeric_limits<size_t>::max()) {
-            --cur_limit_;
-        }
-        return true;
-    }
     // ignore the message
-    if (code < static_cast<MessageCode>(level_) || disabled_[static_cast<int>(code)]) {
+    if (static_cast<uint8_t>(code) < static_cast<uint8_t>(level_) || disabled_[static_cast<int>(code)]) {
         return false;
     }
     // report trace and debug messages without reducing the limit
@@ -162,10 +141,6 @@ inline auto Logger::check(MessageCode code) -> bool {
             --cur_limit_;
         }
         return true;
-    }
-    // raise error if limit has been reached
-    if (error_) {
-        throw MessageLimitError("too many messages.");
     }
     // ignore the message due to limit
     return false;
@@ -180,8 +155,6 @@ inline auto Logger::enabled(MessageCode code) const -> bool {
     }
     return code < MessageCode::info || cur_limit_ > 0;
 }
-
-inline auto Logger::has_error() const -> bool { return error_; }
 
 inline void Logger::enable(MessageCode code, bool enabled) { disabled_[static_cast<int>(code)] = !enabled; }
 
@@ -199,10 +172,7 @@ inline void Logger::print(MessageCode code, char const *msg) {
     }
 }
 
-inline void Logger::reset() {
-    cur_limit_ = limit_;
-    error_ = false;
-}
+inline void Logger::reset() { cur_limit_ = limit_; }
 
 inline void Logger::print(MessageCode code, std::string const &str) { print(code, str.c_str()); }
 

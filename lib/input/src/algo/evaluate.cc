@@ -256,9 +256,9 @@ class Evaluate {
             val = std::nullopt;
         }
         if (!val.has_value()) {
-            GRINGO_REPORT_LOC(*log_, error, location(term)) << "operation undefined:\n"
-                                                            << "  |" << val.value() << "|\n"
-                                                            << ErrorContext{root_};
+            GRINGO_REPORT_LOC(*log_, info_operation_undefined, location(term)) << "operation undefined:\n"
+                                                                               << "  |" << val.value() << "|\n"
+                                                                               << ErrorContext{root_};
             return std::nullopt;
         }
         return val;
@@ -277,9 +277,10 @@ class Evaluate {
                 lp = "(";
                 rp = ")";
             }
-            GRINGO_REPORT_LOC(*log_, error, location(term)) << "operation undefined:\n"
-                                                            << "  " << term.op() << lp << rhs.value() << rp << "\n"
-                                                            << ErrorContext{root_};
+            GRINGO_REPORT_LOC(*log_, info_operation_undefined, location(term))
+                << "operation undefined:\n"
+                << "  " << term.op() << lp << rhs.value() << rp << "\n"
+                << ErrorContext{root_};
         }
         return res;
     }
@@ -298,7 +299,7 @@ class Evaluate {
                 lp = "(";
                 rp = ")";
             }
-            GRINGO_REPORT_LOC(*log_, error, location(term))
+            GRINGO_REPORT_LOC(*log_, info_operation_undefined, location(term))
                 << "operation undefined:\n"
                 << "  " << lhs.value() << term.op() << lp << rhs.value() << rp << "\n"
                 << ErrorContext{root_};
@@ -406,6 +407,7 @@ auto evaluate(SymbolStore &store, Symbol lhs, BinaryOperator op, Symbol rhs) -> 
 }
 
 void evaluate_const(Logger &log, SymbolStore &store, std::vector<StmConst> const &stms, ConstMap &res) {
+    bool ret = true;
     // build map
     Util::ordered_map<String, size_t> map;
     size_t id_stm = 0;
@@ -416,6 +418,7 @@ void evaluate_const(Logger &log, SymbolStore &store, std::vector<StmConst> const
             if (stm_b.type() < stm_a.type()) {
                 res.first.value() = id_stm;
             } else if (stm_b.type() == stm_a.type()) {
+                ret = false;
                 GRINGO_REPORT_LOC(log, error, location(stm_a))
                     << "redefinition of constant:\n"
                     << "  " << stm_a << "\n"
@@ -432,7 +435,7 @@ void evaluate_const(Logger &log, SymbolStore &store, std::vector<StmConst> const
         BuildDep{map, dep, id_stm}(stms[id_stm].value());
     }
     // evaluate const statements
-    dep.tarjan([&log, &store, &stms, &map, &res](auto const &scc) {
+    dep.tarjan([&log, &store, &stms, &map, &res, &ret](auto const &scc) {
         if (scc.size() == 1) {
             auto const &stm = stms[scc.front()];
             if (map[stm.name()] == scc.front()) {
@@ -447,6 +450,7 @@ void evaluate_const(Logger &log, SymbolStore &store, std::vector<StmConst> const
                                 << "  " << stm << "\n"
                                 << location(it->second.first) << ": note: redefinition of constant:\n"
                                 << "  " << it->second.first << "\n";
+                            ret = false;
                         }
                     }
                 }
@@ -466,8 +470,12 @@ void evaluate_const(Logger &log, SymbolStore &store, std::vector<StmConst> const
                 oss << "  " << stms[id_stm] << "\n";
             }
             GRINGO_REPORT_STR(log, error, oss.str());
+            ret = false;
         }
     });
+    if (!ret) {
+        throw std::runtime_error("evaluation of const statements failed");
+    }
 }
 
 auto evaluate(Logger &log, SymbolStore &store, ConstMap const &map, Term const &term) -> std::optional<Symbol> {

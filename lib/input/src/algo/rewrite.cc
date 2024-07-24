@@ -36,15 +36,18 @@ void rewrite(RewriteContext &ctx, Stm const &stm, StmVec &stms) {
                 if (res_cs) {
                     GRINGO_REPORT(ctx.logger(), debug) << indent << sub_indent << "check safety: " << *res_cs;
                 }
-                if (state_cs) {
-                    stm = std::move(res_cs).value_or(std::move(stm));
-                    auto res_thy = rewrite_theory(ctx, stm);
-                    if (res_thy) {
-                        GRINGO_REPORT(ctx.logger(), debug) << indent << "theory: " << *res_thy;
-                    }
-                    stm = std::move(res_thy).value_or(std::move(stm));
-                    stms.emplace_back(std::move(stm));
+                if (!state_cs) {
+                    // TODO: failure could also be stored in the context to be
+                    // able to continues.
+                    throw std::runtime_error("unsafe program");
                 }
+                stm = std::move(res_cs).value_or(std::move(stm));
+                auto res_thy = rewrite_theory(ctx, stm);
+                if (res_thy) {
+                    GRINGO_REPORT(ctx.logger(), debug) << indent << "theory: " << *res_thy;
+                }
+                stm = std::move(res_thy).value_or(std::move(stm));
+                stms.emplace_back(std::move(stm));
             }
         };
 

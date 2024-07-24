@@ -51,12 +51,14 @@ void TheoryTermParser::add(Logger &log, TheoryOpDefinition const &def) {
     }
     if (!table_.try_emplace(std::pair(def.op(), arity), def.prio(), assoc).second) {
         GRINGO_REPORT_LOC(log, error, def.loc()) << "duplicate operator definition `" << def.op() << "`";
+        has_error_ = true;
     }
 }
 
-void TheoryTermParser::check_operator(Logger &log, String op, Arity arity, Location loc) const {
+void TheoryTermParser::check_operator(Logger &log, String op, Arity arity, Location const &loc) const {
     if (!table_.contains(std::pair(op, arity))) {
         GRINGO_REPORT_LOC(log, error, loc) << "cannot parse operator `" << op << "`";
+        has_error_ = true;
     }
 }
 
@@ -140,6 +142,7 @@ void TheoryAtomParser::add_theory(Logger &log, StmTheory const &stm) {
             }
         } else {
             GRINGO_REPORT_LOC(log, error, term_def.loc()) << "duplicate term definition `" << term_def.name() << "`";
+            has_error_ = true;
         }
     }
     atom_table_.reserve(atom_table_.size() + stm.atom_defs().size());
@@ -150,6 +153,7 @@ void TheoryAtomParser::add_theory(Logger &log, StmTheory const &stm) {
                 guard.emplace(StringSet(rhs->ops().begin(), rhs->ops().end()), std::distance(term_defs.begin(), it));
             } else {
                 GRINGO_REPORT_LOC(log, error, atom_def.loc()) << "term definition not found `" << rhs->term() << "`";
+                has_error_ = true;
             }
         }
         if (auto it = term_defs.find(atom_def.term()); it != term_defs.end()) {
@@ -159,9 +163,11 @@ void TheoryAtomParser::add_theory(Logger &log, StmTheory const &stm) {
                      .second) {
                 GRINGO_REPORT_LOC(log, error, atom_def.loc())
                     << "duplicate atom definition `" << atom_def.name() << "/" << atom_def.arity() << "`";
+                has_error_ = true;
             }
         } else {
             GRINGO_REPORT_LOC(log, error, atom_def.loc()) << "term definition not found `" << atom_def.term() << "`";
+            has_error_ = true;
         }
     }
 }
@@ -179,6 +185,7 @@ auto TheoryAtomParser::parse(Logger &log, TheoryAtom<has_sign> const &atom,
     auto it = atom_table_.find(std::pair{name, arity});
     if (it == atom_table_.end()) {
         GRINGO_REPORT_LOC(log, error, atom.loc()) << "atom definition not found `" << name << "/" << arity << "`";
+        has_error_ = true;
         // maybe clear guard and elems...
         return std::nullopt;
     }
@@ -186,17 +193,20 @@ auto TheoryAtomParser::parse(Logger &log, TheoryAtom<has_sign> const &atom,
     if constexpr (has_sign) {
         if (type == TheoryAtomType::head || type == TheoryAtomType::directive) {
             GRINGO_REPORT_LOC(log, error, atom.loc()) << "theory atom may only occur in head";
+            has_error_ = true;
             // maybe clear guard and elems...
             return std::nullopt;
         }
     } else {
         if (type == TheoryAtomType::body) {
             GRINGO_REPORT_LOC(log, error, atom.loc()) << "theory atom may only occur in body";
+            has_error_ = true;
             // maybe clear guard and elems...
             return std::nullopt;
         }
         if (type == TheoryAtomType::directive && !fact) {
             GRINGO_REPORT_LOC(log, error, atom.loc()) << "theory atom must be a directive";
+            has_error_ = true;
             // maybe clear guard and elems...
             return std::nullopt;
         }
@@ -206,12 +216,14 @@ auto TheoryAtomParser::parse(Logger &log, TheoryAtom<has_sign> const &atom,
     if (atom.rhs()) {
         if (!guard) {
             GRINGO_REPORT_LOC(log, error, atom.loc()) << "unexpected guard in theory atom";
+            has_error_ = true;
             // maybe clear guard and elems...
             return std::nullopt;
         }
         auto const &[guard_set, guard_index] = *guard;
         if (!guard_set.contains(atom.rhs()->op())) {
             GRINGO_REPORT_LOC(log, error, atom.loc()) << "unexpected guard in theory atom";
+            has_error_ = true;
             // maybe clear guard and elems...
             return std::nullopt;
         }
@@ -223,5 +235,14 @@ template auto TheoryAtomParser::parse(Logger &, TheoryAtom<true> const &,
                                       bool) const -> std::optional<TheoryAtom<true>>;
 template auto TheoryAtomParser::parse(Logger &, TheoryAtom<false> const &,
                                       bool) const -> std::optional<TheoryAtom<false>>;
+
+auto TheoryAtomParser::has_error() const -> bool {
+    for (auto const &parser : term_parsers_) {
+        if (parser.has_error()) {
+            return true;
+        }
+    }
+    return has_error_;
+}
 
 } // namespace Gringo::Input

@@ -33,7 +33,7 @@ struct CheckTypeResult {
 };
 
 //! Query information about the structure of the given term.
-auto check_type(Term const &term, TermCheckType type, CheckTypeResult *res = nullptr) -> bool;
+[[nodiscard]] auto check_type(Term const &term, TermCheckType type, CheckTypeResult *res = nullptr) -> bool;
 
 //! Helper to access elements of linear terms.
 class LinearTerm {
@@ -111,20 +111,20 @@ auto check_linear(Term const &term) -> std::optional<LinearTerm>;
 //! Check whether the literal is an atom.
 //!
 //! A literal is an atom if it is a symbolic literal without a sign.
-auto is_atom(Lit const &lit) -> bool;
+[[nodiscard]] auto is_atom(Lit const &lit) -> bool;
 
 //! Check if the literal is a symbolic atom.
 //!
 //! This extends the test to disjunctions with exactly one element corresponding to an atom.
-auto is_atom(HdLit const &lit) -> bool;
+[[nodiscard]] auto is_atom(HdLit const &lit) -> bool;
 
 //! Check if the literal is a symbolic atom.
 //!
 //! This extends the test to conjunctions with exactly one element corresponding to an atom.
-auto is_atom(BdLit const &lit) -> bool;
+[[nodiscard]] auto is_atom(BdLit const &lit) -> bool;
 
 //! Check if a literal is a boolean constant.
-inline auto is_boolean(Lit const &lit) -> std::optional<bool> {
+[[nodiscard]] inline auto is_boolean(Lit const &lit) -> std::optional<bool> {
     if (auto const *lb = std::get_if<LitBool>(&lit); lb != nullptr) {
         return lb->value() == (lb->sign() != Sign::once);
     }
@@ -136,7 +136,7 @@ inline auto is_boolean(Lit const &lit) -> std::optional<bool> {
 //! This is used to prevent projection in projection-like rules.
 //! For example, variable Y in `p(X) :- p(X,Y), X>10` is not projected
 //! because `X>10` is classified as a test.
-auto is_test(BdLit const &lit) -> bool;
+[[nodiscard]] auto is_test(BdLit const &lit) -> bool;
 
 //! Check if the literal is classical.
 //!
@@ -144,30 +144,30 @@ auto is_test(BdLit const &lit) -> bool;
 //! whenever it can be statically determined that the head does not derive anything.
 //!
 //! Note that this function could also be extended to aggregates that do not derive atoms.
-auto is_classical(HdLit const &lit) -> bool;
+[[nodiscard]] auto is_classical(HdLit const &lit) -> bool;
 
 //! Check if a rule is a fact.
 //!
 //! Returns the symbol representing the fact.
 //! This function evaluates arithmetic expressions as long as they evaluate to one-elementary pools.
-auto is_fact(SymbolStore &store, StmRule const &rule) -> std::optional<Symbol>;
+[[nodiscard]] auto is_fact(SymbolStore &store, StmRule const &rule) -> std::optional<Symbol>;
 
 //! Check if a statement is a fact.
 //!
 //! Returns the symbol representing the fact.
 //! This function evaluates arithmetic expressions as long as they evaluate to one-elementary pools.
-auto is_fact(SymbolStore &store, Stm const &stm) -> std::optional<Symbol>;
+[[nodiscard]] auto is_fact(SymbolStore &store, Stm const &stm) -> std::optional<Symbol>;
 
 //! Check that none of the given varables are local in the statement.
-auto check_global(Logger &log, VariableSet const &global, Stm const &stm) -> bool;
+[[nodiscard]] auto check_global(Logger &log, VariableSet const &global, Stm const &stm) -> bool;
 
 //! Check if the given string is a theory operator.
-inline auto is_theory_operator(std::string_view name) -> bool {
+[[nodiscard]] inline auto is_theory_operator(std::string_view name) -> bool {
     return (!name.empty() && std::strchr("/!<=>+-*\\?&@|:;~^.", name.front()) != nullptr) || (name == "not");
 }
 
 //! Get the signature of a term.
-auto signature(Term const &term) -> std::optional<std::tuple<String, size_t, bool>>;
+[[nodiscard]] auto signature(Term const &term) -> std::optional<std::tuple<String, size_t, bool>>;
 
 //! Check if a term is matchable.
 //!
@@ -175,7 +175,7 @@ auto signature(Term const &term) -> std::optional<std::tuple<String, size_t, boo
 //! variables, linear terms, and negated terms.
 //!
 //! For example, the folllowing terms is matchable: `f(1,c,X,X+1,-X,(X,Y))`.
-auto is_matchable(Term const &term) -> bool;
+[[nodiscard]] auto is_matchable(Term const &term) -> bool;
 
 //! @}
 

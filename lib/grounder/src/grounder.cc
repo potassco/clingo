@@ -150,6 +150,7 @@ class Parser {
                 prg_->add(*store_, *std::move(stm));
             }
         }
+        parse_error_ = parse_error_ || scanner.has_error();
     }
     // NOLINTEND(cppcoreguidelines-missing-std-forward,bugprone-unchecked-optional-access)
 
@@ -166,11 +167,13 @@ class Parser {
                 }
             } else {
                 GRINGO_REPORT(*log_, error) << "cannot include directory: " << rel;
+                parse_error_ = true;
             }
             return true;
         }
         if (required) {
             GRINGO_REPORT(*log_, error) << "file not found: " << path;
+            parse_error_ = true;
         }
         return false;
     }
@@ -201,6 +204,12 @@ class Parser {
         }
     }
 
+    void check() const {
+        if (parse_error_) {
+            throw std::runtime_error("parsing failed");
+        }
+    }
+
   private:
     Logger *log_;
     SymbolStore *store_;
@@ -209,6 +218,7 @@ class Parser {
     std::deque<std::pair<std::filesystem::path, Input::StmInclude>> includes_;
     Util::unordered_set<std::filesystem::path> seen_;
     bool processed_stdin_ = false;
+    bool parse_error_ = false;
 };
 
 auto map_binary_op(Input::BinaryOperator op) -> Ground::BinaryOperator {
@@ -773,6 +783,7 @@ void Grounder::parse(std::string_view prg) {
         auto scanner = Input::scan_string(*impl_->log, *impl_->store, prg);
         prs.process(scanner);
         prs.process_includes();
+        prs.check();
     }
 }
 
@@ -793,6 +804,7 @@ void Grounder::parse(std::vector<std::string> const &files) {
             }
             prs.process_includes();
         }
+        prs.check();
     }
 }
 

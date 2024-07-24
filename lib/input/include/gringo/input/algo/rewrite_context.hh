@@ -30,10 +30,13 @@ class TheoryTermParser {
     void add(Logger &log, TheoryOpDefinition const &def);
 
     //! Check if the given operator is in the parse table raising a runtime error if absent.
-    void check_operator(Logger &log, String op, Arity arity, Location loc) const;
+    void check_operator(Logger &log, String op, Arity arity, Location const &loc) const;
 
     //! Parses the given unparsed term, replacing it by nested theory functions.
     auto parse(Logger &log, TheoryTermUnparsed const &term) const -> TheoryTerm;
+
+    //! Check if there was a parse error.
+    [[nodiscard]] auto has_error() const { return has_error_; }
 
   private:
     using Table = Util::unordered_map<std::pair<String, Arity>, std::pair<int, Associativity>>;
@@ -57,6 +60,7 @@ class TheoryTermParser {
     Table table_;
     mutable Terms terms_;
     mutable Stack stack_;
+    mutable bool has_error_ = false;
 };
 
 //! A parser for theory atoms.
@@ -69,6 +73,9 @@ class TheoryAtomParser {
     template <bool has_sign>
     auto parse(Logger &log, TheoryAtom<has_sign> const &atom, bool fact) const -> std::optional<TheoryAtom<has_sign>>;
 
+    //! Check if there was a parse error.
+    [[nodiscard]] auto has_error() const -> bool;
+
   private:
     using ParserIndex = size_t;
     using GuardTable = std::pair<StringSet, ParserIndex>;
@@ -77,6 +84,7 @@ class TheoryAtomParser {
 
     std::vector<TheoryTermParser> term_parsers_;
     AtomTable atom_table_;
+    mutable bool has_error_ = false;
 };
 
 //! A vector of term pairs where the second has been substituted by the first in some other term.
