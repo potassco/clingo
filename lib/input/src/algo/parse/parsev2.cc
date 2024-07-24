@@ -2,72 +2,20 @@
 
 #include <gringo/input/term.hh>
 
+#include <gringo/util/string.hh>
+
 #include "lexer_state.hh"
 
 namespace Gringo::Input {
 
 namespace {
 
-void quote(std::string_view in, auto out) {
-    for (auto c : in) {
-        switch (c) {
-            case '\n': {
-                *out++ = '\\';
-                *out++ = 'n';
-                break;
-            }
-            case '\\': {
-                *out++ = '\\';
-                *out++ = '\\';
-                break;
-            }
-            case '"': {
-                *out++ = '\\';
-                *out++ = '"';
-                break;
-            }
-            default: {
-                *out++ = c;
-                break;
-            }
-        }
-    }
-}
-void unquote(std::string_view in, auto out) {
-    bool slash = false;
-    for (auto c : in) {
-        if (slash) {
-            switch (c) {
-                case 'n': {
-                    *out++ = '\n';
-                    break;
-                }
-                case '\\': {
-                    *out++ = '\\';
-                    break;
-                }
-                case '"': {
-                    *out++ = '"';
-                    break;
-                }
-                default: {
-                    assert(false);
-                    break;
-                }
-            }
-            slash = false;
-        } else if (c == '\\') {
-            slash = true;
-        } else {
-            *out++ = c;
-        }
-    }
-}
-
+//! The list of lexer conditions for stateful lexing.
 enum class Condition : uint8_t {
     normal,
 };
 
+//! The available tokens produced by the lexer.
 enum class TokenType : uint8_t {
     amp,
     at,
@@ -97,6 +45,7 @@ enum class TokenType : uint8_t {
     var,
 };
 
+//! Output token in human readable form.
 auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
     switch (token) {
         case TokenType::amp: {
@@ -367,6 +316,7 @@ auto map_unop(Prod prod) -> UnaryOperator {
     }
 }
 
+//! Capture a partial absolute term.
 struct Abs {
     Abs(size_t line, size_t column) : line{line}, column{column} {}
     std::vector<Term> args;
@@ -374,6 +324,7 @@ struct Abs {
     size_t column;
 };
 
+//! Capture a partial function term.
 struct Fun {
     Fun(size_t line, size_t column, String name, bool external)
         : line{line}, column{column}, name{name}, external{external} {}
@@ -389,6 +340,7 @@ struct Fun {
     bool external;
 };
 
+//! Capture a partial tuple term.
 struct Tup {
     Tup(size_t line, size_t column) : line{line}, column{column} {}
 
@@ -413,8 +365,10 @@ struct Tup {
 
 // NOLINTBEGIN(performance-avoid-endl)
 
+//! The parser implementation.
 class Parser::Impl {
   public:
+    //! Contstructor.
     Impl(Logger &log, SymbolStore &store, std::istream &in, String file)
         : state_{in}, log_{&log}, store_{&store}, file_{file} {}
 
@@ -441,7 +395,7 @@ class Parser::Impl {
     }
 
     //! Report an error message indicating that one of the given tokens was expected.
-    auto expected(auto... expected) -> bool {
+    auto expected_(auto... expected) -> bool {
         if (log_->check(MessageCode::error)) {
             auto rep = Report{*log_, MessageCode::error, loc_()};
             rep.out() << "expected one of ";
@@ -518,7 +472,7 @@ class Parser::Impl {
             stack_.emplace_back(Prod::term);
             return true;
         }
-        return expected(TokenType::bar, TokenType::sem);
+        return expected_(TokenType::bar, TokenType::sem);
     }
 
     //! Continue parsing a tuple after a '(' token.
@@ -568,7 +522,7 @@ class Parser::Impl {
                     }
                     // semicolon after term or projection falls through
                 } else if (token_ != TokenType::sem) {
-                    return expected(TokenType::rpar, TokenType::sem, TokenType::comma);
+                    return expected_(TokenType::rpar, TokenType::sem, TokenType::comma);
                 }
             }
 
@@ -593,7 +547,7 @@ class Parser::Impl {
                     arg = false;
                     continue;
                 }
-                return expected(TokenType::rpar, TokenType::sem);
+                return expected_(TokenType::rpar, TokenType::sem);
             }
             // leading star that must be part of a tuple
             if (token_ == TokenType::star) {
@@ -603,7 +557,7 @@ class Parser::Impl {
                     arg = true;
                     continue;
                 }
-                return expected(TokenType::comma);
+                return expected_(TokenType::comma);
             }
             // parse a term
             stack_.back() = Prod::tup;
@@ -637,7 +591,7 @@ class Parser::Impl {
         if (ext) {
             consume_();
             if (token_ != TokenType::id) {
-                return expected(TokenType::id);
+                return expected_(TokenType::id);
             }
         }
         auto name = store_->string_ref(state_.view());
@@ -695,7 +649,7 @@ class Parser::Impl {
                 // fail if the argument pool is not closed
                 // otherwise, finish the pool below
                 if (token_ != TokenType::sem) {
-                    return expected(TokenType::rpar, TokenType::comma, TokenType::sem);
+                    return expected_(TokenType::rpar, TokenType::comma, TokenType::sem);
                 }
             }
             // finish argument pools
@@ -762,7 +716,7 @@ class Parser::Impl {
         auto view = state_.view();
         buf_.clear();
         buf_.reserve(view.size() - 2);
-        unquote(view.substr(1, view.size() - 2), std::back_inserter(buf_));
+        Util::unquote(view.substr(1, view.size() - 2), std::back_inserter(buf_));
         auto str = store_->string_ref(std::string_view{buf_.begin(), buf_.end()});
         terms_.emplace_back(TermSymbol{loc_(), SymbolStore::str_ref(str)});
         consume_();
@@ -863,9 +817,9 @@ class Parser::Impl {
                         }
                         default: {
                             // Note: could also report that a term is expected
-                            return expected(TokenType::bar, TokenType::tilde, TokenType::minus, TokenType::anon,
-                                            TokenType::lpar, TokenType::num, TokenType::str, TokenType::var,
-                                            TokenType::id);
+                            return expected_(TokenType::bar, TokenType::tilde, TokenType::minus, TokenType::anon,
+                                             TokenType::lpar, TokenType::num, TokenType::str, TokenType::var,
+                                             TokenType::id);
                         }
                     }
                 }
