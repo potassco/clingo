@@ -5,10 +5,9 @@
     re2c:define:YYMARKER       = state_.marker();
     re2c:define:YYCTXMARKER    = state_.ctxmarker();
     re2c:define:YYLIMIT        = state_.limit();
-    re2c:define:YYFILL         = state_.fill();
+    re2c:define:YYFILL         = "state_.fill(@@, YYMAXFILL);";
     re2c:define:YYGETCONDITION = condition;
     re2c:define:YYSETCONDITION = "condition = @@;";
-    re2c:eof                   = 0;
     re2c:cond:goto             = "continue;";
 
     DEC        = "0"|([1-9][0-9]*);
@@ -25,7 +24,10 @@
     KEYWORD    = "#" [a-zA-Z0-9_]*;
 */
 
+/*!header:re2c:on*/
+/*!max:re2c*/
 /*!conditions:re2c*/
+/*!header:re2c:off*/
 
 auto Parser::Impl::lex_(Condition cond) -> TokenType {
     int condition = yycnormal;
@@ -35,35 +37,37 @@ auto Parser::Impl::lex_(Condition cond) -> TokenType {
     for (;;) {
         state_.start();
     /*!re2c
-        <normal> NUMBER     { return TokenType::num; }
-        <normal> IDENTIFIER { return TokenType::id; }
-        <normal> "_"        { return TokenType::anon; }
-        <normal> VARIABLE   { return TokenType::var; }
-        <normal> STRING     { return TokenType::str; }
-        <normal> "("        { return TokenType::lpar; }
-        <normal> ")"        { return TokenType::rpar; }
-        <normal> "+"        { return TokenType::plus; }
-        <normal> "-"        { return TokenType::minus; }
-        <normal> "*"        { return TokenType::star; }
-        <normal> "**"       { return TokenType::dstar; }
-        <normal> "/"        { return TokenType::slash; }
-        <normal> "\\"       { return TokenType::bslash; }
-        <normal> "?"        { return TokenType::qmark; }
-        <normal> "^"        { return TokenType::caret; }
-        <normal> "&"        { return TokenType::amp; }
-        <normal> "|"        { return TokenType::bar; }
-        <normal> ","        { return TokenType::comma; }
-        <normal> ";"        { return TokenType::sem; }
-        <normal> ":"        { return TokenType::colon; }
-        <normal> "~"        { return TokenType::tilde; }
-        <normal> "."        { return TokenType::dot; }
-        <normal> ".."       { return TokenType::ddot; }
-        <normal> "@"        { return TokenType::at; }
-        <normal> SKIP       { continue; }
-        <normal> NL         { state_.step(); continue; }
-        <normal> KEYWORD    { return TokenType::error; }
-        <*> *               { return TokenType::error; }
-        <*> $               { return TokenType::end; }
+        <normal> NUMBER           { return TokenType::num; }
+        <normal> IDENTIFIER       { return TokenType::id; }
+        <normal> "_"              { return TokenType::anon; }
+        <normal> VARIABLE         { return TokenType::var; }
+        <normal> STRING           { return TokenType::str; }
+        <normal> "("              { return TokenType::lpar; }
+        <normal> ")"              { return TokenType::rpar; }
+        <normal> "+"              { return TokenType::plus; }
+        <normal> "-"              { return TokenType::minus; }
+        <normal> "*"              { return TokenType::star; }
+        <normal> "**"             { return TokenType::dstar; }
+        <normal> "/"              { return TokenType::slash; }
+        <normal> "\\"             { return TokenType::bslash; }
+        <normal> "?"              { return TokenType::qmark; }
+        <normal> "^"              { return TokenType::caret; }
+        <normal> "&"              { return TokenType::amp; }
+        <normal> "|"              { return TokenType::bar; }
+        <normal> ","              { return TokenType::comma; }
+        <normal> ";"              { return TokenType::sem; }
+        <normal> ":"              { return TokenType::colon; }
+        <normal> "~"              { return TokenType::tilde; }
+        <normal> "."              { return TokenType::dot; }
+        <normal> ".."             { return TokenType::ddot; }
+        <normal> "@"              { return TokenType::at; }
+        <normal> "#sup"("remum")? { return TokenType::sup; }
+        <normal> "#inf"("imum")?  { return TokenType::inf; }
+        <normal> SKIP             { continue; }
+        <normal> NL               { state_.step(); continue; }
+        <normal> KEYWORD          { return TokenType::error; }
+        <*> *                     { return TokenType::error; }
+        <*> [\x00]                { return state_.token() == state_.limit() ? TokenType::end : TokenType::error; }
     */
     }
 }

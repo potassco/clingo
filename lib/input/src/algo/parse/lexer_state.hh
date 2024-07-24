@@ -18,15 +18,32 @@ class LexerState {
     LexerState() = default;
     //! Construct a lexer state reading from the given stream.
     //!
-    //! This initializes the buffer filling it with zeros and moving the cursor to the end
-    //! triggering a call to fill() when calling a lexer the first time.
-    LexerState(std::istream &in) : in_{&in} {
-        buffer_.resize(default_buffer_size, '\0');
-        buffer_.resize(buffer_.capacity());
-        // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-        token_ = column_ = cursor_ = marker_ = ctxmarker_ = limit_ = buffer_.data() + buffer_.size() - 1;
-        // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    //! This initializes the buffer filling it with zeros.
+    LexerState(std::istream &in, [[maybe_unused]] size_t padding) : in_{&in} {
+        size_t n = default_buffer_size;
+        while (n < padding) {
+            n *= 2;
+        }
+        buffer_.resize(n, '\0');
+        // NOLINTBEGIN(cppcoreguidelines-prefer-member-initializer)
+        token_ = column_ = cursor_ = marker_ = ctxmarker_ = limit_ = buffer_.data();
+        // NOLINTEND(cppcoreguidelines-prefer-member-initializer)
     }
+
+    //! Construct a lexer state for the given string_view.
+    //!
+    //! Note that the string_view is copied because of the required terminating
+    //! null bytes.
+    LexerState(std::string_view in, size_t padding) : eof_{true} {
+        buffer_.reserve(in.size() + padding);
+        buffer_.assign(in.begin(), in.end());
+        buffer_.resize(in.size() + padding, '\0');
+        // NOLINTBEGIN(cppcoreguidelines-prefer-member-initializer)
+        token_ = column_ = cursor_ = marker_ = ctxmarker_ = buffer_.data();
+        limit_ = std::next(buffer_.data(), static_cast<ssize_t>(in.size()));
+        // NOLINTEND(cppcoreguidelines-prefer-member-initializer)
+    }
+
     //! Move construct a lexer state.
     LexerState(LexerState &&state) = default;
 
@@ -43,15 +60,15 @@ class LexerState {
         token_column_ = cursor_column_;
     }
     //! Pointer to the current input position.
-    auto cursor() -> char *& { return cursor_; }
+    auto cursor() -> char const *& { return cursor_; }
     //! Pointer to the position of latest matched rule.
-    auto marker() -> char *& { return marker_; }
+    auto marker() -> char const *& { return marker_; }
     //! Pointer to the position of the trailing context.
-    auto ctxmarker() -> char *& { return ctxmarker_; }
+    auto ctxmarker() -> char const *& { return ctxmarker_; }
     //! Pointer marking the end of the input.
-    [[nodiscard]] auto limit() const -> char * { return limit_; }
+    [[nodiscard]] auto limit() const -> char const * { return limit_; }
     //! Pointer to the current input position.
-    [[nodiscard]] auto token() const -> char * { return token_; }
+    [[nodiscard]] auto token() const -> char const * { return token_; }
     //! Mark the beginning of a new line.
     void step() {
         column_ = cursor_;
@@ -87,17 +104,17 @@ class LexerState {
     //! Reallocates if no characters can be discarded
     //! noting the that the buffer is always completely filled
     //! unless the end of input has been reached.
-    auto fill() -> bool;
+    auto fill(size_t n, size_t padding) -> bool;
 
   private:
     std::istream *in_ = nullptr;
     std::vector<char> buffer_;
-    char *token_ = nullptr;
-    char *column_ = nullptr;
-    char *cursor_ = nullptr;
-    char *marker_ = nullptr;
-    char *ctxmarker_ = nullptr;
-    char *limit_ = nullptr;
+    char const *token_ = nullptr;
+    char const *column_ = nullptr;
+    char const *cursor_ = nullptr;
+    char const *marker_ = nullptr;
+    char const *ctxmarker_ = nullptr;
+    char const *limit_ = nullptr;
     size_t cursor_column_ = 1;
     size_t cursor_line_ = 1;
     size_t token_line_ = 1;
@@ -105,7 +122,7 @@ class LexerState {
     bool eof_ = false;
 };
 
-auto LexerState::fill() -> bool {
+auto LexerState::fill(size_t n, size_t padding) -> bool {
     // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     if (eof_) {
         return false;
@@ -124,10 +141,10 @@ auto LexerState::fill() -> bool {
         marker_ -= shift;
         ctxmarker_ -= shift;
         limit_ -= shift;
-    } else {
+    }
+    while (buffer_.size() - used - padding < n) {
         // we have to reallocate (unlikely due to large buffer)
         buffer_.resize(buffer_.size() * 2);
-        buffer_.resize(buffer_.capacity());
         token_ = buffer_.data() + (token_ - buffer);
         column_ = buffer_.data() + (column_ - buffer);
         cursor_ = buffer_.data() + (cursor_ - buffer);
@@ -136,10 +153,11 @@ auto LexerState::fill() -> bool {
         limit_ = buffer_.data() + (limit_ - buffer);
     }
 
-    auto read = static_cast<ssize_t>(buffer_.size() - 1) - used;
-    auto count = in_->read(limit_, read).gcount();
-    limit_ += count;
-    *limit_ = '\0';
+    auto *limit = buffer_.data() + used;
+    auto read = static_cast<ssize_t>(buffer_.size() - used - padding);
+    auto count = in_->read(limit, read).gcount();
+    limit_ = limit += count;
+    memset(limit, 0, padding);
     if (count < read) {
         eof_ = true;
     }

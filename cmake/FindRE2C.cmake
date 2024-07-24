@@ -66,7 +66,7 @@ if(RE2C_EXECUTABLE)
     set(RE2C_VERSION "${RE2C_MAJOR_VERSION}.${RE2C_MINOR_VERSION}.${RE2C_PATCH_VERSION}")
 
     macro(re2c_target)
-        cmake_parse_arguments(PARSED_ARGS "" "NAME;INPUT;OUTPUT;OPTIONS" "DEPENDS" ${ARGN})
+        cmake_parse_arguments(PARSED_ARGS "" "NAME;INPUT;OUTPUT;HEADER;OPTIONS" "DEPENDS" ${ARGN})
 
         if(NOT PARSED_ARGS_OUTPUT)
             message(FATAL_ERROR "re2c_target expect an output filename")
@@ -77,10 +77,18 @@ if(RE2C_EXECUTABLE)
         if(NOT PARSED_ARGS_NAME)
             message(FATAL_ERROR "re2c_target expect a target name")
         endif(NOT PARSED_ARGS_NAME)
+        set(OUTPUTS "${PARSED_ARGS_OUTPUT}")
+        if(PARSED_ARGS_HEADER)
+            list(APPEND PARSED_ARGS_OPTIONS "--header")
+            list(APPEND PARSED_ARGS_OPTIONS "${PARSED_ARGS_HEADER}")
+            list(APPEND OUTPUTS "${PARSED_ARGS_HEADER}")
+            set(RE2C_${PARSED_ARGS_NAME}_HEADER "${PARSED_ARGS_HEADER}")
+        endif()
+
 
         cmake_path(RELATIVE_PATH PARSED_ARGS_OUTPUT BASE_DIRECTORY ${CMAKE_BINARY_DIR} OUTPUT_VARIABLE OUTPUT_NAME)
         add_custom_command(
-            OUTPUT ${PARSED_ARGS_OUTPUT}
+            OUTPUT ${OUTPUTS}
             COMMAND ${RE2C_EXECUTABLE} ${PARSED_ARGS_OPTIONS} -o ${PARSED_ARGS_OUTPUT} ${PARSED_ARGS_INPUT}
             DEPENDS ${PARSED_ARGS_INPUT} ${PARSED_ARGS_DEPENDS}
             COMMENT "Generating re2c lexer ${OUTPUT_NAME}"

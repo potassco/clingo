@@ -3,6 +3,7 @@
 
 #include <gringo/input/algo/check_syntax.hh>
 #include <gringo/input/algo/parse.hh>
+#include <gringo/input/algo/parsev2.hh>
 #include <gringo/input/algo/rewrite.hh>
 
 #include <lexy/action/parse.hpp>
@@ -381,7 +382,7 @@ auto scan_string(Logger &log, SymbolStore &store, std::string_view content) -> S
 }
 
 auto parse_term(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<Term> {
-    return check(log, parse<Grammar::term>(log, store, str), check_term);
+    return Parser{log, store, str, *store.string(str)}.parse_term();
 }
 
 auto parse_theory_term(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<TheoryTerm> {

@@ -11,6 +11,7 @@ namespace Gringo::Input {
 class Parser {
   public:
     Parser(Logger &log, SymbolStore &store, std::istream &in, String file);
+    Parser(Logger &log, SymbolStore &store, std::string_view in, String file);
     Parser(Parser const &other) = delete;
     Parser(Parser &&other) noexcept;
     auto operator=(Parser const &other) -> Parser & = delete;

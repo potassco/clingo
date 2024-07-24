@@ -1,3 +1,4 @@
+#include <gringo/input/algo/check_syntax.hh>
 #include <gringo/input/algo/parsev2.hh>
 
 #include <gringo/input/term.hh>
@@ -41,6 +42,8 @@ enum class TokenType : uint8_t {
     slash,
     star,
     str,
+    sup,
+    inf,
     tilde,
     var,
 };
@@ -119,6 +122,12 @@ auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
         }
         case TokenType::str: {
             return out << "<string>";
+        }
+        case TokenType::sup: {
+            return out << "'#sup'";
+        }
+        case TokenType::inf: {
+            return out << "'#inf'";
         }
         case TokenType::tilde: {
             return out << "'~'";
@@ -364,19 +373,26 @@ struct Tup {
     bool term = true;
 };
 
-} // namespace
+#include "algo/parse/lexer_impl_h.hh"
 
-// NOLINTBEGIN(performance-avoid-endl)
+} // namespace
 
 //! The parser implementation.
 class Parser::Impl {
   public:
     //! Contstructor.
     Impl(Logger &log, SymbolStore &store, std::istream &in, String file)
-        : state_{in}, log_{&log}, store_{&store}, file_{file} {}
+        : state_{in, YYMAXFILL}, log_{&log}, store_{&store}, file_{file} {}
+
+    Impl(Logger &log, SymbolStore &store, std::string_view in, String file)
+        : state_{in, YYMAXFILL}, log_{&log}, store_{&store}, file_{file} {}
+
+    [[nodiscard]] auto store() const -> SymbolStore & { return *store_; }
+
+    [[nodiscard]] auto log() const -> Logger & { return *log_; }
 
     //! Parse a term.
-    auto parse_term() -> std::optional<Term> {
+    [[nodiscard]] auto parse_term() -> std::optional<Term> {
         consume_();
         if (parse_term_() && branch_(TokenType::end)) {
             assert(stack_.empty() && values_.size() == 1);
@@ -805,6 +821,18 @@ class Parser::Impl {
                             stack_.push_back(Prod::term);
                             continue;
                         }
+                        case TokenType::sup: {
+                            push_<Term>(std::in_place_type<TermSymbol>, loc_(), SymbolStore::sup());
+                            consume_();
+                            cont_expr_();
+                            continue;
+                        }
+                        case TokenType::inf: {
+                            push_<Term>(std::in_place_type<TermSymbol>, loc_(), SymbolStore::inf());
+                            consume_();
+                            cont_expr_();
+                            continue;
+                        }
                         case TokenType::num: {
                             cont_num_();
                             continue;
@@ -841,8 +869,8 @@ class Parser::Impl {
                         default: {
                             // Note: could also report that a term is expected
                             return expected_(TokenType::bar, TokenType::tilde, TokenType::minus, TokenType::anon,
-                                             TokenType::lpar, TokenType::num, TokenType::str, TokenType::var,
-                                             TokenType::id);
+                                             TokenType::lpar, TokenType::sup, TokenType::inf, TokenType::num,
+                                             TokenType::str, TokenType::var, TokenType::id);
                         }
                     }
                 }
@@ -881,9 +909,10 @@ class Parser::Impl {
     TokenType token_ = TokenType::error;
 };
 
-// NOLINTEND(performance-avoid-endl)
-
 Parser::Parser(Logger &log, SymbolStore &store, std::istream &in, String file)
+    : impl_{std::make_unique<Impl>(log, store, in, file)} {}
+
+Parser::Parser(Logger &log, SymbolStore &store, std::string_view in, String file)
     : impl_{std::make_unique<Impl>(log, store, in, file)} {}
 
 Parser::Parser(Parser &&other) noexcept = default;
@@ -892,7 +921,13 @@ auto Parser::operator=(Parser &&other) noexcept -> Parser & = default;
 
 Parser::~Parser() noexcept = default;
 
-auto Parser::parse_term() -> std::optional<Term> { return impl_->parse_term(); }
+auto Parser::parse_term() -> std::optional<Term> {
+    auto lock = GCLock{impl_->store()};
+    if (auto res = impl_->parse_term(); res && check_term(impl_->log(), *res)) {
+        return res;
+    }
+    return std::nullopt;
+}
 
 #include "algo/parse/lexer_impl.hh"
 
