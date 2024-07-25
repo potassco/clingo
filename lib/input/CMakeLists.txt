@@ -2,7 +2,6 @@ re2c_target_or_gen("src/algo/parse/lexer_impl.xch")
 
 add_library(gringo_input
     ${RE2C_lexer_impl_OUTPUT}
-    "src/algo/parse/parsev2.cc"
     "src/algo/add_sign.cc"
     "src/algo/analyze.cc"
     "src/algo/check_syntax.cc"
@@ -11,12 +10,15 @@ add_library(gringo_input
     "src/algo/evaluate.cc"
     "src/algo/iesolver.cc"
     "src/algo/parse.cc"
+    "src/algo/parse/parser_state.cc"
+    "src/algo/parse/parsev2.cc"
+    "src/algo/parse/termv2.cc"
     "src/algo/print.cc"
     "src/algo/project_anonymous.cc"
     "src/algo/project.cc"
-    "src/algo/rewrite_context.cc"
     "src/algo/rewrite_anonymous.cc"
     "src/algo/rewrite.cc"
+    "src/algo/rewrite_context.cc"
     "src/algo/rewrite_theory.cc"
     "src/algo/safety.cc"
     "src/algo/simplify.cc"

@@ -1,0 +1,606 @@
+#include <gringo/util/string.hh>
+
+#include "parser_state.hh"
+
+namespace Gringo::Input::Parse {
+
+namespace {
+
+//! Check if the given production is an arithmetic operation or interval.
+auto is_op(Prod prod) -> bool {
+    switch (prod) {
+        case Prod::exp:
+        case Prod::div:
+        case Prod::mod:
+        case Prod::mul:
+        case Prod::sub:
+        case Prod::add:
+        case Prod::band:
+        case Prod::bor:
+        case Prod::bxor:
+        case Prod::interval:
+        case Prod::uminus:
+        case Prod::bneg: {
+            return true;
+        }
+        default: {
+            return false;
+        }
+    }
+};
+
+//! Get the priority of an arithmetic operation or interval.
+auto priority(Prod prod) -> int {
+    // NOLINTBEGIN(readability-magic-numbers)
+    switch (prod) {
+        case Prod::exp: {
+            return 7;
+        }
+        case Prod::bneg:
+        case Prod::uminus: {
+            return 6;
+        }
+        case Prod::div:
+        case Prod::mod:
+        case Prod::mul: {
+            return 5;
+        }
+        case Prod::sub:
+        case Prod::add: {
+            return 4;
+        }
+        case Prod::band: {
+            return 3;
+        }
+        case Prod::bor: {
+            return 2;
+        }
+        case Prod::bxor: {
+            return 1;
+        }
+        case Prod::interval: {
+            return 0;
+        }
+        default: {
+            assert(prod == Prod::interval);
+            return 0;
+        }
+    }
+    // NOLINTEND(readability-magic-numbers)
+};
+
+//! Check if the given binary operation is left associative.
+auto left_assoc_(Prod prod) -> bool { return prod != Prod::exp; }
+
+//! Map the given token to a production of a binary operation if possible.
+auto map_binop(TokenType token) -> std::optional<Prod> {
+    switch (token) {
+        case TokenType::dstar: {
+            return Prod::exp;
+        }
+        case TokenType::slash: {
+            return Prod::div;
+        }
+        case TokenType::bslash: {
+            return Prod::mod;
+        }
+        case TokenType::star: {
+            return Prod::mul;
+        }
+        case TokenType::minus: {
+            return Prod::sub;
+        }
+        case TokenType::plus: {
+            return Prod::add;
+        }
+        case TokenType::amp: {
+            return Prod::band;
+        }
+        case TokenType::qmark: {
+            return Prod::bor;
+        }
+        case TokenType::caret: {
+            return Prod::bxor;
+        }
+        case TokenType::ddot: {
+            return Prod::interval;
+        }
+        default: {
+            return std::nullopt;
+        }
+    }
+}
+
+//! Map the given token to a production of a unary operation if possible.
+auto map_unop(TokenType token) -> Prod {
+    switch (token) {
+        case TokenType::minus: {
+            return Prod::uminus;
+        }
+        default: {
+            assert(token == TokenType::tilde);
+            return Prod::bneg;
+        }
+    }
+}
+
+auto map_binop(Prod prod) -> BinaryOperator {
+    switch (prod) {
+        case Prod::exp: {
+            return BinaryOperator::pow;
+        }
+        case Prod::div: {
+            return BinaryOperator::div;
+        }
+        case Prod::mod: {
+            return BinaryOperator::mod;
+        }
+        case Prod::mul: {
+            return BinaryOperator::times;
+        }
+        case Prod::sub: {
+            return BinaryOperator::minus;
+        }
+        case Prod::add: {
+            return BinaryOperator::plus;
+        }
+        case Prod::band: {
+            return BinaryOperator::and_;
+        }
+        case Prod::bor: {
+            return BinaryOperator::or_;
+        }
+        case Prod::bxor: {
+            return BinaryOperator::xor_;
+        }
+        default: {
+            assert(prod == Prod::interval);
+            return BinaryOperator::dots;
+        }
+    }
+}
+
+auto map_unop(Prod prod) -> UnaryOperator {
+    switch (prod) {
+        case Prod::bneg: {
+            return UnaryOperator::invert;
+        }
+        default: {
+            assert(prod == Prod::uminus);
+            return UnaryOperator::negate;
+        }
+    }
+}
+
+//! Continue parsing an expression if followed by a binary operation.
+//!
+//! Depending on the priority of the previous operator on the stack, this
+//! function either shifts the next binary operation or does nothing which
+//! results in a reduction in the next iteration.
+void cont_expr(ParserState &state) {
+    state.pop();
+    if (auto cur = map_binop(state.token()); cur) {
+        // reduce
+        if (!state.empty() && is_op(state.top())) {
+            auto pre = state.top();
+            auto pp = priority(pre);
+            auto pc = priority(*cur);
+            if (pc < pp || (pc == pp && left_assoc_(*cur))) {
+                return;
+            }
+        }
+        // shift
+        state.consume();
+        state.push(*cur);
+        state.push(Prod::term);
+    }
+}
+
+//! Continue parsing an abs term after a '|' token.
+void cont_abs(ParserState &state) {
+    assert(state.token() == TokenType::bar);
+    state.push_value<Abs>(state.token_line(), state.token_column());
+    state.consume();
+    state.replace(Prod::abs);
+    state.push(Prod::term);
+}
+
+//! Continue parsing arguments of an abs term.
+auto cont_abs_args(ParserState &state) -> bool {
+    auto &abs = state.top_value<Abs>(1);
+    abs.args.emplace_back(state.pop_value<Term>());
+    if (state.token() == TokenType::bar) {
+        auto loc = Location{Position{state.file(), abs.line, abs.column},
+                            Position{state.file(), state.cursor_line(), state.cursor_column()}};
+        auto args = std::move(abs.args);
+        state.replace_value<Term>(std::in_place_type<TermAbs>, std::move(loc), std::move(args));
+        state.consume();
+        cont_expr(state);
+        return true;
+    }
+    if (state.token() == TokenType::sem) {
+        state.consume();
+        state.push(Prod::term);
+        return true;
+    }
+    return state.expected_(TokenType::bar, TokenType::sem);
+}
+
+//! Finish a tuple after reading a ')' token.
+void finish_tup(ParserState &state) {
+    assert(state.token() == TokenType::rpar);
+    auto tup = state.pop_value<Tup>();
+    tup.finish_pool();
+    if (auto *term = std::get_if<Term>(tup.args.size() == 1 ? &tup.args.front() : nullptr); term != nullptr) {
+        state.push_value<Term>(std::move(*term));
+    } else {
+        state.push_value<Term>(std::in_place_type<TermTuple>,
+                               Location{Position{state.file(), tup.line, tup.column},
+                                        Position{state.file(), state.cursor_line(), state.cursor_column()}},
+                               TupleElementArray{std::move(tup.args)});
+    }
+    state.consume();
+    cont_expr(state);
+}
+
+//! Continue parsing tuple arguments.
+//!
+//! If arg is true, continue parsing a tuple after a term argument.
+//! Otherwise, continue parsing a tuple after tokens '(' or ';'.
+auto cont_tup_args(ParserState &state, bool arg) -> bool {
+    auto &tup = state.top_value<Tup>(arg ? 1 : 0);
+    if (arg) {
+        tup.tup.emplace_back(state.pop_value<Term>());
+    } else {
+        assert(state.token() == TokenType::lpar || state.token() == TokenType::sem);
+        state.consume();
+    }
+    while (true) {
+        if (arg) {
+            // closing parenthesis after term or projection
+            if (state.token() == TokenType::rpar) {
+                finish_tup(state);
+                return true;
+            }
+            // comma after term or projection
+            if (state.branch_(TokenType::comma)) {
+                tup.term = false;
+                if (state.token() == TokenType::star) {
+                    tup.tup.emplace_back(Projection{state.loc()});
+                    state.consume();
+                    continue;
+                }
+                if (state.token() == TokenType::rpar) {
+                    finish_tup(state);
+                    return true;
+                }
+                if (state.token() != TokenType::sem) {
+                    state.push(Prod::term);
+                    return true;
+                }
+                // semicolon after term or projection falls through
+            } else if (state.token() != TokenType::sem) {
+                return state.expected_(TokenType::rpar, TokenType::sem, TokenType::comma);
+            }
+        }
+
+        // finish pools
+        while (state.branch_(TokenType::sem)) {
+            tup.finish_pool();
+        }
+        // closing parenthesis after empty tuple
+        if (state.token() == TokenType::rpar) {
+            finish_tup(state);
+            return true;
+        }
+        // coma indicating empty tuple
+        if (state.branch_(TokenType::comma)) {
+            tup.term = false;
+            if (state.token() == TokenType::rpar) {
+                finish_tup(state);
+                return true;
+            }
+            if (state.branch_(TokenType::sem)) {
+                tup.finish_pool();
+                arg = false;
+                continue;
+            }
+            return state.expected_(TokenType::rpar, TokenType::sem);
+        }
+        // leading star that must be part of a tuple
+        if (state.token() == TokenType::star) {
+            tup.tup.emplace_back(Projection{state.loc()});
+            state.consume();
+            if (state.token() == TokenType::comma) {
+                arg = true;
+                continue;
+            }
+            return state.expected_(TokenType::comma);
+        }
+        // parse a term
+        state.replace(Prod::tup);
+        state.push(Prod::term);
+        return true;
+    }
+}
+
+//! Continue parsing a tuple after a '(' token.
+auto cont_tup(ParserState &state) -> bool {
+    assert(state.token() == TokenType::lpar);
+    state.push_value<Tup>(state.token_line(), state.token_column());
+    return cont_tup_args(state, false);
+}
+
+//! Finish a function after reading a ')' token.
+void finish_fun(ParserState &state) {
+    assert(state.token() == TokenType::rpar);
+    auto fun = state.pop_value<Fun>();
+    fun.finish_pool();
+    state.push_value<Term>(std::in_place_type<TermFunction>,
+                           Location{Position{state.file(), fun.line, fun.column},
+                                    Position{state.file(), state.cursor_line(), state.cursor_column()}},
+                           fun.name, PoolArray{std::move(fun.args)}, fun.external);
+    state.consume();
+    cont_expr(state);
+}
+
+//! Continue parsing function arguments.
+//!
+//! If arg is false, then continue after tokens '(' or ';'.
+//! If arg is true, then continue after an argument.
+auto cont_fun_args(ParserState &state, bool arg) -> bool {
+    auto &fun = state.top_value<Fun>(arg ? 1 : 0);
+    if (arg) {
+        fun.tup.emplace_back(state.pop_value<Term>());
+    } else {
+        assert(state.token() == TokenType::lpar || state.token() == TokenType::sem);
+        state.consume();
+    }
+    while (true) {
+        if (arg) {
+            // finish all argument pools
+            if (state.token() == TokenType::rpar) {
+                finish_fun(state);
+                return true;
+            }
+            // a comma that must be followed by another term or projection
+            if (state.branch_(TokenType::comma)) {
+                if (state.token() == TokenType::star) {
+                    fun.tup.emplace_back(Projection{state.loc()});
+                    state.consume();
+                    continue;
+                }
+                state.push(Prod::term);
+                return true;
+            }
+            // fail if the argument pool is not closed
+            // otherwise, finish the pool below
+            if (state.token() != TokenType::sem) {
+                return state.expected_(TokenType::rpar, TokenType::comma, TokenType::sem);
+            }
+        }
+        // finish argument pools
+        while (state.branch_(TokenType::sem)) {
+            fun.finish_pool();
+        }
+        // finish all argument pools
+        if (state.token() == TokenType::rpar) {
+            finish_fun(state);
+            return true;
+        }
+        // the pool must begin with a term
+        if (state.token() != TokenType::star) {
+            state.replace(Prod::fun);
+            state.push(Prod::term);
+            return true;
+        }
+        // the pool begins with a projection
+        fun.tup.emplace_back(Projection{state.loc()});
+        state.consume();
+        arg = true;
+    }
+}
+
+//! Continue parsing a function assuming an at or id token was read.
+auto cont_fun(ParserState &state) -> bool {
+    auto line = state.token_line();
+    auto column = state.token_column();
+    bool ext = state.token() == TokenType::at;
+    if (ext) {
+        state.consume();
+        if (state.token() != TokenType::id) {
+            return state.expected_(TokenType::id);
+        }
+    }
+    auto name = state.store().string_ref(state.view());
+    state.consume();
+    if (state.token() == TokenType::lpar) {
+        state.push_value<Fun>(line, column, name, ext);
+        if (!cont_fun_args(state, false)) {
+            return false;
+        }
+    } else {
+        auto loc = Location{Position{state.file(), line, column},
+                            Position{state.file(), state.cursor_line(), state.cursor_column()}};
+        if (ext) {
+            state.push_value<Term>(std::in_place_type<TermFunction>, std::move(loc), name,
+                                   Util::make_immutable_array<ArgumentTuple>(ArgumentTuple{{}}), true);
+        } else {
+            state.push_value<Term>(std::in_place_type<TermSymbol>, std::move(loc),
+                                   state.store().fun_ref(name, {}, false));
+        }
+        cont_expr(state);
+    }
+    return true;
+}
+
+//! Continue parsing a number term assuming a num token is on the stack.
+void cont_num(ParserState &state) {
+    assert(state.token() == TokenType::num);
+    auto view = state.view();
+    auto base = Base::dec;
+    if (view.starts_with("0b")) {
+        base = Base::bin;
+    } else if (view.starts_with("0o")) {
+        base = Base::oct;
+    } else if (view.starts_with("0x")) {
+        base = Base::hex;
+    }
+    if (base != Base::dec) {
+        view = view.substr(2);
+    }
+    auto &buf = state.buf(view.size());
+    std::copy_if(view.begin(), view.end(), std::back_inserter(buf), [](char c) { return c != '\''; });
+    state.push_value<Term>(std::in_place_type<TermSymbol>, state.loc(),
+                           state.store().num_ref(Number{buf.c_str(), base}));
+    state.consume();
+    cont_expr(state);
+}
+
+//! Continue parsing a string term assuming a str token is on the stack.
+void cont_str(ParserState &state) {
+    assert(state.token() == TokenType::str);
+    auto view = state.view();
+    auto &buf = state.buf(view.size() - 2);
+    Util::unquote(view.substr(1, view.size() - 2), std::back_inserter(buf));
+    auto str = state.store().string_ref(std::string_view{buf.begin(), buf.end()});
+    state.push_value<Term>(std::in_place_type<TermSymbol>, state.loc(), SymbolStore::str_ref(str));
+    state.consume();
+    cont_expr(state);
+}
+
+//! Continue parsing a variable term assuming a var or anon token is on the stack.
+void cont_var(ParserState &state, bool anonymous) {
+    assert(state.token() == (anonymous ? TokenType::anon : TokenType::var));
+    auto str = state.store().string_ref(state.view());
+    state.push_value<Term>(std::in_place_type<TermVariable>, state.loc(), str, anonymous);
+    state.consume();
+    cont_expr(state);
+}
+
+} // namespace
+
+//! Parse a term.
+//!
+//! Uses a hand written bottom up parser with a stack to avoid stack
+//! overflows.
+auto parse_term(ParserState &state) -> bool {
+    state.push(Prod::term);
+
+    while (!state.empty()) {
+        switch (state.top()) {
+            case Prod::exp:
+            case Prod::div:
+            case Prod::mod:
+            case Prod::mul:
+            case Prod::sub:
+            case Prod::add:
+            case Prod::band:
+            case Prod::bor:
+            case Prod::bxor:
+            case Prod::interval: {
+                auto rhs = state.pop_value<Term>();
+                auto lhs = state.pop_value<Term>();
+                auto loc = location(lhs) + location(rhs);
+                state.push_value<Term>(std::in_place_type<TermBinary>, loc, std::move(lhs), map_binop(state.top()),
+                                       std::move(rhs));
+                cont_expr(state);
+                continue;
+            }
+            case Prod::uminus:
+            case Prod::bneg: {
+                auto rhs = state.pop_value<Term>();
+                auto [line, column] = state.pop_value<Pos>();
+                auto loc = Position{state.file(), line, column} + location(rhs);
+                state.push_value<Term>(std::in_place_type<TermUnary>, loc, map_unop(state.top()), std::move(rhs));
+                cont_expr(state);
+                continue;
+            }
+            case Prod::term: {
+                switch (state.token()) {
+                    case TokenType::minus:
+                    case TokenType::tilde: {
+                        auto unop = map_unop(state.token());
+                        state.push_value<Pos>(state.token_line(), state.token_column());
+                        state.consume();
+                        state.replace(unop);
+                        state.push(Prod::term);
+                        continue;
+                    }
+                    case TokenType::sup: {
+                        state.push_value<Term>(std::in_place_type<TermSymbol>, state.loc(), SymbolStore::sup());
+                        state.consume();
+                        cont_expr(state);
+                        continue;
+                    }
+                    case TokenType::inf: {
+                        state.push_value<Term>(std::in_place_type<TermSymbol>, state.loc(), SymbolStore::inf());
+                        state.consume();
+                        cont_expr(state);
+                        continue;
+                    }
+                    case TokenType::num: {
+                        cont_num(state);
+                        continue;
+                    }
+                    case TokenType::str: {
+                        cont_str(state);
+                        continue;
+                    }
+                    case TokenType::anon: {
+                        cont_var(state, true);
+                        continue;
+                    }
+                    case TokenType::var: {
+                        cont_var(state, false);
+                        continue;
+                    }
+                    case TokenType::bar: {
+                        cont_abs(state);
+                        continue;
+                    }
+                    case TokenType::id:
+                    case TokenType::at: {
+                        if (!cont_fun(state)) {
+                            return false;
+                        }
+                        continue;
+                    }
+                    case TokenType::lpar: {
+                        if (!cont_tup(state)) {
+                            return false;
+                        }
+                        continue;
+                    }
+                    default: {
+                        // Note: could also report that a term is expected
+                        return state.expected_(TokenType::bar, TokenType::tilde, TokenType::minus, TokenType::anon,
+                                               TokenType::lpar, TokenType::sup, TokenType::inf, TokenType::num,
+                                               TokenType::str, TokenType::var, TokenType::id);
+                    }
+                }
+            }
+            case Prod::abs: {
+                if (!cont_abs_args(state)) {
+                    return false;
+                }
+                continue;
+            }
+            case Prod::tup: {
+                if (!cont_tup_args(state, true)) {
+                    return false;
+                }
+                continue;
+            }
+            case Prod::fun: {
+                if (!cont_fun_args(state, true)) {
+                    return false;
+                }
+                continue;
+            }
+        }
+    }
+    return true;
+}
+
+} // namespace Gringo::Input::Parse

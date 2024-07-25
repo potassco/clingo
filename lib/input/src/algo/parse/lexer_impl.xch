@@ -29,7 +29,7 @@
 /*!conditions:re2c*/
 /*!header:re2c:off*/
 
-auto Parser::Impl::lex_(Condition cond) -> TokenType {
+auto ParserState::lex_(Condition cond) -> TokenType {
     int condition = yycnormal;
     switch (cond) {
         case Condition::normal: { break; }

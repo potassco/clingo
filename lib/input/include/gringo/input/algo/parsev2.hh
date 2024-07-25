@@ -8,6 +8,12 @@
 
 namespace Gringo::Input {
 
+namespace Parse {
+
+class ParserState;
+
+}
+
 class Parser {
   public:
     Parser(Logger &log, SymbolStore &store, std::istream &in, String file);
@@ -21,8 +27,7 @@ class Parser {
     auto parse_term() -> std::optional<Term>;
 
   private:
-    class Impl;
-    std::unique_ptr<Impl> impl_;
+    std::unique_ptr<Parse::ParserState> impl_;
 };
 
 } // namespace Gringo::Input

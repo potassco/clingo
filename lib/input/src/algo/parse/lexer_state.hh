@@ -122,7 +122,7 @@ class LexerState {
     bool eof_ = false;
 };
 
-auto LexerState::fill(size_t n, size_t padding) -> bool {
+inline auto LexerState::fill(size_t n, size_t padding) -> bool {
     // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     if (eof_) {
         return false;
