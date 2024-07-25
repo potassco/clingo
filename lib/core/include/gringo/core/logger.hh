@@ -61,6 +61,20 @@ enum class LogLevel : uint8_t {
     error = static_cast<uint8_t>(MessageCode::error), //!< Output errors.
 };
 
+//! Exception to indicate that parsing failed.
+class parse_error : public std::runtime_error {
+  public:
+    //! Default constructor.
+    parse_error() : std::runtime_error{"parsing failed"} {}
+};
+
+//! Exception to indicate that parsing failed.
+class rewrite_error : public std::runtime_error {
+  public:
+    //! Default constructor.
+    rewrite_error() : std::runtime_error{"rewriting failed"} {}
+};
+
 //! Simple logger to report message to stderr or via a callback.
 class Logger {
   public:

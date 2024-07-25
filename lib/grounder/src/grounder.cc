@@ -206,7 +206,7 @@ class Parser {
 
     void check() const {
         if (parse_error_) {
-            throw std::runtime_error("parsing failed");
+            throw parse_error();
         }
     }
 

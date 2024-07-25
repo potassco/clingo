@@ -119,7 +119,7 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram const &pr
         }
     }
     if (ctx.has_error() || parser.has_error()) {
-        throw std::runtime_error("rewriting failed");
+        throw rewrite_error();
     }
 }
 

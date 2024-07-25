@@ -83,7 +83,7 @@ class ParseHelper {
 
     void check() {
         if (ctx_.has_error() || parser_.has_error()) {
-            throw std::runtime_error("rewriting failed");
+            throw rewrite_error();
         }
     }
 

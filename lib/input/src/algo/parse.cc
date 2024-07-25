@@ -431,7 +431,7 @@ auto parse_parts(Logger &log, SymbolStore &store, std::string_view str) -> std::
         res && !error) {
         return std::move(res).value();
     }
-    throw std::runtime_error("parsing failed");
+    throw parse_error{};
 }
 
 auto parse_const(Logger &log, SymbolStore &store, std::string_view str) -> std::pair<SharedString, SharedSymbol> {
@@ -441,7 +441,7 @@ auto parse_const(Logger &log, SymbolStore &store, std::string_view str) -> std::
     if (auto res = lexy::parse<root<SymbolGrammar::const_def>>(input, store, report_error{log, error}); res && !error) {
         return {SharedString{res.value().first}, SharedSymbol{res.value().second}};
     }
-    throw std::runtime_error("parsing failed");
+    throw parse_error{};
 }
 
 } // namespace Gringo::Input
