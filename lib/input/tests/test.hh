@@ -81,6 +81,12 @@ class ParseHelper {
         messages_.clear();
     }
 
+    void check() {
+        if (ctx_.has_error() || parser_.has_error()) {
+            throw std::runtime_error("rewriting failed");
+        }
+    }
+
   private:
     void push_(MessageCode code, std::string str) { messages_.emplace_back(code, std::move(str)); }
 

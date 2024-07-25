@@ -167,14 +167,24 @@ class RewriteContext {
         return Guard{this};
     }
 
+    //! Mark that there was an error during rewriting.
+    //!
+    //! The idea is that processing can continue despite this error to produce
+    //! more than one error indicator to the user.
+    void set_error() { has_error_ = true; }
+
+    //! Check if there has been an error during rewriting.
+    [[nodiscard]] auto has_error() const -> bool { return has_error_; }
+
   private:
     Logger &log_;                    //!< Logger to report messages.
-    RewriteOptions const &opts_;     //! The rewrite options.
+    RewriteOptions const &opts_;     //!< The rewrite options.
     TheoryAtomParser const &parser_; //!< The theory parser.
     ConstMap const &const_map_;      //!< Constant definitions.
     ParamMap const &param_map_;      //!< Map of Parameters.
     NameGen gen_;                    //!< Generator to create fresh variable names.
     std::vector<AuxTermVec> aux_;    //!< Vector of variable term pairs.
+    bool has_error_ = false;         //!< Indicate that there was an error.
 };
 
 //! @}

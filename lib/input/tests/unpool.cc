@@ -9,6 +9,7 @@ namespace {
 template <class T> auto unpool_str(ParseHelper &ph, std::optional<T> value, char const *sep = ", ") -> std::string {
     if (value) {
         auto unpooled = unpool(ph, value.value());
+        ph.check();
         if (!unpooled.has_value()) {
             unpooled = Util::make_vec<T>(value.value());
         }

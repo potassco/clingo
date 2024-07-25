@@ -118,6 +118,9 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram const &pr
             res_part.stms.erase(jt, res_part.stms.end());
         }
     }
+    if (ctx.has_error() || parser.has_error()) {
+        throw std::runtime_error("rewriting failed");
+    }
 }
 
 [[nodiscard]] auto Program::param_map_(SymbolStore &store,
