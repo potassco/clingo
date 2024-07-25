@@ -11,7 +11,7 @@ template <class P, class C>
 auto parse_expr(Parse::ParserState &state, P parse, C check) -> std::invoke_result_t<P, Parse::ParserState &> {
     auto lock = GCLock{state.store()};
     state.consume();
-    if (auto lit = parse(state); lit && std::invoke(check, state.log(), *lit)) {
+    if (auto lit = std::invoke(parse, state); lit && std::invoke(check, state.log(), *lit)) {
         if (!state.branch(Parse::TokenType::end)) {
             return state.expected<std::nullopt>(Parse::TokenType::end);
         }
