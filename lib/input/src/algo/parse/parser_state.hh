@@ -1,6 +1,6 @@
 #pragma once
 
-#include <gringo/input/term.hh>
+#include <gringo/input/statement.hh>
 
 #include <gringo/core/logger.hh>
 
@@ -16,21 +16,30 @@ enum class Condition : uint8_t {
 //! The available tokens produced by the lexer.
 enum class TokenType : uint8_t {
     amp,
-    at,
     anon,
+    at,
     bar,
     bslash,
     caret,
     colon,
     comma,
-    dot,
     ddot,
+    dot,
     dstar,
     end,
+    eq,
     error,
+    false_,
+    ge,
+    gt,
     id,
+    inf,
+    le,
     lpar,
+    lt,
     minus,
+    ne,
+    not_,
     num,
     plus,
     qmark,
@@ -40,8 +49,8 @@ enum class TokenType : uint8_t {
     star,
     str,
     sup,
-    inf,
     tilde,
+    true_,
     var,
 };
 
@@ -87,6 +96,9 @@ inline auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
         case TokenType::error: {
             return out << "<error>";
         }
+        case TokenType::false_: {
+            return out << "'#false'";
+        }
         case TokenType::id: {
             return out << "<identifier>";
         }
@@ -95,6 +107,9 @@ inline auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
         }
         case TokenType::minus: {
             return out << "'-'";
+        }
+        case TokenType::not_: {
+            return out << "not";
         }
         case TokenType::num: {
             return out << "<number>";
@@ -123,6 +138,9 @@ inline auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
         case TokenType::sup: {
             return out << "'#sup'";
         }
+        case TokenType::true_: {
+            return out << "'#true'";
+        }
         case TokenType::inf: {
             return out << "'#inf'";
         }
@@ -131,6 +149,24 @@ inline auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
         }
         case TokenType::var: {
             return out << "<var>";
+        }
+        case TokenType::lt: {
+            return out << "<";
+        }
+        case TokenType::le: {
+            return out << "<=";
+        }
+        case TokenType::gt: {
+            return out << ">";
+        }
+        case TokenType::ge: {
+            return out << ">=";
+        }
+        case TokenType::eq: {
+            return out << "=";
+        }
+        case TokenType::ne: {
+            return out << "!=";
         }
     }
     return out;
@@ -220,9 +256,6 @@ class ParserState {
 
     [[nodiscard]] auto log() const -> Logger & { return *log_; }
 
-    //! Compute the next token.
-    auto lex_(Condition cond) -> TokenType;
-
     //! Get the string representation of the current token.
     auto view() -> std::string_view { return state_.view(); }
 
@@ -248,14 +281,22 @@ class ParserState {
     //! Get the ending column of the current token.
     auto cursor_column() -> size_t { return state_.cursor_column(); }
 
+    auto token_pos() -> Position { return Position{*file_, state_.token_line(), state_.token_column()}; }
+
+    auto cursor_pos() -> Position { return Position{*file_, state_.cursor_line(), state_.cursor_column()}; }
+
     //! Compute the location of the current token.
-    auto loc() -> Location {
-        return Location{Position{*file_, state_.token_line(), state_.token_column()},
-                        Position{*file_, state_.cursor_line(), state_.cursor_column()}};
-    }
+    auto loc() -> Location { return Location{token_pos(), cursor_pos()}; }
 
     //! Get the current token.
     auto token() -> TokenType { return token_; }
+
+    //! Initialize the state to parse a production.
+    void init(Prod prod) {
+        stack_.clear();
+        values_.clear();
+        push(prod);
+    }
 
     //! Check if the production stack is empty.
     auto empty() -> bool { return stack_.empty(); }
@@ -316,14 +357,14 @@ class ParserState {
     }
 
     //! Report an error message indicating that one of the given tokens was expected.
-    auto expected_(auto... expected) -> bool {
+    template <auto ret = false> auto expected(auto... expected) {
         if (log_->check(MessageCode::error)) {
             auto rep = Report{*log_, MessageCode::error, loc()};
-            rep.out() << "expected one of ";
+            rep.out() << "expected one of";
             ((rep.out() << " " << expected), ...);
             rep.out() << " but got " << token_;
         }
-        return false;
+        return ret;
     }
 
     //! Compute the next token discarding the last one.
@@ -332,7 +373,7 @@ class ParserState {
     //! Check if the given token matches the current one.
     //!
     //! In case of a match, it consumes the token.
-    auto branch_(TokenType token) -> bool {
+    auto branch(TokenType token) -> bool {
         if (token_ == token) {
             consume();
             return true;
@@ -343,6 +384,9 @@ class ParserState {
   private:
     using Value = std::variant<Pos, Term, Abs, Fun, Tup>;
 
+    //! Compute the next token.
+    auto lex_(Condition cond) -> TokenType;
+
     LexerState state_;
     Logger *log_;
     SymbolStore *store_;
@@ -352,5 +396,17 @@ class ParserState {
     std::string buf_;
     TokenType token_ = TokenType::error;
 };
+
+//! Check if a term can start with the given token.
+auto check_term(TokenType token) -> bool;
+
+//! Parse a term.
+//!
+//! Uses a hand written bottom up parser with a stack to avoid stack
+//! overflows.
+auto parse_term(ParserState &state) -> std::optional<Term>;
+
+//! Parse a literal.
+auto parse_literal(ParserState &state) -> std::optional<Lit>;
 
 } // namespace Gringo::Input::Parse

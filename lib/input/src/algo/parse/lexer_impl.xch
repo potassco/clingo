@@ -38,10 +38,16 @@ auto ParserState::lex_(Condition cond) -> TokenType {
         state_.start();
     /*!re2c
         <normal> NUMBER           { return TokenType::num; }
-        <normal> IDENTIFIER       { return TokenType::id; }
         <normal> "_"              { return TokenType::anon; }
         <normal> VARIABLE         { return TokenType::var; }
         <normal> STRING           { return TokenType::str; }
+        <normal> "<"              { return TokenType::lt; }
+        <normal> "<="             { return TokenType::le; }
+        <normal> ">"              { return TokenType::gt; }
+        <normal> ">="             { return TokenType::ge; }
+        <normal> "="              { return TokenType::eq; }
+        <normal> "=="             { return TokenType::eq; }
+        <normal> "!="             { return TokenType::ne; }
         <normal> "("              { return TokenType::lpar; }
         <normal> ")"              { return TokenType::rpar; }
         <normal> "+"              { return TokenType::plus; }
@@ -60,11 +66,15 @@ auto ParserState::lex_(Condition cond) -> TokenType {
         <normal> "~"              { return TokenType::tilde; }
         <normal> "."              { return TokenType::dot; }
         <normal> ".."             { return TokenType::ddot; }
+        <normal> "not"            { return TokenType::not_; }
+        <normal> "#true"          { return TokenType::true_; }
+        <normal> "#false"         { return TokenType::false_; }
         <normal> "@"              { return TokenType::at; }
         <normal> "#sup"("remum")? { return TokenType::sup; }
         <normal> "#inf"("imum")?  { return TokenType::inf; }
         <normal> SKIP             { continue; }
         <normal> NL               { state_.step(); continue; }
+        <normal> IDENTIFIER       { return TokenType::id; }
         <normal> KEYWORD          { return TokenType::error; }
         <*> *                     { return TokenType::error; }
         <*> [\x00]                { return state_.token() == state_.limit() ? TokenType::end : TokenType::error; }

@@ -5,13 +5,6 @@
 
 namespace Gringo::Input {
 
-namespace Parse {
-
-// Note: declared here to avoid single line include files
-auto parse_term(ParserState &state) -> bool;
-
-} // namespace Parse
-
 Parser::Parser(Logger &log, SymbolStore &store, std::istream &in, String file)
     : impl_{std::make_unique<Parse::ParserState>(log, store, in, file)} {}
 
@@ -27,13 +20,23 @@ Parser::~Parser() noexcept = default;
 auto Parser::parse_term() -> std::optional<Term> {
     auto lock = GCLock{impl_->store()};
     impl_->consume();
-    if (Parse::parse_term(*impl_) && impl_->branch_(Parse::TokenType::end)) {
-        assert(impl_->empty() && !impl_->empty_value());
-        auto res = impl_->pop_value<Term>();
-        assert(impl_->empty_value());
-        if (check_term(impl_->log(), res)) {
-            return res;
+    if (auto term = Parse::parse_term(*impl_); term && check_term(impl_->log(), *term)) {
+        if (!impl_->branch(Parse::TokenType::end)) {
+            return impl_->expected<std::nullopt>(Parse::TokenType::end);
         }
+        return term;
+    }
+    return std::nullopt;
+}
+
+auto Parser::parse_literal() -> std::optional<Lit> {
+    auto lock = GCLock{impl_->store()};
+    impl_->consume();
+    if (auto lit = Parse::parse_literal(*impl_); lit && check_literal(impl_->log(), *lit)) {
+        if (!impl_->branch(Parse::TokenType::end)) {
+            return impl_->expected<std::nullopt>(Parse::TokenType::end);
+        }
+        return lit;
     }
     return std::nullopt;
 }

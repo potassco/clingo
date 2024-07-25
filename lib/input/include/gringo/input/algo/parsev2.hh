@@ -1,6 +1,6 @@
 #pragma once
 
-#include <gringo/input/term.hh>
+#include <gringo/input/statement.hh>
 
 #include <gringo/core/logger.hh>
 
@@ -25,6 +25,7 @@ class Parser {
     ~Parser() noexcept;
 
     auto parse_term() -> std::optional<Term>;
+    auto parse_literal() -> std::optional<Lit>;
 
   private:
     std::unique_ptr<Parse::ParserState> impl_;

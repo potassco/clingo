@@ -402,7 +402,7 @@ auto parse_theory_term(Logger &log, SymbolStore &store, std::string_view str) ->
 }
 
 auto parse_literal(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<Lit> {
-    return check(log, parse<Grammar::literal>(log, store, str), check_literal);
+    return Parser{log, store, str, *store.string(str)}.parse_literal();
 }
 
 auto parse_head_literal(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<HdLit> {

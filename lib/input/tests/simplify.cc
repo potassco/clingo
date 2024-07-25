@@ -116,14 +116,14 @@ TEST_CASE("simplify_binary") {
     REQUIRE(simplify_term("(2*X+3)+2") == "2*X+5, U");
     REQUIRE(simplify_term("(2*X+3)-2") == "2*X+1, U");
     REQUIRE(simplify_term("(2*X+3)*2") == "4*X+6, U");
-    REQUIRE(simplify_term("(2*X+3)/2") == "<unchanged>, U");
+    REQUIRE(simplify_term("(2*X+3)/2") == "(2*X+3)/2, U");
     REQUIRE(simplify_term("(1*X+0)/2") == "X/2, U");
     REQUIRE(simplify_term("(1*X+0)*0") == "X*0, U");
     // constant + linear
     REQUIRE(simplify_term("2*(2*X+3)") == "4*X+6, U");
     REQUIRE(simplify_term("2+(2*X+3)") == "2*X+5, U");
     REQUIRE(simplify_term("2-(2*X+3)") == "-2*X+(-1), U");
-    REQUIRE(simplify_term("2/(2*X+3)") == "<unchanged>, U");
+    REQUIRE(simplify_term("2/(2*X+3)") == "2/(2*X+3), U");
     REQUIRE(simplify_term("2/(1*X+0)") == "2/X, U");
     REQUIRE(simplify_term("0*(1*X+0)") == "0*X, U");
     // linear + linear
@@ -133,7 +133,7 @@ TEST_CASE("simplify_binary") {
     REQUIRE(simplify_term("(2*X+3)+(3*Y+5)") == "2*X+(3*Y+8), U");
     REQUIRE(simplify_term("(2*X+3)-(3*Y+5)") == "2*X-(3*Y+2), U");
     // unchanged + unchanged
-    REQUIRE(simplify_term("(X/2)-(Y/2)") == "<unchanged>, U");
+    REQUIRE(simplify_term("X/2-Y/2") == "<unchanged>, U");
     // changed + changed
     REQUIRE(simplify_term("(X/(2+0))-(Y/(2+0))") == "X/2-Y/2, U");
     // fail

@@ -223,7 +223,7 @@ auto cont_abs_args(ParserState &state) -> bool {
         state.push(Prod::term);
         return true;
     }
-    return state.expected_(TokenType::bar, TokenType::sem);
+    return state.expected(TokenType::bar, TokenType::sem);
 }
 
 //! Finish a tuple after reading a ')' token.
@@ -231,14 +231,10 @@ void finish_tup(ParserState &state) {
     assert(state.token() == TokenType::rpar);
     auto tup = state.pop_value<Tup>();
     tup.finish_pool();
-    if (auto *term = std::get_if<Term>(tup.args.size() == 1 ? &tup.args.front() : nullptr); term != nullptr) {
-        state.push_value<Term>(std::move(*term));
-    } else {
-        state.push_value<Term>(std::in_place_type<TermTuple>,
-                               Location{Position{state.file(), tup.line, tup.column},
-                                        Position{state.file(), state.cursor_line(), state.cursor_column()}},
-                               TupleElementArray{std::move(tup.args)});
-    }
+    state.push_value<Term>(std::in_place_type<TermTuple>,
+                           Location{Position{state.file(), tup.line, tup.column},
+                                    Position{state.file(), state.cursor_line(), state.cursor_column()}},
+                           TupleElementArray{std::move(tup.args)});
     state.consume();
     cont_expr(state);
 }
@@ -263,7 +259,7 @@ auto cont_tup_args(ParserState &state, bool arg) -> bool {
                 return true;
             }
             // comma after term or projection
-            if (state.branch_(TokenType::comma)) {
+            if (state.branch(TokenType::comma)) {
                 tup.term = false;
                 if (state.token() == TokenType::star) {
                     tup.tup.emplace_back(Projection{state.loc()});
@@ -280,12 +276,12 @@ auto cont_tup_args(ParserState &state, bool arg) -> bool {
                 }
                 // semicolon after term or projection falls through
             } else if (state.token() != TokenType::sem) {
-                return state.expected_(TokenType::rpar, TokenType::sem, TokenType::comma);
+                return state.expected(TokenType::rpar, TokenType::sem, TokenType::comma);
             }
         }
 
         // finish pools
-        while (state.branch_(TokenType::sem)) {
+        while (state.branch(TokenType::sem)) {
             tup.finish_pool();
         }
         // closing parenthesis after empty tuple
@@ -294,18 +290,18 @@ auto cont_tup_args(ParserState &state, bool arg) -> bool {
             return true;
         }
         // coma indicating empty tuple
-        if (state.branch_(TokenType::comma)) {
+        if (state.branch(TokenType::comma)) {
             tup.term = false;
             if (state.token() == TokenType::rpar) {
                 finish_tup(state);
                 return true;
             }
-            if (state.branch_(TokenType::sem)) {
+            if (state.branch(TokenType::sem)) {
                 tup.finish_pool();
                 arg = false;
                 continue;
             }
-            return state.expected_(TokenType::rpar, TokenType::sem);
+            return state.expected(TokenType::rpar, TokenType::sem);
         }
         // leading star that must be part of a tuple
         if (state.token() == TokenType::star) {
@@ -315,7 +311,7 @@ auto cont_tup_args(ParserState &state, bool arg) -> bool {
                 arg = true;
                 continue;
             }
-            return state.expected_(TokenType::comma);
+            return state.expected(TokenType::comma);
         }
         // parse a term
         state.replace(Prod::tup);
@@ -364,7 +360,7 @@ auto cont_fun_args(ParserState &state, bool arg) -> bool {
                 return true;
             }
             // a comma that must be followed by another term or projection
-            if (state.branch_(TokenType::comma)) {
+            if (state.branch(TokenType::comma)) {
                 if (state.token() == TokenType::star) {
                     fun.tup.emplace_back(Projection{state.loc()});
                     state.consume();
@@ -376,11 +372,11 @@ auto cont_fun_args(ParserState &state, bool arg) -> bool {
             // fail if the argument pool is not closed
             // otherwise, finish the pool below
             if (state.token() != TokenType::sem) {
-                return state.expected_(TokenType::rpar, TokenType::comma, TokenType::sem);
+                return state.expected(TokenType::rpar, TokenType::comma, TokenType::sem);
             }
         }
         // finish argument pools
-        while (state.branch_(TokenType::sem)) {
+        while (state.branch(TokenType::sem)) {
             fun.finish_pool();
         }
         // finish all argument pools
@@ -409,7 +405,7 @@ auto cont_fun(ParserState &state) -> bool {
     if (ext) {
         state.consume();
         if (state.token() != TokenType::id) {
-            return state.expected_(TokenType::id);
+            return state.expected(TokenType::id);
         }
     }
     auto name = state.store().string_ref(state.view());
@@ -480,12 +476,30 @@ void cont_var(ParserState &state, bool anonymous) {
 
 } // namespace
 
-//! Parse a term.
-//!
-//! Uses a hand written bottom up parser with a stack to avoid stack
-//! overflows.
-auto parse_term(ParserState &state) -> bool {
-    state.push(Prod::term);
+auto check_term(TokenType token) -> bool {
+    switch (token) {
+        case TokenType::at:
+        case TokenType::id:
+        case TokenType::inf:
+        case TokenType::sup:
+        case TokenType::str:
+        case TokenType::num:
+        case TokenType::var:
+        case TokenType::anon:
+        case TokenType::lpar:
+        case TokenType::bar:
+        case TokenType::tilde:
+        case TokenType::minus: {
+            return true;
+        }
+        default: {
+            return false;
+        }
+    }
+}
+
+auto parse_term(ParserState &state) -> std::optional<Term> {
+    state.init(Prod::term);
 
     while (!state.empty()) {
         switch (state.top()) {
@@ -562,45 +576,45 @@ auto parse_term(ParserState &state) -> bool {
                     case TokenType::id:
                     case TokenType::at: {
                         if (!cont_fun(state)) {
-                            return false;
+                            return std::nullopt;
                         }
                         continue;
                     }
                     case TokenType::lpar: {
                         if (!cont_tup(state)) {
-                            return false;
+                            return std::nullopt;
                         }
                         continue;
                     }
                     default: {
-                        // Note: could also report that a term is expected
-                        return state.expected_(TokenType::bar, TokenType::tilde, TokenType::minus, TokenType::anon,
-                                               TokenType::lpar, TokenType::sup, TokenType::inf, TokenType::num,
-                                               TokenType::str, TokenType::var, TokenType::id);
+                        return state.expected<std::nullopt>("<term>");
                     }
                 }
             }
             case Prod::abs: {
                 if (!cont_abs_args(state)) {
-                    return false;
+                    return std::nullopt;
                 }
                 continue;
             }
             case Prod::tup: {
                 if (!cont_tup_args(state, true)) {
-                    return false;
+                    return std::nullopt;
                 }
                 continue;
             }
             case Prod::fun: {
                 if (!cont_fun_args(state, true)) {
-                    return false;
+                    return std::nullopt;
                 }
                 continue;
             }
         }
     }
-    return true;
+    assert(!state.empty_value());
+    auto ret = state.pop_value<Term>();
+    assert(state.empty_value());
+    return ret;
 }
 
 } // namespace Gringo::Input::Parse

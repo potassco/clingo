@@ -415,6 +415,27 @@ auto check_linear(Term const &term) -> std::optional<LinearTerm> {
 
 [[nodiscard]] auto never_numeric(Term const &term) -> bool { return NeverNumeric{}(term); }
 
+auto is_atom(Term const &term) -> bool {
+    return std::visit(
+        []<class T>(T const &term) -> bool {
+            auto is_pos_atom = []<class U>(U const &term) -> bool {
+                if constexpr (Util::matches<U, TermFunction>) {
+                    return true;
+                } else if constexpr (Util::matches<U, TermSymbol>) {
+                    return term.value().type() == SymbolType::function;
+                } else {
+                    return false;
+                }
+            };
+            if constexpr (Util::matches<T, TermUnary>) {
+                return std::visit(is_pos_atom, *term.rhs());
+            } else {
+                return is_pos_atom(term);
+            }
+        },
+        term);
+}
+
 auto is_atom(Lit const &lit) -> bool { return IsAtom{}(lit); }
 
 auto is_atom(HdLit const &lit) -> bool { return IsAtom{}(lit); }

@@ -108,6 +108,9 @@ auto check_linear(Term const &term) -> std::optional<LinearTerm>;
     return std::nullopt;
 }
 
+//! Check whether the term can represent an atom.
+[[nodiscard]] auto is_atom(Term const &term) -> bool;
+
 //! Check whether the literal is an atom.
 //!
 //! A literal is an atom if it is a symbolic literal without a sign.

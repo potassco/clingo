@@ -10,6 +10,7 @@ add_library(gringo_input
     "src/algo/evaluate.cc"
     "src/algo/iesolver.cc"
     "src/algo/parse.cc"
+    "src/algo/parse/literalv2.cc"
     "src/algo/parse/parser_state.cc"
     "src/algo/parse/parsev2.cc"
     "src/algo/parse/termv2.cc"
