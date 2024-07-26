@@ -102,12 +102,14 @@ TEST_CASE("parsev2") {
 
         REQUIRE(parse("()") == "()");
         REQUIRE(parse("(,)") == "()");
-        REQUIRE(parse("(1)") == "(1)");
+        REQUIRE(parse("(1)") == "1");
         REQUIRE(parse("(1,)") == "(1,)");
         REQUIRE(parse("(1,2)") == "(1,2)");
         REQUIRE(parse("(1,2,)") == "(1,2)");
         REQUIRE(parse("(1,2,3)") == "(1,2,3)");
         REQUIRE(parse("(1,2,3,)") == "(1,2,3)");
+
+        REQUIRE(parse("f((),(1),(1,),[],[1],[1,2],{},{1},{1,2})") == "f((),1,(1,),[],[1],[1,2],{},{1},{1,2})");
     }
 }
 

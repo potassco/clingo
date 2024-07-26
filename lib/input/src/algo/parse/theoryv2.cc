@@ -6,18 +6,37 @@ namespace Gringo::Input::Parse {
 
 namespace {
 
+//! Get the closing token for the given tuple type.
+auto map_close(TheoryTermTupleType type) {
+    switch (type) {
+        case TheoryTermTupleType::list: {
+            return TokenType::rbrack;
+        }
+        case TheoryTermTupleType::set: {
+            return TokenType::rbrace;
+        }
+        case TheoryTermTupleType::tuple: {
+            return TokenType::rpar;
+        }
+    }
+    Util::unreachable();
+}
+
+//! Continue parsing a theory term if followed by an operator.
 void cont_expr(ParserState &state) {
     if (state.token() != TokenType::theory_op) {
         state.pop();
     }
 }
 
+//! Construct an unparsed theory term.
 auto finish_term(ParserState &state) -> TheoryTerm {
     auto val = state.pop_value<TyTerm>();
     return TheoryTerm{std::in_place_type<TheoryTermUnparsed>,
                       Location{Position{state.file(), val.line, val.column}, state.cursor_pos()}, std::move(val.elems)};
 }
 
+//! Continue parsing a theory sequence.
 auto cont_seq(ParserState &state, StringVec ops, TheoryTermTupleType type, TokenType close) -> bool {
     auto pos = state.token_pos();
     state.consume();
@@ -31,7 +50,7 @@ auto cont_seq(ParserState &state, StringVec ops, TheoryTermTupleType type, Token
     // handle empty tuple
     if (state.token() == close) {
         auto &val = state.top_value<TyTerm>();
-        val.elems.emplace_back(ops, TheoryTermSymbol{Location(pos, state.cursor_pos()), state.store().tup_ref({})});
+        val.elems.emplace_back(ops, TheoryTermTuple{Location(pos, state.cursor_pos()), type, {}});
         state.consume();
         cont_expr(state);
     }
@@ -45,6 +64,43 @@ auto cont_seq(ParserState &state, StringVec ops, TheoryTermTupleType type, Token
     return true;
 }
 
+//! Continue parsing the arguments of a theory sequence.
+auto cont_seq_args(ParserState &state) -> bool {
+    // add current term to arguments
+    auto &val = state.top_value<TySeq>(1);
+    val.args.emplace_back(finish_term(state));
+    // handle next argument
+    if (state.token() == TokenType::comma) {
+        state.consume();
+        // handle trailing comma of tuples
+        if (val.type != TheoryTermTupleType::tuple || state.token() != TokenType::rpar) {
+            state.push(Prod::ty_term);
+            state.push_value<TyTerm>(state.token_line(), state.token_column());
+            return true;
+        }
+        val.tuple = true;
+    }
+    // finish the tuple
+    if (state.token() == map_close(val.type)) {
+        auto val = state.pop_value<TySeq>();
+        auto &top = state.top_value<TyTerm>();
+        if (val.args.size() == 1 && !val.tuple) {
+            top.elems.emplace_back(std::move(val.ops), std::move(val.args.front()));
+        } else {
+            top.elems.emplace_back(
+                std::move(val.ops),
+                TheoryTermTuple{Location{Position{state.file(), val.line, val.column}, state.cursor_pos()}, val.type,
+                                std::move(val.args)});
+        }
+        state.pop();
+        state.consume();
+        cont_expr(state);
+        return true;
+    }
+    return state.expected(TokenType::comma, TokenType::rpar);
+}
+
+//! Continue parsing a theory function.
 void cont_fun(ParserState &state, StringVec ops) {
     auto loc = state.loc();
     auto name = state.str();
@@ -73,6 +129,7 @@ void cont_fun(ParserState &state, StringVec ops) {
     state.push(Prod::ty_term);
 }
 
+//! Continue parsing the arguments of a theory function.
 auto cont_fun_args(ParserState &state) -> bool {
     // add current term to arguments
     auto &val = state.top_value<TyFun>(1);
@@ -113,7 +170,10 @@ auto parse_theory_term(ParserState &state) -> std::optional<TheoryTerm> {
                 continue;
             }
             case Prod::ty_seq: {
-                throw std::logic_error("implement me: seq args");
+                if (!cont_seq_args(state)) {
+                    return std::nullopt;
+                }
+                continue;
             }
             case Prod::ty_term: {
                 std::vector<String> ops;

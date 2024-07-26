@@ -511,8 +511,8 @@ auto parse_term(ParserState &state) -> std::optional<Term>;
 
 //! Parse a theory term.
 //!
-//! Uses a hand written bottom up parser with a stack to avoid stack
-//! overflows.
+//! Uses a hand written bottom up parser with a stack to avoid stack overflows.
+//! Furthermore, the function assumes that the lexer is in theory mode.
 auto parse_theory_term(ParserState &state) -> std::optional<TheoryTerm>;
 
 //! Parse a literal.

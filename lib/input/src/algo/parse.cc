@@ -398,7 +398,7 @@ auto parse_term(Logger &log, SymbolStore &store, std::string_view str) -> std::o
 }
 
 auto parse_theory_term(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<TheoryTerm> {
-    return parse<Grammar::theory_term>(log, store, str);
+    return Parser{log, store, str, *store.string(str)}.parse_theory_term();
 }
 
 auto parse_literal(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<Lit> {
