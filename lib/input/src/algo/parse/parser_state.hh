@@ -198,6 +198,8 @@ inline auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
 //! The available productions.
 enum class Prod : uint8_t {
     ty_term,
+    ty_fun,
+    ty_seq,
     term,
     fun,
     add,
@@ -269,6 +271,27 @@ struct TyTerm {
     size_t line;
     size_t column;
     std::vector<UnparsedElement> elems;
+};
+
+struct TyFun {
+    TyFun(size_t line, size_t column, String name, StringVec ops)
+        : line{line}, column{column}, ops{std::move(ops)}, name{name} {}
+    size_t line;
+    size_t column;
+    StringVec ops;
+    String name;
+    std::vector<TheoryTerm> args;
+};
+
+struct TySeq {
+    TySeq(size_t line, size_t column, StringVec ops, TheoryTermTupleType type)
+        : line{line}, column{column}, ops{std::move(ops)}, type{type}, tuple{type != TheoryTermTupleType::tuple} {}
+    size_t line;
+    size_t column;
+    StringVec ops;
+    std::vector<TheoryTerm> args;
+    TheoryTermTupleType type;
+    bool tuple;
 };
 
 #include "algo/parse/lexer_impl_h.hh"
@@ -461,7 +484,7 @@ class ParserState {
     }
 
   private:
-    using Value = std::variant<Pos, Term, Abs, Fun, Tup, TyTerm>;
+    using Value = std::variant<Pos, Term, Abs, Fun, Tup, TyTerm, TyFun, TySeq>;
 
     //! Compute the next token.
     auto lex_() -> TokenType;
