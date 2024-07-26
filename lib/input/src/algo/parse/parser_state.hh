@@ -34,6 +34,8 @@ enum class TokenType : uint8_t {
     gt,
     id,
     inf,
+    lbrace,
+    lbrack,
     le,
     lpar,
     lt,
@@ -43,12 +45,15 @@ enum class TokenType : uint8_t {
     num,
     plus,
     qmark,
+    rbrace,
+    rbrack,
     rpar,
     sem,
     slash,
     star,
     str,
     sup,
+    theory_op,
     tilde,
     true_,
     var,
@@ -105,6 +110,12 @@ inline auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
         case TokenType::lpar: {
             return out << "'('";
         }
+        case TokenType::lbrack: {
+            return out << "'['";
+        }
+        case TokenType::lbrace: {
+            return out << "'{'";
+        }
         case TokenType::minus: {
             return out << "'-'";
         }
@@ -122,6 +133,12 @@ inline auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
         }
         case TokenType::rpar: {
             return out << "')'";
+        }
+        case TokenType::rbrack: {
+            return out << "']'";
+        }
+        case TokenType::rbrace: {
+            return out << "'}'";
         }
         case TokenType::sem: {
             return out << "';'";
@@ -144,11 +161,14 @@ inline auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
         case TokenType::inf: {
             return out << "'#inf'";
         }
+        case TokenType::theory_op: {
+            return out << "<theory-operator>";
+        }
         case TokenType::tilde: {
             return out << "'~'";
         }
         case TokenType::var: {
-            return out << "<var>";
+            return out << "<variable>";
         }
         case TokenType::lt: {
             return out << "<";

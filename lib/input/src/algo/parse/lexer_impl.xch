@@ -37,47 +37,53 @@ auto ParserState::lex_(Condition cond) -> TokenType {
     for (;;) {
         state_.start();
     /*!re2c
-        <normal> NUMBER           { return TokenType::num; }
-        <normal> "_"              { return TokenType::anon; }
-        <normal> VARIABLE         { return TokenType::var; }
-        <normal> STRING           { return TokenType::str; }
-        <normal> "<"              { return TokenType::lt; }
-        <normal> "<="             { return TokenType::le; }
-        <normal> ">"              { return TokenType::gt; }
-        <normal> ">="             { return TokenType::ge; }
-        <normal> "="              { return TokenType::eq; }
-        <normal> "=="             { return TokenType::eq; }
-        <normal> "!="             { return TokenType::ne; }
-        <normal> "("              { return TokenType::lpar; }
-        <normal> ")"              { return TokenType::rpar; }
-        <normal> "+"              { return TokenType::plus; }
-        <normal> "-"              { return TokenType::minus; }
-        <normal> "*"              { return TokenType::star; }
-        <normal> "**"             { return TokenType::dstar; }
-        <normal> "/"              { return TokenType::slash; }
-        <normal> "\\"             { return TokenType::bslash; }
-        <normal> "?"              { return TokenType::qmark; }
-        <normal> "^"              { return TokenType::caret; }
-        <normal> "&"              { return TokenType::amp; }
-        <normal> "|"              { return TokenType::bar; }
-        <normal> ","              { return TokenType::comma; }
-        <normal> ";"              { return TokenType::sem; }
-        <normal> ":"              { return TokenType::colon; }
-        <normal> "~"              { return TokenType::tilde; }
-        <normal> "."              { return TokenType::dot; }
-        <normal> ".."             { return TokenType::ddot; }
-        <normal> "not"            { return TokenType::not_; }
-        <normal> "#true"          { return TokenType::true_; }
-        <normal> "#false"         { return TokenType::false_; }
-        <normal> "@"              { return TokenType::at; }
-        <normal> "#sup"("remum")? { return TokenType::sup; }
-        <normal> "#inf"("imum")?  { return TokenType::inf; }
-        <normal> SKIP             { continue; }
-        <normal> NL               { state_.step(); continue; }
-        <normal> IDENTIFIER       { return TokenType::id; }
-        <normal> KEYWORD          { return TokenType::error; }
-        <*> *                     { return TokenType::error; }
-        <*> [\x00]                { return state_.token() == state_.limit() ? TokenType::end : TokenType::error; }
+        <normal,theory> "{"        { return TokenType::lbrace; }
+        <normal,theory> "}"        { return TokenType::rbrace; }
+        <normal,theory> "["        { return TokenType::lbrack; }
+        <normal,theory> "]"        { return TokenType::rbrack; }
+        <normal,theory> "("        { return TokenType::lpar; }
+        <normal,theory> ")"        { return TokenType::rpar; }
+        <normal,theory> ";"        { return TokenType::sem; }
+        <normal,theory> ":"        { return TokenType::colon; }
+        <normal,theory> "."        { return TokenType::dot; }
+        <normal,theory> "not"      { return TokenType::not_; }
+        <normal> "_"               { return TokenType::anon; }
+        <normal> "<"               { return TokenType::lt; }
+        <normal> "<="              { return TokenType::le; }
+        <normal> ">"               { return TokenType::gt; }
+        <normal> ">="              { return TokenType::ge; }
+        <normal> "="               { return TokenType::eq; }
+        <normal> "=="              { return TokenType::eq; }
+        <normal> "!="              { return TokenType::ne; }
+        <normal> "<>"              { return TokenType::ne; }
+        <normal> "+"               { return TokenType::plus; }
+        <normal> "-"               { return TokenType::minus; }
+        <normal> "*"               { return TokenType::star; }
+        <normal> "**"              { return TokenType::dstar; }
+        <normal> "/"               { return TokenType::slash; }
+        <normal> "\\"              { return TokenType::bslash; }
+        <normal> "?"               { return TokenType::qmark; }
+        <normal> "^"               { return TokenType::caret; }
+        <normal> "&"               { return TokenType::amp; }
+        <normal> "|"               { return TokenType::bar; }
+        <normal> ","               { return TokenType::comma; }
+        <normal> "~"               { return TokenType::tilde; }
+        <normal> ".."              { return TokenType::ddot; }
+        <normal> "@"               { return TokenType::at; }
+        <normal> "#true"           { return TokenType::true_; }
+        <normal> "#false"          { return TokenType::false_; }
+        <normal> "#sup"("remum")?  { return TokenType::sup; }
+        <normal> "#inf"("imum")?   { return TokenType::inf; }
+        <normal,theory> NUMBER     { return TokenType::num; }
+        <normal,theory> VARIABLE   { return TokenType::var; }
+        <normal,theory> STRING     { return TokenType::str; }
+        <normal,theory> IDENTIFIER { return TokenType::id; }
+        <theory> THEORYOP          { return TokenType::theory_op; }
+        <normal> KEYWORD           { return TokenType::error; }
+        <normal> SKIP              { continue; }
+        <normal> NL                { state_.step(); continue; }
+        <*> *                      { return TokenType::error; }
+        <*> [\x00]                 { return state_.token() == state_.limit() ? TokenType::end : TokenType::error; }
     */
     }
 }
