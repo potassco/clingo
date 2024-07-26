@@ -17,6 +17,7 @@ TEST_CASE("parsev2") {
         };
         REQUIRE(parse("||a;b|;c|") == "||a;b|;c|");
         REQUIRE(parse("42") == "42");
+        REQUIRE(parse("1'000'000'000'000'123") == "1000000000000123");
         REQUIRE(parse("f") == "f");
         REQUIRE(parse("f(  )+5") == "f+5");
         REQUIRE(parse("f(1)") == "f(1)");
