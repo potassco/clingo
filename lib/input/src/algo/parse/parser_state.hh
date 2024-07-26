@@ -4,6 +4,8 @@
 
 #include <gringo/core/logger.hh>
 
+#include <gringo/util/string.hh>
+
 #include "lexer_state.hh"
 
 namespace Gringo::Input::Parse {
@@ -11,6 +13,7 @@ namespace Gringo::Input::Parse {
 //! The list of lexer conditions for stateful lexing.
 enum class Condition : uint8_t {
     normal,
+    theory,
 };
 
 //! The available tokens produced by the lexer.
@@ -194,6 +197,7 @@ inline auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
 
 //! The available productions.
 enum class Prod : uint8_t {
+    ty_term,
     term,
     fun,
     add,
@@ -260,6 +264,13 @@ struct Tup {
     bool term = true;
 };
 
+struct TyTerm {
+    TyTerm(size_t line, size_t column) : line{line}, column{column} {}
+    size_t line;
+    size_t column;
+    std::vector<UnparsedElement> elems;
+};
+
 #include "algo/parse/lexer_impl_h.hh"
 
 //! The parser implementation.
@@ -278,6 +289,39 @@ class ParserState {
 
     //! Get the string representation of the current token.
     auto view() -> std::string_view { return state_.view(); }
+
+    //! Get the string representation of a token.
+    //!
+    //! The function removes quotes from str tokens.
+    auto str() -> String {
+        if (token() == TokenType::str) {
+            auto view = this->view();
+            auto &buf = this->buf(view.size() - 2);
+            Util::unquote(view.substr(1, view.size() - 2), std::back_inserter(buf));
+            return store().string_ref(std::string_view{buf.begin(), buf.end()});
+        }
+        return store().string_ref(view());
+    }
+
+    //! Get the numeric representation of a num token.
+    auto num() -> Number {
+        assert(token() == TokenType::num);
+        auto view = this->view();
+        auto base = Base::dec;
+        if (view.starts_with("0b")) {
+            base = Base::bin;
+        } else if (view.starts_with("0o")) {
+            base = Base::oct;
+        } else if (view.starts_with("0x")) {
+            base = Base::hex;
+        }
+        if (base != Base::dec) {
+            view = view.substr(2);
+        }
+        auto &buf = this->buf(view.size());
+        std::copy_if(view.begin(), view.end(), std::back_inserter(buf), [](char c) { return c != '\''; });
+        return Number{buf.c_str(), base};
+    }
 
     //! Get a temporary buffer.
     auto buf(size_t n) -> std::string & {
@@ -366,12 +410,12 @@ class ParserState {
     }
 
     //! Push an element on the value stack.
-    template <class T, class... U> auto push_value(U &&...args) {
+    template <class T, class... U> void push_value(U &&...args) {
         values_.emplace_back(std::in_place_type<T>, std::forward<U>(args)...);
     }
 
     //! Replace the last element on the value stack.
-    template <class T, class... U> auto replace_value(U &&...args) {
+    template <class T, class... U> void replace_value(U &&...args) {
         assert(!values_.empty());
         values_.back().emplace<T>(std::forward<U>(args)...);
     }
@@ -388,7 +432,7 @@ class ParserState {
     }
 
     //! Compute the next token discarding the last one.
-    void consume() { token_ = lex_(Condition::normal); }
+    void consume() { token_ = lex_(); }
 
     //! Check if the given token matches the current one.
     //!
@@ -401,11 +445,26 @@ class ParserState {
         return false;
     }
 
+    //! Set the lexer condition.
+    void condition(Condition cond) {
+        switch (cond) {
+            case Condition::normal: {
+                cond_ = yycnormal;
+                return;
+            }
+            case Condition::theory: {
+                cond_ = yyctheory;
+                return;
+            }
+        }
+        Util::unreachable();
+    }
+
   private:
-    using Value = std::variant<Pos, Term, Abs, Fun, Tup>;
+    using Value = std::variant<Pos, Term, Abs, Fun, Tup, TyTerm>;
 
     //! Compute the next token.
-    auto lex_(Condition cond) -> TokenType;
+    auto lex_() -> TokenType;
 
     LexerState state_;
     Logger *log_;
@@ -414,6 +473,7 @@ class ParserState {
     std::vector<Prod> stack_;
     std::vector<Value> values_;
     std::string buf_;
+    int cond_ = yycnormal;
     TokenType token_ = TokenType::error;
 };
 
@@ -425,6 +485,12 @@ auto check_term(TokenType token) -> bool;
 //! Uses a hand written bottom up parser with a stack to avoid stack
 //! overflows.
 auto parse_term(ParserState &state) -> std::optional<Term>;
+
+//! Parse a theory term.
+//!
+//! Uses a hand written bottom up parser with a stack to avoid stack
+//! overflows.
+auto parse_theory_term(ParserState &state) -> std::optional<TheoryTerm>;
 
 //! Parse a literal.
 auto parse_literal(ParserState &state) -> std::optional<Lit>;

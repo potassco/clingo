@@ -6,8 +6,8 @@
     re2c:define:YYCTXMARKER    = state_.ctxmarker();
     re2c:define:YYLIMIT        = state_.limit();
     re2c:define:YYFILL         = "state_.fill(@@, YYMAXFILL);";
-    re2c:define:YYGETCONDITION = condition;
-    re2c:define:YYSETCONDITION = "condition = @@;";
+    re2c:define:YYGETCONDITION = cond_;
+    re2c:define:YYSETCONDITION = "cond_ = @@;";
     re2c:cond:goto             = "continue;";
 
     DEC        = "0"|([1-9][0-9]*);
@@ -29,11 +29,7 @@
 /*!conditions:re2c*/
 /*!header:re2c:off*/
 
-auto ParserState::lex_(Condition cond) -> TokenType {
-    int condition = yycnormal;
-    switch (cond) {
-        case Condition::normal: { break; }
-    }
+auto ParserState::lex_() -> TokenType {
     for (;;) {
         state_.start();
     /*!re2c
@@ -46,8 +42,8 @@ auto ParserState::lex_(Condition cond) -> TokenType {
         <normal,theory> ";"        { return TokenType::sem; }
         <normal,theory> ":"        { return TokenType::colon; }
         <normal,theory> "."        { return TokenType::dot; }
-        <normal,theory> "not"      { return TokenType::not_; }
-        <normal> "_"               { return TokenType::anon; }
+        <normal,theory> "not"      { return cond_ == yycnormal ? TokenType::not_ : TokenType::theory_op; }
+        <normal,theory> "_"        { return TokenType::anon; }
         <normal> "<"               { return TokenType::lt; }
         <normal> "<="              { return TokenType::le; }
         <normal> ">"               { return TokenType::gt; }
@@ -80,8 +76,8 @@ auto ParserState::lex_(Condition cond) -> TokenType {
         <normal,theory> IDENTIFIER { return TokenType::id; }
         <theory> THEORYOP          { return TokenType::theory_op; }
         <normal> KEYWORD           { return TokenType::error; }
-        <normal> SKIP              { continue; }
-        <normal> NL                { state_.step(); continue; }
+        <normal,theory> SKIP       { continue; }
+        <normal,theory> NL         { state_.step(); continue; }
         <*> *                      { return TokenType::error; }
         <*> [\x00]                 { return state_.token() == state_.limit() ? TokenType::end : TokenType::error; }
     */

@@ -14,6 +14,7 @@ add_library(gringo_input
     "src/algo/parse/parser_state.cc"
     "src/algo/parse/parsev2.cc"
     "src/algo/parse/termv2.cc"
+    "src/algo/parse/theoryv2.cc"
     "src/algo/print.cc"
     "src/algo/project_anonymous.cc"
     "src/algo/project.cc"

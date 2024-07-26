@@ -81,6 +81,21 @@ TEST_CASE("parsev2") {
         REQUIRE(parse("p((*,))") == "p((*,))");
         REQUIRE(parse("p((1;2,*;*,;*,*))") == "p((1;2,*;*,;*,*))");
     }
+    SECTION("theory_term") {
+        auto parse = [&](char const *str) -> std::string {
+            log.reset();
+            messages.clear();
+            return to_str(Parser{log, *store, str, store->string_ref("<input>")}.parse_theory_term());
+        };
+        REQUIRE(parse("1") == "1");
+        REQUIRE(parse("X") == "X");
+        REQUIRE(parse("_") == "_");
+        REQUIRE(parse(R"("x")") == R"("x")");
+        REQUIRE(parse("not 1") == "(not 1)");
+        REQUIRE(parse("1+1") == "(1 + 1)");
+        REQUIRE(parse("- + 1 + * 1 - 3") == "(- + 1 + * 1 - 3)");
+        REQUIRE(parse("+- *a -* + c") == "+- * a -* + c");
+    }
 }
 
 } // namespace Gringo::Input::Test

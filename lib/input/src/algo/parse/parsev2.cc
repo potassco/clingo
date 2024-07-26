@@ -7,9 +7,15 @@ namespace Gringo::Input {
 
 namespace {
 
+template <class C> auto check_true([[maybe_unused]] Logger &log, [[maybe_unused]] C const &expr) -> bool {
+    return true;
+}
+
 template <class P, class C>
-auto parse_expr(Parse::ParserState &state, P parse, C check) -> std::invoke_result_t<P, Parse::ParserState &> {
+auto parse_expr(Parse::ParserState &state, Parse::Condition cond, P parse,
+                C check) -> std::invoke_result_t<P, Parse::ParserState &> {
     auto lock = GCLock{state.store()};
+    state.condition(cond);
     state.consume();
     if (auto lit = std::invoke(parse, state); lit && std::invoke(check, state.log(), *lit)) {
         if (!state.branch(Parse::TokenType::end)) {
@@ -34,8 +40,16 @@ auto Parser::operator=(Parser &&other) noexcept -> Parser & = default;
 
 Parser::~Parser() noexcept = default;
 
-auto Parser::parse_term() -> std::optional<Term> { return parse_expr(*impl_, Parse::parse_term, check_term); }
+auto Parser::parse_term() -> std::optional<Term> {
+    return parse_expr(*impl_, Parse::Condition::normal, Parse::parse_term, check_term);
+}
 
-auto Parser::parse_literal() -> std::optional<Lit> { return parse_expr(*impl_, Parse::parse_literal, check_literal); }
+auto Parser::parse_literal() -> std::optional<Lit> {
+    return parse_expr(*impl_, Parse::Condition::normal, Parse::parse_literal, check_literal);
+}
+
+auto Parser::parse_theory_term() -> std::optional<TheoryTerm> {
+    return parse_expr(*impl_, Parse::Condition::theory, Parse::parse_theory_term, check_true<TheoryTerm>);
+}
 
 } // namespace Gringo::Input

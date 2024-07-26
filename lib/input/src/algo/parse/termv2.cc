@@ -1,5 +1,3 @@
-#include <gringo/util/string.hh>
-
 #include "parser_state.hh"
 
 namespace Gringo::Input::Parse {
@@ -430,50 +428,6 @@ auto cont_fun(ParserState &state) -> bool {
     return true;
 }
 
-//! Continue parsing a number term assuming a num token is on the stack.
-void cont_num(ParserState &state) {
-    assert(state.token() == TokenType::num);
-    auto view = state.view();
-    auto base = Base::dec;
-    if (view.starts_with("0b")) {
-        base = Base::bin;
-    } else if (view.starts_with("0o")) {
-        base = Base::oct;
-    } else if (view.starts_with("0x")) {
-        base = Base::hex;
-    }
-    if (base != Base::dec) {
-        view = view.substr(2);
-    }
-    auto &buf = state.buf(view.size());
-    std::copy_if(view.begin(), view.end(), std::back_inserter(buf), [](char c) { return c != '\''; });
-    state.push_value<Term>(std::in_place_type<TermSymbol>, state.loc(),
-                           state.store().num_ref(Number{buf.c_str(), base}));
-    state.consume();
-    cont_expr(state);
-}
-
-//! Continue parsing a string term assuming a str token is on the stack.
-void cont_str(ParserState &state) {
-    assert(state.token() == TokenType::str);
-    auto view = state.view();
-    auto &buf = state.buf(view.size() - 2);
-    Util::unquote(view.substr(1, view.size() - 2), std::back_inserter(buf));
-    auto str = state.store().string_ref(std::string_view{buf.begin(), buf.end()});
-    state.push_value<Term>(std::in_place_type<TermSymbol>, state.loc(), SymbolStore::str_ref(str));
-    state.consume();
-    cont_expr(state);
-}
-
-//! Continue parsing a variable term assuming a var or anon token is on the stack.
-void cont_var(ParserState &state, bool anonymous) {
-    assert(state.token() == (anonymous ? TokenType::anon : TokenType::var));
-    auto str = state.store().string_ref(state.view());
-    state.push_value<Term>(std::in_place_type<TermVariable>, state.loc(), str, anonymous);
-    state.consume();
-    cont_expr(state);
-}
-
 } // namespace
 
 auto check_term(TokenType token) -> bool {
@@ -554,19 +508,25 @@ auto parse_term(ParserState &state) -> std::optional<Term> {
                         continue;
                     }
                     case TokenType::num: {
-                        cont_num(state);
+                        state.push_value<Term>(std::in_place_type<TermSymbol>, state.loc(),
+                                               state.store().num_ref(state.num()));
+                        state.consume();
+                        cont_expr(state);
                         continue;
                     }
                     case TokenType::str: {
-                        cont_str(state);
+                        state.push_value<Term>(std::in_place_type<TermSymbol>, state.loc(),
+                                               SymbolStore::str_ref(state.str()));
+                        state.consume();
+                        cont_expr(state);
                         continue;
                     }
-                    case TokenType::anon: {
-                        cont_var(state, true);
-                        continue;
-                    }
+                    case TokenType::anon:
                     case TokenType::var: {
-                        cont_var(state, false);
+                        state.push_value<Term>(std::in_place_type<TermVariable>, state.loc(), state.str(),
+                                               state.token() == TokenType::anon);
+                        state.consume();
+                        cont_expr(state);
                         continue;
                     }
                     case TokenType::bar: {
@@ -608,6 +568,9 @@ auto parse_term(ParserState &state) -> std::optional<Term> {
                     return std::nullopt;
                 }
                 continue;
+            }
+            default: {
+                Util::unreachable();
             }
         }
     }

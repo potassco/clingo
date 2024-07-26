@@ -25,6 +25,7 @@ class Parser {
     ~Parser() noexcept;
 
     auto parse_term() -> std::optional<Term>;
+    auto parse_theory_term() -> std::optional<TheoryTerm>;
     auto parse_literal() -> std::optional<Lit>;
 
   private:

@@ -35,6 +35,18 @@ template <class Vec, class Pred> auto erase_if(Vec &vec, Pred pred) -> size_t {
     return n;
 }
 
+#if __cpp_lib_unreachable
+using std::unreachable;
+#else
+[[noreturn]] inline void unreachable() {
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+    __assume(false);
+#else                                        // GCC, Clang
+    __builtin_unreachable();
+#endif
+}
+#endif
+
 //! @}
 
 } // namespace Gringo::Util
