@@ -10,12 +10,6 @@
 
 namespace Gringo::Input::Parse {
 
-//! The list of lexer conditions for stateful lexing.
-enum class Condition : uint8_t {
-    normal,
-    theory,
-};
-
 //! The available tokens produced by the lexer.
 enum class TokenType : uint8_t {
     amp,
@@ -60,6 +54,14 @@ enum class TokenType : uint8_t {
     tilde,
     true_,
     var,
+};
+
+#include "algo/parse/lexer_impl_h.hh"
+
+//! The list of lexer conditions for stateful lexing.
+enum class Condition : uint8_t {
+    normal = yycnormal,
+    theory = yyctheory,
 };
 
 //! Output token in human readable form.
@@ -294,8 +296,6 @@ struct TySeq {
     bool tuple;
 };
 
-#include "algo/parse/lexer_impl_h.hh"
-
 //! The parser implementation.
 class ParserState {
   public:
@@ -457,6 +457,14 @@ class ParserState {
     //! Compute the next token discarding the last one.
     void consume() { token_ = lex_(); }
 
+    //! Compute the next token discarding the last one.
+    void consume(Condition cond) {
+        condition(cond);
+        auto old = cond_;
+        token_ = lex_();
+        cond_ = old;
+    }
+
     //! Check if the given token matches the current one.
     //!
     //! In case of a match, it consumes the token.
@@ -469,19 +477,7 @@ class ParserState {
     }
 
     //! Set the lexer condition.
-    void condition(Condition cond) {
-        switch (cond) {
-            case Condition::normal: {
-                cond_ = yycnormal;
-                return;
-            }
-            case Condition::theory: {
-                cond_ = yyctheory;
-                return;
-            }
-        }
-        Util::unreachable();
-    }
+    void condition(Condition cond) { cond_ = static_cast<int>(cond); }
 
   private:
     using Value = std::variant<Pos, Term, Abs, Fun, Tup, TyTerm, TyFun, TySeq>;
@@ -514,6 +510,12 @@ auto parse_term(ParserState &state) -> std::optional<Term>;
 //! Uses a hand written bottom up parser with a stack to avoid stack overflows.
 //! Furthermore, the function assumes that the lexer is in theory mode.
 auto parse_theory_term(ParserState &state) -> std::optional<TheoryTerm>;
+
+//! Parse the name, elements, and guard of a theory atom.
+//!
+//! Assumes that the current token is '&'.
+auto parse_theory_atom(ParserState &state)
+    -> std::optional<std::tuple<Term, TheoryElementArray, std::optional<TheoryRGuard>, Position>>;
 
 //! Parse a literal.
 auto parse_literal(ParserState &state) -> std::optional<Lit>;
