@@ -334,11 +334,16 @@ auto parse_theory_atom(ParserState &state)
                 tup.clear();
                 continue;
             }
+            if (state.token() != TokenType::star && !check_term(state.token())) {
+                return state.expected<std::nullopt>(TokenType::star, "<term>");
+            }
             if (state.token() == TokenType::star) {
                 tup.emplace_back(Projection{state.loc()});
                 state.consume();
             } else if (auto term = parse_term(state); term) {
                 tup.emplace_back(*std::move(term));
+            } else {
+                return std::nullopt;
             }
             if (state.token() == TokenType::comma) {
                 state.consume();
