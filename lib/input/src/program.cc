@@ -1,11 +1,11 @@
 #include <gringo/input/program.hh>
+#include <gringo/input/rewrite.hh>
 
-#include <gringo/input/algo/analyze.hh>
-#include <gringo/input/algo/dependency.hh>
-#include <gringo/input/algo/evaluate.hh>
-#include <gringo/input/algo/rewrite.hh>
-#include <gringo/input/algo/rewrite_theory.hh>
-#include <gringo/input/algo/substitute.hh>
+#include <gringo/input/rewrite/analyze.hh>
+#include <gringo/input/rewrite/dependency.hh>
+#include <gringo/input/rewrite/evaluate.hh>
+#include <gringo/input/rewrite/rewrite_theory.hh>
+#include <gringo/input/rewrite/substitute.hh>
 
 #include <gringo/util/algorithm.hh>
 #include <gringo/util/checked_math.hh>

@@ -2,6 +2,6 @@
 
 namespace Gringo::Input::Parse {
 
-#include "algo/parse/lexer_impl.hh"
+#include "parse/lexer_impl.hh"
 
 } // namespace Gringo::Input::Parse

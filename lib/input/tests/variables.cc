@@ -1,6 +1,6 @@
 #include "test.hh"
 
-#include <gringo/input/algo/visit_variables.hh>
+#include <gringo/input/rewrite/visit_variables.hh>
 
 #include <algorithm>
 

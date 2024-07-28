@@ -1,11 +1,12 @@
 #include "lib.hh"
 #include "streams.hh"
 
-#include <gringo/input/algo/parse.hh>
-#include <gringo/input/algo/print.hh>
-#include <gringo/input/algo/rewrite.hh>
-#include <gringo/input/algo/rewrite_theory.hh>
-#include <gringo/input/algo/substitute.hh>
+#include <gringo/input/print.hh>
+#include <gringo/input/rewrite.hh>
+
+#include <gringo/input/rewrite/parse.hh>
+#include <gringo/input/rewrite/rewrite_theory.hh>
+#include <gringo/input/rewrite/substitute.hh>
 
 #include <gringo/util/algorithm.hh>
 #include <gringo/util/ordered_map.hh>

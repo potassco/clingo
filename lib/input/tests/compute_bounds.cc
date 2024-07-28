@@ -1,7 +1,7 @@
 #include "test.hh"
 
-#include <gringo/input/algo/compute_bounds.hh>
-#include <gringo/input/algo/iesolver.hh>
+#include <gringo/input/rewrite/compute_bounds.hh>
+#include <gringo/input/rewrite/iesolver.hh>
 
 namespace Gringo::Input::Test {
 

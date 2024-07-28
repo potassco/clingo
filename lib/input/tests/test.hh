@@ -1,8 +1,9 @@
 #pragma once
 
-#include <gringo/input/algo/parse.hh>
-#include <gringo/input/algo/print.hh>
-#include <gringo/input/algo/rewrite_context.hh>
+#include <gringo/input/print.hh>
+
+#include <gringo/input/rewrite/parse.hh>
+#include <gringo/input/rewrite/rewrite_context.hh>
 
 #include <gringo/util/algorithm.hh>
 #include <gringo/util/print.hh>

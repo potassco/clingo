@@ -1,6 +1,6 @@
 #include <gringo/grounder/grounder.hh>
 
-#include <gringo/input/algo/parse.hh>
+#include <gringo/input/rewrite/parse.hh>
 
 #include <gringo/output/text.hh>
 

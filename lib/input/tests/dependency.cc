@@ -1,7 +1,7 @@
 #include "test.hh"
 
-#include <gringo/input/algo/dependency.hh>
-#include <gringo/input/algo/simplify.hh>
+#include <gringo/input/rewrite/dependency.hh>
+#include <gringo/input/rewrite/simplify.hh>
 
 namespace Gringo::Input::Test {
 

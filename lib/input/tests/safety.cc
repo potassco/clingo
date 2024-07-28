@@ -1,6 +1,6 @@
 #include "test.hh"
 
-#include <gringo/input/algo/safety.hh>
+#include <gringo/input/rewrite/safety.hh>
 
 namespace Gringo::Input::Test {
 

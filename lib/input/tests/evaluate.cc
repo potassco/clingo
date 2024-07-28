@@ -1,6 +1,6 @@
 #include "test.hh"
 
-#include <gringo/input/algo/evaluate.hh>
+#include <gringo/input/rewrite/evaluate.hh>
 
 #include <cmath>
 

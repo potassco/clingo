@@ -1,8 +1,8 @@
 #include "lib.hh"
 #include "streams.hh"
 
-#include <gringo/input/algo/evaluate.hh>
-#include <gringo/input/algo/parse.hh>
+#include <gringo/input/rewrite/evaluate.hh>
+#include <gringo/input/rewrite/parse.hh>
 
 extern "C" auto clingo_add_string(clingo_lib_t *lib, char const *string, char const **result) -> bool {
     CLINGO_TRY {

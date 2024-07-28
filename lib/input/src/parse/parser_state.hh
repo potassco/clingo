@@ -56,7 +56,7 @@ enum class TokenType : uint8_t {
     var,
 };
 
-#include "algo/parse/lexer_impl_h.hh"
+#include "parse/lexer_impl_h.hh"
 
 //! The list of lexer conditions for stateful lexing.
 enum class Condition : uint8_t {

@@ -1,6 +1,6 @@
 #include <gringo/input/parser.hh>
 
-#include <gringo/input/algo/check_syntax.hh>
+#include <gringo/input/rewrite/check_syntax.hh>
 
 #include "parse/parser_state.hh"
 

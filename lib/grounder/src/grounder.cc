@@ -4,11 +4,12 @@
 #include <gringo/ground/condlit.hh>
 #include <gringo/ground/program.hh>
 
-#include <gringo/input/algo/analyze.hh>
-#include <gringo/input/algo/parse.hh>
-#include <gringo/input/algo/print.hh>
-#include <gringo/input/algo/unpool_relations.hh>
-#include <gringo/input/algo/visit_variables.hh>
+#include <gringo/input/print.hh>
+
+#include <gringo/input/rewrite/analyze.hh>
+#include <gringo/input/rewrite/parse.hh>
+#include <gringo/input/rewrite/unpool_relations.hh>
+#include <gringo/input/rewrite/visit_variables.hh>
 
 #include <gringo/util/type_traits.hh>
 #include <gringo/util/unordered_map.hh>
