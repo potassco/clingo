@@ -6,9 +6,7 @@
 
 namespace Gringo::Input::Parse {
 
-namespace {
-
-auto is_rel(TokenType token) -> std::optional<Relation> {
+auto check_relation(TokenType token) -> std::optional<Relation> {
     switch (token) {
         case TokenType::lt: {
             return Relation::less;
@@ -34,8 +32,6 @@ auto is_rel(TokenType token) -> std::optional<Relation> {
     }
 }
 
-} // namespace
-
 auto parse_literal(ParserState &state) -> std::optional<Lit> {
     auto pos = state.token_pos();
 
@@ -59,7 +55,7 @@ auto parse_literal(ParserState &state) -> std::optional<Lit> {
 
     if (auto term = parse_term(state); term) {
         auto guards = std::vector<Guard>{};
-        while (auto rel = is_rel(state.token())) {
+        while (auto rel = check_relation(state.token())) {
             state.consume();
             if (auto rhs = parse_term(state); rhs) {
                 guards.emplace_back(*rel, *std::move(rhs));

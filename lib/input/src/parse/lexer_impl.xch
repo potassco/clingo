@@ -66,6 +66,11 @@ auto ParserState::lex_() -> TokenType {
         <normal> "~"               { return TokenType::tilde; }
         <normal> ".."              { return TokenType::ddot; }
         <normal> "@"               { return TokenType::at; }
+        <normal> "#sum"            { return TokenType::sum; }
+        <normal> "#count"          { return TokenType::count; }
+        <normal> "#sum+"           { return TokenType::sump; }
+        <normal> "#min"            { return TokenType::min; }
+        <normal> "#max"            { return TokenType::max; }
         <normal> "#true"           { return TokenType::true_; }
         <normal> "#false"          { return TokenType::false_; }
         <normal> "#sup"("remum")?  { return TokenType::sup; }

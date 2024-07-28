@@ -20,6 +20,7 @@ enum class TokenType : uint8_t {
     caret,
     colon,
     comma,
+    count,
     ddot,
     dot,
     dstar,
@@ -36,6 +37,8 @@ enum class TokenType : uint8_t {
     le,
     lpar,
     lt,
+    max,
+    min,
     minus,
     ne,
     not_,
@@ -49,6 +52,8 @@ enum class TokenType : uint8_t {
     slash,
     star,
     str,
+    sum,
+    sump,
     sup,
     theory_op,
     tilde,
@@ -90,6 +95,9 @@ inline auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
         }
         case TokenType::comma: {
             return out << "','";
+        }
+        case TokenType::count: {
+            return out << "'#count'";
         }
         case TokenType::dot: {
             return out << "'.'";
@@ -157,6 +165,12 @@ inline auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
         case TokenType::str: {
             return out << "<string>";
         }
+        case TokenType::sum: {
+            return out << "'#sum'";
+        }
+        case TokenType::sump: {
+            return out << "'#sum+'";
+        }
         case TokenType::sup: {
             return out << "'#sup'";
         }
@@ -180,6 +194,12 @@ inline auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
         }
         case TokenType::le: {
             return out << "<=";
+        }
+        case TokenType::max: {
+            return out << "'#max'";
+        }
+        case TokenType::min: {
+            return out << "'#min'";
         }
         case TokenType::gt: {
             return out << ">";
@@ -526,6 +546,9 @@ auto parse_theory_term(ParserState &state) -> std::optional<TheoryTerm>;
 //! Assumes that the current token is '&'.
 auto parse_theory_atom(ParserState &state)
     -> std::optional<std::tuple<Term, TheoryElementArray, std::optional<TheoryRGuard>, Position>>;
+
+//! Check if the token is a relation.
+auto check_relation(TokenType token) -> std::optional<Relation>;
 
 //! Parse a literal.
 auto parse_literal(ParserState &state) -> std::optional<Lit>;
