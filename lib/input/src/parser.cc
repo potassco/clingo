@@ -1,7 +1,8 @@
-#include <gringo/input/algo/check_syntax.hh>
-#include <gringo/input/algo/parsev2.hh>
+#include <gringo/input/parser.hh>
 
-#include "parser_state.hh"
+#include <gringo/input/algo/check_syntax.hh>
+
+#include "parse/parser_state.hh"
 
 namespace Gringo::Input {
 

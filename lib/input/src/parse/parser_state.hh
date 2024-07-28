@@ -520,4 +520,13 @@ auto parse_theory_atom(ParserState &state)
 //! Parse a literal.
 auto parse_literal(ParserState &state) -> std::optional<Lit>;
 
+//! Parse a body literal.
+auto parse_body_literal(ParserState &state) -> std::optional<BdLit>;
+
+//! Parse a head literal.
+auto parse_head_literal(ParserState &state) -> std::optional<HdLit>;
+
+//! Parse a statement.
+auto parse_statement(ParserState &state) -> std::optional<Stm>;
+
 } // namespace Gringo::Input::Parse

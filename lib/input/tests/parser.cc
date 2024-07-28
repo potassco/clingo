@@ -1,4 +1,4 @@
-#include <gringo/input/algo/parsev2.hh>
+#include <gringo/input/parser.hh>
 
 #include "test.hh"
 

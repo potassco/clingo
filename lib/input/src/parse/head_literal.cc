@@ -1,0 +1,17 @@
+#include <gringo/input/literal.hh>
+
+#include <gringo/input/algo/analyze.hh>
+
+#include "parser_state.hh"
+
+namespace Gringo::Input::Parse {
+
+namespace {}
+
+auto parse_head_literal(ParserState &state) -> std::optional<HdLit> {
+    static_cast<void>(state);
+    throw std::runtime_error("implement me!!!");
+    return std::nullopt;
+}
+
+} // namespace Gringo::Input::Parse

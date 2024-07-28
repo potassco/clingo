@@ -1,4 +1,4 @@
-re2c_target_or_gen("src/algo/parse/lexer_impl.xch")
+re2c_target_or_gen("src/parse/lexer_impl.xch")
 
 add_library(gringo_input
     ${RE2C_lexer_impl_OUTPUT}
@@ -10,11 +10,6 @@ add_library(gringo_input
     "src/algo/evaluate.cc"
     "src/algo/iesolver.cc"
     "src/algo/parse.cc"
-    "src/algo/parse/literalv2.cc"
-    "src/algo/parse/parser_state.cc"
-    "src/algo/parse/parsev2.cc"
-    "src/algo/parse/termv2.cc"
-    "src/algo/parse/theoryv2.cc"
     "src/algo/print.cc"
     "src/algo/project_anonymous.cc"
     "src/algo/project.cc"
@@ -28,6 +23,14 @@ add_library(gringo_input
     "src/algo/unpool.cc"
     "src/algo/unpool_relations.cc"
     "src/algo/visit_variables.cc"
+    "src/parse/body_literal.cc"
+    "src/parse/head_literal.cc"
+    "src/parse/literal.cc"
+    "src/parse/parser_state.cc"
+    "src/parse/statement.cc"
+    "src/parse/term.cc"
+    "src/parser.cc"
+    "src/parse/theory.cc"
     "src/program.cc"
     )
 
@@ -49,7 +52,7 @@ if (PARSER_BUILD_TESTS)
         "tests/evaluate.cc"
         "tests/iesolver.cc"
         "tests/parse.cc"
-        "tests/parsev2.cc"
+        "tests/parser.cc"
         "tests/program.cc"
         "tests/project_anonymous.cc"
         "tests/project.cc"

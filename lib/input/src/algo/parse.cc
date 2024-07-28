@@ -3,8 +3,9 @@
 
 #include <gringo/input/algo/check_syntax.hh>
 #include <gringo/input/algo/parse.hh>
-#include <gringo/input/algo/parsev2.hh>
 #include <gringo/input/algo/rewrite.hh>
+
+#include <gringo/input/parser.hh>
 
 #include <lexy/action/parse.hpp>
 #include <lexy/action/scan.hpp>
