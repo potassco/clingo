@@ -300,14 +300,24 @@ struct TySeq {
 class ParserState {
   public:
     //! Contstructor.
-    ParserState(Logger &log, SymbolStore &store, std::istream &in, String file)
-        : state_{in, YYMAXFILL}, log_{&log}, store_{&store}, file_{file} {}
+    ParserState(Logger &log, SymbolStore &store) : log_{&log}, store_{&store} {}
 
-    ParserState(Logger &log, SymbolStore &store, std::string_view in, String file)
-        : state_{in, YYMAXFILL}, log_{&log}, store_{&store}, file_{file} {}
+    //! Initialize the parser state with the given string.
+    void init(std::string_view &in, String file) {
+        file_ = SharedString{file};
+        state_.init(in, YYMAXFILL);
+    }
 
+    //! Initialize the parser state with the given stream.
+    void init(std::istream &in, String file) {
+        file_ = SharedString{file};
+        state_.init(in, YYMAXFILL);
+    }
+
+    //! Get the associated symbol store.
     [[nodiscard]] auto store() const -> SymbolStore & { return *store_; }
 
+    //! Get the associated logger.
     [[nodiscard]] auto log() const -> Logger & { return *log_; }
 
     //! Get the string representation of the current token.

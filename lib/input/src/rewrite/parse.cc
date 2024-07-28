@@ -395,15 +395,21 @@ auto scan_string(Logger &log, SymbolStore &store, std::string_view content) -> S
 }
 
 auto parse_term(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<Term> {
-    return Parser{log, store, str, *store.string(str)}.parse_term();
+    auto p = Parser{log, store};
+    p.init(str, *store.string(str));
+    return p.parse_term();
 }
 
 auto parse_theory_term(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<TheoryTerm> {
-    return Parser{log, store, str, *store.string(str)}.parse_theory_term();
+    auto p = Parser{log, store};
+    p.init(str, *store.string(str));
+    return p.parse_theory_term();
 }
 
 auto parse_literal(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<Lit> {
-    return Parser{log, store, str, *store.string(str)}.parse_literal();
+    auto p = Parser{log, store};
+    p.init(str, *store.string(str));
+    return p.parse_literal();
 }
 
 auto parse_head_literal(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<HdLit> {

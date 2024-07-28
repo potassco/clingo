@@ -14,34 +14,52 @@ class LexerState {
     //! Initial size of the input buffer.
     static constexpr size_t default_buffer_size = 4096;
 
-    //! Construct an invalid lexer state.
+    //! Construct an uninitialized lexer state.
     LexerState() = default;
-    //! Construct a lexer state reading from the given stream.
+
+    //! Reset the lexer state.
+    void reset() {
+        in_ = nullptr;
+        buffer_.clear();
+        token_ = nullptr;
+        column_ = nullptr;
+        cursor_ = nullptr;
+        marker_ = nullptr;
+        ctxmarker_ = nullptr;
+        limit_ = nullptr;
+        cursor_column_ = 1;
+        cursor_line_ = 1;
+        token_line_ = 1;
+        token_column_ = 1;
+        eof_ = false;
+    }
+
+    //! Initialize the lexer state for reading from the given stream.
     //!
     //! This initializes the buffer filling it with zeros.
-    LexerState(std::istream &in, [[maybe_unused]] size_t padding) : in_{&in} {
+    void init(std::istream &in, size_t padding) {
+        reset();
+        in_ = &in;
         size_t n = default_buffer_size;
         while (n < padding) {
             n *= 2;
         }
         buffer_.resize(n, '\0');
-        // NOLINTBEGIN(cppcoreguidelines-prefer-member-initializer)
         token_ = column_ = cursor_ = marker_ = ctxmarker_ = limit_ = buffer_.data();
-        // NOLINTEND(cppcoreguidelines-prefer-member-initializer)
     }
 
-    //! Construct a lexer state for the given string_view.
+    //! Initialize the lexer state for reading from the given string view.
     //!
     //! Note that the string_view is copied because of the required terminating
     //! null bytes.
-    LexerState(std::string_view in, size_t padding) : eof_{true} {
+    void init(std::string_view in, size_t padding) {
+        reset();
+        eof_ = true;
         buffer_.reserve(in.size() + padding);
         buffer_.assign(in.begin(), in.end());
         buffer_.resize(in.size() + padding, '\0');
-        // NOLINTBEGIN(cppcoreguidelines-prefer-member-initializer)
         token_ = column_ = cursor_ = marker_ = ctxmarker_ = buffer_.data();
         limit_ = std::next(buffer_.data(), static_cast<ssize_t>(in.size()));
-        // NOLINTEND(cppcoreguidelines-prefer-member-initializer)
     }
 
     //! Move construct a lexer state.
@@ -54,6 +72,7 @@ class LexerState {
 
     //! Mark the beginning of a token.
     void start() {
+        assert(eof_ || in_ != nullptr);
         cursor_column_ = cursor_column();
         token_ = cursor_;
         token_line_ = cursor_line_;
@@ -127,6 +146,8 @@ inline auto LexerState::fill(size_t n, size_t padding) -> bool {
     if (eof_) {
         return false;
     }
+
+    assert(in_ != nullptr);
 
     auto *buffer = buffer_.data();
     auto shift = token_ - buffer;

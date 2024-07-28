@@ -29,17 +29,17 @@ auto parse_expr(Parse::ParserState &state, Parse::Condition cond, P parse,
 
 } // namespace
 
-Parser::Parser(Logger &log, SymbolStore &store, std::istream &in, String file)
-    : impl_{std::make_unique<Parse::ParserState>(log, store, in, file)} {}
-
-Parser::Parser(Logger &log, SymbolStore &store, std::string_view in, String file)
-    : impl_{std::make_unique<Parse::ParserState>(log, store, in, file)} {}
+Parser::Parser(Logger &log, SymbolStore &store) : impl_{std::make_unique<Parse::ParserState>(log, store)} {}
 
 Parser::Parser(Parser &&other) noexcept = default;
 
 auto Parser::operator=(Parser &&other) noexcept -> Parser & = default;
 
 Parser::~Parser() noexcept = default;
+
+void Parser::init(std::istream &in, String file) { impl_->init(in, file); }
+
+void Parser::init(std::string_view in, String file) { impl_->init(in, file); }
 
 auto Parser::parse_term() -> std::optional<Term> {
     return parse_expr(*impl_, Parse::Condition::normal, Parse::parse_term, check_term);

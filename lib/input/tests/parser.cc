@@ -8,12 +8,14 @@ TEST_CASE("parsev2") {
     std::vector<std::pair<MessageCode, std::string>> messages;
     auto store = make_symbol_store(true, false);
     auto log = Logger{[&](MessageCode code, std::string str) { messages.emplace_back(code, std::move(str)); }};
+    auto parser = Parser{log, *store};
 
     SECTION("term") {
         auto parse = [&](char const *str) -> std::string {
             log.reset();
             messages.clear();
-            return to_str(Parser{log, *store, str, store->string_ref("<input>")}.parse_term());
+            parser.init(str, store->string_ref("<input>"));
+            return to_str(parser.parse_term());
         };
         REQUIRE(parse("||a;b|;c|") == "||a;b|;c|");
         REQUIRE(parse("42") == "42");
@@ -60,33 +62,12 @@ TEST_CASE("parsev2") {
         REQUIRE(messages.back().first == MessageCode::error);
         REQUIRE(messages.back().second == "<input>:1:3-4: error: expected one of ',' but got ')'");
     }
-    SECTION("term") {
-        auto parse = [&](char const *str) -> std::string {
-            log.reset();
-            messages.clear();
-            return to_str(Parser{log, *store, str, store->string_ref("<input>")}.parse_literal());
-        };
-        REQUIRE(parse("#true") == "#true");
-        REQUIRE(parse("#false") == "#false");
-        REQUIRE(parse("1 < 2") == "1<2");
-        REQUIRE(parse("1 < 2<=3") == "1<2<=3");
-        REQUIRE(parse("-f+1 < 2") == "-f+1<2");
-        REQUIRE(parse("p(X)") == "p(X)");
-        REQUIRE(parse("-p(X)") == "-p(X)");
-        REQUIRE(parse("not p") == "not p");
-        REQUIRE(parse("not not p") == "not not p");
-        REQUIRE(parse("5") == "<failed>");
-
-        REQUIRE(parse("p(1;2,*;*;*,*)") == "p(1;2,*;*;*,*)");
-        REQUIRE(parse("p(*)") == "p(*)");
-        REQUIRE(parse("p((*,))") == "p((*,))");
-        REQUIRE(parse("p((1;2,*;*,;*,*))") == "p((1;2,*;*,;*,*))");
-    }
     SECTION("theory_term") {
         auto parse = [&](char const *str) -> std::string {
             log.reset();
             messages.clear();
-            return to_str(Parser{log, *store, str, store->string_ref("<input>")}.parse_theory_term());
+            parser.init(str, store->string_ref("<input>"));
+            return to_str(parser.parse_theory_term());
         };
         REQUIRE(parse("1") == "1");
         REQUIRE(parse("X") == "X");
@@ -111,6 +92,29 @@ TEST_CASE("parsev2") {
         REQUIRE(parse("(1,2,3,)") == "(1,2,3)");
 
         REQUIRE(parse("f((),(1),(1,),[],[1],[1,2],{},{1},{1,2})") == "f((),1,(1,),[],[1],[1,2],{},{1},{1,2})");
+    }
+    SECTION("literal") {
+        auto parse = [&](char const *str) -> std::string {
+            log.reset();
+            messages.clear();
+            parser.init(str, store->string_ref("<input>"));
+            return to_str(parser.parse_literal());
+        };
+        REQUIRE(parse("#true") == "#true");
+        REQUIRE(parse("#false") == "#false");
+        REQUIRE(parse("1 < 2") == "1<2");
+        REQUIRE(parse("1 < 2<=3") == "1<2<=3");
+        REQUIRE(parse("-f+1 < 2") == "-f+1<2");
+        REQUIRE(parse("p(X)") == "p(X)");
+        REQUIRE(parse("-p(X)") == "-p(X)");
+        REQUIRE(parse("not p") == "not p");
+        REQUIRE(parse("not not p") == "not not p");
+        REQUIRE(parse("5") == "<failed>");
+
+        REQUIRE(parse("p(1;2,*;*;*,*)") == "p(1;2,*;*;*,*)");
+        REQUIRE(parse("p(*)") == "p(*)");
+        REQUIRE(parse("p((*,))") == "p((*,))");
+        REQUIRE(parse("p((1;2,*;*,;*,*))") == "p((1;2,*;*,;*,*))");
     }
 }
 

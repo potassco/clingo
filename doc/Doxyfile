@@ -947,7 +947,7 @@ INPUT                  = mainpage.hh \
                          ../lib/util/include/gringo/util \
                          ../lib/core/include/gringo/core \
                          ../lib/input/include/gringo/input \
-                         ../lib/input/include/gringo/input/algo \
+                         ../lib/input/include/gringo/input/rewrite \
                          ../lib/ground/include/gringo/ground \
                          ../lib/output/include/gringo/output \
                          ../lib/grounder/include/gringo/grounder \

@@ -38,6 +38,7 @@ template <class Vec, class Pred> auto erase_if(Vec &vec, Pred pred) -> size_t {
 #if __cpp_lib_unreachable
 using std::unreachable;
 #else
+//! C++23's std::unreachable.
 [[noreturn]] inline void unreachable() {
 #if defined(_MSC_VER) && !defined(__clang__) // MSVC
     __assume(false);
