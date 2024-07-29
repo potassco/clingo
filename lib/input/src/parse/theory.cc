@@ -166,8 +166,6 @@ struct set_condition {
 };
 
 auto cont_theory_element(ParserState &state) -> std::optional<TheoryElement> {
-    assert(state.token() == TokenType::lbrace || state.token() == TokenType::sem);
-    state.consume();
     auto begin = state.token_pos();
     std::vector<TheoryTerm> tuple;
     std::vector<Lit> lits;
@@ -356,6 +354,8 @@ auto parse_theory_atom(ParserState &state)
                 }
             }
         }
+    } else {
+        args.emplace_back(ArgumentTuple{{}});
     }
 
     // build name
@@ -368,20 +368,22 @@ auto parse_theory_atom(ParserState &state)
     auto sc = set_condition{state, Condition::theory, Condition::normal};
     std::vector<TheoryElement> elems;
     if (state.token() == TokenType::lbrace) {
-        if (auto elem = cont_theory_element(state); elem) {
-            elems.emplace_back(*std::move(elem));
-        } else {
-            return std::nullopt;
-        }
-        while (state.token() == TokenType::sem) {
-            if (auto elem = cont_theory_element(state); elem) {
-                elems.emplace_back(*std::move(elem));
-            } else {
-                return std::nullopt;
-            }
-        }
+        state.consume();
         if (state.token() != TokenType::rbrace) {
-            return state.expected<std::nullopt>(TokenType::rbrace);
+            while (true) {
+                if (auto elem = cont_theory_element(state); elem) {
+                    elems.emplace_back(*std::move(elem));
+                } else {
+                    return std::nullopt;
+                }
+                if (state.token() == TokenType::rbrace) {
+                    break;
+                }
+                if (state.token() != TokenType::sem) {
+                    return state.expected<std::nullopt>(TokenType::sem, TokenType::rbrace);
+                }
+                state.consume();
+            }
         }
         end = state.cursor_pos();
         state.consume();
