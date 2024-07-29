@@ -526,6 +526,9 @@ class ParserState {
     TokenType token_ = TokenType::error;
 };
 
+//! Parse a sign.
+auto parse_sign(ParserState &state) -> Sign;
+
 //! Check if a term can start with the given token.
 auto check_term(TokenType token) -> bool;
 
@@ -549,6 +552,15 @@ auto parse_theory_atom(ParserState &state)
 
 //! Check if the token is a relation.
 auto check_relation(TokenType token) -> std::optional<Relation>;
+
+//! Continue parsing a comparison literal.
+auto cont_literal(ParserState &state, Position pos, Sign sign, Term term, Relation rel) -> std::optional<Lit>;
+
+//! Continue parsing a symbolic or comparison literal.
+auto cont_literal(ParserState &state, Position pos, Sign sign, Term term) -> std::optional<Lit>;
+
+//! Continue parsing a literal.
+auto cont_literal(ParserState &state, Position pos, Sign sign) -> std::optional<Lit>;
 
 //! Parse a literal.
 auto parse_literal(ParserState &state) -> std::optional<Lit>;

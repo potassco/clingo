@@ -48,6 +48,12 @@ class Parser {
     auto parse_theory_term() -> std::optional<TheoryTerm>;
     //! Parse a literal.
     auto parse_literal() -> std::optional<Lit>;
+    //! Parse a body literal.
+    auto parse_body_literal() -> std::optional<BdLit>;
+    //! Parse a head literal.
+    auto parse_head_literal() -> std::optional<HdLit>;
+    //! Parse a statement.
+    auto parse_statement() -> std::optional<Stm>;
 
   private:
     std::unique_ptr<Parse::ParserState> impl_;

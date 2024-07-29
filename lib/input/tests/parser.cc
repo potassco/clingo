@@ -116,6 +116,55 @@ TEST_CASE("parsev2") {
         REQUIRE(parse("p((*,))") == "p((*,))");
         REQUIRE(parse("p((1;2,*;*,;*,*))") == "p((1;2,*;*,;*,*))");
     }
+    SECTION("body_literal") {
+        auto parse = [&](char const *str) -> std::string {
+            log.reset();
+            messages.clear();
+            parser.init(str, store->string_ref("<input>"));
+            return to_str(parser.parse_body_literal());
+        };
+        // negation
+        REQUIRE(parse("a") == "a");
+        REQUIRE(parse("not a") == "not a");
+        REQUIRE(parse("not not a") == "not not a");
+        REQUIRE(parse("#true") == "#true");
+        REQUIRE(parse("#false") == "#false");
+        // theory_atom | aggregate | set_aggregate
+        REQUIRE(parse("&x{}") == "&x");
+        REQUIRE(parse("not &x{}") == "not &x");
+        REQUIRE(parse("#count{}") == "#count { }");
+        REQUIRE(parse("{}") == "{ }");
+        // atom_like relation aggregate
+        REQUIRE(parse("a<{}") == "a < { }");
+        REQUIRE(parse("a<#count{}") == "a < #count { }");
+        // atom_like relation term ...
+        REQUIRE(parse("a<b<c") == "a<b<c");
+        REQUIRE(parse("a<a:a") == "a<a: a");
+        // atom_like aggregate
+        REQUIRE(parse("a{}") == "a <= { }");
+        REQUIRE(parse("a#count{}") == "a <= #count { }");
+        // term aggregate
+        REQUIRE(parse("a+1{}") == "a+1 <= { }");
+        REQUIRE(parse("a+1#count{}") == "a+1 <= #count { }");
+        // term relation aggregate
+        REQUIRE(parse("a+1<{}") == "a+1 < { }");
+        REQUIRE(parse("a+1<#count{}") == "a+1 < #count { }");
+        // term relation term ...
+        REQUIRE(parse("a+1<b<c") == "a+1<b<c");
+        REQUIRE(parse("a+1<a:a") == "a+1<a: a");
+        // atom ...
+        REQUIRE(parse("-a") == "-a");
+        REQUIRE(parse("-a(X)") == "-a(X)");
+        REQUIRE(parse("a:b,c") == "a: b, c");
+        REQUIRE(parse("#true:a") == "#true: a");
+        REQUIRE(parse("not #true:a") == "not #true: a");
+        // aggregates with guards
+        REQUIRE(parse("a<{}<b") == "a < { } < b");
+        REQUIRE(parse("a{}b") == "a <= { } <= b");
+        // aggregate elements
+        REQUIRE(parse("#sum{:a;1:a;1,2:a,b,c}") == "#sum { : a; 1: a; 1,2: a, b, c }");
+        REQUIRE(parse("{1<2;1<2:a;a:b;a:b,c}") == "{ 1<2; 1<2: a; a: b; a: b, c }");
+    }
 }
 
 } // namespace Gringo::Input::Test

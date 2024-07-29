@@ -45,12 +45,24 @@ auto Parser::parse_term() -> std::optional<Term> {
     return parse_expr(*impl_, Parse::Condition::normal, Parse::parse_term, check_term);
 }
 
+auto Parser::parse_theory_term() -> std::optional<TheoryTerm> {
+    return parse_expr(*impl_, Parse::Condition::theory, Parse::parse_theory_term, check_true<TheoryTerm>);
+}
+
 auto Parser::parse_literal() -> std::optional<Lit> {
     return parse_expr(*impl_, Parse::Condition::normal, Parse::parse_literal, check_literal);
 }
 
-auto Parser::parse_theory_term() -> std::optional<TheoryTerm> {
-    return parse_expr(*impl_, Parse::Condition::theory, Parse::parse_theory_term, check_true<TheoryTerm>);
+auto Parser::parse_body_literal() -> std::optional<BdLit> {
+    return parse_expr(*impl_, Parse::Condition::normal, Parse::parse_body_literal, check_body_literal);
+}
+
+auto Parser::parse_head_literal() -> std::optional<HdLit> {
+    return parse_expr(*impl_, Parse::Condition::normal, Parse::parse_head_literal, check_head_literal);
+}
+
+auto Parser::parse_statement() -> std::optional<Stm> {
+    return parse_expr(*impl_, Parse::Condition::normal, Parse::parse_statement, check_statement);
 }
 
 } // namespace Gringo::Input

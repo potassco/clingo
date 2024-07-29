@@ -6,7 +6,26 @@
 
 namespace Gringo::Input::Parse {
 
-namespace {}
+namespace {
+
+auto cont_condlit(ParserState &state, Lit lit) -> std::optional<BdLit> {
+    if (state.token() == TokenType::colon) {
+        std::vector<Lit> cond;
+        do {
+            state.consume();
+            if (auto lit = parse_literal(state)) {
+                cond.emplace_back(*std::move(lit));
+            } else {
+                return std::nullopt;
+            }
+        } while (state.token() == TokenType::comma);
+        return BdLitConjunction{
+            CondLit{location(lit).begin() + location(cond.back()).end(), std::move(lit), std::move(cond)}};
+    }
+    return BdLitSimple{std::move(lit)};
+}
+
+} // namespace
 
 auto check_aggregate(TokenType token) -> bool {
     switch (token) {
@@ -25,17 +44,7 @@ auto check_aggregate(TokenType token) -> bool {
 
 auto parse_body_literal(ParserState &state) -> std::optional<BdLit> {
     auto pos = state.token_pos();
-
-    auto sign = Sign::none;
-    if (state.branch(TokenType::not_)) {
-        sign = Sign::once;
-    }
-    if (state.branch(TokenType::not_)) {
-        sign = Sign::twice;
-    }
-
-    static_cast<void>(sign);
-    static_cast<void>(pos);
+    auto sign = parse_sign(state);
 
     // handle atoms or guards of aggregates
     if (check_term(state.token())) {
@@ -45,32 +54,43 @@ auto parse_body_literal(ParserState &state) -> std::optional<BdLit> {
         }
         if (auto rel = check_relation(state.token())) {
             state.consume();
-            // handle aggregate
+            // handle aggregates
             if (auto fun = check_aggregate(state.token())) {
                 state.consume();
                 throw std::runtime_error("implement me!!!");
             }
-            // handle set aggregate
+            // handle set aggregates
             if (state.token() == TokenType::lbrace) {
                 state.consume();
                 throw std::runtime_error("implement me!!!");
             }
-            // handle comparision literal
-            // TODO: copy from literal
-            // TODO: handle possible condition
-            throw std::runtime_error("implement me!!!");
+            if (auto lit = cont_literal(state, std::move(pos), sign, *std::move(term), *rel)) {
+                return cont_condlit(state, *std::move(lit));
+            }
+            return std::nullopt;
         }
-        // check that the term is an atom
-        // TODO: copy from literal
-        // TODO: handle possible condition
-        throw std::runtime_error("implement me!!!");
+        if (auto lit = cont_literal(state, std::move(pos), sign, *std::move(term))) {
+            return cont_condlit(state, *std::move(lit));
+        }
+        return std::nullopt;
     }
+
+    // handle Boolean literals
+    if (state.token() == TokenType::true_ || state.token() == TokenType::false_) {
+        if (auto lit = cont_literal(state, std::move(pos), sign)) {
+            return cont_condlit(state, *std::move(lit));
+        }
+        return std::nullopt;
+    }
+
     // handle theory atoms
     if (state.token() == TokenType::amp) {
         // NOTE: cont_theory_atom might be a better name
         if (auto atom = parse_theory_atom(state); atom) {
-            throw std::runtime_error("implement me!!!");
+            auto [name, elems, rguard, end] = *std::move(atom);
+            return BdLitTheoryAtom{pos + end, sign, name, std::move(elems), std::move(rguard)};
         }
+        return std::nullopt;
     }
 
     // handle aggregates
@@ -78,6 +98,7 @@ auto parse_body_literal(ParserState &state) -> std::optional<BdLit> {
         state.consume();
         throw std::runtime_error("implement me!!!");
     }
+
     // handle set aggregate
     if (state.token() == TokenType::lbrace) {
         state.consume();
