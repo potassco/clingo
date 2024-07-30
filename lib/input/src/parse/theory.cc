@@ -165,45 +165,33 @@ struct set_condition {
     Condition restore;
 };
 
-auto cont_theory_element(ParserState &state) -> std::optional<TheoryElement> {
-    auto begin = state.token_pos();
-    std::vector<TheoryTerm> tuple;
-    std::vector<Lit> lits;
-    if (auto term = parse_theory_term(state); term) {
-        tuple.emplace_back(*std::move(term));
-    } else {
-        return std::nullopt;
+auto parse_theory_element(ParserState &state) -> std::optional<TheoryElement> {
+    if (state.token() == TokenType::sem || state.token() == TokenType::rbrace) {
+        return state.expected<std::nullopt>(TokenType::colon, "<theory-term>");
     }
-    while (state.token() == TokenType::comma) {
-        state.consume();
-        if (auto term = parse_theory_term(state); term) {
-            tuple.emplace_back(*std::move(term));
-        } else {
-            return std::nullopt;
+    if (auto tuple = state.separated_until(parse_theory_term, TokenType::comma, TokenType::colon, TokenType::sem,
+                                           TokenType::rbrace)) {
+        auto sc = set_condition{state, Condition::normal, Condition::theory};
+        auto loc = tuple->empty() ? state.loc() : location(tuple->front()) + location(tuple->back());
+        if (state.token() != TokenType::colon) {
+            return TheoryElement{std::move(loc), *std::move(tuple), {}};
         }
-    }
-    auto sc = set_condition{state, Condition::normal, Condition::theory};
-    auto end = state.cursor_pos();
-    if (state.token() == TokenType::colon) {
         state.consume();
-        if (auto lit = parse_literal(state); lit) {
-            lits.emplace_back(*std::move(lit));
-        } else {
-            return std::nullopt;
-        }
-        while (state.token() == TokenType::comma) {
-            state.consume();
-            if (auto lit = parse_literal(state); lit) {
-                lits.emplace_back(*std::move(lit));
-            } else {
-                return std::nullopt;
+        if (auto cond = state.separated_until(parse_literal, TokenType::comma, TokenType::sem, TokenType::rbrace)) {
+            if (!cond->empty()) {
+                loc += location(cond->back());
             }
+            return TheoryElement{std::move(loc), *std::move(tuple), *std::move(cond)};
         }
     }
-    if (!lits.empty()) {
-        end = location(lits.back()).end();
-    }
-    return TheoryElement{Location{std::move(begin), std::move(end)}, std::move(tuple), std::move(lits)};
+    return std::nullopt;
+}
+
+void cont_sym(ParserState &state, std::vector<String> ops, Symbol sym) {
+    auto &val = state.top_value<TyTerm>();
+    val.elems.emplace_back(ops, TheoryTermSymbol{state.loc(), sym});
+    state.consume();
+    cont_expr(state);
 }
 
 } // namespace
@@ -244,6 +232,14 @@ auto parse_theory_term(ParserState &state) -> std::optional<TheoryTerm> {
                         }
                         continue;
                     }
+                    case TokenType::inf: {
+                        cont_sym(state, std::move(ops), SymbolStore::inf());
+                        continue;
+                    }
+                    case TokenType::sup: {
+                        cont_sym(state, std::move(ops), SymbolStore::sup());
+                        continue;
+                    }
                     case TokenType::lbrace: {
                         if (!cont_seq(state, std::move(ops), TheoryTermTupleType::set, TokenType::rbrace)) {
                             return std::nullopt;
@@ -255,10 +251,7 @@ auto parse_theory_term(ParserState &state) -> std::optional<TheoryTerm> {
                         continue;
                     }
                     case TokenType::num: {
-                        auto &val = state.top_value<TyTerm>();
-                        val.elems.emplace_back(ops, TheoryTermSymbol{state.loc(), state.store().num_ref(state.num())});
-                        state.consume();
-                        cont_expr(state);
+                        cont_sym(state, std::move(ops), state.store().num_ref(state.num()));
                         continue;
                     }
                     case TokenType::anon:
@@ -271,10 +264,7 @@ auto parse_theory_term(ParserState &state) -> std::optional<TheoryTerm> {
                         continue;
                     }
                     case TokenType::str: {
-                        auto &val = state.top_value<TyTerm>();
-                        val.elems.emplace_back(ops, TheoryTermSymbol{state.loc(), SymbolStore::str_ref(state.str())});
-                        state.consume();
-                        cont_expr(state);
+                        cont_sym(state, std::move(ops), SymbolStore::str_ref(state.str()));
                         continue;
                     }
                     default: {
@@ -368,22 +358,8 @@ auto parse_theory_atom(ParserState &state)
     auto sc = set_condition{state, Condition::theory, Condition::normal};
     std::vector<TheoryElement> elems;
     if (state.token() == TokenType::lbrace) {
-        state.consume();
-        if (state.token() != TokenType::rbrace) {
-            while (true) {
-                if (auto elem = cont_theory_element(state); elem) {
-                    elems.emplace_back(*std::move(elem));
-                } else {
-                    return std::nullopt;
-                }
-                if (state.token() == TokenType::rbrace) {
-                    break;
-                }
-                if (state.token() != TokenType::sem) {
-                    return state.expected<std::nullopt>(TokenType::sem, TokenType::rbrace);
-                }
-                state.consume();
-            }
+        if (auto res = state.delimited(TokenType::lbrace, parse_theory_element, TokenType::sem, TokenType::rbrace)) {
+            elems = *std::move(res);
         }
         end = state.cursor_pos();
         state.consume();

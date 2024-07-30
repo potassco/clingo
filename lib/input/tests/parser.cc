@@ -7,7 +7,10 @@ namespace Gringo::Input::Test {
 TEST_CASE("parsev2") {
     std::vector<std::pair<MessageCode, std::string>> messages;
     auto store = make_symbol_store(true, false);
-    auto log = Logger{[&](MessageCode code, std::string str) { messages.emplace_back(code, std::move(str)); }};
+    auto log = Logger{[&](MessageCode code, std::string str) {
+        printf("%s\n", str.c_str());
+        messages.emplace_back(code, std::move(str));
+    }};
     auto parser = Parser{log, *store};
 
     SECTION("term") {
@@ -164,6 +167,49 @@ TEST_CASE("parsev2") {
         // aggregate elements
         REQUIRE(parse("#sum{:a;1:a;1,2:a,b,c}") == "#sum { : a; 1: a; 1,2: a, b, c }");
         REQUIRE(parse("{1<2;1<2:a;a:b;a:b,c}") == "{ 1<2; 1<2: a; a: b; a: b, c }");
+    }
+
+    SECTION("parse_theory") {
+        auto parse = [&](char const *str) -> std::string {
+            log.reset();
+            messages.clear();
+            parser.init(str, store->string_ref("<input>"));
+            return to_str(parser.parse_body_literal());
+        };
+        // empty guards/elements
+        REQUIRE(parse("&p(x,y;z){}<=a") == "&p(x,y;z) { } <= a");
+        REQUIRE(parse("&p(x,y;z)<=a") == "&p(x,y;z) { } <= a");
+        REQUIRE(parse("&p(x,y;z){}") == "&p(x,y;z)");
+        REQUIRE(parse("&p(x,y;z)") == "&p(x,y;z)");
+        // empty tuples/conditions
+        REQUIRE(parse("&p{1:a}") == "&p { 1: a }");
+        REQUIRE(parse("&p{1}") == "&p { 1 }");
+        REQUIRE(parse("&p{1:}") == "&p { 1 }");
+        REQUIRE(parse("&p{:a}") == "&p { : a }");
+        REQUIRE(parse("&p{:}") == "&p { :  }");
+        // term types
+        REQUIRE(parse("&p{1}") == "&p { 1 }");
+        REQUIRE(parse("&p{a}") == "&p { a }");
+        REQUIRE(parse("&p{\"a\"}") == "&p { \"a\" }");
+        REQUIRE(parse("&p{#sup}") == "&p { #sup }");
+        REQUIRE(parse("&p{_X}") == "&p { _X }");
+        REQUIRE(parse("&p{_}") == "&p { _ }");
+        // tuple
+        REQUIRE(parse("&p{()}") == "&p { () }");
+        REQUIRE(parse("&p{(a)}") == "&p { a }");
+        REQUIRE(parse("&p{(a,b)}") == "&p { (a,b) }");
+        REQUIRE(parse("&p{(a,b,)}") == "&p { (a,b) }");
+        REQUIRE(parse("&p{(a,)}") == "&p { (a,) }");
+        // set
+        REQUIRE(parse("&p{{}}") == "&p { {} }");
+        REQUIRE(parse("&p{{a}}") == "&p { {a} }");
+        REQUIRE(parse("&p{{a,b}}") == "&p { {a,b} }");
+        // list
+        REQUIRE(parse("&p{[]}") == "&p { [] }");
+        REQUIRE(parse("&p{[a]}") == "&p { [a] }");
+        REQUIRE(parse("&p{[a,b]}") == "&p { [a,b] }");
+        // unparsed
+        REQUIRE(parse("&p{+- *a -* + c}") == "&p { (+- * a -* + c) }");
     }
 }
 

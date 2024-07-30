@@ -22,6 +22,8 @@
     STRING     = "\"" ([^\\"\n]|"\\\""|"\\\\"|"\\n")* "\"";
     THEORYOP   = [/!<=>+\-*\\?&@|:;~\^\.]+;
     KEYWORD    = "#" [a-zA-Z0-9_]*;
+    SUP        = "#sup"("remum")?;
+    INF        = "#inf"("imum")?;
 */
 
 /*!header:re2c:on*/
@@ -73,8 +75,8 @@ auto ParserState::lex_() -> TokenType {
         <normal> "#max"            { return TokenType::max; }
         <normal> "#true"           { return TokenType::true_; }
         <normal> "#false"          { return TokenType::false_; }
-        <normal> "#sup"("remum")?  { return TokenType::sup; }
-        <normal> "#inf"("imum")?   { return TokenType::inf; }
+        <normal,theory> SUP        { return TokenType::sup; }
+        <normal,theory> INF        { return TokenType::inf; }
         <normal,theory> NUMBER     { return TokenType::num; }
         <normal,theory> VARIABLE   { return TokenType::var; }
         <normal,theory> STRING     { return TokenType::str; }

@@ -509,6 +509,46 @@ class ParserState {
     //! Set the lexer condition.
     void condition(Condition cond) { cond_ = static_cast<int>(cond); }
 
+    //! Parse a separated list until a stop token is reached.
+    //!
+    //! The stop token is not consumed. Allows for parsing empty lists.
+    template <class P, class... S>
+    auto separated_until(P parse, TokenType sep, S... stop)
+        -> std::optional<std::vector<typename std::invoke_result_t<P, ParserState &>::value_type>> {
+        auto elems = std::vector<typename std::invoke_result_t<P, ParserState &>::value_type>{};
+        if (((token() != stop) && ...)) {
+            while (true) {
+                if (auto elem = std::invoke(parse, *this); elem) {
+                    elems.emplace_back(*std::move(elem));
+                } else {
+                    return std::nullopt;
+                }
+                if (((token() == stop) || ...)) {
+                    break;
+                }
+                if (token() != sep) {
+                    return expected<std::nullopt>(sep, stop...);
+                }
+                consume();
+            }
+        }
+        return elems;
+    }
+
+    //! Parse a delimited list.
+    //!
+    //! Note that this does not consume the closing delimiter providing a
+    //! convenient way to obtain the end of the list.
+    template <class P>
+    auto delimited(TokenType open, P parse, TokenType sep, TokenType close)
+        -> std::optional<std::vector<typename std::invoke_result_t<P, ParserState &>::value_type>> {
+        if (token() != open) {
+            return expected<std::nullopt>(open);
+        }
+        consume();
+        return separated_until(std::move(parse), sep, close);
+    }
+
   private:
     using Value = std::variant<Pos, Term, Abs, Fun, Tup, TyTerm, TyFun, TySeq>;
 
