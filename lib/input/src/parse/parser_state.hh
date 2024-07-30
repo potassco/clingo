@@ -605,6 +605,15 @@ auto cont_literal(ParserState &state, Position pos, Sign sign) -> std::optional<
 //! Parse a literal.
 auto parse_literal(ParserState &state) -> std::optional<Lit>;
 
+//! Parse a set aggregate element.
+auto parse_set_aggr_elem(ParserState &state) -> std::optional<SetAggregateElement>;
+
+//! Parse an optional rhs guard.
+auto parse_rguard(ParserState &state) -> std::optional<RGuard>;
+
+//! Check if the token represents an aggregate function.
+auto check_aggregate(TokenType token) -> std::optional<AggregateFunction>;
+
 //! Parse a body literal.
 auto parse_body_literal(ParserState &state) -> std::optional<BdLit>;
 
