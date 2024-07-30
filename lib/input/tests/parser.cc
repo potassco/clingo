@@ -169,12 +169,71 @@ TEST_CASE("parsev2") {
         REQUIRE(parse("{1<2;1<2:a;a:b;a:b,c}") == "{ 1<2; 1<2: a; a: b; a: b, c }");
     }
 
+    SECTION("head_literal") {
+        auto parse = [&](char const *str) -> std::string {
+            log.reset();
+            messages.clear();
+            parser.init(str, store->string_ref("<input>"));
+            return to_str(parser.parse_head_literal());
+        };
+        // theory_atom | aggregate | set_aggregate | not disjunction
+        REQUIRE(parse("&x{}") == "&x");
+        REQUIRE(parse("#count{}") == "#count { }");
+        REQUIRE(parse("{}") == "{ }");
+        REQUIRE(parse("not a") == "not a");
+        // atom_like relation aggregate
+        REQUIRE(parse("a<{}") == "a < { }");
+        REQUIRE(parse("a<#count{}") == "a < #count { }");
+        // atom_like relation term ...
+        REQUIRE(parse("a<b<c") == "a<b<c");
+        REQUIRE(parse("a<a:a") == "a<a: a");
+        REQUIRE(parse("a<a:a;a") == "a<a: a; a");
+        REQUIRE(parse("a<a,a") == "a<a; a");
+        // atom_like aggregate
+        REQUIRE(parse("a{}") == "a <= { }");
+        REQUIRE(parse("a#count{}") == "a <= #count { }");
+        // term aggregate
+        REQUIRE(parse("a+1 { }") == "a+1 <= { }");
+        REQUIRE(parse("a+1#count{}") == "a+1 <= #count { }");
+        // term relation aggregate
+        REQUIRE(parse("a+1<{}") == "a+1 < { }");
+        REQUIRE(parse("a+1<#count{}") == "a+1 < #count { }");
+        // term relation term ...
+        REQUIRE(parse("a+1<b<c") == "a+1<b<c");
+        REQUIRE(parse("a+1<a:a") == "a+1<a: a");
+        REQUIRE(parse("a+1<a:a;a") == "a+1<a: a; a");
+        REQUIRE(parse("a+1<a,a") == "a+1<a; a");
+        REQUIRE(parse("a+1<>a,a") == "a+1!=a; a");
+        REQUIRE(parse("a+1><a,a") == "<failed>");
+        // atom ...
+        REQUIRE(parse("-a") == "-a");
+        REQUIRE(parse("-a(X)") == "-a(X)");
+        REQUIRE(parse("a:a") == "a: a");
+        REQUIRE(parse("a:a;a") == "a: a; a");
+        REQUIRE(parse("a,b") == "a; b");
+        REQUIRE(parse("a;b") == "a; b");
+        REQUIRE(parse("a|b") == "a; b");
+        REQUIRE(parse("#true|#false|not #true") == "#true; #false; not #true");
+        // aggregates with guards
+        REQUIRE(parse("a<{}<b") == "a < { } < b");
+        REQUIRE(parse("a{}b") == "a <= { } <= b");
+        // aggregate elements
+        REQUIRE(parse("#sum{: a; 1: a; 1,2: a: b, c}") == "#sum { : a; 1: a; 1,2: a: b, c }");
+        REQUIRE(parse("{1<2;1<2:a;a:b;a:b,c}") == "{ 1<2; 1<2: a; a: b; a: b, c }");
+        // theory atoms
+        REQUIRE(parse("&p(X){43+-Y:a} <== 7") == "&p(X) { (43 +- Y): a } <== 7");
+    }
+
     SECTION("parse_theory") {
         auto parse = [&](char const *str) -> std::string {
             log.reset();
             messages.clear();
             parser.init(str, store->string_ref("<input>"));
-            return to_str(parser.parse_body_literal());
+            auto a = to_str(parser.parse_body_literal());
+            parser.init(str, store->string_ref("<input>"));
+            auto b = to_str(parser.parse_head_literal());
+            REQUIRE(a == b);
+            return a;
         };
         // empty guards/elements
         REQUIRE(parse("&p(x,y;z){}<=a") == "&p(x,y;z) { } <= a");

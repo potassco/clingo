@@ -141,7 +141,7 @@ TEST_CASE("parse_head_literal") {
     REQUIRE(parse_head_literal("a+1<a:a") == "a+1<a: a");
     REQUIRE(parse_head_literal("a+1<a:a;a") == "a+1<a: a; a");
     REQUIRE(parse_head_literal("a+1<a,a") == "a+1<a; a");
-    REQUIRE(parse_head_literal("a+1<>a,a") == "<failed>");
+    REQUIRE(parse_head_literal("a+1<>a,a") == "a+1!=a; a");
     // atom ...
     REQUIRE(parse_head_literal("-a") == "-a");
     REQUIRE(parse_head_literal("-a(X)") == "-a(X)");

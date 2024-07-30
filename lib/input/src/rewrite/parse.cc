@@ -413,7 +413,9 @@ auto parse_literal(Logger &log, SymbolStore &store, std::string_view str) -> std
 }
 
 auto parse_head_literal(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<HdLit> {
-    return check(log, parse<Grammar::head_literal>(log, store, str), check_head_literal);
+    auto p = Parser{log, store};
+    p.init(str, *store.string(str));
+    return p.parse_head_literal();
 }
 
 auto parse_body_literal(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<BdLit> {
