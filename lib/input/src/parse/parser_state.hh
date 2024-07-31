@@ -20,17 +20,22 @@ enum class TokenType : uint8_t {
     caret,
     colon,
     comma,
+    const_,
     count,
     ddot,
     dot,
     dstar,
+    edge,
     end,
     eq,
     error,
+    external,
     false_,
     ge,
     gt,
+    heuristic,
     id,
+    if_,
     inf,
     lbrace,
     lbrack,
@@ -38,28 +43,33 @@ enum class TokenType : uint8_t {
     lpar,
     lt,
     max,
+    maximize,
     min,
+    minimize,
     minus,
     ne,
     not_,
     num,
     plus,
+    project,
     qmark,
     rbrace,
     rbrack,
     rpar,
-    rule,
     sem,
+    show,
     slash,
     star,
     str,
     sum,
     sump,
     sup,
+    theory,
     theory_op,
     tilde,
     true_,
     var,
+    wif,
 };
 
 #include "parse/lexer_impl_h.hh"
@@ -97,8 +107,11 @@ inline auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
         case TokenType::comma: {
             return out << "','";
         }
+        case TokenType::const_: {
+            return out << "#const";
+        }
         case TokenType::count: {
-            return out << "'#count'";
+            return out << "#count";
         }
         case TokenType::dot: {
             return out << "'.'";
@@ -109,14 +122,23 @@ inline auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
         case TokenType::dstar: {
             return out << "'**'";
         }
+        case TokenType::edge: {
+            return out << "#edge";
+        }
         case TokenType::end: {
             return out << "<eof>";
         }
         case TokenType::error: {
             return out << "<error>";
         }
+        case TokenType::external: {
+            return out << "#external";
+        }
         case TokenType::false_: {
-            return out << "'#false'";
+            return out << "#false";
+        }
+        case TokenType::heuristic: {
+            return out << "#heuristic";
         }
         case TokenType::id: {
             return out << "<identifier>";
@@ -130,6 +152,12 @@ inline auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
         case TokenType::lbrace: {
             return out << "'{'";
         }
+        case TokenType::maximize: {
+            return out << "#maximize";
+        }
+        case TokenType::minimize: {
+            return out << "#minimize";
+        }
         case TokenType::minus: {
             return out << "'-'";
         }
@@ -141,6 +169,9 @@ inline auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
         }
         case TokenType::plus: {
             return out << "'+'";
+        }
+        case TokenType::project: {
+            return out << "#project";
         }
         case TokenType::qmark: {
             return out << "'?'";
@@ -154,11 +185,14 @@ inline auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
         case TokenType::rbrace: {
             return out << "'}'";
         }
-        case TokenType::rule: {
+        case TokenType::if_: {
             return out << "':-'";
         }
         case TokenType::sem: {
             return out << "';'";
+        }
+        case TokenType::show: {
+            return out << "#show";
         }
         case TokenType::slash: {
             return out << "'/'";
@@ -170,19 +204,22 @@ inline auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
             return out << "<string>";
         }
         case TokenType::sum: {
-            return out << "'#sum'";
+            return out << "#sum";
         }
         case TokenType::sump: {
-            return out << "'#sum+'";
+            return out << "#sum+";
         }
         case TokenType::sup: {
-            return out << "'#sup'";
+            return out << "#sup";
         }
         case TokenType::true_: {
-            return out << "'#true'";
+            return out << "#true";
         }
         case TokenType::inf: {
-            return out << "'#inf'";
+            return out << "#inf";
+        }
+        case TokenType::theory: {
+            return out << "#theory";
         }
         case TokenType::theory_op: {
             return out << "<theory-operator>";
@@ -200,10 +237,10 @@ inline auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
             return out << "<=";
         }
         case TokenType::max: {
-            return out << "'#max'";
+            return out << "#max";
         }
         case TokenType::min: {
-            return out << "'#min'";
+            return out << "#min";
         }
         case TokenType::gt: {
             return out << ">";
@@ -216,6 +253,9 @@ inline auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
         }
         case TokenType::ne: {
             return out << "!=";
+        }
+        case TokenType::wif: {
+            return out << "':-'";
         }
     }
     return out;
@@ -512,6 +552,29 @@ class ParserState {
 
     //! Set the lexer condition.
     void condition(Condition cond) { cond_ = static_cast<int>(cond); }
+
+    //! Repeatedly consume token and parse until a stop token is reached.
+    //!
+    //! The stop token is not consumed. Allows for parsing empty lists.
+    template <class P, class... S>
+    auto repeat_until(TokenType sep, P parse, S... stop)
+        -> std::optional<std::vector<typename std::invoke_result_t<P, ParserState &>::value_type>> {
+        auto elems = std::vector<typename std::invoke_result_t<P, ParserState &>::value_type>{};
+        if (((token() != stop) && ...)) {
+            while (token() == sep) {
+                consume();
+                if (auto elem = std::invoke(parse, *this); elem) {
+                    elems.emplace_back(*std::move(elem));
+                } else {
+                    return std::nullopt;
+                }
+                if (((token() == stop) || ...)) {
+                    break;
+                }
+            }
+        }
+        return elems;
+    }
 
     //! Parse a separated list until a stop token is reached.
     //!

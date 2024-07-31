@@ -20,6 +20,7 @@ TEST_CASE("parsev2") {
             parser.init(str, store->string_ref("<input>"));
             return to_str(parser.parse_term());
         };
+        REQUIRE(parse("(-a+b)") == "(-a+b)");
         REQUIRE(parse("||a;b|;c|") == "||a;b|;c|");
         REQUIRE(parse("42") == "42");
         REQUIRE(parse("1'000'000'000'000'123") == "1000000000000123");
@@ -286,21 +287,11 @@ TEST_CASE("parsev2") {
         REQUIRE(parse("a:-a:b,c;d.") == "a :- a: b, c; d.");
         REQUIRE(parse(":-.") == " :- .");
 
-        char const *theory = R"(#theory y {
-      a { };
-      b { - : 10, unary };
-      b {
-        - : 10, unary;
-        + : 9, binary, right
-      };
-      &p/0: a, {+,-}, b, head
-    }.)";
-
-        // theory
-        REQUIRE(parse("#theory x {}.") == "#theory x { }.");
-        REQUIRE(parse(theory) == theory);
-
         // optimize
+        REQUIRE(parse(":~ . [1]") == " :~ . [1]");
+        REQUIRE(parse(":~ . [1@2]") == " :~ . [1@2]");
+        REQUIRE(parse(":~ a. [1]") == " :~ a. [1]");
+        REQUIRE(parse(":~ a; b. [1]") == " :~ a; b. [1]");
         REQUIRE(parse("#minimize {}.") == "#minimize { }.");
         REQUIRE(parse("#maximize {}.") == "#maximize { }.");
         REQUIRE(parse("#minimize {1}.") == "#minimize { 1 }.");
@@ -308,10 +299,6 @@ TEST_CASE("parsev2") {
         REQUIRE(parse("#minimize {1@2,3,4}.") == "#minimize { 1@2,3,4 }.");
         REQUIRE(parse("#minimize {1@2,3,4:a}.") == "#minimize { 1@2,3,4: a }.");
         REQUIRE(parse("#minimize {1@2;3@4}.") == "#minimize { 1@2; 3@4 }.");
-        REQUIRE(parse(":~ . [1]") == " :~ . [1]");
-        REQUIRE(parse(":~ . [1@2]") == " :~ . [1@2]");
-        REQUIRE(parse(":~ a. [1]") == " :~ a. [1]");
-        REQUIRE(parse(":~ a; b. [1]") == " :~ a; b. [1]");
 
         // show
         REQUIRE(parse("#show a/2.") == "#show a/2.");
@@ -371,6 +358,20 @@ TEST_CASE("parsev2") {
         REQUIRE(parse("#const x=42.") == "#const x=42. [default]");
         REQUIRE(parse("#const x=42. [default]") == "#const x=42. [default]");
         REQUIRE(parse("#const x=42. [override]") == "#const x=42. [override]");
+
+        char const *theory = R"(#theory y {
+      a { };
+      b { - : 10, unary };
+      b {
+        - : 10, unary;
+        + : 9, binary, right
+      };
+      &p/0: a, {+,-}, b, head
+    }.)";
+
+        // theory
+        REQUIRE(parse("#theory x {}.") == "#theory x { }.");
+        REQUIRE(parse(theory) == theory);
     }
 }
 

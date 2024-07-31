@@ -24,6 +24,8 @@
     KEYWORD    = "#" [a-zA-Z0-9_]*;
     SUP        = "#sup"("remum")?;
     INF        = "#inf"("imum")?;
+    MAXI       = "#maximi"[zs]"e";
+    MINI       = "#minimi"[zs]"e";
 */
 
 /*!header:re2c:on*/
@@ -47,7 +49,8 @@ auto ParserState::lex_() -> TokenType {
         <normal,theory> "."        { return TokenType::dot; }
         <normal,theory> "not"      { return cond_ == yycnormal ? TokenType::not_ : TokenType::theory_op; }
         <normal,theory> "_"        { return TokenType::anon; }
-        <normal> ":-"              { return TokenType::rule; }
+        <normal> ":-"              { return TokenType::if_; }
+        <normal> ":~"              { return TokenType::wif; }
         <normal> "<"               { return TokenType::lt; }
         <normal> "<="              { return TokenType::le; }
         <normal> ">"               { return TokenType::gt; }
@@ -69,13 +72,22 @@ auto ParserState::lex_() -> TokenType {
         <normal> "~"               { return TokenType::tilde; }
         <normal> ".."              { return TokenType::ddot; }
         <normal> "@"               { return TokenType::at; }
-        <normal> "#sum"            { return TokenType::sum; }
         <normal> "#count"          { return TokenType::count; }
-        <normal> "#sum+"           { return TokenType::sump; }
-        <normal> "#min"            { return TokenType::min; }
-        <normal> "#max"            { return TokenType::max; }
-        <normal> "#true"           { return TokenType::true_; }
+        <normal> "#const"          { return TokenType::const_; }
+        <normal> "#edge"           { return TokenType::edge; }
         <normal> "#false"          { return TokenType::false_; }
+        <normal> "#heuristic"      { return TokenType::heuristic; }
+        <normal> "#maximi"[zs]"e"  { return TokenType::maximize; }
+        <normal> "#max"            { return TokenType::max; }
+        <normal> "#minimi"[zs]"e"  { return TokenType::minimize; }
+        <normal> "#min"            { return TokenType::min; }
+        <normal> "#project"        { return TokenType::project; }
+        <normal> "#script"         { return TokenType::external; }
+        <normal> "#show"           { return TokenType::show; }
+        <normal> "#sum"            { return TokenType::sum; }
+        <normal> "#sum+"           { return TokenType::sump; }
+        <normal> "#theory"         { return TokenType::theory; }
+        <normal> "#true"           { return TokenType::true_; }
         <normal,theory> SUP        { return TokenType::sup; }
         <normal,theory> INF        { return TokenType::inf; }
         <normal,theory> NUMBER     { return TokenType::num; }

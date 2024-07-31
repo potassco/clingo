@@ -28,7 +28,7 @@ auto cont_disjunction(ParserState &state, HdLitDisjunctionElement elem) -> std::
             auto loc = location(*lit).begin() + state.cursor_pos();
             state.consume();
             auto cond = state.separated_until(parse_literal, TokenType::comma, TokenType::sem, TokenType::dot,
-                                              TokenType::bar, TokenType::end, TokenType::rule);
+                                              TokenType::bar, TokenType::end, TokenType::if_);
             if (!cond) {
                 return std::nullopt;
             }
@@ -53,7 +53,7 @@ auto cont_disjunction(ParserState &state, Lit lit) -> std::optional<HdLit> {
         auto end = state.cursor_pos();
         state.consume();
         if (auto cond = state.separated_until(parse_literal, TokenType::comma, TokenType::sem, TokenType::dot,
-                                              TokenType::bar, TokenType::end, TokenType::rule)) {
+                                              TokenType::bar, TokenType::end, TokenType::if_)) {
             auto loc = location(lit).begin() + (cond->empty() ? end : location(cond->back()).end());
             // continue parsing with the just parsed disjunction element
             return cont_disjunction(state, CondLit{std::move(loc), std::move(lit), *std::move(cond)});
