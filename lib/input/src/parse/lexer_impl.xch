@@ -47,6 +47,7 @@ auto ParserState::lex_() -> TokenType {
         <normal,theory> "."        { return TokenType::dot; }
         <normal,theory> "not"      { return cond_ == yycnormal ? TokenType::not_ : TokenType::theory_op; }
         <normal,theory> "_"        { return TokenType::anon; }
+        <normal> ":-"              { return TokenType::rule; }
         <normal> "<"               { return TokenType::lt; }
         <normal> "<="              { return TokenType::le; }
         <normal> ">"               { return TokenType::gt; }

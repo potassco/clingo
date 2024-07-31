@@ -48,6 +48,7 @@ enum class TokenType : uint8_t {
     rbrace,
     rbrack,
     rpar,
+    rule,
     sem,
     slash,
     star,
@@ -152,6 +153,9 @@ inline auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
         }
         case TokenType::rbrace: {
             return out << "'}'";
+        }
+        case TokenType::rule: {
+            return out << "':-'";
         }
         case TokenType::sem: {
             return out << "';'";

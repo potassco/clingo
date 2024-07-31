@@ -270,6 +270,108 @@ TEST_CASE("parsev2") {
         // unparsed
         REQUIRE(parse("&p{+- *a -* + c}") == "&p { (+- * a -* + c) }");
     }
+    SECTION("statement") {
+        auto parse = [&](char const *str) -> std::string {
+            log.reset();
+            messages.clear();
+            parser.init(str, store->string_ref("<input>"));
+            return to_str(parser.parse_statement());
+        };
+        // rule
+        REQUIRE(parse("a.") == "a.");
+        REQUIRE(parse("a:-.") == "a.");
+        REQUIRE(parse("a:-b.") == "a :- b.");
+        REQUIRE(parse("a:-b,c.") == "a :- b; c.");
+        REQUIRE(parse("a:-b;c.") == "a :- b; c.");
+        REQUIRE(parse("a:-a:b,c;d.") == "a :- a: b, c; d.");
+        REQUIRE(parse(":-.") == " :- .");
+
+        char const *theory = R"(#theory y {
+      a { };
+      b { - : 10, unary };
+      b {
+        - : 10, unary;
+        + : 9, binary, right
+      };
+      &p/0: a, {+,-}, b, head
+    }.)";
+
+        // theory
+        REQUIRE(parse("#theory x {}.") == "#theory x { }.");
+        REQUIRE(parse(theory) == theory);
+
+        // optimize
+        REQUIRE(parse("#minimize {}.") == "#minimize { }.");
+        REQUIRE(parse("#maximize {}.") == "#maximize { }.");
+        REQUIRE(parse("#minimize {1}.") == "#minimize { 1 }.");
+        REQUIRE(parse("#minimize {1@2}.") == "#minimize { 1@2 }.");
+        REQUIRE(parse("#minimize {1@2,3,4}.") == "#minimize { 1@2,3,4 }.");
+        REQUIRE(parse("#minimize {1@2,3,4:a}.") == "#minimize { 1@2,3,4: a }.");
+        REQUIRE(parse("#minimize {1@2;3@4}.") == "#minimize { 1@2; 3@4 }.");
+        REQUIRE(parse(":~ . [1]") == " :~ . [1]");
+        REQUIRE(parse(":~ . [1@2]") == " :~ . [1@2]");
+        REQUIRE(parse(":~ a. [1]") == " :~ a. [1]");
+        REQUIRE(parse(":~ a; b. [1]") == " :~ a; b. [1]");
+
+        // show
+        REQUIRE(parse("#show a/2.") == "#show a/2.");
+        REQUIRE(parse("#show -a/2.") == "#show -a/2.");
+        REQUIRE(parse("#show (-a/2).") == "#show (-a/2): .");
+        REQUIRE(parse("#show (-a()/2).") == "#show (-a/2): .");
+        REQUIRE(parse("#show p(X).") == "#show p(X): .");
+        REQUIRE(parse("#show p(X): .") == "#show p(X): .");
+        REQUIRE(parse("#show p(X): a.") == "#show p(X): a.");
+
+        // project
+        REQUIRE(parse("#project a/2.") == "#project a/2.");
+        REQUIRE(parse("#project -a/2.") == "#project -a/2.");
+        REQUIRE(parse("#project p(X).") == "#project p(X).");
+        REQUIRE(parse("#project p(X): .") == "#project p(X).");
+        REQUIRE(parse("#project p(X): a.") == "#project p(X): a.");
+
+        // defined
+        REQUIRE(parse("#defined a/2.") == "#defined a/2.");
+        REQUIRE(parse("#defined -a/2.") == "#defined -a/2.");
+
+        // edge
+        REQUIRE(parse("#edge (a,b).") == "#edge (a,b).");
+        REQUIRE(parse("#edge (a,b):.") == "#edge (a,b).");
+        REQUIRE(parse("#edge (a,b): c.") == "#edge (a,b): c.");
+        REQUIRE(parse("#edge (a,b;c,d): e.") == "#edge (a,b;c,d): e.");
+        REQUIRE(parse("#edge (a,b;c,d): e; f.") == "#edge (a,b;c,d): e; f.");
+
+        // heuristic
+        REQUIRE(parse("#heuristic a. [level@1,true]") == "#heuristic a. [level@1,true]");
+        REQUIRE(parse("#heuristic a. [level,true]") == "#heuristic a. [level,true]");
+        REQUIRE(parse("#heuristic a:. [level,true]") == "#heuristic a. [level,true]");
+        REQUIRE(parse("#heuristic -a. [level,true]") == "#heuristic -a. [level,true]");
+        REQUIRE(parse("#heuristic a:a; b. [level,true]") == "#heuristic a: a; b. [level,true]");
+
+        // script
+        REQUIRE(parse("#script   ( python  )     code   #end.") == "#script (python)     code   #end.");
+        REQUIRE(parse("#script (python)\ncode\n#end.") == "#script (python)\ncode\n#end.");
+        REQUIRE(parse("#script (python) всем привет #end.") == "#script (python) всем привет #end.");
+
+        // external
+        REQUIRE(parse("#external a(X): b(X).") == "#external a(X): b(X).");
+        REQUIRE(parse("#external -a(X): b(X).") == "#external -a(X): b(X).");
+        REQUIRE(parse("#external a(X): b(X). [X]") == "#external a(X): b(X). [X]");
+
+        // include
+        REQUIRE(parse("#include \"abc\".") == "#include \"abc\".");
+        REQUIRE(parse("#include <abc>.") == "#include <abc>.");
+
+        // program
+        REQUIRE(parse("#program base.") == "#program base.");
+        REQUIRE(parse("#program base().") == "#program base.");
+        REQUIRE(parse("#program step(t).") == "#program step(t).");
+        REQUIRE(parse("#program step(k,t).") == "#program step(k,t).");
+
+        // const
+        REQUIRE(parse("#const x=42.") == "#const x=42. [default]");
+        REQUIRE(parse("#const x=42. [default]") == "#const x=42. [default]");
+        REQUIRE(parse("#const x=42. [override]") == "#const x=42. [override]");
+    }
 }
 
 } // namespace Gringo::Input::Test
