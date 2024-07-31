@@ -20,7 +20,7 @@ TEST_CASE("parsev2") {
             parser.init(str, store->string_ref("<input>"));
             return to_str(parser.parse_term());
         };
-        REQUIRE(parse("(-a+b)") == "(-a+b)");
+        REQUIRE(parse("(-a+b)") == "-a+b");
         REQUIRE(parse("||a;b|;c|") == "||a;b|;c|");
         REQUIRE(parse("42") == "42");
         REQUIRE(parse("1'000'000'000'000'123") == "1000000000000123");
@@ -303,11 +303,18 @@ TEST_CASE("parsev2") {
         // show
         REQUIRE(parse("#show a/2.") == "#show a/2.");
         REQUIRE(parse("#show -a/2.") == "#show -a/2.");
-        REQUIRE(parse("#show (-a/2).") == "#show (-a/2): .");
-        REQUIRE(parse("#show (-a()/2).") == "#show (-a/2): .");
+        // Note: the print function could be refined to omit the parenthesis
+        REQUIRE(parse("#show a()/2.") == "#show (a/2): .");
+        REQUIRE(parse("#show -a()/2.") == "#show (-a/2): .");
+        REQUIRE(parse("#show (-a/2).") == "#show -a/2: .");
+        REQUIRE(parse("#show (-a()/2).") == "#show -a/2: .");
         REQUIRE(parse("#show p(X).") == "#show p(X): .");
         REQUIRE(parse("#show p(X): .") == "#show p(X): .");
         REQUIRE(parse("#show p(X): a.") == "#show p(X): a.");
+
+        // defined
+        REQUIRE(parse("#defined a/2.") == "#defined a/2.");
+        REQUIRE(parse("#defined -a/2.") == "#defined -a/2.");
 
         // project
         REQUIRE(parse("#project a/2.") == "#project a/2.");
@@ -315,10 +322,6 @@ TEST_CASE("parsev2") {
         REQUIRE(parse("#project p(X).") == "#project p(X).");
         REQUIRE(parse("#project p(X): .") == "#project p(X).");
         REQUIRE(parse("#project p(X): a.") == "#project p(X): a.");
-
-        // defined
-        REQUIRE(parse("#defined a/2.") == "#defined a/2.");
-        REQUIRE(parse("#defined -a/2.") == "#defined -a/2.");
 
         // edge
         REQUIRE(parse("#edge (a,b).") == "#edge (a,b).");

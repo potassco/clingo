@@ -75,49 +75,44 @@ auto parse_opt_elem(ParserState &state) -> std::optional<OptimizeElement> {
     return std::nullopt;
 }
 
+//! Check if the term captures a signature.
 auto check_show_sig(Term const &term) -> std::optional<std::tuple<bool, String, int>> {
-    auto get_name = []<class T>(T const &x) -> std::optional<String> {
-        if constexpr (Util::matches<T, TermSymbol>) {
-            auto sym = x.value();
-            if (sym.type() == SymbolType::function && sym.args().empty()) {
+    auto get_name = [](Term const &x) -> std::optional<String> {
+        if (auto const *y = std::get_if<TermSymbol>(&x)) {
+            if (auto sym = y->value(); sym.type() == SymbolType::function && sym.args().empty()) {
                 return sym.name();
             }
         }
-        if constexpr (Util::matches<T, TermFunction>) {
-            if (!x.external() && x.pool().size() == 1 && x.pool().front().elems().empty()) {
-                return x.name();
+        return std::nullopt;
+    };
+    auto get_arity = [](Term const &x) -> std::optional<int> {
+        if (auto const *y = std::get_if<TermSymbol>(&x)) {
+            if (y->value().type() == SymbolType::number) {
+                return y->value().num().as_int();
             }
         }
         return std::nullopt;
     };
-    auto get_arity = []<class T>(T const &x) -> std::optional<int> {
-        if constexpr (Util::matches<T, TermSymbol>) {
-            if (x.value().type() == SymbolType::number) {
-                return x.value().num().as_int();
-            }
-        }
-        return std::nullopt;
-    };
-    auto get_bin = [&]<class T>(T const &x) -> TermBinary const * {
-        if constexpr (Util::matches<T, TermBinary>) {
-            if (x.op() == BinaryOperator::div) {
-                return &x;
+    auto get_bin = [](Term const &x) -> TermBinary const * {
+        if (auto const *y = std::get_if<TermBinary>(&x)) {
+            if (y->op() == BinaryOperator::div) {
+                return y;
             }
         }
         return nullptr;
     };
-    auto get_sign = [&]<class T>(T const &x) -> Term const * {
-        if constexpr (Util::matches<T, TermUnary>) {
-            if (x.op() == UnaryOperator::negate) {
-                return &x.rhs().get();
+    auto get_sign = [](Term const &x) -> Term const * {
+        if (auto const *y = std::get_if<TermUnary>(&x)) {
+            if (y->op() == UnaryOperator::negate) {
+                return &y->rhs().get();
             }
         }
         return nullptr;
     };
-    if (auto const *bin = std::visit(get_bin, term)) {
-        auto const *sub = std::visit(get_sign, *bin->lhs());
-        if (auto name = std::visit(get_name, sub != nullptr ? *sub : *bin->lhs())) {
-            if (auto arity = std::visit(get_arity, *bin->rhs())) {
+    if (auto const *bin = get_bin(term)) {
+        auto const *sub = get_sign(*bin->lhs());
+        if (auto name = get_name(sub != nullptr ? *sub : *bin->lhs())) {
+            if (auto arity = get_arity(*bin->rhs())) {
                 return std::make_tuple(sub != nullptr, *name, *arity);
             }
         }
@@ -127,6 +122,7 @@ auto check_show_sig(Term const &term) -> std::optional<std::tuple<bool, String, 
 
 //! Parse a show statement.
 auto parse_show(ParserState &state) -> std::optional<Stm> {
+    assert(state.token() == TokenType::show);
     auto loc = state.loc();
     state.consume();
     if (auto term = parse_term(state)) {
@@ -153,64 +149,74 @@ auto parse_show(ParserState &state) -> std::optional<Stm> {
     return std::nullopt;
 }
 
-} // namespace
-
-auto parse_statement(ParserState &state) -> std::optional<Stm> {
+//! Parse an optimize statement.
+auto parse_optimize(ParserState &state) -> std::optional<Stm> {
+    bool min = state.token() == TokenType::minimize;
     auto loc = state.loc();
-    if (state.token() == TokenType::if_) {
-        // integrity constraints
+    // consume <optimize>
+    state.consume();
+    if (auto elems = state.delimited(TokenType::lbrace, parse_opt_elem, TokenType::sem, TokenType::rbrace)) {
+        // consume rbrace
         state.consume();
-        if (auto body = parse_body(state)) {
-            loc += state.cursor_pos();
-            // consume dot
-            state.consume();
-            return StmRule{std::move(loc),
-                           HdLit{std::in_place_type<HdLitSimple>, LitBool{state.loc(), Sign::none, false}},
-                           *std::move(body)};
+        if (state.token() != TokenType::dot) {
+            return state.expected<std::nullopt>(TokenType::dot);
         }
-    } else if (state.token() == TokenType::wif) {
-        // integrity constraints
+        loc += state.cursor_pos();
+        // consume dot
         state.consume();
-        if (auto body = parse_body(state)) {
-            loc += state.cursor_pos();
-            // consume dot
-            state.consume();
-            if (state.token() != TokenType::lbrack) {
-                return state.expected<std::nullopt>(TokenType::lbrack);
-            }
-            // consume lbrack
-            state.consume();
-            if (auto weight = parse_term(state)) {
-                if (auto prio = parse_prio(state)) {
-                    if (auto terms = state.repeat_until(TokenType::comma, parse_term, TokenType::rbrack)) {
-                        loc += state.cursor_pos();
-                        // consume rbrack
-                        state.consume();
-                        return StmWeakConstraint{
-                            std::move(loc), *std::move(body),
-                            OptimizeTuple{*std::move(weight), *std::move(prio), *std::move(terms)}};
-                    }
+        return StmOptimize{std::move(loc), min ? OptimizeType::minimize : OptimizeType::maximize, *std::move(elems)};
+    }
+    return std::nullopt;
+}
+
+//! Parse a weak constraint.
+auto parse_weak(ParserState &state) -> std::optional<Stm> {
+    auto loc = state.loc();
+    // integrity constraints
+    state.consume();
+    if (auto body = parse_body(state)) {
+        loc += state.cursor_pos();
+        // consume dot
+        state.consume();
+        if (state.token() != TokenType::lbrack) {
+            return state.expected<std::nullopt>(TokenType::lbrack);
+        }
+        // consume lbrack
+        state.consume();
+        if (auto weight = parse_term(state)) {
+            if (auto prio = parse_prio(state)) {
+                if (auto terms = state.repeat_until(TokenType::comma, parse_term, TokenType::rbrack)) {
+                    loc += state.cursor_pos();
+                    // consume rbrack
+                    state.consume();
+                    return StmWeakConstraint{std::move(loc), *std::move(body),
+                                             OptimizeTuple{*std::move(weight), *std::move(prio), *std::move(terms)}};
                 }
             }
         }
-    } else if (auto min = state.token() == TokenType::minimize; min || state.token() == TokenType::maximize) {
-        // consume <optimize>
+    }
+    return std::nullopt;
+}
+
+//! Parse an integrity constraint.
+auto parse_constraint(ParserState &state) -> std::optional<Stm> {
+    auto loc = state.loc();
+    // integrity constraints
+    state.consume();
+    if (auto body = parse_body(state)) {
+        loc += state.cursor_pos();
+        // consume dot
         state.consume();
-        if (auto elems = state.delimited(TokenType::lbrace, parse_opt_elem, TokenType::sem, TokenType::rbrace)) {
-            // consume rbrace
-            state.consume();
-            if (state.token() != TokenType::dot) {
-                return state.expected<std::nullopt>(TokenType::dot);
-            }
-            loc += state.cursor_pos();
-            // consume dot
-            state.consume();
-            return StmOptimize{std::move(loc), min ? OptimizeType::minimize : OptimizeType::maximize,
-                               *std::move(elems)};
-        }
-    } else if (state.token() == TokenType::show) {
-        return parse_show(state);
-    } else if (auto hd = parse_head_literal(state)) {
+        return StmRule{std::move(loc), HdLit{std::in_place_type<HdLitSimple>, LitBool{state.loc(), Sign::none, false}},
+                       *std::move(body)};
+    }
+    return std::nullopt;
+}
+
+//! Parse a rule.
+auto parse_rule(ParserState &state) -> std::optional<Stm> {
+    if (auto hd = parse_head_literal(state)) {
+        auto loc = state.loc();
         // rules with head and body
         if (state.token() == TokenType::if_) {
             // consume :-
@@ -224,6 +230,7 @@ auto parse_statement(ParserState &state) -> std::optional<Stm> {
         }
         // rules with empty body
         else if (state.token() == TokenType::dot) {
+            auto loc = state.loc();
             loc += state.cursor_pos();
             // consume the dot
             state.consume();
@@ -231,6 +238,30 @@ auto parse_statement(ParserState &state) -> std::optional<Stm> {
         }
     }
     return std::nullopt;
+}
+
+} // namespace
+
+auto parse_statement(ParserState &state) -> std::optional<Stm> {
+    switch (state.token()) {
+        case TokenType::if_: {
+            return parse_constraint(state);
+        }
+        case TokenType::wif: {
+            return parse_weak(state);
+        }
+        case TokenType::minimize:
+        case TokenType::maximize: {
+            return parse_optimize(state);
+        }
+        case TokenType::show: {
+            return parse_show(state);
+        }
+        default: {
+            // TODO: better error messages possible by considering the lookahead tokens
+            return parse_rule(state);
+        }
+    }
 }
 
 } // namespace Gringo::Input::Parse
