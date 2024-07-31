@@ -216,7 +216,7 @@ auto parse_constraint(ParserState &state) -> std::optional<Stm> {
 //! Parse a rule.
 auto parse_rule(ParserState &state) -> std::optional<Stm> {
     if (auto hd = parse_head_literal(state)) {
-        auto loc = state.loc();
+        auto loc = location(*hd);
         // rules with head and body
         if (state.token() == TokenType::if_) {
             // consume :-
@@ -240,6 +240,60 @@ auto parse_rule(ParserState &state) -> std::optional<Stm> {
     return std::nullopt;
 }
 
+//! Parse a const statement.
+auto parse_const(ParserState &state) -> std::optional<Stm> {
+    static_cast<void>(state);
+    throw std::runtime_error("implement me: const");
+}
+
+//! Parse a defined statement.
+auto parse_defined(ParserState &state) -> std::optional<Stm> {
+    static_cast<void>(state);
+    throw std::runtime_error("implement me: defined");
+}
+
+//! Parse a project statement.
+auto parse_project(ParserState &state) -> std::optional<Stm> {
+    static_cast<void>(state);
+    throw std::runtime_error("implement me: project");
+}
+
+//! Parse an edge statement.
+auto parse_edge(ParserState &state) -> std::optional<Stm> {
+    static_cast<void>(state);
+    throw std::runtime_error("implement me: edge");
+}
+
+//! Parse a heuristic statement.
+auto parse_heuristic(ParserState &state) -> std::optional<Stm> {
+    static_cast<void>(state);
+    throw std::runtime_error("implement me: heuristic");
+}
+
+//! Parse a script statement.
+auto parse_script(ParserState &state) -> std::optional<Stm> {
+    static_cast<void>(state);
+    throw std::runtime_error("implement me: script");
+}
+
+//! Parse a include statement.
+auto parse_include(ParserState &state) -> std::optional<Stm> {
+    static_cast<void>(state);
+    throw std::runtime_error("implement me: include");
+}
+
+//! Parse a include statement.
+auto parse_program(ParserState &state) -> std::optional<Stm> {
+    static_cast<void>(state);
+    throw std::runtime_error("implement me: include");
+}
+
+//! Parse a theory statement.
+auto parse_theory(ParserState &state) -> std::optional<Stm> {
+    static_cast<void>(state);
+    throw std::runtime_error("implement me: include");
+}
+
 } // namespace
 
 auto parse_statement(ParserState &state) -> std::optional<Stm> {
@@ -257,8 +311,35 @@ auto parse_statement(ParserState &state) -> std::optional<Stm> {
         case TokenType::show: {
             return parse_show(state);
         }
+        case TokenType::const_: {
+            return parse_const(state);
+        }
+        case TokenType::defined: {
+            return parse_defined(state);
+        }
+        case TokenType::project: {
+            return parse_project(state);
+        }
+        case TokenType::edge: {
+            return parse_edge(state);
+        }
+        case TokenType::heuristic: {
+            return parse_heuristic(state);
+        }
+        case TokenType::script: {
+            return parse_script(state);
+        }
+        case TokenType::include: {
+            return parse_include(state);
+        }
+        case TokenType::program: {
+            return parse_program(state);
+        }
+        case TokenType::theory: {
+            return parse_theory(state);
+        }
         default: {
-            // TODO: better error messages possible by considering the lookahead tokens
+            // TODO: better error message possible by considering the lookahead tokens
             return parse_rule(state);
         }
     }

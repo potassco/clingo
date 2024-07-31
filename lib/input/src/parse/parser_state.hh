@@ -23,6 +23,7 @@ enum class TokenType : uint8_t {
     const_,
     count,
     ddot,
+    defined,
     dot,
     dstar,
     edge,
@@ -36,6 +37,7 @@ enum class TokenType : uint8_t {
     heuristic,
     id,
     if_,
+    include,
     inf,
     lbrace,
     lbrack,
@@ -51,11 +53,13 @@ enum class TokenType : uint8_t {
     not_,
     num,
     plus,
+    program,
     project,
     qmark,
     rbrace,
     rbrack,
     rpar,
+    script,
     sem,
     show,
     slash,
@@ -113,6 +117,9 @@ inline auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
         case TokenType::count: {
             return out << "#count";
         }
+        case TokenType::defined: {
+            return out << "#defined";
+        }
         case TokenType::dot: {
             return out << "'.'";
         }
@@ -143,6 +150,9 @@ inline auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
         case TokenType::id: {
             return out << "<identifier>";
         }
+        case TokenType::include: {
+            return out << "#include";
+        }
         case TokenType::lpar: {
             return out << "'('";
         }
@@ -170,6 +180,9 @@ inline auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
         case TokenType::plus: {
             return out << "'+'";
         }
+        case TokenType::program: {
+            return out << "#program";
+        }
         case TokenType::project: {
             return out << "#project";
         }
@@ -187,6 +200,9 @@ inline auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
         }
         case TokenType::if_: {
             return out << "':-'";
+        }
+        case TokenType::script: {
+            return out << "#script";
         }
         case TokenType::sem: {
             return out << "';'";

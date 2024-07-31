@@ -37,63 +37,67 @@ auto ParserState::lex_() -> TokenType {
     for (;;) {
         state_.start();
     /*!re2c
-        <normal,theory> "{"        { return TokenType::lbrace; }
-        <normal,theory> "}"        { return TokenType::rbrace; }
-        <normal,theory> "["        { return TokenType::lbrack; }
-        <normal,theory> "]"        { return TokenType::rbrack; }
-        <normal,theory> "("        { return TokenType::lpar; }
-        <normal,theory> ")"        { return TokenType::rpar; }
-        <normal,theory> ";"        { return TokenType::sem; }
+        <normal,theory> "not"      { return cond_ == yycnormal ? TokenType::not_ : TokenType::theory_op; }
+        <normal,theory> "_"        { return TokenType::anon; }
         <normal,theory> ":"        { return TokenType::colon; }
         <normal,theory> ","        { return TokenType::comma; }
         <normal,theory> "."        { return TokenType::dot; }
-        <normal,theory> "not"      { return cond_ == yycnormal ? TokenType::not_ : TokenType::theory_op; }
-        <normal,theory> "_"        { return TokenType::anon; }
-        <normal> ":-"              { return TokenType::if_; }
-        <normal> ":~"              { return TokenType::wif; }
-        <normal> "<"               { return TokenType::lt; }
-        <normal> "<="              { return TokenType::le; }
-        <normal> ">"               { return TokenType::gt; }
-        <normal> ">="              { return TokenType::ge; }
+        <normal,theory> "{"        { return TokenType::lbrace; }
+        <normal,theory> "["        { return TokenType::lbrack; }
+        <normal,theory> "("        { return TokenType::lpar; }
+        <normal,theory> "}"        { return TokenType::rbrace; }
+        <normal,theory> "]"        { return TokenType::rbrack; }
+        <normal,theory> ")"        { return TokenType::rpar; }
+        <normal,theory> ";"        { return TokenType::sem; }
+        <normal> "&"               { return TokenType::amp; }
+        <normal> "@"               { return TokenType::at; }
+        <normal> "|"               { return TokenType::bar; }
+        <normal> "\\"              { return TokenType::bslash; }
+        <normal> "^"               { return TokenType::caret; }
+        <normal> ".."              { return TokenType::ddot; }
+        <normal> "**"              { return TokenType::dstar; }
         <normal> "="               { return TokenType::eq; }
         <normal> "=="              { return TokenType::eq; }
+        <normal> ">="              { return TokenType::ge; }
+        <normal> ">"               { return TokenType::gt; }
+        <normal> ":-"              { return TokenType::if_; }
+        <normal> "<="              { return TokenType::le; }
+        <normal> "<"               { return TokenType::lt; }
+        <normal> "-"               { return TokenType::minus; }
         <normal> "!="              { return TokenType::ne; }
         <normal> "<>"              { return TokenType::ne; }
         <normal> "+"               { return TokenType::plus; }
-        <normal> "-"               { return TokenType::minus; }
-        <normal> "*"               { return TokenType::star; }
-        <normal> "**"              { return TokenType::dstar; }
-        <normal> "/"               { return TokenType::slash; }
-        <normal> "\\"              { return TokenType::bslash; }
         <normal> "?"               { return TokenType::qmark; }
-        <normal> "^"               { return TokenType::caret; }
-        <normal> "&"               { return TokenType::amp; }
-        <normal> "|"               { return TokenType::bar; }
+        <normal> "/"               { return TokenType::slash; }
+        <normal> "*"               { return TokenType::star; }
         <normal> "~"               { return TokenType::tilde; }
-        <normal> ".."              { return TokenType::ddot; }
-        <normal> "@"               { return TokenType::at; }
-        <normal> "#count"          { return TokenType::count; }
+        <normal> ":~"              { return TokenType::wif; }
         <normal> "#const"          { return TokenType::const_; }
+        <normal> "#count"          { return TokenType::count; }
+        <normal> "#defined"        { return TokenType::defined; }
         <normal> "#edge"           { return TokenType::edge; }
         <normal> "#false"          { return TokenType::false_; }
         <normal> "#heuristic"      { return TokenType::heuristic; }
+        <normal> "#include"        { return TokenType::include; }
         <normal> "#maximi"[zs]"e"  { return TokenType::maximize; }
         <normal> "#max"            { return TokenType::max; }
         <normal> "#minimi"[zs]"e"  { return TokenType::minimize; }
         <normal> "#min"            { return TokenType::min; }
+        <normal> "#program"        { return TokenType::program; }
         <normal> "#project"        { return TokenType::project; }
+        <normal> "#script"         { return TokenType::defined; }
         <normal> "#script"         { return TokenType::external; }
         <normal> "#show"           { return TokenType::show; }
         <normal> "#sum"            { return TokenType::sum; }
         <normal> "#sum+"           { return TokenType::sump; }
         <normal> "#theory"         { return TokenType::theory; }
         <normal> "#true"           { return TokenType::true_; }
-        <normal,theory> SUP        { return TokenType::sup; }
+        <normal,theory> IDENTIFIER { return TokenType::id; }
         <normal,theory> INF        { return TokenType::inf; }
         <normal,theory> NUMBER     { return TokenType::num; }
-        <normal,theory> VARIABLE   { return TokenType::var; }
         <normal,theory> STRING     { return TokenType::str; }
-        <normal,theory> IDENTIFIER { return TokenType::id; }
+        <normal,theory> SUP        { return TokenType::sup; }
+        <normal,theory> VARIABLE   { return TokenType::var; }
         <theory> THEORYOP          { return TokenType::theory_op; }
         <normal> KEYWORD           { return TokenType::error; }
         <normal,theory> SKIP       { continue; }
