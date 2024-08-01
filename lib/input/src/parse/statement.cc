@@ -370,16 +370,139 @@ auto parse_edge(ParserState &state) -> std::optional<Stm> {
     return std::nullopt;
 }
 
+//! Parse a signed atom.
+auto parse_atom(ParserState &state) -> std::optional<Term> {
+    auto loc_sign = state.loc();
+    // optional minus
+    bool sign = state.branch(TokenType::minus);
+    auto loc_atom = state.loc();
+    if (state.expect(TokenType::id)) {
+        auto name = state.str();
+        loc_sign += state.cursor_pos();
+        loc_atom += loc_sign;
+        // consume name
+        state.consume();
+        // arguments
+        if (state.token() != TokenType::lpar) {
+            return std::make_optional<Term>(std::in_place_type<TermSymbol>, loc_sign,
+                                            state.store().fun_ref(name, {}, sign));
+        }
+
+        if (auto args = parse_args(state)) {
+            loc_sign += state.cursor_pos();
+            loc_atom += loc_sign;
+            // consume closing paren
+            state.consume();
+            auto atom = std::optional<Term>{};
+            atom.emplace(std::in_place_type<TermFunction>, std::move(loc_atom), name, *std::move(args), false);
+            if (sign) {
+                // emplace after move is fine
+                // NOLINTNEXTLINE(bugprone-use-after-move)
+                atom.emplace(std::in_place_type<TermUnary>, std::move(loc_sign), UnaryOperator::negate,
+                             *std::move(atom));
+            }
+            return atom;
+        }
+    }
+    return std::nullopt;
+}
+
 //! Parse a heuristic statement.
 auto parse_heuristic(ParserState &state) -> std::optional<Stm> {
-    static_cast<void>(state);
-    throw std::runtime_error("implement me: heuristic");
+    assert(state.token() == TokenType::heuristic);
+    auto loc = state.loc();
+    // consume #heuristic
+    state.consume();
+    if (auto atom = parse_atom(state)) {
+        if (auto body = parse_opt_body(state, TokenType::colon)) {
+            // consume dot
+            state.consume();
+            // tuple
+            if (state.expect(TokenType::lbrack)) {
+                state.consume();
+                if (auto weight = parse_term(state)) {
+                    if (auto prio = parse_prio(state)) {
+                        if (state.expect(TokenType::comma)) {
+                            state.consume();
+                            if (auto type = parse_term(state)) {
+                                if (state.expect(TokenType::rbrack)) {
+                                    loc += location(*type);
+                                    state.consume();
+                                    return StmHeuristic{std::move(loc),     *std::move(atom), *std::move(body),
+                                                        *std::move(weight), *std::move(prio), *std::move(type)};
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return std::nullopt;
+}
+
+//! Parse an external statement.
+auto parse_external(ParserState &state) -> std::optional<Stm> {
+    assert(state.token() == TokenType::external);
+    auto loc = state.loc();
+    // consume #heuristic
+    state.consume();
+    if (auto atom = parse_atom(state)) {
+        if (auto body = parse_opt_body(state, TokenType::colon)) {
+            // consume dot
+            state.consume();
+            // tuple
+            if (state.branch(TokenType::lbrack)) {
+                if (auto type = parse_term(state)) {
+                    if (state.expect(TokenType::rbrack)) {
+                        loc += location(*type);
+                        state.consume();
+                        // NOLINTNEXTLINE(bugprone-optional-value-conversions)
+                        return StmExternal{std::move(loc), *std::move(atom), *std::move(body), *std::move(type)};
+                    }
+                }
+            } else {
+                return StmExternal{std::move(loc), *std::move(atom), *std::move(body)};
+            }
+        }
+    }
+    return std::nullopt;
 }
 
 //! Parse a script statement.
 auto parse_script(ParserState &state) -> std::optional<Stm> {
-    static_cast<void>(state);
-    throw std::runtime_error("implement me: script");
+    assert(state.token() == TokenType::script);
+    auto loc = state.loc();
+    // consume #script
+    state.consume();
+    if (state.expect(TokenType::lpar)) {
+        // consume opening parenthesis
+        state.consume();
+        if (state.expect(TokenType::id)) {
+            auto type = state.str();
+            // consume id
+            state.consume();
+            if (state.expect(TokenType::rpar)) {
+                // consume closing parenthesis
+                state.consume(Condition::script);
+                if (state.expect(TokenType::script_content)) {
+                    auto value = state.str();
+                    // consume content
+                    state.consume();
+                    if (state.expect(TokenType::script_end)) {
+                        state.consume();
+                        if (state.expect(TokenType::dot)) {
+                            loc += state.cursor_pos();
+                            // consume dot
+                            state.consume();
+                            return StmScript{std::move(loc), type, value};
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return std::nullopt;
 }
 
 //! Parse a include statement.
@@ -470,6 +593,9 @@ auto parse_statement(ParserState &state) -> std::optional<Stm> {
         }
         case TokenType::edge: {
             return parse_edge(state);
+        }
+        case TokenType::external: {
+            return parse_external(state);
         }
         case TokenType::heuristic: {
             return parse_heuristic(state);

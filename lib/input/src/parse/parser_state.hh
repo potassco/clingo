@@ -4,6 +4,7 @@
 
 #include <gringo/core/logger.hh>
 
+#include "gringo/util/macro.hh"
 #include <gringo/util/string.hh>
 
 #include "lexer_state.hh"
@@ -60,6 +61,8 @@ enum class TokenType : uint8_t {
     rbrack,
     rpar,
     script,
+    script_content,
+    script_end,
     sem,
     show,
     slash,
@@ -82,6 +85,7 @@ enum class TokenType : uint8_t {
 enum class Condition : uint8_t {
     normal = yycnormal,
     theory = yyctheory,
+    script = yycscript,
 };
 
 //! Output token in human readable form.
@@ -203,6 +207,12 @@ inline auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
         }
         case TokenType::script: {
             return out << "#script";
+        }
+        case TokenType::script_content: {
+            return out << "<content>";
+        }
+        case TokenType::script_end: {
+            return out << "#end";
         }
         case TokenType::sem: {
             return out << "';'";
@@ -546,16 +556,12 @@ class ParserState {
 
     //! Check if the current token is among the given ones.
     auto expect(auto... expected) {
+        GRINGO_IGNORE_PAR_EQ_B
         if (((token_ == expected) || ...)) {
             return true;
         }
-        if (log_->check(MessageCode::error)) {
-            auto rep = Report{*log_, MessageCode::error, loc()};
-            rep.out() << "expected one of";
-            ((rep.out() << " " << expected), ...);
-            rep.out() << " but got " << token_;
-        }
-        return false;
+        GRINGO_IGNORE_PAR_EQ_E
+        return this->expected(expected...);
     }
 
     //! Compute the next token discarding the last one.
@@ -563,8 +569,8 @@ class ParserState {
 
     //! Compute the next token discarding the last one.
     void consume(Condition cond) {
-        condition(cond);
         auto old = cond_;
+        condition(cond);
         token_ = lex_();
         cond_ = old;
     }

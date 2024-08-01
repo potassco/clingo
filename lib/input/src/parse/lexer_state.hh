@@ -88,12 +88,6 @@ class LexerState {
     [[nodiscard]] auto limit() const -> char const * { return limit_; }
     //! Pointer to the current input position.
     [[nodiscard]] auto token() const -> char const * { return token_; }
-    //! Mark the beginning of a new line.
-    void step() {
-        column_ = cursor_;
-        cursor_column_ = 1;
-        cursor_line_ += 1;
-    }
     //! The line number of the cursor.
     [[nodiscard]] auto token_line() const -> size_t { return token_line_; }
     //! The column number of the cursor.
@@ -108,6 +102,10 @@ class LexerState {
     [[nodiscard]] auto cursor_column() -> size_t {
         assert(column_ <= cursor_);
         for (; column_ != cursor_; column_ = std::next(column_)) {
+            if (*column_ == '\n') {
+                cursor_column_ = 1;
+                cursor_line_ += 1;
+            }
             // NOLINTNEXTLINE(readability-magic-numbers)
             if ((*column_ & 0xc0) != 0x80) {
                 ++cursor_column_;

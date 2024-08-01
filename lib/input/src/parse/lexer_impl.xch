@@ -1,6 +1,6 @@
 /*!re2c
     re2c:api:style             = free-form;
-    re2c:define:YYCTYPE        = char;
+    re2c:define:YYCTYPE        = "unsigned char";
     re2c:define:YYCURSOR       = state_.cursor();
     re2c:define:YYMARKER       = state_.marker();
     re2c:define:YYCTXMARKER    = state_.ctxmarker();
@@ -15,8 +15,7 @@
     OCT        = "0o"([1-7]+);
     BIN        = "0b"([0-1]+);
     NUMBER     = DEC | HEX | OCT | BIN;
-    SKIP       = [\t\r ]*;
-    NL         = "\n";
+    WS         = [\t\r\n ]*;
     IDENTIFIER = [_']*[a-z]['A-Za-z0-9_]*;
     VARIABLE   = [_']*[A-Z]['A-Za-z0-9_]*;
     STRING     = "\"" ([^\\"\n]|"\\\""|"\\\\"|"\\n")* "\"";
@@ -26,6 +25,8 @@
     INF        = "#inf"("imum")?;
     MAXI       = "#maximi"[zs]"e";
     MINI       = "#minimi"[zs]"e";
+    NULL       = [\000];
+    ANY        = [^\000];
 */
 
 /*!header:re2c:on*/
@@ -34,8 +35,8 @@
 /*!header:re2c:off*/
 
 auto ParserState::lex_() -> TokenType {
+    state_.start();
     for (;;) {
-        state_.start();
     /*!re2c
         <normal,theory> "not"      { return cond_ == yycnormal ? TokenType::not_ : TokenType::theory_op; }
         <normal,theory> "_"        { return TokenType::anon; }
@@ -76,6 +77,7 @@ auto ParserState::lex_() -> TokenType {
         <normal> "#count"          { return TokenType::count; }
         <normal> "#defined"        { return TokenType::defined; }
         <normal> "#edge"           { return TokenType::edge; }
+        <normal> "#external"       { return TokenType::external; }
         <normal> "#false"          { return TokenType::false_; }
         <normal> "#heuristic"      { return TokenType::heuristic; }
         <normal> "#include"        { return TokenType::include; }
@@ -85,13 +87,13 @@ auto ParserState::lex_() -> TokenType {
         <normal> "#min"            { return TokenType::min; }
         <normal> "#program"        { return TokenType::program; }
         <normal> "#project"        { return TokenType::project; }
-        <normal> "#script"         { return TokenType::defined; }
-        <normal> "#script"         { return TokenType::external; }
+        <normal> "#script"         { return TokenType::script; }
         <normal> "#show"           { return TokenType::show; }
         <normal> "#sum"            { return TokenType::sum; }
         <normal> "#sum+"           { return TokenType::sump; }
         <normal> "#theory"         { return TokenType::theory; }
         <normal> "#true"           { return TokenType::true_; }
+        <normal> "#end"            { return TokenType::script_end; }
         <normal,theory> IDENTIFIER { return TokenType::id; }
         <normal,theory> INF        { return TokenType::inf; }
         <normal,theory> NUMBER     { return TokenType::num; }
@@ -100,10 +102,10 @@ auto ParserState::lex_() -> TokenType {
         <normal,theory> VARIABLE   { return TokenType::var; }
         <theory> THEORYOP          { return TokenType::theory_op; }
         <normal> KEYWORD           { return TokenType::error; }
-        <normal,theory> SKIP       { continue; }
-        <normal,theory> NL         { state_.step(); continue; }
+        <normal,theory> WS         { state_.start(); continue; }
+        <script> ANY* / "#end"     { return TokenType::script_content; }
         <*> *                      { return TokenType::error; }
-        <*> [\x00]                 { return state_.token() == state_.limit() ? TokenType::end : TokenType::error; }
+        <*> NULL                   { return state_.token() == state_.limit() ? TokenType::end : TokenType::error; }
     */
     }
 }
