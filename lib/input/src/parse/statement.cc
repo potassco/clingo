@@ -513,16 +513,50 @@ auto parse_include(ParserState &state) -> std::optional<Stm> {
     return std::nullopt;
 }
 
-//! Parse a const statement.
-auto parse_const(ParserState &state) -> std::optional<Stm> {
-    static_cast<void>(state);
-    throw std::runtime_error("implement me: const");
+//! Parse an id.
+auto parse_id(ParserState &state) -> std::optional<String> {
+    if (state.expect(TokenType::id)) {
+        auto ret = state.str();
+        state.consume();
+        return ret;
+    }
+    return std::nullopt;
+}
+
+//! Parse an id vector enclosed in parentheses.
+auto parse_args_id(ParserState &state) -> std::optional<std::vector<String>> {
+    if (state.token() == TokenType::lpar) {
+        if (auto args = state.delimited(TokenType::lpar, parse_id, TokenType::comma, TokenType::rpar)) {
+            state.consume();
+            return args;
+        }
+    }
+    return std::vector<String>{};
 }
 
 //! Parse a program statement.
 auto parse_program(ParserState &state) -> std::optional<Stm> {
+    assert(state.token() == TokenType::program);
+    auto loc = state.loc();
+    state.consume();
+    if (state.expect(TokenType::id)) {
+        auto name = state.str();
+        state.consume();
+        if (auto args = parse_args_id(state)) {
+            if (state.expect(TokenType::dot)) {
+                loc += state.cursor_pos();
+                state.consume();
+                return StmProgram{std::move(loc), name, *std::move(args)};
+            }
+        }
+    }
+    return std::nullopt;
+}
+
+//! Parse a const statement.
+auto parse_const(ParserState &state) -> std::optional<Stm> {
     static_cast<void>(state);
-    throw std::runtime_error("implement me: program");
+    throw std::runtime_error("implement me: const");
 }
 
 //! Parse a theory statement.
