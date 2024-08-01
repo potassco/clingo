@@ -248,8 +248,31 @@ auto parse_const(ParserState &state) -> std::optional<Stm> {
 
 //! Parse a defined statement.
 auto parse_defined(ParserState &state) -> std::optional<Stm> {
-    static_cast<void>(state);
-    throw std::runtime_error("implement me: defined");
+    auto loc = state.loc();
+    assert(state.token() == TokenType::defined);
+    state.consume();
+    bool sign = state.branch(TokenType::minus);
+    if (state.token() != TokenType::id) {
+        return state.expected<std::nullopt>(TokenType::id);
+    }
+    auto name = state.str();
+    state.consume();
+    if (!state.branch(TokenType::slash)) {
+        return state.expected<std::nullopt>(TokenType::slash);
+    }
+    if (state.token() != TokenType::num) {
+        return state.expected<std::nullopt>(TokenType::num);
+    }
+    auto arity = state.num().as_int();
+    if (!arity) {
+        return state.expected<std::nullopt>("<int>");
+    }
+    state.consume();
+    loc += state.cursor_pos();
+    if (!state.branch(TokenType::dot)) {
+        return state.expected<std::nullopt>(TokenType::dot);
+    }
+    return StmDefined{std::move(loc), sign, name, *arity};
 }
 
 //! Parse a project statement.
