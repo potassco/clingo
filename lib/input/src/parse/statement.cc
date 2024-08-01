@@ -457,7 +457,7 @@ auto parse_external(ParserState &state) -> std::optional<Stm> {
                     if (state.expect(TokenType::rbrack)) {
                         loc += location(*type);
                         state.consume();
-                        // NOLINTNEXTLINE(bugprone-optional-value-conversions)
+                        // NOLINTNEXTLINE(bugprone-optional-value-conversion)
                         return StmExternal{std::move(loc), *std::move(atom), *std::move(body), *std::move(type)};
                     }
                 }
