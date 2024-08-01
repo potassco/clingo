@@ -76,7 +76,7 @@ auto parse_opt_elem(ParserState &state) -> std::optional<OptimizeElement> {
 }
 
 //! Check if the term captures a signature.
-auto check_show_sig(Term const &term) -> std::optional<std::tuple<bool, String, int>> {
+auto check_term_sig(Term const &term) -> std::optional<std::tuple<bool, String, int>> {
     auto get_name = [](Term const &x) -> std::optional<String> {
         if (auto const *y = std::get_if<TermSymbol>(&x)) {
             if (auto sym = y->value(); sym.type() == SymbolType::function && sym.args().empty()) {
@@ -129,7 +129,7 @@ auto parse_show(ParserState &state) -> std::optional<Stm> {
         if (state.token() == TokenType::dot) {
             loc += state.cursor_pos();
             state.consume();
-            if (auto res = check_show_sig(*term)) {
+            if (auto res = check_term_sig(*term)) {
                 auto [sign, name, arity] = *std::move(res);
                 return StmShowSig{std::move(loc), sign, name, arity};
             }
@@ -261,7 +261,7 @@ auto parse_defined(ParserState &state) -> std::optional<Stm> {
         return state.expected<std::nullopt>(TokenType::slash);
     }
     if (state.token() != TokenType::num) {
-        return state.expected<std::nullopt>(TokenType::num);
+        return state.expected<std::nullopt>("<int>");
     }
     auto arity = state.num().as_int();
     if (!arity) {
@@ -275,10 +275,88 @@ auto parse_defined(ParserState &state) -> std::optional<Stm> {
     return StmDefined{std::move(loc), sign, name, *arity};
 }
 
+//! Parse atom arguments enclode in parentheses.
+//!
+//! Does not consume the closing parenthesis
+auto parse_args(ParserState &state) -> std::optional<PoolArray> {
+    // the term parse can be reused by priming the stack accordingly...
+    static_cast<void>(state);
+    throw std::runtime_error("implement me: arguments");
+}
+
 //! Parse a project statement.
 auto parse_project(ParserState &state) -> std::optional<Stm> {
-    static_cast<void>(state);
-    throw std::runtime_error("implement me: project");
+    assert(state.token() == TokenType::project);
+    auto loc = state.loc();
+    state.consume();
+    auto loc_sign = state.loc();
+    bool sign = state.branch(TokenType::minus);
+    auto loc_atom = state.loc();
+    if (state.token() != TokenType::id) {
+        return state.expected<std::nullopt>(TokenType::id);
+    }
+    auto name = state.str();
+    loc_sign += state.cursor_pos();
+    loc_atom += loc_sign;
+    state.consume();
+    if (state.branch(TokenType::slash)) {
+        if (state.token() != TokenType::num) {
+            return state.expected<std::nullopt>("<int>");
+        }
+        auto arity = state.num().as_int();
+        if (!arity) {
+            return state.expected<std::nullopt>("<int>");
+        }
+        state.consume();
+        loc += state.cursor_pos();
+        if (!state.branch(TokenType::dot)) {
+            return state.expected<std::nullopt>(TokenType::dot);
+        }
+        return StmProjectSig{loc, sign, name, *arity};
+    }
+    // TODO: write better
+    if (state.token() == TokenType::dot) {
+        loc += state.cursor_pos();
+        state.consume();
+        return StmProject{loc, TermSymbol{loc_sign, state.store().fun_ref(name, {}, sign)}, {}};
+    }
+    if (state.token() == TokenType::lpar) {
+        auto args = parse_args(state);
+        if (!args) {
+            return std::nullopt;
+        }
+        loc_sign += state.cursor_pos();
+        loc_atom += loc_sign;
+        auto atom = Term{std::in_place_type<TermFunction>, std::move(loc_atom), name, *std::move(args), false};
+        if (sign) {
+            atom = TermUnary{std::move(loc_sign), UnaryOperator::negate, std::move(atom)};
+        }
+        if (state.token() == TokenType::colon) {
+            state.consume();
+            auto body = parse_body(state);
+            if (!body) {
+                return std::nullopt;
+            }
+            loc += state.cursor_pos();
+            state.consume();
+            return StmProject{loc, std::move(atom), *std::move(body)};
+        }
+        if (state.token() == TokenType::dot) {
+            loc += state.cursor_pos();
+            state.consume();
+            return StmProject{loc, std::move(atom), {}};
+        }
+        return state.expected<std::nullopt>(TokenType::colon, TokenType::dot);
+    }
+    if (state.token() == TokenType::colon) {
+        state.consume();
+        auto body = parse_body(state);
+        if (!body) {
+            return std::nullopt;
+        }
+        return StmProject{loc, TermSymbol{loc_sign, state.store().fun_ref(name, {}, sign)}, *std::move(body)};
+    }
+    return state.expected<std::nullopt>(TokenType::slash, TokenType::dot, TokenType::lpar);
 }
 
 //! Parse an edge statement.
