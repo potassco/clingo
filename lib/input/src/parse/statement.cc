@@ -324,9 +324,7 @@ auto parse_project(ParserState &state) -> std::optional<Stm> {
         state.consume();
         atom.emplace(std::in_place_type<TermFunction>, std::move(loc_atom), name, *std::move(args), false);
         if (sign) {
-            // emplace after move is fine
-            // NOLINTNEXTLINE(bugprone-use-after-move)
-            atom.emplace(std::in_place_type<TermUnary>, std::move(loc_sign), UnaryOperator::negate, *std::move(atom));
+            atom = Term{std::in_place_type<TermUnary>, std::move(loc_sign), UnaryOperator::negate, *std::move(atom)};
         }
     } else {
         atom.emplace(std::in_place_type<TermSymbol>, loc_sign, state.store().fun_ref(name, {}, sign));
@@ -396,10 +394,8 @@ auto parse_atom(ParserState &state) -> std::optional<Term> {
             auto atom = std::optional<Term>{};
             atom.emplace(std::in_place_type<TermFunction>, std::move(loc_atom), name, *std::move(args), false);
             if (sign) {
-                // emplace after move is fine
-                // NOLINTNEXTLINE(bugprone-use-after-move)
-                atom.emplace(std::in_place_type<TermUnary>, std::move(loc_sign), UnaryOperator::negate,
-                             *std::move(atom));
+                atom =
+                    Term{std::in_place_type<TermUnary>, std::move(loc_sign), UnaryOperator::negate, *std::move(atom)};
             }
             return atom;
         }
