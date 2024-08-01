@@ -68,6 +68,7 @@ enum class TokenType : uint8_t {
     slash,
     star,
     str,
+    str_include,
     sum,
     sump,
     sup,
@@ -86,6 +87,7 @@ enum class Condition : uint8_t {
     normal = yycnormal,
     theory = yyctheory,
     script = yycscript,
+    include = yycinclude,
 };
 
 //! Output token in human readable form.
@@ -228,6 +230,9 @@ inline auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
         }
         case TokenType::str: {
             return out << "<string>";
+        }
+        case TokenType::str_include: {
+            return out << "<include-string>";
         }
         case TokenType::sum: {
             return out << "#sum";
@@ -417,7 +422,7 @@ class ParserState {
     //!
     //! The function removes quotes from str tokens.
     auto str() -> String {
-        if (token() == TokenType::str) {
+        if (token() == TokenType::str || token() == TokenType::str_include) {
             auto view = this->view();
             auto &buf = this->buf(view.size() - 2);
             Util::unquote(view.substr(1, view.size() - 2), std::back_inserter(buf));

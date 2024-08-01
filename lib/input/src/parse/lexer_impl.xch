@@ -19,6 +19,7 @@
     IDENTIFIER = [_']*[a-z]['A-Za-z0-9_]*;
     VARIABLE   = [_']*[A-Z]['A-Za-z0-9_]*;
     STRING     = "\"" ([^\\"\n]|"\\\""|"\\\\"|"\\n")* "\"";
+    INCSTRING  = "<" IDENTIFIER ">";
     THEORYOP   = [/!<=>+\-*\\?&@|:;~\^\.]+;
     KEYWORD    = "#" [a-zA-Z0-9_]*;
     SUP        = "#sup"("remum")?;
@@ -38,74 +39,75 @@ auto ParserState::lex_() -> TokenType {
     state_.start();
     for (;;) {
     /*!re2c
-        <normal,theory> "not"      { return cond_ == yycnormal ? TokenType::not_ : TokenType::theory_op; }
-        <normal,theory> "_"        { return TokenType::anon; }
-        <normal,theory> ":"        { return TokenType::colon; }
-        <normal,theory> ","        { return TokenType::comma; }
-        <normal,theory> "."        { return TokenType::dot; }
-        <normal,theory> "{"        { return TokenType::lbrace; }
-        <normal,theory> "["        { return TokenType::lbrack; }
-        <normal,theory> "("        { return TokenType::lpar; }
-        <normal,theory> "}"        { return TokenType::rbrace; }
-        <normal,theory> "]"        { return TokenType::rbrack; }
-        <normal,theory> ")"        { return TokenType::rpar; }
-        <normal,theory> ";"        { return TokenType::sem; }
-        <normal> "&"               { return TokenType::amp; }
-        <normal> "@"               { return TokenType::at; }
-        <normal> "|"               { return TokenType::bar; }
-        <normal> "\\"              { return TokenType::bslash; }
-        <normal> "^"               { return TokenType::caret; }
-        <normal> ".."              { return TokenType::ddot; }
-        <normal> "**"              { return TokenType::dstar; }
-        <normal> "="               { return TokenType::eq; }
-        <normal> "=="              { return TokenType::eq; }
-        <normal> ">="              { return TokenType::ge; }
-        <normal> ">"               { return TokenType::gt; }
-        <normal> ":-"              { return TokenType::if_; }
-        <normal> "<="              { return TokenType::le; }
-        <normal> "<"               { return TokenType::lt; }
-        <normal> "-"               { return TokenType::minus; }
-        <normal> "!="              { return TokenType::ne; }
-        <normal> "<>"              { return TokenType::ne; }
-        <normal> "+"               { return TokenType::plus; }
-        <normal> "?"               { return TokenType::qmark; }
-        <normal> "/"               { return TokenType::slash; }
-        <normal> "*"               { return TokenType::star; }
-        <normal> "~"               { return TokenType::tilde; }
-        <normal> ":~"              { return TokenType::wif; }
-        <normal> "#const"          { return TokenType::const_; }
-        <normal> "#count"          { return TokenType::count; }
-        <normal> "#defined"        { return TokenType::defined; }
-        <normal> "#edge"           { return TokenType::edge; }
-        <normal> "#external"       { return TokenType::external; }
-        <normal> "#false"          { return TokenType::false_; }
-        <normal> "#heuristic"      { return TokenType::heuristic; }
-        <normal> "#include"        { return TokenType::include; }
-        <normal> "#maximi"[zs]"e"  { return TokenType::maximize; }
-        <normal> "#max"            { return TokenType::max; }
-        <normal> "#minimi"[zs]"e"  { return TokenType::minimize; }
-        <normal> "#min"            { return TokenType::min; }
-        <normal> "#program"        { return TokenType::program; }
-        <normal> "#project"        { return TokenType::project; }
-        <normal> "#script"         { return TokenType::script; }
-        <normal> "#show"           { return TokenType::show; }
-        <normal> "#sum"            { return TokenType::sum; }
-        <normal> "#sum+"           { return TokenType::sump; }
-        <normal> "#theory"         { return TokenType::theory; }
-        <normal> "#true"           { return TokenType::true_; }
-        <normal> "#end"            { return TokenType::script_end; }
-        <normal,theory> IDENTIFIER { return TokenType::id; }
-        <normal,theory> INF        { return TokenType::inf; }
-        <normal,theory> NUMBER     { return TokenType::num; }
-        <normal,theory> STRING     { return TokenType::str; }
-        <normal,theory> SUP        { return TokenType::sup; }
-        <normal,theory> VARIABLE   { return TokenType::var; }
-        <theory> THEORYOP          { return TokenType::theory_op; }
-        <normal> KEYWORD           { return TokenType::error; }
-        <normal,theory> WS         { state_.start(); continue; }
-        <script> ANY* / "#end"     { return TokenType::script_content; }
-        <*> *                      { return TokenType::error; }
-        <*> NULL                   { return state_.token() == state_.limit() ? TokenType::end : TokenType::error; }
+        <normal,theory> "not"          { return cond_ == yycnormal ? TokenType::not_ : TokenType::theory_op; }
+        <normal,theory> "_"            { return TokenType::anon; }
+        <normal,theory> ":"            { return TokenType::colon; }
+        <normal,theory> ","            { return TokenType::comma; }
+        <normal,theory> "."            { return TokenType::dot; }
+        <normal,theory> "{"            { return TokenType::lbrace; }
+        <normal,theory> "["            { return TokenType::lbrack; }
+        <normal,theory> "("            { return TokenType::lpar; }
+        <normal,theory> "}"            { return TokenType::rbrace; }
+        <normal,theory> "]"            { return TokenType::rbrack; }
+        <normal,theory> ")"            { return TokenType::rpar; }
+        <normal,theory> ";"            { return TokenType::sem; }
+        <normal> "&"                   { return TokenType::amp; }
+        <normal> "@"                   { return TokenType::at; }
+        <normal> "|"                   { return TokenType::bar; }
+        <normal> "\\"                  { return TokenType::bslash; }
+        <normal> "^"                   { return TokenType::caret; }
+        <normal> ".."                  { return TokenType::ddot; }
+        <normal> "**"                  { return TokenType::dstar; }
+        <normal> "="                   { return TokenType::eq; }
+        <normal> "=="                  { return TokenType::eq; }
+        <normal> ">="                  { return TokenType::ge; }
+        <normal> ">"                   { return TokenType::gt; }
+        <normal> ":-"                  { return TokenType::if_; }
+        <normal> "<="                  { return TokenType::le; }
+        <normal> "<"                   { return TokenType::lt; }
+        <normal> "-"                   { return TokenType::minus; }
+        <normal> "!="                  { return TokenType::ne; }
+        <normal> "<>"                  { return TokenType::ne; }
+        <normal> "+"                   { return TokenType::plus; }
+        <normal> "?"                   { return TokenType::qmark; }
+        <normal> "/"                   { return TokenType::slash; }
+        <normal> "*"                   { return TokenType::star; }
+        <normal> "~"                   { return TokenType::tilde; }
+        <normal> ":~"                  { return TokenType::wif; }
+        <normal> "#const"              { return TokenType::const_; }
+        <normal> "#count"              { return TokenType::count; }
+        <normal> "#defined"            { return TokenType::defined; }
+        <normal> "#edge"               { return TokenType::edge; }
+        <normal> "#external"           { return TokenType::external; }
+        <normal> "#false"              { return TokenType::false_; }
+        <normal> "#heuristic"          { return TokenType::heuristic; }
+        <normal> "#include"            { return TokenType::include; }
+        <normal> "#maximi"[zs]"e"      { return TokenType::maximize; }
+        <normal> "#max"                { return TokenType::max; }
+        <normal> "#minimi"[zs]"e"      { return TokenType::minimize; }
+        <normal> "#min"                { return TokenType::min; }
+        <normal> "#program"            { return TokenType::program; }
+        <normal> "#project"            { return TokenType::project; }
+        <normal> "#script"             { return TokenType::script; }
+        <normal> "#show"               { return TokenType::show; }
+        <normal> "#sum"                { return TokenType::sum; }
+        <normal> "#sum+"               { return TokenType::sump; }
+        <normal> "#theory"             { return TokenType::theory; }
+        <normal> "#true"               { return TokenType::true_; }
+        <normal> "#end"                { return TokenType::script_end; }
+        <normal,theory> IDENTIFIER     { return TokenType::id; }
+        <normal,theory> INF            { return TokenType::inf; }
+        <normal,theory> NUMBER         { return TokenType::num; }
+        <normal,theory,include> STRING { return TokenType::str; }
+        <normal,theory> SUP            { return TokenType::sup; }
+        <normal,theory> VARIABLE       { return TokenType::var; }
+        <theory> THEORYOP              { return TokenType::theory_op; }
+        <include> INCSTRING            { return TokenType::str_include; }
+        <normal> KEYWORD               { return TokenType::error; }
+        <normal,theory,include> WS     { state_.start(); continue; }
+        <script> ANY* / "#end"         { return TokenType::script_content; }
+        <*> *                          { return TokenType::error; }
+        <*> NULL                       { return state_.token() == state_.limit() ? TokenType::end : TokenType::error; }
     */
     }
 }

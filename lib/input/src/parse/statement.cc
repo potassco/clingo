@@ -238,12 +238,6 @@ auto parse_rule(ParserState &state) -> std::optional<Stm> {
     return std::nullopt;
 }
 
-//! Parse a const statement.
-auto parse_const(ParserState &state) -> std::optional<Stm> {
-    static_cast<void>(state);
-    throw std::runtime_error("implement me: const");
-}
-
 //! Parse a defined statement.
 auto parse_defined(ParserState &state) -> std::optional<Stm> {
     auto loc = state.loc();
@@ -503,20 +497,38 @@ auto parse_script(ParserState &state) -> std::optional<Stm> {
 
 //! Parse a include statement.
 auto parse_include(ParserState &state) -> std::optional<Stm> {
-    static_cast<void>(state);
-    throw std::runtime_error("implement me: include");
+    assert(state.token() == TokenType::include);
+    auto loc = state.loc();
+    state.consume(Condition::include);
+    if (state.expect(TokenType::str, TokenType::str_include)) {
+        auto sys = state.token() == TokenType::str;
+        auto value = state.str();
+        state.consume();
+        if (state.expect(TokenType::dot)) {
+            loc += state.cursor_pos();
+            state.consume();
+            return StmInclude{std::move(loc), sys ? IncludeType::system : IncludeType::inbuild, value};
+        }
+    }
+    return std::nullopt;
 }
 
-//! Parse a include statement.
+//! Parse a const statement.
+auto parse_const(ParserState &state) -> std::optional<Stm> {
+    static_cast<void>(state);
+    throw std::runtime_error("implement me: const");
+}
+
+//! Parse a program statement.
 auto parse_program(ParserState &state) -> std::optional<Stm> {
     static_cast<void>(state);
-    throw std::runtime_error("implement me: include");
+    throw std::runtime_error("implement me: program");
 }
 
 //! Parse a theory statement.
 auto parse_theory(ParserState &state) -> std::optional<Stm> {
     static_cast<void>(state);
-    throw std::runtime_error("implement me: include");
+    throw std::runtime_error("implement me: theory");
 }
 
 } // namespace
