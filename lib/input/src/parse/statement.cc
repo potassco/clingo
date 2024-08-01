@@ -553,14 +553,55 @@ auto parse_program(ParserState &state) -> std::optional<Stm> {
     return std::nullopt;
 }
 
+//! Parse the const type.
+//!
+//! Advances the location to the end of the tuple.
+auto parse_const_type(ParserState &state, Location &loc) -> std::optional<ConstType> {
+    if (state.token() == TokenType::lbrack) {
+        state.consume();
+        auto type = ConstType::default_;
+        if (state.token() == TokenType::id && state.view() == "override") {
+            type = ConstType::override_;
+        } else if (state.token() != TokenType::id || state.view() != "default") {
+            return state.expected<std::nullopt>("default", "override");
+        }
+        state.consume();
+        if (state.expect(TokenType::rbrack)) {
+            loc += state.cursor_pos();
+            state.consume();
+            return type;
+        }
+    }
+    return ConstType::default_;
+}
+
 //! Parse a const statement.
 auto parse_const(ParserState &state) -> std::optional<Stm> {
-    static_cast<void>(state);
-    throw std::runtime_error("implement me: const");
+    assert(state.token() == TokenType::const_);
+    auto loc = state.loc();
+    state.consume();
+    if (state.expect(TokenType::id)) {
+        auto name = state.str();
+        state.consume();
+        if (state.expect(TokenType::eq)) {
+            state.consume();
+            if (auto term = parse_term(state)) {
+                if (state.expect(TokenType::dot)) {
+                    loc += state.cursor_pos();
+                    state.consume();
+                    if (auto type = parse_const_type(state, loc)) {
+                        return StmConst{std::move(loc), *type, name, *std::move(term)};
+                    }
+                }
+            }
+        }
+    }
+    return std::nullopt;
 }
 
 //! Parse a theory statement.
 auto parse_theory(ParserState &state) -> std::optional<Stm> {
+    assert(state.token() == TokenType::theory);
     static_cast<void>(state);
     throw std::runtime_error("implement me: theory");
 }
