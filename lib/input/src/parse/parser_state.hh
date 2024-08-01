@@ -544,6 +544,20 @@ class ParserState {
         return ret;
     }
 
+    //! Check if the current token is among the given ones.
+    auto expect(auto... expected) {
+        if (((token_ == expected) || ...)) {
+            return true;
+        }
+        if (log_->check(MessageCode::error)) {
+            auto rep = Report{*log_, MessageCode::error, loc()};
+            rep.out() << "expected one of";
+            ((rep.out() << " " << expected), ...);
+            rep.out() << " but got " << token_;
+        }
+        return false;
+    }
+
     //! Compute the next token discarding the last one.
     void consume() { token_ = lex_(); }
 
@@ -675,6 +689,11 @@ auto parse_theory_atom(ParserState &state)
 
 //! Check if the token is a relation.
 auto check_relation(TokenType token) -> std::optional<Relation>;
+
+//! Parse atom arguments enclode in parentheses.
+//!
+//! Does not consume the closing parenthesis
+auto parse_args(ParserState &state) -> std::optional<PoolArray>;
 
 //! Continue parsing a comparison literal.
 auto cont_literal(ParserState &state, Position pos, Sign sign, Term term, Relation rel) -> std::optional<Lit>;

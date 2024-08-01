@@ -305,47 +305,18 @@ auto parse_theory_atom(ParserState &state)
     state.consume(Condition::theory);
 
     // parse arguments
-    auto args = std::vector<ArgumentTuple>{};
+    auto args = PoolArray{};
     if (state.token() == TokenType::lpar) {
-        state.consume();
-        std::vector<Argument> tup;
-        while (true) {
-            if (state.token() == TokenType::rpar) {
-                end = state.cursor_pos();
-                state.consume(Condition::theory);
-                args.emplace_back(std::move(tup));
-                break;
-            }
-            if (state.token() == TokenType::sem) {
-                state.consume();
-                args.emplace_back(std::move(tup));
-                tup.clear();
-                continue;
-            }
-            if (state.token() != TokenType::star && !check_term(state.token())) {
-                return state.expected<std::nullopt>(TokenType::star, "<term>");
-            }
-            if (state.token() == TokenType::star) {
-                tup.emplace_back(Projection{state.loc()});
-                state.consume();
-            } else if (auto term = parse_term(state); term) {
-                tup.emplace_back(*std::move(term));
-            } else {
-                return std::nullopt;
-            }
-            if (state.token() == TokenType::comma) {
-                state.consume();
-                if (state.token() == TokenType::rpar || state.token() == TokenType::sem) {
-                    return state.expected<std::nullopt>("<term>");
-                }
-            } else {
-                if (state.token() != TokenType::rpar && state.token() != TokenType::sem) {
-                    return state.expected<std::nullopt>(TokenType::rpar, TokenType::sem);
-                }
-            }
+        auto oargs = parse_args(state);
+        if (!oargs) {
+            return std::nullopt;
         }
+        end = state.cursor_pos();
+        state.consume(Condition::theory);
+        args = *std::move(oargs);
+
     } else {
-        args.emplace_back(ArgumentTuple{{}});
+        args = Util::make_immutable_array<ArgumentTuple>(ArgumentTuple{{}});
     }
 
     // build name
