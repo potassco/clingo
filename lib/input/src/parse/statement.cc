@@ -599,33 +599,61 @@ auto parse_const(ParserState &state) -> std::optional<Stm> {
     return std::nullopt;
 }
 
-auto parse_op_def(ParserState &state) -> std::optional<TheoryOpDefinition> {
-    /*
-struct theory_op_definition {
-    static constexpr char const *name = "theory operator definition";
-    STRING_TAG(assoc, "left or right expected");
-
-    static constexpr auto sym_type = lexy::symbol_table<TheoryOpType> //
-                                         .map<LEXY_SYMBOL("left")>(TheoryOpType::binary_left)
-                                         .map<LEXY_SYMBOL("right")>(TheoryOpType::binary_right);
-    static constexpr auto rule = []() {
-        auto unary = LEXY_KEYWORD("unary", identifier_base);
-        auto binary = LEXY_KEYWORD("binary", identifier_base);
-        auto associativity = dsl::symbol<sym_type>(identifier_base);
-        auto type = unary | binary >> dsl::comma + associativity | dsl::error<expected_assoc>;
-
-        return Detail::location(dsl::p<theory_op> >> dsl::colon + smallint + dsl::comma + type);
-    }();
-    static constexpr auto value = lexy::callback<TheoryOpDefinition>(
-        lexy::construct<TheoryOpDefinition>, [](Location loc, String name, int arity) {
-            return TheoryOpDefinition{std::move(loc), name, arity, TheoryOpType::unary};
-        });
-};
-*/
-    static_cast<void>(state);
+//! The type of a theory operator.
+auto parse_op_type(ParserState &state) -> std::optional<TheoryOpType> {
+    if (state.expect(TokenType::id)) {
+        auto view = state.view();
+        if (view == "unary") {
+            return TheoryOpType::unary;
+        }
+        if (view == "binary") {
+            state.consume();
+            if (state.token() == TokenType::id) {
+                auto view = state.view();
+                if (view == "left") {
+                    return TheoryOpType::binary_left;
+                }
+                if (view == "right") {
+                    return TheoryOpType::binary_right;
+                }
+                return state.expected<std::nullopt>("'left'", "'right'");
+            }
+        }
+        return state.expected<std::nullopt>("'unary'", "'binary'");
+    }
     return std::nullopt;
 }
 
+//! The a theory operator definition.
+auto parse_op_def(ParserState &state) -> std::optional<TheoryOpDefinition> {
+    if (state.expect(TokenType::theory_op)) {
+        auto loc = state.loc();
+        auto op = state.str();
+        state.consume();
+        if (state.expect(TokenType::colon)) {
+            state.consume();
+            if (state.expect(TokenType::num)) {
+                if (auto prio = state.num().as_int()) {
+                    if (state.expect(TokenType::comma)) {
+                        state.consume();
+                        if (state.expect(TokenType::id)) {
+                            if (auto type = parse_op_type(state)) {
+                                loc += state.cursor_pos();
+                                state.consume();
+                                return TheoryOpDefinition{loc, op, *prio, *type};
+                            }
+                        }
+                    }
+                } else {
+                    return state.expected<std::nullopt>("<int32>");
+                }
+            }
+        }
+    }
+    return std::nullopt;
+}
+
+//! The a theory term definition.
 auto parse_term_def(ParserState &state) -> std::optional<TheoryTermDefinition> {
     assert(state.token() == TokenType::id);
     auto loc = state.loc();
@@ -640,6 +668,7 @@ auto parse_term_def(ParserState &state) -> std::optional<TheoryTermDefinition> {
     return std::nullopt;
 }
 
+//! The a theory guard definition.
 auto parse_guard_def(ParserState &state) -> std::optional<TheoryRGuardDefinition> {
     /*
     struct theory_guard_definition {
@@ -659,6 +688,7 @@ auto parse_guard_def(ParserState &state) -> std::optional<TheoryRGuardDefinition
     return std::nullopt;
 }
 
+//! The a theory atom definition.
 auto parse_atom_def(ParserState &state) -> std::optional<TheoryAtomDefinition> {
     /*
     struct theory_atom_definition {
