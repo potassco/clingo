@@ -674,6 +674,16 @@ class ParserState {
     TokenType token_ = TokenType::error;
 };
 
+//! RAII helper to set and restore a condition.
+struct set_condition {
+    set_condition(ParserState &state, Condition init, Condition restore) : state{&state}, restore{restore} {
+        state.condition(init);
+    }
+    ~set_condition() { state->condition(restore); }
+    ParserState *state;
+    Condition restore;
+};
+
 //! Parse a sign.
 auto parse_sign(ParserState &state) -> Sign;
 

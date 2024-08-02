@@ -599,10 +599,136 @@ auto parse_const(ParserState &state) -> std::optional<Stm> {
     return std::nullopt;
 }
 
+auto parse_op_def(ParserState &state) -> std::optional<TheoryOpDefinition> {
+    /*
+struct theory_op_definition {
+    static constexpr char const *name = "theory operator definition";
+    STRING_TAG(assoc, "left or right expected");
+
+    static constexpr auto sym_type = lexy::symbol_table<TheoryOpType> //
+                                         .map<LEXY_SYMBOL("left")>(TheoryOpType::binary_left)
+                                         .map<LEXY_SYMBOL("right")>(TheoryOpType::binary_right);
+    static constexpr auto rule = []() {
+        auto unary = LEXY_KEYWORD("unary", identifier_base);
+        auto binary = LEXY_KEYWORD("binary", identifier_base);
+        auto associativity = dsl::symbol<sym_type>(identifier_base);
+        auto type = unary | binary >> dsl::comma + associativity | dsl::error<expected_assoc>;
+
+        return Detail::location(dsl::p<theory_op> >> dsl::colon + smallint + dsl::comma + type);
+    }();
+    static constexpr auto value = lexy::callback<TheoryOpDefinition>(
+        lexy::construct<TheoryOpDefinition>, [](Location loc, String name, int arity) {
+            return TheoryOpDefinition{std::move(loc), name, arity, TheoryOpType::unary};
+        });
+};
+*/
+    static_cast<void>(state);
+    return std::nullopt;
+}
+
+auto parse_term_def(ParserState &state) -> std::optional<TheoryTermDefinition> {
+    assert(state.token() == TokenType::id);
+    auto loc = state.loc();
+    auto name = state.str();
+    state.consume();
+    auto sc = set_condition{state, Condition::theory, Condition::normal};
+    if (auto op_defs = state.delimited(TokenType::lbrace, parse_op_def, TokenType::sem, TokenType::rbrace)) {
+        loc += state.cursor_pos();
+        state.consume();
+        return TheoryTermDefinition{std::move(loc), name, *std::move(op_defs)};
+    }
+    return std::nullopt;
+}
+
+auto parse_guard_def(ParserState &state) -> std::optional<TheoryRGuardDefinition> {
+    /*
+    struct theory_guard_definition {
+        static constexpr char const *name = "theory guard definition";
+        static constexpr auto rule = []() {
+            auto rels = dsl::curly_bracketed.list(dsl::p<theory_op>, dsl::sep(dsl::comma));
+            return rels >> dsl::comma + dsl::p<identifier>;
+        }();
+        static constexpr auto value = []() {
+            auto sink = lexy::as_list<StringVec>;
+            auto cb = lexy::construct<TheoryRGuardDefinition>;
+            return sink >> cb;
+        }();
+    };
+    */
+    static_cast<void>(state);
+    return std::nullopt;
+}
+
+auto parse_atom_def(ParserState &state) -> std::optional<TheoryAtomDefinition> {
+    /*
+    struct theory_atom_definition {
+        static constexpr char const *name = "theory atom definition";
+        static constexpr auto sym_type = lexy::symbol_table<TheoryAtomType>
+            .map<LEXY_SYMBOL("head")>(TheoryAtomType::head)
+            .map<LEXY_SYMBOL("body")>(TheoryAtomType::body)
+            .map<LEXY_SYMBOL("any")>(TheoryAtomType::any)
+            .map<LEXY_SYMBOL("directive")>(TheoryAtomType::directive);
+        static constexpr auto rule = []() {
+            auto sig = dsl::p<identifier> + dsl::slash + smallint;
+            auto term = dsl::p<identifier>;
+            auto guard = dsl::opt(dsl::p<theory_guard_definition> >> dsl::comma);
+            auto type = dsl::symbol<sym_type>(identifier_base);
+            return Detail::location(dsl::ampersand >> sig + dsl::colon + term + dsl::comma + guard + type);
+        }();
+        static constexpr auto value = lexy::construct<TheoryAtomDefinition>;
+    };
+    */
+    static_cast<void>(state);
+    static_cast<void>(parse_guard_def);
+    return std::nullopt;
+}
+
 //! Parse a theory statement.
 auto parse_theory(ParserState &state) -> std::optional<Stm> {
+    /*
+    struct theory_definitions {
+        static constexpr char const *name = "theory definitions";
+        STRING_TAG(atom, "atom definition expected");
+        struct value_type {
+            void push_back(TheoryTermDefinition term_def) { term_defs.push_back(std::move(term_def)); }
+            void push_back(TheoryAtomDefinition atom_def) { atom_defs.push_back(std::move(atom_def)); }
+            std::vector<TheoryTermDefinition> term_defs;
+            std::vector<TheoryAtomDefinition> atom_defs;
+        };
+        static constexpr auto is_atom_def = dsl::context_flag<theory_definitions>;
+        static constexpr auto rule = []() {
+            auto def = dsl::p<theory_atom_definition> >> is_atom_def.set() |
+                       is_atom_def.is_reset() >> dsl::p<theory_term_definition> | dsl::error<expected_atom>;
+            return is_atom_def.create() + dsl::list(def, dsl::sep(dsl::semicolon));
+        }();
+        static constexpr auto value = lexy::as_list<value_type>;
+    };
+
+    struct statement_theory {
+        static constexpr char const *name = "theory definition";
+        static constexpr auto rule = []() {
+            auto kw_theory = LEXY_KEYWORD("#theory", identifier_base);
+            return Detail::location(kw_theory >>
+                                    dsl::p<identifier> + dsl::curly_bracketed.opt(dsl::p<theory_definitions>) + eos);
+        }();
+        static constexpr auto value = lexy::callback<Stm>(
+            // Note: called during error recovery if the expression between the
+            // parenthesis did not match.
+            [](Location loc, String name) {
+                return StmTheory{std::move(loc), name, TheoryTermDefinitionArray{}, TheoryAtomDefinitionArray{}};
+            },
+            [](Location loc, String name, lexy::nullopt) {
+                return StmTheory{std::move(loc), name, TheoryTermDefinitionArray{}, TheoryAtomDefinitionArray{}};
+            },
+            [](Location loc, String name, theory_definitions::value_type defs) {
+                return StmTheory{std::move(loc), name, std::move(defs.term_defs), std::move(defs.atom_defs)};
+            });
+    };
+        */
     assert(state.token() == TokenType::theory);
     static_cast<void>(state);
+    static_cast<void>(parse_term_def);
+    static_cast<void>(parse_atom_def);
     throw std::runtime_error("implement me: theory");
 }
 

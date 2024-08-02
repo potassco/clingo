@@ -156,15 +156,6 @@ auto cont_fun_args(ParserState &state) -> bool {
     return state.expected(TokenType::comma, TokenType::rpar);
 }
 
-struct set_condition {
-    set_condition(ParserState &state, Condition init, Condition restore) : state{&state}, restore{restore} {
-        state.condition(init);
-    }
-    ~set_condition() { state->condition(restore); }
-    ParserState *state;
-    Condition restore;
-};
-
 auto parse_theory_element(ParserState &state) -> std::optional<TheoryElement> {
     if (state.token() == TokenType::sem || state.token() == TokenType::rbrace) {
         return state.expected<std::nullopt>(TokenType::colon, "<theory-term>");
