@@ -395,41 +395,36 @@ TEST_CASE("parsev2") {
     SECTION("scan_comments") {
         std::istringstream in{"%p\na.%a\nb%b\n.%c\nc%d\n"};
         parser.init(in, store->string_ref("<input>"));
-        // REQUIRE(to_str(parser.scan()) == "%p");
+        REQUIRE(to_str(parser.scan()) == "(%p, T)");
         REQUIRE(to_str(parser.scan()) == "(a., T)");
-        // REQUIRE(to_str(parser.scan()) == "%a");
-        // REQUIRE(to_str(parser.scan()) == "%b");
+        REQUIRE(to_str(parser.scan()) == "(%a, T)");
+        REQUIRE(to_str(parser.scan()) == "(%b, T)");
         REQUIRE(to_str(parser.scan()) == "(b., T)");
-        // REQUIRE(to_str(parser.scan()) == "%c");
-        // REQUIRE(to_str(parser.scan()) == "%d");
-        REQUIRE(to_str(parser.scan()) == "(<failed>, F)");
+        REQUIRE(to_str(parser.scan()) == "(%c, F)");
+        REQUIRE(to_str(parser.scan()) == "(%d, T)");
+        REQUIRE(to_str(parser.scan()) == "(<failed>, T)");
     }
 
     SECTION("scan_comments") {
         std::istringstream in{"%xxx"};
         parser.init(in, store->string_ref("<input>"));
-        // REQUIRE(to_str(parser.scan()) == "%xxx");
+        REQUIRE(to_str(parser.scan()) == "(%xxx, T)");
         REQUIRE(to_str(parser.scan()) == "(<failed>, T)");
     }
 
     SECTION("scan_comments") {
         std::istringstream in{"%"};
         parser.init(in, store->string_ref("<input>"));
-        // REQUIRE(to_str(parser.scan()) == "%");
+        REQUIRE(to_str(parser.scan()) == "(%, T)");
         REQUIRE(to_str(parser.scan()) == "(<failed>, T)");
     }
 
     SECTION("scan_block_comments") {
-        printf("the fucker here\n");
         std::istringstream in{"a. %* % *%\n *% b. %* %* *%"};
         parser.init(in, store->string_ref("<input>"));
-        // REQUIRE(to_str(parser.scan()) == "%p");
         REQUIRE(to_str(parser.scan()) == "(a., T)");
-        // REQUIRE(to_str(parser.scan()) == "%a");
-        // REQUIRE(to_str(parser.scan()) == "%b");
+        REQUIRE(to_str(parser.scan()) == "(%* % *%\n *%, T)");
         REQUIRE(to_str(parser.scan()) == "(b., T)");
-        // REQUIRE(to_str(parser.scan()) == "%c");
-        // REQUIRE(to_str(parser.scan()) == "%d");
         REQUIRE(to_str(parser.scan()) == "(<failed>, F)");
     }
 }

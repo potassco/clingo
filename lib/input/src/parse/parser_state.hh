@@ -407,6 +407,8 @@ class ParserState {
 
     //! Initialize the parser state with the given string.
     void init(std::string_view &in, String file) {
+        mark_ = 0;
+        stms_.clear();
         token_ = TokenType::begin;
         file_ = SharedString{file};
         cond_ = yycnormal;
@@ -415,6 +417,8 @@ class ParserState {
 
     //! Initialize the parser state with the given stream.
     void init(std::istream &in, String file) {
+        mark_ = 0;
+        stms_.clear();
         token_ = TokenType::begin;
         file_ = SharedString{file};
         cond_ = yycnormal;
@@ -494,6 +498,37 @@ class ParserState {
 
     //! Get the current token.
     auto token() -> TokenType { return token_; }
+
+    //! Mark number of current statements.
+    void mark_stms() { mark_ = stms_.size(); }
+
+    //! Check if there are stored statements.
+    [[nodiscard]] auto has_stms() const -> bool { return mark_ > 0; }
+
+    //! Pop a stored statement.
+    auto pop_stm() -> std::optional<Stm> {
+        if (mark_ > 0) {
+            --mark_;
+            auto res = std::move(stms_.front());
+            stms_.pop_front();
+            return res;
+        }
+        return std::nullopt;
+    }
+
+    //! Add a comment.
+    void push_comment(bool bc = false) {
+        auto x = view();
+        stms_.emplace_back(StmComment{loc(), bc ? CommentType::block : CommentType::line, store().string_ref(x)});
+        state_.start();
+    }
+
+    //! Add a statement.
+    void push_stm(Stm stm) {
+        // Note: insertion is avoidable (but should also not be harmful here)
+        stms_.insert(std::next(stms_.begin(), static_cast<ssize_t>(mark_)), std::move(stm));
+        ++mark_;
+    }
 
     //! Initialize the state to parse a production.
     void init(Prod prod) {
@@ -696,7 +731,9 @@ class ParserState {
     SharedString file_;
     std::vector<Prod> stack_;
     std::vector<Value> values_;
+    std::deque<Stm> stms_;
     std::string buf_;
+    size_t mark_ = 0;
     int cond_ = yycnormal;
     int bc_cond_ = 0;
     int bc_ = 0;

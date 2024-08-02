@@ -16,6 +16,7 @@ namespace {
 auto parse_body(ParserState &state) -> std::optional<std::vector<BdLit>> {
     auto ret = std::vector<BdLit>{};
     if (state.token() == TokenType::dot) {
+        state.mark_stms();
         return ret;
     }
     if (auto lit = parse_body_literal(state)) {
@@ -139,6 +140,7 @@ auto parse_show(ParserState &state) -> std::optional<Stm> {
     state.consume();
     if (auto term = parse_term(state)) {
         if (state.token() == TokenType::dot) {
+            state.mark_stms();
             loc += state.cursor_pos();
             state.consume();
             if (auto res = check_term_sig(*term)) {
@@ -175,6 +177,7 @@ auto parse_optimize(ParserState &state) -> std::optional<Stm> {
         }
         loc += state.cursor_pos();
         // consume dot
+        state.mark_stms();
         state.consume();
         return StmOptimize{std::move(loc), min ? OptimizeType::minimize : OptimizeType::maximize, *std::move(elems)};
     }
@@ -200,6 +203,7 @@ auto parse_weak(ParserState &state) -> std::optional<Stm> {
                 if (auto terms = state.repeat_until(TokenType::comma, parse_term, TokenType::rbrack)) {
                     loc += state.cursor_pos();
                     // consume rbrack
+                    state.mark_stms();
                     state.consume();
                     return StmWeakConstraint{std::move(loc), *std::move(body),
                                              OptimizeTuple{*std::move(weight), *std::move(prio), *std::move(terms)}};
@@ -232,6 +236,7 @@ auto parse_rule(ParserState &state) -> std::optional<Stm> {
         if (auto body = parse_opt_body(state, TokenType::if_)) {
             loc += state.cursor_pos();
             // consume dot
+            state.mark_stms();
             state.consume();
             return StmRule{std::move(loc), *std::move(hd), *std::move(body)};
         }
@@ -262,10 +267,13 @@ auto parse_defined(ParserState &state) -> std::optional<Stm> {
     }
     state.consume();
     loc += state.cursor_pos();
-    if (!state.branch(TokenType::dot)) {
-        return state.expected<std::nullopt>(TokenType::dot);
+    if (state.expect(TokenType::dot)) {
+        // consume dot
+        state.mark_stms();
+        state.consume();
+        return StmDefined{std::move(loc), sign, name, *arity};
     }
-    return StmDefined{std::move(loc), sign, name, *arity};
+    return std::nullopt;
 }
 
 //! Parse a project statement.
@@ -298,11 +306,13 @@ auto parse_project(ParserState &state) -> std::optional<Stm> {
         // consume num
         state.consume();
         loc += state.cursor_pos();
-        // consume dot
-        if (!state.branch(TokenType::dot)) {
-            return state.expected<std::nullopt>(TokenType::dot);
+        if (state.expect(TokenType::dot)) {
+            // consume dot
+            state.mark_stms();
+            state.consume();
+            return StmProjectSig{loc, sign, name, *arity};
         }
-        return StmProjectSig{loc, sign, name, *arity};
+        return std::nullopt;
     }
     if (!state.expect(TokenType::slash, TokenType::dot, TokenType::lpar)) {
         return std::nullopt;
@@ -330,6 +340,7 @@ auto parse_project(ParserState &state) -> std::optional<Stm> {
     }
     loc += state.cursor_pos();
     // consume dot
+    state.mark_stms();
     state.consume();
     return StmProject{loc, *std::move(atom), *std::move(body)};
 }
@@ -357,6 +368,7 @@ auto parse_edge(ParserState &state) -> std::optional<Stm> {
         if (auto body = parse_opt_body(state, TokenType::colon)) {
             loc += state.cursor_pos();
             // consume dot
+            state.mark_stms();
             state.consume();
             return StmEdge{std::move(loc), *std::move(edges), *std::move(body)};
         }
@@ -408,6 +420,7 @@ auto parse_heuristic(ParserState &state) -> std::optional<Stm> {
     if (auto atom = parse_atom(state)) {
         if (auto body = parse_opt_body(state, TokenType::colon)) {
             // consume dot
+            state.mark_stms();
             state.consume();
             // tuple
             if (state.expect(TokenType::lbrack)) {
@@ -419,6 +432,7 @@ auto parse_heuristic(ParserState &state) -> std::optional<Stm> {
                             if (auto type = parse_term(state)) {
                                 if (state.expect(TokenType::rbrack)) {
                                     loc += location(*type);
+                                    state.mark_stms();
                                     state.consume();
                                     return StmHeuristic{std::move(loc),     *std::move(atom), *std::move(body),
                                                         *std::move(weight), *std::move(prio), *std::move(type)};
@@ -442,12 +456,14 @@ auto parse_external(ParserState &state) -> std::optional<Stm> {
     if (auto atom = parse_atom(state)) {
         if (auto body = parse_opt_body(state, TokenType::colon)) {
             // consume dot
+            state.mark_stms();
             state.consume();
             // tuple
             if (state.branch(TokenType::lbrack)) {
                 if (auto type = parse_term(state)) {
                     if (state.expect(TokenType::rbrack)) {
                         loc += location(*type);
+                        state.mark_stms();
                         state.consume();
                         // NOLINTNEXTLINE(bugprone-optional-value-conversion)
                         return StmExternal{std::move(loc), *std::move(atom), *std::move(body), *std::move(type)};
@@ -486,6 +502,7 @@ auto parse_script(ParserState &state) -> std::optional<Stm> {
                         if (state.expect(TokenType::dot)) {
                             loc += state.cursor_pos();
                             // consume dot
+                            state.mark_stms();
                             state.consume();
                             return StmScript{std::move(loc), type, value};
                         }
@@ -508,6 +525,7 @@ auto parse_include(ParserState &state) -> std::optional<Stm> {
         state.consume();
         if (state.expect(TokenType::dot)) {
             loc += state.cursor_pos();
+            state.mark_stms();
             state.consume();
             return StmInclude{std::move(loc), sys ? IncludeType::system : IncludeType::inbuild, value};
         }
@@ -547,6 +565,7 @@ auto parse_program(ParserState &state) -> std::optional<Stm> {
         if (auto args = parse_args_id(state)) {
             if (state.expect(TokenType::dot)) {
                 loc += state.cursor_pos();
+                state.mark_stms();
                 state.consume();
                 return StmProgram{std::move(loc), name, *std::move(args)};
             }
@@ -570,6 +589,7 @@ auto parse_const_type(ParserState &state, Location &loc) -> std::optional<ConstT
         state.consume();
         if (state.expect(TokenType::rbrack)) {
             loc += state.cursor_pos();
+            state.mark_stms();
             state.consume();
             return type;
         }
@@ -590,6 +610,7 @@ auto parse_const(ParserState &state) -> std::optional<Stm> {
             if (auto term = parse_term(state)) {
                 if (state.expect(TokenType::dot)) {
                     loc += state.cursor_pos();
+                    state.mark_stms();
                     state.consume();
                     if (auto type = parse_const_type(state, loc)) {
                         return StmConst{std::move(loc), *type, name, *std::move(term)};
@@ -796,6 +817,7 @@ auto parse_theory(ParserState &state) -> std::optional<Stm> {
                     state.consume();
                     if (state.expect(TokenType::dot)) {
                         loc += state.cursor_pos();
+                        state.mark_stms();
                         state.consume();
                         return StmTheory{std::move(loc), name, *std::move(term_defs), *std::move(atom_defs)};
                     }
@@ -945,6 +967,7 @@ auto recover(ParserState &state) -> bool {
 }
 
 auto scan_statement(ParserState &state) -> std::pair<std::optional<Stm>, bool> {
+    assert(!state.has_stms());
     // parse statement
     if (state.token() == TokenType::end) {
         return {std::nullopt, true};

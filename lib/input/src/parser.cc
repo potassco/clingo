@@ -69,7 +69,20 @@ auto Parser::scan() -> std::pair<std::optional<Stm>, bool> {
     if (impl_->token() == Parse::TokenType::begin) {
         impl_->consume();
     }
-    return scan_statement(*impl_);
+    if (impl_->has_stms()) {
+        return {impl_->pop_stm(), true};
+    }
+    auto [stm, res] = scan_statement(*impl_);
+    if (!stm) {
+        impl_->mark_stms();
+    }
+    if (impl_->has_stms()) {
+        if (stm) {
+            impl_->push_stm(*std::move(stm));
+        }
+        return {impl_->pop_stm(), res};
+    }
+    return {std::move(stm), res};
 }
 
 } // namespace Gringo::Input

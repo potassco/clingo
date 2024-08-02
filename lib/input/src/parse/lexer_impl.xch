@@ -102,9 +102,9 @@ auto ParserState::lex_() -> TokenType {
         <normal> "#true"               { return TokenType::true_; }
         <normal> "#end"                { return TokenType::script_end; }
         <normal,theory> "%*"           { bc_ = 1; bc_cond_ = cond_; cond_ = yycblockcomment; continue; }
-        <normal,theory> COMMENT        { state_.start(); continue; }
-        <normal,theory> "%" / NULL     { state_.start(); continue; }
-        <normal,theory> "#!" DOT*      { state_.start(); continue; }
+        <normal,theory> COMMENT        { push_comment(); continue; }
+        <normal,theory> "%" / NULL     { push_comment(); continue; }
+        <normal,theory> "#!" DOT*      { push_comment(); continue; }
         <normal,theory> IDENTIFIER     { return TokenType::id; }
         <normal,theory> INF            { return TokenType::inf; }
         <normal,theory> NUMBER         { return TokenType::num; }
@@ -118,8 +118,8 @@ auto ParserState::lex_() -> TokenType {
         <script> ANY* / "#end"         { return TokenType::script_content; }
         <blockcomment> "*%" {
             if(--bc_ == 0) {
+                push_comment(true);
                 cond_ = bc_cond_;
-                state_.start();
             }
             continue;
         }
