@@ -401,6 +401,21 @@ struct TySeq {
     bool tuple;
 };
 
+//! Capture a partial function term.
+struct SymFun {
+    SymFun(String name) : name{name} {}
+    std::vector<Symbol> args;
+    String name;
+};
+
+//! Capture a partial tuple term.
+struct SymTup {
+    SymTup() = default;
+
+    std::vector<Symbol> tup;
+    bool term = true;
+};
+
 //! The parser implementation.
 class ParserState {
   public:
@@ -722,7 +737,7 @@ class ParserState {
     }
 
   private:
-    using Value = std::variant<Pos, Term, Abs, Fun, Tup, TyTerm, TyFun, TySeq>;
+    using Value = std::variant<Pos, Term, Abs, Fun, Tup, TyTerm, TyFun, TySeq, Symbol, SymFun, SymTup>;
 
     //! Compute the next token.
     auto lex_() -> TokenType;
@@ -763,6 +778,9 @@ auto check_term(TokenType token) -> bool;
 //! Uses a hand written bottom up parser with a stack to avoid stack
 //! overflows.
 auto parse_term(ParserState &state) -> std::optional<Term>;
+
+//! Parse a symbol.
+auto parse_symbol(ParserState &state) -> std::optional<Symbol>;
 
 //! Parse a theory term.
 //!

@@ -13,6 +13,29 @@ TEST_CASE("parsev2") {
     }};
     auto parser = Parser{log, *store};
 
+    SECTION("symbol") {
+        auto parse = [&](char const *str) -> std::string {
+            log.reset();
+            messages.clear();
+            parser.init(str, store->string_ref("<input>"));
+            return to_str(parser.parse_symbol());
+        };
+        REQUIRE(parse("1") == "1");
+        REQUIRE(parse("|-1|") == "1");
+        REQUIRE(parse("|x|") == "<failed>");
+        REQUIRE(parse("a") == "a");
+        REQUIRE(parse("a()") == "a");
+        REQUIRE(parse("a(1+2)") == "a(3)");
+        REQUIRE(parse("a(1+2,3)") == "a(3,3)");
+        REQUIRE(parse("a(1+2,3,4)") == "a(3,3,4)");
+        REQUIRE(parse("a(1,)") == "<failed>");
+        REQUIRE(parse("1-2") == "-1");
+        REQUIRE(parse("(,)") == "()");
+        REQUIRE(parse("(1,)") == "(1,)");
+        REQUIRE(parse("(1,2)") == "(1,2)");
+        REQUIRE(parse("(1,2,3)") == "(1,2,3)");
+        REQUIRE(parse("(1+2)") == "3");
+    }
     SECTION("term") {
         auto parse = [&](char const *str) -> std::string {
             log.reset();

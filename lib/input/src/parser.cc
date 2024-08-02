@@ -41,6 +41,13 @@ void Parser::init(std::istream &in, String file) { impl_->init(in, file); }
 
 void Parser::init(std::string_view in, String file) { impl_->init(in, file); }
 
+auto Parser::parse_symbol() -> std::optional<SharedSymbol> {
+    if (auto ret = parse_expr(*impl_, Parse::Condition::normal, Parse::parse_symbol, check_true<Symbol>)) {
+        return SharedSymbol{*ret};
+    }
+    return std::nullopt;
+}
+
 auto Parser::parse_term() -> std::optional<Term> {
     return parse_expr(*impl_, Parse::Condition::normal, Parse::parse_term, check_term);
 }

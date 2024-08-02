@@ -105,6 +105,12 @@ template <class T> auto to_str(T const &value) -> std::string { return to_string
 
 inline auto to_str(bool const &value) -> std::string { return value ? "T" : "F"; }
 
+inline auto to_str(SharedSymbol const &x) -> std::string {
+    std::ostringstream oss;
+    oss << *x;
+    return oss.str();
+}
+
 template <class T> auto to_str(std::optional<T> const &value) -> std::string {
     if (value) {
         return to_str(value.value());

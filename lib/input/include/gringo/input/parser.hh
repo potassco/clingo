@@ -42,6 +42,8 @@ class Parser {
     //! Note that the string is copied.
     void init(std::string_view in, String file);
 
+    //! Parse a symbol.
+    auto parse_symbol() -> std::optional<SharedSymbol>;
     //! Parse a term.
     auto parse_term() -> std::optional<Term>;
     //! Parse a theory term.

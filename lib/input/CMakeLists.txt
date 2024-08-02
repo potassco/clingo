@@ -26,6 +26,7 @@ add_library(gringo_input
     "src/parse/head_literal.cc"
     "src/parse/literal.cc"
     "src/parse/parser_state.cc"
+    "src/parse/params.cc"
     "src/parse/statement.cc"
     "src/parse/term.cc"
     "src/parse/theory.cc"
