@@ -26,7 +26,6 @@ add_library(gringo_input
     "src/parse/head_literal.cc"
     "src/parse/literal.cc"
     "src/parse/parser_state.cc"
-    "src/parse/params.cc"
     "src/parse/statement.cc"
     "src/parse/term.cc"
     "src/parse/theory.cc"
@@ -35,16 +34,11 @@ add_library(gringo_input
     "src/program.cc"
     )
 
-target_link_libraries(gringo_input PUBLIC gringo_core PRIVATE foonathan::lexy::core foonathan::lexy::file)
+target_link_libraries(gringo_input PUBLIC gringo_core)
 target_include_directories(gringo_input PUBLIC "include"
     PRIVATE
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src>")
-set_property(TARGET gringo_input lexy_core lexy_file PROPERTY POSITION_INDEPENDENT_CODE ON)
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    # no-parentheses: for lexy using >> and + in combination
-    # no-maybe-uninitialized/no-restrict: for older gccc versions
-    target_compile_options(gringo_input PUBLIC "-Wno-parentheses" "-Wno-maybe-uninitialized" "-Wno-restrict" "$<$<COMPILE_LANGUAGE:CXX>:-Wno-non-template-friend>")
-endif()
+set_property(TARGET gringo_input PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 if (PARSER_BUILD_TESTS)
     add_executable(test_input

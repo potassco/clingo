@@ -1,18 +1,8 @@
-#include "parse/params.hh"
-#include "parse/report_error.hh"
-
 #include <gringo/input/parser.hh>
 #include <gringo/input/rewrite.hh>
 
 #include <gringo/input/rewrite/check_syntax.hh>
 #include <gringo/input/rewrite/parse.hh>
-
-#include <lexy/action/parse.hpp>
-#include <lexy/action/scan.hpp>
-#include <lexy/input/file.hpp>
-#include <lexy/input/range_input.hpp>
-#include <lexy/input/string_input.hpp>
-#include <lexy/input_location.hpp>
 
 #include <fstream>
 #include <utility>
@@ -156,35 +146,20 @@ auto parse_statement(Logger &log, SymbolStore &store, std::string_view str) -> s
     return p.parse_statement();
 }
 
-// TODO: get rid of lexy
-
-namespace {
-
-template <class P> struct root : SymbolGrammar::control {
-    static constexpr auto name = P::name;
-    static constexpr auto rule = lexy::dsl::p<P> + lexy::dsl::eof;
-    static constexpr auto value = lexy::forward<typename decltype(P::value)::return_type>;
-};
-
-} // namespace
-
 auto parse_parts(Logger &log, SymbolStore &store, std::string_view str) -> std::vector<Input::ProgramParamVec> {
-    auto lock = GCLock{store};
-    auto input = lexy::string_input<SymbolGrammar::encoding>{str};
-    auto error = false;
-    if (auto res = lexy::parse<root<SymbolGrammar::program_param_vec_vec>>(input, store, report_error{log, error});
-        res && !error) {
-        return std::move(res).value();
+    auto p = Parser{log, store};
+    p.init(str, *store.string(str));
+    if (auto def = p.parse_program_parts()) {
+        return *std::move(def);
     }
     throw parse_error{};
 }
 
 auto parse_const(Logger &log, SymbolStore &store, std::string_view str) -> std::pair<SharedString, SharedSymbol> {
-    auto lock = GCLock{store};
-    auto input = lexy::string_input<SymbolGrammar::encoding>{str};
-    auto error = false;
-    if (auto res = lexy::parse<root<SymbolGrammar::const_def>>(input, store, report_error{log, error}); res && !error) {
-        return {SharedString{res.value().first}, SharedSymbol{res.value().second}};
+    auto p = Parser{log, store};
+    p.init(str, *store.string(str));
+    if (auto def = p.parse_const_def()) {
+        return *std::move(def);
     }
     throw parse_error{};
 }

@@ -101,39 +101,65 @@ class ParseHelper {
     std::vector<std::pair<MessageCode, std::string>> messages_;
 };
 
-template <class T> auto to_str(T const &value) -> std::string { return to_string(value); }
+struct Print {
+    template <class T> auto operator()(T const &value) const -> std::string { return to_string(value); }
 
-inline auto to_str(bool const &value) -> std::string { return value ? "T" : "F"; }
+    auto operator()(bool const &value) const -> std::string { return value ? "T" : "F"; }
 
-inline auto to_str(SharedSymbol const &x) -> std::string {
-    std::ostringstream oss;
-    oss << *x;
-    return oss.str();
-}
+    auto operator()(std::string const &x) const -> std::string { return x; }
 
-template <class T> auto to_str(std::optional<T> const &value) -> std::string {
-    if (value) {
-        return to_str(value.value());
+    auto operator()(SharedSymbol const &x) const -> std::string {
+        std::ostringstream oss;
+        oss << *x;
+        return oss.str();
     }
-    return "<failed>";
-}
 
-template <class T> auto to_str(Util::immutable_array<T> const &value, char const *sep = ", ") -> std::string {
-    std::ostringstream oss;
-    oss << "[" << Util::p_range(value, sep) << "]";
-    return oss.str();
-}
+    auto operator()(SharedString const &x) const -> std::string {
+        std::ostringstream oss;
+        oss << *x;
+        return oss.str();
+    }
 
-template <class T> auto to_str(std::vector<T> const &value, char const *sep = ", ") -> std::string {
-    std::ostringstream oss;
-    oss << "[" << Util::p_range(value, sep) << "]";
-    return oss.str();
-}
+    template <class T> auto operator()(std::optional<T> const &value) const -> std::string {
+        if (value) {
+            return operator()(value.value());
+        }
+        return "<failed>";
+    }
 
-template <class T, class U> auto to_str(std::pair<T, U> const &x) -> std::string {
-    std::ostringstream oss;
-    oss << "(" << to_str(x.first) << ", " << to_str(x.second) << ")";
-    return oss.str();
-}
+    template <class T> auto operator()(Util::immutable_array<T> const &value) const -> std::string {
+        return operator()(std::span(value.data(), value.size()));
+    }
+
+    template <class T> auto operator()(std::vector<T> const &value) const -> std::string {
+        return operator()(std::span(value.data(), value.size()));
+    }
+
+    template <class T> auto operator()(std::span<T> const &value) const -> std::string {
+        std::ostringstream oss;
+        oss << "[";
+        bool comma = false;
+        for (auto &x : value) {
+            if (comma) {
+                oss << sep;
+            } else {
+                comma = true;
+            }
+            oss << operator()(x);
+        }
+        oss << "]";
+        return oss.str();
+    }
+
+    template <class T, class U> auto operator()(std::pair<T, U> const &x) const -> std::string {
+        std::ostringstream oss;
+        oss << "(" << operator()(x.first) << ", " << operator()(x.second) << ")";
+        return oss.str();
+    }
+
+    char const *sep = ", ";
+};
+
+template <class T> auto to_str(T const &value, char const *sep = ", ") -> std::string { return Print{sep}(value); }
 
 } // namespace Gringo::Input::Test

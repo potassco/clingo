@@ -430,6 +430,173 @@ auto cont_fun(ParserState &state) -> bool {
     return true;
 }
 
+//! Continue parsing an expression if followed by a binary operation.
+//!
+//! See cont_expr for more  details.
+void cont_sym_expr(ParserState &state) {
+    state.pop();
+    if (auto cur = map_binop(state.token()); cur && *cur != Prod::interval) {
+        // reduce
+        if (!state.empty() && is_op(state.top())) {
+            auto pre = state.top();
+            auto pp = priority(pre);
+            auto pc = priority(*cur);
+            if (pc < pp || (pc == pp && left_assoc_(*cur))) {
+                return;
+            }
+        }
+        // shift
+        state.consume();
+        state.push(*cur);
+        state.push(Prod::term);
+    }
+}
+
+//! Finish a function after reading a ')' token.
+void finish_sym_fun(ParserState &state) {
+    assert(state.token() == TokenType::rpar);
+    auto fun = state.pop_value<SymFun>();
+    state.push_value<Symbol>(state.store().fun_ref(fun.name, fun.args, false));
+    state.consume();
+    cont_sym_expr(state);
+}
+
+//! Continue parsing function arguments.
+//!
+//! If arg is false, then continue after token '('.
+//! If arg is true, then continue after an argument.
+auto cont_sym_fun_args(ParserState &state, bool arg) -> bool {
+    auto &fun = state.top_value<SymFun>(arg ? 1 : 0);
+    if (arg) {
+        fun.args.emplace_back(state.pop_value<Symbol>());
+    } else {
+        assert(state.token() == TokenType::lpar);
+        state.consume();
+    }
+    // finish
+    if (state.token() == TokenType::rpar) {
+        finish_sym_fun(state);
+        return true;
+    }
+    if (arg) {
+        // a comma that must be followed by another term or projection
+        if (state.branch(TokenType::comma)) {
+            state.push(Prod::term);
+            return true;
+        }
+        return state.expected(TokenType::rpar, TokenType::comma);
+    }
+    state.replace(Prod::fun);
+    state.push(Prod::term);
+    return true;
+}
+
+//! Continue parsing a function assuming an id token was read.
+auto cont_sym_fun(ParserState &state) -> bool {
+    auto name = state.str();
+    state.consume();
+    if (state.token() == TokenType::lpar) {
+        state.push_value<SymFun>(name);
+        if (!cont_sym_fun_args(state, false)) {
+            return false;
+        }
+    } else {
+        state.push_value<Symbol>(state.store().fun_ref(name, {}, false));
+        cont_sym_expr(state);
+    }
+    return true;
+}
+
+//! Finish a tuple after reading a ')' token.
+void finish_sym_tup(ParserState &state) {
+    assert(state.token() == TokenType::rpar);
+    auto tup = state.pop_value<SymTup>();
+    if (tup.tup.size() == 1 && tup.term) {
+        state.push_value<Symbol>(tup.tup.front());
+    } else {
+        state.push_value<Symbol>(state.store().tup_ref(tup.tup));
+    }
+    state.consume();
+    cont_sym_expr(state);
+}
+
+//! Continue parsing tuple arguments.
+//!
+//! If arg is true, continue parsing a tuple after a symbol argument.
+//! Otherwise, continue parsing a tuple after token '('.
+auto cont_sym_tup_args(ParserState &state, bool arg) -> bool {
+    auto &tup = state.top_value<SymTup>(arg ? 1 : 0);
+    if (arg) {
+        tup.tup.emplace_back(state.pop_value<Symbol>());
+    } else {
+        assert(state.token() == TokenType::lpar);
+        state.consume();
+    }
+
+    // closing parenthesis after symbol or empty tuple
+    if (state.token() == TokenType::rpar) {
+        finish_sym_tup(state);
+        return true;
+    }
+    if (arg) {
+        // comma after symbol
+        if (state.branch(TokenType::comma)) {
+            tup.term = false;
+            if (state.token() == TokenType::rpar) {
+                finish_sym_tup(state);
+                return true;
+            }
+            state.replace(Prod::tup);
+            state.push(Prod::term);
+            return true;
+        }
+        return state.expected(TokenType::rpar, TokenType::comma);
+    }
+
+    // coma indicating empty tuple
+    if (state.branch(TokenType::comma)) {
+        tup.term = false;
+        if (state.expect(TokenType::rpar)) {
+            finish_sym_tup(state);
+            return true;
+        }
+        return false;
+    }
+    // parse a term
+    state.replace(Prod::tup);
+    state.push(Prod::term);
+    return true;
+}
+
+//! Continue parsing a tuple after a '(' token.
+auto cont_sym_tup(ParserState &state) -> bool {
+    assert(state.token() == TokenType::lpar);
+    state.push_value<SymTup>();
+    return cont_sym_tup_args(state, false);
+}
+
+//! Parse a program param.
+auto parse_program_param(ParserState &state) -> std::optional<ProgramParam> {
+    if (state.expect(TokenType::id)) {
+        auto name = state.str();
+        state.consume();
+        if (state.token() == TokenType::lpar) {
+            if (auto args = state.delimited(TokenType::lpar, parse_symbol, TokenType::comma, TokenType::rpar)) {
+                state.consume();
+                return ProgramParam{SharedString{name}, *std::move(args)};
+            }
+        } else {
+            return ProgramParam{SharedString{name}, {}};
+        }
+    }
+    return std::nullopt;
+}
+
+//! Parse a list of program params.
+auto parse_program_params(ParserState &state) -> std::optional<ProgramParamVec> {
+    return state.separated_until(parse_program_param, TokenType::comma, TokenType::sem, TokenType::end);
+}
+
 } // namespace
 
 auto check_term(TokenType token) -> bool {
@@ -582,156 +749,9 @@ auto parse_term(ParserState &state) -> std::optional<Term> {
     return ret;
 }
 
-namespace {
+namespace {} // namespace
 
-//! Continue parsing an expression if followed by a binary operation.
-//!
-//! See cont_expr for more  details.
-void cont_sym_expr(ParserState &state) {
-    state.pop();
-    if (auto cur = map_binop(state.token()); cur && *cur != Prod::interval) {
-        // reduce
-        if (!state.empty() && is_op(state.top())) {
-            auto pre = state.top();
-            auto pp = priority(pre);
-            auto pc = priority(*cur);
-            if (pc < pp || (pc == pp && left_assoc_(*cur))) {
-                return;
-            }
-        }
-        // shift
-        state.consume();
-        state.push(*cur);
-        state.push(Prod::term);
-    }
-}
-
-//! Finish a function after reading a ')' token.
-void finish_sym_fun(ParserState &state) {
-    assert(state.token() == TokenType::rpar);
-    auto fun = state.pop_value<SymFun>();
-    state.push_value<Symbol>(state.store().fun_ref(fun.name, fun.args, false));
-    state.consume();
-    cont_sym_expr(state);
-}
-
-//! Continue parsing function arguments.
-//!
-//! If arg is false, then continue after token '('.
-//! If arg is true, then continue after an argument.
-auto cont_sym_fun_args(ParserState &state, bool arg) -> bool {
-    auto &fun = state.top_value<SymFun>(arg ? 1 : 0);
-    if (arg) {
-        fun.args.emplace_back(state.pop_value<Symbol>());
-    } else {
-        assert(state.token() == TokenType::lpar);
-        state.consume();
-    }
-    // finish
-    if (state.token() == TokenType::rpar) {
-        finish_sym_fun(state);
-        return true;
-    }
-    if (arg) {
-        // a comma that must be followed by another term or projection
-        if (state.branch(TokenType::comma)) {
-            state.push(Prod::term);
-            return true;
-        }
-        return state.expected(TokenType::rpar, TokenType::comma);
-    }
-    state.replace(Prod::fun);
-    state.push(Prod::term);
-    return true;
-}
-
-//! Continue parsing a function assuming an id token was read.
-auto cont_sym_fun(ParserState &state) -> bool {
-    auto name = state.str();
-    state.consume();
-    if (state.token() == TokenType::lpar) {
-        state.push_value<SymFun>(name);
-        if (!cont_sym_fun_args(state, false)) {
-            return false;
-        }
-    } else {
-        state.push_value<Symbol>(state.store().fun_ref(name, {}, false));
-        cont_sym_expr(state);
-    }
-    return true;
-}
-
-//! Finish a tuple after reading a ')' token.
-void finish_sym_tup(ParserState &state) {
-    assert(state.token() == TokenType::rpar);
-    auto tup = state.pop_value<SymTup>();
-    if (tup.tup.size() == 1 && tup.term) {
-        state.push_value<Symbol>(tup.tup.front());
-    } else {
-        state.push_value<Symbol>(state.store().tup_ref(tup.tup));
-    }
-    state.consume();
-    cont_sym_expr(state);
-}
-
-//! Continue parsing tuple arguments.
-//!
-//! If arg is true, continue parsing a tuple after a symbol argument.
-//! Otherwise, continue parsing a tuple after token '('.
-auto cont_sym_tup_args(ParserState &state, bool arg) -> bool {
-    auto &tup = state.top_value<SymTup>(arg ? 1 : 0);
-    if (arg) {
-        tup.tup.emplace_back(state.pop_value<Symbol>());
-    } else {
-        assert(state.token() == TokenType::lpar);
-        state.consume();
-    }
-
-    // closing parenthesis after symbol or empty tuple
-    if (state.token() == TokenType::rpar) {
-        finish_sym_tup(state);
-        return true;
-    }
-    if (arg) {
-        // comma after symbol
-        if (state.branch(TokenType::comma)) {
-            tup.term = false;
-            if (state.token() == TokenType::rpar) {
-                finish_sym_tup(state);
-                return true;
-            }
-            state.replace(Prod::tup);
-            state.push(Prod::term);
-            return true;
-        }
-        return state.expected(TokenType::rpar, TokenType::comma);
-    }
-
-    // coma indicating empty tuple
-    if (state.branch(TokenType::comma)) {
-        tup.term = false;
-        if (state.expect(TokenType::rpar)) {
-            finish_sym_tup(state);
-            return true;
-        }
-        return false;
-    }
-    // parse a term
-    state.replace(Prod::tup);
-    state.push(Prod::term);
-    return true;
-}
-
-//! Continue parsing a tuple after a '(' token.
-auto cont_sym_tup(ParserState &state) -> bool {
-    assert(state.token() == TokenType::lpar);
-    state.push_value<SymTup>();
-    return cont_sym_tup_args(state, false);
-}
-
-} // namespace
-
-auto parse_symbol(ParserState &state) -> std::optional<Symbol> {
+auto parse_symbol(ParserState &state) -> std::optional<SharedSymbol> {
     state.init(Prod::term);
 
     while (!state.empty()) {
@@ -855,7 +875,30 @@ auto parse_symbol(ParserState &state) -> std::optional<Symbol> {
     assert(!state.empty_value());
     auto ret = state.pop_value<Symbol>();
     assert(state.empty_value());
-    return ret;
+    return SharedSymbol{ret};
+}
+
+auto parse_const_def(ParserState &state) -> std::optional<std::pair<SharedString, SharedSymbol>> {
+    if (state.expect(TokenType::id)) {
+        auto name = state.str();
+        state.consume();
+        if (state.expect(TokenType::eq)) {
+            state.consume();
+            if (auto value = parse_symbol(state)) {
+                return std::make_pair(SharedString{name}, *value);
+            }
+        }
+    }
+    return std::nullopt;
+}
+
+auto parse_program_parts(ParserState &state) -> std::optional<std::vector<ProgramParamVec>> {
+    // Note: probably not terribly useful but an empty string corresponds to
+    // one step where nothing shall be grounded.
+    if (state.token() == TokenType::end) {
+        return Util::make_vec<ProgramParamVec>(ProgramParamVec{});
+    }
+    return state.separated_until(parse_program_params, TokenType::sem, TokenType::end);
 }
 
 } // namespace Gringo::Input::Parse

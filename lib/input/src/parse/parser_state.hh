@@ -780,7 +780,13 @@ auto check_term(TokenType token) -> bool;
 auto parse_term(ParserState &state) -> std::optional<Term>;
 
 //! Parse a symbol.
-auto parse_symbol(ParserState &state) -> std::optional<Symbol>;
+auto parse_symbol(ParserState &state) -> std::optional<SharedSymbol>;
+
+//! Parse a program parames to ground.
+auto parse_program_parts(ParserState &state) -> std::optional<std::vector<ProgramParamVec>>;
+
+//! Parse a constant definition.
+auto parse_const_def(ParserState &state) -> std::optional<std::pair<SharedString, SharedSymbol>>;
 
 //! Parse a theory term.
 //!

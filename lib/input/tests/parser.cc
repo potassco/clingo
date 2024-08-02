@@ -36,6 +36,28 @@ TEST_CASE("parsev2") {
         REQUIRE(parse("(1,2,3)") == "(1,2,3)");
         REQUIRE(parse("(1+2)") == "3");
     }
+    SECTION("const_def") {
+        auto parse = [&](char const *str) -> std::string {
+            log.reset();
+            messages.clear();
+            parser.init(str, store->string_ref("<input>"));
+            return to_str(parser.parse_const_def());
+        };
+        REQUIRE(parse("x=5") == "(x, 5)");
+    }
+    SECTION("program_parts") {
+        auto parse = [&](char const *str) -> std::string {
+            log.reset();
+            messages.clear();
+            parser.init(str, store->string_ref("<input>"));
+            return to_str(parser.parse_program_parts());
+        };
+        REQUIRE(parse("") == "[[]]");
+        REQUIRE(parse("p") == "[[(p, [])]]");
+        REQUIRE(parse(";p(1)") == "[[], [(p, [1])]]");
+        REQUIRE(parse(";") == "[[], []]");
+        REQUIRE(parse("p(1),p(2);q(3)") == "[[(p, [1]), (p, [2])], [(q, [3])]]");
+    }
     SECTION("term") {
         auto parse = [&](char const *str) -> std::string {
             log.reset();
