@@ -102,7 +102,7 @@ class LexerState {
         assert(column_ <= cursor_);
         for (; column_ != cursor_; column_ = std::next(column_)) {
             if (*column_ == '\n') {
-                cursor_column_ = 1;
+                cursor_column_ = 0;
                 cursor_line_ += 1;
             }
             // NOLINTNEXTLINE(readability-magic-numbers)
