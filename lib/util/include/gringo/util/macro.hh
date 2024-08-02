@@ -15,9 +15,13 @@
 #define GRINGO_IGNORE_UNUSED_FUNCTION_E _Pragma("GCC diagnostic pop")
 #define GRINGO_IGNORE_ZERO_SIZED_ARRAY_B _Pragma("GCC diagnostic push") _Pragma("GCC diagnostic ignored \"-Wpedantic\"")
 #define GRINGO_IGNORE_ZERO_SIZED_ARRAY_E _Pragma("GCC diagnostic pop")
+#define GRINGO_IGNORE_PAR_EQ_B
+#define GRINGO_IGNORE_PAR_EQ_E
 #else
 #define GRINGO_IGNORE_UNUSED_FUNCTION_B
 #define GRINGO_IGNORE_UNUSED_FUNCTION_E
 #define GRINGO_IGNORE_ZERO_SIZED_ARRAY_B
 #define GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
+#define GRINGO_IGNORE_PAR_EQ_B
+#define GRINGO_IGNORE_PAR_EQ_E
 #endif
