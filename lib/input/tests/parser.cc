@@ -363,18 +363,26 @@ TEST_CASE("parsev2") {
         REQUIRE(parse("#const x=42. [override]") == "#const x=42. [override]");
 
         char const *theory = R"(#theory y {
-      a { };
-      b { - : 10, unary };
-      b {
-        - : 10, unary;
-        + : 9, binary, right
-      };
-      &p/0: a, {+,-}, b, head
-    }.)";
+  a { };
+  b { - : 10, unary };
+  b {
+    - : 10, unary;
+    + : 9, binary, right
+  };
+  &p/0: a, {+,-}, b, head
+}.)";
 
         // theory
         REQUIRE(parse("#theory x {}.") == "#theory x { }.");
         REQUIRE(parse(theory) == theory);
+
+        // extra
+        REQUIRE(parse("X=Y+Z=Z: cond.") == "X=Y+Z=Z: cond.");
+        REQUIRE(parse("x :- not X=Y+Z=Z: cond.") == "x :- not X=Y+Z=Z: cond.");
+        REQUIRE(parse("h :- X=Y, not q(Y), p(X).") == "h :- X=Y; not q(Y); p(X).");
+        REQUIRE(parse("h :- X>=1; X<=5, X>=3, X<=7.") == "h :- X>=1; X<=5; X>=3; X<=7.");
+        REQUIRE(parse("h :- a, 1<=X<=Y, b.") == "h :- a; 1<=X<=Y; b.");
+        REQUIRE(parse("&count { X: X+Y=6, -3*X+Y=2 } >= 1 :- X>=0.") == "&count { X: X+Y=6, -3*X+Y=2 } >= 1 :- X>=0.");
     }
 }
 

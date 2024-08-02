@@ -197,7 +197,7 @@ TEST_CASE("simplify_literal") {
 
 TEST_CASE("simplify_head_cond_lit") {
     REQUIRE(simplify_statement(":-.") == "<unchanged>, B");
-    REQUIRE(simplify_statement("X=Y+Z=Z: cond.") == "X=Y+Z=Z: cond., U");
+    REQUIRE(simplify_statement("X=Y+Z=Z: cond.") == "<unchanged>, U");
     REQUIRE(simplify_statement("X=Y+Z=Z: cond(Y).") == "<unchanged>, U");
     REQUIRE(simplify_statement("not not X=Y+Z=Z: cond.") == "X=Y+Z=Z: cond., U");
     REQUIRE(simplify_statement("not X=Y+Z=Z: cond.") == "not X=__A_0=Z: cond, __A_0=Y+Z., U");
@@ -206,7 +206,7 @@ TEST_CASE("simplify_head_cond_lit") {
 TEST_CASE("simplify_body_cond_lit") {
     REQUIRE(simplify_statement("x :- X=Y+Z=Z: cond.") == "x :- X=__A_0=Z: cond, __A_0=Y+Z., U");
     REQUIRE(simplify_statement("x :- not not X=Y+Z=Z: cond.") == "x :- X=__A_0=Z: cond, __A_0=Y+Z., U");
-    REQUIRE(simplify_statement("x :- not X=Y+Z=Z: cond.") == "x :- not X=Y+Z=Z: cond., U");
+    REQUIRE(simplify_statement("x :- not X=Y+Z=Z: cond.") == "<unchanged>, U");
     REQUIRE(simplify_statement("x(X) :- not X=Y+Z=Z: cond(X).") == "<unchanged>, U");
 }
 

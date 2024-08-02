@@ -51,6 +51,7 @@ auto ParserState::lex_() -> TokenType {
         <normal,theory> "]"            { return TokenType::rbrack; }
         <normal,theory> ")"            { return TokenType::rpar; }
         <normal,theory> ";"            { return TokenType::sem; }
+        <normal,theory> ":-"           { return TokenType::if_; }
         <normal> "&"                   { return TokenType::amp; }
         <normal> "@"                   { return TokenType::at; }
         <normal> "|"                   { return TokenType::bar; }
@@ -62,7 +63,6 @@ auto ParserState::lex_() -> TokenType {
         <normal> "=="                  { return TokenType::eq; }
         <normal> ">="                  { return TokenType::ge; }
         <normal> ">"                   { return TokenType::gt; }
-        <normal> ":-"                  { return TokenType::if_; }
         <normal> "<="                  { return TokenType::le; }
         <normal> "<"                   { return TokenType::lt; }
         <normal> "-"                   { return TokenType::minus; }

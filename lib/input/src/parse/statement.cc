@@ -30,9 +30,9 @@ auto parse_body(ParserState &state) -> std::optional<std::vector<BdLit>> {
         } else {
             return std::nullopt;
         }
-        if (state.token() != TokenType::dot) {
-            return state.expected<std::nullopt>(TokenType::dot);
-        }
+    }
+    if (state.token() != TokenType::dot) {
+        return state.expected<std::nullopt>(TokenType::dot);
     }
     return ret;
 }
@@ -603,33 +603,37 @@ auto parse_const(ParserState &state) -> std::optional<Stm> {
 //!
 //! Does not consume the last token.
 auto parse_op_type(ParserState &state) -> std::optional<TheoryOpType> {
-    if (state.expect(TokenType::id)) {
+    if (state.token() == TokenType::id) {
         auto view = state.view();
         if (view == "unary") {
             return TheoryOpType::unary;
         }
         if (view == "binary") {
             state.consume();
-            if (state.token() == TokenType::id) {
-                auto view = state.view();
-                if (view == "left") {
-                    return TheoryOpType::binary_left;
-                }
-                if (view == "right") {
-                    return TheoryOpType::binary_right;
+            if (state.expect(TokenType::comma)) {
+                state.consume();
+                if (state.token() == TokenType::id) {
+                    auto view = state.view();
+                    if (view == "left") {
+                        return TheoryOpType::binary_left;
+                    }
+                    if (view == "right") {
+                        return TheoryOpType::binary_right;
+                    }
                 }
                 return state.expected<std::nullopt>("'left'", "'right'");
             }
+            return std::nullopt;
         }
-        return state.expected<std::nullopt>("'unary'", "'binary'");
     }
-    return std::nullopt;
+    return state.expected<std::nullopt>("'unary'", "'binary'");
 }
 
 //! Parse an int.
 auto parse_int(ParserState &state) -> std::optional<int> {
     if (state.expect(TokenType::num)) {
         if (auto num = state.num().as_int()) {
+            state.consume();
             return num;
         }
         return state.expected<std::nullopt>("<int32>");
@@ -688,7 +692,11 @@ auto parse_op(ParserState &state) -> std::optional<String> {
 //! The a theory guard definition.
 auto parse_guard_def(ParserState &state) -> std::optional<std::optional<TheoryRGuardDefinition>> {
     if (state.token() == TokenType::lbrace) {
-        if (auto ops = state.delimited(TokenType::lbrace, parse_op, TokenType::comma, TokenType::rbrace)) {
+        auto pt = [](ParserState &state) {
+            auto sc = set_condition{state, Condition::theory, Condition::normal};
+            return state.delimited(TokenType::lbrace, parse_op, TokenType::comma, TokenType::rbrace);
+        };
+        if (auto ops = pt(state)) {
             state.consume();
             if (state.expect(TokenType::comma)) {
                 state.consume();
@@ -752,53 +760,48 @@ auto parse_atom_def(ParserState &state) -> std::optional<TheoryAtomDefinition> {
     return std::nullopt;
 }
 
+//! Parse a theory term definition followed by a semicolon or closing brace.
+//!
+//! The semicolon is consumed but not the brace.
+auto parse_term_def_sep(ParserState &state) -> std::optional<TheoryTermDefinition> {
+    assert(state.token() == TokenType::id);
+    if (auto term_def = parse_term_def(state)) {
+        if (state.expect(TokenType::sem, TokenType::rbrace)) {
+            if (state.token() == TokenType::sem) {
+                state.consume();
+            }
+            return term_def;
+        }
+    }
+    return std::nullopt;
+};
+
 //! Parse a theory statement.
 auto parse_theory(ParserState &state) -> std::optional<Stm> {
-    /*
-    struct theory_definitions {
-        static constexpr char const *name = "theory definitions";
-        STRING_TAG(atom, "atom definition expected");
-        struct value_type {
-            void push_back(TheoryTermDefinition term_def) { term_defs.push_back(std::move(term_def)); }
-            void push_back(TheoryAtomDefinition atom_def) { atom_defs.push_back(std::move(atom_def)); }
-            std::vector<TheoryTermDefinition> term_defs;
-            std::vector<TheoryAtomDefinition> atom_defs;
-        };
-        static constexpr auto is_atom_def = dsl::context_flag<theory_definitions>;
-        static constexpr auto rule = []() {
-            auto def = dsl::p<theory_atom_definition> >> is_atom_def.set() |
-                       is_atom_def.is_reset() >> dsl::p<theory_term_definition> | dsl::error<expected_atom>;
-            return is_atom_def.create() + dsl::list(def, dsl::sep(dsl::semicolon));
-        }();
-        static constexpr auto value = lexy::as_list<value_type>;
-    };
-
-    struct statement_theory {
-        static constexpr char const *name = "theory definition";
-        static constexpr auto rule = []() {
-            auto kw_theory = LEXY_KEYWORD("#theory", identifier_base);
-            return Detail::location(kw_theory >>
-                                    dsl::p<identifier> + dsl::curly_bracketed.opt(dsl::p<theory_definitions>) + eos);
-        }();
-        static constexpr auto value = lexy::callback<Stm>(
-            // Note: called during error recovery if the expression between the
-            // parenthesis did not match.
-            [](Location loc, String name) {
-                return StmTheory{std::move(loc), name, TheoryTermDefinitionArray{}, TheoryAtomDefinitionArray{}};
-            },
-            [](Location loc, String name, lexy::nullopt) {
-                return StmTheory{std::move(loc), name, TheoryTermDefinitionArray{}, TheoryAtomDefinitionArray{}};
-            },
-            [](Location loc, String name, theory_definitions::value_type defs) {
-                return StmTheory{std::move(loc), name, std::move(defs.term_defs), std::move(defs.atom_defs)};
-            });
-    };
-        */
     assert(state.token() == TokenType::theory);
-    static_cast<void>(state);
-    static_cast<void>(parse_term_def);
-    static_cast<void>(parse_atom_def);
-    throw std::runtime_error("implement me: theory");
+    auto loc = state.loc();
+    state.consume();
+    if (state.expect(TokenType::id)) {
+        auto name = state.str();
+        state.consume();
+        if (state.expect(TokenType::lbrace)) {
+            state.consume();
+            if (auto term_defs = state.while_token(parse_term_def_sep, TokenType::id)) {
+                if (state.token() == TokenType::sem) {
+                    state.consume();
+                }
+                if (auto atom_defs = state.separated_until(parse_atom_def, TokenType::sem, TokenType::rbrace)) {
+                    state.consume();
+                    if (state.expect(TokenType::dot)) {
+                        loc += state.cursor_pos();
+                        state.consume();
+                        return StmTheory{std::move(loc), name, *std::move(term_defs), *std::move(atom_defs)};
+                    }
+                }
+            }
+        }
+    }
+    return std::nullopt;
 }
 
 } // namespace
@@ -892,6 +895,7 @@ auto parse_statement(ParserState &state) -> std::optional<Stm> {
         }
         default: {
             // TODO: better error message possible by considering the lookahead tokens
+            // However, a statement can start with a lot of different tokens...
             return parse_rule(state);
         }
     }

@@ -425,7 +425,9 @@ auto parse_body_literal(Logger &log, SymbolStore &store, std::string_view str) -
 }
 
 auto parse_statement(Logger &log, SymbolStore &store, std::string_view str) -> std::optional<Stm> {
-    return check(log, parse<Grammar::statement>(log, store, str), check_statement);
+    auto p = Parser{log, store};
+    p.init(str, *store.string(str));
+    return p.parse_statement();
 }
 
 template <class P> struct symbol_root : SymbolGrammar::control {

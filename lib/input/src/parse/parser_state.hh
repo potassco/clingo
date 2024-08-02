@@ -594,6 +594,21 @@ class ParserState {
     //! Set the lexer condition.
     void condition(Condition cond) { cond_ = static_cast<int>(cond); }
 
+    //! Parse as long as the current token matches one of the given ones.
+    template <class P, class... C>
+    auto while_token(P parse, C... cond)
+        -> std::optional<std::vector<typename std::invoke_result_t<P, ParserState &>::value_type>> {
+        auto elems = std::vector<typename std::invoke_result_t<P, ParserState &>::value_type>{};
+        while (((token() == cond) || ...)) {
+            if (auto elem = std::invoke(parse, *this); elem) {
+                elems.emplace_back(*std::move(elem));
+            } else {
+                return std::nullopt;
+            }
+        }
+        return elems;
+    }
+
     //! Repeatedly consume token and parse until a stop token is reached.
     //!
     //! The stop token is not consumed. Allows for parsing empty lists.
