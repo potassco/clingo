@@ -1,3 +1,7 @@
+// Note that re2c treats the 0 byte like any other character. Hence, none of
+// the regular expressions below consume null bytes except for the ones
+// handling the end of input.
+
 /*!re2c
     re2c:api:style             = free-form;
     re2c:define:YYCTYPE        = "unsigned char";
@@ -18,7 +22,7 @@
     WS         = [\t\r\n ]*;
     IDENTIFIER = [_']*[a-z]['A-Za-z0-9_]*;
     VARIABLE   = [_']*[A-Z]['A-Za-z0-9_]*;
-    STRING     = "\"" ([^\\"\n]|"\\\""|"\\\\"|"\\n")* "\"";
+    STRING     = "\"" ([^\\"\n\000]|"\\\""|"\\\\"|"\\n")* "\"";
     INCSTRING  = "<" IDENTIFIER ">";
     THEORYOP   = [/!<=>+\-*\\?&@|:;~\^\.]+;
     KEYWORD    = "#" [a-zA-Z0-9_]*;
@@ -28,6 +32,8 @@
     MINI       = "#minimi"[zs]"e";
     NULL       = [\000];
     ANY        = [^\000];
+    DOT        = [^\000\n];
+    COMMENT    = "%"[^*\n\000][^\000\n]*;
 */
 
 /*!header:re2c:on*/
@@ -95,6 +101,10 @@ auto ParserState::lex_() -> TokenType {
         <normal> "#theory"             { return TokenType::theory; }
         <normal> "#true"               { return TokenType::true_; }
         <normal> "#end"                { return TokenType::script_end; }
+        <normal,theory> "%*"           { bc_ = 1; bc_cond_ = cond_; cond_ = yycblockcomment; continue; }
+        <normal,theory> COMMENT        { state_.start(); continue; }
+        <normal,theory> "%" / NULL     { state_.start(); continue; }
+        <normal,theory> "#!" DOT*      { state_.start(); continue; }
         <normal,theory> IDENTIFIER     { return TokenType::id; }
         <normal,theory> INF            { return TokenType::inf; }
         <normal,theory> NUMBER         { return TokenType::num; }
@@ -106,8 +116,19 @@ auto ParserState::lex_() -> TokenType {
         <normal> KEYWORD               { return TokenType::error; }
         <normal,theory,include> WS     { state_.start(); continue; }
         <script> ANY* / "#end"         { return TokenType::script_content; }
+        <blockcomment> "*%" {
+            if(--bc_ == 0) {
+                cond_ = bc_cond_;
+                state_.start();
+            }
+            continue;
+        }
+        <blockcomment> "%*"            { ++bc_; continue; }
+        <blockcomment> COMMENT         { continue; }
+        <blockcomment> NULL            { return TokenType::error_bc; }
+        <blockcomment> *               { continue; }
+        <*> NULL                       { return state_.token() == state_.limit() - YYMAXFILL ? TokenType::end : TokenType::error; }
         <*> *                          { return TokenType::error; }
-        <*> NULL                       { return state_.token() == state_.limit() ? TokenType::end : TokenType::error; }
     */
     }
 }

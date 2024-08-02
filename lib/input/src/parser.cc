@@ -65,4 +65,11 @@ auto Parser::parse_statement() -> std::optional<Stm> {
     return parse_expr(*impl_, Parse::Condition::normal, Parse::parse_statement, check_statement);
 }
 
+auto Parser::scan() -> std::pair<std::optional<Stm>, bool> {
+    if (impl_->token() == Parse::TokenType::begin) {
+        impl_->consume();
+    }
+    return scan_statement(*impl_);
+}
+
 } // namespace Gringo::Input

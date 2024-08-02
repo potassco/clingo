@@ -55,6 +55,13 @@ class Parser {
     //! Parse a statement.
     auto parse_statement() -> std::optional<Stm>;
 
+    //! Scan statements.
+    //!
+    //! If no statement is returned, the end of input has been reached. The
+    //! Boolean indicates a parse error. Note that the functions tries to
+    //! recover from errors and might still be able to continue parsing.
+    auto scan() -> std::pair<std::optional<Stm>, bool>;
+
   private:
     std::unique_ptr<Parse::ParserState> impl_;
 };

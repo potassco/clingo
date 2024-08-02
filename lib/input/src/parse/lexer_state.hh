@@ -4,7 +4,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <iostream>
 #include <istream>
 
 namespace Gringo {
@@ -59,7 +58,7 @@ class LexerState {
         buffer_.assign(in.begin(), in.end());
         buffer_.resize(in.size() + padding, '\0');
         token_ = column_ = cursor_ = marker_ = ctxmarker_ = buffer_.data();
-        limit_ = std::next(buffer_.data(), static_cast<ssize_t>(in.size()));
+        limit_ = std::next(buffer_.data(), static_cast<ssize_t>(in.size() + padding));
     }
 
     //! Move construct a lexer state.
@@ -131,7 +130,7 @@ class LexerState {
     char const *cursor_ = nullptr;
     char const *marker_ = nullptr;
     char const *ctxmarker_ = nullptr;
-    char const *limit_ = nullptr;
+    char *limit_ = nullptr;
     size_t cursor_column_ = 1;
     size_t cursor_line_ = 1;
     size_t token_line_ = 1;
@@ -172,13 +171,13 @@ inline auto LexerState::fill(size_t n, size_t padding) -> bool {
         limit_ = buffer_.data() + (limit_ - buffer);
     }
 
-    auto *limit = buffer_.data() + used;
     auto read = static_cast<ssize_t>(buffer_.size() - used - padding);
-    auto count = in_->read(limit, read).gcount();
-    limit_ = limit += count;
-    memset(limit, 0, padding);
-    if (count < read) {
+    limit_ += in_->read(limit_, read).gcount();
+
+    if (limit_ < buffer_.data() + buffer_.size() - padding) {
         eof_ = true;
+        memset(limit_, 0, padding);
+        limit_ += padding;
     }
     return true;
     // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)

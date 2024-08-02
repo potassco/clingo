@@ -103,6 +103,8 @@ class ParseHelper {
 
 template <class T> auto to_str(T const &value) -> std::string { return to_string(value); }
 
+inline auto to_str(bool const &value) -> std::string { return value ? "T" : "F"; }
+
 template <class T> auto to_str(std::optional<T> const &value) -> std::string {
     if (value) {
         return to_str(value.value());
@@ -119,6 +121,12 @@ template <class T> auto to_str(Util::immutable_array<T> const &value, char const
 template <class T> auto to_str(std::vector<T> const &value, char const *sep = ", ") -> std::string {
     std::ostringstream oss;
     oss << "[" << Util::p_range(value, sep) << "]";
+    return oss.str();
+}
+
+template <class T, class U> auto to_str(std::pair<T, U> const &x) -> std::string {
+    std::ostringstream oss;
+    oss << "(" << to_str(x.first) << ", " << to_str(x.second) << ")";
     return oss.str();
 }
 

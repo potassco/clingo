@@ -51,7 +51,6 @@ if (PARSER_BUILD_TESTS)
         "tests/dependency.cc"
         "tests/evaluate.cc"
         "tests/iesolver.cc"
-        "tests/parse.cc"
         "tests/parser.cc"
         "tests/program.cc"
         "tests/project_anonymous.cc"

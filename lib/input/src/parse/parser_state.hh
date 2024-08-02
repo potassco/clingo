@@ -4,7 +4,7 @@
 
 #include <gringo/core/logger.hh>
 
-#include "gringo/util/macro.hh"
+#include <gringo/util/macro.hh>
 #include <gringo/util/string.hh>
 
 #include "lexer_state.hh"
@@ -17,6 +17,7 @@ enum class TokenType : uint8_t {
     anon,
     at,
     bar,
+    begin,
     bslash,
     caret,
     colon,
@@ -31,6 +32,7 @@ enum class TokenType : uint8_t {
     end,
     eq,
     error,
+    error_bc,
     external,
     false_,
     ge,
@@ -138,11 +140,17 @@ inline auto operator<<(std::ostream &out, TokenType token) -> std::ostream & {
         case TokenType::edge: {
             return out << "#edge";
         }
+        case TokenType::begin: {
+            return out << "<bof>";
+        }
         case TokenType::end: {
             return out << "<eof>";
         }
         case TokenType::error: {
             return out << "<error>";
+        }
+        case TokenType::error_bc: {
+            return out << "<unclosed-block-comment>";
         }
         case TokenType::external: {
             return out << "#external";
@@ -399,13 +407,17 @@ class ParserState {
 
     //! Initialize the parser state with the given string.
     void init(std::string_view &in, String file) {
+        token_ = TokenType::begin;
         file_ = SharedString{file};
+        cond_ = yycnormal;
         state_.init(in, YYMAXFILL);
     }
 
     //! Initialize the parser state with the given stream.
     void init(std::istream &in, String file) {
+        token_ = TokenType::begin;
         file_ = SharedString{file};
+        cond_ = yycnormal;
         state_.init(in, YYMAXFILL);
     }
 
@@ -576,7 +588,7 @@ class ParserState {
     void consume(Condition cond) {
         auto old = cond_;
         condition(cond);
-        token_ = lex_();
+        consume();
         cond_ = old;
     }
 
@@ -686,7 +698,9 @@ class ParserState {
     std::vector<Value> values_;
     std::string buf_;
     int cond_ = yycnormal;
-    TokenType token_ = TokenType::error;
+    int bc_cond_ = 0;
+    int bc_ = 0;
+    TokenType token_ = TokenType::begin;
 };
 
 //! RAII helper to set and restore a condition.
@@ -760,5 +774,8 @@ auto parse_head_literal(ParserState &state) -> std::optional<HdLit>;
 
 //! Parse a statement.
 auto parse_statement(ParserState &state) -> std::optional<Stm>;
+
+//! Scan next statement.
+auto scan_statement(ParserState &state) -> std::pair<std::optional<Stm>, bool>;
 
 } // namespace Gringo::Input::Parse

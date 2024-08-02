@@ -903,4 +903,64 @@ auto parse_statement(ParserState &state) -> std::optional<Stm> {
     }
 }
 
+auto recover(ParserState &state) -> bool {
+    bool brack = false;
+    bool dot = false;
+    while (true) {
+        switch (state.token()) {
+            case TokenType::dot: {
+                state.consume();
+                dot = true;
+                continue;
+            }
+            case TokenType::lbrack: {
+                state.consume();
+                brack = true;
+                continue;
+            }
+            case TokenType::error_bc: {
+                return false;
+            }
+            case TokenType::error: {
+                state.consume();
+                continue;
+            }
+            case TokenType::end: {
+                return false;
+            }
+            case TokenType::rbrack: {
+                state.consume();
+                brack = false;
+                continue;
+            }
+            default: {
+                if (brack || !dot) {
+                    state.consume();
+                    continue;
+                }
+                return true;
+            }
+        }
+    }
+}
+
+auto scan_statement(ParserState &state) -> std::pair<std::optional<Stm>, bool> {
+    // parse statement
+    if (state.token() == TokenType::end) {
+        return {std::nullopt, true};
+    }
+    if (auto stm = parse_statement(state)) {
+        return {std::move(stm), true};
+    }
+    // error recovery
+    while (true) {
+        if (!recover(state)) {
+            return {std::nullopt, false};
+        }
+        if (auto stm = parse_statement(state)) {
+            return {std::move(stm), false};
+        }
+    }
+}
+
 } // namespace Gringo::Input::Parse
