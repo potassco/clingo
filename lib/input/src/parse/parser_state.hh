@@ -9,6 +9,8 @@
 
 #include "lexer_state.hh"
 
+#include <deque>
+
 namespace Gringo::Input::Parse {
 
 //! The available tokens produced by the lexer.

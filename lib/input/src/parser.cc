@@ -73,16 +73,26 @@ auto Parser::scan() -> std::pair<std::optional<Stm>, bool> {
         return {impl_->pop_stm(), true};
     }
     auto [stm, res] = scan_statement(*impl_);
-    if (!stm) {
-        impl_->mark_stms();
-    }
-    if (impl_->has_stms()) {
-        if (stm) {
-            impl_->push_stm(*std::move(stm));
+    while (true) {
+        // ensure stored statements are reported
+        if (!stm) {
+            impl_->mark_stms();
+            return {impl_->pop_stm(), res};
         }
-        return {impl_->pop_stm(), res};
+        // discard illformed statements
+        if (!check_statement(impl_->log(), *stm)) {
+            std::tie(stm, std::ignore) = scan_statement(*impl_);
+            res = false;
+            continue;
+        }
+        // report stored statements first
+        if (impl_->has_stms()) {
+            impl_->push_stm(*std::move(stm));
+            return {impl_->pop_stm(), res};
+        }
+        // report statement just parsed
+        return {std::move(stm), res};
     }
-    return {std::move(stm), res};
 }
 
 } // namespace Gringo::Input
