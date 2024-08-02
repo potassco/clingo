@@ -600,6 +600,8 @@ auto parse_const(ParserState &state) -> std::optional<Stm> {
 }
 
 //! The type of a theory operator.
+//!
+//! Does not consume the last token.
 auto parse_op_type(ParserState &state) -> std::optional<TheoryOpType> {
     if (state.expect(TokenType::id)) {
         auto view = state.view();
@@ -624,7 +626,18 @@ auto parse_op_type(ParserState &state) -> std::optional<TheoryOpType> {
     return std::nullopt;
 }
 
-//! The a theory operator definition.
+//! Parse an int.
+auto parse_int(ParserState &state) -> std::optional<int> {
+    if (state.expect(TokenType::num)) {
+        if (auto num = state.num().as_int()) {
+            return num;
+        }
+        return state.expected<std::nullopt>("<int32>");
+    }
+    return std::nullopt;
+}
+
+//! Parse a theory operator definition.
 auto parse_op_def(ParserState &state) -> std::optional<TheoryOpDefinition> {
     if (state.expect(TokenType::theory_op)) {
         auto loc = state.loc();
@@ -632,20 +645,14 @@ auto parse_op_def(ParserState &state) -> std::optional<TheoryOpDefinition> {
         state.consume();
         if (state.expect(TokenType::colon)) {
             state.consume();
-            if (state.expect(TokenType::num)) {
-                if (auto prio = state.num().as_int()) {
-                    if (state.expect(TokenType::comma)) {
+            if (auto prio = parse_int(state)) {
+                if (state.expect(TokenType::comma)) {
+                    state.consume();
+                    if (auto type = parse_op_type(state)) {
+                        loc += state.cursor_pos();
                         state.consume();
-                        if (state.expect(TokenType::id)) {
-                            if (auto type = parse_op_type(state)) {
-                                loc += state.cursor_pos();
-                                state.consume();
-                                return TheoryOpDefinition{loc, op, *prio, *type};
-                            }
-                        }
+                        return TheoryOpDefinition{loc, op, *prio, *type};
                     }
-                } else {
-                    return state.expected<std::nullopt>("<int32>");
                 }
             }
         }
@@ -668,48 +675,80 @@ auto parse_term_def(ParserState &state) -> std::optional<TheoryTermDefinition> {
     return std::nullopt;
 }
 
-//! The a theory guard definition.
-auto parse_guard_def(ParserState &state) -> std::optional<TheoryRGuardDefinition> {
-    /*
-    struct theory_guard_definition {
-        static constexpr char const *name = "theory guard definition";
-        static constexpr auto rule = []() {
-            auto rels = dsl::curly_bracketed.list(dsl::p<theory_op>, dsl::sep(dsl::comma));
-            return rels >> dsl::comma + dsl::p<identifier>;
-        }();
-        static constexpr auto value = []() {
-            auto sink = lexy::as_list<StringVec>;
-            auto cb = lexy::construct<TheoryRGuardDefinition>;
-            return sink >> cb;
-        }();
-    };
-    */
-    static_cast<void>(state);
+//! Parse a single operator.
+auto parse_op(ParserState &state) -> std::optional<String> {
+    if (state.expect(TokenType::theory_op)) {
+        auto op = state.str();
+        state.consume();
+        return op;
+    }
     return std::nullopt;
+}
+
+//! The a theory guard definition.
+auto parse_guard_def(ParserState &state) -> std::optional<std::optional<TheoryRGuardDefinition>> {
+    if (state.token() == TokenType::lbrace) {
+        if (auto ops = state.delimited(TokenType::lbrace, parse_op, TokenType::comma, TokenType::rbrace)) {
+            state.consume();
+            if (state.expect(TokenType::comma)) {
+                state.consume();
+                if (state.expect(TokenType::id)) {
+                    auto str = state.str();
+                    state.consume();
+                    if (state.expect(TokenType::comma)) {
+                        state.consume();
+                        return std::make_optional<TheoryRGuardDefinition>(*ops, str);
+                    }
+                }
+            }
+        }
+        return std::nullopt;
+    }
+    return std::optional<TheoryRGuardDefinition>{};
 }
 
 //! The a theory atom definition.
 auto parse_atom_def(ParserState &state) -> std::optional<TheoryAtomDefinition> {
-    /*
-    struct theory_atom_definition {
-        static constexpr char const *name = "theory atom definition";
-        static constexpr auto sym_type = lexy::symbol_table<TheoryAtomType>
-            .map<LEXY_SYMBOL("head")>(TheoryAtomType::head)
-            .map<LEXY_SYMBOL("body")>(TheoryAtomType::body)
-            .map<LEXY_SYMBOL("any")>(TheoryAtomType::any)
-            .map<LEXY_SYMBOL("directive")>(TheoryAtomType::directive);
-        static constexpr auto rule = []() {
-            auto sig = dsl::p<identifier> + dsl::slash + smallint;
-            auto term = dsl::p<identifier>;
-            auto guard = dsl::opt(dsl::p<theory_guard_definition> >> dsl::comma);
-            auto type = dsl::symbol<sym_type>(identifier_base);
-            return Detail::location(dsl::ampersand >> sig + dsl::colon + term + dsl::comma + guard + type);
-        }();
-        static constexpr auto value = lexy::construct<TheoryAtomDefinition>;
-    };
-    */
-    static_cast<void>(state);
-    static_cast<void>(parse_guard_def);
+    assert(state.token() == TokenType::amp);
+    auto loc = state.loc();
+    state.consume();
+    if (state.expect(TokenType::id)) {
+        auto name = state.str();
+        state.consume();
+        if (state.expect(TokenType::slash)) {
+            state.consume();
+            if (auto num = parse_int(state)) {
+                if (state.expect(TokenType::colon)) {
+                    state.consume();
+                    if (state.expect(TokenType::id)) {
+                        auto term = state.str();
+                        state.consume();
+                        if (state.expect(TokenType::comma)) {
+                            state.consume();
+                            if (auto guard = parse_guard_def(state)) {
+                                if (state.expect(TokenType::id)) {
+                                    auto view = state.view();
+                                    auto type = TheoryAtomType::any;
+                                    if (view == "head") {
+                                        type = TheoryAtomType::head;
+                                    } else if (view == "body") {
+                                        type = TheoryAtomType::body;
+                                    } else if (view == "directive") {
+                                        type = TheoryAtomType::directive;
+                                    } else if (view != "any") {
+                                        return state.expected<std::nullopt>("'head'", "'body'", "'directive'", "'any'");
+                                    }
+                                    loc += state.cursor_pos();
+                                    state.consume();
+                                    return TheoryAtomDefinition{loc, name, *num, term, *std::move(guard), type};
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
     return std::nullopt;
 }
 
