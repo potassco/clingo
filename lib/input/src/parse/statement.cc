@@ -37,6 +37,7 @@ auto parse_body(ParserState &state) -> std::optional<std::vector<BdLit>> {
     return ret;
 }
 
+//! Parse an optional rule body as determined by the init token.
 auto parse_opt_body(ParserState &state, TokenType init) -> std::optional<std::vector<BdLit>> {
     if (state.token() == init) {
         state.consume();
@@ -333,6 +334,7 @@ auto parse_project(ParserState &state) -> std::optional<Stm> {
     return StmProject{loc, *std::move(atom), *std::move(body)};
 }
 
+//! Parse a single edge.
 auto parse_single_edge(ParserState &state) -> std::optional<Edge> {
     if (auto u = parse_term(state)) {
         if (state.branch(TokenType::comma)) {
