@@ -9,6 +9,8 @@
 #define GRINGO_IGNORE_PAR_EQ_B                                                                                         \
     _Pragma("clang diagnostic push") _Pragma("clang diagnostic ignored \"-Wparentheses-equality\"")
 #define GRINGO_IGNORE_PAR_EQ_E _Pragma("clang diagnostic pop")
+#define GRINGO_IGNORE_NON_TEMPLATE_FRIND_B
+#define GRINGO_IGNORE_NON_TEMPLATE_FRIND_E
 #elif __GNUC__
 #define GRINGO_IGNORE_UNUSED_FUNCTION_B                                                                                \
     _Pragma("GCC diagnostic push") _Pragma("GCC diagnostic ignored \"-Wunused-function\"")
@@ -17,6 +19,9 @@
 #define GRINGO_IGNORE_ZERO_SIZED_ARRAY_E _Pragma("GCC diagnostic pop")
 #define GRINGO_IGNORE_PAR_EQ_B
 #define GRINGO_IGNORE_PAR_EQ_E
+#define GRINGO_IGNORE_NON_TEMPLATE_FRIND_B                                                                             \
+    _Pragma("GCC diagnostic push") _Pragma("GCC diagnostic ignored \"-Wnon-template-friend\"")
+#define GRINGO_IGNORE_NON_TEMPLATE_FRIND_E _Pragma("GCC diagnostic pop")
 #else
 #define GRINGO_IGNORE_UNUSED_FUNCTION_B
 #define GRINGO_IGNORE_UNUSED_FUNCTION_E
@@ -24,4 +29,6 @@
 #define GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
 #define GRINGO_IGNORE_PAR_EQ_B
 #define GRINGO_IGNORE_PAR_EQ_E
+#define GRINGO_IGNORE_NON_TEMPLATE_FRIND_B
+#define GRINGO_IGNORE_NON_TEMPLATE_FRIND_E
 #endif

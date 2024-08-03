@@ -393,7 +393,7 @@ class ApplyBounds {
             state.set_value(bound_type);
             // update if changed
             if (cmp(bound, rel, sym->value().num() + Number{bound_type == IEInterval::Lower ? 1 : -1})) {
-                auto rel = bound_type == IEInterval::Lower > 0 ? Relation::greater_equal : Relation::less_equal;
+                auto rel = bound_type == IEInterval::Lower ? Relation::greater_equal : Relation::less_equal;
                 return {true, make_relation(lhs, rel, location(rhs), std::move(bound))};
             }
             return {true};

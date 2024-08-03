@@ -1,5 +1,6 @@
 #pragma once
 
+#include <gringo/util/macro.hh>
 #include <gringo/util/record.hh>
 
 namespace Gringo::Input {
@@ -47,10 +48,12 @@ constexpr auto a_weight = Util::Record::AttributeName<32>{};
 //! A record that friend declares comparison operators.
 template <class T> class RecursiveExpression : public Gringo::Util::Record::Base<T> {
   public:
+    GRINGO_IGNORE_NON_TEMPLATE_FRIND_B
     //! Compare two records.
     friend auto operator==(T const &a, T const &b) -> bool;
     //! Compare two records.
     friend auto operator<=>(T const &a, T const &b) -> std::strong_ordering;
+    GRINGO_IGNORE_NON_TEMPLATE_FRIND_E
 };
 
 //! A record that friend declares and defines comparison operators.
