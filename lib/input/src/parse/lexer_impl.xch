@@ -31,6 +31,7 @@
     MAXI       = "#maximi"[zs]"e";
     MINI       = "#minimi"[zs]"e";
     NULL       = [\000];
+    END        = [\000\n];
     ANY        = [^\000];
     DOT        = [^\000\n];
     COMMENT    = "%"[^*\n\000][^\000\n]*;
@@ -103,7 +104,7 @@ auto ParserState::lex_() -> TokenType {
         <normal> "#end"                { return TokenType::script_end; }
         <normal,theory> "%*"           { bc_ = 1; bc_cond_ = cond_; cond_ = yycblockcomment; continue; }
         <normal,theory> COMMENT        { push_comment(); continue; }
-        <normal,theory> "%" / NULL     { push_comment(); continue; }
+        <normal,theory> "%" / END      { push_comment(); continue; }
         <normal,theory> "#!" DOT*      { push_comment(); continue; }
         <normal,theory> IDENTIFIER     { return TokenType::id; }
         <normal,theory> INF            { return TokenType::inf; }
