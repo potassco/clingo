@@ -1,8 +1,8 @@
 #pragma once
 
+#include <gringo/input/parser.hh>
 #include <gringo/input/print.hh>
 
-#include <gringo/input/rewrite/parse.hh>
 #include <gringo/input/rewrite/rewrite_context.hh>
 
 #include <gringo/util/algorithm.hh>
@@ -31,31 +31,37 @@ inline auto default_store() -> SymbolStore & {
 class ParseHelper {
   public:
     ParseHelper()
-        : log_{[this](MessageCode code, std::string str) { push_(code, std::move(str)); }}, store_{default_store()} {}
+        : log_{[this](MessageCode code, std::string str) { push_(code, std::move(str)); }}, store_{default_store()},
+          prs_{log_, store_} {}
 
     auto term(std::string_view str) -> std::optional<Term> {
         reset();
-        return Gringo::Input::parse_term(log_, default_store(), str);
+        prs_.init(str, *store_.string("<string>"));
+        return prs_.parse_term();
     }
 
     auto literal(std::string_view str) -> std::optional<Lit> {
         reset();
-        return Gringo::Input::parse_literal(log_, default_store(), str);
+        prs_.init(str, *store_.string("<string>"));
+        return prs_.parse_literal();
     }
 
     auto head_literal(std::string_view str) -> std::optional<HdLit> {
         reset();
-        return Gringo::Input::parse_head_literal(log_, default_store(), str);
+        prs_.init(str, *store_.string("<string>"));
+        return prs_.parse_head_literal();
     }
 
     auto body_literal(std::string_view str) -> std::optional<BdLit> {
         reset();
-        return Gringo::Input::parse_body_literal(log_, default_store(), str);
+        prs_.init(str, *store_.string("<string>"));
+        return prs_.parse_body_literal();
     }
 
     auto statement(std::string_view str) -> std::optional<Stm> {
         reset();
-        return Gringo::Input::parse_statement(log_, default_store(), str);
+        prs_.init(str, *store_.string("<string>"));
+        return prs_.parse_statement();
     }
 
     auto logger() -> Logger & { return *this; }
@@ -97,6 +103,7 @@ class ParseHelper {
     ConstMap const_map_;
     ParamMap param_map_;
     SymbolStore &store_;
+    Parser prs_;
     RewriteContext ctx_ = RewriteContext{log_, store_, opts_, parser_, param_map_, const_map_};
     std::vector<std::pair<MessageCode, std::string>> messages_;
 };

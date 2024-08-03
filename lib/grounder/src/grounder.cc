@@ -4,10 +4,10 @@
 #include <gringo/ground/condlit.hh>
 #include <gringo/ground/program.hh>
 
+#include <gringo/input/parser.hh>
 #include <gringo/input/print.hh>
 
 #include <gringo/input/rewrite/analyze.hh>
-#include <gringo/input/rewrite/parse.hh>
 #include <gringo/input/rewrite/unpool_relations.hh>
 #include <gringo/input/rewrite/visit_variables.hh>
 
@@ -20,6 +20,7 @@
 
 #include <filesystem>
 #include <forward_list>
+#include <fstream>
 #include <iostream>
 
 namespace Gringo {
@@ -136,33 +137,28 @@ namespace {
 //! Helper for parsing.
 class Parser {
   public:
-    Parser(Logger &log, SymbolStore &store, Input::UnprocessedProgram &prg) : log_{&log}, store_{&store}, prg_{&prg} {}
+    Parser(Logger &log, SymbolStore &store, Input::UnprocessedProgram &prg)
+        : log_{&log}, store_{&store}, parser_{log, store}, prg_{&prg} {}
 
-    template <class Scanner> void process(Scanner &&scanner) { return process(root_, std::forward<Scanner>(scanner)); }
-
-    // NOLINTBEGIN(cppcoreguidelines-missing-std-forward,bugprone-unchecked-optional-access)
-    //! Scan statements.
-    template <class Scanner> void process(std::filesystem::path const &dir, Scanner &&scanner) {
-        prg_->ensure_base();
-        for (auto stm = scanner.scan(); stm; stm = scanner.scan()) {
-            if (auto *include = std::get_if<Input::StmInclude>(&*stm); include != nullptr) {
-                includes_.emplace_back(dir, *include);
-            } else {
-                prg_->add(*store_, *std::move(stm));
-            }
-        }
-        parse_error_ = parse_error_ || scanner.has_error();
+    //! Parse a program from the given string.
+    void process_string(std::string_view str) {
+        parser_.init(str, *store_->string("<string>"));
+        process_();
     }
-    // NOLINTEND(cppcoreguidelines-missing-std-forward,bugprone-unchecked-optional-access)
 
     //! Parse a program from the given path.
-    auto process_path(auto &&path, bool required) -> bool {
+    //!
+    //! Returns false if the file was not found or raises an error if it was
+    //! required.
+    auto process_path(std::filesystem::path path, bool required) -> bool {
         if (std::filesystem::exists(path)) {
             path = std::filesystem::canonical(path);
             auto rel = path.lexically_relative(root_);
             if (!std::filesystem::is_directory(path)) {
                 if (seen_.emplace(path).second) {
-                    process(path.parent_path(), Input::scan_file(*log_, *store_, rel.c_str()));
+                    fin_.open(rel);
+                    parser_.init(fin_, *store_->string(rel.c_str()));
+                    process_(path.parent_path());
                 } else {
                     GRINGO_REPORT(*log_, info_file_included) << "file already included: " << rel;
                 }
@@ -183,7 +179,8 @@ class Parser {
     void process_stdin() {
         if (!processed_stdin_) {
             processed_stdin_ = true;
-            process(root_, Input::scan_stream(*log_, *store_, std::cin));
+            parser_.init(std::cin, *store_->string("-"));
+            process_(root_);
         } else {
             GRINGO_REPORT(*log_, info_file_included) << "file already included: -";
         }
@@ -212,8 +209,32 @@ class Parser {
     }
 
   private:
+    void process_() { process_(root_); }
+
+    // NOLINTBEGIN(cppcoreguidelines-missing-std-forward,bugprone-unchecked-optional-access)
+    //! Scan statements.
+    void process_(std::filesystem::path const &dir) {
+        prg_->ensure_base();
+        while (true) {
+            auto [stm, res] = parser_.scan();
+            parse_error_ = parse_error_ || !res;
+            if (!stm) {
+                fin_.close();
+                break;
+            }
+            if (auto *include = std::get_if<Input::StmInclude>(&*stm); include != nullptr) {
+                includes_.emplace_back(dir, *include);
+            } else {
+                prg_->add(*store_, *std::move(stm));
+            }
+        }
+    }
+    // NOLINTEND(cppcoreguidelines-missing-std-forward,bugprone-unchecked-optional-access)
+
     Logger *log_;
     SymbolStore *store_;
+    std::ifstream fin_;
+    Input::Parser parser_;
     Input::UnprocessedProgram *prg_;
     std::filesystem::path root_ = std::filesystem::current_path();
     std::deque<std::pair<std::filesystem::path, Input::StmInclude>> includes_;
@@ -781,8 +802,7 @@ void Grounder::parse(std::string_view prg) {
     if (impl_->is_sat) {
         GCLock lock{*impl_->store};
         auto prs = Parser{*impl_->log, *impl_->store, impl_->unprocessed_prg};
-        auto scanner = Input::scan_string(*impl_->log, *impl_->store, prg);
-        prs.process(scanner);
+        prs.process_string(prg);
         prs.process_includes();
         prs.check();
     }

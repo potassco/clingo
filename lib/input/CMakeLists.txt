@@ -9,7 +9,6 @@ add_library(gringo_input
     "src/rewrite/dependency.cc"
     "src/rewrite/evaluate.cc"
     "src/rewrite/iesolver.cc"
-    "src/rewrite/parse.cc"
     "src/rewrite/project_anonymous.cc"
     "src/rewrite/project.cc"
     "src/rewrite/rewrite_anonymous.cc"

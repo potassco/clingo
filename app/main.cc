@@ -1,6 +1,6 @@
 #include <gringo/grounder/grounder.hh>
 
-#include <gringo/input/rewrite/parse.hh>
+#include <gringo/input/parser.hh>
 
 #include <gringo/output/text.hh>
 
@@ -78,15 +78,25 @@ auto run(int argc, char *argv[]) -> int {
         log.set_level(log_level);
         auto store = Gringo::make_symbol_store(true, false);
         auto out = Gringo::Output::make_text_output(std::cout);
-        Gringo::Grounder grd{log, *store, opts, *out};
+        auto grd = Gringo::Grounder{log, *store, opts, *out};
+        auto prs = Gringo::Input::Parser{log, *store};
+
         [&]() {
             auto params = std::optional<std::vector<Gringo::Input::ProgramParamVec>>();
             if (params_str) {
-                params = Gringo::Input::parse_parts(log, *store, *params_str);
+                prs.init(*params_str, *store->string("<string>"));
+                params = prs.parse_program_parts();
+                if (!params) {
+                    throw Gringo::parse_error();
+                }
             }
             for (auto const &str : const_defs) {
-                auto def = parse_const(log, *store, str);
-                grd.add_const(*def.first, *def.second);
+                prs.init(str, *store->string("<string>"));
+                auto def = prs.parse_const_def();
+                if (!def) {
+                    throw Gringo::parse_error();
+                }
+                grd.add_const(*def->first, *def->second);
             }
             grd.parse(files);
             if (mode == AppMode::parse) {

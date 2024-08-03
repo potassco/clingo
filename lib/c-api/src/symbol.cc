@@ -1,8 +1,9 @@
 #include "lib.hh"
 #include "streams.hh"
 
+#include <gringo/input/parser.hh>
+
 #include <gringo/input/rewrite/evaluate.hh>
-#include <gringo/input/rewrite/parse.hh>
 
 extern "C" auto clingo_add_string(clingo_lib_t *lib, char const *string, char const **result) -> bool {
     CLINGO_TRY {
@@ -199,15 +200,13 @@ extern "C" auto clingo_parse_term(clingo_lib_t *lib, char const *string, clingo_
         if (lib == nullptr || string == nullptr || symbol == nullptr) {
             throw std::invalid_argument("invalid arguments");
         }
-        auto term = Gringo::Input::parse_term(lib->log, *lib->store, string);
-        if (!term) {
-            throw std::runtime_error("parsing term failed");
-        }
-        auto sym = Gringo::Input::evaluate(lib->log, *lib->store, {}, *term);
+        Gringo::Input::Parser p{lib->log, *lib->store};
+        p.init(string, *lib->store->string("<string>"));
+        auto sym = p.parse_symbol();
         if (!sym) {
             throw std::runtime_error("parsing term failed");
         }
-        *symbol = Gringo::Symbol::to_rep(*sym);
+        *symbol = Gringo::Symbol::to_rep(**sym);
     }
     CLINGO_CATCH(lib);
 }

@@ -16,8 +16,7 @@ class ConstHelper : public ParseHelper {
   public:
     auto const_def(std::string_view str) -> StmConst {
         reset();
-        using Gringo::Input::parse_statement;
-        auto stm = parse_statement(*this, *this, str);
+        auto stm = statement(str);
         REQUIRE(stm.has_value());
         REQUIRE(std::holds_alternative<StmConst>(opt_value(stm)));
         return std::move(std::get<StmConst>(opt_value(stm)));
