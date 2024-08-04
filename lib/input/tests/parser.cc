@@ -7,10 +7,7 @@ namespace Gringo::Input::Test {
 TEST_CASE("parsev2") {
     std::vector<std::pair<MessageCode, std::string>> messages;
     auto store = make_symbol_store(true, false);
-    auto log = Logger{[&](MessageCode code, std::string str) {
-        printf("%s\n", str.c_str());
-        messages.emplace_back(code, std::move(str));
-    }};
+    auto log = Logger{[&](MessageCode code, std::string str) { messages.emplace_back(code, std::move(str)); }};
     auto parser = Parser{log, *store};
 
     SECTION("symbol") {
