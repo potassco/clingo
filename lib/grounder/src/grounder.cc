@@ -101,6 +101,10 @@ struct Grounder::Impl : Gringo::SymbolOwner {
         return {term->rename(*store, Ground::RenameMode::drop_projection, &state->name(), nullptr), state.get()};
     }
 
+    //! Add an atom base for the given signature.
+    //!
+    //! If the name of the signature starts with a `#`, it is added to the
+    //! auxiliary base, which is deleted after grounding.
     auto add_base(std::tuple<String, size_t, bool> sig) {
         bool aux = std::get<0>(sig).starts_with("#");
         auto dom_it = (aux ? aux_base : atom_base).try_emplace(std::move(sig), nullptr).first;
@@ -110,6 +114,7 @@ struct Grounder::Impl : Gringo::SymbolOwner {
         return dom_it;
     }
 
+    //! Add an atom base for the given signature.
     auto add_base(String name, size_t arity, bool sign) { return add_base({name, arity, sign}); }
 
     //! The logger used by the grounder.
@@ -202,6 +207,7 @@ class Parser {
         }
     }
 
+    //! Throws if there was an error during parsing.
     void check() const {
         if (parse_error_) {
             throw parse_error();
@@ -209,6 +215,7 @@ class Parser {
     }
 
   private:
+    //! Scan statements.
     void process_() { process_(root_); }
 
     // NOLINTBEGIN(cppcoreguidelines-missing-std-forward,bugprone-unchecked-optional-access)
@@ -243,6 +250,10 @@ class Parser {
     bool parse_error_ = false;
 };
 
+//! Maps a binary input operator to the corresponding ground one.
+//!
+//! @note: The input interval operator has no matching ground version.
+//! @note: Candidate for core.
 auto map_binary_op(Input::BinaryOperator op) -> Ground::BinaryOperator {
     switch (op) {
         case Input::BinaryOperator::and_: {
@@ -279,18 +290,30 @@ auto map_binary_op(Input::BinaryOperator op) -> Ground::BinaryOperator {
     throw std::runtime_error("unsupported binary operator");
 }
 
+//! Translates input terms to their ground representation.
+//!
+//! Input terms must be rewritten before translation.
 class BuilderTerm {
   public:
-    BuilderTerm(bool &has_projection, Util::unordered_map<String, size_t> &var_map)
+    //! Construct a term builder.
+    //!
+    //! The reference has_projection is used to track, whether a projection
+    //! star occurred in the term. The var_map dictionary is used to map
+    //! variables to integers. Each name must have been assigned an integer
+    //! beforehand.
+    BuilderTerm(bool &has_projection, Util::unordered_map<String, size_t> const &var_map)
         : has_projection_{&has_projection}, var_map_{&var_map} {}
 
+    //! Translate a variable.
     auto operator()(Input::TermVariable const &term) const -> Ground::UTerm {
         assert(var_map_->find(term.name()) != var_map_->end());
         return std::make_unique<Ground::TermVariable>(var_map_->find(term.name())->second);
     }
+    //! Translate a symbol.
     auto operator()(Input::TermSymbol const &term) const -> Ground::UTerm {
         return std::make_unique<Ground::TermSymbol>(term.value());
     }
+    //! Translate arguments of tuples and functions.
     [[nodiscard]] auto handle_args(Input::ArgumentArray const &args) const -> Ground::UTermVec {
         Ground::UTermVec g_args;
         g_args.reserve(args.size());
@@ -308,24 +331,37 @@ class BuilderTerm {
         }
         return g_args;
     }
+    //! Translate tuples.
+    //!
+    //! Assumes that the arguments consists of a single pool.
     auto operator()(Input::TermTuple const &term) const -> Ground::UTerm {
         assert(term.pool().size() == 1 && std::holds_alternative<Input::ArgumentTuple>(term.pool().front()));
         return std::make_unique<Ground::TermTuple>(
             handle_args(std::get<Input::ArgumentTuple>(term.pool().front()).elems()));
     }
+    //! Translate a function.
+    //!
+    //! Assumes that the arguments consist of a single pool.
     auto operator()(Input::TermFunction const &term) const -> Ground::UTerm {
         assert(!term.external() && term.pool().size() == 1);
         return std::make_unique<Ground::TermFunction>(term.name(), handle_args(term.pool().front().elems()));
     }
+    //! Translate a function.
+    //!
+    //! Assumes that there is a single argument.
     auto operator()(Input::TermAbs const &term) const -> Ground::UTerm {
         assert(term.pool().size() == 1);
         return std::make_unique<Ground::TermUnary>(Ground::UnaryOperator::abs, std::visit(*this, term.pool().front()));
     }
+    //! Translate a unary term.
     auto operator()(Input::TermUnary const &term) const -> Ground::UTerm {
         Ground::UnaryOperator op =
             term.op() == Input::UnaryOperator::negate ? Ground::UnaryOperator::minus : Ground::UnaryOperator::invert;
         return std::make_unique<Ground::TermUnary>(op, std::visit(*this, *term.rhs()));
     }
+    //! Translate a unary term.
+    //!
+    //! Intervals must be removed by rewriting beforehand.
     auto operator()(Input::TermBinary const &term) const -> Ground::UTerm {
         assert(term.op() != Input::BinaryOperator::dots);
         if (auto lin = Input::check_linear(term); lin) {
@@ -338,28 +374,32 @@ class BuilderTerm {
 
   private:
     bool *has_projection_;
-    Util::unordered_map<String, size_t> *var_map_;
+    Util::unordered_map<String, size_t> const *var_map_;
 };
 
-struct BuildContext {
+//! Context object holding necessary data for translating from input to ground
+//! representation.
+class BuildContext {
+  public:
+    using DefMap = Util::unordered_map<Input::Term const *, std::vector<size_t>>;
     BuildContext(Grounder::Impl &impl, Input::Component const &comp,
                  Util::unordered_map<Input::Term const *, std::vector<size_t>> &def_map, Ground::Component &gcomp,
                  Util::unordered_map<String, size_t> &var_map, Ground::ULitVec &body,
-                 std::forward_list<Ground::StateCondLit> &clit_base)
-        : impl{&impl}, comp{&comp}, def_map{&def_map}, gcomp{&gcomp}, var_map{&var_map}, body{&body},
-          clit_base_{&clit_base} {}
+                 std::forward_list<Ground::StateCondLit> &clit_state)
+        : impl_{&impl}, comp_{&comp}, def_map_{&def_map}, gcomp_{&gcomp}, var_map_{&var_map}, body_{&body},
+          clit_state_{&clit_state} {}
 
     //! Get the index of the given symbolic literal.
     [[nodiscard]] auto index(Input::LitSymbolic const &lit) const -> size_t {
-        auto it = comp->incomplete.find(&lit.term());
-        if (it != comp->incomplete.end()) {
-            return static_cast<size_t>(it - comp->incomplete.begin());
+        auto it = comp_->incomplete.find(&lit.term());
+        if (it != comp_->incomplete.end()) {
+            return static_cast<size_t>(it - comp_->incomplete.begin());
         }
         return Ground::stratified_index;
     }
     //! Check if the given input literal is recursive.
     [[nodiscard]] auto is_recursive(Input::Lit const &lit) const -> bool {
-        if (test(comp->type, Input::ComponentType::single_pass)) {
+        if (test(comp_->type, Input::ComponentType::single_pass)) {
             return false;
         }
         if (auto const *slit = std::get_if<Input::LitSymbolic>(&lit); slit != nullptr) {
@@ -367,16 +407,16 @@ struct BuildContext {
         }
         return false;
     }
-    [[nodiscard]] auto next_index() -> size_t { return comp->incomplete.size() + index_++; }
+    [[nodiscard]] auto next_index() -> size_t { return comp_->incomplete.size() + index_++; }
 
     //! Analyze the given conditional literal and return the required indices for grounding.
     [[nodiscard]] auto analyze(Input::CondLit const &lit) -> std::tuple<bool, bool, bool, size_t, size_t, size_t> {
         assert(!Input::is_fixed(lit.lit()).value_or(false));
 
         auto has_conclusion = !Input::is_fixed(lit.lit()).has_value();
-        auto rec_comp = comp->type != Input::ComponentType::single_pass;
+        auto rec_comp = comp_->type != Input::ComponentType::single_pass;
         auto rec_body =
-            rec_comp && std::any_of(body->begin(), body->end(), [](auto const &lit) { return lit->recursive(); });
+            rec_comp && std::any_of(body_->begin(), body_->end(), [](auto const &lit) { return lit->recursive(); });
         auto rec_premise = rec_comp && std::any_of(lit.cond().begin(), lit.cond().end(),
                                                    [this](auto const &lit) { return is_recursive(lit); });
         bool rec_conclusion = rec_comp && is_recursive(lit.lit());
@@ -398,27 +438,60 @@ struct BuildContext {
         return {has_conclusion, rec_conclusion, rec_premise, empty_index, premise_index, lit_index};
     }
 
-    Grounder::Impl *impl;
-    Input::Component const *comp;
-    Util::unordered_map<Input::Term const *, std::vector<size_t>> *def_map;
-    Ground::Component *gcomp;
-    Util::unordered_map<String, size_t> *var_map;
-    Ground::ULitVec *body;
-    std::forward_list<Ground::StateCondLit> *clit_base_;
+    //! Get the grounder implementation.
+    [[nodiscard]] auto impl() const -> Grounder::Impl & { return *impl_; }
+
+    //! Get the definition map.
+    [[nodiscard]] auto def_map() const -> DefMap & { return *def_map_; }
+    //! Get the variable map.
+    [[nodiscard]] auto var_map() const -> Util::unordered_map<String, size_t> & { return *var_map_; }
+
+    //! Get the current component.
+    [[nodiscard]] auto gcomp() const -> Ground::Component & { return *gcomp_; }
+    //! Get the current statement body.
+    [[nodiscard]] auto body() const -> Ground::ULitVec & { return *body_; }
+
+    //! Add a new state object for a conditional literal.
+    [[nodiscard]] auto clit_state(Ground::VariableVec local, Ground::VariableVec global, size_t index,
+                                  bool has_conclusion, bool rec_premise, bool domain) -> Ground::StateCondLit & {
+        clit_state_->emplace_front(std::move(local), std::move(global), index, has_conclusion, rec_premise, domain);
+        return clit_state_->front();
+    }
+
+    //! Increment the priority and return its previous value.
+    auto inc_priority() -> size_t { return priority++; }
+
+  private:
+    Grounder::Impl *impl_;
+    Input::Component const *comp_;
+    Util::unordered_map<Input::Term const *, std::vector<size_t>> *def_map_;
+    Ground::Component *gcomp_;
+    Util::unordered_map<String, size_t> *var_map_;
+    Ground::ULitVec *body_;
+    std::forward_list<Ground::StateCondLit> *clit_state_;
     size_t priority = 0;
     size_t index_ = 0;
 };
 
+//! Translate input literals to their ground representation.
+//!
+//! Assumes that literals have been rewritten.
 template <class F> class BuilderLit {
   public:
+    //! Construct the translator.
     BuilderLit(BuildContext &ctx, F cb) : cb_{std::move(cb)}, ctx_{&ctx} {}
     void operator()(Input::LitBool const &lit) const {
         // Note: this should actually never be called
         cb_(std::make_unique<Ground::LitBool>(lit.value()));
     }
+    //! Translate comparision literals.
+    //!
+    //! This function also handles intervals and external functions.
+    //!
+    //! @todo: External functions have not yet been implemented.
     void operator()(Input::LitComparison const &lit) const {
         auto has_projection = false;
-        auto bld_term = BuilderTerm{has_projection, *ctx_->var_map};
+        auto bld_term = BuilderTerm{has_projection, ctx_->var_map()};
         if (Input::is_interval(lit.rhs().front().second)) {
             auto lhs = std::visit(bld_term, lit.lhs());
             auto const &rng = std::get<Input::TermBinary>(lit.rhs().front().second);
@@ -444,15 +517,16 @@ template <class F> class BuilderLit {
             }
         }
     }
+    //! Translate symbolic literals.
     void operator()(Input::LitSymbolic const &lit) const {
         auto has_projection = false;
-        auto bld_term = BuilderTerm{has_projection, *ctx_->var_map};
+        auto bld_term = BuilderTerm{has_projection, ctx_->var_map()};
         auto term = std::visit(bld_term, lit.term());
         auto idx = ctx_->index(lit);
         // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-        auto dom_it = ctx_->impl->add_base(Input::signature(lit.term()).value());
+        auto dom_it = ctx_->impl().add_base(Input::signature(lit.term()).value());
         if (has_projection) {
-            auto [p_term, state] = ctx_->impl->add_project(term, *dom_it.value());
+            auto [p_term, state] = ctx_->impl().add_project(term, *dom_it.value());
             cb_(std::make_unique<Ground::LitProject>(*state, lit.sign(), std::move(term), std::move(p_term), idx));
         } else {
             cb_(std::make_unique<Ground::LitSymbolic>(*dom_it.value(), lit.sign(), std::move(term), idx));
@@ -479,14 +553,14 @@ class BuilderHdLit {
         auto head = std::visit(
             [&]<class T>(T const &lit) -> std::optional<std::pair<Ground::UTerm, Ground::Base &>> {
                 if constexpr (Util::matches<T, Input::LitSymbolic>) {
-                    auto dom_it = ctx_->impl->add_base(*signature(lit.term()));
+                    auto dom_it = ctx_->impl().add_base(*signature(lit.term()));
                     auto &base = *dom_it->second;
                     assert(lit.sign() == Sign::none);
-                    if (auto it = ctx_->def_map->find(&lit.term()); it != ctx_->def_map->end()) {
+                    if (auto it = ctx_->def_map().find(&lit.term()); it != ctx_->def_map().end()) {
                         provides = it->second;
                     }
                     auto has_projection = false;
-                    auto term = std::visit(BuilderTerm{has_projection, *ctx_->var_map}, lit.term());
+                    auto term = std::visit(BuilderTerm{has_projection, ctx_->var_map()}, lit.term());
                     assert(!has_projection);
                     return std::make_pair(std::move(term), std::ref(base));
                 } else if constexpr (Util::matches<T, Input::LitBool>) {
@@ -497,8 +571,8 @@ class BuilderHdLit {
                 throw std::runtime_error("unexpected literal in rule head");
             },
             lit.lit());
-        ctx_->gcomp->add(
-            std::make_unique<Ground::StmRule>(std::move(head), std::move(provides), std::move(*ctx_->body)));
+        ctx_->gcomp().add(
+            std::make_unique<Ground::StmRule>(std::move(head), std::move(provides), std::move(ctx_->body())));
     }
 
   private:
@@ -547,7 +621,7 @@ class BuilderBdLit {
             // TODO: ...
         }
 
-        ctx_->body->emplace_back(std::make_unique<Ground::LitAggr>(*state));
+        ctx_->body().emplace_back(std::make_unique<Ground::LitAggr>(*state));
         std::ostringstream oss;
         oss << "implement me: handle body aggregate " << lit;
         throw std::logic_error(oss.str());
@@ -561,7 +635,7 @@ class BuilderBdLit {
         // the remaining of the index can be updated while grounding
         // in case the index is never grounded, this can safe some computation
         std::visit(
-            BuilderLit{*ctx_, [this]<class Lit>(Lit &&glit) { ctx_->body->emplace_back(std::forward<Lit>(glit)); }},
+            BuilderLit{*ctx_, [this]<class Lit>(Lit &&glit) { ctx_->body().emplace_back(std::forward<Lit>(glit)); }},
             lit.lit());
     }
     void operator()(Input::BdLitConjunction const &lit) const {
@@ -601,7 +675,7 @@ class BuilderBdLit {
         }
 
         auto vars_body = Ground::VariableSet{};
-        for (auto const &lit : *ctx_->body) {
+        for (auto const &lit : ctx_->body()) {
             lit->vars(vars_body, Ground::VarSelectMode::all);
         }
 
@@ -616,48 +690,45 @@ class BuilderBdLit {
             }
         }
 
-        auto &base = ctx_->clit_base_->emplace_front(std::move(vars_local), std::move(vars_global), lit_index,
-                                                     has_conclusion, rec_premise, domain);
+        auto &base = ctx_->clit_state(std::move(vars_local), std::move(vars_global), lit_index, has_conclusion,
+                                      rec_premise, domain);
 
         // handle the stratified case
         if (!rec_conclusion && !rec_premise) {
             assert(!has_conclusion);
             premise.insert(premise.begin(),
                            std::make_unique<Ground::LitCondLit>(Ground::LitCondLitType::empty, base, 1));
-            ctx_->body->emplace_back(std::make_unique<Ground::LitCondLitStrat>(base, std::move(premise)));
+            ctx_->body().emplace_back(std::make_unique<Ground::LitCondLitStrat>(base, std::move(premise)));
         }
         // handle the recursive case
         else {
             // convert body
             auto body = Ground::ULitVec{};
-            body.reserve(ctx_->body->size());
-            for (auto const &lit : *ctx_->body) {
+            body.reserve(ctx_->body().size());
+            for (auto const &lit : ctx_->body()) {
                 body.emplace_back(lit->copy());
             }
 
             // create: empty(clit(G)) :- B1.
-            ctx_->gcomp->add(std::make_unique<Ground::StmCondLit>(Ground::StmCondLitType::empty, base, std::move(body),
-                                                                  ctx_->priority, empty_index));
-            ctx_->priority += 1;
+            ctx_->gcomp().add(std::make_unique<Ground::StmCondLit>(Ground::StmCondLitType::empty, base, std::move(body),
+                                                                   ctx_->inc_priority(), empty_index));
 
             // create: premise(clit(G),L) :- empty(clit(G)), P.
             premise.insert(premise.begin(),
                            std::make_unique<Ground::LitCondLit>(Ground::LitCondLitType::empty, base, empty_index));
-            ctx_->gcomp->add(std::make_unique<Ground::StmCondLit>(Ground::StmCondLitType::premise, base,
-                                                                  std::move(premise), ctx_->priority, premise_index));
-            ctx_->priority += 1;
+            ctx_->gcomp().add(std::make_unique<Ground::StmCondLit>(
+                Ground::StmCondLitType::premise, base, std::move(premise), ctx_->inc_priority(), premise_index));
 
             // create: conclusion(clit(G),L) :- premise(clit(G),L), C.
             if (has_conclusion) {
                 conclusion.insert(conclusion.begin(), std::make_unique<Ground::LitCondLit>(
                                                           Ground::LitCondLitType::premise, base, premise_index));
-                ctx_->gcomp->add(std::make_unique<Ground::StmCondLit>(
-                    Ground::StmCondLitType::conclusion, base, std::move(conclusion), ctx_->priority, lit_index));
-                ctx_->priority += 1;
+                ctx_->gcomp().add(std::make_unique<Ground::StmCondLit>(
+                    Ground::StmCondLitType::conclusion, base, std::move(conclusion), ctx_->inc_priority(), lit_index));
             }
 
             // create: H :- B1, clit(G), B2.
-            ctx_->body->emplace_back(
+            ctx_->body().emplace_back(
                 std::make_unique<Ground::LitCondLit>(Ground::LitCondLitType::lit, base, base.index()));
         }
     }
@@ -678,7 +749,7 @@ class BuilderStm {
     void operator()(Input::StmRule const &stm) const {
         auto bld_bd = BuilderBdLit{*ctx_};
         auto bld_hd = BuilderHdLit{*ctx_};
-        ctx_->body->reserve(stm.body().size() + 1);
+        ctx_->body().reserve(stm.body().size() + 1);
         for (auto const &lit : stm.body()) {
             std::visit(bld_bd, lit);
         }
