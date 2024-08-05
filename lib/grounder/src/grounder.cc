@@ -27,22 +27,34 @@ namespace Gringo {
 
 #ifdef PARSER_PROFILE
 namespace {
+//! Simple profiler to restrict profiling to selected scopes.
 class Profiler {
   public:
+    //! Construct the profile writing data to the given path.
     Profiler(char const *path) { ProfilerStart(path); }
+    //! Stop profiling.
     ~Profiler() { ProfilerStop(); }
 };
 } // namespace
 #endif
 
+//! The actual grounder implementation.
 struct Grounder::Impl : Gringo::SymbolOwner {
+    //! A map from signatures to atom bases.
     using BaseMap = Util::ordered_map<std::tuple<String, size_t, bool>, std::unique_ptr<Ground::Base>>;
+    //! A map from a terms with projections associated state used during grounding.
+    //!
+    //! The terms represensts a class of similar terms that can reuse the same projection state.
     using ProjectMap = Util::ordered_map<Ground::UTerm, std::unique_ptr<Ground::LitProject::State>>;
 
+    //! Construct the grounder implementation.
     Impl(Logger &log, SymbolStore &store, Input::RewriteOptions opts, OutputStm &out)
         : log{&log}, store{&store}, prg{opts}, out{&out} {
         this->store->gc_add_owner(*this);
     }
+    //! Destroy the grounder implementation.
+    //!
+    //! This also releases all symbols held.
     ~Impl() override { store->gc_del_owner(*this); }
 
     //! Mark symbols held by the grounder protecting them from garbage collection.
@@ -139,10 +151,13 @@ struct Grounder::Impl : Gringo::SymbolOwner {
 
 namespace {
 
-//! Helper for parsing.
-class Parser {
+//! A helper for parsing.
+//!
+//! This class manages include directives.
+class ParseHelper {
   public:
-    Parser(Logger &log, SymbolStore &store, Input::UnprocessedProgram &prg)
+    //! Construct the helper.
+    ParseHelper(Logger &log, SymbolStore &store, Input::UnprocessedProgram &prg)
         : log_{&log}, store_{&store}, parser_{log, store}, prg_{&prg} {}
 
     //! Parse a program from the given string.
@@ -480,10 +495,10 @@ template <class F> class BuilderLit {
   public:
     //! Construct the translator.
     BuilderLit(BuildContext &ctx, F cb) : cb_{std::move(cb)}, ctx_{&ctx} {}
-    void operator()(Input::LitBool const &lit) const {
-        // Note: this should actually never be called
-        cb_(std::make_unique<Ground::LitBool>(lit.value()));
-    }
+    //! Translate Boolean literals.
+    //!
+    //! @note: This should never be called on rewritten programs.
+    void operator()(Input::LitBool const &lit) const { cb_(std::make_unique<Ground::LitBool>(lit.value())); }
     //! Translate comparision literals.
     //!
     //! This function also handles intervals and external functions.
@@ -538,8 +553,10 @@ template <class F> class BuilderLit {
     BuildContext *ctx_;
 };
 
+//! Translator for head literals.
 class BuilderHdLit {
   public:
+    //! Construct the translator.
     BuilderHdLit(BuildContext &ctx) : ctx_{&ctx} {}
 
     template <class T> void operator()(T const &lit) const {
@@ -547,6 +564,7 @@ class BuilderHdLit {
         oss << "implement me: handle head literal " << lit;
         throw std::logic_error(oss.str());
     }
+    //! Translate simple head literals.
     void operator()(Input::HdLitSimple const &lit) const {
         std::vector<size_t> provides;
         Ground::UTerm blub;
@@ -579,14 +597,17 @@ class BuilderHdLit {
     BuildContext *ctx_;
 };
 
+//! Translator for body literals.
 class BuilderBdLit {
   public:
+    //! Construct the translator.
     BuilderBdLit(BuildContext &ctx) : ctx_{&ctx} {}
     template <class T> void operator()(T const &lit) const {
         std::ostringstream oss;
         oss << "implement me: handle body literal " << lit;
         throw std::logic_error(oss.str());
     }
+    //! Translate body aggregates.
     void operator()(Input::BdLitAggregate const &lit) const {
         /*
         - monotone or recursive
@@ -626,6 +647,7 @@ class BuilderBdLit {
         oss << "implement me: handle body aggregate " << lit;
         throw std::logic_error(oss.str());
     }
+    //! Translate simple literals.
     void operator()(Input::BdLitSimple const &lit) const {
         // we need to know whether the literal is recursive
         // if it is, then it has to be updated while grounding
@@ -638,6 +660,7 @@ class BuilderBdLit {
             BuilderLit{*ctx_, [this]<class Lit>(Lit &&glit) { ctx_->body().emplace_back(std::forward<Lit>(glit)); }},
             lit.lit());
     }
+    //! Translate conditional literals.
     void operator()(Input::BdLitConjunction const &lit) const {
         auto [has_conclusion, rec_conclusion, rec_premise, empty_index, premise_index, lit_index] =
             ctx_->analyze(lit.lit());
@@ -737,8 +760,10 @@ class BuilderBdLit {
     BuildContext *ctx_;
 };
 
+//! Translator for statements.
 class BuilderStm {
   public:
+    //! Construct the translator.
     BuilderStm(BuildContext &ctx) : ctx_{&ctx} {}
     template <class T> void operator()(T const &stm) const {
         std::ostringstream oss;
@@ -746,6 +771,7 @@ class BuilderStm {
         throw std::logic_error(oss.str());
     }
 
+    //! Translate rules.
     void operator()(Input::StmRule const &stm) const {
         auto bld_bd = BuilderBdLit{*ctx_};
         auto bld_hd = BuilderHdLit{*ctx_};
@@ -760,11 +786,14 @@ class BuilderStm {
     BuildContext *ctx_;
 };
 
+//! The builder for the ground representation.
 class Builder : public Input::DependencyBuilder {
   public:
+    //! Construct the builder.
     Builder(Grounder::Impl &impl) : impl_{&impl} {}
 
   private:
+    //! Handle program parameters.
     void do_param(Input::ProgramParam const &param) override {
         buf_.str({});
         buf_ << "#program_" << *param.first;
@@ -773,12 +802,14 @@ class Builder : public Input::DependencyBuilder {
                             Ground::AtomState::fact);
     }
 
+    //! Handle meta statements.
     void do_meta(std::vector<Input::Stm> const &stms) override {
         for (auto const &stm : stms) {
             std::cout << stm << "\n";
         }
     }
 
+    //! Handle facts.
     void do_fact(std::vector<Symbol> const &facts) override {
         for (auto const &fact : facts) {
             auto dom_it = impl_->add_base(fact.name(), fact.args().size(), fact.has_sign());
@@ -787,6 +818,7 @@ class Builder : public Input::DependencyBuilder {
         }
     }
 
+    //! Translate components.
     auto do_components(Input::Components const &comps) -> bool override {
         auto lin = Ground::Linearizer{};
         for (auto const &ref_comps : comps) {
@@ -872,7 +904,7 @@ void Grounder::parse(std::string_view prg) {
     GRINGO_REPORT(*impl_->log, debug) << "parsing...";
     if (impl_->is_sat) {
         GCLock lock{*impl_->store};
-        auto prs = Parser{*impl_->log, *impl_->store, impl_->unprocessed_prg};
+        auto prs = ParseHelper{*impl_->log, *impl_->store, impl_->unprocessed_prg};
         prs.process_string(prg);
         prs.process_includes();
         prs.check();
@@ -883,7 +915,7 @@ void Grounder::parse(std::vector<std::string> const &files) {
     GRINGO_REPORT(*impl_->log, debug) << "parsing...";
     if (impl_->is_sat) {
         GCLock lock{*impl_->store};
-        auto prs = Parser{*impl_->log, *impl_->store, impl_->unprocessed_prg};
+        auto prs = ParseHelper{*impl_->log, *impl_->store, impl_->unprocessed_prg};
         if (files.empty()) {
             prs.process_stdin();
             prs.process_includes();
