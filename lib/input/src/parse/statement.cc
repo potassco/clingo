@@ -465,8 +465,7 @@ auto parse_external(ParserState &state) -> std::optional<Stm> {
                         loc += location(*type);
                         state.mark_stms();
                         state.consume();
-                        // NOLINTNEXTLINE(bugprone-optional-value-conversion)
-                        return StmExternal{std::move(loc), *std::move(atom), *std::move(body), *std::move(type)};
+                        return StmExternal{std::move(loc), *std::move(atom), *std::move(body), std::move(type)};
                     }
                 }
             } else {

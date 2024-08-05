@@ -35,7 +35,11 @@ template <auto T, bool C = true> struct AttributeName {
     //! Helper to bind an attribute to a value.
     // NOLINTNEXTLINE(cppcoreguidelines-c-copy-assignment-signature)
     template <class Val> constexpr auto operator=(Val &&val) const {
-        return AttributeValue<tag, compare, Val>{std::forward<Val>(val)};
+        if constexpr (std::is_member_pointer_v<std::decay_t<Val>>) {
+            return AttributeValue<tag, compare, Val>{std::forward<Val>(val)};
+        } else {
+            return AttributeValue<tag, compare, Val &&>{std::forward<Val>(val)};
+        }
     }
 };
 
@@ -56,7 +60,7 @@ template <auto tag, class... Attrs> constexpr auto get_index([[maybe_unused]] st
 //! Check if an argument is valid.
 template <class Arg, class... Attrs>
 constexpr auto is_valid_argument([[maybe_unused]] std::tuple<Attrs...> attrs) -> bool {
-    return ((Arg::tag == Attrs::tag) || ...);
+    return ((std::remove_cvref_t<Arg>::tag == Attrs::tag) || ...);
 }
 
 //! Check if an argument is unique.
