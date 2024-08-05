@@ -24,7 +24,8 @@ namespace Gringo::Ground {
     assert(propagated_ == 0 && enqueued_ != 0);
     enqueued_ = 0;
     for (auto n = elems_.size(); elems_propagated_ < n; ++elems_propagated_) {
-        auto const &elem = elems.nth(elems_[elems_propagated_]).value();
+        auto const elem_it = elems.nth(elems_[elems_propagated_]);
+        auto const &elem = elem_it.value();
         if (elem.is_blocked()) {
             if (elem.is_false()) {
                 false_ = 1;
