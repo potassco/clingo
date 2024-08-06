@@ -453,6 +453,34 @@ class BuildContext {
         return {has_conclusion, rec_conclusion, rec_premise, empty_index, premise_index, lit_index};
     }
 
+    [[nodiscard]] auto analyze(Input::BdLitAggregate const &lit) {
+        auto fun = Input::AggregateFunction::sum;
+        if (lit.fun() == Input::AggregateFunction::sum) {
+            // try to turn sum aggregates into sum+ aggregates
+            // (this should better be done in simplify)
+            bool non_neg = std::all_of(lit.elems().begin(), lit.elems().end(), [](auto const &elem) {
+                return elem.tuple().empty() || std::visit(
+                                                   []<class T>(T const &weight) {
+                                                       if constexpr (Util::matches<T, Input::TermSymbol>) {
+                                                           auto sym = weight.value();
+                                                           return sym.type() != SymbolType::number || sym.num() >= 0;
+                                                       }
+                                                       return false;
+                                                   },
+                                                   elem.tuple().front());
+            });
+            if (non_neg) {
+                fun = Input::AggregateFunction::sump;
+            }
+        }
+        auto mon = Input::reduct_is_monotone(lit.lhs(), fun, lit.rhs());
+        bool recursive = std::any_of(lit.elems().begin(), lit.elems().end(), [this](auto const &elem) {
+            return std::any_of(elem.cond().begin(), elem.cond().end(),
+                               [this](auto const &lit) { return is_recursive(lit); });
+        });
+        return std::make_tuple(fun, mon, recursive);
+    }
+
     //! Get the grounder implementation.
     [[nodiscard]] auto impl() const -> Grounder::Impl & { return *impl_; }
 
@@ -610,6 +638,8 @@ class BuilderBdLit {
     //! Translate body aggregates.
     void operator()(Input::BdLitAggregate const &lit) const {
         /*
+        - very likely, the stratified variant (if applicable) is preferable in
+          most cases including monotone aggregates
         - monotone or recursive
           - example
             h(X) :- b(X), #count { Y: e(X,Y) } >= 1, c(X).
