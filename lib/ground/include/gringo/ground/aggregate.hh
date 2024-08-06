@@ -5,7 +5,27 @@
 
 namespace Gringo::Ground {
 
-class StateAggr {};
+using GuardVec = std::vector<std::pair<Relation, UTerm>>;
+
+class StateAggr {
+  public:
+    StateAggr(VariableVec global, GuardVec guards, AggregateFunction fun, bool monotone, bool recursive)
+        : global_{std::move(global)}, guards_{std::move(guards)}, fun_{fun}, monotone_{monotone},
+          recursive_{recursive} {}
+
+    [[nodiscard]] auto global() const -> VariableVec const & { return global_; }
+    [[nodiscard]] auto guards() const -> GuardVec const & { return guards_; }
+    [[nodiscard]] auto fun() const -> AggregateFunction { return fun_; }
+    [[nodiscard]] auto monotone() const -> bool { return monotone_; }
+    [[nodiscard]] auto recursive() const -> bool { return recursive_; }
+
+  private:
+    VariableVec global_;
+    GuardVec guards_;
+    AggregateFunction fun_;
+    bool monotone_;
+    bool recursive_;
+};
 
 //! Literal representing an aggregate.
 class LitAggr : public Lit {

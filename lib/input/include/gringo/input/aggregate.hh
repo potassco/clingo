@@ -10,15 +10,6 @@ namespace Gringo::Input {
 //! @ingroup input_aggregate
 //! @{
 
-//! Enumeration of aggregate functions.
-enum class AggregateFunction : uint8_t {
-    count, //! The <tt>\#count</tt> function.
-    sum,   //! The <tt>\#sum</tt> function.
-    sump,  //! The <tt>\#sum+</tt> function.
-    min,   //! The <tt>\#min</tt> function.
-    max,   //! The <tt>\#max</tt> function.
-};
-
 //! An optional left guard of an aggregate.
 using LGuard = std::optional<std::pair<Term, Relation>>;
 //! An optional right guard of an aggregate.

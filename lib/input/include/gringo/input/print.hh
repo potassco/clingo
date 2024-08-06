@@ -16,9 +16,6 @@ auto operator<<(std::ostream &out, UnaryOperator op) -> std::ostream &;
 //! Output the given binary operator.
 auto operator<<(std::ostream &out, BinaryOperator op) -> std::ostream &;
 
-//! Output the given aggregate function.
-auto operator<<(std::ostream &out, AggregateFunction fun) -> std::ostream &;
-
 //! @}
 
 //! @name Terms

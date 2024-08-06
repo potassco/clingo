@@ -758,32 +758,6 @@ auto operator<<(std::ostream &out, BinaryOperator op) -> std::ostream & {
     return out;
 }
 
-auto operator<<(std::ostream &out, AggregateFunction fun) -> std::ostream & {
-    switch (fun) {
-        case AggregateFunction::count: {
-            out << "#count";
-            break;
-        }
-        case AggregateFunction::sum: {
-            out << "#sum";
-            break;
-        }
-        case AggregateFunction::sump: {
-            out << "#sum+";
-            break;
-        }
-        case AggregateFunction::min: {
-            out << "#min";
-            break;
-        }
-        case AggregateFunction::max: {
-            out << "#max";
-            break;
-        }
-    }
-    return out;
-}
-
 // terms
 
 auto operator<<(std::ostream &out, [[maybe_unused]] Projection const &projection) -> std::ostream & {

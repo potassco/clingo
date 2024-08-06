@@ -50,6 +50,18 @@ enum class TruthValue : uint8_t {
     unknown, //!< Indicate an expression with an unknown truth value.
 };
 
+//! Enumeration of aggregate functions.
+enum class AggregateFunction : uint8_t {
+    count, //! The <tt>\#count</tt> function.
+    sum,   //! The <tt>\#sum</tt> function.
+    sump,  //! The <tt>\#sum+</tt> function.
+    min,   //! The <tt>\#min</tt> function.
+    max,   //! The <tt>\#max</tt> function.
+};
+
+//! Output the given aggregate function.
+auto operator<<(std::ostream &out, AggregateFunction fun) -> std::ostream &;
+
 //! @}
 
 } // namespace Gringo

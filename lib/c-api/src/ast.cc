@@ -1752,7 +1752,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 *ast = construct_ast<Gringo::Input::BdLitAggregate>(
                     type, convert_loc(lib, loc), static_cast<Gringo::Sign>(sign),
                     convert_ast_opt<Gringo::Input::LGuard::value_type>(lhs),
-                    static_cast<Gringo::Input::AggregateFunction>(fun),
+                    static_cast<Gringo::AggregateFunction>(fun),
                     convert_ast_vec<Gringo::Input::BdLitAggregateElement>(elems, elems_size),
                     convert_ast_opt<Gringo::Input::RGuard::value_type>(rhs));
                 break;
@@ -1838,7 +1838,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 va_end(args);
                 *ast = construct_ast<Gringo::Input::HdLitAggregate>(
                     type, convert_loc(lib, loc), convert_ast_opt<Gringo::Input::LGuard::value_type>(lhs),
-                    static_cast<Gringo::Input::AggregateFunction>(fun),
+                    static_cast<Gringo::AggregateFunction>(fun),
                     convert_ast_vec<Gringo::Input::HdLitAggregateElement>(elems, elems_size),
                     convert_ast_opt<Gringo::Input::RGuard::value_type>(rhs));
                 break;

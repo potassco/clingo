@@ -11,6 +11,7 @@
 #include <gringo/input/rewrite/unpool_relations.hh>
 #include <gringo/input/rewrite/visit_variables.hh>
 
+#include <gringo/util/print.hh>
 #include <gringo/util/type_traits.hh>
 #include <gringo/util/unordered_map.hh>
 
@@ -392,6 +393,8 @@ class BuilderTerm {
     Util::unordered_map<String, size_t> const *var_map_;
 };
 
+using StateList = std::forward_list<std::variant<Ground::StateCondLit, Ground::StateAggr>>;
+
 //! Context object holding necessary data for translating from input to ground
 //! representation.
 class BuildContext {
@@ -399,10 +402,9 @@ class BuildContext {
     using DefMap = Util::unordered_map<Input::Term const *, std::vector<size_t>>;
     BuildContext(Grounder::Impl &impl, Input::Component const &comp,
                  Util::unordered_map<Input::Term const *, std::vector<size_t>> &def_map, Ground::Component &gcomp,
-                 Util::unordered_map<String, size_t> &var_map, Ground::ULitVec &body,
-                 std::forward_list<Ground::StateCondLit> &clit_state)
+                 Util::unordered_map<String, size_t> &var_map, Ground::ULitVec &body, StateList &state)
         : impl_{&impl}, comp_{&comp}, def_map_{&def_map}, gcomp_{&gcomp}, var_map_{&var_map}, body_{&body},
-          clit_state_{&clit_state} {}
+          state_{&state} {}
 
     //! Get the index of the given symbolic literal.
     [[nodiscard]] auto index(Input::LitSymbolic const &lit) const -> size_t {
@@ -454,8 +456,8 @@ class BuildContext {
     }
 
     [[nodiscard]] auto analyze(Input::BdLitAggregate const &lit) {
-        auto fun = Input::AggregateFunction::sum;
-        if (lit.fun() == Input::AggregateFunction::sum) {
+        auto fun = AggregateFunction::sum;
+        if (lit.fun() == AggregateFunction::sum) {
             // try to turn sum aggregates into sum+ aggregates
             // (this should better be done in simplify)
             bool non_neg = std::all_of(lit.elems().begin(), lit.elems().end(), [](auto const &elem) {
@@ -470,7 +472,7 @@ class BuildContext {
                                                    elem.tuple().front());
             });
             if (non_neg) {
-                fun = Input::AggregateFunction::sump;
+                fun = AggregateFunction::sump;
             }
         }
         auto mon = Input::reduct_is_monotone(lit.lhs(), fun, lit.rhs());
@@ -494,11 +496,10 @@ class BuildContext {
     //! Get the current statement body.
     [[nodiscard]] auto body() const -> Ground::ULitVec & { return *body_; }
 
-    //! Add a new state object for a conditional literal.
-    [[nodiscard]] auto clit_state(Ground::VariableVec local, Ground::VariableVec global, size_t index,
-                                  bool has_conclusion, bool rec_premise, bool domain) -> Ground::StateCondLit & {
-        clit_state_->emplace_front(std::move(local), std::move(global), index, has_conclusion, rec_premise, domain);
-        return clit_state_->front();
+    //! Add a new state object for a body aggregate literal.
+    template <class T, class... Args> [[nodiscard]] auto state(Args &&...args) -> T & {
+        state_->emplace_front(std::in_place_type<T>, std::forward<Args>(args)...);
+        return std::get<T>(state_->front());
     }
 
     //! Increment the priority and return its previous value.
@@ -511,7 +512,7 @@ class BuildContext {
     Ground::Component *gcomp_;
     Util::unordered_map<String, size_t> *var_map_;
     Ground::ULitVec *body_;
-    std::forward_list<Ground::StateCondLit> *clit_state_;
+    std::forward_list<std::variant<Ground::StateCondLit, Ground::StateAggr>> *state_;
     size_t priority = 0;
     size_t index_ = 0;
 };
@@ -662,8 +663,78 @@ class BuilderBdLit {
         */
         // analyze: stratified, monotonicity, domain (per cond?), assign, indices, priorities
         // TODO: ...
-        auto state = std::make_unique<Ground::StateAggr>();
-        // TODO: store state in ctx
+        auto vars_body = Ground::VariableSet{};
+        for (auto const &lit : ctx_->body()) {
+            lit->vars(vars_body, Ground::VarSelectMode::all);
+        }
+
+        auto vars_global = Ground::VariableSet{};
+
+        auto guards = Ground::GuardVec{};
+        guards.reserve((lit.lhs() ? 1 : 0) + (lit.rhs() ? 1 : 0));
+        // maybe flip relation
+        if (lit.lhs()) {
+            bool has_projection = false;
+            guards.emplace_back(flip(lit.lhs()->second),
+                                std::visit(BuilderTerm{has_projection, ctx_->var_map()}, lit.lhs()->first));
+            guards.back().second->vars(vars_global);
+        }
+        if (lit.rhs()) {
+            bool has_projection = false;
+            guards.emplace_back(lit.rhs()->first,
+                                std::visit(BuilderTerm{has_projection, ctx_->var_map()}, lit.rhs()->second));
+            guards.back().second->vars(vars_global);
+        }
+
+        auto domain = true;
+        auto elems = std::vector<std::tuple<Ground::UTermVec, Ground::ULitVec, Ground::VariableVec, bool>>{};
+        elems.reserve(lit.elems().size());
+        for (auto const &elem : lit.elems()) {
+            auto tuple = Ground::UTermVec{};
+            auto cond_domain = true;
+            auto cond = Ground::ULitVec{};
+            auto vars_local = Ground::VariableSet{};
+            cond.reserve(elem.cond().size());
+            tuple.reserve(elem.tuple().size());
+            for (auto const &term : elem.tuple()) {
+                bool has_projection = false;
+                tuple.emplace_back(std::visit(BuilderTerm{has_projection, ctx_->var_map()}, term));
+                tuple.back()->vars(vars_local);
+            }
+            for (auto const &lit : elem.cond()) {
+                std::visit(BuilderLit{*ctx_,
+                                      [&cond, &vars_local]<class Lit>(Lit &&glit) {
+                                          glit->vars(vars_local, Ground::VarSelectMode::all);
+                                          cond.emplace_back(std::forward<Lit>(glit));
+                                      }},
+                           lit);
+                if (!cond.back()->domain()) {
+                    domain = false;
+                    cond_domain = false;
+                }
+            }
+            erase_if(vars_local, [&vars_body, &vars_global](auto const &x) {
+                if (vars_body.contains(x)) {
+                    vars_global.emplace(x);
+                    return true;
+                }
+                return false;
+            });
+            elems.emplace_back(std::move(tuple), std::move(cond), vars_local.release(), cond_domain);
+        }
+
+        auto [fun, mon, rec] = ctx_->analyze(lit);
+
+        std::cerr << lit << "\n  fun: " << fun << "\n  mon: " << mon << "\n  rec: " << rec << "\n  dom: " << domain
+                  << "\n  global: "
+                  << Util::p_range{vars_global, [](std::ostream &out, auto var) { out << "X_" << var; }} << '\n';
+
+        // TODO:
+        // - need guards
+        // - need
+
+        // initialize state
+        auto &state = ctx_->state<Ground::StateAggr>(vars_global.release(), std::move(guards), fun, mon, rec);
         // #elem(X,0) :- b(X), 0 >= 1.
         // TODO: ...
         for (auto const &elem : lit.elems()) {
@@ -672,7 +743,7 @@ class BuilderBdLit {
             // TODO: ...
         }
 
-        ctx_->body().emplace_back(std::make_unique<Ground::LitAggr>(*state));
+        ctx_->body().emplace_back(std::make_unique<Ground::LitAggr>(state));
         std::ostringstream oss;
         oss << "implement me: handle body aggregate " << lit;
         throw std::logic_error(oss.str());
@@ -743,8 +814,8 @@ class BuilderBdLit {
             }
         }
 
-        auto &base = ctx_->clit_state(std::move(vars_local), std::move(vars_global), lit_index, has_conclusion,
-                                      rec_premise, domain);
+        auto &base = ctx_->state<Ground::StateCondLit>(std::move(vars_local), std::move(vars_global), lit_index,
+                                                       has_conclusion, rec_premise, domain);
 
         // handle the stratified case
         if (!rec_conclusion && !rec_premise) {
@@ -856,7 +927,7 @@ class Builder : public Input::DependencyBuilder {
             for (auto const &ref_comp : ref_comps) {
                 GRINGO_REPORT(*impl_->log, debug) << "    refined component";
                 auto gcomp = Ground::Component{};
-                auto clit_base = std::forward_list<Ground::StateCondLit>{};
+                auto state = StateList{};
                 for (auto const &stm : ref_comp.stms) {
                     Util::unordered_map<String, size_t> var_map;
                     Input::visit_variables(
@@ -874,7 +945,7 @@ class Builder : public Input::DependencyBuilder {
                         }
                         ++i;
                     }
-                    auto ctx = BuildContext{*impl_, ref_comp, def_map, gcomp, var_map, body, clit_base};
+                    auto ctx = BuildContext{*impl_, ref_comp, def_map, gcomp, var_map, body, state};
                     auto bld_stm = BuilderStm{ctx};
                     std::visit(bld_stm, *stm);
                 }
