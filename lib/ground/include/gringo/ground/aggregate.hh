@@ -9,8 +9,8 @@ using GuardVec = std::vector<std::pair<Relation, UTerm>>;
 
 class StateAggr {
   public:
-    StateAggr(VariableVec global, GuardVec guards, AggregateFunction fun, bool monotone, bool recursive)
-        : global_{std::move(global)}, guards_{std::move(guards)}, fun_{fun}, monotone_{monotone},
+    StateAggr(VariableVec global, GuardVec guards, AggregateFunction fun, size_t index, bool monotone, bool recursive)
+        : global_{std::move(global)}, guards_{std::move(guards)}, index_{index}, fun_{fun}, monotone_{monotone},
           recursive_{recursive} {}
 
     [[nodiscard]] auto global() const -> VariableVec const & { return global_; }
@@ -18,10 +18,12 @@ class StateAggr {
     [[nodiscard]] auto fun() const -> AggregateFunction { return fun_; }
     [[nodiscard]] auto monotone() const -> bool { return monotone_; }
     [[nodiscard]] auto recursive() const -> bool { return recursive_; }
+    [[nodiscard]] auto index() const -> size_t { return index_; }
 
   private:
     VariableVec global_;
     GuardVec guards_;
+    size_t index_;
     AggregateFunction fun_;
     bool monotone_;
     bool recursive_;

@@ -426,14 +426,18 @@ class BuildContext {
     }
     [[nodiscard]] auto next_index() -> size_t { return comp_->incomplete.size() + index_++; }
 
+    [[nodiscard]] auto has_rec_body() const -> bool {
+        auto rec_comp = comp_->type != Input::ComponentType::single_pass;
+        return rec_comp && std::any_of(body_->begin(), body_->end(), [](auto const &lit) { return lit->recursive(); });
+    }
+
     //! Analyze the given conditional literal and return the required indices for grounding.
     [[nodiscard]] auto analyze(Input::CondLit const &lit) -> std::tuple<bool, bool, bool, size_t, size_t, size_t> {
         assert(!Input::is_fixed(lit.lit()).value_or(false));
 
         auto has_conclusion = !Input::is_fixed(lit.lit()).has_value();
         auto rec_comp = comp_->type != Input::ComponentType::single_pass;
-        auto rec_body =
-            rec_comp && std::any_of(body_->begin(), body_->end(), [](auto const &lit) { return lit->recursive(); });
+        auto rec_body = has_rec_body();
         auto rec_premise = rec_comp && std::any_of(lit.cond().begin(), lit.cond().end(),
                                                    [this](auto const &lit) { return is_recursive(lit); });
         bool rec_conclusion = rec_comp && is_recursive(lit.lit());
@@ -453,34 +457,6 @@ class BuildContext {
         }
 
         return {has_conclusion, rec_conclusion, rec_premise, empty_index, premise_index, lit_index};
-    }
-
-    [[nodiscard]] auto analyze(Input::BdLitAggregate const &lit) {
-        auto fun = AggregateFunction::sum;
-        if (lit.fun() == AggregateFunction::sum) {
-            // try to turn sum aggregates into sum+ aggregates
-            // (this should better be done in simplify)
-            bool non_neg = std::all_of(lit.elems().begin(), lit.elems().end(), [](auto const &elem) {
-                return elem.tuple().empty() || std::visit(
-                                                   []<class T>(T const &weight) {
-                                                       if constexpr (Util::matches<T, Input::TermSymbol>) {
-                                                           auto sym = weight.value();
-                                                           return sym.type() != SymbolType::number || sym.num() >= 0;
-                                                       }
-                                                       return false;
-                                                   },
-                                                   elem.tuple().front());
-            });
-            if (non_neg) {
-                fun = AggregateFunction::sump;
-            }
-        }
-        auto mon = Input::reduct_is_monotone(lit.lhs(), fun, lit.rhs());
-        bool recursive = std::any_of(lit.elems().begin(), lit.elems().end(), [this](auto const &elem) {
-            return std::any_of(elem.cond().begin(), elem.cond().end(),
-                               [this](auto const &lit) { return is_recursive(lit); });
-        });
-        return std::make_tuple(fun, mon, recursive);
     }
 
     //! Get the grounder implementation.
@@ -670,9 +646,9 @@ class BuilderBdLit {
 
         auto vars_global = Ground::VariableSet{};
 
+        // handle guards
         auto guards = Ground::GuardVec{};
         guards.reserve((lit.lhs() ? 1 : 0) + (lit.rhs() ? 1 : 0));
-        // maybe flip relation
         if (lit.lhs()) {
             bool has_projection = false;
             guards.emplace_back(flip(lit.lhs()->second),
@@ -686,66 +662,106 @@ class BuilderBdLit {
             guards.back().second->vars(vars_global);
         }
 
-        auto domain = true;
-        auto elems = std::vector<std::tuple<Ground::UTermVec, Ground::ULitVec, Ground::VariableVec, bool>>{};
+        auto dom = true;                                // all literals in conditions are domain
+        auto rec = false;                               // at least one recursive condition
+        auto pos = lit.fun() == AggregateFunction::sum; // sum aggregate can be turned into a sum+ aggregate
+        auto elems = std::vector<
+            std::tuple<Ground::UTermVec, Ground::ULitVec, Ground::VariableVec, Ground::VariableVec, bool, bool>>{};
         elems.reserve(lit.elems().size());
         for (auto const &elem : lit.elems()) {
             auto tuple = Ground::UTermVec{};
-            auto cond_domain = true;
+            auto cond_rec = false;
+            auto cond_dom = true;
             auto cond = Ground::ULitVec{};
-            auto vars_local = Ground::VariableSet{};
+            auto elem_local = Ground::VariableSet{};
+            auto elem_global = Ground::VariableVec{};
             cond.reserve(elem.cond().size());
             tuple.reserve(elem.tuple().size());
             for (auto const &term : elem.tuple()) {
                 bool has_projection = false;
                 tuple.emplace_back(std::visit(BuilderTerm{has_projection, ctx_->var_map()}, term));
-                tuple.back()->vars(vars_local);
+                tuple.back()->vars(elem_local);
             }
+            pos = pos && std::visit(
+                             []<class T>(T const &weight) {
+                                 if constexpr (Util::matches<T, Input::TermSymbol>) {
+                                     auto sym = weight.value();
+                                     return sym.type() != SymbolType::number || sym.num() >= 0;
+                                 }
+                                 return false;
+                             },
+                             elem.tuple().front());
             for (auto const &lit : elem.cond()) {
+                if (ctx_->is_recursive(lit)) {
+                    rec = true;
+                    cond_rec = true;
+                }
                 std::visit(BuilderLit{*ctx_,
-                                      [&cond, &vars_local]<class Lit>(Lit &&glit) {
-                                          glit->vars(vars_local, Ground::VarSelectMode::all);
+                                      [&cond, &elem_local]<class Lit>(Lit &&glit) {
+                                          glit->vars(elem_local, Ground::VarSelectMode::all);
                                           cond.emplace_back(std::forward<Lit>(glit));
                                       }},
                            lit);
                 if (!cond.back()->domain()) {
-                    domain = false;
-                    cond_domain = false;
+                    dom = false;
+                    cond_dom = false;
                 }
             }
-            erase_if(vars_local, [&vars_body, &vars_global](auto const &x) {
+            erase_if(elem_local, [&elem_global, &vars_body, &vars_global](auto const &x) {
+                if (vars_global.contains(x)) {
+                    elem_global.emplace_back(x);
+                    return true;
+                }
                 if (vars_body.contains(x)) {
+                    elem_global.emplace_back(x);
                     vars_global.emplace(x);
                     return true;
                 }
                 return false;
             });
-            elems.emplace_back(std::move(tuple), std::move(cond), vars_local.release(), cond_domain);
+            elems.emplace_back(std::move(tuple), std::move(cond), std::move(elem_global), elem_local.release(),
+                               cond_dom, cond_rec);
         }
+        auto fun = pos ? AggregateFunction::sump : lit.fun();
+        auto mon = Input::reduct_is_monotone(lit.lhs(), fun, lit.rhs());
 
-        auto [fun, mon, rec] = ctx_->analyze(lit);
-
-        std::cerr << lit << "\n  fun: " << fun << "\n  mon: " << mon << "\n  rec: " << rec << "\n  dom: " << domain
+        std::cerr << lit << "\n  fun: " << fun << "\n  mon: " << mon << "\n  rec: " << rec << "\n  dom: " << dom
                   << "\n  global: "
                   << Util::p_range{vars_global, [](std::ostream &out, auto var) { out << "X_" << var; }} << '\n';
 
-        // TODO:
-        // - need guards
-        // - need
+        auto rec_body = ctx_->has_rec_body();
+        auto elem_priority = ctx_->inc_priority();
 
-        // initialize state
-        auto &state = ctx_->state<Ground::StateAggr>(vars_global.release(), std::move(guards), fun, mon, rec);
-        // #elem(X,0) :- b(X), 0 >= 1.
-        // TODO: ...
-        for (auto const &elem : lit.elems()) {
-            static_cast<void>(elem);
-            // #elem(X,num,tuple) :- body(vars), elem(vars)
-            // TODO: ...
+        std::cerr << "  prio: " << elem_priority << "\n";
+        std::cerr << "  rec_body: " << rec_body << "\n";
+
+        auto index = rec_body || rec ? ctx_->next_index() : Ground::stratified_index;
+        std::cerr << "  index: ";
+        if (index == Ground::stratified_index) {
+            std::cerr << "stratified";
+        } else {
+            std::cerr << index;
         }
+        std::cerr << "\n";
+        // initialize state
+        auto &state = ctx_->state<Ground::StateAggr>(vars_global.release(), std::move(guards), fun, index, mon, rec);
+
+        // rule for empty case
+        // #elem(X,0) :- b(X), 0 >= 1.
+        auto body = Ground::ULitVec{};
+        body.reserve(ctx_->body().size());
+        for (auto const &lit : ctx_->body()) {
+            body.emplace_back(lit->copy());
+        }
+        // ctx_->gcomp().add(std::make_unique<Ground::StmAggrElem>(state, std::move(body), elem_priority, index));
+
+        // rule for elements
+        // #elem(X,num,tuple) :- body(vars), elem(vars)
 
         ctx_->body().emplace_back(std::make_unique<Ground::LitAggr>(state));
         std::ostringstream oss;
         oss << "implement me: handle body aggregate " << lit;
+        std::cerr.flush();
         throw std::logic_error(oss.str());
     }
     //! Translate simple literals.
