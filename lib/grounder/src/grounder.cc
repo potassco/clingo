@@ -8,6 +8,7 @@
 #include <gringo/input/print.hh>
 
 #include <gringo/input/rewrite/analyze.hh>
+#include <gringo/input/rewrite/evaluate.hh>
 #include <gringo/input/rewrite/unpool_relations.hh>
 #include <gringo/input/rewrite/visit_variables.hh>
 
@@ -639,6 +640,7 @@ class BuilderBdLit {
         */
         // analyze: stratified, monotonicity, domain (per cond?), assign, indices, priorities
         // TODO: ...
+        auto &store = *ctx_->impl().store;
         auto vars_body = Ground::VariableSet{};
         for (auto const &lit : ctx_->body()) {
             lit->vars(vars_body, Ground::VarSelectMode::all);
@@ -676,7 +678,12 @@ class BuilderBdLit {
             auto elem_local = Ground::VariableSet{};
             auto elem_global = Ground::VariableVec{};
             cond.reserve(elem.cond().size());
-            tuple.reserve(elem.tuple().size());
+            if (lit.fun() == AggregateFunction::count) {
+                tuple.reserve(elem.tuple().size() + 1);
+                tuple.emplace_back(std::make_unique<Ground::TermSymbol>(store.num_ref(1)));
+            } else {
+                tuple.reserve(elem.tuple().size());
+            }
             for (auto const &term : elem.tuple()) {
                 bool has_projection = false;
                 tuple.emplace_back(std::visit(BuilderTerm{has_projection, ctx_->var_map()}, term));
@@ -723,6 +730,9 @@ class BuilderBdLit {
                                cond_dom, cond_rec);
         }
         auto fun = pos ? AggregateFunction::sump : lit.fun();
+        if (fun == AggregateFunction::count) {
+            fun = AggregateFunction::sump;
+        }
         auto mon = Input::reduct_is_monotone(lit.lhs(), fun, lit.rhs());
 
         std::cerr << lit << "\n  fun: " << fun << "\n  mon: " << mon << "\n  rec: " << rec << "\n  dom: " << dom
@@ -747,16 +757,46 @@ class BuilderBdLit {
         auto &state = ctx_->state<Ground::StateAggr>(vars_global.release(), std::move(guards), fun, index, mon, rec);
 
         // rule for empty case
-        // #elem(X,0) :- b(X), 0 >= 1.
         auto body = Ground::ULitVec{};
-        body.reserve(ctx_->body().size());
+        body.reserve(ctx_->body().size() + state.guards().size());
         for (auto const &lit : ctx_->body()) {
             body.emplace_back(lit->copy());
         }
-        // ctx_->gcomp().add(std::make_unique<Ground::StmAggrElem>(state, std::move(body), elem_priority, index));
+        auto neutral = store.num_ref(0);
+        if (fun == AggregateFunction::max) {
+            neutral = SymbolStore::sup();
+        } else if (fun == AggregateFunction::max) {
+            neutral = SymbolStore::inf();
+        }
+        bool add_neutral = true;
+        for (auto const &guard : state.guards()) {
+            if (auto const *rhs = dynamic_cast<Ground::TermSymbol const *>(guard.second.get()); rhs != nullptr) {
+                if (!Input::evaluate(neutral, guard.first, rhs->symbol())) {
+                    add_neutral = false;
+                    break;
+                }
+            } else {
+                body.emplace_back(std::make_unique<Ground::LitComparison>(std::make_unique<Ground::TermSymbol>(neutral),
+                                                                          guard.first, guard.second->copy()));
+            }
+        }
+        if (add_neutral) {
+            ctx_->gcomp().add(std::make_unique<Ground::StmAggrElem>(
+                state, Util::make_vec<Ground::UTerm>(std::make_unique<Ground::TermSymbol>(neutral)), std::move(body), 0,
+                Ground::VariableVec{}, Ground::VariableVec{}, true, false));
+        }
 
         // rule for elements
-        // #elem(X,num,tuple) :- body(vars), elem(vars)
+        for (auto &[tuple, cond, elem_global, elem_local, cond_dom, cond_rec] : elems) {
+            auto num = cond.size();
+            cond.reserve(ctx_->body().size() + cond.size());
+            for (auto const &lit : ctx_->body()) {
+                cond.emplace_back(lit->copy());
+            }
+            ctx_->gcomp().add(std::make_unique<Ground::StmAggrElem>(state, std::move(tuple), std::move(cond), num,
+                                                                    std::move(elem_global), std::move(elem_local),
+                                                                    cond_dom, cond_rec));
+        }
 
         ctx_->body().emplace_back(std::make_unique<Ground::LitAggr>(state));
         std::ostringstream oss;

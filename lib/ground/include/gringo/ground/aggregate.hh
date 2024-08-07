@@ -92,8 +92,16 @@ class LitAggr : public Lit {
 //! type of the aggregate.
 class StmAggrElem : public Stm {
   public:
-    StmAggrElem(StateAggr &state, VariableVec global, UTermVec tuple, ULitVec body)
-        : state_{&state}, global_{std::move(global)}, tuple_{std::move(tuple)}, body_{std::move(body)} {}
+    StmAggrElem(StateAggr &state, UTermVec tuple, ULitVec body, size_t num_cond, VariableVec global, VariableVec local,
+                bool dom, bool rec)
+        : state_{&state}, tuple_{std::move(tuple)}, body_{std::move(body)}, global_{std::move(global)},
+          local_{std::move(local)}, num_cond_{num_cond}, dom_{dom}, rec_{rec} {
+        static_cast<void>(global_);
+        static_cast<void>(local_);
+        static_cast<void>(num_cond_);
+        static_cast<void>(dom_);
+        static_cast<void>(rec_);
+    }
 
   private:
     void do_print(std::ostream &out) const override { out << "TODO"; }
@@ -133,9 +141,13 @@ class StmAggrElem : public Stm {
     void do_print_head(std::ostream &out) const override { out << "TODO"; }
 
     StateAggr *state_;
-    VariableVec global_;
     UTermVec tuple_;
     ULitVec body_;
+    VariableVec global_;
+    VariableVec local_;
+    size_t num_cond_;
+    bool dom_;
+    bool rec_;
 };
 
 } // namespace Gringo::Ground
