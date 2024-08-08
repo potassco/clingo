@@ -210,15 +210,46 @@ class StmAggrElem : public Stm {
         auto &ass = ctx.ass();
         auto global = Util::SpanStack<Symbol>{n}; // TODO: has to be become part of state
         auto syms = global.push_map(state_->global(), [&ass](auto var) { return *ass[var]; });
-        auto atoms = Util::ordered_set<Symbol const *, Util::SpanHash, Util::SpanEqualTo>{0, Util::SpanHash{n},
-                                                                                          Util::SpanEqualTo{n}};
-        auto [it, ins] = atoms.insert(syms.data());
+        auto atoms = Util::ordered_map<Symbol const *, std::vector<size_t>, Util::SpanHash, Util::SpanEqualTo>{
+            0, Util::SpanHash{n}, Util::SpanEqualTo{n}};
+        auto [it, ins] = atoms.emplace(syms.data(), std::vector<size_t>{});
         if (!ins) {
             global.pop();
         }
         auto atom_idx = it - atoms.begin();
 
-        // TODO: same for map from elements to tuples
+        // TODO: Tuples can have different sizes. The state must store
+        // different tables for different sizes. In practice, it is very likely
+        // that there is just one table so a forward list + a pointer in the
+        // element rule should be fine.
+        auto m = tuple_.size();
+        // TODO: could be avoided adding yet another function to the span_stack
+        auto buf = SymbolVec{};
+        buf.reserve(m + 2);
+        // with just a little bit of hackery, memory can be safed here
+        buf.emplace_back(Symbol::from_rep(m));
+        buf.emplace_back(Symbol::from_rep(atom_idx));
+        for (auto &term : tuple_) {
+            buf.emplace_back(*term->eval(ctx.store(), ass));
+        }
+        auto tuples = Util::SpanStack<Symbol>{m + 2};
+        syms = tuples.push(buf);
+        // TODO: the length of the tuble is stored in the beginning of the symbol pointer
+        // dedicated hash and equal to functions have to be used
+        auto elems = Util::ordered_map<Symbol const *, SymbolVec, Util::SpanHash, Util::SpanEqualTo>{
+            0, Util::SpanHash{m + 2}, Util::SpanEqualTo{m + 2}};
+        auto [jt, jns] = elems.emplace(syms.data(), SymbolVec{});
+        if (!jns) {
+            tuples.pop();
+        }
+        it.value().emplace_back(jt - elems.begin());
+
+        // NOTE: It does not have to be a pointer. It could also be an index.
+        auto stm_idx = reinterpret_cast<uintptr_t>(this); // NOLINT
+        jt.value().emplace_back(Symbol::from_rep(stm_idx));
+        for (auto const &var : local_) {
+            jt.value().emplace_back(ass[var].value());
+        }
 
         std::cerr << "accumulate:";
         std::cerr << "\n  atom idx: " << atom_idx;
