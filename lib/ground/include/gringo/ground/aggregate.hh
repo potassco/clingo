@@ -54,8 +54,7 @@ class LitAggr : public Lit {
         -> std::pair<UMatcher, std::optional<size_t>> override {
         static_cast<void>(type);
         static_cast<void>(bound);
-        // TODO
-        return {nullptr, 0};
+        throw std::logic_error("implement me: matcher for aggregate literal");
     }
 
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override {

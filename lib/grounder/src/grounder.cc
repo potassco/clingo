@@ -663,6 +663,9 @@ class BuilderBdLit {
                                 std::visit(BuilderTerm{has_projection, ctx_->var_map()}, lit.rhs()->second));
             guards.back().second->vars(vars_global);
         }
+        // check for assignment aggregates
+        bool assign = !std::all_of(vars_global.begin(), vars_global.end(),
+                                   [&vars_body](auto const &var) { return vars_body.contains(var); });
 
         auto dom = true;                                // all literals in conditions are domain
         auto rec = false;                               // at least one recursive condition
@@ -730,6 +733,7 @@ class BuilderBdLit {
                                cond_dom, cond_rec);
         }
         auto fun = pos ? AggregateFunction::sump : lit.fun();
+        // TODO: alternatively, treat the empty case below differently
         if (fun == AggregateFunction::count) {
             fun = AggregateFunction::sump;
         }
@@ -744,6 +748,7 @@ class BuilderBdLit {
 
         std::cerr << "  prio: " << elem_priority << "\n";
         std::cerr << "  rec_body: " << rec_body << "\n";
+        std::cerr << "  assign: " << assign << "\n";
 
         auto index = rec_body || rec ? ctx_->next_index() : Ground::stratified_index;
         std::cerr << "  index: ";
@@ -753,10 +758,15 @@ class BuilderBdLit {
             std::cerr << index;
         }
         std::cerr << "\n";
+
+        if (assign) {
+            throw std::logic_error("assignment aggregates are not yet supported");
+        }
+
         // initialize state
         auto &state = ctx_->state<Ground::StateAggr>(vars_global.release(), std::move(guards), fun, index, mon, rec);
 
-        // rule for empty case
+        // add rule for empty case
         auto body = Ground::ULitVec{};
         body.reserve(ctx_->body().size() + state.guards().size());
         for (auto const &lit : ctx_->body()) {
@@ -786,7 +796,7 @@ class BuilderBdLit {
                 Ground::VariableVec{}, Ground::VariableVec{}, true, false));
         }
 
-        // rule for elements
+        // add rules for elements
         for (auto &[tuple, cond, elem_global, elem_local, cond_dom, cond_rec] : elems) {
             auto num = cond.size();
             cond.reserve(ctx_->body().size() + cond.size());
@@ -799,10 +809,6 @@ class BuilderBdLit {
         }
 
         ctx_->body().emplace_back(std::make_unique<Ground::LitAggr>(state));
-        std::ostringstream oss;
-        oss << "implement me: handle body aggregate " << lit;
-        std::cerr.flush();
-        throw std::logic_error(oss.str());
     }
     //! Translate simple literals.
     void operator()(Input::BdLitSimple const &lit) const {
