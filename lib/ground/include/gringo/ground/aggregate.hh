@@ -3,6 +3,8 @@
 #include <gringo/ground/literal.hh>
 #include <gringo/ground/statement.hh>
 
+#include <gringo/util/print.hh>
+
 namespace Gringo::Ground {
 
 using GuardVec = std::vector<std::pair<Relation, UTerm>>;
@@ -62,7 +64,22 @@ class LitAggr : public Lit {
         return 0;
     }
 
-    void do_print(std::ostream &out) const override { out << "TODO"; }
+    void do_print(std::ostream &out) const override {
+        auto const &guards = state_->guards();
+        auto it = guards.begin();
+        if (guards.size() > 1) {
+            out << *it->second << " " << flip(it->first) << " ";
+            ++it;
+        }
+        out << state_->fun() << "("
+            << Util::p_range(state_->global(), [](std::ostream &out, auto var) { out << "X_" << var; }) << ")";
+        if (state_->index() != stratified_index) {
+            out << "[" << state_->index() << "]";
+        }
+        for (auto ie = guards.end(); it != ie; ++it) {
+            out << " " << it->first << " " << *it->second;
+        }
+    }
 
     auto do_output(InstantiationContext &ctx, OutputLit &out) const -> bool override {
         static_cast<void>(ctx);
@@ -91,11 +108,10 @@ class LitAggr : public Lit {
 //! type of the aggregate.
 class StmAggrElem : public Stm {
   public:
-    StmAggrElem(StateAggr &state, UTermVec tuple, ULitVec body, size_t num_cond, VariableVec global, VariableVec local,
+    StmAggrElem(StateAggr &state, UTermVec tuple, ULitVec body, size_t num_cond, VariableVec local, size_t priority,
                 bool dom, bool rec)
-        : state_{&state}, tuple_{std::move(tuple)}, body_{std::move(body)}, global_{std::move(global)},
-          local_{std::move(local)}, num_cond_{num_cond}, dom_{dom}, rec_{rec} {
-        static_cast<void>(global_);
+        : state_{&state}, tuple_{std::move(tuple)}, body_{std::move(body)}, local_{std::move(local)},
+          num_cond_{num_cond}, priority_{priority}, dom_{dom}, rec_{rec} {
         static_cast<void>(local_);
         static_cast<void>(num_cond_);
         static_cast<void>(dom_);
@@ -103,13 +119,11 @@ class StmAggrElem : public Stm {
     }
 
   private:
-    void do_print(std::ostream &out) const override { out << "TODO"; }
-
     [[nodiscard]] auto do_body() const -> ULitVec const & override { return body_; }
 
     [[nodiscard]] auto do_important() const -> VariableSet override {
         auto res = VariableSet{};
-        res.insert(global_.begin(), global_.end());
+        res.insert(state_->global().begin(), state_->global().end());
         for (auto const &term : tuple_) {
             term->vars(res);
         }
@@ -132,19 +146,33 @@ class StmAggrElem : public Stm {
         static_cast<void>(queue);
     }
 
-    [[nodiscard]] auto do_priority() const -> size_t override {
-        // TODO: must be dynamic/should be similar to condlit
-        return 0;
+    [[nodiscard]] auto do_priority() const -> size_t override { return priority_; }
+
+    void do_print_head(std::ostream &out) const override {
+        auto p_var = [](std::ostream &out, auto const &x) { out << "X_" << x; };
+        auto p_term = [](std::ostream &out, auto const &x) { out << *x; };
+        out << "#elem(";
+        out << "g(" << Util::p_range{state_->global(), p_var} << ")";
+        out << ",l(" << Util::p_range{local_, p_var} << ")";
+        out << ",t(" << Util::p_range{tuple_, p_term} << ")";
+        out << ")";
     }
 
-    void do_print_head(std::ostream &out) const override { out << "TODO"; }
+    void do_print(std::ostream &out) const override {
+        out << priority_ << ": ";
+        print_head(out);
+        if (state_->index() != stratified_index) {
+            out << "[" << state_->index() << "]";
+        }
+        out << " <- " << Util::p_range(body_, ", ", [](std::ostream &out, auto const &lit) { out << *lit; }) << ".";
+    }
 
     StateAggr *state_;
     UTermVec tuple_;
     ULitVec body_;
-    VariableVec global_;
     VariableVec local_;
     size_t num_cond_;
+    size_t priority_;
     bool dom_;
     bool rec_;
 };

@@ -670,8 +670,7 @@ class BuilderBdLit {
         auto dom = true;                                // all literals in conditions are domain
         auto rec = false;                               // at least one recursive condition
         auto pos = lit.fun() == AggregateFunction::sum; // sum aggregate can be turned into a sum+ aggregate
-        auto elems = std::vector<
-            std::tuple<Ground::UTermVec, Ground::ULitVec, Ground::VariableVec, Ground::VariableVec, bool, bool>>{};
+        auto elems = std::vector<std::tuple<Ground::UTermVec, Ground::ULitVec, Ground::VariableVec, bool, bool>>{};
         elems.reserve(lit.elems().size());
         for (auto const &elem : lit.elems()) {
             auto tuple = Ground::UTermVec{};
@@ -679,7 +678,6 @@ class BuilderBdLit {
             auto cond_dom = true;
             auto cond = Ground::ULitVec{};
             auto elem_local = Ground::VariableSet{};
-            auto elem_global = Ground::VariableVec{};
             cond.reserve(elem.cond().size());
             if (lit.fun() == AggregateFunction::count) {
                 tuple.reserve(elem.tuple().size() + 1);
@@ -717,20 +715,14 @@ class BuilderBdLit {
                     cond_dom = false;
                 }
             }
-            erase_if(elem_local, [&elem_global, &vars_body, &vars_global](auto const &x) {
-                if (vars_global.contains(x)) {
-                    elem_global.emplace_back(x);
-                    return true;
-                }
+            erase_if(elem_local, [&vars_body, &vars_global](auto const &x) {
                 if (vars_body.contains(x)) {
-                    elem_global.emplace_back(x);
                     vars_global.emplace(x);
                     return true;
                 }
                 return false;
             });
-            elems.emplace_back(std::move(tuple), std::move(cond), std::move(elem_global), elem_local.release(),
-                               cond_dom, cond_rec);
+            elems.emplace_back(std::move(tuple), std::move(cond), elem_local.release(), cond_dom, cond_rec);
         }
         auto fun = pos ? AggregateFunction::sump : lit.fun();
         // TODO: alternatively, treat the empty case below differently
@@ -793,19 +785,19 @@ class BuilderBdLit {
         if (add_neutral) {
             ctx_->gcomp().add(std::make_unique<Ground::StmAggrElem>(
                 state, Util::make_vec<Ground::UTerm>(std::make_unique<Ground::TermSymbol>(neutral)), std::move(body), 0,
-                Ground::VariableVec{}, Ground::VariableVec{}, true, false));
+                Ground::VariableVec{}, elem_priority, true, false));
         }
 
         // add rules for elements
-        for (auto &[tuple, cond, elem_global, elem_local, cond_dom, cond_rec] : elems) {
+        for (auto &[tuple, cond, elem_local, cond_dom, cond_rec] : elems) {
             auto num = cond.size();
             cond.reserve(ctx_->body().size() + cond.size());
             for (auto const &lit : ctx_->body()) {
                 cond.emplace_back(lit->copy());
             }
             ctx_->gcomp().add(std::make_unique<Ground::StmAggrElem>(state, std::move(tuple), std::move(cond), num,
-                                                                    std::move(elem_global), std::move(elem_local),
-                                                                    cond_dom, cond_rec));
+                                                                    std::move(elem_local), elem_priority, cond_dom,
+                                                                    cond_rec));
         }
 
         ctx_->body().emplace_back(std::make_unique<Ground::LitAggr>(state));
