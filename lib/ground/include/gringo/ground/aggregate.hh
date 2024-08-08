@@ -206,7 +206,22 @@ class StmAggrElem : public Stm {
         //   - potentially, shorter formulas if two elements have the same condition
         //     (uncommon in practice)
         // - the first implementation will be variant 1 because it does not require any interface extensions
+        auto n = state_->global().size();
+        auto &ass = ctx.ass();
+        auto global = Util::SpanStack<Symbol>{n}; // TODO: has to be become part of state
+        auto syms = global.push_map(state_->global(), [&ass](auto var) { return *ass[var]; });
+        auto atoms = Util::ordered_set<Symbol const *, Util::SpanHash, Util::SpanEqualTo>{0, Util::SpanHash{n},
+                                                                                          Util::SpanEqualTo{n}};
+        auto [it, ins] = atoms.insert(syms.data());
+        if (!ins) {
+            global.pop();
+        }
+        auto atom_idx = it - atoms.begin();
+
+        // TODO: same for map from elements to tuples
+
         std::cerr << "accumulate:";
+        std::cerr << "\n  atom idx: " << atom_idx;
         std::cerr << "\n  element id: <integer or maybe address of stm>";
         std::cerr << "\n  global:";
         for (auto const &var : state_->global()) {

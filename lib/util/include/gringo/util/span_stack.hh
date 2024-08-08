@@ -32,7 +32,7 @@ template <class T> class SpanStack {
         if (size_ == 0) {
             return std::span<T>{static_cast<T *>(nullptr), 0};
         }
-        return root_->push_map(arr, [](auto const &val) { return val; });
+        return push_map(arr, [](auto const &val) { return val; });
     }
 
     //! Push an element in-place constructing it from the given range.
