@@ -109,18 +109,16 @@ class InstanceCallback {
     [[nodiscard]] auto priority() const -> size_t { return do_priority(); }
     //! Print representation for debugging.
     void print_head(std::ostream &out) const { do_print_head(out); }
+    //! Check if the literal with the given index is important.
+    [[nodiscard]] auto is_important(size_t index) const -> bool { return do_is_important(index); }
 
   private:
-    //! Notify a statement that instantiation starts.
     virtual void do_init(size_t gen) = 0;
-    //! Report an assignment giving rise to an instance for a statement.
     [[nodiscard]] virtual auto do_report(InstantiationContext &ctx) -> bool = 0;
-    //! Notify a statement that instantiation has finished.
     virtual void do_propagate(Queue &queue) = 0;
-    //! The priority of the callback.
     [[nodiscard]] virtual auto do_priority() const -> size_t = 0;
-    //! Print representation for debugging.
     virtual void do_print_head(std::ostream &out) const = 0;
+    [[nodiscard]] virtual auto do_is_important([[maybe_unused]] size_t index) const -> bool { return true; }
 };
 
 //! An instantiator implementing the basic grounding algorithm.

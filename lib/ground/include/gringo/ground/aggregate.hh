@@ -1,9 +1,12 @@
 #pragma once
 
 #include <gringo/ground/literal.hh>
+#include <gringo/ground/matcher.hh>
 #include <gringo/ground/statement.hh>
 
 #include <gringo/util/print.hh>
+
+#include <iostream>
 
 namespace Gringo::Ground {
 
@@ -31,6 +34,13 @@ class StateAggr {
     bool recursive_;
 };
 
+class MatcherAggr : public OnceMatcher {
+  private:
+    auto do_once([[maybe_unused]] InstantiationContext &ctx) -> bool override {
+        throw std::logic_error("implement aggregate matcher");
+    }
+};
+
 //! Literal representing an aggregate.
 class LitAggr : public Lit {
   public:
@@ -56,7 +66,9 @@ class LitAggr : public Lit {
         -> std::pair<UMatcher, std::optional<size_t>> override {
         static_cast<void>(type);
         static_cast<void>(bound);
-        throw std::logic_error("implement me: matcher for aggregate literal");
+        // TODO: create proper matcher
+        return {std::make_unique<MatcherAggr>(),
+                state_->index() != stratified_index ? std::make_optional(state_->index()) : std::nullopt};
     }
 
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override {
@@ -127,12 +139,17 @@ class StmAggrElem : public Stm {
         for (auto const &term : tuple_) {
             term->vars(res);
         }
-        return VariableSet{};
+        return res;
+    }
+    [[nodiscard]] auto do_is_important(size_t index) const -> bool override {
+        // Only the literals gathered by do_important and the ones in the
+        // condition are important. The remaining ones in the body can be
+        // backtracked.
+        return index < num_cond_;
     }
 
-    void do_init(size_t gen) override {
-        // TODO: should be similar to condlit
-        static_cast<void>(gen);
+    void do_init([[maybe_unused]] size_t gen) override {
+        // by construction, this statement does not increment the generation
     }
 
     [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override {
@@ -182,14 +199,36 @@ class StmAggrElem : public Stm {
         //   - very similar to the above
         //   - potentially, shorter formulas if two elements have the same condition
         //     (uncommon in practice)
-        static_cast<void>(ctx);
+        // - the first implementation will be variant 1 because it does not require any interface extensions
+        std::cerr << "accumulate:";
+        std::cerr << "\n  element id: <integer or maybe address of stm>";
+        std::cerr << "\n  global:";
+        for (auto const &var : state_->global()) {
+            if (auto sym = ctx.ass()[var]) {
+                std::cerr << " " << *sym;
+            }
+        }
+        std::cerr << "\n  local:";
+        for (auto const &var : local_) {
+            if (auto sym = ctx.ass()[var]) {
+                std::cerr << " " << *sym;
+            }
+        }
+        std::cerr << "\n  tuple:";
+        for (auto const &term : tuple_) {
+            if (auto sym = term->eval(ctx.store(), ctx.ass())) {
+                std::cerr << " " << *sym;
+            }
+        }
+        std::cerr << "\n";
         return true;
     }
 
     void do_propagate(Queue &queue) override {
-        static_cast<void>(state_);
-        // TODO: should be similar to condlit
-        static_cast<void>(queue);
+        // TODO: should check if base has an update
+        if (state_->index() != stratified_index) {
+            queue.propagate(state_->index());
+        }
     }
 
     [[nodiscard]] auto do_priority() const -> size_t override { return priority_; }

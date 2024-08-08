@@ -21,7 +21,7 @@ void Linearizer::prepare(InstanceCallback &cb, ULitVec const &body, VariableSet 
         if (lit->recursive()) {
             rec_.emplace_back(i);
         }
-        if (!lit->domain() || (!domain_ && lit->recursive())) {
+        if (cb.is_important(i) && (!lit->domain() || (!domain_ && lit->recursive()))) {
             lit->vars(important, VarSelectMode::all);
         }
         ++i;
