@@ -595,7 +595,7 @@ auto StmCondLit::do_report(InstantiationContext &ctx) -> bool {
     return true;
 }
 
-void StmCondLit::do_propagate([[maybe_unused]] Queue &queue) {
+void StmCondLit::do_propagate(Queue &queue) {
     switch (type_) {
         case StmCondLitType::empty: {
             if (state_->base_empty().has_update()) {

@@ -25,6 +25,12 @@ class StateAggr {
     [[nodiscard]] auto recursive() const -> bool { return recursive_; }
     [[nodiscard]] auto index() const -> size_t { return index_; }
 
+    auto propagate() -> bool {
+        static_cast<void>(this);
+        std::cerr << "implement me: propagate aggregate" << '\n';
+        return false;
+    }
+
   private:
     VariableVec global_;
     GuardVec guards_;
@@ -225,8 +231,11 @@ class StmAggrElem : public Stm {
     }
 
     void do_propagate(Queue &queue) override {
-        // TODO: should check if base has an update
-        if (state_->index() != stratified_index) {
+        // This is called after all statements on the current priority have
+        // been processed. Thus, all element aggregation rules have been
+        // processed. Here, aggregates that can match are added to the base and
+        // are enqueued.
+        if (state_->propagate() && state_->index() != stratified_index) {
             queue.propagate(state_->index());
         }
     }
