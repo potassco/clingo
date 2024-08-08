@@ -136,6 +136,52 @@ class StmAggrElem : public Stm {
     }
 
     [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override {
+        // TODO:
+        // - the element should be stored including tuple and condition
+        // - storing the tuple is straightforward
+        // - there are different ways to store conditions
+        //   1. the local variables would be sufficient
+        //      + conditions representable as fixed size arrays
+        //      + conditions can be restored for output later on
+        //      + straightforward to implement
+        //      . some overhead to restore literals from assignment
+        //      . does not permit to implement all simplifications
+        //        - weights with equivalent conditions can be combined
+        //          to get a better estimate for lower/upper bounds
+        //        - interesting for the stratified case
+        //        - cumbersome/expensive in the recursive case
+        //        - probably not important in practice
+        //      > should work well in practice
+        //        - the combination of weights is something that can be deferred to the backend
+        //          (at the expense of a slight worse estimate of bounds)
+        //        - some overhead for deferred output
+        //   2. the atom indices could be stored because conditions are always simple literals
+        //      + conditions representable as fixed size arrays
+        //      + signs can be represented using the upper 2 bits
+        //      + efficient mapping from indices to atoms for deferred output
+        //      . all simplifications can be implemented
+        //      . unnecessary storage of ids for facts but at least domain literals can be omitted
+        //      > should work well in practice
+        //        - weight simplification would be expensive in the recursive case
+        //        - nicely works for deferred output
+        //   3. literal ids could be used
+        //      + all simplifications can be implemented
+        //      + no restrictions regarding literals in conditions
+        //      . conditions can be kept as short possible but have dynamic size
+        //      - additonal bookkeeping to map from ids to literals for deferred output
+        //      > not a good choice due to bookkeeping
+        // - either point 1 or 2 should be implemented
+        // - notes for point 1
+        //   - atoms: globals -> aggregate id
+        //   - tuples: (aggregate id, tuple) -> (formula id, fact, [[element id, locals]])
+        //     - fact can be made implicit by storing an empty list
+        //     - the element id and locals can be combined into one vector
+        //     - the elements should be unique
+        //     - a simple scan should suffice in practice because it is common that lists have a length of at most one
+        // - notes for point 2
+        //   - very similar to the above
+        //   - potentially, shorter formulas if two elements have the same condition
+        //     (uncommon in practice)
         static_cast<void>(ctx);
         return true;
     }
