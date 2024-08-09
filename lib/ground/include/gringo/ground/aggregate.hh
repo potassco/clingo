@@ -12,6 +12,96 @@ namespace Gringo::Ground {
 
 using GuardVec = std::vector<std::pair<Relation, UTerm>>;
 
+enum class AtomAggrState : uint8_t {
+    unknown = 0,
+    derived = 1,
+    fact = 2,
+};
+
+class AtomAggr {
+  public:
+    AtomAggr() = default;
+    std::vector<size_t> elems;
+    std::variant<std::monostate, std::pair<Number, Number>, std::pair<Symbol, Symbol>> bound_;
+    AtomAggrState state = AtomAggrState::unknown;
+};
+
+class BaseAggr : public BaseImpl<Symbol const *, BaseAggr> {
+  public:
+    using BaseImpl::contains;
+    //! Map containing the atoms.
+    using AtomMap = Util::ordered_map<Symbol const *, AtomAggr, Util::SpanHash, Util::SpanEqualTo>;
+
+    BaseAggr(size_t size) : atoms_{0, size, size} {}
+
+    //! Check if the base is domain.
+    //!
+    //! A base is domain if it contains facts only.
+    [[nodiscard]] auto domain() const {
+        for (auto n = derived_.size(); domain_offset_ < n; ++domain_offset_) {
+            if (atoms_.nth(derived_[domain_offset_])->second.state != AtomAggrState::fact) {
+                return false;
+            }
+        }
+        return true;
+    }
+    //! Check if the given atom is a fact.
+    //!
+    //! This function does not take into account to which generation an atom belongs.
+    //! It can also return true for atoms added to upcoming generations.
+    auto is_fact(Symbol const *sym) const -> bool {
+        auto it = atoms_.find(sym);
+        return it != atoms_.end() && it->second.state == AtomAggrState::fact;
+    }
+    //! Check if the base contains the given atom.
+    //!
+    //! This might include atoms that have not (yet) been derived.
+    [[nodiscard]] auto contains(Symbol const *sym) const -> bool {
+        auto it = atoms_.find(sym);
+        return it != atoms_.end();
+    }
+
+    //! Add an atom to the base.
+    //!
+    //! This function should be called during propagation if an aggregate can match.
+    auto add(AtomMap::const_iterator it) -> bool {
+        auto idx = atom_index_(it);
+        if (it->second.state == AtomAggrState::unknown) {
+            derived_.add(idx);
+            return true;
+        }
+        return false;
+    }
+
+    //! Get the number of derived atoms.
+    [[nodiscard]] auto size() const -> size_t { return derived_.size(); }
+
+    //! Get the atom index of the given symbol.
+    //!
+    //! Note that only derived atoms have indices.
+    auto index(Symbol const *sym) const -> size_t {
+        if (auto it = atoms_.find(sym); it != atoms_.end() && it->second.state != AtomAggrState::unknown) {
+            return derived_.find(atom_index_(it));
+        }
+        return size();
+    }
+    //! Get the i-th atom in the base.
+    auto nth(size_t i) const -> AtomMap::const_iterator { return atoms_.nth(derived_[i]); }
+    //! Get the i-th atom in the base.
+    auto nth(size_t i) -> AtomMap::iterator { return atoms_.nth(derived_[i]); }
+
+    [[nodiscard]] auto atoms() -> AtomMap & { return atoms_; }
+
+  private:
+    [[nodiscard]] auto atom_index_(AtomMap::const_iterator it) const -> size_t {
+        return static_cast<size_t>(std::distance(atoms_.cbegin(), it));
+    }
+
+    AtomMap atoms_;
+    Util::index_sequence<size_t> derived_;
+    size_t mutable domain_offset_ = 0;
+};
+
 class StateAggr {
   public:
     struct Tuple {
@@ -37,12 +127,12 @@ class StateAggr {
         GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
         // NOLINTEND
     };
-    using AtomMap = Util::ordered_map<Symbol const *, std::vector<size_t>, Util::SpanHash, Util::SpanEqualTo>;
+    using AtomMap = BaseAggr::AtomMap;
     using TupleMap = Util::ordered_map<Tuple *, SymbolVec>;
 
     StateAggr(VariableVec global, GuardVec guards, AggregateFunction fun, size_t index, bool monotone, bool recursive)
-        : atoms_{0, global.size(), global.size()}, global_{std::move(global)}, guards_{std::move(guards)},
-          index_{index}, fun_{fun}, monotone_{monotone}, recursive_{recursive} {}
+        : base_{global.size()}, global_{std::move(global)}, guards_{std::move(guards)}, index_{index}, fun_{fun},
+          monotone_{monotone}, recursive_{recursive} {}
 
     [[nodiscard]] auto global() const -> VariableVec const & { return global_; }
     [[nodiscard]] auto guards() const -> GuardVec const & { return guards_; }
@@ -74,7 +164,8 @@ class StateAggr {
         auto n = global_.size() * sizeof(Symbol);
         auto &tup = node_store_.construct<GTup>(n, global_, ass);
 
-        auto [it, ins] = atoms_.emplace(tup.syms, std::vector<size_t>{});
+        auto [it, ins] =
+            base_.atoms().emplace(std::piecewise_construct, std::forward_as_tuple(tup.syms), std::forward_as_tuple());
         if (!ins) {
             node_store_.reclaim(n, tup);
         }
@@ -90,7 +181,7 @@ class StateAggr {
         if (!jns) {
             node_store_.reclaim(n, tup);
         }
-        it.value().emplace_back(jt - tuples_.begin());
+        it.value().elems.emplace_back(jt - tuples_.begin());
         return jt;
     }
 
@@ -104,13 +195,13 @@ class StateAggr {
         }
     }
 
-    auto index(AtomMap::iterator it) -> size_t { return it - atoms_.begin(); }
+    auto index(AtomMap::iterator it) -> size_t { return it - base_.atoms().begin(); }
 
     auto index(TupleMap::iterator it) -> size_t { return it - tuples_.begin(); }
 
   private:
     Util::NodeStore<alignof(Symbol)> node_store_;
-    AtomMap atoms_;
+    BaseAggr base_;
     TupleMap tuples_;
     VariableVec global_;
     GuardVec guards_;
