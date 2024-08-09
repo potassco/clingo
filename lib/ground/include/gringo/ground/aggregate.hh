@@ -14,9 +14,35 @@ using GuardVec = std::vector<std::pair<Relation, UTerm>>;
 
 class StateAggr {
   public:
+    struct Tuple {
+        // NOLINTBEGIN
+        Tuple(size_t atom_idx, UTermVec const &tuple, SymbolStore &store, Assignment &ass)
+            : n{tuple.size()}, atom_idx{atom_idx} {
+            auto *it = syms;
+            for (auto const &term : tuple) {
+                *it++ = term->eval(store, ass).value();
+            }
+        }
+        auto span() const -> SymbolSpan { return SymbolSpan{syms, n}; }
+        auto hash() const -> size_t { return Util::value_hash_record<Tuple>(n, atom_idx, span()); }
+        friend auto operator==(Tuple const &a, Tuple const &b) -> bool {
+            return a.atom_idx == b.atom_idx && a.n == b.n &&
+                   std::equal(a.span().begin(), a.span().end(), b.span().begin());
+        }
+        // Note: in practice these two could be combined to safe a little bit of memory
+        size_t n;
+        size_t atom_idx;
+        GRINGO_IGNORE_ZERO_SIZED_ARRAY_B
+        Symbol syms[0];
+        GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
+        // NOLINTEND
+    };
+    using AtomMap = Util::ordered_map<Symbol const *, std::vector<size_t>, Util::SpanHash, Util::SpanEqualTo>;
+    using TupleMap = Util::ordered_map<Tuple *, SymbolVec>;
+
     StateAggr(VariableVec global, GuardVec guards, AggregateFunction fun, size_t index, bool monotone, bool recursive)
-        : global_{std::move(global)}, guards_{std::move(guards)}, index_{index}, fun_{fun}, monotone_{monotone},
-          recursive_{recursive} {}
+        : atoms_{0, global.size(), global.size()}, global_{std::move(global)}, guards_{std::move(guards)},
+          index_{index}, fun_{fun}, monotone_{monotone}, recursive_{recursive} {}
 
     [[nodiscard]] auto global() const -> VariableVec const & { return global_; }
     [[nodiscard]] auto guards() const -> GuardVec const & { return guards_; }
@@ -31,7 +57,61 @@ class StateAggr {
         return false;
     }
 
+    auto insert_global(Assignment &ass) -> AtomMap::iterator {
+        struct GTup {
+            // NOLINTBEGIN
+            GTup(VariableVec const &global, Assignment &ass) {
+                auto *it = syms;
+                for (auto const &var : global) {
+                    *it++ = ass[var].value();
+                }
+            }
+            GRINGO_IGNORE_ZERO_SIZED_ARRAY_B
+            Symbol syms[0];
+            GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
+            // NOLINTEND
+        };
+        auto n = global_.size() * sizeof(Symbol);
+        auto &tup = node_store_.construct<GTup>(n, global_, ass);
+
+        auto [it, ins] = atoms_.emplace(tup.syms, std::vector<size_t>{});
+        if (!ins) {
+            node_store_.reclaim(n, tup);
+        }
+        return it;
+    }
+
+    auto insert_tuple(AtomMap::iterator it, UTermVec const &tuple, SymbolStore &store,
+                      Assignment &ass) -> TupleMap::iterator {
+        auto n = sizeof(StateAggr::Tuple) + tuple.size() * sizeof(Symbol);
+        auto &tup = node_store_.construct<Tuple>(n, index(it), tuple, store, ass);
+
+        auto [jt, jns] = tuples_.emplace(&tup, SymbolVec{});
+        if (!jns) {
+            node_store_.reclaim(n, tup);
+        }
+        it.value().emplace_back(jt - tuples_.begin());
+        return jt;
+    }
+
+    auto insert_local(TupleMap::iterator it, uint64_t stm_idx, VariableVec const &local, Assignment &ass) {
+        static_cast<void>(this);
+        // NOTE: It does not have to be a pointer. It could also be an index.
+        it.value().emplace_back(Symbol::from_rep(stm_idx));
+        for (auto const &var : local) {
+            // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+            it.value().emplace_back(ass[var].value());
+        }
+    }
+
+    auto index(AtomMap::iterator it) -> size_t { return it - atoms_.begin(); }
+
+    auto index(TupleMap::iterator it) -> size_t { return it - tuples_.begin(); }
+
   private:
+    Util::NodeStore<alignof(Symbol)> node_store_;
+    AtomMap atoms_;
+    TupleMap tuples_;
     VariableVec global_;
     GuardVec guards_;
     size_t index_;
@@ -158,6 +238,12 @@ class StmAggrElem : public Stm {
         // by construction, this statement does not increment the generation
     }
 
+    auto index() -> uint64_t {
+        static_assert(sizeof(uintptr_t) <= sizeof(uint64_t));
+        // NOLINTNEXTLINE
+        return reinterpret_cast<uintptr_t>(this);
+    }
+
     [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override {
         // TODO:
         // - the element should be stored including tuple and condition
@@ -207,79 +293,14 @@ class StmAggrElem : public Stm {
         //     (uncommon in practice)
         // - the first implementation will be variant 1 because it does not require any interface extensions
 
-        // TODO: move to state
-        struct GlobalTuple {
-            // NOLINTBEGIN
-            GlobalTuple(StateAggr &state, Assignment &ass) {
-                auto *it = syms;
-                for (auto const &var : state.global()) {
-                    *it++ = *ass[var];
-                }
-            }
-            GRINGO_IGNORE_ZERO_SIZED_ARRAY_B
-            Symbol syms[0];
-            GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
-            // NOLINTEND
-        };
         auto &ass = ctx.ass();
-        auto node_store = Util::NodeStore<alignof(Symbol)>{};
-        auto n = state_->global().size();
-        auto &gtup = node_store.construct<GlobalTuple>(n * sizeof(Symbol), *state_, ass);
-
-        auto atoms = Util::ordered_map<Symbol const *, std::vector<size_t>, Util::SpanHash, Util::SpanEqualTo>{
-            0, Util::SpanHash{n}, Util::SpanEqualTo{n}};
-        auto [it, ins] = atoms.emplace(gtup.syms, std::vector<size_t>{});
-        if (!ins) {
-            node_store.reclaim(n * sizeof(Symbol), gtup);
-        }
-        auto atom_idx = static_cast<size_t>(it - atoms.begin());
-
-        // TODO: move to state
-        struct LocalTuple {
-            // NOLINTBEGIN
-            LocalTuple(size_t atom_idx, UTermVec const &tuple, SymbolStore &store, Assignment &ass)
-                : n{tuple.size()}, atom_idx{atom_idx} {
-                auto *it = syms;
-                for (auto const &term : tuple) {
-                    *it++ = *term->eval(store, ass);
-                }
-            }
-            auto span() const -> SymbolSpan { return SymbolSpan{syms, n}; }
-            auto hash() const -> size_t { return Util::value_hash_record<LocalTuple>(n, atom_idx, span()); }
-            auto operator==(LocalTuple const &b) const -> bool {
-                auto const &a = *this;
-                return a.atom_idx == b.atom_idx && a.n == b.n &&
-                       std::equal(a.span().begin(), a.span().end(), b.span().begin());
-            }
-            // Note: in practice these two could be combined to safe a little bit of memory
-            size_t n;
-            size_t atom_idx;
-            GRINGO_IGNORE_ZERO_SIZED_ARRAY_B
-            Symbol syms[0];
-            GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
-            // NOLINTEND
-        };
-
-        auto m = sizeof(LocalTuple) + tuple_.size() * sizeof(Symbol);
-        auto &ltup = node_store.construct<LocalTuple>(m, atom_idx, tuple_, ctx.store(), ass);
-
-        auto elems = Util::ordered_map<LocalTuple *, SymbolVec>{};
-        auto [jt, jns] = elems.emplace(&ltup, SymbolVec{});
-        if (!jns) {
-            node_store.reclaim(m, ltup);
-        }
-        it.value().emplace_back(jt - elems.begin());
-
-        // NOTE: It does not have to be a pointer. It could also be an index.
-        auto stm_idx = reinterpret_cast<uintptr_t>(this); // NOLINT
-        jt.value().emplace_back(Symbol::from_rep(stm_idx));
-        for (auto const &var : local_) {
-            jt.value().emplace_back(ass[var].value());
-        }
+        auto it = state_->insert_global(ass);
+        auto jt = state_->insert_tuple(it, tuple_, ctx.store(), ass);
+        state_->insert_local(jt, index(), local_, ass);
 
         std::cerr << "accumulate:";
-        std::cerr << "\n  atom idx: " << atom_idx;
-        std::cerr << "\n  element id: <integer or maybe address of stm>";
+        std::cerr << "\n  atom id: " << state_->index(it);
+        std::cerr << "\n  element id: " << state_->index(jt);
         std::cerr << "\n  global:";
         for (auto const &var : state_->global()) {
             if (auto sym = ctx.ass()[var]) {
