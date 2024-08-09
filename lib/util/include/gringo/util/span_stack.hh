@@ -3,12 +3,46 @@
 #include <gringo/util/hash.hh>
 #include <gringo/util/macro.hh>
 
+#include <cassert>
+#include <memory_resource>
 #include <span>
 
 namespace Gringo::Util {
 
 //! @addtogroup util_container
 //! @{
+
+//! Helper to allocate dynamically sized objects with lifetimes bound to this store.
+//!
+//! Intended for a large number of small objects.
+template <size_t align> class NodeStore {
+  public:
+    //! Construct a new object with the given size and arguments.
+    template <class T, class... Args>
+        requires std::is_trivially_destructible_v<T> && (alignof(T) <= align)
+    auto construct(size_t size, Args &&...args) -> T & {
+        void *mem = nullptr;
+        auto it = std::find_if(free_.begin(), free_.end(), [size](auto const &x) { return x.first == size; });
+        if (it != free_.end()) {
+            std::swap(*it, free_.back());
+            free_.pop_back();
+            mem = it->second;
+        } else {
+            mem = mbr_.allocate(size, align);
+        }
+        return *new (mem) T{std::forward<Args>(args)...};
+    }
+
+    //! Reclaim the given object.
+    template <class T> auto reclaim(size_t size, T &x) {
+        x.~T();
+        free_.emplace_back(size, static_cast<void *>(&x));
+    }
+
+  private:
+    std::pmr::monotonic_buffer_resource mbr_;
+    std::vector<std::pair<size_t, void *>> free_;
+};
 
 //! Allocation size in bytes for chunks.
 constexpr auto page_size = size_t{4096};

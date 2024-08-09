@@ -206,41 +206,67 @@ class StmAggrElem : public Stm {
         //   - potentially, shorter formulas if two elements have the same condition
         //     (uncommon in practice)
         // - the first implementation will be variant 1 because it does not require any interface extensions
-        auto n = state_->global().size();
+
+        // TODO: move to state
+        struct GlobalTuple {
+            // NOLINTBEGIN
+            GlobalTuple(StateAggr &state, Assignment &ass) {
+                auto *it = syms;
+                for (auto const &var : state.global()) {
+                    *it++ = *ass[var];
+                }
+            }
+            GRINGO_IGNORE_ZERO_SIZED_ARRAY_B
+            Symbol syms[0];
+            GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
+            // NOLINTEND
+        };
         auto &ass = ctx.ass();
-        auto global = Util::SpanStack<Symbol>{n}; // TODO: has to be become part of state
-        auto syms = global.push_map(state_->global(), [&ass](auto var) { return *ass[var]; });
+        auto node_store = Util::NodeStore<alignof(Symbol)>{};
+        auto n = state_->global().size();
+        auto &gtup = node_store.construct<GlobalTuple>(n * sizeof(Symbol), *state_, ass);
+
         auto atoms = Util::ordered_map<Symbol const *, std::vector<size_t>, Util::SpanHash, Util::SpanEqualTo>{
             0, Util::SpanHash{n}, Util::SpanEqualTo{n}};
-        auto [it, ins] = atoms.emplace(syms.data(), std::vector<size_t>{});
+        auto [it, ins] = atoms.emplace(gtup.syms, std::vector<size_t>{});
         if (!ins) {
-            global.pop();
+            node_store.reclaim(n * sizeof(Symbol), gtup);
         }
-        auto atom_idx = it - atoms.begin();
+        auto atom_idx = static_cast<size_t>(it - atoms.begin());
 
-        // TODO: Tuples can have different sizes. The state must store
-        // different tables for different sizes. In practice, it is very likely
-        // that there is just one table so a forward list + a pointer in the
-        // element rule should be fine.
-        auto m = tuple_.size();
-        // TODO: could be avoided adding yet another function to the span_stack
-        auto buf = SymbolVec{};
-        buf.reserve(m + 2);
-        // with just a little bit of hackery, memory can be safed here
-        buf.emplace_back(Symbol::from_rep(m));
-        buf.emplace_back(Symbol::from_rep(atom_idx));
-        for (auto &term : tuple_) {
-            buf.emplace_back(*term->eval(ctx.store(), ass));
-        }
-        auto tuples = Util::SpanStack<Symbol>{m + 2};
-        syms = tuples.push(buf);
-        // TODO: the length of the tuble is stored in the beginning of the symbol pointer
-        // dedicated hash and equal to functions have to be used
-        auto elems = Util::ordered_map<Symbol const *, SymbolVec, Util::SpanHash, Util::SpanEqualTo>{
-            0, Util::SpanHash{m + 2}, Util::SpanEqualTo{m + 2}};
-        auto [jt, jns] = elems.emplace(syms.data(), SymbolVec{});
+        // TODO: move to state
+        struct LocalTuple {
+            // NOLINTBEGIN
+            LocalTuple(size_t atom_idx, UTermVec const &tuple, SymbolStore &store, Assignment &ass)
+                : n{tuple.size()}, atom_idx{atom_idx} {
+                auto *it = syms;
+                for (auto const &term : tuple) {
+                    *it++ = *term->eval(store, ass);
+                }
+            }
+            auto span() const -> SymbolSpan { return SymbolSpan{syms, n}; }
+            auto hash() const -> size_t { return Util::value_hash_record<LocalTuple>(n, atom_idx, span()); }
+            auto operator==(LocalTuple const &b) const -> bool {
+                auto const &a = *this;
+                return a.atom_idx == b.atom_idx && a.n == b.n &&
+                       std::equal(a.span().begin(), a.span().end(), b.span().begin());
+            }
+            // Note: in practice these two could be combined to safe a little bit of memory
+            size_t n;
+            size_t atom_idx;
+            GRINGO_IGNORE_ZERO_SIZED_ARRAY_B
+            Symbol syms[0];
+            GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
+            // NOLINTEND
+        };
+
+        auto m = sizeof(LocalTuple) + tuple_.size() * sizeof(Symbol);
+        auto &ltup = node_store.construct<LocalTuple>(m, atom_idx, tuple_, ctx.store(), ass);
+
+        auto elems = Util::ordered_map<LocalTuple *, SymbolVec>{};
+        auto [jt, jns] = elems.emplace(&ltup, SymbolVec{});
         if (!jns) {
-            tuples.pop();
+            node_store.reclaim(m, ltup);
         }
         it.value().emplace_back(jt - elems.begin());
 
