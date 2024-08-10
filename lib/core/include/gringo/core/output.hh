@@ -58,6 +58,9 @@ class OutputStm {
     //! At most one element must be added to the conclusion.
     void cond_lit_conclusion(size_t lit_uid, size_t elem_uid) { do_cond_lit_conclusion(lit_uid, elem_uid); }
 
+    //! Commit a condition of simple literals returning its id.
+    auto cond_id() -> size_t { return do_cond_id(); }
+
     //! Flush all delayed rule assuming they are completely defined.
     //!
     //! Should be called after grounding a component.
@@ -79,6 +82,8 @@ class OutputStm {
     virtual auto do_cond() -> OutputLit & = 0;
     virtual void do_cond_lit_premise(size_t lit_uid, size_t elem_uid) = 0;
     virtual void do_cond_lit_conclusion(size_t lit_uid, size_t elem_uid) = 0;
+
+    virtual auto do_cond_id() -> size_t = 0;
 
     virtual void do_flush() = 0;
     virtual void do_end_step() = 0;

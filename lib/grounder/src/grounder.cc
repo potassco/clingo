@@ -670,14 +670,14 @@ class BuilderBdLit {
         auto dom = true;                                // all literals in conditions are domain
         auto rec = false;                               // at least one recursive condition
         auto pos = lit.fun() == AggregateFunction::sum; // sum aggregate can be turned into a sum+ aggregate
-        auto elems = std::vector<std::tuple<Ground::UTermVec, Ground::ULitVec, Ground::VariableVec, bool, bool>>{};
+        auto elems = std::vector<std::tuple<Ground::UTermVec, Ground::ULitVec, bool, bool>>{};
         elems.reserve(lit.elems().size());
         for (auto const &elem : lit.elems()) {
             auto tuple = Ground::UTermVec{};
             auto cond_rec = false;
             auto cond_dom = true;
             auto cond = Ground::ULitVec{};
-            auto elem_local = Ground::VariableSet{};
+            auto elem_vars = Ground::VariableSet{};
             cond.reserve(elem.cond().size());
             if (lit.fun() == AggregateFunction::count) {
                 tuple.reserve(elem.tuple().size() + 1);
@@ -688,7 +688,7 @@ class BuilderBdLit {
             for (auto const &term : elem.tuple()) {
                 bool has_projection = false;
                 tuple.emplace_back(std::visit(BuilderTerm{has_projection, ctx_->var_map()}, term));
-                tuple.back()->vars(elem_local);
+                tuple.back()->vars(elem_vars);
             }
             pos = pos && std::visit(
                              []<class T>(T const &weight) {
@@ -705,8 +705,8 @@ class BuilderBdLit {
                     cond_rec = true;
                 }
                 std::visit(BuilderLit{*ctx_,
-                                      [&cond, &elem_local]<class Lit>(Lit &&glit) {
-                                          glit->vars(elem_local, Ground::VarSelectMode::all);
+                                      [&cond, &elem_vars]<class Lit>(Lit &&glit) {
+                                          glit->vars(elem_vars, Ground::VarSelectMode::all);
                                           cond.emplace_back(std::forward<Lit>(glit));
                                       }},
                            lit);
@@ -715,14 +715,12 @@ class BuilderBdLit {
                     cond_dom = false;
                 }
             }
-            erase_if(elem_local, [&vars_body, &vars_global](auto const &x) {
-                if (vars_body.contains(x)) {
-                    vars_global.emplace(x);
-                    return true;
+            for (auto const &var : elem_vars) {
+                if (vars_body.contains(var)) {
+                    vars_global.emplace(var);
                 }
-                return false;
-            });
-            elems.emplace_back(std::move(tuple), std::move(cond), elem_local.release(), cond_dom, cond_rec);
+            };
+            elems.emplace_back(std::move(tuple), std::move(cond), cond_dom, cond_rec);
         }
         auto fun = pos ? AggregateFunction::sump : lit.fun();
         // TODO: alternatively, treat the empty case below differently
@@ -785,19 +783,18 @@ class BuilderBdLit {
         if (add_neutral) {
             ctx_->gcomp().add(std::make_unique<Ground::StmAggrElem>(
                 state, Util::make_vec<Ground::UTerm>(std::make_unique<Ground::TermSymbol>(neutral)), std::move(body), 0,
-                Ground::VariableVec{}, elem_priority, true, false));
+                elem_priority, true, false));
         }
 
         // add rules for elements
-        for (auto &[tuple, cond, elem_local, cond_dom, cond_rec] : elems) {
+        for (auto &[tuple, cond, cond_dom, cond_rec] : elems) {
             auto num = cond.size();
             cond.reserve(ctx_->body().size() + cond.size());
             for (auto const &lit : ctx_->body()) {
                 cond.emplace_back(lit->copy());
             }
             ctx_->gcomp().add(std::make_unique<Ground::StmAggrElem>(state, std::move(tuple), std::move(cond), num,
-                                                                    std::move(elem_local), elem_priority, cond_dom,
-                                                                    cond_rec));
+                                                                    elem_priority, cond_dom, cond_rec));
         }
 
         ctx_->body().emplace_back(std::make_unique<Ground::LitAggr>(state));

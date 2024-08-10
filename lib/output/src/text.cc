@@ -102,7 +102,6 @@ class OutputBody : public OutputLit {
     Util::unordered_map<size_t, std::string> defined_;
     std::vector<std::vector<std::variant<std::string, size_t>>> delayed_;
 };
-
 class OutputCond : public OutputSimple {
   public:
     void start() {
@@ -166,6 +165,7 @@ class OutputText : public OutputStm {
         cond_.start();
         return cond_;
     }
+    auto do_cond_id() -> size_t override { return conds_.emplace(cond_.end(), conds_.size()).first->second; }
     void do_cond_lit_premise(size_t lit_uid, size_t elem_uid) override {
         cond_lits_[lit_uid].emplace_back(elem_uid);
         cond_lit_elems_.emplace(std::make_pair(lit_uid, elem_uid), std::make_pair("#false", cond_.end()));
@@ -173,6 +173,7 @@ class OutputText : public OutputStm {
     void do_cond_lit_conclusion(size_t lit_uid, size_t elem_uid) override {
         cond_lit_elems_[std::make_pair(lit_uid, elem_uid)].first = cond_.end();
     }
+
     auto do_uid() -> size_t override { return ++uids_; }
 
     void do_flush() override {
@@ -209,6 +210,7 @@ class OutputText : public OutputStm {
     std::ostream *out_;
     OutputBody body_;
     OutputCond cond_;
+    Util::unordered_map<std::string, size_t> conds_;
     Util::unordered_map<std::pair<size_t, size_t>, std::pair<std::string, std::string>> cond_lit_elems_;
     Util::unordered_map<size_t, std::vector<size_t>> cond_lits_;
     size_t uids_ = 0;

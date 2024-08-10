@@ -24,6 +24,7 @@ class NullOutputStm : public OutputStm, public NullOutputLit {
     auto do_body() -> OutputLit & override { return *this; }
     void do_rule([[maybe_unused]] std::optional<Symbol> head) override {}
     auto do_cond() -> OutputLit & override { return *this; }
+    auto do_cond_id() -> size_t override { return 0; }
     void do_cond_lit_premise([[maybe_unused]] size_t lit_index, [[maybe_unused]] size_t elem_index) override {}
     void do_cond_lit_conclusion([[maybe_unused]] size_t lit_index, [[maybe_unused]] size_t elem_index) override {}
     void do_flush() override {}

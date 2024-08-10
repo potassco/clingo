@@ -128,7 +128,7 @@ class StateAggr {
         // NOLINTEND
     };
     using AtomMap = BaseAggr::AtomMap;
-    using TupleMap = Util::ordered_map<Tuple *, SymbolVec>;
+    using TupleMap = Util::ordered_map<Tuple *, std::vector<size_t>>;
 
     StateAggr(VariableVec global, GuardVec guards, AggregateFunction fun, size_t index, bool monotone, bool recursive)
         : base_{global.size()}, global_{std::move(global)}, guards_{std::move(guards)}, index_{index}, fun_{fun},
@@ -177,22 +177,12 @@ class StateAggr {
         auto n = sizeof(StateAggr::Tuple) + tuple.size() * sizeof(Symbol);
         auto &tup = node_store_.construct<Tuple>(n, index(it), tuple, store, ass);
 
-        auto [jt, jns] = tuples_.emplace(&tup, SymbolVec{});
+        auto [jt, jns] = tuples_.emplace(&tup, std::vector<size_t>{});
         if (!jns) {
             node_store_.reclaim(n, tup);
         }
         it.value().elems.emplace_back(jt - tuples_.begin());
         return jt;
-    }
-
-    auto insert_local(TupleMap::iterator it, uint64_t stm_idx, VariableVec const &local, Assignment &ass) {
-        static_cast<void>(this);
-        // NOTE: It does not have to be a pointer. It could also be an index.
-        it.value().emplace_back(Symbol::from_rep(stm_idx));
-        for (auto const &var : local) {
-            // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-            it.value().emplace_back(ass[var].value());
-        }
     }
 
     auto index(AtomMap::iterator it) -> size_t { return it - base_.atoms().begin(); }
@@ -297,11 +287,9 @@ class LitAggr : public Lit {
 //! type of the aggregate.
 class StmAggrElem : public Stm {
   public:
-    StmAggrElem(StateAggr &state, UTermVec tuple, ULitVec body, size_t num_cond, VariableVec local, size_t priority,
-                bool dom, bool rec)
-        : state_{&state}, tuple_{std::move(tuple)}, body_{std::move(body)}, local_{std::move(local)},
-          num_cond_{num_cond}, priority_{priority}, dom_{dom}, rec_{rec} {
-        static_cast<void>(local_);
+    StmAggrElem(StateAggr &state, UTermVec tuple, ULitVec body, size_t num_cond, size_t priority, bool dom, bool rec)
+        : state_{&state}, tuple_{std::move(tuple)}, body_{std::move(body)}, num_cond_{num_cond}, priority_{priority},
+          dom_{dom}, rec_{rec} {
         static_cast<void>(num_cond_);
         static_cast<void>(dom_);
         static_cast<void>(rec_);
@@ -336,70 +324,35 @@ class StmAggrElem : public Stm {
     }
 
     [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override {
-        // TODO:
-        // - the element should be stored including tuple and condition
-        // - storing the tuple is straightforward
-        // - there are different ways to store conditions
-        //   1. the local variables would be sufficient
-        //      + conditions representable as fixed size arrays
-        //      + conditions can be restored for output later on
-        //      + straightforward to implement
-        //      . some overhead to restore literals from assignment
-        //      . does not permit to implement all simplifications
-        //        - weights with equivalent conditions can be combined
-        //          to get a better estimate for lower/upper bounds
-        //        - interesting for the stratified case
-        //        - cumbersome/expensive in the recursive case
-        //        - probably not important in practice
-        //      > should work well in practice
-        //        - the combination of weights is something that can be deferred to the backend
-        //          (at the expense of a slight worse estimate of bounds)
-        //        - some overhead for deferred output
-        //   2. the atom indices could be stored because conditions are always simple literals
-        //      + conditions representable as fixed size arrays
-        //      + signs can be represented using the upper 2 bits
-        //      + efficient mapping from indices to atoms for deferred output
-        //      . all simplifications can be implemented
-        //      . unnecessary storage of ids for facts but at least domain literals can be omitted
-        //      > should work well in practice
-        //        - weight simplification would be expensive in the recursive case
-        //        - nicely works for deferred output
-        //   3. literal ids could be used
-        //      + all simplifications can be implemented
-        //      + no restrictions regarding literals in conditions
-        //      . conditions can be kept as short possible but have dynamic size
-        //      - additonal bookkeeping to map from ids to literals for deferred output
-        //      > not a good choice due to bookkeeping
-        // - either point 1 or 2 should be implemented
-        // - notes for point 1
-        //   - atoms: globals -> aggregate id
-        //   - tuples: (aggregate id, tuple) -> (formula id, fact, [[element id, locals]])
-        //     - fact can be made implicit by storing an empty list
-        //     - the element id and locals can be combined into one vector
-        //     - the elements should be unique
-        //     - a simple scan should suffice in practice because it is common that lists have a length of at most one
-        // - notes for point 2
-        //   - very similar to the above
-        //   - potentially, shorter formulas if two elements have the same condition
-        //     (uncommon in practice)
-        // - the first implementation will be variant 1 because it does not require any interface extensions
-
-        auto &ass = ctx.ass();
-        auto it = state_->insert_global(ass);
-        auto jt = state_->insert_tuple(it, tuple_, ctx.store(), ass);
-        state_->insert_local(jt, index(), local_, ass);
-
-        std::cerr << "accumulate:";
-        std::cerr << "\n  atom id: " << state_->index(it);
-        std::cerr << "\n  element id: " << state_->index(jt);
-        std::cerr << "\n  global:";
-        for (auto const &var : state_->global()) {
-            if (auto sym = ctx.ass()[var]) {
-                std::cerr << " " << *sym;
+        // output the condition
+        bool fact = true;
+        auto &out = ctx.out().cond();
+        for (auto const &lit : body_) {
+            if (lit->output(ctx, out)) {
+                fact = false;
             }
         }
-        std::cerr << "\n  local:";
-        for (auto const &var : local_) {
+        auto cond_id = ctx.out().cond_id();
+
+        // insert aggregate, tuple, and append condition
+        auto &ass = ctx.ass();
+        auto it = state_->insert_global(ass);
+        // TODO: the fact status should be added to the tuple
+        auto jt = state_->insert_tuple(it, tuple_, ctx.store(), ass);
+        jt.value().emplace_back(cond_id);
+
+        // TODO: the element should also be output here
+
+        // TODO: enque aggregate for propagation (and bound accumulation)
+        // ...
+
+        std::cerr << "accumulate:";
+        std::cerr << "\n  fact: " << fact;
+        std::cerr << "\n  atom id: " << state_->index(it);
+        std::cerr << "\n  element id: " << state_->index(jt);
+        std::cerr << "\n  condition id: " << cond_id;
+        std::cerr << "\n  global:";
+        for (auto const &var : state_->global()) {
             if (auto sym = ctx.ass()[var]) {
                 std::cerr << " " << *sym;
             }
@@ -431,7 +384,6 @@ class StmAggrElem : public Stm {
         auto p_term = [](std::ostream &out, auto const &x) { out << *x; };
         out << "#elem(";
         out << "g(" << Util::p_range{state_->global(), p_var} << ")";
-        out << ",l(" << Util::p_range{local_, p_var} << ")";
         out << ",t(" << Util::p_range{tuple_, p_term} << ")";
         out << ")";
     }
@@ -448,7 +400,6 @@ class StmAggrElem : public Stm {
     StateAggr *state_;
     UTermVec tuple_;
     ULitVec body_;
-    VariableVec local_;
     size_t num_cond_;
     size_t priority_;
     bool dom_;
