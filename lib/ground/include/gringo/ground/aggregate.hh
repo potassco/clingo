@@ -5,6 +5,7 @@
 #include <gringo/ground/statement.hh>
 
 #include <gringo/util/print.hh>
+#include <gringo/util/small_vector.hh>
 
 #include <iostream>
 
@@ -23,7 +24,9 @@ class AtomAggr {
     AtomAggr() = default;
     std::vector<size_t> elems;
     std::variant<std::monostate, std::pair<Number, Number>, std::pair<Symbol, Symbol>> bound_;
+    size_t propagated = 0;
     AtomAggrState state = AtomAggrState::unknown;
+    bool enqueued = false;
 };
 
 class BaseAggr : public BaseImpl<Symbol const *, BaseAggr> {
@@ -128,7 +131,7 @@ class StateAggr {
         // NOLINTEND
     };
     using AtomMap = BaseAggr::AtomMap;
-    using TupleMap = Util::ordered_map<Tuple *, std::vector<size_t>>;
+    using TupleMap = Util::ordered_map<Tuple *, Util::small_vector<size_t>>;
 
     StateAggr(VariableVec global, GuardVec guards, AggregateFunction fun, size_t index, bool monotone, bool recursive)
         : base_{global.size()}, global_{std::move(global)}, guards_{std::move(guards)}, index_{index}, fun_{fun},
@@ -142,8 +145,15 @@ class StateAggr {
     [[nodiscard]] auto index() const -> size_t { return index_; }
 
     auto propagate() -> bool {
-        static_cast<void>(this);
-        std::cerr << "implement me: propagate aggregate" << '\n';
+        std::cerr << "propagate aggregate atoms:";
+        for (auto atom_idx : queue_) {
+            auto it = base_.atoms().nth(atom_idx);
+            auto &state = it.value();
+            state.enqueued = false;
+            std::cerr << " " << atom_idx;
+        }
+        queue_.clear();
+        std::cerr << '\n';
         return false;
     }
 
@@ -165,7 +175,8 @@ class StateAggr {
         auto &tup = node_store_.construct<GTup>(n, global_, ass);
 
         auto [it, ins] =
-            base_.atoms().emplace(std::piecewise_construct, std::forward_as_tuple(tup.syms), std::forward_as_tuple());
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+            base_.atoms().try_emplace(tup.syms);
         if (!ins) {
             node_store_.reclaim(n, tup);
         }
@@ -173,21 +184,29 @@ class StateAggr {
     }
 
     auto insert_tuple(AtomMap::iterator it, UTermVec const &tuple, SymbolStore &store,
-                      Assignment &ass) -> TupleMap::iterator {
+                      Assignment &ass) -> std::pair<TupleMap::iterator, bool> {
         auto n = sizeof(StateAggr::Tuple) + tuple.size() * sizeof(Symbol);
         auto &tup = node_store_.construct<Tuple>(n, index(it), tuple, store, ass);
 
-        auto [jt, jns] = tuples_.emplace(&tup, std::vector<size_t>{});
+        auto [jt, jns] = tuples_.try_emplace(&tup);
         if (!jns) {
             node_store_.reclaim(n, tup);
         }
         it.value().elems.emplace_back(jt - tuples_.begin());
-        return jt;
+        return {jt, jns};
     }
 
     auto index(AtomMap::iterator it) -> size_t { return it - base_.atoms().begin(); }
 
     auto index(TupleMap::iterator it) -> size_t { return it - tuples_.begin(); }
+
+    void enqueue(AtomMap::iterator it) {
+        auto &state = it.value();
+        if (!state.enqueued && state.propagated < state.elems.size()) {
+            state.enqueued = true;
+            queue_.emplace_back(index(it));
+        }
+    }
 
   private:
     Util::NodeStore<alignof(Symbol)> node_store_;
@@ -195,6 +214,7 @@ class StateAggr {
     TupleMap tuples_;
     VariableVec global_;
     GuardVec guards_;
+    std::vector<size_t> queue_;
     size_t index_;
     AggregateFunction fun_;
     bool monotone_;
@@ -337,14 +357,21 @@ class StmAggrElem : public Stm {
         // insert aggregate, tuple, and append condition
         auto &ass = ctx.ass();
         auto it = state_->insert_global(ass);
-        // TODO: the fact status should be added to the tuple
-        auto jt = state_->insert_tuple(it, tuple_, ctx.store(), ass);
-        jt.value().emplace_back(cond_id);
+        auto [jt, ins] = state_->insert_tuple(it, tuple_, ctx.store(), ass);
+        // we use an empty vector to indicate that one of the conditions is fact
+        if (fact) {
+            jt.value().clear();
+        } else if (ins || !jt.value().empty()) {
+            // Note that there is some optimization potential here. Typical
+            // tuples have exactly one condition. A forward list using the node
+            // store for allocation could be used here, where the firt element
+            // is stored right in the tuple.
+            //
+            jt.value().emplace_back(cond_id);
+        }
+        state_->enqueue(it);
 
         // TODO: the element should also be output here
-
-        // TODO: enque aggregate for propagation (and bound accumulation)
-        // ...
 
         std::cerr << "accumulate:";
         std::cerr << "\n  fact: " << fact;
