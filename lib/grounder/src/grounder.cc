@@ -771,7 +771,7 @@ class BuilderBdLit {
         bool add_neutral = true;
         for (auto const &guard : state.guards()) {
             if (auto const *rhs = dynamic_cast<Ground::TermSymbol const *>(guard.second.get()); rhs != nullptr) {
-                if (!Input::evaluate(neutral, guard.first, rhs->symbol())) {
+                if (!evaluate(neutral, guard.first, rhs->symbol())) {
                     add_neutral = false;
                     break;
                 }

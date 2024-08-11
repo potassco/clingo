@@ -9,8 +9,6 @@ namespace Gringo::Input {
 //! @addtogroup input_evaluate
 //! @{
 
-//! Evaluate the comparison.
-[[nodiscard]] auto evaluate(Symbol lhs, Relation rel, Symbol rhs) -> bool;
 //! Evaluate the unary operator.
 [[nodiscard]] auto evaluate(SymbolStore &store, UnaryOperator op, Symbol rhs) -> std::optional<Symbol>;
 //! Evaluate the binary operator.

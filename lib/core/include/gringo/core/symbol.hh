@@ -224,13 +224,25 @@ class Symbol {
     [[nodiscard]] auto hash() const -> size_t { return Gringo::Util::value_hash(rep_); }
 
     //! Compare two symbols.
-    friend auto compare(Symbol a, Symbol b) -> int;
+    friend auto compare(Symbol const &a, Symbol const &b) -> int;
+    //! Compare two symbols.
+    friend auto compare(Number const &a, Symbol const &b) -> int;
+    //! Compare two symbols.
+    friend auto compare(Symbol const &a, Number const &b) -> int;
 
     //! Equality compare two symbols.
-    friend auto operator==(Symbol a, Symbol b) -> bool { return a.rep_ == b.rep_; }
+    friend auto operator==(Symbol const &a, Symbol const &b) -> bool { return a.rep_ == b.rep_; }
+    //! Equality compare numbers and symbols.
+    friend auto operator==(Number const &a, Symbol const &b) -> bool { return Number::to_repr(a) == b.rep_; }
+    //! Equality compare numbers and symbols.
+    friend auto operator==(Symbol const &a, Number const &b) -> bool { return a.rep_ == Number::to_repr(b); }
 
-    //! Less than compare two symbols.
-    friend auto operator<=>(Symbol a, Symbol b) -> std::strong_ordering { return compare(a, b) <=> 0; }
+    //! Compare two symbols.
+    friend auto operator<=>(Symbol const &a, Symbol const &b) -> std::strong_ordering { return compare(a, b) <=> 0; }
+    //! Compare symbols and numbers.
+    friend auto operator<=>(Number const &a, Symbol const &b) -> std::strong_ordering { return compare(a, b) <=> 0; }
+    //! Compare symbols and numbers.
+    friend auto operator<=>(Symbol const &a, Number const &b) -> std::strong_ordering { return compare(a, b) <=> 0; }
 
     //! Get the representation of the symbol.
     static auto to_rep(Symbol sym) noexcept -> uint64_t { return sym.rep_; }

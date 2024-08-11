@@ -20,15 +20,15 @@ template <class T, size_t N = 2>
     requires(std::is_nothrow_destructible_v<T> && std::is_nothrow_move_constructible_v<T>)
 class small_vector {
   public:
-    small_vector() : size_{0} {}
-    small_vector(small_vector &&other) noexcept : size_{0} { *this = std::move(other); }
+    small_vector() = default;
+    small_vector(small_vector &&other) noexcept { *this = std::move(other); }
     auto operator=(small_vector &&other) noexcept -> small_vector & {
         clear();
-        if (other.size_ <= N) {
-            for (auto it = other.begin(), ie = other.end(), jt = begin(); it != ie; ++it, ++jt) {
+        if (other.begin_ <= N) {
+            for (auto it = other.small_(), ie = it + other.begin_, jt = small_(); it != ie; ++it, ++jt) {
                 new (jt) T(std::move(*it));
             }
-            std::swap(other.size_, size_);
+            std::swap(other.begin_, begin_);
         } else {
             std::swap(begin_, other.begin_);
             std::swap(end_, other.end_);
@@ -41,35 +41,30 @@ class small_vector {
     auto operator=(small_vector const &other) = delete;
 
     auto size() const -> size_t {
-        if (size_ <= N) {
-            return size_;
+        if (begin_ <= N) {
+            return begin_;
         }
-        return end_ - begin_;
+        return end_ - large_();
     }
 
     auto empty() const -> bool { return size() == 0; }
 
     auto capacity() const -> size_t {
-        if (size_ <= N) {
+        if (begin_ <= N) {
             return N;
         }
-        return cap_ - begin_;
+        return cap_ - large_();
     }
 
     auto begin() const -> T const * { return const_cast<small_vector *>(this)->begin(); }
 
-    auto begin() -> T * {
-        if (size_ <= N) {
-            return small_;
-        }
-        return begin_;
-    }
+    auto begin() -> T * { return begin_ <= N ? small_() : large_(); }
 
     auto end() const -> T const * { return const_cast<small_vector *>(this)->end(); }
 
     auto end() -> T * {
-        if (size_ <= N) {
-            return begin() + size_;
+        if (begin_ <= N) {
+            return begin() + begin_;
         }
         return end_;
     }
@@ -80,7 +75,6 @@ class small_vector {
 
     void reserve(size_t n) {
         if (auto m = capacity(); m < n) {
-            // should check overflow
             if (n < 2 * m) {
                 n = 2 * m;
             }
@@ -90,25 +84,25 @@ class small_vector {
                 new (jt) T(std::move(*it));
             }
             destroy_();
-            begin_ = static_cast<T *>(data);
-            end_ = begin_ + l;
-            cap_ = begin_ + n;
+            begin_ = reinterpret_cast<uintptr_t>(data);
+            end_ = large_() + l;
+            cap_ = large_() + n;
         }
     }
 
     template <class... U> void emplace_back(U &&...args) {
         reserve(size() + 1);
         new (end()) T{std::forward<U>(args)...};
-        if (size_ <= N) {
-            ++size_;
+        if (begin_ <= N) {
+            ++begin_;
         } else {
             ++end_;
         }
     }
 
     void pop_back() {
-        if (size_ <= N) {
-            --size_;
+        if (begin_ <= N) {
+            --begin_;
         } else {
             --end_;
         }
@@ -116,29 +110,29 @@ class small_vector {
 
     void clear() {
         destroy_();
-        size_ = 0;
+        begin_ = 0;
     }
 
     ~small_vector() { destroy_(); }
 
   private:
+    auto large_() const -> T * { return reinterpret_cast<T *>(begin_); }
+    auto small_() -> T * { return reinterpret_cast<T *>(buf_); }
+
     void destroy_() {
         std::destroy(begin(), end());
-        if (size_ > N) {
-            ::operator delete[](begin_);
+        if (begin_ > N) {
+            ::operator delete[](large_());
         }
     }
 
-    // Note that technically, writing to begin_ and then reading though size_
+    // Note that technically, writing to begin_ and then reading though begin_
     // is undefined behavior.
     GRINGO_IGNORE_UNION_B
-    union {
-        uintptr_t size_ = 0;
-        T *begin_;
-    };
+    uintptr_t begin_ = 0;
     union {
         struct {
-            T small_[2];
+            alignas(T) unsigned char buf_[N * sizeof(T)];
         };
         struct {
             T *end_;

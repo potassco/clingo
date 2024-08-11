@@ -335,30 +335,6 @@ auto evaluate(SymbolStore &store, UnaryOperator op, Symbol rhs) -> std::optional
     return std::nullopt;
 }
 
-auto evaluate(Symbol lhs, Relation rel, Symbol rhs) -> bool {
-    switch (rel) {
-        case Relation::equal: {
-            return lhs == rhs;
-        }
-        case Relation::not_equal: {
-            return lhs != rhs;
-        }
-        case Relation::less: {
-            return lhs < rhs;
-        }
-        case Relation::less_equal: {
-            return lhs <= rhs;
-        }
-        case Relation::greater: {
-            return lhs > rhs;
-        }
-        case Relation::greater_equal: {
-            break;
-        }
-    }
-    return lhs >= rhs;
-}
-
 auto evaluate(SymbolStore &store, Symbol lhs, BinaryOperator op, Symbol rhs) -> std::optional<Symbol> {
     if (lhs.type() != SymbolType::number || rhs.type() != SymbolType::number) {
         return std::nullopt;

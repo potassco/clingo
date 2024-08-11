@@ -985,7 +985,11 @@ auto NameGen::new_name() -> String {
     }
 }
 
-auto compare(Symbol a, Symbol b) -> int {
+auto compare(Number const &a, Symbol const &b) -> int { return compare(reinterpret_cast<Symbol const &>(a), b); }
+
+auto compare(Symbol const &a, Number const &b) -> int { return compare(a, reinterpret_cast<Symbol const &>(b)); }
+
+auto compare(Symbol const &a, Symbol const &b) -> int {
     if (a == b) {
         return 0;
     }

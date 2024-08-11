@@ -6,6 +6,7 @@
 
 #include <gringo/util/print.hh>
 #include <gringo/util/small_vector.hh>
+#include <gringo/util/type_traits.hh>
 
 #include <iostream>
 
@@ -21,9 +22,82 @@ enum class AtomAggrState : uint8_t {
 
 class AtomAggr {
   public:
-    AtomAggr() = default;
+    using Bound = std::variant<std::pair<Number, Number>, std::pair<Symbol, Symbol>>;
+
+    AtomAggr(AggregateFunction fun) : bound_{init_(fun)} {}
+
+    void accumulate(AggregateFunction fun, SymbolSpan tup, bool fact) {
+        if (!tup.empty() && tup.front().type() == SymbolType::number) {
+            if (fun == AggregateFunction::min) {
+                auto &val = std::get<1>(bound_);
+                val.first = std::min(tup.front(), val.first);
+                if (fact) {
+                    val.second = std::min(tup.front(), val.second);
+                }
+            } else if (fun == AggregateFunction::max) {
+                auto &val = std::get<1>(bound_);
+                val.second = std::max(tup.front(), val.second);
+                if (fact) {
+                    val.first = std::max(tup.front(), val.first);
+                }
+            } else {
+                if (tup.front().type() == SymbolType::number) {
+                    auto const &num = tup.front().num();
+                    auto &val = std::get<0>(bound_);
+                    if (fact) {
+                        val.first += num;
+                        val.second += num;
+                    } else if (num < 0) {
+                        val.first += num;
+                    } else {
+                        val.second += num;
+                    }
+                }
+            }
+        }
+    }
+
+    auto propagate(GuardVec const &guards) -> bool {
+        auto it = guards.begin();
+        for (auto const &val : this->guards) {
+            auto rel = it++->first;
+            auto res = std::visit(
+                [&val, &rel]<class T>(T const &x) {
+                    std::cerr << "  check: " << val << rel << x.first << " and " << x.second << rel << val << "\n";
+                    std::cerr << "  ^- This is not how to check intervals.";
+                    // match:
+                    //   <, <= : lower
+                    //   >, >= : upper
+                    //   =     : between
+                    //   !=    : not (lower == upper and equal)
+                    // fact:
+                    //   <, <= : upper
+                    //   >, >= : lower
+                    //   =     : lower == upper and equal
+                    //   !=    : not between
+                    return evaluate(val, rel, x.first) && evaluate(x.second, rel, val);
+                },
+                bound_);
+            if (!res) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    static auto init_(AggregateFunction fun) -> Bound {
+        if (fun == AggregateFunction::min) {
+            return Bound{std::in_place_index<1>, SymbolStore::sup(), SymbolStore::sup()};
+        }
+        if (fun == AggregateFunction::max) {
+            return Bound{std::in_place_index<1>, SymbolStore::inf(), SymbolStore::inf()};
+        }
+        return Bound{std::in_place_index<0>, 0, 0};
+    }
+
     std::vector<size_t> elems;
-    std::variant<std::monostate, std::pair<Number, Number>, std::pair<Symbol, Symbol>> bound_;
+    std::variant<std::pair<Number, Number>, std::pair<Symbol, Symbol>> bound_;
+    Util::small_vector<Symbol> guards;
     size_t propagated = 0;
     AtomAggrState state = AtomAggrState::unknown;
     bool enqueued = false;
@@ -155,10 +229,12 @@ class StateAggr {
             for (auto jt = state.elems.begin() + static_cast<ssize_t>(state.propagated), je = state.elems.end();
                  jt != je; ++jt) {
                 auto elem = tuples_.nth(*jt);
+                // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+                auto tup = std::span(elem.key()->syms, elem.key()->n);
+                state.accumulate(fun_, tup, elem->second.empty());
                 std::cerr << "  elem: " << *jt << "\n";
                 std::cerr << "   accumulate";
-                // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
-                for (auto val : std::span(elem.key()->syms, elem.key()->n)) {
+                for (auto val : tup) {
                     std::cerr << " " << val;
                 }
                 if (elem->second.empty()) {
@@ -166,13 +242,16 @@ class StateAggr {
                 }
                 std::cerr << "\n";
             }
+            if (state.propagate(guards_)) {
+                std::cerr << " propagate: " << atom_idx << "\n";
+            }
         }
         queue_.clear();
         std::cerr << '\n';
         return false;
     }
 
-    auto insert_global(Assignment &ass) -> AtomMap::iterator {
+    auto insert_global(SymbolStore &store, Assignment &ass) -> AtomMap::iterator {
         struct GTup {
             // NOLINTBEGIN
             GTup(VariableVec const &global, Assignment &ass) {
@@ -191,9 +270,17 @@ class StateAggr {
 
         auto [it, ins] =
             // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
-            base_.atoms().try_emplace(tup.syms);
+            base_.atoms().try_emplace(tup.syms, fun_);
         if (!ins) {
             node_store_.reclaim(n, tup);
+        } else {
+            for (auto const &guard : guards_) {
+                if (auto val = guard.second->eval(store, ass)) {
+                    it.value().guards.emplace_back(*val);
+                } else {
+                    throw std::logic_error("implement me: handle undefined guards");
+                }
+            }
         }
         return it;
     }
@@ -371,7 +458,7 @@ class StmAggrElem : public Stm {
 
         // insert aggregate, tuple, and append condition
         auto &ass = ctx.ass();
-        auto it = state_->insert_global(ass);
+        auto it = state_->insert_global(ctx.store(), ass);
         auto [jt, ins] = state_->insert_tuple(it, tuple_, ctx.store(), ass);
         // we use an empty vector to indicate that one of the conditions is fact
         if (fact) {

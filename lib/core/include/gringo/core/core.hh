@@ -1,5 +1,7 @@
 #pragma once
 
+#include <gringo/util/algorithm.hh>
+
 #include <cstdint>
 #include <ostream>
 
@@ -39,6 +41,31 @@ enum class Relation : uint8_t {
 [[nodiscard]] auto flip(Relation rel) -> Relation;
 //! Return the complement of the given relation.
 [[nodiscard]] auto complement(Relation rel) -> Relation;
+
+//! Evaluate the comparison.
+auto evaluate(auto const &lhs, Relation rel, auto const &rhs) -> bool {
+    switch (rel) {
+        case Relation::equal: {
+            return lhs == rhs;
+        }
+        case Relation::not_equal: {
+            return lhs != rhs;
+        }
+        case Relation::less: {
+            return lhs < rhs;
+        }
+        case Relation::less_equal: {
+            return lhs <= rhs;
+        }
+        case Relation::greater: {
+            return lhs > rhs;
+        }
+        case Relation::greater_equal: {
+            return lhs >= rhs;
+        }
+    }
+    Util::unreachable();
+}
 
 //! Output the given relation.
 auto operator<<(std::ostream &out, Relation rel) -> std::ostream &;
