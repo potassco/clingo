@@ -83,6 +83,7 @@ class BaseAggr : public BaseImpl<Symbol const *, BaseAggr> {
     //!
     //! Note that only derived atoms have indices.
     auto index(Symbol const *sym) const -> size_t {
+        // TODO: the index in derived could be stored in the atom to avoid the lineoar lookup
         if (auto it = atoms_.find(sym); it != atoms_.end() && it->second.state != AtomAggrState::unknown) {
             return derived_.find(atom_index_(it));
         }
@@ -145,12 +146,26 @@ class StateAggr {
     [[nodiscard]] auto index() const -> size_t { return index_; }
 
     auto propagate() -> bool {
-        std::cerr << "propagate aggregate atoms:";
+        std::cerr << "propagate aggregate atoms:\n";
         for (auto atom_idx : queue_) {
             auto it = base_.atoms().nth(atom_idx);
             auto &state = it.value();
             state.enqueued = false;
-            std::cerr << " " << atom_idx;
+            std::cerr << " atom: " << atom_idx << "\n";
+            for (auto jt = state.elems.begin() + static_cast<ssize_t>(state.propagated), je = state.elems.end();
+                 jt != je; ++jt) {
+                auto elem = tuples_.nth(*jt);
+                std::cerr << "  elem: " << *jt << "\n";
+                std::cerr << "   accumulate";
+                // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+                for (auto val : std::span(elem.key()->syms, elem.key()->n)) {
+                    std::cerr << " " << val;
+                }
+                if (elem->second.empty()) {
+                    std::cerr << " as fact";
+                }
+                std::cerr << "\n";
+            }
         }
         queue_.clear();
         std::cerr << '\n';
