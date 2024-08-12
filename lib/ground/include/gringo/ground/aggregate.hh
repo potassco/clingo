@@ -57,32 +57,42 @@ class AtomAggr {
         }
     }
 
-    auto propagate(GuardVec const &guards) -> bool {
+    auto propagate(GuardVec const &guards) -> std::pair<bool, bool> {
         auto it = guards.begin();
+        bool fact = true;
         for (auto const &val : this->guards) {
             auto rel = it++->first;
             auto res = std::visit(
-                [&val, &rel]<class T>(T const &x) {
-                    std::cerr << "  check: " << val << rel << x.first << " and " << x.second << rel << val << "\n";
-                    std::cerr << "  ^- This is not how to check intervals.";
-                    // match:
-                    //   <, <= : lower
-                    //   >, >= : upper
-                    //   =     : between
-                    //   !=    : not (lower == upper and equal)
-                    // fact:
-                    //   <, <= : upper
-                    //   >, >= : lower
-                    //   =     : lower == upper and equal
-                    //   !=    : not between
-                    return evaluate(val, rel, x.first) && evaluate(x.second, rel, val);
+                [&val, &rel]<class T>(T const &x) -> std::pair<bool, bool> {
+                    switch (rel) {
+                        case Relation::less: {
+                            return {x.first < val, x.second < val};
+                        }
+                        case Relation::less_equal: {
+                            return {x.first <= val, x.second <= val};
+                        }
+                        case Relation::greater: {
+                            return {x.second > val, x.first > val};
+                        }
+                        case Relation::greater_equal: {
+                            return {x.second >= val, x.first >= val};
+                        }
+                        case Relation::equal: {
+                            return {x.first <= val && val <= x.second, val == x.first && val == x.second};
+                        }
+                        case Relation::not_equal: {
+                            return {val != x.first || val != x.second, x.first > val || val > x.second};
+                        }
+                    }
+                    Util::unreachable();
                 },
                 bound_);
-            if (!res) {
-                return false;
+            if (!res.first) {
+                return {false, false};
             }
+            fact = fact && res.second;
         }
-        return true;
+        return {true, fact};
     }
 
     static auto init_(AggregateFunction fun) -> Bound {
@@ -242,8 +252,9 @@ class StateAggr {
                 }
                 std::cerr << "\n";
             }
-            if (state.propagate(guards_)) {
-                std::cerr << " propagate: " << atom_idx << "\n";
+            auto [match, fact] = state.propagate(guards_);
+            if (match) {
+                std::cerr << " propagate: " << atom_idx << (fact ? " as fact" : "") << "\n";
             }
         }
         queue_.clear();

@@ -24,10 +24,9 @@ class small_vector {
     small_vector(small_vector &&other) noexcept { *this = std::move(other); }
     auto operator=(small_vector &&other) noexcept -> small_vector & {
         clear();
-        if (other.begin_ <= N) {
-            for (auto it = other.small_(), ie = it + other.begin_, jt = small_(); it != ie; ++it, ++jt) {
-                new (jt) T(std::move(*it));
-            }
+        if (other.is_small_()) {
+            std::uninitialized_move_n(other.small_(), other.size_small_(), small_());
+            std::destroy_n(other.small_(), other.size_small_());
             std::swap(other.begin_, begin_);
         } else {
             std::swap(begin_, other.begin_);
@@ -41,8 +40,8 @@ class small_vector {
     auto operator=(small_vector const &other) = delete;
 
     auto size() const -> size_t {
-        if (begin_ <= N) {
-            return begin_;
+        if (is_small_()) {
+            return size_small_();
         }
         return end_ - large_();
     }
@@ -50,7 +49,7 @@ class small_vector {
     auto empty() const -> bool { return size() == 0; }
 
     auto capacity() const -> size_t {
-        if (begin_ <= N) {
+        if (is_small_()) {
             return N;
         }
         return cap_ - large_();
@@ -58,13 +57,13 @@ class small_vector {
 
     auto begin() const -> T const * { return const_cast<small_vector *>(this)->begin(); }
 
-    auto begin() -> T * { return begin_ <= N ? small_() : large_(); }
+    auto begin() -> T * { return is_small_() ? small_() : large_(); }
 
     auto end() const -> T const * { return const_cast<small_vector *>(this)->end(); }
 
     auto end() -> T * {
-        if (begin_ <= N) {
-            return begin() + begin_;
+        if (is_small_()) {
+            return begin() + size_small_();
         }
         return end_;
     }
@@ -80,9 +79,7 @@ class small_vector {
             }
             auto l = size();
             auto *data = ::operator new[](sizeof(T) * n);
-            for (auto it = begin(), ie = end(), jt = static_cast<T *>(data); it != ie; ++it, ++jt) {
-                new (jt) T(std::move(*it));
-            }
+            std::uninitialized_move(begin(), end(), static_cast<T *>(data));
             destroy_();
             begin_ = reinterpret_cast<uintptr_t>(data);
             end_ = large_() + l;
@@ -93,16 +90,16 @@ class small_vector {
     template <class... U> void emplace_back(U &&...args) {
         reserve(size() + 1);
         new (end()) T{std::forward<U>(args)...};
-        if (begin_ <= N) {
-            ++begin_;
+        if (is_small_()) {
+            size_small_(size_small_() + 1);
         } else {
             ++end_;
         }
     }
 
     void pop_back() {
-        if (begin_ <= N) {
-            --begin_;
+        if (is_small_()) {
+            size_small_(size_small_() - 1);
         } else {
             --end_;
         }
@@ -110,7 +107,7 @@ class small_vector {
 
     void clear() {
         destroy_();
-        begin_ = 0;
+        begin_ = 1;
     }
 
     ~small_vector() { destroy_(); }
@@ -118,18 +115,20 @@ class small_vector {
   private:
     auto large_() const -> T * { return reinterpret_cast<T *>(begin_); }
     auto small_() -> T * { return reinterpret_cast<T *>(buf_); }
+    auto is_small_() const -> bool { return (begin_ & 1) != 0; }
+    auto size_small_() const -> size_t { return begin_ >> 1; }
+
+    auto size_small_(size_t n) { begin_ = (n << 1) | 1; }
 
     void destroy_() {
         std::destroy(begin(), end());
-        if (begin_ > N) {
+        if (!is_small_()) {
             ::operator delete[](large_());
         }
     }
 
-    // Note that technically, writing to begin_ and then reading though begin_
-    // is undefined behavior.
     GRINGO_IGNORE_UNION_B
-    uintptr_t begin_ = 0;
+    uintptr_t begin_ = 1;
     union {
         struct {
             alignas(T) unsigned char buf_[N * sizeof(T)];
