@@ -8,7 +8,7 @@
 #include <gringo/util/small_vector.hh>
 #include <gringo/util/type_traits.hh>
 
-#include <iostream>
+#include <ostream>
 
 namespace Gringo::Ground {
 
@@ -198,10 +198,7 @@ class BaseAggr : public BaseImpl<Symbol const *, BaseAggr> {
     //! Check if the base contains the given atom.
     //!
     //! This might include atoms that have not (yet) been derived.
-    [[nodiscard]] auto contains(Symbol const *sym) const -> bool {
-        auto it = atoms_.find(sym);
-        return it != atoms_.end();
-    }
+    [[nodiscard]] auto contains(Symbol const *sym) const -> bool { return atoms_.find(sym) != atoms_.end(); }
 
     //! Add an atom to the base.
     //!
@@ -302,35 +299,33 @@ class StateAggr {
 
     //! Propagate equeued aggregates.
     auto propagate() -> bool {
-        std::cerr << "propagate aggregate atoms:\n";
         bool res = false;
         for (auto atom_idx : queue_) {
             auto it = base_.atoms().nth(atom_idx);
             auto &state = it.value();
-            std::cerr << " atom: " << atom_idx << "\n";
             for (auto elem_idx : state.todo()) {
                 auto elem = tuples_.nth(elem_idx);
                 // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
                 auto tup = std::span(elem.key()->syms, elem.key()->n);
                 state.accumulate(fun_, tup, elem->second.empty());
-                std::cerr << "  elem: " << elem_idx << "\n";
-                std::cerr << "   accumulate";
+                // TODO: remove
+                /*
+                std::cerr << "accumulate: a: " << atom_idx << " e: " << elem_idx << " t:";
                 for (auto val : tup) {
                     std::cerr << " " << val;
                 }
                 if (elem->second.empty()) {
-                    std::cerr << " as fact";
+                    std::cerr << " [f]";
                 }
                 std::cerr << "\n";
+                */
             }
 
             if (auto [match, fact] = state.propagate(guards_); match) {
                 if (fact && (monotone_ || !recursive_)) {
                     state.state(AtomAggrState::fact);
-                    std::cerr << " propagate: " << atom_idx << " as fact\n";
                 } else {
                     state.state(AtomAggrState::unknown);
-                    std::cerr << " propagate: " << atom_idx << "\n";
                 }
                 res = true;
                 base_.add(it);
@@ -659,7 +654,9 @@ class StmAggrElem : public Stm {
             auto cond_id = ctx.out().cond_id();
             // insert the element
             state_->insert_elem(ctx.store(), ass, *it, tuple_, cond_id, fact);
+
             // TODO: remove
+            /*
             std::cerr << "accumulate:";
             std::cerr << "\n  fact: " << fact;
             std::cerr << "\n  atom id: " << state_->index(*it);
@@ -677,6 +674,7 @@ class StmAggrElem : public Stm {
                 }
             }
             std::cerr << "\n";
+            */
         }
         return true;
     }

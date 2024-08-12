@@ -725,18 +725,20 @@ class BuilderBdLit {
         }
         auto mon = Input::reduct_is_monotone(lit.lhs(), fun, lit.rhs());
 
+        auto rec_body = ctx_->has_rec_body();
+        auto elem_priority = ctx_->inc_priority();
+        auto index = rec_body || rec ? ctx_->next_index() : Ground::stratified_index;
+
+        // TODO: remove
+        /*
         std::cerr << lit << "\n  fun: " << fun << "\n  mon: " << mon << "\n  rec: " << rec << "\n  dom: " << dom
                   << "\n  global: "
                   << Util::p_range{vars_global, [](std::ostream &out, auto var) { out << "X_" << var; }} << '\n';
-
-        auto rec_body = ctx_->has_rec_body();
-        auto elem_priority = ctx_->inc_priority();
 
         std::cerr << "  prio: " << elem_priority << "\n";
         std::cerr << "  rec_body: " << rec_body << "\n";
         std::cerr << "  assign: " << assign << "\n";
 
-        auto index = rec_body || rec ? ctx_->next_index() : Ground::stratified_index;
         std::cerr << "  index: ";
         if (index == Ground::stratified_index) {
             std::cerr << "stratified";
@@ -744,6 +746,7 @@ class BuilderBdLit {
             std::cerr << index;
         }
         std::cerr << "\n";
+        */
 
         if (assign) {
             throw std::logic_error("assignment aggregates are not yet supported");
