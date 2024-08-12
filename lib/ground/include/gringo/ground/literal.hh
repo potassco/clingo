@@ -35,9 +35,10 @@ class Lit {
     //! Get the variables in the predicate.
     void vars(VariableSet &vars, VarSelectMode mode) const { do_vars(vars, mode); }
 
-    //! Check that all elements in the base of the literal are domain.
+    //! Returns true if matching literals are also fact.
     //!
-    //! Does not return true for incomplete negative literals.
+    //! This includes that bases of literals are domain and that there are no
+    //! cycles through negative literals (or incomplete ones).
     [[nodiscard]] auto domain() const -> bool { return do_domain(); }
     //! Returns true if the literal is recursive.
     //!
@@ -54,6 +55,9 @@ class Lit {
     [[nodiscard]] auto score(std::vector<bool> const &bound) const -> double { return do_score(bound); }
 
     //! Output the literal.
+    //!
+    //! If the literal is a fact, it should not be output and the function
+    //! should return false.
     [[nodiscard]] auto output(InstantiationContext &ctx, OutputLit &out) const -> bool { return do_output(ctx, out); }
 
     //! Copy the literal.
