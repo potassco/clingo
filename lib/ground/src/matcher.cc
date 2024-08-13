@@ -72,26 +72,6 @@ class AssignMatcher : public OnceMatcher {
     VariableVec free_;
 };
 
-class NonFactMatcher : public OnceMatcher {
-  public:
-    NonFactMatcher(Base &base, Term const &term, Symbol &target) : base_{&base}, term_{&term}, target_{&target} {}
-
-  private:
-    void do_init([[maybe_unused]] SymbolStore &store, size_t gen) override { base_->update(gen); }
-    auto do_once(InstantiationContext &ctx) -> bool override {
-        if (auto sym = term_->eval(ctx.store(), ctx.ass())) {
-            *target_ = *sym;
-            return !base_->is_fact(*sym);
-        }
-        return false;
-    }
-    void do_print(std::ostream &out) const override { out << "#not_fact " << *term_; }
-
-    Base *base_;
-    Term const *term_;
-    Symbol *target_;
-};
-
 class IntervalMatcher : public Matcher {
   public:
     IntervalMatcher(Term const &lhs, Term const &lower, Term const &upper, VariableVec free)
@@ -163,10 +143,6 @@ auto make_comp_matcher(std::vector<bool> const &bound, Term const &lhs, Relation
         }
     }
     return std::make_unique<CmpMatcher>(lhs, rel, rhs);
-}
-
-auto make_non_fact_matcher(Base &base, Term const &term, Symbol &target) -> UMatcher {
-    return std::make_unique<NonFactMatcher>(base, term, target);
 }
 
 } // namespace Gringo::Ground

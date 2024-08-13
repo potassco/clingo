@@ -102,11 +102,16 @@ auto make_comp_matcher(std::vector<bool> const &bound, Term const &lhs, Relation
 
 //! Construct a matcher for facts.
 //!
-//! Matches if the term represents a fact. If target is given, the evaluated
-//! term is stored in it.
+//! A matcher for anything that is not a fact. The evaluated match is stored in
+//! the given reference.
+template <IsMatch Match> auto make_once_matcher(Match const &match, typename Match::Key &target) -> UMatcher;
+
+//! Construct a matcher for facts.
 //!
-//! @note: candidate for generalization
-auto make_non_fact_matcher(Base &base, Term const &term, Symbol &target) -> UMatcher;
+//! A matcher for anything that is not a fact. The evaluated match is stored in
+//! the given reference.
+template <IsBase Base, IsMatch Match>
+auto make_non_fact_matcher(Base &base, Match const &match, typename Match::Key &target) -> UMatcher;
 
 //! Construct a matcher for an atom.
 //!
@@ -518,6 +523,47 @@ template <IsBase Base, class Sig> class IndexSet : public BaseContext {
     Util::unordered_map<Sig, std::unique_ptr<SingleIndex<Base>>> single_;
 };
 
+template <IsBase Base, IsMatch Match> class NonFactMatcher : public OnceMatcher {
+  public:
+    NonFactMatcher(Base &base, Match const &match, typename Match::Key &target)
+        : base_{&base}, match_{&match}, target_{&target} {}
+
+  private:
+    void do_init([[maybe_unused]] SymbolStore &store, size_t gen) override { base_->update(gen); }
+    auto do_once(InstantiationContext &ctx) -> bool override {
+        if (auto sym = match_->eval(ctx.store(), ctx.ass())) {
+            *target_ = *sym;
+            return !base_->is_fact(*sym);
+        }
+        return false;
+    }
+    void do_print(std::ostream &out) const override { out << "#not_fact " << *match_; }
+
+    Base *base_;
+    Match const *match_;
+    typename Match::Key *target_;
+};
+
+//! A matcher that provides at most one match.
+template <IsMatch Match> class EvalMatcher : public OnceMatcher {
+  public:
+    //! Construct the matcher.
+    EvalMatcher(Match const &match, typename Match::Key &target) : match_{&match}, target_{&target} {}
+
+  private:
+    //! Evaluate the matcher in the current context.
+    auto do_once(InstantiationContext &ctx) -> bool override {
+        if (auto sym = match_->eval(ctx.store(), ctx.ass())) {
+            *target_ = *sym;
+            return true;
+        }
+        return false;
+    }
+
+    Match const *match_;
+    typename Match::Key *target_;
+};
+
 } // namespace Detail
 
 template <IsBase Base, IsMatch Match>
@@ -551,6 +597,15 @@ auto make_atom_matcher(std::vector<bool> const &bound, Base &base, Match const &
     auto &hash = ctx.add_hash(base, atom.signature(lookup, bind), lookup.size());
     return std::make_unique<Detail::HashMatcher<Base, Match>>(hash, atom, lookup.release(), bind.release(), type,
                                                               offset);
+}
+
+template <IsBase Base, IsMatch Match>
+auto make_non_fact_matcher(Base &base, Match const &match, typename Match::Key &target) -> UMatcher {
+    return std::make_unique<Detail::NonFactMatcher<Base, Match>>(base, match, target);
+}
+
+template <IsMatch Match> auto make_once_matcher(Match const &match, typename Match::Key &target) -> UMatcher {
+    return std::make_unique<Detail::EvalMatcher<Match>>(match, target);
 }
 
 //! @}
