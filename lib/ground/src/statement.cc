@@ -15,7 +15,7 @@ void Linearizer::prepare(InstanceCallback &cb, ULitVec const &body, VariableSet 
     todos_.clear();
     todos_.emplace_back();
     auto i = size_t{0};
-    // gather indices of recursize literals and extend important variables
+    // gather indices of recursive literals and extend important variables
     for (auto const &lit : body) {
         todos_.back().emplace_back(MatcherType::all_atoms);
         if (lit->recursive()) {
