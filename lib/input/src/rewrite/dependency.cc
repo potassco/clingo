@@ -12,7 +12,6 @@
 #include <gringo/util/unordered_map.hh>
 
 #include <deque>
-#include <iostream>
 
 namespace Gringo::Input {
 

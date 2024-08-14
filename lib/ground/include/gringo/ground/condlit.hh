@@ -1,5 +1,6 @@
 #pragma once
 
+#include <gringo/ground/matcher.hh>
 #include <gringo/ground/statement.hh>
 
 #include <gringo/util/enumerate.hh>
@@ -32,11 +33,12 @@ enum class TruthConclusion : uint64_t {
 struct StateCondLitElem {
   public:
     //! Initialize the element.
-    StateCondLitElem(bool premise_is_fact, bool has_conclusion)
-        : conclusion_truth_{has_conclusion ? TruthConclusion::unknown : TruthConclusion::false_},
+    StateCondLitElem(size_t premise, bool premise_is_fact, bool has_conclusion)
+        : premise_{premise}, conclusion_truth_{has_conclusion ? TruthConclusion::unknown : TruthConclusion::false_},
           premise_is_fact_{static_cast<uint8_t>(premise_is_fact)} {}
     //! Mark a previously unknown conclusion either as derived or fact.
-    void mark_conclusion(bool fact) {
+    void set_conclusion(size_t conclusion, bool fact) {
+        conclusion_ = conclusion;
         assert(conclusion_truth_ == TruthConclusion::unknown);
         conclusion_truth_ = fact ? TruthConclusion::true_ : TruthConclusion::derived;
     }
@@ -65,9 +67,17 @@ struct StateCondLitElem {
     //! The index is set once an element is propagated and added to the set of derived elements
     [[nodiscard]] auto offset() const -> size_t { return offset_ - 1; }
 
+    //! Get the premise of the element.
+    [[nodiscard]] auto premise() const -> size_t { return premise_; }
+    [[nodiscard]] auto conclusion() const -> std::optional<size_t> {
+        return conclusion_ != invalid_offset ? std::make_optional(conclusion_) : std::nullopt;
+    }
+
   private:
-    uint64_t offset_ : 56 = 1;
-    TruthConclusion conclusion_truth_ : 7;
+    size_t conclusion_ = invalid_offset;
+    size_t premise_;
+    uint64_t offset_ : 61 = 1;
+    TruthConclusion conclusion_truth_ : 2;
     uint64_t premise_is_fact_ : 1;
 };
 
@@ -107,14 +117,19 @@ class StateAtomCondLit {
     //! The index is set once an atom is propagated and added to the set of derived atoms.
     [[nodiscard]] auto offset() const -> size_t { return offset_ - 1; }
 
-    //! Check if the atom has a unique id.
-    [[nodiscard]] auto has_uid() const -> bool { return uid_ > 0; }
     //! Get the unique id of the atom.
     //!
     //! This id is used by the output to uniquely identify conditional literals.
-    [[nodiscard]] auto uid() const -> uint64_t { return uid_ - 1; }
+    [[nodiscard]] auto uid() const -> std::optional<size_t> {
+        return uid_ != invalid_offset ? std::make_optional(uid_) : std::nullopt;
+    }
     //! Set the unique id of the atom.
-    void set_uid(size_t uid) { uid_ = uid + 1; }
+    void uid(size_t uid) {
+        assert(uid_ == invalid_offset || uid_ == uid);
+        uid_ = uid;
+    }
+    //! Get the elements of the conditional literal.
+    [[nodiscard]] auto elems() const -> std::span<size_t const> { return elems_; }
 
   private:
     std::vector<size_t> elems_;
@@ -122,7 +137,7 @@ class StateAtomCondLit {
     uint64_t propagated_ : 1 = 0;
     uint64_t enqueued_ : 1 = 0;
     uint64_t false_ : 1 = 0;
-    uint64_t uid_ = 0;
+    size_t uid_ = invalid_offset;
     size_t offset_ = 0;
 };
 //! A map from the global variables to a conditional literal.
@@ -261,11 +276,13 @@ struct StateCondLit {
     //! Add a new cond lit atom.
     auto add_empty(Assignment const &ass) -> std::pair<MapAtomCondLit::iterator, bool>;
 
-    //! Add a new cond lit element.
-    auto add_premise(Assignment const &ass, MapAtomCondLit::iterator it, bool fact) -> MapElemCondLit::iterator;
+    //! Add a new cond lit element with the given premise.
+    //!
+    //! If the function returns false the corresponding conditional literal is false.
+    auto add_premise(InstantiationContext &ctx, ULitVec const &premise) -> bool;
 
     //! Add a conclusion to an element.
-    auto add_conclusion(Assignment const &ass, MapAtomCondLit::iterator it, bool fact) -> MapElemCondLit::iterator;
+    void add_conclusion(Assignment const &ass, MapAtomCondLit::iterator it, size_t conclusion, bool fact);
 
     //! Propagate enqueued conditional literals whose elements are not blocked.
     [[nodiscard]] auto propagate() -> bool;
@@ -315,9 +332,7 @@ struct StateCondLit {
     [[nodiscard]] auto elem_index(MapElemCondLit::const_iterator it) const -> size_t;
 
     //! Output the now complete conditional literal.
-    static void output([[maybe_unused]] OutputStm &out) {
-        // TODO: currently unused but maybe it is a good idea to output literals here
-    }
+    void output(OutputStm &out);
 
   private:
     VariableVec local_;

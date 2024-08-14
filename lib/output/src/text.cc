@@ -13,7 +13,9 @@ namespace {
 
 class OutputSimple : public OutputLit {
   private:
-    void do_cond_lit([[maybe_unused]] size_t uid) override { throw std::runtime_error("unsupported literal"); }
+    auto do_cond_lit([[maybe_unused]] std::optional<size_t> uid) -> size_t override {
+        throw std::runtime_error("unsupported literal");
+    }
     auto do_bd_aggr([[maybe_unused]] Sign sign, [[maybe_unused]] std::optional<size_t> uid) -> size_t override {
         throw std::runtime_error("unsupported literal");
     }
@@ -66,7 +68,7 @@ class OutputBody : public OutputLit {
                             if (it != defined_.end()) {
                                 out << it.value();
                             } else {
-                                out << "#true";
+                                out << "#false";
                             }
                         } else {
                         }
@@ -98,10 +100,15 @@ class OutputBody : public OutputLit {
         sep();
         buf_ << (value ? "#true" : "#false");
     }
-    void do_cond_lit(size_t uid) override {
+
+    auto do_cond_lit(std::optional<size_t> uid) -> size_t override {
+        if (!uid) {
+            uid = ++*uids_;
+        }
         sep();
         delay();
-        delayed_.back().emplace_back(uid);
+        delayed_.back().emplace_back(*uid);
+        return *uid;
     }
 
     auto do_bd_aggr(Sign sign, std::optional<size_t> uid) -> size_t override {
@@ -121,6 +128,7 @@ class OutputBody : public OutputLit {
     Util::unordered_map<size_t, std::string> defined_;
     std::vector<std::vector<std::variant<std::string, size_t>>> delayed_;
 };
+
 class OutputCond : public OutputSimple {
   public:
     void start() {
@@ -188,84 +196,65 @@ class OutputText : public OutputStm {
         auto it = conds_.emplace(cond_.end()).first;
         return it - conds_.begin();
     }
-    void do_cond_lit_premise(size_t lit_uid, size_t elem_uid) override {
-        cond_lits_[lit_uid].emplace_back(elem_uid);
-        cond_lit_elems_.emplace(std::make_pair(lit_uid, elem_uid), std::make_pair("#false", cond_.end()));
-    }
-    void do_cond_lit_conclusion(size_t lit_uid, size_t elem_uid) override {
-        cond_lit_elems_[std::make_pair(lit_uid, elem_uid)].first = cond_.end();
-    }
-
     auto do_uid() -> size_t override { return ++uids_; }
 
+    void do_cond_lit(size_t uid, CondLits elems) override {
+        if (elems.empty()) {
+            body_.define(uid, "#true");
+        } else {
+            buf_.str({});
+            buf_ << Util::p_range{elems, "; ", [this](auto &buf, auto const &elem) {
+                                      if (elem.first) {
+                                          buf << *conds_.nth(*elem.first);
+                                      } else {
+                                          buf << "#false";
+                                      }
+                                      buf << ": " << *conds_.nth(elem.second);
+                                  }};
+            body_.define(uid, buf_.str());
+        }
+    }
+
     void do_bd_aggr(size_t uid, AggregateFunction fun, BdElems elems, Guards guards) override {
-        std::ostringstream buf;
+        buf_.str({});
         auto it = guards.begin();
         if (guards.size() > 1) {
-            buf << it->second << " " << flip(it->first) << " ";
+            buf_ << it->second << " " << flip(it->first) << " ";
             ++it;
         }
-        buf << fun << " { "
-            << Util::p_range{elems, "; ",
-                             [this](auto &buf, auto const &elem) {
-                                 if (elem.second.empty()) {
-                                     buf << Util::p_range{elem.first};
-                                     if (elem.first.empty()) {
-                                         buf << ": ";
-                                     }
-                                 } else {
-                                     buf << Util::p_range{
-                                         elem.second, "; ", [this, &elem](auto &buf, auto const &cond) {
-                                             buf << Util::p_range{elem.first} << ": " << *conds_.nth(cond);
-                                         }};
-                                 }
-                             }}
-            << (elems.empty() ? "}" : " }");
+        buf_ << fun << " { "
+             << Util::p_range{elems, "; ",
+                              [this](auto &buf, auto const &elem) {
+                                  if (elem.second.empty()) {
+                                      buf << Util::p_range{elem.first};
+                                      if (elem.first.empty()) {
+                                          buf << ": ";
+                                      }
+                                  } else {
+                                      buf << Util::p_range{
+                                          elem.second, "; ", [this, &elem](auto &buf, auto const &cond) {
+                                              buf << Util::p_range{elem.first} << ": " << *conds_.nth(cond);
+                                          }};
+                                  }
+                              }}
+             << (elems.empty() ? "}" : " }");
         for (auto ie = guards.end(); it != ie; ++it) {
-            buf << " " << it->first << " " << it->second;
+            buf_ << " " << it->first << " " << it->second;
         }
-        body_.define(uid, buf.str());
+        body_.define(uid, buf_.str());
     }
 
-    void do_flush() override {
-        std::ostringstream buf;
-        for (auto const &[lit_index, elems] : cond_lits_) {
-            body_.buf().str({});
-            if (elems.empty()) {
-                body_.buf() << "#true";
-            }
-            bool comma = false;
-            for (auto elem_index : elems) {
-                if (comma) {
-                    body_.buf() << "; ";
-                } else {
-                    comma = true;
-                }
-                auto const &[conclusion, premise] = cond_lit_elems_[std::make_pair(lit_index, elem_index)];
-                body_.buf() << conclusion << ": " << premise;
-            }
-            body_.define(lit_index, body_.buf().str());
-        }
-        cond_lit_elems_.clear();
-        cond_lits_.clear();
-        body_.flush(*out_);
-    }
+    void do_flush() override { body_.flush(*out_); }
 
-    void do_end_step() override {
-        cond_lit_elems_.clear();
-        cond_lits_.clear();
-        out_->flush();
-    }
+    void do_end_step() override { out_->flush(); }
 
     void do_mark([[maybe_unused]] SymbolCollector &gc) override {}
 
     std::ostream *out_;
+    std::ostringstream buf_;
     OutputBody body_{uids_};
     OutputCond cond_;
     Util::ordered_set<std::string> conds_;
-    Util::unordered_map<std::pair<size_t, size_t>, std::pair<std::string, std::string>> cond_lit_elems_;
-    Util::unordered_map<size_t, std::vector<size_t>> cond_lits_;
-    Util::unordered_map<size_t, std::string> delayed_;
     size_t uids_ = 0;
 };
 

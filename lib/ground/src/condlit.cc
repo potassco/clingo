@@ -79,12 +79,22 @@ auto StateCondLit::add_empty(Assignment const &ass) -> std::pair<MapAtomCondLit:
     return {it, ins};
 }
 
-auto StateCondLit::add_premise(Assignment const &ass, MapAtomCondLit::iterator it,
-                               bool fact) -> MapElemCondLit::iterator {
+auto StateCondLit::add_premise(InstantiationContext &ctx, ULitVec const &premise) -> bool {
     // no further elements have to be accumulated if the literal is false
+    auto it = atom_find(ctx.ass());
     if (it.value().is_false()) {
-        return elems_.end();
+        return false;
     }
+
+    bool fact = true;
+    auto &out = ctx.out().cond();
+    for (auto const &lit : premise) {
+        if (lit->output(ctx, out)) {
+            fact = false;
+        }
+    }
+
+    auto &ass = ctx.ass();
     auto syms_elem = syms_elems_.push_map(Util::enumerate{local_.size() + 1}, [this, it, &ass](size_t i) {
         if (i == 0) {
             return Symbol::from_rep(std::distance(atoms_.begin(), it));
@@ -93,7 +103,7 @@ auto StateCondLit::add_premise(Assignment const &ass, MapAtomCondLit::iterator i
         return ass[local_[i - 1]].value();
     });
 
-    auto [jt, ins] = elems_.try_emplace(syms_elem.data(), fact, has_conclusion_);
+    auto [jt, ins] = elems_.try_emplace(syms_elem.data(), ctx.out().cond_id(), fact, has_conclusion_);
     // an element can only be added once
     assert(ins);
 
@@ -109,19 +119,17 @@ auto StateCondLit::add_premise(Assignment const &ass, MapAtomCondLit::iterator i
     if (!elem.is_blocked() && atom.enqueue(elems_)) {
         propagate_.emplace_back(atom_index(it));
     }
-    return jt;
+    return has_conclusion_ || !fact;
 }
 
-auto StateCondLit::add_conclusion(Assignment const &ass, MapAtomCondLit::iterator it,
-                                  bool fact) -> MapElemCondLit::iterator {
+void StateCondLit::add_conclusion(Assignment const &ass, MapAtomCondLit::iterator it, size_t conclusion, bool fact) {
     assert(it != atoms_.end());
     auto jt = elem_find(ass, it);
     assert(jt != elems_.end());
-    jt.value().mark_conclusion(fact);
+    jt.value().set_conclusion(conclusion, fact);
     if (it.value().enqueue(elems_)) {
         propagate_.emplace_back(atom_index(it));
     }
-    return jt;
 }
 
 auto StateCondLit::propagate() -> bool {
@@ -187,6 +195,22 @@ auto StateCondLit::elem_find(Assignment const &ass, MapAtomCondLit::iterator it)
         temp_syms_.emplace_back(ass[var].value());
     }
     return elems_.find(temp_syms_.data());
+}
+
+void StateCondLit::output(OutputStm &out) {
+    std::vector<std::pair<std::optional<size_t>, size_t>> elems;
+    for (auto const &[tuple, atom] : atoms_) {
+        if (auto uid = atom.uid(); uid) {
+            elems.clear();
+            for (auto const &elem_idx : atom.elems()) {
+                auto const &[tuple, elem] = *elems_.nth(elem_idx);
+                if (!elem.is_fact()) {
+                    elems.emplace_back(elem.conclusion(), elem.premise());
+                }
+            }
+            out.cond_lit(*uid, elems);
+        }
+    }
 }
 
 // MatchCondLit
@@ -327,10 +351,7 @@ auto LitCondLit::do_output(InstantiationContext &ctx, OutputLit &out) const -> b
         if (state().atom_is_fact(it)) {
             return false;
         }
-        if (!it.value().has_uid()) {
-            it.value().set_uid(ctx.out().uid());
-        }
-        out.cond_lit(it.value().uid());
+        it.value().uid(out.cond_lit(it.value().uid()));
         return true;
     }
     return false;
@@ -395,24 +416,6 @@ class MatcherCondLitStrat : public OnceMatcher {
     bool init_ = false;
 };
 
-auto report_premise(StateCondLit &state, InstantiationContext &ctx, ULitVec const &premise) -> bool {
-    bool fact = true;
-    if (auto it = state.atom_find(ctx.ass()); !it.value().is_false()) {
-        auto &out = ctx.out().cond();
-        for (auto const &lit : premise) {
-            if (lit->output(ctx, out)) {
-                fact = false;
-            }
-        }
-        auto jt = state.add_premise(ctx.ass(), it, fact);
-        if (!it.value().has_uid()) {
-            it.value().set_uid(ctx.out().uid());
-        }
-        ctx.out().cond_lit_premise(it.value().uid(), state.elem_index(jt));
-    }
-    return fact;
-}
-
 } // namespace
 
 void LitCondLitStrat::do_init([[maybe_unused]] size_t gen) {}
@@ -421,7 +424,7 @@ auto LitCondLitStrat::do_report(InstantiationContext &ctx) -> bool {
     // In the stratified case, the conclusion is always false. Furthermore,
     // exactly one literal is bound. Thus, we can exit instantiation early
     // here.
-    return !report_premise(*state_, ctx, premise_);
+    return state_->add_premise(ctx, premise_);
 }
 
 void LitCondLitStrat::do_propagate([[maybe_unused]] Queue &queue) {}
@@ -475,10 +478,7 @@ void LitCondLitStrat::do_print(std::ostream &out) const {
 
 auto LitCondLitStrat::do_output(InstantiationContext &ctx, OutputLit &out) const -> bool {
     if (auto it = state_->atom_find(ctx.ass()); !state_->atom_is_fact(it)) {
-        if (!it.value().has_uid()) {
-            it.value().set_uid(ctx.out().uid());
-        }
-        out.cond_lit(it.value().uid());
+        it.value().uid(out.cond_lit(it.value().uid()));
         return true;
     }
     return false;
@@ -568,11 +568,12 @@ auto StmCondLit::do_report(InstantiationContext &ctx) -> bool {
             break;
         }
         case StmCondLitType::premise: {
-            std::ignore = report_premise(*state_, ctx, body_);
+            std::ignore = state_->add_premise(ctx, body_);
             break;
         }
         case StmCondLitType::conclusion: {
             if (auto it = state_->atom_find(ctx.ass()); !it.value().is_false()) {
+                // TODO: this is misuse of the condition a single literal (or true) is needed...
                 bool fact = true;
                 auto &out = ctx.out().cond();
                 for (auto const &lit : body_) {
@@ -580,8 +581,7 @@ auto StmCondLit::do_report(InstantiationContext &ctx) -> bool {
                         fact = false;
                     }
                 }
-                auto jt = state_->add_conclusion(ctx.ass(), it, fact);
-                ctx.out().cond_lit_conclusion(it.value().uid(), state_->elem_index(jt));
+                state_->add_conclusion(ctx.ass(), it, ctx.out().cond_id(), fact);
             }
             break;
         }

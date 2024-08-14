@@ -20,7 +20,7 @@ class OutputLit {
     //! Output the given conditional literal.
     //!
     //! Note that its elemens have to be accumulated before using the statement output.
-    void cond_lit(size_t uid) { do_cond_lit(uid); }
+    auto cond_lit(std::optional<size_t> uid) -> size_t { return do_cond_lit(uid); }
     //! Delayed output of an aggregate.
     //!
     //! Outputs a previously added aggregate if uid is given or starts
@@ -30,7 +30,7 @@ class OutputLit {
   private:
     virtual void do_lit(Sign sign, Symbol sym) = 0;
     virtual void do_boolean(bool value) = 0;
-    virtual void do_cond_lit(size_t uid) = 0;
+    virtual auto do_cond_lit(std::optional<size_t> uid) -> size_t = 0;
     virtual auto do_bd_aggr(Sign sign, std::optional<size_t> uid) -> size_t = 0;
 };
 
@@ -39,6 +39,7 @@ class OutputStm {
   public:
     using BdElems = std::span<std::pair<SymbolSpan, std::span<size_t const>> const>;
     using Guards = std::span<std::pair<Relation, Symbol> const>;
+    using CondLits = std::span<std::pair<std::optional<size_t>, size_t> const>;
 
     //! Destroy the output.
     virtual ~OutputStm() = default;
@@ -56,17 +57,8 @@ class OutputStm {
     //! The body of the rule has to be output first.
     void rule(std::optional<Symbol> head) { do_rule(head); }
 
-    //! Return an output for conditional literals.
-    //!
-    //! This allows for adding literal to the premise or condition of the literal.
+    //! Return an output for a condition.
     auto cond() -> OutputLit & { return do_cond(); }
-    //! Add elements to the premise of a conditional literal.
-    void cond_lit_premise(size_t lit_uid, size_t elem_uid) { do_cond_lit_premise(lit_uid, elem_uid); }
-    //! Add elements to the conclusion of a conditional literal.
-    //!
-    //! At most one element must be added to the conclusion.
-    void cond_lit_conclusion(size_t lit_uid, size_t elem_uid) { do_cond_lit_conclusion(lit_uid, elem_uid); }
-
     //! Commit a condition of simple literals returning its id.
     auto cond_id() -> size_t { return do_cond_id(); }
 
@@ -74,6 +66,9 @@ class OutputStm {
     void bd_aggr(size_t uid, AggregateFunction fun, BdElems elems, Guards guards) {
         do_bd_aggr(uid, fun, elems, guards);
     }
+
+    //! Complete a delayed conditional literal.
+    void cond_lit(size_t uid, CondLits elems) { do_cond_lit(uid, elems); }
 
     //! Flush all delayed rule assuming they are completely defined.
     //!
@@ -94,11 +89,9 @@ class OutputStm {
     virtual void do_rule(std::optional<Symbol> head) = 0;
 
     virtual auto do_cond() -> OutputLit & = 0;
-    virtual void do_cond_lit_premise(size_t lit_uid, size_t elem_uid) = 0;
-    virtual void do_cond_lit_conclusion(size_t lit_uid, size_t elem_uid) = 0;
-
     virtual auto do_cond_id() -> size_t = 0;
 
+    virtual void do_cond_lit(size_t uid, CondLits elems) = 0;
     virtual void do_bd_aggr(size_t uid, AggregateFunction fun, BdElems elems, Guards guards) = 0;
 
     virtual void do_flush() = 0;

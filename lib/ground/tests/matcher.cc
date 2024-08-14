@@ -14,7 +14,7 @@ class NullOutputLit : public OutputLit {
   private:
     void do_lit([[maybe_unused]] Sign sign, [[maybe_unused]] Symbol sym) override {}
     void do_boolean([[maybe_unused]] bool value) override {}
-    void do_cond_lit([[maybe_unused]] size_t uid) override {}
+    auto do_cond_lit([[maybe_unused]] std::optional<size_t> uid) -> size_t override { return 0; }
     auto do_bd_aggr([[maybe_unused]] Sign sign, [[maybe_unused]] std::optional<size_t> uid) -> size_t override {
         return 0;
     }
@@ -28,8 +28,7 @@ class NullOutputStm : public OutputStm {
     void do_rule([[maybe_unused]] std::optional<Symbol> head) override {}
     auto do_cond() -> OutputLit & override { return lout; }
     auto do_cond_id() -> size_t override { return 0; }
-    void do_cond_lit_premise([[maybe_unused]] size_t lit_index, [[maybe_unused]] size_t elem_index) override {}
-    void do_cond_lit_conclusion([[maybe_unused]] size_t lit_index, [[maybe_unused]] size_t elem_index) override {}
+    void do_cond_lit([[maybe_unused]] size_t uid, [[maybe_unused]] CondLits elems) override {}
     void do_bd_aggr([[maybe_unused]] size_t uid, [[maybe_unused]] AggregateFunction fun, [[maybe_unused]] BdElems elems,
                     [[maybe_unused]] Guards guards) override {}
     void do_flush() override {}
