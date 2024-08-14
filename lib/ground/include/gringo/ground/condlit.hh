@@ -94,7 +94,7 @@ class StateAtomCondLit {
     //! Check if all elements of the atom are facts.
     //!
     //! Note that this is not sufficient to check whether the atom is fact in
-    //! case the premise is recursive.
+    //! case the premise is multipass.
     [[nodiscard]] auto is_fact(MapElemCondLit const &elems) const -> bool;
     //! Check if the atom has been marked false.
     [[nodiscard]] auto is_false() const -> bool { return false_ != 0; }
@@ -234,13 +234,12 @@ class BaseCondLit : public BaseImpl<Symbol const *, BaseCondLit> {
 struct StateCondLit {
   public:
     //! Construct an empty state.
-    StateCondLit(VariableVec local, VariableVec global, size_t index, bool has_conclusion, bool rec_premise,
-                 bool domain)
+    StateCondLit(VariableVec local, VariableVec global, size_t index, bool has_conclusion, bool sp_premise, bool domain)
         : local_{std::move(local)}, global_{std::move(global)}, syms_elems_{local_.size() + 1},
           syms_atoms_{global_.size()}, atoms_{0, Util::SpanHash{global_.size()}, Util::SpanEqualTo{global_.size()}},
           elems_{0, Util::SpanHash{local_.size() + 1}, Util::SpanEqualTo{local_.size() + 1}}, base_empty_{atoms_},
           base_premise_{elems_}, base_lit_{atoms_}, index_{index}, has_conclusion_{has_conclusion},
-          rec_premise_{rec_premise}, domain_{domain} {
+          sp_premise_{sp_premise}, domain_{domain} {
         temp_syms_.reserve(std::max(global_.size(), local_.size() + 1));
     }
 
@@ -271,7 +270,7 @@ struct StateCondLit {
     //! Propagate enqueued conditional literals whose elements are not blocked.
     [[nodiscard]] auto propagate() -> bool;
 
-    //! Return true if all contained literals are domain and the premise is not recursive.
+    //! Return true if all contained literals are domain.
     [[nodiscard]] auto domain() const -> bool;
 
     //! Get the base containing all conditional literals encountered during grounding.
@@ -329,7 +328,7 @@ struct StateCondLit {
     BaseCondLit base_lit_;
     size_t index_;
     bool has_conclusion_;
-    bool rec_premise_;
+    bool sp_premise_;
     bool domain_;
 };
 

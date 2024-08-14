@@ -137,7 +137,7 @@ auto StateCondLit::propagate() -> bool {
     return res;
 }
 
-auto StateCondLit::domain() const -> bool { return domain_ && !rec_premise_; }
+auto StateCondLit::domain() const -> bool { return domain_; }
 
 auto StateCondLit::base_empty() -> BaseCondLitEmpty & { return base_empty_; }
 
@@ -146,7 +146,7 @@ auto StateCondLit::base_premise() -> BaseCondLitPremise & { return base_premise_
 auto StateCondLit::base_lit() -> BaseCondLit & { return base_lit_; }
 
 auto StateCondLit::atom_is_fact(MapAtomCondLit::iterator it) -> bool {
-    if (rec_premise_) {
+    if (!sp_premise_) {
         return false;
     }
     assert(it != atoms_.end());

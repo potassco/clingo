@@ -415,50 +415,51 @@ class BuildContext {
         }
         return Ground::stratified_index;
     }
-    //! Check if the given input literal is recursive.
-    [[nodiscard]] auto is_recursive(Input::Lit const &lit) const -> bool {
+    //! Check if the given input literal is single pass.
+    [[nodiscard]] auto single_pass(Input::Lit const &lit) const -> bool {
         if (test(comp_->type, Input::ComponentType::single_pass)) {
-            return false;
+            return true;
         }
         if (auto const *slit = std::get_if<Input::LitSymbolic>(&lit); slit != nullptr) {
-            return slit->sign() == Sign::none && index(*slit) != Ground::stratified_index;
+            return slit->sign() != Sign::none || index(*slit) == Ground::stratified_index;
         }
-        return false;
+        return true;
     }
-    [[nodiscard]] auto next_index() -> size_t { return comp_->incomplete.size() + index_++; }
 
-    [[nodiscard]] auto has_rec_body() const -> bool {
-        auto rec_comp = !test(comp_->type, Input::ComponentType::single_pass);
-        return rec_comp &&
-               std::any_of(body_->begin(), body_->end(), [](auto const &lit) { return !lit->single_pass(); });
+    //! Check if the (current) body can be grounded in a single pass.
+    [[nodiscard]] auto single_pass_body() const -> bool {
+        return test(comp_->type, Input::ComponentType::single_pass) ||
+               std::all_of(body_->begin(), body_->end(), [](auto const &lit) { return lit->single_pass(); });
     }
+
+    [[nodiscard]] auto next_index() -> size_t { return comp_->incomplete.size() + index_++; }
 
     //! Analyze the given conditional literal and return the required indices for grounding.
     [[nodiscard]] auto analyze(Input::CondLit const &lit) -> std::tuple<bool, bool, bool, size_t, size_t, size_t> {
         assert(!Input::is_fixed(lit.lit()).value_or(false));
 
         auto has_conclusion = !Input::is_fixed(lit.lit()).has_value();
-        auto rec_comp = !test(comp_->type, Input::ComponentType::single_pass);
-        auto rec_body = has_rec_body();
-        auto rec_premise = rec_comp && std::any_of(lit.cond().begin(), lit.cond().end(),
-                                                   [this](auto const &lit) { return is_recursive(lit); });
-        bool rec_conclusion = rec_comp && is_recursive(lit.lit());
+        auto sp_body = single_pass_body();
+        auto sp_premise =
+            test(comp_->type, Input::ComponentType::single_pass) ||
+            std::all_of(lit.cond().begin(), lit.cond().end(), [this](auto const &lit) { return single_pass(lit); });
+        bool sp_conclusion = single_pass(lit.lit());
 
         auto empty_index = Ground::stratified_index;
         auto premise_index = Ground::stratified_index;
         auto lit_index = Ground::stratified_index;
 
-        if (rec_premise || rec_conclusion) {
-            if (rec_body) {
-                empty_index = Ground::stratified_index;
+        if (!sp_premise || !sp_conclusion) {
+            if (!sp_body) {
+                empty_index = next_index();
             }
-            if (rec_body || rec_premise) {
+            if (!sp_body || !sp_premise) {
                 premise_index = next_index();
             }
             lit_index = has_conclusion ? next_index() : premise_index;
         }
 
-        return {has_conclusion, rec_conclusion, rec_premise, empty_index, premise_index, lit_index};
+        return {has_conclusion, sp_conclusion, sp_premise, empty_index, premise_index, lit_index};
     }
 
     //! Get the grounder implementation.
@@ -618,31 +619,6 @@ class BuilderBdLit {
     }
     //! Translate body aggregates.
     void operator()(Input::BdLitAggregate const &lit) const {
-        /*
-        - very likely, the stratified variant (if applicable) is preferable in
-          most cases including monotone aggregates
-        - monotone or recursive
-          - example
-            h(X) :- b(X), #count { Y: e(X,Y) } >= 1, c(X).
-          - translation
-            #elem(X,0) :- b(X), 0 >= 1.
-            #elem(X,1,Y) :- b(X), e(X,Y).
-            h(X) :- b(X), #aggr(X), c(X).
-          - propagate
-            - accumulating elements also adds #aggr domain elements
-            - such elements can be added whenever the necessary threshold is reached
-        - not monotone and not recursive
-          - example
-            h(X) :- b(X), #count { Y: e(X,Y) } >= 1, c(X).
-          - translation
-            h(X) :- b(X), #aggr(X), c(X).
-            - nested
-              #elem(X,1,Y) :- #aggr(X), e(X,Y).
-        - assignment
-          - special case for later
-        */
-        // analyze: stratified, monotonicity, domain (per cond?), assign, indices, priorities
-        // TODO: ...
         auto &store = *ctx_->impl().store;
         auto vars_body = Ground::VariableSet{};
         for (auto const &lit : ctx_->body()) {
@@ -671,7 +647,7 @@ class BuilderBdLit {
                                    [&vars_body](auto const &var) { return vars_body.contains(var); });
 
         auto dom = true;                                // all literals in conditions are domain
-        auto rec = false;                               // at least one recursive condition
+        auto sp_elems = true;                           // all conditions are single-pass
         auto pos = lit.fun() == AggregateFunction::sum; // sum aggregate can be turned into a sum+ aggregate
         auto elems = std::vector<std::tuple<Ground::UTermVec, Ground::ULitVec>>{};
         elems.reserve(lit.elems().size());
@@ -701,8 +677,8 @@ class BuilderBdLit {
                              },
                              elem.tuple().front());
             for (auto const &lit : elem.cond()) {
-                if (ctx_->is_recursive(lit)) {
-                    rec = true;
+                if (!ctx_->single_pass(lit)) {
+                    sp_elems = false;
                 }
                 std::visit(BuilderLit{*ctx_,
                                       [&cond, &elem_vars]<class Lit>(Lit &&glit) {
@@ -722,15 +698,15 @@ class BuilderBdLit {
             elems.emplace_back(std::move(tuple), std::move(cond));
         }
         auto fun = pos ? AggregateFunction::sump : lit.fun();
-        // TODO: alternatively, treat the empty case below differently
+        // Note that this slightly increases the required storage for count
+        // aggregates.
         if (fun == AggregateFunction::count) {
             fun = AggregateFunction::sump;
         }
         auto mon = Input::reduct_is_monotone(lit.lhs(), fun, lit.rhs());
 
-        auto rec_body = ctx_->has_rec_body();
         auto elem_priority = ctx_->inc_priority();
-        auto index = rec_body || rec ? ctx_->next_index() : Ground::stratified_index;
+        auto index = ctx_->single_pass_body() && sp_elems ? Ground::stratified_index : ctx_->next_index();
 
         // TODO: remove
         /*
@@ -757,7 +733,7 @@ class BuilderBdLit {
 
         // initialize state
         auto &state =
-            ctx_->state<Ground::StateAggr>(vars_global.release(), std::move(guards), fun, index, dom, mon, !rec);
+            ctx_->state<Ground::StateAggr>(vars_global.release(), std::move(guards), fun, index, dom, mon, sp_elems);
 
         // add rule for empty case
         auto body = Ground::ULitVec{};
@@ -804,20 +780,13 @@ class BuilderBdLit {
     }
     //! Translate simple literals.
     void operator()(Input::BdLitSimple const &lit) const {
-        // we need to know whether the literal is recursive
-        // if it is, then it has to be updated while grounding
-        // if not then its index can be created ahead of time
-        // we might also want to persue a different strategy here
-        // an index only has to be updated until it contains at least one value that justifies grounding
-        // the remaining of the index can be updated while grounding
-        // in case the index is never grounded, this can safe some computation
         std::visit(
             BuilderLit{*ctx_, [this]<class Lit>(Lit &&glit) { ctx_->body().emplace_back(std::forward<Lit>(glit)); }},
             lit.lit());
     }
     //! Translate conditional literals.
     void operator()(Input::BdLitConjunction const &lit) const {
-        auto [has_conclusion, rec_conclusion, rec_premise, empty_index, premise_index, lit_index] =
+        auto [has_conclusion, sp_conclusion, sp_premise, empty_index, premise_index, lit_index] =
             ctx_->analyze(lit.lit());
         bool domain = true;
         auto build_lit = [this, &domain](auto &body, auto &vars, auto const &lit) {
@@ -833,7 +802,7 @@ class BuilderBdLit {
         };
 
         // convert conclusion and premise
-        bool shift = !rec_conclusion && has_conclusion;
+        bool shift = sp_conclusion && has_conclusion;
         auto vars_lit = Ground::VariableSet{};
         auto premise = Ground::ULitVec{};
         premise.reserve(lit.lit().cond().size() + 1 + static_cast<size_t>(shift));
@@ -869,16 +838,16 @@ class BuilderBdLit {
         }
 
         auto &base = ctx_->state<Ground::StateCondLit>(std::move(vars_local), std::move(vars_global), lit_index,
-                                                       has_conclusion, rec_premise, domain);
+                                                       has_conclusion, sp_premise, domain);
 
-        // handle the stratified case
-        if (!rec_conclusion && !rec_premise) {
+        // handle the single-pass case
+        if (sp_conclusion && sp_premise) {
             assert(!has_conclusion);
             premise.insert(premise.begin(),
                            std::make_unique<Ground::LitCondLit>(Ground::LitCondLitType::empty, base, 1));
             ctx_->body().emplace_back(std::make_unique<Ground::LitCondLitStrat>(base, std::move(premise)));
         }
-        // handle the recursive case
+        // handle the multi-pass case
         else {
             // convert body
             auto body = Ground::ULitVec{};
