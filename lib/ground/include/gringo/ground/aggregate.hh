@@ -617,12 +617,8 @@ class LitAggr : public Lit, private MatchAggrLit {
     }
 
     //! Returns true if the aggregate needs only one grounding pass.
-    //!
-    //! Note that double negated aggregates where only the body prefix is
-    //! recursive can be treated like non-negated ones.
     [[nodiscard]] auto do_single_pass() const -> bool override {
-        return state().index() == stratified_index || sign_ == Sign::once ||
-               (sign_ == Sign::twice && !state().recursive());
+        return state().index() == stratified_index || sign_ == Sign::once || !state().recursive();
     }
 
     [[nodiscard]] auto do_matcher(MatcherType type, std::vector<bool> const &bound)
@@ -633,6 +629,8 @@ class LitAggr : public Lit, private MatchAggrLit {
         if (sign_ == Sign::once) {
             return {make_non_fact_matcher(state().base(), match, symbol_), std::nullopt};
         }
+        // Note that double-negated non-recursive aggregates are treated like
+        // positive aggregates.
         if (sign_ == Sign::twice && state().recursive()) {
             return {make_once_matcher(match, symbol_), std::nullopt};
         }
