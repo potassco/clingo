@@ -323,9 +323,9 @@ class StateAggr {
 
     //! Initialize an aggregate state.
     StateAggr(VariableVec global, GuardVec guards, AggregateFunction fun, size_t index, bool domain, bool monotone,
-              bool recursive)
+              bool single_pass_elems)
         : base_{global.size()}, global_{std::move(global)}, guards_{std::move(guards)}, index_{index}, fun_{fun},
-          domain_{domain}, monotone_{monotone}, recursive_{recursive} {}
+          domain_{domain}, monotone_{monotone}, single_pass_elems_{single_pass_elems} {}
 
     //! Get the global variables in the aggregate.
     [[nodiscard]] auto global() const -> VariableVec const & { return global_; }
@@ -344,11 +344,11 @@ class StateAggr {
     //!
     //! Neither takes the sign of the aggregate nor its elements into account.
     [[nodiscard]] auto monotone() const -> bool { return monotone_; }
-    //! Indicates that there is recursion through one of the literals in the
-    //! conditions of elements.
+    //! Indicates that all necessary elemements can be grounded in a single
+    //! pass.
     //!
     //! This does not take into account the body prefix of elements.
-    [[nodiscard]] auto recursive() const -> bool { return recursive_; }
+    [[nodiscard]] auto single_pass_elems() const -> bool { return single_pass_elems_; }
     //! Get the update index.
     [[nodiscard]] auto index() const -> size_t { return index_; }
 
@@ -376,7 +376,7 @@ class StateAggr {
             }
 
             if (auto [match, fact] = state.propagate(guards_, it.key() + global_.size()); match) {
-                if (fact && (monotone_ || !recursive_)) {
+                if (fact && (monotone() || single_pass_elems())) {
                     state.state(AtomAggrState::fact);
 #ifdef DEBUG_AGGR
                     std::cerr << "propagate: a: " << atom_idx << " [f]\n";
@@ -507,7 +507,7 @@ class StateAggr {
     AggregateFunction fun_;
     bool domain_;
     bool monotone_;
-    bool recursive_;
+    bool single_pass_elems_;
 };
 
 //! A term like object used to match conditional literals and their elements.
@@ -613,12 +613,12 @@ class LitAggr : public Lit, private MatchAggrLit {
     //! Note that we do not need a stratified index for the latter case. There
     //! can be recursion through the body prefix.
     [[nodiscard]] auto do_domain() const -> bool override {
-        return state().domain() && ((sign_ == Sign::none && state().monotone()) || !state().recursive());
+        return state().domain() && ((sign_ == Sign::none && state().monotone()) || state().single_pass_elems());
     }
 
     //! Returns true if the aggregate needs only one grounding pass.
     [[nodiscard]] auto do_single_pass() const -> bool override {
-        return state().index() == stratified_index || sign_ == Sign::once || !state().recursive();
+        return state().index() == stratified_index || sign_ == Sign::once || state().single_pass_elems();
     }
 
     [[nodiscard]] auto do_matcher(MatcherType type, std::vector<bool> const &bound)
@@ -629,9 +629,9 @@ class LitAggr : public Lit, private MatchAggrLit {
         if (sign_ == Sign::once) {
             return {make_non_fact_matcher(state().base(), match, symbol_), std::nullopt};
         }
-        // Note that double-negated non-recursive aggregates are treated like
+        // Note that double-negated single-pass aggregates are treated like
         // positive aggregates.
-        if (sign_ == Sign::twice && state().recursive()) {
+        if (sign_ == Sign::twice && !state().single_pass_elems()) {
             return {make_once_matcher(match, symbol_), std::nullopt};
         }
         auto index = std::optional<size_t>{};
@@ -661,14 +661,13 @@ class LitAggr : public Lit, private MatchAggrLit {
                 }
             } else {
                 // the atom could not be used for matching
-                // (can only be the case for recursive double negation with the match_once_matcher)
-                assert(symbol_ != nullptr);
+                assert(symbol_ != nullptr && sign_ == Sign::twice);
                 // ensure presence of atom for output
                 it = state().insert_atom(symbol_);
             }
         } else {
             assert(symbol_ != nullptr);
-            if (!state().recursive()) {
+            if (state().single_pass_elems()) {
                 // Note: could be transformed to the non-negated case.
                 // (best done before the ground representation)
                 auto &atoms = state().base().atoms();

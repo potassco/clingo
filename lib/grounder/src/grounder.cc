@@ -757,7 +757,7 @@ class BuilderBdLit {
 
         // initialize state
         auto &state =
-            ctx_->state<Ground::StateAggr>(vars_global.release(), std::move(guards), fun, index, dom, mon, rec);
+            ctx_->state<Ground::StateAggr>(vars_global.release(), std::move(guards), fun, index, dom, mon, !rec);
 
         // add rule for empty case
         auto body = Ground::ULitVec{};

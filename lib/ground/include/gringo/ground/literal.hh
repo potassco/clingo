@@ -41,6 +41,8 @@ class Lit {
     //! cycles through them and their (current) base is domain.
     [[nodiscard]] auto domain() const -> bool { return do_domain(); }
     //! Returns true if the literal can be grounded in a single pass.
+    //!
+    //! Such literals are always have a complete state ready to be output.
     [[nodiscard]] auto single_pass() const -> bool { return do_single_pass(); }
     //! Returns true if the base of the literal is complete at the time of grounding.
     [[nodiscard]] auto matcher(MatcherType type,
