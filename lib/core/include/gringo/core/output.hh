@@ -21,16 +21,25 @@ class OutputLit {
     //!
     //! Note that its elemens have to be accumulated before using the statement output.
     void cond_lit(size_t uid) { do_cond_lit(uid); }
+    //! Delayed output of an aggregate.
+    //!
+    //! Outputs a previously added aggregate if uid is given or starts
+    //! outputting a fresh aggregate atom.
+    auto bd_aggr(Sign sign, std::optional<size_t> uid) -> size_t { return do_bd_aggr(sign, uid); }
 
   private:
     virtual void do_lit(Sign sign, Symbol sym) = 0;
     virtual void do_boolean(bool value) = 0;
     virtual void do_cond_lit(size_t uid) = 0;
+    virtual auto do_bd_aggr(Sign sign, std::optional<size_t> uid) -> size_t = 0;
 };
 
 //! Interface to output statements.
 class OutputStm {
   public:
+    using BdElems = std::span<std::pair<SymbolSpan, std::span<size_t const>> const>;
+    using Guards = std::span<std::pair<Relation, Symbol> const>;
+
     //! Destroy the output.
     virtual ~OutputStm() = default;
 
@@ -61,6 +70,11 @@ class OutputStm {
     //! Commit a condition of simple literals returning its id.
     auto cond_id() -> size_t { return do_cond_id(); }
 
+    //! Complete a delayed body aggregate.
+    void bd_aggr(size_t uid, AggregateFunction fun, BdElems elems, Guards guards) {
+        do_bd_aggr(uid, fun, elems, guards);
+    }
+
     //! Flush all delayed rule assuming they are completely defined.
     //!
     //! Should be called after grounding a component.
@@ -84,6 +98,8 @@ class OutputStm {
     virtual void do_cond_lit_conclusion(size_t lit_uid, size_t elem_uid) = 0;
 
     virtual auto do_cond_id() -> size_t = 0;
+
+    virtual void do_bd_aggr(size_t uid, AggregateFunction fun, BdElems elems, Guards guards) = 0;
 
     virtual void do_flush() = 0;
     virtual void do_end_step() = 0;

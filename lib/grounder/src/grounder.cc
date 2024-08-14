@@ -957,7 +957,7 @@ class Builder : public Input::DependencyBuilder {
                               std::all_of(ref_comp.depend.begin(), ref_comp.depend.end(),
                                           [this](auto const &sig) { return impl_->add_base(sig)->second->domain(); });
                 auto gcomp = Ground::Component{domain};
-                auto state = StateList{};
+                auto states = StateList{};
                 for (auto const &stm : ref_comp.stms) {
                     Util::unordered_map<String, size_t> var_map;
                     Input::visit_variables(
@@ -975,7 +975,7 @@ class Builder : public Input::DependencyBuilder {
                         }
                         ++i;
                     }
-                    auto ctx = BuildContext{*impl_, ref_comp, def_map, gcomp, var_map, body, state};
+                    auto ctx = BuildContext{*impl_, ref_comp, def_map, gcomp, var_map, body, states};
                     auto bld_stm = BuilderStm{ctx};
                     std::visit(bld_stm, *stm);
                 }
@@ -987,6 +987,9 @@ class Builder : public Input::DependencyBuilder {
                 }
                 if (!queue.process(*impl_->log, *impl_->store, *impl_->out)) {
                     return false;
+                }
+                for (auto &state : states) {
+                    std::visit([this](auto &state) { state.output(*impl_->out); }, state);
                 }
             }
             impl_->out->flush();

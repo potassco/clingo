@@ -15,21 +15,28 @@ class NullOutputLit : public OutputLit {
     void do_lit([[maybe_unused]] Sign sign, [[maybe_unused]] Symbol sym) override {}
     void do_boolean([[maybe_unused]] bool value) override {}
     void do_cond_lit([[maybe_unused]] size_t uid) override {}
+    auto do_bd_aggr([[maybe_unused]] Sign sign, [[maybe_unused]] std::optional<size_t> uid) -> size_t override {
+        return 0;
+    }
 };
 
-class NullOutputStm : public OutputStm, public NullOutputLit {
+class NullOutputStm : public OutputStm {
   private:
     auto do_uid() -> size_t override { return 0; }
     void do_fact([[maybe_unused]] Symbol sym) override {}
-    auto do_body() -> OutputLit & override { return *this; }
+    auto do_body() -> OutputLit & override { return lout; }
     void do_rule([[maybe_unused]] std::optional<Symbol> head) override {}
-    auto do_cond() -> OutputLit & override { return *this; }
+    auto do_cond() -> OutputLit & override { return lout; }
     auto do_cond_id() -> size_t override { return 0; }
     void do_cond_lit_premise([[maybe_unused]] size_t lit_index, [[maybe_unused]] size_t elem_index) override {}
     void do_cond_lit_conclusion([[maybe_unused]] size_t lit_index, [[maybe_unused]] size_t elem_index) override {}
+    void do_bd_aggr([[maybe_unused]] size_t uid, [[maybe_unused]] AggregateFunction fun, [[maybe_unused]] BdElems elems,
+                    [[maybe_unused]] Guards guards) override {}
     void do_flush() override {}
     void do_end_step() override {}
     void do_mark([[maybe_unused]] SymbolCollector &gc) override {}
+
+    NullOutputLit lout;
 };
 
 } // namespace

@@ -159,6 +159,15 @@ class AtomAggr {
         return std::span{elems_.begin() + static_cast<ssize_t>(propagated_), elems_.end()};
     }
 
+    [[nodiscard]] auto uid() const -> std::optional<size_t> {
+        return uid_ != invalid_offset ? std::make_optional(uid_) : std::nullopt;
+    }
+
+    void uid(size_t uid) {
+        assert(uid_ == invalid_offset || uid_ == uid);
+        uid_ = uid;
+    }
+
   private:
     static auto init_(AggregateFunction fun) -> Bound {
         if (fun == AggregateFunction::min) {
@@ -174,6 +183,7 @@ class AtomAggr {
     std::variant<std::pair<Number, Number>, std::pair<Symbol, Symbol>> bound_;
     size_t propagated_ = 0;
     size_t derived_idx_ = 0;
+    size_t uid_ = invalid_offset;
     AtomAggrState state_ = AtomAggrState::unknown;
     bool enqueued_ = false;
 };
@@ -382,7 +392,7 @@ class StateAggr {
                     std::cerr << "propagate: a: " << atom_idx << " [f]\n";
 #endif
                 } else {
-                    state.state(AtomAggrState::unknown);
+                    state.state(AtomAggrState::derived);
 #ifdef DEBUG_AGGR
                     std::cerr << "propagate: a: " << atom_idx << "\n";
 #endif
@@ -495,6 +505,28 @@ class StateAggr {
 
     //! Get the underlying atom base.
     [[nodiscard]] auto base() -> BaseAggr & { return base_; }
+
+    //! Output all previously output aggregates.
+    void output(OutputStm &out) {
+        std::vector<std::pair<SymbolSpan, std::span<size_t const>>> elems;
+        std::vector<std::pair<Relation, Symbol>> guards;
+        for (auto const &[tuple, atom] : base_.atoms()) {
+            if (auto uid = atom.uid(); uid) {
+                elems.clear();
+                guards.clear();
+                for (auto const &elem_idx : atom.elems()) {
+                    auto const &[tuple, conds] = *tuples_.nth(elem_idx);
+                    elems.emplace_back(tuple->span(), conds);
+                }
+                auto const *it = tuple + global_.size();
+                for (auto &guard : guards_) {
+                    guards.emplace_back(guard.first, *it);
+                    it = std::next(it);
+                }
+                out.bd_aggr(*uid, fun_, elems, guards);
+            }
+        }
+    }
 
   private:
     Util::NodeStore<alignof(Symbol)> node_store_;
@@ -650,8 +682,11 @@ class LitAggr : public Lit, private MatchAggrLit {
 
     void do_print(std::ostream &out) const override { state().print(out); }
 
-    auto do_output(InstantiationContext &ctx, OutputLit &out) const -> bool override {
-        auto it = StateAggr::AtomMap::const_iterator{};
+    auto do_output([[maybe_unused]] InstantiationContext &ctx, OutputLit &out) const -> bool override {
+        if (domain()) {
+            return false;
+        }
+        auto it = StateAggr::AtomMap::iterator{};
         if (sign_ != Sign::once) {
             if (offset_ != invalid_offset) {
                 // the atom was used for matching
@@ -680,9 +715,9 @@ class LitAggr : public Lit, private MatchAggrLit {
                 it = state().insert_atom(symbol_);
             }
         }
-        static_cast<void>(ctx);
-        static_cast<void>(out);
-        throw std::logic_error("implement me: output aggregate");
+        auto &state = it.value();
+        state.uid(out.bd_aggr(sign_, state.uid()));
+        return true;
     }
 
     [[nodiscard]] auto do_copy() const -> ULit override { return std::make_unique<LitAggr>(state(), sign_); }
@@ -743,7 +778,6 @@ class StmAggrElem : public Stm {
         auto &ass = ctx.ass();
         // insert aggregate atom
         if (auto it = state_->insert_atom(ctx.store(), ass)) {
-
             auto get_cond = [this, &ctx]() {
                 // output the condition
                 bool fact = true;

@@ -159,6 +159,7 @@ TEST_CASE("parsev2") {
 
         REQUIRE(parse("p(1;2,*;*;*,*)") == "p(1;2,*;*;*,*)");
         REQUIRE(parse("p(*)") == "p(*)");
+        REQUIRE(parse("p(*,1)") == "p(*,1)");
         REQUIRE(parse("p((*,))") == "p((*,))");
         REQUIRE(parse("p((1;2,*;*,;*,*))") == "p((1;2,*;*,;*,*))");
     }

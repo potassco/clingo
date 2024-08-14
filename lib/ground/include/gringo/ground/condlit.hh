@@ -314,6 +314,11 @@ struct StateCondLit {
     //! Turn an iterator into an element index.
     [[nodiscard]] auto elem_index(MapElemCondLit::const_iterator it) const -> size_t;
 
+    //! Output the now complete conditional literal.
+    static void output([[maybe_unused]] OutputStm &out) {
+        // TODO: currently unused but maybe it is a good idea to output literals here
+    }
+
   private:
     VariableVec local_;
     VariableVec global_;

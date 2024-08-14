@@ -1,5 +1,7 @@
 #include <gringo/output/text.hh>
 
+#include <gringo/util/ordered_set.hh>
+#include <gringo/util/print.hh>
 #include <gringo/util/type_traits.hh>
 #include <gringo/util/unordered_map.hh>
 
@@ -12,10 +14,15 @@ namespace {
 class OutputSimple : public OutputLit {
   private:
     void do_cond_lit([[maybe_unused]] size_t uid) override { throw std::runtime_error("unsupported literal"); }
+    auto do_bd_aggr([[maybe_unused]] Sign sign, [[maybe_unused]] std::optional<size_t> uid) -> size_t override {
+        throw std::runtime_error("unsupported literal");
+    }
 };
 
 class OutputBody : public OutputLit {
   public:
+    OutputBody(size_t &uids) : uids_{&uids} {}
+
     void start() {
         buf_.str({});
         if (delayed_.empty() || !delayed_.back().empty()) {
@@ -97,7 +104,19 @@ class OutputBody : public OutputLit {
         delayed_.back().emplace_back(uid);
     }
 
+    auto do_bd_aggr(Sign sign, std::optional<size_t> uid) -> size_t override {
+        if (!uid) {
+            uid = ++*uids_;
+        }
+        sep();
+        buf_ << sign;
+        delay();
+        delayed_.back().emplace_back(*uid);
+        return *uid;
+    }
+
     bool has_body_ = false;
+    size_t *uids_;
     std::ostringstream buf_;
     Util::unordered_map<size_t, std::string> defined_;
     std::vector<std::vector<std::variant<std::string, size_t>>> delayed_;
@@ -165,7 +184,10 @@ class OutputText : public OutputStm {
         cond_.start();
         return cond_;
     }
-    auto do_cond_id() -> size_t override { return conds_.emplace(cond_.end(), conds_.size()).first->second; }
+    auto do_cond_id() -> size_t override {
+        auto it = conds_.emplace(cond_.end()).first;
+        return it - conds_.begin();
+    }
     void do_cond_lit_premise(size_t lit_uid, size_t elem_uid) override {
         cond_lits_[lit_uid].emplace_back(elem_uid);
         cond_lit_elems_.emplace(std::make_pair(lit_uid, elem_uid), std::make_pair("#false", cond_.end()));
@@ -176,7 +198,37 @@ class OutputText : public OutputStm {
 
     auto do_uid() -> size_t override { return ++uids_; }
 
+    void do_bd_aggr(size_t uid, AggregateFunction fun, BdElems elems, Guards guards) override {
+        std::ostringstream buf;
+        auto it = guards.begin();
+        if (guards.size() > 1) {
+            buf << it->second << " " << flip(it->first) << " ";
+            ++it;
+        }
+        buf << fun << " { "
+            << Util::p_range{elems, "; ",
+                             [this](auto &buf, auto const &elem) {
+                                 if (elem.second.empty()) {
+                                     buf << Util::p_range{elem.first};
+                                     if (elem.first.empty()) {
+                                         buf << ": ";
+                                     }
+                                 } else {
+                                     buf << Util::p_range{
+                                         elem.second, "; ", [this, &elem](auto &buf, auto const &cond) {
+                                             buf << Util::p_range{elem.first} << ": " << *conds_.nth(cond);
+                                         }};
+                                 }
+                             }}
+            << (elems.empty() ? "}" : " }");
+        for (auto ie = guards.end(); it != ie; ++it) {
+            buf << " " << it->first << " " << it->second;
+        }
+        body_.define(uid, buf.str());
+    }
+
     void do_flush() override {
+        std::ostringstream buf;
         for (auto const &[lit_index, elems] : cond_lits_) {
             body_.buf().str({});
             if (elems.empty()) {
@@ -208,11 +260,12 @@ class OutputText : public OutputStm {
     void do_mark([[maybe_unused]] SymbolCollector &gc) override {}
 
     std::ostream *out_;
-    OutputBody body_;
+    OutputBody body_{uids_};
     OutputCond cond_;
-    Util::unordered_map<std::string, size_t> conds_;
+    Util::ordered_set<std::string> conds_;
     Util::unordered_map<std::pair<size_t, size_t>, std::pair<std::string, std::string>> cond_lit_elems_;
     Util::unordered_map<size_t, std::vector<size_t>> cond_lits_;
+    Util::unordered_map<size_t, std::string> delayed_;
     size_t uids_ = 0;
 };
 
