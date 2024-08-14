@@ -366,6 +366,7 @@ auto cont_fun_args(ParserState &state, bool arg) -> bool {
                     state.consume();
                     continue;
                 }
+                state.replace(Prod::fun);
                 state.push(Prod::term);
                 return true;
             }
