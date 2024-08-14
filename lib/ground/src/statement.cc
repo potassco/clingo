@@ -5,10 +5,7 @@
 
 namespace Gringo::Ground {
 
-void Linearizer::start(Queue &queue, bool domain) {
-    iqueue_ = &queue;
-    domain_ = domain;
-}
+void Linearizer::start(Queue &queue) { iqueue_ = &queue; }
 
 void Linearizer::prepare(InstanceCallback &cb, ULitVec const &body, VariableSet important) {
     rec_.clear();
@@ -18,10 +15,11 @@ void Linearizer::prepare(InstanceCallback &cb, ULitVec const &body, VariableSet 
     // gather indices of recursive literals and extend important variables
     for (auto const &lit : body) {
         todos_.back().emplace_back(MatcherType::all_atoms);
-        if (lit->recursive()) {
+        if (!lit->single_pass()) {
             rec_.emplace_back(i);
         }
-        if (cb.is_important(i) && (!lit->domain() || (!domain_ && lit->recursive()))) {
+        // TODO: the domain flag could also be forced to avoid the is_important part
+        if (cb.is_important(i) && !lit->domain()) {
             lit->vars(important, VarSelectMode::all);
         }
         ++i;

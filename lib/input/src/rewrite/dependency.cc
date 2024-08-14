@@ -12,6 +12,7 @@
 #include <gringo/util/unordered_map.hh>
 
 #include <deque>
+#include <iostream>
 
 namespace Gringo::Input {
 
@@ -647,18 +648,19 @@ auto analyze(SymbolStore &store, std::vector<Stm> const &stms) -> Components {
             for (auto i : sub_scc) {
                 nodes[scc[i]].sub_scc = num_sub_scc;
             }
-            comp.type = ComponentType::domain | ComponentType::single_pass;
+            comp.type = ComponentType::positive | ComponentType::single_pass;
             for (auto i : sub_scc) {
                 auto const &stm = stms[scc[i]];
                 if (!nodes[scc[i]].normal) {
-                    comp.type -= ComponentType::domain;
+                    comp.type -= ComponentType::positive;
                 }
                 comp.stms.emplace_back(&stm);
                 for (auto const &[idx, bd_term, hd_term, sign] : nodes[scc[i]].depend) {
                     auto const &node = nodes[idx];
+                    comp.depend.emplace(safe_sig(*bd_term));
                     if (std::tie(node.scc, node.sub_scc) >= std::tie(num_scc, num_sub_scc)) {
                         if (sign) {
-                            comp.type -= ComponentType::domain;
+                            comp.type -= ComponentType::positive;
                         } else {
                             comp.type -= ComponentType::single_pass;
                         }
@@ -666,8 +668,6 @@ auto analyze(SymbolStore &store, std::vector<Stm> const &stms) -> Components {
                         if (node.sub_scc == num_sub_scc) {
                             hd_terms.emplace(hd_term);
                         }
-                    } else if (!test(comps[node.scc][node.sub_scc].type, ComponentType::domain)) {
-                        comp.type -= ComponentType::domain;
                     }
                 }
             }
@@ -692,7 +692,7 @@ void visualize(Components const &comps, std::ostream &out) {
             out << "    subgraph cluster_" << i << "_" << j << " {\n";
             out << "      label = \"subcomponent " << j << "\";\n";
             out << "      stms_" << i << "_" << j << " [label=<";
-            out << "statements[" << (test(comp.type, ComponentType::domain) ? "domain" : "non-domain") << ", "
+            out << "statements[" << (test(comp.type, ComponentType::positive) ? "positive" : "negative") << ", "
                 << (test(comp.type, ComponentType::single_pass) ? "single-pass" : "multi-pass") << "]:";
             for (auto const &stm : comp.stms) {
                 out << "<br/>";

@@ -121,19 +121,18 @@ TEST_CASE("dependency") {
         REQUIRE(comps.size() == 4);
         REQUIRE(comps[0].size() == 1);
         REQUIRE(comps[0][0].stms.size() == 1);
-        REQUIRE(comps[0][0].type == (ComponentType::domain | ComponentType::single_pass));
+        REQUIRE(comps[0][0].type == (ComponentType::positive | ComponentType::single_pass));
         REQUIRE(comps[1].size() == 1);
         REQUIRE(comps[1][0].stms.size() == 2);
-        REQUIRE(comps[1][0].type == ComponentType::domain);
+        REQUIRE(comps[1][0].type == ComponentType::positive);
         REQUIRE(comps[2].size() == 2);
         REQUIRE(comps[2][0].stms.size() == 1);
         REQUIRE(comps[2][0].type == ComponentType::single_pass);
         REQUIRE(comps[2][1].stms.size() == 1);
-        REQUIRE(comps[2][1].type == ComponentType::single_pass);
+        REQUIRE(comps[2][1].type == (ComponentType::positive | ComponentType::single_pass));
         REQUIRE(comps[3].size() == 1);
         REQUIRE(comps[3][0].stms.size() == 2);
-        // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange)
-        REQUIRE(comps[3][0].type == ComponentType{0});
+        REQUIRE(comps[3][0].type == ComponentType::positive);
     }
     SECTION("analyze_rename") {
         auto ph = ParseHelper{};

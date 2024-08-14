@@ -606,9 +606,9 @@ class LitAggr : public Lit, private MatchAggrLit {
 
     //! Returns true if matching aggregates are always facts.
     //!
-    //! The function can only return true if this is also the case for all
-    //! elements. Furthermore, the aggregate must be either monotone without
-    //! recursion through it, or there is no recursion through it.
+    //! The function can only return true if all literals in elements are
+    //! domain. Furthermore, the aggregate must be either monotone or there is
+    //! no recursion through it.
     //!
     //! Note that we do not need a stratified index for the latter case. There
     //! can be recursion through the body prefix.
@@ -616,13 +616,13 @@ class LitAggr : public Lit, private MatchAggrLit {
         return state().domain() && ((sign_ == Sign::none && state().monotone()) || !state().recursive());
     }
 
-    //! Returns true if the aggregate needs more than one grounding pass.
+    //! Returns true if the aggregate needs only one grounding pass.
     //!
     //! Note that double negated aggregates where only the body prefix is
     //! recursive can be treated like non-negated ones.
-    [[nodiscard]] auto do_recursive() const -> bool override {
-        return state().index() != stratified_index &&
-               (sign_ == Sign::none || (sign_ == Sign::twice && !state().recursive()));
+    [[nodiscard]] auto do_single_pass() const -> bool override {
+        return state().index() == stratified_index || sign_ == Sign::once ||
+               (sign_ == Sign::twice && !state().recursive());
     }
 
     [[nodiscard]] auto do_matcher(MatcherType type, std::vector<bool> const &bound)

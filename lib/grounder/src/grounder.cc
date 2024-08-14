@@ -428,8 +428,9 @@ class BuildContext {
     [[nodiscard]] auto next_index() -> size_t { return comp_->incomplete.size() + index_++; }
 
     [[nodiscard]] auto has_rec_body() const -> bool {
-        auto rec_comp = comp_->type != Input::ComponentType::single_pass;
-        return rec_comp && std::any_of(body_->begin(), body_->end(), [](auto const &lit) { return lit->recursive(); });
+        auto rec_comp = !test(comp_->type, Input::ComponentType::single_pass);
+        return rec_comp &&
+               std::any_of(body_->begin(), body_->end(), [](auto const &lit) { return !lit->single_pass(); });
     }
 
     //! Analyze the given conditional literal and return the required indices for grounding.
@@ -437,7 +438,7 @@ class BuildContext {
         assert(!Input::is_fixed(lit.lit()).value_or(false));
 
         auto has_conclusion = !Input::is_fixed(lit.lit()).has_value();
-        auto rec_comp = comp_->type != Input::ComponentType::single_pass;
+        auto rec_comp = !test(comp_->type, Input::ComponentType::single_pass);
         auto rec_body = has_rec_body();
         auto rec_premise = rec_comp && std::any_of(lit.cond().begin(), lit.cond().end(),
                                                    [this](auto const &lit) { return is_recursive(lit); });
@@ -548,9 +549,11 @@ template <class F> class BuilderLit {
         auto dom_it = ctx_->impl().add_base(Input::signature(lit.term()).value());
         if (has_projection) {
             auto [p_term, state] = ctx_->impl().add_project(term, *dom_it.value());
-            cb_(std::make_unique<Ground::LitProject>(*state, lit.sign(), std::move(term), std::move(p_term), idx));
+            cb_(std::make_unique<Ground::LitProject>(*state, lit.sign(), std::move(term), std::move(p_term), idx,
+                                                     ctx_->gcomp().domain()));
         } else {
-            cb_(std::make_unique<Ground::LitSymbolic>(*dom_it.value(), lit.sign(), std::move(term), idx));
+            cb_(std::make_unique<Ground::LitSymbolic>(*dom_it.value(), lit.sign(), std::move(term), idx,
+                                                      ctx_->gcomp().domain()));
         }
     }
 
@@ -977,7 +980,14 @@ class Builder : public Input::DependencyBuilder {
             GRINGO_REPORT(*impl_->log, debug) << "  component";
             for (auto const &ref_comp : ref_comps) {
                 GRINGO_REPORT(*impl_->log, debug) << "    refined component";
-                auto gcomp = Ground::Component{};
+                // A component is classified w.r.t. to previously accumulated
+                // atoms. It is domain if it is positive (i.e., contains no
+                // negative cycle) and all bases it depends on are domain.
+                // A domain component only derives facts.
+                bool domain = test(ref_comp.type, Input::ComponentType::positive) &&
+                              std::all_of(ref_comp.depend.begin(), ref_comp.depend.end(),
+                                          [this](auto const &sig) { return impl_->add_base(sig)->second->domain(); });
+                auto gcomp = Ground::Component{domain};
                 auto state = StateList{};
                 for (auto const &stm : ref_comp.stms) {
                     Util::unordered_map<String, size_t> var_map;
@@ -1000,23 +1010,8 @@ class Builder : public Input::DependencyBuilder {
                     auto bld_stm = BuilderStm{ctx};
                     std::visit(bld_stm, *stm);
                 }
-                // a component is domain if has be classified as such
-                // and also does not contain a non-domain literal
-                bool domain = [&ref_comp, &gcomp]() {
-                    if (!test(ref_comp.type, Input::ComponentType::domain)) {
-                        return false;
-                    }
-                    for (auto const &stm : gcomp.stms()) {
-                        for (auto const &lit : stm->body()) {
-                            if (!lit->domain()) {
-                                return false;
-                            }
-                        }
-                    }
-                    return true;
-                }();
                 auto queue = Ground::Queue{};
-                lin.start(queue, domain);
+                lin.start(queue);
                 for (auto const &stm : gcomp.stms()) {
                     GRINGO_REPORT(*impl_->log, debug) << "      " << *stm;
                     lin.prepare(*stm, stm->body(), stm->important());

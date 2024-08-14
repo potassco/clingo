@@ -17,7 +17,7 @@ auto LitInterval::do_copy() const -> ULit {
 
 auto LitInterval::do_domain() const -> bool { return true; }
 
-auto LitInterval::do_recursive() const -> bool { return false; }
+auto LitInterval::do_single_pass() const -> bool { return true; }
 
 void LitInterval::do_vars(VariableSet &vars, VarSelectMode mode) const {
     switch (mode) {
@@ -102,7 +102,7 @@ auto LitBool::do_copy() const -> ULit { return std::make_unique<LitBool>(value_)
 
 auto LitBool::do_domain() const -> bool { return true; }
 
-auto LitBool::do_recursive() const -> bool { return false; }
+auto LitBool::do_single_pass() const -> bool { return true; }
 
 void LitBool::do_vars([[maybe_unused]] VariableSet &vars, [[maybe_unused]] VarSelectMode mode) const {}
 
@@ -160,7 +160,7 @@ auto LitComparison::do_copy() const -> ULit {
 
 auto LitComparison::do_domain() const -> bool { return true; }
 
-auto LitComparison::do_recursive() const -> bool { return false; }
+auto LitComparison::do_single_pass() const -> bool { return true; }
 
 void LitComparison::do_vars(VariableSet &vars, VarSelectMode mode) const {
     if (cmp_ != Relation::equal) {
@@ -237,7 +237,7 @@ void LitFactCheck::do_vars(VariableSet &vars, VarSelectMode mode) const {
 
 auto LitFactCheck::do_domain() const -> bool { return true; }
 
-auto LitFactCheck::do_recursive() const -> bool { return false; }
+auto LitFactCheck::do_single_pass() const -> bool { return true; }
 
 auto LitFactCheck::do_matcher([[maybe_unused]] MatcherType type, [[maybe_unused]] std::vector<bool> const &bound)
     -> std::pair<UMatcher, std::optional<size_t>> {
@@ -305,14 +305,12 @@ auto LitSymbolic::do_output(InstantiationContext &ctx, OutputLit &out) const -> 
 }
 
 auto LitSymbolic::do_copy() const -> ULit {
-    return std::make_unique<LitSymbolic>(*base_, sign_, atom_->copy(), index_);
+    return std::make_unique<LitSymbolic>(*base_, sign_, atom_->copy(), index_, domain_);
 }
 
-auto LitSymbolic::do_domain() const -> bool {
-    return (sign_ == Sign::none || index_ == stratified_index) && base_->domain();
-}
+auto LitSymbolic::do_domain() const -> bool { return domain_ || (index_ == stratified_index && base_->domain()); }
 
-auto LitSymbolic::do_recursive() const -> bool { return sign_ == Sign::none && index_ != stratified_index; }
+auto LitSymbolic::do_single_pass() const -> bool { return sign_ != Sign::none || index_ == stratified_index; }
 
 void LitSymbolic::do_vars(VariableSet &vars, VarSelectMode mode) const {
     switch (mode) {
@@ -437,14 +435,14 @@ auto LitProject::do_output(InstantiationContext &ctx, OutputLit &out) const -> b
 }
 
 auto LitProject::do_copy() const -> ULit {
-    return std::make_unique<LitProject>(*state_, sign_, atom_->copy(), p_atom_->copy(), index_);
+    return std::make_unique<LitProject>(*state_, sign_, atom_->copy(), p_atom_->copy(), index_, domain_);
 }
 
 auto LitProject::do_domain() const -> bool {
-    return (sign_ == Sign::none || index_ == stratified_index) && state_->base().domain();
+    return domain_ || (index_ == stratified_index && state_->base().domain());
 }
 
-auto LitProject::do_recursive() const -> bool { return sign_ == Sign::none && index_ != stratified_index; }
+auto LitProject::do_single_pass() const -> bool { return sign_ != Sign::none || index_ == stratified_index; }
 
 void LitProject::do_vars(VariableSet &vars, VarSelectMode mode) const {
     switch (mode) {

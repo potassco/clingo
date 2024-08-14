@@ -35,17 +35,13 @@ class Lit {
     //! Get the variables in the predicate.
     void vars(VariableSet &vars, VarSelectMode mode) const { do_vars(vars, mode); }
 
-    //! Returns true if matching literals are also fact.
+    //! Returns true if matching literals are always fact.
     //!
-    //! This includes that bases of literals are domain and that there are no
-    //! cycles through negative literals (or incomplete ones).
+    //! For example, symbolic literals are domain if there are no negative
+    //! cycles through them and their (current) base is domain.
     [[nodiscard]] auto domain() const -> bool { return do_domain(); }
-    //! Returns true if the literal is recursive.
-    //!
-    //! Recursive literals give rise to components that need more than one grounding pass.
-    //! For example, incomplete positive symbolic literals are considered recursive.
-    //! However, incomplete negative literals are not considered recursive.
-    [[nodiscard]] auto recursive() const -> bool { return do_recursive(); }
+    //! Returns true if the literal can be grounded in a single pass.
+    [[nodiscard]] auto single_pass() const -> bool { return do_single_pass(); }
     //! Returns true if the base of the literal is complete at the time of grounding.
     [[nodiscard]] auto matcher(MatcherType type,
                                std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
@@ -79,7 +75,7 @@ class Lit {
   private:
     virtual void do_vars(VariableSet &vars, VarSelectMode mode) const = 0;
     [[nodiscard]] virtual auto do_domain() const -> bool = 0;
-    [[nodiscard]] virtual auto do_recursive() const -> bool { return false; }
+    [[nodiscard]] virtual auto do_single_pass() const -> bool { return false; }
     [[nodiscard]] virtual auto
     do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> = 0;
     [[nodiscard]] virtual auto do_score(std::vector<bool> const &bound) const -> double = 0;
@@ -100,7 +96,7 @@ class LitBool : public Lit {
   private:
     void do_vars(VariableSet &vars, VarSelectMode mode) const override;
     [[nodiscard]] auto do_domain() const -> bool override;
-    [[nodiscard]] auto do_recursive() const -> bool override;
+    [[nodiscard]] auto do_single_pass() const -> bool override;
     [[nodiscard]] auto
     do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
@@ -126,7 +122,7 @@ class LitComparison : public Lit {
   private:
     void do_vars(VariableSet &vars, VarSelectMode mode) const override;
     [[nodiscard]] auto do_domain() const -> bool override;
-    [[nodiscard]] auto do_recursive() const -> bool override;
+    [[nodiscard]] auto do_single_pass() const -> bool override;
     [[nodiscard]] auto
     do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
@@ -155,7 +151,7 @@ class LitInterval : public Lit {
   private:
     void do_vars(VariableSet &vars, VarSelectMode mode) const override;
     [[nodiscard]] auto do_domain() const -> bool override;
-    [[nodiscard]] auto do_recursive() const -> bool override;
+    [[nodiscard]] auto do_single_pass() const -> bool override;
     [[nodiscard]] auto
     do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
@@ -189,7 +185,7 @@ class LitFactCheck : public Lit {
     //! Construct the literal.
     void do_vars(VariableSet &vars, VarSelectMode mode) const override;
     [[nodiscard]] auto do_domain() const -> bool override;
-    [[nodiscard]] auto do_recursive() const -> bool override;
+    [[nodiscard]] auto do_single_pass() const -> bool override;
     [[nodiscard]] auto
     do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
@@ -212,13 +208,13 @@ class LitFactCheck : public Lit {
 class LitSymbolic : public Lit {
   public:
     //! Construct the literal.
-    LitSymbolic(Base &base, Sign sign, UTerm atom, size_t index)
-        : base_{&base}, atom_{std::move(atom)}, sign_{sign}, index_{index} {}
+    LitSymbolic(Base &base, Sign sign, UTerm atom, size_t index, bool domain)
+        : base_{&base}, atom_{std::move(atom)}, index_{index}, sign_{sign}, domain_{domain} {}
 
   private:
     void do_vars(VariableSet &vars, VarSelectMode mode) const override;
     [[nodiscard]] auto do_domain() const -> bool override;
-    [[nodiscard]] auto do_recursive() const -> bool override;
+    [[nodiscard]] auto do_single_pass() const -> bool override;
     [[nodiscard]] auto
     do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
@@ -234,13 +230,15 @@ class LitSymbolic : public Lit {
 
     Base *base_;
     UTerm atom_;
-    Sign sign_;
     //! The index of the literal.
     //!
     //! Note that only recursive literals have indices.
     size_t index_;
     size_t offset_ = 0;
     Symbol symbol_;
+    Sign sign_;
+    //! Whether the literal occurs in a domain component.
+    bool domain_;
 };
 
 //! A literal similar to a symbolic literal.
@@ -277,13 +275,14 @@ class LitProject : public Lit {
         size_t imported_ = 0;
     };
     //! Construct the literal.
-    LitProject(State &state, Sign sign, UTerm atom, UTerm p_atom, size_t index)
-        : state_{&state}, atom_{std::move(atom)}, p_atom_{std::move(p_atom)}, index_{index}, sign_{sign} {}
+    LitProject(State &state, Sign sign, UTerm atom, UTerm p_atom, size_t index, bool domain)
+        : state_{&state}, atom_{std::move(atom)}, p_atom_{std::move(p_atom)}, index_{index}, sign_{sign},
+          domain_{domain} {}
 
   private:
     void do_vars(VariableSet &vars, VarSelectMode mode) const override;
     [[nodiscard]] auto do_domain() const -> bool override;
-    [[nodiscard]] auto do_recursive() const -> bool override;
+    [[nodiscard]] auto do_single_pass() const -> bool override;
     [[nodiscard]] auto
     do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
@@ -303,6 +302,7 @@ class LitProject : public Lit {
     size_t offset_ = 0;
     Symbol symbol_;
     Sign sign_;
+    bool domain_;
 };
 
 //! @}

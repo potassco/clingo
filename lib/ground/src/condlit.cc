@@ -281,15 +281,9 @@ void LitCondLit::do_vars(VariableSet &vars, VarSelectMode mode) const {
     }
 }
 
-auto LitCondLit::do_domain() const -> bool {
-    // TODO: domain if elements are domain
-    if (type() == LitCondLitType::lit) {
-        return state().domain();
-    }
-    return true;
-}
+auto LitCondLit::do_domain() const -> bool { return type() != LitCondLitType::lit || state().domain(); }
 
-auto LitCondLit::do_recursive() const -> bool { return index_ != stratified_index; }
+auto LitCondLit::do_single_pass() const -> bool { return index_ == stratified_index; }
 
 auto LitCondLit::do_matcher(MatcherType type,
                             std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
@@ -455,13 +449,13 @@ void LitCondLitStrat::do_vars(VariableSet &vars, [[maybe_unused]] VarSelectMode 
 
 auto LitCondLitStrat::do_domain() const -> bool { return state_->domain(); }
 
-auto LitCondLitStrat::do_recursive() const -> bool { return false; }
+auto LitCondLitStrat::do_single_pass() const -> bool { return true; }
 
 auto LitCondLitStrat::do_matcher([[maybe_unused]] MatcherType type, [[maybe_unused]] std::vector<bool> const &bound)
     -> std::pair<UMatcher, std::optional<size_t>> {
     Queue queue;
     Linearizer lin;
-    lin.start(queue, state_->domain());
+    lin.start(queue);
     lin.prepare(static_cast<InstanceCallback &>(*this), premise_, state_->vars(true));
     auto insts = queue.release();
     assert(insts.size() == 1);

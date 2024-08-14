@@ -78,8 +78,12 @@ class UnprocessedProgram {
 };
 
 //! The type of a component.
+//!
+//! Note that the positive flag is just about negative cycles within the
+//! component. The flag is also set to false if the component contains a
+//! negative literal derived in a later refined component.
 enum class ComponentType : uint8_t {
-    domain = 1,      //!< The component evaluates to facts.
+    positive = 1,    //!< The component does not contain a negative cycle.
     single_pass = 2, //!< The component can be grounded in one pass.
 };
 //! Indicate that the component type is a bitset.
@@ -95,6 +99,8 @@ enum class ComponentType : uint8_t {
 struct Component {
     //! The statements in the component.
     std::vector<Stm const *> stms;
+    //! The literals a component dependends one.
+    Util::unordered_set<std::tuple<String, size_t, bool>> depend;
     //! This vector captures literals that are not yet complete.
     Util::ordered_map<Term const *, Util::ordered_set<Term const *>> incomplete;
     //! The type of the componnent.
