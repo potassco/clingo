@@ -728,6 +728,10 @@ class BuilderBdLit {
         */
 
         if (assign) {
+            // Elements of assignment aggreagets can be accumulated just like
+            // body aggregates. Guards with free variables have to be ignored.
+            // When propagating, a set of matching values can be computed,
+            // which can be used by a specialized assignment aggregate literal.
             throw std::logic_error("assignment aggregates are not yet supported");
         }
 
