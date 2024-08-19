@@ -242,7 +242,7 @@ class BaseAggr : public BaseImpl<Symbol const *, BaseAggr> {
     Util::index_sequence<size_t> derived_;
 };
 
-auto valid_weight(AggregateFunction fun, Symbol sym) {
+inline auto valid_weight(AggregateFunction fun, Symbol sym) -> bool {
     switch (fun) {
         case AggregateFunction::min: {
             return sym.type() != SymbolType::sup;
@@ -740,87 +740,28 @@ class LitAggr : public Lit, private MatchAggrLit {
 //!
 //! This class can also be used to derive empty aggregates. A tuple with a
 //! neutral element has to be used, which is 0/\#sum/\#sup depending on the
-//! type of the aggregate.
+//! type of the aggregate. Count aggregates have to be translated to sum+
+//! aggregates beforehand.
 class StmAggrElem : public Stm {
   public:
+    //! Construct the statement.
+    //!
+    //! The first num_cond literals of the body must form the aggregate
+    //! element's condition. The following literals are just used for grounding
+    //! binding global variables of the aggregate and ensuring safety.
     StmAggrElem(StateAggr &state, UTermVec tuple, ULitVec body, size_t num_cond, size_t priority)
         : state_{&state}, tuple_{std::move(tuple)}, body_{std::move(body)}, num_cond_{num_cond}, priority_{priority} {}
 
   private:
-    [[nodiscard]] auto do_body() const -> ULitVec const & override { return body_; }
-
-    [[nodiscard]] auto do_important() const -> VariableSet override {
-        auto res = VariableSet{};
-        res.insert(state_->global().begin(), state_->global().end());
-        for (auto const &term : tuple_) {
-            term->vars(res);
-        }
-        return res;
-    }
-    [[nodiscard]] auto do_is_important(size_t index) const -> bool override {
-        // Only the literals gathered by do_important and the ones in the
-        // condition are important. The remaining ones in the body can be
-        // backtracked.
-        return index < num_cond_;
-    }
-
-    void do_init([[maybe_unused]] size_t gen) override {
-        // by construction, this statement does not increment the generation
-    }
-
-    auto index() -> uint64_t {
-        static_assert(sizeof(uintptr_t) <= sizeof(uint64_t));
-        // NOLINTNEXTLINE
-        return reinterpret_cast<uintptr_t>(this);
-    }
-
-    [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override {
-        auto &ass = ctx.ass();
-        // insert aggregate atom
-        if (auto it = state_->insert_atom(ctx.store(), ass)) {
-            auto get_cond = [this, &ctx]() {
-                // output the condition
-                bool fact = true;
-                auto &out = ctx.out().cond();
-                for (auto const &lit : body_) {
-                    if (lit->output(ctx, out)) {
-                        fact = false;
-                    }
-                }
-                return std::make_pair(ctx.out().cond_id(), fact);
-            };
-            // insert the element
-            state_->insert_elem(ctx.store(), ass, *it, tuple_, get_cond);
-        }
-        return true;
-    }
-
-    void do_propagate(Queue &queue) override {
-        // This is called after all statements on the current priority have
-        // been processed. Thus, all element aggregation rules have been
-        // processed. Here, aggregates that can match are added to the base and
-        // are enqueued.
-        if (state_->propagate() && state_->index() != stratified_index) {
-            queue.propagate(state_->index());
-        }
-    }
-
-    [[nodiscard]] auto do_priority() const -> size_t override { return priority_; }
-
-    void do_print_head(std::ostream &out) const override {
-        auto p_var = [](std::ostream &out, auto const &x) { out << "X_" << x; };
-        auto p_term = [](std::ostream &out, auto const &x) { out << *x; };
-        out << "#elem(g(" << Util::p_range{state_->global(), p_var} << "),t(" << Util::p_range{tuple_, p_term} << "))";
-    }
-
-    void do_print(std::ostream &out) const override {
-        out << priority_ << ": ";
-        print_head(out);
-        if (state_->index() != stratified_index) {
-            out << "[" << state_->index() << "]";
-        }
-        out << " <- " << Util::p_range(body_, ", ", [](std::ostream &out, auto const &lit) { out << *lit; }) << ".";
-    }
+    [[nodiscard]] auto do_body() const -> ULitVec const & override;
+    [[nodiscard]] auto do_important() const -> VariableSet override;
+    [[nodiscard]] auto do_is_important(size_t index) const -> bool override;
+    void do_init([[maybe_unused]] size_t gen) override;
+    [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override;
+    void do_propagate(Queue &queue) override;
+    [[nodiscard]] auto do_priority() const -> size_t override;
+    void do_print_head(std::ostream &out) const override;
+    void do_print(std::ostream &out) const override;
 
     StateAggr *state_;
     UTermVec tuple_;
