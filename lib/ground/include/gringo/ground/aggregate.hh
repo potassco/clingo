@@ -4,16 +4,9 @@
 #include <gringo/ground/matcher.hh>
 #include <gringo/ground/statement.hh>
 
-#include <gringo/util/print.hh>
 #include <gringo/util/small_vector.hh>
-#include <gringo/util/type_traits.hh>
 
 #include <ostream>
-
-// #define DEBUG_AGGR
-#ifdef DEBUG_AGGR
-#include <iostream>
-#endif
 
 namespace Gringo::Ground {
 
@@ -33,151 +26,51 @@ class AtomAggr {
     AtomAggr(AggregateFunction fun) : bound_{init_(fun)} {}
 
     //! Accumulate a tuple.
-    void accumulate(AggregateFunction fun, SymbolSpan tup, bool fact) {
-        if (!tup.empty() && tup.front().type() == SymbolType::number) {
-            if (fun == AggregateFunction::min) {
-                auto &val = std::get<1>(bound_);
-                val.first = std::min(tup.front(), val.first);
-                if (fact) {
-                    val.second = std::min(tup.front(), val.second);
-                }
-            } else if (fun == AggregateFunction::max) {
-                auto &val = std::get<1>(bound_);
-                val.second = std::max(tup.front(), val.second);
-                if (fact) {
-                    val.first = std::max(tup.front(), val.first);
-                }
-            } else {
-                if (tup.front().type() == SymbolType::number) {
-                    auto const &num = tup.front().num();
-                    auto &val = std::get<0>(bound_);
-                    if (fact) {
-                        val.first += num;
-                        val.second += num;
-                    } else if (num < 0) {
-                        val.first += num;
-                    } else {
-                        val.second += num;
-                    }
-                }
-            }
-        }
-    }
+    void accumulate(AggregateFunction fun, SymbolSpan tup, bool fact);
 
     //! Check if the aggregate matches the guards (first) and is a fact
     //! (second).
     //!
     //! Only the relation of the given non-ground guards is accessed; the
     //! values for the terms are stored in the aggregate atom.
-    auto propagate(GuardVec const &guards, Symbol const *vals) -> std::pair<bool, bool> {
-        const auto *it = vals;
-        bool fact = true;
-        for (auto const &guard : guards) {
-            auto rel = guard.first;
-            auto res = std::visit(
-                [it, rel]<class T>(T const &x) -> std::pair<bool, bool> {
-                    switch (rel) {
-                        case Relation::less: {
-                            return {x.first < *it, x.second < *it};
-                        }
-                        case Relation::less_equal: {
-                            return {x.first <= *it, x.second <= *it};
-                        }
-                        case Relation::greater: {
-                            return {x.second > *it, x.first > *it};
-                        }
-                        case Relation::greater_equal: {
-                            return {x.second >= *it, x.first >= *it};
-                        }
-                        case Relation::equal: {
-                            return {x.first <= *it && *it <= x.second, *it == x.first && *it == x.second};
-                        }
-                        case Relation::not_equal: {
-                            return {*it != x.first || *it != x.second, x.first > *it || *it > x.second};
-                        }
-                    }
-                    Util::unreachable();
-                },
-                bound_);
-            if (!res.first) {
-                return {false, false};
-            }
-            fact = fact && res.second;
-            it = std::next(it);
-        }
-        return {true, fact};
-    }
+    auto propagate(GuardVec const &guards, Symbol const *vals) -> std::pair<bool, bool>;
 
     //! Get the index of the aggregate.
     //!
     //! It must be derived first.
-    [[nodiscard]] auto derived_idx() const -> size_t {
-        assert(state_ != AtomAggrState::unknown);
-        return derived_idx_;
-    }
+    [[nodiscard]] auto derived_idx() const -> size_t;
     //! Set the derived index of the aggregate.
     //!
     //! It must be derived first.
-    void derived_idx(size_t idx) {
-        assert(state_ != AtomAggrState::unknown);
-        derived_idx_ = idx;
-    }
+    void derived_idx(size_t idx);
 
     //! Get the derived state of the aggregate atom.
-    [[nodiscard]] auto state() const -> AtomAggrState { return state_; }
+    [[nodiscard]] auto state() const -> AtomAggrState;
     //! Set the derived state of the aggregate atom.
     //!
     //! It must only be derived once.
-    void state(AtomAggrState state) {
-        assert(state_ == AtomAggrState::unknown);
-        state_ = state;
-    }
+    void state(AtomAggrState state);
 
     //! Enqueue the atom for propagation.
-    auto enqueue() -> bool {
-        if (!enqueued_ && state_ == AtomAggrState::unknown && (propagated_ < elems_.size() || elems_.empty())) {
-            enqueued_ = true;
-            return true;
-        }
-        return false;
-    }
+    auto enqueue() -> bool;
     //! Dequeue the atom after propagation.
     //!
     //! Also marks elements as propagated.
-    void dequeue() {
-        assert(enqueued_);
-        propagated_ = elems_.size();
-        enqueued_ = false;
-    }
+    void dequeue();
 
     //! Add a new element.
-    auto add_elem(size_t idx) { elems_.emplace_back(idx); }
+    void add_elem(size_t idx);
     //! Get the aggregate elements.
-    [[nodiscard]] auto elems() const -> std::span<size_t const> { return std::span{elems_.begin(), elems_.end()}; }
+    [[nodiscard]] auto elems() const -> std::span<size_t const>;
     //! Get the aggregate elements to propagate.
-    [[nodiscard]] auto todo() -> std::span<size_t const> {
-        return std::span{elems_.begin() + static_cast<ssize_t>(propagated_), elems_.end()};
-    }
+    [[nodiscard]] auto todo() -> std::span<size_t const>;
 
-    [[nodiscard]] auto uid() const -> std::optional<size_t> {
-        return uid_ != invalid_offset ? std::make_optional(uid_) : std::nullopt;
-    }
+    [[nodiscard]] auto uid() const -> std::optional<size_t>;
 
-    void uid(size_t uid) {
-        assert(uid_ == invalid_offset || uid_ == uid);
-        uid_ = uid;
-    }
+    void uid(size_t uid);
 
   private:
-    static auto init_(AggregateFunction fun) -> Bound {
-        if (fun == AggregateFunction::min) {
-            return Bound{std::in_place_index<1>, SymbolStore::sup(), SymbolStore::sup()};
-        }
-        if (fun == AggregateFunction::max) {
-            return Bound{std::in_place_index<1>, SymbolStore::inf(), SymbolStore::inf()};
-        }
-        return Bound{std::in_place_index<0>, 0, 0};
-    }
+    static auto init_(AggregateFunction fun) -> Bound;
 
     std::vector<size_t> elems_;
     std::variant<std::pair<Number, Number>, std::pair<Symbol, Symbol>> bound_;
@@ -194,140 +87,70 @@ class BaseAggr : public BaseImpl<Symbol const *, BaseAggr> {
     //! Map containing the atoms.
     using AtomMap = Util::ordered_map<Symbol const *, AtomAggr, Util::SpanHash, Util::SpanEqualTo>;
 
+    //! Construct an empty base.
     BaseAggr(size_t size) : atoms_{0, size, size} {}
 
     //! Check if the given atom is a fact.
     //!
     //! This function does not take into account to which generation an atom belongs.
     //! It can also return true for atoms added to upcoming generations.
-    auto is_fact(Symbol const *sym) const -> bool {
-        auto it = atoms_.find(sym);
-        return it != atoms_.end() && it->second.state() == AtomAggrState::fact;
-    }
+    auto is_fact(Symbol const *sym) const -> bool;
     //! Add an atom to the base.
     //!
     //! This function should be called during propagation if an aggregate can match.
-    void add(AtomMap::iterator it) {
-        assert(it->second.state() != AtomAggrState::unknown);
-        it.value().derived_idx(derived_.size());
-        derived_.add(atom_index_(it));
-    }
+    void add(AtomMap::iterator it);
 
     //! Get the number of derived atoms.
-    [[nodiscard]] auto size() const -> size_t { return derived_.size(); }
+    [[nodiscard]] auto size() const -> size_t;
 
     //! Get the atom index of the given symbol.
     //!
     //! Note that only derived atoms have indices.
-    auto index(Symbol const *sym) const -> size_t {
-        if (auto it = atoms_.find(sym); it != atoms_.end() && it->second.state() != AtomAggrState::unknown) {
-            return it->second.derived_idx();
-        }
-        return size();
-    }
+    auto index(Symbol const *sym) const -> size_t;
     //! Get the i-th atom in the base.
-    auto nth(size_t i) const -> AtomMap::const_iterator { return atoms_.nth(derived_[i]); }
+    auto nth(size_t i) const -> AtomMap::const_iterator;
     //! Get the i-th atom in the base.
-    auto nth(size_t i) -> AtomMap::iterator { return atoms_.nth(derived_[i]); }
+    auto nth(size_t i) -> AtomMap::iterator;
 
     //! Get the underlying atom map (includes atoms not yet derived).
-    [[nodiscard]] auto atoms() -> AtomMap & { return atoms_; }
+    [[nodiscard]] auto atoms() -> AtomMap &;
 
   private:
-    [[nodiscard]] auto atom_index_(AtomMap::const_iterator it) const -> size_t {
-        return static_cast<size_t>(std::distance(atoms_.cbegin(), it));
-    }
+    [[nodiscard]] auto atom_index_(AtomMap::const_iterator it) const -> size_t;
 
     AtomMap atoms_;
     Util::index_sequence<size_t> derived_;
 };
 
-inline auto valid_weight(AggregateFunction fun, Symbol sym) -> bool {
-    switch (fun) {
-        case AggregateFunction::min: {
-            return sym.type() != SymbolType::sup;
-        }
-        case AggregateFunction::max: {
-            return sym.type() != SymbolType::inf;
-        }
-        case AggregateFunction::sum: {
-            return sym.type() == SymbolType::number && sym.num() != 0;
-        }
-        case AggregateFunction::sump: {
-            return sym.type() == SymbolType::number && sym.num() > 0;
-        }
-        case AggregateFunction::count: {
-            return true;
-        }
-    }
-    Util::unreachable();
-}
-
 class StateAggr {
   public:
+    // NOLINTBEGIN
     struct ElementKey {
-        // NOLINTBEGIN
         ElementKey(SymbolStore &store, Assignment &ass, AggregateFunction fun, size_t atom_idx, UTermVec const &tuple,
-                   bool &res)
-            : n{tuple.size()}, atom_idx{atom_idx} {
-            auto *it = syms;
-            if (auto jt = tuple.begin(), je = tuple.end(); jt != je) {
-                // check the weight of the tuple
-                if (auto val = (*jt)->eval(store, ass); val && valid_weight(fun, *val)) {
-                    *it = *val;
-                } else {
-                    res = false;
-                    return;
-                }
-                for (++jt, ++it; jt != je; ++jt, ++it) {
-                    if (auto val = (*jt)->eval(store, ass); val) {
-                        *it = *val;
-                    } else {
-                        res = false;
-                        return;
-                    }
-                }
-            } else if (fun != AggregateFunction::count) {
-                res = false;
-                return;
-            }
-        }
-        auto span() const -> SymbolSpan { return SymbolSpan{syms, n}; }
-        auto hash() const -> size_t { return Util::value_hash_record<ElementKey>(n, atom_idx, span()); }
-        friend auto operator==(ElementKey const &a, ElementKey const &b) -> bool {
-            return a.atom_idx == b.atom_idx && a.n == b.n &&
-                   std::equal(a.span().begin(), a.span().end(), b.span().begin());
-        }
+                   bool &res);
+
+        auto span() const -> SymbolSpan;
+        auto hash() const -> size_t;
+        friend auto operator==(ElementKey const &a, ElementKey const &b) -> bool;
+
         // Note that these two could be combined to safe a little bit of memory.
         size_t n;
         size_t atom_idx;
         GRINGO_IGNORE_ZERO_SIZED_ARRAY_B
         Symbol syms[0];
         GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
-        // NOLINTEND
     };
+
     struct AtomKey {
-        // NOLINTBEGIN
-        AtomKey(SymbolStore &store, Assignment &ass, VariableVec const &global, GuardVec &guards, bool &res) {
-            auto *it = syms;
-            for (auto const &var : global) {
-                *it++ = ass[var].value();
-            }
-            for (auto const &guard : guards) {
-                if (auto val = guard.second->eval(store, ass); val) {
-                    *it++ = *val;
-                } else {
-                    res = false;
-                    break;
-                }
-            }
-        }
-        AtomKey(Symbol const *tuple, size_t n) { std::copy_n(tuple, n, syms); }
+        AtomKey(SymbolStore &store, Assignment &ass, VariableVec const &global, GuardVec &guards, bool &res);
+
+        AtomKey(Symbol const *tuple, size_t n);
         GRINGO_IGNORE_ZERO_SIZED_ARRAY_B
         Symbol syms[0];
         GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
-        // NOLINTEND
     };
+    // NOLINTEND
+
     using AtomMap = BaseAggr::AtomMap;
     using ElementMap = Util::ordered_map<ElementKey *, Util::small_vector<size_t>>;
 
@@ -338,195 +161,67 @@ class StateAggr {
           domain_{domain}, monotone_{monotone}, single_pass_elems_{single_pass_elems} {}
 
     //! Get the global variables in the aggregate.
-    [[nodiscard]] auto global() const -> VariableVec const & { return global_; }
+    [[nodiscard]] auto global() const -> VariableVec const &;
     //! Get the non-ground guards of the aggregate.
-    [[nodiscard]] auto guards() const -> GuardVec const & { return guards_; }
+    [[nodiscard]] auto guards() const -> GuardVec const &;
     //! Get the aggregate function.
-    [[nodiscard]] auto fun() const -> AggregateFunction { return fun_; }
+    [[nodiscard]] auto fun() const -> AggregateFunction;
     //! Indicates that all aggregate elements are domain.
     //!
     //! That is, all the bases of literals in conditions are domain and all
     //! negative literals are stratified.
     //!
     //! Only considers the elements of the aggregate.
-    [[nodiscard]] auto domain() const -> bool { return domain_; }
+    [[nodiscard]] auto domain() const -> bool;
     //! Indicates that the aggregate is monotone.
     //!
     //! Neither takes the sign of the aggregate nor its elements into account.
-    [[nodiscard]] auto monotone() const -> bool { return monotone_; }
+    [[nodiscard]] auto monotone() const -> bool;
     //! Indicates that all necessary elemements can be grounded in a single
     //! pass.
     //!
     //! This does not take into account the body prefix of elements.
-    [[nodiscard]] auto single_pass_elems() const -> bool { return single_pass_elems_; }
+    [[nodiscard]] auto single_pass_elems() const -> bool;
     //! Get the update index.
-    [[nodiscard]] auto index() const -> size_t { return index_; }
+    [[nodiscard]] auto index() const -> size_t;
 
     //! Propagate equeued aggregates.
-    auto propagate() -> bool {
-        bool res = false;
-        for (auto atom_idx : queue_) {
-            auto it = base_.atoms().nth(atom_idx);
-            auto &state = it.value();
-            for (auto elem_idx : state.todo()) {
-                auto elem = tuples_.nth(elem_idx);
-                // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
-                auto tup = std::span(elem.key()->syms, elem.key()->n);
-                state.accumulate(fun_, tup, elem->second.empty());
-#ifdef DEBUG_AGGR
-                std::cerr << "accumulate: a: " << atom_idx << " e: " << elem_idx << " t:";
-                for (auto val : tup) {
-                    std::cerr << " " << val;
-                }
-                if (elem->second.empty()) {
-                    std::cerr << " [f]";
-                }
-                std::cerr << "\n";
-#endif
-            }
-
-            if (auto [match, fact] = state.propagate(guards_, it.key() + global_.size()); match) {
-                if (fact && (monotone() || single_pass_elems())) {
-                    state.state(AtomAggrState::fact);
-#ifdef DEBUG_AGGR
-                    std::cerr << "propagate: a: " << atom_idx << " [f]\n";
-#endif
-                } else {
-                    state.state(AtomAggrState::derived);
-#ifdef DEBUG_AGGR
-                    std::cerr << "propagate: a: " << atom_idx << "\n";
-#endif
-                }
-                res = true;
-                base_.add(it);
-            }
-            state.dequeue();
-        }
-        queue_.clear();
-        return res;
-    }
+    auto propagate() -> bool;
 
     //! Enequeue an atom for propgation.
-    void enqueue(AtomMap::iterator it) {
-        if (auto &state = it.value(); state.enqueue()) {
-            queue_.emplace_back(index(it));
-        }
-    }
+    void enqueue(AtomMap::iterator it);
 
     //! Insert an aggregate atom (stemming from an aggregate element).
     //!
     //! This function also enqueues freshly inserted atoms to cover the case
     //! that the aggregate matches the empty element set.
-    auto insert_atom(SymbolStore &store, Assignment &ass) -> std::optional<AtomMap::iterator> {
-        auto n = (global_.size() + guards_.size()) * sizeof(Symbol);
-        auto res = true;
-        auto &tup = node_store_.construct<AtomKey>(n, store, ass, global_, guards_, res);
-        if (!res) {
-            node_store_.reclaim(n, tup);
-            return std::nullopt;
-        }
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
-        auto [it, ins] = base_.atoms().try_emplace(tup.syms, fun_);
-        if (ins) {
-            enqueue(it);
-        } else {
-            node_store_.reclaim(n, tup);
-        }
-        return it;
-    }
+    auto insert_atom(SymbolStore &store, Assignment &ass) -> std::optional<AtomMap::iterator>;
 
     //! Insert a previously evaluated atom.
     //!
     //! This functions can be used to ensure the presence of an atom that has not yet been derived.
-    auto insert_atom(Symbol const *tuple) -> AtomMap::iterator {
-        auto n = (global_.size() + guards_.size()) * sizeof(Symbol);
-        auto &tup = node_store_.construct<AtomKey>(n, tuple, global_.size());
-
-        auto [it, ins] =
-            // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
-            base_.atoms().try_emplace(tup.syms, fun_);
-        if (!ins) {
-            node_store_.reclaim(n, tup);
-        }
-        return it;
-    }
+    auto insert_atom(Symbol const *tuple) -> AtomMap::iterator;
 
     //! Insert an aggregate element.
     void insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iterator it, UTermVec const &tuple,
-                     auto const &get_cond) {
-        auto n = sizeof(StateAggr::ElementKey) + tuple.size() * sizeof(Symbol);
-        bool res = true;
-        auto &tup = node_store_.construct<ElementKey>(n, store, ass, fun_, index(it), tuple, res);
-        if (!res) {
-            node_store_.reclaim(n, tup);
-            return;
-        }
-
-        auto [jt, jns] = tuples_.try_emplace(&tup);
-        if (!jns) {
-            node_store_.reclaim(n, tup);
-        }
-        it.value().add_elem(jt - tuples_.begin());
-
-        auto [cond_id, fact] = get_cond();
-        // we use an empty vector to indicate that one of the conditions is fact
-        if (fact) {
-            jt.value().clear();
-        } else if (jns || !jt.value().empty()) {
-            jt.value().emplace_back(cond_id);
-        }
-        // enque the aggregate for propgation
-        enqueue(it);
-    }
+                     auto const &get_cond);
 
     //! Get the index of an aggregate atom.
     //!
     //! This index also captures not yet derived atoms.
-    auto index(AtomMap::iterator it) -> size_t { return it - base_.atoms().begin(); }
+    auto index(AtomMap::iterator it) -> size_t;
 
     //! Get the index of an aggregate element.
-    auto index(ElementMap::iterator it) -> size_t { return it - tuples_.begin(); }
+    auto index(ElementMap::iterator it) -> size_t;
 
     //! Print a non-ground representation of the aggregate.
-    void print(std::ostream &out) {
-        auto it = guards_.begin();
-        if (guards_.size() > 1) {
-            out << *it->second << " " << flip(it->first) << " ";
-            ++it;
-        }
-        out << fun_ << "(" << Util::p_range(global_, [](std::ostream &out, auto var) { out << "X_" << var; }) << ")";
-        if (index_ != stratified_index) {
-            out << "[" << index_ << "]";
-        }
-        for (auto ie = guards_.end(); it != ie; ++it) {
-            out << " " << it->first << " " << *it->second;
-        }
-    }
+    void print(std::ostream &out);
 
     //! Get the underlying atom base.
-    [[nodiscard]] auto base() -> BaseAggr & { return base_; }
+    [[nodiscard]] auto base() -> BaseAggr &;
 
     //! Output all previously output aggregates.
-    void output(OutputStm &out) {
-        std::vector<std::pair<SymbolSpan, std::span<size_t const>>> elems;
-        std::vector<std::pair<Relation, Symbol>> guards;
-        for (auto const &[tuple, atom] : base_.atoms()) {
-            if (auto uid = atom.uid(); uid) {
-                elems.clear();
-                guards.clear();
-                for (auto const &elem_idx : atom.elems()) {
-                    auto const &[tuple, conds] = *tuples_.nth(elem_idx);
-                    elems.emplace_back(tuple->span(), conds);
-                }
-                auto const *it = tuple + global_.size();
-                for (auto &guard : guards_) {
-                    guards.emplace_back(guard.first, *it);
-                    it = std::next(it);
-                }
-                out.bd_aggr(*uid, fun_, elems, guards);
-            }
-        }
-    }
+    void output(OutputStm &out);
 
   private:
     Util::NodeStore<alignof(Symbol)> node_store_;
@@ -552,57 +247,23 @@ class MatchAggrLit {
     MatchAggrLit(StateAggr &state) : state_{&state} { eval_.reserve(state_->global().size()); }
 
     //! Get the variables of the matcher.
-    [[nodiscard]] auto vars() const -> VariableSet {
-        return VariableSet{state_->global().begin(), state_->global().end()};
-    }
+    [[nodiscard]] auto vars() const -> VariableSet;
 
     //! Get the signature of the matcher.
     [[nodiscard]] auto signature(VariableSet const &bound,
-                                 [[maybe_unused]] VariableSet const &bind) const -> VariableVec {
-        static_cast<void>(this);
-        return {bound.begin(), bound.end()};
-    }
+                                 [[maybe_unused]] VariableSet const &bind) const -> VariableVec;
 
     //! Match a span of symbols representing an atom or element with the assignment.
-    [[nodiscard]] auto match([[maybe_unused]] SymbolStore &store, Symbol const *sym, Assignment &ass) const -> bool {
-        for (auto var : state_->global()) {
-            if (auto &opt = ass[var]; opt) {
-                if (*opt != *sym) {
-                    return false;
-                }
-            } else {
-                ass[var] = *sym;
-            }
-            sym = std::next(sym);
-        }
-        return true;
-    }
+    [[nodiscard]] auto match([[maybe_unused]] SymbolStore &store, Symbol const *sym, Assignment &ass) const -> bool;
 
     //! Evaluate w.r.t. the given assignment and return a span representing an atom or element.
-    [[nodiscard]] auto eval(SymbolStore &store, Assignment &ass) const -> std::optional<Symbol const *> {
-        eval_.clear();
-        for (auto var : state_->global()) {
-            // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-            eval_.emplace_back(ass[var].value());
-        }
-        for (auto const &guard : state().guards()) {
-            if (auto sym = guard.second->eval(store, ass); sym) {
-                eval_.emplace_back(*sym);
-            } else {
-                return std::nullopt;
-            }
-        }
-        return eval_.data();
-    }
+    [[nodiscard]] auto eval(SymbolStore &store, Assignment &ass) const -> std::optional<Symbol const *>;
 
     //! Print a string representation of the matcher.
-    friend auto operator<<(std::ostream &out, MatchAggrLit const &m) -> std::ostream & {
-        m.state_->print(out);
-        return out;
-    }
+    friend auto operator<<(std::ostream &out, MatchAggrLit const &m) -> std::ostream &;
 
     //! Get the associated state.
-    [[nodiscard]] auto state() const -> StateAggr & { return *state_; }
+    [[nodiscard]] auto state() const -> StateAggr &;
 
   private:
     std::vector<Symbol> mutable eval_;
@@ -615,26 +276,7 @@ class LitAggr : public Lit, private MatchAggrLit {
     LitAggr(StateAggr &state, Sign sign) : MatchAggrLit{state}, sign_{sign} {}
 
   private:
-    void do_vars(VariableSet &vars, VarSelectMode mode) const override {
-        switch (mode) {
-            case VarSelectMode::all: {
-                break;
-            }
-            case VarSelectMode::provide: {
-                if (sign_ == Sign::none || (sign_ == Sign::twice && state().index() == stratified_index)) {
-                    break;
-                }
-                return;
-            }
-            case VarSelectMode::depend: {
-                if (sign_ == Sign::once || (sign_ == Sign::twice && state().index() != stratified_index)) {
-                    break;
-                }
-                return;
-            }
-        }
-        vars.insert(state().global().begin(), state().global().end());
-    }
+    void do_vars(VariableSet &vars, VarSelectMode mode) const override;
 
     //! Returns true if matching aggregates are always facts.
     //!
@@ -644,92 +286,27 @@ class LitAggr : public Lit, private MatchAggrLit {
     //!
     //! Note that we do not need a stratified index for the latter case. There
     //! can be recursion through the body prefix.
-    [[nodiscard]] auto do_domain() const -> bool override {
-        return state().domain() && ((sign_ == Sign::none && state().monotone()) || state().single_pass_elems());
-    }
+    [[nodiscard]] auto do_domain() const -> bool override;
 
     //! Returns true if the aggregate needs only one grounding pass.
-    [[nodiscard]] auto do_single_pass() const -> bool override {
-        return state().index() == stratified_index || sign_ == Sign::once || state().single_pass_elems();
-    }
+    [[nodiscard]] auto do_single_pass() const -> bool override;
 
-    [[nodiscard]] auto do_matcher(MatcherType type, std::vector<bool> const &bound)
-        -> std::pair<UMatcher, std::optional<size_t>> override {
-        symbol_ = nullptr;
-        offset_ = invalid_offset;
-        auto &match = static_cast<MatchAggrLit &>(*this);
-        if (sign_ == Sign::once) {
-            return {make_non_fact_matcher(state().base(), match, symbol_), std::nullopt};
-        }
-        // Note that double-negated single-pass aggregates are treated like
-        // positive aggregates.
-        if (sign_ == Sign::twice && !state().single_pass_elems()) {
-            return {make_once_matcher(match, symbol_), std::nullopt};
-        }
-        auto index = std::optional<size_t>{};
-        if (state().index() != stratified_index && type == MatcherType::new_atoms) {
-            index = state().index();
-        }
-        return {make_atom_matcher(bound, state().base(), match, type, offset_), index};
-    }
+    [[nodiscard]] auto
+    do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
 
-    [[nodiscard]] auto do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double override {
-        // Note: at the time of score computation the aggregate is still empty.
-        // Since we decided to split earlier, matching them should always be
-        // better than using their body prefix.
-        return 0;
-    }
+    [[nodiscard]] auto do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double override;
 
-    void do_print(std::ostream &out) const override { state().print(out); }
+    void do_print(std::ostream &out) const override;
 
-    auto do_output([[maybe_unused]] InstantiationContext &ctx, OutputLit &out) const -> bool override {
-        if (domain()) {
-            return false;
-        }
-        auto it = StateAggr::AtomMap::iterator{};
-        if (sign_ != Sign::once) {
-            if (offset_ != invalid_offset) {
-                // the atom was used for matching
-                it = state().base().nth(offset_);
-                if (it.value().state() == AtomAggrState::fact) {
-                    return false;
-                }
-            } else {
-                // the atom could not be used for matching
-                assert(symbol_ != nullptr && sign_ == Sign::twice);
-                // ensure presence of atom for output
-                it = state().insert_atom(symbol_);
-            }
-        } else {
-            assert(symbol_ != nullptr);
-            if (state().single_pass_elems()) {
-                // Note: could be transformed to the non-negated case.
-                // (best done before the ground representation)
-                auto &atoms = state().base().atoms();
-                it = atoms.find(symbol_);
-                if (it == atoms.end() || it.value().state() == AtomAggrState::unknown) {
-                    return false;
-                }
-            } else {
-                // ensure presence of atom for output
-                it = state().insert_atom(symbol_);
-            }
-        }
-        auto &state = it.value();
-        state.uid(out.bd_aggr(sign_, state.uid()));
-        return true;
-    }
+    auto do_output([[maybe_unused]] InstantiationContext &ctx, OutputLit &out) const -> bool override;
 
-    [[nodiscard]] auto do_copy() const -> ULit override { return std::make_unique<LitAggr>(state(), sign_); }
+    [[nodiscard]] auto do_copy() const -> ULit override;
 
-    [[nodiscard]] auto do_hash() const -> size_t override {
-        // NOLINTNEXTLINE
-        return Util::value_hash_record<LitAggr>(reinterpret_cast<uintptr_t>(this));
-    }
+    [[nodiscard]] auto do_hash() const -> size_t override;
 
-    [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override { return this == &other; }
+    [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
 
-    [[nodiscard]] auto do_compare_to(Lit const &other) const -> std::weak_ordering override { return this <=> &other; }
+    [[nodiscard]] auto do_compare_to(Lit const &other) const -> std::weak_ordering override;
 
     size_t offset_ = invalid_offset;
     Symbol const *symbol_ = nullptr;
