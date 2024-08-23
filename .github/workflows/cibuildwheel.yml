@@ -80,8 +80,10 @@ jobs:
               CIBW_BUILD: "cp*-win*"
           - os: macos-13
             name: "*-macos-13"
+            env: {}
           - os: macos-14
             name: "*-macos-14"
+            env: {}
 
     steps:
       - uses: actions/checkout@v3
