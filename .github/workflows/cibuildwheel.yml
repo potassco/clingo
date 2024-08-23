@@ -13,7 +13,7 @@ jobs:
     name: Build source distribution
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
 
@@ -78,10 +78,10 @@ jobs:
             name: "cp*-win*"
             env:
               CIBW_BUILD: "cp*-win*"
-          - os: macos-11
-            name: "*-macos_{x86_64,arm64}"
-            env:
-              CIBW_ARCHS_MACOS: x86_64 arm64
+          - os: macos-13
+            name: "*-macos-13"
+          - os: macos-14
+            name: "*-macos-14"
 
     steps:
       - uses: actions/checkout@v3
@@ -103,10 +103,10 @@ jobs:
         run: python .github/adjust_version.py --release
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.19.1
+        uses: pypa/cibuildwheel@v2.20.0
         env: ${{ matrix.cfg.env }}
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           path: ./wheelhouse/*.whl
 
