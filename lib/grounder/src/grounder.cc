@@ -1,6 +1,7 @@
 #include <gringo/grounder/grounder.hh>
 
-#include <gringo/ground/aggregate.hh>
+#include <gringo/ground/assignment_aggregate.hh>
+#include <gringo/ground/body_aggregate.hh>
 #include <gringo/ground/condlit.hh>
 #include <gringo/ground/program.hh>
 
@@ -394,7 +395,7 @@ class BuilderTerm {
     Util::unordered_map<String, size_t> const *var_map_;
 };
 
-using StateList = std::forward_list<std::variant<Ground::StateCondLit, Ground::StateAggr>>;
+using StateList = std::forward_list<std::variant<Ground::StateCondLit, Ground::StateBdAggr>>;
 
 //! Context object holding necessary data for translating from input to ground
 //! representation.
@@ -491,7 +492,7 @@ class BuildContext {
     Ground::Component *gcomp_;
     Util::unordered_map<String, size_t> *var_map_;
     Ground::ULitVec *body_;
-    std::forward_list<std::variant<Ground::StateCondLit, Ground::StateAggr>> *state_;
+    std::forward_list<std::variant<Ground::StateCondLit, Ground::StateBdAggr>> *state_;
     size_t priority = 0;
     size_t index_ = 0;
 };
@@ -708,25 +709,6 @@ class BuilderBdLit {
         auto elem_priority = ctx_->inc_priority();
         auto index = ctx_->single_pass_body() && sp_elems ? Ground::stratified_index : ctx_->next_index();
 
-        // TODO: remove
-        /*
-        std::cerr << lit << "\n  fun: " << fun << "\n  mon: " << mon << "\n  rec: " << rec << "\n  dom: " << dom
-                  << "\n  global: "
-                  << Util::p_range{vars_global, [](std::ostream &out, auto var) { out << "X_" << var; }} << '\n';
-
-        std::cerr << "  prio: " << elem_priority << "\n";
-        std::cerr << "  rec_body: " << rec_body << "\n";
-        std::cerr << "  assign: " << assign << "\n";
-
-        std::cerr << "  index: ";
-        if (index == Ground::stratified_index) {
-            std::cerr << "stratified";
-        } else {
-            std::cerr << index;
-        }
-        std::cerr << "\n";
-        */
-
         if (assign) {
             // Elements of assignment aggreagets can be accumulated just like
             // body aggregates. Guards with free variables have to be ignored.
@@ -737,7 +719,7 @@ class BuilderBdLit {
 
         // initialize state
         auto &state =
-            ctx_->state<Ground::StateAggr>(vars_global.release(), std::move(guards), fun, index, dom, mon, sp_elems);
+            ctx_->state<Ground::StateBdAggr>(vars_global.release(), std::move(guards), fun, index, dom, mon, sp_elems);
 
         // add rule for empty case
         auto body = Ground::ULitVec{};
@@ -764,7 +746,7 @@ class BuilderBdLit {
             }
         }
         if (add_neutral) {
-            ctx_->gcomp().add(std::make_unique<Ground::StmAggrElem>(
+            ctx_->gcomp().add(std::make_unique<Ground::StmBdAggrElem>(
                 state, Util::make_vec<Ground::UTerm>(std::make_unique<Ground::TermSymbol>(neutral)), std::move(body), 0,
                 elem_priority));
         }
@@ -777,10 +759,10 @@ class BuilderBdLit {
                 cond.emplace_back(lit->copy());
             }
             ctx_->gcomp().add(
-                std::make_unique<Ground::StmAggrElem>(state, std::move(tuple), std::move(cond), num, elem_priority));
+                std::make_unique<Ground::StmBdAggrElem>(state, std::move(tuple), std::move(cond), num, elem_priority));
         }
 
-        ctx_->body().emplace_back(std::make_unique<Ground::LitAggr>(state, lit.sign()));
+        ctx_->body().emplace_back(std::make_unique<Ground::LitBdAggr>(state, lit.sign()));
     }
     //! Translate simple literals.
     void operator()(Input::BdLitSimple const &lit) const {

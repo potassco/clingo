@@ -1,5 +1,6 @@
 add_library(gringo_ground
-    "src/aggregate.cc"
+    "src/body_aggregate.cc"
+    "src/assignment_aggregate.cc"
     "src/condlit.cc"
     "src/instantiator.cc"
     "src/literal.cc"

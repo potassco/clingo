@@ -12,18 +12,18 @@ namespace Gringo::Ground {
 
 using GuardVec = std::vector<std::pair<Relation, UTerm>>;
 
-enum class AtomAggrState : uint8_t {
+enum class AtomBdAggrState : uint8_t {
     unknown = 0,
     derived = 1,
     fact = 2,
 };
 
-class AtomAggr {
+class AtomBdAggr {
   public:
     using Bound = std::variant<std::pair<Number, Number>, std::pair<Symbol, Symbol>>;
 
     //! Initialize for the given aggregate function.
-    AtomAggr(AggregateFunction fun) : bound_{init_(fun)} {}
+    AtomBdAggr(AggregateFunction fun) : bound_{init_(fun)} {}
 
     //! Accumulate a tuple.
     void accumulate(AggregateFunction fun, SymbolSpan tup, bool fact);
@@ -45,11 +45,11 @@ class AtomAggr {
     void derived_idx(size_t idx);
 
     //! Get the derived state of the aggregate atom.
-    [[nodiscard]] auto state() const -> AtomAggrState;
+    [[nodiscard]] auto state() const -> AtomBdAggrState;
     //! Set the derived state of the aggregate atom.
     //!
     //! It must only be derived once.
-    void state(AtomAggrState state);
+    void state(AtomBdAggrState state);
 
     //! Enqueue the atom for propagation.
     auto enqueue() -> bool;
@@ -77,18 +77,18 @@ class AtomAggr {
     size_t propagated_ = 0;
     size_t derived_idx_ = 0;
     size_t uid_ = invalid_offset;
-    AtomAggrState state_ = AtomAggrState::unknown;
+    AtomBdAggrState state_ = AtomBdAggrState::unknown;
     bool enqueued_ = false;
 };
 
-class BaseAggr : public BaseImpl<Symbol const *, BaseAggr> {
+class BaseBdAggr : public BaseImpl<Symbol const *, BaseBdAggr> {
   public:
     using BaseImpl::contains;
     //! Map containing the atoms.
-    using AtomMap = Util::ordered_map<Symbol const *, AtomAggr, Util::SpanHash, Util::SpanEqualTo>;
+    using AtomMap = Util::ordered_map<Symbol const *, AtomBdAggr, Util::SpanHash, Util::SpanEqualTo>;
 
     //! Construct an empty base.
-    BaseAggr(size_t size) : atoms_{0, size, size} {}
+    BaseBdAggr(size_t size) : atoms_{0, size, size} {}
 
     //! Check if the given atom is a fact.
     //!
@@ -122,7 +122,7 @@ class BaseAggr : public BaseImpl<Symbol const *, BaseAggr> {
     Util::index_sequence<size_t> derived_;
 };
 
-class StateAggr {
+class StateBdAggr {
   public:
     // NOLINTBEGIN
     struct ElementKey {
@@ -151,12 +151,12 @@ class StateAggr {
     };
     // NOLINTEND
 
-    using AtomMap = BaseAggr::AtomMap;
+    using AtomMap = BaseBdAggr::AtomMap;
     using ElementMap = Util::ordered_map<ElementKey *, Util::small_vector<size_t>>;
 
     //! Initialize an aggregate state.
-    StateAggr(VariableVec global, GuardVec guards, AggregateFunction fun, size_t index, bool domain, bool monotone,
-              bool single_pass_elems)
+    StateBdAggr(VariableVec global, GuardVec guards, AggregateFunction fun, size_t index, bool domain, bool monotone,
+                bool single_pass_elems)
         : base_{global.size()}, global_{std::move(global)}, guards_{std::move(guards)}, index_{index}, fun_{fun},
           domain_{domain}, monotone_{monotone}, single_pass_elems_{single_pass_elems} {}
 
@@ -218,14 +218,14 @@ class StateAggr {
     void print(std::ostream &out);
 
     //! Get the underlying atom base.
-    [[nodiscard]] auto base() -> BaseAggr &;
+    [[nodiscard]] auto base() -> BaseBdAggr &;
 
     //! Output all previously output aggregates.
     void output(OutputStm &out);
 
   private:
     Util::NodeStore<alignof(Symbol)> node_store_;
-    BaseAggr base_;
+    BaseBdAggr base_;
     ElementMap tuples_;
     VariableVec global_;
     GuardVec guards_;
@@ -238,13 +238,13 @@ class StateAggr {
 };
 
 //! A term like object used to match conditional literals and their elements.
-class MatchAggrLit {
+class MatchBdAggr {
   public:
     //! The key to match against.
     using Key = Symbol const *;
 
     //! Construct the matcher.
-    MatchAggrLit(StateAggr &state) : state_{&state} { eval_.reserve(state_->global().size()); }
+    MatchBdAggr(StateBdAggr &state) : state_{&state} { eval_.reserve(state_->global().size()); }
 
     //! Get the variables of the matcher.
     [[nodiscard]] auto vars() const -> VariableSet;
@@ -260,20 +260,20 @@ class MatchAggrLit {
     [[nodiscard]] auto eval(SymbolStore &store, Assignment &ass) const -> std::optional<Symbol const *>;
 
     //! Print a string representation of the matcher.
-    friend auto operator<<(std::ostream &out, MatchAggrLit const &m) -> std::ostream &;
+    friend auto operator<<(std::ostream &out, MatchBdAggr const &m) -> std::ostream &;
 
     //! Get the associated state.
-    [[nodiscard]] auto state() const -> StateAggr &;
+    [[nodiscard]] auto state() const -> StateBdAggr &;
 
   private:
     std::vector<Symbol> mutable eval_;
-    StateAggr *state_;
+    StateBdAggr *state_;
 };
 
 //! Literal representing an aggregate.
-class LitAggr : public Lit, private MatchAggrLit {
+class LitBdAggr : public Lit, private MatchBdAggr {
   public:
-    LitAggr(StateAggr &state, Sign sign) : MatchAggrLit{state}, sign_{sign} {}
+    LitBdAggr(StateBdAggr &state, Sign sign) : MatchBdAggr{state}, sign_{sign} {}
 
   private:
     void do_vars(VariableSet &vars, VarSelectMode mode) const override;
@@ -319,14 +319,14 @@ class LitAggr : public Lit, private MatchAggrLit {
 //! neutral element has to be used, which is 0/\#sum/\#sup depending on the
 //! type of the aggregate. Count aggregates have to be translated to sum+
 //! aggregates beforehand.
-class StmAggrElem : public Stm {
+class StmBdAggrElem : public Stm {
   public:
     //! Construct the statement.
     //!
     //! The first num_cond literals of the body must form the aggregate
     //! element's condition. The following literals are just used for grounding
     //! binding global variables of the aggregate and ensuring safety.
-    StmAggrElem(StateAggr &state, UTermVec tuple, ULitVec body, size_t num_cond, size_t priority)
+    StmBdAggrElem(StateBdAggr &state, UTermVec tuple, ULitVec body, size_t num_cond, size_t priority)
         : state_{&state}, tuple_{std::move(tuple)}, body_{std::move(body)}, num_cond_{num_cond}, priority_{priority} {}
 
   private:
@@ -340,7 +340,7 @@ class StmAggrElem : public Stm {
     void do_print_head(std::ostream &out) const override;
     void do_print(std::ostream &out) const override;
 
-    StateAggr *state_;
+    StateBdAggr *state_;
     UTermVec tuple_;
     ULitVec body_;
     size_t num_cond_;
