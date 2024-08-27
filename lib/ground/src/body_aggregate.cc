@@ -10,31 +10,6 @@
 
 namespace Gringo::Ground {
 
-namespace {
-
-auto valid_weight(AggregateFunction fun, Symbol sym) -> bool {
-    switch (fun) {
-        case AggregateFunction::min: {
-            return sym.type() != SymbolType::sup;
-        }
-        case AggregateFunction::max: {
-            return sym.type() != SymbolType::inf;
-        }
-        case AggregateFunction::sum: {
-            return sym.type() == SymbolType::number && sym.num() != 0;
-        }
-        case AggregateFunction::sump: {
-            return sym.type() == SymbolType::number && sym.num() > 0;
-        }
-        case AggregateFunction::count: {
-            return true;
-        }
-    }
-    Util::unreachable();
-}
-
-} // namespace
-
 // definition of AtomAggr
 
 void AtomBdAggr::accumulate(AggregateFunction fun, SymbolSpan tup, bool fact) {
@@ -207,7 +182,7 @@ StateBdAggr::ElementKey::ElementKey(SymbolStore &store, Assignment &ass, Aggrega
     auto *it = syms;
     if (auto jt = tuple.begin(), je = tuple.end(); jt != je) {
         // check the weight of the tuple
-        if (auto val = (*jt)->eval(store, ass); val && valid_weight(fun, *val)) {
+        if (auto val = (*jt)->eval(store, ass); val && relevant_val(fun, *val)) {
             *it = *val;
         } else {
             res = false;

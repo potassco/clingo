@@ -889,6 +889,10 @@ auto SymbolStore::num(Number num) noexcept -> SharedSymbol {
     return SharedSymbol{do_num(std::move(num)), true};
 }
 
+auto SymbolStore::num(int32_t num) noexcept -> SharedSymbol {
+    return SharedSymbol{Symbol::from_rep(Number::to_repr(Number(num))), false};
+}
+
 auto SymbolStore::tup(SharedSymbolSpan args) -> SharedSymbol {
     return tup(SymbolSpan{reinterpret_cast<Symbol const *>(args.data()), args.size()});
 }
@@ -923,6 +927,8 @@ auto SymbolStore::num_ref(Number num) noexcept -> Symbol {
     }
     return do_num(std::move(num));
 }
+
+auto SymbolStore::num_ref(int32_t num) noexcept -> Symbol { return Symbol::from_rep(Number::to_repr(Number(num))); }
 
 auto SymbolStore::tup_ref(SymbolSpan args) -> Symbol {
     if (args.empty()) {

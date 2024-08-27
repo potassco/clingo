@@ -1,6 +1,7 @@
 #include <cstdint>
 #include <optional>
 #include <ostream>
+#include <span>
 #include <string>
 
 namespace Gringo {
@@ -271,6 +272,8 @@ class Number {
     //! The representation of the number.
     uint64_t repr_;
 };
+
+using NumberSpan = std::span<Number const>;
 
 //! @}
 

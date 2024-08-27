@@ -1,5 +1,7 @@
 #pragma once
 
+#include <gringo/core/symbol.hh>
+
 #include <gringo/util/algorithm.hh>
 
 #include <cstdint>
@@ -88,6 +90,67 @@ enum class AggregateFunction : uint8_t {
 
 //! Output the given aggregate function.
 auto operator<<(std::ostream &out, AggregateFunction fun) -> std::ostream &;
+
+//! Get the neutral value for the given aggregate function.
+inline auto neutral_val(AggregateFunction fun) -> Symbol {
+    switch (fun) {
+        case AggregateFunction::sum:
+        case AggregateFunction::sump: {
+            return SymbolStore::num_ref(0);
+        }
+        case AggregateFunction::min: {
+            return SymbolStore::sup();
+        }
+        case AggregateFunction::max: {
+            return SymbolStore::inf();
+        }
+        case AggregateFunction::count: {
+            throw std::invalid_argument("count function has no neutral value");
+        }
+    }
+    Util::unreachable();
+}
+
+//! Get the neutral value or number for the given aggregate function.
+inline auto neutral_num(AggregateFunction fun) -> std::variant<Number, Symbol> {
+    switch (fun) {
+        case AggregateFunction::sum:
+        case AggregateFunction::sump: {
+            return Number(0);
+        }
+        case AggregateFunction::min: {
+            return SymbolStore::sup();
+        }
+        case AggregateFunction::max: {
+            return SymbolStore::inf();
+        }
+        case AggregateFunction::count: {
+            throw std::invalid_argument("count function has no neutral value");
+        }
+    }
+    Util::unreachable();
+}
+
+inline auto relevant_val(AggregateFunction fun, Symbol sym) -> bool {
+    switch (fun) {
+        case AggregateFunction::min: {
+            return sym.type() != SymbolType::sup;
+        }
+        case AggregateFunction::max: {
+            return sym.type() != SymbolType::inf;
+        }
+        case AggregateFunction::sum: {
+            return sym.type() == SymbolType::number && sym.num() != 0;
+        }
+        case AggregateFunction::sump: {
+            return sym.type() == SymbolType::number && sym.num() > 0;
+        }
+        case AggregateFunction::count: {
+            return true;
+        }
+    }
+    Util::unreachable();
+}
 
 //! @}
 

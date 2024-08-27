@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <gringo/util/macro.hh>
 
 #include <cstdint>
@@ -84,6 +85,41 @@ class small_vector {
             begin_ = reinterpret_cast<uintptr_t>(data);
             end_ = large_() + l;
             cap_ = large_() + n;
+        }
+    }
+
+    auto front() -> T & {
+        assert(!empty());
+        return *begin();
+    }
+
+    auto back() -> T & {
+        assert(!empty());
+        return *(end() - 1);
+    }
+
+    auto erase(T *first, T *last) -> T * {
+        if (ssize_t n = last - first; n > 0) {
+            std::destroy(first, last);
+            std::move(last, this->end(), first);
+            if (is_small_()) {
+                size_small_(size_small_() - n);
+            } else {
+                last -= n;
+            }
+        }
+        return last;
+    }
+
+    template <class... U> void emplace(T *it, U &&...args) {
+        reserve(size() + 1);
+        auto ie = end();
+        std::move_backward(it, ie, ie + 1);
+        new (it) T{std::forward<U>(args)...};
+        if (is_small_()) {
+            size_small_(size_small_() + 1);
+        } else {
+            ++end_;
         }
     }
 

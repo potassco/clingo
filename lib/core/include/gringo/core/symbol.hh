@@ -418,6 +418,8 @@ class SymbolStore {
     [[nodiscard]] static auto str(String str) noexcept -> SharedSymbol;
     //! Construct a number.
     [[nodiscard]] auto num(Number num) noexcept -> SharedSymbol;
+    //! Construct a number.
+    [[nodiscard]] static auto num(int32_t num) noexcept -> SharedSymbol;
     //! Construct a tuple.
     //!
     //! For example: <tt>(x,y)</tt>.
@@ -445,6 +447,8 @@ class SymbolStore {
     [[nodiscard]] static auto str_ref(String str) noexcept -> Symbol;
     //! Construct a number (e.g., <tt>42</tt>).
     [[nodiscard]] auto num_ref(Number num) noexcept -> Symbol;
+    //! Construct a number.
+    [[nodiscard]] static auto num_ref(int32_t num) noexcept -> Symbol;
     //! Construct a tuple.
     //!
     //! For example: <tt>(x,y)</tt>.

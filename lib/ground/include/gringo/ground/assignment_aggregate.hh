@@ -18,70 +18,89 @@ enum class AtomAssignAggrState : uint8_t {
 
 class AtomAssignAggr {
   public:
-    using Bound = std::variant<std::pair<Number, Number>, std::pair<Symbol, Symbol>>;
+    using Values = std::variant<Util::small_vector<Number>, Util::small_vector<Symbol>>;
 
     //! Initialize for the given aggregate function.
-    AtomAssignAggr() = default;
+    AtomAssignAggr(AggregateFunction fun) : values_{init_(fun)} {}
 
     //! Accumulate a tuple.
     void accumulate(AggregateFunction fun, SymbolSpan tup, bool fact);
 
-    //! Check if the aggregate matches the guards (first) and is a fact
-    //! (second).
-    //!
-    //! Only the relation of the given non-ground guards is accessed; the
-    //! values for the terms are stored in the aggregate atom.
-    auto propagate(GuardVec const &guards, Symbol const *vals) -> std::pair<bool, bool>;
-
-    //! Get the index of the aggregate.
-    //!
-    //! It must be derived first.
-    [[nodiscard]] auto derived_idx() const -> size_t;
-    //! Set the derived index of the aggregate.
-    //!
-    //! It must be derived first.
-    void derived_idx(size_t idx);
-
-    //! Get the derived state of the aggregate atom.
-    [[nodiscard]] auto state() const -> AtomAssignAggrState;
-    //! Set the derived state of the aggregate atom.
-    //!
-    //! It must only be derived once.
-    void state(AtomAssignAggrState state);
-
+    //! Check if the aggregate in its current state is a fact.
+    [[nodiscard]] auto is_fact() const;
     //! Enqueue the atom for propagation.
-    auto enqueue() -> bool;
+    auto enqueue_vals() -> bool;
     //! Dequeue the atom after propagation.
     //!
     //! Also marks elements as propagated.
-    void dequeue();
+    void dequeue_vals();
+    //! Get the values to propagate.
+    [[nodiscard]] auto todo_values() -> std::variant<NumberSpan, SymbolSpan>;
 
     //! Add a new element.
     void add_elem(size_t idx);
     //! Get the aggregate elements.
     [[nodiscard]] auto elems() const -> std::span<size_t const>;
-    //! Get the aggregate elements to propagate.
+    //! Enqueue aggregate to propagate its elements.
+    [[nodiscard]] auto enqueue() -> bool;
+    //! Dequeue an aggregate whose elements have been propagated.
+    void dequeue();
+    //! Get the elements that have to be propagated.
     [[nodiscard]] auto todo() -> std::span<size_t const>;
 
-    [[nodiscard]] auto uid() const -> std::optional<size_t>;
-
-    void uid(size_t uid);
-
   private:
-    static auto init_(AggregateFunction fun) -> Bound;
+    static auto init_(AggregateFunction fun) -> Values;
 
     std::vector<size_t> elems_;
-    // has to be an ordered set
-    // propagated captures the number of elements already propagated
-    // adding facts creates a new ordered set
-    // propagated elements can be moved to front (won't really happen in practice)
-    std::variant<std::monostate, std::pair<Number, Number>, std::pair<Symbol, Symbol>> bound_;
+    Values values_;
+    size_t propagated_vals_ = 0;
     size_t propagated_ = 0;
-    // probably unnecessary
-    size_t derived_idx_ = 0;
-    size_t uid_ = invalid_offset;
-    AtomAssignAggrState state_ = AtomAssignAggrState::unknown;
+    bool enqueued_vals_ = false;
     bool enqueued_ = false;
+};
+
+class BaseAssignAggr : public BaseImpl<std::pair<size_t, Symbol>, BaseAssignAggr> {
+  public:
+    using BaseImpl::contains;
+    using BaseImpl::Key;
+    //! Map containing the atoms.
+    using AtomMap = Util::ordered_map<Symbol const *, AtomAssignAggr, Util::SpanHash, Util::SpanEqualTo>;
+    //! Map containing the derived atoms and their values.
+    using AtomSet = Util::ordered_set<Key>;
+
+    //! Construct an empty base.
+    BaseAssignAggr(size_t size, bool single_pass_elems)
+        : atoms_{0, size, size}, single_pass_elems_{single_pass_elems} {}
+
+    //! Check if the given atom is a fact.
+    //!
+    //! This function does not take into account to which generation an atom belongs.
+    //! It can also return true for atoms added to upcoming generations.
+    [[nodiscard]] auto is_fact(Key sym) const -> bool;
+    //! Add an atom to the base.
+    //!
+    //! This function should be called during propagation if an aggregate can match.
+    void add(size_t idx, Symbol val);
+
+    //! Get the number of derived atoms.
+    [[nodiscard]] auto size() const -> size_t;
+
+    //! Get the atom index of the given symbol.
+    //!
+    //! Note that only derived atoms have indices.
+    [[nodiscard]] auto index(Key sym) const -> size_t;
+    //! Get the i-th atom in the base.
+    [[nodiscard]] auto nth(size_t i) const -> AtomSet::const_iterator;
+    //! Get the i-th atom in the base.
+    auto nth(size_t i) -> AtomSet::iterator;
+
+    //! Get the underlying atoms.
+    [[nodiscard]] auto atoms() -> AtomMap &;
+
+  private:
+    AtomMap atoms_;
+    AtomSet derived_;
+    bool single_pass_elems_;
 };
 
 } // namespace Gringo::Ground
