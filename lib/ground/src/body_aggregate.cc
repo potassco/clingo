@@ -337,7 +337,9 @@ void StateBdAggr::insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iter
     }
 
     auto [jt, jns] = tuples_.try_emplace(&tup);
-    if (!jns) {
+    if (jns) {
+        enqueue_(it);
+    } else {
         node_store_.reclaim(n, tup);
     }
     it.value().add_elem(jt - tuples_.begin());
@@ -349,8 +351,6 @@ void StateBdAggr::insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iter
     } else if (jns || !jt.value().empty()) {
         jt.value().emplace_back(cond_id);
     }
-    // enque the aggregate for propgation
-    enqueue_(it);
 }
 
 auto StateBdAggr::index(AtomMap::iterator it) -> size_t { return it - base_.atoms().begin(); }
