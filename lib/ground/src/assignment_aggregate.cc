@@ -112,8 +112,12 @@ void AtomAssignAggr::add_elem(size_t idx) { elems_.emplace_back(idx); }
 
 auto AtomAssignAggr::elems() const -> std::span<size_t const> { return std::span{elems_.begin(), elems_.end()}; }
 
+auto AtomAssignAggr::num_values_() const -> size_t {
+    return std::visit([](auto const &x) { return x.size(); }, values_);
+}
+
 auto AtomAssignAggr::enqueue() -> bool {
-    if (!enqueued_ && propagated_ < elems_.size()) {
+    if (!enqueued_ && (propagated_ < elems_.size() || propagated_vals_ < num_values_())) {
         enqueued_ = true;
         return true;
     }
@@ -123,7 +127,7 @@ auto AtomAssignAggr::enqueue() -> bool {
 void AtomAssignAggr::dequeue() {
     assert(enqueued_);
     std::visit([](auto &x) { std::sort(x.begin(), x.end()); }, values_);
-    propagated_vals_ = std::visit([](auto const &x) { return x.size(); }, values_);
+    propagated_vals_ = num_values_();
     propagated_ = elems_.size();
     enqueued_ = false;
 }
@@ -169,8 +173,6 @@ struct AtomKey {
             *it++ = ass[var].value();
         }
     }
-
-    AtomKey(Symbol const *tuple, size_t n) { std::copy_n(tuple, n, syms_); }
 
     auto syms() -> Symbol const * { return syms_; }
 
@@ -238,13 +240,14 @@ auto StateAssignAggr::propagate(SymbolStore &store) -> bool {
         auto it = base_.atoms().nth(atom_idx);
         auto &state = it.value();
         for (auto elem_idx : state.todo()) {
+            assert(elem_idx < tuples_.size());
             auto elem = tuples_.nth(elem_idx);
             // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
             auto tup = std::span(elem.key()->syms, elem.key()->n);
             state.accumulate(fun_, tup, elem->second.empty());
 #ifdef DEBUG_AGGR
             std::cerr << "accumulate: a: " << atom_idx << " e: " << elem_idx << " t:";
-            for (auto val : tup) {
+            for (auto const &val : tup) {
                 std::cerr << " " << val;
             }
             if (elem->second.empty()) {
@@ -282,13 +285,21 @@ void StateAssignAggr::enqueue_(AtomMap::iterator it) {
 }
 
 auto StateAssignAggr::insert_atom(Assignment &ass) -> AtomMap::iterator {
+    size_t first = 0;
+    if (!tuples_.empty()) {
+        first = tuples_.front().first->n;
+    }
     auto n = global_.size() * sizeof(Symbol);
     auto &tup = node_store_.construct<AtomKey>(n, ass, global_);
     auto [it, ins] = base_.atoms().try_emplace(tup.syms(), fun_);
     if (ins) {
+        // Ensure that the empty case is handled.
         enqueue_(it);
     } else {
         node_store_.reclaim(n, tup);
+    }
+    if (!tuples_.empty()) {
+        assert(first == tuples_.front().first->n);
     }
     return it;
 }
@@ -304,10 +315,12 @@ void StateAssignAggr::insert_elem(SymbolStore &store, Assignment &ass, AtomMap::
     }
 
     auto [jt, jns] = tuples_.try_emplace(&tup);
-    if (!jns) {
+    if (jns) {
+        it.value().add_elem(jt - tuples_.begin());
+        enqueue_(it);
+    } else {
         node_store_.reclaim(n, tup);
     }
-    it.value().add_elem(jt - tuples_.begin());
 
     auto [cond_id, fact] = get_cond();
     // we use an empty vector to indicate that one of the conditions is fact
@@ -316,8 +329,6 @@ void StateAssignAggr::insert_elem(SymbolStore &store, Assignment &ass, AtomMap::
     } else if (jns || !jt.value().empty()) {
         jt.value().emplace_back(cond_id);
     }
-    // enque the aggregate for propgation
-    enqueue_(it);
 }
 
 auto StateAssignAggr::index(AtomMap::iterator it) -> size_t { return it - base_.atoms().begin(); }

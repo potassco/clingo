@@ -45,6 +45,8 @@ class AtomAssignAggr {
   private:
     static auto init_(AggregateFunction fun) -> Values;
 
+    [[nodiscard]] auto num_values_() const -> size_t;
+
     std::vector<size_t> elems_;
     Values values_;
     size_t propagated_vals_ = 0;

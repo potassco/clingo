@@ -24,9 +24,9 @@ template <size_t align> class NodeStore {
         void *mem = nullptr;
         auto it = std::find_if(free_.begin(), free_.end(), [size](auto const &x) { return x.first == size; });
         if (it != free_.end()) {
+            mem = it->second;
             std::swap(*it, free_.back());
             free_.pop_back();
-            mem = it->second;
         } else {
             mem = mbr_.allocate(size, align);
         }
