@@ -289,7 +289,7 @@ auto StateBdAggr::propagate() -> bool {
     return res;
 }
 
-void StateBdAggr::enqueue(AtomMap::iterator it) {
+void StateBdAggr::enqueue_(AtomMap::iterator it) {
     if (auto &state = it.value(); state.enqueue()) {
         queue_.emplace_back(index(it));
     }
@@ -306,7 +306,7 @@ auto StateBdAggr::insert_atom(SymbolStore &store, Assignment &ass) -> std::optio
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
     auto [it, ins] = base_.atoms().try_emplace(tup.syms, fun_);
     if (ins) {
-        enqueue(it);
+        enqueue_(it);
     } else {
         node_store_.reclaim(n, tup);
     }
@@ -350,7 +350,7 @@ void StateBdAggr::insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iter
         jt.value().emplace_back(cond_id);
     }
     // enque the aggregate for propgation
-    enqueue(it);
+    enqueue_(it);
 }
 
 auto StateBdAggr::index(AtomMap::iterator it) -> size_t { return it - base_.atoms().begin(); }
@@ -441,7 +441,7 @@ auto operator<<(std::ostream &out, MatchBdAggr const &m) -> std::ostream & {
     return out;
 }
 
-// definition of AggrLit
+// definition of LitBdAggr
 
 void LitBdAggr::do_vars(VariableSet &vars, VarSelectMode mode) const {
     switch (mode) {

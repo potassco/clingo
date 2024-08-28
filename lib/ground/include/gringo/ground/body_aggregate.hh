@@ -188,9 +188,6 @@ class StateBdAggr {
     //! Propagate equeued aggregates.
     auto propagate() -> bool;
 
-    //! Enequeue an atom for propgation.
-    void enqueue(AtomMap::iterator it);
-
     //! Insert an aggregate atom (stemming from an aggregate element).
     //!
     //! This function also enqueues freshly inserted atoms to cover the case
@@ -224,6 +221,9 @@ class StateBdAggr {
     void output(OutputStm &out);
 
   private:
+    //! Enequeue an atom for propgation.
+    void enqueue_(AtomMap::iterator it);
+
     Util::NodeStore<alignof(Symbol)> node_store_;
     BaseBdAggr base_;
     ElementMap tuples_;

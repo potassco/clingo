@@ -29,11 +29,11 @@ concept IsBase = requires(Base &b) {
     b.begin(std::declval<MatcherType>());
     b.end(std::declval<MatcherType>());
     b.contains(std::declval<typename Base::Key>(), std::declval<MatcherType>());
-    { b.nth(std::declval<size_t>())->first } -> std::same_as<typename Base::Key const &>;
+    { b.nth(std::declval<size_t>()).key() } -> std::same_as<typename Base::Key const &>;
     b.update(size_t{0});
     { b.template context<int>() } -> std::same_as<int &>;
 } && requires(Base const &b) {
-    { b.nth(std::declval<size_t>())->first } -> std::same_as<typename Base::Key const &>;
+    { b.nth(std::declval<size_t>()).key() } -> std::same_as<typename Base::Key const &>;
 };
 
 //! Concept for matchable expressions.
@@ -148,7 +148,7 @@ template <IsBase Base> class FullIndex {
             for (auto const &var : free) {
                 ass[var] = std::nullopt;
             }
-            if (m.match(store, base_->nth(imported_)->first, ass)) {
+            if (m.match(store, base_->nth(imported_).key(), ass)) {
                 if (index_.empty() || index_.back().second != imported_) {
                     pos = index_.size();
                     index_.emplace_back(imported_, imported_ + 1);
@@ -181,7 +181,7 @@ template <IsBase Base> class FullIndex {
                 for (auto const &var : free) {
                     ass[var] = std::nullopt;
                 }
-                return m.match(store, base_->nth(cur++)->first, ass);
+                return m.match(store, base_->nth(cur++).key(), ass);
             }
         }
         return false;
@@ -253,7 +253,7 @@ template <IsBase Base> class SingleIndex {
                     ass[var] = std::nullopt;
                 }
                 // try to match
-                if (m.match(store, base_->nth(imported_)->first, ass)) {
+                if (m.match(store, base_->nth(imported_).key(), ass)) {
                     index_.try_emplace(*ass[bound_var]).first.value().add(ass, bind_vars, imported_);
                 }
             }
@@ -341,7 +341,7 @@ template <IsBase Base> class HashIndex {
                     ass[var] = std::nullopt;
                 }
                 // try to match
-                if (m.match(store, base_->nth(imported_)->first, ass)) {
+                if (m.match(store, base_->nth(imported_).key(), ass)) {
                     auto key_syms = bound_values_.push_map(bound_vars, [&ass](auto const &var) { return *ass[var]; });
                     auto key_hash = Util::value_hash(key_syms);
                     auto [kt, ins] = index_.try_emplace(Key{key_syms.data(), key_hash});

@@ -1,6 +1,12 @@
 #include <gringo/ground/assignment_aggregate.hh>
 
+#include <gringo/util/print.hh>
 #include <gringo/util/type_traits.hh>
+
+#define DEBUG_AGGR
+#ifdef DEBUG_AGGR
+#include <iostream>
+#endif
 
 namespace Gringo::Ground {
 
@@ -94,21 +100,6 @@ void AtomAssignAggr::accumulate(AggregateFunction fun, SymbolSpan tup, bool fact
     }
 }
 
-auto AtomAssignAggr::enqueue_vals() -> bool {
-    if (!enqueued_vals_ && propagated_vals_ < std::visit([](auto const &x) { return x.size(); }, values_)) {
-        enqueued_vals_ = true;
-        return true;
-    }
-    return false;
-}
-
-void AtomAssignAggr::dequeue_vals() {
-    assert(enqueued_vals_);
-    std::visit([](auto &x) { std::sort(x.begin(), x.end()); }, values_);
-    enqueued_vals_ = false;
-    propagated_vals_ = std::visit([](auto const &x) { return x.size(); }, values_);
-}
-
 auto AtomAssignAggr::todo_values() -> std::variant<NumberSpan, SymbolSpan> {
     return std::visit(
         [p = static_cast<ssize_t>(propagated_)](auto const &x) -> std::variant<NumberSpan, SymbolSpan> {
@@ -131,6 +122,8 @@ auto AtomAssignAggr::enqueue() -> bool {
 
 void AtomAssignAggr::dequeue() {
     assert(enqueued_);
+    std::visit([](auto &x) { std::sort(x.begin(), x.end()); }, values_);
+    propagated_vals_ = std::visit([](auto const &x) { return x.size(); }, values_);
     propagated_ = elems_.size();
     enqueued_ = false;
 }
@@ -146,7 +139,7 @@ auto BaseAssignAggr::is_fact(Key sym) const -> bool {
     return single_pass_elems_ && atoms_.nth(sym.first).value().is_fact() && derived_.contains(sym);
 }
 
-void BaseAssignAggr::add(size_t idx, Symbol val) { derived_.emplace(idx, val); }
+auto BaseAssignAggr::add(size_t idx, Symbol val) -> bool { return derived_.emplace(idx, val).second; }
 
 auto BaseAssignAggr::size() const -> size_t { return derived_.size(); }
 
@@ -157,5 +150,308 @@ auto BaseAssignAggr::nth(size_t i) const -> AtomSet::const_iterator { return der
 auto BaseAssignAggr::nth(size_t i) -> AtomSet::iterator { return derived_.nth(i); }
 
 auto BaseAssignAggr::atoms() -> AtomMap & { return atoms_; }
+
+auto BaseAssignAggr::single_pass_elems() const -> bool { return single_pass_elems_; }
+
+// definition of StateAssignAggr
+
+// NOLINTBEGIN
+
+namespace {
+
+struct AtomKey {
+  public:
+    AtomKey(Assignment &ass, VariableVec const &global) {
+        auto *it = syms_;
+        for (auto const &var : global) {
+            *it++ = ass[var].value();
+        }
+    }
+
+    AtomKey(Symbol const *tuple, size_t n) { std::copy_n(tuple, n, syms_); }
+
+    auto syms() -> Symbol const * { return syms_; }
+
+  private:
+    GRINGO_IGNORE_ZERO_SIZED_ARRAY_B
+    Symbol syms_[0];
+    GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
+};
+
+} // namespace
+
+StateAssignAggr::ElementKey::ElementKey(SymbolStore &store, Assignment &ass, AggregateFunction fun, size_t atom_idx,
+                                        UTermVec const &tuple, bool &res)
+    : n{tuple.size()}, atom_idx{atom_idx} {
+    auto *it = syms;
+    if (auto jt = tuple.begin(), je = tuple.end(); jt != je) {
+        // check the weight of the tuple
+        if (auto val = (*jt)->eval(store, ass); val && relevant_val(fun, *val)) {
+            *it = *val;
+        } else {
+            res = false;
+            return;
+        }
+        for (++jt, ++it; jt != je; ++jt, ++it) {
+            if (auto val = (*jt)->eval(store, ass); val) {
+                *it = *val;
+            } else {
+                res = false;
+                return;
+            }
+        }
+    } else if (fun != AggregateFunction::count) {
+        res = false;
+        return;
+    }
+}
+
+auto StateAssignAggr::ElementKey::span() const -> SymbolSpan { return SymbolSpan{syms, n}; }
+
+auto StateAssignAggr::ElementKey::hash() const -> size_t {
+    return Util::value_hash_record<ElementKey>(n, atom_idx, span());
+}
+
+auto operator==(StateAssignAggr::ElementKey const &a, StateAssignAggr::ElementKey const &b) -> bool {
+    return a.atom_idx == b.atom_idx && a.n == b.n && std::equal(a.span().begin(), a.span().end(), b.span().begin());
+}
+
+// NOLINTEND
+
+auto StateAssignAggr::global() const -> VariableVec const & { return global_; }
+
+auto StateAssignAggr::term() const -> Term const & { return *term_; }
+
+auto StateAssignAggr::fun() const -> AggregateFunction { return fun_; }
+
+auto StateAssignAggr::domain_elems() const -> bool { return base_.domain_elems(); }
+
+auto StateAssignAggr::single_pass_elems() const -> bool { return base_.single_pass_elems(); }
+
+auto StateAssignAggr::index() const -> size_t { return index_; }
+
+auto StateAssignAggr::propagate(SymbolStore &store) -> bool {
+    bool res = false;
+    for (auto atom_idx : queue_) {
+        auto it = base_.atoms().nth(atom_idx);
+        auto &state = it.value();
+        for (auto elem_idx : state.todo()) {
+            auto elem = tuples_.nth(elem_idx);
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+            auto tup = std::span(elem.key()->syms, elem.key()->n);
+            state.accumulate(fun_, tup, elem->second.empty());
+#ifdef DEBUG_AGGR
+            std::cerr << "accumulate: a: " << atom_idx << " e: " << elem_idx << " t:";
+            for (auto val : tup) {
+                std::cerr << " " << val;
+            }
+            if (elem->second.empty()) {
+                std::cerr << " [f]";
+            }
+            std::cerr << "\n";
+#endif
+        }
+
+        std::visit(
+            [&, this]<class T>(T const &values) {
+                for (auto const &val : values) {
+                    if constexpr (Util::matches<typename T::value_type, Number>) {
+                        res = base().add(atom_idx, store.num_ref(val)) || res;
+                    } else {
+                        res = base().add(atom_idx, val) || res;
+                    }
+#ifdef DEBUG_AGGR
+                    std::cerr << "propagate: a: " << atom_idx << " v: " << val << (state.is_fact() ? " [f]" : "")
+                              << "\n";
+#endif
+                }
+            },
+            state.todo_values());
+        state.dequeue();
+    }
+    queue_.clear();
+    return res;
+}
+
+void StateAssignAggr::enqueue_(AtomMap::iterator it) {
+    if (auto &state = it.value(); state.enqueue()) {
+        queue_.emplace_back(index(it));
+    }
+}
+
+auto StateAssignAggr::insert_atom(Assignment &ass) -> AtomMap::iterator {
+    auto n = global_.size() * sizeof(Symbol);
+    auto &tup = node_store_.construct<AtomKey>(n, ass, global_);
+    auto [it, ins] = base_.atoms().try_emplace(tup.syms(), fun_);
+    if (ins) {
+        enqueue_(it);
+    } else {
+        node_store_.reclaim(n, tup);
+    }
+    return it;
+}
+
+void StateAssignAggr::insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iterator it, UTermVec const &tuple,
+                                  auto const &get_cond) {
+    auto n = sizeof(StateAssignAggr::ElementKey) + tuple.size() * sizeof(Symbol);
+    bool res = true;
+    auto &tup = node_store_.construct<ElementKey>(n, store, ass, fun_, index(it), tuple, res);
+    if (!res) {
+        node_store_.reclaim(n, tup);
+        return;
+    }
+
+    auto [jt, jns] = tuples_.try_emplace(&tup);
+    if (!jns) {
+        node_store_.reclaim(n, tup);
+    }
+    it.value().add_elem(jt - tuples_.begin());
+
+    auto [cond_id, fact] = get_cond();
+    // we use an empty vector to indicate that one of the conditions is fact
+    if (fact) {
+        jt.value().clear();
+    } else if (jns || !jt.value().empty()) {
+        jt.value().emplace_back(cond_id);
+    }
+    // enque the aggregate for propgation
+    enqueue_(it);
+}
+
+auto StateAssignAggr::index(AtomMap::iterator it) -> size_t { return it - base_.atoms().begin(); }
+
+auto StateAssignAggr::index(ElementMap::iterator it) -> size_t { return it - tuples_.begin(); }
+
+void StateAssignAggr::print(std::ostream &out) {
+    out << fun_ << "(" << Util::p_range(global_, [](std::ostream &out, auto var) { out << "X_" << var; }) << ")";
+    if (index_ != stratified_index) {
+        out << "[" << index_ << "]";
+    }
+    out << " = " << term_;
+}
+
+auto StateAssignAggr::base() -> BaseAssignAggr & { return base_; }
+
+void StateAssignAggr::output(OutputStm &out) {
+    static_cast<void>(this);
+    static_cast<void>(out);
+    throw std::logic_error("implement me: output!!!");
+}
+
+// definition of MatchAssignAggr
+
+auto MatchAssignAggr::vars() const -> VariableSet {
+    VariableSet res{state_->global().begin(), state_->global().end()};
+    state_->term().vars(res);
+    return res;
+}
+
+auto MatchAssignAggr::signature(VariableSet const &bound,
+                                [[maybe_unused]] VariableSet const &bind) const -> VariableVec {
+    static_cast<void>(this);
+    return {bound.begin(), bound.end()};
+}
+
+auto MatchAssignAggr::match(SymbolStore &store, Key key, Assignment &ass) const -> bool {
+    auto const *sym = state().base().atoms().nth(key.first).key();
+    for (auto var : state_->global()) {
+        if (auto &opt = ass[var]; opt) {
+            if (*opt != *sym) {
+                return false;
+            }
+        } else {
+            ass[var] = *sym;
+        }
+        sym = std::next(sym);
+    }
+    return state().term().match(store, key.second, ass);
+}
+
+auto MatchAssignAggr::eval(SymbolStore &store, Assignment &ass) const -> std::optional<Key> {
+    eval_.clear();
+    for (auto var : state_->global()) {
+        // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+        eval_.emplace_back(ass[var].value());
+    }
+    auto &atoms = state().base().atoms();
+    auto it = atoms.find(eval_.data());
+    if (it == atoms.end()) {
+        return std::nullopt;
+    }
+    auto sym = state().term().eval(store, ass);
+    if (!sym) {
+        return std::nullopt;
+    }
+    return std::make_optional<Key>(state().index(it), *sym);
+}
+
+auto operator<<(std::ostream &out, MatchAssignAggr const &m) -> std::ostream & {
+    m.state_->print(out);
+    return out;
+}
+
+auto MatchAssignAggr::state() const -> StateAssignAggr & { return *state_; }
+
+// definition of LitAssignAggr
+
+void LitAssignAggr::do_vars(VariableSet &vars, VarSelectMode mode) const {
+    if (mode != VarSelectMode::depend) {
+        vars.insert(state().global().begin(), state().global().end());
+        state().term().vars(vars);
+    }
+}
+
+auto LitAssignAggr::do_domain() const -> bool { return state().domain_elems() && state().single_pass_elems(); }
+
+auto LitAssignAggr::do_single_pass() const -> bool {
+    return state().index() == stratified_index || state().single_pass_elems();
+}
+
+auto LitAssignAggr::do_matcher(MatcherType type,
+                               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
+    offset_ = invalid_offset;
+    auto &match = static_cast<MatchAssignAggr &>(*this);
+    auto index = std::optional<size_t>{};
+    if (state().index() != stratified_index && type == MatcherType::new_atoms) {
+        index = state().index();
+    }
+    return {make_atom_matcher(bound, state().base(), match, type, offset_), index};
+}
+
+auto LitAssignAggr::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double {
+    // Note: at the time of score computation the aggregate is still empty.
+    // Since we decided to split earlier, matching them should always be
+    // better than using their body prefix.
+    return 0;
+}
+
+void LitAssignAggr::do_print(std::ostream &out) const { state().print(out); }
+
+auto LitAssignAggr::do_output([[maybe_unused]] InstantiationContext &ctx, OutputLit &out) const -> bool {
+    if (domain()) {
+        return false;
+    }
+    auto &base = state().base();
+    auto &atoms = base.atoms();
+    auto it = base.nth(offset_);
+    auto const &st = atoms.nth(it->first).value();
+    if (state().single_pass_elems() && st.is_fact()) {
+        return false;
+    }
+    // TODO: assign a uid to the aggregate
+    static_cast<void>(out);
+    return true;
+}
+
+auto LitAssignAggr::do_copy() const -> ULit { return std::make_unique<LitAssignAggr>(state()); }
+
+auto LitAssignAggr::do_hash() const -> size_t {
+    // NOLINTNEXTLINE
+    return Util::value_hash_record<LitAssignAggr>(reinterpret_cast<uintptr_t>(this));
+}
+
+auto LitAssignAggr::do_equal_to(Lit const &other) const -> bool { return this == &other; }
+
+auto LitAssignAggr::do_compare_to(Lit const &other) const -> std::weak_ordering { return this <=> &other; }
 
 } // namespace Gringo::Ground

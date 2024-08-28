@@ -28,12 +28,6 @@ class AtomAssignAggr {
 
     //! Check if the aggregate in its current state is a fact.
     [[nodiscard]] auto is_fact() const;
-    //! Enqueue the atom for propagation.
-    auto enqueue_vals() -> bool;
-    //! Dequeue the atom after propagation.
-    //!
-    //! Also marks elements as propagated.
-    void dequeue_vals();
     //! Get the values to propagate.
     [[nodiscard]] auto todo_values() -> std::variant<NumberSpan, SymbolSpan>;
 
@@ -55,7 +49,6 @@ class AtomAssignAggr {
     Values values_;
     size_t propagated_vals_ = 0;
     size_t propagated_ = 0;
-    bool enqueued_vals_ = false;
     bool enqueued_ = false;
 };
 
@@ -69,8 +62,8 @@ class BaseAssignAggr : public BaseImpl<std::pair<size_t, Symbol>, BaseAssignAggr
     using AtomSet = Util::ordered_set<Key>;
 
     //! Construct an empty base.
-    BaseAssignAggr(size_t size, bool single_pass_elems)
-        : atoms_{0, size, size}, single_pass_elems_{single_pass_elems} {}
+    BaseAssignAggr(size_t size, bool domain_elems, bool single_pass_elems)
+        : atoms_{0, size, size}, domain_elems_{domain_elems}, single_pass_elems_{single_pass_elems} {}
 
     //! Check if the given atom is a fact.
     //!
@@ -80,7 +73,7 @@ class BaseAssignAggr : public BaseImpl<std::pair<size_t, Symbol>, BaseAssignAggr
     //! Add an atom to the base.
     //!
     //! This function should be called during propagation if an aggregate can match.
-    void add(size_t idx, Symbol val);
+    auto add(size_t idx, Symbol val) -> bool;
 
     //! Get the number of derived atoms.
     [[nodiscard]] auto size() const -> size_t;
@@ -97,9 +90,15 @@ class BaseAssignAggr : public BaseImpl<std::pair<size_t, Symbol>, BaseAssignAggr
     //! Get the underlying atoms.
     [[nodiscard]] auto atoms() -> AtomMap &;
 
+    //! Check whether all relevant elemens of the aggregate are domain.
+    [[nodiscard]] auto domain_elems() const -> bool;
+    //! Check whether all relevant elemens of the aggregate can be grounded in a single pass.
+    [[nodiscard]] auto single_pass_elems() const -> bool;
+
   private:
     AtomMap atoms_;
     AtomSet derived_;
+    bool domain_elems_;
     bool single_pass_elems_;
 };
 
@@ -122,32 +121,29 @@ class StateAssignAggr {
         GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
     };
 
-    struct AtomKey {
-        AtomKey(SymbolStore &store, Assignment &ass, VariableVec const &global, GuardVec &guards, bool &res);
-
-        AtomKey(Symbol const *tuple, size_t n);
-        GRINGO_IGNORE_ZERO_SIZED_ARRAY_B
-        Symbol syms[0];
-        GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
-    };
     // NOLINTEND
 
     using AtomMap = BaseAssignAggr::AtomMap;
     using ElementMap = Util::ordered_map<ElementKey *, Util::small_vector<size_t>>;
 
     //! Initialize an aggregate state.
-    StateAssignAggr(VariableVec global, UTerm term, AggregateFunction fun, size_t index, bool single_pass_elems)
-        : base_{global.size(), single_pass_elems}, global_{std::move(global)}, term_{std::move(term)}, index_{index},
-          fun_{fun} {}
+    StateAssignAggr(VariableVec global, UTerm term, AggregateFunction fun, size_t index, bool domain_elems,
+                    bool single_pass_elems)
+        : base_{global.size(), domain_elems, single_pass_elems}, global_{std::move(global)}, term_{std::move(term)},
+          index_{index}, fun_{fun} {}
 
     //! Get the global variables in the aggregate.
     //!
-    //! This does not include the guard of the aggregate.
+    //! This does not include the variables of the guard.
     [[nodiscard]] auto global() const -> VariableVec const &;
     //! Get the target term to assign values to.
     [[nodiscard]] auto term() const -> Term const &;
     //! Get the aggregate function.
     [[nodiscard]] auto fun() const -> AggregateFunction;
+    //! Indicates that the elements are domain.
+    //!
+    //! This does not take into account the body prefix of elements.
+    [[nodiscard]] auto domain_elems() const -> bool;
     //! Indicates that all necessary elemements can be grounded in a single
     //! pass.
     //!
@@ -157,16 +153,13 @@ class StateAssignAggr {
     [[nodiscard]] auto index() const -> size_t;
 
     //! Propagate equeued aggregates.
-    auto propagate() -> bool;
-
-    //! Enqueue an atom for propgation.
-    void enqueue(AtomMap::iterator it);
+    auto propagate(SymbolStore &store) -> bool;
 
     //! Insert an aggregate atom (stemming from an aggregate element).
     //!
     //! This function also enqueues freshly inserted atoms to cover the case
     //! that the aggregate matches the empty element set.
-    auto insert_atom(SymbolStore &store, Assignment &ass) -> std::optional<AtomMap::iterator>;
+    auto insert_atom(Assignment &ass) -> AtomMap::iterator;
 
     //! Insert an aggregate element.
     void insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iterator it, UTermVec const &tuple,
@@ -188,6 +181,9 @@ class StateAssignAggr {
     void output(OutputStm &out);
 
   private:
+    //! Enqueu the given atom for propagation.
+    void enqueue_(AtomMap::iterator it);
+
     Util::NodeStore<alignof(Symbol)> node_store_;
     BaseAssignAggr base_;
     ElementMap tuples_;
@@ -197,4 +193,71 @@ class StateAssignAggr {
     size_t index_;
     AggregateFunction fun_;
 };
+
+//! A term like object used to match conditional literals and their elements.
+class MatchAssignAggr {
+  public:
+    //! The key to match against.
+    using Key = BaseAssignAggr::Key;
+
+    //! Construct the matcher.
+    MatchAssignAggr(StateAssignAggr &state) : state_{&state} { eval_.reserve(state_->global().size()); }
+
+    //! Get the variables of the matcher.
+    [[nodiscard]] auto vars() const -> VariableSet;
+
+    //! Get the signature of the matcher.
+    [[nodiscard]] auto signature(VariableSet const &bound,
+                                 [[maybe_unused]] VariableSet const &bind) const -> VariableVec;
+
+    //! Match a span of symbols representing an atom or element with the assignment.
+    [[nodiscard]] auto match([[maybe_unused]] SymbolStore &store, Key key, Assignment &ass) const -> bool;
+
+    //! Evaluate w.r.t. the given assignment and return a span representing an atom or element.
+    [[nodiscard]] auto eval(SymbolStore &store, Assignment &ass) const -> std::optional<Key>;
+
+    //! Print a string representation of the matcher.
+    friend auto operator<<(std::ostream &out, MatchAssignAggr const &m) -> std::ostream &;
+
+    //! Get the associated state.
+    [[nodiscard]] auto state() const -> StateAssignAggr &;
+
+  private:
+    std::vector<Symbol> mutable eval_;
+    StateAssignAggr *state_;
+};
+
+//! Literal representing an aggregate.
+class LitAssignAggr : public Lit, private MatchAssignAggr {
+  public:
+    LitAssignAggr(StateAssignAggr &state) : MatchAssignAggr{state} {}
+
+  private:
+    void do_vars(VariableSet &vars, VarSelectMode mode) const override;
+
+    [[nodiscard]] auto do_domain() const -> bool override;
+
+    //! Returns true if the aggregate needs only one grounding pass.
+    [[nodiscard]] auto do_single_pass() const -> bool override;
+
+    [[nodiscard]] auto
+    do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+
+    [[nodiscard]] auto do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double override;
+
+    void do_print(std::ostream &out) const override;
+
+    auto do_output([[maybe_unused]] InstantiationContext &ctx, OutputLit &out) const -> bool override;
+
+    [[nodiscard]] auto do_copy() const -> ULit override;
+
+    [[nodiscard]] auto do_hash() const -> size_t override;
+
+    [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
+
+    [[nodiscard]] auto do_compare_to(Lit const &other) const -> std::weak_ordering override;
+
+    size_t offset_ = invalid_offset;
+};
+
 } // namespace Gringo::Ground
