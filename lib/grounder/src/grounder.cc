@@ -395,7 +395,7 @@ class BuilderTerm {
     Util::unordered_map<String, size_t> const *var_map_;
 };
 
-using StateList = std::forward_list<std::variant<Ground::StateCondLit, Ground::StateBdAggr>>;
+using StateList = std::forward_list<std::variant<Ground::StateCondLit, Ground::StateBdAggr, Ground::StateAssignAggr>>;
 
 //! Context object holding necessary data for translating from input to ground
 //! representation.
@@ -492,7 +492,7 @@ class BuildContext {
     Ground::Component *gcomp_;
     Util::unordered_map<String, size_t> *var_map_;
     Ground::ULitVec *body_;
-    std::forward_list<std::variant<Ground::StateCondLit, Ground::StateBdAggr>> *state_;
+    StateList *state_;
     size_t priority = 0;
     size_t index_ = 0;
 };
@@ -618,9 +618,9 @@ class BuilderBdLit {
         oss << "implement me: handle body literal " << lit;
         throw std::logic_error(oss.str());
     }
+
     //! Translate body aggregates.
     void operator()(Input::BdLitAggregate const &lit) const {
-        auto &store = *ctx_->impl().store;
         auto vars_body = Ground::VariableSet{};
         for (auto const &lit : ctx_->body()) {
             lit->vars(vars_body, Ground::VarSelectMode::all);
@@ -647,6 +647,10 @@ class BuilderBdLit {
         bool assign = !std::all_of(vars_global.begin(), vars_global.end(),
                                    [&vars_body](auto const &var) { return vars_body.contains(var); });
 
+        if (assign) {
+            vars_global.clear();
+        }
+
         auto dom = true;                                // all literals in conditions are domain
         auto sp_elems = true;                           // all conditions are single-pass
         auto pos = lit.fun() == AggregateFunction::sum; // sum aggregate can be turned into a sum+ aggregate
@@ -659,7 +663,7 @@ class BuilderBdLit {
             cond.reserve(elem.cond().size());
             if (lit.fun() == AggregateFunction::count) {
                 tuple.reserve(elem.tuple().size() + 1);
-                tuple.emplace_back(std::make_unique<Ground::TermSymbol>(store.num_ref(1)));
+                tuple.emplace_back(std::make_unique<Ground::TermSymbol>(SymbolStore::num_ref(1)));
             } else {
                 tuple.reserve(elem.tuple().size());
             }
@@ -710,59 +714,79 @@ class BuilderBdLit {
         auto index = ctx_->single_pass_body() && sp_elems ? Ground::stratified_index : ctx_->next_index();
 
         if (assign) {
-            // Elements of assignment aggreagets can be accumulated just like
-            // body aggregates. Guards with free variables have to be ignored.
-            // When propagating, a set of matching values can be computed,
-            // which can be used by a specialized assignment aggregate literal.
-            throw std::logic_error("assignment aggregates are not yet supported");
-        }
+            assert(lit.sign() == Sign::none && guards.size() == 1 && guards.front().first == Relation::equal);
+            auto &state = ctx_->state<Ground::StateAssignAggr>(vars_global.release(), std::move(guards.front().second),
+                                                               fun, index, dom, sp_elems);
 
-        // initialize state
-        auto &state =
-            ctx_->state<Ground::StateBdAggr>(vars_global.release(), std::move(guards), fun, index, dom, mon, sp_elems);
-
-        // add rule for empty case
-        auto body = Ground::ULitVec{};
-        body.reserve(ctx_->body().size() + state.guards().size());
-        for (auto const &lit : ctx_->body()) {
-            body.emplace_back(lit->copy());
-        }
-        auto neutral = store.num_ref(0);
-        if (fun == AggregateFunction::max) {
-            neutral = SymbolStore::sup();
-        } else if (fun == AggregateFunction::max) {
-            neutral = SymbolStore::inf();
-        }
-        bool add_neutral = true;
-        for (auto const &guard : state.guards()) {
-            if (auto const *rhs = dynamic_cast<Ground::TermSymbol const *>(guard.second.get()); rhs != nullptr) {
-                if (!evaluate(neutral, guard.first, rhs->symbol())) {
-                    add_neutral = false;
-                    break;
-                }
-            } else {
-                body.emplace_back(std::make_unique<Ground::LitComparison>(std::make_unique<Ground::TermSymbol>(neutral),
-                                                                          guard.first, guard.second->copy()));
+            // add rule for empty case
+            // TODO: c&p
+            auto body = Ground::ULitVec{};
+            body.reserve(ctx_->body().size());
+            for (auto const &lit : ctx_->body()) {
+                body.emplace_back(lit->copy());
             }
-        }
-        if (add_neutral) {
-            ctx_->gcomp().add(std::make_unique<Ground::StmBdAggrElem>(
+            auto neutral = neutral_val(fun);
+            // TODO: c&p
+            ctx_->gcomp().add(std::make_unique<Ground::StmAssignAggrElem>(
                 state, Util::make_vec<Ground::UTerm>(std::make_unique<Ground::TermSymbol>(neutral)), std::move(body), 0,
                 elem_priority));
-        }
 
-        // add rules for elements
-        for (auto &[tuple, cond] : elems) {
-            auto num = cond.size();
-            cond.reserve(ctx_->body().size() + cond.size());
-            for (auto const &lit : ctx_->body()) {
-                cond.emplace_back(lit->copy());
+            // add rules for elements
+            // TODO: c&p
+            for (auto &[tuple, cond] : elems) {
+                auto num = cond.size();
+                cond.reserve(ctx_->body().size() + cond.size());
+                for (auto const &lit : ctx_->body()) {
+                    cond.emplace_back(lit->copy());
+                }
+                ctx_->gcomp().add(std::make_unique<Ground::StmAssignAggrElem>(state, std::move(tuple), std::move(cond),
+                                                                              num, elem_priority));
             }
-            ctx_->gcomp().add(
-                std::make_unique<Ground::StmBdAggrElem>(state, std::move(tuple), std::move(cond), num, elem_priority));
-        }
 
-        ctx_->body().emplace_back(std::make_unique<Ground::LitBdAggr>(state, lit.sign()));
+            ctx_->body().emplace_back(std::make_unique<Ground::LitAssignAggr>(state));
+        } else {
+            // initialize state
+            auto &state = ctx_->state<Ground::StateBdAggr>(vars_global.release(), std::move(guards), fun, index, dom,
+                                                           mon, sp_elems);
+
+            // add rule for empty case
+            auto body = Ground::ULitVec{};
+            body.reserve(ctx_->body().size() + state.guards().size());
+            for (auto const &lit : ctx_->body()) {
+                body.emplace_back(lit->copy());
+            }
+            auto neutral = neutral_val(fun);
+            bool add_neutral = true;
+            for (auto const &guard : state.guards()) {
+                if (auto const *rhs = dynamic_cast<Ground::TermSymbol const *>(guard.second.get()); rhs != nullptr) {
+                    if (!evaluate(neutral, guard.first, rhs->symbol())) {
+                        add_neutral = false;
+                        break;
+                    }
+                } else {
+                    body.emplace_back(std::make_unique<Ground::LitComparison>(
+                        std::make_unique<Ground::TermSymbol>(neutral), guard.first, guard.second->copy()));
+                }
+            }
+            if (add_neutral) {
+                ctx_->gcomp().add(std::make_unique<Ground::StmBdAggrElem>(
+                    state, Util::make_vec<Ground::UTerm>(std::make_unique<Ground::TermSymbol>(neutral)),
+                    std::move(body), 0, elem_priority));
+            }
+
+            // add rules for elements
+            for (auto &[tuple, cond] : elems) {
+                auto num = cond.size();
+                cond.reserve(ctx_->body().size() + cond.size());
+                for (auto const &lit : ctx_->body()) {
+                    cond.emplace_back(lit->copy());
+                }
+                ctx_->gcomp().add(std::make_unique<Ground::StmBdAggrElem>(state, std::move(tuple), std::move(cond), num,
+                                                                          elem_priority));
+            }
+
+            ctx_->body().emplace_back(std::make_unique<Ground::LitBdAggr>(state, lit.sign()));
+        }
     }
     //! Translate simple literals.
     void operator()(Input::BdLitSimple const &lit) const {

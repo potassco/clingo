@@ -89,6 +89,7 @@ auto Linearizer::order_(InstanceCallback &cb, std::vector<MatcherType> const &to
     auto make_depend = [&provided, &bound](auto const &dep, auto const &prv) {
         auto res = std::vector<size_t>{};
         for (auto var : dep) {
+            assert(var < provided.size());
             res.emplace_back(provided[var]);
         }
         for (auto var : prv) {
@@ -100,7 +101,7 @@ auto Linearizer::order_(InstanceCallback &cb, std::vector<MatcherType> const &to
         res.erase(std::unique(res.begin(), res.end()), res.end());
         return res;
     };
-    // proceess the queue
+    // process the queue
     auto done = Util::unordered_set<Lit const *>{};
     done.reserve(lits.size());
     auto res_index = std::optional<size_t>{};

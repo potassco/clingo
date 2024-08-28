@@ -3,7 +3,7 @@
 #include <gringo/util/print.hh>
 #include <gringo/util/type_traits.hh>
 
-#define DEBUG_AGGR
+// #define DEBUG_AGGR
 #ifdef DEBUG_AGGR
 #include <iostream>
 #endif
@@ -150,6 +150,8 @@ auto BaseAssignAggr::nth(size_t i) const -> AtomSet::const_iterator { return der
 auto BaseAssignAggr::nth(size_t i) -> AtomSet::iterator { return derived_.nth(i); }
 
 auto BaseAssignAggr::atoms() -> AtomMap & { return atoms_; }
+
+auto BaseAssignAggr::domain_elems() const -> bool { return domain_elems_; }
 
 auto BaseAssignAggr::single_pass_elems() const -> bool { return single_pass_elems_; }
 
@@ -327,7 +329,7 @@ void StateAssignAggr::print(std::ostream &out) {
     if (index_ != stratified_index) {
         out << "[" << index_ << "]";
     }
-    out << " = " << term_;
+    out << " = " << *term_;
 }
 
 auto StateAssignAggr::base() -> BaseAssignAggr & { return base_; }
@@ -335,7 +337,7 @@ auto StateAssignAggr::base() -> BaseAssignAggr & { return base_; }
 void StateAssignAggr::output(OutputStm &out) {
     static_cast<void>(this);
     static_cast<void>(out);
-    throw std::logic_error("implement me: output!!!");
+    // TODO: output the assignment aggregates
 }
 
 // definition of MatchAssignAggr
