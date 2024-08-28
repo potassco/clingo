@@ -443,7 +443,7 @@ class LitCondLitStrat : public Lit, private InstanceCallback {
     // cb interface
     void do_init(size_t gen) override;
     [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override;
-    void do_propagate(Queue &queue) override;
+    void do_propagate(SymbolStore &store, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override;
     void do_print_head(std::ostream &out) const override;
 
@@ -477,7 +477,7 @@ class StmCondLit : public Stm {
     void do_print_head(std::ostream &out) const override;
     void do_init(size_t gen) override;
     [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override;
-    void do_propagate(Queue &queue) override;
+    void do_propagate(SymbolStore &store, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override;
 
     StateCondLit *state_;

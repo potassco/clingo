@@ -195,7 +195,7 @@ auto StmRule::do_report(InstantiationContext &ctx) -> bool {
     return head_ != nullptr || !fact;
 }
 
-void StmRule::do_propagate(Queue &queue) {
+void StmRule::do_propagate([[maybe_unused]] SymbolStore &store, Queue &queue) {
     // Consider adding the propagation to the instantiator...
     if (base_ != nullptr && base_->has_update()) {
         for (auto const &idx : indices_) {

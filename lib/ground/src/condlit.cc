@@ -427,7 +427,7 @@ auto LitCondLitStrat::do_report(InstantiationContext &ctx) -> bool {
     return state_->add_premise(ctx, premise_);
 }
 
-void LitCondLitStrat::do_propagate([[maybe_unused]] Queue &queue) {}
+void LitCondLitStrat::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Queue &queue) {}
 
 auto LitCondLitStrat::do_priority() const -> size_t { return 0; }
 
@@ -589,7 +589,7 @@ auto StmCondLit::do_report(InstantiationContext &ctx) -> bool {
     return true;
 }
 
-void StmCondLit::do_propagate(Queue &queue) {
+void StmCondLit::do_propagate([[maybe_unused]] SymbolStore &store, Queue &queue) {
     switch (type_) {
         case StmCondLitType::empty: {
             if (state_->base_empty().has_update()) {

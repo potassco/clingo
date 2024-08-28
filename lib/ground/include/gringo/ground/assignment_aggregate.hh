@@ -260,4 +260,38 @@ class LitAssignAggr : public Lit, private MatchAssignAggr {
     size_t offset_ = invalid_offset;
 };
 
+//! Gather aggregate elements.
+//!
+//! This class can also be used to derive empty aggregates. A tuple with a
+//! neutral element has to be used, which is 0/\#sum/\#sup depending on the
+//! type of the aggregate. Count aggregates have to be translated to sum+
+//! aggregates beforehand.
+class StmAssignAggrElem : public Stm {
+  public:
+    //! Construct the statement.
+    //!
+    //! The first num_cond literals of the body must form the aggregate
+    //! element's condition. The following literals are just used for grounding
+    //! binding global variables of the aggregate and ensuring safety.
+    StmAssignAggrElem(StateAssignAggr &state, UTermVec tuple, ULitVec body, size_t num_cond, size_t priority)
+        : state_{&state}, tuple_{std::move(tuple)}, body_{std::move(body)}, num_cond_{num_cond}, priority_{priority} {}
+
+  private:
+    [[nodiscard]] auto do_body() const -> ULitVec const & override;
+    [[nodiscard]] auto do_important() const -> VariableSet override;
+    [[nodiscard]] auto do_is_important(size_t index) const -> bool override;
+    void do_init([[maybe_unused]] size_t gen) override;
+    [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override;
+    void do_propagate(SymbolStore &store, Queue &queue) override;
+    [[nodiscard]] auto do_priority() const -> size_t override;
+    void do_print_head(std::ostream &out) const override;
+    void do_print(std::ostream &out) const override;
+
+    StateAssignAggr *state_;
+    UTermVec tuple_;
+    ULitVec body_;
+    size_t num_cond_;
+    size_t priority_;
+};
+
 } // namespace Gringo::Ground
