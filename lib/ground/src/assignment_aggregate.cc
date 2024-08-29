@@ -88,11 +88,11 @@ void AtomAssignAggr::accumulate(AggregateFunction fun, SymbolSpan tup, bool fact
                         vals.emplace_back(std::move(iv));
                     }
                 }
-                // alternative with better time complexity but allocation
+                // sort the range [ip, ie]
                 auto *ib = vals.begin();
                 auto *ie = vals.end();
                 std::inplace_merge(std::next(ib, n), std::next(ib, m), ie);
-                std::inplace_merge(std::next(ib, p), std::next(ib, m), ie);
+                std::inplace_merge(std::next(ib, p), std::next(ib, n), ie);
             }
         }
     }
