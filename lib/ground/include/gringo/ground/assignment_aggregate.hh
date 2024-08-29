@@ -107,7 +107,8 @@ class BaseAssignAggr : public BaseImpl<std::pair<size_t, Symbol>, BaseAssignAggr
 class StateAssignAggr {
   public:
     // NOLINTBEGIN
-    struct ElementKey {
+    class ElementKey {
+      public:
         ElementKey(SymbolStore &store, Assignment &ass, AggregateFunction fun, size_t atom_idx, UTermVec const &tuple,
                    bool &res);
 
@@ -115,11 +116,12 @@ class StateAssignAggr {
         auto hash() const -> size_t;
         friend auto operator==(ElementKey const &a, ElementKey const &b) -> bool;
 
+      private:
         // Note that these two could be combined to save a little bit of memory.
-        size_t n;
-        size_t atom_idx;
+        size_t n_;
+        size_t atom_idx_;
         GRINGO_IGNORE_ZERO_SIZED_ARRAY_B
-        Symbol syms[0];
+        Symbol syms_[0];
         GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
     };
 

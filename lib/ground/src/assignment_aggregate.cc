@@ -139,8 +139,7 @@ auto AtomAssignAggr::todo() -> std::span<size_t const> {
 // definition of BaseAssignAggr
 
 auto BaseAssignAggr::is_fact(Key sym) const -> bool {
-    // the derived.contains check might be unnecessary
-    return single_pass_elems_ && atoms_.nth(sym.first).value().is_fact() && derived_.contains(sym);
+    return single_pass_elems_ && atoms_.nth(sym.first).value().is_fact();
 }
 
 auto BaseAssignAggr::add(size_t idx, Symbol val) -> bool { return derived_.emplace(idx, val).second; }
@@ -186,8 +185,8 @@ struct AtomKey {
 
 StateAssignAggr::ElementKey::ElementKey(SymbolStore &store, Assignment &ass, AggregateFunction fun, size_t atom_idx,
                                         UTermVec const &tuple, bool &res)
-    : n{tuple.size()}, atom_idx{atom_idx} {
-    auto *it = syms;
+    : n_{tuple.size()}, atom_idx_{atom_idx} {
+    auto *it = syms_;
     if (auto jt = tuple.begin(), je = tuple.end(); jt != je) {
         // check the weight of the tuple
         if (auto val = (*jt)->eval(store, ass); val && relevant_val(fun, *val)) {
@@ -210,14 +209,14 @@ StateAssignAggr::ElementKey::ElementKey(SymbolStore &store, Assignment &ass, Agg
     }
 }
 
-auto StateAssignAggr::ElementKey::span() const -> SymbolSpan { return SymbolSpan{syms, n}; }
+auto StateAssignAggr::ElementKey::span() const -> SymbolSpan { return SymbolSpan{syms_, n_}; }
 
 auto StateAssignAggr::ElementKey::hash() const -> size_t {
-    return Util::value_hash_record<ElementKey>(n, atom_idx, span());
+    return Util::value_hash_record<ElementKey>(n_, atom_idx_, span());
 }
 
 auto operator==(StateAssignAggr::ElementKey const &a, StateAssignAggr::ElementKey const &b) -> bool {
-    return a.atom_idx == b.atom_idx && a.n == b.n && std::equal(a.span().begin(), a.span().end(), b.span().begin());
+    return a.atom_idx_ == b.atom_idx_ && a.n_ == b.n_ && std::equal(a.span().begin(), a.span().end(), b.span().begin());
 }
 
 // NOLINTEND
@@ -243,11 +242,10 @@ auto StateAssignAggr::propagate(SymbolStore &store) -> bool {
             assert(elem_idx < tuples_.size());
             auto elem = tuples_.nth(elem_idx);
             // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
-            auto tup = std::span(elem.key()->syms, elem.key()->n);
-            state.accumulate(fun_, tup, elem->second.empty());
+            state.accumulate(fun_, elem.key()->span(), elem->second.empty());
 #ifdef DEBUG_AGGR
             std::cerr << "accumulate: a: " << atom_idx << " e: " << elem_idx << " t:";
-            for (auto const &val : tup) {
+            for (auto const &val : elem.key()->span()) {
                 std::cerr << " " << val;
             }
             if (elem->second.empty()) {
@@ -285,21 +283,13 @@ void StateAssignAggr::enqueue_(AtomMap::iterator it) {
 }
 
 auto StateAssignAggr::insert_atom(Assignment &ass) -> AtomMap::iterator {
-    size_t first = 0;
-    if (!tuples_.empty()) {
-        first = tuples_.front().first->n;
-    }
     auto n = global_.size() * sizeof(Symbol);
     auto &tup = node_store_.construct<AtomKey>(n, ass, global_);
     auto [it, ins] = base_.atoms().try_emplace(tup.syms(), fun_);
     if (ins) {
-        // Ensure that the empty case is handled.
         enqueue_(it);
     } else {
         node_store_.reclaim(n, tup);
-    }
-    if (!tuples_.empty()) {
-        assert(first == tuples_.front().first->n);
     }
     return it;
 }
