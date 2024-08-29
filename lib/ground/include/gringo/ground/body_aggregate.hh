@@ -124,29 +124,26 @@ class BaseBdAggr : public BaseImpl<Symbol const *, BaseBdAggr> {
 
 class StateBdAggr {
   public:
+    class AtomKey;
     // NOLINTBEGIN
-    struct ElementKey {
-        ElementKey(SymbolStore &store, Assignment &ass, AggregateFunction fun, size_t atom_idx, UTermVec const &tuple,
-                   bool &res);
+    class ElementKey {
+      public:
+        static auto construct(auto &mbr, SymbolStore &store, Assignment &ass, AggregateFunction fun, size_t atom_idx,
+                              UTermVec const &tuple, ElementKey *&target) -> bool;
 
         auto span() const -> SymbolSpan;
         auto hash() const -> size_t;
         friend auto operator==(ElementKey const &a, ElementKey const &b) -> bool;
 
-        // Note that these two could be combined to safe a little bit of memory.
-        size_t n;
-        size_t atom_idx;
-        GRINGO_IGNORE_ZERO_SIZED_ARRAY_B
-        Symbol syms[0];
-        GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
-    };
+      private:
+        ElementKey(SymbolStore &store, Assignment &ass, AggregateFunction fun, size_t atom_idx, UTermVec const &tuple,
+                   bool &res);
 
-    struct AtomKey {
-        AtomKey(SymbolStore &store, Assignment &ass, VariableVec const &global, GuardVec &guards, bool &res);
-
-        AtomKey(Symbol const *tuple, size_t n);
+        // Note that these two could be combined to save a little bit of memory.
+        size_t n_;
+        size_t atom_idx_;
         GRINGO_IGNORE_ZERO_SIZED_ARRAY_B
-        Symbol syms[0];
+        Symbol syms_[0];
         GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
     };
     // NOLINTEND
@@ -201,7 +198,7 @@ class StateBdAggr {
 
     //! Insert an aggregate element.
     void insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iterator it, UTermVec const &tuple,
-                     auto const &get_cond);
+                     ElementKey *&elem_key, auto const &get_cond);
 
     //! Get the index of an aggregate atom.
     //!
@@ -224,12 +221,13 @@ class StateBdAggr {
     //! Enequeue an atom for propgation.
     void enqueue_(AtomMap::iterator it);
 
-    Util::NodeStore<alignof(Symbol)> node_store_;
+    std::pmr::monotonic_buffer_resource mbr_;
     BaseBdAggr base_;
     ElementMap tuples_;
     VariableVec global_;
     GuardVec guards_;
     std::vector<size_t> queue_;
+    AtomKey *atom_key_ = nullptr;
     size_t index_;
     AggregateFunction fun_;
     bool domain_;
@@ -341,6 +339,7 @@ class StmBdAggrElem : public Stm {
     void do_print(std::ostream &out) const override;
 
     StateBdAggr *state_;
+    StateBdAggr::ElementKey *elem_key_ = nullptr;
     UTermVec tuple_;
     ULitVec body_;
     size_t num_cond_;

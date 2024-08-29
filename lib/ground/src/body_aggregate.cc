@@ -176,10 +176,57 @@ auto BaseBdAggr::atom_index_(AtomMap::const_iterator it) const -> size_t {
 
 // NOLINTBEGIN
 
+class StateBdAggr::AtomKey {
+  public:
+    static auto construct(auto &mbr, SymbolStore &store, Assignment &ass, VariableVec const &global, GuardVec &guards,
+                          AtomKey *&target) -> bool {
+        if (target == nullptr) {
+            auto n = (global.size() + guards.size()) * sizeof(Symbol);
+            target = static_cast<AtomKey *>(mbr.allocate(n, alignof(AtomKey)));
+        } else {
+            target->~AtomKey();
+        }
+        bool res = true;
+        new (target) AtomKey{store, ass, global, guards, res};
+        return res;
+    }
+    static void construct(auto &mbr, Symbol const *tuple, size_t n, AtomKey *&target) {
+        if (target == nullptr) {
+            target = static_cast<AtomKey *>(mbr.allocate(n * sizeof(Symbol), alignof(AtomKey)));
+        } else {
+            target->~AtomKey();
+        }
+        new (target) AtomKey{tuple, n};
+    }
+
+    auto syms() -> Symbol const * { return syms_; }
+
+  private:
+    AtomKey(SymbolStore &store, Assignment &ass, VariableVec const &global, GuardVec &guards, bool &res) {
+        auto *it = syms_;
+        for (auto const &var : global) {
+            *it++ = ass[var].value();
+        }
+        for (auto const &guard : guards) {
+            if (auto val = guard.second->eval(store, ass); val) {
+                *it++ = *val;
+            } else {
+                res = false;
+                break;
+            }
+        }
+    }
+    AtomKey(Symbol const *tuple, size_t n) { std::copy_n(tuple, n, syms_); }
+
+    GRINGO_IGNORE_ZERO_SIZED_ARRAY_B
+    Symbol syms_[0];
+    GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
+};
+
 StateBdAggr::ElementKey::ElementKey(SymbolStore &store, Assignment &ass, AggregateFunction fun, size_t atom_idx,
                                     UTermVec const &tuple, bool &res)
-    : n{tuple.size()}, atom_idx{atom_idx} {
-    auto *it = syms;
+    : n_{tuple.size()}, atom_idx_{atom_idx} {
+    auto *it = syms_;
     if (auto jt = tuple.begin(), je = tuple.end(); jt != je) {
         // check the weight of the tuple
         if (auto val = (*jt)->eval(store, ass); val && relevant_val(fun, *val)) {
@@ -202,33 +249,28 @@ StateBdAggr::ElementKey::ElementKey(SymbolStore &store, Assignment &ass, Aggrega
     }
 }
 
-auto StateBdAggr::ElementKey::span() const -> SymbolSpan { return SymbolSpan{syms, n}; }
+auto StateBdAggr::ElementKey::construct(auto &mbr, SymbolStore &store, Assignment &ass, AggregateFunction fun,
+                                        size_t atom_idx, UTermVec const &tuple, ElementKey *&target) -> bool {
+    bool res = true;
+    auto n = sizeof(ElementKey) + tuple.size() * sizeof(Symbol);
+    if (target == nullptr) {
+        target = static_cast<ElementKey *>(mbr.allocate(n, alignof(ElementKey)));
+    } else {
+        target->~ElementKey();
+    }
+    new (target) ElementKey{store, ass, fun, atom_idx, tuple, res};
+    return res;
+}
+
+auto StateBdAggr::ElementKey::span() const -> SymbolSpan { return SymbolSpan{syms_, n_}; }
 
 auto StateBdAggr::ElementKey::hash() const -> size_t {
-    return Util::value_hash_record<ElementKey>(n, atom_idx, span());
+    return Util::value_hash_record<ElementKey>(n_, atom_idx_, span());
 }
 
 auto operator==(StateBdAggr::ElementKey const &a, StateBdAggr::ElementKey const &b) -> bool {
-    return a.atom_idx == b.atom_idx && a.n == b.n && std::equal(a.span().begin(), a.span().end(), b.span().begin());
+    return a.atom_idx_ == b.atom_idx_ && a.n_ == b.n_ && std::equal(a.span().begin(), a.span().end(), b.span().begin());
 }
-
-StateBdAggr::AtomKey::AtomKey(SymbolStore &store, Assignment &ass, VariableVec const &global, GuardVec &guards,
-                              bool &res) {
-    auto *it = syms;
-    for (auto const &var : global) {
-        *it++ = ass[var].value();
-    }
-    for (auto const &guard : guards) {
-        if (auto val = guard.second->eval(store, ass); val) {
-            *it++ = *val;
-        } else {
-            res = false;
-            break;
-        }
-    }
-}
-
-StateBdAggr::AtomKey::AtomKey(Symbol const *tuple, size_t n) { std::copy_n(tuple, n, syms); }
 
 // NOLINTEND
 
@@ -254,11 +296,10 @@ auto StateBdAggr::propagate() -> bool {
         for (auto elem_idx : state.todo()) {
             auto elem = tuples_.nth(elem_idx);
             // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
-            auto tup = std::span(elem.key()->syms, elem.key()->n);
-            state.accumulate(fun_, tup, elem->second.empty());
+            state.accumulate(fun_, elem.key()->span(), elem->second.empty());
 #ifdef DEBUG_AGGR
             std::cerr << "accumulate: a: " << atom_idx << " e: " << elem_idx << " t:";
-            for (auto val : tup) {
+            for (auto val : elem.key()->span()) {
                 std::cerr << " " << val;
             }
             if (elem->second.empty()) {
@@ -296,60 +337,43 @@ void StateBdAggr::enqueue_(AtomMap::iterator it) {
 }
 
 auto StateBdAggr::insert_atom(SymbolStore &store, Assignment &ass) -> std::optional<AtomMap::iterator> {
-    auto n = (global_.size() + guards_.size()) * sizeof(Symbol);
-    auto res = true;
-    auto &tup = node_store_.construct<AtomKey>(n, store, ass, global_, guards_, res);
-    if (!res) {
-        node_store_.reclaim(n, tup);
-        return std::nullopt;
+    if (AtomKey::construct(mbr_, store, ass, global_, guards_, atom_key_)) {
+        auto [it, ins] = base_.atoms().try_emplace(atom_key_->syms(), fun_);
+        if (ins) {
+            atom_key_ = nullptr;
+            enqueue_(it);
+        }
+        return it;
     }
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
-    auto [it, ins] = base_.atoms().try_emplace(tup.syms, fun_);
-    if (ins) {
-        enqueue_(it);
-    } else {
-        node_store_.reclaim(n, tup);
-    }
-    return it;
+    return std::nullopt;
 }
 
 auto StateBdAggr::insert_atom(Symbol const *tuple) -> AtomMap::iterator {
-    auto n = (global_.size() + guards_.size()) * sizeof(Symbol);
-    auto &tup = node_store_.construct<AtomKey>(n, tuple, global_.size());
-
-    auto [it, ins] =
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
-        base_.atoms().try_emplace(tup.syms, fun_);
-    if (!ins) {
-        node_store_.reclaim(n, tup);
+    AtomKey::construct(mbr_, tuple, global_.size() + guards_.size(), atom_key_);
+    auto [it, ins] = base_.atoms().try_emplace(atom_key_->syms(), fun_);
+    if (ins) {
+        atom_key_ = nullptr;
     }
     return it;
 }
 
 void StateBdAggr::insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iterator it, UTermVec const &tuple,
-                              auto const &get_cond) {
-    auto n = sizeof(StateBdAggr::ElementKey) + tuple.size() * sizeof(Symbol);
-    bool res = true;
-    auto &tup = node_store_.construct<ElementKey>(n, store, ass, fun_, index(it), tuple, res);
-    if (!res) {
-        node_store_.reclaim(n, tup);
-        return;
-    }
+                              ElementKey *&elem_key, auto const &get_cond) {
+    if (ElementKey::construct(mbr_, store, ass, fun_, index(it), tuple, elem_key)) {
+        auto [jt, jns] = tuples_.try_emplace(elem_key);
+        if (jns) {
+            elem_key = nullptr;
+            it.value().add_elem(jt - tuples_.begin());
+            enqueue_(it);
+        }
 
-    auto [jt, jns] = tuples_.try_emplace(&tup);
-    if (jns) {
-        enqueue_(it);
-    } else {
-        node_store_.reclaim(n, tup);
-    }
-    it.value().add_elem(jt - tuples_.begin());
-
-    auto [cond_id, fact] = get_cond();
-    // we use an empty vector to indicate that one of the conditions is fact
-    if (fact) {
-        jt.value().clear();
-    } else if (jns || !jt.value().empty()) {
-        jt.value().emplace_back(cond_id);
+        auto [cond_id, fact] = get_cond();
+        // we use an empty vector to indicate that one of the conditions is fact
+        if (fact) {
+            jt.value().clear();
+        } else if (jns || !jt.value().empty()) {
+            jt.value().emplace_back(cond_id);
+        }
     }
 }
 
@@ -590,7 +614,7 @@ auto StmBdAggrElem::do_report(InstantiationContext &ctx) -> bool {
             return std::make_pair(ctx.out().cond_id(), fact);
         };
         // insert the element
-        state_->insert_elem(ctx.store(), ass, *it, tuple_, get_cond);
+        state_->insert_elem(ctx.store(), ass, *it, tuple_, elem_key_, get_cond);
     }
     return true;
 }

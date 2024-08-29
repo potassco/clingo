@@ -106,17 +106,21 @@ class BaseAssignAggr : public BaseImpl<std::pair<size_t, Symbol>, BaseAssignAggr
 
 class StateAssignAggr {
   public:
+    class AtomKey;
     // NOLINTBEGIN
     class ElementKey {
       public:
-        ElementKey(SymbolStore &store, Assignment &ass, AggregateFunction fun, size_t atom_idx, UTermVec const &tuple,
-                   bool &res);
+        static auto construct(auto &mbr, SymbolStore &store, Assignment &ass, AggregateFunction fun, size_t atom_idx,
+                              UTermVec const &tuple, ElementKey *&target) -> bool;
 
         auto span() const -> SymbolSpan;
         auto hash() const -> size_t;
         friend auto operator==(ElementKey const &a, ElementKey const &b) -> bool;
 
       private:
+        ElementKey(SymbolStore &store, Assignment &ass, AggregateFunction fun, size_t atom_idx, UTermVec const &tuple,
+                   bool &res);
+
         // Note that these two could be combined to save a little bit of memory.
         size_t n_;
         size_t atom_idx_;
@@ -124,7 +128,6 @@ class StateAssignAggr {
         Symbol syms_[0];
         GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
     };
-
     // NOLINTEND
 
     using AtomMap = BaseAssignAggr::AtomMap;
@@ -167,7 +170,7 @@ class StateAssignAggr {
 
     //! Insert an aggregate element.
     void insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iterator it, UTermVec const &tuple,
-                     auto const &get_cond);
+                     ElementKey *&elem_key, auto const &get_cond);
 
     //! Get the index of an aggregate atom.
     auto index(AtomMap::iterator it) -> size_t;
@@ -188,12 +191,13 @@ class StateAssignAggr {
     //! Enqueu the given atom for propagation.
     void enqueue_(AtomMap::iterator it);
 
-    Util::NodeStore<alignof(Symbol)> node_store_;
+    std::pmr::monotonic_buffer_resource mbr_;
     BaseAssignAggr base_;
     ElementMap tuples_;
     VariableVec global_;
     UTerm term_;
     std::vector<size_t> queue_;
+    AtomKey *atom_key_ = nullptr;
     size_t index_;
     AggregateFunction fun_;
 };
@@ -292,6 +296,7 @@ class StmAssignAggrElem : public Stm {
     void do_print(std::ostream &out) const override;
 
     StateAssignAggr *state_;
+    StateAssignAggr::ElementKey *key_ = nullptr;
     UTermVec tuple_;
     ULitVec body_;
     size_t num_cond_;

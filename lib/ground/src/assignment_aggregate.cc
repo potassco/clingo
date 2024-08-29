@@ -162,10 +162,21 @@ auto BaseAssignAggr::single_pass_elems() const -> bool { return single_pass_elem
 
 // NOLINTBEGIN
 
-namespace {
-
-struct AtomKey {
+class StateAssignAggr::AtomKey {
   public:
+    static void construct(auto &mbr, Assignment &ass, VariableVec const &global, AtomKey *&target) {
+        auto n = global.size() * sizeof(Symbol);
+        if (target == nullptr) {
+            target = static_cast<AtomKey *>(mbr.allocate(n, alignof(AtomKey)));
+        } else {
+            target->~AtomKey();
+        }
+        new (target) AtomKey{ass, global};
+    }
+
+    auto syms() -> Symbol const * { return syms_; }
+
+  private:
     AtomKey(Assignment &ass, VariableVec const &global) {
         auto *it = syms_;
         for (auto const &var : global) {
@@ -173,15 +184,10 @@ struct AtomKey {
         }
     }
 
-    auto syms() -> Symbol const * { return syms_; }
-
-  private:
     GRINGO_IGNORE_ZERO_SIZED_ARRAY_B
     Symbol syms_[0];
     GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
 };
-
-} // namespace
 
 StateAssignAggr::ElementKey::ElementKey(SymbolStore &store, Assignment &ass, AggregateFunction fun, size_t atom_idx,
                                         UTermVec const &tuple, bool &res)
@@ -207,6 +213,20 @@ StateAssignAggr::ElementKey::ElementKey(SymbolStore &store, Assignment &ass, Agg
         res = false;
         return;
     }
+}
+
+auto StateAssignAggr::ElementKey::construct(auto &mbr, SymbolStore &store, Assignment &ass, AggregateFunction fun,
+                                            size_t atom_idx, UTermVec const &tuple,
+                                            StateAssignAggr::ElementKey *&target) -> bool {
+    bool res = true;
+    auto n = sizeof(ElementKey) + tuple.size() * sizeof(Symbol);
+    if (target == nullptr) {
+        target = static_cast<StateAssignAggr::ElementKey *>(mbr.allocate(n, alignof(ElementKey)));
+    } else {
+        target->~ElementKey();
+    }
+    new (target) ElementKey{store, ass, fun, atom_idx, tuple, res};
+    return res;
 }
 
 auto StateAssignAggr::ElementKey::span() const -> SymbolSpan { return SymbolSpan{syms_, n_}; }
@@ -283,41 +303,32 @@ void StateAssignAggr::enqueue_(AtomMap::iterator it) {
 }
 
 auto StateAssignAggr::insert_atom(Assignment &ass) -> AtomMap::iterator {
-    auto n = global_.size() * sizeof(Symbol);
-    auto &tup = node_store_.construct<AtomKey>(n, ass, global_);
-    auto [it, ins] = base_.atoms().try_emplace(tup.syms(), fun_);
+    AtomKey::construct(mbr_, ass, global_, atom_key_);
+    auto [it, ins] = base_.atoms().try_emplace(atom_key_->syms(), fun_);
     if (ins) {
+        atom_key_ = nullptr;
         enqueue_(it);
-    } else {
-        node_store_.reclaim(n, tup);
     }
     return it;
 }
 
 void StateAssignAggr::insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iterator it, UTermVec const &tuple,
-                                  auto const &get_cond) {
-    auto n = sizeof(StateAssignAggr::ElementKey) + tuple.size() * sizeof(Symbol);
-    bool res = true;
-    auto &tup = node_store_.construct<ElementKey>(n, store, ass, fun_, index(it), tuple, res);
-    if (!res) {
-        node_store_.reclaim(n, tup);
-        return;
-    }
+                                  ElementKey *&elem_key, auto const &get_cond) {
+    if (ElementKey::construct(mbr_, store, ass, fun_, index(it), tuple, elem_key)) {
+        auto [jt, jns] = tuples_.try_emplace(elem_key);
+        if (jns) {
+            elem_key = nullptr;
+            it.value().add_elem(jt - tuples_.begin());
+            enqueue_(it);
+        }
 
-    auto [jt, jns] = tuples_.try_emplace(&tup);
-    if (jns) {
-        it.value().add_elem(jt - tuples_.begin());
-        enqueue_(it);
-    } else {
-        node_store_.reclaim(n, tup);
-    }
-
-    auto [cond_id, fact] = get_cond();
-    // we use an empty vector to indicate that one of the conditions is fact
-    if (fact) {
-        jt.value().clear();
-    } else if (jns || !jt.value().empty()) {
-        jt.value().emplace_back(cond_id);
+        auto [cond_id, fact] = get_cond();
+        // we use an empty vector to indicate that one of the conditions is fact
+        if (fact) {
+            jt.value().clear();
+        } else if (jns || !jt.value().empty()) {
+            jt.value().emplace_back(cond_id);
+        }
     }
 }
 
@@ -497,7 +508,7 @@ auto StmAssignAggrElem::do_report(InstantiationContext &ctx) -> bool {
         return std::make_pair(ctx.out().cond_id(), fact);
     };
     // insert the element
-    state_->insert_elem(ctx.store(), ass, it, tuple_, get_cond);
+    state_->insert_elem(ctx.store(), ass, it, tuple_, key_, get_cond);
     return true;
 }
 
