@@ -84,8 +84,8 @@ void AtomAssignAggr::accumulate(AggregateFunction fun, SymbolSpan tup, bool fact
                     auto *in = std::next(ib, n);
                     auto *im = std::next(ib, m);
                     if (!std::binary_search(ib, ib, iv) && !std::binary_search(ip, in, iv) &&
-                        !std::binary_search(in, im, iv) && vals.back() != num) {
-                        vals.emplace_back(num);
+                        !std::binary_search(in, im, iv) && vals.back() != iv) {
+                        vals.emplace_back(std::move(iv));
                     }
                 }
                 std::sort(std::next(vals.begin(), p), vals.end());
@@ -142,7 +142,9 @@ auto BaseAssignAggr::is_fact(Key sym) const -> bool {
     return single_pass_elems_ && atoms_.nth(sym.first).value().is_fact();
 }
 
-auto BaseAssignAggr::add(size_t idx, Symbol val) -> bool { return derived_.emplace(idx, val).second; }
+auto BaseAssignAggr::add(size_t idx, Symbol val) -> bool {
+    return derived_.emplace(Key{idx, val}, invalid_offset).second;
+}
 
 auto BaseAssignAggr::size() const -> size_t { return derived_.size(); }
 
@@ -153,6 +155,8 @@ auto BaseAssignAggr::nth(size_t i) const -> AtomSet::const_iterator { return der
 auto BaseAssignAggr::nth(size_t i) -> AtomSet::iterator { return derived_.nth(i); }
 
 auto BaseAssignAggr::atoms() -> AtomMap & { return atoms_; }
+
+auto BaseAssignAggr::derived() -> AtomSet & { return derived_; }
 
 auto BaseAssignAggr::domain_elems() const -> bool { return domain_elems_; }
 
@@ -347,9 +351,21 @@ void StateAssignAggr::print(std::ostream &out) {
 auto StateAssignAggr::base() -> BaseAssignAggr & { return base_; }
 
 void StateAssignAggr::output(OutputStm &out) {
-    static_cast<void>(this);
-    static_cast<void>(out);
-    // TODO: output the assignment aggregates
+    std::vector<std::pair<SymbolSpan, std::span<size_t const>>> elems;
+    std::vector<std::pair<Relation, Symbol>> guards;
+    for (auto const &[key, uid] : base_.derived()) {
+        if (uid != invalid_offset) {
+            auto &atom = base_.atoms().nth(key.first).value();
+            elems.clear();
+            guards.clear();
+            for (auto const &elem_idx : atom.elems()) {
+                auto const &[tuple, conds] = *tuples_.nth(elem_idx);
+                elems.emplace_back(tuple->span(), conds);
+            }
+            guards.emplace_back(Relation::equal, key.second);
+            out.bd_aggr(uid, fun_, elems, guards);
+        }
+    }
 }
 
 // definition of MatchAssignAggr
@@ -448,12 +464,12 @@ auto LitAssignAggr::do_output([[maybe_unused]] InstantiationContext &ctx, Output
     auto &base = state().base();
     auto &atoms = base.atoms();
     auto it = base.nth(offset_);
-    auto const &st = atoms.nth(it->first).value();
-    if (state().single_pass_elems() && st.is_fact()) {
+    auto const &state_aggr = atoms.nth(it.key().first).value();
+    if (state().single_pass_elems() && state_aggr.is_fact()) {
         return false;
     }
-    // TODO: assign a uid to the aggregate
-    static_cast<void>(out);
+    auto &state_elem = it.value();
+    state_elem = out.bd_aggr(Sign::none, state_elem != invalid_offset ? std::make_optional(state_elem) : std::nullopt);
     return true;
 }
 

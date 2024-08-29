@@ -61,7 +61,7 @@ class BaseAssignAggr : public BaseImpl<std::pair<size_t, Symbol>, BaseAssignAggr
     //! Map containing the atoms.
     using AtomMap = Util::ordered_map<Symbol const *, AtomAssignAggr, Util::SpanHash, Util::SpanEqualTo>;
     //! Map containing the derived atoms and their values.
-    using AtomSet = Util::ordered_set<Key>;
+    using AtomSet = Util::ordered_map<Key, size_t>;
 
     //! Construct an empty base.
     BaseAssignAggr(size_t size, bool domain_elems, bool single_pass_elems)
@@ -91,6 +91,8 @@ class BaseAssignAggr : public BaseImpl<std::pair<size_t, Symbol>, BaseAssignAggr
 
     //! Get the underlying atoms.
     [[nodiscard]] auto atoms() -> AtomMap &;
+    //! Get the derived atoms.
+    [[nodiscard]] auto derived() -> AtomSet &;
 
     //! Check whether all relevant elemens of the aggregate are domain.
     [[nodiscard]] auto domain_elems() const -> bool;
