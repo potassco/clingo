@@ -79,22 +79,20 @@ void AtomAssignAggr::accumulate(AggregateFunction fun, SymbolSpan tup, bool fact
                     // - [ip, in) : values previously inserted
                     // - [in, im) : fresh values from propagated ones
                     // - [im, ie) : fresh values from not yet propagated ones
-                    auto *ib = vals.begin();
-                    auto *ip = std::next(ib, p);
-                    auto *in = std::next(ib, n);
-                    auto *im = std::next(ib, m);
+                    auto const *ib = vals.begin();
+                    auto const *ip = std::next(ib, p);
+                    auto const *in = std::next(ib, n);
+                    auto const *im = std::next(ib, m);
                     if (!std::binary_search(ib, ib, iv) && !std::binary_search(ip, in, iv) &&
                         !std::binary_search(in, im, iv) && vals.back() != iv) {
                         vals.emplace_back(std::move(iv));
                     }
                 }
-                std::sort(std::next(vals.begin(), p), vals.end());
-                /*
                 // alternative with better time complexity but allocation
-                auto ie = vals.end();
-                std::inplace_merge(ib + n, ib + m, ib + m, ie);
-                std::inplace_merge(ib + p, ib + m, ib + m, ie);
-                */
+                auto *ib = vals.begin();
+                auto *ie = vals.end();
+                std::inplace_merge(std::next(ib, n), std::next(ib, m), ie);
+                std::inplace_merge(std::next(ib, p), std::next(ib, m), ie);
             }
         }
     }
@@ -462,9 +460,9 @@ auto LitAssignAggr::do_output([[maybe_unused]] InstantiationContext &ctx, Output
         return false;
     }
     auto &base = state().base();
-    auto &atoms = base.atoms();
     auto it = base.nth(offset_);
-    auto const &state_aggr = atoms.nth(it.key().first).value();
+    auto jt = base.atoms().nth(it.key().first);
+    auto const &state_aggr = jt.value();
     if (state().single_pass_elems() && state_aggr.is_fact()) {
         return false;
     }
