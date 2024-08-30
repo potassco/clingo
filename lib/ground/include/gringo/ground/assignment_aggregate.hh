@@ -150,10 +150,10 @@ class StateAssignAggr {
     using ElementMap = Util::ordered_map<ElementKey *, Util::small_vector<size_t>>;
 
     //! Initialize an aggregate state.
-    StateAssignAggr(VariableVec global, UTerm term, AggregateFunction fun, size_t index, bool domain_elems,
-                    bool single_pass_elems)
+    StateAssignAggr(std::pmr::monotonic_buffer_resource &mbr, VariableVec global, UTerm term, AggregateFunction fun,
+                    size_t index, bool domain_elems, bool single_pass_elems)
         : base_{global.size(), domain_elems, single_pass_elems}, global_{std::move(global)}, term_{std::move(term)},
-          index_{index}, fun_{fun} {
+          mbr_{&mbr}, index_{index}, fun_{fun} {
         assert(fun_ != AggregateFunction::count);
     }
 
@@ -206,12 +206,12 @@ class StateAssignAggr {
     //! Enqueu the given atom for propagation.
     void enqueue_(AtomMap::iterator it);
 
-    std::pmr::monotonic_buffer_resource mbr_;
     BaseAssignAggr base_;
     ElementMap tuples_;
     VariableVec global_;
     UTerm term_;
     std::vector<size_t> queue_;
+    std::pmr::monotonic_buffer_resource *mbr_;
     AtomKey *atom_key_ = nullptr;
     size_t index_;
     AggregateFunction fun_;

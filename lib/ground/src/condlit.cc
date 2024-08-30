@@ -65,7 +65,7 @@ auto StateCondLit::index() const -> size_t { return index_; }
 
 auto StateCondLit::add_empty(Assignment const &ass) -> std::pair<MapAtomCondLit::iterator, bool> {
     if (syms_atom_ == nullptr) {
-        syms_atom_ = static_cast<Symbol *>(mbr_.allocate(global_.size() * sizeof(Symbol), alignof(Symbol)));
+        syms_atom_ = static_cast<Symbol *>(mbr_->allocate(global_.size() * sizeof(Symbol), alignof(Symbol)));
     }
     auto *jt = syms_atom_;
     for (auto &var : global_) {
@@ -98,7 +98,7 @@ auto StateCondLit::add_premise(InstantiationContext &ctx, ULitVec const &premise
     }
 
     auto &ass = ctx.ass();
-    auto *syms_elem = static_cast<Symbol *>(mbr_.allocate((local_.size() + 1) * sizeof(Symbol), alignof(Symbol)));
+    auto *syms_elem = static_cast<Symbol *>(mbr_->allocate((local_.size() + 1) * sizeof(Symbol), alignof(Symbol)));
     auto *kt = syms_elem;
     *kt = Symbol::from_rep(std::distance(atoms_.begin(), it));
     for (auto var : local_) {

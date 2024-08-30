@@ -172,10 +172,10 @@ class StateBdAggr {
     using ElementMap = Util::ordered_map<ElementKey *, Util::small_vector<size_t>>;
 
     //! Initialize an aggregate state.
-    StateBdAggr(VariableVec global, GuardVec guards, AggregateFunction fun, size_t index, bool domain, bool monotone,
-                bool single_pass_elems)
-        : base_{global.size()}, global_{std::move(global)}, guards_{std::move(guards)}, index_{index}, fun_{fun},
-          domain_{domain}, monotone_{monotone}, single_pass_elems_{single_pass_elems} {}
+    StateBdAggr(std::pmr::monotonic_buffer_resource &mbr, VariableVec global, GuardVec guards, AggregateFunction fun,
+                size_t index, bool domain, bool monotone, bool single_pass_elems)
+        : base_{global.size()}, global_{std::move(global)}, guards_{std::move(guards)}, mbr_{&mbr}, index_{index},
+          fun_{fun}, domain_{domain}, monotone_{monotone}, single_pass_elems_{single_pass_elems} {}
 
     //! Get the global variables in the aggregate.
     [[nodiscard]] auto global() const -> VariableVec const &;
@@ -238,12 +238,12 @@ class StateBdAggr {
     //! This index also captures not yet derived atoms.
     auto atom_index_(AtomMap::iterator it) -> size_t;
 
-    std::pmr::monotonic_buffer_resource mbr_;
     BaseBdAggr base_;
     ElementMap tuples_;
     VariableVec global_;
     GuardVec guards_;
     std::vector<size_t> queue_;
+    std::pmr::monotonic_buffer_resource *mbr_;
     AtomKey *atom_key_ = nullptr;
     size_t index_;
     AggregateFunction fun_;

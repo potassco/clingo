@@ -305,7 +305,7 @@ void StateAssignAggr::enqueue_(AtomMap::iterator it) {
 }
 
 auto StateAssignAggr::insert_atom(Assignment &ass) -> AtomMap::iterator {
-    AtomKey::construct(mbr_, ass, global_, atom_key_);
+    AtomKey::construct(*mbr_, ass, global_, atom_key_);
     auto [it, ins] = base_.atoms().try_emplace(atom_key_->syms(), fun_);
     if (ins) {
         atom_key_ = nullptr;
@@ -316,7 +316,7 @@ auto StateAssignAggr::insert_atom(Assignment &ass) -> AtomMap::iterator {
 
 void StateAssignAggr::insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iterator it, UTermVec const &tuple,
                                   ElementKey *&elem_key, auto const &get_cond) {
-    if (ElementKey::construct(mbr_, store, ass, fun_, atom_index(it), tuple, elem_key)) {
+    if (ElementKey::construct(*mbr_, store, ass, fun_, atom_index(it), tuple, elem_key)) {
         auto [jt, jns] = tuples_.try_emplace(elem_key);
         if (jns) {
             elem_key = nullptr;

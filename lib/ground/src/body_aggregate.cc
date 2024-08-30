@@ -348,7 +348,7 @@ void StateBdAggr::enqueue_(AtomMap::iterator it) {
 }
 
 auto StateBdAggr::insert_atom(SymbolStore &store, Assignment &ass) -> std::optional<AtomMap::iterator> {
-    if (AtomKey::construct(mbr_, store, ass, global_, guards_, atom_key_)) {
+    if (AtomKey::construct(*mbr_, store, ass, global_, guards_, atom_key_)) {
         auto [it, ins] = base_.atoms().try_emplace(atom_key_->syms(), fun_);
         if (ins) {
             atom_key_ = nullptr;
@@ -360,7 +360,7 @@ auto StateBdAggr::insert_atom(SymbolStore &store, Assignment &ass) -> std::optio
 }
 
 auto StateBdAggr::insert_atom(Symbol const *tuple) -> AtomMap::iterator {
-    AtomKey::construct(mbr_, tuple, global_.size() + guards_.size(), atom_key_);
+    AtomKey::construct(*mbr_, tuple, global_.size() + guards_.size(), atom_key_);
     auto [it, ins] = base_.atoms().try_emplace(atom_key_->syms(), fun_);
     if (ins) {
         atom_key_ = nullptr;
@@ -370,7 +370,7 @@ auto StateBdAggr::insert_atom(Symbol const *tuple) -> AtomMap::iterator {
 
 void StateBdAggr::insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iterator it, UTermVec const &tuple,
                               ElementKey *&elem_key, auto const &get_cond) {
-    if (ElementKey::construct(mbr_, store, ass, fun_, atom_index_(it), tuple, elem_key)) {
+    if (ElementKey::construct(*mbr_, store, ass, fun_, atom_index_(it), tuple, elem_key)) {
         auto [jt, jns] = tuples_.try_emplace(elem_key);
         if (jns) {
             elem_key = nullptr;

@@ -249,8 +249,9 @@ class BaseCondLit : public BaseImpl<Symbol const *, BaseCondLit> {
 struct StateCondLit {
   public:
     //! Construct an empty state.
-    StateCondLit(VariableVec local, VariableVec global, size_t index, bool has_conclusion, bool sp_premise, bool domain)
-        : local_{std::move(local)}, global_{std::move(global)},
+    StateCondLit(std::pmr::monotonic_buffer_resource &mbr, VariableVec local, VariableVec global, size_t index,
+                 bool has_conclusion, bool sp_premise, bool domain)
+        : local_{std::move(local)}, global_{std::move(global)}, mbr_{&mbr},
           atoms_{0, Util::array_hash{global_.size()}, Util::array_equal_to{global_.size()}},
           elems_{0, Util::array_hash{local_.size() + 1}, Util::array_equal_to{local_.size() + 1}}, base_empty_{atoms_},
           base_premise_{elems_}, base_lit_{atoms_}, index_{index}, has_conclusion_{has_conclusion},
@@ -338,7 +339,7 @@ struct StateCondLit {
     VariableVec local_;
     VariableVec global_;
     std::vector<Symbol> mutable temp_syms_;
-    std::pmr::monotonic_buffer_resource mbr_;
+    std::pmr::monotonic_buffer_resource *mbr_;
     Symbol *syms_atom_ = nullptr;
     MapAtomCondLit atoms_;
     MapElemCondLit elems_;

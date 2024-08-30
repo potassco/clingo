@@ -402,10 +402,10 @@ using StateList = std::forward_list<std::variant<Ground::StateCondLit, Ground::S
 class BuildContext {
   public:
     using DefMap = Util::unordered_map<Input::Term const *, std::vector<size_t>>;
-    BuildContext(Grounder::Impl &impl, Input::Component const &comp,
+    BuildContext(Grounder::Impl &impl, std::pmr::monotonic_buffer_resource &mbr, Input::Component const &comp,
                  Util::unordered_map<Input::Term const *, std::vector<size_t>> &def_map, Ground::Component &gcomp,
                  Util::unordered_map<String, size_t> &var_map, Ground::ULitVec &body, StateList &state)
-        : impl_{&impl}, comp_{&comp}, def_map_{&def_map}, gcomp_{&gcomp}, var_map_{&var_map}, body_{&body},
+        : impl_{&impl}, mbr_{&mbr}, comp_{&comp}, def_map_{&def_map}, gcomp_{&gcomp}, var_map_{&var_map}, body_{&body},
           state_{&state} {}
 
     //! Get the index of the given symbolic literal.
@@ -466,6 +466,9 @@ class BuildContext {
     //! Get the grounder implementation.
     [[nodiscard]] auto impl() const -> Grounder::Impl & { return *impl_; }
 
+    //! Get the monotonic allocator for the component.
+    [[nodiscard]] auto mbr() const -> std::pmr::monotonic_buffer_resource & { return *mbr_; }
+
     //! Get the definition map.
     [[nodiscard]] auto def_map() const -> DefMap & { return *def_map_; }
     //! Get the variable map.
@@ -487,6 +490,7 @@ class BuildContext {
 
   private:
     Grounder::Impl *impl_;
+    std::pmr::monotonic_buffer_resource *mbr_;
     Input::Component const *comp_;
     Util::unordered_map<Input::Term const *, std::vector<size_t>> *def_map_;
     Ground::Component *gcomp_;
@@ -715,8 +719,8 @@ class BuilderBdLit {
 
         if (assign) {
             assert(lit.sign() == Sign::none && guards.size() == 1 && guards.front().first == Relation::equal);
-            auto &state = ctx_->state<Ground::StateAssignAggr>(vars_global.release(), std::move(guards.front().second),
-                                                               fun, index, dom, sp_elems);
+            auto &state = ctx_->state<Ground::StateAssignAggr>(
+                ctx_->mbr(), vars_global.release(), std::move(guards.front().second), fun, index, dom, sp_elems);
 
             // add rule for empty case
             // TODO: c&p
@@ -746,8 +750,8 @@ class BuilderBdLit {
             ctx_->body().emplace_back(std::make_unique<Ground::LitAssignAggr>(state));
         } else {
             // initialize state
-            auto &state = ctx_->state<Ground::StateBdAggr>(vars_global.release(), std::move(guards), fun, index, dom,
-                                                           mon, sp_elems);
+            auto &state = ctx_->state<Ground::StateBdAggr>(ctx_->mbr(), vars_global.release(), std::move(guards), fun,
+                                                           index, dom, mon, sp_elems);
 
             // add rule for empty case
             auto body = Ground::ULitVec{};
@@ -847,8 +851,8 @@ class BuilderBdLit {
             }
         }
 
-        auto &base = ctx_->state<Ground::StateCondLit>(std::move(vars_local), std::move(vars_global), lit_index,
-                                                       has_conclusion, sp_premise, domain);
+        auto &base = ctx_->state<Ground::StateCondLit>(ctx_->mbr(), std::move(vars_local), std::move(vars_global),
+                                                       lit_index, has_conclusion, sp_premise, domain);
 
         // handle the single-pass case
         if (sp_conclusion && sp_premise) {
@@ -967,6 +971,7 @@ class Builder : public Input::DependencyBuilder {
                               std::all_of(ref_comp.depend.begin(), ref_comp.depend.end(),
                                           [this](auto const &sig) { return impl_->add_base(sig)->second->domain(); });
                 auto gcomp = Ground::Component{domain};
+                auto mbr = std::pmr::monotonic_buffer_resource{};
                 auto states = StateList{};
                 for (auto const &stm : ref_comp.stms) {
                     Util::unordered_map<String, size_t> var_map;
@@ -985,7 +990,7 @@ class Builder : public Input::DependencyBuilder {
                         }
                         ++i;
                     }
-                    auto ctx = BuildContext{*impl_, ref_comp, def_map, gcomp, var_map, body, states};
+                    auto ctx = BuildContext{*impl_, mbr, ref_comp, def_map, gcomp, var_map, body, states};
                     auto bld_stm = BuilderStm{ctx};
                     std::visit(bld_stm, *stm);
                 }
