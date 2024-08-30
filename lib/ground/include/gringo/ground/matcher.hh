@@ -10,6 +10,7 @@
 #include <gringo/core/core.hh>
 
 #include <limits>
+#include <memory_resource>
 
 namespace Gringo::Ground {
 
@@ -315,8 +316,7 @@ template <IsBase Base> class HashIndex {
     using KeyIterator = IndexMap::iterator;
     using ValIterator = SymbolVec::iterator;
 
-    HashIndex(Base &base, size_t bound)
-        : base_{&base}, bound_values_{bound}, index_{0, Util::value_hasher{}, KeyEqual{bound}} {
+    HashIndex(Base &base, size_t bound) : base_{&base}, index_{0, Util::value_hasher{}, KeyEqual{bound}} {
         assert(bound > 0);
         temp_values_.reserve(bound);
     }
@@ -342,13 +342,20 @@ template <IsBase Base> class HashIndex {
                 }
                 // try to match
                 if (m.match(store, base_->nth(imported_).key(), ass)) {
-                    auto key_syms = bound_values_.push_map(bound_vars, [&ass](auto const &var) { return *ass[var]; });
-                    auto key_hash = Util::value_hash(key_syms);
-                    auto [kt, ins] = index_.try_emplace(Key{key_syms.data(), key_hash});
+                    if (key_ == nullptr) {
+                        key_ =
+                            static_cast<Symbol *>(mbr_.allocate(bound_vars.size() * sizeof(Symbol), alignof(Symbol)));
+                    }
+                    auto *it = key_;
+                    for (auto &var : bound_vars) {
+                        std::construct_at(it, *ass[var]);
+                        it = std::next(it);
+                    }
+                    auto key_hash = Util::value_hash(std::span{key_, it});
+                    auto [kt, ins] = index_.try_emplace(Key{key_, key_hash});
                     if (ins) {
+                        key_ = nullptr;
                         kt.key().unmark();
-                    } else {
-                        bound_values_.pop();
                     }
                     kt.value().add(ass, bind_vars, imported_);
                 }
@@ -374,7 +381,8 @@ template <IsBase Base> class HashIndex {
   private:
     Base *base_;
     SymbolVec temp_values_;
-    Util::SpanStack<Symbol> bound_values_;
+    std::pmr::monotonic_buffer_resource mbr_;
+    Symbol *key_ = nullptr;
     IndexMap index_;
     size_t imported_ = 0;
 };
