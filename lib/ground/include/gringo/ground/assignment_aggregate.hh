@@ -59,7 +59,7 @@ class BaseAssignAggr : public BaseImpl<std::pair<size_t, Symbol>, BaseAssignAggr
     using BaseImpl::contains;
     using BaseImpl::Key;
     //! Map containing the atoms.
-    using AtomMap = Util::ordered_map<Symbol const *, AtomAssignAggr, Util::SpanHash, Util::SpanEqualTo>;
+    using AtomMap = Util::ordered_map<Symbol const *, AtomAssignAggr, Util::array_hash, Util::array_equal_to>;
     //! Map containing the derived atoms and their values.
     using AtomSet = Util::ordered_map<Key, size_t>;
 

@@ -64,17 +64,20 @@ auto StateCondLit::vars_local() const -> VariableVec const & { return local_; }
 auto StateCondLit::index() const -> size_t { return index_; }
 
 auto StateCondLit::add_empty(Assignment const &ass) -> std::pair<MapAtomCondLit::iterator, bool> {
-    auto const syms = syms_atoms_.push_map(global_, [&ass](auto var) {
+    if (syms_atom_ == nullptr) {
+        syms_atom_ = static_cast<Symbol *>(mbr_.allocate(global_.size() * sizeof(Symbol), alignof(Symbol)));
+    }
+    auto *jt = syms_atom_;
+    for (auto &var : global_) {
         // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-        return ass[var].value();
-    });
-    auto [it, ins] = atoms_.try_emplace(syms.data());
+        *jt = *ass[var];
+    }
+    auto [it, ins] = atoms_.try_emplace(syms_atom_);
     if (ins) {
+        syms_atom_ = nullptr;
         if (it.value().enqueue(elems_)) {
             propagate_.emplace_back(std::distance(atoms_.begin(), it));
         }
-    } else {
-        syms_atoms_.pop();
     }
     return {it, ins};
 }
@@ -95,15 +98,16 @@ auto StateCondLit::add_premise(InstantiationContext &ctx, ULitVec const &premise
     }
 
     auto &ass = ctx.ass();
-    auto syms_elem = syms_elems_.push_map(Util::enumerate{local_.size() + 1}, [this, it, &ass](size_t i) {
-        if (i == 0) {
-            return Symbol::from_rep(std::distance(atoms_.begin(), it));
-        }
+    auto *syms_elem = static_cast<Symbol *>(mbr_.allocate((local_.size() + 1) * sizeof(Symbol), alignof(Symbol)));
+    auto *kt = syms_elem;
+    *kt = Symbol::from_rep(std::distance(atoms_.begin(), it));
+    for (auto var : local_) {
+        kt = std::next(kt);
         // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-        return ass[local_[i - 1]].value();
-    });
+        *kt = *ass[local_[var]];
+    }
 
-    auto [jt, ins] = elems_.try_emplace(syms_elem.data(), ctx.out().cond_id(), fact, has_conclusion_);
+    auto [jt, ins] = elems_.try_emplace(syms_elem, ctx.out().cond_id(), fact, has_conclusion_);
     // an element can only be added once
     assert(ins);
 

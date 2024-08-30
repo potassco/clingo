@@ -93,7 +93,7 @@ class BaseBdAggr : public BaseImpl<Symbol const *, BaseBdAggr> {
   public:
     using BaseImpl::contains;
     //! Map containing the atoms.
-    using AtomMap = Util::ordered_map<Symbol const *, AtomBdAggr, Util::SpanHash, Util::SpanEqualTo>;
+    using AtomMap = Util::ordered_map<Symbol const *, AtomBdAggr, Util::array_hash, Util::array_equal_to>;
 
     //! Construct an empty base.
     BaseBdAggr(size_t size) : atoms_{0, size, size} {}

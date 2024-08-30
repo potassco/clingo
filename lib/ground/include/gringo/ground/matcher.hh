@@ -4,7 +4,6 @@
 #include <gringo/ground/instantiator.hh>
 #include <gringo/ground/term.hh>
 
-#include <gringo/util/span_stack.hh>
 #include <gringo/util/unordered_map.hh>
 
 #include <gringo/core/core.hh>

@@ -122,6 +122,36 @@ struct value_equal_to {
     }
 };
 
+//! Hasher for arrays of dynamic but fixed size.
+//!
+//! The size must be given upon construction.
+class array_hash {
+  public:
+    //! Initialize with the given size.
+    array_hash(size_t size) : size_{size} {}
+    //! Get the hash of the symbol array.
+    template <class T> auto operator()(T const *sym) const -> size_t { return value_hash(std::span(sym, size_)); }
+
+  private:
+    size_t size_;
+};
+
+//! Comparison operator for arrays of dynamic but fixed size.
+//!
+//! The size must be given upon construction.
+struct array_equal_to {
+  public:
+    //! Initialize with the given size.
+    array_equal_to(size_t size) : size_{size} {}
+    //! Compare two symbols arrays.
+    template <class T> auto operator()(T const *a, T const *b) const -> bool {
+        return value_equal_to{}(std::span(a, size_), std::span(b, size_));
+    }
+
+  private:
+    size_t size_;
+};
+
 // Implementation of value_hash
 
 namespace Detail {

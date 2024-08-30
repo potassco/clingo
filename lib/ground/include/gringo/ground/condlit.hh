@@ -4,7 +4,6 @@
 #include <gringo/ground/statement.hh>
 
 #include <gringo/util/enumerate.hh>
-#include <gringo/util/span_stack.hh>
 
 namespace Gringo::Ground {
 
@@ -85,7 +84,7 @@ struct StateCondLitElem {
 //! A map from an atom + local variables to an element of a conditional literal.
 //!
 //! We can use here that the number of local variables is fixed.
-using MapElemCondLit = Util::ordered_map<Symbol const *, StateCondLitElem, Util::SpanHash, Util::SpanEqualTo>;
+using MapElemCondLit = Util::ordered_map<Symbol const *, StateCondLitElem, Util::array_hash, Util::array_equal_to>;
 
 //! Capture (the state of) a conditional literal.
 //!
@@ -142,7 +141,7 @@ class StateAtomCondLit {
     size_t offset_ = 0;
 };
 //! A map from the global variables to a conditional literal.
-using MapAtomCondLit = Util::ordered_map<Symbol const *, StateAtomCondLit, Util::SpanHash, Util::SpanEqualTo>;
+using MapAtomCondLit = Util::ordered_map<Symbol const *, StateAtomCondLit, Util::array_hash, Util::array_equal_to>;
 
 //! A base for not yet propagated conditional literals.
 class BaseCondLitEmpty : public BaseImpl<Symbol const *, BaseCondLitEmpty> {
@@ -251,9 +250,9 @@ struct StateCondLit {
   public:
     //! Construct an empty state.
     StateCondLit(VariableVec local, VariableVec global, size_t index, bool has_conclusion, bool sp_premise, bool domain)
-        : local_{std::move(local)}, global_{std::move(global)}, syms_elems_{local_.size() + 1},
-          syms_atoms_{global_.size()}, atoms_{0, Util::SpanHash{global_.size()}, Util::SpanEqualTo{global_.size()}},
-          elems_{0, Util::SpanHash{local_.size() + 1}, Util::SpanEqualTo{local_.size() + 1}}, base_empty_{atoms_},
+        : local_{std::move(local)}, global_{std::move(global)},
+          atoms_{0, Util::array_hash{global_.size()}, Util::array_equal_to{global_.size()}},
+          elems_{0, Util::array_hash{local_.size() + 1}, Util::array_equal_to{local_.size() + 1}}, base_empty_{atoms_},
           base_premise_{elems_}, base_lit_{atoms_}, index_{index}, has_conclusion_{has_conclusion},
           sp_premise_{sp_premise}, domain_{domain} {
         temp_syms_.reserve(std::max(global_.size(), local_.size() + 1));
@@ -339,8 +338,8 @@ struct StateCondLit {
     VariableVec local_;
     VariableVec global_;
     std::vector<Symbol> mutable temp_syms_;
-    Util::SpanStack<Symbol> syms_elems_;
-    Util::SpanStack<Symbol> syms_atoms_;
+    std::pmr::monotonic_buffer_resource mbr_;
+    Symbol *syms_atom_ = nullptr;
     MapAtomCondLit atoms_;
     MapElemCondLit elems_;
     std::vector<size_t> propagate_;
