@@ -1,9 +1,10 @@
 #pragma once
 
+#include <gringo/core/core.hh>
 #include <gringo/core/symbol.hh>
-#include <gringo/util/ordered_set.hh>
 
 #include <gringo/util/enum.hh>
+#include <gringo/util/ordered_set.hh>
 #include <gringo/util/unordered_map.hh>
 
 namespace Gringo::Ground {
@@ -28,6 +29,8 @@ class Term;
 using UTerm = std::unique_ptr<Term>;
 //! A vector of terms.
 using UTermVec = std::vector<UTerm>;
+//! A vector of guards.
+using GuardVec = std::vector<std::pair<Relation, UTerm>>;
 
 //! Term interface.
 class Term {

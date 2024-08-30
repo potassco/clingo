@@ -6,20 +6,25 @@
 
 #include <gringo/util/small_vector.hh>
 
+#include <memory_resource>
 #include <ostream>
 
 namespace Gringo::Ground {
 
-using GuardVec = std::vector<std::pair<Relation, UTerm>>;
-
+//! Derivation state of body aggregates.
 enum class AtomBdAggrState : uint8_t {
-    unknown = 0,
-    derived = 1,
-    fact = 2,
+    unknown = 0, //!< The aggregate has not yet been derived.
+    derived = 1, //!< The aggr has been derived.
+    fact = 2,    //!< The aggregate has been derived as a fact.
 };
 
+//! Extensible ground representation of body aggregates.
 class AtomBdAggr {
   public:
+    //! The lower and upper bound for the value an aggregate can take.
+    //!
+    //! Aggregates operating on numbers do not use symbols to avoid storing
+    //! unnecessary intermediate symbols.
     using Bound = std::variant<std::pair<Number, Number>, std::pair<Symbol, Symbol>>;
 
     //! Initialize for the given aggregate function.
@@ -65,8 +70,10 @@ class AtomBdAggr {
     //! Get the aggregate elements to propagate.
     [[nodiscard]] auto todo() -> std::span<size_t const>;
 
+    //! Get the unique id of the aggregate.
     [[nodiscard]] auto uid() const -> std::optional<size_t>;
 
+    //! Set the unique id of the aggregate.
     void uid(size_t uid);
 
   private:
@@ -81,6 +88,7 @@ class AtomBdAggr {
     bool enqueued_ = false;
 };
 
+//! The base capturing derived body aggregate atoms.
 class BaseBdAggr : public BaseImpl<Symbol const *, BaseBdAggr> {
   public:
     using BaseImpl::contains;
@@ -116,23 +124,30 @@ class BaseBdAggr : public BaseImpl<Symbol const *, BaseBdAggr> {
     [[nodiscard]] auto atoms() -> AtomMap &;
 
   private:
-    [[nodiscard]] auto atom_index_(AtomMap::const_iterator it) const -> size_t;
-
     AtomMap atoms_;
     Util::index_sequence<size_t> derived_;
 };
 
+//! State storing all necessary information to ground body aggregates.
 class StateBdAggr {
   public:
     class AtomKey;
-    // NOLINTBEGIN
+    //! Keys for aggregate elements storing their tuple and their aggregate index.
+    //!
+    //! The atom index is used to store all elements in one big hash table.
     class ElementKey {
       public:
-        static auto construct(auto &mbr, SymbolStore &store, Assignment &ass, AggregateFunction fun, size_t atom_idx,
-                              UTermVec const &tuple, ElementKey *&target) -> bool;
+        //! Prevent copying and moving.
+        ElementKey(ElementKey const &other) = delete;
+        //! Construct an element key evaluating the given tuple.
+        [[nodiscard]] static auto construct(auto &mbr, SymbolStore &store, Assignment &ass, AggregateFunction fun,
+                                            size_t atom_idx, UTermVec const &tuple, ElementKey *&target) -> bool;
 
-        auto span() const -> SymbolSpan;
-        auto hash() const -> size_t;
+        //! Get the tuple.
+        [[nodiscard]] auto span() const -> SymbolSpan;
+        //! Compute a hash for the key.
+        [[nodiscard]] auto hash() const -> size_t;
+        //! Compare to element keys.
         friend auto operator==(ElementKey const &a, ElementKey const &b) -> bool;
 
       private:
@@ -142,13 +157,18 @@ class StateBdAggr {
         // Note that these two could be combined to save a little bit of memory.
         size_t n_;
         size_t atom_idx_;
+        // NOLINTBEGIN
         GRINGO_IGNORE_ZERO_SIZED_ARRAY_B
         Symbol syms_[0];
         GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
+        // NOLINTEND
     };
-    // NOLINTEND
 
+    //! A map from global variables (including the guards) to the aggregate representation.
     using AtomMap = BaseBdAggr::AtomMap;
+    //! A map from tuples to their conditions.
+    //!
+    //! Each value in the map represents an aggregate element.
     using ElementMap = Util::ordered_map<ElementKey *, Util::small_vector<size_t>>;
 
     //! Initialize an aggregate state.
@@ -200,14 +220,6 @@ class StateBdAggr {
     void insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iterator it, UTermVec const &tuple,
                      ElementKey *&elem_key, auto const &get_cond);
 
-    //! Get the index of an aggregate atom.
-    //!
-    //! This index also captures not yet derived atoms.
-    auto index(AtomMap::iterator it) -> size_t;
-
-    //! Get the index of an aggregate element.
-    auto index(ElementMap::iterator it) -> size_t;
-
     //! Print a non-ground representation of the aggregate.
     void print(std::ostream &out);
 
@@ -220,6 +232,11 @@ class StateBdAggr {
   private:
     //! Enequeue an atom for propgation.
     void enqueue_(AtomMap::iterator it);
+
+    //! Get the index of an aggregate atom.
+    //!
+    //! This index also captures not yet derived atoms.
+    auto atom_index_(AtomMap::iterator it) -> size_t;
 
     std::pmr::monotonic_buffer_resource mbr_;
     BaseBdAggr base_;
@@ -271,6 +288,7 @@ class MatchBdAggr {
 //! Literal representing an aggregate.
 class LitBdAggr : public Lit, private MatchBdAggr {
   public:
+    //! Construct the aggregate literal.
     LitBdAggr(StateBdAggr &state, Sign sign) : MatchBdAggr{state}, sign_{sign} {}
 
   private:

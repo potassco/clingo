@@ -13,7 +13,7 @@ namespace Gringo::Ground {
 // definition of AtomAggr
 
 void AtomBdAggr::accumulate(AggregateFunction fun, SymbolSpan tup, bool fact) {
-    if (!tup.empty() && tup.front().type() == SymbolType::number) {
+    if (!tup.empty()) {
         if (fun == AggregateFunction::min) {
             auto &val = std::get<1>(bound_);
             val.first = std::min(tup.front(), val.first);
@@ -26,9 +26,9 @@ void AtomBdAggr::accumulate(AggregateFunction fun, SymbolSpan tup, bool fact) {
             if (fact) {
                 val.first = std::max(tup.front(), val.first);
             }
-        } else {
-            if (tup.front().type() == SymbolType::number) {
-                auto const &num = tup.front().num();
+        } else if (tup.front().type() == SymbolType::number) {
+            auto const &num = tup.front().num();
+            if (fun == AggregateFunction::sum || num > 0) {
                 auto &val = std::get<0>(bound_);
                 if (fact) {
                     val.first += num;
@@ -148,9 +148,11 @@ auto BaseBdAggr::is_fact(Symbol const *sym) const -> bool {
 }
 
 void BaseBdAggr::add(AtomMap::iterator it) {
+    // This function is called during propagate where the state is set to
+    // something other than unknown.
     assert(it->second.state() != AtomBdAggrState::unknown);
     it.value().derived_idx(derived_.size());
-    derived_.add(atom_index_(it));
+    derived_.add(static_cast<size_t>(std::distance(atoms_.begin(), it)));
 }
 
 auto BaseBdAggr::size() const -> size_t { return derived_.size(); }
@@ -168,16 +170,19 @@ auto BaseBdAggr::nth(size_t i) -> AtomMap::iterator { return atoms_.nth(derived_
 
 auto BaseBdAggr::atoms() -> AtomMap & { return atoms_; }
 
-auto BaseBdAggr::atom_index_(AtomMap::const_iterator it) const -> size_t {
-    return static_cast<size_t>(std::distance(atoms_.cbegin(), it));
-}
-
 // definition of StateAggr
 
 // NOLINTBEGIN
 
+//! Helper class to construct symbols arrays identifying aggregate atoms.
+//!
+//! The size of the array corresponds to the number of global variables and is
+//! not stored here. The symbols are stored using a monotonic buffer resource.
 class StateBdAggr::AtomKey {
   public:
+    //! Construct an atom key from the global variables and guards.
+    //!
+    //! Returns false if evaluating the guards fails.
     static auto construct(auto &mbr, SymbolStore &store, Assignment &ass, VariableVec const &global, GuardVec &guards,
                           AtomKey *&target) -> bool {
         if (target == nullptr) {
@@ -190,6 +195,10 @@ class StateBdAggr::AtomKey {
         new (target) AtomKey{store, ass, global, guards, res};
         return res;
     }
+    //! Construct an atom key from the given symbols.
+    //!
+    //! This function might create keys for atoms without definitions, which
+    //! can happen for negated atoms potentially derived later on.
     static void construct(auto &mbr, Symbol const *tuple, size_t n, AtomKey *&target) {
         if (target == nullptr) {
             target = static_cast<AtomKey *>(mbr.allocate(n * sizeof(Symbol), alignof(AtomKey)));
@@ -199,6 +208,7 @@ class StateBdAggr::AtomKey {
         new (target) AtomKey{tuple, n};
     }
 
+    //! Return the symbols representing the atom key.
     auto syms() -> Symbol const * { return syms_; }
 
   private:
@@ -235,6 +245,7 @@ StateBdAggr::ElementKey::ElementKey(SymbolStore &store, Assignment &ass, Aggrega
             res = false;
             return;
         }
+        // evaluate the remaining terms
         for (++jt, ++it; jt != je; ++jt, ++it) {
             if (auto val = (*jt)->eval(store, ass); val) {
                 *it = *val;
@@ -332,7 +343,7 @@ auto StateBdAggr::propagate() -> bool {
 
 void StateBdAggr::enqueue_(AtomMap::iterator it) {
     if (auto &state = it.value(); state.enqueue()) {
-        queue_.emplace_back(index(it));
+        queue_.emplace_back(atom_index_(it));
     }
 }
 
@@ -359,7 +370,7 @@ auto StateBdAggr::insert_atom(Symbol const *tuple) -> AtomMap::iterator {
 
 void StateBdAggr::insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iterator it, UTermVec const &tuple,
                               ElementKey *&elem_key, auto const &get_cond) {
-    if (ElementKey::construct(mbr_, store, ass, fun_, index(it), tuple, elem_key)) {
+    if (ElementKey::construct(mbr_, store, ass, fun_, atom_index_(it), tuple, elem_key)) {
         auto [jt, jns] = tuples_.try_emplace(elem_key);
         if (jns) {
             elem_key = nullptr;
@@ -377,9 +388,7 @@ void StateBdAggr::insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iter
     }
 }
 
-auto StateBdAggr::index(AtomMap::iterator it) -> size_t { return it - base_.atoms().begin(); }
-
-auto StateBdAggr::index(ElementMap::iterator it) -> size_t { return it - tuples_.begin(); }
+auto StateBdAggr::atom_index_(AtomMap::iterator it) -> size_t { return it - base_.atoms().begin(); }
 
 void StateBdAggr::print(std::ostream &out) {
     auto it = guards_.begin();

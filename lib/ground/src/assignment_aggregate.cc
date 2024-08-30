@@ -300,7 +300,7 @@ auto StateAssignAggr::propagate(SymbolStore &store) -> bool {
 
 void StateAssignAggr::enqueue_(AtomMap::iterator it) {
     if (auto &state = it.value(); state.enqueue()) {
-        queue_.emplace_back(index(it));
+        queue_.emplace_back(atom_index(it));
     }
 }
 
@@ -316,7 +316,7 @@ auto StateAssignAggr::insert_atom(Assignment &ass) -> AtomMap::iterator {
 
 void StateAssignAggr::insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iterator it, UTermVec const &tuple,
                                   ElementKey *&elem_key, auto const &get_cond) {
-    if (ElementKey::construct(mbr_, store, ass, fun_, index(it), tuple, elem_key)) {
+    if (ElementKey::construct(mbr_, store, ass, fun_, atom_index(it), tuple, elem_key)) {
         auto [jt, jns] = tuples_.try_emplace(elem_key);
         if (jns) {
             elem_key = nullptr;
@@ -334,9 +334,7 @@ void StateAssignAggr::insert_elem(SymbolStore &store, Assignment &ass, AtomMap::
     }
 }
 
-auto StateAssignAggr::index(AtomMap::iterator it) -> size_t { return it - base_.atoms().begin(); }
-
-auto StateAssignAggr::index(ElementMap::iterator it) -> size_t { return it - tuples_.begin(); }
+auto StateAssignAggr::atom_index(AtomMap::iterator it) -> size_t { return it - base_.atoms().begin(); }
 
 void StateAssignAggr::print(std::ostream &out) {
     out << fun_ << "(" << Util::p_range(global_, [](std::ostream &out, auto var) { out << "X_" << var; }) << ")";
@@ -404,13 +402,16 @@ auto MatchAssignAggr::eval(SymbolStore &store, Assignment &ass) const -> std::op
     auto &atoms = state().base().atoms();
     auto it = atoms.find(eval_.data());
     if (it == atoms.end()) {
+        // It is fine to return nullopt here because assignment aggregates can
+        // only occur positively in rule bodies. Hence, failure to evaluate
+        // here corresponds to not matching.
         return std::nullopt;
     }
     auto sym = state().term().eval(store, ass);
     if (!sym) {
         return std::nullopt;
     }
-    return std::make_optional<Key>(state().index(it), *sym);
+    return std::make_optional<Key>(state().atom_index(it), *sym);
 }
 
 auto operator<<(std::ostream &out, MatchAssignAggr const &m) -> std::ostream & {

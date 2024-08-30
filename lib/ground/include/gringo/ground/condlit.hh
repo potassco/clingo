@@ -69,6 +69,7 @@ struct StateCondLitElem {
 
     //! Get the premise of the element.
     [[nodiscard]] auto premise() const -> size_t { return premise_; }
+    //! Get the conclusion index of the literal if there is one.
     [[nodiscard]] auto conclusion() const -> std::optional<size_t> {
         return conclusion_ != invalid_offset ? std::make_optional(conclusion_) : std::nullopt;
     }

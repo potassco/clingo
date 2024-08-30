@@ -12,6 +12,9 @@ namespace Gringo::Ground {
 //! Captures statements dependening cyclically on each other.
 class Component {
   public:
+    //! Construct a component.
+    //!
+    //! If domain is true, then the component does not contain negative edges.
     Component(bool domain) : domain_{domain} {}
     //! Add a statement to a component.
     void add(UStm stm) { stms_.emplace_back(std::move(stm)); }

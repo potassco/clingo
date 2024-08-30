@@ -9,6 +9,9 @@
 
 namespace Gringo::Util {
 
+//! @addtogroup util_container
+//! @{
+
 // NOLINTBEGIN
 
 //! A vector that misuses the begin, end and capacity pointers to store
@@ -21,8 +24,16 @@ template <class T, size_t N = 2>
     requires(std::is_nothrow_destructible_v<T> && std::is_nothrow_move_constructible_v<T>)
 class small_vector {
   public:
+    //! Construct an empty vector.
     small_vector() = default;
+    //! For the time being, copy construction is disabled.
+    small_vector(small_vector const &) = delete;
+    //! Move construct the vector.
     small_vector(small_vector &&other) noexcept { *this = std::move(other); }
+
+    //! For the time being, copy assignment is disabled.
+    auto operator=(small_vector const &other) = delete;
+    //! Move assign the vector.
     auto operator=(small_vector &&other) noexcept -> small_vector & {
         clear();
         if (other.is_small_()) {
@@ -37,9 +48,7 @@ class small_vector {
         return *this;
     }
 
-    small_vector(small_vector const &) = delete;
-    auto operator=(small_vector const &other) = delete;
-
+    //! Get the size of the vector.
     auto size() const -> size_t {
         if (is_small_()) {
             return size_small_();
@@ -47,8 +56,10 @@ class small_vector {
         return end_ - large_();
     }
 
+    //! Check if the vector is empty.
     auto empty() const -> bool { return size() == 0; }
 
+    //! Get the capacity of the vector.
     auto capacity() const -> size_t {
         if (is_small_()) {
             return N;
@@ -56,12 +67,16 @@ class small_vector {
         return cap_ - large_();
     }
 
+    //! Get an iterator to the beginning of the vector.
     auto begin() const -> T const * { return const_cast<small_vector *>(this)->begin(); }
 
+    //! Get an iterator to the beginning of the vector.
     auto begin() -> T * { return is_small_() ? small_() : large_(); }
 
+    //! Get an iterator to the end of the vector.
     auto end() const -> T const * { return const_cast<small_vector *>(this)->end(); }
 
+    //! Get an iterator to the end of the vector.
     auto end() -> T * {
         if (is_small_()) {
             return begin() + size_small_();
@@ -69,10 +84,13 @@ class small_vector {
         return end_;
     }
 
+    //! Get the element at the given index.
     auto operator[](size_t i) -> T & { return *(begin() + i); }
 
+    //! Get the element at the given index.
     auto operator[](size_t i) const -> T const & { return *(begin() + i); }
 
+    //! Reserve space for at least n elements.
     void reserve(size_t n) {
         if (auto m = capacity(); m < n) {
             if (n < 2 * m) {
@@ -88,16 +106,19 @@ class small_vector {
         }
     }
 
+    //! Get the first element in the vector.
     auto front() -> T & {
         assert(!empty());
         return *begin();
     }
 
+    //! Get the last element in the vector.
     auto back() -> T & {
         assert(!empty());
         return *(end() - 1);
     }
 
+    //! Erase the given range of elements.
     auto erase(T *first, T *last) -> T * {
         if (ssize_t n = last - first; n > 0) {
             std::destroy(first, last);
@@ -111,6 +132,7 @@ class small_vector {
         return last;
     }
 
+    //! Emplace an element before the given iterator.
     template <class... U> void emplace(T *it, U &&...args) {
         reserve(size() + 1);
         auto ie = end();
@@ -123,6 +145,7 @@ class small_vector {
         }
     }
 
+    //! Emplace an element after the last element.
     template <class... U> void emplace_back(U &&...args) {
         reserve(size() + 1);
         new (end()) T{std::forward<U>(args)...};
@@ -133,6 +156,7 @@ class small_vector {
         }
     }
 
+    //! Pop the last element.
     void pop_back() {
         if (is_small_()) {
             size_small_(size_small_() - 1);
@@ -141,11 +165,15 @@ class small_vector {
         }
     }
 
+    //! Clear the vector.
+    //!
+    //! Note that this frees allocated storage.
     void clear() {
         destroy_();
         begin_ = 1;
     }
 
+    //! Deconstruct the vector.
     ~small_vector() { destroy_(); }
 
   private:
@@ -178,5 +206,7 @@ class small_vector {
 };
 
 // NOLINTEND
+
+//! @}
 
 } // namespace Gringo::Util

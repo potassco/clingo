@@ -273,6 +273,7 @@ class Number {
     uint64_t repr_;
 };
 
+//! A span of numbers.
 using NumberSpan = std::span<Number const>;
 
 //! @}

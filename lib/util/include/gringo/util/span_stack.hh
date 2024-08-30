@@ -4,7 +4,6 @@
 #include <gringo/util/macro.hh>
 
 #include <cassert>
-#include <memory_resource>
 #include <span>
 
 namespace Gringo::Util {

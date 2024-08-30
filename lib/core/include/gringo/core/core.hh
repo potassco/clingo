@@ -131,6 +131,7 @@ inline auto neutral_num(AggregateFunction fun) -> std::variant<Number, Symbol> {
     Util::unreachable();
 }
 
+//! Check if the symbol is relevant for the given aggregate function.
 inline auto relevant_val(AggregateFunction fun, Symbol sym) -> bool {
     switch (fun) {
         case AggregateFunction::min: {

@@ -6,18 +6,17 @@
 
 #include <gringo/util/small_vector.hh>
 
+#include <memory_resource>
+
 namespace Gringo::Ground {
 
-using GuardVec = std::vector<std::pair<Relation, UTerm>>;
-
-enum class AtomAssignAggrState : uint8_t {
-    unknown = 0,
-    derived = 1,
-    fact = 2,
-};
-
+//! Extensible ground representation of assignemnt aggregates.
 class AtomAssignAggr {
   public:
+    //! The possible values an assignment aggregate can take.
+    //!
+    //! Aggregates operating on numbers do not use symbols to avoid storing
+    //! unnecessary intermediate symbols.
     using Values = std::variant<Util::small_vector<Number>, Util::small_vector<Symbol>>;
 
     //! Initialize for the given aggregate function.
@@ -54,6 +53,7 @@ class AtomAssignAggr {
     bool enqueued_ = false;
 };
 
+//! The base capturing derived assignment aggregate atoms.
 class BaseAssignAggr : public BaseImpl<std::pair<size_t, Symbol>, BaseAssignAggr> {
   public:
     using BaseImpl::contains;
@@ -106,17 +106,26 @@ class BaseAssignAggr : public BaseImpl<std::pair<size_t, Symbol>, BaseAssignAggr
     bool single_pass_elems_;
 };
 
+//! State storing all necessary information to ground assignment aggregates.
 class StateAssignAggr {
   public:
     class AtomKey;
-    // NOLINTBEGIN
+    //! Keys for aggregate elements storing their tuple and their aggregate atom index.
+    //!
+    //! The atom index is used to store all elements in one big hash table.
     class ElementKey {
       public:
-        static auto construct(auto &mbr, SymbolStore &store, Assignment &ass, AggregateFunction fun, size_t atom_idx,
-                              UTermVec const &tuple, ElementKey *&target) -> bool;
+        //! Prevent copying and moving.
+        ElementKey(ElementKey const &other) = delete;
+        //! Construct an element key evaluating the given tuple.
+        [[nodiscard]] static auto construct(auto &mbr, SymbolStore &store, Assignment &ass, AggregateFunction fun,
+                                            size_t atom_idx, UTermVec const &tuple, ElementKey *&target) -> bool;
 
-        auto span() const -> SymbolSpan;
-        auto hash() const -> size_t;
+        //! Get the tuple.
+        [[nodiscard]] auto span() const -> SymbolSpan;
+        //! Compute a hash for the key.
+        [[nodiscard]] auto hash() const -> size_t;
+        //! Compare to element keys.
         friend auto operator==(ElementKey const &a, ElementKey const &b) -> bool;
 
       private:
@@ -126,20 +135,27 @@ class StateAssignAggr {
         // Note that these two could be combined to save a little bit of memory.
         size_t n_;
         size_t atom_idx_;
+        // NOLINTBEGIN
         GRINGO_IGNORE_ZERO_SIZED_ARRAY_B
         Symbol syms_[0];
         GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
+        // NOLINTEND
     };
-    // NOLINTEND
 
+    //! A map from global variables to the aggregate representation.
     using AtomMap = BaseAssignAggr::AtomMap;
+    //! A map from tuples to their conditions.
+    //!
+    //! Each value in the map represents an aggregate element.
     using ElementMap = Util::ordered_map<ElementKey *, Util::small_vector<size_t>>;
 
     //! Initialize an aggregate state.
     StateAssignAggr(VariableVec global, UTerm term, AggregateFunction fun, size_t index, bool domain_elems,
                     bool single_pass_elems)
         : base_{global.size(), domain_elems, single_pass_elems}, global_{std::move(global)}, term_{std::move(term)},
-          index_{index}, fun_{fun} {}
+          index_{index}, fun_{fun} {
+        assert(fun_ != AggregateFunction::count);
+    }
 
     //! Get the global variables in the aggregate.
     //!
@@ -175,10 +191,7 @@ class StateAssignAggr {
                      ElementKey *&elem_key, auto const &get_cond);
 
     //! Get the index of an aggregate atom.
-    auto index(AtomMap::iterator it) -> size_t;
-
-    //! Get the index of an aggregate element.
-    auto index(ElementMap::iterator it) -> size_t;
+    auto atom_index(AtomMap::iterator it) -> size_t;
 
     //! Print a non-ground representation of the aggregate.
     void print(std::ostream &out);
@@ -240,6 +253,7 @@ class MatchAssignAggr {
 //! Literal representing an aggregate.
 class LitAssignAggr : public Lit, private MatchAssignAggr {
   public:
+    //! Construct an assignment aggregate literal.
     LitAssignAggr(StateAssignAggr &state) : MatchAssignAggr{state} {}
 
   private:

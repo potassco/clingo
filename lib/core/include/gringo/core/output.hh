@@ -37,9 +37,21 @@ class OutputLit {
 //! Interface to output statements.
 class OutputStm {
   public:
-    using BdElems = std::span<std::pair<SymbolSpan, std::span<size_t const>> const>;
+    //! A body aggregate element.
+    //!
+    //! The span captures the ids of conditions.
+    using BdElem = std::pair<SymbolSpan, std::span<size_t const>>;
+    //! A span of body aggregate elements.
+    using BdElems = std::span<BdElem const>;
+    //! The guards of an aggregate.
     using Guards = std::span<std::pair<Relation, Symbol> const>;
-    using CondLits = std::span<std::pair<std::optional<size_t>, size_t> const>;
+    //! A conditional literal.
+    //!
+    //! The two sizes correspond to indices of conditions.
+    //! If the first one is not given, it is assumed false.
+    using CondLit = std::pair<std::optional<size_t>, size_t>;
+    //! A span of conditional literals.
+    using CondLits = std::span<CondLit const>;
 
     //! Destroy the output.
     virtual ~OutputStm() = default;
