@@ -1,6 +1,8 @@
 #include <gringo/ground/literal.hh>
 #include <gringo/ground/matcher.hh>
 
+#include <gringo/util/print.hh>
+
 #include <typeindex>
 
 namespace Gringo::Ground {
@@ -517,6 +519,95 @@ auto LitProject::do_equal_to(Lit const &other) const -> bool {
 auto LitProject::do_compare_to(Lit const &other) const -> std::weak_ordering {
     if (auto const *x = dynamic_cast<LitProject const *>(&other); x != nullptr) {
         return std::tie(sign_, *atom_) <=> std::tie(x->sign_, *x->atom_);
+    }
+    return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
+}
+
+// definition of LitTuple
+
+namespace {
+
+class MatcherLitTuple : public OnceMatcher {
+  public:
+    MatcherLitTuple(VariableVec bind, VariableVec const &vars, SymbolVec const &syms)
+        : bind_{std::move(bind)}, vars_{&vars}, syms_{&syms} {}
+
+  private:
+    auto do_once(InstantiationContext &ctx) -> bool override {
+        auto &ass = ctx.ass();
+        for (auto const &var : bind_) {
+            ass[var] = std::nullopt;
+        }
+        auto it = syms_->begin();
+        for (auto const &var : *vars_) {
+            auto &val = ass[var];
+            if (!val) {
+                ass[var] = *it;
+            } else if (*val != *it) {
+                return false;
+            }
+            ++it;
+        }
+        return true;
+    }
+
+    void do_print(std::ostream &out) const override {
+        out << "#once(" << Util::p_range(*vars_, [](std::ostream &out, auto var) { out << "X_" << var; }) << ")";
+    }
+
+    VariableVec bind_;
+    VariableVec const *vars_;
+    SymbolVec const *syms_;
+};
+
+} // namespace
+
+void LitTuple::do_vars(VariableSet &vars, VarSelectMode mode) const {
+    if (mode != VarSelectMode::depend) {
+        vars.insert(vars_.begin(), vars_.end());
+    }
+}
+
+auto LitTuple::do_domain() const -> bool { return true; }
+
+auto LitTuple::do_single_pass() const -> bool { return true; }
+
+auto LitTuple::do_matcher([[maybe_unused]] MatcherType type,
+                          std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
+    VariableVec bind;
+    for (auto const &var : vars_) {
+        if (!bound[var]) {
+            bind.emplace_back(var);
+        }
+    }
+    return {std::make_unique<MatcherLitTuple>(std::move(bind), vars_, *syms_), std::nullopt};
+}
+
+auto LitTuple::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return 0; }
+
+void LitTuple::do_print(std::ostream &out) const {
+    out << "#once(" << Util::p_range(vars_, [](std::ostream &out, auto var) { out << "X_" << var; }) << ")";
+}
+
+auto LitTuple::do_output([[maybe_unused]] InstantiationContext &ctx, [[maybe_unused]] OutputLit &out) const -> bool {
+    return false;
+}
+
+auto LitTuple::do_copy() const -> ULit { return std::make_unique<LitTuple>(vars_, *syms_); }
+
+auto LitTuple::do_hash() const -> size_t {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    return Util::value_hash_record<LitTuple>(vars_, reinterpret_cast<uintptr_t>(syms_));
+}
+
+auto LitTuple::do_equal_to(Lit const &other) const -> bool {
+    auto const *lit = dynamic_cast<LitTuple const *>(&other);
+    return lit != nullptr && vars_ == lit->vars_ && syms_ == lit->syms_;
+}
+
+auto LitTuple::do_compare_to(Lit const &other) const -> std::weak_ordering {
+    if (auto const *x = dynamic_cast<LitTuple const *>(&other); x != nullptr) {
+        return std::tie(vars_, syms_) <=> std::tie(x->vars_, x->syms_);
     }
     return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
 }

@@ -3,6 +3,8 @@
 #include <gringo/util/print.hh>
 #include <gringo/util/type_traits.hh>
 
+#include <typeindex>
+
 // #define DEBUG_AGGR
 #ifdef DEBUG_AGGR
 #include <iostream>
@@ -286,6 +288,11 @@ auto operator==(StateBdAggr::ElementKey const &a, StateBdAggr::ElementKey const 
 // NOLINTEND
 
 auto StateBdAggr::global() const -> VariableVec const & { return global_; }
+
+auto StateBdAggr::symbols() -> SymbolVec & {
+    symbols_.resize(global_.size());
+    return symbols_;
+}
 
 auto StateBdAggr::guards() const -> GuardVec const & { return guards_; }
 
@@ -654,5 +661,115 @@ void StmBdAggrElem::do_print(std::ostream &out) const {
     }
     out << " <- " << Util::p_range(body_, ", ", [](std::ostream &out, auto const &lit) { out << *lit; }) << ".";
 }
+
+// definition of LitBdAggrStrat
+
+namespace {
+
+class MatcherBdAggrStrat : public OnceMatcher {
+  public:
+    MatcherBdAggrStrat(StateBdAggr &state, std::vector<Instantiator> insts, size_t &offset, bool positive)
+        : state_{&state}, insts_{std::move(insts)}, offset_{&offset}, positive_{positive} {}
+
+  private:
+    void do_init(SymbolStore &store, size_t gen) override {
+        for (auto &inst : insts_) {
+            inst.init(store, gen);
+        }
+    }
+    auto do_once(InstantiationContext &ctx) -> bool override {
+        if (auto it = state_->insert_atom(ctx.store(), ctx.ass())) {
+            *offset_ = *it - state_->base().atoms().begin();
+            // bind global variables
+            auto &ass = ctx.ass();
+            auto jt = state_->symbols().begin();
+            for (auto const &var : state_->global()) {
+                // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+                *jt++ = *ass[var];
+            }
+            // ground elems
+            GRINGO_REPORT(ctx.log(), trace) << "<<< begin nested instantiation";
+            for (auto &inst : insts_) {
+                std::ignore = inst.instantiate(ctx.log(), ctx.store(), ctx.out());
+            }
+            GRINGO_REPORT(ctx.log(), trace) << ">>> end nested instantiation";
+            // propagate aggregate
+            std::ignore = state_->propagate();
+            return it->value().state() != (positive_ ? AtomBdAggrState::unknown : AtomBdAggrState::fact);
+        }
+        return false;
+    }
+    void do_print(std::ostream &out) const override { state_->print(out); }
+
+    StateBdAggr *state_;
+    InstantiatorVec insts_;
+    size_t *offset_;
+    bool positive_;
+};
+
+} // namespace
+
+void LitBdAggrStrat::do_vars(VariableSet &vars, VarSelectMode mode) const {
+    if (mode != VarSelectMode::provide) {
+        vars.insert(state_->global().begin(), state_->global().end());
+    }
+}
+
+auto LitBdAggrStrat::do_domain() const -> bool {
+    assert(state_->single_pass_elems());
+    return state_->domain();
+}
+
+auto LitBdAggrStrat::do_single_pass() const -> bool {
+    assert(state_->single_pass_elems());
+    return true;
+}
+
+auto LitBdAggrStrat::do_matcher([[maybe_unused]] MatcherType type, [[maybe_unused]] std::vector<bool> const &bound)
+    -> std::pair<UMatcher, std::optional<size_t>> {
+    Linearizer lin;
+    Queue queue;
+    lin.start(queue);
+    for (auto &elem : elems_) {
+        lin.prepare(elem, elem.body(), {state_->global().begin(), state_->global().end()});
+    }
+    return {std::make_unique<MatcherBdAggrStrat>(*state_, queue.release(), offset_, sign_ != Sign::once), std::nullopt};
+}
+
+auto LitBdAggrStrat::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double {
+    // Note: grounding the aggregate might be expensive. Maybe implement a
+    // better estimate. An estimate is possible because elements are
+    // stratified.
+    // NOLINTNEXTLINE(readability-magic-numbers)
+    return 100;
+}
+
+void LitBdAggrStrat::do_print(std::ostream &out) const { state_->print(out); }
+
+auto LitBdAggrStrat::do_output([[maybe_unused]] InstantiationContext &ctx, OutputLit &out) const -> bool {
+    if (domain()) {
+        return false;
+    }
+    assert(offset_ != invalid_offset);
+    // Note: here the atom index and not the derived index can be used
+    auto it = state_->base().atoms().nth(offset_);
+    if (it.value().state() == (sign_ != Sign::once ? AtomBdAggrState::fact : AtomBdAggrState::unknown)) {
+        return false;
+    }
+    auto &state = it.value();
+    state.uid(out.bd_aggr(sign_, state.uid()));
+    return true;
+}
+
+auto LitBdAggrStrat::do_copy() const -> ULit { return std::make_unique<LitBdAggrStrat>(*state_, elems_, sign_); }
+
+auto LitBdAggrStrat::do_hash() const -> size_t {
+    // NOLINTNEXTLINE
+    return Util::value_hash_record<LitBdAggrStrat>(reinterpret_cast<uintptr_t>(this));
+}
+
+auto LitBdAggrStrat::do_equal_to(Lit const &other) const -> bool { return this == &other; }
+
+auto LitBdAggrStrat::do_compare_to(Lit const &other) const -> std::weak_ordering { return this <=> &other; }
 
 } // namespace Gringo::Ground

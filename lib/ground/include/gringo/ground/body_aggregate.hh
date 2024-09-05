@@ -179,6 +179,8 @@ class StateBdAggr {
 
     //! Get the global variables in the aggregate.
     [[nodiscard]] auto global() const -> VariableVec const &;
+    //! Get the global variables in the aggregate.
+    [[nodiscard]] auto symbols() -> SymbolVec &;
     //! Get the non-ground guards of the aggregate.
     [[nodiscard]] auto guards() const -> GuardVec const &;
     //! Get the aggregate function.
@@ -241,6 +243,7 @@ class StateBdAggr {
     BaseBdAggr base_;
     ElementMap tuples_;
     VariableVec global_;
+    SymbolVec symbols_;
     GuardVec guards_;
     std::vector<size_t> queue_;
     std::pmr::monotonic_buffer_resource *mbr_;
@@ -345,6 +348,14 @@ class StmBdAggrElem : public Stm {
     StmBdAggrElem(StateBdAggr &state, UTermVec tuple, ULitVec body, size_t num_cond, size_t priority)
         : state_{&state}, tuple_{std::move(tuple)}, body_{std::move(body)}, num_cond_{num_cond}, priority_{priority} {}
 
+    //! Copy the statement.
+    StmBdAggrElem(StmBdAggrElem const &other)
+        : state_{other.state_}, tuple_{copy_uvec(other.tuple_)}, body_{copy_uvec(other.body_)},
+          num_cond_{other.num_cond_}, priority_{other.priority_} {};
+    StmBdAggrElem(StmBdAggrElem &&other) noexcept = default;
+    auto operator=(StmBdAggrElem const &other) -> StmBdAggrElem & = default;
+    auto operator=(StmBdAggrElem &&other) noexcept -> StmBdAggrElem & = default;
+
   private:
     [[nodiscard]] auto do_body() const -> ULitVec const & override;
     [[nodiscard]] auto do_important() const -> VariableSet override;
@@ -362,6 +373,45 @@ class StmBdAggrElem : public Stm {
     ULitVec body_;
     size_t num_cond_;
     size_t priority_;
+};
+
+static_assert(std::is_nothrow_move_constructible_v<StmBdAggrElem>);
+static_assert(std::is_nothrow_move_assignable_v<StmBdAggrElem>);
+static_assert(std::is_copy_assignable_v<StmBdAggrElem>);
+
+//! Literal representing a stratified body aggregate.
+class LitBdAggrStrat : public Lit {
+  public:
+    //! Construct the aggregate literal.
+    LitBdAggrStrat(StateBdAggr &state, std::vector<StmBdAggrElem> elems, Sign sign)
+        : state_{&state}, elems_{std::move(elems)}, sign_{sign} {}
+
+  private:
+    void do_vars(VariableSet &vars, VarSelectMode mode) const override;
+    //! Returns true if matching aggregates are always facts.
+    //!
+    //! The function can only return true if all literals in elements are
+    //! domain.
+    //!
+    //! Note that there is no need for a stratified index. There can be
+    //! recursion through the body prefix.
+    [[nodiscard]] auto do_domain() const -> bool override;
+    //! Returns true if the aggregate needs only one grounding pass.
+    [[nodiscard]] auto do_single_pass() const -> bool override;
+    [[nodiscard]] auto
+    do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double override;
+    void do_print(std::ostream &out) const override;
+    auto do_output([[maybe_unused]] InstantiationContext &ctx, OutputLit &out) const -> bool override;
+    [[nodiscard]] auto do_copy() const -> ULit override;
+    [[nodiscard]] auto do_hash() const -> size_t override;
+    [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
+    [[nodiscard]] auto do_compare_to(Lit const &other) const -> std::weak_ordering override;
+
+    StateBdAggr *state_;
+    std::vector<StmBdAggrElem> elems_;
+    size_t offset_ = invalid_offset;
+    Sign sign_;
 };
 
 } // namespace Gringo::Ground

@@ -32,6 +32,20 @@ using UTermVec = std::vector<UTerm>;
 //! A vector of guards.
 using GuardVec = std::vector<std::pair<Relation, UTerm>>;
 
+//! Helper to copy vectors with copyable elements.
+template <class T>
+    requires requires(T x) {
+        { x.copy() } -> std::convertible_to<std::unique_ptr<T>>;
+    }
+auto copy_uvec(std::vector<std::unique_ptr<T>> const &vec) {
+    std::vector<std::unique_ptr<T>> res;
+    res.reserve(vec.size());
+    for (auto const &x : vec) {
+        res.emplace_back(x->copy());
+    }
+    return res;
+}
+
 //! Term interface.
 class Term {
   public:

@@ -307,6 +307,32 @@ class LitProject : public Lit {
     bool domain_;
 };
 
+//! An auxiliary literal binding variables to the given symbols upon first match.
+class LitTuple : public Lit {
+  public:
+    //! Construct the literal.
+    LitTuple(VariableVec vars, SymbolVec &syms) : vars_{std::move(vars)}, syms_{&syms} {
+        assert(vars_.size() == syms_->size());
+    }
+
+  private:
+    void do_vars(VariableSet &vars, VarSelectMode mode) const override;
+    [[nodiscard]] auto do_domain() const -> bool override;
+    [[nodiscard]] auto do_single_pass() const -> bool override;
+    [[nodiscard]] auto
+    do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double override;
+    void do_print(std::ostream &out) const override;
+    auto do_output([[maybe_unused]] InstantiationContext &ctx, OutputLit &out) const -> bool override;
+    [[nodiscard]] auto do_copy() const -> ULit override;
+    [[nodiscard]] auto do_hash() const -> size_t override;
+    [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
+    [[nodiscard]] auto do_compare_to(Lit const &other) const -> std::weak_ordering override;
+
+    VariableVec vars_;
+    SymbolVec *syms_;
+};
+
 //! @}
 
 } // namespace Gringo::Ground

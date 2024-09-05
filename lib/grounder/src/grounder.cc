@@ -752,44 +752,55 @@ class BuilderBdLit {
             // initialize state
             auto &state = ctx_->state<Ground::StateBdAggr>(ctx_->mbr(), vars_global.release(), std::move(guards), fun,
                                                            index, dom, mon, sp_elems);
-
-            // add rule for empty case
-            auto body = Ground::ULitVec{};
-            body.reserve(ctx_->body().size() + state.guards().size());
-            for (auto const &lit : ctx_->body()) {
-                body.emplace_back(lit->copy());
-            }
-            auto neutral = neutral_val(fun);
-            bool add_neutral = true;
-            for (auto const &guard : state.guards()) {
-                if (auto const *rhs = dynamic_cast<Ground::TermSymbol const *>(guard.second.get()); rhs != nullptr) {
-                    if (!evaluate(neutral, guard.first, rhs->symbol())) {
-                        add_neutral = false;
-                        break;
-                    }
-                } else {
-                    body.emplace_back(std::make_unique<Ground::LitComparison>(
-                        std::make_unique<Ground::TermSymbol>(neutral), guard.first, guard.second->copy()));
+            if (sp_elems) {
+                std::vector<Ground::StmBdAggrElem> stms;
+                stms.reserve(elems.size());
+                for (auto &[tuple, cond] : elems) {
+                    auto num = cond.size();
+                    cond.emplace_back(std::make_unique<Ground::LitTuple>(state.global(), state.symbols()));
+                    stms.emplace_back(state, std::move(tuple), std::move(cond), num, elem_priority);
                 }
-            }
-            if (add_neutral) {
-                ctx_->gcomp().add(std::make_unique<Ground::StmBdAggrElem>(
-                    state, Util::make_vec<Ground::UTerm>(std::make_unique<Ground::TermSymbol>(neutral)),
-                    std::move(body), 0, elem_priority));
-            }
-
-            // add rules for elements
-            for (auto &[tuple, cond] : elems) {
-                auto num = cond.size();
-                cond.reserve(ctx_->body().size() + cond.size());
+                ctx_->body().emplace_back(std::make_unique<Ground::LitBdAggrStrat>(state, std::move(stms), lit.sign()));
+            } else {
+                // add rule for empty case
+                auto body = Ground::ULitVec{};
+                body.reserve(ctx_->body().size() + state.guards().size());
                 for (auto const &lit : ctx_->body()) {
-                    cond.emplace_back(lit->copy());
+                    body.emplace_back(lit->copy());
                 }
-                ctx_->gcomp().add(std::make_unique<Ground::StmBdAggrElem>(state, std::move(tuple), std::move(cond), num,
-                                                                          elem_priority));
-            }
+                auto neutral = neutral_val(fun);
+                bool add_neutral = true;
+                for (auto const &guard : state.guards()) {
+                    if (auto const *rhs = dynamic_cast<Ground::TermSymbol const *>(guard.second.get());
+                        rhs != nullptr) {
+                        if (!evaluate(neutral, guard.first, rhs->symbol())) {
+                            add_neutral = false;
+                            break;
+                        }
+                    } else {
+                        body.emplace_back(std::make_unique<Ground::LitComparison>(
+                            std::make_unique<Ground::TermSymbol>(neutral), guard.first, guard.second->copy()));
+                    }
+                }
+                if (add_neutral) {
+                    ctx_->gcomp().add(std::make_unique<Ground::StmBdAggrElem>(
+                        state, Util::make_vec<Ground::UTerm>(std::make_unique<Ground::TermSymbol>(neutral)),
+                        std::move(body), 0, elem_priority));
+                }
 
-            ctx_->body().emplace_back(std::make_unique<Ground::LitBdAggr>(state, lit.sign()));
+                // add rules for elements
+                for (auto &[tuple, cond] : elems) {
+                    auto num = cond.size();
+                    cond.reserve(ctx_->body().size() + cond.size());
+                    for (auto const &lit : ctx_->body()) {
+                        cond.emplace_back(lit->copy());
+                    }
+                    ctx_->gcomp().add(std::make_unique<Ground::StmBdAggrElem>(state, std::move(tuple), std::move(cond),
+                                                                              num, elem_priority));
+                }
+
+                ctx_->body().emplace_back(std::make_unique<Ground::LitBdAggr>(state, lit.sign()));
+            }
         }
     }
     //! Translate simple literals.
