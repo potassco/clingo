@@ -3,8 +3,6 @@
 #include <gringo/util/print.hh>
 #include <gringo/util/type_traits.hh>
 
-#include <typeindex>
-
 // #define DEBUG_AGGR
 #ifdef DEBUG_AGGR
 #include <iostream>
@@ -354,14 +352,15 @@ void StateBdAggr::enqueue_(AtomMap::iterator it) {
     }
 }
 
-auto StateBdAggr::insert_atom(SymbolStore &store, Assignment &ass) -> std::optional<AtomMap::iterator> {
+auto StateBdAggr::insert_atom(SymbolStore &store,
+                              Assignment &ass) -> std::optional<std::pair<AtomMap::iterator, bool>> {
     if (AtomKey::construct(*mbr_, store, ass, global_, guards_, atom_key_)) {
         auto [it, ins] = base_.atoms().try_emplace(atom_key_->syms(), fun_);
         if (ins) {
             atom_key_ = nullptr;
             enqueue_(it);
         }
-        return it;
+        return std::make_optional<std::pair<AtomMap::iterator, bool>>(it, ins);
     }
     return std::nullopt;
 }
@@ -630,7 +629,7 @@ auto StmBdAggrElem::do_report(InstantiationContext &ctx) -> bool {
             return std::make_pair(ctx.out().cond_id(), fact);
         };
         // insert the element
-        state_->insert_elem(ctx.store(), ass, *it, tuple_, elem_key_, get_cond);
+        state_->insert_elem(ctx.store(), ass, it->first, tuple_, elem_key_, get_cond);
     }
     return true;
 }
@@ -679,23 +678,25 @@ class MatcherBdAggrStrat : public OnceMatcher {
     }
     auto do_once(InstantiationContext &ctx) -> bool override {
         if (auto it = state_->insert_atom(ctx.store(), ctx.ass())) {
-            *offset_ = *it - state_->base().atoms().begin();
-            // bind global variables
-            auto &ass = ctx.ass();
-            auto jt = state_->symbols().begin();
-            for (auto const &var : state_->global()) {
-                // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-                *jt++ = *ass[var];
+            *offset_ = it->first - state_->base().atoms().begin();
+            if (it->second) {
+                // bind global variables
+                auto &ass = ctx.ass();
+                auto jt = state_->symbols().begin();
+                for (auto const &var : state_->global()) {
+                    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+                    *jt++ = *ass[var];
+                }
+                // ground elems
+                GRINGO_REPORT(ctx.log(), trace) << "<<< begin nested instantiation";
+                for (auto &inst : insts_) {
+                    std::ignore = inst.instantiate(ctx.log(), ctx.store(), ctx.out());
+                }
+                GRINGO_REPORT(ctx.log(), trace) << ">>> end nested instantiation";
+                // propagate aggregate
+                std::ignore = state_->propagate();
             }
-            // ground elems
-            GRINGO_REPORT(ctx.log(), trace) << "<<< begin nested instantiation";
-            for (auto &inst : insts_) {
-                std::ignore = inst.instantiate(ctx.log(), ctx.store(), ctx.out());
-            }
-            GRINGO_REPORT(ctx.log(), trace) << ">>> end nested instantiation";
-            // propagate aggregate
-            std::ignore = state_->propagate();
-            return it->value().state() != (positive_ ? AtomBdAggrState::unknown : AtomBdAggrState::fact);
+            return it->first.value().state() != (positive_ ? AtomBdAggrState::unknown : AtomBdAggrState::fact);
         }
         return false;
     }
@@ -731,7 +732,7 @@ auto LitBdAggrStrat::do_matcher([[maybe_unused]] MatcherType type, [[maybe_unuse
     Queue queue;
     lin.start(queue);
     for (auto &elem : elems_) {
-        lin.prepare(elem, elem.body(), {state_->global().begin(), state_->global().end()});
+        lin.prepare(elem, elem.body(), elem.important());
     }
     return {std::make_unique<MatcherBdAggrStrat>(*state_, queue.release(), offset_, sign_ != Sign::once), std::nullopt};
 }

@@ -211,7 +211,7 @@ class StateBdAggr {
     //!
     //! This function also enqueues freshly inserted atoms to cover the case
     //! that the aggregate matches the empty element set.
-    auto insert_atom(SymbolStore &store, Assignment &ass) -> std::optional<AtomMap::iterator>;
+    auto insert_atom(SymbolStore &store, Assignment &ass) -> std::optional<std::pair<AtomMap::iterator, bool>>;
 
     //! Insert a previously evaluated atom.
     //!

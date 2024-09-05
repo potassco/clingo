@@ -715,7 +715,8 @@ class BuilderBdLit {
         auto mon = Input::reduct_is_monotone(lit.lhs(), fun, lit.rhs());
 
         auto elem_priority = ctx_->inc_priority();
-        auto index = ctx_->single_pass_body() && sp_elems ? Ground::stratified_index : ctx_->next_index();
+        // TODO: stratified case for assignment aggregates should also be handlede specially
+        auto index = (!assign || ctx_->single_pass_body()) && sp_elems ? Ground::stratified_index : ctx_->next_index();
 
         if (assign) {
             assert(lit.sign() == Sign::none && guards.size() == 1 && guards.front().first == Relation::equal);
