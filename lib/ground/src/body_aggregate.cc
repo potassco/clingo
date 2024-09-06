@@ -671,9 +671,9 @@ class MatcherBdAggrStrat : public OnceMatcher {
         : state_{&state}, insts_{std::move(insts)}, offset_{&offset}, positive_{positive} {}
 
   private:
-    void do_init(SymbolStore &store, size_t gen) override {
+    void do_init(SymbolStore &store, [[maybe_unused]] size_t gen) override {
         for (auto &inst : insts_) {
-            inst.init(store, gen);
+            inst.init(store, 0);
         }
     }
     auto do_once(InstantiationContext &ctx) -> bool override {
@@ -695,6 +695,9 @@ class MatcherBdAggrStrat : public OnceMatcher {
                 GRINGO_REPORT(ctx.log(), trace) << ">>> end nested instantiation";
                 // propagate aggregate
                 std::ignore = state_->propagate();
+                // ensure that base comprises all atoms
+                // (note that the call could be omitted as well)
+                state_->base().update(0);
             }
             return it->first.value().state() != (positive_ ? AtomBdAggrState::unknown : AtomBdAggrState::fact);
         }

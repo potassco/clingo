@@ -179,7 +179,7 @@ class StateBdAggr {
 
     //! Get the global variables in the aggregate.
     [[nodiscard]] auto global() const -> VariableVec const &;
-    //! Get the global variables in the aggregate.
+    //! Get a buffer to store values for global variables.
     [[nodiscard]] auto symbols() -> SymbolVec &;
     //! Get the non-ground guards of the aggregate.
     [[nodiscard]] auto guards() const -> GuardVec const &;

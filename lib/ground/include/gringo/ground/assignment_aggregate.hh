@@ -161,6 +161,8 @@ class StateAssignAggr {
     //!
     //! This does not include the variables of the guard.
     [[nodiscard]] auto global() const -> VariableVec const &;
+    //! Get a buffer to store values for global variables.
+    [[nodiscard]] auto symbols() -> SymbolVec &;
     //! Get the target term to assign values to.
     [[nodiscard]] auto term() const -> Term const &;
     //! Get the aggregate function.
@@ -184,7 +186,7 @@ class StateAssignAggr {
     //!
     //! This function also enqueues freshly inserted atoms to cover the case
     //! that the aggregate matches the empty element set.
-    auto insert_atom(Assignment &ass) -> AtomMap::iterator;
+    auto insert_atom(Assignment &ass) -> std::pair<AtomMap::iterator, bool>;
 
     //! Insert an aggregate element.
     void insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iterator it, UTermVec const &tuple,
@@ -209,6 +211,7 @@ class StateAssignAggr {
     BaseAssignAggr base_;
     ElementMap tuples_;
     VariableVec global_;
+    SymbolVec symbols_;
     UTerm term_;
     std::vector<size_t> queue_;
     std::pmr::monotonic_buffer_resource *mbr_;
@@ -217,7 +220,7 @@ class StateAssignAggr {
     AggregateFunction fun_;
 };
 
-//! A term like object used to match conditional literals and their elements.
+//! A term like object to match assignment aggregates.
 class MatchAssignAggr {
   public:
     //! The key to match against.
@@ -250,7 +253,7 @@ class MatchAssignAggr {
     StateAssignAggr *state_;
 };
 
-//! Literal representing an aggregate.
+//! Literal representing an assignment aggregate.
 class LitAssignAggr : public Lit, private MatchAssignAggr {
   public:
     //! Construct an assignment aggregate literal.
@@ -300,6 +303,14 @@ class StmAssignAggrElem : public Stm {
     StmAssignAggrElem(StateAssignAggr &state, UTermVec tuple, ULitVec body, size_t num_cond, size_t priority)
         : state_{&state}, tuple_{std::move(tuple)}, body_{std::move(body)}, num_cond_{num_cond}, priority_{priority} {}
 
+    //! Copy the statement.
+    StmAssignAggrElem(StmAssignAggrElem const &other)
+        : state_{other.state_}, tuple_{copy_uvec(other.tuple_)}, body_{copy_uvec(other.body_)},
+          num_cond_{other.num_cond_}, priority_{other.priority_} {};
+    StmAssignAggrElem(StmAssignAggrElem &&other) noexcept = default;
+    auto operator=(StmAssignAggrElem const &other) -> StmAssignAggrElem & = default;
+    auto operator=(StmAssignAggrElem &&other) noexcept -> StmAssignAggrElem & = default;
+
   private:
     [[nodiscard]] auto do_body() const -> ULitVec const & override;
     [[nodiscard]] auto do_important() const -> VariableSet override;
@@ -317,6 +328,45 @@ class StmAssignAggrElem : public Stm {
     ULitVec body_;
     size_t num_cond_;
     size_t priority_;
+};
+
+static_assert(std::is_nothrow_move_constructible_v<StmAssignAggrElem>);
+static_assert(std::is_nothrow_move_assignable_v<StmAssignAggrElem>);
+static_assert(std::is_copy_assignable_v<StmAssignAggrElem>);
+
+//! Literal representing a stratified assignment aggregate.
+class LitAssignAggrStrat : public Lit, private MatchAssignAggr {
+  public:
+    //! Construct an assignment aggregate literal.
+    LitAssignAggrStrat(StateAssignAggr &state, std::vector<StmAssignAggrElem> elems)
+        : MatchAssignAggr{state}, elems_{std::move(elems)} {}
+
+  private:
+    void do_vars(VariableSet &vars, VarSelectMode mode) const override;
+
+    [[nodiscard]] auto do_domain() const -> bool override;
+
+    [[nodiscard]] auto do_single_pass() const -> bool override;
+
+    [[nodiscard]] auto
+    do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+
+    [[nodiscard]] auto do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double override;
+
+    void do_print(std::ostream &out) const override;
+
+    auto do_output([[maybe_unused]] InstantiationContext &ctx, OutputLit &out) const -> bool override;
+
+    [[nodiscard]] auto do_copy() const -> ULit override;
+
+    [[nodiscard]] auto do_hash() const -> size_t override;
+
+    [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
+
+    [[nodiscard]] auto do_compare_to(Lit const &other) const -> std::weak_ordering override;
+
+    std::vector<StmAssignAggrElem> elems_;
+    size_t offset_ = invalid_offset;
 };
 
 } // namespace Gringo::Ground

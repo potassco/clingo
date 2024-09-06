@@ -245,6 +245,11 @@ auto operator==(StateAssignAggr::ElementKey const &a, StateAssignAggr::ElementKe
 
 auto StateAssignAggr::global() const -> VariableVec const & { return global_; }
 
+auto StateAssignAggr::symbols() -> SymbolVec & {
+    symbols_.resize(global_.size());
+    return symbols_;
+}
+
 auto StateAssignAggr::term() const -> Term const & { return *term_; }
 
 auto StateAssignAggr::fun() const -> AggregateFunction { return fun_; }
@@ -304,14 +309,14 @@ void StateAssignAggr::enqueue_(AtomMap::iterator it) {
     }
 }
 
-auto StateAssignAggr::insert_atom(Assignment &ass) -> AtomMap::iterator {
+auto StateAssignAggr::insert_atom(Assignment &ass) -> std::pair<AtomMap::iterator, bool> {
     AtomKey::construct(*mbr_, ass, global_, atom_key_);
     auto [it, ins] = base_.atoms().try_emplace(atom_key_->syms(), fun_);
     if (ins) {
         atom_key_ = nullptr;
         enqueue_(it);
     }
-    return it;
+    return {it, ins};
 }
 
 void StateAssignAggr::insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iterator it, UTermVec const &tuple,
@@ -510,7 +515,7 @@ void StmAssignAggrElem::do_init([[maybe_unused]] size_t gen) {
 auto StmAssignAggrElem::do_report(InstantiationContext &ctx) -> bool {
     auto &ass = ctx.ass();
     // insert aggregate atom
-    auto it = state_->insert_atom(ass);
+    auto it = state_->insert_atom(ass).first;
     auto get_cond = [this, &ctx]() {
         // output the condition
         bool fact = true;
@@ -553,5 +558,126 @@ void StmAssignAggrElem::do_print(std::ostream &out) const {
     }
     out << " <- " << Util::p_range(body_, ", ", [](std::ostream &out, auto const &lit) { out << *lit; }) << ".";
 }
+
+// definition of LitAssignAggrStrat
+
+namespace {
+
+class MatcherAssignAggrStrat : public Matcher {
+  public:
+    MatcherAssignAggrStrat(StateAssignAggr &state, std::vector<Instantiator> insts, UMatcher matcher)
+        : state_{&state}, insts_{std::move(insts)}, matcher_{std::move(matcher)} {}
+
+  private:
+    void do_init(SymbolStore &store, [[maybe_unused]] size_t gen) override {
+        for (auto &inst : insts_) {
+            inst.init(store, 0);
+        }
+        matcher_->init(store, 0);
+    }
+    void do_match(InstantiationContext &ctx) override {
+        auto &ass = ctx.ass();
+        auto [it, ins] = state_->insert_atom(ass);
+        if (ins) {
+            // bind global variables
+            auto jt = state_->symbols().begin();
+            for (auto const &var : state_->global()) {
+                // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+                *jt++ = *ass[var];
+            }
+            // ground elems
+            GRINGO_REPORT(ctx.log(), trace) << "<<< begin nested instantiation";
+            for (auto &inst : insts_) {
+                std::ignore = inst.instantiate(ctx.log(), ctx.store(), ctx.out());
+            }
+            GRINGO_REPORT(ctx.log(), trace) << ">>> end nested instantiation";
+            // propagate aggregate
+            std::ignore = state_->propagate(ctx.store());
+            // ensure that base comprises all atoms
+            state_->base().update(0);
+        }
+        matcher_->match(ctx);
+    }
+    [[nodiscard]] auto do_next(InstantiationContext &ctx) -> bool override { return matcher_->next(ctx); }
+    void do_print(std::ostream &out) const override { matcher_->print(out); }
+    [[nodiscard]] auto do_type() const -> MatcherType override { return matcher_->type(); }
+
+    StateAssignAggr *state_;
+    InstantiatorVec insts_;
+    UMatcher matcher_;
+};
+
+} // namespace
+
+void LitAssignAggrStrat::do_vars(VariableSet &vars, VarSelectMode mode) const {
+    if (mode != VarSelectMode::provide) {
+        vars.insert(state().global().begin(), state().global().end());
+    }
+    if (mode != VarSelectMode::depend) {
+        state().term().vars(vars);
+    }
+}
+
+auto LitAssignAggrStrat::do_domain() const -> bool {
+    assert(state().single_pass_elems());
+    return state().domain_elems();
+}
+
+auto LitAssignAggrStrat::do_single_pass() const -> bool {
+    assert(state().single_pass_elems());
+    return true;
+}
+
+auto LitAssignAggrStrat::do_matcher(MatcherType type,
+                                    std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
+    offset_ = invalid_offset;
+    Linearizer lin;
+    Queue queue;
+    lin.start(queue);
+    for (auto &elem : elems_) {
+        lin.prepare(elem, elem.body(), elem.important());
+    }
+    auto &match = static_cast<MatchAssignAggr &>(*this);
+    return {std::make_unique<MatcherAssignAggrStrat>(state(), queue.release(),
+                                                     make_atom_matcher(bound, state().base(), match, type, offset_)),
+            std::nullopt};
+}
+
+auto LitAssignAggrStrat::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double {
+    // Note: at the time of score computation the aggregate is still empty.
+    // Since we decided to split earlier, matching them should always be
+    // better than using their body prefix.
+    return domain() ? 0 : std::numeric_limits<double>::max();
+}
+
+void LitAssignAggrStrat::do_print(std::ostream &out) const { state().print(out); }
+
+auto LitAssignAggrStrat::do_output([[maybe_unused]] InstantiationContext &ctx, OutputLit &out) const -> bool {
+    assert(state().single_pass_elems());
+    if (domain()) {
+        return false;
+    }
+    auto &base = state().base();
+    auto it = base.nth(offset_);
+    auto jt = base.atoms().nth(it.key().first);
+    auto const &state_aggr = jt.value();
+    if (state_aggr.is_fact()) {
+        return false;
+    }
+    auto &state_elem = it.value();
+    state_elem = out.bd_aggr(Sign::none, state_elem != invalid_offset ? std::make_optional(state_elem) : std::nullopt);
+    return true;
+}
+
+auto LitAssignAggrStrat::do_copy() const -> ULit { return std::make_unique<LitAssignAggrStrat>(state(), elems_); }
+
+auto LitAssignAggrStrat::do_hash() const -> size_t {
+    // NOLINTNEXTLINE
+    return Util::value_hash_record<LitAssignAggrStrat>(reinterpret_cast<uintptr_t>(this));
+}
+
+auto LitAssignAggrStrat::do_equal_to(Lit const &other) const -> bool { return this == &other; }
+
+auto LitAssignAggrStrat::do_compare_to(Lit const &other) const -> std::weak_ordering { return this <=> &other; }
 
 } // namespace Gringo::Ground

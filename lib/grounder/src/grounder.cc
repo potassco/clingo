@@ -715,40 +715,51 @@ class BuilderBdLit {
         auto mon = Input::reduct_is_monotone(lit.lhs(), fun, lit.rhs());
 
         auto elem_priority = ctx_->inc_priority();
-        // TODO: stratified case for assignment aggregates should also be handlede specially
-        auto index = (!assign || ctx_->single_pass_body()) && sp_elems ? Ground::stratified_index : ctx_->next_index();
+        auto index = sp_elems ? Ground::stratified_index : ctx_->next_index();
 
         if (assign) {
             assert(lit.sign() == Sign::none && guards.size() == 1 && guards.front().first == Relation::equal);
             auto &state = ctx_->state<Ground::StateAssignAggr>(
                 ctx_->mbr(), vars_global.release(), std::move(guards.front().second), fun, index, dom, sp_elems);
 
-            // add rule for empty case
-            // TODO: c&p
-            auto body = Ground::ULitVec{};
-            body.reserve(ctx_->body().size());
-            for (auto const &lit : ctx_->body()) {
-                body.emplace_back(lit->copy());
-            }
-            auto neutral = neutral_val(fun);
-            // TODO: c&p
-            ctx_->gcomp().add(std::make_unique<Ground::StmAssignAggrElem>(
-                state, Util::make_vec<Ground::UTerm>(std::make_unique<Ground::TermSymbol>(neutral)), std::move(body), 0,
-                elem_priority));
-
-            // add rules for elements
-            // TODO: c&p
-            for (auto &[tuple, cond] : elems) {
-                auto num = cond.size();
-                cond.reserve(ctx_->body().size() + cond.size());
-                for (auto const &lit : ctx_->body()) {
-                    cond.emplace_back(lit->copy());
+            if (sp_elems) {
+                // TODO: c&p
+                std::vector<Ground::StmAssignAggrElem> stms;
+                stms.reserve(elems.size());
+                for (auto &[tuple, cond] : elems) {
+                    auto num = cond.size();
+                    cond.emplace_back(std::make_unique<Ground::LitTuple>(state.global(), state.symbols()));
+                    stms.emplace_back(state, std::move(tuple), std::move(cond), num, elem_priority);
                 }
-                ctx_->gcomp().add(std::make_unique<Ground::StmAssignAggrElem>(state, std::move(tuple), std::move(cond),
-                                                                              num, elem_priority));
-            }
+                ctx_->body().emplace_back(std::make_unique<Ground::LitAssignAggrStrat>(state, std::move(stms)));
+            } else {
+                // add rule for empty case
+                // TODO: c&p
+                auto body = Ground::ULitVec{};
+                body.reserve(ctx_->body().size());
+                for (auto const &lit : ctx_->body()) {
+                    body.emplace_back(lit->copy());
+                }
+                auto neutral = neutral_val(fun);
+                // TODO: c&p
+                ctx_->gcomp().add(std::make_unique<Ground::StmAssignAggrElem>(
+                    state, Util::make_vec<Ground::UTerm>(std::make_unique<Ground::TermSymbol>(neutral)),
+                    std::move(body), 0, elem_priority));
 
-            ctx_->body().emplace_back(std::make_unique<Ground::LitAssignAggr>(state));
+                // add rules for elements
+                // TODO: c&p
+                for (auto &[tuple, cond] : elems) {
+                    auto num = cond.size();
+                    cond.reserve(ctx_->body().size() + cond.size());
+                    for (auto const &lit : ctx_->body()) {
+                        cond.emplace_back(lit->copy());
+                    }
+                    ctx_->gcomp().add(std::make_unique<Ground::StmAssignAggrElem>(state, std::move(tuple),
+                                                                                  std::move(cond), num, elem_priority));
+                }
+
+                ctx_->body().emplace_back(std::make_unique<Ground::LitAssignAggr>(state));
+            }
         } else {
             // initialize state
             auto &state = ctx_->state<Ground::StateBdAggr>(ctx_->mbr(), vars_global.release(), std::move(guards), fun,
