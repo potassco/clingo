@@ -441,7 +441,7 @@ auto LitAssignAggr::do_single_pass() const -> bool {
     return state().index() == stratified_index || state().single_pass_elems();
 }
 
-auto LitAssignAggr::do_matcher(MatcherType type,
+auto LitAssignAggr::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
                                std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
     offset_ = invalid_offset;
     auto &match = static_cast<MatchAssignAggr &>(*this);
@@ -449,7 +449,7 @@ auto LitAssignAggr::do_matcher(MatcherType type,
     if (state().index() != stratified_index && type == MatcherType::new_atoms) {
         index = state().index();
     }
-    return {make_atom_matcher(bound, state().base(), match, type, offset_), index};
+    return {make_atom_matcher(mbr, bound, state().base(), match, type, offset_), index};
 }
 
 auto LitAssignAggr::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double {
@@ -628,18 +628,18 @@ auto LitAssignAggrStrat::do_single_pass() const -> bool {
     return true;
 }
 
-auto LitAssignAggrStrat::do_matcher(MatcherType type,
+auto LitAssignAggrStrat::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
                                     std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
     offset_ = invalid_offset;
-    Linearizer lin;
-    Queue queue;
+    auto lin = Linearizer{mbr};
+    auto queue = Queue{};
     lin.start(queue);
     for (auto &elem : elems_) {
         lin.prepare(elem, elem.body(), elem.important());
     }
     auto &match = static_cast<MatchAssignAggr &>(*this);
-    return {std::make_unique<MatcherAssignAggrStrat>(state(), queue.release(),
-                                                     make_atom_matcher(bound, state().base(), match, type, offset_)),
+    return {std::make_unique<MatcherAssignAggrStrat>(
+                state(), queue.release(), make_atom_matcher(mbr, bound, state().base(), match, type, offset_)),
             std::nullopt};
 }
 

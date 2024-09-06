@@ -4,6 +4,8 @@
 
 #include <gringo/ground/instantiator.hh>
 
+#include <memory_resource>
+
 namespace Gringo::Ground {
 
 //! @addtogroup ground_stm
@@ -42,6 +44,8 @@ using UStmVec = std::vector<UStm>;
 //! Helper class to prepare statements for grounding.
 class Linearizer {
   public:
+    //! Construct the linearizer.
+    Linearizer(std::pmr::monotonic_buffer_resource &mbr) : mbr_{&mbr} {}
     //! Indicate that a new domain is being prepared.
     void start(Queue &queue);
     //! Prepare a statement for grounding.
@@ -55,6 +59,7 @@ class Linearizer {
                 ULitVec const &lits) -> std::pair<Instantiator, std::optional<size_t>>;
 
     Queue *iqueue_ = nullptr;
+    std::pmr::monotonic_buffer_resource *mbr_;
     std::vector<size_t> rec_;
     std::vector<std::vector<MatcherType>> todos_;
     std::vector<std::pair<size_t, size_t>> queue_;

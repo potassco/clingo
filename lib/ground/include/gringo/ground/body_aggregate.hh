@@ -311,7 +311,8 @@ class LitBdAggr : public Lit, private MatchBdAggr {
     [[nodiscard]] auto do_single_pass() const -> bool override;
 
     [[nodiscard]] auto
-    do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
 
     [[nodiscard]] auto do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double override;
 
@@ -399,7 +400,8 @@ class LitBdAggrStrat : public Lit {
     //! Returns true if the aggregate needs only one grounding pass.
     [[nodiscard]] auto do_single_pass() const -> bool override;
     [[nodiscard]] auto
-    do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double override;
     void do_print(std::ostream &out) const override;
     auto do_output([[maybe_unused]] InstantiationContext &ctx, OutputLit &out) const -> bool override;

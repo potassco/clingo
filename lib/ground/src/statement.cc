@@ -125,7 +125,7 @@ auto Linearizer::order_(InstanceCallback &cb, std::vector<MatcherType> const &to
         if (!done.emplace(lits[i].get()).second && todo[i] == MatcherType::all_atoms) {
             continue;
         }
-        auto [matcher, index] = lits[i]->matcher(todo[i], bound);
+        auto [matcher, index] = lits[i]->matcher(*mbr_, todo[i], bound);
         if (index) {
             res_index = index;
         }

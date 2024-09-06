@@ -87,7 +87,6 @@ struct Grounder::Impl : Gringo::SymbolOwner {
     //! Cleanup step-local state accumulated during grounding.
     //!
     //! - Clear indices associated with domains.
-    //! - Inform output that grounding is finished.
     void post_ground() {
         for (auto const &[key, base] : atom_base) {
             base->clear_context();
@@ -96,6 +95,7 @@ struct Grounder::Impl : Gringo::SymbolOwner {
             state->p_base().clear_context();
         }
         aux_base.clear();
+        mbr.release();
     }
 
     //! Clear indices associated with domains.
@@ -132,6 +132,8 @@ struct Grounder::Impl : Gringo::SymbolOwner {
     //! Add an atom base for the given signature.
     auto add_base(String name, size_t arity, bool sign) { return add_base({name, arity, sign}); }
 
+    //! Memory resource for efficient allocation.
+    std::pmr::monotonic_buffer_resource mbr;
     //! The logger used by the grounder.
     Logger *log;
     //! The store used by the grounder.
@@ -981,7 +983,7 @@ class Builder : public Input::DependencyBuilder {
 
     //! Translate components.
     auto do_components(Input::Components const &comps) -> bool override {
-        auto lin = Ground::Linearizer{};
+        auto lin = Ground::Linearizer{impl_->mbr};
         for (auto const &ref_comps : comps) {
             GRINGO_REPORT(*impl_->log, debug) << "  component";
             for (auto const &ref_comp : ref_comps) {

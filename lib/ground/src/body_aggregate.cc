@@ -511,7 +511,7 @@ auto LitBdAggr::do_single_pass() const -> bool {
     return state().index() == stratified_index || sign_ == Sign::once || state().single_pass_elems();
 }
 
-auto LitBdAggr::do_matcher(MatcherType type,
+auto LitBdAggr::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
                            std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
     symbol_ = nullptr;
     offset_ = invalid_offset;
@@ -528,7 +528,7 @@ auto LitBdAggr::do_matcher(MatcherType type,
     if (state().index() != stratified_index && type == MatcherType::new_atoms) {
         index = state().index();
     }
-    return {make_atom_matcher(bound, state().base(), match, type, offset_), index};
+    return {make_atom_matcher(mbr, bound, state().base(), match, type, offset_), index};
 }
 
 auto LitBdAggr::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double {
@@ -729,10 +729,11 @@ auto LitBdAggrStrat::do_single_pass() const -> bool {
     return true;
 }
 
-auto LitBdAggrStrat::do_matcher([[maybe_unused]] MatcherType type, [[maybe_unused]] std::vector<bool> const &bound)
+auto LitBdAggrStrat::do_matcher(std::pmr::monotonic_buffer_resource &mbr, [[maybe_unused]] MatcherType type,
+                                [[maybe_unused]] std::vector<bool> const &bound)
     -> std::pair<UMatcher, std::optional<size_t>> {
-    Linearizer lin;
-    Queue queue;
+    auto lin = Linearizer{mbr};
+    auto queue = Queue{};
     lin.start(queue);
     for (auto &elem : elems_) {
         lin.prepare(elem, elem.body(), elem.important());

@@ -8,6 +8,8 @@
 
 #include <gringo/util/ordered_map.hh>
 
+#include <memory_resource>
+
 namespace Gringo::Ground {
 
 //! @addtogroup ground_literal
@@ -45,9 +47,9 @@ class Lit {
     //! Such literals are always have a complete state ready to be output.
     [[nodiscard]] auto single_pass() const -> bool { return do_single_pass(); }
     //! Returns true if the base of the literal is complete at the time of grounding.
-    [[nodiscard]] auto matcher(MatcherType type,
+    [[nodiscard]] auto matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
                                std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
-        return do_matcher(type, bound);
+        return do_matcher(mbr, type, bound);
     }
     //! Compute a score used to order rule bodies.
     [[nodiscard]] auto score(std::vector<bool> const &bound) const -> double { return do_score(bound); }
@@ -79,7 +81,8 @@ class Lit {
     [[nodiscard]] virtual auto do_domain() const -> bool = 0;
     [[nodiscard]] virtual auto do_single_pass() const -> bool { return false; }
     [[nodiscard]] virtual auto
-    do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> = 0;
+    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> = 0;
     [[nodiscard]] virtual auto do_score(std::vector<bool> const &bound) const -> double = 0;
     virtual void do_print(std::ostream &out) const = 0;
     virtual auto do_output(InstantiationContext &ctx, OutputLit &out) const -> bool = 0;
@@ -100,7 +103,8 @@ class LitBool : public Lit {
     [[nodiscard]] auto do_domain() const -> bool override;
     [[nodiscard]] auto do_single_pass() const -> bool override;
     [[nodiscard]] auto
-    do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
 
     void do_print(std::ostream &out) const override;
@@ -126,7 +130,8 @@ class LitComparison : public Lit {
     [[nodiscard]] auto do_domain() const -> bool override;
     [[nodiscard]] auto do_single_pass() const -> bool override;
     [[nodiscard]] auto
-    do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
 
     void do_print(std::ostream &out) const override;
@@ -155,7 +160,8 @@ class LitInterval : public Lit {
     [[nodiscard]] auto do_domain() const -> bool override;
     [[nodiscard]] auto do_single_pass() const -> bool override;
     [[nodiscard]] auto
-    do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
 
     void do_print(std::ostream &out) const override;
@@ -189,7 +195,8 @@ class LitFactCheck : public Lit {
     [[nodiscard]] auto do_domain() const -> bool override;
     [[nodiscard]] auto do_single_pass() const -> bool override;
     [[nodiscard]] auto
-    do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
 
     void do_print(std::ostream &out) const override;
@@ -218,7 +225,8 @@ class LitSymbolic : public Lit {
     [[nodiscard]] auto do_domain() const -> bool override;
     [[nodiscard]] auto do_single_pass() const -> bool override;
     [[nodiscard]] auto
-    do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
 
     void do_print(std::ostream &out) const override;
@@ -286,7 +294,8 @@ class LitProject : public Lit {
     [[nodiscard]] auto do_domain() const -> bool override;
     [[nodiscard]] auto do_single_pass() const -> bool override;
     [[nodiscard]] auto
-    do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
     void do_print(std::ostream &out) const override;
     auto do_output(InstantiationContext &ctx, OutputLit &out) const -> bool override;
@@ -320,7 +329,8 @@ class LitTuple : public Lit {
     [[nodiscard]] auto do_domain() const -> bool override;
     [[nodiscard]] auto do_single_pass() const -> bool override;
     [[nodiscard]] auto
-    do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double override;
     void do_print(std::ostream &out) const override;
     auto do_output([[maybe_unused]] InstantiationContext &ctx, OutputLit &out) const -> bool override;

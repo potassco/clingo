@@ -46,6 +46,7 @@ TEST_CASE("ground_matcher") {
     auto ass = Assignment{};
     auto out = NullOutputStm{};
     auto ctx = InstantiationContext{log, out, *store, ass};
+    auto mbr = std::pmr::monotonic_buffer_resource{};
 
     SECTION("once") {
         auto matcher = make_once_matcher();
@@ -166,7 +167,7 @@ TEST_CASE("ground_matcher") {
         std::vector<bool> const bound = {false};
         // match all
         auto o1 = size_t{0};
-        auto m1 = make_atom_matcher(bound, base, *term, MatcherType::all_atoms, o1);
+        auto m1 = make_atom_matcher(mbr, bound, base, *term, MatcherType::all_atoms, o1);
         m1->init(*store, 0);
         m1->match(ctx);
         base.add(sym(1, 4), AtomState::derived);
@@ -187,7 +188,7 @@ TEST_CASE("ground_matcher") {
         REQUIRE(!m1->next(ctx));
         base.add(sym(1, 6), AtomState::derived);
         // match old
-        m1 = make_atom_matcher(bound, base, *term, MatcherType::old_atoms, o1);
+        m1 = make_atom_matcher(mbr, bound, base, *term, MatcherType::old_atoms, o1);
         m1->init(*store, 1);
         REQUIRE(m1->next(ctx));
         REQUIRE(ass[0] == store->num_ref(1));
@@ -195,7 +196,7 @@ TEST_CASE("ground_matcher") {
         REQUIRE(ass[0] == store->num_ref(3));
         REQUIRE(!m1->next(ctx));
         // match new
-        m1 = make_atom_matcher(bound, base, *term, MatcherType::new_atoms, o1);
+        m1 = make_atom_matcher(mbr, bound, base, *term, MatcherType::new_atoms, o1);
         m1->init(*store, 1);
         m1->match(ctx);
         REQUIRE(m1->next(ctx));
@@ -224,9 +225,9 @@ TEST_CASE("ground_matcher") {
         std::vector<bool> const v1 = {true, false, false};
         std::vector<bool> const v2 = {true, true, false};
         auto o1 = size_t{0};
-        auto m1 = make_atom_matcher(v1, base, *t1, MatcherType::new_atoms, o1);
+        auto m1 = make_atom_matcher(mbr, v1, base, *t1, MatcherType::new_atoms, o1);
         auto o2 = size_t{0};
-        auto m2 = make_atom_matcher(v2, base, *t2, MatcherType::new_atoms, o2);
+        auto m2 = make_atom_matcher(mbr, v2, base, *t2, MatcherType::new_atoms, o2);
         base.add(sym(1, 1, 1), AtomState::derived);
         base.add(sym(1, 1, 2), AtomState::derived);
         base.add(sym(2, 2, 2), AtomState::derived);

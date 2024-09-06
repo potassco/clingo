@@ -41,7 +41,8 @@ void LitInterval::do_vars(VariableSet &vars, VarSelectMode mode) const {
     }
 }
 
-auto LitInterval::do_matcher([[maybe_unused]] MatcherType type,
+auto LitInterval::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resource &mbr,
+                             [[maybe_unused]] MatcherType type,
                              std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
     return {make_interval_matcher(bound, *lhs_, *lower_, *upper_), std::nullopt};
 }
@@ -108,7 +109,8 @@ auto LitBool::do_single_pass() const -> bool { return true; }
 
 void LitBool::do_vars([[maybe_unused]] VariableSet &vars, [[maybe_unused]] VarSelectMode mode) const {}
 
-auto LitBool::do_matcher([[maybe_unused]] MatcherType type, [[maybe_unused]] std::vector<bool> const &bound)
+auto LitBool::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resource &mbr, [[maybe_unused]] MatcherType type,
+                         [[maybe_unused]] std::vector<bool> const &bound)
     -> std::pair<UMatcher, std::optional<size_t>> {
     if (value_) {
         return {make_once_matcher(), std::nullopt};
@@ -192,7 +194,8 @@ void LitComparison::do_vars(VariableSet &vars, VarSelectMode mode) const {
     }
 }
 
-auto LitComparison::do_matcher([[maybe_unused]] MatcherType type, [[maybe_unused]] std::vector<bool> const &bound)
+auto LitComparison::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resource &mbr,
+                               [[maybe_unused]] MatcherType type, [[maybe_unused]] std::vector<bool> const &bound)
     -> std::pair<UMatcher, std::optional<size_t>> {
     return {make_comp_matcher(bound, *lhs_, cmp_, *rhs_), std::nullopt};
 }
@@ -241,7 +244,8 @@ auto LitFactCheck::do_domain() const -> bool { return true; }
 
 auto LitFactCheck::do_single_pass() const -> bool { return true; }
 
-auto LitFactCheck::do_matcher([[maybe_unused]] MatcherType type, [[maybe_unused]] std::vector<bool> const &bound)
+auto LitFactCheck::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resource &mbr,
+                              [[maybe_unused]] MatcherType type, [[maybe_unused]] std::vector<bool> const &bound)
     -> std::pair<UMatcher, std::optional<size_t>> {
     return {make_non_fact_matcher(*base_, *atom_, *target_), std::nullopt};
 }
@@ -335,7 +339,7 @@ void LitSymbolic::do_vars(VariableSet &vars, VarSelectMode mode) const {
     }
 }
 
-auto LitSymbolic::do_matcher(MatcherType type,
+auto LitSymbolic::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
                              std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
     offset_ = invalid_offset;
     if (sign_ == Sign::once) {
@@ -349,7 +353,7 @@ auto LitSymbolic::do_matcher(MatcherType type,
     if (index_ != stratified_index && type == MatcherType::new_atoms) {
         index = index_;
     }
-    return {make_atom_matcher(bound, *base_, *atom_, type, offset_), index};
+    return {make_atom_matcher(mbr, bound, *base_, *atom_, type, offset_), index};
 }
 
 auto LitSymbolic::do_score(std::vector<bool> const &bound) const -> double {
@@ -467,7 +471,7 @@ void LitProject::do_vars(VariableSet &vars, VarSelectMode mode) const {
     }
 }
 
-auto LitProject::do_matcher(MatcherType type,
+auto LitProject::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
                             std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
     class MatcherProject : public Matcher {
       public:
@@ -499,7 +503,7 @@ auto LitProject::do_matcher(MatcherType type,
     if (index_ != stratified_index && type == MatcherType::new_atoms) {
         index = index_;
     }
-    return {m(make_atom_matcher(bound, state_->p_base(), *p_atom_, type, offset_)), index};
+    return {m(make_atom_matcher(mbr, bound, state_->p_base(), *p_atom_, type, offset_)), index};
 }
 
 auto LitProject::do_score(std::vector<bool> const &bound) const -> double {
@@ -572,7 +576,7 @@ auto LitTuple::do_domain() const -> bool { return true; }
 
 auto LitTuple::do_single_pass() const -> bool { return true; }
 
-auto LitTuple::do_matcher([[maybe_unused]] MatcherType type,
+auto LitTuple::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resource &mbr, [[maybe_unused]] MatcherType type,
                           std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
     VariableVec bind;
     for (auto const &var : vars_) {

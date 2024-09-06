@@ -117,8 +117,8 @@ auto make_non_fact_matcher(Base &base, Match const &match, typename Match::Key &
 //!
 //! A base and an atom implementing the IsBase and IsMatch concepts must be given.
 template <IsBase Base, IsMatch Match>
-auto make_atom_matcher(std::vector<bool> const &bound, Base &base, Match const &atom, MatcherType type,
-                       size_t &offset) -> UMatcher;
+auto make_atom_matcher(std::pmr::monotonic_buffer_resource &mbr, std::vector<bool> const &bound, Base &base,
+                       Match const &atom, MatcherType type, size_t &offset) -> UMatcher;
 
 namespace Detail {
 
@@ -315,7 +315,8 @@ template <IsBase Base> class HashIndex {
     using KeyIterator = IndexMap::iterator;
     using ValIterator = SymbolVec::iterator;
 
-    HashIndex(Base &base, size_t bound) : base_{&base}, index_{0, Util::value_hasher{}, KeyEqual{bound}} {
+    HashIndex(std::pmr::monotonic_buffer_resource &mbr, Base &base, size_t bound)
+        : mbr_{&mbr}, base_{&base}, index_{0, Util::value_hasher{}, KeyEqual{bound}} {
         assert(bound > 0);
         temp_values_.reserve(bound);
     }
@@ -343,7 +344,7 @@ template <IsBase Base> class HashIndex {
                 if (m.match(store, base_->nth(imported_).key(), ass)) {
                     if (key_ == nullptr) {
                         key_ =
-                            static_cast<Symbol *>(mbr_.allocate(bound_vars.size() * sizeof(Symbol), alignof(Symbol)));
+                            static_cast<Symbol *>(mbr_->allocate(bound_vars.size() * sizeof(Symbol), alignof(Symbol)));
                     }
                     auto *it = key_;
                     for (auto &var : bound_vars) {
@@ -378,9 +379,9 @@ template <IsBase Base> class HashIndex {
     }
 
   private:
+    std::pmr::monotonic_buffer_resource *mbr_;
     Base *base_;
     SymbolVec temp_values_;
-    std::pmr::monotonic_buffer_resource mbr_;
     Symbol *key_ = nullptr;
     IndexMap index_;
     size_t imported_ = 0;
@@ -515,10 +516,10 @@ template <IsBase Base, class Sig> class IndexSet : public BaseContext {
         return *it->second;
     }
 
-    auto add_hash(Base &base, Sig sig, size_t bound) -> HashIndex<Base> & {
+    auto add_hash(std::pmr::monotonic_buffer_resource &mbr, Base &base, Sig sig, size_t bound) -> HashIndex<Base> & {
         auto it = hash_.try_emplace(std::move(sig), nullptr).first;
         if (it->second == nullptr) {
-            it.value() = std::make_unique<HashIndex<Base>>(base, bound);
+            it.value() = std::make_unique<HashIndex<Base>>(mbr, base, bound);
         }
         return *it->second;
     }
@@ -574,8 +575,8 @@ template <IsMatch Match> class EvalMatcher : public OnceMatcher {
 } // namespace Detail
 
 template <IsBase Base, IsMatch Match>
-auto make_atom_matcher(std::vector<bool> const &bound, Base &base, Match const &atom, MatcherType type,
-                       size_t &offset) -> UMatcher {
+auto make_atom_matcher(std::pmr::monotonic_buffer_resource &mbr, std::vector<bool> const &bound, Base &base,
+                       Match const &atom, MatcherType type, size_t &offset) -> UMatcher {
     VariableSet bind = atom.vars();
     VariableSet lookup;
     erase_if(bind, [&bound, &lookup](auto const &var) {
@@ -601,7 +602,7 @@ auto make_atom_matcher(std::vector<bool> const &bound, Base &base, Match const &
                                                                     offset);
     }
     // at least two variables are bound and some are unbound: general case
-    auto &hash = ctx.add_hash(base, atom.signature(lookup, bind), lookup.size());
+    auto &hash = ctx.add_hash(mbr, base, atom.signature(lookup, bind), lookup.size());
     return std::make_unique<Detail::HashMatcher<Base, Match>>(hash, atom, lookup.release(), bind.release(), type,
                                                               offset);
 }

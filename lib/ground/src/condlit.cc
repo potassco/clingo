@@ -313,7 +313,7 @@ auto LitCondLit::do_domain() const -> bool { return type() != LitCondLitType::li
 
 auto LitCondLit::do_single_pass() const -> bool { return index_ == stratified_index; }
 
-auto LitCondLit::do_matcher(MatcherType type,
+auto LitCondLit::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
                             std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
     auto index = std::optional<size_t>{};
     if (index_ != std::numeric_limits<size_t>::max() && type == MatcherType::new_atoms) {
@@ -321,12 +321,12 @@ auto LitCondLit::do_matcher(MatcherType type,
     }
     auto &match = static_cast<MatchCondLit &>(*this);
     if (this->type() == LitCondLitType::empty) {
-        return {make_atom_matcher(bound, state().base_empty(), match, type, offset_), index};
+        return {make_atom_matcher(mbr, bound, state().base_empty(), match, type, offset_), index};
     }
     if (this->type() == LitCondLitType::premise) {
-        return {make_atom_matcher(bound, state().base_premise(), match, type, offset_), index};
+        return {make_atom_matcher(mbr, bound, state().base_premise(), match, type, offset_), index};
     }
-    return {make_atom_matcher(bound, state().base_lit(), match, type, offset_), index};
+    return {make_atom_matcher(mbr, bound, state().base_lit(), match, type, offset_), index};
 }
 
 auto LitCondLit::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return 1; }
@@ -458,10 +458,11 @@ auto LitCondLitStrat::do_domain() const -> bool { return state_->domain(); }
 
 auto LitCondLitStrat::do_single_pass() const -> bool { return true; }
 
-auto LitCondLitStrat::do_matcher([[maybe_unused]] MatcherType type, [[maybe_unused]] std::vector<bool> const &bound)
+auto LitCondLitStrat::do_matcher(std::pmr::monotonic_buffer_resource &mbr, [[maybe_unused]] MatcherType type,
+                                 [[maybe_unused]] std::vector<bool> const &bound)
     -> std::pair<UMatcher, std::optional<size_t>> {
-    Queue queue;
-    Linearizer lin;
+    auto lin = Linearizer{mbr};
+    auto queue = Queue{};
     lin.start(queue);
     lin.prepare(static_cast<InstanceCallback &>(*this), premise_, state_->vars(true));
     auto insts = queue.release();

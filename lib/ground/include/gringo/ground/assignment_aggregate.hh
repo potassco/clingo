@@ -268,7 +268,8 @@ class LitAssignAggr : public Lit, private MatchAssignAggr {
     [[nodiscard]] auto do_single_pass() const -> bool override;
 
     [[nodiscard]] auto
-    do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
 
     [[nodiscard]] auto do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double override;
 
@@ -349,7 +350,8 @@ class LitAssignAggrStrat : public Lit, private MatchAssignAggr {
     [[nodiscard]] auto do_single_pass() const -> bool override;
 
     [[nodiscard]] auto
-    do_matcher(MatcherType type, std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
 
     [[nodiscard]] auto do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double override;
 
