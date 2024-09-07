@@ -206,6 +206,7 @@ void ClingoControl::parse(const StringVec& files, const ClingoOptions& opts, Cla
         out_ = gringo_make_unique<Output::OutputBase>(*data_, std::move(outPreds), std::cout, opts.outputFormat, opts.outputOptions);
     }
     out_->keepFacts = opts.keepFacts;
+    preserveFacts_ = opts.outputOptions.preserveFacts;
     aspif_bck_ = gringo_make_unique<ControlBackend>(*this);
     pb_ = gringo_make_unique<Input::NongroundProgramBuilder>(scripts_, prg_, out_->outPreds, defs_, opts.rewriteMinimize);
     parser_ = gringo_make_unique<Input::NonGroundParser>(*pb_, *aspif_bck_, incmode_);
@@ -524,6 +525,19 @@ void ClingoControl::prepare(Assumptions ass) {
         }
         prePrepare(*clasp_);
         clasp_->prepare(enableEnumAssupmption_ ? Clasp::ClaspFacade::enum_volatile : Clasp::ClaspFacade::enum_static);
+        if (!preserveFacts_ && clasp_->program()) {
+            // NB: If facts are not preserved in the output, clasp's "show" state is incomplete wrt to shown facts.
+            //     For now, we explicitly restore the state here. Alternatively, we could adjust Atomtab::output() so
+            //     that it always passes the atom id to the backend, or we could just maintain the set of "shown" atoms
+            //     in ClingoControl.
+            auto &prg = static_cast<Clasp::Asp::LogicProgram&>(*clasp_->program());
+            (void) out_->atoms(clingo_show_type_shown, [&](unsigned uid) {
+                if (prg.isFact(uid) && !prg.isShown(uid)) {
+                    prg.addOutputState(uid, Clasp::Asp::LogicProgram::OutputState::out_shown);
+                }
+                return false;
+            });
+        }
         preSolve(*clasp_);
     }
     out_->reset(data_ || (clasp_ && clasp_->program()));

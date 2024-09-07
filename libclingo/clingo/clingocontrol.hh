@@ -341,7 +341,7 @@ public:
     bool                                                       initialized_           = false;
     bool                                                       incmode_               = false;
     bool                                                       canClean_              = false;
-
+    bool                                                       preserveFacts_         = false;
 };
 
 // {{{1 declaration of ClingoModel
@@ -396,16 +396,21 @@ public:
         return ctl_.getDomain();
     }
     bool isTrue(Potassco::Lit_t lit) const override {
-      return model_->isTrue(lp().getLiteral(lit));
+        return model_->isTrue(lp().getLiteral(lit));
     }
     ConsequenceType isConsequence(Potassco::Lit_t literal) const override {
-      if (model_->isDef(lp().getLiteral(literal))) {
-          return ConsequenceType::True;
-      }
-      if (model_->isEst(lp().getLiteral(literal))) {
-          return ConsequenceType::Unknown;
-      }
-      return ConsequenceType::False;
+        auto lit = lp().getLiteral(literal);
+        auto res = ConsequenceType::False;
+        if (model_->isDef(lit)) {
+            res = ConsequenceType::True;
+        }
+        else if (model_->isEst(lit)) {
+            res = ConsequenceType::Unknown;
+        }
+        if (res != ConsequenceType::False && !isProjected(literal)) {
+            res = ConsequenceType::False;
+        }
+        return res;
     }
     ModelType type() const override {
         if (model_->type & Clasp::Model::Brave) { return ModelType::BraveConsequences; }
@@ -418,9 +423,15 @@ public:
     bool optimality_proven() const override { return model_->opt; }
     ClingoControl &context() { return ctl_; }
 private:
-    Clasp::Asp::LogicProgram const &lp() const    { return *static_cast<Clasp::Asp::LogicProgram*>(ctl_.clasp_->program()); };
+    Clasp::Asp::LogicProgram const &lp() const { return *static_cast<Clasp::Asp::LogicProgram*>(ctl_.clasp_->program()); };
     Output::OutputBase const &out() const { return *ctl_.out_; };
-    Clasp::SharedContext const &ctx() const       { return ctl_.clasp_->ctx; };
+    Clasp::SharedContext const &ctx() const { return ctl_.clasp_->ctx; };
+    bool isProjected(Potassco::Lit_t literal) const {
+        if (ctl_.clasp_->ctx.output.projectMode() == Clasp::ProjectMode_t::Explicit) {
+            return lp().isProjected(literal);
+        }
+        return lp().isShown(literal);
+    }
     ClingoControl          &ctl_;
     Clasp::Model const     *model_;
     mutable SymVec  atms_;
