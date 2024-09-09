@@ -12,14 +12,13 @@
 namespace Gringo::Ground {
 
 //! Derivation state of body aggregates.
-enum class AtomBdAggrState : uint8_t {
+enum class AtomHdAggrState : uint8_t {
     unknown = 0, //!< The aggregate has not yet been derived.
     derived = 1, //!< The aggr has been derived.
-    fact = 2,    //!< The aggregate has been derived as a fact.
 };
 
 //! Extensible ground representation of body aggregates.
-class AtomBdAggr {
+class AtomHdAggr {
   public:
     //! The lower and upper bound for the value an aggregate can take.
     //!
@@ -28,7 +27,7 @@ class AtomBdAggr {
     using Bound = std::variant<std::pair<Number, Number>, std::pair<Symbol, Symbol>>;
 
     //! Initialize for the given aggregate function.
-    AtomBdAggr(AggregateFunction fun) : bound_{init_(fun)} {}
+    AtomHdAggr(AggregateFunction fun) : bound_{init_(fun)} {}
 
     //! Accumulate a tuple.
     void accumulate(AggregateFunction fun, SymbolSpan tup, bool fact);
@@ -50,11 +49,11 @@ class AtomBdAggr {
     void derived_idx(size_t idx);
 
     //! Get the derived state of the aggregate atom.
-    [[nodiscard]] auto state() const -> AtomBdAggrState;
+    [[nodiscard]] auto state() const -> AtomHdAggrState;
     //! Set the derived state of the aggregate atom.
     //!
     //! It must only be derived once.
-    void state(AtomBdAggrState state);
+    void state(AtomHdAggrState state);
 
     //! Enqueue the atom for propagation.
     auto enqueue() -> bool;
@@ -72,7 +71,6 @@ class AtomBdAggr {
 
     //! Get the unique id of the aggregate.
     [[nodiscard]] auto uid() const -> std::optional<size_t>;
-
     //! Set the unique id of the aggregate.
     void uid(size_t uid);
 
@@ -84,19 +82,19 @@ class AtomBdAggr {
     size_t propagated_ = 0;
     size_t derived_idx_ = 0;
     size_t uid_ = invalid_offset;
-    AtomBdAggrState state_ = AtomBdAggrState::unknown;
+    AtomHdAggrState state_ = AtomHdAggrState::unknown;
     bool enqueued_ = false;
 };
 
 //! The base capturing derived body aggregate atoms.
-class BaseBdAggr : public BaseImpl<Symbol const *, BaseBdAggr> {
+class BaseHdAggr : public BaseImpl<Symbol const *, BaseHdAggr> {
   public:
     using BaseImpl::contains;
     //! Map containing the atoms.
-    using AtomMap = Util::ordered_map<Symbol const *, AtomBdAggr, Util::array_hash, Util::array_equal_to>;
+    using AtomMap = Util::ordered_map<Symbol const *, AtomHdAggr, Util::array_hash, Util::array_equal_to>;
 
     //! Construct an empty base.
-    BaseBdAggr(size_t size) : atoms_{0, size, size} {}
+    BaseHdAggr(size_t size) : atoms_{0, size, size} {}
 
     //! Check if the given atom is a fact.
     //!
@@ -129,7 +127,7 @@ class BaseBdAggr : public BaseImpl<Symbol const *, BaseBdAggr> {
 };
 
 //! State storing all necessary information to ground body aggregates.
-class StateBdAggr {
+class StateHdAggr {
   public:
     class AtomKey;
     //! Keys for aggregate elements storing their tuple and their aggregate index.
@@ -165,17 +163,14 @@ class StateBdAggr {
     };
 
     //! A map from global variables (including the guards) to the aggregate representation.
-    using AtomMap = BaseBdAggr::AtomMap;
+    using AtomMap = BaseHdAggr::AtomMap;
     //! A map from tuples to their conditions.
     //!
-    //! Each value in the map represents an aggregate element. The vector of
-    //! condition ids is kept sorted and unique. A small vector is used because
-    //! it should have commonly sizes of zero (a fact) or one (a single
-    //! conditions).
-    using ElementMap = Util::ordered_map<ElementKey *, Util::small_vector<size_t>>;
+    //! Each value in the map represents an aggregate element.
+    using ElementMap = Util::ordered_map<ElementKey *, std::pair<size_t, Util::small_vector<size_t>>>;
 
     //! Initialize an aggregate state.
-    StateBdAggr(std::pmr::monotonic_buffer_resource &mbr, VariableVec global, GuardVec guards, AggregateFunction fun,
+    StateHdAggr(std::pmr::monotonic_buffer_resource &mbr, VariableVec global, GuardVec guards, AggregateFunction fun,
                 size_t index, bool domain, bool monotone, bool single_pass_elems)
         : base_{global.size()}, global_{std::move(global)}, guards_{std::move(guards)}, mbr_{&mbr}, index_{index},
           fun_{fun}, domain_{domain}, monotone_{monotone}, single_pass_elems_{single_pass_elems} {}
@@ -229,7 +224,7 @@ class StateBdAggr {
     void print(std::ostream &out);
 
     //! Get the underlying atom base.
-    [[nodiscard]] auto base() -> BaseBdAggr &;
+    [[nodiscard]] auto base() -> BaseHdAggr &;
 
     //! Output all previously output aggregates.
     void output(OutputStm &out);
@@ -243,7 +238,7 @@ class StateBdAggr {
     //! This index also captures not yet derived atoms.
     auto atom_index_(AtomMap::iterator it) -> size_t;
 
-    BaseBdAggr base_;
+    BaseHdAggr base_;
     ElementMap tuples_;
     VariableVec global_;
     SymbolVec symbols_;
@@ -259,13 +254,13 @@ class StateBdAggr {
 };
 
 //! A term like object used to match conditional literals and their elements.
-class MatchBdAggr {
+class MatchHdAggr {
   public:
     //! The key to match against.
     using Key = Symbol const *;
 
     //! Construct the matcher.
-    MatchBdAggr(StateBdAggr &state) : state_{&state} { eval_.reserve(state_->global().size()); }
+    MatchHdAggr(StateHdAggr &state) : state_{&state} { eval_.reserve(state_->global().size()); }
 
     //! Get the variables of the matcher.
     [[nodiscard]] auto vars() const -> VariableSet;
@@ -281,21 +276,21 @@ class MatchBdAggr {
     [[nodiscard]] auto eval(SymbolStore &store, Assignment &ass) const -> std::optional<Symbol const *>;
 
     //! Print a string representation of the matcher.
-    friend auto operator<<(std::ostream &out, MatchBdAggr const &m) -> std::ostream &;
+    friend auto operator<<(std::ostream &out, MatchHdAggr const &m) -> std::ostream &;
 
     //! Get the associated state.
-    [[nodiscard]] auto state() const -> StateBdAggr &;
+    [[nodiscard]] auto state() const -> StateHdAggr &;
 
   private:
     std::vector<Symbol> mutable eval_;
-    StateBdAggr *state_;
+    StateHdAggr *state_;
 };
 
 //! Literal representing an aggregate.
-class LitBdAggr : public Lit, private MatchBdAggr {
+class LitHdAggr : public Lit, private MatchHdAggr {
   public:
     //! Construct the aggregate literal.
-    LitBdAggr(StateBdAggr &state, Sign sign) : MatchBdAggr{state}, sign_{sign} {}
+    LitHdAggr(StateHdAggr &state, Sign sign) : MatchHdAggr{state}, sign_{sign} {}
 
   private:
     void do_vars(VariableSet &vars, VarSelectMode mode) const override;
@@ -342,23 +337,23 @@ class LitBdAggr : public Lit, private MatchBdAggr {
 //! neutral element has to be used, which is 0/\#sum/\#sup depending on the
 //! type of the aggregate. Count aggregates have to be translated to sum+
 //! aggregates beforehand.
-class StmBdAggrElem : public Stm {
+class StmHdAggrElem : public Stm {
   public:
     //! Construct the statement.
     //!
     //! The first num_cond literals of the body must form the aggregate
     //! element's condition. The following literals are just used for grounding
     //! binding global variables of the aggregate and ensuring safety.
-    StmBdAggrElem(StateBdAggr &state, UTermVec tuple, ULitVec body, size_t num_cond, size_t priority)
+    StmHdAggrElem(StateHdAggr &state, UTermVec tuple, ULitVec body, size_t num_cond, size_t priority)
         : state_{&state}, tuple_{std::move(tuple)}, body_{std::move(body)}, num_cond_{num_cond}, priority_{priority} {}
 
     //! Copy the statement.
-    StmBdAggrElem(StmBdAggrElem const &other)
+    StmHdAggrElem(StmHdAggrElem const &other)
         : state_{other.state_}, tuple_{copy_uvec(other.tuple_)}, body_{copy_uvec(other.body_)},
           num_cond_{other.num_cond_}, priority_{other.priority_} {};
-    StmBdAggrElem(StmBdAggrElem &&other) noexcept = default;
-    auto operator=(StmBdAggrElem const &other) -> StmBdAggrElem & = default;
-    auto operator=(StmBdAggrElem &&other) noexcept -> StmBdAggrElem & = default;
+    StmHdAggrElem(StmHdAggrElem &&other) noexcept = default;
+    auto operator=(StmHdAggrElem const &other) -> StmHdAggrElem & = default;
+    auto operator=(StmHdAggrElem &&other) noexcept -> StmHdAggrElem & = default;
 
   private:
     [[nodiscard]] auto do_body() const -> ULitVec const & override;
@@ -371,23 +366,23 @@ class StmBdAggrElem : public Stm {
     void do_print_head(std::ostream &out) const override;
     void do_print(std::ostream &out) const override;
 
-    StateBdAggr *state_;
-    StateBdAggr::ElementKey *elem_key_ = nullptr;
+    StateHdAggr *state_;
+    StateHdAggr::ElementKey *elem_key_ = nullptr;
     UTermVec tuple_;
     ULitVec body_;
     size_t num_cond_;
     size_t priority_;
 };
 
-static_assert(std::is_nothrow_move_constructible_v<StmBdAggrElem>);
-static_assert(std::is_nothrow_move_assignable_v<StmBdAggrElem>);
-static_assert(std::is_copy_assignable_v<StmBdAggrElem>);
+static_assert(std::is_nothrow_move_constructible_v<StmHdAggrElem>);
+static_assert(std::is_nothrow_move_assignable_v<StmHdAggrElem>);
+static_assert(std::is_copy_assignable_v<StmHdAggrElem>);
 
 //! Literal representing a stratified body aggregate.
-class LitBdAggrStrat : public Lit {
+class LitHdAggrStrat : public Lit {
   public:
     //! Construct the aggregate literal.
-    LitBdAggrStrat(StateBdAggr &state, std::vector<StmBdAggrElem> elems, Sign sign)
+    LitHdAggrStrat(StateHdAggr &state, std::vector<StmHdAggrElem> elems, Sign sign)
         : state_{&state}, elems_{std::move(elems)}, sign_{sign} {}
 
   private:
@@ -413,8 +408,8 @@ class LitBdAggrStrat : public Lit {
     [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
     [[nodiscard]] auto do_compare_to(Lit const &other) const -> std::weak_ordering override;
 
-    StateBdAggr *state_;
-    std::vector<StmBdAggrElem> elems_;
+    StateHdAggr *state_;
+    std::vector<StmHdAggrElem> elems_;
     size_t offset_ = invalid_offset;
     Sign sign_;
 };

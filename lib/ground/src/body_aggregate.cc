@@ -389,7 +389,10 @@ void StateBdAggr::insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iter
         if (fact) {
             jt.value().clear();
         } else if (jns || !jt.value().empty()) {
-            jt.value().emplace_back(cond_id);
+            auto &cond = jt.value();
+            cond.emplace_back(cond_id);
+            std::sort(cond.begin(), cond.end());
+            cond.erase(std::unique(cond.begin(), cond.end()), cond.end());
         }
     }
 }

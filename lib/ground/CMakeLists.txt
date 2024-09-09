@@ -1,13 +1,14 @@
 add_library(gringo_ground
-    "src/body_aggregate.cc"
     "src/assignment_aggregate.cc"
+    "src/body_aggregate.cc"
     "src/condlit.cc"
+    "src/head_aggregate.cc"
     "src/instantiator.cc"
     "src/literal.cc"
+    "src/matcher.cc"
     "src/program.cc"
     "src/statement.cc"
     "src/term.cc"
-    "src/matcher.cc"
     )
 
 target_link_libraries(gringo_ground PUBLIC gringo_core)
