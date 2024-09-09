@@ -35,7 +35,7 @@ namespace Gringo::Ground {
 //! Derivation state of head aggregates.
 enum class AtomHdAggrState : uint8_t {
     unknown = 0, //!< The aggregate has not yet been derived.
-    derived = 1, //!< The aggr has been derived.
+    derived = 1, //!< The aggregate has been derived.
 };
 
 //! Extensible ground representation of head aggregates.

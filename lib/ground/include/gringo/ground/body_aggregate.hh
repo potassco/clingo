@@ -14,7 +14,7 @@ namespace Gringo::Ground {
 //! Derivation state of body aggregates.
 enum class AtomBdAggrState : uint8_t {
     unknown = 0, //!< The aggregate has not yet been derived.
-    derived = 1, //!< The aggr has been derived.
+    derived = 1, //!< The aggregate has been derived.
     fact = 2,    //!< The aggregate has been derived as a fact.
 };
 
