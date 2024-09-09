@@ -11,13 +11,13 @@
 
 namespace Gringo::Ground {
 
-//! Derivation state of body aggregates.
+//! Derivation state of head aggregates.
 enum class AtomHdAggrState : uint8_t {
     unknown = 0, //!< The aggregate has not yet been derived.
     derived = 1, //!< The aggr has been derived.
 };
 
-//! Extensible ground representation of body aggregates.
+//! Extensible ground representation of head aggregates.
 class AtomHdAggr {
   public:
     //! The lower and upper bound for the value an aggregate can take.
@@ -141,6 +141,13 @@ class StateHdAggr {
         [[nodiscard]] static auto construct(auto &mbr, SymbolStore &store, Assignment &ass, AggregateFunction fun,
                                             size_t atom_idx, UTermVec const &tuple, ElementKey *&target) -> bool;
 
+        //! Mark as fact.
+        void mark_fact() const;
+        //! Check if is fact.
+        [[nodiscard]] auto fact() const -> bool;
+
+        //! The number of elements in the tuple.
+        [[nodiscard]] auto size() const -> size_t;
         //! Get the tuple.
         [[nodiscard]] auto span() const -> SymbolSpan;
         //! Compute a hash for the key.
@@ -153,7 +160,7 @@ class StateHdAggr {
                    bool &res);
 
         // Note that these two could be combined to save a little bit of memory.
-        size_t n_;
+        mutable size_t n_;
         size_t atom_idx_;
         // NOLINTBEGIN
         GRINGO_IGNORE_ZERO_SIZED_ARRAY_B
@@ -164,10 +171,11 @@ class StateHdAggr {
 
     //! A map from global variables (including the guards) to the aggregate representation.
     using AtomMap = BaseHdAggr::AtomMap;
-    //! A map from tuples to their conditions.
+    //! A map from tuples to their head atoms and conditions.
     //!
-    //! Each value in the map represents an aggregate element.
-    using ElementMap = Util::ordered_map<ElementKey *, std::pair<size_t, Util::small_vector<size_t>>>;
+    //! Head atoms must be either true or symbolic atoms. We use \#sup to
+    //! represent true. Whether an element is fact is stored in the key.
+    using ElementMap = Util::ordered_map<ElementKey *, Util::small_vector<std::pair<Symbol, size_t>>>;
 
     //! Initialize an aggregate state.
     StateHdAggr(std::pmr::monotonic_buffer_resource &mbr, VariableVec global, GuardVec guards, AggregateFunction fun,
@@ -253,6 +261,7 @@ class StateHdAggr {
     bool single_pass_elems_;
 };
 
+// TODO: there should be no need for a match object
 //! A term like object used to match conditional literals and their elements.
 class MatchHdAggr {
   public:
@@ -286,6 +295,7 @@ class MatchHdAggr {
     StateHdAggr *state_;
 };
 
+// TODO: this will likely become a statement
 //! Literal representing an aggregate.
 class LitHdAggr : public Lit, private MatchHdAggr {
   public:
@@ -378,6 +388,7 @@ static_assert(std::is_nothrow_move_constructible_v<StmHdAggrElem>);
 static_assert(std::is_nothrow_move_assignable_v<StmHdAggrElem>);
 static_assert(std::is_copy_assignable_v<StmHdAggrElem>);
 
+// TODO: this will likely become a statement
 //! Literal representing a stratified body aggregate.
 class LitHdAggrStrat : public Lit {
   public:
