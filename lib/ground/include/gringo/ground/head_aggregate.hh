@@ -11,6 +11,27 @@
 
 namespace Gringo::Ground {
 
+//! Outline:
+//! - A :- B.
+//!   - atoms A are gathered in the aggregate domain
+//!     (on lower priority than the elements)
+//!   - there is no need to enqueue the aggregate
+//!     (stratified aggregates should be handled specially later)
+//! - accu :- A, E.
+//!   - gathers aggregate elements
+//!   - enqueues aggregate A for propagation
+//! - propagate
+//!   - if A can be derived, propagate heads of aggregate elements
+//! - output
+//!   - it might happen that there are empty aggregates that have not been derived
+//!   - they should be handled here
+//! - requirements
+//!   - AtomHdAggr    (to collect head aggregates)
+//!   - StateHdAggr   (to gather state for grounding/output)
+//!   - StmHdAggr     (to derive atoms A)
+//!   - StmHdAggrElem (to accumulate elements)
+//!   - LitHdAggr     (to be used in StmHdAggrElem)
+
 //! Derivation state of head aggregates.
 enum class AtomHdAggrState : uint8_t {
     unknown = 0, //!< The aggregate has not yet been derived.
@@ -86,46 +107,6 @@ class AtomHdAggr {
     bool enqueued_ = false;
 };
 
-//! The base capturing derived body aggregate atoms.
-class BaseHdAggr : public BaseImpl<Symbol const *, BaseHdAggr> {
-  public:
-    using BaseImpl::contains;
-    //! Map containing the atoms.
-    using AtomMap = Util::ordered_map<Symbol const *, AtomHdAggr, Util::array_hash, Util::array_equal_to>;
-
-    //! Construct an empty base.
-    BaseHdAggr(size_t size) : atoms_{0, size, size} {}
-
-    //! Check if the given atom is a fact.
-    //!
-    //! This function does not take into account to which generation an atom belongs.
-    //! It can also return true for atoms added to upcoming generations.
-    auto is_fact(Symbol const *sym) const -> bool;
-    //! Add an atom to the base.
-    //!
-    //! This function should be called during propagation if an aggregate can match.
-    void add(AtomMap::iterator it);
-
-    //! Get the number of derived atoms.
-    [[nodiscard]] auto size() const -> size_t;
-
-    //! Get the atom index of the given symbol.
-    //!
-    //! Note that only derived atoms have indices.
-    auto index(Symbol const *sym) const -> size_t;
-    //! Get the i-th atom in the base.
-    auto nth(size_t i) const -> AtomMap::const_iterator;
-    //! Get the i-th atom in the base.
-    auto nth(size_t i) -> AtomMap::iterator;
-
-    //! Get the underlying atom map (includes atoms not yet derived).
-    [[nodiscard]] auto atoms() -> AtomMap &;
-
-  private:
-    AtomMap atoms_;
-    Util::index_sequence<size_t> derived_;
-};
-
 //! State storing all necessary information to ground body aggregates.
 class StateHdAggr {
   public:
@@ -170,7 +151,7 @@ class StateHdAggr {
     };
 
     //! A map from global variables (including the guards) to the aggregate representation.
-    using AtomMap = BaseHdAggr::AtomMap;
+    using AtomMap = Util::ordered_map<Symbol const *, AtomHdAggr, Util::array_hash, Util::array_equal_to>;
     //! A map from tuples to their head atoms and conditions.
     //!
     //! Head atoms must be either true or symbolic atoms. We use \#sup to
@@ -180,8 +161,8 @@ class StateHdAggr {
     //! Initialize an aggregate state.
     StateHdAggr(std::pmr::monotonic_buffer_resource &mbr, VariableVec global, GuardVec guards, AggregateFunction fun,
                 size_t index, bool domain, bool monotone, bool single_pass_elems)
-        : base_{global.size()}, global_{std::move(global)}, guards_{std::move(guards)}, mbr_{&mbr}, index_{index},
-          fun_{fun}, domain_{domain}, monotone_{monotone}, single_pass_elems_{single_pass_elems} {}
+        : atoms_{0, global.size(), global.size()}, global_{std::move(global)}, guards_{std::move(guards)}, mbr_{&mbr},
+          index_{index}, fun_{fun}, domain_{domain}, monotone_{monotone}, single_pass_elems_{single_pass_elems} {}
 
     //! Get the global variables in the aggregate.
     [[nodiscard]] auto global() const -> VariableVec const &;
@@ -231,9 +212,6 @@ class StateHdAggr {
     //! Print a non-ground representation of the aggregate.
     void print(std::ostream &out);
 
-    //! Get the underlying atom base.
-    [[nodiscard]] auto base() -> BaseHdAggr &;
-
     //! Output all previously output aggregates.
     void output(OutputStm &out);
 
@@ -246,7 +224,7 @@ class StateHdAggr {
     //! This index also captures not yet derived atoms.
     auto atom_index_(AtomMap::iterator it) -> size_t;
 
-    BaseHdAggr base_;
+    AtomMap atoms_;
     ElementMap tuples_;
     VariableVec global_;
     SymbolVec symbols_;
@@ -259,86 +237,6 @@ class StateHdAggr {
     bool domain_;
     bool monotone_;
     bool single_pass_elems_;
-};
-
-// TODO: there should be no need for a match object
-//! A term like object used to match conditional literals and their elements.
-class MatchHdAggr {
-  public:
-    //! The key to match against.
-    using Key = Symbol const *;
-
-    //! Construct the matcher.
-    MatchHdAggr(StateHdAggr &state) : state_{&state} { eval_.reserve(state_->global().size()); }
-
-    //! Get the variables of the matcher.
-    [[nodiscard]] auto vars() const -> VariableSet;
-
-    //! Get the signature of the matcher.
-    [[nodiscard]] auto signature(VariableSet const &bound,
-                                 [[maybe_unused]] VariableSet const &bind) const -> VariableVec;
-
-    //! Match a span of symbols representing an atom or element with the assignment.
-    [[nodiscard]] auto match([[maybe_unused]] SymbolStore &store, Symbol const *sym, Assignment &ass) const -> bool;
-
-    //! Evaluate w.r.t. the given assignment and return a span representing an atom or element.
-    [[nodiscard]] auto eval(SymbolStore &store, Assignment &ass) const -> std::optional<Symbol const *>;
-
-    //! Print a string representation of the matcher.
-    friend auto operator<<(std::ostream &out, MatchHdAggr const &m) -> std::ostream &;
-
-    //! Get the associated state.
-    [[nodiscard]] auto state() const -> StateHdAggr &;
-
-  private:
-    std::vector<Symbol> mutable eval_;
-    StateHdAggr *state_;
-};
-
-// TODO: this will likely become a statement
-//! Literal representing an aggregate.
-class LitHdAggr : public Lit, private MatchHdAggr {
-  public:
-    //! Construct the aggregate literal.
-    LitHdAggr(StateHdAggr &state, Sign sign) : MatchHdAggr{state}, sign_{sign} {}
-
-  private:
-    void do_vars(VariableSet &vars, VarSelectMode mode) const override;
-
-    //! Returns true if matching aggregates are always facts.
-    //!
-    //! The function can only return true if all literals in elements are
-    //! domain. Furthermore, the aggregate must be either monotone or there is
-    //! no recursion through it.
-    //!
-    //! Note that we do not need a stratified index for the latter case. There
-    //! can be recursion through the body prefix.
-    [[nodiscard]] auto do_domain() const -> bool override;
-
-    //! Returns true if the aggregate needs only one grounding pass.
-    [[nodiscard]] auto do_single_pass() const -> bool override;
-
-    [[nodiscard]] auto
-    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
-               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
-
-    [[nodiscard]] auto do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double override;
-
-    void do_print(std::ostream &out) const override;
-
-    auto do_output([[maybe_unused]] InstantiationContext &ctx, OutputLit &out) const -> bool override;
-
-    [[nodiscard]] auto do_copy() const -> ULit override;
-
-    [[nodiscard]] auto do_hash() const -> size_t override;
-
-    [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
-
-    [[nodiscard]] auto do_compare_to(Lit const &other) const -> std::weak_ordering override;
-
-    size_t offset_ = invalid_offset;
-    Symbol const *symbol_ = nullptr;
-    Sign sign_;
 };
 
 //! Gather aggregate elements.
@@ -357,14 +255,6 @@ class StmHdAggrElem : public Stm {
     StmHdAggrElem(StateHdAggr &state, UTermVec tuple, ULitVec body, size_t num_cond, size_t priority)
         : state_{&state}, tuple_{std::move(tuple)}, body_{std::move(body)}, num_cond_{num_cond}, priority_{priority} {}
 
-    //! Copy the statement.
-    StmHdAggrElem(StmHdAggrElem const &other)
-        : state_{other.state_}, tuple_{copy_uvec(other.tuple_)}, body_{copy_uvec(other.body_)},
-          num_cond_{other.num_cond_}, priority_{other.priority_} {};
-    StmHdAggrElem(StmHdAggrElem &&other) noexcept = default;
-    auto operator=(StmHdAggrElem const &other) -> StmHdAggrElem & = default;
-    auto operator=(StmHdAggrElem &&other) noexcept -> StmHdAggrElem & = default;
-
   private:
     [[nodiscard]] auto do_body() const -> ULitVec const & override;
     [[nodiscard]] auto do_important() const -> VariableSet override;
@@ -382,47 +272,6 @@ class StmHdAggrElem : public Stm {
     ULitVec body_;
     size_t num_cond_;
     size_t priority_;
-};
-
-static_assert(std::is_nothrow_move_constructible_v<StmHdAggrElem>);
-static_assert(std::is_nothrow_move_assignable_v<StmHdAggrElem>);
-static_assert(std::is_copy_assignable_v<StmHdAggrElem>);
-
-// TODO: this will likely become a statement
-//! Literal representing a stratified body aggregate.
-class LitHdAggrStrat : public Lit {
-  public:
-    //! Construct the aggregate literal.
-    LitHdAggrStrat(StateHdAggr &state, std::vector<StmHdAggrElem> elems, Sign sign)
-        : state_{&state}, elems_{std::move(elems)}, sign_{sign} {}
-
-  private:
-    void do_vars(VariableSet &vars, VarSelectMode mode) const override;
-    //! Returns true if matching aggregates are always facts.
-    //!
-    //! The function can only return true if all literals in elements are
-    //! domain.
-    //!
-    //! Note that there is no need for a stratified index. There can be
-    //! recursion through the body prefix.
-    [[nodiscard]] auto do_domain() const -> bool override;
-    //! Returns true if the aggregate needs only one grounding pass.
-    [[nodiscard]] auto do_single_pass() const -> bool override;
-    [[nodiscard]] auto
-    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
-               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
-    [[nodiscard]] auto do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double override;
-    void do_print(std::ostream &out) const override;
-    auto do_output([[maybe_unused]] InstantiationContext &ctx, OutputLit &out) const -> bool override;
-    [[nodiscard]] auto do_copy() const -> ULit override;
-    [[nodiscard]] auto do_hash() const -> size_t override;
-    [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
-    [[nodiscard]] auto do_compare_to(Lit const &other) const -> std::weak_ordering override;
-
-    StateHdAggr *state_;
-    std::vector<StmHdAggrElem> elems_;
-    size_t offset_ = invalid_offset;
-    Sign sign_;
 };
 
 } // namespace Gringo::Ground
