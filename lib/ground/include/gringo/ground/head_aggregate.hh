@@ -32,12 +32,6 @@ namespace Gringo::Ground {
 //!   - StmHdAggrElem (to accumulate elements)
 //!   - LitHdAggr     (to be used in StmHdAggrElem)
 
-//! Derivation state of head aggregates.
-enum class AtomHdAggrState : uint8_t {
-    unknown = 0, //!< The aggregate has not yet been derived.
-    derived = 1, //!< The aggregate has been derived.
-};
-
 //! Extensible ground representation of head aggregates.
 class AtomHdAggr {
   public:
@@ -53,19 +47,11 @@ class AtomHdAggr {
     //! Accumulate a tuple.
     void accumulate(AggregateFunction fun, SymbolSpan tup, bool fact);
 
-    //! Check if the aggregate matches the guards (first) and is a fact
-    //! (second).
+    //! Check if the aggregate matches the guards.
     //!
     //! Only the relation of the given non-ground guards is accessed; the
     //! values for the terms are stored in the aggregate atom.
-    auto propagate(GuardVec const &guards, Symbol const *vals) -> std::pair<bool, bool>;
-
-    //! Get the derived state of the aggregate atom.
-    [[nodiscard]] auto state() const -> AtomHdAggrState;
-    //! Set the derived state of the aggregate atom.
-    //!
-    //! It must only be derived once.
-    void state(AtomHdAggrState state);
+    auto propagate(GuardVec const &guards, Symbol const *vals) -> bool;
 
     //! Enqueue the atom for propagation.
     auto enqueue() -> bool;
@@ -93,8 +79,8 @@ class AtomHdAggr {
     std::variant<std::pair<Number, Number>, std::pair<Symbol, Symbol>> bound_;
     size_t propagated_ = 0;
     size_t uid_ = invalid_offset;
-    AtomHdAggrState state_ = AtomHdAggrState::unknown;
     bool enqueued_ = false;
+    bool matched_ = false;
 };
 
 //! A vector of signatures, bases, and indices.
@@ -111,7 +97,13 @@ class StateHdAggr {
     //!
     //! The atom index is used to store all elements in one big hash table.
     class ElementKey {
+      private:
+        struct priv_tag {};
+
       public:
+        //! Private constructor.
+        ElementKey(priv_tag tag, SymbolStore &store, Assignment &ass, AggregateFunction fun, size_t atom_idx,
+                   UTermVec const &tuple, bool &res);
         //! Prevent copying and moving.
         ElementKey(ElementKey const &other) = delete;
         //! Construct an element key evaluating the given tuple.
@@ -133,9 +125,6 @@ class StateHdAggr {
         friend auto operator==(ElementKey const &a, ElementKey const &b) -> bool;
 
       private:
-        ElementKey(SymbolStore &store, Assignment &ass, AggregateFunction fun, size_t atom_idx, UTermVec const &tuple,
-                   bool &res);
-
         // Note that these two could be combined to save a little bit of memory.
         mutable size_t n_;
         size_t atom_idx_;
@@ -175,7 +164,7 @@ class StateHdAggr {
     [[nodiscard]] auto index() const -> size_t;
 
     //! Propagate equeued aggregates.
-    auto propagate() -> bool;
+    void propagate(Queue &queue);
 
     //! Insert an aggregate atom (stemming from an aggregate element).
     //!
@@ -189,8 +178,8 @@ class StateHdAggr {
     auto insert_atom(Symbol const *tuple) -> AtomMap::iterator;
 
     //! Insert an aggregate element.
-    void insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iterator it, UTermVec const &tuple,
-                     ElementKey *&elem_key, auto const &get_cond);
+    void insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iterator it, UTerm const &head,
+                     UTermVec const &tuple, ElementKey *&elem_key, auto const &get_cond);
 
     //! Print a non-ground representation of the aggregate.
     void print(std::ostream &out);
@@ -234,8 +223,10 @@ class StmHdAggrElem : public Stm {
     //! The first num_cond literals of the body must form the aggregate
     //! element's condition. The following literals are just used for grounding
     //! binding global variables of the aggregate and ensuring safety.
-    StmHdAggrElem(StateHdAggr &state, UTermVec tuple, ULitVec body, size_t num_cond, size_t priority)
-        : state_{&state}, tuple_{std::move(tuple)}, body_{std::move(body)}, num_cond_{num_cond}, priority_{priority} {}
+    StmHdAggrElem(StateHdAggr &state, std::optional<UTerm> head, UTermVec tuple, ULitVec body, size_t num_cond,
+                  size_t priority)
+        : state_{&state}, head_{head ? *std::move(head) : nullptr}, tuple_{std::move(tuple)}, body_{std::move(body)},
+          num_cond_{num_cond}, priority_{priority} {}
 
   private:
     [[nodiscard]] auto do_body() const -> ULitVec const & override;
@@ -250,6 +241,7 @@ class StmHdAggrElem : public Stm {
 
     StateHdAggr *state_;
     StateHdAggr::ElementKey *elem_key_ = nullptr;
+    UTerm head_;
     UTermVec tuple_;
     ULitVec body_;
     size_t num_cond_;

@@ -43,54 +43,49 @@ void AtomHdAggr::accumulate(AggregateFunction fun, SymbolSpan tup, bool fact) {
     }
 }
 
-auto AtomHdAggr::propagate(GuardVec const &guards, Symbol const *vals) -> std::pair<bool, bool> {
+auto AtomHdAggr::propagate(GuardVec const &guards, Symbol const *vals) -> bool {
+    if (matched_) {
+        return true;
+    }
     const auto *it = vals;
-    bool fact = true;
     for (auto const &guard : guards) {
         auto rel = guard.first;
         auto res = std::visit(
-            [it, rel]<class T>(T const &x) -> std::pair<bool, bool> {
+            [it, rel]<class T>(T const &x) -> bool {
                 switch (rel) {
                     case Relation::less: {
-                        return {x.first < *it, x.second < *it};
+                        return x.first < *it;
                     }
                     case Relation::less_equal: {
-                        return {x.first <= *it, x.second <= *it};
+                        return x.first <= *it;
                     }
                     case Relation::greater: {
-                        return {x.second > *it, x.first > *it};
+                        return x.second > *it;
                     }
                     case Relation::greater_equal: {
-                        return {x.second >= *it, x.first >= *it};
+                        return x.second >= *it;
                     }
                     case Relation::equal: {
-                        return {x.first <= *it && *it <= x.second, *it == x.first && *it == x.second};
+                        return x.first <= *it && *it <= x.second;
                     }
                     case Relation::not_equal: {
-                        return {*it != x.first || *it != x.second, x.first > *it || *it > x.second};
+                        return *it != x.first || *it != x.second;
                     }
                 }
                 Util::unreachable();
             },
             bound_);
-        if (!res.first) {
-            return {false, false};
+        if (!res) {
+            return false;
         }
-        fact = fact && res.second;
         it = std::next(it);
     }
-    return {true, fact};
-}
-
-auto AtomHdAggr::state() const -> AtomHdAggrState { return state_; }
-
-void AtomHdAggr::state(AtomHdAggrState state) {
-    assert(state_ == AtomHdAggrState::unknown);
-    state_ = state;
+    matched_ = true;
+    return true;
 }
 
 auto AtomHdAggr::enqueue() -> bool {
-    if (!enqueued_ && state_ == AtomHdAggrState::unknown && (propagated_ < elems_.size() || elems_.empty())) {
+    if (!enqueued_ && propagated_ < elems_.size()) {
         enqueued_ = true;
         return true;
     }
@@ -139,40 +134,13 @@ auto AtomHdAggr::init_(AggregateFunction fun) -> Bound {
 //! The size of the array corresponds to the number of global variables and is
 //! not stored here. The symbols are stored using a monotonic buffer resource.
 class StateHdAggr::AtomKey {
-  public:
-    //! Construct an atom key from the global variables and guards.
-    //!
-    //! Returns false if evaluating the guards fails.
-    static auto construct(auto &mbr, SymbolStore &store, Assignment &ass, VariableVec const &global, GuardVec &guards,
-                          AtomKey *&target) -> bool {
-        if (target == nullptr) {
-            auto n = (global.size() + guards.size()) * sizeof(Symbol);
-            target = static_cast<AtomKey *>(mbr.allocate(n, alignof(AtomKey)));
-        } else {
-            target->~AtomKey();
-        }
-        bool res = true;
-        new (target) AtomKey{store, ass, global, guards, res};
-        return res;
-    }
-    //! Construct an atom key from the given symbols.
-    //!
-    //! This function might create keys for atoms without definitions, which
-    //! can happen for negated atoms potentially derived later on.
-    static void construct(auto &mbr, Symbol const *tuple, size_t n, AtomKey *&target) {
-        if (target == nullptr) {
-            target = static_cast<AtomKey *>(mbr.allocate(n * sizeof(Symbol), alignof(AtomKey)));
-        } else {
-            target->~AtomKey();
-        }
-        new (target) AtomKey{tuple, n};
-    }
-
-    //! Return the symbols representing the atom key.
-    auto syms() -> Symbol const * { return syms_; }
-
   private:
-    AtomKey(SymbolStore &store, Assignment &ass, VariableVec const &global, GuardVec &guards, bool &res) {
+    struct priv_tag {};
+
+  public:
+    //! Private constructor.
+    AtomKey([[maybe_unused]] priv_tag tag, SymbolStore &store, Assignment &ass, VariableVec const &global,
+            GuardVec &guards, bool &res) {
         auto *it = syms_;
         for (auto const &var : global) {
             *it++ = ass[var].value();
@@ -186,15 +154,48 @@ class StateHdAggr::AtomKey {
             }
         }
     }
-    AtomKey(Symbol const *tuple, size_t n) { std::copy_n(tuple, n, syms_); }
+    //! Private constructor.
+    AtomKey([[maybe_unused]] priv_tag tag, Symbol const *tuple, size_t n) { std::copy_n(tuple, n, syms_); }
 
+    //! Construct an atom key from the global variables and guards.
+    //!
+    //! Returns false if evaluating the guards fails.
+    static auto construct(auto &mbr, SymbolStore &store, Assignment &ass, VariableVec const &global, GuardVec &guards,
+                          AtomKey *&target) -> bool {
+        if (target == nullptr) {
+            auto n = (global.size() + guards.size()) * sizeof(Symbol);
+            target = static_cast<AtomKey *>(mbr.allocate(n, alignof(AtomKey)));
+        } else {
+            std::destroy_at(target);
+        }
+        bool res = true;
+        std::construct_at(target, priv_tag{}, store, ass, global, guards, res);
+        return res;
+    }
+    //! Construct an atom key from the given symbols.
+    //!
+    //! This function might create keys for atoms without definitions, which
+    //! can happen for negated atoms potentially derived later on.
+    static void construct(auto &mbr, Symbol const *tuple, size_t n, AtomKey *&target) {
+        if (target == nullptr) {
+            target = static_cast<AtomKey *>(mbr.allocate(n * sizeof(Symbol), alignof(AtomKey)));
+        } else {
+            std::destroy_at(target);
+        }
+        std::construct_at(target, priv_tag{}, tuple, n);
+    }
+
+    //! Return the symbols representing the atom key.
+    auto syms() -> Symbol const * { return syms_; }
+
+  private:
     GRINGO_IGNORE_ZERO_SIZED_ARRAY_B
     Symbol syms_[0];
     GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
 };
 
-StateHdAggr::ElementKey::ElementKey(SymbolStore &store, Assignment &ass, AggregateFunction fun, size_t atom_idx,
-                                    UTermVec const &tuple, bool &res)
+StateHdAggr::ElementKey::ElementKey([[maybe_unused]] priv_tag tag, SymbolStore &store, Assignment &ass,
+                                    AggregateFunction fun, size_t atom_idx, UTermVec const &tuple, bool &res)
     : n_{tuple.size() << 1}, atom_idx_{atom_idx} {
     auto *it = syms_;
     if (auto jt = tuple.begin(), je = tuple.end(); jt != je) {
@@ -227,9 +228,9 @@ auto StateHdAggr::ElementKey::construct(auto &mbr, SymbolStore &store, Assignmen
     if (target == nullptr) {
         target = static_cast<ElementKey *>(mbr.allocate(n, alignof(ElementKey)));
     } else {
-        target->~ElementKey();
+        std::destroy_at(target);
     }
-    new (target) ElementKey{store, ass, fun, atom_idx, tuple, res};
+    std::construct_at(target, priv_tag{}, store, ass, fun, atom_idx, tuple, res);
     return res;
 }
 
@@ -267,11 +268,12 @@ auto StateHdAggr::single_pass_elems() const -> bool { return single_pass_elems_;
 
 auto StateHdAggr::index() const -> size_t { return index_; }
 
-auto StateHdAggr::propagate() -> bool {
-    bool res = false;
+void StateHdAggr::propagate(Queue &queue) {
+    // process enqueued atoms
     for (auto atom_idx : queue_) {
         auto it = atoms_.nth(atom_idx);
         auto &state = it.value();
+        // accumulate the elements
         for (auto elem_idx : state.todo()) {
             auto elem = tuples_.nth(elem_idx);
             // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
@@ -287,18 +289,35 @@ auto StateHdAggr::propagate() -> bool {
             std::cerr << "\n";
 #endif
         }
-
-        if (auto [match, fact] = state.propagate(guards_, it.key() + global_.size()); match) {
-            state.state(AtomHdAggrState::derived);
+        // propagate the elements
+        if (state.propagate(guards_, it.key() + global_.size())) {
+            for (auto elem_idx : state.todo()) {
+                for (auto const &[sym, cond] : tuples_.nth(elem_idx).value()) {
+                    auto sig = std::make_tuple(sym.name(), sym.args().size(), sym.has_classical_sign());
+                    auto it = std::lower_bound(bases_.begin(), bases_.end(), sig,
+                                               [](auto const &a, auto const &b) { return std::get<0>(a) < b; });
+                    assert(it != bases_.end());
+                    auto *base = std::get<1>(*it);
+                    base->add(sym, StateAtom::derived);
+                }
+            }
 #ifdef DEBUG_AGGR
             std::cerr << "propagate: a: " << atom_idx << "\n";
 #endif
-            res = true;
         }
         state.dequeue();
     }
     queue_.clear();
-    return res;
+    // propagate modified bases
+    if (index_ != stratified_index) {
+        for (auto const &[sig, base, indices] : bases_) {
+            if (!indices.empty() && base->has_update()) {
+                for (auto const &index : indices) {
+                    queue.propagate(index);
+                }
+            }
+        }
+    }
 }
 
 void StateHdAggr::enqueue_(AtomMap::iterator it) {
@@ -329,8 +348,16 @@ auto StateHdAggr::insert_atom(Symbol const *tuple) -> AtomMap::iterator {
     return it;
 }
 
-void StateHdAggr::insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iterator it, UTermVec const &tuple,
-                              ElementKey *&elem_key, auto const &get_cond) {
+void StateHdAggr::insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iterator it, UTerm const &head,
+                              UTermVec const &tuple, ElementKey *&elem_key, auto const &get_cond) {
+    auto sym = SymbolStore::sup();
+    if (head != nullptr) {
+        if (auto opt = head->eval(store, ass)) {
+            sym = *opt;
+        } else {
+            return;
+        }
+    }
     if (ElementKey::construct(*mbr_, store, ass, fun_, atom_index_(it), tuple, elem_key)) {
         auto [jt, jns] = tuples_.try_emplace(elem_key);
         if (jns) {
@@ -340,15 +367,13 @@ void StateHdAggr::insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iter
         }
 
         auto [cond_id, fact] = get_cond();
-        // we use an empty vector to indicate that one of the conditions is fact
-        if (fact) {
-            jt.value().clear();
-        } else if (jns || !jt.value().empty()) {
-            auto &cond = jt.value();
-            cond.emplace_back(SymbolStore::sup(), cond_id);
-            std::sort(cond.begin(), cond.end());
-            cond.erase(std::unique(cond.begin(), cond.end()), cond.end());
+        if (head != nullptr && fact) {
+            jt.key()->mark_fact();
         }
+        auto &cond = jt.value();
+        cond.emplace_back(sym, cond_id);
+        std::sort(cond.begin(), cond.end());
+        cond.erase(std::unique(cond.begin(), cond.end()), cond.end());
     }
 }
 
@@ -435,7 +460,7 @@ auto StmHdAggrElem::do_report(InstantiationContext &ctx) -> bool {
             return std::make_pair(ctx.out().cond_id(), fact);
         };
         // insert the element
-        state_->insert_elem(ctx.store(), ass, it->first, tuple_, elem_key_, get_cond);
+        state_->insert_elem(ctx.store(), ass, it->first, head_, tuple_, elem_key_, get_cond);
     }
     return true;
 }
@@ -445,9 +470,7 @@ void StmHdAggrElem::do_propagate([[maybe_unused]] SymbolStore &store, Queue &que
     // been processed. Thus, all element aggregation rules have been
     // processed. Here, aggregates that can match are added to the base and
     // are enqueued.
-    if (state_->propagate() && state_->index() != stratified_index) {
-        queue.propagate(state_->index());
-    }
+    state_->propagate(queue);
 }
 
 auto StmHdAggrElem::do_priority() const -> size_t { return priority_; }
@@ -455,7 +478,13 @@ auto StmHdAggrElem::do_priority() const -> size_t { return priority_; }
 void StmHdAggrElem::do_print_head(std::ostream &out) const {
     auto p_var = [](std::ostream &out, auto const &x) { out << "X_" << x; };
     auto p_term = [](std::ostream &out, auto const &x) { out << *x; };
-    out << "#elem(g(" << Util::p_range{state_->global(), p_var} << "),t(" << Util::p_range{tuple_, p_term} << "))";
+    out << "#elem(g(" << Util::p_range{state_->global(), p_var} << "),";
+    if (head_ != nullptr) {
+        out << *head_;
+    } else {
+        out << "#true";
+    }
+    out << ",t(" << Util::p_range{tuple_, p_term} << "))";
 }
 
 void StmHdAggrElem::do_print(std::ostream &out) const {
