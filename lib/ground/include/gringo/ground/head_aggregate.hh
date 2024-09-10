@@ -60,15 +60,6 @@ class AtomHdAggr {
     //! values for the terms are stored in the aggregate atom.
     auto propagate(GuardVec const &guards, Symbol const *vals) -> std::pair<bool, bool>;
 
-    //! Get the index of the aggregate.
-    //!
-    //! It must be derived first.
-    [[nodiscard]] auto derived_idx() const -> size_t;
-    //! Set the derived index of the aggregate.
-    //!
-    //! It must be derived first.
-    void derived_idx(size_t idx);
-
     //! Get the derived state of the aggregate atom.
     [[nodiscard]] auto state() const -> AtomHdAggrState;
     //! Set the derived state of the aggregate atom.
@@ -101,11 +92,16 @@ class AtomHdAggr {
     std::vector<size_t> elems_;
     std::variant<std::pair<Number, Number>, std::pair<Symbol, Symbol>> bound_;
     size_t propagated_ = 0;
-    size_t derived_idx_ = 0;
     size_t uid_ = invalid_offset;
     AtomHdAggrState state_ = AtomHdAggrState::unknown;
     bool enqueued_ = false;
 };
+
+//! A vector of signatures, bases, and indices.
+//!
+//! Whenever a base has an update, its indices have to be propagated. The base
+//! is identified by the signature and the vector sorted by this signature.
+using HdAggrBaseVec = std::vector<std::tuple<std::tuple<String, size_t, bool>, Base *, std::vector<size_t>>>;
 
 //! State storing all necessary information to ground body aggregates.
 class StateHdAggr {
@@ -159,10 +155,10 @@ class StateHdAggr {
     using ElementMap = Util::ordered_map<ElementKey *, Util::small_vector<std::pair<Symbol, size_t>>>;
 
     //! Initialize an aggregate state.
-    StateHdAggr(std::pmr::monotonic_buffer_resource &mbr, VariableVec global, GuardVec guards, AggregateFunction fun,
-                size_t index, bool domain, bool monotone, bool single_pass_elems)
-        : atoms_{0, global.size(), global.size()}, global_{std::move(global)}, guards_{std::move(guards)}, mbr_{&mbr},
-          index_{index}, fun_{fun}, domain_{domain}, monotone_{monotone}, single_pass_elems_{single_pass_elems} {}
+    StateHdAggr(std::pmr::monotonic_buffer_resource &mbr, HdAggrBaseVec bases, VariableVec global, GuardVec guards,
+                AggregateFunction fun, size_t index, bool single_pass_elems)
+        : atoms_{0, global.size(), global.size()}, global_{std::move(global)}, guards_{std::move(guards)},
+          bases_{std::move(bases)}, mbr_{&mbr}, index_{index}, fun_{fun}, single_pass_elems_{single_pass_elems} {}
 
     //! Get the global variables in the aggregate.
     [[nodiscard]] auto global() const -> VariableVec const &;
@@ -172,21 +168,8 @@ class StateHdAggr {
     [[nodiscard]] auto guards() const -> GuardVec const &;
     //! Get the aggregate function.
     [[nodiscard]] auto fun() const -> AggregateFunction;
-    //! Indicates that all aggregate elements are domain.
-    //!
-    //! That is, all the bases of literals in conditions are domain and all
-    //! negative literals are stratified.
-    //!
-    //! Only considers the elements of the aggregate.
-    [[nodiscard]] auto domain() const -> bool;
-    //! Indicates that the aggregate is monotone.
-    //!
-    //! Neither takes the sign of the aggregate nor its elements into account.
-    [[nodiscard]] auto monotone() const -> bool;
     //! Indicates that all necessary elemements can be grounded in a single
     //! pass.
-    //!
-    //! This does not take into account the body prefix of elements.
     [[nodiscard]] auto single_pass_elems() const -> bool;
     //! Get the update index.
     [[nodiscard]] auto index() const -> size_t;
@@ -229,13 +212,12 @@ class StateHdAggr {
     VariableVec global_;
     SymbolVec symbols_;
     GuardVec guards_;
+    HdAggrBaseVec bases_;
     std::vector<size_t> queue_;
     std::pmr::monotonic_buffer_resource *mbr_;
     AtomKey *atom_key_ = nullptr;
     size_t index_;
     AggregateFunction fun_;
-    bool domain_;
-    bool monotone_;
     bool single_pass_elems_;
 };
 

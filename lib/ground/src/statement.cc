@@ -190,7 +190,7 @@ auto StmRule::do_report(InstantiationContext &ctx) -> bool {
         }
     }
     if (head_ != nullptr) {
-        base_->add(atom_, fact ? AtomState::fact : AtomState::derived);
+        base_->add(atom_, fact ? StateAtom::fact : StateAtom::derived);
     }
     ctx.out().rule(head_ != nullptr ? atom_ : std::optional<Symbol>{});
     return head_ != nullptr || !fact;

@@ -20,13 +20,11 @@ using VariableVec = VariableSet::values_container_type;
 
 //! Enumeration to capture the state of an atom.
 // NOLINTNEXTLINE(performance-enum-size)
-enum class AtomState : uint64_t {
+enum class StateAtom : uint64_t {
     //! Indicates that the atom is derived by a fact.
     fact = 0,
     //! Indicates that the atom is derived by some rule but not a fact.
     derived = 1,
-    //! Indicates that the atom is derived by some external but not a rule or fact.
-    external = 2,
     //! Indicates that the atom has not yet been derived by a rule.
     //!
     //! At the time rule (1) is grounded, atom x is not yet defined.
@@ -36,17 +34,17 @@ enum class AtomState : uint64_t {
     //!   x :- a.     (2)
     //!
     //! The flag indicates atoms that have neither been derived by facts, rules, or externals.
-    unknown = 3,
+    unknown = 2,
 };
 
 //! Capture the state of an atom.
 struct AtomInfo {
     uint64_t id : 63;    //!< A unique id among all atoms.
-    AtomState state : 2; //!< The atom state.
+    StateAtom state : 2; //!< The atom state.
 };
 
 //! An atom consisting of a symbol and its (mutable) state.
-using Atom = std::pair<Symbol, AtomInfo>;
+using SymbolicAtom = std::pair<Symbol, AtomInfo>;
 
 //! Enumeration indicating state updates of atoms.
 enum class AtomUpdate : uint8_t {
@@ -212,7 +210,7 @@ class Base : public BaseImpl<Symbol, Base> {
     //! A base is domain if it contains facts only.
     [[nodiscard]] auto domain() const {
         for (auto n = derived_.size(); domain_offset_ < n; ++domain_offset_) {
-            if (atoms_.nth(derived_[domain_offset_])->second.state != AtomState::fact) {
+            if (atoms_.nth(derived_[domain_offset_])->second.state != StateAtom::fact) {
                 return false;
             }
         }
@@ -224,7 +222,7 @@ class Base : public BaseImpl<Symbol, Base> {
     //! It can also return true for atoms added to upcoming generations.
     auto is_fact(Symbol sym) const -> bool {
         auto it = atoms_.find(sym);
-        return it != atoms_.end() && it->second.state == AtomState::fact;
+        return it != atoms_.end() && it->second.state == StateAtom::fact;
     }
     //! Check if the base contains the given atom.
     //!
@@ -235,10 +233,10 @@ class Base : public BaseImpl<Symbol, Base> {
     }
 
     //! Add an atom to the base.
-    auto add(Symbol atom, AtomState state) -> AtomUpdate {
+    auto add(Symbol atom, StateAtom state) -> AtomUpdate {
         auto [it, ins] = atoms_.try_emplace(atom, 0, state);
         if (ins) {
-            if (state != AtomState::unknown) {
+            if (state != StateAtom::unknown) {
                 derived_.add(atom_index_(it));
             }
             return AtomUpdate::added;
@@ -248,11 +246,11 @@ class Base : public BaseImpl<Symbol, Base> {
             // because there is no additional information for grounding
             auto prev = it.value().state;
             it.value().state = state;
-            if (prev == AtomState::unknown) {
+            if (prev == StateAtom::unknown) {
                 derived_.add(atom_index_(it));
                 return AtomUpdate::added;
             }
-            if (state == AtomState::fact) {
+            if (state == StateAtom::fact) {
                 return AtomUpdate::changed;
             }
         }
@@ -265,7 +263,7 @@ class Base : public BaseImpl<Symbol, Base> {
     //!
     //! Note that only derived atoms have indices.
     auto index(Symbol const &sym) const -> size_t {
-        if (auto it = atoms_.find(sym); it != atoms_.end() && it->second.state != AtomState::unknown) {
+        if (auto it = atoms_.find(sym); it != atoms_.end() && it->second.state != StateAtom::unknown) {
             return derived_.find(atom_index_(it));
         }
         return size();

@@ -962,7 +962,7 @@ class Builder : public Input::DependencyBuilder {
         buf_ << "#program_" << *param.first;
         auto dom_it = impl_->add_base(impl_->store->string_ref(buf_.view()), param.second.size(), false);
         dom_it.value()->add(impl_->store->fun_ref(std::get<0>(dom_it.key()), as_symbol_span(param.second), false),
-                            Ground::AtomState::fact);
+                            Ground::StateAtom::fact);
     }
 
     //! Handle meta statements.
@@ -976,7 +976,7 @@ class Builder : public Input::DependencyBuilder {
     void do_fact(std::vector<Symbol> const &facts) override {
         for (auto const &fact : facts) {
             auto dom_it = impl_->add_base(fact.name(), fact.args().size(), fact.has_sign());
-            dom_it->second->add(fact, Ground::AtomState::fact);
+            dom_it->second->add(fact, Ground::StateAtom::fact);
             impl_->out->fact(fact);
         }
     }

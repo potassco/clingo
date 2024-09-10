@@ -82,16 +82,6 @@ auto AtomHdAggr::propagate(GuardVec const &guards, Symbol const *vals) -> std::p
     return {true, fact};
 }
 
-auto AtomHdAggr::derived_idx() const -> size_t {
-    assert(state_ != AtomHdAggrState::unknown);
-    return derived_idx_;
-}
-
-void AtomHdAggr::derived_idx(size_t idx) {
-    assert(state_ != AtomHdAggrState::unknown);
-    derived_idx_ = idx;
-}
-
 auto AtomHdAggr::state() const -> AtomHdAggrState { return state_; }
 
 void AtomHdAggr::state(AtomHdAggrState state) {
@@ -272,10 +262,6 @@ auto StateHdAggr::symbols() -> SymbolVec & {
 auto StateHdAggr::guards() const -> GuardVec const & { return guards_; }
 
 auto StateHdAggr::fun() const -> AggregateFunction { return fun_; }
-
-auto StateHdAggr::domain() const -> bool { return domain_; }
-
-auto StateHdAggr::monotone() const -> bool { return monotone_; }
 
 auto StateHdAggr::single_pass_elems() const -> bool { return single_pass_elems_; }
 

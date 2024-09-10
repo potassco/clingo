@@ -392,12 +392,8 @@ void LitProject::State::init(SymbolStore &store, size_t gen) {
             sym = std::nullopt;
         }
         if (p_body_->match(store, atom->first, ass_)) {
-            auto state = atom->second.state;
-            if (state == AtomState::external) {
-                state = AtomState::unknown;
-            }
             if (auto sym = p_head_->eval(store, ass_); sym) {
-                p_base_.add(*sym, state);
+                p_base_.add(*sym, atom->second.state);
             }
         }
     }
