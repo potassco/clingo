@@ -35,7 +35,8 @@ namespace Gringo::Ground {
 //! Extensible ground representation of head aggregates.
 //!
 //! Elements can be added to this representation and it can be enqueued for
-//! later propagation.
+//! later propagation. Propgation adjust the stored bounds capturing an
+//! interval of possible values the aggregate can take.
 class AtomHdAggr {
   public:
     //! The lower and upper bound for the value an aggregate can take.
@@ -84,6 +85,38 @@ class AtomHdAggr {
     size_t uid_ = invalid_offset;
     bool enqueued_ = false;
     bool matched_ = false;
+};
+
+//! The base capturing derived body aggregate atoms.
+class BaseHdAggr : public BaseImpl<Symbol const *, BaseHdAggr> {
+  public:
+    using BaseImpl::contains;
+    //! Map containing the atoms.
+    using AtomMap = Util::ordered_map<Symbol const *, AtomHdAggr, Util::array_hash, Util::array_equal_to>;
+
+    //! Construct an empty base.
+    BaseHdAggr(size_t size) : atoms_{0, size, size} {}
+
+    //! Add an atom to the current generation.
+    auto add(Symbol const *sym, AggregateFunction fun) -> std::pair<AtomMap::iterator, bool>;
+
+    //! Get the number of derived atoms.
+    [[nodiscard]] auto size() const -> size_t;
+
+    //! Get the atom index of the given symbol.
+    //!
+    //! Note that only derived atoms have indices.
+    [[nodiscard]] auto index(Symbol const *sym) const -> size_t;
+    //! Get the i-th atom in the base.
+    [[nodiscard]] auto nth(size_t i) const -> AtomMap::const_iterator;
+    //! Get the i-th atom in the base.
+    [[nodiscard]] auto nth(size_t i) -> AtomMap::iterator;
+
+    //! Get the underlying atom map.
+    [[nodiscard]] auto atoms() -> AtomMap &;
+
+  private:
+    AtomMap atoms_;
 };
 
 //! A vector of signatures, bases, and indices.
@@ -139,7 +172,7 @@ class StateHdAggr {
     };
 
     //! A map from global variables (including the guards) to the aggregate representation.
-    using AtomMap = Util::ordered_map<Symbol const *, AtomHdAggr, Util::array_hash, Util::array_equal_to>;
+    using AtomMap = BaseHdAggr::AtomMap;
     //! A map from tuples to their head atoms and conditions.
     //!
     //! Head atoms must be either true or symbolic atoms. We use \#sup to
@@ -149,8 +182,8 @@ class StateHdAggr {
     //! Initialize an aggregate state.
     StateHdAggr(std::pmr::monotonic_buffer_resource &mbr, HdAggrBaseVec bases, VariableVec global, GuardVec guards,
                 AggregateFunction fun, size_t index, bool single_pass_elems)
-        : atoms_{0, global.size(), global.size()}, global_{std::move(global)}, guards_{std::move(guards)},
-          bases_{std::move(bases)}, mbr_{&mbr}, index_{index}, fun_{fun}, single_pass_elems_{single_pass_elems} {}
+        : base_{global.size()}, global_{std::move(global)}, guards_{std::move(guards)}, bases_{std::move(bases)},
+          mbr_{&mbr}, index_{index}, fun_{fun}, single_pass_elems_{single_pass_elems} {}
 
     //! Get the global variables in the aggregate.
     [[nodiscard]] auto global() const -> VariableVec const &;
@@ -199,7 +232,7 @@ class StateHdAggr {
     //! This index also captures not yet derived atoms.
     auto atom_index_(AtomMap::iterator it) -> size_t;
 
-    AtomMap atoms_;
+    BaseHdAggr base_;
     ElementMap tuples_;
     VariableVec global_;
     SymbolVec symbols_;

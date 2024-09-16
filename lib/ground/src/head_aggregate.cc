@@ -125,6 +125,22 @@ auto AtomHdAggr::init_(AggregateFunction fun) -> Bound {
     return Bound{std::in_place_index<0>, 0, 0};
 }
 
+// definition of BaseHdAggr
+
+auto BaseHdAggr::add(Symbol const *sym, AggregateFunction fun) -> std::pair<AtomMap::iterator, bool> {
+    return atoms_.try_emplace(sym, fun);
+}
+
+auto BaseHdAggr::size() const -> size_t { return atoms_.size(); }
+
+auto BaseHdAggr::index(Symbol const *sym) const -> size_t { return atoms_.find(sym) - atoms_.begin(); }
+
+auto BaseHdAggr::nth(size_t i) const -> AtomMap::const_iterator { return atoms_.nth(i); }
+
+auto BaseHdAggr::nth(size_t i) -> AtomMap::iterator { return atoms_.nth(i); }
+
+auto BaseHdAggr::atoms() -> AtomMap & { return atoms_; }
+
 // definition of StateAggr
 
 // NOLINTBEGIN
@@ -271,7 +287,7 @@ auto StateHdAggr::index() const -> size_t { return index_; }
 void StateHdAggr::propagate(Queue &queue) {
     // process enqueued atoms
     for (auto atom_idx : queue_) {
-        auto it = atoms_.nth(atom_idx);
+        auto it = base_.nth(atom_idx);
         auto &state = it.value();
         // accumulate the elements
         for (auto elem_idx : state.todo()) {
@@ -329,7 +345,7 @@ void StateHdAggr::enqueue_(AtomMap::iterator it) {
 auto StateHdAggr::insert_atom(SymbolStore &store,
                               Assignment &ass) -> std::optional<std::pair<AtomMap::iterator, bool>> {
     if (AtomKey::construct(*mbr_, store, ass, global_, guards_, atom_key_)) {
-        auto [it, ins] = atoms_.try_emplace(atom_key_->syms(), fun_);
+        auto [it, ins] = base_.add(atom_key_->syms(), fun_);
         if (ins) {
             atom_key_ = nullptr;
             enqueue_(it);
@@ -341,7 +357,7 @@ auto StateHdAggr::insert_atom(SymbolStore &store,
 
 auto StateHdAggr::insert_atom(Symbol const *tuple) -> AtomMap::iterator {
     AtomKey::construct(*mbr_, tuple, global_.size() + guards_.size(), atom_key_);
-    auto [it, ins] = atoms_.try_emplace(atom_key_->syms(), fun_);
+    auto [it, ins] = base_.add(atom_key_->syms(), fun_);
     if (ins) {
         atom_key_ = nullptr;
     }
@@ -377,7 +393,7 @@ void StateHdAggr::insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iter
     }
 }
 
-auto StateHdAggr::atom_index_(AtomMap::iterator it) -> size_t { return it - atoms_.begin(); }
+auto StateHdAggr::atom_index_(AtomMap::iterator it) -> size_t { return it - base_.atoms().begin(); }
 
 void StateHdAggr::print(std::ostream &out) {
     auto it = guards_.begin();
