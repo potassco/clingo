@@ -33,6 +33,9 @@ namespace Gringo::Ground {
 //!   - LitHdAggr     (to be used in StmHdAggrElem)
 
 //! Extensible ground representation of head aggregates.
+//!
+//! Elements can be added to this representation and it can be enqueued for
+//! later propagation.
 class AtomHdAggr {
   public:
     //! The lower and upper bound for the value an aggregate can take.

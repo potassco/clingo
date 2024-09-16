@@ -41,8 +41,8 @@ auto mp_int_ref_alloc() -> mp_int_ref {
 
     if (out != nullptr) {
         mp_int_init(&out->num);
+        new (&out->ref_count) std::atomic_size_t{0};
     }
-    new (&out->ref_count) std::atomic_size_t{0};
 
     return out;
 }
