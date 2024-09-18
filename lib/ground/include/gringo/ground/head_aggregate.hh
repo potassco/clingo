@@ -199,6 +199,9 @@ class StateHdAggr {
     //! Get the update index.
     [[nodiscard]] auto index() const -> size_t;
 
+    //! Enqueue aggregate element rules.
+    void enqueue(Queue &queue);
+
     //! Propagate equeued aggregates.
     void propagate(Queue &queue);
 
@@ -246,6 +249,36 @@ class StateHdAggr {
     bool single_pass_elems_;
 };
 
+//! A statement deriving head aggregate atoms to trigger grounding of elements.
+class StmHdAggr : public Stm {
+  public:
+    //! Construct the statement.
+    StmHdAggr(StateHdAggr &state, Ground::ULitVec body, size_t priority)
+        : state_{&state}, body_{std::move(body)}, priority_{priority} {}
+
+  private:
+    // Stm interface
+    void do_print(std::ostream &out) const override;
+
+    [[nodiscard]] auto do_body() const -> ULitVec const & override;
+    [[nodiscard]] auto do_important() const -> VariableSet override;
+
+    // InstanceCallback interface
+    void do_print_head(std::ostream &out) const override;
+    void do_init(size_t gen) override;
+    [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override;
+    void do_propagate(SymbolStore &store, Queue &queue) override;
+    [[nodiscard]] auto do_priority() const -> size_t override;
+
+    //! The head of the rule.
+    //!
+    //! Note that this unique pointer is zero in case of constraints.
+    UTerm head_;
+    StateHdAggr *state_;
+    ULitVec body_;
+    size_t priority_;
+};
+
 //! Gather aggregate elements.
 //!
 //! This class can also be used to derive empty aggregates. A tuple with a
@@ -259,10 +292,9 @@ class StmHdAggrElem : public Stm {
     //! The first num_cond literals of the body must form the aggregate
     //! element's condition. The following literals are just used for grounding
     //! binding global variables of the aggregate and ensuring safety.
-    StmHdAggrElem(StateHdAggr &state, std::optional<UTerm> head, UTermVec tuple, ULitVec body, size_t num_cond,
-                  size_t priority)
+    StmHdAggrElem(StateHdAggr &state, std::optional<UTerm> head, UTermVec tuple, ULitVec body, size_t num_cond)
         : state_{&state}, head_{head ? *std::move(head) : nullptr}, tuple_{std::move(tuple)}, body_{std::move(body)},
-          num_cond_{num_cond}, priority_{priority} {}
+          num_cond_{num_cond} {}
 
   private:
     [[nodiscard]] auto do_body() const -> ULitVec const & override;
@@ -281,7 +313,6 @@ class StmHdAggrElem : public Stm {
     UTermVec tuple_;
     ULitVec body_;
     size_t num_cond_;
-    size_t priority_;
 };
 
 } // namespace Gringo::Ground

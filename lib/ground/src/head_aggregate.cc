@@ -284,6 +284,12 @@ auto StateHdAggr::single_pass_elems() const -> bool { return single_pass_elems_;
 
 auto StateHdAggr::index() const -> size_t { return index_; }
 
+void StateHdAggr::enqueue(Queue &queue) {
+    if (index_ != stratified_index && base_.has_update()) {
+        queue.propagate(index_);
+    }
+}
+
 void StateHdAggr::propagate(Queue &queue) {
     // process enqueued atoms
     for (auto atom_idx : queue_) {
@@ -436,7 +442,44 @@ void StateHdAggr::output(OutputStm &out) {
     */
 }
 
-// definition of StmAggrElem
+// definition of StmHdAggr
+
+auto StmHdAggr::do_body() const -> ULitVec const & { return body_; }
+
+auto StmHdAggr::do_important() const -> VariableSet {
+    auto res = VariableSet{};
+    res.insert(state_->global().begin(), state_->global().end());
+    return res;
+}
+
+void StmHdAggr::do_init([[maybe_unused]] size_t gen) {
+    // by construction, this statement does not increment the generation
+}
+
+auto StmHdAggr::do_report(InstantiationContext &ctx) -> bool {
+    state_->insert_atom(ctx.store(), ctx.ass());
+    return true;
+}
+
+void StmHdAggr::do_propagate([[maybe_unused]] SymbolStore &store, Queue &queue) {
+    // enqueue the aggregate element statements for propagation
+    state_->enqueue(queue);
+}
+
+auto StmHdAggr::do_priority() const -> size_t { return priority_; }
+
+void StmHdAggr::do_print_head(std::ostream &out) const { state_->print(out); }
+
+void StmHdAggr::do_print(std::ostream &out) const {
+    out << priority_ << ": ";
+    print_head(out);
+    if (state_->index() != stratified_index) {
+        out << "[" << state_->index() << "]";
+    }
+    out << " <- " << Util::p_range(body_, ", ", [](std::ostream &out, auto const &lit) { out << *lit; }) << ".";
+}
+
+// definition of StmHdAggrElem
 
 auto StmHdAggrElem::do_body() const -> ULitVec const & { return body_; }
 
@@ -482,14 +525,14 @@ auto StmHdAggrElem::do_report(InstantiationContext &ctx) -> bool {
 }
 
 void StmHdAggrElem::do_propagate([[maybe_unused]] SymbolStore &store, Queue &queue) {
-    // This is called after all statements on the current priority have
+    // This is called after all statements in the current priority have
     // been processed. Thus, all element aggregation rules have been
     // processed. Here, aggregates that can match are added to the base and
     // are enqueued.
     state_->propagate(queue);
 }
 
-auto StmHdAggrElem::do_priority() const -> size_t { return priority_; }
+auto StmHdAggrElem::do_priority() const -> size_t { return std::numeric_limits<size_t>::max(); }
 
 void StmHdAggrElem::do_print_head(std::ostream &out) const {
     auto p_var = [](std::ostream &out, auto const &x) { out << "X_" << x; };
@@ -504,7 +547,7 @@ void StmHdAggrElem::do_print_head(std::ostream &out) const {
 }
 
 void StmHdAggrElem::do_print(std::ostream &out) const {
-    out << priority_ << ": ";
+    out << "max: ";
     print_head(out);
     if (state_->index() != stratified_index) {
         out << "[" << state_->index() << "]";
