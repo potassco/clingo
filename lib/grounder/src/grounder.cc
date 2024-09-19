@@ -581,6 +581,29 @@ class BuilderHdLit {
         oss << "implement me: handle head literal " << lit;
         throw std::logic_error(oss.str());
     }
+
+    //! Translate head aggregates.
+    void operator()(Input::HdLitAggregate const &lit) const {
+        // TODO:
+        // - handle elements in a similar fashion as body aggregates
+        // - recursion through elements
+        //   - the heads are treated like rule heads
+        //   - example:
+        //     { a(X) : p(X); b(X) : q(X) }.
+        //     a(X) :- b(X).
+        //     b(X) :- a(X).
+        //   - the state gets an index if there is one recursive condition
+        //   - the indices of a head are computed as for rules
+        // - in principle, stratified of elements and monotonicity could be
+        //   used to stop instantiation early in the following two cases
+        //   - an anti-monotone aggregates became false
+        //   - a stratified aggregates is false w.r.t. to the grounded elements
+        //   - it would be somewhat involved to detect this early
+        //   - as a compromise, StateHdAggr::propagate could be used to stop
+        //     instantiation after the aggregate's component has been grounded
+        GRINGO_REPORT(*ctx_->impl().log, error) << "TODO: " << lit;
+    }
+
     //! Translate simple head literals.
     void operator()(Input::HdLitSimple const &lit) const {
         std::vector<size_t> provides;
