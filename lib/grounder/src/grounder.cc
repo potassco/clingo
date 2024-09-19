@@ -601,16 +601,185 @@ class BuilderHdLit {
         //   - it would be somewhat involved to detect this early
         //   - as a compromise, StateHdAggr::propagate could be used to stop
         //     instantiation after the aggregate's component has been grounded
-        GRINGO_REPORT(*ctx_->impl().log, error) << "TODO: " << lit;
+        auto vars_body = Ground::VariableSet{};
+        for (auto const &lit : ctx_->body()) {
+            lit->vars(vars_body, Ground::VarSelectMode::all);
+        }
+
+        auto vars_global = Ground::VariableSet{};
+
+        // handle guards
+        auto guards = Ground::GuardVec{};
+        guards.reserve((lit.lhs() ? 1 : 0) + (lit.rhs() ? 1 : 0));
+        if (lit.lhs()) {
+            bool has_projection = false;
+            guards.emplace_back(flip(lit.lhs()->second),
+                                std::visit(BuilderTerm{has_projection, ctx_->var_map()}, lit.lhs()->first));
+            guards.back().second->vars(vars_global);
+        }
+        if (lit.rhs()) {
+            bool has_projection = false;
+            guards.emplace_back(lit.rhs()->first,
+                                std::visit(BuilderTerm{has_projection, ctx_->var_map()}, lit.rhs()->second));
+            guards.back().second->vars(vars_global);
+        }
+
+        auto dom = true;                                // all literals in conditions are domain
+        auto sp_elems = true;                           // all conditions are single-pass
+        auto pos = lit.fun() == AggregateFunction::sum; // sum aggregate can be turned into a sum+ aggregate
+        auto elems = std::vector<std::tuple<Ground::UTermVec, Ground::AtomSimple, Ground::ULitVec>>{};
+        elems.reserve(lit.elems().size());
+        for (auto const &elem : lit.elems()) {
+            auto elem_vars = Ground::VariableSet{};
+            // tuple
+            auto tuple = Ground::UTermVec{};
+            if (lit.fun() == AggregateFunction::count) {
+                tuple.reserve(elem.tuple().size() + 1);
+                tuple.emplace_back(std::make_unique<Ground::TermSymbol>(SymbolStore::num_ref(1)));
+            } else {
+                tuple.reserve(elem.tuple().size());
+            }
+            for (auto const &term : elem.tuple()) {
+                bool has_projection = false;
+                tuple.emplace_back(std::visit(BuilderTerm{has_projection, ctx_->var_map()}, term));
+                tuple.back()->vars(elem_vars);
+            }
+            pos = pos && std::visit(
+                             []<class T>(T const &weight) {
+                                 if constexpr (Util::matches<T, Input::TermSymbol>) {
+                                     auto sym = weight.value();
+                                     return sym.type() != SymbolType::number || sym.num() >= 0;
+                                 }
+                                 return false;
+                             },
+                             elem.tuple().front());
+            // head
+            auto head = simple_lit_(elem.lit());
+            // condition
+            auto cond = Ground::ULitVec{};
+            cond.reserve(elem.cond().size());
+            for (auto const &lit : elem.cond()) {
+                if (!ctx_->single_pass(lit)) {
+                    sp_elems = false;
+                }
+                std::visit(BuilderLit{*ctx_,
+                                      [&cond, &elem_vars]<class Lit>(Lit &&glit) {
+                                          glit->vars(elem_vars, Ground::VarSelectMode::all);
+                                          cond.emplace_back(std::forward<Lit>(glit));
+                                      }},
+                           lit);
+                if (!cond.back()->domain()) {
+                    dom = false;
+                }
+            }
+            for (auto const &var : elem_vars) {
+                if (vars_body.contains(var)) {
+                    vars_global.emplace(var);
+                }
+            };
+            elems.emplace_back(std::move(tuple), std::move(head), std::move(cond));
+        }
+        auto fun = pos ? AggregateFunction::sump : lit.fun();
+        // Note that this slightly increases the required storage for count
+        // aggregates.
+        if (fun == AggregateFunction::count) {
+            fun = AggregateFunction::sump;
+        }
+        auto mon = Input::reduct_is_monotone(lit.lhs(), fun, lit.rhs());
+
+        auto elem_priority = ctx_->inc_priority();
+        auto index = sp_elems ? Ground::stratified_index : ctx_->next_index();
+
+        GRINGO_REPORT(*ctx_->impl().log, error) << "TODO: " << lit << "\n"
+                                                << "  domain: " << dom << "\n"
+                                                << "  mon: " << mon << "\n"
+                                                << "  prio: " << elem_priority << "\n"
+                                                << "  sp: " << sp_elems << "\n"
+                                                << "  index: " << index << "\n";
+        /*
+        auto create_body = [this](size_t reserve) {
+            auto body = Ground::ULitVec{};
+            body.reserve(reserve);
+            for (auto const &lit : ctx_->body()) {
+                body.emplace_back(lit->copy());
+            }
+            return body;
+        };
+
+        // add accumulation rule for neutral tuples
+        auto add_empty = [&, this]<class T>(auto &state, Symbol neutral, Ground::ULitVec &&body) {
+            ctx_->gcomp().add(
+                std::make_unique<T>(state, Util::make_vec<Ground::UTerm>(std::make_unique<Ground::TermSymbol>(neutral)),
+                                    std::move(body), 0, elem_priority));
+        };
+
+        // add accumulation rules for tuples
+        auto add_elem = [&, this]<class T>(auto &state) {
+            for (auto &[tuple, head, cond] : elems) {
+                auto num = cond.size();
+                cond.reserve(ctx_->body().size() + cond.size());
+                for (auto const &lit : ctx_->body()) {
+                    cond.emplace_back(lit->copy());
+                }
+                ctx_->gcomp().add(std::make_unique<T>(state, std::move(tuple), std::move(cond), num, elem_priority));
+            }
+        };
+
+        // create accumulation rules for stratified aggregates
+        auto add_sp_elems = [&]<class T>(auto &state) {
+            std::vector<T> stms;
+            stms.reserve(elems.size());
+            for (auto &[tuple, head, cond] : elems) {
+                auto num = cond.size();
+                cond.emplace_back(std::make_unique<Ground::LitTuple>(state.global(), state.symbols()));
+                stms.emplace_back(state, std::move(tuple), std::move(cond), num, elem_priority);
+            }
+            return stms;
+        };
+
+        // initialize state
+        auto &state = ctx_->state<Ground::StateBdAggr>(ctx_->mbr(), vars_global.release(), std::move(guards), fun,
+                                                       index, dom, mon, sp_elems);
+        if (sp_elems) {
+            ctx_->body().emplace_back(std::make_unique<Ground::LitBdAggrStrat>(
+                state, add_sp_elems.operator()<Ground::StmBdAggrElem>(state), lit.sign()));
+        } else {
+            auto body = create_body(ctx_->body().size() + state.guards().size());
+            auto neutral = neutral_val(fun);
+            // detect if accumulation rule for empty case is necessary
+            bool add_neutral = true;
+            for (auto const &guard : state.guards()) {
+                if (auto const *rhs = dynamic_cast<Ground::TermSymbol const *>(guard.second.get());
+                    rhs != nullptr) {
+                    if (!evaluate(neutral, guard.first, rhs->symbol())) {
+                        add_neutral = false;
+                        break;
+                    }
+                } else {
+                    body.emplace_back(std::make_unique<Ground::LitComparison>(
+                        std::make_unique<Ground::TermSymbol>(neutral), guard.first, guard.second->copy()));
+                }
+            }
+            if (add_neutral) {
+                add_empty.operator()<Ground::StmBdAggrElem>(state, neutral, std::move(body));
+            }
+            add_elem.operator()<Ground::StmBdAggrElem>(state);
+            ctx_->body().emplace_back(std::make_unique<Ground::LitBdAggr>(state, lit.sign()));
+        }
+        */
     }
 
     //! Translate simple head literals.
     void operator()(Input::HdLitSimple const &lit) const {
-        std::vector<size_t> provides;
-        Ground::UTerm blub;
-        auto head = std::visit(
-            [&]<class T>(T const &lit) -> std::optional<std::pair<Ground::UTerm, Ground::Base &>> {
+        ctx_->gcomp().add(std::make_unique<Ground::StmRule>(simple_lit_(lit.lit()), std::move(ctx_->body())));
+    }
+
+  private:
+    [[nodiscard]] auto simple_lit_(Input::Lit const &lit) const -> Ground::AtomSimple {
+        return std::visit(
+            [&]<class T>(T const &lit) -> Ground::AtomSimple {
                 if constexpr (Util::matches<T, Input::LitSymbolic>) {
+                    std::vector<size_t> provides;
                     auto dom_it = ctx_->impl().add_base(*signature(lit.term()));
                     auto &base = *dom_it->second;
                     assert(lit.sign() == Sign::none);
@@ -620,7 +789,7 @@ class BuilderHdLit {
                     auto has_projection = false;
                     auto term = std::visit(BuilderTerm{has_projection, ctx_->var_map()}, lit.term());
                     assert(!has_projection);
-                    return std::make_pair(std::move(term), std::ref(base));
+                    return std::make_tuple(std::move(term), std::ref(base), std::move(provides));
                 } else if constexpr (Util::matches<T, Input::LitBool>) {
                     if (!lit.value()) {
                         return std::nullopt;
@@ -628,12 +797,9 @@ class BuilderHdLit {
                 }
                 throw std::runtime_error("unexpected literal in rule head");
             },
-            lit.lit());
-        ctx_->gcomp().add(
-            std::make_unique<Ground::StmRule>(std::move(head), std::move(provides), std::move(ctx_->body())));
+            lit);
     }
 
-  private:
     BuildContext *ctx_;
 };
 
