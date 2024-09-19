@@ -3,6 +3,7 @@
 #include <gringo/ground/assignment_aggregate.hh>
 #include <gringo/ground/body_aggregate.hh>
 #include <gringo/ground/condlit.hh>
+#include <gringo/ground/head_aggregate.hh>
 #include <gringo/ground/program.hh>
 
 #include <gringo/input/parser.hh>
@@ -397,7 +398,8 @@ class BuilderTerm {
     Util::unordered_map<String, size_t> const *var_map_;
 };
 
-using StateList = std::forward_list<std::variant<Ground::StateCondLit, Ground::StateBdAggr, Ground::StateAssignAggr>>;
+using StateList = std::forward_list<
+    std::variant<Ground::StateCondLit, Ground::StateHdAggr, Ground::StateBdAggr, Ground::StateAssignAggr>>;
 
 //! Context object holding necessary data for translating from input to ground
 //! representation.
@@ -585,22 +587,13 @@ class BuilderHdLit {
     //! Translate head aggregates.
     void operator()(Input::HdLitAggregate const &lit) const {
         // TODO:
-        // - handle elements in a similar fashion as body aggregates
-        // - recursion through elements
-        //   - the heads are treated like rule heads
-        //   - example:
-        //     { a(X) : p(X); b(X) : q(X) }.
-        //     a(X) :- b(X).
-        //     b(X) :- a(X).
-        //   - the state gets an index if there is one recursive condition
-        //   - the indices of a head are computed as for rules
-        // - in principle, stratified of elements and monotonicity could be
-        //   used to stop instantiation early in the following two cases
-        //   - an anti-monotone aggregates became false
-        //   - a stratified aggregates is false w.r.t. to the grounded elements
-        //   - it would be somewhat involved to detect this early
-        //   - as a compromise, StateHdAggr::propagate could be used to stop
-        //     instantiation after the aggregate's component has been grounded
+        // - LitHdAggr is missing
+        // - maybe count aggregates can be supported directly because no neutral element is required
+        // - a special case for aggregates without guards is in order
+        //   - the rule class can be used for simple choice rules
+        //     (import because common)
+        //   - the (future) disjunction statement could be used for choice rules with more than one element
+        //     (would provide nice output)
         auto vars_body = Ground::VariableSet{};
         for (auto const &lit : ctx_->body()) {
             lit->vars(vars_body, Ground::VarSelectMode::all);
@@ -624,11 +617,13 @@ class BuilderHdLit {
             guards.back().second->vars(vars_global);
         }
 
-        auto dom = true;                                // all literals in conditions are domain
         auto sp_elems = true;                           // all conditions are single-pass
         auto pos = lit.fun() == AggregateFunction::sum; // sum aggregate can be turned into a sum+ aggregate
-        auto elems = std::vector<std::tuple<Ground::UTermVec, Ground::AtomSimple, Ground::ULitVec>>{};
+        using TermBase = std::optional<std::pair<Ground::UTerm, Ground::Base *>>;
+        auto elems = std::vector<std::tuple<Ground::UTermVec, TermBase, Ground::ULitVec>>{};
         elems.reserve(lit.elems().size());
+        Ground::HdAggrBaseVec bases;
+        bases.reserve(elems.size());
         for (auto const &elem : lit.elems()) {
             auto elem_vars = Ground::VariableSet{};
             // tuple
@@ -654,29 +649,30 @@ class BuilderHdLit {
                              },
                              elem.tuple().front());
             // head
-            auto head = simple_lit_(elem.lit());
+            auto head = TermBase{};
+            with_simple_lit_(elem.lit(), [&](auto sig, auto term, auto &base, auto provides) {
+                bases.emplace_back(sig, &base, std::move(provides));
+                head.emplace(std::make_pair(std::move(term), &base));
+            });
             // condition
             auto cond = Ground::ULitVec{};
-            cond.reserve(elem.cond().size());
+            cond.reserve(elem.cond().size() + 1);
             for (auto const &lit : elem.cond()) {
-                if (!ctx_->single_pass(lit)) {
-                    sp_elems = false;
-                }
+                sp_elems = sp_elems && ctx_->single_pass(lit);
                 std::visit(BuilderLit{*ctx_,
                                       [&cond, &elem_vars]<class Lit>(Lit &&glit) {
                                           glit->vars(elem_vars, Ground::VarSelectMode::all);
                                           cond.emplace_back(std::forward<Lit>(glit));
                                       }},
                            lit);
-                if (!cond.back()->domain()) {
-                    dom = false;
-                }
             }
+            // compute global variables
             for (auto const &var : elem_vars) {
                 if (vars_body.contains(var)) {
                     vars_global.emplace(var);
                 }
             };
+            // append element
             elems.emplace_back(std::move(tuple), std::move(head), std::move(cond));
         }
         auto fun = pos ? AggregateFunction::sump : lit.fun();
@@ -685,88 +681,42 @@ class BuilderHdLit {
         if (fun == AggregateFunction::count) {
             fun = AggregateFunction::sump;
         }
-        auto mon = Input::reduct_is_monotone(lit.lhs(), fun, lit.rhs());
 
         auto elem_priority = ctx_->inc_priority();
         auto index = sp_elems ? Ground::stratified_index : ctx_->next_index();
 
-        GRINGO_REPORT(*ctx_->impl().log, error) << "TODO: " << lit << "\n"
-                                                << "  domain: " << dom << "\n"
-                                                << "  mon: " << mon << "\n"
-                                                << "  prio: " << elem_priority << "\n"
-                                                << "  sp: " << sp_elems << "\n"
-                                                << "  index: " << index << "\n";
-        /*
-        auto create_body = [this](size_t reserve) {
+        // initialize state
+        std::sort(bases.begin(), bases.end(),
+                  [](auto const &x, auto const &y) { return std::get<0>(x) < std::get<0>(y); }),
+            bases.end();
+        bases.erase(std::unique(bases.begin(), bases.end(),
+                                [](auto const &x, auto const &y) { return std::get<0>(x) == std::get<0>(y); }),
+                    bases.end());
+        auto &state = ctx_->state<Ground::StateHdAggr>(ctx_->mbr(), std::move(bases), vars_global.release(),
+                                                       std::move(guards), fun, index, sp_elems);
+
+        auto create_body = [this]() {
             auto body = Ground::ULitVec{};
-            body.reserve(reserve);
+            body.reserve(ctx_->body().size());
             for (auto const &lit : ctx_->body()) {
                 body.emplace_back(lit->copy());
             }
             return body;
         };
 
-        // add accumulation rule for neutral tuples
-        auto add_empty = [&, this]<class T>(auto &state, Symbol neutral, Ground::ULitVec &&body) {
-            ctx_->gcomp().add(
-                std::make_unique<T>(state, Util::make_vec<Ground::UTerm>(std::make_unique<Ground::TermSymbol>(neutral)),
-                                    std::move(body), 0, elem_priority));
-        };
-
         // add accumulation rules for tuples
-        auto add_elem = [&, this]<class T>(auto &state) {
+        auto add_elem = [&, this](auto &state) {
             for (auto &[tuple, head, cond] : elems) {
-                auto num = cond.size();
-                cond.reserve(ctx_->body().size() + cond.size());
-                for (auto const &lit : ctx_->body()) {
-                    cond.emplace_back(lit->copy());
-                }
-                ctx_->gcomp().add(std::make_unique<T>(state, std::move(tuple), std::move(cond), num, elem_priority));
+                GRINGO_REPORT(*ctx_->impl().log, error) << "TODO: LitHdAggr is missing";
+                // cond.emplace_back(std::make_unique<Ground::LitHdAggr>(state));
+                ctx_->gcomp().add(
+                    std::make_unique<Ground::StmHdAggrElem>(state, std::move(head), std::move(tuple), std::move(cond)));
             }
         };
 
-        // create accumulation rules for stratified aggregates
-        auto add_sp_elems = [&]<class T>(auto &state) {
-            std::vector<T> stms;
-            stms.reserve(elems.size());
-            for (auto &[tuple, head, cond] : elems) {
-                auto num = cond.size();
-                cond.emplace_back(std::make_unique<Ground::LitTuple>(state.global(), state.symbols()));
-                stms.emplace_back(state, std::move(tuple), std::move(cond), num, elem_priority);
-            }
-            return stms;
-        };
-
-        // initialize state
-        auto &state = ctx_->state<Ground::StateBdAggr>(ctx_->mbr(), vars_global.release(), std::move(guards), fun,
-                                                       index, dom, mon, sp_elems);
-        if (sp_elems) {
-            ctx_->body().emplace_back(std::make_unique<Ground::LitBdAggrStrat>(
-                state, add_sp_elems.operator()<Ground::StmBdAggrElem>(state), lit.sign()));
-        } else {
-            auto body = create_body(ctx_->body().size() + state.guards().size());
-            auto neutral = neutral_val(fun);
-            // detect if accumulation rule for empty case is necessary
-            bool add_neutral = true;
-            for (auto const &guard : state.guards()) {
-                if (auto const *rhs = dynamic_cast<Ground::TermSymbol const *>(guard.second.get());
-                    rhs != nullptr) {
-                    if (!evaluate(neutral, guard.first, rhs->symbol())) {
-                        add_neutral = false;
-                        break;
-                    }
-                } else {
-                    body.emplace_back(std::make_unique<Ground::LitComparison>(
-                        std::make_unique<Ground::TermSymbol>(neutral), guard.first, guard.second->copy()));
-                }
-            }
-            if (add_neutral) {
-                add_empty.operator()<Ground::StmBdAggrElem>(state, neutral, std::move(body));
-            }
-            add_elem.operator()<Ground::StmBdAggrElem>(state);
-            ctx_->body().emplace_back(std::make_unique<Ground::LitBdAggr>(state, lit.sign()));
-        }
-        */
+        auto body = create_body();
+        add_elem(state);
+        ctx_->gcomp().add(std::make_unique<Ground::StmHdAggr>(state, std::move(body), elem_priority));
     }
 
     //! Translate simple head literals.
@@ -775,12 +725,24 @@ class BuilderHdLit {
     }
 
   private:
+    using SigAtomSimple =
+        std::optional<std::tuple<std::tuple<String, size_t, bool>, Ground::UTerm, Base &, std::vector<size_t>>>;
+
     [[nodiscard]] auto simple_lit_(Input::Lit const &lit) const -> Ground::AtomSimple {
-        return std::visit(
-            [&]<class T>(T const &lit) -> Ground::AtomSimple {
+        auto res = Ground::AtomSimple{};
+        with_simple_lit_(lit, [&res]([[maybe_unused]] auto sig, auto term, auto &base, auto provides) {
+            res.emplace(std::make_tuple(std::move(term), std::ref(base), std::move(provides)));
+        });
+        return res;
+    }
+
+    template <class F> void with_simple_lit_(Input::Lit const &lit, F fun) const {
+        std::visit(
+            [&]<class T>(T const &lit) {
                 if constexpr (Util::matches<T, Input::LitSymbolic>) {
                     std::vector<size_t> provides;
-                    auto dom_it = ctx_->impl().add_base(*signature(lit.term()));
+                    auto sig = *signature(lit.term());
+                    auto dom_it = ctx_->impl().add_base(sig);
                     auto &base = *dom_it->second;
                     assert(lit.sign() == Sign::none);
                     if (auto it = ctx_->def_map().find(&lit.term()); it != ctx_->def_map().end()) {
@@ -789,10 +751,11 @@ class BuilderHdLit {
                     auto has_projection = false;
                     auto term = std::visit(BuilderTerm{has_projection, ctx_->var_map()}, lit.term());
                     assert(!has_projection);
-                    return std::make_tuple(std::move(term), std::ref(base), std::move(provides));
+                    fun(sig, std::move(term), base, std::move(provides));
+                    return;
                 } else if constexpr (Util::matches<T, Input::LitBool>) {
                     if (!lit.value()) {
-                        return std::nullopt;
+                        return;
                     }
                 }
                 throw std::runtime_error("unexpected literal in rule head");
@@ -852,10 +815,9 @@ class BuilderBdLit {
         auto elems = std::vector<std::tuple<Ground::UTermVec, Ground::ULitVec>>{};
         elems.reserve(lit.elems().size());
         for (auto const &elem : lit.elems()) {
-            auto tuple = Ground::UTermVec{};
-            auto cond = Ground::ULitVec{};
             auto elem_vars = Ground::VariableSet{};
-            cond.reserve(elem.cond().size());
+            // tuple
+            auto tuple = Ground::UTermVec{};
             if (lit.fun() == AggregateFunction::count) {
                 tuple.reserve(elem.tuple().size() + 1);
                 tuple.emplace_back(std::make_unique<Ground::TermSymbol>(SymbolStore::num_ref(1)));
@@ -876,20 +838,19 @@ class BuilderBdLit {
                                  return false;
                              },
                              elem.tuple().front());
+            // condition
+            auto cond = Ground::ULitVec{};
+            cond.reserve(elem.cond().size());
             for (auto const &lit : elem.cond()) {
-                if (!ctx_->single_pass(lit)) {
-                    sp_elems = false;
-                }
+                sp_elems = sp_elems && ctx_->single_pass(lit);
                 std::visit(BuilderLit{*ctx_,
                                       [&cond, &elem_vars]<class Lit>(Lit &&glit) {
                                           glit->vars(elem_vars, Ground::VarSelectMode::all);
                                           cond.emplace_back(std::forward<Lit>(glit));
                                       }},
                            lit);
-                if (!cond.back()->domain()) {
-                    dom = false;
-                }
             }
+            dom = dom && std::all_of(cond.begin(), cond.end(), [](auto const &glit) { return glit->domain(); });
             for (auto const &var : elem_vars) {
                 if (vars_body.contains(var)) {
                     vars_global.emplace(var);

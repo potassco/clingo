@@ -284,8 +284,8 @@ class StmHdAggr : public Stm {
 class StmHdAggrElem : public Stm {
   public:
     //! Construct the statement.
-    StmHdAggrElem(StateHdAggr &state, std::optional<std::pair<UTerm, Base &>> head, UTermVec tuple, ULitVec body)
-        : state_{&state}, head_{head ? std::move(head->first) : nullptr}, base_{head ? &head->second : nullptr},
+    StmHdAggrElem(StateHdAggr &state, std::optional<std::pair<UTerm, Base *>> head, UTermVec tuple, ULitVec body)
+        : state_{&state}, head_{head ? std::move(head->first) : nullptr}, base_{head ? head->second : nullptr},
           tuple_{std::move(tuple)}, body_{std::move(body)} {}
 
   private:
