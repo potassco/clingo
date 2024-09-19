@@ -48,6 +48,22 @@ class OutputBody : public OutputLit {
         }
     }
 
+    auto delay_head(std::optional<size_t> uid, char const *sep) -> size_t {
+        buf_ << ".\n";
+        bool fact = delayed_.back().empty();
+        delayed_.back().emplace_back(buf_.str());
+        buf_.str({});
+        if (!uid) {
+            uid = ++*uids_;
+        }
+        // Note: leaves room for optimization...
+        if (!fact) {
+            delayed_.back().emplace(delayed_.back().begin(), sep);
+        }
+        delayed_.back().emplace(delayed_.back().begin(), *uid);
+        return *uid;
+    }
+
     auto buf() -> std::ostringstream & { return buf_; }
 
     void prepend() { delayed_.back().insert(delayed_.back().begin(), buf_.str()); }
@@ -188,6 +204,7 @@ class OutputText : public OutputStm {
             body_.prepend();
         }
     }
+    auto do_aggr_rule(std::optional<size_t> uid) -> size_t override { return body_.delay_head(uid, " :- "); }
     auto do_cond() -> OutputLit & override {
         cond_.start();
         return cond_;
@@ -236,6 +253,34 @@ class OutputText : public OutputStm {
                                               buf << Util::p_range{elem.first} << ": " << *conds_.nth(cond);
                                           }};
                                   }
+                              }}
+             << (elems.empty() ? "}" : " }");
+        for (auto ie = guards.end(); it != ie; ++it) {
+            buf_ << " " << it->first << " " << it->second;
+        }
+        body_.define(uid, buf_.str());
+    }
+
+    void do_hd_aggr(size_t uid, AggregateFunction fun, HdElems elems, Guards guards) override {
+        // Note: too much c&p from bd_aggr
+        buf_.str({});
+        auto it = guards.begin();
+        if (guards.size() > 1) {
+            buf_ << it->second << " " << flip(it->first) << " ";
+            ++it;
+        }
+        buf_ << fun << " { "
+             << Util::p_range{elems, "; ",
+                              [this](auto &buf, HdElem const &elem) {
+                                  buf << Util::p_range{elem.second, "; ", [this, &elem](auto &buf, auto const &hc) {
+                                                           buf << Util::p_range{elem.first} << ": ";
+                                                           if (hc.first.type() == SymbolType::sup) {
+                                                               buf << "#true";
+                                                           } else {
+                                                               buf << hc.first;
+                                                           }
+                                                           buf << *conds_.nth(hc.second);
+                                                       }};
                               }}
              << (elems.empty() ? "}" : " }");
         for (auto ie = guards.end(); it != ie; ++it) {

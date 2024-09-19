@@ -21,7 +21,7 @@ class OutputLit {
     //!
     //! Note that its elemens have to be accumulated before using the statement output.
     auto cond_lit(std::optional<size_t> uid) -> size_t { return do_cond_lit(uid); }
-    //! Delayed output of an aggregate.
+    //! Delayed output of a body aggregate.
     //!
     //! Outputs a previously added aggregate if uid is given or starts
     //! outputting a fresh aggregate atom.
@@ -43,6 +43,13 @@ class OutputStm {
     using BdElem = std::pair<SymbolSpan, std::span<size_t const>>;
     //! A span of body aggregate elements.
     using BdElems = std::span<BdElem const>;
+    //! A head aggregate element.
+    //!
+    //! The span captures the heads (`#sup` is used to represent `#true`) and
+    //! the ids of conditions.
+    using HdElem = std::pair<SymbolSpan, std::span<std::pair<Symbol, size_t> const>>;
+    //! A span of body aggregate elements.
+    using HdElems = std::span<HdElem const>;
     //! The guards of an aggregate.
     using Guards = std::span<std::pair<Relation, Symbol> const>;
     //! A conditional literal.
@@ -68,6 +75,8 @@ class OutputStm {
     //!
     //! The body of the rule has to be output first.
     void rule(std::optional<Symbol> head) { do_rule(head); }
+    //! Output a head aggregate rule.
+    auto aggr_rule(std::optional<size_t> uid) -> size_t { return do_aggr_rule(uid); }
 
     //! Return an output for a condition.
     auto cond() -> OutputLit & { return do_cond(); }
@@ -77,6 +86,10 @@ class OutputStm {
     //! Complete a delayed body aggregate.
     void bd_aggr(size_t uid, AggregateFunction fun, BdElems elems, Guards guards) {
         do_bd_aggr(uid, fun, elems, guards);
+    }
+    //! Complete a delayed head aggregate.
+    void hd_aggr(size_t uid, AggregateFunction fun, HdElems elems, Guards guards) {
+        do_hd_aggr(uid, fun, elems, guards);
     }
 
     //! Complete a delayed conditional literal.
@@ -99,12 +112,14 @@ class OutputStm {
 
     virtual auto do_body() -> OutputLit & = 0;
     virtual void do_rule(std::optional<Symbol> head) = 0;
+    virtual auto do_aggr_rule(std::optional<size_t> uid) -> size_t = 0;
 
     virtual auto do_cond() -> OutputLit & = 0;
     virtual auto do_cond_id() -> size_t = 0;
 
     virtual void do_cond_lit(size_t uid, CondLits elems) = 0;
     virtual void do_bd_aggr(size_t uid, AggregateFunction fun, BdElems elems, Guards guards) = 0;
+    virtual void do_hd_aggr(size_t uid, AggregateFunction fun, HdElems elems, Guards guards) = 0;
 
     virtual void do_flush() = 0;
     virtual void do_end_step() = 0;

@@ -417,11 +417,7 @@ void StateHdAggr::print(std::ostream &out) {
 }
 
 void StateHdAggr::output(OutputStm &out) {
-    static_cast<void>(out);
-    static_cast<void>(this);
-    throw std::logic_error("implement me!!!");
-    /*
-    std::vector<std::pair<SymbolSpan, std::span<size_t const>>> elems;
+    std::vector<std::pair<SymbolSpan, std::span<std::pair<Symbol, size_t> const>>> elems;
     std::vector<std::pair<Relation, Symbol>> guards;
     for (auto const &[tuple, atom] : base_.atoms()) {
         if (auto uid = atom.uid(); uid) {
@@ -436,10 +432,9 @@ void StateHdAggr::output(OutputStm &out) {
                 guards.emplace_back(guard.first, *it);
                 it = std::next(it);
             }
-            out.bd_aggr(*uid, fun_, elems, guards);
+            out.hd_aggr(*uid, fun_, elems, guards);
         }
     }
-    */
 }
 
 // definition of StmHdAggr
@@ -457,7 +452,16 @@ void StmHdAggr::do_init([[maybe_unused]] size_t gen) {
 }
 
 auto StmHdAggr::do_report(InstantiationContext &ctx) -> bool {
-    state_->insert_atom(ctx.store(), ctx.ass());
+    if (auto res = state_->insert_atom(ctx.store(), ctx.ass())) {
+        auto &aggr = res->first.value();
+        auto &out = ctx.out().body();
+        for (auto const &lit : body_) {
+            std::ignore = lit->output(ctx, out);
+        }
+        aggr.uid(ctx.out().aggr_rule(aggr.uid()));
+    }
+    // Note: in principle, it would be possible to detect false head aggregates
+    // in the stratified case.
     return true;
 }
 
