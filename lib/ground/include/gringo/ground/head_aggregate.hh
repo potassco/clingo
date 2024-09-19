@@ -27,6 +27,7 @@ namespace Gringo::Ground {
 //!   - they should be handled here
 //! - requirements
 //!   - AtomHdAggr    (to collect head aggregates)
+//!   - BaseHdAggr    (the base for grounding)
 //!   - StateHdAggr   (to gather state for grounding/output)
 //!   - StmHdAggr     (to derive atoms A)
 //!   - StmHdAggrElem (to accumulate elements)
@@ -177,7 +178,7 @@ class StateHdAggr {
     //!
     //! Head atoms must be either true or symbolic atoms. We use \#sup to
     //! represent true. Whether an element is fact is stored in the key.
-    using ElementMap = Util::ordered_map<ElementKey *, Util::small_vector<std::pair<Symbol, size_t>>>;
+    using ElementMap = Util::ordered_map<ElementKey *, Util::small_vector<std::pair<Symbol, size_t>, 1>>;
 
     //! Initialize an aggregate state.
     StateHdAggr(std::pmr::monotonic_buffer_resource &mbr, HdAggrBaseVec bases, VariableVec global, GuardVec guards,
@@ -280,26 +281,16 @@ class StmHdAggr : public Stm {
 };
 
 //! Gather aggregate elements.
-//!
-//! This class can also be used to derive empty aggregates. A tuple with a
-//! neutral element has to be used, which is 0/\#sum/\#sup depending on the
-//! type of the aggregate. Count aggregates have to be translated to sum+
-//! aggregates beforehand.
 class StmHdAggrElem : public Stm {
   public:
     //! Construct the statement.
-    //!
-    //! The first num_cond literals of the body must form the aggregate
-    //! element's condition. The following literals are just used for grounding
-    //! binding global variables of the aggregate and ensuring safety.
-    StmHdAggrElem(StateHdAggr &state, std::optional<UTerm> head, UTermVec tuple, ULitVec body, size_t num_cond)
-        : state_{&state}, head_{head ? *std::move(head) : nullptr}, tuple_{std::move(tuple)}, body_{std::move(body)},
-          num_cond_{num_cond} {}
+    StmHdAggrElem(StateHdAggr &state, std::optional<std::pair<UTerm, Base &>> head, UTermVec tuple, ULitVec body)
+        : state_{&state}, head_{head ? std::move(head->first) : nullptr}, base_{head ? &head->second : nullptr},
+          tuple_{std::move(tuple)}, body_{std::move(body)} {}
 
   private:
     [[nodiscard]] auto do_body() const -> ULitVec const & override;
     [[nodiscard]] auto do_important() const -> VariableSet override;
-    [[nodiscard]] auto do_is_important(size_t index) const -> bool override;
     void do_init([[maybe_unused]] size_t gen) override;
     [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override;
     void do_propagate(SymbolStore &store, Queue &queue) override;
@@ -310,9 +301,9 @@ class StmHdAggrElem : public Stm {
     StateHdAggr *state_;
     StateHdAggr::ElementKey *elem_key_ = nullptr;
     UTerm head_;
+    Base *base_;
     UTermVec tuple_;
     ULitVec body_;
-    size_t num_cond_;
 };
 
 } // namespace Gringo::Ground

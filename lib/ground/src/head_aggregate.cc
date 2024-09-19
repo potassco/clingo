@@ -492,15 +492,10 @@ auto StmHdAggrElem::do_important() const -> VariableSet {
     return res;
 }
 
-auto StmHdAggrElem::do_is_important(size_t index) const -> bool {
-    // Only the literals gathered by do_important and the ones in the
-    // condition are important. The remaining ones in the body can be
-    // backtracked.
-    return index < num_cond_;
-}
-
-void StmHdAggrElem::do_init([[maybe_unused]] size_t gen) {
-    // by construction, this statement does not increment the generation
+void StmHdAggrElem::do_init(size_t gen) {
+    if (base_ != nullptr) {
+        base_->update(gen);
+    }
 }
 
 auto StmHdAggrElem::do_report(InstantiationContext &ctx) -> bool {
@@ -525,10 +520,9 @@ auto StmHdAggrElem::do_report(InstantiationContext &ctx) -> bool {
 }
 
 void StmHdAggrElem::do_propagate([[maybe_unused]] SymbolStore &store, Queue &queue) {
-    // This is called after all statements in the current priority have
-    // been processed. Thus, all element aggregation rules have been
-    // processed. Here, aggregates that can match are added to the base and
-    // are enqueued.
+    // This is called after all statements on the current priority have been
+    // processed. Thus, all element aggregation rules have been processed.
+    // Here, literals are derived by the head aggregate are propagated.
     state_->propagate(queue);
 }
 
