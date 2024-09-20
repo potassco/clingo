@@ -594,6 +594,8 @@ class BuilderHdLit {
         //     (import because common)
         //   - the (future) disjunction statement could be used for choice rules with more than one element
         //     (would provide nice output)
+        //   - the translation can only be applied if the tuple won't fail
+        //     (or we check if it evaluates in the body via a special literal)
         auto vars_body = Ground::VariableSet{};
         for (auto const &lit : ctx_->body()) {
             lit->vars(vars_body, Ground::VarSelectMode::all);
@@ -617,7 +619,6 @@ class BuilderHdLit {
             guards.back().second->vars(vars_global);
         }
 
-        auto sp_elems = true;                           // all conditions are single-pass
         auto pos = lit.fun() == AggregateFunction::sum; // sum aggregate can be turned into a sum+ aggregate
         using TermBase = std::optional<std::pair<Ground::UTerm, Ground::Base *>>;
         auto elems = std::vector<std::tuple<Ground::UTermVec, TermBase, Ground::ULitVec>>{};
@@ -658,7 +659,6 @@ class BuilderHdLit {
             auto cond = Ground::ULitVec{};
             cond.reserve(elem.cond().size() + 1);
             for (auto const &lit : elem.cond()) {
-                sp_elems = sp_elems && ctx_->single_pass(lit);
                 std::visit(BuilderLit{*ctx_,
                                       [&cond, &elem_vars]<class Lit>(Lit &&glit) {
                                           glit->vars(elem_vars, Ground::VarSelectMode::all);
@@ -682,8 +682,9 @@ class BuilderHdLit {
             fun = AggregateFunction::sump;
         }
 
+        auto sp_body = ctx_->single_pass_body();
         auto elem_priority = ctx_->inc_priority();
-        auto index = sp_elems ? Ground::stratified_index : ctx_->next_index();
+        auto index = sp_body ? Ground::stratified_index : ctx_->next_index();
 
         // initialize state
         std::sort(bases.begin(), bases.end(),
@@ -693,30 +694,19 @@ class BuilderHdLit {
                                 [](auto const &x, auto const &y) { return std::get<0>(x) == std::get<0>(y); }),
                     bases.end());
         auto &state = ctx_->state<Ground::StateHdAggr>(ctx_->mbr(), std::move(bases), vars_global.release(),
-                                                       std::move(guards), fun, index, sp_elems);
-
-        auto create_body = [this]() {
-            auto body = Ground::ULitVec{};
-            body.reserve(ctx_->body().size());
-            for (auto const &lit : ctx_->body()) {
-                body.emplace_back(lit->copy());
-            }
-            return body;
-        };
+                                                       std::move(guards), fun, index, sp_body);
 
         // add accumulation rules for tuples
         auto add_elem = [&, this](auto &state) {
             for (auto &[tuple, head, cond] : elems) {
-                GRINGO_REPORT(*ctx_->impl().log, error) << "TODO: LitHdAggr is missing";
-                // cond.emplace_back(std::make_unique<Ground::LitHdAggr>(state));
+                cond.emplace_back(std::make_unique<Ground::LitHdAggr>(state));
                 ctx_->gcomp().add(
                     std::make_unique<Ground::StmHdAggrElem>(state, std::move(head), std::move(tuple), std::move(cond)));
             }
         };
 
-        auto body = create_body();
         add_elem(state);
-        ctx_->gcomp().add(std::make_unique<Ground::StmHdAggr>(state, std::move(body), elem_priority));
+        ctx_->gcomp().add(std::make_unique<Ground::StmHdAggr>(state, std::move(ctx_->body()), elem_priority));
     }
 
     //! Translate simple head literals.

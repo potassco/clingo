@@ -182,9 +182,9 @@ class StateHdAggr {
 
     //! Initialize an aggregate state.
     StateHdAggr(std::pmr::monotonic_buffer_resource &mbr, HdAggrBaseVec bases, VariableVec global, GuardVec guards,
-                AggregateFunction fun, size_t index, bool single_pass_elems)
+                AggregateFunction fun, size_t index, bool single_pass_body)
         : base_{global.size()}, global_{std::move(global)}, guards_{std::move(guards)}, bases_{std::move(bases)},
-          mbr_{&mbr}, index_{index}, fun_{fun}, single_pass_elems_{single_pass_elems} {}
+          mbr_{&mbr}, index_{index}, fun_{fun}, single_pass_body_{single_pass_body} {}
 
     //! Get the global variables in the aggregate.
     [[nodiscard]] auto global() const -> VariableVec const &;
@@ -196,9 +196,13 @@ class StateHdAggr {
     [[nodiscard]] auto fun() const -> AggregateFunction;
     //! Indicates that all necessary elemements can be grounded in a single
     //! pass.
-    [[nodiscard]] auto single_pass_elems() const -> bool;
-    //! Get the update index.
+    [[nodiscard]] auto single_pass_body() const -> bool;
+    //! Get the update index for the aggregate.
     [[nodiscard]] auto index() const -> size_t;
+    //! Get the update indices for the heads of the elements.
+    //!
+    //! Unoptimized and intended for debug printing.
+    [[nodiscard]] auto indices() const -> std::vector<size_t>;
 
     //! Enqueue aggregate element rules.
     void enqueue(Queue &queue);
@@ -222,10 +226,13 @@ class StateHdAggr {
                      UTermVec const &tuple, ElementKey *&elem_key, auto const &get_cond);
 
     //! Print a non-ground representation of the aggregate.
-    void print(std::ostream &out);
+    void print(std::ostream &out, bool print_index);
 
     //! Output all previously output aggregates.
     void output(OutputStm &out);
+
+    //! Return the base of the aggregate.
+    [[nodiscard]] auto base() -> BaseHdAggr &;
 
   private:
     //! Enequeue an atom for propgation.
@@ -247,7 +254,7 @@ class StateHdAggr {
     AtomKey *atom_key_ = nullptr;
     size_t index_;
     AggregateFunction fun_;
-    bool single_pass_elems_;
+    bool single_pass_body_;
 };
 
 //! A statement deriving head aggregate atoms to trigger grounding of elements.
@@ -291,7 +298,7 @@ class StmHdAggrElem : public Stm {
   private:
     [[nodiscard]] auto do_body() const -> ULitVec const & override;
     [[nodiscard]] auto do_important() const -> VariableSet override;
-    void do_init([[maybe_unused]] size_t gen) override;
+    void do_init(size_t gen) override;
     [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override;
     void do_propagate(SymbolStore &store, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override;
@@ -304,6 +311,75 @@ class StmHdAggrElem : public Stm {
     Base *base_;
     UTermVec tuple_;
     ULitVec body_;
+};
+
+//! A term like object used to match head aggregates.
+class MatchHdAggr {
+  public:
+    //! The key to match against.
+    using Key = Symbol const *;
+
+    //! Construct the matcher.
+    MatchHdAggr(StateHdAggr &state) : state_{&state} {
+        eval_.reserve(state_->global().size() + state_->guards().size());
+    }
+
+    //! Get the variables of the matcher.
+    [[nodiscard]] auto vars() const -> VariableSet;
+
+    //! Get the signature of the matcher.
+    [[nodiscard]] auto signature(VariableSet const &bound, VariableSet const &bind) const -> VariableVec;
+
+    //! Match a span of symbols representing an atom or element with the assignment.
+    [[nodiscard]] auto match(SymbolStore &store, Symbol const *sym, Assignment &ass) const -> bool;
+
+    //! Evaluate w.r.t. the given assignment and return a span representing an atom or element.
+    [[nodiscard]] auto eval(SymbolStore &store, Assignment &ass) const -> std::optional<Symbol const *>;
+
+    //! Print a string representation of the matcher.
+    friend auto operator<<(std::ostream &out, MatchHdAggr const &m) -> std::ostream &;
+
+    //! Get the associated state.
+    [[nodiscard]] auto state() const -> StateHdAggr &;
+
+  private:
+    std::vector<Symbol> mutable eval_;
+    StateHdAggr *state_;
+};
+
+//! Literal representing an aggregate.
+class LitHdAggr : public Lit, private MatchHdAggr {
+  public:
+    //! Construct the aggregate literal.
+    LitHdAggr(StateHdAggr &state) : MatchHdAggr{state} {}
+
+  private:
+    void do_vars(VariableSet &vars, VarSelectMode mode) const override;
+
+    [[nodiscard]] auto do_domain() const -> bool override;
+
+    //! Returns true if the aggregate needs only one grounding pass.
+    [[nodiscard]] auto do_single_pass() const -> bool override;
+
+    [[nodiscard]] auto
+    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+
+    [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
+
+    void do_print(std::ostream &out) const override;
+
+    auto do_output(InstantiationContext &ctx, OutputLit &out) const -> bool override;
+
+    [[nodiscard]] auto do_copy() const -> ULit override;
+
+    [[nodiscard]] auto do_hash() const -> size_t override;
+
+    [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
+
+    [[nodiscard]] auto do_compare_to(Lit const &other) const -> std::weak_ordering override;
+
+    size_t offset_ = invalid_offset;
 };
 
 } // namespace Gringo::Ground

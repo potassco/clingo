@@ -49,8 +49,8 @@ class OutputBody : public OutputLit {
     }
 
     auto delay_head(std::optional<size_t> uid, char const *sep) -> size_t {
+        bool fact = buf_.view().empty() && delayed_.back().empty();
         buf_ << ".\n";
-        bool fact = delayed_.back().empty();
         delayed_.back().emplace_back(buf_.str());
         buf_.str({});
         if (!uid) {

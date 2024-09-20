@@ -258,14 +258,16 @@ class StateBdAggr {
     bool single_pass_elems_;
 };
 
-//! A term like object used to match conditional literals and their elements.
+//! A term like object used to match body aggregates.
 class MatchBdAggr {
   public:
     //! The key to match against.
     using Key = Symbol const *;
 
     //! Construct the matcher.
-    MatchBdAggr(StateBdAggr &state) : state_{&state} { eval_.reserve(state_->global().size()); }
+    MatchBdAggr(StateBdAggr &state) : state_{&state} {
+        eval_.reserve(state_->global().size() + state_->guards().size());
+    }
 
     //! Get the variables of the matcher.
     [[nodiscard]] auto vars() const -> VariableSet;

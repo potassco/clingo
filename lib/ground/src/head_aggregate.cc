@@ -280,9 +280,21 @@ auto StateHdAggr::guards() const -> GuardVec const & { return guards_; }
 
 auto StateHdAggr::fun() const -> AggregateFunction { return fun_; }
 
-auto StateHdAggr::single_pass_elems() const -> bool { return single_pass_elems_; }
+auto StateHdAggr::single_pass_body() const -> bool { return single_pass_body_; }
 
 auto StateHdAggr::index() const -> size_t { return index_; }
+
+auto StateHdAggr::indices() const -> std::vector<size_t> {
+    std::vector<size_t> res;
+    for (auto const &[sig, base, indices] : bases_) {
+        res.insert(res.end(), indices.begin(), indices.end());
+    }
+    std::sort(res.begin(), res.end());
+    res.erase(std::unique(res.begin(), res.end()), res.end());
+    return res;
+}
+
+auto StateHdAggr::base() -> BaseHdAggr & { return base_; }
 
 void StateHdAggr::enqueue(Queue &queue) {
     if (index_ != stratified_index && base_.has_update()) {
@@ -401,14 +413,14 @@ void StateHdAggr::insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iter
 
 auto StateHdAggr::atom_index_(AtomMap::iterator it) -> size_t { return it - base_.atoms().begin(); }
 
-void StateHdAggr::print(std::ostream &out) {
+void StateHdAggr::print(std::ostream &out, bool print_index) {
     auto it = guards_.begin();
     if (guards_.size() > 1) {
         out << *it->second << " " << flip(it->first) << " ";
         ++it;
     }
     out << fun_ << "(" << Util::p_range(global_, [](std::ostream &out, auto var) { out << "X_" << var; }) << ")";
-    if (index_ != stratified_index) {
+    if (print_index && index_ != stratified_index) {
         out << "[" << index_ << "]";
     }
     for (auto ie = guards_.end(); it != ie; ++it) {
@@ -472,14 +484,11 @@ void StmHdAggr::do_propagate([[maybe_unused]] SymbolStore &store, Queue &queue) 
 
 auto StmHdAggr::do_priority() const -> size_t { return priority_; }
 
-void StmHdAggr::do_print_head(std::ostream &out) const { state_->print(out); }
+void StmHdAggr::do_print_head(std::ostream &out) const { state_->print(out, false); }
 
 void StmHdAggr::do_print(std::ostream &out) const {
     out << priority_ << ": ";
-    print_head(out);
-    if (state_->index() != stratified_index) {
-        out << "[" << state_->index() << "]";
-    }
+    state_->print(out, true);
     out << " <- " << Util::p_range(body_, ", ", [](std::ostream &out, auto const &lit) { out << *lit; }) << ".";
 }
 
@@ -547,10 +556,105 @@ void StmHdAggrElem::do_print_head(std::ostream &out) const {
 void StmHdAggrElem::do_print(std::ostream &out) const {
     out << "max: ";
     print_head(out);
-    if (state_->index() != stratified_index) {
-        out << "[" << state_->index() << "]";
+    if (auto indices = state_->indices(); !indices.empty()) {
+        out << "[" << Util::p_range(indices, ",") << "]";
     }
     out << " <- " << Util::p_range(body_, ", ", [](std::ostream &out, auto const &lit) { out << *lit; }) << ".";
 }
+
+// definition of MatchHdAggr
+
+auto MatchHdAggr::vars() const -> VariableSet { return VariableSet{state_->global().begin(), state_->global().end()}; }
+
+auto MatchHdAggr::signature(VariableSet const &bound, [[maybe_unused]] VariableSet const &bind) const -> VariableVec {
+    static_cast<void>(this);
+    return {bound.begin(), bound.end()};
+}
+
+auto MatchHdAggr::match([[maybe_unused]] SymbolStore &store, Symbol const *sym, Assignment &ass) const -> bool {
+    for (auto var : state_->global()) {
+        if (auto &opt = ass[var]; opt) {
+            if (*opt != *sym) {
+                return false;
+            }
+        } else {
+            ass[var] = *sym;
+        }
+        sym = std::next(sym);
+    }
+    return true;
+}
+
+auto MatchHdAggr::eval(SymbolStore &store, Assignment &ass) const -> std::optional<Symbol const *> {
+    eval_.clear();
+    for (auto var : state_->global()) {
+        // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+        eval_.emplace_back(ass[var].value());
+    }
+    for (auto const &guard : state().guards()) {
+        if (auto sym = guard.second->eval(store, ass); sym) {
+            eval_.emplace_back(*sym);
+        } else {
+            return std::nullopt;
+        }
+    }
+    return eval_.data();
+}
+
+auto MatchHdAggr::state() const -> StateHdAggr & { return *state_; }
+
+auto operator<<(std::ostream &out, MatchHdAggr const &m) -> std::ostream & {
+    m.state_->print(out, false);
+    return out;
+}
+
+// definition of LitHdAggr
+
+void LitHdAggr::do_vars(VariableSet &vars, VarSelectMode mode) const {
+    if (mode != VarSelectMode::depend) {
+        vars.insert(state().global().begin(), state().global().end());
+    }
+}
+
+auto LitHdAggr::do_domain() const -> bool {
+    // this is an auxiliary literal for binding variables
+    return true;
+}
+
+auto LitHdAggr::do_single_pass() const -> bool { return state().single_pass_body(); }
+
+auto LitHdAggr::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+                           std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
+    offset_ = invalid_offset;
+    auto &match = static_cast<MatchHdAggr &>(*this);
+    auto index = std::optional<size_t>{};
+    if (state().index() != stratified_index && type == MatcherType::new_atoms) {
+        index = state().index();
+    }
+    return {make_atom_matcher(mbr, bound, state().base(), match, type, offset_), index};
+}
+
+auto LitHdAggr::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double {
+    // Note: at the time of score computation the aggregate is still empty.
+    // Scoring low should be fine here.
+    return 0;
+}
+
+void LitHdAggr::do_print(std::ostream &out) const { state().print(out, true); }
+
+auto LitHdAggr::do_output([[maybe_unused]] InstantiationContext &ctx, [[maybe_unused]] OutputLit &out) const -> bool {
+    return false;
+}
+
+auto LitHdAggr::do_copy() const -> ULit { return std::make_unique<LitHdAggr>(state()); }
+
+auto LitHdAggr::do_hash() const -> size_t {
+    // NOLINTNEXTLINE
+    return Util::value_hash_record<LitHdAggr>(reinterpret_cast<uintptr_t>(this));
+}
+
+auto LitHdAggr::do_equal_to(Lit const &other) const -> bool { return this == &other; }
+
+auto LitHdAggr::do_compare_to(Lit const &other) const -> std::weak_ordering { return this <=> &other; }
 
 } // namespace Gringo::Ground
