@@ -399,14 +399,14 @@ void StateBdAggr::insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iter
 
 auto StateBdAggr::atom_index_(AtomMap::iterator it) -> size_t { return it - base_.atoms().begin(); }
 
-void StateBdAggr::print(std::ostream &out) {
+void StateBdAggr::print(std::ostream &out, bool print_index) {
     auto it = guards_.begin();
     if (guards_.size() > 1) {
         out << *it->second << " " << flip(it->first) << " ";
         ++it;
     }
     out << fun_ << "(" << Util::p_range(global_, [](std::ostream &out, auto var) { out << "X_" << var; }) << ")";
-    if (index_ != stratified_index) {
+    if (print_index && index_ != stratified_index) {
         out << "[" << index_ << "]";
     }
     for (auto ie = guards_.end(); it != ie; ++it) {
@@ -479,7 +479,7 @@ auto MatchBdAggr::eval(SymbolStore &store, Assignment &ass) const -> std::option
 auto MatchBdAggr::state() const -> StateBdAggr & { return *state_; }
 
 auto operator<<(std::ostream &out, MatchBdAggr const &m) -> std::ostream & {
-    m.state_->print(out);
+    m.state_->print(out, false);
     return out;
 }
 
@@ -541,7 +541,7 @@ auto LitBdAggr::do_score([[maybe_unused]] std::vector<bool> const &bound) const 
     return 0;
 }
 
-void LitBdAggr::do_print(std::ostream &out) const { state().print(out); }
+void LitBdAggr::do_print(std::ostream &out) const { state().print(out, true); }
 
 auto LitBdAggr::do_output([[maybe_unused]] InstantiationContext &ctx, OutputLit &out) const -> bool {
     if (domain()) {
@@ -706,7 +706,7 @@ class MatcherBdAggrStrat : public OnceMatcher {
         }
         return false;
     }
-    void do_print(std::ostream &out) const override { state_->print(out); }
+    void do_print(std::ostream &out) const override { state_->print(out, false); }
 
     StateBdAggr *state_;
     InstantiatorVec insts_;
@@ -752,7 +752,7 @@ auto LitBdAggrStrat::do_score([[maybe_unused]] std::vector<bool> const &bound) c
     return 100;
 }
 
-void LitBdAggrStrat::do_print(std::ostream &out) const { state_->print(out); }
+void LitBdAggrStrat::do_print(std::ostream &out) const { state_->print(out, true); }
 
 auto LitBdAggrStrat::do_output([[maybe_unused]] InstantiationContext &ctx, OutputLit &out) const -> bool {
     if (domain()) {

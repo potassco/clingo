@@ -196,7 +196,7 @@ class StateAssignAggr {
     auto atom_index(AtomMap::iterator it) -> size_t;
 
     //! Print a non-ground representation of the aggregate.
-    void print(std::ostream &out);
+    void print(std::ostream &out, bool print_index);
 
     //! Get the underlying atom base.
     [[nodiscard]] auto base() -> BaseAssignAggr &;

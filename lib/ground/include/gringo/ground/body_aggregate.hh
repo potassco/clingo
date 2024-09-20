@@ -226,7 +226,7 @@ class StateBdAggr {
                      ElementKey *&elem_key, auto const &get_cond);
 
     //! Print a non-ground representation of the aggregate.
-    void print(std::ostream &out);
+    void print(std::ostream &out, bool print_index);
 
     //! Get the underlying atom base.
     [[nodiscard]] auto base() -> BaseBdAggr &;

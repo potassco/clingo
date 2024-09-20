@@ -341,9 +341,9 @@ void StateAssignAggr::insert_elem(SymbolStore &store, Assignment &ass, AtomMap::
 
 auto StateAssignAggr::atom_index(AtomMap::iterator it) -> size_t { return it - base_.atoms().begin(); }
 
-void StateAssignAggr::print(std::ostream &out) {
+void StateAssignAggr::print(std::ostream &out, bool print_index) {
     out << fun_ << "(" << Util::p_range(global_, [](std::ostream &out, auto var) { out << "X_" << var; }) << ")";
-    if (index_ != stratified_index) {
+    if (print_index && index_ != stratified_index) {
         out << "[" << index_ << "]";
     }
     out << " = " << *term_;
@@ -420,7 +420,7 @@ auto MatchAssignAggr::eval(SymbolStore &store, Assignment &ass) const -> std::op
 }
 
 auto operator<<(std::ostream &out, MatchAssignAggr const &m) -> std::ostream & {
-    m.state_->print(out);
+    m.state_->print(out, false);
     return out;
 }
 
@@ -459,7 +459,7 @@ auto LitAssignAggr::do_score([[maybe_unused]] std::vector<bool> const &bound) co
     return 0;
 }
 
-void LitAssignAggr::do_print(std::ostream &out) const { state().print(out); }
+void LitAssignAggr::do_print(std::ostream &out) const { state().print(out, true); }
 
 auto LitAssignAggr::do_output([[maybe_unused]] InstantiationContext &ctx, OutputLit &out) const -> bool {
     if (domain()) {
@@ -650,7 +650,7 @@ auto LitAssignAggrStrat::do_score([[maybe_unused]] std::vector<bool> const &boun
     return domain() ? 0 : std::numeric_limits<double>::max();
 }
 
-void LitAssignAggrStrat::do_print(std::ostream &out) const { state().print(out); }
+void LitAssignAggrStrat::do_print(std::ostream &out) const { state().print(out, true); }
 
 auto LitAssignAggrStrat::do_output([[maybe_unused]] InstantiationContext &ctx, OutputLit &out) const -> bool {
     assert(state().single_pass_elems());
