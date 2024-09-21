@@ -104,7 +104,7 @@ auto StateCondLit::add_premise(InstantiationContext &ctx, ULitVec const &premise
     for (auto var : local_) {
         kt = std::next(kt);
         // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-        *kt = *ass[local_[var]];
+        *kt = *ass[var];
     }
 
     auto [jt, ins] = elems_.try_emplace(syms_elem, ctx.out().cond_id(), fact, has_conclusion_);
