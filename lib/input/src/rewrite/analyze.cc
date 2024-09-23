@@ -10,6 +10,8 @@
 
 #include <algorithm>
 
+#include "visit.hh"
+
 namespace Gringo::Input {
 
 namespace {
@@ -354,6 +356,34 @@ struct GetSignature {
     }
 };
 
+class ExtractCanFail : public Visitor<ExtractCanFail> {
+  public:
+    ExtractCanFail(std::vector<Term> &result) : result{&result} {}
+
+    void accept(TermFunction const &term) const {
+        if (term.external()) {
+            result->emplace_back(term);
+        } else {
+            visit(term.pool());
+        }
+    }
+
+    void accept(TermAbs const &term) const { result->emplace_back(term); }
+
+    void accept(TermUnary const &term) const {
+        if (is_symbol(*term.rhs())) {
+            visit(*term.rhs());
+        } else {
+            result->emplace_back(term);
+        }
+    }
+
+    void accept(TermBinary const &term) const { result->emplace_back(term); }
+
+  private:
+    std::vector<Term> *result;
+};
+
 } // namespace
 
 auto check_type(Term const &term, TermCheckType type, CheckTypeResult *res) -> bool {
@@ -493,5 +523,7 @@ auto is_matchable(Term const &term) -> bool { return std::visit(IsMatchable{}, t
 auto signature(Term const &term) -> std::optional<std::tuple<String, size_t, bool>> {
     return std::visit(GetSignature{}, term);
 }
+
+void extract_can_fail(Term const &term, std::vector<Term> &result) { ExtractCanFail{result}.visit(term); }
 
 } // namespace Gringo::Input

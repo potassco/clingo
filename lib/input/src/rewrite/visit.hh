@@ -98,7 +98,7 @@ template <class T> class Visitor {
 
     // theory terms
 
-    void accept_(UnparsedElement const &elem) const { return visit(elem.term()); }
+    void accept_(UnparsedElement const &elem) const { visit(elem.term()); }
 
     void accept_(TheoryTermTuple const &term) const { visit(term.elems()); }
 

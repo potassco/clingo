@@ -180,6 +180,9 @@ auto check_linear(Term const &term) -> std::optional<LinearTerm>;
 //! For example, the folllowing terms is matchable: `f(1,c,X,X+1,-X,(X,Y))`.
 [[nodiscard]] auto is_matchable(Term const &term) -> bool;
 
+//! Extract terms whose evaluation can fail.
+void extract_can_fail(Term const &term, std::vector<Term> &result);
+
 //! @}
 
 } // namespace Gringo::Input

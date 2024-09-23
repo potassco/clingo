@@ -619,7 +619,7 @@ class BuilderHdLit {
                 }
                 // body literals
                 auto body = Ground::ULitVec{};
-                auto size = ctx_->body().size() + elem.cond().size() + 1;
+                auto size = ctx_->body().size() + elem.cond().size();
                 if (n > 0) {
                     body.reserve(size);
                     for (auto const &lit : ctx_->body()) {
@@ -636,7 +636,13 @@ class BuilderHdLit {
                                lit);
                 }
                 // fail check
-                GRINGO_REPORT(*ctx_->impl().log, error) << "add fail check for " << elem;
+                std::vector<Input::Term> can_fail;
+                for (auto const &term : elem.tuple()) {
+                    Input::extract_can_fail(term, can_fail);
+                }
+                for (auto const &term : can_fail) {
+                    GRINGO_REPORT(*ctx_->impl().log, error) << "add fail check for " << term;
+                }
                 // normal/choice rule
                 ctx_->gcomp().add(std::make_unique<Ground::StmRule>(simple_lit_(elem.lit()), std::move(body), true));
             }
