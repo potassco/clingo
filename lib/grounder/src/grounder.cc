@@ -586,16 +586,6 @@ class BuilderHdLit {
 
     //! Translate head aggregates.
     void operator()(Input::HdLitAggregate const &lit) const {
-        // TODO:
-        // - LitHdAggr is missing
-        // - maybe count aggregates can be supported directly because no neutral element is required
-        // - a special case for aggregates without guards is in order
-        //   - the rule class can be used for simple choice rules
-        //     (import because common)
-        //   - the (future) disjunction statement could be used for choice rules with more than one element
-        //     (would provide nice output)
-        //   - the translation can only be applied if the tuple won't fail
-        //     (or we check if it evaluates in the body via a special literal)
         auto vars_body = Ground::VariableSet{};
         for (auto const &lit : ctx_->body()) {
             lit->vars(vars_body, Ground::VarSelectMode::all);
@@ -617,6 +607,15 @@ class BuilderHdLit {
             guards.emplace_back(lit.rhs()->first,
                                 std::visit(BuilderTerm{has_projection, ctx_->var_map()}, lit.rhs()->second));
             guards.back().second->vars(vars_global);
+        }
+
+        if (guards.empty()) {
+            // TODO:
+            // for elem in elems:
+            //   head :- body, cond, #not_fail tuple
+            for (auto const &elem : lit.elems()) {
+                GRINGO_REPORT(*ctx_->impl().log, error) << "add choice rule for " << elem;
+            }
         }
 
         auto pos = lit.fun() == AggregateFunction::sum; // sum aggregate can be turned into a sum+ aggregate
