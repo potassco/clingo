@@ -25,7 +25,7 @@ class NullOutputStm : public OutputStm {
     auto do_uid() -> size_t override { return 0; }
     void do_fact([[maybe_unused]] Symbol sym) override {}
     auto do_body() -> OutputLit & override { return lout; }
-    void do_rule([[maybe_unused]] std::optional<Symbol> head) override {}
+    void do_rule([[maybe_unused]] std::optional<std::pair<Symbol, bool>> head) override {}
     auto do_aggr_rule([[maybe_unused]] std::optional<size_t> head) -> size_t override { return 0; }
     auto do_cond() -> OutputLit & override { return lout; }
     auto do_cond_id() -> size_t override { return 0; }

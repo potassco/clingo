@@ -74,7 +74,7 @@ class OutputStm {
     //! Output the given rule.
     //!
     //! The body of the rule has to be output first.
-    void rule(std::optional<Symbol> head) { do_rule(head); }
+    void rule(std::optional<std::pair<Symbol, bool>> head) { do_rule(head); }
     //! Output a head aggregate rule.
     auto aggr_rule(std::optional<size_t> uid) -> size_t { return do_aggr_rule(uid); }
 
@@ -111,7 +111,7 @@ class OutputStm {
     virtual void do_fact(Symbol sym) = 0;
 
     virtual auto do_body() -> OutputLit & = 0;
-    virtual void do_rule(std::optional<Symbol> head) = 0;
+    virtual void do_rule(std::optional<std::pair<Symbol, bool>> head) = 0;
     virtual auto do_aggr_rule(std::optional<size_t> uid) -> size_t = 0;
 
     virtual auto do_cond() -> OutputLit & = 0;

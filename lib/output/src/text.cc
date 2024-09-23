@@ -180,16 +180,25 @@ class OutputText : public OutputStm {
     OutputText(std::ostream &out) : out_{&out} {};
 
   private:
+    static void simple_head_(std::ostream &out, std::optional<std::pair<Symbol, bool>> const &head) {
+        if (head) {
+            if (head->second) {
+                out << "{ ";
+            }
+            out << head->first;
+            if (head->second) {
+                out << " }";
+            }
+        }
+    }
     void do_fact(Symbol sym) override { *out_ << sym << ".\n"; }
     auto do_body() -> OutputLit & override {
         body_.start();
         return body_;
     }
-    void do_rule(std::optional<Symbol> head) override {
+    void do_rule(std::optional<std::pair<Symbol, bool>> head) override {
         if (!body_.delayed()) {
-            if (head) {
-                *out_ << *head;
-            }
+            simple_head_(*out_, head);
             if (!body_.empty() || !head) {
                 *out_ << " :- ";
             }
@@ -197,9 +206,7 @@ class OutputText : public OutputStm {
         } else {
             body_.buf() << ".\n";
             body_.delay();
-            if (head) {
-                body_.buf() << *head;
-            }
+            simple_head_(body_.buf(), head);
             body_.buf() << " :- ";
             body_.prepend();
         }

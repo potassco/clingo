@@ -182,7 +182,7 @@ void StmRule::do_init(size_t gen) {
 }
 
 auto StmRule::do_report(InstantiationContext &ctx) -> bool {
-    bool fact = true;
+    bool fact = !choice_;
     auto &out = ctx.out().body();
     for (auto const &lit : body_) {
         if (lit->output(ctx, out)) {
@@ -191,8 +191,10 @@ auto StmRule::do_report(InstantiationContext &ctx) -> bool {
     }
     if (head_ != nullptr) {
         base_->add(atom_, fact ? StateAtom::fact : StateAtom::derived);
+        ctx.out().rule(std::make_pair(atom_, choice_));
+    } else if (!choice_) {
+        ctx.out().rule(std::nullopt);
     }
-    ctx.out().rule(head_ != nullptr ? atom_ : std::optional<Symbol>{});
     return head_ != nullptr || !fact;
 }
 

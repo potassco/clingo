@@ -73,9 +73,10 @@ class Linearizer {
 class StmRule : public Stm {
   public:
     //! Construct the statement.
-    StmRule(AtomSimple head, Ground::ULitVec body)
+    StmRule(AtomSimple head, Ground::ULitVec body, bool choice)
         : head_{head ? std::move(std::get<0>(*head)) : nullptr}, base_{head ? &std::get<1>(*head) : nullptr},
-          indices_{head ? std::move(std::get<2>(*head)) : std::vector<size_t>{}}, body_{std::move(body)} {
+          indices_{head ? std::move(std::get<2>(*head)) : std::vector<size_t>{}}, body_{std::move(body)},
+          choice_{choice} {
         if (head_) {
             body_.emplace_back(std::make_unique<LitFactCheck>(*base_, *head_, atom_));
         }
@@ -107,6 +108,7 @@ class StmRule : public Stm {
     std::vector<size_t> indices_;
     Ground::ULitVec body_;
     Symbol atom_ = SymbolStore::sup();
+    bool choice_;
 };
 
 //! @}

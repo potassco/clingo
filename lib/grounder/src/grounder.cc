@@ -612,10 +612,11 @@ class BuilderHdLit {
         if (guards.empty()) {
             size_t n = lit.elems().size();
             for (auto const &elem : lit.elems()) {
-                GRINGO_REPORT(*ctx_->impl().log, error) << "choice rule for " << elem << " not yet added correctly";
                 --n;
-                // TODO: check head: anything but a symbolic head can be ignored
-                // ...
+                // ignore anything that is not a symbolic atom
+                if (!is_atom(elem.lit())) {
+                    continue;
+                }
                 // body literals
                 auto body = Ground::ULitVec{};
                 auto size = ctx_->body().size() + elem.cond().size() + 1;
@@ -634,10 +635,10 @@ class BuilderHdLit {
                                                      Lit &&glit) { body.emplace_back(std::forward<Lit>(glit)); }},
                                lit);
                 }
-                // TODO: no fail check
-                // ...
-                // TODO: add as choice not as rule
-                ctx_->gcomp().add(std::make_unique<Ground::StmRule>(simple_lit_(elem.lit()), std::move(body)));
+                // fail check
+                GRINGO_REPORT(*ctx_->impl().log, error) << "add fail check for " << elem;
+                // normal/choice rule
+                ctx_->gcomp().add(std::make_unique<Ground::StmRule>(simple_lit_(elem.lit()), std::move(body), true));
             }
             return;
         }
@@ -734,7 +735,7 @@ class BuilderHdLit {
 
     //! Translate simple head literals.
     void operator()(Input::HdLitSimple const &lit) const {
-        ctx_->gcomp().add(std::make_unique<Ground::StmRule>(simple_lit_(lit.lit()), std::move(ctx_->body())));
+        ctx_->gcomp().add(std::make_unique<Ground::StmRule>(simple_lit_(lit.lit()), std::move(ctx_->body()), false));
     }
 
   private:
