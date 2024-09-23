@@ -610,12 +610,36 @@ class BuilderHdLit {
         }
 
         if (guards.empty()) {
-            // TODO:
-            // for elem in elems:
-            //   head :- body, cond, #not_fail tuple
+            size_t n = lit.elems().size();
             for (auto const &elem : lit.elems()) {
-                GRINGO_REPORT(*ctx_->impl().log, error) << "add choice rule for " << elem;
+                GRINGO_REPORT(*ctx_->impl().log, error) << "choice rule for " << elem << " not yet added correctly";
+                --n;
+                // TODO: check head: anything but a symbolic head can be ignored
+                // ...
+                // body literals
+                auto body = Ground::ULitVec{};
+                auto size = ctx_->body().size() + elem.cond().size() + 1;
+                if (n > 0) {
+                    body.reserve(size);
+                    for (auto const &lit : ctx_->body()) {
+                        body.emplace_back(lit->copy());
+                    }
+                } else {
+                    body = std::move(ctx_->body());
+                    body.reserve(size);
+                }
+                // condition
+                for (auto const &lit : elem.cond()) {
+                    std::visit(BuilderLit{*ctx_, [&body]<class Lit>(
+                                                     Lit &&glit) { body.emplace_back(std::forward<Lit>(glit)); }},
+                               lit);
+                }
+                // TODO: no fail check
+                // ...
+                // TODO: add as choice not as rule
+                ctx_->gcomp().add(std::make_unique<Ground::StmRule>(simple_lit_(elem.lit()), std::move(body)));
             }
+            return;
         }
 
         auto pos = lit.fun() == AggregateFunction::sum; // sum aggregate can be turned into a sum+ aggregate
