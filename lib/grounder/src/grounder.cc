@@ -617,9 +617,14 @@ class BuilderHdLit {
                 if (!is_atom(elem.lit())) {
                     continue;
                 }
+                // get terms that can fail
+                std::vector<Input::Term> can_fail;
+                for (auto const &term : elem.tuple()) {
+                    Input::extract_can_fail(term, can_fail);
+                }
                 // body literals
                 auto body = Ground::ULitVec{};
-                auto size = ctx_->body().size() + elem.cond().size();
+                auto size = ctx_->body().size() + elem.cond().size() + (can_fail.empty() ? 0 : 1);
                 if (n > 0) {
                     body.reserve(size);
                     for (auto const &lit : ctx_->body()) {
@@ -636,14 +641,16 @@ class BuilderHdLit {
                                lit);
                 }
                 // fail check
-                std::vector<Input::Term> can_fail;
-                for (auto const &term : elem.tuple()) {
-                    Input::extract_can_fail(term, can_fail);
+                if (!can_fail.empty()) {
+                    auto has_projection = false;
+                    auto bld_term = BuilderTerm{has_projection, ctx_->var_map()};
+                    Ground::UTermVec terms;
+                    for (auto const &term : can_fail) {
+                        terms.emplace_back(std::visit(bld_term, term));
+                    }
+                    body.emplace_back(std::make_unique<Ground::LitFailCheck>(std::move(terms)));
                 }
-                for (auto const &term : can_fail) {
-                    GRINGO_REPORT(*ctx_->impl().log, error) << "add fail check for " << term;
-                }
-                // normal/choice rule
+                // choice rule
                 ctx_->gcomp().add(std::make_unique<Ground::StmRule>(simple_lit_(elem.lit()), std::move(body), true));
             }
             return;

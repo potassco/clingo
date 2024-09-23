@@ -347,6 +347,33 @@ class LitTuple : public Lit {
     SymbolVec *syms_;
 };
 
+//! A literal ensuring that a list of terms evaluates.
+class LitFailCheck : public Lit {
+  public:
+    //! Construct the literal.
+    LitFailCheck(UTermVec terms) : terms_{std::move(terms)} {}
+
+  private:
+    void do_vars(VariableSet &vars, VarSelectMode mode) const override;
+    [[nodiscard]] auto do_domain() const -> bool override;
+    [[nodiscard]] auto do_single_pass() const -> bool override;
+    [[nodiscard]] auto
+    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
+
+    void do_print(std::ostream &out) const override;
+    auto do_output(InstantiationContext &ctx, OutputLit &out) const -> bool override;
+
+    [[nodiscard]] auto do_copy() const -> ULit override;
+
+    [[nodiscard]] auto do_hash() const -> size_t override;
+    [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
+    [[nodiscard]] auto do_compare_to(Lit const &other) const -> std::weak_ordering override;
+
+    UTermVec terms_;
+};
+
 //! @}
 
 } // namespace Gringo::Ground

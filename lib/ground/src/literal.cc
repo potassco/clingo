@@ -612,4 +612,79 @@ auto LitTuple::do_compare_to(Lit const &other) const -> std::weak_ordering {
     return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
 }
 
+// LitFailCheck
+
+void LitFailCheck::do_print(std::ostream &out) const {
+    out << "#not_fail" << Util::p_range(terms_, [](std::ostream &out, auto const &x) { out << *x; });
+}
+
+auto LitFailCheck::do_output([[maybe_unused]] InstantiationContext &ctx,
+                             [[maybe_unused]] OutputLit &out) const -> bool {
+    return false;
+}
+
+auto LitFailCheck::do_copy() const -> ULit {
+    UTermVec terms;
+    terms.reserve(terms_.size());
+    for (auto const &term : terms_) {
+        terms.emplace_back(term->copy());
+    }
+    return std::make_unique<LitFailCheck>(std::move(terms));
+}
+
+auto LitFailCheck::do_domain() const -> bool { return true; }
+
+auto LitFailCheck::do_single_pass() const -> bool { return true; }
+
+void LitFailCheck::do_vars(VariableSet &vars, VarSelectMode mode) const {
+    if (mode != VarSelectMode::provide) {
+        for (auto const &term : terms_) {
+            term->vars(vars);
+        }
+    }
+}
+
+auto LitFailCheck::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resource &mbr,
+                              [[maybe_unused]] MatcherType type, [[maybe_unused]] std::vector<bool> const &bound)
+    -> std::pair<UMatcher, std::optional<size_t>> {
+    class FailCheckMatcher : public OnceMatcher {
+      public:
+        FailCheckMatcher(UTermVec &terms) : terms_{&terms} {}
+
+      private:
+        auto do_once(InstantiationContext &ctx) -> bool override {
+            for (auto const &term : *terms_) {
+                if (!term->eval(ctx.store(), ctx.ass())) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        void do_print(std::ostream &out) const override {
+            out << "#not_fail" << Util::p_range(*terms_, [](std::ostream &out, auto const &x) { out << *x; });
+        }
+
+        UTermVec *terms_;
+    };
+    return {std::make_unique<FailCheckMatcher>(terms_), std::nullopt};
+}
+
+auto LitFailCheck::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return -1; }
+
+auto LitFailCheck::do_hash() const -> size_t { return Util::value_hash_record<LitFailCheck>(terms_); }
+
+auto LitFailCheck::do_equal_to(Lit const &other) const -> bool {
+    auto const *x = dynamic_cast<LitFailCheck const *>(&other);
+    return x != nullptr && Util::value_equal_to{}(terms_, x->terms_);
+}
+
+auto LitFailCheck::do_compare_to(Lit const &other) const -> std::weak_ordering {
+    auto const *x = dynamic_cast<LitFailCheck const *>(&other);
+    if (x != nullptr) {
+        return std::lexicographical_compare_three_way(terms_.begin(), terms_.end(), x->terms_.begin(), x->terms_.end(),
+                                                      [](auto const &a, auto const &b) { return *a <=> *b; });
+    }
+    return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
+}
+
 } // namespace Gringo::Ground
