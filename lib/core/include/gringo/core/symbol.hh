@@ -3,6 +3,7 @@
 #include <gringo/core/number.hh>
 
 #include <gringo/util/hash.hh>
+#include <gringo/util/print.hh>
 #include <gringo/util/unordered_set.hh>
 
 #include <ostream>
@@ -60,6 +61,9 @@ class String {
 
     //! Output the given string.
     friend auto operator<<(std::ostream &out, String const &str) -> std::ostream &;
+
+    //! Append the given string to the buffer.
+    friend auto operator<<(Util::OutputBuffer &out, String const &str) -> Util::OutputBuffer &;
 
   private:
     constexpr String(uintptr_t rep) noexcept : rep_{rep} {}
@@ -251,6 +255,9 @@ class Symbol {
 
     //! Output the given symbol.
     friend auto operator<<(std::ostream &out, Symbol const &sym) -> std::ostream &;
+
+    //! Output the symbol to the given buffer.
+    friend auto operator<<(Util::OutputBuffer &out, Symbol const &sym) -> Util::OutputBuffer &;
 
   private:
     Symbol(uint64_t repr) noexcept : rep_{repr} {}

@@ -575,6 +575,11 @@ auto operator<<(std::ostream &out, String const &str) -> std::ostream & {
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, String const &str) -> Util::OutputBuffer & {
+    out.append(str.view());
+    return out;
+}
+
 // String
 
 void SharedString::acquire_() const noexcept {
@@ -715,7 +720,9 @@ auto Symbol::type() const noexcept -> SymbolType {
     }
 }
 
-auto operator<<(std::ostream &out, Symbol const &sym) -> std::ostream & {
+namespace {
+
+template <class T> void output_symbol(T &out, Symbol const &sym) {
     switch (sym.type()) {
         case SymbolType::inf: {
             out << "#inf";
@@ -752,6 +759,17 @@ auto operator<<(std::ostream &out, Symbol const &sym) -> std::ostream & {
             break;
         }
     }
+}
+
+} // namespace
+
+auto operator<<(std::ostream &out, Symbol const &sym) -> std::ostream & {
+    output_symbol(out, sym);
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, Symbol const &sym) -> Util::OutputBuffer & {
+    output_symbol(out, sym);
     return out;
 }
 

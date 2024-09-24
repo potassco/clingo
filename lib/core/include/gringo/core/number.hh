@@ -1,3 +1,7 @@
+#pragma once
+
+#include <gringo/util/print.hh>
+
 #include <cstdint>
 #include <optional>
 #include <ostream>
@@ -243,6 +247,8 @@ class Number {
 
     //! Output the given number.
     friend auto operator<<(std::ostream &out, Number const &num) -> std::ostream &;
+    //! Output the given number.
+    friend auto operator<<(Util::OutputBuffer &out, Number const &num) -> Util::OutputBuffer &;
 
     // conversion between numbers and their representations
 

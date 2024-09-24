@@ -1010,6 +1010,18 @@ auto operator<<(std::ostream &out, Number const &num) -> std::ostream & {
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, Number const &num) -> Util::OutputBuffer & {
+    if (repr_is_int(num.repr_)) {
+        out << repr_to_int(num.repr_);
+    } else {
+        auto *z = repr_to_bigint(num.repr_);
+        auto len = mp_int_string_len(&z->num, BASE) - 1;
+        auto target = out.reserve(len);
+        handle_error(mp_int_to_string(&z->num, BASE, target.data(), len), MP_TRUNC);
+    }
+    return out;
+}
+
 auto bigint_refcount(uint64_t repr) -> std::atomic_size_t & { return repr_to_bigint(repr)->ref_count; }
 
 // NOLINTEND(readability-magic-numbers,cppcoreguidelines-pro-type-reinterpret-cast,performance-no-int-to-ptr,cppcoreguidelines-avoid-c-arrays,cppcoreguidelines-pro-bounds-pointer-arithmetic)

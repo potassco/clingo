@@ -77,7 +77,7 @@ auto run(int argc, char *argv[]) -> int {
     try {
         log.set_level(log_level);
         auto store = Gringo::make_symbol_store(true, false);
-        auto out = Gringo::Output::make_text_output(std::cout);
+        auto out = Gringo::Output::make_text_output(stdout);
         auto grd = Gringo::Grounder{log, *store, opts, *out};
         auto prs = Gringo::Input::Parser{log, *store};
 

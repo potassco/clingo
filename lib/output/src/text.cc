@@ -5,8 +5,6 @@
 #include <gringo/util/type_traits.hh>
 #include <gringo/util/unordered_map.hh>
 
-#include <sstream>
-
 namespace Gringo::Output {
 
 namespace {
@@ -26,7 +24,7 @@ class OutputBody : public OutputLit {
     OutputBody(size_t &uids) : uids_{&uids} {}
 
     void start() {
-        buf_.str({});
+        buf_.reset();
         if (delayed_.empty() || !delayed_.back().empty()) {
             delayed_.emplace_back();
         }
@@ -41,18 +39,17 @@ class OutputBody : public OutputLit {
     auto delayed() -> bool { return !delayed_.back().empty(); }
 
     void delay() {
-        if (!buf_.view().empty()) {
-            std::string ret = buf_.str();
-            buf_.str({});
-            delayed_.back().emplace_back(std::move(ret));
+        if (!buf_.empty()) {
+            delayed_.back().emplace_back(buf_.str());
+            buf_.reset();
         }
     }
 
     auto delay_head(std::optional<size_t> uid, char const *sep) -> size_t {
-        bool fact = buf_.view().empty() && delayed_.back().empty();
+        bool fact = buf_.empty() && delayed_.back().empty();
         buf_ << ".\n";
         delayed_.back().emplace_back(buf_.str());
-        buf_.str({});
+        buf_.reset();
         if (!uid) {
             uid = ++*uids_;
         }
@@ -64,7 +61,7 @@ class OutputBody : public OutputLit {
         return *uid;
     }
 
-    auto buf() -> std::ostringstream & { return buf_; }
+    auto buf() -> Util::OutputBuffer & { return buf_; }
 
     void prepend() { delayed_.back().insert(delayed_.back().begin(), buf_.str()); }
 
@@ -72,7 +69,7 @@ class OutputBody : public OutputLit {
 
     void define(size_t index, std::string str) { defined_.emplace(index, std::move(str)); }
 
-    void flush(std::ostream &out) {
+    template <class F> void flush(Util::OutputBuffer &out, F endl) {
         for (auto &delayed : delayed_) {
             for (auto &elem : delayed) {
                 std::visit(
@@ -86,10 +83,10 @@ class OutputBody : public OutputLit {
                             } else {
                                 out << "#false";
                             }
-                        } else {
                         }
                     },
                     elem);
+                endl();
             }
         }
         delayed_.clear();
@@ -140,7 +137,7 @@ class OutputBody : public OutputLit {
 
     bool has_body_ = false;
     size_t *uids_;
-    std::ostringstream buf_;
+    Util::OutputBuffer buf_;
     Util::unordered_map<size_t, std::string> defined_;
     std::vector<std::vector<std::variant<std::string, size_t>>> delayed_;
 };
@@ -148,7 +145,7 @@ class OutputBody : public OutputLit {
 class OutputCond : public OutputSimple {
   public:
     void start() {
-        buf_.str({});
+        buf_.reset();
         has_lits_ = false;
     }
 
@@ -172,15 +169,16 @@ class OutputCond : public OutputSimple {
     }
 
     bool has_lits_ = false;
-    std::ostringstream buf_;
+    Util::OutputBuffer buf_;
 };
 
 class OutputText : public OutputStm {
   public:
-    OutputText(std::ostream &out) : out_{&out} {};
+    OutputText(FILE *out) : out_{out} {};
+    OutputText(std::string &out) : out_{&out} {};
 
   private:
-    static void simple_head_(std::ostream &out, std::optional<std::pair<Symbol, bool>> const &head) {
+    template <class T> static void simple_head_(T &out, std::optional<std::pair<Symbol, bool>> const &head) {
         if (head) {
             if (head->second) {
                 out << "{ ";
@@ -191,18 +189,22 @@ class OutputText : public OutputStm {
             }
         }
     }
-    void do_fact(Symbol sym) override { *out_ << sym << ".\n"; }
+    void do_fact(Symbol sym) override {
+        buf_ << sym << ".\n";
+        endl();
+    }
     auto do_body() -> OutputLit & override {
         body_.start();
         return body_;
     }
     void do_rule(std::optional<std::pair<Symbol, bool>> head) override {
         if (!body_.delayed()) {
-            simple_head_(*out_, head);
+            simple_head_(buf_, head);
             if (!body_.empty() || !head) {
-                *out_ << " :- ";
+                buf_ << " :- ";
             }
-            *out_ << body_.end() << ".\n";
+            buf_ << body_.end() << ".\n";
+            endl();
         } else {
             body_.buf() << ".\n";
             body_.delay();
@@ -226,8 +228,8 @@ class OutputText : public OutputStm {
         if (elems.empty()) {
             body_.define(uid, "#true");
         } else {
-            buf_.str({});
-            buf_ << Util::p_range{elems, "; ", [this](auto &buf, auto const &elem) {
+            tmp_.reset();
+            tmp_ << Util::p_range{elems, "; ", [this](auto &buf, auto const &elem) {
                                       if (elem.first) {
                                           buf << *conds_.nth(*elem.first);
                                       } else {
@@ -235,18 +237,18 @@ class OutputText : public OutputStm {
                                       }
                                       buf << ": " << *conds_.nth(elem.second);
                                   }};
-            body_.define(uid, buf_.str());
+            body_.define(uid, tmp_.str());
         }
     }
 
     void do_bd_aggr(size_t uid, AggregateFunction fun, BdElems elems, Guards guards) override {
-        buf_.str({});
+        tmp_.reset();
         auto it = guards.begin();
         if (guards.size() > 1) {
-            buf_ << it->second << " " << flip(it->first) << " ";
+            tmp_ << it->second << " " << flip(it->first) << " ";
             ++it;
         }
-        buf_ << fun << " { "
+        tmp_ << fun << " { "
              << Util::p_range{elems, "; ",
                               [this](auto &buf, auto const &elem) {
                                   if (elem.second.empty()) {
@@ -263,20 +265,20 @@ class OutputText : public OutputStm {
                               }}
              << (elems.empty() ? "}" : " }");
         for (auto ie = guards.end(); it != ie; ++it) {
-            buf_ << " " << it->first << " " << it->second;
+            tmp_ << " " << it->first << " " << it->second;
         }
-        body_.define(uid, buf_.str());
+        body_.define(uid, tmp_.str());
     }
 
     void do_hd_aggr(size_t uid, AggregateFunction fun, HdElems elems, Guards guards) override {
         // Note: too much c&p from bd_aggr
-        buf_.str({});
+        tmp_.reset();
         auto it = guards.begin();
         if (guards.size() > 1) {
-            buf_ << it->second << " " << flip(it->first) << " ";
+            tmp_ << it->second << " " << flip(it->first) << " ";
             ++it;
         }
-        buf_ << fun << " { "
+        tmp_ << fun << " { "
              << Util::p_range{elems, "; ",
                               [this](auto &buf, HdElem const &elem) {
                                   buf << Util::p_range{elem.second, "; ", [this, &elem](auto &buf, auto const &hc) {
@@ -291,19 +293,40 @@ class OutputText : public OutputStm {
                               }}
              << (elems.empty() ? "}" : " }");
         for (auto ie = guards.end(); it != ie; ++it) {
-            buf_ << " " << it->first << " " << it->second;
+            tmp_ << " " << it->first << " " << it->second;
         }
-        body_.define(uid, buf_.str());
+        body_.define(uid, tmp_.str());
     }
 
-    void do_flush() override { body_.flush(*out_); }
+    void endl(bool force = false) {
+        constexpr size_t n = 4096;
+        if (force || buf_.size() > n) {
+            if (auto **hnd = std::get_if<FILE *>(&out_); hnd != nullptr) {
+                fwrite(buf_.view().data(), sizeof(char), buf_.view().size(), *hnd);
+                buf_.reset();
+            }
+        }
+        if (force) {
+            if (auto **hnd = std::get_if<FILE *>(&out_); hnd != nullptr) {
+                fflush(*hnd);
+            }
+            if (auto **str = std::get_if<std::string *>(&out_); str != nullptr) {
+                // TODO: better move
+                **str = buf_.str();
+            }
+        }
+    }
+    void do_flush() override {
+        body_.flush(buf_, [this]() { endl(); });
+    }
 
-    void do_end_step() override { out_->flush(); }
+    void do_end_step() override { endl(true); }
 
     void do_mark([[maybe_unused]] SymbolCollector &gc) override {}
 
-    std::ostream *out_;
-    std::ostringstream buf_;
+    std::variant<FILE *, std::string *> out_;
+    Util::OutputBuffer buf_;
+    Util::OutputBuffer tmp_;
     OutputBody body_{uids_};
     OutputCond cond_;
     Util::ordered_set<std::string> conds_;
@@ -312,6 +335,8 @@ class OutputText : public OutputStm {
 
 } // namespace
 
-auto make_text_output(std::ostream &out) -> UOutputStm { return std::make_unique<OutputText>(out); }
+auto make_text_output(FILE *out) -> UOutputStm { return std::make_unique<OutputText>(out); }
+
+auto make_text_output(std::string &out) -> UOutputStm { return std::make_unique<OutputText>(out); }
 
 } // namespace Gringo::Output

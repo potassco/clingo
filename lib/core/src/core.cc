@@ -37,7 +37,9 @@ auto operator+=(Sign &a, Sign b) -> Sign & {
     return a;
 }
 
-auto operator<<(std::ostream &out, Sign sign) -> std::ostream & {
+namespace {
+
+template <class T> void output_sign(T &out, Sign sign) {
     switch (sign) {
         case Sign::none: {
             break;
@@ -51,6 +53,17 @@ auto operator<<(std::ostream &out, Sign sign) -> std::ostream & {
             break;
         }
     }
+}
+
+} // namespace
+
+auto operator<<(std::ostream &out, Sign sign) -> std::ostream & {
+    output_sign(out, sign);
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, Sign sign) -> Util::OutputBuffer & {
+    output_sign(out, sign);
     return out;
 }
 
@@ -100,7 +113,9 @@ auto complement(Relation rel) -> Relation {
     return Relation::greater;
 }
 
-auto operator<<(std::ostream &out, Relation rel) -> std::ostream & {
+namespace {
+
+template <class T> void output_relation(T &out, Relation rel) {
     switch (rel) {
         case Relation::equal: {
             out << "=";
@@ -127,10 +142,23 @@ auto operator<<(std::ostream &out, Relation rel) -> std::ostream & {
             break;
         }
     }
+}
+
+} // namespace
+
+auto operator<<(std::ostream &out, Relation rel) -> std::ostream & {
+    output_relation(out, rel);
     return out;
 }
 
-auto operator<<(std::ostream &out, AggregateFunction fun) -> std::ostream & {
+auto operator<<(Util::OutputBuffer &out, Relation rel) -> Util::OutputBuffer & {
+    output_relation(out, rel);
+    return out;
+}
+
+namespace {
+
+template <class T> void output_fun(T &out, AggregateFunction fun) {
     switch (fun) {
         case AggregateFunction::count: {
             out << "#count";
@@ -153,6 +181,17 @@ auto operator<<(std::ostream &out, AggregateFunction fun) -> std::ostream & {
             break;
         }
     }
+}
+
+} // namespace
+
+auto operator<<(std::ostream &out, AggregateFunction fun) -> std::ostream & {
+    output_fun(out, fun);
+    return out;
+}
+
+auto operator<<(Util::OutputBuffer &out, AggregateFunction fun) -> Util::OutputBuffer & {
+    output_fun(out, fun);
     return out;
 }
 

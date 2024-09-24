@@ -28,6 +28,8 @@ auto operator+=(Sign &a, Sign b) -> Sign &;
 
 //! Output the given sign.
 auto operator<<(std::ostream &out, Sign sign) -> std::ostream &;
+//! Output the given sign.
+auto operator<<(Util::OutputBuffer &out, Sign sign) -> Util::OutputBuffer &;
 
 //! Enumeration of supported relations.
 enum class Relation : uint8_t {
@@ -71,6 +73,8 @@ auto evaluate(auto const &lhs, Relation rel, auto const &rhs) -> bool {
 
 //! Output the given relation.
 auto operator<<(std::ostream &out, Relation rel) -> std::ostream &;
+//! Output the given relation.
+auto operator<<(Util::OutputBuffer &out, Relation rel) -> Util::OutputBuffer &;
 
 //! Truth values for expressions.
 enum class TruthValue : uint8_t {
@@ -90,6 +94,8 @@ enum class AggregateFunction : uint8_t {
 
 //! Output the given aggregate function.
 auto operator<<(std::ostream &out, AggregateFunction fun) -> std::ostream &;
+//! Output the given aggregate function.
+auto operator<<(Util::OutputBuffer &out, AggregateFunction fun) -> Util::OutputBuffer &;
 
 //! Get the neutral value for the given aggregate function.
 inline auto neutral_val(AggregateFunction fun) -> Symbol {

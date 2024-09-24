@@ -8,7 +8,10 @@ namespace Gringo::Output {
 //! @{
 
 //! Create a text output.
-auto make_text_output(std::ostream &out) -> UOutputStm;
+auto make_text_output(FILE *out) -> UOutputStm;
+
+//! Create a text output.
+auto make_text_output(std::string &out) -> UOutputStm;
 
 //! @}
 
