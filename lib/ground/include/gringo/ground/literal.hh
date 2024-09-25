@@ -252,7 +252,7 @@ class LitSymbolic : public Lit {
 };
 
 //! Represents a simple head literal which is either represented by a symbol
-//! term or #false` captured by std::nullopt.
+//! term or `#false` captured by std::nullopt.
 using AtomSimple = std::optional<std::tuple<Ground::UTerm, Base &, std::vector<size_t>>>;
 
 //! A literal similar to a symbolic literal.

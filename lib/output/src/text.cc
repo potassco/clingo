@@ -14,6 +14,7 @@ class OutputSimple : public OutputLit {
     auto do_cond_lit([[maybe_unused]] std::optional<size_t> uid) -> size_t override {
         throw std::runtime_error("unsupported literal");
     }
+
     auto do_bd_aggr([[maybe_unused]] Sign sign, [[maybe_unused]] std::optional<size_t> uid) -> size_t override {
         throw std::runtime_error("unsupported literal");
     }
@@ -31,12 +32,12 @@ class OutputBody : public OutputLit {
         has_body_ = false;
     }
 
-    auto end() -> std::string_view {
+    [[nodiscard]] auto end() -> std::string_view {
         assert(delayed_.back().empty());
         return buf_.view();
     }
 
-    auto delayed() -> bool { return !delayed_.back().empty(); }
+    [[nodiscard]] auto delayed() -> bool { return !delayed_.back().empty(); }
 
     void delay() {
         if (!buf_.empty()) {
@@ -45,7 +46,7 @@ class OutputBody : public OutputLit {
         }
     }
 
-    auto delay_head(std::optional<size_t> uid, char const *sep) -> size_t {
+    [[nodiscard]] auto delay_head(std::optional<size_t> uid, char const *sep) -> size_t {
         bool fact = buf_.empty() && delayed_.back().empty();
         buf_ << ".\n";
         delayed_.back().emplace_back(buf_.str());
@@ -61,7 +62,7 @@ class OutputBody : public OutputLit {
         return *uid;
     }
 
-    auto buf() -> Util::OutputBuffer & { return buf_; }
+    [[nodiscard]] auto buf() -> Util::OutputBuffer & { return buf_; }
 
     void prepend() { delayed_.back().insert(delayed_.back().begin(), buf_.str()); }
 
@@ -69,7 +70,7 @@ class OutputBody : public OutputLit {
 
     void define(size_t index, std::string str) { defined_.emplace(index, std::move(str)); }
 
-    template <class F> void flush(Util::OutputBuffer &out, F endl) {
+    void flush(Util::OutputBuffer &out) {
         for (auto &delayed : delayed_) {
             for (auto &elem : delayed) {
                 std::visit(
@@ -86,7 +87,7 @@ class OutputBody : public OutputLit {
                         }
                     },
                     elem);
-                endl();
+                out.endl();
             }
         }
         delayed_.clear();
@@ -105,10 +106,12 @@ class OutputBody : public OutputLit {
             has_body_ = true;
         }
     }
+
     void do_lit(Sign sign, Symbol sym) override {
         sep();
         buf_ << sign << sym;
     }
+
     void do_boolean(bool value) override {
         sep();
         buf_ << (value ? "#true" : "#false");
@@ -149,7 +152,7 @@ class OutputCond : public OutputSimple {
         has_lits_ = false;
     }
 
-    auto end() -> std::string_view { return buf_.view(); }
+    [[nodiscard]] auto end() -> std::string_view { return buf_.view(); }
 
   private:
     void sep() {
@@ -159,10 +162,12 @@ class OutputCond : public OutputSimple {
             has_lits_ = true;
         }
     }
+
     void do_lit(Sign sign, Symbol sym) override {
         sep();
         buf_ << sign << sym;
     }
+
     void do_boolean(bool value) override {
         sep();
         buf_ << (value ? "#true" : "#false");
@@ -174,9 +179,7 @@ class OutputCond : public OutputSimple {
 
 class OutputText : public OutputStm {
   public:
-    OutputText(FILE *out) : out_{out} {};
-    OutputText(std::string &out) : out_{&out} {};
-    OutputText(std::vector<char> &out) : out_{&out} {};
+    OutputText(Util::OutputBuffer &out) : out_{&out} {};
 
   private:
     template <class T> static void simple_head_(T &out, std::optional<std::pair<Symbol, bool>> const &head) {
@@ -190,22 +193,25 @@ class OutputText : public OutputStm {
             }
         }
     }
+
     void do_fact(Symbol sym) override {
-        buf_ << sym << ".\n";
-        endl();
+        *out_ << sym << ".\n";
+        out_->endl();
     }
-    auto do_body() -> OutputLit & override {
+
+    [[nodiscard]] auto do_body() -> OutputLit & override {
         body_.start();
         return body_;
     }
+
     void do_rule(std::optional<std::pair<Symbol, bool>> head) override {
         if (!body_.delayed()) {
-            simple_head_(buf_, head);
+            simple_head_(*out_, head);
             if (!body_.empty() || !head) {
-                buf_ << " :- ";
+                *out_ << " :- ";
             }
-            buf_ << body_.end() << ".\n";
-            endl();
+            *out_ << body_.end() << ".\n";
+            out_->endl();
         } else {
             body_.buf() << ".\n";
             body_.delay();
@@ -214,15 +220,19 @@ class OutputText : public OutputStm {
             body_.prepend();
         }
     }
+
     auto do_aggr_rule(std::optional<size_t> uid) -> size_t override { return body_.delay_head(uid, " :- "); }
+
     auto do_cond() -> OutputLit & override {
         cond_.start();
         return cond_;
     }
+
     auto do_cond_id() -> size_t override {
         auto it = conds_.emplace(cond_.end()).first;
         return it - conds_.begin();
     }
+
     auto do_uid() -> size_t override { return ++uids_; }
 
     void do_cond_lit(size_t uid, CondLits elems) override {
@@ -230,14 +240,14 @@ class OutputText : public OutputStm {
             body_.define(uid, "#true");
         } else {
             tmp_.reset();
-            tmp_ << Util::p_range{elems, "; ", [this](auto &buf, auto const &elem) {
-                                      if (elem.first) {
-                                          buf << *conds_.nth(*elem.first);
-                                      } else {
-                                          buf << "#false";
-                                      }
-                                      buf << ": " << *conds_.nth(elem.second);
-                                  }};
+            tmp_ << Util::p_range(elems, "; ", [this](auto &buf, auto const &elem) {
+                if (elem.first) {
+                    buf << *conds_.nth(*elem.first);
+                } else {
+                    buf << "#false";
+                }
+                buf << ": " << *conds_.nth(elem.second);
+            });
             body_.define(uid, tmp_.str());
         }
     }
@@ -249,22 +259,18 @@ class OutputText : public OutputStm {
             tmp_ << it->second << " " << flip(it->first) << " ";
             ++it;
         }
-        tmp_ << fun << " { "
-             << Util::p_range{elems, "; ",
-                              [this](auto &buf, auto const &elem) {
-                                  if (elem.second.empty()) {
-                                      buf << Util::p_range{elem.first};
-                                      if (elem.first.empty()) {
-                                          buf << ": ";
-                                      }
-                                  } else {
-                                      buf << Util::p_range{
-                                          elem.second, "; ", [this, &elem](auto &buf, auto const &cond) {
-                                              buf << Util::p_range{elem.first} << ": " << *conds_.nth(cond);
-                                          }};
-                                  }
-                              }}
-             << (elems.empty() ? "}" : " }");
+        tmp_ << fun << " { " << Util::p_range(elems, "; ", [this](auto &buf, auto const &elem) {
+            if (elem.second.empty()) {
+                buf << Util::p_range(elem.first);
+                if (elem.first.empty()) {
+                    buf << ": ";
+                }
+            } else {
+                buf << Util::p_range(elem.second, "; ", [this, &elem](auto &buf, auto const &cond) {
+                    buf << Util::p_range(elem.first) << ": " << *conds_.nth(cond);
+                });
+            }
+        }) << (elems.empty() ? "}" : " }");
         for (auto ie = guards.end(); it != ie; ++it) {
             tmp_ << " " << it->first << " " << it->second;
         }
@@ -279,60 +285,30 @@ class OutputText : public OutputStm {
             tmp_ << it->second << " " << flip(it->first) << " ";
             ++it;
         }
-        tmp_ << fun << " { "
-             << Util::p_range{elems, "; ",
-                              [this](auto &buf, HdElem const &elem) {
-                                  buf << Util::p_range{elem.second, "; ", [this, &elem](auto &buf, auto const &hc) {
-                                                           buf << Util::p_range{elem.first} << ": ";
-                                                           if (hc.first.type() == SymbolType::sup) {
-                                                               buf << "#true";
-                                                           } else {
-                                                               buf << hc.first;
-                                                           }
-                                                           buf << *conds_.nth(hc.second);
-                                                       }};
-                              }}
-             << (elems.empty() ? "}" : " }");
+        tmp_ << fun << " { " << Util::p_range(elems, "; ", [this](auto &buf, HdElem const &elem) {
+            buf << Util::p_range(elem.second, "; ", [this, &elem](auto &buf, auto const &hc) {
+                buf << Util::p_range(elem.first) << ": ";
+                if (hc.first.type() == SymbolType::sup) {
+                    buf << "#true";
+                } else {
+                    buf << hc.first;
+                }
+                buf << *conds_.nth(hc.second);
+            });
+        }) << (elems.empty() ? "}" : " }");
         for (auto ie = guards.end(); it != ie; ++it) {
             tmp_ << " " << it->first << " " << it->second;
         }
         body_.define(uid, tmp_.str());
     }
 
-    void endl(bool force = false) {
-        constexpr size_t n = 4096;
-        if (force || buf_.size() > n) {
-            if (auto **hnd = std::get_if<FILE *>(&out_); hnd != nullptr) {
-                fwrite(buf_.view().data(), sizeof(char), buf_.view().size(), *hnd);
-                buf_.reset();
-            }
-        }
-    }
-    void do_flush() override {
-        body_.flush(buf_, [this]() { endl(); });
-    }
+    void do_flush() override { body_.flush(*out_); }
 
-    void do_end_step() override {
-        endl(true);
-        std::visit(
-            [&]<class T>(T *out) {
-                if constexpr (Util::matches<T, FILE>) {
-                    fflush(out);
-                }
-                if constexpr (Util::matches<T, std::string>) {
-                    *out = buf_.str();
-                }
-                if constexpr (Util::matches<T, std::vector<char>>) {
-                    *out = buf_.release();
-                }
-            },
-            out_);
-    }
+    void do_end_step() override { out_->flush(); }
 
     void do_mark([[maybe_unused]] SymbolCollector &gc) override {}
 
-    std::variant<FILE *, std::string *, std::vector<char> *> out_;
-    Util::OutputBuffer buf_;
+    Util::OutputBuffer *out_;
     Util::OutputBuffer tmp_;
     OutputBody body_{uids_};
     OutputCond cond_;
@@ -342,10 +318,6 @@ class OutputText : public OutputStm {
 
 } // namespace
 
-auto make_text_output(FILE *out) -> UOutputStm { return std::make_unique<OutputText>(out); }
-
-auto make_text_output(std::string &out) -> UOutputStm { return std::make_unique<OutputText>(out); }
-
-auto make_text_output(std::vector<char> &out) -> UOutputStm { return std::make_unique<OutputText>(out); }
+auto make_text_output(Util::OutputBuffer &out) -> UOutputStm { return std::make_unique<OutputText>(out); }
 
 } // namespace Gringo::Output

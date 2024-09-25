@@ -304,12 +304,15 @@ class StmAssignAggrElem : public Stm {
     StmAssignAggrElem(StateAssignAggr &state, UTermVec tuple, ULitVec body, size_t num_cond, size_t priority)
         : state_{&state}, tuple_{std::move(tuple)}, body_{std::move(body)}, num_cond_{num_cond}, priority_{priority} {}
 
-    //! Copy the statement.
+    //! Copy constructor.
     StmAssignAggrElem(StmAssignAggrElem const &other)
         : state_{other.state_}, tuple_{copy_uvec(other.tuple_)}, body_{copy_uvec(other.body_)},
           num_cond_{other.num_cond_}, priority_{other.priority_} {};
+    //! Move constructor.
     StmAssignAggrElem(StmAssignAggrElem &&other) noexcept = default;
+    //! Copy assignment.
     auto operator=(StmAssignAggrElem const &other) -> StmAssignAggrElem & = default;
+    //! Move assignment.
     auto operator=(StmAssignAggrElem &&other) noexcept -> StmAssignAggrElem & = default;
 
   private:

@@ -652,7 +652,7 @@ auto StmBdAggrElem::do_priority() const -> size_t { return priority_; }
 void StmBdAggrElem::do_print_head(std::ostream &out) const {
     auto p_var = [](std::ostream &out, auto const &x) { out << "X_" << x; };
     auto p_term = [](std::ostream &out, auto const &x) { out << *x; };
-    out << "#elem(g(" << Util::p_range{state_->global(), p_var} << "),t(" << Util::p_range{tuple_, p_term} << "))";
+    out << "#elem(g(" << Util::p_range(state_->global(), p_var) << "),t(" << Util::p_range(tuple_, p_term) << "))";
 }
 
 void StmBdAggrElem::do_print(std::ostream &out) const {

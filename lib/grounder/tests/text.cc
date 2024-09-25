@@ -6,17 +6,15 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-#include <sstream>
-
 namespace Gringo::Test {
 
 TEST_CASE("grounder_text") {
-    std::string str;
     auto opts = Input::RewriteOptions{};
     auto log = Gringo::Logger{};
     log.set_level(LogLevel::error);
     auto store = Gringo::make_symbol_store(true, false);
-    auto out = Gringo::Output::make_text_output(str);
+    auto buf = Util::OutputBuffer{};
+    auto out = Gringo::Output::make_text_output(buf);
     Gringo::Grounder grd{log, *store, opts, *out};
     auto params = Input::ProgramParamVec{{store->string("base"), {}}};
 
@@ -24,36 +22,36 @@ TEST_CASE("grounder_text") {
         grd.parse("a.");
         grd.prepare();
         REQUIRE(grd.ground(params));
-        REQUIRE(str == "a.\n");
+        REQUIRE(buf.view() == "a.\n");
     }
     SECTION("basic") {
         grd.parse("a. b :- a.");
         grd.prepare();
         REQUIRE(grd.ground(params));
-        REQUIRE(str == "a.\n"
-                       "b.\n");
+        REQUIRE(buf.view() == "a.\n"
+                              "b.\n");
     }
     SECTION("normal") {
         grd.parse("a :- not b. b :- not a.");
         grd.prepare();
         REQUIRE(grd.ground(params));
-        REQUIRE(str == "b :- not a.\n"
-                       "a :- not b.\n");
+        REQUIRE(buf.view() == "b :- not a.\n"
+                              "a :- not b.\n");
     }
     SECTION("condlit_strat") {
         grd.parse("a :- not b. b :- not a. c :- a : b.");
         grd.prepare();
         REQUIRE(grd.ground(params));
-        REQUIRE(str == "b :- not a.\n"
-                       "a :- not b.\n"
-                       "c :- #false: b, not a.\n");
+        REQUIRE(buf.view() == "b :- not a.\n"
+                              "a :- not b.\n"
+                              "c :- #false: b, not a.\n");
     }
     SECTION("condlit_rec") {
         grd.parse("b :- b : a. a :- a : b.");
         grd.prepare();
         REQUIRE(grd.ground(params));
-        REQUIRE(str == "b :- b: a.\n"
-                       "a :- a: b.\n");
+        REQUIRE(buf.view() == "b :- b: a.\n"
+                              "a :- a: b.\n");
         log.set_level(LogLevel::trace);
         auto res = store->gc();
         REQUIRE(res.first == 4);

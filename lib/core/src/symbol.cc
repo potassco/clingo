@@ -737,7 +737,7 @@ template <class T> void output_symbol(T &out, Symbol const &sym) {
             break;
         }
         case SymbolType::string: {
-            Util::print_quoted(out, sym.str().view());
+            out << Util::p_quoted(sym.str().view());
             break;
         }
         case SymbolType::tuple: {

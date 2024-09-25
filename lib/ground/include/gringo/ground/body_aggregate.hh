@@ -354,12 +354,15 @@ class StmBdAggrElem : public Stm {
     StmBdAggrElem(StateBdAggr &state, UTermVec tuple, ULitVec body, size_t num_cond, size_t priority)
         : state_{&state}, tuple_{std::move(tuple)}, body_{std::move(body)}, num_cond_{num_cond}, priority_{priority} {}
 
-    //! Copy the statement.
+    //! Copy constructor.
     StmBdAggrElem(StmBdAggrElem const &other)
         : state_{other.state_}, tuple_{copy_uvec(other.tuple_)}, body_{copy_uvec(other.body_)},
           num_cond_{other.num_cond_}, priority_{other.priority_} {};
+    //! Move constructor.
     StmBdAggrElem(StmBdAggrElem &&other) noexcept = default;
+    //! Copy assignment.
     auto operator=(StmBdAggrElem const &other) -> StmBdAggrElem & = default;
+    //! Move assignment.
     auto operator=(StmBdAggrElem &&other) noexcept -> StmBdAggrElem & = default;
 
   private:

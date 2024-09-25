@@ -544,13 +544,13 @@ auto StmHdAggrElem::do_priority() const -> size_t { return std::numeric_limits<s
 void StmHdAggrElem::do_print_head(std::ostream &out) const {
     auto p_var = [](std::ostream &out, auto const &x) { out << "X_" << x; };
     auto p_term = [](std::ostream &out, auto const &x) { out << *x; };
-    out << "#elem(g(" << Util::p_range{state_->global(), p_var} << "),";
+    out << "#elem(g(" << Util::p_range(state_->global(), p_var) << "),";
     if (head_ != nullptr) {
         out << *head_;
     } else {
         out << "#true";
     }
-    out << ",t(" << Util::p_range{tuple_, p_term} << "))";
+    out << ",t(" << Util::p_range(tuple_, p_term) << "))";
 }
 
 void StmHdAggrElem::do_print(std::ostream &out) const {

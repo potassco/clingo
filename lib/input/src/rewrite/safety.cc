@@ -230,8 +230,8 @@ template <class Span>
     GRINGO_REPORT(log, trace) << "literal dependencies";
     for (auto const &lit : lits) {
         auto add_node = [&log, &lit, &nodes, &index](StringVec provide, StringVec depend, bool swap) {
-            GRINGO_REPORT(log, trace) << "  " << lit << ", {" << Util::p_range{provide} << "}, {"
-                                      << Util::p_range{depend} << "}";
+            GRINGO_REPORT(log, trace) << "  " << lit << ", {" << Util::p_range(provide) << "}, {"
+                                      << Util::p_range(depend) << "}";
             nodes.emplace_back(lit, index, std::move(provide), std::move(depend), swap);
         };
         MakeNode{add_node, global, bound}(lit, true);
@@ -292,7 +292,7 @@ void report(Logger &log, VariableSet const &vars, VariableSet const &bound, auto
     GRINGO_REPORT_LOC(log, error, location(x)) << "unsafe variables in:\n"
                                                << "  " << x << "\n"
                                                << "note: the following variables are unsafe:\n"
-                                               << "  " << Util::p_range{unsafe, ", "};
+                                               << "  " << Util::p_range(unsafe, ", ");
 }
 
 auto report_local(Logger &log, VariableSet const &global, VariableSet const &bound, auto const &x) {

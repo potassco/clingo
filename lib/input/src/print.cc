@@ -674,9 +674,7 @@ class Print {
         if (stm.type() == IncludeType::inbuild) {
             *out_ << "#include <" << stm.value() << ">.";
         } else {
-            *out_ << "#include ";
-            Util::print_quoted(*out_, stm.value().view());
-            *out_ << ".";
+            *out_ << "#include " << Util::p_quoted(stm.value().view()) << ".";
         }
     }
 

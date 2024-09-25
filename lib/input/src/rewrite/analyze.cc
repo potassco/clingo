@@ -512,7 +512,7 @@ auto check_global(Logger &log, VariableSet const &global, Stm const &stm) -> boo
         GRINGO_REPORT_LOC(log, error, location(stm)) << "unsafe variables in:\n"
                                                      << "  " << stm << "\n"
                                                      << "note: the following variables are unsafe:\n"
-                                                     << "  " << Util::p_range{unsafe, ", "};
+                                                     << "  " << Util::p_range(unsafe, ", ");
         return false;
     }
     return true;

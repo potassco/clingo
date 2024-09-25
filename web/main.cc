@@ -74,7 +74,8 @@ auto run(std::string const &program, std::vector<std::string> args) -> bool {
         log.enable_color(false);
         log.set_level(log_level);
         auto store = Gringo::make_symbol_store(true, false);
-        auto out = Gringo::Output::make_text_output(stdout);
+        auto buf = Gringo::Util::OutputBuffer{stdout};
+        auto out = Gringo::Output::make_text_output(buf);
         Gringo::Grounder grd{log, *store, opts, *out};
         auto prs = Gringo::Input::Parser{log, *store};
 
