@@ -176,6 +176,7 @@ class OutputText : public OutputStm {
   public:
     OutputText(FILE *out) : out_{out} {};
     OutputText(std::string &out) : out_{&out} {};
+    OutputText(std::vector<char> &out) : out_{&out} {};
 
   private:
     template <class T> static void simple_head_(T &out, std::optional<std::pair<Symbol, bool>> const &head) {
@@ -306,25 +307,31 @@ class OutputText : public OutputStm {
                 buf_.reset();
             }
         }
-        if (force) {
-            if (auto **hnd = std::get_if<FILE *>(&out_); hnd != nullptr) {
-                fflush(*hnd);
-            }
-            if (auto **str = std::get_if<std::string *>(&out_); str != nullptr) {
-                // TODO: better move
-                **str = buf_.str();
-            }
-        }
     }
     void do_flush() override {
         body_.flush(buf_, [this]() { endl(); });
     }
 
-    void do_end_step() override { endl(true); }
+    void do_end_step() override {
+        endl(true);
+        std::visit(
+            [&]<class T>(T *out) {
+                if constexpr (Util::matches<T, FILE>) {
+                    fflush(out);
+                }
+                if constexpr (Util::matches<T, std::string>) {
+                    *out = buf_.str();
+                }
+                if constexpr (Util::matches<T, std::vector<char>>) {
+                    *out = buf_.release();
+                }
+            },
+            out_);
+    }
 
     void do_mark([[maybe_unused]] SymbolCollector &gc) override {}
 
-    std::variant<FILE *, std::string *> out_;
+    std::variant<FILE *, std::string *, std::vector<char> *> out_;
     Util::OutputBuffer buf_;
     Util::OutputBuffer tmp_;
     OutputBody body_{uids_};
@@ -338,5 +345,7 @@ class OutputText : public OutputStm {
 auto make_text_output(FILE *out) -> UOutputStm { return std::make_unique<OutputText>(out); }
 
 auto make_text_output(std::string &out) -> UOutputStm { return std::make_unique<OutputText>(out); }
+
+auto make_text_output(std::vector<char> &out) -> UOutputStm { return std::make_unique<OutputText>(out); }
 
 } // namespace Gringo::Output

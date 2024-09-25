@@ -31,6 +31,15 @@ class OutputBuffer {
 
     void reset() { size_ = 0; }
 
+    auto release() -> std::vector<char> {
+        buf_.resize(size_);
+        buf_.emplace_back('\0');
+        auto ret = std::move(buf_);
+        buf_.clear();
+        size_ = 0;
+        return ret;
+    }
+
     void append(char const *str) {
         auto n = static_cast<ssize_t>(std::strlen(str));
         std::copy(str, std::next(str, n), ensure_(n));
