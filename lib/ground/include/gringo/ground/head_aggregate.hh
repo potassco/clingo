@@ -11,27 +11,29 @@
 
 namespace Gringo::Ground {
 
-//! Outline:
-//! - A :- B.
-//!   - atoms A are gathered in the aggregate domain
-//!     (on lower priority than the elements)
-//!   - there is no need to enqueue the aggregate
-//!     (stratified aggregates should be handled specially later)
-//! - accu :- A, E.
-//!   - gathers aggregate elements
-//!   - enqueues aggregate A for propagation
-//! - propagate
-//!   - if A can be derived, propagate heads of aggregate elements
-//! - output
-//!   - it might happen that there are empty aggregates that have not been derived
-//!   - they should be handled here
-//! - requirements
-//!   - AtomHdAggr    (to collect head aggregates)
-//!   - BaseHdAggr    (the base for grounding)
-//!   - StateHdAggr   (to gather state for grounding/output)
-//!   - StmHdAggr     (to derive atoms A)
-//!   - StmHdAggrElem (to accumulate elements)
-//!   - LitHdAggr     (to be used in StmHdAggrElem)
+// Outline:
+// - A :- B.
+//   - atoms A are gathered in the aggregate domain
+//     (on lower priority than the elements)
+//   - there is no need to enqueue the aggregate
+//     - propagation only derives heads
+//     - element accumulation is independent
+// - accu :- A, E.
+//   - gathers aggregate elements
+//   - enqueues aggregate A for propagation
+// - propagate
+//   - if A can be derived, propagate heads of aggregate elements
+// - output
+//   - it might happen that there are aggregates that have not been derived
+//   - they are currently output as is but their heads are not propagated
+//   - in principle, one could stop grounding if such an aggregate has a true body
+// - classes
+//   - AtomHdAggr    (to collect head aggregates)
+//   - BaseHdAggr    (the base for grounding)
+//   - StateHdAggr   (to gather state for grounding/output)
+//   - StmHdAggr     (to derive atoms A)
+//   - StmHdAggrElem (to accumulate elements)
+//   - LitHdAggr     (to be used in StmHdAggrElem)
 
 //! Extensible ground representation of head aggregates.
 //!
