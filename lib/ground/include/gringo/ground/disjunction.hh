@@ -47,12 +47,12 @@ class AtomDisjunction {
     void uid(size_t uid);
 
   private:
-    std::vector<size_t> elems_;
-    size_t propagated_ = 0;
+    Util::small_vector<size_t> elems_;
     size_t uid_ = invalid_offset;
+    uint64_t propagated_ : 62 = 0;
     // TODO: maybe bit set
-    bool enqueued_ = false;
-    bool fact_ = false;
+    uint64_t enqueued_ : 1 = 0;
+    uint64_t fact_ : 1 = 0;
 };
 
 //! The base capturing derived disjunction atoms.
@@ -130,7 +130,7 @@ class StateDisjunction {
     void propagate(Queue &queue);
 
     //! Insert a disjunction atom.
-    auto insert_atom(SymbolStore &store, Assignment &ass) -> std::optional<std::pair<AtomMap::iterator, bool>>;
+    auto insert_atom(Assignment &ass) -> std::pair<AtomMap::iterator, bool>;
 
     //! Insert an disjunction element.
     void insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iterator it, UTerm const &head,
@@ -155,7 +155,7 @@ class StateDisjunction {
     auto atom_index_(AtomMap::iterator it) -> size_t;
 
     BaseDisjunction base_;
-    ElementMap tuples_;
+    ElementMap elems_;
     VariableVec global_;
     SymbolVec symbols_;
     DisjunctionBaseVec bases_;

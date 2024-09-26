@@ -59,6 +59,10 @@ class OutputStm {
     using CondLit = std::pair<std::optional<size_t>, size_t>;
     //! A span of conditional literals.
     using CondLits = std::span<CondLit const>;
+    //! A disjunction element.
+    using DisjunctionElem = std::pair<Symbol, std::span<size_t const>>;
+    //! A span of disjunction elements.
+    using DisjunctionElems = std::span<DisjunctionElem const>;
 
     //! Destroy the output.
     virtual ~OutputStm() = default;
@@ -77,6 +81,8 @@ class OutputStm {
     void rule(std::optional<std::pair<Symbol, bool>> head) { do_rule(head); }
     //! Output a head aggregate rule.
     auto aggr_rule(std::optional<size_t> uid) -> size_t { return do_aggr_rule(uid); }
+    //! Output a head aggregate rule.
+    auto disjunctive_rule(std::optional<size_t> uid) -> size_t { return do_disjunctive_rule(uid); }
 
     //! Return an output for a condition.
     auto cond() -> OutputLit & { return do_cond(); }
@@ -91,6 +97,8 @@ class OutputStm {
     void hd_aggr(size_t uid, AggregateFunction fun, HdElems elems, Guards guards) {
         do_hd_aggr(uid, fun, elems, guards);
     }
+    //! Complete a delayed disjunction.
+    void disjunction(size_t uid, DisjunctionElems elems) { do_disjunction(uid, elems); }
 
     //! Complete a delayed conditional literal.
     void cond_lit(size_t uid, CondLits elems) { do_cond_lit(uid, elems); }
@@ -113,6 +121,7 @@ class OutputStm {
     virtual auto do_body() -> OutputLit & = 0;
     virtual void do_rule(std::optional<std::pair<Symbol, bool>> head) = 0;
     virtual auto do_aggr_rule(std::optional<size_t> uid) -> size_t = 0;
+    virtual auto do_disjunctive_rule(std::optional<size_t> uid) -> size_t = 0;
 
     virtual auto do_cond() -> OutputLit & = 0;
     virtual auto do_cond_id() -> size_t = 0;
@@ -120,6 +129,7 @@ class OutputStm {
     virtual void do_cond_lit(size_t uid, CondLits elems) = 0;
     virtual void do_bd_aggr(size_t uid, AggregateFunction fun, BdElems elems, Guards guards) = 0;
     virtual void do_hd_aggr(size_t uid, AggregateFunction fun, HdElems elems, Guards guards) = 0;
+    virtual void do_disjunction(size_t uid, DisjunctionElems elems) = 0;
 
     virtual void do_flush() = 0;
     virtual void do_end_step() = 0;

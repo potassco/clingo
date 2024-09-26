@@ -73,6 +73,12 @@ class small_vector {
     //! Get an iterator to the beginning of the vector.
     auto begin() -> T * { return is_small_() ? small_() : large_(); }
 
+    //! Get a pointer to the stored C array.
+    auto data() -> T * { return begin(); }
+
+    //! Get a pointer to the stored C array.
+    auto data() const -> T const * { return begin(); }
+
     //! Get an iterator to the end of the vector.
     auto end() const -> T const * { return const_cast<small_vector *>(this)->end(); }
 

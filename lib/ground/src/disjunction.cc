@@ -3,290 +3,78 @@
 #include <gringo/util/print.hh>
 #include <gringo/util/type_traits.hh>
 
-// #define DEBUG_AGGR
+#define DEBUG_AGGR
 #ifdef DEBUG_AGGR
 #include <iostream>
 #endif
 
 namespace Gringo::Ground {
 
-/*
-
 // definition of AtomAggr
 
-void AtomHdAggr::accumulate(AggregateFunction fun, SymbolSpan tup, bool fact) {
-    if (!tup.empty()) {
-        if (fun == AggregateFunction::min) {
-            auto &val = std::get<1>(bound_);
-            val.first = std::min(tup.front(), val.first);
-            if (fact) {
-                val.second = std::min(tup.front(), val.second);
-            }
-        } else if (fun == AggregateFunction::max) {
-            auto &val = std::get<1>(bound_);
-            val.second = std::max(tup.front(), val.second);
-            if (fact) {
-                val.first = std::max(tup.front(), val.first);
-            }
-        } else if (tup.front().type() == SymbolType::number) {
-            auto const &num = tup.front().num();
-            if (fun == AggregateFunction::sum || num > 0) {
-                auto &val = std::get<0>(bound_);
-                if (fact) {
-                    val.first += num;
-                    val.second += num;
-                } else if (num < 0) {
-                    val.first += num;
-                } else {
-                    val.second += num;
-                }
-            }
-        }
-    }
-}
+auto AtomDisjunction::is_fact() const -> bool { return fact_ == 1; }
 
-auto AtomHdAggr::propagate(GuardVec const &guards, Symbol const *vals) -> bool {
-    if (matched_) {
-        return true;
-    }
-    const auto *it = vals;
-    for (auto const &guard : guards) {
-        auto rel = guard.first;
-        auto res = std::visit(
-            [it, rel]<class T>(T const &x) -> bool {
-                switch (rel) {
-                    case Relation::less: {
-                        return x.first < *it;
-                    }
-                    case Relation::less_equal: {
-                        return x.first <= *it;
-                    }
-                    case Relation::greater: {
-                        return x.second > *it;
-                    }
-                    case Relation::greater_equal: {
-                        return x.second >= *it;
-                    }
-                    case Relation::equal: {
-                        return x.first <= *it && *it <= x.second;
-                    }
-                    case Relation::not_equal: {
-                        return *it != x.first || *it != x.second;
-                    }
-                }
-                Util::unreachable();
-            },
-            bound_);
-        if (!res) {
-            return false;
-        }
-        it = std::next(it);
-    }
-    matched_ = true;
-    return true;
-}
+void AtomDisjunction::mark_fact() { fact_ = 1; }
 
-auto AtomHdAggr::enqueue() -> bool {
-    if (!enqueued_ && propagated_ < elems_.size()) {
-        enqueued_ = true;
+auto AtomDisjunction::enqueue() -> bool {
+    if (enqueued_ == 0 && propagated_ < elems_.size()) {
+        enqueued_ = 1;
         return true;
     }
     return false;
 }
 
-void AtomHdAggr::dequeue() {
+void AtomDisjunction::dequeue() {
     assert(enqueued_);
     propagated_ = elems_.size();
-    enqueued_ = false;
+    enqueued_ = 0;
 }
 
-void AtomHdAggr::add_elem(size_t idx) { elems_.emplace_back(idx); }
+void AtomDisjunction::add_elem(size_t idx) { elems_.emplace_back(idx); }
 
-auto AtomHdAggr::elems() const -> std::span<size_t const> { return std::span{elems_.begin(), elems_.end()}; }
+auto AtomDisjunction::elems() const -> std::span<size_t const> { return std::span{elems_.begin(), elems_.end()}; }
 
-auto AtomHdAggr::todo() -> std::span<size_t const> {
-    return std::span{elems_.begin() + static_cast<ssize_t>(propagated_), elems_.end()};
+auto AtomDisjunction::todo() -> std::span<size_t const> {
+    return std::span{std::next(elems_.begin(), static_cast<ssize_t>(propagated_)), elems_.end()};
 }
 
-auto AtomHdAggr::uid() const -> std::optional<size_t> {
+auto AtomDisjunction::uid() const -> std::optional<size_t> {
     return uid_ != invalid_offset ? std::make_optional(uid_) : std::nullopt;
 }
 
-void AtomHdAggr::uid(size_t uid) {
+void AtomDisjunction::uid(size_t uid) {
     assert(uid_ == invalid_offset || uid_ == uid);
     uid_ = uid;
 }
 
-auto AtomHdAggr::init_(AggregateFunction fun) -> Bound {
-    if (fun == AggregateFunction::min) {
-        return Bound{std::in_place_index<1>, SymbolStore::sup(), SymbolStore::sup()};
-    }
-    if (fun == AggregateFunction::max) {
-        return Bound{std::in_place_index<1>, SymbolStore::inf(), SymbolStore::inf()};
-    }
-    return Bound{std::in_place_index<0>, 0, 0};
-}
+// definition of BaseDisjunction
 
-// definition of BaseHdAggr
+auto BaseDisjunction::add(Symbol const *sym) -> std::pair<AtomMap::iterator, bool> { return atoms_.try_emplace(sym); }
 
-auto BaseHdAggr::add(Symbol const *sym, AggregateFunction fun) -> std::pair<AtomMap::iterator, bool> {
-    return atoms_.try_emplace(sym, fun);
-}
+auto BaseDisjunction::size() const -> size_t { return atoms_.size(); }
 
-auto BaseHdAggr::size() const -> size_t { return atoms_.size(); }
+auto BaseDisjunction::index(Symbol const *sym) const -> size_t { return atoms_.find(sym) - atoms_.begin(); }
 
-auto BaseHdAggr::index(Symbol const *sym) const -> size_t { return atoms_.find(sym) - atoms_.begin(); }
+auto BaseDisjunction::nth(size_t i) const -> AtomMap::const_iterator { return atoms_.nth(i); }
 
-auto BaseHdAggr::nth(size_t i) const -> AtomMap::const_iterator { return atoms_.nth(i); }
+auto BaseDisjunction::nth(size_t i) -> AtomMap::iterator { return atoms_.nth(i); }
 
-auto BaseHdAggr::nth(size_t i) -> AtomMap::iterator { return atoms_.nth(i); }
-
-auto BaseHdAggr::atoms() -> AtomMap & { return atoms_; }
+auto BaseDisjunction::atoms() -> AtomMap & { return atoms_; }
 
 // definition of StateAggr
 
-// NOLINTBEGIN
+auto StateDisjunction::global() const -> VariableVec const & { return global_; }
 
-//! Helper class to construct symbols arrays identifying aggregate atoms.
-//!
-//! The size of the array corresponds to the number of global variables and is
-//! not stored here. The symbols are stored using a monotonic buffer resource.
-class StateHdAggr::AtomKey {
-  private:
-    struct priv_tag {};
-
-  public:
-    //! Private constructor.
-    AtomKey([[maybe_unused]] priv_tag tag, SymbolStore &store, Assignment &ass, VariableVec const &global,
-            GuardVec &guards, bool &res) {
-        auto *it = syms_;
-        for (auto const &var : global) {
-            *it++ = ass[var].value();
-        }
-        for (auto const &guard : guards) {
-            if (auto val = guard.second->eval(store, ass); val) {
-                *it++ = *val;
-            } else {
-                res = false;
-                break;
-            }
-        }
-    }
-    //! Private constructor.
-    AtomKey([[maybe_unused]] priv_tag tag, Symbol const *tuple, size_t n) { std::copy_n(tuple, n, syms_); }
-
-    //! Construct an atom key from the global variables and guards.
-    //!
-    //! Returns false if evaluating the guards fails.
-    static auto construct(auto &mbr, SymbolStore &store, Assignment &ass, VariableVec const &global, GuardVec &guards,
-                          AtomKey *&target) -> bool {
-        if (target == nullptr) {
-            auto n = (global.size() + guards.size()) * sizeof(Symbol);
-            target = static_cast<AtomKey *>(mbr.allocate(n, alignof(AtomKey)));
-        } else {
-            std::destroy_at(target);
-        }
-        bool res = true;
-        std::construct_at(target, priv_tag{}, store, ass, global, guards, res);
-        return res;
-    }
-    //! Construct an atom key from the given symbols.
-    //!
-    //! This function might create keys for atoms without definitions, which
-    //! can happen for negated atoms potentially derived later on.
-    static void construct(auto &mbr, Symbol const *tuple, size_t n, AtomKey *&target) {
-        if (target == nullptr) {
-            target = static_cast<AtomKey *>(mbr.allocate(n * sizeof(Symbol), alignof(AtomKey)));
-        } else {
-            std::destroy_at(target);
-        }
-        std::construct_at(target, priv_tag{}, tuple, n);
-    }
-
-    //! Return the symbols representing the atom key.
-    auto syms() -> Symbol const * { return syms_; }
-
-  private:
-    GRINGO_IGNORE_ZERO_SIZED_ARRAY_B
-    Symbol syms_[0];
-    GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
-};
-
-StateHdAggr::ElementKey::ElementKey([[maybe_unused]] priv_tag tag, SymbolStore &store, Assignment &ass,
-                                    AggregateFunction fun, size_t atom_idx, UTermVec const &tuple, bool &res)
-    : n_{tuple.size() << 1}, atom_idx_{atom_idx} {
-    auto *it = syms_;
-    if (auto jt = tuple.begin(), je = tuple.end(); jt != je) {
-        // check the weight of the tuple
-        if (auto val = (*jt)->eval(store, ass); val && relevant_val(fun, *val)) {
-            *it = *val;
-        } else {
-            res = false;
-            return;
-        }
-        // evaluate the remaining terms
-        for (++jt, ++it; jt != je; ++jt, ++it) {
-            if (auto val = (*jt)->eval(store, ass); val) {
-                *it = *val;
-            } else {
-                res = false;
-                return;
-            }
-        }
-    } else if (fun != AggregateFunction::count) {
-        res = false;
-        return;
-    }
-}
-
-auto StateHdAggr::ElementKey::construct(auto &mbr, SymbolStore &store, Assignment &ass, AggregateFunction fun,
-                                        size_t atom_idx, UTermVec const &tuple, ElementKey *&target) -> bool {
-    bool res = true;
-    auto n = sizeof(ElementKey) + tuple.size() * sizeof(Symbol);
-    if (target == nullptr) {
-        target = static_cast<ElementKey *>(mbr.allocate(n, alignof(ElementKey)));
-    } else {
-        std::destroy_at(target);
-    }
-    std::construct_at(target, priv_tag{}, store, ass, fun, atom_idx, tuple, res);
-    return res;
-}
-
-void StateHdAggr::ElementKey::mark_fact() const { n_ |= 1; }
-
-auto StateHdAggr::ElementKey::fact() const -> bool { return n_ & 1; }
-
-auto StateHdAggr::ElementKey::size() const -> size_t { return n_ >> 1; }
-
-auto StateHdAggr::ElementKey::span() const -> SymbolSpan { return SymbolSpan{syms_, size()}; }
-
-auto StateHdAggr::ElementKey::hash() const -> size_t {
-    return Util::value_hash_record<ElementKey>(size(), atom_idx_, span());
-}
-
-auto operator==(StateHdAggr::ElementKey const &a, StateHdAggr::ElementKey const &b) -> bool {
-    return a.atom_idx_ == b.atom_idx_ && a.size() == b.size() &&
-           std::equal(a.span().begin(), a.span().end(), b.span().begin());
-}
-
-// NOLINTEND
-
-auto StateHdAggr::global() const -> VariableVec const & { return global_; }
-
-auto StateHdAggr::symbols() -> SymbolVec & {
+auto StateDisjunction::symbols() -> SymbolVec & {
     symbols_.resize(global_.size());
     return symbols_;
 }
 
-auto StateHdAggr::guards() const -> GuardVec const & { return guards_; }
+auto StateDisjunction::single_pass_body() const -> bool { return single_pass_body_; }
 
-auto StateHdAggr::fun() const -> AggregateFunction { return fun_; }
+auto StateDisjunction::index() const -> size_t { return index_; }
 
-auto StateHdAggr::single_pass_body() const -> bool { return single_pass_body_; }
-
-auto StateHdAggr::index() const -> size_t { return index_; }
-
-auto StateHdAggr::indices() const -> std::vector<size_t> {
+auto StateDisjunction::indices() const -> std::vector<size_t> {
     std::vector<size_t> res;
     for (auto const &[sig, base, indices] : bases_) {
         res.insert(res.end(), indices.begin(), indices.end());
@@ -296,46 +84,50 @@ auto StateHdAggr::indices() const -> std::vector<size_t> {
     return res;
 }
 
-auto StateHdAggr::base() -> BaseHdAggr & { return base_; }
+auto StateDisjunction::base() -> BaseDisjunction & { return base_; }
 
-void StateHdAggr::enqueue(Queue &queue) {
+void StateDisjunction::enqueue(Queue &queue) {
     if (index_ != stratified_index && base_.has_update()) {
         queue.propagate(index_);
     }
 }
 
-void StateHdAggr::propagate(Queue &queue) {
+void StateDisjunction::propagate(Queue &queue) {
     // process enqueued atoms
     for (auto atom_idx : queue_) {
         auto it = base_.nth(atom_idx);
         auto &state = it.value();
         // accumulate the elements
-        for (auto elem_idx : state.todo()) {
-            auto elem = tuples_.nth(elem_idx);
-            // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
-            state.accumulate(fun_, elem.key()->span(), elem.key()->fact());
+        if (!it.value().is_fact()) {
+            for (auto elem_idx : state.todo()) {
+                auto elem = elems_.nth(elem_idx);
+                if (elem.value().empty()) {
+                    auto sym = elem.key().first;
+                    auto sig = std::make_tuple(sym.name(), sym.args().size(), sym.has_classical_sign());
+                    auto jt = std::lower_bound(bases_.begin(), bases_.end(), sig,
+                                               [](auto const &a, auto const &b) { return std::get<0>(a) < b; });
+                    if (std::get<1>(*jt)->is_fact(sym)) {
+                        state.mark_fact();
+                    }
+                }
 #ifdef DEBUG_AGGR
-            std::cerr << "accumulate: a: " << atom_idx << " e: " << elem_idx << " t:";
-            for (auto val : elem.key()->span()) {
-                std::cerr << " " << val;
-            }
-            if (elem->second.empty()) {
-                std::cerr << " [f]";
-            }
-            std::cerr << "\n";
+                std::cerr << "accumulate: a: " << atom_idx << " e: " << elem_idx << " h:" << " " << elem.key().first;
+                if (it.value().is_fact()) {
+                    std::cerr << " [f]";
+                }
+                std::cerr << "\n";
 #endif
+            }
         }
         // propagate the elements
-        if (state.propagate(guards_, it.key() + global_.size())) {
+        if (!it.value().is_fact()) {
             for (auto elem_idx : state.todo()) {
-                for (auto const &[sym, cond] : tuples_.nth(elem_idx).value()) {
-                    auto sig = std::make_tuple(sym.name(), sym.args().size(), sym.has_classical_sign());
-                    auto it = std::lower_bound(bases_.begin(), bases_.end(), sig,
-                                               [](auto const &a, auto const &b) { return std::get<0>(a) < b; });
-                    assert(it != bases_.end());
-                    auto *base = std::get<1>(*it);
-                    base->add(sym, StateAtom::derived);
-                }
+                auto sym = elems_.nth(elem_idx).key().first;
+                auto sig = std::make_tuple(sym.name(), sym.args().size(), sym.has_classical_sign());
+                auto it = std::lower_bound(bases_.begin(), bases_.end(), sig,
+                                           [](auto const &a, auto const &b) { return std::get<0>(a) < b; });
+                assert(it != bases_.end());
+                std::get<1>(*it)->add(sym, StateAtom::derived);
             }
 #ifdef DEBUG_AGGR
             std::cerr << "propagate: a: " << atom_idx << "\n";
@@ -356,167 +148,139 @@ void StateHdAggr::propagate(Queue &queue) {
     }
 }
 
-void StateHdAggr::enqueue_(AtomMap::iterator it) {
+void StateDisjunction::enqueue_(AtomMap::iterator it) {
     if (auto &state = it.value(); state.enqueue()) {
         queue_.emplace_back(atom_index_(it));
     }
 }
 
-auto StateHdAggr::insert_atom(SymbolStore &store,
-                              Assignment &ass) -> std::optional<std::pair<AtomMap::iterator, bool>> {
-    if (AtomKey::construct(*mbr_, store, ass, global_, guards_, atom_key_)) {
-        auto [it, ins] = base_.add(atom_key_->syms(), fun_);
-        if (ins) {
-            atom_key_ = nullptr;
-            enqueue_(it);
-        }
-        return std::make_optional<std::pair<AtomMap::iterator, bool>>(it, ins);
+auto StateDisjunction::insert_atom(Assignment &ass) -> std::pair<AtomMap::iterator, bool> {
+    auto n = global_.size() * sizeof(Symbol);
+    if (atom_key_ == nullptr) {
+        atom_key_ = static_cast<Symbol *>(mbr_->allocate(n, alignof(Symbol)));
+    } else {
+        std::destroy_n(atom_key_, n);
     }
-    return std::nullopt;
-}
-
-auto StateHdAggr::insert_atom(Symbol const *tuple) -> AtomMap::iterator {
-    AtomKey::construct(*mbr_, tuple, global_.size() + guards_.size(), atom_key_);
-    auto [it, ins] = base_.add(atom_key_->syms(), fun_);
-    if (ins) {
+    auto *it = atom_key_;
+    for (auto const &var : global_) {
+        // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+        std::construct_at(it, ass[var].value());
+        it = std::next(it);
+    }
+    auto res = base_.add(atom_key_);
+    if (res.second) {
         atom_key_ = nullptr;
+        enqueue_(res.first);
     }
-    return it;
+    return res;
 }
 
-void StateHdAggr::insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iterator it, UTerm const &head,
-                              UTermVec const &tuple, ElementKey *&elem_key, auto const &get_cond) {
-    auto sym = SymbolStore::sup();
-    if (head != nullptr) {
-        if (auto opt = head->eval(store, ass)) {
-            sym = *opt;
-        } else {
-            return;
-        }
-    }
-    if (ElementKey::construct(*mbr_, store, ass, fun_, atom_index_(it), tuple, elem_key)) {
-        auto [jt, jns] = tuples_.try_emplace(elem_key);
+void StateDisjunction::insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iterator it, UTerm const &head,
+                                   auto const &get_cond) {
+    if (auto opt = head->eval(store, ass); opt) {
+        auto [jt, jns] = elems_.try_emplace(ElementKey{*opt, atom_index_(it)});
         if (jns) {
-            elem_key = nullptr;
-            it.value().add_elem(jt - tuples_.begin());
+            it.value().add_elem(jt - elems_.begin());
             enqueue_(it);
         }
-
         auto [cond_id, fact] = get_cond();
-        if (head != nullptr && fact) {
-            jt.key()->mark_fact();
+        auto &conds = jt.value();
+        if (fact) {
+            conds.clear();
+        } else if (jns || !jt.value().empty()) {
+            auto kt = std::lower_bound(conds.begin(), conds.end(), cond_id);
+            if (kt != conds.end() && *kt != cond_id) {
+                conds.emplace(kt, cond_id);
+            }
         }
-        auto &cond = jt.value();
-        cond.emplace_back(sym, cond_id);
-        std::sort(cond.begin(), cond.end());
-        cond.erase(std::unique(cond.begin(), cond.end()), cond.end());
     }
 }
 
-auto StateHdAggr::atom_index_(AtomMap::iterator it) -> size_t { return it - base_.atoms().begin(); }
+auto StateDisjunction::atom_index_(AtomMap::iterator it) -> size_t { return it - base_.atoms().begin(); }
 
-void StateHdAggr::print(std::ostream &out, bool print_index) {
-    auto it = guards_.begin();
-    if (guards_.size() > 1) {
-        out << *it->second << " " << flip(it->first) << " ";
-        ++it;
-    }
-    out << fun_ << "(" << Util::p_range(global_, [](std::ostream &out, auto var) { out << "X_" << var; }) << ")";
+void StateDisjunction::print(std::ostream &out, bool print_index) {
+    out << "#disjunction(" << Util::p_range(global_, [](std::ostream &out, auto var) { out << "X_" << var; }) << ")";
     if (print_index && index_ != stratified_index) {
         out << "[" << index_ << "]";
     }
-    for (auto ie = guards_.end(); it != ie; ++it) {
-        out << " " << it->first << " " << *it->second;
-    }
 }
 
-void StateHdAggr::output(OutputStm &out) {
-    std::vector<std::pair<SymbolSpan, std::span<std::pair<Symbol, size_t> const>>> elems;
-    std::vector<std::pair<Relation, Symbol>> guards;
+void StateDisjunction::output(OutputStm &out) {
+    std::vector<std::pair<Symbol, std::span<size_t const>>> elems;
     for (auto const &[tuple, atom] : base_.atoms()) {
         if (auto uid = atom.uid(); uid) {
             elems.clear();
-            guards.clear();
             for (auto const &elem_idx : atom.elems()) {
-                auto const &[tuple, conds] = *tuples_.nth(elem_idx);
-                elems.emplace_back(tuple->span(), conds);
+                auto const &[head, cond] = *elems_.nth(elem_idx);
+                elems.emplace_back(head.first, std::span{cond.data(), cond.size()});
             }
-            auto const *it = tuple + global_.size();
-            for (auto &guard : guards_) {
-                guards.emplace_back(guard.first, *it);
-                it = std::next(it);
-            }
-            out.hd_aggr(*uid, fun_, elems, guards);
+            out.disjunction(*uid, elems);
         }
     }
 }
 
-// definition of StmHdAggr
+// definition of StmDisjunction
 
-auto StmHdAggr::do_body() const -> ULitVec const & { return body_; }
+auto StmDisjunction::do_body() const -> ULitVec const & { return body_; }
 
-auto StmHdAggr::do_important() const -> VariableSet {
+auto StmDisjunction::do_important() const -> VariableSet {
     auto res = VariableSet{};
     res.insert(state_->global().begin(), state_->global().end());
     return res;
 }
 
-void StmHdAggr::do_init([[maybe_unused]] size_t gen) {
+void StmDisjunction::do_init([[maybe_unused]] size_t gen) {
     // by construction, this statement does not increment the generation
 }
 
-auto StmHdAggr::do_report(InstantiationContext &ctx) -> bool {
-    if (auto res = state_->insert_atom(ctx.store(), ctx.ass())) {
-        auto &aggr = res->first.value();
-        auto &out = ctx.out().body();
-        for (auto const &lit : body_) {
-            std::ignore = lit->output(ctx, out);
-        }
-        aggr.uid(ctx.out().aggr_rule(aggr.uid()));
+auto StmDisjunction::do_report(InstantiationContext &ctx) -> bool {
+    auto &lit = state_->insert_atom(ctx.ass()).first.value();
+    auto &out = ctx.out().body();
+    for (auto const &lit : body_) {
+        std::ignore = lit->output(ctx, out);
     }
-    // Note: in principle, it would be possible to detect false head aggregates
+    lit.uid(ctx.out().disjunctive_rule(lit.uid()));
+    // Note: in principle, it would be possible to detect false disjunctions
     // in the stratified case.
     return true;
 }
 
-void StmHdAggr::do_propagate([[maybe_unused]] SymbolStore &store, Queue &queue) {
+void StmDisjunction::do_propagate([[maybe_unused]] SymbolStore &store, Queue &queue) {
     // enqueue the aggregate element statements for propagation
     state_->enqueue(queue);
 }
 
-auto StmHdAggr::do_priority() const -> size_t { return priority_; }
+auto StmDisjunction::do_priority() const -> size_t { return priority_; }
 
-void StmHdAggr::do_print_head(std::ostream &out) const { state_->print(out, false); }
+void StmDisjunction::do_print_head(std::ostream &out) const { state_->print(out, false); }
 
-void StmHdAggr::do_print(std::ostream &out) const {
+void StmDisjunction::do_print(std::ostream &out) const {
     out << priority_ << ": ";
     state_->print(out, true);
     out << " <- " << Util::p_range(body_, ", ", [](std::ostream &out, auto const &lit) { out << *lit; }) << ".";
 }
 
-// definition of StmHdAggrElem
+// definition of StmDisjunctionElem
 
-auto StmHdAggrElem::do_body() const -> ULitVec const & { return body_; }
+auto StmDisjunctionElem::do_body() const -> ULitVec const & { return body_; }
 
-auto StmHdAggrElem::do_important() const -> VariableSet {
+auto StmDisjunctionElem::do_important() const -> VariableSet {
     auto res = VariableSet{};
     res.insert(state_->global().begin(), state_->global().end());
-    for (auto const &term : tuple_) {
-        term->vars(res);
-    }
+    head_->vars(res);
     return res;
 }
 
-void StmHdAggrElem::do_init(size_t gen) {
+void StmDisjunctionElem::do_init(size_t gen) {
     if (base_ != nullptr) {
         base_->update(gen);
     }
 }
 
-auto StmHdAggrElem::do_report(InstantiationContext &ctx) -> bool {
+auto StmDisjunctionElem::do_report(InstantiationContext &ctx) -> bool {
     auto &ass = ctx.ass();
     // insert aggregate atom
-    if (auto it = state_->insert_atom(ctx.store(), ass)) {
+    if (auto it = state_->insert_atom(ass).first; !it.value().is_fact()) {
         auto get_cond = [this, &ctx]() {
             // output the condition
             bool fact = true;
@@ -529,33 +293,32 @@ auto StmHdAggrElem::do_report(InstantiationContext &ctx) -> bool {
             return std::make_pair(ctx.out().cond_id(), fact);
         };
         // insert the element
-        state_->insert_elem(ctx.store(), ass, it->first, head_, tuple_, elem_key_, get_cond);
+        state_->insert_elem(ctx.store(), ass, it, head_, get_cond);
     }
     return true;
 }
 
-void StmHdAggrElem::do_propagate([[maybe_unused]] SymbolStore &store, Queue &queue) {
+void StmDisjunctionElem::do_propagate([[maybe_unused]] SymbolStore &store, Queue &queue) {
     // This is called after all statements on the current priority have been
     // processed. Thus, all element aggregation rules have been processed.
-    // Here, literals are derived by the head aggregate are propagated.
+    // Here, literals are derived by the disjunction are propagated.
     state_->propagate(queue);
 }
 
-auto StmHdAggrElem::do_priority() const -> size_t { return std::numeric_limits<size_t>::max(); }
+auto StmDisjunctionElem::do_priority() const -> size_t { return std::numeric_limits<size_t>::max(); }
 
-void StmHdAggrElem::do_print_head(std::ostream &out) const {
+void StmDisjunctionElem::do_print_head(std::ostream &out) const {
     auto p_var = [](std::ostream &out, auto const &x) { out << "X_" << x; };
-    auto p_term = [](std::ostream &out, auto const &x) { out << *x; };
     out << "#elem(g(" << Util::p_range(state_->global(), p_var) << "),";
     if (head_ != nullptr) {
         out << *head_;
     } else {
         out << "#true";
     }
-    out << ",t(" << Util::p_range(tuple_, p_term) << "))";
+    out << ",h(" << *head_ << "))";
 }
 
-void StmHdAggrElem::do_print(std::ostream &out) const {
+void StmDisjunctionElem::do_print(std::ostream &out) const {
     out << "max: ";
     print_head(out);
     if (auto indices = state_->indices(); !indices.empty()) {
@@ -564,16 +327,19 @@ void StmHdAggrElem::do_print(std::ostream &out) const {
     out << " <- " << Util::p_range(body_, ", ", [](std::ostream &out, auto const &lit) { out << *lit; }) << ".";
 }
 
-// definition of MatchHdAggr
+// definition of MatchDisjunction
 
-auto MatchHdAggr::vars() const -> VariableSet { return VariableSet{state_->global().begin(), state_->global().end()}; }
+auto MatchDisjunction::vars() const -> VariableSet {
+    return VariableSet{state_->global().begin(), state_->global().end()};
+}
 
-auto MatchHdAggr::signature(VariableSet const &bound, [[maybe_unused]] VariableSet const &bind) const -> VariableVec {
+auto MatchDisjunction::signature(VariableSet const &bound,
+                                 [[maybe_unused]] VariableSet const &bind) const -> VariableVec {
     static_cast<void>(this);
     return {bound.begin(), bound.end()};
 }
 
-auto MatchHdAggr::match([[maybe_unused]] SymbolStore &store, Symbol const *sym, Assignment &ass) const -> bool {
+auto MatchDisjunction::match([[maybe_unused]] SymbolStore &store, Symbol const *sym, Assignment &ass) const -> bool {
     for (auto var : state_->global()) {
         if (auto &opt = ass[var]; opt) {
             if (*opt != *sym) {
@@ -587,48 +353,42 @@ auto MatchHdAggr::match([[maybe_unused]] SymbolStore &store, Symbol const *sym, 
     return true;
 }
 
-auto MatchHdAggr::eval(SymbolStore &store, Assignment &ass) const -> std::optional<Symbol const *> {
+auto MatchDisjunction::eval([[maybe_unused]] SymbolStore &store,
+                            Assignment &ass) const -> std::optional<Symbol const *> {
     eval_.clear();
     for (auto var : state_->global()) {
         // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
         eval_.emplace_back(ass[var].value());
     }
-    for (auto const &guard : state().guards()) {
-        if (auto sym = guard.second->eval(store, ass); sym) {
-            eval_.emplace_back(*sym);
-        } else {
-            return std::nullopt;
-        }
-    }
     return eval_.data();
 }
 
-auto MatchHdAggr::state() const -> StateHdAggr & { return *state_; }
+auto MatchDisjunction::state() const -> StateDisjunction & { return *state_; }
 
-auto operator<<(std::ostream &out, MatchHdAggr const &m) -> std::ostream & {
+auto operator<<(std::ostream &out, MatchDisjunction const &m) -> std::ostream & {
     m.state_->print(out, false);
     return out;
 }
 
-// definition of LitHdAggr
+// definition of LitDisjunction
 
-void LitHdAggr::do_vars(VariableSet &vars, VarSelectMode mode) const {
+void LitDisjunction::do_vars(VariableSet &vars, VarSelectMode mode) const {
     if (mode != VarSelectMode::depend) {
         vars.insert(state().global().begin(), state().global().end());
     }
 }
 
-auto LitHdAggr::do_domain() const -> bool {
+auto LitDisjunction::do_domain() const -> bool {
     // this is an auxiliary literal for binding variables
     return true;
 }
 
-auto LitHdAggr::do_single_pass() const -> bool { return state().single_pass_body(); }
+auto LitDisjunction::do_single_pass() const -> bool { return state().single_pass_body(); }
 
-auto LitHdAggr::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
-                           std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
+auto LitDisjunction::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+                                std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
     offset_ = invalid_offset;
-    auto &match = static_cast<MatchHdAggr &>(*this);
+    auto &match = static_cast<MatchDisjunction &>(*this);
     auto index = std::optional<size_t>{};
     if (state().index() != stratified_index && type == MatcherType::new_atoms) {
         index = state().index();
@@ -636,29 +396,28 @@ auto LitHdAggr::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType
     return {make_atom_matcher(mbr, bound, state().base(), match, type, offset_), index};
 }
 
-auto LitHdAggr::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double {
+auto LitDisjunction::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double {
     // Note: at the time of score computation the aggregate is still empty.
     // Scoring low should be fine here.
     return 0;
 }
 
-void LitHdAggr::do_print(std::ostream &out) const { state().print(out, true); }
+void LitDisjunction::do_print(std::ostream &out) const { state().print(out, true); }
 
-auto LitHdAggr::do_output([[maybe_unused]] InstantiationContext &ctx, [[maybe_unused]] OutputLit &out) const -> bool {
+auto LitDisjunction::do_output([[maybe_unused]] InstantiationContext &ctx,
+                               [[maybe_unused]] OutputLit &out) const -> bool {
     return false;
 }
 
-auto LitHdAggr::do_copy() const -> ULit { return std::make_unique<LitHdAggr>(state()); }
+auto LitDisjunction::do_copy() const -> ULit { return std::make_unique<LitDisjunction>(state()); }
 
-auto LitHdAggr::do_hash() const -> size_t {
+auto LitDisjunction::do_hash() const -> size_t {
     // NOLINTNEXTLINE
-    return Util::value_hash_record<LitHdAggr>(reinterpret_cast<uintptr_t>(this));
+    return Util::value_hash_record<LitDisjunction>(reinterpret_cast<uintptr_t>(this));
 }
 
-auto LitHdAggr::do_equal_to(Lit const &other) const -> bool { return this == &other; }
+auto LitDisjunction::do_equal_to(Lit const &other) const -> bool { return this == &other; }
 
-auto LitHdAggr::do_compare_to(Lit const &other) const -> std::weak_ordering { return this <=> &other; }
-
-*/
+auto LitDisjunction::do_compare_to(Lit const &other) const -> std::weak_ordering { return this <=> &other; }
 
 } // namespace Gringo::Ground

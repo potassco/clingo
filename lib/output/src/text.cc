@@ -223,6 +223,8 @@ class OutputText : public OutputStm {
 
     auto do_aggr_rule(std::optional<size_t> uid) -> size_t override { return body_.delay_head(uid, " :- "); }
 
+    auto do_disjunctive_rule(std::optional<size_t> uid) -> size_t override { return body_.delay_head(uid, " :- "); }
+
     auto do_cond() -> OutputLit & override {
         cond_.start();
         return cond_;
@@ -294,6 +296,24 @@ class OutputText : public OutputStm {
                 buf << *conds_.nth(hc.second);
             });
         });
+    }
+
+    void do_disjunction(size_t uid, DisjunctionElems elems) override {
+        tmp_.reset();
+        if (elems.empty()) {
+            tmp_ << "#false";
+        } else {
+            tmp_ << Util::p_range(elems, "; ", [this](auto &buf, DisjunctionElem const &elem) {
+                if (elem.second.empty()) {
+                    buf << "#true";
+                } else {
+                    Util::p_range(elem.second, "; ", [this, &elem](auto &buf, auto const &cond) {
+                        buf << elem.first << ": " << *conds_.nth(cond);
+                    });
+                }
+            });
+        }
+        body_.define(uid, tmp_.str());
     }
 
     void do_flush() override { body_.flush(*out_); }

@@ -170,8 +170,6 @@ class StateHdAggr::AtomKey {
             }
         }
     }
-    //! Private constructor.
-    AtomKey([[maybe_unused]] priv_tag tag, Symbol const *tuple, size_t n) { std::copy_n(tuple, n, syms_); }
 
     //! Construct an atom key from the global variables and guards.
     //!
@@ -187,18 +185,6 @@ class StateHdAggr::AtomKey {
         bool res = true;
         std::construct_at(target, priv_tag{}, store, ass, global, guards, res);
         return res;
-    }
-    //! Construct an atom key from the given symbols.
-    //!
-    //! This function might create keys for atoms without definitions, which
-    //! can happen for negated atoms potentially derived later on.
-    static void construct(auto &mbr, Symbol const *tuple, size_t n, AtomKey *&target) {
-        if (target == nullptr) {
-            target = static_cast<AtomKey *>(mbr.allocate(n * sizeof(Symbol), alignof(AtomKey)));
-        } else {
-            std::destroy_at(target);
-        }
-        std::construct_at(target, priv_tag{}, tuple, n);
     }
 
     //! Return the symbols representing the atom key.
@@ -492,6 +478,9 @@ auto StmHdAggrElem::do_important() const -> VariableSet {
     res.insert(state_->global().begin(), state_->global().end());
     for (auto const &term : tuple_) {
         term->vars(res);
+    }
+    if (head_ != nullptr) {
+        head_->vars(res);
     }
     return res;
 }

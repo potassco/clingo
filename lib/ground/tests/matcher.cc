@@ -27,6 +27,7 @@ class NullOutputStm : public OutputStm {
     auto do_body() -> OutputLit & override { return lout; }
     void do_rule([[maybe_unused]] std::optional<std::pair<Symbol, bool>> head) override {}
     auto do_aggr_rule([[maybe_unused]] std::optional<size_t> head) -> size_t override { return 0; }
+    auto do_disjunctive_rule([[maybe_unused]] std::optional<size_t> head) -> size_t override { return 0; }
     auto do_cond() -> OutputLit & override { return lout; }
     auto do_cond_id() -> size_t override { return 0; }
     void do_cond_lit([[maybe_unused]] size_t uid, [[maybe_unused]] CondLits elems) override {}
@@ -34,6 +35,7 @@ class NullOutputStm : public OutputStm {
                     [[maybe_unused]] Guards guards) override {}
     void do_hd_aggr([[maybe_unused]] size_t uid, [[maybe_unused]] AggregateFunction fun, [[maybe_unused]] HdElems elems,
                     [[maybe_unused]] Guards guards) override {}
+    void do_disjunction([[maybe_unused]] size_t uid, [[maybe_unused]] DisjunctionElems elems) override {}
     void do_flush() override {}
     void do_end_step() override {}
     void do_mark([[maybe_unused]] SymbolCollector &gc) override {}
