@@ -229,9 +229,7 @@ auto StmDisjunction::do_important() const -> VariableSet {
     return res;
 }
 
-void StmDisjunction::do_init([[maybe_unused]] size_t gen) {
-    // by construction, this statement does not increment the generation
-}
+void StmDisjunction::do_init([[maybe_unused]] size_t gen) { state_->base().ensure(gen); }
 
 auto StmDisjunction::do_report(InstantiationContext &ctx) -> bool {
     auto &lit = state_->insert_atom(ctx.ass()).first.value();

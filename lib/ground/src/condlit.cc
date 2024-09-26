@@ -562,8 +562,21 @@ auto StmCondLit::do_body() const -> ULitVec const & { return body_; }
 
 auto StmCondLit::do_important() const -> VariableSet { return state_->vars(type_ != StmCondLitType::empty); }
 
-void StmCondLit::do_init([[maybe_unused]] size_t gen) {
-    // by construction, this statement does not increment the generation
+void StmCondLit::do_init(size_t gen) {
+    switch (type_) {
+        case StmCondLitType::empty: {
+            state_->base_empty().ensure(gen);
+            break;
+        }
+        case StmCondLitType::premise: {
+            state_->base_premise().ensure(gen);
+            break;
+        }
+        case StmCondLitType::conclusion: {
+            state_->base_lit().ensure(gen);
+            break;
+        }
+    }
 }
 
 auto StmCondLit::do_report(InstantiationContext &ctx) -> bool {

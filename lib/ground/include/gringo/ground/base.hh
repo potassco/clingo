@@ -163,6 +163,9 @@ template <class KeyType, class BaseType> class BaseImpl {
     //! Update the generation counts.
     void update(size_t generation) { counts_.update(generation, base().size()); }
 
+    //! Ensure that atoms are added to the given generation.
+    void ensure(size_t generation) { update(generation > 0 ? generation - 1 : 0); }
+
     //! Get the context of the base with the desired type.
     //!
     //! Creates one if the base has none yet.

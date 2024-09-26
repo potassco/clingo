@@ -436,9 +436,7 @@ auto StmHdAggr::do_important() const -> VariableSet {
     return res;
 }
 
-void StmHdAggr::do_init([[maybe_unused]] size_t gen) {
-    // by construction, this statement does not increment the generation
-}
+void StmHdAggr::do_init(size_t gen) { state_->base().ensure(gen); }
 
 auto StmHdAggr::do_report(InstantiationContext &ctx) -> bool {
     if (auto res = state_->insert_atom(ctx.store(), ctx.ass())) {

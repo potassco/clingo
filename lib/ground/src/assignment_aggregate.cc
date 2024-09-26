@@ -508,9 +508,7 @@ auto StmAssignAggrElem::do_is_important(size_t index) const -> bool {
     return index < num_cond_;
 }
 
-void StmAssignAggrElem::do_init([[maybe_unused]] size_t gen) {
-    // by construction, this statement does not increment the generation
-}
+void StmAssignAggrElem::do_init(size_t gen) { state_->base().ensure(gen); }
 
 auto StmAssignAggrElem::do_report(InstantiationContext &ctx) -> bool {
     auto &ass = ctx.ass();
