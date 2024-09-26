@@ -2,6 +2,7 @@ add_library(gringo_ground
     "src/assignment_aggregate.cc"
     "src/body_aggregate.cc"
     "src/condlit.cc"
+    "src/disjunction.cc"
     "src/head_aggregate.cc"
     "src/instantiator.cc"
     "src/literal.cc"

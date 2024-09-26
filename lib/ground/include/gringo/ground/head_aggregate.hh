@@ -38,7 +38,7 @@ namespace Gringo::Ground {
 //! Extensible ground representation of head aggregates.
 //!
 //! Elements can be added to this representation and it can be enqueued for
-//! later propagation. Propgation adjust the stored bounds capturing an
+//! later propagation. Propagation adjust the stored bounds capturing an
 //! interval of possible values the aggregate can take.
 class AtomHdAggr {
   public:
@@ -90,7 +90,7 @@ class AtomHdAggr {
     bool matched_ = false;
 };
 
-//! The base capturing derived body aggregate atoms.
+//! The base capturing derived head aggregate atoms.
 class BaseHdAggr : public BaseImpl<Symbol const *, BaseHdAggr> {
   public:
     using BaseImpl::contains;
@@ -128,7 +128,7 @@ class BaseHdAggr : public BaseImpl<Symbol const *, BaseHdAggr> {
 //! is identified by the signature and the vector sorted by this signature.
 using HdAggrBaseVec = std::vector<std::tuple<std::tuple<String, size_t, bool>, Base *, std::vector<size_t>>>;
 
-//! State storing all necessary information to ground body aggregates.
+//! State storing all necessary information to ground head aggregates.
 class StateHdAggr {
   public:
     class AtomKey;
@@ -196,7 +196,7 @@ class StateHdAggr {
     [[nodiscard]] auto guards() const -> GuardVec const &;
     //! Get the aggregate function.
     [[nodiscard]] auto fun() const -> AggregateFunction;
-    //! Indicates that all necessary elemements can be grounded in a single
+    //! Indicates that all necessary elements can be grounded in a single
     //! pass.
     [[nodiscard]] auto single_pass_body() const -> bool;
     //! Get the update index for the aggregate.
@@ -209,19 +209,11 @@ class StateHdAggr {
     //! Enqueue aggregate element rules.
     void enqueue(Queue &queue);
 
-    //! Propagate equeued aggregates.
+    //! Propagate enqueued aggregates.
     void propagate(Queue &queue);
 
-    //! Insert an aggregate atom (stemming from an aggregate element).
-    //!
-    //! This function also enqueues freshly inserted atoms to cover the case
-    //! that the aggregate matches the empty element set.
+    //! Insert an aggregate atom.
     auto insert_atom(SymbolStore &store, Assignment &ass) -> std::optional<std::pair<AtomMap::iterator, bool>>;
-
-    //! Insert a previously evaluated atom.
-    //!
-    //! This functions can be used to ensure the presence of an atom that has not yet been derived.
-    auto insert_atom(Symbol const *tuple) -> AtomMap::iterator;
 
     //! Insert an aggregate element.
     void insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iterator it, UTerm const &head,
@@ -237,7 +229,7 @@ class StateHdAggr {
     [[nodiscard]] auto base() -> BaseHdAggr &;
 
   private:
-    //! Enequeue an atom for propgation.
+    //! Enqueue an atom for propagation.
     void enqueue_(AtomMap::iterator it);
 
     //! Get the index of an aggregate atom.
@@ -280,10 +272,6 @@ class StmHdAggr : public Stm {
     void do_propagate(SymbolStore &store, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override;
 
-    //! The head of the rule.
-    //!
-    //! Note that this unique pointer is zero in case of constraints.
-    UTerm head_;
     StateHdAggr *state_;
     ULitVec body_;
     size_t priority_;

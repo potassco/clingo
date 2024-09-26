@@ -1,4 +1,4 @@
-#include <gringo/ground/head_aggregate.hh>
+#include <gringo/ground/disjunction.hh>
 
 #include <gringo/util/print.hh>
 #include <gringo/util/type_traits.hh>
@@ -9,6 +9,8 @@
 #endif
 
 namespace Gringo::Ground {
+
+/*
 
 // definition of AtomAggr
 
@@ -373,6 +375,15 @@ auto StateHdAggr::insert_atom(SymbolStore &store,
     return std::nullopt;
 }
 
+auto StateHdAggr::insert_atom(Symbol const *tuple) -> AtomMap::iterator {
+    AtomKey::construct(*mbr_, tuple, global_.size() + guards_.size(), atom_key_);
+    auto [it, ins] = base_.add(atom_key_->syms(), fun_);
+    if (ins) {
+        atom_key_ = nullptr;
+    }
+    return it;
+}
+
 void StateHdAggr::insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iterator it, UTerm const &head,
                               UTermVec const &tuple, ElementKey *&elem_key, auto const &get_cond) {
     auto sym = SymbolStore::sup();
@@ -647,5 +658,7 @@ auto LitHdAggr::do_hash() const -> size_t {
 auto LitHdAggr::do_equal_to(Lit const &other) const -> bool { return this == &other; }
 
 auto LitHdAggr::do_compare_to(Lit const &other) const -> std::weak_ordering { return this <=> &other; }
+
+*/
 
 } // namespace Gringo::Ground
