@@ -252,14 +252,23 @@ class OutputText : public OutputStm {
         }
     }
 
-    void do_bd_aggr(size_t uid, AggregateFunction fun, BdElems elems, Guards guards) override {
+    void aggr(size_t uid, AggregateFunction fun, auto elems, Guards guards, auto prt) {
         tmp_.reset();
         auto it = guards.begin();
         if (guards.size() > 1) {
             tmp_ << it->second << " " << flip(it->first) << " ";
             ++it;
         }
-        tmp_ << fun << " { " << Util::p_range(elems, "; ", [this](auto &buf, auto const &elem) {
+        tmp_ << fun << " { " << Util::p_range(elems, "; ", [prt](auto &buf, auto const &elem) { prt(buf, elem); })
+             << (elems.empty() ? "}" : " }");
+        for (auto ie = guards.end(); it != ie; ++it) {
+            tmp_ << " " << it->first << " " << it->second;
+        }
+        body_.define(uid, tmp_.str());
+    }
+
+    void do_bd_aggr(size_t uid, AggregateFunction fun, BdElems elems, Guards guards) override {
+        aggr(uid, fun, elems, guards, [this](auto &buf, auto const &elem) {
             if (elem.second.empty()) {
                 buf << Util::p_range(elem.first);
                 if (elem.first.empty()) {
@@ -270,22 +279,11 @@ class OutputText : public OutputStm {
                     buf << Util::p_range(elem.first) << ": " << *conds_.nth(cond);
                 });
             }
-        }) << (elems.empty() ? "}" : " }");
-        for (auto ie = guards.end(); it != ie; ++it) {
-            tmp_ << " " << it->first << " " << it->second;
-        }
-        body_.define(uid, tmp_.str());
+        });
     }
 
     void do_hd_aggr(size_t uid, AggregateFunction fun, HdElems elems, Guards guards) override {
-        // Note: too much c&p from bd_aggr
-        tmp_.reset();
-        auto it = guards.begin();
-        if (guards.size() > 1) {
-            tmp_ << it->second << " " << flip(it->first) << " ";
-            ++it;
-        }
-        tmp_ << fun << " { " << Util::p_range(elems, "; ", [this](auto &buf, HdElem const &elem) {
+        aggr(uid, fun, elems, guards, [this](auto &buf, auto const &elem) {
             buf << Util::p_range(elem.second, "; ", [this, &elem](auto &buf, auto const &hc) {
                 buf << Util::p_range(elem.first) << ": ";
                 if (hc.first.type() == SymbolType::sup) {
@@ -295,11 +293,7 @@ class OutputText : public OutputStm {
                 }
                 buf << *conds_.nth(hc.second);
             });
-        }) << (elems.empty() ? "}" : " }");
-        for (auto ie = guards.end(); it != ie; ++it) {
-            tmp_ << " " << it->first << " " << it->second;
-        }
-        body_.define(uid, tmp_.str());
+        });
     }
 
     void do_flush() override { body_.flush(*out_); }
