@@ -578,7 +578,13 @@ auto StmCondLit::do_report(InstantiationContext &ctx) -> bool {
         }
         case StmCondLitType::conclusion: {
             if (auto it = state_->atom_find(ctx.ass()); !it.value().is_false()) {
-                // TODO: this is misuse of the condition a single literal (or true) is needed...
+                // By construction, the literal at the end of the body is the
+                // conclusion. Using a condition here is the easiest way to
+                // obtain an id for the conclusion. It would also be possible
+                // to implement something to get an id for a single literal.
+                // However, it is also possible to optimize small size
+                // conditions, which should provide similar storage benefits
+                // and keeps the interface simpler.
                 bool fact = true;
                 auto &out = ctx.out().cond();
                 for (auto const &lit : body_) {
