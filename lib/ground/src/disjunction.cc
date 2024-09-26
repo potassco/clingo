@@ -3,7 +3,7 @@
 #include <gringo/util/print.hh>
 #include <gringo/util/type_traits.hh>
 
-#define DEBUG_AGGR
+// #define DEBUG_AGGR
 #ifdef DEBUG_AGGR
 #include <iostream>
 #endif
@@ -189,7 +189,7 @@ void StateDisjunction::insert_elem(SymbolStore &store, Assignment &ass, AtomMap:
             conds.clear();
         } else if (jns || !jt.value().empty()) {
             auto kt = std::lower_bound(conds.begin(), conds.end(), cond_id);
-            if (kt != conds.end() && *kt != cond_id) {
+            if (kt == conds.end() || *kt != cond_id) {
                 conds.emplace(kt, cond_id);
             }
         }
@@ -210,10 +210,15 @@ void StateDisjunction::output(OutputStm &out) {
     for (auto const &[tuple, atom] : base_.atoms()) {
         if (auto uid = atom.uid(); uid) {
             elems.clear();
-            for (auto const &elem_idx : atom.elems()) {
-                auto const &[head, cond] = *elems_.nth(elem_idx);
-                elems.emplace_back(head.first, std::span{cond.data(), cond.size()});
+            if (atom.is_fact()) {
+                elems.emplace_back(SymbolStore::sup(), std::span<size_t const>{});
+            } else {
+                for (auto const &elem_idx : atom.elems()) {
+                    auto const &[head, cond] = *elems_.nth(elem_idx);
+                    elems.emplace_back(head.first, std::span{cond.data(), cond.size()});
+                }
             }
+            // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
             out.disjunction(*uid, elems);
         }
     }

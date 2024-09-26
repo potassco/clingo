@@ -305,9 +305,13 @@ class OutputText : public OutputStm {
         } else {
             tmp_ << Util::p_range(elems, "; ", [this](auto &buf, DisjunctionElem const &elem) {
                 if (elem.second.empty()) {
-                    buf << "#true";
+                    if (elem.first.type() == SymbolType::sup) {
+                        buf << "#true";
+                    } else {
+                        buf << elem.first;
+                    }
                 } else {
-                    Util::p_range(elem.second, "; ", [this, &elem](auto &buf, auto const &cond) {
+                    buf << Util::p_range(elem.second, "; ", [this, &elem](auto &buf, auto const &cond) {
                         buf << elem.first << ": " << *conds_.nth(cond);
                     });
                 }

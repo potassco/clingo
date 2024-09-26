@@ -3,6 +3,7 @@
 #include <gringo/ground/assignment_aggregate.hh>
 #include <gringo/ground/body_aggregate.hh>
 #include <gringo/ground/condlit.hh>
+#include <gringo/ground/disjunction.hh>
 #include <gringo/ground/head_aggregate.hh>
 #include <gringo/ground/program.hh>
 
@@ -398,8 +399,8 @@ class BuilderTerm {
     Util::unordered_map<String, size_t> const *var_map_;
 };
 
-using StateList = std::forward_list<
-    std::variant<Ground::StateCondLit, Ground::StateHdAggr, Ground::StateBdAggr, Ground::StateAssignAggr>>;
+using StateList = std::forward_list<std::variant<Ground::StateCondLit, Ground::StateHdAggr, Ground::StateBdAggr,
+                                                 Ground::StateAssignAggr, Ground::StateDisjunction>>;
 
 //! Context object holding necessary data for translating from input to ground
 //! representation.
@@ -582,6 +583,91 @@ class BuilderHdLit {
         std::ostringstream oss;
         oss << "implement me: handle head literal " << lit;
         throw std::logic_error(oss.str());
+    }
+
+    //! Translate disjunctions.
+    void operator()(Input::HdLitDisjunction const &lit) const {
+        auto vars_body = Ground::VariableSet{};
+        for (auto const &lit : ctx_->body()) {
+            lit->vars(vars_body, Ground::VarSelectMode::all);
+        }
+
+        auto vars_global = Ground::VariableSet{};
+
+        using TermBase = std::pair<Ground::UTerm, Ground::Base *>;
+        auto elems = std::vector<std::tuple<Ground::UTerm, Ground::Base *, Ground::ULitVec>>{};
+        elems.reserve(lit.elems().size());
+        Ground::HdAggrBaseVec bases;
+        bases.reserve(elems.size());
+        for (auto const &elem : lit.elems()) {
+            auto elem_vars = Ground::VariableSet{};
+            // head
+            auto head = std::optional<TermBase>{};
+            std::visit(
+                [&, this]<class T>(T const &lit) {
+                    if constexpr (Util::matches<T, Input::Lit>) {
+                        with_simple_lit_(lit, [&](auto sig, auto term, auto &base, auto provides) {
+                            bases.emplace_back(sig, &base, std::move(provides));
+                            head.emplace(std::make_pair(std::move(term), &base));
+                        });
+                    } else {
+                        with_simple_lit_(lit.lit(), [&](auto sig, auto term, auto &base, auto provides) {
+                            bases.emplace_back(sig, &base, std::move(provides));
+                            head.emplace(std::make_pair(std::move(term), &base));
+                        });
+                    }
+                },
+                elem);
+            assert(head);
+            head->first->vars(elem_vars);
+            // condition
+            auto cond = Ground::ULitVec{};
+            if (auto const *clit = std::get_if<Input::CondLit>(&elem)) {
+                cond.reserve(clit->cond().size() + 1);
+                for (auto const &lit : clit->cond()) {
+                    std::visit(BuilderLit{*ctx_,
+                                          [&cond, &elem_vars]<class Lit>(Lit &&glit) {
+                                              glit->vars(elem_vars, Ground::VarSelectMode::all);
+                                              cond.emplace_back(std::forward<Lit>(glit));
+                                          }},
+                               lit);
+                }
+            }
+            // compute global variables
+            for (auto const &var : elem_vars) {
+                if (vars_body.contains(var)) {
+                    vars_global.emplace(var);
+                }
+            };
+            // append element
+            elems.emplace_back(std::move(head->first), head->second, std::move(cond));
+        }
+
+        auto sp_body = ctx_->single_pass_body();
+        auto elem_priority = ctx_->inc_priority();
+        auto index = sp_body ? Ground::stratified_index : ctx_->next_index();
+
+        // initialize state
+        std::sort(bases.begin(), bases.end(),
+                  [](auto const &x, auto const &y) { return std::get<0>(x) < std::get<0>(y); }),
+            bases.end();
+        bases.erase(std::unique(bases.begin(), bases.end(),
+                                [](auto const &x, auto const &y) { return std::get<0>(x) == std::get<0>(y); }),
+                    bases.end());
+        auto &state =
+            ctx_->state<Ground::StateDisjunction>(ctx_->mbr(), std::move(bases), vars_global.release(), index, sp_body);
+
+        // add accumulation rules for tuples
+        auto add_elem = [&, this](auto &state) {
+            for (auto &[head, base, cond] : elems) {
+                cond.emplace_back(std::make_unique<Ground::LitDisjunction>(state));
+                ctx_->gcomp().add(
+                    std::make_unique<Ground::StmDisjunctionElem>(state, std::move(head), *base, std::move(cond)));
+            }
+        };
+
+        add_elem(state);
+        ctx_->gcomp().add(std::make_unique<Ground::StmDisjunction>(state, std::move(ctx_->body()), elem_priority));
     }
 
     //! Translate head aggregates.
