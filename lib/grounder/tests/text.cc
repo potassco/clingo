@@ -321,6 +321,36 @@ TEST_CASE("grounder_text") {
         REQUIRE(buf.view().find("cmp(30,-4).") != std::string_view::npos);
         REQUIRE(buf.view().find("cmp(") == buf.view().rfind("cmp("));
     }
+    SECTION("assign") {
+        grd.parse(R"(
+            d(1..5).
+            p(X) :- X = #sum {Y: d(Y)}.
+            )");
+        grd.prepare();
+        REQUIRE(grd.ground(params));
+        REQUIRE(buf.view() == "d(1).\n"
+                              "d(2).\n"
+                              "d(3).\n"
+                              "d(4).\n"
+                              "d(5).\n"
+                              "p(15).\n");
+    }
+    SECTION("assign_rec") {
+        grd.parse(R"(
+            d(1..5).
+            s(1..2).
+            p(1..5,0).
+            p(X,T) :- X = #sum {Y: p(Y,T-1); Z: d(Z)}, s(T).
+            )");
+        grd.prepare();
+        REQUIRE(grd.ground(params));
+        REQUIRE(buf.view() == "d(1).\n"
+                              "d(2).\n"
+                              "d(3).\n"
+                              "d(4).\n"
+                              "d(5).\n"
+                              "TODO.\n");
+    }
     store->gc();
 }
 
