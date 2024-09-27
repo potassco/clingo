@@ -188,6 +188,95 @@ TEST_CASE("grounder_text") {
                               "#sum+ { 1,0,a(1,2): a(1,2); 1,0,a(2,2): a(2,2) } >= 1"
                               " :- #sum+ { 1,0,a(1,1): a(1,1); 1,0,a(2,1): a(2,1) } >= 1.\n");
     }
+    SECTION("aggr_rec") {
+        grd.parse(R"(
+            company(c1;c2;c3;c4).
+            owns(c1,c2,60;c1,c3,20;c2,c3,35;c3,c4,51).
+
+            controls(X,Y) :- #sum+ {
+                S: owns(X,Y,S);
+                S,Z: controls(X,Z), owns(Z,Y,S) } > 50, company(X), company(Y), X!=Y.
+            )");
+        grd.prepare();
+        REQUIRE(grd.ground(params));
+        REQUIRE(buf.view() == "company(c1).\n"
+                              "company(c2).\n"
+                              "company(c3).\n"
+                              "company(c4).\n"
+                              "owns(c1,c2,60).\n"
+                              "owns(c1,c3,20).\n"
+                              "owns(c2,c3,35).\n"
+                              "owns(c3,c4,51).\n"
+                              "controls(c1,c2).\n"
+                              "controls(c3,c4).\n"
+                              "controls(c1,c3).\n"
+                              "controls(c1,c4).\n");
+    }
+    SECTION("aggr_rec") {
+        grd.parse(R"(
+            node(a;b;c;d;e).
+            edge(a,c).
+            edge(b,c;b,e).
+            edge(c,d;c,e).
+
+            reach(V) :- node(V), not edge(*,V).
+            reach(V) :- node(V), #count { U: reach(U), edge(U,V) } >= 2.
+            )");
+        grd.prepare();
+        REQUIRE(grd.ground(params));
+        REQUIRE(buf.view() == "edge(a,c).\n"
+                              "node(a).\n"
+                              "node(b).\n"
+                              "node(c).\n"
+                              "node(d).\n"
+                              "node(e).\n"
+                              "edge(b,c).\n"
+                              "edge(b,e).\n"
+                              "edge(c,d).\n"
+                              "edge(c,e).\n"
+                              "reach(a).\n"
+                              "reach(b).\n"
+                              "reach(c).\n"
+                              "reach(e).\n");
+    }
+    SECTION("rec") {
+        grd.parse(R"(
+            #const n = 10.
+
+            % initial prime
+            prime(1,2).
+
+            % mark prime and all its multiples as sieved
+            sieve(I,X) :- prime(I,X).
+            sieve(I,Z) :- prime(I,X), sieve(I,Y), Z=X+Y<=n.
+
+            % mark numbers not sieved by prime
+            % (ignoring numbers smaller than the prime)
+            nsieve(I,Z) :- prime(I,X), sieve(I,Y), Z=Y+(1..X-1)<=n.
+
+            % mark all primes sieved so far
+            % (ignoring numbers smaller than the prime)
+            rec_sieve(I,X) :- sieve(I,X).
+            rec_sieve(I,Y) :- prime(I,X), rec_sieve(I-1,Y), Y>=X.
+
+            % mark all primes not sieved so far
+            rec_nsieve(1,X) :- nsieve(1,X).
+            rec_nsieve(I,X) :- nsieve(I,X), rec_nsieve(I-1,X).
+
+            % mark the consecutive prefix that has been sieved
+            sieved_prefix(I,X) :- prime(I,X).
+            sieved_prefix(I,X) :- sieved_prefix(I,X-1), rec_sieve(I,X).
+
+            % mark the first non sieved number as prime
+            prime(I+1,X) :- sieved_prefix(I,X-1), rec_nsieve(I,X).)");
+        grd.prepare();
+        REQUIRE(grd.ground(params));
+        REQUIRE(buf.view().find("prime(1,2).") != std::string_view::npos);
+        REQUIRE(buf.view().find("prime(2,3).") != std::string_view::npos);
+        REQUIRE(buf.view().find("prime(3,5).") != std::string_view::npos);
+        REQUIRE(buf.view().find("prime(4,7).") != std::string_view::npos);
+        REQUIRE(buf.view().find("prime(5") == std::string_view::npos);
+    }
     store->gc();
 }
 
