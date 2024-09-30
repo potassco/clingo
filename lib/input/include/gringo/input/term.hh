@@ -214,8 +214,8 @@ class TermAbs : public RecursiveExpression<TermAbs> {
 
 //! Enumeration of available unary operators.
 enum class UnaryOperator : uint8_t {
-    negate, //!< The unary minus sign (-).
-    invert, //!< The unary negation sign (~).
+    minus,  //!< The unary minus sign (-).
+    negate, //!< The unary negation sign (~).
 };
 
 //! Term representing an unary operation.

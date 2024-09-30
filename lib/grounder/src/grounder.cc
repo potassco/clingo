@@ -378,7 +378,7 @@ class BuilderTerm {
     //! Translate a unary term.
     auto operator()(Input::TermUnary const &term) const -> Ground::UTerm {
         Ground::UnaryOperator op =
-            term.op() == Input::UnaryOperator::negate ? Ground::UnaryOperator::minus : Ground::UnaryOperator::invert;
+            term.op() == Input::UnaryOperator::minus ? Ground::UnaryOperator::minus : Ground::UnaryOperator::negate;
         return std::make_unique<Ground::TermUnary>(op, std::visit(*this, *term.rhs()));
     }
     //! Translate a unary term.
@@ -579,10 +579,16 @@ class BuilderHdLit {
     //! Construct the translator.
     BuilderHdLit(BuildContext &ctx) : ctx_{&ctx} {}
 
-    template <class T> void operator()(T const &lit) const {
-        std::ostringstream oss;
-        oss << "implement me: handle head literal " << lit;
-        throw std::logic_error(oss.str());
+    //! Translate set aggregates.
+    void operator()(Input::HdLitSetAggregate const &lit) const {
+        GRINGO_REPORT_LOC(*ctx_->impl().log, error, lit.loc()) << "unexpected set aggregate " << lit;
+        throw std::logic_error("unexpected set aggregate");
+    }
+
+    //! Translate theory atoms.
+    void operator()(Input::HdLitTheoryAtom const &lit) const {
+        GRINGO_REPORT_LOC(*ctx_->impl().log, error, lit.loc()) << "TODO implement grounding of " << lit;
+        throw std::logic_error("implement me");
     }
 
     //! Translate disjunctions.
@@ -884,10 +890,17 @@ class BuilderBdLit {
   public:
     //! Construct the translator.
     BuilderBdLit(BuildContext &ctx) : ctx_{&ctx} {}
-    template <class T> void operator()(T const &lit) const {
-        std::ostringstream oss;
-        oss << "implement me: handle body literal " << lit;
-        throw std::logic_error(oss.str());
+
+    //! Translate set aggregates.
+    void operator()(Input::BdLitSetAggregate const &lit) const {
+        GRINGO_REPORT_LOC(*ctx_->impl().log, error, lit.loc()) << "unexpected set aggregate " << lit;
+        throw std::logic_error("unexpected set aggregate");
+    }
+
+    //! Translate theory atoms.
+    void operator()(Input::BdLitTheoryAtom const &lit) const {
+        GRINGO_REPORT_LOC(*ctx_->impl().log, error, lit.loc()) << "TODO implement grounding of " << lit;
+        throw std::logic_error("implement me");
     }
 
     //! Translate body aggregates.

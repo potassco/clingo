@@ -233,7 +233,7 @@ class TermLinear : public Term {
 //! Available unary operations.
 enum class UnaryOperator : uint8_t {
     minus = 0,  //!< The unary arithmetic minus operation.
-    invert = 1, //!< The bitwise negation operation.
+    negate = 1, //!< The bitwise negation operation.
     abs = 2,    //!< The arithmetic absolute operation.
 };
 

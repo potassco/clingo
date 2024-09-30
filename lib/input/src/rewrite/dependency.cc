@@ -300,7 +300,7 @@ class Unifier {
                 } else if constexpr (Util::matches<T, TermAbs>) {
                     return a.type() == SymbolType::number && a.num() >= 0;
                 } else if constexpr (Util::matches<T, TermUnary>) {
-                    if (v_b.op() == UnaryOperator::invert) {
+                    if (v_b.op() == UnaryOperator::negate) {
                         return a.type() == SymbolType::number;
                     }
                     if (a.type() == SymbolType::number) {
@@ -371,11 +371,11 @@ class Unifier {
                         if constexpr (Util::matches<B, TermAbs>) {
                             return true;
                         } else if constexpr (Util::matches<B, TermUnary, TermBinary>) {
-                            terms_.emplace_back(
-                                TermBinary{v_a.loc(),
-                                           TermBinary{v_a.loc(), TermSymbol{v_a.loc(), store_->num_ref(Number(1))},
-                                                      BinaryOperator::times, a},
-                                           BinaryOperator::plus, TermSymbol{v_a.loc(), store_->num_ref(0)}});
+                            terms_.emplace_back(TermBinary{
+                                v_a.loc(),
+                                TermBinary{v_a.loc(), TermSymbol{v_a.loc(), store_->num_ref(Number(1))},
+                                           BinaryOperator::times, a},
+                                BinaryOperator::plus, TermSymbol{v_a.loc(), Gringo::SymbolStore::num_ref(0)}});
                             return unify_(terms_.back(), b);
                         } else {
                             if (a == b) {
@@ -458,7 +458,7 @@ class Unifier {
                         }
                         return true;
                     } else if constexpr (Util::matches<B, TermUnary>) {
-                        if (auto l_a = check_linear(v_a); l_a && v_b.op() == UnaryOperator::negate) {
+                        if (auto l_a = check_linear(v_a); l_a && v_b.op() == UnaryOperator::minus) {
                             terms_.emplace_back(TermBinary{
                                 l_a->term_mxn().loc(),
                                 TermBinary{location(l_a->term_mx()),
@@ -481,7 +481,7 @@ class Unifier {
                         if (v_a.op() == v_b.op()) {
                             return unify_(*v_a.rhs(), *v_b.rhs());
                         }
-                        if (v_a.op() == UnaryOperator::invert) {
+                        if (v_a.op() == UnaryOperator::negate) {
                             return !never_numeric(v_b.rhs());
                         }
                         return !never_numeric(v_a.rhs());

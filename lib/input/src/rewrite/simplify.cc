@@ -36,10 +36,10 @@ template <class R> void extend(R &res, AuxTermVec &aux, bool conjunctive = true)
 [[nodiscard]] auto make_constant(Location loc, bool truth) -> Lit { return LitBool{std::move(loc), Sign::none, truth}; }
 
 //! Ensure that the term only matches numbers.
-[[nodiscard]] auto as_linear_term(SymbolStore &store, Term term) -> Term {
+[[nodiscard]] auto as_linear_term(Term term) -> Term {
     auto loc = location(term);
-    term = TermBinary(loc, TermSymbol{loc, store.num_ref(1)}, BinaryOperator::times, std::move(term));
-    return TermBinary(loc, std::move(term), BinaryOperator::plus, TermSymbol{loc, store.num_ref(0)});
+    term = TermBinary(loc, TermSymbol{loc, Gringo::SymbolStore::num_ref(1)}, BinaryOperator::times, std::move(term));
+    return TermBinary(loc, std::move(term), BinaryOperator::plus, TermSymbol{loc, Gringo::SymbolStore::num_ref(0)});
 }
 
 //! Introduce a fresh variable for the given term.
@@ -49,7 +49,7 @@ template <class R> void extend(R &res, AuxTermVec &aux, bool conjunctive = true)
 [[nodiscard]] auto map_term(RewriteContext &ctx, Term term, bool linear = false) -> Term {
     auto loc = location(term);
     ctx.aux().emplace_back(TermVariable{loc, ctx.gen().new_name()}, std::move(term));
-    return linear ? as_linear_term(ctx.store(), ctx.aux().back().first) : ctx.aux().back().first;
+    return linear ? as_linear_term(ctx.aux().back().first) : ctx.aux().back().first;
 }
 
 //! Simplify a term vector.
@@ -498,7 +498,7 @@ class SimplifyTerm {
                 return TermResultSymbol{opt_sym.value()};
             }
             if constexpr (std::is_same_v<T, TermResultLinear>) {
-                if (term.op() == UnaryOperator::negate) {
+                if (term.op() == UnaryOperator::minus) {
                     res.m = -std::move(res.m);
                     res.n = -std::move(res.n);
                     return res;
@@ -508,21 +508,21 @@ class SimplifyTerm {
             }
             // get type of term based on the given type of its argument
             auto check_type = [this, &term](TermType type) -> std::optional<TermType> {
-                if (type == TermType::tuple || (term.op() == UnaryOperator::invert && type == TermType::symbolic)) {
+                if (type == TermType::tuple || (term.op() == UnaryOperator::negate && type == TermType::symbolic)) {
                     GRINGO_REPORT_LOC(ctx_->logger(), info_operation_undefined, term.loc()) << "operation undefined:\n"
                                                                                             << "  " << term << "\n";
                     return std::nullopt;
                 }
                 // ~term is always numeric
-                return term.op() == UnaryOperator::invert ? TermType::numeric : type;
+                return term.op() == UnaryOperator::negate ? TermType::numeric : type;
             };
             // simplify --symbolic to symbolic and ---any to -any
             auto fold = [&term](TermType type, Term const &rhs) -> std::optional<TermResultChanged> {
-                if (term.op() != UnaryOperator::negate) {
+                if (term.op() != UnaryOperator::minus) {
                     return std::nullopt;
                 }
                 auto const *rhs_unary = std::get_if<TermUnary>(&rhs);
-                if (rhs_unary == nullptr || rhs_unary->op() != UnaryOperator::negate) {
+                if (rhs_unary == nullptr || rhs_unary->op() != UnaryOperator::minus) {
                     return std::nullopt;
                 }
                 // --symbolic
@@ -530,7 +530,7 @@ class SimplifyTerm {
                     return TermResultChanged{type, rhs_unary->rhs()};
                 }
                 auto const *rhs_rhs_unary = std::get_if<TermUnary>(&rhs_unary->rhs().get());
-                if (rhs_rhs_unary == nullptr || rhs_rhs_unary->op() != UnaryOperator::negate) {
+                if (rhs_rhs_unary == nullptr || rhs_rhs_unary->op() != UnaryOperator::minus) {
                     return std::nullopt;
                 }
                 // --any
@@ -806,7 +806,7 @@ class MakeMatchableTerm {
 
     //! Make the given unary term matchable.
     auto operator()(TermUnary const &term, SimplifyTermFlags flags) const -> Result {
-        if (!test(flags, SimplifyTermFlags::unfailable) && term.op() == UnaryOperator::negate) {
+        if (!test(flags, SimplifyTermFlags::unfailable) && term.op() == UnaryOperator::minus) {
             return Util::transform(operator()(term.rhs(), flags),
                                    [&term](auto arg) -> Term { return term.update(a_rhs = std::move(arg)); });
         }
@@ -1048,7 +1048,7 @@ class SimplifyLiteral {
 
 class LiteralToTuple {
   public:
-    LiteralToTuple(SymbolStore &store) : store_{store} {}
+    LiteralToTuple() = default;
     LiteralToTuple(LiteralToTuple const &) = delete;
     auto operator=(LiteralToTuple const &) -> LiteralToTuple & = delete;
 
@@ -1056,7 +1056,7 @@ class LiteralToTuple {
 
     auto operator()(LitBool const &lit) -> TermArray {
         ++n_;
-        return Util::make_vec<Term>(TermSymbol{lit.loc(), store_.num_ref(n_)});
+        return Util::make_vec<Term>(TermSymbol{lit.loc(), Gringo::SymbolStore::num_ref(n_)});
     }
 
     auto operator()(LitComparison const &lit) -> TermArray {
@@ -1066,7 +1066,7 @@ class LiteralToTuple {
         std::sort(var_vec.begin(), var_vec.end());
         std::vector<Term> res;
         res.reserve(var_vec.size() + 1);
-        res.emplace_back(TermSymbol{lit.loc(), store_.num_ref(n_)});
+        res.emplace_back(TermSymbol{lit.loc(), Gringo::SymbolStore::num_ref(n_)});
         for (auto const &var : var_vec) {
             res.emplace_back(TermVariable{lit.loc(), var});
         }
@@ -1091,13 +1091,12 @@ class LiteralToTuple {
                 break;
             }
         }
-        res.emplace_back(TermSymbol{lit.loc(), store_.num_ref(i)});
+        res.emplace_back(TermSymbol{lit.loc(), Gringo::SymbolStore::num_ref(i)});
         res.emplace_back(lit.term());
         return res;
     }
 
   private:
-    SymbolStore &store_;
     int n_ = 2;
 };
 

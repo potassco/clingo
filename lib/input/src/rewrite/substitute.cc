@@ -106,7 +106,7 @@ class MapParams : public Transformer<MapParams> {
                                 }
                             }
                             // Note: this will evaluated as empty pool later
-                            return TermUnary{loc, UnaryOperator::negate, TermSymbol{loc, *value}};
+                            return TermUnary{loc, UnaryOperator::minus, TermSymbol{loc, *value}};
                         }
                         return value;
                     }
@@ -121,7 +121,7 @@ class MapParams : public Transformer<MapParams> {
                             if constexpr (std::is_same_v<T, ArgumentTuple>) {
                                 auto ret = Term{TermFunction{loc, sym.name(), {std::move(tuple)}, false}};
                                 if (sym.has_sign()) {
-                                    ret = TermUnary{loc, UnaryOperator::negate, std::move(ret)};
+                                    ret = TermUnary{loc, UnaryOperator::minus, std::move(ret)};
                                 }
                                 return ret;
                             }

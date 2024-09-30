@@ -117,7 +117,7 @@ class ExtractTerms {
     }
 
     auto operator()(TermUnary const &term) const -> bool {
-        if (term.op() == UnaryOperator::negate) {
+        if (term.op() == UnaryOperator::minus) {
             return ExtractTerms{*terms_, !add_}(*term.rhs());
         }
         return false;

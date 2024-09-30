@@ -295,7 +295,7 @@ auto TermUnary::do_eval(SymbolStore &store, Assignment const &ass) const -> std:
                 }
                 return rhs->flip_classical_sign();
             }
-            case UnaryOperator::invert: {
+            case UnaryOperator::negate: {
                 if (rhs->type() == SymbolType::number) {
                     return store.num_ref(~rhs->num());
                 }
@@ -314,7 +314,7 @@ auto TermUnary::do_eval(SymbolStore &store, Assignment const &ass) const -> std:
 
 auto TermUnary::do_rename(SymbolStore &store, RenameMode mode, String const *name, size_t *vars) const -> UTerm {
     assert(name == nullptr);
-    if (op_ == UnaryOperator::invert && mode == RenameMode::rename_vars && vars != nullptr) {
+    if (op_ == UnaryOperator::negate && mode == RenameMode::rename_vars && vars != nullptr) {
         return std::make_unique<TermVariable>((*vars)++);
     }
     return std::make_unique<TermUnary>(op_, rhs_->rename(store, mode, name, vars));
@@ -337,7 +337,7 @@ void TermUnary::do_print(std::ostream &out) const {
             out << "|";
             break;
         }
-        case UnaryOperator::invert: {
+        case UnaryOperator::negate: {
             out << "~";
             break;
         }

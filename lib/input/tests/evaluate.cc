@@ -30,11 +30,11 @@ TEST_CASE("evaluate_unary") {
     auto n1 = store->num_ref(Number(-10));
     auto n2 = store->num_ref(Number(std::numeric_limits<int32_t>::min()));
 
-    auto r1 = evaluate(*store, UnaryOperator::invert, n1);
+    auto r1 = evaluate(*store, UnaryOperator::negate, n1);
     REQUIRE(opt_value(r1).num() == ~(-10));
-    auto r2 = evaluate(*store, UnaryOperator::negate, n1);
+    auto r2 = evaluate(*store, UnaryOperator::minus, n1);
     REQUIRE(opt_value(r2).num() == 10);
-    auto r3 = evaluate(*store, UnaryOperator::negate, n2);
+    auto r3 = evaluate(*store, UnaryOperator::minus, n2);
     REQUIRE(opt_value(r3).num() == Number("2147483648"));
 }
 

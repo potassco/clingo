@@ -116,7 +116,7 @@ auto check_term_sig(Term const &term) -> std::optional<std::tuple<bool, String, 
     };
     auto get_sign = [](Term const &x) -> Term const * {
         if (auto const *y = std::get_if<TermUnary>(&x)) {
-            if (y->op() == UnaryOperator::negate) {
+            if (y->op() == UnaryOperator::minus) {
                 return &y->rhs().get();
             }
         }
@@ -329,7 +329,7 @@ auto parse_project(ParserState &state) -> std::optional<Stm> {
         state.consume();
         atom.emplace(std::in_place_type<TermFunction>, std::move(loc_atom), name, *std::move(args), false);
         if (sign) {
-            atom = Term{std::in_place_type<TermUnary>, std::move(loc_sign), UnaryOperator::negate, *std::move(atom)};
+            atom = Term{std::in_place_type<TermUnary>, std::move(loc_sign), UnaryOperator::minus, *std::move(atom)};
         }
     } else {
         atom.emplace(std::in_place_type<TermSymbol>, loc_sign, state.store().fun_ref(name, {}, sign));
@@ -402,8 +402,7 @@ auto parse_atom(ParserState &state) -> std::optional<Term> {
             auto atom = std::optional<Term>{};
             atom.emplace(std::in_place_type<TermFunction>, std::move(loc_atom), name, *std::move(args), false);
             if (sign) {
-                atom =
-                    Term{std::in_place_type<TermUnary>, std::move(loc_sign), UnaryOperator::negate, *std::move(atom)};
+                atom = Term{std::in_place_type<TermUnary>, std::move(loc_sign), UnaryOperator::minus, *std::move(atom)};
             }
             return atom;
         }

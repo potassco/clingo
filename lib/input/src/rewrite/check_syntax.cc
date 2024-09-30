@@ -113,11 +113,11 @@ struct CheckSyntax {
 
     auto operator()(TermUnary const &term, SyntaxCheck check) const -> bool {
         switch (term.op()) {
-            case UnaryOperator::invert: {
+            case UnaryOperator::negate: {
                 check &= ~SyntaxCheck::project_tuple;
                 break;
             }
-            case UnaryOperator::negate: {
+            case UnaryOperator::minus: {
                 check &= ~SyntaxCheck::project;
                 break;
             }

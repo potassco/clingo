@@ -313,7 +313,7 @@ auto parse_theory_atom(ParserState &state)
     // build name
     auto name = Term{std::in_place_type<TermFunction>, Location{begin_name, end}, str, std::move(args), false};
     if (sign) {
-        name = Term{std::in_place_type<TermUnary>, Location(begin_sign, end), UnaryOperator::negate, std::move(name)};
+        name = Term{std::in_place_type<TermUnary>, Location(begin_sign, end), UnaryOperator::minus, std::move(name)};
     }
 
     // parse the theory elements

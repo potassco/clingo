@@ -139,7 +139,7 @@ class Evaluate {
                     }
                     auto [type, rep] = it->second;
                     if (sym.has_sign()) {
-                        return evaluate(*store_, UnaryOperator::negate, rep);
+                        return evaluate(*store_, UnaryOperator::minus, rep);
                     }
                     return rep;
                 }
@@ -323,7 +323,7 @@ class Evaluate {
 } // namespace
 
 auto evaluate(SymbolStore &store, UnaryOperator op, Symbol rhs) -> std::optional<Symbol> {
-    if (op == UnaryOperator::negate) {
+    if (op == UnaryOperator::minus) {
         if (rhs.type() == SymbolType::number) {
             return store.num_ref(-rhs.num());
         }

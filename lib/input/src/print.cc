@@ -706,7 +706,7 @@ class Print {
 } // namespace
 
 auto operator<<(std::ostream &out, UnaryOperator op) -> std::ostream & {
-    out << (op == UnaryOperator::negate ? "-" : "~");
+    out << (op == UnaryOperator::minus ? "-" : "~");
     return out;
 }
 

@@ -163,11 +163,11 @@ auto map_binop(Prod prod) -> BinaryOperator {
 auto map_unop(Prod prod) -> UnaryOperator {
     switch (prod) {
         case Prod::bneg: {
-            return UnaryOperator::invert;
+            return UnaryOperator::negate;
         }
         default: {
             assert(prod == Prod::uminus);
-            return UnaryOperator::negate;
+            return UnaryOperator::minus;
         }
     }
 }

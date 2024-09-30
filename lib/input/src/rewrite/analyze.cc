@@ -66,9 +66,9 @@ struct CheckType {
 
     auto operator()(TermUnary const &term) const -> bool {
         if (type == TermCheckType::atom) {
-            return term.op() == UnaryOperator::negate && std::visit(*this, *term.rhs());
+            return term.op() == UnaryOperator::minus && std::visit(*this, *term.rhs());
         }
-        if (type == TermCheckType::signed_identifier && term.op() == UnaryOperator::negate &&
+        if (type == TermCheckType::signed_identifier && term.op() == UnaryOperator::minus &&
             std::visit(CheckType{TermCheckType::identifier, res}, *term.rhs())) {
             if (res != nullptr) {
                 res->has_sign = true;
@@ -106,7 +106,7 @@ struct AlwaysNumeric {
     }
 
     auto operator()(TermUnary const &term) const -> bool {
-        return term.op() == UnaryOperator::invert || std::visit(*this, *term.rhs());
+        return term.op() == UnaryOperator::negate || std::visit(*this, *term.rhs());
     }
 
     template <class T> auto operator()([[maybe_unused]] T const &term) const -> bool {
@@ -129,7 +129,7 @@ struct NeverNumeric {
     }
 
     auto operator()(TermUnary const &term) const -> bool {
-        return term.op() == UnaryOperator::negate && std::visit(*this, *term.rhs());
+        return term.op() == UnaryOperator::minus && std::visit(*this, *term.rhs());
     }
 
     template <class T> auto operator()([[maybe_unused]] T const &term) const -> bool {
@@ -156,7 +156,7 @@ struct IsMatchable {
     }
 
     auto operator()(TermUnary const &term) const -> bool {
-        return term.op() == UnaryOperator::negate && std::visit(*this, *term.rhs());
+        return term.op() == UnaryOperator::minus && std::visit(*this, *term.rhs());
     }
 
     auto operator()(TermBinary const &term) const -> bool { return is_linear(term); }
@@ -337,7 +337,7 @@ struct GetSignature {
         return std::nullopt;
     }
     auto operator()(TermUnary const &term) -> std::optional<std::tuple<String, size_t, bool>> {
-        if (term.op() == UnaryOperator::negate) {
+        if (term.op() == UnaryOperator::minus) {
             return Util::transform(std::visit(*this, *term.rhs()), [](auto sig) {
                 return std::tuple{std::get<0>(sig), std::get<1>(sig), !std::get<2>(sig)};
             });

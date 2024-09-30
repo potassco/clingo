@@ -63,7 +63,7 @@ class GetDep {
     }
 
     void operator()(TermUnary const &term, bool can_provide) const {
-        operator()(*term.rhs(), can_provide && term.op() == UnaryOperator::negate);
+        operator()(*term.rhs(), can_provide && term.op() == UnaryOperator::minus);
     }
 
     void operator()(TermBinary const &term, bool can_provide) const {

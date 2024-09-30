@@ -19,36 +19,36 @@ namespace {
 
 class LiteralToTuple {
   public:
-    explicit LiteralToTuple(SymbolStore &store) : store_{&store} {}
+    LiteralToTuple() = default;
     LiteralToTuple(LiteralToTuple const &) = delete;
     auto operator=(LiteralToTuple const &) -> LiteralToTuple & = delete;
 
-    auto operator()(Lit const &orig, Lit const &lit) -> std::vector<Term> {
+    auto operator()(Lit const &orig, Lit const &lit) const -> std::vector<Term> {
         return std::visit(*this, std::variant<std::reference_wrapper<Lit const>>{orig}, lit);
     }
 
-    auto tuple_from_vars(Lit const &orig) -> std::vector<Term> {
+    [[nodiscard]] auto tuple_from_vars(Lit const &orig) const -> std::vector<Term> {
         auto var_set = select_variables(orig);
         auto var_vec = VariableVec(var_set.begin(), var_set.end());
         std::sort(var_vec.begin(), var_vec.end());
         std::vector<Term> res;
         res.reserve(var_vec.size() + 1);
-        res.emplace_back(TermSymbol{location(orig), store_->num_ref(n)});
+        res.emplace_back(TermSymbol{location(orig), Gringo::SymbolStore::num_ref(n)});
         for (auto const &var : var_vec) {
             res.emplace_back(TermVariable{location(orig), var});
         }
         return res;
     }
 
-    auto operator()(Lit const &orig, [[maybe_unused]] LitBool const &lit) -> std::vector<Term> {
+    auto operator()(Lit const &orig, [[maybe_unused]] LitBool const &lit) const -> std::vector<Term> {
         return tuple_from_vars(orig);
     }
 
-    auto operator()(Lit const &orig, [[maybe_unused]] LitComparison const &lit) -> std::vector<Term> {
+    auto operator()(Lit const &orig, [[maybe_unused]] LitComparison const &lit) const -> std::vector<Term> {
         return tuple_from_vars(orig);
     }
 
-    auto operator()([[maybe_unused]] Lit const &orig, LitSymbolic const &lit) -> std::vector<Term> {
+    auto operator()([[maybe_unused]] Lit const &orig, LitSymbolic const &lit) const -> std::vector<Term> {
         std::vector<Term> res;
         res.reserve(2);
         int i = 0;
@@ -66,7 +66,7 @@ class LiteralToTuple {
                 break;
             }
         }
-        res.emplace_back(TermSymbol{lit.loc(), store_->num_ref(i)});
+        res.emplace_back(TermSymbol{lit.loc(), Gringo::SymbolStore::num_ref(i)});
         res.emplace_back(lit.term());
         return res;
     }
@@ -74,7 +74,6 @@ class LiteralToTuple {
     void next() { ++n; }
 
   private:
-    SymbolStore *store_;
     int n = 2;
 };
 
@@ -292,7 +291,7 @@ class Unpool {
         -> std::optional<std::vector<std::conditional_t<HasSign, BdLit, HdLit>>> {
         auto build = [this, &aggr](auto lhs, auto rhs) {
             std::vector<std::conditional_t<HasSign, BdLitAggregateElement, HdLitAggregateElement>> elems;
-            auto to_tuple = LiteralToTuple{ctx_->store()};
+            auto to_tuple = LiteralToTuple{};
             for (auto &elem : aggr.elems()) {
                 to_tuple.next();
                 unpool_elem<HasSign>(to_tuple, elem, elems);
@@ -494,7 +493,7 @@ class Unpool {
             }
             auto tuple = stm.type() == OptimizeType::minimize
                              ? elem.tuple()
-                             : OptimizeTuple{TermUnary{location(elem.tuple().weight()), UnaryOperator::negate,
+                             : OptimizeTuple{TermUnary{location(elem.tuple().weight()), UnaryOperator::minus,
                                                        elem.tuple().weight()},
                                              elem.tuple().prio(), elem.tuple().terms()};
             auto cons = StmWeakConstraint{stm.loc(), std::move(body), std::move(tuple)};
