@@ -59,7 +59,7 @@ source releases, you can skip this step):
 To build gringo, clingo, and reify in their default configurations in release
 mode, run:
 
-    cmake -H<SOURCE_DIR> -B<BUILD_DIR> -DCMAKE_BUILD_TYPE=Release
+    cmake -S<SOURCE_DIR> -B<BUILD_DIR> -DCMAKE_BUILD_TYPE=Release
     cmake --build <BUILD_DIR>
 
 The resulting binaries and shared libraries will be in `<BUILD_DIR>/bin` and
@@ -80,11 +80,11 @@ options](#build-options)) and run:
 Cmake's `-L` option can be used to get an overview over the variables that can
 be set for building gringo/clingo. To get gringo/clingo specific options, run
 
-    cmake -H<SOURCE_DIR> -B<BUILD_DIR> -DCMAKE_BUILD_TYPE=Release -LH
+    cmake -S<SOURCE_DIR> -B<BUILD_DIR> -DCMAKE_BUILD_TYPE=Release -LH
 
 or, to also print important cmake specific configuration variables
 
-    cmake -H<SOURCE_DIR> -B<BUILD_DIR> -DCMAKE_BUILD_TYPE=Release -LAH
+    cmake -S<SOURCE_DIR> -B<BUILD_DIR> -DCMAKE_BUILD_TYPE=Release -LAH
 
 Options and variables can be passed to
 cmake on the command line using `-D<VARIABLE>=<VALUE>` or by editing
