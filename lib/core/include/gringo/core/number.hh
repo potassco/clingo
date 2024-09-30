@@ -257,7 +257,7 @@ class Number {
 
     //! Get the internal representation of the number.
     //!
-    //! Can be used with NumberRef below.
+    //! Can be used with release() below.
     static auto to_repr(Number const &num) -> uint64_t { return num.repr_; }
 
     //! Get the internal representation of the number and set it to zero.

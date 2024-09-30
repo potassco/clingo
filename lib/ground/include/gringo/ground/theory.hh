@@ -5,6 +5,10 @@
 
 namespace Gringo::Ground {
 
+class TheoryTerm;
+using UTheoryTerm = std::unique_ptr<TheoryTerm>;
+using UTheoryTermVec = std::vector<UTheoryTerm>;
+
 //! TheoryTerm interface.
 class TheoryTerm {
   public:
@@ -13,7 +17,7 @@ class TheoryTerm {
     //! Collect all variables in the term.
     void vars(VariableSet &vars) const { do_vars(vars); }
     //! Create a copy of the term.
-    [[nodiscard]] auto copy() const -> UTerm { return do_copy(); }
+    [[nodiscard]] auto copy() const -> UTheoryTerm { return do_copy(); }
     //! Compute a hash for the term.
     [[nodiscard]] auto hash() const -> size_t { return do_hash(); }
 
@@ -25,7 +29,9 @@ class TheoryTerm {
     }
 
     //! Output the term.
-    void output(InstantiationContext &ctx, OutputTheory &out) const { do_output(ctx, out); }
+    auto output(SymbolStore &store, Assignment const &ass, OutputTheory &out) const -> size_t {
+        return do_output(store, ass, out);
+    }
 
     //! Compare two terms.
     friend auto operator==(TheoryTerm const &a, TheoryTerm const &b) -> bool { return a.do_equal_to(b); }
@@ -42,15 +48,12 @@ class TheoryTerm {
   private:
     virtual void do_vars(VariableSet &vars) const = 0;
     virtual void do_print(std::ostream &out) const = 0;
-    virtual void do_output(InstantiationContext &ctx, OutputTheory &out) const = 0;
-    [[nodiscard]] virtual auto do_copy() const -> UTerm = 0;
+    virtual auto do_output(SymbolStore &store, Assignment const &ass, OutputTheory &out) const -> size_t = 0;
+    [[nodiscard]] virtual auto do_copy() const -> UTheoryTerm = 0;
     [[nodiscard]] virtual auto do_hash() const -> size_t = 0;
     [[nodiscard]] virtual auto do_equal_to(TheoryTerm const &other) const -> bool = 0;
     [[nodiscard]] virtual auto do_compare_to(TheoryTerm const &other) const -> std::strong_ordering = 0;
 };
-
-using UTheoryTerm = std::unique_ptr<TheoryTerm>;
-using UTheoryTermVec = std::vector<UTheoryTerm>;
 
 //! A symbolic theory term.
 class TheoryTermSymbol : public TheoryTerm {
@@ -60,8 +63,8 @@ class TheoryTermSymbol : public TheoryTerm {
   private:
     void do_vars(VariableSet &vars) const override;
     void do_print(std::ostream &out) const override;
-    void do_output(InstantiationContext &ctx, OutputTheory &out) const override;
-    [[nodiscard]] auto do_copy() const -> UTerm override;
+    auto do_output(SymbolStore &store, Assignment const &ass, OutputTheory &out) const -> size_t override;
+    [[nodiscard]] auto do_copy() const -> UTheoryTerm override;
     [[nodiscard]] auto do_hash() const -> size_t override;
     [[nodiscard]] auto do_equal_to(TheoryTerm const &other) const -> bool override;
     [[nodiscard]] auto do_compare_to(TheoryTerm const &other) const -> std::strong_ordering override;
@@ -77,8 +80,8 @@ class TheoryTermVariable : public TheoryTerm {
   private:
     void do_vars(VariableSet &vars) const override;
     void do_print(std::ostream &out) const override;
-    void do_output(InstantiationContext &ctx, OutputTheory &out) const override;
-    [[nodiscard]] auto do_copy() const -> UTerm override;
+    auto do_output(SymbolStore &store, Assignment const &ass, OutputTheory &out) const -> size_t override;
+    [[nodiscard]] auto do_copy() const -> UTheoryTerm override;
     [[nodiscard]] auto do_hash() const -> size_t override;
     [[nodiscard]] auto do_equal_to(TheoryTerm const &other) const -> bool override;
     [[nodiscard]] auto do_compare_to(TheoryTerm const &other) const -> std::strong_ordering override;
@@ -94,8 +97,8 @@ class TheoryTermTuple : public TheoryTerm {
   private:
     void do_vars(VariableSet &vars) const override;
     void do_print(std::ostream &out) const override;
-    void do_output(InstantiationContext &ctx, OutputTheory &out) const override;
-    [[nodiscard]] auto do_copy() const -> UTerm override;
+    auto do_output(SymbolStore &store, Assignment const &ass, OutputTheory &out) const -> size_t override;
+    [[nodiscard]] auto do_copy() const -> UTheoryTerm override;
     [[nodiscard]] auto do_hash() const -> size_t override;
     [[nodiscard]] auto do_equal_to(TheoryTerm const &other) const -> bool override;
     [[nodiscard]] auto do_compare_to(TheoryTerm const &other) const -> std::strong_ordering override;
@@ -112,8 +115,8 @@ class TheoryTermFunction : public TheoryTerm {
   private:
     void do_vars(VariableSet &vars) const override;
     void do_print(std::ostream &out) const override;
-    void do_output(InstantiationContext &ctx, OutputTheory &out) const override;
-    [[nodiscard]] auto do_copy() const -> UTerm override;
+    auto do_output(SymbolStore &store, Assignment const &ass, OutputTheory &out) const -> size_t override;
+    [[nodiscard]] auto do_copy() const -> UTheoryTerm override;
     [[nodiscard]] auto do_hash() const -> size_t override;
     [[nodiscard]] auto do_equal_to(TheoryTerm const &other) const -> bool override;
     [[nodiscard]] auto do_compare_to(TheoryTerm const &other) const -> std::strong_ordering override;
