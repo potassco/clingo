@@ -1652,7 +1652,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto size = va_arg(args, size_t);
                 va_end(args);
                 *ast = construct_ast<Gringo::Input::TheoryTermTuple>(
-                    type, convert_loc(lib, loc), static_cast<TheoryTermTupleType>(tuple_type),
+                    type, convert_loc(lib, loc), static_cast<Gringo::TheoryTermTupleType>(tuple_type),
                     convert_ast_vec<Gringo::Input::TheoryTerm>(arguments, size));
                 break;
             }

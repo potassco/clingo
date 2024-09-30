@@ -555,6 +555,8 @@ template <class F> class BuilderLit {
         auto has_projection = false;
         auto bld_term = BuilderTerm{has_projection, ctx_->var_map()};
         auto term = std::visit(bld_term, lit.term());
+        // TODO: conditions of theory literals should use a stratified index
+        // for positive literals here
         auto idx = ctx_->index(lit);
         // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
         auto dom_it = ctx_->impl().add_base(Input::signature(lit.term()).value());
@@ -899,6 +901,55 @@ class BuilderBdLit {
 
     //! Translate theory atoms.
     void operator()(Input::BdLitTheoryAtom const &lit) const {
+        // H :- B, &pred { E1; ...; En }.
+        // - theory atoms always match
+        // - there is no need to apply seminaive evaluation to conditions
+        // - elements can be grounded just before output
+        // - the theory atom T always matches
+        //     H :- B, T.
+        // - when the atom is output
+        //     accu :- T, E1.
+        //     ...
+        //     accu :- T, En.
+        // - problems:
+        //   - linearization of E1 has to be avoided
+        //   - positive literals would have to be marked as single pass
+        //   - negative literals must stay multi pass
+        //
+        auto vars_body = Ground::VariableSet{};
+        auto vars_global = Ground::VariableSet{};
+        for (auto const &lit : ctx_->body()) {
+            lit->vars(vars_body, Ground::VarSelectMode::all);
+        }
+
+        /*
+
+        // handle guards
+        auto guard = std::optional<int>{};
+        guards.reserve((lit.lhs() ? 1 : 0) + (lit.rhs() ? 1 : 0));
+        if (auto const &rhs = lit.rhs()) {
+            guard.emplace(rhs->op(), std::visit(BuilderTheoryTerm{ctx_->var_map()}, rhs->term()));
+            guard->vars(vars_global);
+        }
+
+        // handle name
+        bool has_projection = false;
+        auto name = std::visit(BuilderTerm{has_projection, ctx_->var_map()}, lit.name());
+
+        // add theory state
+        auto &state = ctx_->state<Ground::StateBdTheory>(ctx_->mbr(), vars_global.release(), std::move(name),
+        std::move(guard));
+
+        // add theory elements
+
+        // add theory atom
+        ctx_->body().emplace_back(std::make_unique<Ground::LitBdTheory>(
+            state, add_elems.operator()<Ground::StmBdAggrElem>(state), lit.sign()));
+
+        */
+
+        static_cast<void>(vars_global);
+        // handle elements
         GRINGO_REPORT_LOC(*ctx_->impl().log, error, lit.loc()) << "TODO implement grounding of " << lit;
         throw std::logic_error("implement me");
     }

@@ -9,6 +9,27 @@ namespace Gringo {
 //! @{
 
 //! Interface to output literals.
+class OutputTheory {
+  public:
+    //! Destroy the output.
+    virtual ~OutputTheory() = default;
+    //! Output the given symbolic literal.
+    auto str(String val) -> size_t { return do_str(val); }
+    //! Output the given symbolic literal.
+    auto num(int32_t val) -> size_t { return do_num(val); }
+    //! Output the given symbolic literal.
+    auto fun(String name, std::span<size_t const> args) -> size_t { return do_fun(name, args); }
+    //! Output the given tuple.
+    auto tup(TheoryTermTupleType type, std::span<size_t const> args) -> size_t { return do_tup(type, args); }
+
+  private:
+    virtual auto do_str(String val) -> size_t = 0;
+    virtual auto do_num(int32_t val) -> size_t = 0;
+    virtual auto do_fun(String name, std::span<size_t const> args) -> size_t = 0;
+    virtual auto do_tup(TheoryTermTupleType type, std::span<size_t const> args) -> size_t = 0;
+};
+
+//! Interface to output literals.
 class OutputLit {
   public:
     //! Destroy the output.

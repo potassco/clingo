@@ -74,15 +74,6 @@ class TheoryTermVariable : public Expression<TheoryTermVariable> {
     bool anonymous_;
 };
 
-//! Enumeration of theory term tuple types.
-//!
-//! @related TheoryTermTuple
-enum class TheoryTermTupleType : uint8_t {
-    tuple, //!< A tuple of terms enclosed in parentheses.
-    set,   //!< A set of terms enclosed in braces.
-    list   //!< A list of terms enclosed in brackets.
-};
-
 //! A tuple (set or list) theory term.
 //!
 //! For example: <tt>f(X,y)</tt>.
@@ -110,9 +101,9 @@ class TheoryTermTuple : public RecursiveExpression<TheoryTermTuple> {
     TheoryTermArray elems_;
 };
 
-//! A tuple (set or list) theory term.
+//! A theory term function.
 //!
-//! For example: <tt>{f(X,y), Z}</tt>.
+//! For example: <tt>f(X,y)</tt>.
 class TheoryTermFunction : public RecursiveExpression<TheoryTermFunction> {
   public:
     //! The record attributes.

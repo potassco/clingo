@@ -10,6 +10,7 @@ add_library(gringo_ground
     "src/program.cc"
     "src/statement.cc"
     "src/term.cc"
+    "src/theory.cc"
     )
 
 target_link_libraries(gringo_ground PUBLIC gringo_core)
