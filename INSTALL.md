@@ -180,7 +180,7 @@ assume that [Emscripten](https://kripken.github.io/emscripten-site/) has been
 installed. Only the web target and a subset of clingo's configuration are
 supported when compiling to JavaScript:
 
-    emcmake cmake -H<SOURCE_DIR> -B<BUILD_DIR> \
+    emcmake cmake -S<SOURCE_DIR> -B<BUILD_DIR> \
         -DCLINGO_BUILD_WEB=On \
         -DCLINGO_BUILD_WITH_PYTHON=Off \
         -DCLINGO_BUILD_WITH_LUA=Off \
