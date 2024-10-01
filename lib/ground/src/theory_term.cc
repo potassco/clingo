@@ -47,6 +47,7 @@ auto output_symbol(SymbolStore &store, OutputTheory &out, Symbol sym) -> size_t 
             return out.num(sym.num());
         }
     }
+    Util::unreachable();
 }
 
 } // namespace
