@@ -1,4 +1,4 @@
-#include <gringo/ground/theory.hh>
+#include <gringo/ground/theory_term.hh>
 
 #include <typeindex>
 

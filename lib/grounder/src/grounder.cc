@@ -2,11 +2,11 @@
 
 #include <gringo/ground/assignment_aggregate.hh>
 #include <gringo/ground/body_aggregate.hh>
-#include <gringo/ground/body_theory_atom.hh>
 #include <gringo/ground/condlit.hh>
 #include <gringo/ground/disjunction.hh>
 #include <gringo/ground/head_aggregate.hh>
 #include <gringo/ground/program.hh>
+#include <gringo/ground/theory_atom.hh>
 
 #include <gringo/input/parser.hh>
 #include <gringo/input/print.hh>
@@ -448,7 +448,7 @@ class BuilderTheoryTerm {
 
 using StateList =
     std::forward_list<std::variant<Ground::StateCondLit, Ground::StateHdAggr, Ground::StateBdAggr,
-                                   Ground::StateAssignAggr, Ground::StateDisjunction, Ground::StateBdTheory>>;
+                                   Ground::StateAssignAggr, Ground::StateDisjunction, Ground::StateTheory>>;
 
 //! Context object holding necessary data for translating from input to ground
 //! representation.
@@ -557,7 +557,7 @@ class BuildContext {
 //! Translate input literals to their ground representation.
 //!
 //! Assumes that literals have been rewritten.
-template <class F> class BuilderLit {
+template <class F, bool stratify = false> class BuilderLit {
   public:
     //! Construct the translator.
     BuilderLit(BuildContext &ctx, F cb) : cb_{std::move(cb)}, ctx_{&ctx} {}
@@ -603,9 +603,7 @@ template <class F> class BuilderLit {
         auto has_projection = false;
         auto bld_term = BuilderTerm{has_projection, ctx_->var_map()};
         auto term = std::visit(bld_term, lit.term());
-        // TODO: conditions of theory literals should use a stratified index
-        // for positive literals here
-        auto idx = ctx_->index(lit);
+        auto idx = stratify && lit.sign() == Sign::none ? Ground::stratified_index : ctx_->index(lit);
         // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
         auto dom_it = ctx_->impl().add_base(Input::signature(lit.term()).value());
         if (has_projection) {
@@ -622,6 +620,14 @@ template <class F> class BuilderLit {
     F cb_;
     BuildContext *ctx_;
 };
+
+template <class F> void build_lit(BuildContext &ctx, Input::Lit const &lit, F &&fun) {
+    std::visit(BuilderLit{ctx, std::forward<F>(fun)}, lit);
+}
+
+template <class F> void build_stratified_lit(BuildContext &ctx, Input::Lit const &lit, F &&fun) {
+    std::visit(BuilderLit<std::decay_t<F>, true>{ctx, std::forward<F>(fun)}, lit);
+}
 
 //! Translator for head literals.
 class BuilderHdLit {
@@ -681,12 +687,10 @@ class BuilderHdLit {
             if (auto const *clit = std::get_if<Input::CondLit>(&elem)) {
                 cond.reserve(clit->cond().size() + 1);
                 for (auto const &lit : clit->cond()) {
-                    std::visit(BuilderLit{*ctx_,
-                                          [&cond, &elem_vars]<class Lit>(Lit &&glit) {
-                                              glit->vars(elem_vars, Ground::VarSelectMode::all);
-                                              cond.emplace_back(std::forward<Lit>(glit));
-                                          }},
-                               lit);
+                    build_lit(*ctx_, lit, [&cond, &elem_vars]<class Lit>(Lit &&glit) {
+                        glit->vars(elem_vars, Ground::VarSelectMode::all);
+                        cond.emplace_back(std::forward<Lit>(glit));
+                    });
                 }
             }
             // compute global variables
@@ -778,9 +782,8 @@ class BuilderHdLit {
                 }
                 // condition
                 for (auto const &lit : elem.cond()) {
-                    std::visit(BuilderLit{*ctx_, [&body]<class Lit>(
-                                                     Lit &&glit) { body.emplace_back(std::forward<Lit>(glit)); }},
-                               lit);
+                    build_lit(*ctx_, lit,
+                              [&body]<class Lit>(Lit &&glit) { body.emplace_back(std::forward<Lit>(glit)); });
                 }
                 // fail check
                 if (!can_fail.empty()) {
@@ -838,12 +841,10 @@ class BuilderHdLit {
             auto cond = Ground::ULitVec{};
             cond.reserve(elem.cond().size() + 1);
             for (auto const &lit : elem.cond()) {
-                std::visit(BuilderLit{*ctx_,
-                                      [&cond, &elem_vars]<class Lit>(Lit &&glit) {
-                                          glit->vars(elem_vars, Ground::VarSelectMode::all);
-                                          cond.emplace_back(std::forward<Lit>(glit));
-                                      }},
-                           lit);
+                build_lit(*ctx_, lit, [&cond, &elem_vars]<class Lit>(Lit &&glit) {
+                    glit->vars(elem_vars, Ground::VarSelectMode::all);
+                    cond.emplace_back(std::forward<Lit>(glit));
+                });
             }
             // compute global variables
             for (auto const &var : elem_vars) {
@@ -998,12 +999,10 @@ class BuilderBdLit {
             // condition
             cond.reserve(elem.cond().size() + 1);
             for (auto const &slit : elem.cond()) {
-                std::visit(BuilderLit{*ctx_,
-                                      [&cond, &vars]<class Lit>(Lit &&glit) {
-                                          glit->vars(vars, Ground::VarSelectMode::all);
-                                          cond.emplace_back(std::forward<Lit>(glit));
-                                      }},
-                           slit);
+                build_stratified_lit(*ctx_, slit, [&cond, &vars]<class Lit>(Lit &&glit) {
+                    glit->vars(vars, Ground::VarSelectMode::all);
+                    cond.emplace_back(std::forward<Lit>(glit));
+                });
             }
             // global variables
             for (auto const &var : vars) {
@@ -1015,7 +1014,7 @@ class BuilderBdLit {
 
         // add theory state
         auto &state =
-            ctx_->state<Ground::StateBdTheory>(ctx_->mbr(), vars_global.release(), std::move(name), std::move(guard));
+            ctx_->state<Ground::StateTheory>(ctx_->mbr(), vars_global.release(), std::move(name), std::move(guard));
 
         // add theory elements
 
@@ -1107,12 +1106,10 @@ class BuilderBdLit {
             cond.reserve(elem.cond().size());
             for (auto const &lit : elem.cond()) {
                 sp_elems = sp_elems && ctx_->single_pass(lit);
-                std::visit(BuilderLit{*ctx_,
-                                      [&cond, &elem_vars]<class Lit>(Lit &&glit) {
-                                          glit->vars(elem_vars, Ground::VarSelectMode::all);
-                                          cond.emplace_back(std::forward<Lit>(glit));
-                                      }},
-                           lit);
+                build_lit(*ctx_, lit, [&cond, &elem_vars]<class Lit>(Lit &&glit) {
+                    glit->vars(elem_vars, Ground::VarSelectMode::all);
+                    cond.emplace_back(std::forward<Lit>(glit));
+                });
             }
             dom = dom && std::all_of(cond.begin(), cond.end(), [](auto const &glit) { return glit->domain(); });
             for (auto const &var : elem_vars) {
@@ -1223,25 +1220,22 @@ class BuilderBdLit {
     }
     //! Translate simple literals.
     void operator()(Input::BdLitSimple const &lit) const {
-        std::visit(
-            BuilderLit{*ctx_, [this]<class Lit>(Lit &&glit) { ctx_->body().emplace_back(std::forward<Lit>(glit)); }},
-            lit.lit());
+        build_lit(*ctx_, lit.lit(),
+                  [this]<class Lit>(Lit &&glit) { ctx_->body().emplace_back(std::forward<Lit>(glit)); });
     }
     //! Translate conditional literals.
     void operator()(Input::BdLitConjunction const &lit) const {
         auto [has_conclusion, sp_conclusion, sp_premise, empty_index, premise_index, lit_index] =
             ctx_->analyze(lit.lit());
         bool domain = true;
-        auto build_lit = [this, &domain](auto &body, auto &vars, auto const &lit) {
-            std::visit(BuilderLit{*ctx_,
-                                  [&body, &vars, &domain]<class Lit>(Lit &&glit) {
-                                      glit->vars(vars, Ground::VarSelectMode::all);
-                                      body.emplace_back(std::forward<Lit>(glit));
-                                      if (domain && !body.back()->domain()) {
-                                          domain = false;
-                                      }
-                                  }},
-                       lit);
+        auto add_lit = [this, &domain](auto &body, auto &vars, auto const &lit) {
+            build_lit(*ctx_, lit, [&body, &vars, &domain]<class Lit>(Lit &&glit) {
+                glit->vars(vars, Ground::VarSelectMode::all);
+                body.emplace_back(std::forward<Lit>(glit));
+                if (domain && !body.back()->domain()) {
+                    domain = false;
+                }
+            });
         };
 
         // convert conclusion and premise
@@ -1250,18 +1244,18 @@ class BuilderBdLit {
         auto premise = Ground::ULitVec{};
         premise.reserve(lit.lit().cond().size() + 1 + static_cast<size_t>(shift));
         for (auto const &clit : lit.lit().cond()) {
-            build_lit(premise, vars_lit, clit);
+            add_lit(premise, vars_lit, clit);
         }
 
         if (shift) {
             has_conclusion = false;
-            build_lit(premise, vars_lit, Input::negate(lit.lit().lit()));
+            add_lit(premise, vars_lit, Input::negate(lit.lit().lit()));
         }
 
         auto conclusion = Ground::ULitVec{};
         if (has_conclusion) {
             conclusion.reserve(2);
-            build_lit(conclusion, vars_lit, lit.lit().lit());
+            add_lit(conclusion, vars_lit, lit.lit().lit());
         }
 
         auto vars_body = Ground::VariableSet{};
