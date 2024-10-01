@@ -21,18 +21,30 @@ auto output_symbol(SymbolStore &store, OutputTheory &out, Symbol sym) -> size_t 
             return out.str(store.string_ref("#sup"));
         }
         case SymbolType::string: {
-            throw std::logic_error("implement me: string!!!");
+            return out.str(sym.str());
         }
         case SymbolType::function: {
-            throw std::logic_error("implement me: function!!!");
+            auto args = std::vector<size_t>{};
+            args.reserve(sym.args().size());
+            for (auto const &arg : sym.args()) {
+                args.emplace_back(output_symbol(store, out, arg));
+            }
+            auto ret = out.fun(sym.name(), args);
+            if (sym.has_sign()) {
+                ret = out.fun(store.string_ref("-"), {&ret, 1});
+            }
+            return ret;
         }
         case SymbolType::tuple: {
-            throw std::logic_error("implement me: tuple!!!");
+            auto args = std::vector<size_t>{};
+            args.reserve(sym.args().size());
+            for (auto const &arg : sym.args()) {
+                args.emplace_back(output_symbol(store, out, arg));
+            }
+            return out.tup(TheoryTermTupleType::tuple, args);
         }
         case SymbolType::number: {
-            // What to do? Maybe simply represent large numbers as string?
-            // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-            return out.num(sym.num().as_int().value());
+            return out.num(sym.num());
         }
     }
 }
@@ -86,6 +98,97 @@ auto TheoryTermVariable::do_compare_to(TheoryTerm const &other) const -> std::st
     auto const *x = dynamic_cast<TheoryTermVariable const *>(&other);
     if (x != nullptr) {
         return var_ <=> x->var_;
+    }
+    return std::type_index(typeid(this)) <=> std::type_index(typeid(other));
+}
+
+// definition of TheoryTermTuple
+
+void TheoryTermTuple::do_vars(VariableSet &vars) const {
+    for (auto const &arg : args_) {
+        arg->vars(vars);
+    }
+}
+
+void TheoryTermTuple::do_print(std::ostream &out) const {
+    out << "(" << Util::p_range(args_, [](auto &out, auto const &x) { out << *x; }) << (args_.size() == 1 ? ",)" : ")");
+}
+
+auto TheoryTermTuple::do_output(SymbolStore &store, Assignment const &ass, OutputTheory &out) const -> size_t {
+    auto args = std::vector<size_t>{};
+    args.reserve(args_.size());
+    for (auto const &arg : args_) {
+        args.emplace_back(arg->output(store, ass, out));
+    }
+    return out.tup(TheoryTermTupleType::tuple, args);
+}
+
+auto TheoryTermTuple::do_copy() const -> UTheoryTerm {
+    return std::make_unique<TheoryTermTuple>(type_, copy_uvec(args_));
+}
+
+auto TheoryTermTuple::do_hash() const -> size_t { return Util::value_hash_record<TheoryTermTuple>(args_); }
+
+auto TheoryTermTuple::do_equal_to(TheoryTerm const &other) const -> bool {
+    auto const *x = dynamic_cast<TheoryTermTuple const *>(&other);
+    return x != nullptr && type_ == x->type_ && Util::value_equal_to{}(args_, x->args_);
+}
+
+auto TheoryTermTuple::do_compare_to(TheoryTerm const &other) const -> std::strong_ordering {
+    auto const *x = dynamic_cast<TheoryTermTuple const *>(&other);
+    if (x != nullptr) {
+        if (auto n = type_ <=> x->type_; std::is_neq(n)) {
+            return n;
+        }
+        return std::lexicographical_compare_three_way(args_.begin(), args_.end(), x->args_.begin(), x->args_.end(),
+                                                      [](auto const &a, auto const &b) { return *a <=> *b; });
+    }
+    return std::type_index(typeid(this)) <=> std::type_index(typeid(other));
+}
+
+// definition of TheoryTermFunction
+
+void TheoryTermFunction::do_vars(VariableSet &vars) const {
+    for (auto const &arg : args_) {
+        arg->vars(vars);
+    }
+}
+
+void TheoryTermFunction::do_print(std::ostream &out) const {
+    out << name_;
+    if (!args_.empty()) {
+        out << "(" << Util::p_range(args_, [](auto &out, auto const &x) { out << *x; }) << ")";
+    }
+}
+
+auto TheoryTermFunction::do_output(SymbolStore &store, Assignment const &ass, OutputTheory &out) const -> size_t {
+    auto args = std::vector<size_t>{};
+    args.reserve(args_.size());
+    for (auto const &arg : args_) {
+        args.emplace_back(arg->output(store, ass, out));
+    }
+    return out.fun(name_, args);
+}
+
+auto TheoryTermFunction::do_copy() const -> UTheoryTerm {
+    return std::make_unique<TheoryTermFunction>(name_, copy_uvec(args_));
+}
+
+auto TheoryTermFunction::do_hash() const -> size_t { return Util::value_hash_record<TheoryTermFunction>(args_); }
+
+auto TheoryTermFunction::do_equal_to(TheoryTerm const &other) const -> bool {
+    auto const *x = dynamic_cast<TheoryTermFunction const *>(&other);
+    return x != nullptr && name_ == x->name_ && Util::value_equal_to{}(args_, x->args_);
+}
+
+auto TheoryTermFunction::do_compare_to(TheoryTerm const &other) const -> std::strong_ordering {
+    auto const *x = dynamic_cast<TheoryTermFunction const *>(&other);
+    if (x != nullptr) {
+        if (auto n = name_ <=> x->name_; std::is_neq(n)) {
+            return n;
+        }
+        return std::lexicographical_compare_three_way(args_.begin(), args_.end(), x->args_.begin(), x->args_.end(),
+                                                      [](auto const &a, auto const &b) { return *a <=> *b; });
     }
     return std::type_index(typeid(this)) <=> std::type_index(typeid(other));
 }

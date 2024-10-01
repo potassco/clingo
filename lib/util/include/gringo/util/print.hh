@@ -198,9 +198,8 @@ template <class It, class F> PrintRange(It, It, char const *, F &&) -> PrintRang
 //! Helper to inject a function to print something.
 template <class F> class PrintFun {
   public:
-    struct cons {};
     //! Construct the helper.
-    template <class A> PrintFun([[maybe_unused]] cons tag, A &&fun) : fun_{std::forward<A>(fun)} {}
+    template <class A> PrintFun([[maybe_unused]] int tag, A &&fun) : fun_{std::forward<A>(fun)} {}
     //! Call the function while outputting.
     template <class Out> friend auto operator<<(Out &out, PrintFun x) -> Out & {
         x.fun_(out);
@@ -211,7 +210,7 @@ template <class F> class PrintFun {
     F fun_;
 };
 
-template <class F> PrintFun(F &&) -> PrintFun<std::unwrap_ref_decay_t<F>>;
+template <class F> PrintFun(int, F &&) -> PrintFun<std::unwrap_ref_decay_t<F>>;
 
 //! Helper to print something in quotes.
 class PrintQuoted {
@@ -244,7 +243,7 @@ class PrintQuoted {
 } // namespace Detail
 
 //! Print with a function.
-template <class F> auto p_fun(F &&fun) { return Detail::PrintFun(std::forward<F>(fun)); }
+template <class F> auto p_fun(F &&fun) { return Detail::PrintFun(0, std::forward<F>(fun)); }
 
 //! Print a range with a separator.
 template <class T, class F> auto p_range(T &rng, char const *sep, F &&fun) {

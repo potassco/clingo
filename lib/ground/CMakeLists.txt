@@ -1,6 +1,7 @@
 add_library(gringo_ground
     "src/assignment_aggregate.cc"
     "src/body_aggregate.cc"
+    "src/body_theory_atom.cc"
     "src/condlit.cc"
     "src/disjunction.cc"
     "src/head_aggregate.cc"

@@ -144,7 +144,7 @@ auto LitBool::do_equal_to(Lit const &other) const -> bool {
 auto LitBool::do_compare_to(Lit const &other) const -> std::weak_ordering {
     auto const *x = dynamic_cast<LitBool const *>(&other);
     if (x != nullptr) {
-        return std::tie(value_) <=> std::tie(x->value_);
+        return static_cast<int>(value_) <=> static_cast<int>(x->value_);
     }
     return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
 }

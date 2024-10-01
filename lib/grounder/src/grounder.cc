@@ -2,6 +2,7 @@
 
 #include <gringo/ground/assignment_aggregate.hh>
 #include <gringo/ground/body_aggregate.hh>
+#include <gringo/ground/body_theory_atom.hh>
 #include <gringo/ground/condlit.hh>
 #include <gringo/ground/disjunction.hh>
 #include <gringo/ground/head_aggregate.hh>
@@ -399,8 +400,55 @@ class BuilderTerm {
     Util::unordered_map<String, size_t> const *var_map_;
 };
 
-using StateList = std::forward_list<std::variant<Ground::StateCondLit, Ground::StateHdAggr, Ground::StateBdAggr,
-                                                 Ground::StateAssignAggr, Ground::StateDisjunction>>;
+//! Translates input theory terms to their ground representation.
+//!
+//! Input terms must be rewritten before translation.
+class BuilderTheoryTerm {
+  public:
+    //! Construct a theory term builder.
+    //!
+    //! The var_map dictionary is used to map variables to integers. Each name
+    //! must have been assigned an integer beforehand.
+    BuilderTheoryTerm(Util::unordered_map<String, size_t> const &var_map) : var_map_{&var_map} {}
+
+    //! Translate unparsed terms.
+    auto operator()([[maybe_unused]] Input::TheoryTermUnparsed const &term) const -> Ground::UTheoryTerm {
+        throw std::logic_error("unexpected unparsed theory term");
+    }
+    //! Translate a variable.
+    auto operator()(Input::TheoryTermVariable const &term) const -> Ground::UTheoryTerm {
+        assert(var_map_->find(term.name()) != var_map_->end());
+        return std::make_unique<Ground::TheoryTermVariable>(var_map_->find(term.name())->second);
+    }
+    //! Translate a symbol.
+    auto operator()(Input::TheoryTermSymbol const &term) const -> Ground::UTheoryTerm {
+        return std::make_unique<Ground::TheoryTermSymbol>(term.value());
+    }
+    //! Translate arguments of tuples and functions.
+    [[nodiscard]] auto handle_args(Input::TheoryTermArray const &args) const -> Ground::UTheoryTermVec {
+        Ground::UTheoryTermVec g_args;
+        g_args.reserve(args.size());
+        for (auto const &arg : args) {
+            g_args.emplace_back(std::visit(*this, arg));
+        }
+        return g_args;
+    }
+    //! Translate tuples.
+    auto operator()(Input::TheoryTermTuple const &term) const -> Ground::UTheoryTerm {
+        return std::make_unique<Ground::TheoryTermTuple>(term.type(), handle_args(term.elems()));
+    }
+    //! Translate a function.
+    auto operator()(Input::TheoryTermFunction const &term) const -> Ground::UTheoryTerm {
+        return std::make_unique<Ground::TheoryTermFunction>(term.name(), handle_args(term.args()));
+    }
+
+  private:
+    Util::unordered_map<String, size_t> const *var_map_;
+};
+
+using StateList =
+    std::forward_list<std::variant<Ground::StateCondLit, Ground::StateHdAggr, Ground::StateBdAggr,
+                                   Ground::StateAssignAggr, Ground::StateDisjunction, Ground::StateBdTheory>>;
 
 //! Context object holding necessary data for translating from input to ground
 //! representation.
@@ -922,35 +970,74 @@ class BuilderBdLit {
             lit->vars(vars_body, Ground::VarSelectMode::all);
         }
 
-        /*
-
-        // handle guards
-        auto guard = std::optional<int>{};
-        guards.reserve((lit.lhs() ? 1 : 0) + (lit.rhs() ? 1 : 0));
+        // handle guard
+        auto guard = std::optional<std::pair<String, Ground::UTheoryTerm>>{};
         if (auto const &rhs = lit.rhs()) {
             guard.emplace(rhs->op(), std::visit(BuilderTheoryTerm{ctx_->var_map()}, rhs->term()));
-            guard->vars(vars_global);
+            guard->second->vars(vars_global);
         }
 
         // handle name
         bool has_projection = false;
         auto name = std::visit(BuilderTerm{has_projection, ctx_->var_map()}, lit.name());
+        name->vars(vars_global);
+
+        // handle elems
+        auto elems = std::vector<std::pair<Ground::UTheoryTermVec, Ground::ULitVec>>{};
+        elems.reserve(lit.elems().size());
+        for (auto const &elem : lit.elems()) {
+            elems.emplace_back();
+            auto &[tuple, cond] = elems.back();
+            auto vars = Ground::VariableSet{};
+            // tuple
+            tuple.reserve(elem.tuple().size());
+            for (auto const &term : elem.tuple()) {
+                tuple.emplace_back(std::visit(BuilderTheoryTerm{ctx_->var_map()}, term));
+                tuple.back()->vars(vars);
+            }
+            // condition
+            cond.reserve(elem.cond().size() + 1);
+            for (auto const &slit : elem.cond()) {
+                std::visit(BuilderLit{*ctx_,
+                                      [&cond, &vars]<class Lit>(Lit &&glit) {
+                                          glit->vars(vars, Ground::VarSelectMode::all);
+                                          cond.emplace_back(std::forward<Lit>(glit));
+                                      }},
+                           slit);
+            }
+            // global variables
+            for (auto const &var : vars) {
+                if (vars_body.contains(var)) {
+                    vars_global.emplace(var);
+                }
+            }
+        }
 
         // add theory state
-        auto &state = ctx_->state<Ground::StateBdTheory>(ctx_->mbr(), vars_global.release(), std::move(name),
-        std::move(guard));
+        auto &state =
+            ctx_->state<Ground::StateBdTheory>(ctx_->mbr(), vars_global.release(), std::move(name), std::move(guard));
 
         // add theory elements
 
+        /*
         // add theory atom
         ctx_->body().emplace_back(std::make_unique<Ground::LitBdTheory>(
             state, add_elems.operator()<Ground::StmBdAggrElem>(state), lit.sign()));
 
         */
 
-        static_cast<void>(vars_global);
+        static_cast<void>(state);
         // handle elements
-        GRINGO_REPORT_LOC(*ctx_->impl().log, error, lit.loc()) << "TODO implement grounding of " << lit;
+        GRINGO_REPORT_LOC(*ctx_->impl().log, error, lit.loc()) << "TODO implement grounding of " << lit << "\n"
+                                                               << "  name: " << *state.name() << "\n"
+                                                               << "  guard: " << Util::p_fun([&](auto &out) {
+                                                                      if (auto const &guard = state.guard()) {
+                                                                          out << guard->first << " " << *guard->second;
+                                                                      } else {
+                                                                          out << "none";
+                                                                      }
+                                                                      out << "\n";
+                                                                  });
         throw std::logic_error("implement me");
     }
 
