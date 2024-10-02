@@ -68,7 +68,10 @@ class OutputBuffer {
     }
 
     //! Empty the buffer.
-    void reset() { size_ = 0; }
+    auto reset() -> OutputBuffer & {
+        size_ = 0;
+        return *this;
+    }
 
     //! Empty the buffer and return a vector with the previous content.
     auto release() -> std::vector<char> {

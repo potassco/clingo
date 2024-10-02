@@ -24,7 +24,7 @@ class OutputTheory {
     //! Output the given tuple.
     auto tup(TheoryTermTupleType type, IndexSpan args) -> size_t { return do_tup(type, args); }
     //! Output the given element.
-    auto elem(IndexSpan tuple, IndexSpan conds) -> size_t { return do_elem(tuple, conds); }
+    auto elem(IndexSpan tuple, size_t cond) -> size_t { return do_elem(tuple, cond); }
     //! Output the given atom.
     void atm(size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard = std::nullopt) {
         do_atm(atom_uid, name, elems, guard);
@@ -35,7 +35,7 @@ class OutputTheory {
     virtual auto do_num(Number const &val) -> size_t = 0;
     virtual auto do_fun(String name, std::span<size_t const> args) -> size_t = 0;
     virtual auto do_tup(TheoryTermTupleType type, std::span<size_t const> args) -> size_t = 0;
-    virtual auto do_elem(IndexSpan tuple, IndexSpan conds) -> size_t = 0;
+    virtual auto do_elem(IndexSpan tuple, size_t cond) -> size_t = 0;
     virtual void do_atm(size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard) = 0;
 };
 

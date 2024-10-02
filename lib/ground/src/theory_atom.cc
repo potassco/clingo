@@ -165,7 +165,9 @@ void StateTheory::output(Logger &log, SymbolStore &store, OutputStm &out) {
         elems.clear();
         for (auto const &elem : atm.second.elems()) {
             auto const &[tuple, conds] = *tuples_.nth(elem);
-            elems.emplace_back(thy.elem(tuple->span(), conds));
+            for (auto const &cond : conds) {
+                elems.emplace_back(thy.elem(tuple->span(), cond));
+            }
         }
         if (guard_) {
             guard->second = *atm.second.rhs();

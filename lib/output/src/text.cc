@@ -175,7 +175,7 @@ class OutputCond : public OutputSimple {
     Util::OutputBuffer buf_;
 };
 
-class OutputText : public OutputStm {
+class OutputText : public OutputStm, OutputTheory {
   public:
     OutputText(Util::OutputBuffer &out) : out_{&out} {};
 
@@ -228,10 +228,12 @@ class OutputText : public OutputStm {
         return cond_;
     }
 
-    auto do_cond_id() -> size_t override {
-        auto it = conds_.emplace(cond_.end()).first;
+    template <class T> auto str_id_(T &&str) {
+        auto it = conds_.emplace(std::forward<T>(str)).first;
         return it - conds_.begin();
     }
+
+    auto do_cond_id() -> size_t override { return str_id_(cond_.end()); }
 
     auto do_uid() -> size_t override { return ++uids_; }
 
@@ -318,13 +320,108 @@ class OutputText : public OutputStm {
         body_.define(uid, tmp_.str());
     }
 
-    auto do_theory() -> OutputTheory & override { throw std::runtime_error("implement me!!!"); }
+    auto do_theory() -> OutputTheory & override { return *this; }
 
     void do_flush() override { body_.flush(*out_); }
 
     void do_end_step() override { out_->flush(); }
 
     void do_mark([[maybe_unused]] SymbolCollector &gc) override {}
+
+    auto do_str(String val) -> size_t override { return str_id_(val.view()); }
+
+    auto do_num(Number const &val) -> size_t override {
+        if (val < 0) {
+            tmp_.reset() << "(" << val << ")";
+        } else {
+            tmp_.reset() << val;
+        }
+        return str_id_(tmp_.view());
+    }
+
+    auto do_fun(String name, std::span<size_t const> args) -> size_t override {
+        auto is_theory_op = [](std::string_view str) {
+            if (str.empty()) {
+                return false;
+            }
+            switch (str.front()) {
+                case '/':
+                case '!':
+                case '<':
+                case '=':
+                case '>':
+                case '+':
+                case '-':
+                case '*':
+                case '\\':
+                case '?':
+                case '&':
+                case '@':
+                case '|':
+                case ':':
+                case ';':
+                case '~':
+                case '^':
+                case '.': {
+                    return true;
+                }
+                default: {
+                    return false;
+                }
+            }
+        };
+        if (args.size() == 1 && is_theory_op(name.view())) {
+            tmp_.reset() << "(" << name << *conds_.nth(args.back()) << ")";
+        } else if (args.size() == 2 && is_theory_op(name.view())) {
+            tmp_.reset() << "(" << *conds_.nth(args.front()) << name << *conds_.nth(args.back()) << ")";
+        } else {
+            tmp_.reset() << name;
+            if (!args.empty()) {
+                tmp_ << "(" << Util::p_range(args, [&](auto &out, auto idx) { out << *conds_.nth(idx); }) << ")";
+            }
+        }
+        return str_id_(tmp_.view());
+    }
+
+    auto do_tup(TheoryTermTupleType type, std::span<size_t const> args) -> size_t override {
+        auto [od, cd] = [&]() -> std::pair<char const *, char const *> {
+            switch (type) {
+                case TheoryTermTupleType::list: {
+                    return {"[", "]"};
+                }
+                case TheoryTermTupleType::set: {
+                    return {"{", "}"};
+                }
+                case TheoryTermTupleType::tuple: {
+                    return {"(", args.size() == 1 ? ",)" : ")"};
+                }
+            }
+        }();
+        tmp_.reset() << od << Util::p_range(args, [&](auto &out, auto idx) { out << *conds_.nth(idx); }) << cd;
+        return str_id_(tmp_.view());
+    }
+
+    auto do_elem(IndexSpan tuple, size_t cond) -> size_t override {
+        tmp_.reset() << Util::p_range(tuple, [this](auto &out, auto idx) { out << *conds_.nth(idx); });
+        auto const &sc = *conds_.nth(cond);
+        if (tuple.empty() || !sc.empty()) {
+            tmp_ << ": ";
+        }
+        tmp_ << *conds_.nth(cond);
+        return str_id_(tmp_.view());
+    }
+
+    void do_atm(size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard) override {
+        tmp_.reset() << "&" << name;
+        if (!elems.empty()) {
+            tmp_ << " { " << Util::p_range(elems, "; ", [this](auto &out, auto idx) { out << *conds_.nth(idx); })
+                 << " }";
+        }
+        if (guard) {
+            tmp_ << " " << *conds_.nth(guard->first) << " " << *conds_.nth(guard->second);
+        }
+        body_.define(atom_uid, tmp_.str());
+    }
 
     Util::OutputBuffer *out_;
     Util::OutputBuffer tmp_;
