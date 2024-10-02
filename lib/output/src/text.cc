@@ -9,21 +9,6 @@ namespace Gringo::Output {
 
 namespace {
 
-class OutputSimple : public OutputLit {
-  private:
-    auto do_cond_lit([[maybe_unused]] std::optional<size_t> uid) -> size_t override {
-        throw std::runtime_error("unsupported literal");
-    }
-
-    auto do_bd_aggr([[maybe_unused]] Sign sign, [[maybe_unused]] std::optional<size_t> uid) -> size_t override {
-        throw std::runtime_error("unsupported literal");
-    }
-
-    auto do_bd_theory([[maybe_unused]] Sign sign, [[maybe_unused]] std::optional<size_t> uid) -> size_t override {
-        throw std::runtime_error("unsupported literal");
-    }
-};
-
 class OutputBody : public OutputLit {
   public:
     OutputBody(size_t &uids) : uids_{&uids} {}
@@ -143,7 +128,7 @@ class OutputBody : public OutputLit {
     std::vector<std::vector<std::variant<std::string, size_t>>> delayed_;
 };
 
-class OutputCond : public OutputSimple {
+class OutputCond : public OutputLit {
   public:
     void start() {
         buf_.reset();
@@ -169,6 +154,18 @@ class OutputCond : public OutputSimple {
     void do_boolean(bool value) override {
         sep();
         buf_ << (value ? "#true" : "#false");
+    }
+
+    auto do_cond_lit([[maybe_unused]] std::optional<size_t> uid) -> size_t override {
+        throw std::runtime_error("unsupported literal");
+    }
+
+    auto do_bd_aggr([[maybe_unused]] Sign sign, [[maybe_unused]] std::optional<size_t> uid) -> size_t override {
+        throw std::runtime_error("unsupported literal");
+    }
+
+    auto do_bd_theory([[maybe_unused]] Sign sign, [[maybe_unused]] std::optional<size_t> uid) -> size_t override {
+        throw std::runtime_error("unsupported literal");
     }
 
     bool has_lits_ = false;
@@ -229,8 +226,8 @@ class OutputText : public OutputStm, OutputTheory {
     }
 
     template <class T> auto str_id_(T &&str) {
-        auto it = conds_.emplace(std::forward<T>(str)).first;
-        return it - conds_.begin();
+        auto it = strs_.emplace(std::forward<T>(str)).first;
+        return it - strs_.begin();
     }
 
     auto do_cond_id() -> size_t override { return str_id_(cond_.end()); }
@@ -244,11 +241,11 @@ class OutputText : public OutputStm, OutputTheory {
             tmp_.reset();
             tmp_ << Util::p_range(elems, "; ", [this](auto &buf, auto const &elem) {
                 if (elem.first) {
-                    buf << *conds_.nth(*elem.first);
+                    buf << *strs_.nth(*elem.first);
                 } else {
                     buf << "#false";
                 }
-                buf << ": " << *conds_.nth(elem.second);
+                buf << ": " << *strs_.nth(elem.second);
             });
             body_.define(uid, tmp_.str());
         }
@@ -278,7 +275,7 @@ class OutputText : public OutputStm, OutputTheory {
                 }
             } else {
                 buf << Util::p_range(elem.second, "; ", [this, &elem](auto &buf, auto const &cond) {
-                    buf << Util::p_range(elem.first) << ": " << *conds_.nth(cond);
+                    buf << Util::p_range(elem.first) << ": " << *strs_.nth(cond);
                 });
             }
         });
@@ -293,7 +290,7 @@ class OutputText : public OutputStm, OutputTheory {
                 } else {
                     buf << hc.first;
                 }
-                buf << *conds_.nth(hc.second);
+                buf << *strs_.nth(hc.second);
             });
         });
     }
@@ -312,7 +309,7 @@ class OutputText : public OutputStm, OutputTheory {
                     }
                 } else {
                     buf << Util::p_range(elem.second, "; ", [this, &elem](auto &buf, auto const &cond) {
-                        buf << elem.first << ": " << *conds_.nth(cond);
+                        buf << elem.first << ": " << *strs_.nth(cond);
                     });
                 }
             });
@@ -371,13 +368,13 @@ class OutputText : public OutputStm, OutputTheory {
             }
         };
         if (args.size() == 1 && is_theory_op(name.view())) {
-            tmp_.reset() << "(" << name << *conds_.nth(args.back()) << ")";
+            tmp_.reset() << "(" << name << *strs_.nth(args.back()) << ")";
         } else if (args.size() == 2 && is_theory_op(name.view())) {
-            tmp_.reset() << "(" << *conds_.nth(args.front()) << name << *conds_.nth(args.back()) << ")";
+            tmp_.reset() << "(" << *strs_.nth(args.front()) << name << *strs_.nth(args.back()) << ")";
         } else {
             tmp_.reset() << name;
             if (!args.empty()) {
-                tmp_ << "(" << Util::p_range(args, [&](auto &out, auto idx) { out << *conds_.nth(idx); }) << ")";
+                tmp_ << "(" << Util::p_range(args, [&](auto &out, auto idx) { out << *strs_.nth(idx); }) << ")";
             }
         }
         return str_id_(tmp_.view());
@@ -398,28 +395,28 @@ class OutputText : public OutputStm, OutputTheory {
             }
             Util::unreachable();
         }();
-        tmp_.reset() << od << Util::p_range(args, [&](auto &out, auto idx) { out << *conds_.nth(idx); }) << cd;
+        tmp_.reset() << od << Util::p_range(args, [&](auto &out, auto idx) { out << *strs_.nth(idx); }) << cd;
         return str_id_(tmp_.view());
     }
 
     auto do_elem(IndexSpan tuple, size_t cond) -> size_t override {
-        tmp_.reset() << Util::p_range(tuple, [this](auto &out, auto idx) { out << *conds_.nth(idx); });
-        auto const &sc = *conds_.nth(cond);
+        tmp_.reset() << Util::p_range(tuple, [this](auto &out, auto idx) { out << *strs_.nth(idx); });
+        auto const &sc = *strs_.nth(cond);
         if (tuple.empty() || !sc.empty()) {
             tmp_ << ": ";
         }
-        tmp_ << *conds_.nth(cond);
+        tmp_ << *strs_.nth(cond);
         return str_id_(tmp_.view());
     }
 
     void do_atm(size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard) override {
         tmp_.reset() << "&" << name;
         if (!elems.empty()) {
-            tmp_ << " { " << Util::p_range(elems, "; ", [this](auto &out, auto idx) { out << *conds_.nth(idx); })
+            tmp_ << " { " << Util::p_range(elems, "; ", [this](auto &out, auto idx) { out << *strs_.nth(idx); })
                  << " }";
         }
         if (guard) {
-            tmp_ << " " << *conds_.nth(guard->first) << " " << *conds_.nth(guard->second);
+            tmp_ << " " << *strs_.nth(guard->first) << " " << *strs_.nth(guard->second);
         }
         body_.define(atom_uid, tmp_.str());
     }
@@ -428,7 +425,7 @@ class OutputText : public OutputStm, OutputTheory {
     Util::OutputBuffer tmp_;
     OutputBody body_{uids_};
     OutputCond cond_;
-    Util::ordered_set<std::string> conds_;
+    Util::ordered_set<std::string> strs_;
     size_t uids_ = 0;
 };
 
