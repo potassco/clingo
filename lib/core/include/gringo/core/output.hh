@@ -11,6 +11,8 @@ namespace Gringo {
 //! Interface to output literals.
 class OutputTheory {
   public:
+    using IndexSpan = std::span<size_t const>;
+    using OptGuard = std::optional<std::pair<size_t, size_t>>;
     //! Destroy the output.
     virtual ~OutputTheory() = default;
     //! Output the given symbolic literal.
@@ -20,13 +22,21 @@ class OutputTheory {
     //! Output the given symbolic literal.
     auto fun(String name, std::span<size_t const> args) -> size_t { return do_fun(name, args); }
     //! Output the given tuple.
-    auto tup(TheoryTermTupleType type, std::span<size_t const> args) -> size_t { return do_tup(type, args); }
+    auto tup(TheoryTermTupleType type, IndexSpan args) -> size_t { return do_tup(type, args); }
+    //! Output the given element.
+    auto elem(IndexSpan tuple, IndexSpan conds) -> size_t { return do_elem(tuple, conds); }
+    //! Output the given atom.
+    void atm(size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard = std::nullopt) {
+        do_atm(atom_uid, name, elems, guard);
+    }
 
   private:
     virtual auto do_str(String val) -> size_t = 0;
     virtual auto do_num(Number const &val) -> size_t = 0;
     virtual auto do_fun(String name, std::span<size_t const> args) -> size_t = 0;
     virtual auto do_tup(TheoryTermTupleType type, std::span<size_t const> args) -> size_t = 0;
+    virtual auto do_elem(IndexSpan tuple, IndexSpan conds) -> size_t = 0;
+    virtual void do_atm(size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard) = 0;
 };
 
 //! Interface to output literals.
@@ -127,6 +137,9 @@ class OutputStm {
     //! Complete a delayed conditional literal.
     void cond_lit(size_t uid, CondLits elems) { do_cond_lit(uid, elems); }
 
+    //! Return a theory output.
+    auto theory() -> OutputTheory & { return do_theory(); }
+
     //! Flush all delayed rule assuming they are completely defined.
     //!
     //! Should be called after grounding a component.
@@ -154,6 +167,8 @@ class OutputStm {
     virtual void do_bd_aggr(size_t uid, AggregateFunction fun, BdElems elems, Guards guards) = 0;
     virtual void do_hd_aggr(size_t uid, AggregateFunction fun, HdElems elems, Guards guards) = 0;
     virtual void do_disjunction(size_t uid, DisjunctionElems elems) = 0;
+
+    virtual auto do_theory() -> OutputTheory & = 0;
 
     virtual void do_flush() = 0;
     virtual void do_end_step() = 0;

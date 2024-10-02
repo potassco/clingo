@@ -39,6 +39,7 @@ class NullOutputStm : public OutputStm {
     void do_hd_aggr([[maybe_unused]] size_t uid, [[maybe_unused]] AggregateFunction fun, [[maybe_unused]] HdElems elems,
                     [[maybe_unused]] Guards guards) override {}
     void do_disjunction([[maybe_unused]] size_t uid, [[maybe_unused]] DisjunctionElems elems) override {}
+    auto do_theory() -> OutputTheory & override { throw std::logic_error("not implemented"); }
     void do_flush() override {}
     void do_end_step() override {}
     void do_mark([[maybe_unused]] SymbolCollector &gc) override {}

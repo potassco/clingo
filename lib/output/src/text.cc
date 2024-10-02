@@ -318,6 +318,8 @@ class OutputText : public OutputStm {
         body_.define(uid, tmp_.str());
     }
 
+    auto do_theory() -> OutputTheory & override { throw std::runtime_error("implement me!!!"); }
+
     void do_flush() override { body_.flush(*out_); }
 
     void do_end_step() override { out_->flush(); }

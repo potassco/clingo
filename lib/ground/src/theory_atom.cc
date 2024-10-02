@@ -19,8 +19,8 @@ void AtomTheory::uid(size_t uid) {
 
 // definition of BaseTheory
 
-auto BaseTheory::add(Symbol const *sym, Symbol name) -> std::pair<AtomMap::iterator, bool> {
-    return atoms_.try_emplace(sym, name);
+auto BaseTheory::add(Symbol const *sym, Symbol name, std::optional<size_t> rhs) -> std::pair<AtomMap::iterator, bool> {
+    return atoms_.try_emplace(sym, name, rhs);
 }
 
 auto BaseTheory::size() const -> size_t { return atoms_.size(); }
@@ -35,44 +35,45 @@ auto BaseTheory::atoms() -> AtomMap & { return atoms_; }
 
 // definition of StateBdTheory
 
-StateTheory::ElementKey::ElementKey([[maybe_unused]] priv_tag tag, Assignment &ass, size_t atom_idx,
-                                    VariableVec const &vars, UTheoryTermVec const &terms)
-    : n_{vars.size()}, atom_idx_{atom_idx}, terms_{&terms} {
+StateTheory::ElementKey::ElementKey([[maybe_unused]] priv_tag tag, SymbolStore &store, Assignment &ass,
+                                    OutputTheory &out, size_t atom_idx, UTheoryTermVec const &terms)
+    : n_{terms.size()}, atom_idx_{atom_idx} {
     // NOLINTBEGIN
     auto *it = syms_;
-    for (auto var : vars) {
-        *it++ = *ass[var];
+    for (auto const &term : terms) {
+        *it++ = term->output(store, ass, out);
     }
     // NOLINTEND
 }
 
-void StateTheory::ElementKey::construct(std::pmr::monotonic_buffer_resource &mbr, Assignment &ass, size_t atom_idx,
-                                        VariableVec const &vars, UTheoryTermVec const &terms, ElementKey *&target) {
-    auto n = sizeof(ElementKey) + vars.size() * sizeof(Symbol);
+void StateTheory::ElementKey::construct(std::pmr::monotonic_buffer_resource &mbr, SymbolStore &store, Assignment &ass,
+                                        OutputTheory &out, size_t atom_idx, UTheoryTermVec const &terms,
+                                        ElementKey *&target) {
+    auto n = sizeof(ElementKey) + terms.size() * sizeof(Symbol);
     if (target == nullptr) {
         target = static_cast<ElementKey *>(mbr.allocate(n, alignof(ElementKey)));
     } else {
         std::destroy_at(target);
     }
-    std::construct_at(target, priv_tag{}, ass, atom_idx, vars, terms);
+    std::construct_at(target, priv_tag{}, store, ass, out, atom_idx, terms);
 }
 
 auto StateTheory::ElementKey::size() const -> size_t { return n_; }
 
-auto StateTheory::ElementKey::span() const -> SymbolSpan {
+auto StateTheory::ElementKey::span() const -> std::span<size_t const> {
     // NOLINTBEGIN
-    return SymbolSpan{syms_, size()};
+    return {syms_, size()};
     // NOLINTEND
 }
 
 auto StateTheory::ElementKey::hash() const -> size_t {
     // NOLINTBEGIN
-    return Util::value_hash_record<ElementKey>(atom_idx_, reinterpret_cast<uintptr_t>(terms_), size(), span());
+    return Util::value_hash_record<ElementKey>(atom_idx_, size(), span());
     // NOLINTEND
 }
 
 auto operator==(StateTheory::ElementKey const &a, StateTheory::ElementKey const &b) -> bool {
-    return a.atom_idx_ == b.atom_idx_ && a.size() == b.size() && a.terms_ == b.terms_ &&
+    return a.atom_idx_ == b.atom_idx_ && a.size() == b.size() &&
            std::equal(a.span().begin(), a.span().end(), b.span().begin());
 }
 
@@ -112,7 +113,8 @@ auto StateTheory::find_atom(Assignment &ass) -> AtomMap::iterator {
     return jt;
 }
 
-auto StateTheory::insert_atom(Symbol name, Assignment &ass) -> std::pair<AtomMap::iterator, bool> {
+auto StateTheory::insert_atom(Symbol name, std::optional<size_t> rhs,
+                              Assignment &ass) -> std::pair<AtomMap::iterator, bool> {
     auto n = global_.size() * sizeof(Symbol);
     if (atom_key_ == nullptr) {
         atom_key_ = static_cast<Symbol *>(mbr_->allocate(n, alignof(Symbol)));
@@ -125,12 +127,13 @@ auto StateTheory::insert_atom(Symbol name, Assignment &ass) -> std::pair<AtomMap
         std::construct_at(it, ass[var].value());
         it = std::next(it);
     }
-    return base_.add(atom_key_, name);
+    return base_.add(atom_key_, name, rhs);
 }
 
-void StateTheory::insert_elem(Assignment &ass, AtomMap::iterator it, UTheoryTermVec const &tuple, ElementKey *&elem_key,
-                              auto const &get_cond) {
-    ElementKey::construct(*mbr_, ass, it - base().atoms().begin(), global_, tuple, elem_key);
+void StateTheory::insert_elem(InstantiationContext &ctx, AtomMap::iterator it, UTheoryTermVec const &tuple,
+                              ElementKey *&elem_key, auto const &get_cond) {
+    ElementKey::construct(*mbr_, ctx.store(), ctx.ass(), ctx.out().theory(), it - base().atoms().begin(), tuple,
+                          elem_key);
     auto [jt, jns] = tuples_.try_emplace(elem_key);
     if (jns) {
         elem_key = nullptr;
@@ -144,6 +147,7 @@ void StateTheory::output(Logger &log, SymbolStore &store, OutputStm &out) {
     for (auto const &stm : elems_) {
         GRINGO_REPORT(log, debug) << "      " << *stm;
     }
+    auto ass = Assignment{};
     auto lin = Linearizer{*mbr_};
     auto queue = Queue{};
     lin.start(queue);
@@ -151,19 +155,23 @@ void StateTheory::output(Logger &log, SymbolStore &store, OutputStm &out) {
         lin.prepare(*elem, elem->body(), elem->important());
     }
     std::ignore = queue.process(log, store, out);
-    // TODO: this is just for testing
-    for (auto const &atm : base_.atoms()) {
-        GRINGO_REPORT(log, error) << Util::p_fun([&, this](auto &out) {
-            out << "&" << atm.second.name() << "{"
-                << Util::p_range(atm.second.elems(), "; ",
-                                 [this](auto &out, auto const &elem_idx) {
-                                     auto const &[tuple, conds] = *tuples_.nth(elem_idx);
-                                     out << Util::p_range(tuple->span(), ",") << ": " << Util::p_range(conds, "|");
-                                 })
-                << "}";
-        });
+    auto &thy = out.theory();
+    std::vector<size_t> elems;
+    auto guard = OutputTheory::OptGuard{};
+    if (guard_) {
+        guard.emplace(thy.fun(guard_->first, OutputTheory::IndexSpan{}), size_t{});
     }
-    throw std::logic_error("implement me!!!");
+    for (auto const &atm : base_.atoms()) {
+        elems.clear();
+        for (auto const &elem : atm.second.elems()) {
+            auto const &[tuple, conds] = *tuples_.nth(elem);
+            elems.emplace_back(thy.elem(tuple->span(), conds));
+        }
+        if (guard_) {
+            guard->second = *atm.second.rhs();
+        }
+        thy.atm(*atm.second.uid(), atm.second.name(), elems, guard);
+    }
 }
 
 // definition of MatchTheory
@@ -279,7 +287,7 @@ auto StmTheoryElement::do_report(InstantiationContext &ctx) -> bool {
         }
         return ctx.out().cond_id();
     };
-    state_->insert_elem(ass, it, tuple_, elem_key_, get_cond);
+    state_->insert_elem(ctx, it, tuple_, elem_key_, get_cond);
     return true;
 }
 
@@ -325,7 +333,11 @@ void LitBdTheory::do_print(std::ostream &out) const {
 }
 
 auto LitBdTheory::do_output(InstantiationContext &ctx, OutputLit &out) const -> bool {
-    auto res = state_->insert_atom(name_, ctx.ass());
+    auto rhs = std::optional<size_t>{};
+    if (auto const &guard = state_->guard()) {
+        rhs.emplace(guard->second->output(ctx.store(), ctx.ass(), ctx.out().theory()));
+    }
+    auto res = state_->insert_atom(name_, rhs, ctx.ass());
     auto &atm = res.first.value();
     atm.uid(out.bd_theory(sign_, atm.uid()));
     return true;

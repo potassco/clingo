@@ -41,7 +41,7 @@ using TheoryRGuard = std::optional<std::pair<String, UTheoryTerm>>;
 class AtomTheory {
   public:
     //! Default construct the atom with an empty set of elements.
-    AtomTheory(Symbol name) : name_{name} {}
+    AtomTheory(Symbol name, std::optional<size_t> rhs) : name_{name}, rhs_{rhs ? *rhs : invalid_offset} {}
 
     //! Add a new element.
     void add_elem(size_t idx);
@@ -56,10 +56,19 @@ class AtomTheory {
     //! Get the name of the atom.
     [[nodiscard]] auto name() const -> Symbol { return name_; }
 
+    //! Get the right hand side theory term index.
+    [[nodiscard]] auto rhs() const -> std::optional<size_t> {
+        if (rhs_ != invalid_offset) {
+            return rhs_;
+        }
+        return std::nullopt;
+    }
+
   private:
     Util::small_vector<size_t> elems_;
     Symbol name_;
     size_t uid_ = invalid_offset;
+    size_t rhs_;
 };
 
 //! The base capturing theory atoms encountered during grounding.
@@ -73,7 +82,7 @@ class BaseTheory : public BaseImpl<Symbol const *, BaseTheory> {
     BaseTheory(size_t size) : atoms_{0, size, size} {}
 
     //! Add an atom.
-    auto add(Symbol const *sym, Symbol name) -> std::pair<AtomMap::iterator, bool>;
+    auto add(Symbol const *sym, Symbol name, std::optional<size_t> rhs) -> std::pair<AtomMap::iterator, bool>;
 
     //! Get the number of derived atoms.
     [[nodiscard]] auto size() const -> size_t;
@@ -105,18 +114,20 @@ class StateTheory {
 
       public:
         //! Constructor.
-        ElementKey(priv_tag tag, Assignment &ass, size_t atom_idx, VariableVec const &vars,
+        ElementKey(priv_tag tag, SymbolStore &store, Assignment &ass, OutputTheory &out, size_t atom_idx,
                    UTheoryTermVec const &terms);
         //! Prevent copying and moving.
         ElementKey(ElementKey const &other) = delete;
         //! Construct an element key evaluating the given tuple.
-        static void construct(std::pmr::monotonic_buffer_resource &mbr, Assignment &ass, size_t atom_idx,
-                              VariableVec const &vars, UTheoryTermVec const &terms, ElementKey *&target);
+        static void construct(std::pmr::monotonic_buffer_resource &mbr, SymbolStore &store, Assignment &ass,
+                              OutputTheory &out, size_t atom_idx, UTheoryTermVec const &terms, ElementKey *&target);
 
+        //! Get the terms.
+        [[nodiscard]] auto terms() const -> UTheoryTermVec const &;
         //! Get the size of the tuple.
         [[nodiscard]] auto size() const -> size_t;
         //! Get the tuple.
-        [[nodiscard]] auto span() const -> SymbolSpan;
+        [[nodiscard]] auto span() const -> std::span<size_t const>;
         //! Compute a hash for the key.
         [[nodiscard]] auto hash() const -> size_t;
         //! Compare to element keys.
@@ -125,10 +136,9 @@ class StateTheory {
       private:
         size_t n_;
         size_t atom_idx_;
-        UTheoryTermVec const *terms_;
         // NOLINTBEGIN
         GRINGO_IGNORE_ZERO_SIZED_ARRAY_B
-        Symbol syms_[0];
+        size_t syms_[0];
         GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
         // NOLINTEND
     };
@@ -141,9 +151,9 @@ class StateTheory {
           guard_{std::move(guard)} {}
 
     auto find_atom(Assignment &ass) -> AtomMap::iterator;
-    auto insert_atom(Symbol name, Assignment &ass) -> std::pair<AtomMap::iterator, bool>;
-    void insert_elem(Assignment &ass, AtomMap::iterator it, UTheoryTermVec const &tuple, ElementKey *&elem_key,
-                     auto const &get_cond);
+    auto insert_atom(Symbol name, std::optional<size_t> rhs, Assignment &ass) -> std::pair<AtomMap::iterator, bool>;
+    void insert_elem(InstantiationContext &ctx, AtomMap::iterator it, UTheoryTermVec const &tuple,
+                     ElementKey *&elem_key, auto const &get_cond);
     //! Print a debug representation of the theory atom.
     void print(std::ostream &out);
     //! Output all previously output theory atoms.
