@@ -365,6 +365,28 @@ TEST_CASE("grounder_text") {
                               "p(45,3) :- #sum { 1; 2; 3; 4; 5; 15: p(15,2); 30: p(30,2) } = 45.\n"
                               "p(60,3) :- #sum { 1; 2; 3; 4; 5; 15: p(15,2); 30: p(30,2) } = 60.\n");
     }
+    SECTION("theory") {
+        grd.parse(R"(
+            #theory t {
+              t {
+                + : 1, binary, left;
+                - : 2, unary
+              };
+              &p/0: t, {<}, t, any
+
+            }.
+            c.
+            d(1..3).
+            a :- &p { -X+1: d(X); 1: c; : c; 1 : a; : a } < 5.
+            )");
+        grd.prepare();
+        REQUIRE(grd.ground(params));
+        REQUIRE(buf.view() == "c.\n"
+                              "d(1).\n"
+                              "d(2).\n"
+                              "d(3).\n"
+                              "a :- &p { ((-1)+1); ((-2)+1); ((-3)+1); 1; 1: a; : ; : a } < 5.\n");
+    }
     SECTION("theory_rec") {
         grd.parse(R"(
             #theory t {

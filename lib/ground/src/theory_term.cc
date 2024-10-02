@@ -76,7 +76,7 @@ auto TheoryTermSymbol::do_compare_to(TheoryTerm const &other) const -> std::stro
 
 // definition of TheoryTermVariable
 
-void TheoryTermVariable::do_vars([[maybe_unused]] VariableSet &vars) const {}
+void TheoryTermVariable::do_vars([[maybe_unused]] VariableSet &vars) const { vars.emplace(var_); }
 
 void TheoryTermVariable::do_print(std::ostream &out) const { out << "X_" << var_; }
 
