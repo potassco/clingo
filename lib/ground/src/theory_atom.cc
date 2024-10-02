@@ -127,7 +127,11 @@ auto StateTheory::insert_atom(Symbol name, std::optional<size_t> rhs,
         std::construct_at(it, ass[var].value());
         it = std::next(it);
     }
-    return base_.add(atom_key_, name, rhs);
+    auto res = base_.add(atom_key_, name, rhs);
+    if (res.second) {
+        atom_key_ = nullptr;
+    }
+    return res;
 }
 
 void StateTheory::insert_elem(InstantiationContext &ctx, AtomMap::iterator it, UTheoryTermVec const &tuple,
@@ -186,7 +190,6 @@ auto MatchTheory::signature(VariableSet const &bound, [[maybe_unused]] VariableS
 }
 
 auto MatchTheory::match([[maybe_unused]] SymbolStore &store, Symbol const *sym, Assignment &ass) const -> bool {
-
     for (auto var : state_->global()) {
         if (auto &opt = ass[var]; opt) {
             if (*opt != *sym) {
