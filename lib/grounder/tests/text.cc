@@ -387,6 +387,26 @@ TEST_CASE("grounder_text") {
                               "d(3).\n"
                               "a :- &p { ((-1)+1); ((-2)+1); ((-3)+1); 1; 1: a; : ; : a } < 5.\n");
     }
+    SECTION("theory") {
+        grd.parse(R"(
+            #theory t {
+              t {
+                + : 1, binary, left;
+                - : 2, unary
+              };
+              &p/0: t, {<}, t, any
+
+            }.
+            a :- &p.
+            b :- not &p.
+            c :- not not &p.
+            )");
+        grd.prepare();
+        REQUIRE(grd.ground(params));
+        REQUIRE(buf.view() == "a :- &p.\n"
+                              "b :- not &p.\n"
+                              "c :- not not &p.\n");
+    }
     SECTION("theory_rec") {
         grd.parse(R"(
             #theory t {
