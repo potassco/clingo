@@ -18,6 +18,9 @@ class NullOutputLit : public OutputLit {
     auto do_bd_aggr([[maybe_unused]] Sign sign, [[maybe_unused]] std::optional<size_t> uid) -> size_t override {
         return 0;
     }
+    auto do_bd_theory([[maybe_unused]] Sign sign, [[maybe_unused]] std::optional<size_t> uid) -> size_t override {
+        return 0;
+    }
 };
 
 class NullOutputStm : public OutputStm {

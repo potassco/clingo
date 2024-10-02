@@ -246,19 +246,19 @@ class PrintQuoted {
 template <class F> auto p_fun(F &&fun) { return Detail::PrintFun(0, std::forward<F>(fun)); }
 
 //! Print a range with a separator.
-template <class T, class F> auto p_range(T &rng, char const *sep, F &&fun) {
+template <class T, class F> auto p_range(T const &rng, char const *sep, F &&fun) {
     using std::begin, std::end;
     return Detail::PrintRange{begin(rng), end(rng), sep, std::forward<F>(fun)};
 }
 
 //! Print a range separated by comma.
-template <class T> auto p_range(T &rng) { return p_range(rng, ",", Detail::PrintSelf{}); }
+template <class T> auto p_range(T const &rng) { return p_range(rng, ",", Detail::PrintSelf{}); }
 
 //! Print a range separated by comma.
-template <class T, class F> auto p_range(T &rng, F &&fun) { return p_range(rng, ",", std::forward<F>(fun)); }
+template <class T, class F> auto p_range(T const &rng, F &&fun) { return p_range(rng, ",", std::forward<F>(fun)); }
 
 //! Print a range with a separator.
-template <class T> auto p_range(T &rng, char const *sep) { return p_range(rng, sep, Detail::PrintSelf{}); }
+template <class T> auto p_range(T const &rng, char const *sep) { return p_range(rng, sep, Detail::PrintSelf{}); }
 
 //! Quote and print the given string.
 inline auto p_quoted(std::string_view str) { return Detail::PrintQuoted{str}; }

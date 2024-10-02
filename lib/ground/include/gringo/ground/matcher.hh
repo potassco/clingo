@@ -53,6 +53,10 @@ concept IsMatch = requires(Match const &m) {
     std::declval<std::ostream &>() << m;
 };
 
+//! Concept for evaluable expressions.
+template <class Eval>
+concept IsEval = requires(Eval const &m) { m.eval(std::declval<SymbolStore &>(), std::declval<Assignment &>()); };
+
 static constexpr auto invalid_offset = std::numeric_limits<size_t>::max();
 
 //! A matcher that matches only provides one match.
@@ -100,11 +104,10 @@ auto make_interval_matcher(std::vector<bool> const &bound, Term const &lhs, Term
 //! bound.
 auto make_comp_matcher(std::vector<bool> const &bound, Term const &lhs, Relation rel, Term const &rhs) -> UMatcher;
 
-//! Construct a matcher for facts.
+//! Construct a once matcher that also evaluates an expression.
 //!
-//! A matcher for anything that is not a fact. The evaluated match is stored in
-//! the given reference.
-template <IsMatch Match> auto make_once_matcher(Match const &match, typename Match::Key &target) -> UMatcher;
+//! The evaluated match is stored in the given reference.
+template <IsEval Expr> auto make_once_matcher(Expr const &expr, typename Expr::Key &target) -> UMatcher;
 
 //! Construct a matcher for facts.
 //!
@@ -612,8 +615,8 @@ auto make_non_fact_matcher(Base &base, Match const &match, typename Match::Key &
     return std::make_unique<Detail::NonFactMatcher<Base, Match>>(base, match, target);
 }
 
-template <IsMatch Match> auto make_once_matcher(Match const &match, typename Match::Key &target) -> UMatcher {
-    return std::make_unique<Detail::EvalMatcher<Match>>(match, target);
+template <IsEval Expr> auto make_once_matcher(Expr const &expr, typename Expr::Key &target) -> UMatcher {
+    return std::make_unique<Detail::EvalMatcher<Expr>>(expr, target);
 }
 
 //! @}

@@ -1016,28 +1016,18 @@ class BuilderBdLit {
         auto &state =
             ctx_->state<Ground::StateTheory>(ctx_->mbr(), vars_global.release(), std::move(name), std::move(guard));
 
-        // add theory elements
+        // add elements to state
+        auto stms = Ground::UStmVec{};
+        stms.reserve(elems.size());
+        for (auto &elem : elems) {
+            elem.second.emplace_back(std::make_unique<Ground::LitMatchTheory>(state));
+            stms.emplace_back(
+                std::make_unique<Ground::StmTheoryElement>(state, std::move(elem.first), std::move(elem.second)));
+        }
+        state.elems(std::move(stms));
 
-        /*
         // add theory atom
-        ctx_->body().emplace_back(std::make_unique<Ground::LitBdTheory>(
-            state, add_elems.operator()<Ground::StmBdAggrElem>(state), lit.sign()));
-
-        */
-
-        static_cast<void>(state);
-        // handle elements
-        GRINGO_REPORT_LOC(*ctx_->impl().log, error, lit.loc()) << "TODO implement grounding of " << lit << "\n"
-                                                               << "  name: " << *state.name() << "\n"
-                                                               << "  guard: " << Util::p_fun([&](auto &out) {
-                                                                      if (auto const &guard = state.guard()) {
-                                                                          out << guard->first << " " << *guard->second;
-                                                                      } else {
-                                                                          out << "none";
-                                                                      }
-                                                                      out << "\n";
-                                                                  });
-        throw std::logic_error("implement me");
+        ctx_->body().emplace_back(std::make_unique<Ground::LitBdTheory>(state, lit.sign()));
     }
 
     //! Translate body aggregates.
@@ -1427,7 +1417,16 @@ class Builder : public Input::DependencyBuilder {
                     return false;
                 }
                 for (auto &state : states) {
-                    std::visit([this](auto &state) { state.output(*impl_->out); }, state);
+                    std::visit(
+                        [this]<class State>(State &state) {
+                            // it's probably better to unify the interface
+                            if constexpr (Util::matches<State, Ground::StateTheory>) {
+                                state.output(*impl_->log, *impl_->store, *impl_->out);
+                            } else {
+                                state.output(*impl_->out);
+                            }
+                        },
+                        state);
                 }
             }
             impl_->out->flush();

@@ -141,13 +141,13 @@ class StateTheory {
           guard_{std::move(guard)} {}
 
     auto find_atom(Assignment &ass) -> AtomMap::iterator;
-    auto insert_atom(SymbolStore &store, Assignment &ass) -> std::optional<std::pair<AtomMap::iterator, bool>>;
+    auto insert_atom(Symbol name, Assignment &ass) -> std::pair<AtomMap::iterator, bool>;
     void insert_elem(Assignment &ass, AtomMap::iterator it, UTheoryTermVec const &tuple, ElementKey *&elem_key,
                      auto const &get_cond);
     //! Print a debug representation of the theory atom.
     void print(std::ostream &out);
     //! Output all previously output theory atoms.
-    void output(OutputStm &out);
+    void output(Logger &log, SymbolStore &store, OutputStm &out);
     //! Get the global variables of the theory atom.
     [[nodiscard]] auto global() const -> VariableVec const &;
     //! Get the name of the theory atom.
@@ -156,6 +156,8 @@ class StateTheory {
     [[nodiscard]] auto guard() const -> TheoryRGuard const &;
     //! Get the associated base.
     [[nodiscard]] auto base() -> BaseTheory &;
+    //! Set the theory elements.
+    void elems(UStmVec elems);
 
   private:
     BaseTheory base_;
@@ -164,6 +166,7 @@ class StateTheory {
     VariableVec global_;
     UTerm name_;
     TheoryRGuard guard_;
+    UStmVec elems_;
     Symbol *atom_key_ = nullptr;
 };
 
@@ -199,10 +202,10 @@ class MatchTheory {
     StateTheory *state_;
 };
 
-//! Literal representing an aggregate.
+//! Literal to match a theory atom.
 class LitMatchTheory : public Lit, private MatchTheory {
   public:
-    //! Construct the aggregate literal.
+    //! Construct the matcher.
     LitMatchTheory(StateTheory &state) : MatchTheory{state} {}
 
   private:
@@ -244,6 +247,32 @@ class StmTheoryElement : public Stm {
     StateTheory::ElementKey *elem_key_ = nullptr;
     UTheoryTermVec tuple_;
     ULitVec body_;
+};
+
+//! Literal to match a theory atom.
+class LitBdTheory : public Lit {
+  public:
+    //! Construct the matcher.
+    LitBdTheory(StateTheory &state, Sign sign) : state_{&state}, sign_{sign} {}
+
+  private:
+    void do_vars(VariableSet &vars, VarSelectMode mode) const override;
+    [[nodiscard]] auto do_domain() const -> bool override;
+    [[nodiscard]] auto do_single_pass() const -> bool override;
+    [[nodiscard]] auto
+    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
+    void do_print(std::ostream &out) const override;
+    auto do_output(InstantiationContext &ctx, OutputLit &out) const -> bool override;
+    [[nodiscard]] auto do_copy() const -> ULit override;
+    [[nodiscard]] auto do_hash() const -> size_t override;
+    [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
+    [[nodiscard]] auto do_compare_to(Lit const &other) const -> std::weak_ordering override;
+
+    StateTheory *state_;
+    Symbol name_;
+    Sign sign_;
 };
 
 } // namespace Gringo::Ground

@@ -47,12 +47,15 @@ class OutputLit {
     //! Outputs a previously added aggregate if uid is given or starts
     //! outputting a fresh aggregate atom.
     auto bd_aggr(Sign sign, std::optional<size_t> uid) -> size_t { return do_bd_aggr(sign, uid); }
+    //! Delayed output of a theory atom.
+    auto bd_theory(Sign sign, std::optional<size_t> uid) -> size_t { return do_bd_theory(sign, uid); }
 
   private:
     virtual void do_lit(Sign sign, Symbol sym) = 0;
     virtual void do_boolean(bool value) = 0;
     virtual auto do_cond_lit(std::optional<size_t> uid) -> size_t = 0;
     virtual auto do_bd_aggr(Sign sign, std::optional<size_t> uid) -> size_t = 0;
+    virtual auto do_bd_theory(Sign sign, std::optional<size_t> uid) -> size_t = 0;
 };
 
 //! Interface to output statements.

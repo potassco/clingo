@@ -18,6 +18,10 @@ class OutputSimple : public OutputLit {
     auto do_bd_aggr([[maybe_unused]] Sign sign, [[maybe_unused]] std::optional<size_t> uid) -> size_t override {
         throw std::runtime_error("unsupported literal");
     }
+
+    auto do_bd_theory([[maybe_unused]] Sign sign, [[maybe_unused]] std::optional<size_t> uid) -> size_t override {
+        throw std::runtime_error("unsupported literal");
+    }
 };
 
 class OutputBody : public OutputLit {
@@ -117,15 +121,7 @@ class OutputBody : public OutputLit {
         buf_ << (value ? "#true" : "#false");
     }
 
-    auto do_cond_lit(std::optional<size_t> uid) -> size_t override {
-        if (!uid) {
-            uid = ++*uids_;
-        }
-        sep();
-        delay();
-        delayed_.back().emplace_back(*uid);
-        return *uid;
-    }
+    auto do_cond_lit(std::optional<size_t> uid) -> size_t override { return do_bd_aggr(Sign::none, uid); }
 
     auto do_bd_aggr(Sign sign, std::optional<size_t> uid) -> size_t override {
         if (!uid) {
@@ -137,6 +133,8 @@ class OutputBody : public OutputLit {
         delayed_.back().emplace_back(*uid);
         return *uid;
     }
+
+    auto do_bd_theory(Sign sign, std::optional<size_t> uid) -> size_t override { return do_bd_aggr(sign, uid); }
 
     bool has_body_ = false;
     size_t *uids_;
