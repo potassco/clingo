@@ -396,6 +396,7 @@ class OutputText : public OutputStm, OutputTheory {
                     return {"(", args.size() == 1 ? ",)" : ")"};
                 }
             }
+            Util::unreachable();
         }();
         tmp_.reset() << od << Util::p_range(args, [&](auto &out, auto idx) { out << *conds_.nth(idx); }) << cd;
         return str_id_(tmp_.view());
