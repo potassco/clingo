@@ -365,7 +365,7 @@ TEST_CASE("grounder_text") {
                               "p(45,3) :- #sum { 1; 2; 3; 4; 5; 15: p(15,2); 30: p(30,2) } = 45.\n"
                               "p(60,3) :- #sum { 1; 2; 3; 4; 5; 15: p(15,2); 30: p(30,2) } = 60.\n");
     }
-    SECTION("theory") {
+    SECTION("bd_theory_elems") {
         grd.parse(R"(
             #theory t {
               t {
@@ -387,7 +387,7 @@ TEST_CASE("grounder_text") {
                               "d(3).\n"
                               "a :- &p { ((-1)+1); ((-2)+1); ((-3)+1); 1; 1: a; : ; : a } < 5.\n");
     }
-    SECTION("theory") {
+    SECTION("bd_theory_sign") {
         grd.parse(R"(
             #theory t {
               t {
@@ -407,7 +407,7 @@ TEST_CASE("grounder_text") {
                               "b :- not &p.\n"
                               "c :- not not &p.\n");
     }
-    SECTION("theory_rec") {
+    SECTION("bd_theory_rec") {
         grd.parse(R"(
             #theory t {
               t {
@@ -434,6 +434,52 @@ TEST_CASE("grounder_text") {
                               "a(1) :- &p { ((-1)+1): b(1); 1 } < 5.\n"
                               "a(2) :- &p { ((-2)+1): b(2); 2 } < 5.\n"
                               "a(3) :- &p { ((-3)+1): b(3); 3 } < 5.\n");
+    }
+    SECTION("hd_theory_elems") {
+        grd.parse(R"(
+            #theory t {
+              t {
+                + : 1, binary, left;
+                - : 2, unary
+              };
+              &p/0: t, {<}, t, any
+
+            }.
+            c.
+            d(1..3).
+            &p { -X+1: d(X); 1: c; : c } < 5.
+            )");
+        grd.prepare();
+        REQUIRE(grd.ground(params));
+        REQUIRE(buf.view() == "c.\n"
+                              "d(1).\n"
+                              "d(2).\n"
+                              "d(3).\n"
+                              "&p { ((-1)+1); ((-2)+1); ((-3)+1); 1; :  } < 5.\n");
+    }
+    SECTION("hd_theory_cond") {
+        grd.parse(R"(
+            #theory t {
+              t {
+                + : 1, binary, left;
+                - : 2, unary
+              };
+              &p/0: t, {<}, t, any
+
+            }.
+            c.
+            { a(1..3) }.
+            &p { -X+1: a(X); X: c } < 5 :- a(X).
+            )");
+        grd.prepare();
+        REQUIRE(grd.ground(params));
+        REQUIRE(buf.view() == "c.\n"
+                              "{ a(1) }.\n"
+                              "{ a(2) }.\n"
+                              "{ a(3) }.\n"
+                              "&p { ((-1)+1): a(1); 1 } < 5 :- a(1).\n"
+                              "&p { ((-2)+1): a(2); 2 } < 5 :- a(2).\n"
+                              "&p { ((-3)+1): a(3); 3 } < 5 :- a(3).\n");
     }
     store->gc();
 }
