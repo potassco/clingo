@@ -285,4 +285,24 @@ class LitBdTheory : public Lit {
     Sign sign_;
 };
 
+//! Ground a rule with a theory atom in the head.
+class StmHdTheory : public Stm {
+  public:
+    //! Construct the statement.
+    StmHdTheory(StateTheory &state, ULitVec body) : state_{&state}, body_{std::move(body)} {}
+
+  private:
+    [[nodiscard]] auto do_body() const -> ULitVec const & override;
+    [[nodiscard]] auto do_important() const -> VariableSet override;
+    void do_init([[maybe_unused]] size_t gen) override;
+    [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override;
+    void do_propagate(SymbolStore &store, Queue &queue) override;
+    [[nodiscard]] auto do_priority() const -> size_t override;
+    void do_print_head(std::ostream &out) const override;
+    void do_print(std::ostream &out) const override;
+
+    StateTheory *state_;
+    ULitVec body_;
+};
+
 } // namespace Gringo::Ground

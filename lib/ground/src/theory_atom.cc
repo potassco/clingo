@@ -359,4 +359,43 @@ auto LitBdTheory::do_equal_to(Lit const &other) const -> bool { return &other ==
 
 auto LitBdTheory::do_compare_to(Lit const &other) const -> std::weak_ordering { return &other <=> this; }
 
+// definition of StmHdTheory
+
+auto StmHdTheory::do_body() const -> ULitVec const & { return body_; }
+
+auto StmHdTheory::do_important() const -> VariableSet {
+    return VariableSet{state_->global().begin(), state_->global().end()};
+}
+
+void StmHdTheory::do_init([[maybe_unused]] size_t gen) { state_->base().update(gen); }
+
+auto StmHdTheory::do_report(InstantiationContext &ctx) -> bool {
+    if (auto name = state_->name()->eval(ctx.store(), ctx.ass())) {
+        auto &out = ctx.out().body();
+        for (auto const &lit : body_) {
+            std::ignore = lit->output(ctx, out);
+        }
+        auto rhs = std::optional<size_t>{};
+        if (auto const &guard = state_->guard()) {
+            rhs.emplace(guard->second->output(ctx.store(), ctx.ass(), ctx.out().theory()));
+        }
+        auto res = state_->insert_atom(*name, rhs, ctx.ass());
+        auto &atm = res.first.value();
+        atm.uid(ctx.out().theory_rule(atm.uid()));
+    }
+    return true;
+}
+
+void StmHdTheory::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Queue &queue) {}
+
+auto StmHdTheory::do_priority() const -> size_t { return std::numeric_limits<size_t>::max(); }
+
+void StmHdTheory::do_print_head(std::ostream &out) const { state_->print(out); }
+
+void StmHdTheory::do_print(std::ostream &out) const {
+    out << "max: ";
+    print_head(out);
+    out << " :- " << Util::p_range(body_, ", ", [](std::ostream &out, auto const &lit) { out << *lit; }) << ".";
+}
+
 } // namespace Gringo::Ground

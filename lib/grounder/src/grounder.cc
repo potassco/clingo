@@ -643,8 +643,69 @@ class BuilderHdLit {
 
     //! Translate theory atoms.
     void operator()(Input::HdLitTheoryAtom const &lit) const {
-        GRINGO_REPORT_LOC(*ctx_->impl().log, error, lit.loc()) << "TODO implement grounding of " << lit;
-        throw std::logic_error("implement me");
+        auto vars_body = Ground::VariableSet{};
+        auto vars_global = Ground::VariableSet{};
+        for (auto const &lit : ctx_->body()) {
+            lit->vars(vars_body, Ground::VarSelectMode::all);
+        }
+
+        // handle guard
+        auto guard = std::optional<std::pair<String, Ground::UTheoryTerm>>{};
+        if (auto const &rhs = lit.rhs()) {
+            guard.emplace(rhs->op(), std::visit(BuilderTheoryTerm{ctx_->var_map()}, rhs->term()));
+            guard->second->vars(vars_global);
+        }
+
+        // handle name
+        bool has_projection = false;
+        auto name = std::visit(BuilderTerm{has_projection, ctx_->var_map()}, lit.name());
+        name->vars(vars_global);
+
+        // handle elems
+        auto elems = std::vector<std::pair<Ground::UTheoryTermVec, Ground::ULitVec>>{};
+        elems.reserve(lit.elems().size());
+        for (auto const &elem : lit.elems()) {
+            elems.emplace_back();
+            auto &[tuple, cond] = elems.back();
+            auto vars = Ground::VariableSet{};
+            // tuple
+            tuple.reserve(elem.tuple().size());
+            for (auto const &term : elem.tuple()) {
+                tuple.emplace_back(std::visit(BuilderTheoryTerm{ctx_->var_map()}, term));
+                tuple.back()->vars(vars);
+            }
+            // condition
+            cond.reserve(elem.cond().size() + 1);
+            for (auto const &slit : elem.cond()) {
+                build_stratified_lit(*ctx_, slit, [&cond, &vars]<class Lit>(Lit &&glit) {
+                    glit->vars(vars, Ground::VarSelectMode::all);
+                    cond.emplace_back(std::forward<Lit>(glit));
+                });
+            }
+            // global variables
+            for (auto const &var : vars) {
+                if (vars_body.contains(var)) {
+                    vars_global.emplace(var);
+                }
+            }
+        }
+
+        // add theory state
+        auto &state =
+            ctx_->state<Ground::StateTheory>(ctx_->mbr(), vars_global.release(), std::move(name), std::move(guard));
+
+        // add elements to state
+        auto stms = Ground::UStmVec{};
+        stms.reserve(elems.size());
+        for (auto &elem : elems) {
+            elem.second.emplace_back(std::make_unique<Ground::LitMatchTheory>(state));
+            stms.emplace_back(
+                std::make_unique<Ground::StmTheoryElement>(state, std::move(elem.first), std::move(elem.second)));
+        }
+        state.elems(std::move(stms));
+
+        // add theory statement
+        ctx_->gcomp().add(std::make_unique<Ground::StmHdTheory>(state, std::move(ctx_->body())));
     }
 
     //! Translate disjunctions.

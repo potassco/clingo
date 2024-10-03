@@ -218,6 +218,8 @@ class OutputText : public OutputStm, OutputTheory {
 
     auto do_aggr_rule(std::optional<size_t> uid) -> size_t override { return body_.delay_head(uid, " :- "); }
 
+    auto do_theory_rule(std::optional<size_t> uid) -> size_t override { return body_.delay_head(uid, " :- "); }
+
     auto do_disjunctive_rule(std::optional<size_t> uid) -> size_t override { return body_.delay_head(uid, " :- "); }
 
     auto do_cond() -> OutputLit & override {

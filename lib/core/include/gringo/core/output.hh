@@ -115,6 +115,8 @@ class OutputStm {
     void rule(std::optional<std::pair<Symbol, bool>> head) { do_rule(head); }
     //! Output a head aggregate rule.
     auto aggr_rule(std::optional<size_t> uid) -> size_t { return do_aggr_rule(uid); }
+    //! Output a theory atom rule.
+    auto theory_rule(std::optional<size_t> uid) -> size_t { return do_theory_rule(uid); }
     //! Output a head aggregate rule.
     auto disjunctive_rule(std::optional<size_t> uid) -> size_t { return do_disjunctive_rule(uid); }
 
@@ -158,6 +160,7 @@ class OutputStm {
     virtual auto do_body() -> OutputLit & = 0;
     virtual void do_rule(std::optional<std::pair<Symbol, bool>> head) = 0;
     virtual auto do_aggr_rule(std::optional<size_t> uid) -> size_t = 0;
+    virtual auto do_theory_rule(std::optional<size_t> uid) -> size_t = 0;
     virtual auto do_disjunctive_rule(std::optional<size_t> uid) -> size_t = 0;
 
     virtual auto do_cond() -> OutputLit & = 0;
