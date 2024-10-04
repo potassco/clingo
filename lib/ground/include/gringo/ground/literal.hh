@@ -374,6 +374,12 @@ class LitFailCheck : public Lit {
     UTermVec terms_;
 };
 
+//! A vector of signatures, bases, and indices.
+//!
+//! Whenever a base has an update, its indices have to be propagated. The base
+//! is identified by the signature and the vector sorted by this signature.
+using BaseVec = std::vector<std::tuple<std::tuple<String, size_t, bool>, Base *, std::vector<size_t>>>;
+
 //! @}
 
 } // namespace Gringo::Ground

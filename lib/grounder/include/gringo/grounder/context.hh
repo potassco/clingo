@@ -1,10 +1,17 @@
 #pragma once
 
+#include <gringo/grounder/term.hh>
+
+#include <gringo/input/literal.hh>
 #include <gringo/input/program.hh>
 #include <gringo/input/term.hh>
 
 #include <gringo/ground/base.hh>
 #include <gringo/ground/program.hh>
+
+#include <gringo/input/rewrite/analyze.hh>
+
+#include <gringo/util/type_traits.hh>
 
 namespace Gringo::Grounder {
 
@@ -22,7 +29,7 @@ class BaseHelper {
     BaseHelper(BaseMap &atom_base, BaseMap &aux_base, ProjectMap &project_base)
         : atom_base_{&atom_base}, aux_base_{&aux_base}, project_base_{&project_base} {}
 
-    auto add_base(std::tuple<String, size_t, bool> sig) -> BaseMap::iterator {
+    [[nodiscard]] auto add_base(std::tuple<String, size_t, bool> sig) -> BaseMap::iterator {
         auto aux = std::get<0>(sig).starts_with("#");
         auto dom_it = (aux ? aux_base_ : atom_base_)->try_emplace(std::move(sig), nullptr).first;
         if (dom_it->second == nullptr) {
@@ -32,8 +39,8 @@ class BaseHelper {
     }
 
     //! Add a base for the given projection.
-    auto add_project(SymbolStore &store, Ground::UTerm const &term,
-                     Ground::Base &base) -> std::pair<Ground::UTerm, Ground::LitProject::State *> {
+    [[nodiscard]] auto add_project(SymbolStore &store, Ground::UTerm const &term,
+                                   Ground::Base &base) -> std::pair<Ground::UTerm, Ground::LitProject::State *> {
         size_t vars = 0;
         auto [it, ins] =
             project_base_->try_emplace(term->rename(store, Ground::RenameMode::rename_vars, nullptr, &vars));
@@ -137,6 +144,39 @@ class BuildContext {
 
     //! Increment the priority and return its previous value.
     auto inc_priority() -> size_t { return priority++; }
+
+    [[nodiscard]] auto simple_lit(Input::Lit const &lit) -> Ground::AtomSimple {
+        auto res = Ground::AtomSimple{};
+        with_simple_lit(lit, [&res]([[maybe_unused]] auto sig, auto term, auto &base, auto provides) {
+            res.emplace(std::make_tuple(std::move(term), std::ref(base), std::move(provides)));
+        });
+        return res;
+    }
+
+    template <class F> void with_simple_lit(Input::Lit const &lit, F fun) {
+        std::visit(
+            [&]<class T>(T const &lit) {
+                if constexpr (Util::matches<T, Input::LitSymbolic>) {
+                    auto provides = std::vector<size_t>{};
+                    auto sig = *signature(lit.term());
+                    auto dom_it = add_base(sig);
+                    auto &base = *dom_it->second;
+                    assert(lit.sign() == Sign::none);
+                    if (auto it = def_map_->find(&lit.term()); it != def_map_->end()) {
+                        provides = it->second;
+                    }
+                    auto term = build_term(*var_map_, lit.term());
+                    fun(sig, std::move(term), base, std::move(provides));
+                    return;
+                } else if constexpr (Util::matches<T, Input::LitBool>) {
+                    if (!lit.value()) {
+                        return;
+                    }
+                }
+                throw std::runtime_error("unexpected literal in rule head");
+            },
+            lit);
+    }
 
   private:
     std::pmr::monotonic_buffer_resource *mbr_;

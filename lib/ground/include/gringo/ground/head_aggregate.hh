@@ -122,12 +122,6 @@ class BaseHdAggr : public BaseImpl<Symbol const *, BaseHdAggr> {
     AtomMap atoms_;
 };
 
-//! A vector of signatures, bases, and indices.
-//!
-//! Whenever a base has an update, its indices have to be propagated. The base
-//! is identified by the signature and the vector sorted by this signature.
-using HdAggrBaseVec = std::vector<std::tuple<std::tuple<String, size_t, bool>, Base *, std::vector<size_t>>>;
-
 //! State storing all necessary information to ground head aggregates.
 class StateHdAggr : public State {
   public:
@@ -183,7 +177,7 @@ class StateHdAggr : public State {
     using ElementMap = Util::ordered_map<ElementKey *, Util::small_vector<std::pair<Symbol, size_t>, 1>>;
 
     //! Initialize an aggregate state.
-    StateHdAggr(std::pmr::monotonic_buffer_resource &mbr, HdAggrBaseVec bases, VariableVec global, GuardVec guards,
+    StateHdAggr(std::pmr::monotonic_buffer_resource &mbr, BaseVec bases, VariableVec global, GuardVec guards,
                 AggregateFunction fun, size_t index, bool single_pass_body)
         : base_{global.size()}, global_{std::move(global)}, guards_{std::move(guards)}, bases_{std::move(bases)},
           mbr_{&mbr}, index_{index}, fun_{fun}, single_pass_body_{single_pass_body} {}
@@ -242,7 +236,7 @@ class StateHdAggr : public State {
     VariableVec global_;
     SymbolVec symbols_;
     GuardVec guards_;
-    HdAggrBaseVec bases_;
+    BaseVec bases_;
     std::vector<size_t> queue_;
     std::pmr::monotonic_buffer_resource *mbr_;
     AtomKey *atom_key_ = nullptr;
