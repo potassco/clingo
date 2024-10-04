@@ -6,9 +6,6 @@
 #include <gringo/grounder/parse.hh>
 #include <gringo/grounder/theory.hh>
 
-#include <gringo/ground/assignment_aggregate.hh>
-#include <gringo/ground/body_aggregate.hh>
-#include <gringo/ground/head_aggregate.hh>
 #include <gringo/ground/program.hh>
 
 #include <gringo/input/print.hh>

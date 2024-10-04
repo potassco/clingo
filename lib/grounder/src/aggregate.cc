@@ -7,25 +7,36 @@
 
 namespace Gringo::Grounder {
 
-void build_hd_lit(BuildContext &ctx, Input::HdLitAggregate const &lit) {
+namespace {
+
+auto init_vars(BuildContext &ctx) {
     auto vars_body = Ground::VariableSet{};
     for (auto const &lit : ctx.body()) {
         lit->vars(vars_body, Ground::VarSelectMode::all);
     }
+    return vars_body;
+}
 
-    auto vars_global = Ground::VariableSet{};
-
-    // handle guards
+auto init_guards(BuildContext &ctx, Ground::VariableSet &vars_global, auto &lit) {
     auto guards = Ground::GuardVec{};
     guards.reserve((lit.lhs() ? 1 : 0) + (lit.rhs() ? 1 : 0));
-    if (lit.lhs()) {
-        guards.emplace_back(flip(lit.lhs()->second), build_term(ctx.var_map(), lit.lhs()->first));
+    if (auto const &lhs = lit.lhs()) {
+        guards.emplace_back(flip(lhs->second), build_term(ctx.var_map(), lhs->first));
         guards.back().second->vars(vars_global);
     }
-    if (lit.rhs()) {
-        guards.emplace_back(lit.rhs()->first, build_term(ctx.var_map(), lit.rhs()->second));
+    if (auto const &rhs = lit.rhs()) {
+        guards.emplace_back(rhs->first, build_term(ctx.var_map(), rhs->second));
         guards.back().second->vars(vars_global);
     }
+    return guards;
+}
+
+} // namespace
+
+void build_hd_lit(BuildContext &ctx, Input::HdLitAggregate const &lit) {
+    auto vars_global = Ground::VariableSet{};
+    auto vars_body = init_vars(ctx);
+    auto guards = init_guards(ctx, vars_global, lit);
 
     if (guards.empty()) {
         size_t n = lit.elems().size();
@@ -157,24 +168,10 @@ void build_hd_lit(BuildContext &ctx, Input::HdLitAggregate const &lit) {
 }
 
 void build_bd_lit(BuildContext &ctx, Input::BdLitAggregate const &lit) {
-    auto vars_body = Ground::VariableSet{};
-    for (auto const &lit : ctx.body()) {
-        lit->vars(vars_body, Ground::VarSelectMode::all);
-    }
-
     auto vars_global = Ground::VariableSet{};
+    auto vars_body = init_vars(ctx);
+    auto guards = init_guards(ctx, vars_global, lit);
 
-    // handle guards
-    auto guards = Ground::GuardVec{};
-    guards.reserve((lit.lhs() ? 1 : 0) + (lit.rhs() ? 1 : 0));
-    if (lit.lhs()) {
-        guards.emplace_back(flip(lit.lhs()->second), build_term(ctx.var_map(), lit.lhs()->first));
-        guards.back().second->vars(vars_global);
-    }
-    if (lit.rhs()) {
-        guards.emplace_back(lit.rhs()->first, build_term(ctx.var_map(), lit.rhs()->second));
-        guards.back().second->vars(vars_global);
-    }
     // check for assignment aggregates
     auto assign = !std::all_of(vars_global.begin(), vars_global.end(),
                                [&vars_body](auto const &var) { return vars_body.contains(var); });
