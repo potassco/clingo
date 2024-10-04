@@ -2,6 +2,7 @@ add_library(gringo_grounder
     "src/grounder.cc"
     "src/theory.cc"
     "src/condlit.cc"
+    "src/aggregate.cc"
     "src/term.cc")
 
 target_link_libraries(gringo_grounder PUBLIC gringo_input gringo_ground gringo_output)
