@@ -1,5 +1,7 @@
 #pragma once
 
+#include <gringo/grounder/term.hh>
+
 #include <gringo/input/literal.hh>
 
 #include <gringo/ground/literal.hh>
@@ -7,11 +9,12 @@
 #include <gringo/input/print.hh>
 
 #include "context.hh"
-#include "term_builder.hh"
 
 #include <sstream>
 
 namespace Gringo::Grounder {
+
+namespace Detail {
 
 //! Translate input literals to their ground representation.
 //!
@@ -30,22 +33,20 @@ template <class F, bool stratify = false> class BuilderLit {
     //!
     //! @todo: External functions have not yet been implemented.
     void operator()(Input::LitComparison const &lit) const {
-        auto has_projection = false;
-        auto bld_term = BuilderTerm{has_projection, ctx_->var_map()};
         if (Input::is_interval(lit.rhs().front().second)) {
-            auto lhs = std::visit(bld_term, lit.lhs());
+            auto lhs = build_term(ctx_->var_map(), lit.lhs());
             auto const &rng = std::get<Input::TermBinary>(lit.rhs().front().second);
-            auto lower = std::visit(bld_term, *rng.lhs());
-            auto upper = std::visit(bld_term, *rng.rhs());
+            auto lower = build_term(ctx_->var_map(), *rng.lhs());
+            auto upper = build_term(ctx_->var_map(), *rng.rhs());
             cb_(std::make_unique<Ground::LitInterval>(std::move(lhs), std::move(lower), std::move(upper)));
         } else if (Input::is_external(lit.rhs().front().second)) {
             std::ostringstream oss;
             oss << "implement me: handle external function call " << lit;
             throw std::logic_error(oss.str());
         } else {
-            auto add_cmp = [this, &bld_term](auto const &lhs, auto rel, auto const &rhs) {
-                auto l = std::visit(bld_term, lhs);
-                auto r = std::visit(bld_term, rhs);
+            auto add_cmp = [this](auto const &lhs, auto rel, auto const &rhs) {
+                auto l = build_term(ctx_->var_map(), lhs);
+                auto r = build_term(ctx_->var_map(), rhs);
                 cb_(std::make_unique<Ground::LitComparison>(std::move(l), rel, std::move(r)));
             };
             auto const &lhs = lit.lhs();
@@ -60,8 +61,7 @@ template <class F, bool stratify = false> class BuilderLit {
     //! Translate symbolic literals.
     void operator()(Input::LitSymbolic const &lit) const {
         auto has_projection = false;
-        auto bld_term = BuilderTerm{has_projection, ctx_->var_map()};
-        auto term = std::visit(bld_term, lit.term());
+        auto term = build_term(ctx_->var_map(), lit.term(), has_projection);
         auto idx = stratify && lit.sign() == Sign::none ? Ground::stratified_index : ctx_->index(lit);
         // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
         auto dom_it = ctx_->add_base(Input::signature(lit.term()).value());
@@ -80,12 +80,20 @@ template <class F, bool stratify = false> class BuilderLit {
     BuildContext *ctx_;
 };
 
+} // namespace Detail
+
+//! Translate input literals to their ground representation.
+//!
+//! Assumes that literals have been rewritten.
 template <class F> void build_lit(BuildContext &ctx, Input::Lit const &lit, F &&fun) {
-    std::visit(BuilderLit{ctx, std::forward<F>(fun)}, lit);
+    std::visit(Detail::BuilderLit{ctx, std::forward<F>(fun)}, lit);
 }
 
+//! Translate input literals to their ground representation.
+//!
+//! Assumes that literals have been rewritten.
 template <class F> void build_stratified_lit(BuildContext &ctx, Input::Lit const &lit, F &&fun) {
-    std::visit(BuilderLit<std::decay_t<F>, true>{ctx, std::forward<F>(fun)}, lit);
+    std::visit(Detail::BuilderLit<std::decay_t<F>, true>{ctx, std::forward<F>(fun)}, lit);
 }
 
 } // namespace Gringo::Grounder

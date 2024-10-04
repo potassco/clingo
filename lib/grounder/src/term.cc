@@ -1,16 +1,12 @@
-#pragma once
-
-#include <gringo/ground/term.hh>
-#include <gringo/ground/theory_term.hh>
-
-#include <gringo/input/term.hh>
-#include <gringo/input/theory.hh>
+#include <gringo/grounder/term.hh>
 
 #include <gringo/input/rewrite/analyze.hh>
 
 #include <gringo/util/type_traits.hh>
 
 namespace Gringo::Grounder {
+
+namespace {
 
 //! Maps a binary input operator to the corresponding ground one.
 //!
@@ -184,5 +180,19 @@ class BuilderTheoryTerm {
   private:
     Util::unordered_map<String, size_t> const *var_map_;
 };
+
+} // namespace
+
+//! Translates input theory terms to their ground representation.
+auto build_term(Util::unordered_map<String, size_t> const &var_map, Input::Term const &term,
+                bool &has_projection) -> Ground::UTerm {
+    return std::visit(BuilderTerm{has_projection, var_map}, term);
+}
+
+//! Translates input theory terms to their ground representation.
+auto build_theory_term(Util::unordered_map<String, size_t> const &var_map,
+                       Input::TheoryTerm const &term) -> Ground::UTheoryTerm {
+    return std::visit(BuilderTheoryTerm{var_map}, term);
+}
 
 } // namespace Gringo::Grounder

@@ -23,7 +23,6 @@
 #include "context.hh"
 #include "lit_builder.hh"
 #include "parse_helper.hh"
-#include "term_builder.hh"
 
 #ifdef PARSER_PROFILE
 #include <gperftools/profiler.h>
@@ -138,13 +137,12 @@ class BuilderHdLit {
         // handle guard
         auto guard = std::optional<std::pair<String, Ground::UTheoryTerm>>{};
         if (auto const &rhs = lit.rhs()) {
-            guard.emplace(rhs->op(), std::visit(BuilderTheoryTerm{ctx_->var_map()}, rhs->term()));
+            guard.emplace(rhs->op(), build_theory_term(ctx_->var_map(), rhs->term()));
             guard->second->vars(vars_global);
         }
 
         // handle name
-        bool has_projection = false;
-        auto name = std::visit(BuilderTerm{has_projection, ctx_->var_map()}, lit.name());
+        auto name = build_term(ctx_->var_map(), lit.name());
         name->vars(vars_global);
 
         // handle elems
@@ -157,7 +155,7 @@ class BuilderHdLit {
             // tuple
             tuple.reserve(elem.tuple().size());
             for (auto const &term : elem.tuple()) {
-                tuple.emplace_back(std::visit(BuilderTheoryTerm{ctx_->var_map()}, term));
+                tuple.emplace_back(build_theory_term(ctx_->var_map(), term));
                 tuple.back()->vars(vars);
             }
             // condition
@@ -290,15 +288,11 @@ class BuilderHdLit {
         auto guards = Ground::GuardVec{};
         guards.reserve((lit.lhs() ? 1 : 0) + (lit.rhs() ? 1 : 0));
         if (lit.lhs()) {
-            bool has_projection = false;
-            guards.emplace_back(flip(lit.lhs()->second),
-                                std::visit(BuilderTerm{has_projection, ctx_->var_map()}, lit.lhs()->first));
+            guards.emplace_back(flip(lit.lhs()->second), build_term(ctx_->var_map(), lit.lhs()->first));
             guards.back().second->vars(vars_global);
         }
         if (lit.rhs()) {
-            bool has_projection = false;
-            guards.emplace_back(lit.rhs()->first,
-                                std::visit(BuilderTerm{has_projection, ctx_->var_map()}, lit.rhs()->second));
+            guards.emplace_back(lit.rhs()->first, build_term(ctx_->var_map(), lit.rhs()->second));
             guards.back().second->vars(vars_global);
         }
 
@@ -334,11 +328,9 @@ class BuilderHdLit {
                 }
                 // fail check
                 if (!can_fail.empty()) {
-                    auto has_projection = false;
-                    auto bld_term = BuilderTerm{has_projection, ctx_->var_map()};
                     Ground::UTermVec terms;
                     for (auto const &term : can_fail) {
-                        terms.emplace_back(std::visit(bld_term, term));
+                        terms.emplace_back(build_term(ctx_->var_map(), term));
                     }
                     body.emplace_back(std::make_unique<Ground::LitFailCheck>(std::move(terms)));
                 }
@@ -365,8 +357,7 @@ class BuilderHdLit {
                 tuple.reserve(elem.tuple().size());
             }
             for (auto const &term : elem.tuple()) {
-                bool has_projection = false;
-                tuple.emplace_back(std::visit(BuilderTerm{has_projection, ctx_->var_map()}, term));
+                tuple.emplace_back(build_term(ctx_->var_map(), term));
                 tuple.back()->vars(elem_vars);
             }
             pos = pos && std::visit(
@@ -465,9 +456,7 @@ class BuilderHdLit {
                     if (auto it = ctx_->def_map().find(&lit.term()); it != ctx_->def_map().end()) {
                         provides = it->second;
                     }
-                    auto has_projection = false;
-                    auto term = std::visit(BuilderTerm{has_projection, ctx_->var_map()}, lit.term());
-                    assert(!has_projection);
+                    auto term = build_term(ctx_->var_map(), lit.term());
                     fun(sig, std::move(term), base, std::move(provides));
                     return;
                 } else if constexpr (Util::matches<T, Input::LitBool>) {
@@ -521,13 +510,12 @@ class BuilderBdLit {
         // handle guard
         auto guard = std::optional<std::pair<String, Ground::UTheoryTerm>>{};
         if (auto const &rhs = lit.rhs()) {
-            guard.emplace(rhs->op(), std::visit(BuilderTheoryTerm{ctx_->var_map()}, rhs->term()));
+            guard.emplace(rhs->op(), build_theory_term(ctx_->var_map(), rhs->term()));
             guard->second->vars(vars_global);
         }
 
         // handle name
-        bool has_projection = false;
-        auto name = std::visit(BuilderTerm{has_projection, ctx_->var_map()}, lit.name());
+        auto name = build_term(ctx_->var_map(), lit.name());
         name->vars(vars_global);
 
         // handle elems
@@ -540,7 +528,7 @@ class BuilderBdLit {
             // tuple
             tuple.reserve(elem.tuple().size());
             for (auto const &term : elem.tuple()) {
-                tuple.emplace_back(std::visit(BuilderTheoryTerm{ctx_->var_map()}, term));
+                tuple.emplace_back(build_theory_term(ctx_->var_map(), term));
                 tuple.back()->vars(vars);
             }
             // condition
@@ -590,15 +578,11 @@ class BuilderBdLit {
         auto guards = Ground::GuardVec{};
         guards.reserve((lit.lhs() ? 1 : 0) + (lit.rhs() ? 1 : 0));
         if (lit.lhs()) {
-            bool has_projection = false;
-            guards.emplace_back(flip(lit.lhs()->second),
-                                std::visit(BuilderTerm{has_projection, ctx_->var_map()}, lit.lhs()->first));
+            guards.emplace_back(flip(lit.lhs()->second), build_term(ctx_->var_map(), lit.lhs()->first));
             guards.back().second->vars(vars_global);
         }
         if (lit.rhs()) {
-            bool has_projection = false;
-            guards.emplace_back(lit.rhs()->first,
-                                std::visit(BuilderTerm{has_projection, ctx_->var_map()}, lit.rhs()->second));
+            guards.emplace_back(lit.rhs()->first, build_term(ctx_->var_map(), lit.rhs()->second));
             guards.back().second->vars(vars_global);
         }
         // check for assignment aggregates
@@ -625,8 +609,7 @@ class BuilderBdLit {
                 tuple.reserve(elem.tuple().size());
             }
             for (auto const &term : elem.tuple()) {
-                bool has_projection = false;
-                tuple.emplace_back(std::visit(BuilderTerm{has_projection, ctx_->var_map()}, term));
+                tuple.emplace_back(build_term(ctx_->var_map(), term));
                 tuple.back()->vars(elem_vars);
             }
             pos = pos && std::visit(

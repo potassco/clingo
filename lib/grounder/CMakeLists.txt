@@ -1,5 +1,6 @@
 add_library(gringo_grounder
-    "src/grounder.cc")
+    "src/grounder.cc"
+    "src/term.cc")
 
 target_link_libraries(gringo_grounder PUBLIC gringo_input gringo_ground gringo_output)
 target_include_directories(gringo_grounder PUBLIC "include")
