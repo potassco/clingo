@@ -382,7 +382,7 @@ class BuilderHdLit {
         std::visit(
             [&]<class T>(T const &lit) {
                 if constexpr (Util::matches<T, Input::LitSymbolic>) {
-                    std::vector<size_t> provides;
+                    auto provides = std::vector<size_t>{};
                     auto sig = *signature(lit.term());
                     auto dom_it = ctx_->add_base(sig);
                     auto &base = *dom_it->second;
@@ -442,7 +442,7 @@ class BuilderBdLit {
             guards.back().second->vars(vars_global);
         }
         // check for assignment aggregates
-        bool assign = !std::all_of(vars_global.begin(), vars_global.end(),
+        auto assign = !std::all_of(vars_global.begin(), vars_global.end(),
                                    [&vars_body](auto const &var) { return vars_body.contains(var); });
 
         if (assign) {
@@ -573,7 +573,7 @@ class BuilderBdLit {
                 auto body = create_body(ctx_->body().size() + state.guards().size());
                 auto neutral = neutral_val(fun);
                 // detect if accumulation rule for empty case is necessary
-                bool add_neutral = true;
+                auto add_neutral = true;
                 for (auto const &guard : state.guards()) {
                     if (auto const *rhs = dynamic_cast<Ground::TermSymbol const *>(guard.second.get());
                         rhs != nullptr) {
@@ -610,7 +610,7 @@ class BuilderBdLit {
         auto sp_premise = test(ctx_->type(), Input::ComponentType::single_pass) ||
                           std::all_of(lit.cond().begin(), lit.cond().end(),
                                       [this](auto const &lit) { return ctx_->single_pass(lit); });
-        bool sp_conclusion = ctx_->single_pass(lit.lit());
+        auto sp_conclusion = ctx_->single_pass(lit.lit());
 
         auto empty_index = Ground::stratified_index;
         auto premise_index = Ground::stratified_index;
@@ -810,7 +810,7 @@ class Builder : public Input::DependencyBuilder {
                             var_map.try_emplace(var, var_map.size());
                         },
                         Input::VariableContext::all);
-                    Ground::ULitVec body;
+                    auto body = Ground::ULitVec{};
                     auto def_map = Util::unordered_map<Input::Term const *, std::vector<size_t>>{};
                     auto i = size_t{0};
                     for (auto const &[bd, hds] : ref_comp.incomplete) {
