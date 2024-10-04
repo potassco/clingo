@@ -2,6 +2,7 @@
 #include <gringo/grounder/grounder.hh>
 #include <gringo/grounder/literal.hh>
 #include <gringo/grounder/parse.hh>
+#include <gringo/grounder/theory.hh>
 
 #include <gringo/ground/assignment_aggregate.hh>
 #include <gringo/ground/body_aggregate.hh>
@@ -9,12 +10,9 @@
 #include <gringo/ground/disjunction.hh>
 #include <gringo/ground/head_aggregate.hh>
 #include <gringo/ground/program.hh>
-#include <gringo/ground/theory_atom.hh>
 
-#include <gringo/input/parser.hh>
 #include <gringo/input/print.hh>
 
-#include <gringo/input/rewrite/analyze.hh>
 #include <gringo/input/rewrite/evaluate.hh>
 #include <gringo/input/rewrite/unpool_relations.hh>
 #include <gringo/input/rewrite/visit_variables.hh>
@@ -126,70 +124,7 @@ class BuilderHdLit {
     }
 
     //! Translate theory atoms.
-    void operator()(Input::HdLitTheoryAtom const &lit) const {
-        auto vars_body = Ground::VariableSet{};
-        auto vars_global = Ground::VariableSet{};
-        for (auto const &lit : ctx_->body()) {
-            lit->vars(vars_body, Ground::VarSelectMode::all);
-        }
-
-        // handle guard
-        auto guard = std::optional<std::pair<String, Ground::UTheoryTerm>>{};
-        if (auto const &rhs = lit.rhs()) {
-            guard.emplace(rhs->op(), build_theory_term(ctx_->var_map(), rhs->term()));
-            guard->second->vars(vars_global);
-        }
-
-        // handle name
-        auto name = build_term(ctx_->var_map(), lit.name());
-        name->vars(vars_global);
-
-        // handle elems
-        auto elems = std::vector<std::pair<Ground::UTheoryTermVec, Ground::ULitVec>>{};
-        elems.reserve(lit.elems().size());
-        for (auto const &elem : lit.elems()) {
-            elems.emplace_back();
-            auto &[tuple, cond] = elems.back();
-            auto vars = Ground::VariableSet{};
-            // tuple
-            tuple.reserve(elem.tuple().size());
-            for (auto const &term : elem.tuple()) {
-                tuple.emplace_back(build_theory_term(ctx_->var_map(), term));
-                tuple.back()->vars(vars);
-            }
-            // condition
-            cond.reserve(elem.cond().size() + 1);
-            for (auto const &slit : elem.cond()) {
-                build_stratified_lit(*ctx_, slit, [&cond, &vars]<class Lit>(Lit &&glit) {
-                    glit->vars(vars, Ground::VarSelectMode::all);
-                    cond.emplace_back(std::forward<Lit>(glit));
-                });
-            }
-            // global variables
-            for (auto const &var : vars) {
-                if (vars_body.contains(var)) {
-                    vars_global.emplace(var);
-                }
-            }
-        }
-
-        // add theory state
-        auto &state =
-            ctx_->state<Ground::StateTheory>(ctx_->mbr(), vars_global.release(), std::move(name), std::move(guard));
-
-        // add elements to state
-        auto stms = Ground::UStmVec{};
-        stms.reserve(elems.size());
-        for (auto &elem : elems) {
-            elem.second.emplace_back(std::make_unique<Ground::LitMatchTheory>(state));
-            stms.emplace_back(
-                std::make_unique<Ground::StmTheoryElement>(state, std::move(elem.first), std::move(elem.second)));
-        }
-        state.elems(std::move(stms));
-
-        // add theory statement
-        ctx_->gcomp().add(std::make_unique<Ground::StmHdTheory>(state, std::move(ctx_->body())));
-    }
+    void operator()(Input::HdLitTheoryAtom const &lit) const { build_hd_lit(*ctx_, lit); }
 
     //! Translate disjunctions.
     void operator()(Input::HdLitDisjunction const &lit) const {
@@ -484,85 +419,7 @@ class BuilderBdLit {
     }
 
     //! Translate theory atoms.
-    void operator()(Input::BdLitTheoryAtom const &lit) const {
-        // H :- B, &pred { E1; ...; En }.
-        // - theory atoms always match
-        // - there is no need to apply seminaive evaluation to conditions
-        // - elements can be grounded just before output
-        // - the theory atom T always matches
-        //     H :- B, T.
-        // - when the atom is output
-        //     accu :- T, E1.
-        //     ...
-        //     accu :- T, En.
-        // - problems:
-        //   - linearization of E1 has to be avoided
-        //   - positive literals would have to be marked as single pass
-        //   - negative literals must stay multi pass
-        //
-        auto vars_body = Ground::VariableSet{};
-        auto vars_global = Ground::VariableSet{};
-        for (auto const &lit : ctx_->body()) {
-            lit->vars(vars_body, Ground::VarSelectMode::all);
-        }
-
-        // handle guard
-        auto guard = std::optional<std::pair<String, Ground::UTheoryTerm>>{};
-        if (auto const &rhs = lit.rhs()) {
-            guard.emplace(rhs->op(), build_theory_term(ctx_->var_map(), rhs->term()));
-            guard->second->vars(vars_global);
-        }
-
-        // handle name
-        auto name = build_term(ctx_->var_map(), lit.name());
-        name->vars(vars_global);
-
-        // handle elems
-        auto elems = std::vector<std::pair<Ground::UTheoryTermVec, Ground::ULitVec>>{};
-        elems.reserve(lit.elems().size());
-        for (auto const &elem : lit.elems()) {
-            elems.emplace_back();
-            auto &[tuple, cond] = elems.back();
-            auto vars = Ground::VariableSet{};
-            // tuple
-            tuple.reserve(elem.tuple().size());
-            for (auto const &term : elem.tuple()) {
-                tuple.emplace_back(build_theory_term(ctx_->var_map(), term));
-                tuple.back()->vars(vars);
-            }
-            // condition
-            cond.reserve(elem.cond().size() + 1);
-            for (auto const &slit : elem.cond()) {
-                build_stratified_lit(*ctx_, slit, [&cond, &vars]<class Lit>(Lit &&glit) {
-                    glit->vars(vars, Ground::VarSelectMode::all);
-                    cond.emplace_back(std::forward<Lit>(glit));
-                });
-            }
-            // global variables
-            for (auto const &var : vars) {
-                if (vars_body.contains(var)) {
-                    vars_global.emplace(var);
-                }
-            }
-        }
-
-        // add theory state
-        auto &state =
-            ctx_->state<Ground::StateTheory>(ctx_->mbr(), vars_global.release(), std::move(name), std::move(guard));
-
-        // add elements to state
-        auto stms = Ground::UStmVec{};
-        stms.reserve(elems.size());
-        for (auto &elem : elems) {
-            elem.second.emplace_back(std::make_unique<Ground::LitMatchTheory>(state));
-            stms.emplace_back(
-                std::make_unique<Ground::StmTheoryElement>(state, std::move(elem.first), std::move(elem.second)));
-        }
-        state.elems(std::move(stms));
-
-        // add theory atom
-        ctx_->body().emplace_back(std::make_unique<Ground::LitBdTheory>(state, lit.sign()));
-    }
+    void operator()(Input::BdLitTheoryAtom const &lit) const { build_bd_lit(*ctx_, lit); }
 
     //! Translate body aggregates.
     void operator()(Input::BdLitAggregate const &lit) const {
