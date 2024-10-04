@@ -1,10 +1,6 @@
-#include <gringo/grounder/aggregate.hh>
-#include <gringo/grounder/condlit.hh>
-#include <gringo/grounder/context.hh>
 #include <gringo/grounder/grounder.hh>
-#include <gringo/grounder/literal.hh>
 #include <gringo/grounder/parse.hh>
-#include <gringo/grounder/theory.hh>
+#include <gringo/grounder/statement.hh>
 
 #include <gringo/ground/program.hh>
 
@@ -25,8 +21,10 @@
 
 namespace Gringo::Grounder {
 
-#ifdef PARSER_PROFILE
 namespace {
+
+#ifdef PARSER_PROFILE
+
 //! Simple profiler to restrict profiling to selected scopes.
 class Profiler {
   public:
@@ -35,144 +33,8 @@ class Profiler {
     //! Stop profiling.
     ~Profiler() { ProfilerStop(); }
 };
-} // namespace
+
 #endif
-
-//! The actual grounder implementation.
-struct Grounder::Impl : Gringo::SymbolOwner {
-
-    //! Construct the grounder implementation.
-    Impl(Logger &log, SymbolStore &store, Input::RewriteOptions opts, OutputStm &out)
-        : log{&log}, store{&store}, prg{opts}, out{&out} {
-        this->store->gc_add_owner(*this);
-    }
-    //! Destroy the grounder implementation.
-    //!
-    //! This also releases all symbols held.
-    ~Impl() override { store->gc_del_owner(*this); }
-
-    //! Mark symbols held by the grounder protecting them from garbage collection.
-    void mark(SymbolCollector &gc) const override {
-        GRINGO_REPORT(*log, trace) << "mark owners";
-        for (auto const &[key, base] : atom_base) {
-            GRINGO_REPORT(*log, trace) << "  mark domain: " << (std::get<2>(key) ? "-" : "") << std::get<0>(key) << "/"
-                                       << std::get<1>(key);
-            gc.mark(std::get<0>(key));
-            base->mark(gc);
-        }
-        for (auto const &[key, state] : project_base) {
-            GRINGO_REPORT(*log, trace) << "  mark projection domain: " << *key;
-            state->p_base().mark(gc);
-        }
-        unprocessed_prg.mark(gc);
-        prg.mark(gc);
-        out->mark(gc);
-    }
-
-    //! Cleanup step-local state accumulated during grounding.
-    //!
-    //! Clears indices associated with domains.
-    void clear() {
-        for (auto const &[key, base] : atom_base) {
-            base->clear_context();
-        }
-        for (auto const &[key, state] : project_base) {
-            state->p_base().clear_context();
-        }
-        mbr.release();
-    }
-
-    //! Memory resource for efficient allocation.
-    //!
-    //! This memory resources is used to build the indices of literals that are
-    //! potentially used throughout a whole grounding step but are cleared afterward.
-    std::pmr::monotonic_buffer_resource mbr;
-    //! The logger used by the grounder.
-    Logger *log;
-    //! The store used by the grounder.
-    SymbolStore *store;
-    //! The current unprocessed program not yet added to the program.
-    Input::UnprocessedProgram unprocessed_prg;
-    //! The program stored in the grounder.
-    Input::Program prg;
-    //! Dictionary to map terms with projections to their replacement predicates.
-    ProjectMap project_base;
-    //! The atom base.
-    BaseMap atom_base;
-    //! The output.
-    OutputStm *out;
-    //! Indicate that the logic program might still be satisfiable.
-    bool is_sat = true;
-};
-
-namespace {
-
-//! Translator for head literals.
-class BuilderHdLit {
-  public:
-    BuilderHdLit(BuildContext &ctx) : ctx_{&ctx} {}
-
-    void operator()(Input::HdLitSetAggregate const &lit) const {
-        GRINGO_REPORT_LOC(ctx_->logger(), error, lit.loc()) << "unexpected set aggregate " << lit;
-        throw std::logic_error("unexpected set aggregate");
-    }
-    void operator()(Input::HdLitTheoryAtom const &lit) const { build_hd_lit(*ctx_, lit); }
-    void operator()(Input::HdLitDisjunction const &lit) const { build_hd_lit(*ctx_, lit); }
-    void operator()(Input::HdLitAggregate const &lit) const { build_hd_lit(*ctx_, lit); }
-    void operator()(Input::HdLitSimple const &lit) const {
-        ctx_->gcomp().add(
-            std::make_unique<Ground::StmRule>(ctx_->simple_lit(lit.lit()), std::move(ctx_->body()), false));
-    }
-
-  private:
-    BuildContext *ctx_;
-};
-
-//! Translator for body literals.
-class BuilderBdLit {
-  public:
-    BuilderBdLit(BuildContext &ctx) : ctx_{&ctx} {}
-    void operator()(Input::BdLitSetAggregate const &lit) const {
-        GRINGO_REPORT_LOC(ctx_->logger(), error, lit.loc()) << "unexpected set aggregate " << lit;
-        throw std::logic_error("unexpected set aggregate");
-    }
-    void operator()(Input::BdLitTheoryAtom const &lit) const { build_bd_lit(*ctx_, lit); }
-    void operator()(Input::BdLitAggregate const &lit) const { build_bd_lit(*ctx_, lit); }
-    void operator()(Input::BdLitSimple const &lit) const {
-        build_lit(*ctx_, lit.lit(),
-                  [this]<class Lit>(Lit &&glit) { ctx_->body().emplace_back(std::forward<Lit>(glit)); });
-    }
-    void operator()(Input::BdLitConjunction const &lit) const { build_bd_lit(*ctx_, lit); }
-
-  private:
-    BuildContext *ctx_;
-};
-
-//! Translator for statements.
-class BuilderStm {
-  public:
-    //! Construct the translator.
-    BuilderStm(BuildContext &ctx) : ctx_{&ctx} {}
-    template <class T> void operator()(T const &stm) const {
-        std::ostringstream oss;
-        oss << "implement me: handle statement " << stm;
-        throw std::logic_error(oss.str());
-    }
-
-    //! Translate rules.
-    void operator()(Input::StmRule const &stm) const {
-        auto bld_bd = BuilderBdLit{*ctx_};
-        auto bld_hd = BuilderHdLit{*ctx_};
-        ctx_->body().reserve(stm.body().size() + 1);
-        for (auto const &lit : stm.body()) {
-            std::visit(bld_bd, lit);
-        }
-        std::visit(bld_hd, stm.head());
-    }
-
-  private:
-    BuildContext *ctx_;
-};
 
 //! The builder for the ground representation.
 class Builder : public Input::DependencyBuilder {
@@ -243,8 +105,7 @@ class Builder : public Input::DependencyBuilder {
                     }
                     auto ctx =
                         BuildContext{*mbr_, *log_, *store_, base_, ref_comp, def_map, gcomp, var_map, body, states};
-                    auto bld_stm = BuilderStm{ctx};
-                    std::visit(bld_stm, *stm);
+                    build_stm(ctx, *stm);
                 }
                 auto queue = Ground::Queue{};
                 lin.start(queue);
@@ -274,6 +135,72 @@ class Builder : public Input::DependencyBuilder {
 };
 
 } // namespace
+
+//! Class storing/hiding relevant state for grounding.
+struct Grounder::Impl : Gringo::SymbolOwner {
+    //! Construct the grounder implementation.
+    Impl(Logger &log, SymbolStore &store, Input::RewriteOptions opts, OutputStm &out)
+        : log{&log}, store{&store}, prg{opts}, out{&out} {
+        this->store->gc_add_owner(*this);
+    }
+    //! Destroy the grounder implementation.
+    //!
+    //! This also releases all symbols held.
+    ~Impl() override { store->gc_del_owner(*this); }
+
+    //! Mark symbols held by the grounder protecting them from garbage collection.
+    void mark(SymbolCollector &gc) const override {
+        GRINGO_REPORT(*log, trace) << "mark owners";
+        for (auto const &[key, base] : atom_base) {
+            GRINGO_REPORT(*log, trace) << "  mark domain: " << (std::get<2>(key) ? "-" : "") << std::get<0>(key) << "/"
+                                       << std::get<1>(key);
+            gc.mark(std::get<0>(key));
+            base->mark(gc);
+        }
+        for (auto const &[key, state] : project_base) {
+            GRINGO_REPORT(*log, trace) << "  mark projection domain: " << *key;
+            state->p_base().mark(gc);
+        }
+        unprocessed_prg.mark(gc);
+        prg.mark(gc);
+        out->mark(gc);
+    }
+
+    //! Cleanup step-local state accumulated during grounding.
+    //!
+    //! Clears indices associated with domains.
+    void clear() {
+        for (auto const &[key, base] : atom_base) {
+            base->clear_context();
+        }
+        for (auto const &[key, state] : project_base) {
+            state->p_base().clear_context();
+        }
+        mbr.release();
+    }
+
+    //! Memory resource for efficient allocation.
+    //!
+    //! This memory resources is used to build the indices of literals that are
+    //! potentially used throughout a whole grounding step but are cleared afterward.
+    std::pmr::monotonic_buffer_resource mbr;
+    //! The logger used by the grounder.
+    Logger *log;
+    //! The store used by the grounder.
+    SymbolStore *store;
+    //! The current unprocessed program not yet added to the program.
+    Input::UnprocessedProgram unprocessed_prg;
+    //! The program stored in the grounder.
+    Input::Program prg;
+    //! Dictionary to map terms with projections to their replacement predicates.
+    ProjectMap project_base;
+    //! The atom base.
+    BaseMap atom_base;
+    //! The output.
+    OutputStm *out;
+    //! Indicate that the logic program might still be satisfiable.
+    bool is_sat = true;
+};
 
 Grounder::Grounder(Logger &log, SymbolStore &store, Input::RewriteOptions opts, OutputStm &out)
     : impl_{std::make_unique<Impl>(log, store, opts, out)} {}
@@ -336,7 +263,7 @@ auto Grounder::ground(Input::ProgramParamVec const &params) -> bool {
     GRINGO_REPORT(*impl_->log, debug) << "grounding...";
     GCLock lock{*impl_->store};
 #ifdef PARSER_PROFILE
-    Profiler prof{"clingo-ground.prof"};
+    auto prof = Profiler{"clingo-ground.prof"};
 #endif
     if (impl_->is_sat) {
         auto bld = Builder{impl_->mbr, *impl_->log, *impl_->store, impl_->atom_base, impl_->project_base, *impl_->out};
