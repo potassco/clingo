@@ -246,7 +246,7 @@ class BaseCondLit : public BaseImpl<Symbol const *, BaseCondLit> {
 };
 
 //! State to capture a set of conditional literals.
-struct StateCondLit {
+class StateCondLit : public State {
   public:
     //! Construct an empty state.
     StateCondLit(std::pmr::monotonic_buffer_resource &mbr, VariableVec local, VariableVec global, size_t index,
@@ -333,7 +333,7 @@ struct StateCondLit {
     [[nodiscard]] auto elem_index(MapElemCondLit::const_iterator it) const -> size_t;
 
     //! Output the now complete conditional literal.
-    void output(OutputStm &out);
+    void output(Logger &log, SymbolStore &store, OutputStm &out) override;
 
   private:
     VariableVec local_;

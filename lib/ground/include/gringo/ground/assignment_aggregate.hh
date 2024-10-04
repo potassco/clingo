@@ -107,7 +107,7 @@ class BaseAssignAggr : public BaseImpl<std::pair<size_t, Symbol>, BaseAssignAggr
 };
 
 //! State storing all necessary information to ground assignment aggregates.
-class StateAssignAggr {
+class StateAssignAggr : public State {
   public:
     class AtomKey;
     //! Keys for aggregate elements storing their tuple and their aggregate atom index.
@@ -202,7 +202,7 @@ class StateAssignAggr {
     [[nodiscard]] auto base() -> BaseAssignAggr &;
 
     //! Output all previously grounded aggregates.
-    void output(OutputStm &out);
+    void output(Logger &log, SymbolStore &store, OutputStm &out) override;
 
   private:
     //! Enqueu the given atom for propagation.

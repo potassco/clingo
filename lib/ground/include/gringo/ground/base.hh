@@ -297,6 +297,17 @@ class Base : public BaseImpl<Symbol, Base> {
 //! A unique pointer holding a base.
 using UBase = std::unique_ptr<Base>;
 
+//! Class to store state for grounding.
+class State {
+  public:
+    //! Destructor.
+    virtual ~State() = default;
+    //! Output delayed literals.
+    virtual void output(Logger &log, SymbolStore &store, OutputStm &out) = 0;
+};
+using UState = std::unique_ptr<State>;
+using UStateVec = std::vector<UState>;
+
 //! @}
 
 } // namespace Gringo::Ground

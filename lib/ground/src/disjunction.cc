@@ -205,7 +205,7 @@ void StateDisjunction::print(std::ostream &out, bool print_index) {
     }
 }
 
-void StateDisjunction::output(OutputStm &out) {
+void StateDisjunction::output([[maybe_unused]] Logger &log, [[maybe_unused]] SymbolStore &store, OutputStm &out) {
     std::vector<std::pair<Symbol, std::span<size_t const>>> elems;
     for (auto const &[tuple, atom] : base_.atoms()) {
         if (auto uid = atom.uid(); uid) {

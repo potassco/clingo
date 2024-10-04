@@ -94,7 +94,7 @@ class BaseDisjunction : public BaseImpl<Symbol const *, BaseDisjunction> {
 using DisjunctionBaseVec = std::vector<std::tuple<std::tuple<String, size_t, bool>, Base *, std::vector<size_t>>>;
 
 //! State storing all necessary information to ground disjunctions.
-class StateDisjunction {
+class StateDisjunction : public State {
   public:
     //! A map from global variables (including the guards) to the disjunction representation.
     using AtomMap = BaseDisjunction::AtomMap;
@@ -140,7 +140,7 @@ class StateDisjunction {
     void print(std::ostream &out, bool print_index);
 
     //! Output all previously output disjunction atoms.
-    void output(OutputStm &out);
+    void output(Logger &log, SymbolStore &store, OutputStm &out) override;
 
     //! Return the base of the disjunction.
     [[nodiscard]] auto base() -> BaseDisjunction &;

@@ -416,7 +416,7 @@ void StateBdAggr::print(std::ostream &out, bool print_index) {
 
 auto StateBdAggr::base() -> BaseBdAggr & { return base_; }
 
-void StateBdAggr::output(OutputStm &out) {
+void StateBdAggr::output([[maybe_unused]] Logger &log, [[maybe_unused]] SymbolStore &store, OutputStm &out) {
     std::vector<std::pair<SymbolSpan, std::span<size_t const>>> elems;
     std::vector<std::pair<Relation, Symbol>> guards;
     for (auto const &[tuple, atom] : base_.atoms()) {

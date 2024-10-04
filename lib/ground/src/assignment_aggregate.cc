@@ -351,7 +351,7 @@ void StateAssignAggr::print(std::ostream &out, bool print_index) {
 
 auto StateAssignAggr::base() -> BaseAssignAggr & { return base_; }
 
-void StateAssignAggr::output(OutputStm &out) {
+void StateAssignAggr::output([[maybe_unused]] Logger &log, [[maybe_unused]] SymbolStore &store, OutputStm &out) {
     std::vector<std::pair<SymbolSpan, std::span<size_t const>>> elems;
     std::vector<std::pair<Relation, Symbol>> guards;
     for (auto const &[key, uid] : base_.derived()) {

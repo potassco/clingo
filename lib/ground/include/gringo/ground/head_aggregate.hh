@@ -129,7 +129,7 @@ class BaseHdAggr : public BaseImpl<Symbol const *, BaseHdAggr> {
 using HdAggrBaseVec = std::vector<std::tuple<std::tuple<String, size_t, bool>, Base *, std::vector<size_t>>>;
 
 //! State storing all necessary information to ground head aggregates.
-class StateHdAggr {
+class StateHdAggr : public State {
   public:
     class AtomKey;
     //! Keys for aggregate elements storing their tuple and their aggregate index.
@@ -223,7 +223,7 @@ class StateHdAggr {
     void print(std::ostream &out, bool print_index);
 
     //! Output all previously output aggregates.
-    void output(OutputStm &out);
+    void output(Logger &log, SymbolStore &store, OutputStm &out) override;
 
     //! Return the base of the aggregate.
     [[nodiscard]] auto base() -> BaseHdAggr &;

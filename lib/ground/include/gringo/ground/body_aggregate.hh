@@ -129,7 +129,7 @@ class BaseBdAggr : public BaseImpl<Symbol const *, BaseBdAggr> {
 };
 
 //! State storing all necessary information to ground body aggregates.
-class StateBdAggr {
+class StateBdAggr : public State {
   public:
     class AtomKey;
     //! Keys for aggregate elements storing their tuple and their aggregate index.
@@ -232,7 +232,7 @@ class StateBdAggr {
     [[nodiscard]] auto base() -> BaseBdAggr &;
 
     //! Output all previously output aggregates.
-    void output(OutputStm &out);
+    void output(Logger &log, SymbolStore &store, OutputStm &out) override;
 
   private:
     //! Enequeue an atom for propgation.

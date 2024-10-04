@@ -103,7 +103,7 @@ class BaseTheory : public BaseImpl<Symbol const *, BaseTheory> {
     AtomMap atoms_;
 };
 
-class StateTheory {
+class StateTheory : public Ground::State {
   public:
     //! Keys for aggregate elements storing their tuple and their aggregate index.
     //!
@@ -157,7 +157,7 @@ class StateTheory {
     //! Print a debug representation of the theory atom.
     void print(std::ostream &out);
     //! Output all previously output theory atoms.
-    void output(Logger &log, SymbolStore &store, OutputStm &out);
+    void output(Logger &log, SymbolStore &store, OutputStm &out) override;
     //! Get the global variables of the theory atom.
     [[nodiscard]] auto global() const -> VariableVec const &;
     //! Get the name of the theory atom.

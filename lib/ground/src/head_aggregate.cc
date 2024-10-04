@@ -405,7 +405,7 @@ void StateHdAggr::print(std::ostream &out, bool print_index) {
     }
 }
 
-void StateHdAggr::output(OutputStm &out) {
+void StateHdAggr::output([[maybe_unused]] Logger &log, [[maybe_unused]] SymbolStore &store, OutputStm &out) {
     std::vector<std::pair<SymbolSpan, std::span<std::pair<Symbol, size_t> const>>> elems;
     std::vector<std::pair<Relation, Symbol>> guards;
     for (auto const &[tuple, atom] : base_.atoms()) {

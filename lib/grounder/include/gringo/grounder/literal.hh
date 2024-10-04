@@ -1,14 +1,14 @@
 #pragma once
 
+#include <gringo/grounder/context.hh>
 #include <gringo/grounder/term.hh>
 
 #include <gringo/input/literal.hh>
+#include <gringo/input/print.hh>
 
 #include <gringo/ground/literal.hh>
 
-#include <gringo/input/print.hh>
-
-#include "context.hh"
+#include <gringo/input/rewrite/analyze.hh>
 
 #include <sstream>
 

@@ -201,7 +201,7 @@ auto StateCondLit::elem_find(Assignment const &ass, MapAtomCondLit::iterator it)
     return elems_.find(temp_syms_.data());
 }
 
-void StateCondLit::output(OutputStm &out) {
+void StateCondLit::output([[maybe_unused]] Logger &log, [[maybe_unused]] SymbolStore &store, OutputStm &out) {
     std::vector<std::pair<std::optional<size_t>, size_t>> elems;
     for (auto const &[tuple, atom] : atoms_) {
         if (auto uid = atom.uid(); uid) {

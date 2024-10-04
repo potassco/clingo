@@ -1,4 +1,7 @@
+#include <gringo/grounder/context.hh>
 #include <gringo/grounder/grounder.hh>
+#include <gringo/grounder/literal.hh>
+#include <gringo/grounder/parse.hh>
 
 #include <gringo/ground/assignment_aggregate.hh>
 #include <gringo/ground/body_aggregate.hh>
@@ -19,10 +22,6 @@
 #include <gringo/util/print.hh>
 #include <gringo/util/type_traits.hh>
 #include <gringo/util/unordered_map.hh>
-
-#include "context.hh"
-#include "lit_builder.hh"
-#include "parse_helper.hh"
 
 #ifdef PARSER_PROFILE
 #include <gperftools/profiler.h>
@@ -92,7 +91,7 @@ struct Grounder::Impl : Gringo::SymbolOwner {
     //! Memory resource for efficient allocation.
     //!
     //! This memory resources is used to build the indices of literals that are
-    //! potentially used throughout the whole grounding step.
+    //! potentially used throughout a whole grounding step but are cleared afterward.
     std::pmr::monotonic_buffer_resource mbr;
     //! The logger used by the grounder.
     Logger *log;
@@ -743,10 +742,39 @@ class BuilderBdLit {
         build_lit(*ctx_, lit.lit(),
                   [this]<class Lit>(Lit &&glit) { ctx_->body().emplace_back(std::forward<Lit>(glit)); });
     }
+
+    //! Analyze the given conditional literal and return the required indices for grounding.
+    [[nodiscard]] auto
+    analyze(Input::CondLit const &lit) const -> std::tuple<bool, bool, bool, size_t, size_t, size_t> {
+        assert(!Input::is_fixed(lit.lit()).value_or(false));
+
+        auto has_conclusion = !Input::is_fixed(lit.lit()).has_value();
+        auto sp_body = ctx_->single_pass_body();
+        auto sp_premise = test(ctx_->type(), Input::ComponentType::single_pass) ||
+                          std::all_of(lit.cond().begin(), lit.cond().end(),
+                                      [this](auto const &lit) { return ctx_->single_pass(lit); });
+        bool sp_conclusion = ctx_->single_pass(lit.lit());
+
+        auto empty_index = Ground::stratified_index;
+        auto premise_index = Ground::stratified_index;
+        auto lit_index = Ground::stratified_index;
+
+        if (!sp_premise || !sp_conclusion) {
+            if (!sp_body) {
+                empty_index = ctx_->next_index();
+            }
+            if (!sp_body || !sp_premise) {
+                premise_index = ctx_->next_index();
+            }
+            lit_index = has_conclusion ? ctx_->next_index() : premise_index;
+        }
+
+        return {has_conclusion, sp_conclusion, sp_premise, empty_index, premise_index, lit_index};
+    }
+
     //! Translate conditional literals.
     void operator()(Input::BdLitConjunction const &lit) const {
-        auto [has_conclusion, sp_conclusion, sp_premise, empty_index, premise_index, lit_index] =
-            ctx_->analyze(lit.lit());
+        auto [has_conclusion, sp_conclusion, sp_premise, empty_index, premise_index, lit_index] = analyze(lit.lit());
         bool domain = true;
         auto add_lit = [this, &domain](auto &body, auto &vars, auto const &lit) {
             build_lit(*ctx_, lit, [&body, &vars, &domain]<class Lit>(Lit &&glit) {
@@ -916,8 +944,7 @@ class Builder : public Input::DependencyBuilder {
                               std::all_of(ref_comp.depend.begin(), ref_comp.depend.end(),
                                           [this](auto const &sig) { return base_.add_base(sig)->second->domain(); });
                 auto gcomp = Ground::Component{domain};
-                auto mbr = std::pmr::monotonic_buffer_resource{};
-                auto states = StateList{};
+                auto states = Ground::UStateVec{};
                 for (auto const &stm : ref_comp.stms) {
                     Util::unordered_map<String, size_t> var_map;
                     Input::visit_variables(
@@ -936,7 +963,7 @@ class Builder : public Input::DependencyBuilder {
                         ++i;
                     }
                     auto ctx =
-                        BuildContext{mbr, *log_, *store_, base_, ref_comp, def_map, gcomp, var_map, body, states};
+                        BuildContext{*mbr_, *log_, *store_, base_, ref_comp, def_map, gcomp, var_map, body, states};
                     auto bld_stm = BuilderStm{ctx};
                     std::visit(bld_stm, *stm);
                 }
@@ -950,16 +977,7 @@ class Builder : public Input::DependencyBuilder {
                     return false;
                 }
                 for (auto &state : states) {
-                    std::visit(
-                        [this]<class State>(State &state) {
-                            // it's probably better to unify the interface
-                            if constexpr (Util::matches<State, Ground::StateTheory>) {
-                                state.output(*log_, *store_, *out_);
-                            } else {
-                                state.output(*out_);
-                            }
-                        },
-                        state);
+                    state->output(*log_, *store_, *out_);
                 }
             }
             out_->flush();
