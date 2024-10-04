@@ -79,7 +79,7 @@ auto run(int argc, char *argv[]) -> int {
         auto store = Gringo::make_symbol_store(true, false);
         auto buf = Gringo::Util::OutputBuffer{stdout};
         auto out = Gringo::Output::make_text_output(buf);
-        auto grd = Gringo::Grounder{log, *store, opts, *out};
+        auto grd = Gringo::Grounder::Grounder{log, *store, opts, *out};
         auto prs = Gringo::Input::Parser{log, *store};
 
         [&]() {

@@ -1,0 +1,132 @@
+#pragma once
+
+#include <gringo/input/parser.hh>
+#include <gringo/input/program.hh>
+
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+
+namespace Gringo::Grounder {
+
+//! A helper for parsing.
+//!
+//! This class manages include directives.
+class ParseHelper {
+  public:
+    //! Construct the helper.
+    ParseHelper(Logger &log, SymbolStore &store, Input::UnprocessedProgram &prg)
+        : log_{&log}, store_{&store}, parser_{log, store}, prg_{&prg} {}
+
+    //! Parse a program from the given string.
+    void process_string(std::string_view str) {
+        parser_.init(str, *store_->string("<string>"));
+        process_();
+    }
+
+    //! Parse a program from stdin.
+    void process_stdin() {
+        if (!processed_stdin_) {
+            processed_stdin_ = true;
+            parser_.init(std::cin, *store_->string("-"));
+            process_(root_);
+        } else {
+            GRINGO_REPORT(*log_, info_file_included) << "file already included: -";
+        }
+    }
+
+    //! Parse a program from the given path.
+    //!
+    //! Returns false if the file was not found or raises an error if it was
+    //! required.
+    auto process_path(std::string_view path) -> bool { return process_path_(path, true); }
+
+    //! Process includes encountered while parsing.
+    void process_includes() {
+        for (; !includes_.empty(); includes_.pop_front()) {
+            auto const &[parent, include] = includes_.front();
+            if (include.type() == Input::IncludeType::system) {
+                auto path = std::filesystem::path(include.value().c_str());
+                if (path.is_relative() && parent != root_) {
+                    if (process_path_(parent / path, false)) {
+                        continue;
+                    }
+                }
+                process_path_(path, true);
+            }
+        }
+    }
+
+    //! Throws if there was an error during parsing.
+    void check() const {
+        if (parse_error_) {
+            throw parse_error();
+        }
+    }
+
+  private:
+    //! Scan statements.
+    void process_() { process_(root_); }
+
+    //! Parse a program from the given path.
+    //!
+    //! Returns false if the file was not found or raises an error if it was
+    //! required.
+    auto process_path_(std::filesystem::path path, bool required) -> bool {
+        if (std::filesystem::exists(path)) {
+            path = std::filesystem::canonical(path);
+            auto rel = path.lexically_relative(root_);
+            if (!std::filesystem::is_directory(path)) {
+                if (seen_.emplace(path).second) {
+                    fin_.open(rel);
+                    parser_.init(fin_, *store_->string(rel.c_str()));
+                    process_(path.parent_path());
+                } else {
+                    GRINGO_REPORT(*log_, info_file_included) << "file already included: " << rel;
+                }
+            } else {
+                GRINGO_REPORT(*log_, error) << "cannot include directory: " << rel;
+                parse_error_ = true;
+            }
+            return true;
+        }
+        if (required) {
+            GRINGO_REPORT(*log_, error) << "file not found: " << path;
+            parse_error_ = true;
+        }
+        return false;
+    }
+
+    // NOLINTBEGIN(cppcoreguidelines-missing-std-forward,bugprone-unchecked-optional-access)
+    //! Scan statements.
+    void process_(std::filesystem::path const &dir) {
+        prg_->ensure_base();
+        while (true) {
+            auto [stm, res] = parser_.scan();
+            parse_error_ = parse_error_ || !res;
+            if (!stm) {
+                fin_.close();
+                break;
+            }
+            if (auto *include = std::get_if<Input::StmInclude>(&*stm); include != nullptr) {
+                includes_.emplace_back(dir, *include);
+            } else {
+                prg_->add(*store_, *std::move(stm));
+            }
+        }
+    }
+    // NOLINTEND(cppcoreguidelines-missing-std-forward,bugprone-unchecked-optional-access)
+
+    Logger *log_;
+    SymbolStore *store_;
+    std::ifstream fin_;
+    Input::Parser parser_;
+    Input::UnprocessedProgram *prg_;
+    std::filesystem::path root_ = std::filesystem::current_path();
+    std::deque<std::pair<std::filesystem::path, Input::StmInclude>> includes_;
+    Util::unordered_set<std::filesystem::path> seen_;
+    bool processed_stdin_ = false;
+    bool parse_error_ = false;
+};
+
+} // namespace Gringo::Grounder

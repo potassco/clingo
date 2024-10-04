@@ -20,16 +20,18 @@
 #include <gringo/util/type_traits.hh>
 #include <gringo/util/unordered_map.hh>
 
+#include "context.hh"
+#include "lit_builder.hh"
+#include "parse_helper.hh"
+#include "term_builder.hh"
+
 #ifdef PARSER_PROFILE
 #include <gperftools/profiler.h>
 #endif
 
-#include <filesystem>
-#include <forward_list>
-#include <fstream>
 #include <iostream>
 
-namespace Gringo {
+namespace Gringo::Grounder {
 
 #ifdef PARSER_PROFILE
 namespace {
@@ -46,12 +48,6 @@ class Profiler {
 
 //! The actual grounder implementation.
 struct Grounder::Impl : Gringo::SymbolOwner {
-    //! A map from signatures to atom bases.
-    using BaseMap = Util::ordered_map<std::tuple<String, size_t, bool>, std::unique_ptr<Ground::Base>>;
-    //! A map from a terms with projections associated state used during grounding.
-    //!
-    //! The terms represensts a class of similar terms that can reuse the same projection state.
-    using ProjectMap = Util::ordered_map<Ground::UTerm, std::unique_ptr<Ground::LitProject::State>>;
 
     //! Construct the grounder implementation.
     Impl(Logger &log, SymbolStore &store, Input::RewriteOptions opts, OutputStm &out)
@@ -72,12 +68,6 @@ struct Grounder::Impl : Gringo::SymbolOwner {
             gc.mark(std::get<0>(key));
             base->mark(gc);
         }
-        for (auto const &[key, base] : aux_base) {
-            GRINGO_REPORT(*log, trace) << "  mark aux domain: " << (std::get<2>(key) ? "-" : "") << std::get<0>(key)
-                                       << "/" << std::get<1>(key);
-            gc.mark(std::get<0>(key));
-            base->mark(gc);
-        }
         for (auto const &[key, state] : project_base) {
             GRINGO_REPORT(*log, trace) << "  mark projection domain: " << *key;
             state->p_base().mark(gc);
@@ -89,53 +79,21 @@ struct Grounder::Impl : Gringo::SymbolOwner {
 
     //! Cleanup step-local state accumulated during grounding.
     //!
-    //! - Clear indices associated with domains.
-    void post_ground() {
+    //! Clears indices associated with domains.
+    void clear() {
         for (auto const &[key, base] : atom_base) {
             base->clear_context();
         }
         for (auto const &[key, state] : project_base) {
             state->p_base().clear_context();
         }
-        aux_base.clear();
         mbr.release();
     }
 
-    //! Clear indices associated with domains.
-    auto add_project(Ground::UTerm const &term,
-                     Ground::Base &base) -> std::pair<Ground::UTerm, Ground::LitProject::State *> {
-        size_t vars = 0;
-        auto [it, ins] =
-            project_base.try_emplace(term->rename(*store, Ground::RenameMode::rename_vars, nullptr, &vars));
-        auto const &p_key = *it->first;
-        auto &state = it.value();
-        if (ins) {
-            auto p_name = store->string_ref("#p_" + std::to_string(project_base.size()));
-            auto p_head = p_key.rename(*store, Ground::RenameMode::drop_projection, &p_name, nullptr);
-            auto p_body = p_key.rename(*store, Ground::RenameMode::rename_projection, nullptr, &vars);
-            state =
-                std::make_unique<Ground::LitProject::State>(p_name, vars, base, std::move(p_head), std::move(p_body));
-        }
-        return {term->rename(*store, Ground::RenameMode::drop_projection, &state->name(), nullptr), state.get()};
-    }
-
-    //! Add an atom base for the given signature.
-    //!
-    //! If the name of the signature starts with a `#`, it is added to the
-    //! auxiliary base, which is deleted after grounding.
-    auto add_base(std::tuple<String, size_t, bool> sig) {
-        bool aux = std::get<0>(sig).starts_with("#");
-        auto dom_it = (aux ? aux_base : atom_base).try_emplace(std::move(sig), nullptr).first;
-        if (dom_it->second == nullptr) {
-            dom_it.value() = std::make_unique<Ground::Base>();
-        }
-        return dom_it;
-    }
-
-    //! Add an atom base for the given signature.
-    auto add_base(String name, size_t arity, bool sign) { return add_base({name, arity, sign}); }
-
     //! Memory resource for efficient allocation.
+    //!
+    //! This memory resources is used to build the indices of literals that are
+    //! potentially used throughout the whole grounding step.
     std::pmr::monotonic_buffer_resource mbr;
     //! The logger used by the grounder.
     Logger *log;
@@ -149,8 +107,6 @@ struct Grounder::Impl : Gringo::SymbolOwner {
     ProjectMap project_base;
     //! The atom base.
     BaseMap atom_base;
-    //! A base for auxiliary atoms.
-    BaseMap aux_base;
     //! The output.
     OutputStm *out;
     //! Indicate that the logic program might still be satisfiable.
@@ -158,476 +114,6 @@ struct Grounder::Impl : Gringo::SymbolOwner {
 };
 
 namespace {
-
-//! A helper for parsing.
-//!
-//! This class manages include directives.
-class ParseHelper {
-  public:
-    //! Construct the helper.
-    ParseHelper(Logger &log, SymbolStore &store, Input::UnprocessedProgram &prg)
-        : log_{&log}, store_{&store}, parser_{log, store}, prg_{&prg} {}
-
-    //! Parse a program from the given string.
-    void process_string(std::string_view str) {
-        parser_.init(str, *store_->string("<string>"));
-        process_();
-    }
-
-    //! Parse a program from the given path.
-    //!
-    //! Returns false if the file was not found or raises an error if it was
-    //! required.
-    auto process_path(std::filesystem::path path, bool required) -> bool {
-        if (std::filesystem::exists(path)) {
-            path = std::filesystem::canonical(path);
-            auto rel = path.lexically_relative(root_);
-            if (!std::filesystem::is_directory(path)) {
-                if (seen_.emplace(path).second) {
-                    fin_.open(rel);
-                    parser_.init(fin_, *store_->string(rel.c_str()));
-                    process_(path.parent_path());
-                } else {
-                    GRINGO_REPORT(*log_, info_file_included) << "file already included: " << rel;
-                }
-            } else {
-                GRINGO_REPORT(*log_, error) << "cannot include directory: " << rel;
-                parse_error_ = true;
-            }
-            return true;
-        }
-        if (required) {
-            GRINGO_REPORT(*log_, error) << "file not found: " << path;
-            parse_error_ = true;
-        }
-        return false;
-    }
-
-    //! Parse a program from stdin.
-    void process_stdin() {
-        if (!processed_stdin_) {
-            processed_stdin_ = true;
-            parser_.init(std::cin, *store_->string("-"));
-            process_(root_);
-        } else {
-            GRINGO_REPORT(*log_, info_file_included) << "file already included: -";
-        }
-    }
-
-    //! Process includes encountered while parsing.
-    void process_includes() {
-        for (; !includes_.empty(); includes_.pop_front()) {
-            auto const &[parent, include] = includes_.front();
-            if (include.type() == Input::IncludeType::system) {
-                auto path = std::filesystem::path(include.value().c_str());
-                if (path.is_relative() && parent != root_) {
-                    if (process_path(parent / path, false)) {
-                        continue;
-                    }
-                }
-                process_path(path, true);
-            }
-        }
-    }
-
-    //! Throws if there was an error during parsing.
-    void check() const {
-        if (parse_error_) {
-            throw parse_error();
-        }
-    }
-
-  private:
-    //! Scan statements.
-    void process_() { process_(root_); }
-
-    // NOLINTBEGIN(cppcoreguidelines-missing-std-forward,bugprone-unchecked-optional-access)
-    //! Scan statements.
-    void process_(std::filesystem::path const &dir) {
-        prg_->ensure_base();
-        while (true) {
-            auto [stm, res] = parser_.scan();
-            parse_error_ = parse_error_ || !res;
-            if (!stm) {
-                fin_.close();
-                break;
-            }
-            if (auto *include = std::get_if<Input::StmInclude>(&*stm); include != nullptr) {
-                includes_.emplace_back(dir, *include);
-            } else {
-                prg_->add(*store_, *std::move(stm));
-            }
-        }
-    }
-    // NOLINTEND(cppcoreguidelines-missing-std-forward,bugprone-unchecked-optional-access)
-
-    Logger *log_;
-    SymbolStore *store_;
-    std::ifstream fin_;
-    Input::Parser parser_;
-    Input::UnprocessedProgram *prg_;
-    std::filesystem::path root_ = std::filesystem::current_path();
-    std::deque<std::pair<std::filesystem::path, Input::StmInclude>> includes_;
-    Util::unordered_set<std::filesystem::path> seen_;
-    bool processed_stdin_ = false;
-    bool parse_error_ = false;
-};
-
-//! Maps a binary input operator to the corresponding ground one.
-//!
-//! @note: The input interval operator has no matching ground version.
-//! @note: Candidate for core.
-auto map_binary_op(Input::BinaryOperator op) -> Ground::BinaryOperator {
-    switch (op) {
-        case Input::BinaryOperator::and_: {
-            return Ground::BinaryOperator::and_;
-        }
-        case Input::BinaryOperator::div: {
-            return Ground::BinaryOperator::div;
-        }
-        case Input::BinaryOperator::dots: {
-            break;
-        }
-        case Input::BinaryOperator::minus: {
-            return Ground::BinaryOperator::minus;
-        }
-        case Input::BinaryOperator::mod: {
-            return Ground::BinaryOperator::mod;
-        }
-        case Input::BinaryOperator::or_: {
-            return Ground::BinaryOperator::or_;
-        }
-        case Input::BinaryOperator::plus: {
-            return Ground::BinaryOperator::plus;
-        }
-        case Input::BinaryOperator::pow: {
-            return Ground::BinaryOperator::pow;
-        }
-        case Input::BinaryOperator::times: {
-            return Ground::BinaryOperator::times;
-        }
-        case Input::BinaryOperator::xor_: {
-            return Ground::BinaryOperator::xor_;
-        }
-    }
-    throw std::runtime_error("unsupported binary operator");
-}
-
-//! Translates input terms to their ground representation.
-//!
-//! Input terms must be rewritten before translation.
-class BuilderTerm {
-  public:
-    //! Construct a term builder.
-    //!
-    //! The reference has_projection is used to track, whether a projection
-    //! star occurred in the term. The var_map dictionary is used to map
-    //! variables to integers. Each name must have been assigned an integer
-    //! beforehand.
-    BuilderTerm(bool &has_projection, Util::unordered_map<String, size_t> const &var_map)
-        : has_projection_{&has_projection}, var_map_{&var_map} {}
-
-    //! Translate a variable.
-    auto operator()(Input::TermVariable const &term) const -> Ground::UTerm {
-        assert(var_map_->find(term.name()) != var_map_->end());
-        return std::make_unique<Ground::TermVariable>(var_map_->find(term.name())->second);
-    }
-    //! Translate a symbol.
-    auto operator()(Input::TermSymbol const &term) const -> Ground::UTerm {
-        return std::make_unique<Ground::TermSymbol>(term.value());
-    }
-    //! Translate arguments of tuples and functions.
-    [[nodiscard]] auto handle_args(Input::ArgumentArray const &args) const -> Ground::UTermVec {
-        Ground::UTermVec g_args;
-        g_args.reserve(args.size());
-        for (auto const &arg : args) {
-            g_args.emplace_back(std::visit(
-                [this]<class T>(T const &arg) -> Ground::UTerm {
-                    if constexpr (Util::matches<T, Input::Projection>) {
-                        *has_projection_ = true;
-                        return std::make_unique<Ground::TermProjection>();
-                    } else {
-                        return std::visit(*this, arg);
-                    }
-                },
-                arg));
-        }
-        return g_args;
-    }
-    //! Translate tuples.
-    //!
-    //! Assumes that the arguments consists of a single pool.
-    auto operator()(Input::TermTuple const &term) const -> Ground::UTerm {
-        assert(term.pool().size() == 1 && std::holds_alternative<Input::ArgumentTuple>(term.pool().front()));
-        return std::make_unique<Ground::TermTuple>(
-            handle_args(std::get<Input::ArgumentTuple>(term.pool().front()).elems()));
-    }
-    //! Translate a function.
-    //!
-    //! Assumes that the arguments consist of a single pool.
-    auto operator()(Input::TermFunction const &term) const -> Ground::UTerm {
-        assert(!term.external() && term.pool().size() == 1);
-        return std::make_unique<Ground::TermFunction>(term.name(), handle_args(term.pool().front().elems()));
-    }
-    //! Translate a function.
-    //!
-    //! Assumes that there is a single argument.
-    auto operator()(Input::TermAbs const &term) const -> Ground::UTerm {
-        assert(term.pool().size() == 1);
-        return std::make_unique<Ground::TermUnary>(Ground::UnaryOperator::abs, std::visit(*this, term.pool().front()));
-    }
-    //! Translate a unary term.
-    auto operator()(Input::TermUnary const &term) const -> Ground::UTerm {
-        Ground::UnaryOperator op =
-            term.op() == Input::UnaryOperator::minus ? Ground::UnaryOperator::minus : Ground::UnaryOperator::negate;
-        return std::make_unique<Ground::TermUnary>(op, std::visit(*this, *term.rhs()));
-    }
-    //! Translate a unary term.
-    //!
-    //! Intervals must be removed by rewriting beforehand.
-    auto operator()(Input::TermBinary const &term) const -> Ground::UTerm {
-        assert(term.op() != Input::BinaryOperator::dots);
-        if (auto lin = Input::check_linear(term); lin) {
-            assert(var_map_->find(lin->x()) != var_map_->end());
-            return std::make_unique<Ground::TermLinear>(lin->m(), var_map_->find(lin->x())->second, lin->n());
-        }
-        return std::make_unique<Ground::TermBinary>(std::visit(*this, *term.lhs()), map_binary_op(term.op()),
-                                                    std::visit(*this, *term.rhs()));
-    }
-
-  private:
-    bool *has_projection_;
-    Util::unordered_map<String, size_t> const *var_map_;
-};
-
-//! Translates input theory terms to their ground representation.
-//!
-//! Input terms must be rewritten before translation.
-class BuilderTheoryTerm {
-  public:
-    //! Construct a theory term builder.
-    //!
-    //! The var_map dictionary is used to map variables to integers. Each name
-    //! must have been assigned an integer beforehand.
-    BuilderTheoryTerm(Util::unordered_map<String, size_t> const &var_map) : var_map_{&var_map} {}
-
-    //! Translate unparsed terms.
-    auto operator()([[maybe_unused]] Input::TheoryTermUnparsed const &term) const -> Ground::UTheoryTerm {
-        throw std::logic_error("unexpected unparsed theory term");
-    }
-    //! Translate a variable.
-    auto operator()(Input::TheoryTermVariable const &term) const -> Ground::UTheoryTerm {
-        assert(var_map_->find(term.name()) != var_map_->end());
-        return std::make_unique<Ground::TheoryTermVariable>(var_map_->find(term.name())->second);
-    }
-    //! Translate a symbol.
-    auto operator()(Input::TheoryTermSymbol const &term) const -> Ground::UTheoryTerm {
-        return std::make_unique<Ground::TheoryTermSymbol>(term.value());
-    }
-    //! Translate arguments of tuples and functions.
-    [[nodiscard]] auto handle_args(Input::TheoryTermArray const &args) const -> Ground::UTheoryTermVec {
-        Ground::UTheoryTermVec g_args;
-        g_args.reserve(args.size());
-        for (auto const &arg : args) {
-            g_args.emplace_back(std::visit(*this, arg));
-        }
-        return g_args;
-    }
-    //! Translate tuples.
-    auto operator()(Input::TheoryTermTuple const &term) const -> Ground::UTheoryTerm {
-        return std::make_unique<Ground::TheoryTermTuple>(term.type(), handle_args(term.elems()));
-    }
-    //! Translate a function.
-    auto operator()(Input::TheoryTermFunction const &term) const -> Ground::UTheoryTerm {
-        return std::make_unique<Ground::TheoryTermFunction>(term.name(), handle_args(term.args()));
-    }
-
-  private:
-    Util::unordered_map<String, size_t> const *var_map_;
-};
-
-using StateList =
-    std::forward_list<std::variant<Ground::StateCondLit, Ground::StateHdAggr, Ground::StateBdAggr,
-                                   Ground::StateAssignAggr, Ground::StateDisjunction, Ground::StateTheory>>;
-
-//! Context object holding necessary data for translating from input to ground
-//! representation.
-class BuildContext {
-  public:
-    using DefMap = Util::unordered_map<Input::Term const *, std::vector<size_t>>;
-    BuildContext(Grounder::Impl &impl, std::pmr::monotonic_buffer_resource &mbr, Input::Component const &comp,
-                 Util::unordered_map<Input::Term const *, std::vector<size_t>> &def_map, Ground::Component &gcomp,
-                 Util::unordered_map<String, size_t> &var_map, Ground::ULitVec &body, StateList &state)
-        : impl_{&impl}, mbr_{&mbr}, comp_{&comp}, def_map_{&def_map}, gcomp_{&gcomp}, var_map_{&var_map}, body_{&body},
-          state_{&state} {}
-
-    //! Get the index of the given symbolic literal.
-    [[nodiscard]] auto index(Input::LitSymbolic const &lit) const -> size_t {
-        auto it = comp_->incomplete.find(&lit.term());
-        if (it != comp_->incomplete.end()) {
-            return static_cast<size_t>(it - comp_->incomplete.begin());
-        }
-        return Ground::stratified_index;
-    }
-    //! Check if the given input literal is single pass.
-    [[nodiscard]] auto single_pass(Input::Lit const &lit) const -> bool {
-        if (test(comp_->type, Input::ComponentType::single_pass)) {
-            return true;
-        }
-        if (auto const *slit = std::get_if<Input::LitSymbolic>(&lit); slit != nullptr) {
-            return slit->sign() != Sign::none || index(*slit) == Ground::stratified_index;
-        }
-        return true;
-    }
-
-    //! Check if the (current) body can be grounded in a single pass.
-    [[nodiscard]] auto single_pass_body() const -> bool {
-        return test(comp_->type, Input::ComponentType::single_pass) ||
-               std::all_of(body_->begin(), body_->end(), [](auto const &lit) { return lit->single_pass(); });
-    }
-
-    [[nodiscard]] auto next_index() -> size_t { return comp_->incomplete.size() + index_++; }
-
-    //! Analyze the given conditional literal and return the required indices for grounding.
-    [[nodiscard]] auto analyze(Input::CondLit const &lit) -> std::tuple<bool, bool, bool, size_t, size_t, size_t> {
-        assert(!Input::is_fixed(lit.lit()).value_or(false));
-
-        auto has_conclusion = !Input::is_fixed(lit.lit()).has_value();
-        auto sp_body = single_pass_body();
-        auto sp_premise =
-            test(comp_->type, Input::ComponentType::single_pass) ||
-            std::all_of(lit.cond().begin(), lit.cond().end(), [this](auto const &lit) { return single_pass(lit); });
-        bool sp_conclusion = single_pass(lit.lit());
-
-        auto empty_index = Ground::stratified_index;
-        auto premise_index = Ground::stratified_index;
-        auto lit_index = Ground::stratified_index;
-
-        if (!sp_premise || !sp_conclusion) {
-            if (!sp_body) {
-                empty_index = next_index();
-            }
-            if (!sp_body || !sp_premise) {
-                premise_index = next_index();
-            }
-            lit_index = has_conclusion ? next_index() : premise_index;
-        }
-
-        return {has_conclusion, sp_conclusion, sp_premise, empty_index, premise_index, lit_index};
-    }
-
-    //! Get the grounder implementation.
-    [[nodiscard]] auto impl() const -> Grounder::Impl & { return *impl_; }
-
-    //! Get the monotonic allocator for the component.
-    [[nodiscard]] auto mbr() const -> std::pmr::monotonic_buffer_resource & { return *mbr_; }
-
-    //! Get the definition map.
-    [[nodiscard]] auto def_map() const -> DefMap & { return *def_map_; }
-    //! Get the variable map.
-    [[nodiscard]] auto var_map() const -> Util::unordered_map<String, size_t> & { return *var_map_; }
-
-    //! Get the current component.
-    [[nodiscard]] auto gcomp() const -> Ground::Component & { return *gcomp_; }
-    //! Get the current statement body.
-    [[nodiscard]] auto body() const -> Ground::ULitVec & { return *body_; }
-
-    //! Add a new state object for a body aggregate literal.
-    template <class T, class... Args> [[nodiscard]] auto state(Args &&...args) -> T & {
-        state_->emplace_front(std::in_place_type<T>, std::forward<Args>(args)...);
-        return std::get<T>(state_->front());
-    }
-
-    //! Increment the priority and return its previous value.
-    auto inc_priority() -> size_t { return priority++; }
-
-  private:
-    Grounder::Impl *impl_;
-    std::pmr::monotonic_buffer_resource *mbr_;
-    Input::Component const *comp_;
-    Util::unordered_map<Input::Term const *, std::vector<size_t>> *def_map_;
-    Ground::Component *gcomp_;
-    Util::unordered_map<String, size_t> *var_map_;
-    Ground::ULitVec *body_;
-    StateList *state_;
-    size_t priority = 0;
-    size_t index_ = 0;
-};
-
-//! Translate input literals to their ground representation.
-//!
-//! Assumes that literals have been rewritten.
-template <class F, bool stratify = false> class BuilderLit {
-  public:
-    //! Construct the translator.
-    BuilderLit(BuildContext &ctx, F cb) : cb_{std::move(cb)}, ctx_{&ctx} {}
-    //! Translate Boolean literals.
-    //!
-    //! @note: This should never be called on rewritten programs.
-    void operator()(Input::LitBool const &lit) const { cb_(std::make_unique<Ground::LitBool>(lit.value())); }
-    //! Translate comparision literals.
-    //!
-    //! This function also handles intervals and external functions.
-    //!
-    //! @todo: External functions have not yet been implemented.
-    void operator()(Input::LitComparison const &lit) const {
-        auto has_projection = false;
-        auto bld_term = BuilderTerm{has_projection, ctx_->var_map()};
-        if (Input::is_interval(lit.rhs().front().second)) {
-            auto lhs = std::visit(bld_term, lit.lhs());
-            auto const &rng = std::get<Input::TermBinary>(lit.rhs().front().second);
-            auto lower = std::visit(bld_term, *rng.lhs());
-            auto upper = std::visit(bld_term, *rng.rhs());
-            cb_(std::make_unique<Ground::LitInterval>(std::move(lhs), std::move(lower), std::move(upper)));
-        } else if (Input::is_external(lit.rhs().front().second)) {
-            std::ostringstream oss;
-            oss << "implement me: handle external function call " << lit;
-            throw std::logic_error(oss.str());
-        } else {
-            auto add_cmp = [this, &bld_term](auto const &lhs, auto rel, auto const &rhs) {
-                auto l = std::visit(bld_term, lhs);
-                auto r = std::visit(bld_term, rhs);
-                cb_(std::make_unique<Ground::LitComparison>(std::move(l), rel, std::move(r)));
-            };
-            auto const &lhs = lit.lhs();
-            auto const &rhs = lit.rhs().front().second;
-            auto rel = lit.rhs().front().first;
-            add_cmp(lhs, rel, rhs);
-            if (rel == Relation::equal && Input::is_matchable(rhs) && !Input::is_symbol(rhs)) {
-                add_cmp(rhs, rel, lhs);
-            }
-        }
-    }
-    //! Translate symbolic literals.
-    void operator()(Input::LitSymbolic const &lit) const {
-        auto has_projection = false;
-        auto bld_term = BuilderTerm{has_projection, ctx_->var_map()};
-        auto term = std::visit(bld_term, lit.term());
-        auto idx = stratify && lit.sign() == Sign::none ? Ground::stratified_index : ctx_->index(lit);
-        // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-        auto dom_it = ctx_->impl().add_base(Input::signature(lit.term()).value());
-        if (has_projection) {
-            auto [p_term, state] = ctx_->impl().add_project(term, *dom_it.value());
-            cb_(std::make_unique<Ground::LitProject>(*state, lit.sign(), std::move(term), std::move(p_term), idx,
-                                                     ctx_->gcomp().domain()));
-        } else {
-            cb_(std::make_unique<Ground::LitSymbolic>(*dom_it.value(), lit.sign(), std::move(term), idx,
-                                                      ctx_->gcomp().domain()));
-        }
-    }
-
-  private:
-    F cb_;
-    BuildContext *ctx_;
-};
-
-template <class F> void build_lit(BuildContext &ctx, Input::Lit const &lit, F &&fun) {
-    std::visit(BuilderLit{ctx, std::forward<F>(fun)}, lit);
-}
-
-template <class F> void build_stratified_lit(BuildContext &ctx, Input::Lit const &lit, F &&fun) {
-    std::visit(BuilderLit<std::decay_t<F>, true>{ctx, std::forward<F>(fun)}, lit);
-}
 
 //! Translator for head literals.
 class BuilderHdLit {
@@ -637,7 +123,7 @@ class BuilderHdLit {
 
     //! Translate set aggregates.
     void operator()(Input::HdLitSetAggregate const &lit) const {
-        GRINGO_REPORT_LOC(*ctx_->impl().log, error, lit.loc()) << "unexpected set aggregate " << lit;
+        GRINGO_REPORT_LOC(ctx_->logger(), error, lit.loc()) << "unexpected set aggregate " << lit;
         throw std::logic_error("unexpected set aggregate");
     }
 
@@ -973,7 +459,7 @@ class BuilderHdLit {
                 if constexpr (Util::matches<T, Input::LitSymbolic>) {
                     std::vector<size_t> provides;
                     auto sig = *signature(lit.term());
-                    auto dom_it = ctx_->impl().add_base(sig);
+                    auto dom_it = ctx_->add_base(sig);
                     auto &base = *dom_it->second;
                     assert(lit.sign() == Sign::none);
                     if (auto it = ctx_->def_map().find(&lit.term()); it != ctx_->def_map().end()) {
@@ -1005,7 +491,7 @@ class BuilderBdLit {
 
     //! Translate set aggregates.
     void operator()(Input::BdLitSetAggregate const &lit) const {
-        GRINGO_REPORT_LOC(*ctx_->impl().log, error, lit.loc()) << "unexpected set aggregate " << lit;
+        GRINGO_REPORT_LOC(ctx_->logger(), error, lit.loc()) << "unexpected set aggregate " << lit;
         throw std::logic_error("unexpected set aggregate");
     }
 
@@ -1402,15 +888,17 @@ class BuilderStm {
 class Builder : public Input::DependencyBuilder {
   public:
     //! Construct the builder.
-    Builder(Grounder::Impl &impl) : impl_{&impl} {}
+    Builder(std::pmr::monotonic_buffer_resource &mbr, Logger &log, SymbolStore &store, BaseMap &base_atom,
+            ProjectMap &base_project, OutputStm &out)
+        : mbr_{&mbr}, log_{&log}, store_{&store}, base_{base_atom, base_aux_, base_project}, out_{&out} {}
 
   private:
     //! Handle program parameters.
     void do_param(Input::ProgramParam const &param) override {
         buf_.str({});
         buf_ << "#program_" << *param.first;
-        auto dom_it = impl_->add_base(impl_->store->string_ref(buf_.view()), param.second.size(), false);
-        dom_it.value()->add(impl_->store->fun_ref(std::get<0>(dom_it.key()), as_symbol_span(param.second), false),
+        auto dom_it = base_.add_base(std::make_tuple(store_->string_ref(buf_.view()), param.second.size(), false));
+        dom_it.value()->add(store_->fun_ref(std::get<0>(dom_it.key()), as_symbol_span(param.second), false),
                             Ground::StateAtom::fact);
     }
 
@@ -1424,26 +912,26 @@ class Builder : public Input::DependencyBuilder {
     //! Handle facts.
     void do_fact(std::vector<Symbol> const &facts) override {
         for (auto const &fact : facts) {
-            auto dom_it = impl_->add_base(fact.name(), fact.args().size(), fact.has_sign());
+            auto dom_it = base_.add_base(std::make_tuple(fact.name(), fact.args().size(), fact.has_sign()));
             dom_it->second->add(fact, Ground::StateAtom::fact);
-            impl_->out->fact(fact);
+            out_->fact(fact);
         }
     }
 
     //! Translate components.
     auto do_components(Input::Components const &comps) -> bool override {
-        auto lin = Ground::Linearizer{impl_->mbr};
+        auto lin = Ground::Linearizer{*mbr_};
         for (auto const &ref_comps : comps) {
-            GRINGO_REPORT(*impl_->log, debug) << "  component";
+            GRINGO_REPORT(*log_, debug) << "  component";
             for (auto const &ref_comp : ref_comps) {
-                GRINGO_REPORT(*impl_->log, debug) << "    refined component";
+                GRINGO_REPORT(*log_, debug) << "    refined component";
                 // A component is classified w.r.t. to previously accumulated
                 // atoms. It is domain if it is positive (i.e., contains no
                 // negative cycle) and all bases it depends on are domain.
                 // A domain component only derives facts.
                 bool domain = test(ref_comp.type, Input::ComponentType::positive) &&
                               std::all_of(ref_comp.depend.begin(), ref_comp.depend.end(),
-                                          [this](auto const &sig) { return impl_->add_base(sig)->second->domain(); });
+                                          [this](auto const &sig) { return base_.add_base(sig)->second->domain(); });
                 auto gcomp = Ground::Component{domain};
                 auto mbr = std::pmr::monotonic_buffer_resource{};
                 auto states = StateList{};
@@ -1464,17 +952,18 @@ class Builder : public Input::DependencyBuilder {
                         }
                         ++i;
                     }
-                    auto ctx = BuildContext{*impl_, mbr, ref_comp, def_map, gcomp, var_map, body, states};
+                    auto ctx =
+                        BuildContext{mbr, *log_, *store_, base_, ref_comp, def_map, gcomp, var_map, body, states};
                     auto bld_stm = BuilderStm{ctx};
                     std::visit(bld_stm, *stm);
                 }
                 auto queue = Ground::Queue{};
                 lin.start(queue);
                 for (auto const &stm : gcomp.stms()) {
-                    GRINGO_REPORT(*impl_->log, debug) << "      " << *stm;
+                    GRINGO_REPORT(*log_, debug) << "      " << *stm;
                     lin.prepare(*stm, stm->body(), stm->important());
                 }
-                if (!queue.process(*impl_->log, *impl_->store, *impl_->out)) {
+                if (!queue.process(*log_, *store_, *out_)) {
                     return false;
                 }
                 for (auto &state : states) {
@@ -1482,20 +971,25 @@ class Builder : public Input::DependencyBuilder {
                         [this]<class State>(State &state) {
                             // it's probably better to unify the interface
                             if constexpr (Util::matches<State, Ground::StateTheory>) {
-                                state.output(*impl_->log, *impl_->store, *impl_->out);
+                                state.output(*log_, *store_, *out_);
                             } else {
-                                state.output(*impl_->out);
+                                state.output(*out_);
                             }
                         },
                         state);
                 }
             }
-            impl_->out->flush();
+            out_->flush();
         }
         return true;
     }
 
-    Grounder::Impl *impl_;
+    std::pmr::monotonic_buffer_resource *mbr_;
+    Logger *log_;
+    SymbolStore *store_;
+    BaseMap base_aux_;
+    BaseHelper base_;
+    OutputStm *out_;
     std::ostringstream buf_;
 };
 
@@ -1541,7 +1035,7 @@ void Grounder::parse(std::vector<std::string> const &files) {
             if (file == "-") {
                 prs.process_stdin();
             } else {
-                prs.process_path(std::filesystem::path(file), true);
+                prs.process_path(file);
             }
             prs.process_includes();
         }
@@ -1565,9 +1059,9 @@ auto Grounder::ground(Input::ProgramParamVec const &params) -> bool {
     Profiler prof{"clingo-ground.prof"};
 #endif
     if (impl_->is_sat) {
-        auto bld = Builder{*impl_};
+        auto bld = Builder{impl_->mbr, *impl_->log, *impl_->store, impl_->atom_base, impl_->project_base, *impl_->out};
         impl_->is_sat = impl_->prg.analyze(*impl_->store, params, bld);
-        impl_->post_ground();
+        impl_->clear();
     }
     impl_->out->end_step();
     return impl_->is_sat;
@@ -1601,4 +1095,4 @@ void Grounder::output_program(std::ostream &out) {
     out.flush();
 }
 
-} // namespace Gringo
+} // namespace Gringo::Grounder

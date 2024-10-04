@@ -10,12 +10,12 @@ namespace Gringo::Test {
 
 TEST_CASE("grounder_text") {
     auto opts = Input::RewriteOptions{};
-    auto log = Gringo::Logger{};
+    auto log = Logger{};
     log.set_level(LogLevel::error);
-    auto store = Gringo::make_symbol_store(true, false);
+    auto store = make_symbol_store(true, false);
     auto buf = Util::OutputBuffer{};
-    auto out = Gringo::Output::make_text_output(buf);
-    Gringo::Grounder grd{log, *store, opts, *out};
+    auto out = Output::make_text_output(buf);
+    Grounder::Grounder grd{log, *store, opts, *out};
     auto params = Input::ProgramParamVec{{store->string("base"), {}}};
 
     SECTION("fact") {

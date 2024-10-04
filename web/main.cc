@@ -76,7 +76,7 @@ auto run(std::string const &program, std::vector<std::string> args) -> bool {
         auto store = Gringo::make_symbol_store(true, false);
         auto buf = Gringo::Util::OutputBuffer{stdout};
         auto out = Gringo::Output::make_text_output(buf);
-        Gringo::Grounder grd{log, *store, opts, *out};
+        Gringo::Grounder::Grounder grd{log, *store, opts, *out};
         auto prs = Gringo::Input::Parser{log, *store};
 
         auto params = std::optional<std::vector<Gringo::Input::ProgramParamVec>>();

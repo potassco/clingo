@@ -2,7 +2,7 @@
 
 #include <gringo/core/output.hh>
 
-namespace Gringo {
+namespace Gringo::Grounder {
 
 //! @addtogroup grounder
 //! @{
@@ -39,4 +39,4 @@ class Grounder {
 
 //! @}
 
-} // namespace Gringo
+} // namespace Gringo::Grounder

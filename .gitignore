@@ -17,3 +17,4 @@ example.*
 __pycache__
 .venv
 *.prof
+.nfs*
