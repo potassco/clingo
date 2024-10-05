@@ -222,6 +222,30 @@ class OutputText : public OutputStm, OutputTheory {
 
     auto do_disjunctive_rule(std::optional<size_t> uid) -> size_t override { return body_.delay_head(uid, " :- "); }
 
+    void do_weak_constraint(Number const &weight, std::optional<Symbol> prio, SymbolSpan terms) override {
+        auto p_tup = [&](auto &out) {
+            out << ". [" << weight;
+            if (prio) {
+                out << *prio;
+            }
+            for (auto const &term : terms) {
+                out << "," << term;
+            }
+            out << "].\n";
+        };
+        if (!body_.delayed()) {
+            *out_ << " :~ ";
+            *out_ << body_.end();
+            p_tup(*out_);
+            out_->endl();
+        } else {
+            p_tup(body_.buf());
+            body_.delay();
+            body_.buf() << " :~ ";
+            body_.prepend();
+        }
+    }
+
     auto do_cond() -> OutputLit & override {
         cond_.start();
         return cond_;

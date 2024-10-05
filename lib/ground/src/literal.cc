@@ -623,14 +623,7 @@ auto LitFailCheck::do_output([[maybe_unused]] InstantiationContext &ctx,
     return false;
 }
 
-auto LitFailCheck::do_copy() const -> ULit {
-    UTermVec terms;
-    terms.reserve(terms_.size());
-    for (auto const &term : terms_) {
-        terms.emplace_back(term->copy());
-    }
-    return std::make_unique<LitFailCheck>(std::move(terms));
-}
+auto LitFailCheck::do_copy() const -> ULit { return std::make_unique<LitFailCheck>(copy_uvec(terms_), num_, result_); }
 
 auto LitFailCheck::do_domain() const -> bool { return true; }
 
@@ -649,24 +642,40 @@ auto LitFailCheck::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resour
     -> std::pair<UMatcher, std::optional<size_t>> {
     class FailCheckMatcher : public OnceMatcher {
       public:
-        FailCheckMatcher(UTermVec &terms) : terms_{&terms} {}
+        FailCheckMatcher(UTermVec &terms, SymbolVec *result, size_t num) : terms_{&terms}, result_{result}, num_{num} {}
 
       private:
         auto do_once(InstantiationContext &ctx) -> bool override {
+            if (result_ != nullptr) {
+                result_->clear();
+            }
+            auto i = size_t{0};
             for (auto const &term : *terms_) {
-                if (!term->eval(ctx.store(), ctx.ass())) {
+                if (auto res = term->eval(ctx.store(), ctx.ass())) {
+                    if (i < num_) {
+                        if (res->type() != SymbolType::number) {
+                            return false;
+                        }
+                    }
+                    if (result_ != nullptr) {
+                        result_->emplace_back(*res);
+                    }
+                } else {
                     return false;
                 }
+                ++i;
             }
             return true;
         }
         void do_print(std::ostream &out) const override {
-            out << "#not_fail" << Util::p_range(*terms_, [](std::ostream &out, auto const &x) { out << *x; });
+            out << "#check(" << Util::p_range(*terms_, [](std::ostream &out, auto const &x) { out << *x; }) << ")";
         }
 
         UTermVec *terms_;
+        SymbolVec *result_;
+        size_t num_;
     };
-    return {std::make_unique<FailCheckMatcher>(terms_), std::nullopt};
+    return {std::make_unique<FailCheckMatcher>(terms_, result_, num_), std::nullopt};
 }
 
 auto LitFailCheck::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return -1; }

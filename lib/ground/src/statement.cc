@@ -207,4 +207,71 @@ void StmRule::do_propagate([[maybe_unused]] SymbolStore &store, Queue &queue) {
     }
 }
 
+// definition of StmWeakConstraint
+
+void StmWeakConstraint::init_() {
+    UTermVec terms;
+    terms.reserve(terms_.size() + (prio_ ? 2 : 1));
+    terms.emplace_back(weight_->copy());
+    if (prio_) {
+        terms.emplace_back(prio_->copy());
+    }
+    for (auto const &term : terms_) {
+        terms.emplace_back(term->copy());
+    }
+    body_.emplace_back(std::make_unique<LitFailCheck>(std::move(terms), 1, &syms_));
+}
+
+void StmWeakConstraint::do_print(std::ostream &out) const {
+    out << "max: ";
+    out << " :~ " << Util::p_range(body_, ", ", [](std::ostream &out, auto const &lit) { out << *lit; }) << ". ";
+    print_head(out);
+}
+
+auto StmWeakConstraint::do_body() const -> ULitVec const & { return body_; }
+
+auto StmWeakConstraint::do_important() const -> VariableSet {
+    VariableSet vars;
+    weight_->vars(vars);
+    if (prio_) {
+        prio_->vars(vars);
+    }
+    for (auto const &term : terms_) {
+        term->vars(vars);
+    }
+    return vars;
+}
+
+void StmWeakConstraint::do_print_head(std::ostream &out) const {
+    out << "[" << *weight_;
+    if (prio_) {
+        out << "@" << *prio_;
+    }
+    for (auto const &term : terms_) {
+        out << "," << *term;
+    }
+    out << "]";
+}
+
+void StmWeakConstraint::do_init([[maybe_unused]] size_t gen) {}
+
+auto StmWeakConstraint::do_report(InstantiationContext &ctx) -> bool {
+    assert(syms_.size() > (prio_ ? 1 : 0));
+    auto &out = ctx.out().body();
+    for (auto const &lit : body_) {
+        std::ignore = lit->output(ctx, out);
+    }
+    auto it = syms_.begin();
+    auto weight = *it++;
+    auto prio = std::optional<Symbol>{};
+    if (prio_) {
+        prio.emplace(*it++);
+    }
+    auto terms = std::span(it, syms_.end());
+    ctx.out().weak_constraint(weight.num(), prio, terms);
+    return true;
+}
+
+void StmWeakConstraint::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Queue &queue) {}
+
 } // namespace Gringo::Ground

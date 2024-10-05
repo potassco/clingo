@@ -73,7 +73,7 @@ class Linearizer {
 class StmRule : public Stm {
   public:
     //! Construct the statement.
-    StmRule(AtomSimple head, Ground::ULitVec body, bool choice)
+    StmRule(AtomSimple head, ULitVec body, bool choice)
         : head_{head ? std::move(std::get<0>(*head)) : nullptr}, base_{head ? &std::get<1>(*head) : nullptr},
           indices_{head ? std::move(std::get<2>(*head)) : std::vector<size_t>{}}, body_{std::move(body)},
           choice_{choice} {
@@ -106,9 +106,41 @@ class StmRule : public Stm {
     //! Recursive body literals that unify with the rule head have matching indices.
     //! This allows for updating the indices of these literals while grounding.
     std::vector<size_t> indices_;
-    Ground::ULitVec body_;
+    ULitVec body_;
     Symbol atom_ = SymbolStore::sup();
     bool choice_;
+};
+
+//! A statement capturing weak constraints constraints.
+class StmWeakConstraint : public Stm {
+  public:
+    //! Construct the statement.
+    StmWeakConstraint(UTerm weight, std::optional<UTerm> prio, UTermVec terms, ULitVec body)
+        : weight_{std::move(weight)}, prio_{prio ? *std::move(prio) : nullptr}, terms_{std::move(terms)},
+          body_{std::move(body)} {
+        init_();
+    }
+
+  private:
+    void init_();
+    // Stm interface
+    void do_print(std::ostream &out) const override;
+
+    [[nodiscard]] auto do_body() const -> ULitVec const & override;
+    [[nodiscard]] auto do_important() const -> VariableSet override;
+
+    // InstanceCallback interface
+    void do_print_head(std::ostream &out) const override;
+    void do_init(size_t gen) override;
+    [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override;
+    void do_propagate(SymbolStore &store, Queue &queue) override;
+    [[nodiscard]] auto do_priority() const -> size_t override { return std::numeric_limits<size_t>::max(); }
+
+    UTerm weight_;
+    UTerm prio_;
+    UTermVec terms_;
+    ULitVec body_;
+    SymbolVec syms_;
 };
 
 //! @}

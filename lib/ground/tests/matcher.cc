@@ -32,6 +32,8 @@ class NullOutputStm : public OutputStm {
     auto do_aggr_rule([[maybe_unused]] std::optional<size_t> head) -> size_t override { return 0; }
     auto do_disjunctive_rule([[maybe_unused]] std::optional<size_t> head) -> size_t override { return 0; }
     auto do_theory_rule([[maybe_unused]] std::optional<size_t> head) -> size_t override { return 0; }
+    void do_weak_constraint([[maybe_unused]] Number const &weight, [[maybe_unused]] std::optional<Symbol> prio,
+                            [[maybe_unused]] SymbolSpan terms) override {};
     auto do_cond() -> OutputLit & override { return lout; }
     auto do_cond_id() -> size_t override { return 0; }
     void do_cond_lit([[maybe_unused]] size_t uid, [[maybe_unused]] CondLits elems) override {}

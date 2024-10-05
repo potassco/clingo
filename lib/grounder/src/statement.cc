@@ -53,7 +53,6 @@ class BuilderBdLit {
 //! Translator for statements.
 class BuilderStm {
   public:
-    //! Construct the translator.
     BuilderStm(BuildContext &ctx) : ctx_{&ctx} {}
     template <class T> void operator()(T const &stm) const {
         std::ostringstream oss;
@@ -61,18 +60,49 @@ class BuilderStm {
         throw std::logic_error(oss.str());
     }
 
-    //! Translate rules.
     void operator()(Input::StmRule const &stm) const {
-        auto bld_bd = BuilderBdLit{*ctx_};
-        auto bld_hd = BuilderHdLit{*ctx_};
-        ctx_->body().reserve(stm.body().size() + 1);
-        for (auto const &lit : stm.body()) {
-            std::visit(bld_bd, lit);
-        }
-        std::visit(bld_hd, stm.head());
+        build_body_(stm.body(), 1);
+        std::visit(BuilderHdLit{*ctx_}, stm.head());
+    }
+
+    void operator()(Input::StmWeakConstraint const &stm) const {
+        build_body_(stm.body());
+        auto const &tuple = stm.tuple();
+        auto prio = build_term_(tuple.prio());
+        auto weight = build_term_(tuple.weight());
+        auto terms = build_term_vec_(tuple.terms());
+        ctx_->gcomp().add(std::make_unique<Ground::StmWeakConstraint>(std::move(weight), std::move(prio),
+                                                                      std::move(terms), std::move(ctx_->body())));
     }
 
   private:
+    [[nodiscard]] auto build_term_(std::optional<Input::Term> const &term) const -> std::optional<Ground::UTerm> {
+        if (term) {
+            return build_term(ctx_->var_map(), *term);
+        }
+        return std::nullopt;
+    }
+    [[nodiscard]] auto build_term_(Input::Term const &term) const -> Ground::UTerm {
+        return build_term(ctx_->var_map(), term);
+    }
+
+    [[nodiscard]] auto build_term_vec_(Input::TermArray const &terms) const -> Ground::UTermVec {
+        Ground::UTermVec res;
+        res.reserve(terms.size());
+        for (auto const &term : terms) {
+            res.emplace_back(build_term_(term));
+        }
+        return res;
+    }
+
+    void build_body_(Input::BdLitArray const &body, size_t extra = 0) const {
+        auto bld_bd = BuilderBdLit{*ctx_};
+        ctx_->body().reserve(body.size() + extra);
+        for (auto const &lit : body) {
+            std::visit(bld_bd, lit);
+        }
+    }
+
     BuildContext *ctx_;
 };
 

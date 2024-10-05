@@ -351,7 +351,15 @@ class LitTuple : public Lit {
 class LitFailCheck : public Lit {
   public:
     //! Construct the literal.
-    LitFailCheck(UTermVec terms) : terms_{std::move(terms)} {}
+    //!
+    //! Additionally, the first num terms are required to be numbers.
+    //! The result of the evalution is stored in the optional result vector.
+    LitFailCheck(UTermVec terms, size_t num = 0, SymbolVec *result = nullptr)
+        : terms_{std::move(terms)}, num_{num}, result_{result} {
+        if (result_ != nullptr) {
+            result_->reserve(terms_.size());
+        }
+    }
 
   private:
     void do_vars(VariableSet &vars, VarSelectMode mode) const override;
@@ -372,6 +380,8 @@ class LitFailCheck : public Lit {
     [[nodiscard]] auto do_compare_to(Lit const &other) const -> std::weak_ordering override;
 
     UTermVec terms_;
+    size_t num_;
+    SymbolVec *result_;
 };
 
 //! A vector of signatures, bases, and indices.
