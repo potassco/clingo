@@ -538,7 +538,11 @@ auto LitCheck::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resource &
     return {std::make_unique<CheckMatcher>(*this), std::nullopt};
 }
 
-auto LitCheck::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return -1; }
+auto LitCheck::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double {
+    // we give a high score here because most of these checks will match anyway
+    // their purpose is mostly to set the member storing the evaluation result
+    return std::numeric_limits<double>::max();
+}
 
 auto LitCheck::do_hash() const -> size_t { return typeid(this).hash_code(); }
 
