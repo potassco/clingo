@@ -1,3 +1,4 @@
+#include <gringo/ground/matcher.hh>
 #include <gringo/ground/statement.hh>
 
 #include <gringo/util/print.hh>
@@ -273,5 +274,166 @@ auto StmWeakConstraint::do_report(InstantiationContext &ctx) -> bool {
 }
 
 void StmWeakConstraint::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Queue &queue) {}
+
+// definitition of StmHeuristic
+
+void StmHeuristic::init_() {
+    UTermVec terms;
+    terms.reserve(prio_ ? 3 : 2);
+    terms.emplace_back(weight_->copy());
+    terms.emplace_back(type_->copy());
+    if (prio_) {
+        terms.emplace_back(prio_->copy());
+    }
+    class LitHeuristicCheck : public LitCheck {
+      public:
+        LitHeuristicCheck(StmHeuristic &stm) : stm_{&stm} {}
+
+      private:
+        [[nodiscard]] auto do_check(InstantiationContext &ctx) -> bool override {
+            if (auto weight = stm_->weight_->eval(ctx.store(), ctx.ass());
+                weight && weight->type() == SymbolType::number) {
+                stm_->res_weight_ = *weight;
+            } else {
+                return false;
+            }
+            if (stm_->prio_) {
+                if (auto prio = stm_->prio_->eval(ctx.store(), ctx.ass()); prio && prio->type() == SymbolType::number) {
+                    stm_->res_prio_ = *prio;
+                } else {
+                    return false;
+                }
+            }
+            if (auto type = stm_->type_->eval(ctx.store(), ctx.ass());
+                type && type->type() == SymbolType::function && type->args().empty() && !type->has_classical_sign()) {
+                if (type->name() == "factor") {
+                    stm_->res_type_ = HeuristicType::factor;
+                } else if (type->name() == "false") {
+                    stm_->res_type_ = HeuristicType::false_;
+                } else if (type->name() == "init") {
+                    stm_->res_type_ = HeuristicType::init;
+                } else if (type->name() == "level") {
+                    stm_->res_type_ = HeuristicType::level;
+                } else if (type->name() == "sign") {
+                    stm_->res_type_ = HeuristicType::sign;
+                } else if (type->name() == "true") {
+                    stm_->res_type_ = HeuristicType::true_;
+                } else {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+            return true;
+        }
+        void do_vars(VariableSet &vars, VarSelectMode mode) const override {
+            if (mode != VarSelectMode::provide) {
+                stm_->weight_->vars(vars);
+                if (stm_->prio_) {
+                    stm_->prio_->vars(vars);
+                }
+                stm_->type_->vars(vars);
+            }
+        }
+        void do_print(std::ostream &out) const override {
+            out << "#check(" << *stm_->weight_;
+            if (stm_->prio_) {
+                out << "," << *stm_->prio_;
+            }
+            out << "," << *stm_->type_ << ")";
+        }
+        [[nodiscard]] auto do_copy() const -> ULit override { return std::make_unique<LitHeuristicCheck>(*stm_); }
+
+        StmHeuristic *stm_;
+    };
+
+    class LitAtom : public Lit {
+      public:
+        LitAtom(StmHeuristic &stm) : stm_{&stm} {}
+
+      private:
+        void do_print(std::ostream &out) const override { out << *stm_->atom_; }
+
+        [[nodiscard]] auto do_output([[maybe_unused]] InstantiationContext &ctx,
+                                     [[maybe_unused]] OutputLit &out) const -> bool override {
+            return false;
+        }
+
+        [[nodiscard]] auto do_copy() const -> ULit override { return std::make_unique<LitAtom>(*stm_); }
+
+        [[nodiscard]] auto do_domain() const -> bool override { return true; }
+
+        [[nodiscard]] auto do_single_pass() const -> bool override { return true; }
+
+        void do_vars(VariableSet &vars, VarSelectMode mode) const override {
+            if (mode != VarSelectMode::depend) {
+                stm_->atom_->vars(vars);
+            }
+        }
+
+        [[nodiscard]] auto
+        do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+                   std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override {
+            return {make_atom_matcher(mbr, bound, *stm_->base_, *stm_->atom_, type, stm_->offset_), std::nullopt};
+        }
+
+        [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override {
+            return stm_->atom_->score(static_cast<double>(stm_->base_->size()), bound);
+        }
+
+        [[nodiscard]] auto do_hash() const -> size_t override { return std::hash<LitAtom const *>{}(this); }
+
+        [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override { return this == &other; }
+
+        [[nodiscard]] auto do_compare_to(Lit const &other) const -> std::weak_ordering override {
+            return this <=> &other;
+        }
+
+        StmHeuristic *stm_;
+    };
+    body_.emplace_back(std::make_unique<LitAtom>(*this));
+    body_.emplace_back(std::make_unique<LitHeuristicCheck>(*this));
+}
+
+void StmHeuristic::do_print(std::ostream &out) const {
+    out << "max: ";
+    print_head(out);
+    out << " :- " << Util::p_range(body_, ", ", [](std::ostream &out, auto const &lit) { out << *lit; }) << ".";
+}
+
+auto StmHeuristic::do_body() const -> ULitVec const & { return body_; }
+
+auto StmHeuristic::do_important() const -> VariableSet {
+    VariableSet vars;
+    atom_->vars(vars);
+    weight_->vars(vars);
+    if (prio_) {
+        prio_->vars(vars);
+    }
+    type_->vars(vars);
+    return vars;
+}
+
+void StmHeuristic::do_print_head(std::ostream &out) const {
+    out << "#heuristic " << *atom_ << " [" << *weight_;
+    if (prio_) {
+        out << "@" << *prio_;
+    }
+    out << "," << *type_ << "]";
+}
+
+void StmHeuristic::do_init([[maybe_unused]] size_t gen) {}
+
+auto StmHeuristic::do_report(InstantiationContext &ctx) -> bool {
+    auto &out = ctx.out().body();
+    for (auto const &lit : body_) {
+        std::ignore = lit->output(ctx, out);
+    }
+    auto atom = base_->nth(offset_).key();
+    ctx.out().heuristic(atom, res_weight_.num(), prio_ ? &res_prio_.num() : nullptr, res_type_);
+    return true;
+}
+
+void StmHeuristic::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Queue &queue) {}
 
 } // namespace Gringo::Ground

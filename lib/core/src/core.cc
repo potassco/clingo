@@ -195,4 +195,34 @@ auto operator<<(Util::OutputBuffer &out, AggregateFunction fun) -> Util::OutputB
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, HeuristicType type) -> Util::OutputBuffer & {
+    switch (type) {
+        case HeuristicType::factor: {
+            out << "factor";
+            break;
+        }
+        case HeuristicType::false_: {
+            out << "false";
+            break;
+        }
+        case HeuristicType::init: {
+            out << "init";
+            break;
+        }
+        case HeuristicType::level: {
+            out << "level";
+            break;
+        }
+        case HeuristicType::sign: {
+            out << "sign";
+            break;
+        }
+        case HeuristicType::true_: {
+            out << "true";
+            break;
+        }
+    }
+    return out;
+}
+
 } // namespace Gringo

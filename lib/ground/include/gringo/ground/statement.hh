@@ -4,6 +4,8 @@
 
 #include <gringo/ground/instantiator.hh>
 
+#include <gringo/core/core.hh>
+
 #include <memory_resource>
 
 namespace Gringo::Ground {
@@ -125,7 +127,6 @@ class StmWeakConstraint : public Stm {
     void init_();
     // Stm interface
     void do_print(std::ostream &out) const override;
-
     [[nodiscard]] auto do_body() const -> ULitVec const & override;
     [[nodiscard]] auto do_important() const -> VariableSet override;
 
@@ -141,6 +142,42 @@ class StmWeakConstraint : public Stm {
     UTermVec terms_;
     ULitVec body_;
     SymbolVec syms_;
+};
+
+//! A statement capturing weak constraints constraints.
+class StmHeuristic : public Stm {
+  public:
+    //! Construct the statement.
+    StmHeuristic(UTerm atom, Base &base, ULitVec body, UTerm weight, std::optional<UTerm> prio, UTerm type)
+        : atom_{std::move(atom)}, base_{&base}, weight_{std::move(weight)}, prio_{prio ? *std::move(prio) : nullptr},
+          type_{std::move(type)}, body_{std::move(body)} {
+        init_();
+    }
+
+  private:
+    void init_();
+    // Stm interface
+    void do_print(std::ostream &out) const override;
+    [[nodiscard]] auto do_body() const -> ULitVec const & override;
+    [[nodiscard]] auto do_important() const -> VariableSet override;
+
+    // InstanceCallback interface
+    void do_print_head(std::ostream &out) const override;
+    void do_init(size_t gen) override;
+    [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override;
+    void do_propagate(SymbolStore &store, Queue &queue) override;
+    [[nodiscard]] auto do_priority() const -> size_t override { return std::numeric_limits<size_t>::max(); }
+
+    UTerm atom_;
+    Base *base_;
+    UTerm weight_;
+    UTerm prio_;
+    UTerm type_;
+    ULitVec body_;
+    size_t offset_ = 0;
+    Symbol res_weight_;
+    Symbol res_prio_;
+    HeuristicType res_type_ = HeuristicType::level;
 };
 
 //! @}

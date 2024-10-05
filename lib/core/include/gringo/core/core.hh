@@ -168,6 +168,11 @@ enum class TheoryTermTupleType : uint8_t {
     list   //!< A list of terms enclosed in brackets.
 };
 
+//! Available heuristic types.
+enum class HeuristicType : uint8_t { level = 0, sign = 1, factor = 2, init = 3, true_ = 4, false_ = 5 };
+//! Output the given heuristic type.
+auto operator<<(Util::OutputBuffer &out, HeuristicType type) -> Util::OutputBuffer &;
+
 //! @}
 
 } // namespace Gringo

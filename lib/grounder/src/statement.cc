@@ -61,8 +61,7 @@ class BuilderStm {
                           Input::StmOptimize, Input::StmProgram, Input::StmProjectSig, Input::StmScript,
                           Input::StmShowSig, Input::StmTheory> ||
             // todo
-            Util::matches<T, Input::StmEdge, Input::StmExternal, Input::StmHeuristic, Input::StmProject,
-                          Input::StmShow>);
+            Util::matches<T, Input::StmEdge, Input::StmExternal, Input::StmProject, Input::StmShow>);
         GRINGO_REPORT(ctx_->logger(), error) << "unexpected statement: " << stm;
         throw std::logic_error("unexpected statement");
     }
@@ -80,6 +79,18 @@ class BuilderStm {
         auto terms = build_term_vec_(tuple.terms());
         ctx_->gcomp().add(std::make_unique<Ground::StmWeakConstraint>(std::move(weight), std::move(prio),
                                                                       std::move(terms), std::move(ctx_->body())));
+    }
+
+    void operator()(Input::StmHeuristic const &stm) const {
+        build_body_(stm.body());
+        auto atom = build_term_(stm.atom());
+        // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+        auto &base = *ctx_->add_base(*signature(stm.atom())).value();
+        auto prio = build_term_(stm.prio());
+        auto weight = build_term_(stm.weight());
+        auto type = build_term_(stm.type());
+        ctx_->gcomp().add(std::make_unique<Ground::StmHeuristic>(std::move(atom), base, std::move(ctx_->body()),
+                                                                 std::move(weight), std::move(prio), std::move(type)));
     }
 
   private:

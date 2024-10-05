@@ -226,7 +226,7 @@ class OutputText : public OutputStm, OutputTheory {
         auto p_tup = [&](auto &out) {
             out << ". [" << weight;
             if (prio) {
-                out << *prio;
+                out << "@" << *prio;
             }
             for (auto const &term : terms) {
                 out << "," << term;
@@ -242,6 +242,28 @@ class OutputText : public OutputStm, OutputTheory {
             p_tup(body_.buf());
             body_.delay();
             body_.buf() << " :~ ";
+            body_.prepend();
+        }
+    }
+
+    void do_heuristic(Symbol atom, Number const &weight, Number const *prio, HeuristicType type) override {
+        auto p_tup = [&](auto &out) {
+            out << ". [" << weight;
+            if (prio) {
+                out << "@" << *prio;
+            }
+            out << "," << type;
+            out << "].\n";
+        };
+        if (!body_.delayed()) {
+            *out_ << "#heuristic " << atom << ": ";
+            *out_ << body_.end();
+            p_tup(*out_);
+            out_->endl();
+        } else {
+            p_tup(body_.buf());
+            body_.delay();
+            body_.buf() << "#heuristic " << atom << ": ";
             body_.prepend();
         }
     }
