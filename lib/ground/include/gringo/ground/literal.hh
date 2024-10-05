@@ -92,33 +92,6 @@ class Lit {
     [[nodiscard]] virtual auto do_compare_to(Lit const &other) const -> std::weak_ordering = 0;
 };
 
-//! A literal representing a Boolean.
-class LitBool : public Lit {
-  public:
-    //! Construct the literal.
-    LitBool(bool value) : value_{value} {}
-
-  private:
-    void do_vars(VariableSet &vars, VarSelectMode mode) const override;
-    [[nodiscard]] auto do_domain() const -> bool override;
-    [[nodiscard]] auto do_single_pass() const -> bool override;
-    [[nodiscard]] auto
-    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
-               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
-    [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
-
-    void do_print(std::ostream &out) const override;
-    auto do_output(InstantiationContext &ctx, OutputLit &out) const -> bool override;
-
-    [[nodiscard]] auto do_copy() const -> ULit override;
-
-    [[nodiscard]] auto do_hash() const -> size_t override;
-    [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
-    [[nodiscard]] auto do_compare_to(Lit const &other) const -> std::weak_ordering override;
-
-    bool value_;
-};
-
 //! A literal representing a comparison.
 class LitComparison : public Lit {
   public:
@@ -180,38 +153,6 @@ class LitInterval : public Lit {
 
 //! Marker for stratified literals.
 constexpr auto stratified_index = std::numeric_limits<size_t>::max();
-
-//! Simple literal that discards whenever it matches to a fact.
-//!
-//! It is meant to prune rules whose heads have already been derived as facts.
-class LitFactCheck : public Lit {
-  public:
-    //! Construct the literal.
-    LitFactCheck(Base &base, Term const &atom, Symbol &target) : base_{&base}, atom_{&atom}, target_{&target} {}
-
-  private:
-    //! Construct the literal.
-    void do_vars(VariableSet &vars, VarSelectMode mode) const override;
-    [[nodiscard]] auto do_domain() const -> bool override;
-    [[nodiscard]] auto do_single_pass() const -> bool override;
-    [[nodiscard]] auto
-    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
-               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
-    [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
-
-    void do_print(std::ostream &out) const override;
-    auto do_output(InstantiationContext &ctx, OutputLit &out) const -> bool override;
-
-    [[nodiscard]] auto do_copy() const -> ULit override;
-
-    [[nodiscard]] auto do_hash() const -> size_t override;
-    [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
-    [[nodiscard]] auto do_compare_to(Lit const &other) const -> std::weak_ordering override;
-
-    Base *base_;
-    Term const *atom_;
-    Symbol *target_;
-};
 
 //! A symbolic literal.
 class LitSymbolic : public Lit {
@@ -348,7 +289,60 @@ class LitTuple : public Lit {
 };
 
 //! A literal ensuring that a list of terms evaluates.
-class LitFailCheck : public Lit {
+class LitCheck : public Lit {
+  private:
+    [[nodiscard]] virtual auto do_check(InstantiationContext &ctx) -> bool = 0;
+
+    [[nodiscard]] auto do_domain() const -> bool override;
+    [[nodiscard]] auto do_single_pass() const -> bool override;
+    [[nodiscard]] auto
+    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
+
+    auto do_output(InstantiationContext &ctx, OutputLit &out) const -> bool override;
+
+    [[nodiscard]] auto do_hash() const -> size_t override;
+    [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
+    [[nodiscard]] auto do_compare_to(Lit const &other) const -> std::weak_ordering override;
+};
+
+//! A literal representing a Boolean.
+class LitBool : public LitCheck {
+  public:
+    //! Construct the literal.
+    LitBool(bool value) : value_{value} {}
+
+  private:
+    [[nodiscard]] auto do_check(InstantiationContext &ctx) -> bool override;
+    void do_vars(VariableSet &vars, VarSelectMode mode) const override;
+    void do_print(std::ostream &out) const override;
+    [[nodiscard]] auto do_copy() const -> ULit override;
+
+    bool value_;
+};
+
+//! Simple literal that discards whenever it matches to a fact.
+//!
+//! It is meant to prune rules whose heads have already been derived as facts.
+class LitFactCheck : public LitCheck {
+  public:
+    //! Construct the literal.
+    LitFactCheck(Base &base, Term const &atom, Symbol &target) : base_{&base}, atom_{&atom}, target_{&target} {}
+
+  private:
+    [[nodiscard]] auto do_check(InstantiationContext &ctx) -> bool override;
+    void do_vars(VariableSet &vars, VarSelectMode mode) const override;
+    void do_print(std::ostream &out) const override;
+    [[nodiscard]] auto do_copy() const -> ULit override;
+
+    Base *base_;
+    Term const *atom_;
+    Symbol *target_;
+};
+
+//! A literal ensuring that a list of terms evaluates.
+class LitFailCheck : public LitCheck {
   public:
     //! Construct the literal.
     //!
@@ -362,22 +356,10 @@ class LitFailCheck : public Lit {
     }
 
   private:
+    [[nodiscard]] auto do_check(InstantiationContext &ctx) -> bool override;
     void do_vars(VariableSet &vars, VarSelectMode mode) const override;
-    [[nodiscard]] auto do_domain() const -> bool override;
-    [[nodiscard]] auto do_single_pass() const -> bool override;
-    [[nodiscard]] auto
-    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
-               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
-    [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
-
     void do_print(std::ostream &out) const override;
-    auto do_output(InstantiationContext &ctx, OutputLit &out) const -> bool override;
-
     [[nodiscard]] auto do_copy() const -> ULit override;
-
-    [[nodiscard]] auto do_hash() const -> size_t override;
-    [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
-    [[nodiscard]] auto do_compare_to(Lit const &other) const -> std::weak_ordering override;
 
     UTermVec terms_;
     size_t num_;

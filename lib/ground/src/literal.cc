@@ -93,62 +93,6 @@ auto LitInterval::do_compare_to(Lit const &other) const -> std::weak_ordering {
     return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
 }
 
-// LitBool
-
-void LitBool::do_print(std::ostream &out) const { out << (value_ ? "#true" : "#false"); }
-
-auto LitBool::do_output([[maybe_unused]] InstantiationContext &ctx, [[maybe_unused]] OutputLit &out) const -> bool {
-    return false;
-}
-
-auto LitBool::do_copy() const -> ULit { return std::make_unique<LitBool>(value_); }
-
-auto LitBool::do_domain() const -> bool { return true; }
-
-auto LitBool::do_single_pass() const -> bool { return true; }
-
-void LitBool::do_vars([[maybe_unused]] VariableSet &vars, [[maybe_unused]] VarSelectMode mode) const {}
-
-auto LitBool::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resource &mbr, [[maybe_unused]] MatcherType type,
-                         [[maybe_unused]] std::vector<bool> const &bound)
-    -> std::pair<UMatcher, std::optional<size_t>> {
-    if (value_) {
-        return {make_once_matcher(), std::nullopt};
-    }
-    // note: for completeness; should not happen
-    class NeverMatcher : public Matcher {
-      public:
-        NeverMatcher() = default;
-
-      private:
-        void do_init([[maybe_unused]] SymbolStore &store, [[maybe_unused]] size_t gen) override {}
-        void do_match([[maybe_unused]] InstantiationContext &ctx) override {}
-        auto do_next([[maybe_unused]] InstantiationContext &ctx) -> bool override { return false; }
-        void do_print(std::ostream &out) const override { out << "#never"; }
-    };
-    return {std::make_unique<NeverMatcher>(), std::nullopt};
-}
-
-auto LitBool::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return -1; }
-
-auto LitBool::do_hash() const -> size_t { return Util::value_hash_record<LitBool>(value_); }
-
-auto LitBool::do_equal_to(Lit const &other) const -> bool {
-    auto const *x = dynamic_cast<LitBool const *>(&other);
-    if (x != nullptr) {
-        return std::tie(value_) == std::tie(x->value_);
-    }
-    return false;
-}
-
-auto LitBool::do_compare_to(Lit const &other) const -> std::weak_ordering {
-    auto const *x = dynamic_cast<LitBool const *>(&other);
-    if (x != nullptr) {
-        return static_cast<int>(value_) <=> static_cast<int>(x->value_);
-    }
-    return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
-}
-
 // LitComparison
 
 void LitComparison::do_print(std::ostream &out) const { out << *lhs_ << cmp_ << *rhs_; }
@@ -228,50 +172,6 @@ auto LitComparison::do_compare_to(Lit const &other) const -> std::weak_ordering 
             return std::tie(*lhs_, *rhs_) <=> std::tie(*x->rhs_, *x->lhs_);
         }
         return std::tie(*lhs_, cmp_, *rhs_) <=> std::tie(*x->lhs_, x->cmp_, *x->rhs_);
-    }
-    return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
-}
-
-// LitFactCheck
-
-void LitFactCheck::do_vars(VariableSet &vars, VarSelectMode mode) const {
-    if (mode != VarSelectMode::provide) {
-        atom_->vars(vars);
-    }
-}
-
-auto LitFactCheck::do_domain() const -> bool { return true; }
-
-auto LitFactCheck::do_single_pass() const -> bool { return true; }
-
-auto LitFactCheck::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resource &mbr,
-                              [[maybe_unused]] MatcherType type, [[maybe_unused]] std::vector<bool> const &bound)
-    -> std::pair<UMatcher, std::optional<size_t>> {
-    return {make_non_fact_matcher(*base_, *atom_, *target_), std::nullopt};
-}
-
-auto LitFactCheck::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return 0; }
-
-void LitFactCheck::do_print(std::ostream &out) const { out << "#not_fact " << *atom_; }
-
-auto LitFactCheck::do_output([[maybe_unused]] InstantiationContext &ctx,
-                             [[maybe_unused]] OutputLit &out) const -> bool {
-    return false;
-}
-
-auto LitFactCheck::do_copy() const -> ULit { return std::make_unique<LitFactCheck>(*base_, *atom_, *target_); }
-
-auto LitFactCheck::do_hash() const -> size_t { return Util::value_hash_record<LitFactCheck>(*atom_); }
-
-auto LitFactCheck::do_equal_to(Lit const &other) const -> bool {
-    auto const *x = dynamic_cast<LitFactCheck const *>(&other);
-    return x != nullptr && *atom_ == *x->atom_;
-}
-
-auto LitFactCheck::do_compare_to(Lit const &other) const -> std::weak_ordering {
-    auto const *x = dynamic_cast<LitFactCheck const *>(&other);
-    if (x != nullptr) {
-        return *atom_ <=> *x->atom_;
     }
     return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
 }
@@ -612,22 +512,100 @@ auto LitTuple::do_compare_to(Lit const &other) const -> std::weak_ordering {
     return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
 }
 
-// LitFailCheck
+// LitCheck
 
-void LitFailCheck::do_print(std::ostream &out) const {
-    out << "#not_fail" << Util::p_range(terms_, [](std::ostream &out, auto const &x) { out << *x; });
-}
+auto LitCheck::do_single_pass() const -> bool { return true; }
 
-auto LitFailCheck::do_output([[maybe_unused]] InstantiationContext &ctx,
-                             [[maybe_unused]] OutputLit &out) const -> bool {
+auto LitCheck::do_domain() const -> bool { return true; }
+
+auto LitCheck::do_output([[maybe_unused]] InstantiationContext &ctx, [[maybe_unused]] OutputLit &out) const -> bool {
     return false;
 }
 
+auto LitCheck::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resource &mbr, [[maybe_unused]] MatcherType type,
+                          [[maybe_unused]] std::vector<bool> const &bound)
+    -> std::pair<UMatcher, std::optional<size_t>> {
+    class CheckMatcher : public OnceMatcher {
+      public:
+        CheckMatcher(LitCheck &lit) : lit_{&lit} {}
+
+      private:
+        auto do_once(InstantiationContext &ctx) -> bool override { return lit_->do_check(ctx); }
+        void do_print(std::ostream &out) const override { out << *lit_; }
+
+        LitCheck *lit_;
+    };
+    return {std::make_unique<CheckMatcher>(*this), std::nullopt};
+}
+
+auto LitCheck::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return -1; }
+
+auto LitCheck::do_hash() const -> size_t { return typeid(this).hash_code(); }
+
+auto LitCheck::do_equal_to(Lit const &other) const -> bool { return this == &other; }
+
+auto LitCheck::do_compare_to(Lit const &other) const -> std::weak_ordering { return this <=> &other; }
+
+// definition of LitBool
+
+void LitBool::do_print(std::ostream &out) const { out << (value_ ? "#true" : "#false"); }
+
+auto LitBool::do_copy() const -> ULit { return std::make_unique<LitBool>(value_); }
+
+void LitBool::do_vars([[maybe_unused]] VariableSet &vars, [[maybe_unused]] VarSelectMode mode) const {}
+
+auto LitBool::do_check([[maybe_unused]] InstantiationContext &ctx) -> bool { return value_; }
+
+// LitFactCheck
+
+auto LitFactCheck::do_check(InstantiationContext &ctx) -> bool {
+    if (auto sym = atom_->eval(ctx.store(), ctx.ass())) {
+        *target_ = *sym;
+        return !base_->is_fact(*sym);
+    }
+    return false;
+}
+
+void LitFactCheck::do_vars(VariableSet &vars, VarSelectMode mode) const {
+    if (mode != VarSelectMode::provide) {
+        atom_->vars(vars);
+    }
+}
+
+void LitFactCheck::do_print(std::ostream &out) const { out << "#not_fact " << *atom_; }
+
+auto LitFactCheck::do_copy() const -> ULit { return std::make_unique<LitFactCheck>(*base_, *atom_, *target_); }
+
+// LitFailCheck
+
+auto LitFailCheck::do_check(InstantiationContext &ctx) -> bool {
+    if (result_ != nullptr) {
+        result_->clear();
+    }
+    auto i = size_t{0};
+    for (auto const &term : terms_) {
+        if (auto res = term->eval(ctx.store(), ctx.ass())) {
+            if (i < num_) {
+                if (res->type() != SymbolType::number) {
+                    return false;
+                }
+            }
+            if (result_ != nullptr) {
+                result_->emplace_back(*res);
+            }
+        } else {
+            return false;
+        }
+        ++i;
+    }
+    return true;
+}
+
+void LitFailCheck::do_print(std::ostream &out) const {
+    out << "#check(" << Util::p_range(terms_, [](std::ostream &out, auto const &x) { out << *x; }) << ")";
+}
+
 auto LitFailCheck::do_copy() const -> ULit { return std::make_unique<LitFailCheck>(copy_uvec(terms_), num_, result_); }
-
-auto LitFailCheck::do_domain() const -> bool { return true; }
-
-auto LitFailCheck::do_single_pass() const -> bool { return true; }
 
 void LitFailCheck::do_vars(VariableSet &vars, VarSelectMode mode) const {
     if (mode != VarSelectMode::provide) {
@@ -635,65 +613,6 @@ void LitFailCheck::do_vars(VariableSet &vars, VarSelectMode mode) const {
             term->vars(vars);
         }
     }
-}
-
-auto LitFailCheck::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resource &mbr,
-                              [[maybe_unused]] MatcherType type, [[maybe_unused]] std::vector<bool> const &bound)
-    -> std::pair<UMatcher, std::optional<size_t>> {
-    class FailCheckMatcher : public OnceMatcher {
-      public:
-        FailCheckMatcher(UTermVec &terms, SymbolVec *result, size_t num) : terms_{&terms}, result_{result}, num_{num} {}
-
-      private:
-        auto do_once(InstantiationContext &ctx) -> bool override {
-            if (result_ != nullptr) {
-                result_->clear();
-            }
-            auto i = size_t{0};
-            for (auto const &term : *terms_) {
-                if (auto res = term->eval(ctx.store(), ctx.ass())) {
-                    if (i < num_) {
-                        if (res->type() != SymbolType::number) {
-                            return false;
-                        }
-                    }
-                    if (result_ != nullptr) {
-                        result_->emplace_back(*res);
-                    }
-                } else {
-                    return false;
-                }
-                ++i;
-            }
-            return true;
-        }
-        void do_print(std::ostream &out) const override {
-            out << "#check(" << Util::p_range(*terms_, [](std::ostream &out, auto const &x) { out << *x; }) << ")";
-        }
-
-        UTermVec *terms_;
-        SymbolVec *result_;
-        size_t num_;
-    };
-    return {std::make_unique<FailCheckMatcher>(terms_, result_, num_), std::nullopt};
-}
-
-auto LitFailCheck::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return -1; }
-
-auto LitFailCheck::do_hash() const -> size_t { return Util::value_hash_record<LitFailCheck>(terms_); }
-
-auto LitFailCheck::do_equal_to(Lit const &other) const -> bool {
-    auto const *x = dynamic_cast<LitFailCheck const *>(&other);
-    return x != nullptr && Util::value_equal_to{}(terms_, x->terms_);
-}
-
-auto LitFailCheck::do_compare_to(Lit const &other) const -> std::weak_ordering {
-    auto const *x = dynamic_cast<LitFailCheck const *>(&other);
-    if (x != nullptr) {
-        return std::lexicographical_compare_three_way(terms_.begin(), terms_.end(), x->terms_.begin(), x->terms_.end(),
-                                                      [](auto const &a, auto const &b) { return *a <=> *b; });
-    }
-    return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
 }
 
 } // namespace Gringo::Ground

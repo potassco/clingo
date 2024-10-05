@@ -62,7 +62,7 @@ TEST_CASE("grounder_text") {
         REQUIRE(grd.ground(params));
         auto res = store->gc();
         REQUIRE(res.first == 15);
-        REQUIRE(res.second == 2);
+        REQUIRE(res.second == 4);
     }
     SECTION("condlit_bug") {
         grd.parse(R"(
