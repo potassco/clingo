@@ -55,9 +55,16 @@ class BuilderStm {
   public:
     BuilderStm(BuildContext &ctx) : ctx_{&ctx} {}
     template <class T> void operator()(T const &stm) const {
-        std::ostringstream oss;
-        oss << "implement me: handle statement " << stm;
-        throw std::logic_error(oss.str());
+        static_assert(
+            // ignore
+            Util::matches<T, Input::StmComment, Input::StmConst, Input::StmDefined, Input::StmInclude,
+                          Input::StmOptimize, Input::StmProgram, Input::StmProjectSig, Input::StmScript,
+                          Input::StmShowSig, Input::StmTheory> ||
+            // todo
+            Util::matches<T, Input::StmEdge, Input::StmExternal, Input::StmHeuristic, Input::StmProject,
+                          Input::StmShow>);
+        GRINGO_REPORT(ctx_->logger(), error) << "unexpected statement: " << stm;
+        throw std::logic_error("unexpected statement");
     }
 
     void operator()(Input::StmRule const &stm) const {
