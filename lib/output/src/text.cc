@@ -268,6 +268,18 @@ class OutputText : public OutputStm, OutputTheory {
         }
     }
 
+    void do_edge(Symbol src, Symbol dst) override {
+        if (!body_.delayed()) {
+            *out_ << "#edge (" << src << "," << dst << ") : " << body_.end() << ".\n";
+            out_->endl();
+        } else {
+            body_.buf() << ".\n";
+            body_.delay();
+            *out_ << "#edge (" << src << "," << dst << ") : ";
+            body_.prepend();
+        }
+    }
+
     auto do_cond() -> OutputLit & override {
         cond_.start();
         return cond_;

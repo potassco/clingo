@@ -93,6 +93,15 @@ class BuilderStm {
                                                                  std::move(weight), std::move(prio), std::move(type)));
     }
 
+    void operator()(Input::StmEdge const &stm) const {
+        build_body_(stm.body());
+        // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+        assert(stm.edges().size() == 1);
+        auto u = build_term_(stm.edges().front().src());
+        auto v = build_term_(stm.edges().front().dst());
+        ctx_->gcomp().add(std::make_unique<Ground::StmEdge>(std::move(u), std::move(v), std::move(ctx_->body())));
+    }
+
   private:
     [[nodiscard]] auto build_term_(std::optional<Input::Term> const &term) const -> std::optional<Ground::UTerm> {
         if (term) {

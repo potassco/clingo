@@ -180,6 +180,35 @@ class StmHeuristic : public Stm {
     HeuristicType res_type_ = HeuristicType::level;
 };
 
+//! A statement edge directives.
+class StmEdge : public Stm {
+  public:
+    //! Construct the statement.
+    StmEdge(UTerm src, UTerm dst, ULitVec body) : src_{std::move(src)}, dst_{std::move(dst)}, body_{std::move(body)} {
+        init_();
+    }
+
+  private:
+    void init_();
+    // Stm interface
+    void do_print(std::ostream &out) const override;
+    [[nodiscard]] auto do_body() const -> ULitVec const & override;
+    [[nodiscard]] auto do_important() const -> VariableSet override;
+
+    // InstanceCallback interface
+    void do_print_head(std::ostream &out) const override;
+    void do_init(size_t gen) override;
+    [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override;
+    void do_propagate(SymbolStore &store, Queue &queue) override;
+    [[nodiscard]] auto do_priority() const -> size_t override { return std::numeric_limits<size_t>::max(); }
+
+    UTerm src_;
+    UTerm dst_;
+    ULitVec body_;
+    Symbol res_src_;
+    Symbol res_dst_;
+};
+
 //! @}
 
 } // namespace Gringo::Ground

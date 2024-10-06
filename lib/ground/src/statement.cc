@@ -278,13 +278,6 @@ void StmWeakConstraint::do_propagate([[maybe_unused]] SymbolStore &store, [[mayb
 // definitition of StmHeuristic
 
 void StmHeuristic::init_() {
-    UTermVec terms;
-    terms.reserve(prio_ ? 3 : 2);
-    terms.emplace_back(weight_->copy());
-    terms.emplace_back(type_->copy());
-    if (prio_) {
-        terms.emplace_back(prio_->copy());
-    }
     class LitHeuristicCheck : public LitCheck {
       public:
         LitHeuristicCheck(StmHeuristic &stm) : stm_{&stm} {}
@@ -435,5 +428,73 @@ auto StmHeuristic::do_report(InstantiationContext &ctx) -> bool {
 }
 
 void StmHeuristic::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Queue &queue) {}
+
+// definitition of StmEdge
+
+void StmEdge::init_() {
+    class LitEdgeCheck : public LitCheck {
+      public:
+        LitEdgeCheck(StmEdge &stm) : stm_{&stm} {}
+
+      private:
+        [[nodiscard]] auto do_check(InstantiationContext &ctx) -> bool override {
+            if (auto src = stm_->src_->eval(ctx.store(), ctx.ass())) {
+                stm_->res_src_ = *src;
+            } else {
+                return false;
+            }
+            if (auto dst = stm_->dst_->eval(ctx.store(), ctx.ass())) {
+                stm_->res_dst_ = *dst;
+            } else {
+                return false;
+            }
+            return true;
+        }
+        void do_vars(VariableSet &vars, VarSelectMode mode) const override {
+            if (mode != VarSelectMode::provide) {
+                stm_->src_->vars(vars);
+                stm_->dst_->vars(vars);
+            }
+        }
+        void do_print(std::ostream &out) const override {
+            out << "#check(" << *stm_->src_;
+            out << "," << *stm_->dst_ << ")";
+        }
+        [[nodiscard]] auto do_copy() const -> ULit override { return std::make_unique<LitEdgeCheck>(*stm_); }
+
+        StmEdge *stm_;
+    };
+    body_.emplace_back(std::make_unique<LitEdgeCheck>(*this));
+}
+
+void StmEdge::do_print(std::ostream &out) const {
+    out << "max: ";
+    print_head(out);
+    out << " :- " << Util::p_range(body_, ", ", [](std::ostream &out, auto const &lit) { out << *lit; }) << ".";
+}
+
+auto StmEdge::do_body() const -> ULitVec const & { return body_; }
+
+auto StmEdge::do_important() const -> VariableSet {
+    VariableSet vars;
+    src_->vars(vars);
+    dst_->vars(vars);
+    return vars;
+}
+
+void StmEdge::do_print_head(std::ostream &out) const { out << "#edge (" << *src_ << "," << *dst_ << ")"; }
+
+void StmEdge::do_init([[maybe_unused]] size_t gen) {}
+
+auto StmEdge::do_report(InstantiationContext &ctx) -> bool {
+    auto &out = ctx.out().body();
+    for (auto const &lit : body_) {
+        std::ignore = lit->output(ctx, out);
+    }
+    ctx.out().edge(res_src_, res_dst_);
+    return true;
+}
+
+void StmEdge::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Queue &queue) {}
 
 } // namespace Gringo::Ground
