@@ -71,14 +71,15 @@ class Linearizer {
     std::vector<std::vector<size_t>> var_map_;
 };
 
+enum class RuleType : uint8_t { normal, choice, external };
+
 //! A statement capturing normal rules and integrity constraints.
 class StmRule : public Stm {
   public:
     //! Construct the statement.
-    StmRule(AtomSimple head, ULitVec body, bool choice)
+    StmRule(AtomSimple head, ULitVec body, RuleType type)
         : head_{head ? std::move(std::get<0>(*head)) : nullptr}, base_{head ? &std::get<1>(*head) : nullptr},
-          indices_{head ? std::move(std::get<2>(*head)) : std::vector<size_t>{}}, body_{std::move(body)},
-          choice_{choice} {
+          indices_{head ? std::move(std::get<2>(*head)) : std::vector<size_t>{}}, body_{std::move(body)}, type_{type} {
         if (head_) {
             body_.emplace_back(std::make_unique<LitFactCheck>(*base_, *head_, atom_));
         }
@@ -110,7 +111,7 @@ class StmRule : public Stm {
     std::vector<size_t> indices_;
     ULitVec body_;
     Symbol atom_ = SymbolStore::sup();
-    bool choice_;
+    RuleType type_;
 };
 
 //! A statement capturing weak constraints constraints.

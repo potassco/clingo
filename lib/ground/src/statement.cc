@@ -153,7 +153,12 @@ auto Linearizer::order_(InstanceCallback &cb, std::vector<MatcherType> const &to
 
 void StmRule::do_print_head(std::ostream &out) const {
     if (head_) {
-        out << *head_;
+        if (type_ == RuleType::choice) {
+            out << "{ " << *head_ << " }";
+        }
+        if (type_ == RuleType::external) {
+            out << "#external " << *head_;
+        }
     }
 }
 
@@ -183,17 +188,23 @@ void StmRule::do_init(size_t gen) {
 }
 
 auto StmRule::do_report(InstantiationContext &ctx) -> bool {
-    bool fact = !choice_;
-    auto &out = ctx.out().body();
-    for (auto const &lit : body_) {
-        if (lit->output(ctx, out)) {
-            fact = false;
+    bool fact = type_ == RuleType::normal;
+    if (type_ != RuleType::external) {
+        auto &out = ctx.out().body();
+        for (auto const &lit : body_) {
+            if (lit->output(ctx, out)) {
+                fact = false;
+            }
         }
     }
     if (head_ != nullptr) {
         base_->add(atom_, fact ? StateAtom::fact : StateAtom::derived);
-        ctx.out().rule(std::make_pair(atom_, choice_));
-    } else if (!choice_) {
+        if (type_ == RuleType::external) {
+            ctx.out().external(atom_);
+        } else {
+            ctx.out().rule(std::make_pair(atom_, type_ == RuleType::choice));
+        }
+    } else if (type_ == RuleType::normal) {
         ctx.out().rule(std::nullopt);
     }
     return head_ != nullptr || !fact;

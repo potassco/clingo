@@ -22,8 +22,8 @@ class BuilderHdLit {
     void operator()(Input::HdLitDisjunction const &lit) const { build_hd_lit(*ctx_, lit); }
     void operator()(Input::HdLitAggregate const &lit) const { build_hd_lit(*ctx_, lit); }
     void operator()(Input::HdLitSimple const &lit) const {
-        ctx_->gcomp().add(
-            std::make_unique<Ground::StmRule>(ctx_->simple_lit(lit.lit()), std::move(ctx_->body()), false));
+        ctx_->gcomp().add(std::make_unique<Ground::StmRule>(ctx_->simple_lit(lit.lit()), std::move(ctx_->body()),
+                                                            Ground::RuleType::normal));
     }
 
   private:
@@ -61,7 +61,7 @@ class BuilderStm {
                           Input::StmOptimize, Input::StmProgram, Input::StmProjectSig, Input::StmScript,
                           Input::StmShowSig, Input::StmTheory> ||
             // todo
-            Util::matches<T, Input::StmEdge, Input::StmExternal, Input::StmProject, Input::StmShow>);
+            Util::matches<T, Input::StmProject, Input::StmShow>);
         GRINGO_REPORT(ctx_->logger(), error) << "unexpected statement: " << stm;
         throw std::logic_error("unexpected statement");
     }
@@ -100,6 +100,12 @@ class BuilderStm {
         auto u = build_term_(stm.edges().front().src());
         auto v = build_term_(stm.edges().front().dst());
         ctx_->gcomp().add(std::make_unique<Ground::StmEdge>(std::move(u), std::move(v), std::move(ctx_->body())));
+    }
+
+    void operator()(Input::StmExternal const &stm) const {
+        build_body_(stm.body());
+        ctx_->gcomp().add(std::make_unique<Ground::StmRule>(ctx_->simple_lit(stm.atom()), std::move(ctx_->body()),
+                                                            Ground::RuleType::external));
     }
 
   private:

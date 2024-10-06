@@ -153,20 +153,32 @@ class BuildContext {
         return res;
     }
 
-    template <class F> void with_simple_lit(Input::Lit const &lit, F fun) {
+    [[nodiscard]] auto simple_lit(Input::Term const &term) -> Ground::AtomSimple {
+        auto res = Ground::AtomSimple{};
+        with_simple_lit(term, [&res]([[maybe_unused]] auto sig, auto term, auto &base, auto provides) {
+            res.emplace(std::make_tuple(std::move(term), std::ref(base), std::move(provides)));
+        });
+        return res;
+    }
+
+    template <class F> void with_simple_lit(Input::Term const &term, F &&fun) {
+        auto provides = std::vector<size_t>{};
+        auto sig = signature(term);
+        assert(sig);
+        auto dom_it = add_base(*sig);
+        auto &base = *dom_it->second;
+        if (auto it = def_map_->find(&term); it != def_map_->end()) {
+            provides = it->second;
+        }
+        std::invoke(std::forward<F>(fun), *sig, build_term(*var_map_, term), base, std::move(provides));
+    }
+
+    template <class F> void with_simple_lit(Input::Lit const &lit, F &&fun) {
         std::visit(
             [&]<class T>(T const &lit) {
                 if constexpr (Util::matches<T, Input::LitSymbolic>) {
-                    auto provides = std::vector<size_t>{};
-                    auto sig = *signature(lit.term());
-                    auto dom_it = add_base(sig);
-                    auto &base = *dom_it->second;
                     assert(lit.sign() == Sign::none);
-                    if (auto it = def_map_->find(&lit.term()); it != def_map_->end()) {
-                        provides = it->second;
-                    }
-                    auto term = build_term(*var_map_, lit.term());
-                    fun(sig, std::move(term), base, std::move(provides));
+                    with_simple_lit(lit.term(), std::forward<F>(fun));
                     return;
                 } else if constexpr (Util::matches<T, Input::LitBool>) {
                     if (!lit.value()) {

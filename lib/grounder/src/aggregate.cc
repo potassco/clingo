@@ -76,7 +76,8 @@ void build_hd_lit(BuildContext &ctx, Input::HdLitAggregate const &lit) {
                 body.emplace_back(std::make_unique<Ground::LitFailCheck>(std::move(terms)));
             }
             // choice rule
-            ctx.gcomp().add(std::make_unique<Ground::StmRule>(ctx.simple_lit(elem.lit()), std::move(body), true));
+            ctx.gcomp().add(std::make_unique<Ground::StmRule>(ctx.simple_lit(elem.lit()), std::move(body),
+                                                              Ground::RuleType::choice));
         }
         return;
     }

@@ -30,6 +30,7 @@ class OutputBody : public OutputLit {
 
     void delay() {
         if (!buf_.empty()) {
+            assert(!delayed_.empty());
             delayed_.back().emplace_back(buf_.str());
             buf_.reset();
         }
@@ -214,6 +215,11 @@ class OutputText : public OutputStm, OutputTheory {
             body_.buf() << " :- ";
             body_.prepend();
         }
+    }
+
+    void do_external(Symbol atom) override {
+        *out_ << "#external " << atom << ".\n";
+        out_->endl();
     }
 
     auto do_aggr_rule(std::optional<size_t> uid) -> size_t override { return body_.delay_head(uid, " :- "); }
