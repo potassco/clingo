@@ -217,6 +217,22 @@ class OutputText : public OutputStm, OutputTheory {
         }
     }
 
+    void do_show_term(Symbol term) override {
+        if (!body_.delayed()) {
+            *out_ << "#show " << term;
+            if (!body_.empty()) {
+                *out_ << ": " << body_.end();
+            }
+            *out_ << ".\n";
+            out_->endl();
+        } else {
+            body_.buf() << ".\n";
+            body_.delay();
+            body_.buf() << "#show " << term << ": ";
+            body_.prepend();
+        }
+    }
+
     void do_external(Symbol atom) override {
         *out_ << "#external " << atom << ".\n";
         out_->endl();

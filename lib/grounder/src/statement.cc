@@ -61,7 +61,7 @@ class BuilderStm {
                           Input::StmOptimize, Input::StmProgram, Input::StmProjectSig, Input::StmScript,
                           Input::StmShowSig, Input::StmTheory> ||
             // todo
-            Util::matches<T, Input::StmProject, Input::StmShow>);
+            Util::matches<T, Input::StmProject>);
         GRINGO_REPORT(ctx_->logger(), error) << "unexpected statement: " << stm;
         throw std::logic_error("unexpected statement");
     }
@@ -95,7 +95,6 @@ class BuilderStm {
 
     void operator()(Input::StmEdge const &stm) const {
         build_body_(stm.body());
-        // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
         assert(stm.edges().size() == 1);
         auto u = build_term_(stm.edges().front().src());
         auto v = build_term_(stm.edges().front().dst());
@@ -108,6 +107,12 @@ class BuilderStm {
                                                             Ground::RuleType::external));
     }
 
+    void operator()(Input::StmShow const &stm) const {
+        build_body_(stm.body());
+        auto term = build_term_(stm.term());
+        ctx_->gcomp().add(std::make_unique<Ground::StmShow>(std::move(term), std::move(ctx_->body())));
+    }
+
   private:
     [[nodiscard]] auto build_term_(std::optional<Input::Term> const &term) const -> std::optional<Ground::UTerm> {
         if (term) {
@@ -115,6 +120,7 @@ class BuilderStm {
         }
         return std::nullopt;
     }
+
     [[nodiscard]] auto build_term_(Input::Term const &term) const -> Ground::UTerm {
         return build_term(ctx_->var_map(), term);
     }

@@ -137,6 +137,10 @@ class OutputStm {
     //!
     //! The body of the rule has to be output first.
     void edge(Symbol src, Symbol dst) { do_edge(src, dst); }
+    //! Output the given show statement.
+    //!
+    //! The body of the rule has to be output first.
+    void show_term(Symbol term) { do_show_term(term); }
 
     //! Return an output for a condition.
     auto cond() -> OutputLit & { return do_cond(); }
@@ -184,6 +188,7 @@ class OutputStm {
     virtual void do_weak_constraint(Number const &weight, std::optional<Symbol> prio, SymbolSpan terms) = 0;
     virtual void do_heuristic(Symbol atom, Number const &weight, Number const *prio, HeuristicType type) = 0;
     virtual void do_edge(Symbol src, Symbol dst) = 0;
+    virtual void do_show_term(Symbol term) = 0;
 
     virtual auto do_cond() -> OutputLit & = 0;
     virtual auto do_cond_id() -> size_t = 0;

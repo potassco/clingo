@@ -508,4 +508,62 @@ auto StmEdge::do_report(InstantiationContext &ctx) -> bool {
 
 void StmEdge::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Queue &queue) {}
 
+// definitition of StmShow
+
+void StmShow::init_() {
+    class LitShowCheck : public LitCheck {
+      public:
+        LitShowCheck(StmShow &stm) : stm_{&stm} {}
+
+      private:
+        [[nodiscard]] auto do_check(InstantiationContext &ctx) -> bool override {
+            if (auto term = stm_->term_->eval(ctx.store(), ctx.ass())) {
+                stm_->res_term_ = *term;
+            } else {
+                return false;
+            }
+            return true;
+        }
+        void do_vars(VariableSet &vars, VarSelectMode mode) const override {
+            if (mode != VarSelectMode::provide) {
+                stm_->term_->vars(vars);
+            }
+        }
+        void do_print(std::ostream &out) const override { out << "#check(" << *stm_->term_ << ")"; }
+        [[nodiscard]] auto do_copy() const -> ULit override { return std::make_unique<LitShowCheck>(*stm_); }
+
+        StmShow *stm_;
+    };
+    body_.emplace_back(std::make_unique<LitShowCheck>(*this));
+}
+
+void StmShow::do_print(std::ostream &out) const {
+    out << "max: ";
+    print_head(out);
+    out << " :- " << Util::p_range(body_, ", ", [](std::ostream &out, auto const &lit) { out << *lit; }) << ".";
+}
+
+auto StmShow::do_body() const -> ULitVec const & { return body_; }
+
+auto StmShow::do_important() const -> VariableSet {
+    VariableSet vars;
+    term_->vars(vars);
+    return vars;
+}
+
+void StmShow::do_print_head(std::ostream &out) const { out << "#show " << *term_; }
+
+void StmShow::do_init([[maybe_unused]] size_t gen) {}
+
+auto StmShow::do_report(InstantiationContext &ctx) -> bool {
+    auto &out = ctx.out().body();
+    for (auto const &lit : body_) {
+        std::ignore = lit->output(ctx, out);
+    }
+    ctx.out().show_term(res_term_);
+    return true;
+}
+
+void StmShow::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Queue &queue) {}
+
 } // namespace Gringo::Ground
