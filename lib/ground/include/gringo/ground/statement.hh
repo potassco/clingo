@@ -80,15 +80,14 @@ class StmRule : public Stm {
     StmRule(AtomSimple head, ULitVec body, RuleType type)
         : head_{head ? std::move(std::get<0>(*head)) : nullptr}, base_{head ? &std::get<1>(*head) : nullptr},
           indices_{head ? std::move(std::get<2>(*head)) : std::vector<size_t>{}}, body_{std::move(body)}, type_{type} {
-        if (head_) {
-            body_.emplace_back(std::make_unique<LitFactCheck>(*base_, *head_, atom_));
-        }
+        init_();
     }
 
   private:
+    void init_();
+
     // Stm interface
     void do_print(std::ostream &out) const override;
-
     [[nodiscard]] auto do_body() const -> ULitVec const & override;
     [[nodiscard]] auto do_important() const -> VariableSet override;
 
@@ -145,7 +144,7 @@ class StmWeakConstraint : public Stm {
     SymbolVec syms_;
 };
 
-//! A statement capturing weak constraints constraints.
+//! Statement capturing heuristic directives.
 class StmHeuristic : public Stm {
   public:
     //! Construct the statement.
@@ -233,6 +232,34 @@ class StmShow : public Stm {
     UTerm term_;
     ULitVec body_;
     Symbol res_term_;
+};
+
+//! Statement capturing project directives.
+class StmProject : public Stm {
+  public:
+    //! Construct the statement.
+    StmProject(UTerm atom, Base &base, ULitVec body) : atom_{std::move(atom)}, base_{&base}, body_{std::move(body)} {
+        init_();
+    }
+
+  private:
+    void init_();
+    // Stm interface
+    void do_print(std::ostream &out) const override;
+    [[nodiscard]] auto do_body() const -> ULitVec const & override;
+    [[nodiscard]] auto do_important() const -> VariableSet override;
+
+    // InstanceCallback interface
+    void do_print_head(std::ostream &out) const override;
+    void do_init(size_t gen) override;
+    [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override;
+    void do_propagate(SymbolStore &store, Queue &queue) override;
+    [[nodiscard]] auto do_priority() const -> size_t override { return std::numeric_limits<size_t>::max(); }
+
+    UTerm atom_;
+    Base *base_;
+    ULitVec body_;
+    size_t offset_ = 0;
 };
 
 //! @}

@@ -151,13 +151,20 @@ auto Linearizer::order_(InstanceCallback &cb, std::vector<MatcherType> const &to
     return {std::move(inst), res_index};
 }
 
+void StmRule::init_() {
+    if (head_) {
+        body_.emplace_back(std::make_unique<LitFactCheck>(*base_, *head_, atom_));
+    }
+}
+
 void StmRule::do_print_head(std::ostream &out) const {
     if (head_) {
         if (type_ == RuleType::choice) {
             out << "{ " << *head_ << " }";
-        }
-        if (type_ == RuleType::external) {
+        } else if (type_ == RuleType::external) {
             out << "#external " << *head_;
+        } else {
+            out << *head_;
         }
     }
 }
@@ -565,5 +572,80 @@ auto StmShow::do_report(InstantiationContext &ctx) -> bool {
 }
 
 void StmShow::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Queue &queue) {}
+
+// definitition of StmProject
+
+void StmProject::init_() {
+    class LitProject : public Lit {
+      public:
+        LitProject(StmProject &stm) : stm_{&stm} {}
+
+      private:
+        void do_print(std::ostream &out) const override { out << *stm_->atom_; }
+
+        [[nodiscard]] auto do_output([[maybe_unused]] InstantiationContext &ctx,
+                                     [[maybe_unused]] OutputLit &out) const -> bool override {
+            return false;
+        }
+
+        [[nodiscard]] auto do_copy() const -> ULit override { return std::make_unique<LitProject>(*stm_); }
+
+        [[nodiscard]] auto do_domain() const -> bool override { return true; }
+
+        [[nodiscard]] auto do_single_pass() const -> bool override { return true; }
+
+        void do_vars(VariableSet &vars, VarSelectMode mode) const override {
+            if (mode != VarSelectMode::depend) {
+                stm_->atom_->vars(vars);
+            }
+        }
+
+        [[nodiscard]] auto
+        do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+                   std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override {
+            return {make_atom_matcher(mbr, bound, *stm_->base_, *stm_->atom_, type, stm_->offset_), std::nullopt};
+        }
+
+        [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override {
+            return stm_->atom_->score(static_cast<double>(stm_->base_->size()), bound);
+        }
+
+        [[nodiscard]] auto do_hash() const -> size_t override { return std::hash<LitProject const *>{}(this); }
+
+        [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override { return this == &other; }
+
+        [[nodiscard]] auto do_compare_to(Lit const &other) const -> std::weak_ordering override {
+            return this <=> &other;
+        }
+
+        StmProject *stm_;
+    };
+    body_.emplace_back(std::make_unique<LitProject>(*this));
+}
+
+void StmProject::do_print(std::ostream &out) const {
+    out << "max: ";
+    print_head(out);
+    out << " :- " << Util::p_range(body_, ", ", [](std::ostream &out, auto const &lit) { out << *lit; }) << ".";
+}
+
+auto StmProject::do_body() const -> ULitVec const & { return body_; }
+
+auto StmProject::do_important() const -> VariableSet {
+    VariableSet vars;
+    atom_->vars(vars);
+    return vars;
+}
+
+void StmProject::do_print_head(std::ostream &out) const { out << "#project " << *atom_; }
+
+void StmProject::do_init([[maybe_unused]] size_t gen) {}
+
+auto StmProject::do_report(InstantiationContext &ctx) -> bool {
+    ctx.out().project(base_->nth(offset_).key());
+    return true;
+}
+
+void StmProject::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Queue &queue) {}
 
 } // namespace Gringo::Ground

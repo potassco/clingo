@@ -30,6 +30,7 @@ class NullOutputStm : public OutputStm {
     auto do_body() -> OutputLit & override { return lout; }
     void do_rule([[maybe_unused]] std::optional<std::pair<Symbol, bool>> head) override {}
     void do_external([[maybe_unused]] Symbol atom) override {}
+    void do_project([[maybe_unused]] Symbol atom) override {}
     void do_show_term([[maybe_unused]] Symbol term) override {}
     auto do_aggr_rule([[maybe_unused]] std::optional<size_t> head) -> size_t override { return 0; }
     auto do_disjunctive_rule([[maybe_unused]] std::optional<size_t> head) -> size_t override { return 0; }

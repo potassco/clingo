@@ -238,6 +238,11 @@ class OutputText : public OutputStm, OutputTheory {
         out_->endl();
     }
 
+    void do_project(Symbol atom) override {
+        *out_ << "#project " << atom << ".\n";
+        out_->endl();
+    }
+
     auto do_aggr_rule(std::optional<size_t> uid) -> size_t override { return body_.delay_head(uid, " :- "); }
 
     auto do_theory_rule(std::optional<size_t> uid) -> size_t override { return body_.delay_head(uid, " :- "); }

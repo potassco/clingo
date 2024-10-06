@@ -55,13 +55,9 @@ class BuilderStm {
   public:
     BuilderStm(BuildContext &ctx) : ctx_{&ctx} {}
     template <class T> void operator()(T const &stm) const {
-        static_assert(
-            // ignore
-            Util::matches<T, Input::StmComment, Input::StmConst, Input::StmDefined, Input::StmInclude,
-                          Input::StmOptimize, Input::StmProgram, Input::StmProjectSig, Input::StmScript,
-                          Input::StmShowSig, Input::StmTheory> ||
-            // todo
-            Util::matches<T, Input::StmProject>);
+        static_assert(Util::matches<T, Input::StmComment, Input::StmConst, Input::StmDefined, Input::StmInclude,
+                                    Input::StmOptimize, Input::StmProgram, Input::StmProjectSig, Input::StmScript,
+                                    Input::StmShowSig, Input::StmTheory>);
         GRINGO_REPORT(ctx_->logger(), error) << "unexpected statement: " << stm;
         throw std::logic_error("unexpected statement");
     }
@@ -111,6 +107,14 @@ class BuilderStm {
         build_body_(stm.body());
         auto term = build_term_(stm.term());
         ctx_->gcomp().add(std::make_unique<Ground::StmShow>(std::move(term), std::move(ctx_->body())));
+    }
+
+    void operator()(Input::StmProject const &stm) const {
+        build_body_(stm.body());
+        auto atom = build_term_(stm.atom());
+        // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+        auto &base = *ctx_->add_base(*signature(stm.atom())).value();
+        ctx_->gcomp().add(std::make_unique<Ground::StmProject>(std::move(atom), base, std::move(ctx_->body())));
     }
 
   private:
