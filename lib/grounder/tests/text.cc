@@ -481,6 +481,105 @@ TEST_CASE("grounder_text") {
                               "&p { ((-2)+1): a(2); 2 } < 5 :- a(2).\n"
                               "&p { ((-3)+1): a(3); 3 } < 5 :- a(3).\n");
     }
+    SECTION("minimize") {
+        grd.parse(R"(
+            {p(1..3)}.
+            #minimize {X,p: p(X); a; 0 }.)");
+        grd.prepare();
+        REQUIRE(grd.ground(params));
+        REQUIRE(buf.view() == "{ p(1) }.\n"
+                              "{ p(2) }.\n"
+                              "{ p(3) }.\n"
+                              " :~ p(1). [1,p].\n"
+                              " :~ p(2). [2,p].\n"
+                              " :~ p(3). [3,p].\n"
+                              " :~ . [0].\n");
+    }
+    SECTION("heuristic") {
+        grd.parse(R"(
+            {p(1,0,true)}.
+            {p(2,0,level)}.
+            p(3,1,init).
+            { q(1..3) }.
+            #heuristic q(W): p(W,P,T). [W@P,T])");
+        grd.prepare();
+        REQUIRE(grd.ground(params));
+        REQUIRE(buf.view() == "p(3,1,init).\n"
+                              "{ p(1,0,true) }.\n"
+                              "{ p(2,0,level) }.\n"
+                              "{ q(1) }.\n"
+                              "{ q(2) }.\n"
+                              "{ q(3) }.\n"
+                              "#heuristic q(3): . [3@1,init].\n"
+                              "#heuristic q(1): p(1,0,true). [1@0,true].\n"
+                              "#heuristic q(2): p(2,0,level). [2@0,level].\n");
+    }
+    SECTION("edge") {
+        grd.parse(R"(
+            {p(1..3)}.
+            #edge (X,X+1): p(X).)");
+        grd.prepare();
+        REQUIRE(grd.ground(params));
+        REQUIRE(buf.view() == "{ p(1) }.\n"
+                              "{ p(2) }.\n"
+                              "{ p(3) }.\n"
+                              "#edge (1,2) : p(1).\n"
+                              "#edge (2,3) : p(2).\n"
+                              "#edge (3,4) : p(3).\n");
+    }
+    SECTION("external") {
+        grd.parse(R"({a(1..2)}.
+                     #external et(X) : a(X). [true]
+                     #external ef(X) : a(X). [false]
+                     #external ec(X) : a(X). [free]
+                     #external en(X) : a(X).)");
+        grd.prepare();
+        REQUIRE(grd.ground(params));
+        REQUIRE(buf.view() == "{ a(1) }.\n"
+                              "{ a(2) }.\n"
+                              "#external et(1). [true]\n"
+                              "#external et(2). [true]\n"
+                              "#external ef(1). [false]\n"
+                              "#external ef(2). [false]\n"
+                              "#external ec(1). [free]\n"
+                              "#external ec(2). [free]\n"
+                              "#external en(1). [free]\n"
+                              "#external en(2). [free]\n");
+    }
+    SECTION("show") {
+        grd.parse(R"(
+            {p(1..3)}.
+            #show a.
+            #show X: p(X).)");
+        grd.prepare();
+        REQUIRE(grd.ground(params));
+        REQUIRE(buf.view() == "{ p(1) }.\n"
+                              "{ p(2) }.\n"
+                              "{ p(3) }.\n"
+                              "#show a.\n"
+                              "#show 1: p(1).\n"
+                              "#show 2: p(2).\n"
+                              "#show 3: p(3).\n");
+    }
+    SECTION("project") {
+        grd.parse(R"(
+            {a; p(1..3); q(2..4)}.
+            #project a.
+            #project b.
+            #project p(X): q(X).)");
+        grd.prepare();
+        REQUIRE(grd.ground(params));
+        REQUIRE(buf.view() == "{ a }.\n"
+                              "{ p(1) }.\n"
+                              "{ p(2) }.\n"
+                              "{ p(3) }.\n"
+                              "{ q(2) }.\n"
+                              "{ q(3) }.\n"
+                              "{ q(4) }.\n"
+                              "#project a.\n"
+                              "#project p(2).\n"
+                              "#project p(3).\n");
+    }
     store->gc();
 }
 
