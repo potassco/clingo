@@ -71,7 +71,7 @@ class Linearizer {
     std::vector<std::vector<size_t>> var_map_;
 };
 
-enum class RuleType : uint8_t { normal, choice, external };
+enum class RuleType : uint8_t { normal, choice };
 
 //! A statement capturing normal rules and integrity constraints.
 class StmRule : public Stm {
@@ -111,6 +111,47 @@ class StmRule : public Stm {
     ULitVec body_;
     Symbol atom_ = SymbolStore::sup();
     RuleType type_;
+};
+
+//! A statement capturing normal rules and integrity constraints.
+class StmExternal : public Stm {
+  public:
+    //! Construct the statement.
+    StmExternal(Ground::UTerm atom, Base &base, std::vector<size_t> indices, ULitVec body, std::optional<UTerm> type)
+        : type_{type ? *std::move(type) : nullptr}, atom_{std::move(atom)}, base_{&base}, indices_{std::move(indices)},
+          body_{std::move(body)} {
+        init_();
+    }
+
+  private:
+    void init_();
+
+    // Stm interface
+    void do_print(std::ostream &out) const override;
+    [[nodiscard]] auto do_body() const -> ULitVec const & override;
+    [[nodiscard]] auto do_important() const -> VariableSet override;
+
+    // InstanceCallback interface
+    void do_print_head(std::ostream &out) const override;
+    void do_init(size_t gen) override;
+    [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override;
+    void do_propagate(SymbolStore &store, Queue &queue) override;
+    [[nodiscard]] auto do_priority() const -> size_t override { return std::numeric_limits<size_t>::max(); }
+
+    UTerm type_;
+    //! The head of the rule.
+    //!
+    //! Note that this unique pointer is zero in case of constraints.
+    UTerm atom_;
+    Base *base_;
+    //! A list of indices.
+    //!
+    //! Recursive body literals that unify with the rule head have matching indices.
+    //! This allows for updating the indices of these literals while grounding.
+    std::vector<size_t> indices_;
+    ULitVec body_;
+    Symbol res_atom_ = SymbolStore::sup();
+    ExternalType res_type_ = ExternalType::free;
 };
 
 //! A statement capturing weak constraints constraints.

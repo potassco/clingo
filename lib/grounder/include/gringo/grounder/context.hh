@@ -153,12 +153,13 @@ class BuildContext {
         return res;
     }
 
-    [[nodiscard]] auto simple_lit(Input::Term const &term) -> Ground::AtomSimple {
+    [[nodiscard]] auto simple_lit(Input::Term const &term) -> Ground::AtomSimple::value_type {
         auto res = Ground::AtomSimple{};
         with_simple_lit(term, [&res]([[maybe_unused]] auto sig, auto term, auto &base, auto provides) {
             res.emplace(std::make_tuple(std::move(term), std::ref(base), std::move(provides)));
         });
-        return res;
+        assert(res);
+        return *std::move(res);
     }
 
     template <class F> void with_simple_lit(Input::Term const &term, F &&fun) {

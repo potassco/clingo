@@ -99,8 +99,10 @@ class BuilderStm {
 
     void operator()(Input::StmExternal const &stm) const {
         build_body_(stm.body());
-        ctx_->gcomp().add(std::make_unique<Ground::StmRule>(ctx_->simple_lit(stm.atom()), std::move(ctx_->body()),
-                                                            Ground::RuleType::external));
+        auto [atom, base, indices] = ctx_->simple_lit(stm.atom());
+        auto type = build_term_(stm.type());
+        ctx_->gcomp().add(std::make_unique<Ground::StmExternal>(std::move(atom), base, std::move(indices),
+                                                                std::move(ctx_->body()), std::move(type)));
     }
 
     void operator()(Input::StmShow const &stm) const {

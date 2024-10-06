@@ -225,4 +225,22 @@ auto operator<<(Util::OutputBuffer &out, HeuristicType type) -> Util::OutputBuff
     return out;
 }
 
+auto operator<<(Util::OutputBuffer &out, ExternalType type) -> Util::OutputBuffer & {
+    switch (type) {
+        case ExternalType::true_: {
+            out << "true";
+            break;
+        }
+        case ExternalType::false_: {
+            out << "false";
+            break;
+        }
+        case ExternalType::free: {
+            out << "free";
+            break;
+        }
+    }
+    return out;
+}
+
 } // namespace Gringo

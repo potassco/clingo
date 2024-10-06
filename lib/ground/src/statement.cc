@@ -161,8 +161,6 @@ void StmRule::do_print_head(std::ostream &out) const {
     if (head_) {
         if (type_ == RuleType::choice) {
             out << "{ " << *head_ << " }";
-        } else if (type_ == RuleType::external) {
-            out << "#external " << *head_;
         } else {
             out << *head_;
         }
@@ -196,21 +194,15 @@ void StmRule::do_init(size_t gen) {
 
 auto StmRule::do_report(InstantiationContext &ctx) -> bool {
     bool fact = type_ == RuleType::normal;
-    if (type_ != RuleType::external) {
-        auto &out = ctx.out().body();
-        for (auto const &lit : body_) {
-            if (lit->output(ctx, out)) {
-                fact = false;
-            }
+    auto &out = ctx.out().body();
+    for (auto const &lit : body_) {
+        if (lit->output(ctx, out)) {
+            fact = false;
         }
     }
     if (head_ != nullptr) {
         base_->add(atom_, fact ? StateAtom::fact : StateAtom::derived);
-        if (type_ == RuleType::external) {
-            ctx.out().external(atom_);
-        } else {
-            ctx.out().rule(std::make_pair(atom_, type_ == RuleType::choice));
-        }
+        ctx.out().rule(std::make_pair(atom_, type_ == RuleType::choice));
     } else if (type_ == RuleType::normal) {
         ctx.out().rule(std::nullopt);
     }
@@ -220,6 +212,104 @@ auto StmRule::do_report(InstantiationContext &ctx) -> bool {
 void StmRule::do_propagate([[maybe_unused]] SymbolStore &store, Queue &queue) {
     // Consider adding the propagation to the instantiator...
     if (base_ != nullptr && base_->has_update()) {
+        for (auto const &idx : indices_) {
+            queue.propagate(idx);
+        }
+    }
+}
+
+// definition of StmExternal
+
+void StmExternal::init_() {
+    class LitExternalCheck : public LitCheck {
+      public:
+        LitExternalCheck(StmExternal &stm) : stm_{&stm} {}
+
+      private:
+        [[nodiscard]] auto do_check(InstantiationContext &ctx) -> bool override {
+            if (auto atom = stm_->atom_->eval(ctx.store(), ctx.ass()); atom && !stm_->base_->is_fact(*atom)) {
+                stm_->res_atom_ = *atom;
+            } else {
+                return false;
+            }
+            if (stm_->type_) {
+                if (auto type = stm_->type_->eval(ctx.store(), ctx.ass());
+                    type && type->type() == SymbolType::function && type->args().empty() &&
+                    !type->has_classical_sign()) {
+                    if (type->name() == "true") {
+                        stm_->res_type_ = ExternalType::true_;
+                    } else if (type->name() == "false") {
+                        stm_->res_type_ = ExternalType::false_;
+                    } else if (type->name() == "free") {
+                        stm_->res_type_ = ExternalType::free;
+                    } else {
+                        return false;
+                    }
+                } else {
+                    return false;
+                }
+            } else {
+                stm_->res_type_ = ExternalType::free;
+            }
+            return true;
+        }
+        void do_vars(VariableSet &vars, VarSelectMode mode) const override {
+            if (mode != VarSelectMode::provide) {
+                if (stm_->type_) {
+                    stm_->type_->vars(vars);
+                }
+                stm_->atom_->vars(vars);
+            }
+        }
+        void do_print(std::ostream &out) const override {
+            out << "#check(" << *stm_->atom_;
+            if (stm_->type_) {
+                out << "," << *stm_->type_;
+            }
+            out << ")";
+        }
+        [[nodiscard]] auto do_copy() const -> ULit override { return std::make_unique<LitExternalCheck>(*stm_); }
+
+        StmExternal *stm_;
+    };
+    body_.emplace_back(std::make_unique<LitExternalCheck>(*this));
+}
+
+void StmExternal::do_print_head(std::ostream &out) const { out << "#external " << *atom_; }
+
+void StmExternal::do_print(std::ostream &out) const {
+    out << "max: ";
+    print_head(out);
+    if (!indices_.empty()) {
+        out << "[" << Util::p_range(indices_, ",") << "]";
+    }
+    out << " :- " << Util::p_range(body_, ", ", [](std::ostream &out, auto const &lit) { out << *lit; }) << ".";
+    if (type_) {
+        out << " [" << *type_ << "]";
+    }
+}
+
+auto StmExternal::do_body() const -> ULitVec const & { return body_; }
+
+auto StmExternal::do_important() const -> VariableSet {
+    VariableSet important;
+    atom_->vars(important);
+    if (type_) {
+        type_->vars(important);
+    }
+    return important;
+}
+
+void StmExternal::do_init(size_t gen) { base_->update(gen); }
+
+auto StmExternal::do_report(InstantiationContext &ctx) -> bool {
+    ctx.out().external(res_atom_, res_type_);
+    return true;
+}
+
+void StmExternal::do_propagate([[maybe_unused]] SymbolStore &store, Queue &queue) {
+    // Consider adding the propagation to the instantiator...
+    if (base_->has_update()) {
         for (auto const &idx : indices_) {
             queue.propagate(idx);
         }

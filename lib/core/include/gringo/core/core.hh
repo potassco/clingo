@@ -173,6 +173,11 @@ enum class HeuristicType : uint8_t { level = 0, sign = 1, factor = 2, init = 3, 
 //! Output the given heuristic type.
 auto operator<<(Util::OutputBuffer &out, HeuristicType type) -> Util::OutputBuffer &;
 
+//! Available heuristic types.
+enum class ExternalType : uint8_t { true_ = 0, false_ = 1, free = 2 };
+//! Output the given heuristic type.
+auto operator<<(Util::OutputBuffer &out, ExternalType type) -> Util::OutputBuffer &;
+
 //! @}
 
 } // namespace Gringo

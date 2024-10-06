@@ -114,7 +114,7 @@ class OutputStm {
     //! The body of the rule has to be output first.
     void rule(std::optional<std::pair<Symbol, bool>> head) { do_rule(head); }
     //! Output the given external.
-    void external(Symbol atom) { do_external(atom); }
+    void external(Symbol atom, ExternalType type) { do_external(atom, type); }
     //! Output the given external.
     void project(Symbol atom) { do_project(atom); }
     //! Output a head aggregate rule.
@@ -183,7 +183,7 @@ class OutputStm {
 
     virtual auto do_body() -> OutputLit & = 0;
     virtual void do_rule(std::optional<std::pair<Symbol, bool>> head) = 0;
-    virtual void do_external(Symbol atom) = 0;
+    virtual void do_external(Symbol atom, ExternalType type) = 0;
     virtual void do_project(Symbol atom) = 0;
     virtual auto do_aggr_rule(std::optional<size_t> uid) -> size_t = 0;
     virtual auto do_theory_rule(std::optional<size_t> uid) -> size_t = 0;
