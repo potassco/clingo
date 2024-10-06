@@ -137,6 +137,7 @@ class StmExternal : public Stm {
     [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override;
     void do_propagate(SymbolStore &store, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override { return std::numeric_limits<size_t>::max(); }
+    [[nodiscard]] auto do_is_important([[maybe_unused]] size_t index) const -> bool override { return false; }
 
     UTerm type_;
     //! The head of the rule.
@@ -296,6 +297,7 @@ class StmProject : public Stm {
     [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override;
     void do_propagate(SymbolStore &store, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override { return std::numeric_limits<size_t>::max(); }
+    [[nodiscard]] auto do_is_important([[maybe_unused]] size_t index) const -> bool override { return false; }
 
     UTerm atom_;
     Base *base_;
