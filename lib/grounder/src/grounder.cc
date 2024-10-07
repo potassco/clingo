@@ -170,7 +170,8 @@ struct Grounder::Impl : Gringo::SymbolOwner {
             bool show_all = true;
             auto show_base = [this](auto &base) {
                 for (auto i = base.mark_shown(), n = base.size(); i != n; ++i) {
-                    auto const &atom = base.nth(i).key();
+                    auto it = base.nth(i);
+                    auto const &atom = it.key();
                     out->body().lit(Sign::none, atom);
                     out->show_term(atom);
                 }
@@ -182,7 +183,8 @@ struct Grounder::Impl : Gringo::SymbolOwner {
                             it != atom_base.end()) {
                             auto &base = *it->second;
                             for (auto i = base.mark_projected(), n = base.size(); i != n; ++i) {
-                                auto const &atom = base.nth(i).key();
+                                auto jt = base.nth(i);
+                                auto const &atom = jt.key();
                                 out->project(atom);
                             }
                         }
