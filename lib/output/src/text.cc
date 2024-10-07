@@ -280,10 +280,13 @@ class OutputText : public OutputStm, OutputTheory {
                 out << "@" << *prio;
             }
             out << "," << type;
-            out << "].\n";
+            out << "]\n";
         };
         if (!body_.delayed()) {
-            *out_ << "#heuristic " << atom << ": ";
+            *out_ << "#heuristic " << atom;
+            if (!body_.empty()) {
+                *out_ << ": ";
+            }
             *out_ << body_.end();
             p_tup(*out_);
             out_->endl();
@@ -297,12 +300,16 @@ class OutputText : public OutputStm, OutputTheory {
 
     void do_edge(Symbol src, Symbol dst) override {
         if (!body_.delayed()) {
-            *out_ << "#edge (" << src << "," << dst << ") : " << body_.end() << ".\n";
+            *out_ << "#edge (" << src << "," << dst << ")";
+            if (!body_.empty()) {
+                *out_ << ": ";
+            }
+            *out_ << body_.end() << ".\n";
             out_->endl();
         } else {
             body_.buf() << ".\n";
             body_.delay();
-            *out_ << "#edge (" << src << "," << dst << ") : ";
+            *out_ << "#edge (" << src << "," << dst << "): ";
             body_.prepend();
         }
     }

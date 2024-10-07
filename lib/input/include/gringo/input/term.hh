@@ -31,6 +31,11 @@ class TermAbs;
 class TermUnary;
 class TermBinary;
 
+//! The signature of a predicate.
+using Sig = std::tuple<String, size_t, bool>;
+//! The signature of a predicate.
+using SharedSig = std::tuple<SharedString, size_t, bool>;
+
 //! Variant holding the different term types.
 using Term = std::variant<TermVariable, TermSymbol, TermTuple, TermFunction, TermAbs, TermUnary, TermBinary>;
 

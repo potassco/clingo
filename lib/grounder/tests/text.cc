@@ -510,22 +510,23 @@ TEST_CASE("grounder_text") {
                               "{ q(1) }.\n"
                               "{ q(2) }.\n"
                               "{ q(3) }.\n"
-                              "#heuristic q(3): . [3@1,init].\n"
-                              "#heuristic q(1): p(1,0,true). [1@0,true].\n"
-                              "#heuristic q(2): p(2,0,level). [2@0,level].\n");
+                              "#heuristic q(3). [3@1,init]\n"
+                              "#heuristic q(1): p(1,0,true). [1@0,true]\n"
+                              "#heuristic q(2): p(2,0,level). [2@0,level]\n");
     }
     SECTION("edge") {
         grd.parse(R"(
-            {p(1..3)}.
+            p(1).
+            {p(2..3)}.
             #edge (X,X+1): p(X).)");
         grd.prepare();
         REQUIRE(grd.ground(params));
-        REQUIRE(buf.view() == "{ p(1) }.\n"
+        REQUIRE(buf.view() == "p(1).\n"
                               "{ p(2) }.\n"
                               "{ p(3) }.\n"
-                              "#edge (1,2) : p(1).\n"
-                              "#edge (2,3) : p(2).\n"
-                              "#edge (3,4) : p(3).\n");
+                              "#edge (1,2).\n"
+                              "#edge (2,3): p(2).\n"
+                              "#edge (3,4): p(3).\n");
     }
     SECTION("external") {
         grd.parse(R"({a(1..2)}.

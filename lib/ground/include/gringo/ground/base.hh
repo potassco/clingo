@@ -284,6 +284,16 @@ class Base : public BaseImpl<Symbol, Base> {
         }
     }
 
+    //! Mark derived atoms as shown.
+    //!
+    //! Returns the index of the first atom not previously shown.
+    [[nodiscard]] auto mark_shown() -> size_t { return std::exchange(show_offset_, size()); }
+
+    //! Mark derived atoms as projected.
+    //!
+    //! Returns the index of the first atom not previously projected.
+    [[nodiscard]] auto mark_projected() -> size_t { return std::exchange(project_offset_, size()); }
+
   private:
     [[nodiscard]] auto atom_index_(MapAtom::const_iterator it) const -> size_t {
         return static_cast<size_t>(std::distance(atoms_.cbegin(), it));
@@ -292,6 +302,8 @@ class Base : public BaseImpl<Symbol, Base> {
     MapAtom atoms_;
     Util::index_sequence<size_t> derived_;
     size_t mutable domain_offset_ = 0;
+    size_t show_offset_ = 0;
+    size_t project_offset_ = 0;
 };
 
 //! A unique pointer holding a base.

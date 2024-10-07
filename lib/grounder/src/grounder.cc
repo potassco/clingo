@@ -55,30 +55,7 @@ class Builder : public Input::DependencyBuilder {
     }
 
     //! Handle meta statements.
-    void do_meta(std::vector<Input::Stm> const &stms) override {
-        // TODO:
-        // - StmShowSig, StmProjectSig
-        //   - just loop over base, then pass to output
-        //   - requires two sets of signatures in Grounder::Impl
-        //   - the indices about which atoms have been shown are best stored in the bases
-        // - StmDefined
-        //   1. could be handled here
-        //     -> only statements from added parts are considered
-        //     - there might be warnings about parts that are only relevant later
-        //   2. could be handled before
-        //     -> all statements could be considered
-        //     - warnings about parts that have not been added might be omitted
-        //   - I have a tendency toward solution 2.
-        //   - implementation:
-        //     - iterate over program constructing two sets of signatures of defined and required predicates
-        //     - before grounding check that the required are a subset of the defined predicates
-        //     - the functionality could be provided by Input::Program
-        // - StmScript
-        //   - this must be handled earlier
-        for (auto const &stm : stms) {
-            std::cout << stm << "\n";
-        }
-    }
+    void do_meta([[maybe_unused]] std::vector<Input::Stm> const &stms) override {}
 
     //! Handle facts.
     void do_fact(std::vector<Symbol> const &facts) override {
@@ -185,6 +162,48 @@ struct Grounder::Impl : Gringo::SymbolOwner {
         out->mark(gc);
     }
 
+    //! Handle meta statements after grounding.
+    //!
+    //! This currently handles show statements and projection directives.
+    void meta() {
+        for (auto const &stm : prg.meta_stms()) {
+            bool show_all = true;
+            auto show_base = [this](auto &base) {
+                for (auto i = base.mark_shown(), n = base.size(); i != n; ++i) {
+                    auto const &atom = base.nth(i).key();
+                    out->body().lit(Sign::none, atom);
+                    out->show_term(atom);
+                }
+            };
+            std::visit(
+                [&, this]<class T>(T const &stm) {
+                    if constexpr (Util::matches<T, Input::StmProjectSig>) {
+                        if (auto it = atom_base.find(Input::Sig{stm.name(), stm.arity(), stm.sign()});
+                            it != atom_base.end()) {
+                            auto &base = *it->second;
+                            for (auto i = base.mark_projected(), n = base.size(); i != n; ++i) {
+                                auto const &atom = base.nth(i).key();
+                                out->project(atom);
+                            }
+                        }
+                    }
+                    if constexpr (Util::matches<T, Input::StmShowSig>) {
+                        show_all = false;
+                        if (auto it = atom_base.find(Input::Sig{stm.name(), stm.arity(), stm.sign()});
+                            it != atom_base.end()) {
+                            show_base(*it->second);
+                        }
+                    }
+                },
+                stm);
+            if (!show_all) {
+                for (auto const &[sig, base] : atom_base) {
+                    show_base(*base);
+                }
+            }
+        }
+    }
+
     //! Cleanup step-local state accumulated during grounding.
     //!
     //! Clears indices associated with domains.
@@ -285,8 +304,26 @@ auto Grounder::ground(Input::ProgramParamVec const &params) -> bool {
     auto prof = Profiler{"clingo-ground.prof"};
 #endif
     if (impl_->is_sat) {
+        // TODO:
+        // - StmDefined
+        //   1. could be handled here
+        //     -> only statements from added parts are considered
+        //     - there might be warnings about parts that are only relevant later
+        //   2. could be handled before
+        //     -> all statements could be considered
+        //     - warnings about parts that have not been added might be omitted
+        //   - I have a tendency toward solution 2.
+        //   - implementation:
+        //     - iterate over program constructing two sets of signatures of defined and required predicates
+        //     - before grounding check that the required are a subset of the defined predicates
+        //     - the functionality could be provided by Input::Program
+        // - StmScript
+        //   - this must be handled earlier
+
+        // TODO: impl_->prg.check()
         auto bld = Builder{impl_->mbr, *impl_->log, *impl_->store, impl_->atom_base, impl_->project_base, *impl_->out};
         impl_->is_sat = impl_->prg.analyze(*impl_->store, params, bld);
+        impl_->meta();
         impl_->clear();
     }
     impl_->out->end_step();

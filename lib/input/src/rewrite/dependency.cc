@@ -17,10 +17,9 @@ namespace Gringo::Input {
 
 namespace {
 
-using Signature = std::tuple<String, size_t, bool>;
 using Dependency = std::tuple<size_t, Term const *, bool>;
 
-using DependencyMap = Util::unordered_map<Signature, std::vector<Dependency>>;
+using DependencyMap = Util::unordered_map<Sig, std::vector<Dependency>>;
 using ProvideVec = std::vector<Term const *>;
 
 enum class DependencyType : uint8_t {

@@ -176,6 +176,8 @@ class Program {
             }
         }
     }
+    //! Get the meta statements in the program.
+    auto meta_stms() -> StmVec const & { return meta_stms_; }
 
     //! Prepare the statements in a program for grounding.
     [[nodiscard]] auto analyze(SymbolStore &store, ProgramParamVec const &params, DependencyBuilder &bld) const -> bool;
