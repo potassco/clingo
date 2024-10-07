@@ -56,6 +56,25 @@ class Builder : public Input::DependencyBuilder {
 
     //! Handle meta statements.
     void do_meta(std::vector<Input::Stm> const &stms) override {
+        // TODO:
+        // - StmShowSig, StmProjectSig
+        //   - just loop over base, then pass to output
+        //   - requires two sets of signatures in Grounder::Impl
+        //   - the indices about which atoms have been shown are best stored in the bases
+        // - StmDefined
+        //   1. could be handled here
+        //     -> only statements from added parts are considered
+        //     - there might be warnings about parts that are only relevant later
+        //   2. could be handled before
+        //     -> all statements could be considered
+        //     - warnings about parts that have not been added might be omitted
+        //   - I have a tendency toward solution 2.
+        //   - implementation:
+        //     - iterate over program constructing two sets of signatures of defined and required predicates
+        //     - before grounding check that the required are a subset of the defined predicates
+        //     - the functionality could be provided by Input::Program
+        // - StmScript
+        //   - this must be handled earlier
         for (auto const &stm : stms) {
             std::cout << stm << "\n";
         }
@@ -218,12 +237,12 @@ void Grounder::add_const(String name, Symbol value) {
     }
 }
 
-void Grounder::parse(std::string_view prg) {
+void Grounder::parse(std::string_view str) {
     GRINGO_REPORT(*impl_->log, debug) << "parsing...";
     if (impl_->is_sat) {
         GCLock lock{*impl_->store};
         auto prs = ParseHelper{*impl_->log, *impl_->store, impl_->unprocessed_prg};
-        prs.process_string(prg);
+        prs.process_string(str);
         prs.process_includes();
         prs.check();
     }

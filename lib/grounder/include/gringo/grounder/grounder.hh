@@ -18,7 +18,7 @@ class Grounder {
     //! Destroy grounder.
     ~Grounder() noexcept;
     //! Parse a program from the given string.
-    void parse(std::string_view prg);
+    void parse(std::string_view str);
     //! Parse the given files.
     void parse(std::vector<std::string> const &files);
     //! Define a constant.
