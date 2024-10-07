@@ -9,6 +9,7 @@
 #include <gringo/util/immutable_array.hh>
 #include <gringo/util/immutable_value.hh>
 #include <gringo/util/optional.hh>
+#include <gringo/util/ordered_set.hh>
 
 #include <utility>
 #include <variant>
@@ -35,6 +36,8 @@ class TermBinary;
 using Sig = std::tuple<String, size_t, bool>;
 //! The signature of a predicate.
 using SharedSig = std::tuple<SharedString, size_t, bool>;
+//! A set of predicate signatures.
+using SharedSigSet = Util::ordered_set<SharedSig>;
 
 //! Variant holding the different term types.
 using Term = std::variant<TermVariable, TermSymbol, TermTuple, TermFunction, TermAbs, TermUnary, TermBinary>;

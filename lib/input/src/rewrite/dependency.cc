@@ -1,5 +1,6 @@
 #include "graph.hh"
 #include "transform.hh"
+#include "visit.hh"
 
 #include <gringo/input/print.hh>
 
@@ -735,6 +736,116 @@ void visualize(Components const &comps, std::ostream &out) {
         out << " [style=\"invis\"];\n";
     }
     out << "}\n";
+}
+
+namespace {
+
+class ProvideVisitor : public Visitor<ProvideVisitor> {};
+
+class AnalyzeVisitor {
+  public:
+    AnalyzeVisitor(SharedSigSet &provide, Util::ordered_map<SharedSig, Location> &depend)
+        : provide_{&provide}, depend_{&depend} {}
+
+    // simple literals
+    void visit([[maybe_unused]] LitBool const &lit, [[maybe_unused]] bool head) {}
+    void visit([[maybe_unused]] LitComparison const &lit, [[maybe_unused]] bool head) {}
+    void visit(LitSymbolic const &lit, bool head) { add_(lit.term(), head && lit.sign() == Sign::none); }
+
+    // elements
+    void visit(CondLit const &lit, bool head) {
+        visit(lit.lit(), head);
+        visit(lit.cond(), false);
+    }
+    void visit(SetAggregateElement const &elem, bool head) {
+        visit(elem.lit(), head);
+        visit(elem.cond(), false);
+    }
+    void visit(HdLitAggregateElement const &elem) {
+        visit(elem.lit(), true);
+        visit(elem.cond(), false);
+    }
+    void visit(TheoryElement const &elem) { visit(elem.cond(), false); }
+    void visit(BdLitAggregateElement const &elem) { visit(elem.cond(), false); }
+    void visit(OptimizeElement const &elem) { visit(elem.cond(), false); }
+
+    // head literals
+    void visit(HdLitSimple const &hd_lit) { visit(hd_lit.lit(), true); }
+    void visit(HdLitDisjunction const &hd_lit) { visit(hd_lit.elems(), true); }
+    void visit(HdLitAggregate const &hd_lit) { visit(hd_lit.elems()); }
+    void visit(HdLitSetAggregate const &hd_lit) { visit(hd_lit.elems(), true); }
+    void visit(HdLitTheoryAtom const &hd_lit) { visit(hd_lit.elems()); }
+
+    // body literals
+    void visit(BdLitSimple const &bd_lit) { visit(bd_lit.lit(), false); }
+    void visit(BdLitConjunction const &bd_lit) { visit(bd_lit.lit(), false); }
+    void visit(BdLitAggregate const &bd_lit) { visit(bd_lit.elems()); }
+    void visit(BdLitSetAggregate const &bd_lit) { visit(bd_lit.elems(), false); }
+    void visit(BdLitTheoryAtom const &bd_lit) { visit(bd_lit.elems()); }
+
+    // statements
+    void visit(StmRule const &stm) {
+        visit(stm.head());
+        visit(stm.body());
+    }
+    void visit([[maybe_unused]] StmTheory const &stm) {}
+    void visit(StmOptimize const &stm) { visit(stm.elems()); }
+    void visit(StmWeakConstraint const &stm) { visit(stm.body()); }
+    void visit(StmShow const &stm) { visit(stm.body()); }
+    void visit(StmShowSig const &stm) {
+        depend_->emplace(SharedSig{stm.name(), stm.arity(), stm.sign()}, location(stm));
+    }
+    void visit(StmProject const &stm) { visit(stm.body()); }
+    void visit(StmProjectSig const &stm) {
+        depend_->emplace(SharedSig{stm.name(), stm.arity(), stm.sign()}, location(stm));
+    }
+    void visit(StmDefined const &stm) { provide_->emplace(stm.name(), stm.arity(), stm.sign()); }
+    void visit(StmExternal const &stm) {
+        add_(stm.atom(), false);
+        visit(stm.body());
+    }
+    void visit(StmEdge const &stm) { visit(stm.body()); }
+    void visit(StmHeuristic const &stm) {
+        add_(stm.atom(), false);
+        visit(stm.body());
+    }
+    void visit([[maybe_unused]] StmScript const &stm) {}
+    void visit([[maybe_unused]] StmInclude const &stm) {}
+    void visit([[maybe_unused]] StmProgram const &stm) {}
+    void visit([[maybe_unused]] StmConst const &stm) {}
+    void visit([[maybe_unused]] StmComment const &stm) {}
+
+    template <class... T, class... A> void visit(std::variant<T...> const &expr, A... args) {
+        std::visit(*this, expr, std::variant<A>(args)...);
+    }
+
+    template <class T, class... A> void visit(Util::immutable_array<T> const &expr, A... args) {
+        for (auto const &elem : expr) {
+            visit(elem, args...);
+        }
+    }
+
+    template <class E, class... A> void operator()(E const &expr, A... args) { return visit(expr, args...); }
+
+  private:
+    void add_(Term const &atom, bool head) const {
+        if (auto osig = signature(atom)) {
+            if (head) {
+                provide_->emplace(get<0>(*osig), get<1>(*osig), get<2>(*osig));
+            } else {
+                depend_->try_emplace(SharedSig{get<0>(*osig), get<1>(*osig), get<2>(*osig)}, location(atom));
+            }
+        }
+    }
+
+    SharedSigSet *provide_;
+    Util::ordered_map<SharedSig, Location> *depend_;
+};
+
+} // namespace
+
+void analyze(Stm const &stm, SharedSigSet &provide, Util::ordered_map<SharedSig, Location> &depend) {
+    AnalyzeVisitor{provide, depend}.visit(stm);
 }
 
 } // namespace Gringo::Input

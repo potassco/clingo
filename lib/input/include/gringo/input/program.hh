@@ -185,6 +185,9 @@ class Program {
     //! Mark symbols occuring in the program.
     void mark(SymbolCollector &gc) const;
 
+    //! Check program and emit diagonstics.
+    void check(Logger &log);
+
   private:
     //! The signature of a program part.
     //!
@@ -211,6 +214,12 @@ class Program {
     PartMap parts_;
     //! The constants and their values.
     ConstMap const_map_;
+    //! Signatures provided by the program.
+    SharedSigSet provide_;
+    //! Signatures the program depends on.
+    Util::ordered_map<SharedSig, Location> depend_;
+    //! Already checked dependencies.
+    size_t depend_offset_ = 0;
 };
 
 //! @}

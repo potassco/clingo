@@ -320,7 +320,7 @@ auto Grounder::ground(Input::ProgramParamVec const &params) -> bool {
         // - StmScript
         //   - this must be handled earlier
 
-        // TODO: impl_->prg.check()
+        impl_->prg.check(*impl_->log);
         auto bld = Builder{impl_->mbr, *impl_->log, *impl_->store, impl_->atom_base, impl_->project_base, *impl_->out};
         impl_->is_sat = impl_->prg.analyze(*impl_->store, params, bld);
         impl_->meta();

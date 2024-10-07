@@ -3,6 +3,7 @@
 #include <gringo/input/program.hh>
 
 #include <gringo/util/enum.hh>
+#include <gringo/util/ordered_map.hh>
 
 namespace Gringo::Input {
 
@@ -49,6 +50,9 @@ namespace Gringo::Input {
 
 //! Analyze the given statements organizing them in components for grounding.
 auto analyze(SymbolStore &store, std::vector<Stm> const &stms) -> Components;
+
+//! Analyze the given statement adding provided and dependent predicates.
+void analyze(Stm const &stm, SharedSigSet &provide, Util::ordered_map<SharedSig, Location> &depend);
 
 //! Try to unify the two terms.
 //!

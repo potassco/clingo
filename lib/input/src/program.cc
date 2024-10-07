@@ -11,6 +11,8 @@
 #include <gringo/util/checked_math.hh>
 #include <gringo/util/type_traits.hh>
 
+#include <iostream>
+
 namespace Gringo::Input {
 
 void UnprocessedProgram::mark(SymbolCollector &gc) const {
@@ -29,6 +31,7 @@ void UnprocessedProgram::clear() {
 }
 
 void UnprocessedProgram::add(SymbolStore &store, Stm stm) {
+
     std::visit(
         [&]<class T>(T const &stm) {
             if constexpr (Util::is_among_v<T, StmShowSig, StmProjectSig, StmScript, StmDefined>) {
@@ -75,7 +78,11 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram const &pr
     // process meta statements
     evaluate_const(log, store, prg.const_stms(), const_map_);
     for (auto const &stm : prg.meta_stms()) {
+        auto n = std::ssize(meta_stms_);
         rewrite(ctx, stm, meta_stms_);
+        for (auto it = meta_stms_.begin() + n, ie = meta_stms_.end(); it != ie; ++it) {
+            Gringo::Input::analyze(*it, provide_, depend_);
+        }
     }
 
     // process program parts
@@ -88,6 +95,7 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram const &pr
 
         // process facts
         for (auto const &fact : facts) {
+            provide_.emplace(fact.name(), fact.args().size(), fact.has_classical_sign());
             std::visit(
                 [&part]<class T>(T &&x) {
                     if constexpr (Util::matches<T, Symbol>) {
@@ -106,6 +114,7 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram const &pr
             rewrite(ctx, stm, res_part.stms);
             auto jt = res_part.stms.begin() + n;
             for (auto it = jt, ie = res_part.stms.end(); it != ie; ++it) {
+                Gringo::Input::analyze(*it, provide_, depend_);
                 if (auto fact = is_fact(store, *it); fact) {
                     res_part.facts.emplace_back(fact.value());
                 } else {
@@ -150,6 +159,17 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram const &pr
         return unmap_params(store, pum, stm);
     }
     return std::nullopt;
+}
+
+void Program::check(Logger &log) {
+    for (auto it = depend_.begin() + static_cast<ssize_t>(depend_offset_), ie = depend_.end(); it != ie; ++it) {
+        if (!provide_.contains(it.key())) {
+            auto const &[name, arity, sign] = it.key();
+            GRINGO_REPORT_LOC(log, info_atom_undefined, it.value())
+                << "undefined predicate " << (sign ? "-" : "") << *name << "/" << arity;
+        }
+    }
+    depend_offset_ = depend_.size();
 }
 
 auto Program::analyze(SymbolStore &store, ProgramParamVec const &params, DependencyBuilder &bld) const -> bool {
