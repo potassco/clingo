@@ -1,6 +1,5 @@
 #include "graph.hh"
 #include "transform.hh"
-#include "visit.hh"
 
 #include <gringo/input/print.hh>
 
@@ -739,8 +738,6 @@ void visualize(Components const &comps, std::ostream &out) {
 }
 
 namespace {
-
-class ProvideVisitor : public Visitor<ProvideVisitor> {};
 
 class AnalyzeVisitor {
   public:
