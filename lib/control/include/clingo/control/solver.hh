@@ -11,29 +11,51 @@ enum class OutputMode : uint8_t { text };
 
 class Solver;
 
-class Script {
+//! Callbacks that can be called during parsing/grounding.
+//!
+//! This interface is used by external functions.
+class ScriptCallback {
   public:
-    virtual ~Script() = default;
-    void main(Solver &slv) { do_main(slv); }
-    void exec(std::string_view code) { do_exec(code); }
+    virtual ~ScriptCallback() = default;
     auto callable(std::string_view name, size_t args) -> bool { return do_callable(name, args); }
     void call(std::string_view name, SymbolSpan args, SymbolVec &out) { do_call(name, args, out); }
 
   private:
-    virtual void do_exec(std::string_view code) = 0;
-    virtual void do_main(Solver &slv) = 0;
     virtual auto do_callable(std::string_view name, size_t args) -> bool = 0;
     virtual void do_call(std::string_view name, SymbolSpan args, SymbolVec &out) = 0;
 };
-using UScript = std::unique_ptr<Script>;
 
-class Scripts : public Script {
+//! Script with a main function and callbacks.
+class ScriptMain : public ScriptCallback {
   public:
-    void register_script(std::string_view name, UScript script);
-    void exec(std::string_view name, std::string_view code);
+    void main(Solver &slv) { do_main(slv); }
 
   private:
-    void do_exec(std::string_view code) override;
+    virtual void do_main(Solver &slv) = 0;
+};
+
+//! Script providing code execution, main, and callbacks.
+//!
+//! This interface should be implemend by custom scripts.
+class Script : public ScriptMain {
+  public:
+    void exec(std::string_view code) { do_exec(code); }
+
+  private:
+    virtual void do_exec(std::string_view code) = 0;
+};
+using UScript = std::unique_ptr<Script>;
+
+//! Helper to run specific code and callbacks.
+//!
+//! Named scripts can be registered. Code, main, and callback execution and is
+//! dispatched to registered scripts.
+class Scripts : public ScriptMain, public ScriptExec {
+  public:
+    void register_script(std::string_view name, UScript script);
+
+  private:
+    void do_exec(Logger &log, std::string_view name, std::string_view code) override;
     void do_main(Solver &slv) override;
     auto do_callable(std::string_view name, size_t args) -> bool override;
     void do_call(std::string_view name, SymbolSpan args, SymbolVec &out) override;

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <clingo/control/parse.hh>
+
 #include <clingo/input/program.hh>
 
 #include <clingo/core/output.hh>
@@ -20,9 +22,9 @@ class Grounder {
     //! Destroy grounder.
     ~Grounder() noexcept;
     //! Parse a program from the given string.
-    void parse(std::string_view str);
+    void parse(std::string_view str, ScriptExec *code = nullptr);
     //! Parse the given files.
-    void parse(std::vector<std::string> const &files);
+    void parse(std::vector<std::string> const &files, ScriptExec *code = nullptr);
     //! Define a constant.
     void add_const(String name, Symbol value);
     //! Ground the program.

@@ -6,21 +6,29 @@ namespace Clingo::Control {
 
 void Scripts::register_script(std::string_view name, UScript script) { scripts_.emplace_back(name, std::move(script)); }
 
-void Scripts::exec(std::string_view name, std::string_view code) {
+void Scripts::do_exec(Logger &log, std::string_view name, std::string_view code) {
+    bool found = false;
     for (auto const &script : scripts_) {
         if (script.first == name) {
-            script.second->exec(code);
+            try {
+                script.second->exec(code);
+            } catch (std::runtime_error const &e) {
+                GRINGO_REPORT(log, error) << "script execution failed: " << e.what();
+                throw;
+            }
+            found = true;
         }
     }
+    if (!found) {
+        GRINGO_REPORT(log, error) << "script support for '" << name << "' not available";
+        throw std::runtime_error("script support not available");
+    }
 }
-
-void Scripts::do_exec([[maybe_unused]] std::string_view code) { throw std::logic_error("must not be called"); }
 
 void Scripts::do_main(Solver &slv) {
     for (auto const &script : scripts_) {
         if (script.second->callable("main", 0)) {
             script.second->main(slv);
-            return;
         }
     }
 }
@@ -58,19 +66,9 @@ void Solver::main(std::vector<std::string> const &files) {
     }
 }
 
-void Solver::parse(std::string_view str) {
-    // TODO: has to execute code here
-    // therefore the scripts class has to implement another interface to execute scripts
-    // the prepare method should take an additional argument to execute scripts
-    grd_.parse(str);
-}
+void Solver::parse(std::string_view str) { grd_.parse(str, &scripts_); }
 
-void Solver::parse(std::vector<std::string> const &files) {
-    // TODO: has to execute code here
-    // therefore the scripts class has to implement another interface to execute scripts
-    // the prepare method should take an additional argument to execute scripts
-    grd_.parse(files);
-}
+void Solver::parse(std::vector<std::string> const &files) { grd_.parse(files, &scripts_); }
 
 void Solver::add_const(String name, Symbol value) { grd_.add_const(name, value); }
 

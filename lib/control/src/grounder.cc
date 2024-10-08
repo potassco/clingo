@@ -259,22 +259,22 @@ void Grounder::add_const(String name, Symbol value) {
     }
 }
 
-void Grounder::parse(std::string_view str) {
+void Grounder::parse(std::string_view str, ScriptExec *code) {
     GRINGO_REPORT(*impl_->log, debug) << "parsing...";
     if (impl_->is_sat) {
         GCLock lock{*impl_->store};
-        auto prs = ParseHelper{*impl_->log, *impl_->store, impl_->unprocessed_prg};
+        auto prs = ParseHelper{*impl_->log, *impl_->store, impl_->unprocessed_prg, code};
         prs.process_string(str);
         prs.process_includes();
         prs.check();
     }
 }
 
-void Grounder::parse(std::vector<std::string> const &files) {
+void Grounder::parse(std::vector<std::string> const &files, ScriptExec *code) {
     GRINGO_REPORT(*impl_->log, debug) << "parsing...";
     if (impl_->is_sat) {
         GCLock lock{*impl_->store};
-        auto prs = ParseHelper{*impl_->log, *impl_->store, impl_->unprocessed_prg};
+        auto prs = ParseHelper{*impl_->log, *impl_->store, impl_->unprocessed_prg, code};
         if (files.empty()) {
             prs.process_stdin();
             prs.process_includes();

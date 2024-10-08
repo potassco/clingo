@@ -9,14 +9,23 @@
 
 namespace Clingo::Control {
 
+class ScriptExec {
+  public:
+    virtual ~ScriptExec() = default;
+    void exec(Logger &log, std::string_view name, std::string_view code) { do_exec(log, name, code); }
+
+  private:
+    virtual void do_exec(Logger &log, std::string_view name, std::string_view code) = 0;
+};
+
 //! A helper for parsing.
 //!
 //! This class manages include directives.
 class ParseHelper {
   public:
     //! Construct the helper.
-    ParseHelper(Logger &log, SymbolStore &store, Input::UnprocessedProgram &prg)
-        : log_{&log}, store_{&store}, parser_{log, store}, prg_{&prg} {}
+    ParseHelper(Logger &log, SymbolStore &store, Input::UnprocessedProgram &prg, ScriptExec *exec = nullptr)
+        : log_{&log}, store_{&store}, exec_{exec}, parser_{log, store}, prg_{&prg} {}
 
     //! Parse a program from the given string.
     void process_string(std::string_view str) {
@@ -111,6 +120,9 @@ class ParseHelper {
             if (auto *include = std::get_if<Input::StmInclude>(&*stm); include != nullptr) {
                 includes_.emplace_back(dir, *include);
             } else {
+                if (auto *script = std::get_if<Input::StmScript>(&*stm); exec_ != nullptr && script != nullptr) {
+                    exec_->exec(*log_, script->type().view(), script->value().view());
+                }
                 prg_->add(*store_, *std::move(stm));
             }
         }
@@ -119,6 +131,7 @@ class ParseHelper {
 
     Logger *log_;
     SymbolStore *store_;
+    ScriptExec *exec_;
     std::ifstream fin_;
     Input::Parser parser_;
     Input::UnprocessedProgram *prg_;
