@@ -291,7 +291,7 @@ void Grounder::parse(std::vector<std::string> const &files) {
     }
 }
 
-void Grounder::prepare() {
+void Grounder::prepare_() {
     GRINGO_REPORT(*impl_->log, debug) << "preparing...";
     if (impl_->is_sat) {
         GCLock lock{*impl_->store};
@@ -301,28 +301,13 @@ void Grounder::prepare() {
 }
 
 auto Grounder::ground(Input::ProgramParamVec const &params) -> bool {
+    prepare_();
     GRINGO_REPORT(*impl_->log, debug) << "grounding...";
     GCLock lock{*impl_->store};
 #ifdef PARSER_PROFILE
     auto prof = Profiler{"clingo-ground.prof"};
 #endif
     if (impl_->is_sat) {
-        // TODO:
-        // - StmDefined
-        //   1. could be handled here
-        //     -> only statements from added parts are considered
-        //     - there might be warnings about parts that are only relevant later
-        //   2. could be handled before
-        //     -> all statements could be considered
-        //     - warnings about parts that have not been added might be omitted
-        //   - I have a tendency toward solution 2.
-        //   - implementation:
-        //     - iterate over program constructing two sets of signatures of defined and required predicates
-        //     - before grounding check that the required are a subset of the defined predicates
-        //     - the functionality could be provided by Input::Program
-        // - StmScript
-        //   - this must be handled earlier
-
         impl_->prg.check(*impl_->log);
         auto bld = Builder{impl_->mbr, *impl_->log, *impl_->store, impl_->atom_base, impl_->project_base, *impl_->out};
         impl_->is_sat = impl_->prg.analyze(*impl_->store, params, bld);
@@ -350,9 +335,14 @@ void Grounder::output_unprocessed_program(std::ostream &out) {
 }
 
 void Grounder::output_program(std::ostream &out) {
+    prepare_();
     GCLock lock{*impl_->store};
     impl_->prg.visit_stms(*impl_->store, [&out](auto const &stm) { out << stm << "\n"; });
     out.flush();
 }
+
+auto Grounder::store() const -> SymbolStore & { return *impl_->store; }
+
+auto Grounder::log() const -> Logger & { return *impl_->log; }
 
 } // namespace Clingo::Control

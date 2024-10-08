@@ -1,5 +1,6 @@
 add_library(clingo_control
     "src/grounder.cc"
+    "src/solver.cc"
     "src/theory.cc"
     "src/condlit.cc"
     "src/aggregate.cc"

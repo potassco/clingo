@@ -1,4 +1,4 @@
-#include <clingo/control/grounder.hh>
+#include <clingo/control/solver.hh>
 
 #include <clingo/input/parser.hh>
 
@@ -77,9 +77,7 @@ auto run(int argc, char *argv[]) -> int {
     try {
         log.set_level(log_level);
         auto store = Clingo::make_symbol_store(true, false);
-        auto buf = Clingo::Util::OutputBuffer{stdout};
-        auto out = Clingo::Output::make_text_output(buf);
-        auto grd = Clingo::Control::Grounder{log, *store, opts, *out};
+        auto grd = Clingo::Control::Solver{log, *store, opts, Clingo::Control::OutputMode::text};
         auto prs = Clingo::Input::Parser{log, *store};
 
         [&]() {
@@ -104,7 +102,6 @@ auto run(int argc, char *argv[]) -> int {
                 grd.output_unprocessed_program(std::cout);
                 return;
             }
-            grd.prepare();
             if (mode == AppMode::rewrite) {
                 grd.output_program(std::cout);
                 return;

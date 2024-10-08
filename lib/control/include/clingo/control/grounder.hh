@@ -25,8 +25,6 @@ class Grounder {
     void parse(std::vector<std::string> const &files);
     //! Define a constant.
     void add_const(String name, Symbol value);
-    //! Prepare a program for grounding.
-    void prepare();
     //! Ground the program.
     [[nodiscard]] auto ground(Input::ProgramParamVec const &params) -> bool;
 
@@ -35,7 +33,15 @@ class Grounder {
     //! Output the current program.
     void output_program(std::ostream &out);
 
+    //! Get the contained symbol store.
+    [[nodiscard]] auto store() const -> SymbolStore &;
+    //! Get the contained symbol store.
+    [[nodiscard]] auto log() const -> Logger &;
+
   private:
+    //! Prepare a program for grounding.
+    void prepare_();
+
     std::unique_ptr<Impl> impl_;
 };
 

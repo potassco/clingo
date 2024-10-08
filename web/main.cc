@@ -102,7 +102,6 @@ auto run(std::string const &program, std::vector<std::string> args) -> bool {
                 grd.output_unprocessed_program(std::cout);
                 return;
             }
-            grd.prepare();
             if (mode == AppMode::rewrite) {
                 grd.output_program(std::cout);
                 return;

@@ -20,20 +20,17 @@ TEST_CASE("grounder_text") {
 
     SECTION("fact") {
         grd.parse("#show. a.");
-        grd.prepare();
         REQUIRE(grd.ground(params));
         REQUIRE(buf.view() == "a.\n#show.\n");
     }
     SECTION("basic") {
         grd.parse("#show. a. b :- a.");
-        grd.prepare();
         REQUIRE(grd.ground(params));
         REQUIRE(buf.view() == "a.\n"
                               "b.\n#show.\n");
     }
     SECTION("normal") {
         grd.parse("#show. a :- not b. b :- not a.");
-        grd.prepare();
         REQUIRE(grd.ground(params));
         REQUIRE(buf.view() == "b :- not a.\n"
                               "a :- not b.\n"
@@ -41,7 +38,6 @@ TEST_CASE("grounder_text") {
     }
     SECTION("condlit_strat") {
         grd.parse("#show. a :- not b. b :- not a. c :- a : b.");
-        grd.prepare();
         REQUIRE(grd.ground(params));
         REQUIRE(buf.view() == "b :- not a.\n"
                               "a :- not b.\n"
@@ -50,7 +46,6 @@ TEST_CASE("grounder_text") {
     }
     SECTION("condlit_rec") {
         grd.parse("#show. b :- b : a. a :- a : b.");
-        grd.prepare();
         REQUIRE(grd.ground(params));
         REQUIRE(buf.view() == "b :- b: a.\n"
                               "a :- a: b.\n"
@@ -61,7 +56,6 @@ TEST_CASE("grounder_text") {
     }
     SECTION("condlit_rec") {
         grd.parse("#show. p(1..3). q(3..5). r(X) :- p(X); q(X).");
-        grd.prepare();
         REQUIRE(grd.ground(params));
         auto res = store->gc();
         REQUIRE(res.first == 15);
@@ -77,7 +71,6 @@ TEST_CASE("grounder_text") {
             { c } :- b.
 
             d :- ID=1; c: X=ID+0.)");
-        grd.prepare();
         REQUIRE(grd.ground(params));
         REQUIRE(buf.view() == "a.\n"
                               "b.\n"
@@ -99,7 +92,6 @@ TEST_CASE("grounder_text") {
             b(X,Y) :- a(X,Y).
 
             a(X) : X>10 :- q(X).)");
-        grd.prepare();
         REQUIRE(grd.ground(params));
         REQUIRE(buf.view() == "a(2,2).\n"
                               "p(2).\n"
@@ -126,7 +118,6 @@ TEST_CASE("grounder_text") {
 
             aa(X) :- a(X).
             bb(X) :- b(X).)");
-        grd.prepare();
         REQUIRE(grd.ground(params));
         REQUIRE(buf.view() == "c(1).\n"
                               "c(2).\n"
@@ -144,7 +135,6 @@ TEST_CASE("grounder_text") {
             d(1..5).
             { p(X) : d(X) }.
             a(X) :- d(X), 3 <= #sum { 1,Y: p(Y), Y < X } <= 4.)");
-        grd.prepare();
         REQUIRE(grd.ground(params));
         REQUIRE(buf.view() == "d(1).\n"
                               "d(2).\n"
@@ -168,7 +158,6 @@ TEST_CASE("grounder_text") {
             a(X) :- d(X), #sum { 1,Y: d(Y), Y < X } >= B, m(B).
             b(X) :- d(X), not #sum { 1,Y: d(Y), Y < X } < 3.
             c(X) :- d(X), not not #sum { 1,Y: d(Y), Y < X } >= 3.)");
-        grd.prepare();
         REQUIRE(grd.ground(params));
         REQUIRE(buf.view() == "m(3).\n"
                               "d(1).\n"
@@ -191,7 +180,6 @@ TEST_CASE("grounder_text") {
             s(1..2).
             a(1,0).
             { a(X,T) : d(X) } >= 1 :- { a(X,T-1) : d(X) } >= 1, s(T).)");
-        grd.prepare();
         REQUIRE(grd.ground(params));
         REQUIRE(buf.view() == "a(1,0).\n"
                               "d(1).\n"
@@ -213,7 +201,6 @@ TEST_CASE("grounder_text") {
                 S: owns(X,Y,S);
                 S,Z: controls(X,Z), owns(Z,Y,S) } > 50, company(X), company(Y), X!=Y.
             )");
-        grd.prepare();
         REQUIRE(grd.ground(params));
         REQUIRE(buf.view() == "company(c1).\n"
                               "company(c2).\n"
@@ -240,7 +227,6 @@ TEST_CASE("grounder_text") {
             reach(V) :- node(V), not edge(*,V).
             reach(V) :- node(V), #count { U: reach(U), edge(U,V) } >= 2.
             )");
-        grd.prepare();
         REQUIRE(grd.ground(params));
         REQUIRE(buf.view() == "edge(a,c).\n"
                               "node(a).\n"
@@ -289,7 +275,6 @@ TEST_CASE("grounder_text") {
 
             % mark the first non sieved number as prime
             prime(I+1,X) :- sieved_prefix(I,X-1), rec_nsieve(I,X).)");
-        grd.prepare();
         REQUIRE(grd.ground(params));
         REQUIRE(buf.view().find("prime(1,2).") != std::string_view::npos);
         REQUIRE(buf.view().find("prime(2,3).") != std::string_view::npos);
@@ -337,7 +322,6 @@ TEST_CASE("grounder_text") {
             char(o,19). char(p,20). char(0,21). char(c,22). char(c,23). char(p,24).
             char(2,25). char(m,26). char(o,27). char(p,28). char(1,29). char(c,30).
             char(g,31). char(m,32). char(4,33).)");
-        grd.prepare();
         REQUIRE(grd.ground(params));
         REQUIRE(buf.view().find("cmp(30,-4).") != std::string_view::npos);
         REQUIRE(buf.view().find("cmp(") == buf.view().rfind("cmp("));
@@ -348,7 +332,6 @@ TEST_CASE("grounder_text") {
             d(1..5).
             p(X) :- X = #sum {Y: d(Y)}.
             )");
-        grd.prepare();
         REQUIRE(grd.ground(params));
         REQUIRE(buf.view() == "d(1).\n"
                               "d(2).\n"
@@ -366,7 +349,6 @@ TEST_CASE("grounder_text") {
             p(1..5,0).
             p(X,T) :- X = #sum {Y: p(Y,T-1); Z: d(Z)}, s(T).
             )");
-        grd.prepare();
         REQUIRE(grd.ground(params));
         REQUIRE(buf.view() == "d(1).\n"
                               "d(2).\n"
@@ -405,7 +387,6 @@ TEST_CASE("grounder_text") {
             d(1..3).
             a :- &p { -X+1: d(X); 1: c; : c; 1 : a; : a } < 5.
             )");
-        grd.prepare();
         REQUIRE(grd.ground(params));
         REQUIRE(buf.view() == "c.\n"
                               "d(1).\n"
@@ -429,7 +410,6 @@ TEST_CASE("grounder_text") {
             b :- not &p.
             c :- not not &p.
             )");
-        grd.prepare();
         REQUIRE(grd.ground(params));
         REQUIRE(buf.view() == "a :- &p.\n"
                               "b :- not &p.\n"
@@ -452,7 +432,6 @@ TEST_CASE("grounder_text") {
             b(X) :- a(X).
             a(X) :- &p { -X+1: b(X); X: c } < 5, d(X).
             )");
-        grd.prepare();
         REQUIRE(grd.ground(params));
         REQUIRE(buf.view() == "c.\n"
                               "d(1).\n"
@@ -481,7 +460,6 @@ TEST_CASE("grounder_text") {
             d(1..3).
             &p { -X+1: d(X); 1: c; : c } < 5.
             )");
-        grd.prepare();
         REQUIRE(grd.ground(params));
         REQUIRE(buf.view() == "c.\n"
                               "d(1).\n"
@@ -505,7 +483,6 @@ TEST_CASE("grounder_text") {
             { a(1..3) }.
             &p { -X+1: a(X); X: c } < 5 :- a(X).
             )");
-        grd.prepare();
         REQUIRE(grd.ground(params));
         REQUIRE(buf.view() == "c.\n"
                               "{ a(1) }.\n"
@@ -521,7 +498,6 @@ TEST_CASE("grounder_text") {
             #show.
             {p(1..3)}.
             #minimize {X,p: p(X); a; 0 }.)");
-        grd.prepare();
         REQUIRE(grd.ground(params));
         REQUIRE(buf.view() == "{ p(1) }.\n"
                               "{ p(2) }.\n"
@@ -540,7 +516,6 @@ TEST_CASE("grounder_text") {
             p(3,1,init).
             { q(1..3) }.
             #heuristic q(W): p(W,P,T). [W@P,T])");
-        grd.prepare();
         REQUIRE(grd.ground(params));
         REQUIRE(buf.view() == "p(3,1,init).\n"
                               "{ p(1,0,true) }.\n"
@@ -559,7 +534,6 @@ TEST_CASE("grounder_text") {
             p(1).
             {p(2..3)}.
             #edge (X,X+1): p(X).)");
-        grd.prepare();
         REQUIRE(grd.ground(params));
         REQUIRE(buf.view() == "p(1).\n"
                               "{ p(2) }.\n"
@@ -576,7 +550,6 @@ TEST_CASE("grounder_text") {
                      #external ef(X) : a(X). [false]
                      #external ec(X) : a(X). [free]
                      #external en(X) : a(X).)");
-        grd.prepare();
         REQUIRE(grd.ground(params));
         REQUIRE(buf.view() == "{ a(1) }.\n"
                               "{ a(2) }.\n"
@@ -596,7 +569,6 @@ TEST_CASE("grounder_text") {
             {p(1..3)}.
             #show a.
             #show X: p(X).)");
-        grd.prepare();
         REQUIRE(grd.ground(params));
         REQUIRE(buf.view() == "{ p(1) }.\n"
                               "{ p(2) }.\n"
@@ -613,7 +585,6 @@ TEST_CASE("grounder_text") {
             b.
             #show a/0.
             )");
-        grd.prepare();
         REQUIRE(grd.ground(params));
         REQUIRE(buf.view() == "a.\n"
                               "b.\n"
@@ -626,7 +597,6 @@ TEST_CASE("grounder_text") {
             b.
             #show.
             )");
-        grd.prepare();
         REQUIRE(grd.ground(params));
         REQUIRE(buf.view() == "a.\n"
                               "b.\n"
@@ -639,7 +609,6 @@ TEST_CASE("grounder_text") {
             #project a.
             #project b.
             #project p(X): q(X).)");
-        grd.prepare();
         REQUIRE(grd.ground(params));
         REQUIRE(buf.view() == "{ a }.\n"
                               "{ p(1) }.\n"
