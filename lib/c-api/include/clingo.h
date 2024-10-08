@@ -626,6 +626,29 @@ CLINGO_VISIBILITY_DEFAULT size_t clingo_symbol_hash(clingo_symbol_t symbol);
 //! Control object holding grounding and solving state.
 typedef struct clingo_control clingo_control_t;
 
+//! Create a new control object.
+//!
+//! A control object has to be freed using clingo_control_free().
+//!
+//! @note Only gringo options (without <code>\-\-output</code>) and clasp's options are supported as arguments,
+//! except basic options such as <code>\-\-help</code>.
+//! Furthermore, a control object is blocked while a search call is active;
+//! you must not call any member function during search.
+//!
+//! @param[in] lib clingo library object
+//! @param[in] arguments C string array of command line arguments
+//! @param[in] arguments_size size of the arguments array
+//! @param[out] control resulting control object
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if argument parsing fails
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_new(clingo_lib_t *lib, char const *const *arguments,
+                                                  size_t arguments_size, clingo_control_t **control);
+
+//! Free a control object created with clingo_control_new().
+//! @param[in] control the target
+CLINGO_VISIBILITY_DEFAULT void clingo_control_free(clingo_control_t *control);
+
 //! @}
 
 // {{{1 AST
