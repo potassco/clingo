@@ -385,6 +385,24 @@ class StmShowSig : public Expression<StmShowSig> {
     bool sign_;
 };
 
+//! A show signature statement.
+//!
+//! Example: <tt>\#show</tt>.
+class StmShowNothing : public Expression<StmShowNothing> {
+  public:
+    //! The record attributes.
+    static constexpr auto attributes() { return std::tuple{a_loc = &StmShowNothing::loc_}; }
+
+    //! Construct the show statement.
+    explicit StmShowNothing(Location loc) : loc_{std::move(loc)} {}
+
+    //! The location of the statement.
+    [[nodiscard]] auto loc() const -> Location const & { return loc_; }
+
+  private:
+    Location loc_;
+};
+
 //! A project statement.
 //!
 //! Example: <tt>\#project p(X): q(X)</tt>.
@@ -774,9 +792,9 @@ class StmComment : public Expression<StmComment> {
 };
 
 //! Variant of available statements.
-using Stm = std::variant<StmRule, StmTheory, StmOptimize, StmWeakConstraint, StmShow, StmShowSig, StmProject,
-                         StmProjectSig, StmDefined, StmExternal, StmEdge, StmHeuristic, StmScript, StmInclude,
-                         StmProgram, StmConst, StmComment>;
+using Stm = std::variant<StmRule, StmTheory, StmOptimize, StmWeakConstraint, StmShow, StmShowNothing, StmShowSig,
+                         StmProject, StmProjectSig, StmDefined, StmExternal, StmEdge, StmHeuristic, StmScript,
+                         StmInclude, StmProgram, StmConst, StmComment>;
 //! A vector of statements.
 using StmVec = std::vector<Stm>;
 

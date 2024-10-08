@@ -188,8 +188,9 @@ struct Grounder::Impl : Gringo::SymbolOwner {
                                 out->project(atom);
                             }
                         }
-                    }
-                    if constexpr (Util::matches<T, Input::StmShowSig>) {
+                    } else if constexpr (Util::matches<T, Input::StmShowNothing>) {
+                        show_all = false;
+                    } else if constexpr (Util::matches<T, Input::StmShowSig>) {
                         show_all = false;
                         if (auto it = atom_base.find(Input::Sig{stm.name(), stm.arity(), stm.sign()});
                             it != atom_base.end()) {

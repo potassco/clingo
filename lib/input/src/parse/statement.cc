@@ -138,6 +138,9 @@ auto parse_show(ParserState &state) -> std::optional<Stm> {
     assert(state.token() == TokenType::show);
     auto loc = state.loc();
     state.consume();
+    if (state.branch(TokenType::dot)) {
+        return StmShowNothing{std::move(loc)};
+    }
     if (auto term = parse_term(state)) {
         if (state.token() == TokenType::dot) {
             state.mark_stms();

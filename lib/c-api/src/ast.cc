@@ -470,6 +470,9 @@ auto make_ast(Owner const &owner, Gringo::Input::Stm const &term) -> std::unique
             if constexpr (std::is_same_v<T, Gringo::Input::StmShow>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_show, &x);
             }
+            if constexpr (std::is_same_v<T, Gringo::Input::StmShowNothing>) {
+                return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_show_nothing, &x);
+            }
             if constexpr (std::is_same_v<T, Gringo::Input::StmShowSig>) {
                 return std::make_unique<clingo_ast>(owner, clingo_ast_type_statement_show_signature, &x);
             }
@@ -666,6 +669,9 @@ auto clingo_ast::visit(V &&visit) const -> std::invoke_result_t<V, Gringo::Input
         }
         case clingo_ast_type_statement_show: {
             return std::invoke(std::forward<V>(visit), cast<StmShow>());
+        }
+        case clingo_ast_type_statement_show_nothing: {
+            return std::invoke(std::forward<V>(visit), cast<StmShowNothing>());
         }
         case clingo_ast_type_statement_show_signature: {
             return std::invoke(std::forward<V>(visit), cast<StmShowSig>());
@@ -1408,6 +1414,9 @@ template <> [[nodiscard]] auto clingo_ast::convert<Gringo::Input::Stm>() const -
         case clingo_ast_type_statement_show: {
             return cast<Gringo::Input::StmShow>();
         }
+        case clingo_ast_type_statement_show_nothing: {
+            return cast<Gringo::Input::StmShowNothing>();
+        }
         case clingo_ast_type_statement_show_signature: {
             return cast<Gringo::Input::StmShowSig>();
         }
@@ -2047,6 +2056,14 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 va_end(args);
                 *ast = construct_ast<Gringo::Input::StmShow>(type, convert_loc(lib, loc), term->convert<Term>(),
                                                              convert_ast_vec<BdLit>(body, body_size));
+                break;
+            }
+            case clingo_ast_type_statement_show_nothing: {
+                std::va_list args;
+                va_start(args, ast);
+                auto const *loc = va_arg(args, clingo_location_t const *);
+                va_end(args);
+                *ast = construct_ast<Gringo::Input::StmShowNothing>(type, convert_loc(lib, loc));
                 break;
             }
             case clingo_ast_type_statement_show_signature: {

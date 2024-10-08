@@ -458,8 +458,8 @@ class CheckGlobal {
         } else if constexpr (Util::is_among_v<T, StmProject, StmHeuristic>) {
             return handle_body(stm, &stm.atom());
         } else {
-            static_assert(Util::is_among_v<T, StmTheory, StmShowSig, StmProjectSig, StmDefined, StmScript, StmInclude,
-                                           StmProgram, StmConst, StmComment>);
+            static_assert(Util::is_among_v<T, StmTheory, StmShowNothing, StmShowSig, StmProjectSig, StmDefined,
+                                           StmScript, StmInclude, StmProgram, StmConst, StmComment>);
             return {true};
         }
     }

@@ -551,8 +551,8 @@ class Unpool {
     }
 
     template <class T> auto operator()([[maybe_unused]] T const &stm) const -> std::optional<StmVec> {
-        static_assert(Util::is_among_v<T, StmTheory, StmShowSig, StmProjectSig, StmDefined, StmScript, StmInclude,
-                                       StmProgram, StmComment>);
+        static_assert(Util::is_among_v<T, StmTheory, StmShowNothing, StmShowSig, StmProjectSig, StmDefined, StmScript,
+                                       StmInclude, StmProgram, StmComment>);
         return std::nullopt;
     }
 

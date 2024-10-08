@@ -30,8 +30,8 @@ struct CheckSyntax {
     // expressions that can be ignored
 
     template <class T> auto operator()([[maybe_unused]] T const &x) const -> bool {
-        static_assert(Util::is_among_v<T, StmScript, StmInclude, StmProgram, StmComment, StmShowSig, StmTheory,
-                                       StmDefined, StmProjectSig>);
+        static_assert(Util::is_among_v<T, StmScript, StmInclude, StmProgram, StmComment, StmShowNothing, StmShowSig,
+                                       StmTheory, StmDefined, StmProjectSig>);
         return true;
     }
 

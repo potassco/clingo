@@ -34,7 +34,7 @@ void UnprocessedProgram::add(SymbolStore &store, Stm stm) {
 
     std::visit(
         [&]<class T>(T const &stm) {
-            if constexpr (Util::is_among_v<T, StmShowSig, StmProjectSig, StmScript, StmDefined>) {
+            if constexpr (Util::is_among_v<T, StmShowNothing, StmShowSig, StmProjectSig, StmScript, StmDefined>) {
                 meta_stms_.emplace_back(std::move(stm));
             } else if constexpr (Util::is_among_v<T, StmInclude, StmComment>) {
                 // ignore

@@ -1792,8 +1792,8 @@ class SimplifyStatement {
     }
 
     template <class T> auto operator()([[maybe_unused]] T const &stm) const -> SimplifyResult<Stm> {
-        static_assert(Util::is_among_v<T, StmTheory, StmShowSig, StmProjectSig, StmDefined, StmScript, StmInclude,
-                                       StmProgram, StmProgram, StmConst, StmComment>);
+        static_assert(Util::is_among_v<T, StmTheory, StmShowNothing, StmShowSig, StmProjectSig, StmDefined, StmScript,
+                                       StmInclude, StmProgram, StmProgram, StmConst, StmComment>);
         return {TruthValue::unknown};
     }
 

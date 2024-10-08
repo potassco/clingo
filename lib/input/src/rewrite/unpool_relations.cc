@@ -352,17 +352,14 @@ struct UnpoolStatement {
         throw std::runtime_error("unpool must be called before unpooling relations");
     }
 
-    template <class S>
-        requires Util::is_among_v<S, StmWeakConstraint, StmShow, StmProject, StmExternal, StmEdge, StmHeuristic>
-    auto operator()(S const &stm) const -> std::optional<StmVec> {
-        return rewrite_with_body(stm);
-    }
-
-    template <class S>
-        requires Util::is_among_v<S, StmTheory, StmShowSig, StmProjectSig, StmDefined, StmScript, StmInclude,
-                                  StmProgram, StmConst, StmComment>
-    auto operator()([[maybe_unused]] S const &stm) const -> std::optional<StmVec> {
-        return std::nullopt;
+    template <class S> auto operator()([[maybe_unused]] S const &stm) const -> std::optional<StmVec> {
+        if constexpr (Util::is_among_v<S, StmWeakConstraint, StmShow, StmProject, StmExternal, StmEdge, StmHeuristic>) {
+            return rewrite_with_body(stm);
+        } else {
+            static_assert(Util::is_among_v<S, StmTheory, StmShowNothing, StmShowSig, StmProjectSig, StmDefined,
+                                           StmScript, StmInclude, StmProgram, StmConst, StmComment>);
+            return std::nullopt;
+        }
     }
 
     auto operator()(Stm const &stm) const -> std::optional<StmVec> { return std::visit(*this, stm); }

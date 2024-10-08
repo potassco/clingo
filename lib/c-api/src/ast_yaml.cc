@@ -892,6 +892,7 @@ statement:
   - statement_optimize
   - statement_weak_constraint
   - statement_show
+  - statement_show_nothing
   - statement_show_signature
   - statement_project
   - statement_project_signature
@@ -972,6 +973,13 @@ statement_show:
     body:
       type: body_literal_array
       doc: The body of the statement.
+statement_show_nothing:
+  type: record
+  doc: An empty show statement.
+  arguments:
+    location:
+      type: location
+      doc: The location of the statement.
 statement_show_signature:
   type: record
   doc: A show signature statement.

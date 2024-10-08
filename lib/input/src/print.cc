@@ -617,6 +617,8 @@ class Print {
         *out_ << ".";
     }
 
+    void operator()([[maybe_unused]] StmShowNothing const &stm) const { *out_ << "#show."; }
+
     void operator()(StmShowSig const &stm) const {
         *out_ << "#show " << (stm.sign() ? "-" : "") << stm.name() << "/" << stm.arity() << ".";
     }

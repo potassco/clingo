@@ -712,6 +712,7 @@ enum clingo_ast_type_e {
     clingo_ast_type_statement_optimize,
     clingo_ast_type_statement_weak_constraint,
     clingo_ast_type_statement_show,
+    clingo_ast_type_statement_show_nothing,
     clingo_ast_type_statement_show_signature,
     clingo_ast_type_statement_project,
     clingo_ast_type_statement_project_signature,

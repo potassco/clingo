@@ -619,18 +619,15 @@ class ComputeBounds {
         throw std::runtime_error("unpool must be called before computing bounds");
     }
 
-    template <class T>
-        requires Util::is_among_v<T, StmWeakConstraint, StmShow, StmProject, StmExternal, StmEdge, StmHeuristic>
-    auto operator()(T const &stm) -> Util::ResultState<Stm> {
-        return compute_bounds_body(
-            stm, [&](auto res_body) -> std::optional<Stm> { return stm.rewrite(a_body = std::move(res_body)); });
-    }
-
-    template <class T>
-        requires Util::is_among_v<T, StmTheory, StmProjectSig, StmDefined, StmShowSig, StmScript, StmInclude,
-                                  StmProgram, StmConst, StmComment>
-    auto operator()([[maybe_unused]] T const &stm) -> Util::ResultState<Stm> {
-        return {true};
+    template <class T> auto operator()([[maybe_unused]] T const &stm) -> Util::ResultState<Stm> {
+        if constexpr (Util::is_among_v<T, StmWeakConstraint, StmShow, StmProject, StmExternal, StmEdge, StmHeuristic>) {
+            return compute_bounds_body(
+                stm, [&](auto res_body) -> std::optional<Stm> { return stm.rewrite(a_body = std::move(res_body)); });
+        } else {
+            static_assert(Util::is_among_v<T, StmTheory, StmProjectSig, StmDefined, StmShowNothing, StmShowSig,
+                                           StmScript, StmInclude, StmProgram, StmConst, StmComment>);
+            return {true};
+        }
     }
 
   private:

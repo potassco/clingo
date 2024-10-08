@@ -132,8 +132,8 @@ class AddDepend {
     void operator()(BdLit const &lit) const { std::visit(*this, lit); }
 
     template <class T>
-        requires Util::is_among_v<T, StmTheory, StmOptimize, StmShowSig, StmProjectSig, StmDefined, StmScript,
-                                  StmInclude, StmProgram, StmConst, StmComment>
+        requires Util::is_among_v<T, StmTheory, StmOptimize, StmShowNothing, StmShowSig, StmProjectSig, StmDefined,
+                                  StmScript, StmInclude, StmProgram, StmConst, StmComment>
     void operator()([[maybe_unused]] T const &stm) const {}
 
     template <class T>
@@ -175,8 +175,8 @@ class AddProvide {
         } else {
             static_assert(
                 Util::is_among_v<T, LitComparison, LitBool, HdLitTheoryAtom, StmWeakConstraint, StmShow, StmProject,
-                                 StmEdge, StmHeuristic, StmTheory, StmOptimize, StmShowSig, StmProjectSig, StmDefined,
-                                 StmScript, StmInclude, StmProgram, StmConst, StmComment>);
+                                 StmEdge, StmHeuristic, StmTheory, StmOptimize, StmShowNothing, StmShowSig,
+                                 StmProjectSig, StmDefined, StmScript, StmInclude, StmProgram, StmConst, StmComment>);
         }
     }
 
@@ -789,6 +789,7 @@ class AnalyzeVisitor {
     void visit(StmOptimize const &stm) { visit(stm.elems()); }
     void visit(StmWeakConstraint const &stm) { visit(stm.body()); }
     void visit(StmShow const &stm) { visit(stm.body()); }
+    void visit([[maybe_unused]] StmShowNothing const &stm) {}
     void visit(StmShowSig const &stm) {
         depend_->emplace(SharedSig{stm.name(), stm.arity(), stm.sign()}, location(stm));
     }
