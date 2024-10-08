@@ -323,9 +323,12 @@ class SharedSymbol {
     //! Create a shared symbol from its representation.
     //!
     //! No reference counts are touched here.
-    [[nodiscard]] static auto from_rep(uint64_t repr) -> SharedSymbol {
+    [[nodiscard]] static auto from_rep(uint64_t repr, bool acquire = false) -> SharedSymbol {
         auto ret = SharedSymbol();
         ret.ref_ = Symbol::from_rep(repr);
+        if (acquire) {
+            ret.acquire_();
+        }
         return ret;
     }
 

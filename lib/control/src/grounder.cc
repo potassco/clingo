@@ -270,7 +270,7 @@ void Grounder::parse(std::string_view str, ScriptExec *code) {
     }
 }
 
-void Grounder::parse(std::vector<std::string> const &files, ScriptExec *code) {
+void Grounder::parse(std::span<std::string_view const> const &files, ScriptExec *code) {
     GRINGO_REPORT(*impl_->log, debug) << "parsing...";
     if (impl_->is_sat) {
         GCLock lock{*impl_->store};

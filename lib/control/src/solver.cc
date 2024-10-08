@@ -56,7 +56,7 @@ Solver::Solver(Logger &log, SymbolStore &store, Input::RewriteOptions opts, Outp
     static_cast<void>(mode);
 }
 
-void Solver::main(std::vector<std::string> const &files) {
+void Solver::main(std::span<std::string_view const> const &files) {
     parse(files);
     if (scripts_.callable("main", 0)) {
         scripts_.main(*this);
@@ -68,7 +68,7 @@ void Solver::main(std::vector<std::string> const &files) {
 
 void Solver::parse(std::string_view str) { grd_.parse(str, &scripts_); }
 
-void Solver::parse(std::vector<std::string> const &files) { grd_.parse(files, &scripts_); }
+void Solver::parse(std::span<std::string_view const> const &files) { grd_.parse(files, &scripts_); }
 
 void Solver::add_const(String name, Symbol value) { grd_.add_const(name, value); }
 

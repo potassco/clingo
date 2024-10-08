@@ -72,12 +72,12 @@ class Solver {
     Solver(Logger &log, SymbolStore &store, Input::RewriteOptions opts, OutputMode mode);
 
     //! Parse and ground a program.
-    void main(std::vector<std::string> const &files);
+    void main(std::span<std::string_view const> const &files);
 
     //! Parse a program from the given string.
     void parse(std::string_view str);
     //! Parse the given files.
-    void parse(std::vector<std::string> const &files);
+    void parse(std::span<std::string_view const> const &files);
     //! Define a constant.
     void add_const(String name, Symbol value);
     //! Ground the program.

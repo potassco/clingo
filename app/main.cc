@@ -97,7 +97,7 @@ auto run(int argc, char *argv[]) -> int {
                 }
                 grd.add_const(*def->first, *def->second);
             }
-            grd.parse(files);
+            grd.parse(std::vector<std::string_view>{files.begin(), files.end()});
             if (mode == AppMode::parse) {
                 grd.output_unprocessed_program(std::cout);
                 return;

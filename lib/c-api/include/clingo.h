@@ -626,6 +626,23 @@ CLINGO_VISIBILITY_DEFAULT size_t clingo_symbol_hash(clingo_symbol_t symbol);
 //! Control object holding grounding and solving state.
 typedef struct clingo_control clingo_control_t;
 
+//! Struct used to specify the program parts that have to be grounded.
+//!
+//! Programs may be structured into parts, which can be grounded independently with ::clingo_control_ground.
+//! Program parts are mainly interesting for incremental grounding and multi-shot solving.
+//! For single-shot solving, program parts are not needed.
+//!
+//! @note Parts of a logic program without an explicit <tt>\#program</tt>
+//! specification are by default put into a program called `base` without
+//! arguments.
+//!
+//! @see clingo_control_ground()
+typedef struct clingo_part {
+    char const *name;              //!< name of the program part
+    clingo_symbol_t const *params; //!< array of parameters
+    size_t size;                   //!< number of parameters
+} clingo_part_t;
+
 //! Create a new control object.
 //!
 //! A control object has to be freed using clingo_control_free().
@@ -648,6 +665,52 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_new(clingo_lib_t *lib, char const 
 //! Free a control object created with clingo_control_new().
 //! @param[in] control the target
 CLINGO_VISIBILITY_DEFAULT void clingo_control_free(clingo_control_t *control);
+
+//! Extend the logic program with a program in a file.
+//!
+//! @param[in] control the target
+//! @param[in] files the files to parse
+//! @param[in] files_size the number of files to parse
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if parsing or checking fails
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_parse_file(clingo_control_t *control, char const **files,
+                                                         size_t files_size);
+
+//! Extend the logic program with the given non-ground logic program in string form.
+//!
+//! This function puts the given program into a block of form: <tt>\#program name(parameters).</tt>
+//!
+//! After extending the logic program, the corresponding program parts are typically grounded with
+//! ::clingo_control_ground.
+//!
+//! @param[in] control the target
+//! @param[in] program string representation of the program
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if parsing fails
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_parse_string(clingo_control_t *control, char const *program);
+
+//! Ground the selected @link ::clingo_part parts @endlink of the current (non-ground) logic program.
+//!
+//! After grounding, logic programs can be solved with ::clingo_control_solve().
+//!
+//! @note Parts of a logic program without an explicit <tt>\#program</tt>
+//! specification are by default put into a program called `base` without
+//! arguments.
+//!
+//! @param[in] control the target
+//! @param[in] parts array of parts to ground
+//! @param[in] parts_size size of the parts array
+//! @param[in] ground_callback callback to implement external functions
+//! @param[in] ground_callback_data user data for ground_callback
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - error code of ground callback
+//!
+//! @see clingo_part
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts,
+                                                     size_t parts_size);
 
 //! @}
 
