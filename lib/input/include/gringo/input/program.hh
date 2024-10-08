@@ -62,17 +62,11 @@ class UnprocessedProgram {
 
     //! Unprocessed statemtents.
     [[nodiscard]] auto parts() const -> ProgramPartVec const & { return parts_; }
-    //! Unprocessed const statements.
-    [[nodiscard]] auto const_stms() const -> std::vector<StmConst> const & { return const_stms_; }
-    //! Theory statements.
-    [[nodiscard]] auto thy_stms() const -> std::vector<StmTheory> const & { return thy_stms_; }
     //! Meta statements.
     [[nodiscard]] auto meta_stms() const -> StmVec const & { return meta_stms_; }
     //! Ensure base.
   private:
     ProgramPartVec parts_;
-    std::vector<StmConst> const_stms_;
-    std::vector<StmTheory> thy_stms_;
     StmVec meta_stms_;
     bool ensure_base_ = true;
 };
@@ -147,6 +141,12 @@ class Program {
     //!
     //! See the notes regarding const statements above.
     template <class F> void visit_stms(SymbolStore &store, F fun) const {
+        for (auto const &stm : script_stms_) {
+            fun(stm);
+        }
+        for (auto const &stm : defined_stms_) {
+            fun(stm);
+        }
         for (auto const &[id, sym] : const_map_) {
             fun(Stm{StmConst{sym.first.loc(), sym.first.type(), sym.first.name(),
                              TermSymbol{location(sym.first.value()), sym.second}}});
@@ -208,6 +208,10 @@ class Program {
     RewriteOptions opts_;
     //! The meta statements in the program.
     StmVec meta_stms_;
+    //! Script statements.
+    std::vector<StmScript> script_stms_;
+    //! Script statements.
+    std::vector<StmDefined> defined_stms_;
     //! Theory statements.
     std::vector<StmTheory> thy_stms_;
     //! The map of program parts.

@@ -334,12 +334,6 @@ auto Grounder::ground(Input::ProgramParamVec const &params) -> bool {
 }
 
 void Grounder::output_unprocessed_program(std::ostream &out) {
-    for (auto const &stm : impl_->unprocessed_prg.const_stms()) {
-        out << stm << "\n";
-    }
-    for (auto const &stm : impl_->unprocessed_prg.thy_stms()) {
-        out << stm << "\n";
-    }
     for (auto const &stm : impl_->unprocessed_prg.meta_stms()) {
         out << stm << "\n";
     }

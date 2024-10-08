@@ -25,23 +25,17 @@ void UnprocessedProgram::mark(SymbolCollector &gc) const {
 
 void UnprocessedProgram::clear() {
     parts_.clear();
-    const_stms_.clear();
-    thy_stms_.clear();
     meta_stms_.clear();
 }
 
 void UnprocessedProgram::add(SymbolStore &store, Stm stm) {
-
     std::visit(
         [&]<class T>(T const &stm) {
-            if constexpr (Util::is_among_v<T, StmShowNothing, StmShowSig, StmProjectSig, StmScript, StmDefined>) {
+            if constexpr (Util::is_among_v<T, StmShowNothing, StmShowSig, StmScript, StmProjectSig, StmDefined,
+                                           StmConst, StmTheory>) {
                 meta_stms_.emplace_back(std::move(stm));
             } else if constexpr (Util::is_among_v<T, StmInclude, StmComment>) {
                 // ignore
-            } else if constexpr (Util::matches<T, StmTheory>) {
-                thy_stms_.emplace_back(std::move(stm));
-            } else if constexpr (Util::matches<T, StmConst>) {
-                const_stms_.emplace_back(std::move(stm));
             } else if constexpr (Util::matches<T, StmProgram>) {
                 ensure_base_ = false;
                 parts_.emplace_back(stm, StmVec{}, SymbolVec{});
@@ -66,24 +60,35 @@ void UnprocessedProgram::add(SymbolStore &store, Stm stm) {
 }
 
 void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram const &prg) {
+    // process meta statements
+    std::vector<StmConst> const_stms;
+    for (auto const &stm : prg.meta_stms()) {
+        Gringo::Input::analyze(stm, provide_, depend_);
+        std::visit(
+            [&, this]<class T>(T const &stm) {
+                if constexpr (Util::is_among_v<T, StmTheory>) {
+                    thy_stms_.emplace_back(stm);
+                } else if constexpr (Util::is_among_v<T, StmConst>) {
+                    const_stms.emplace_back(stm);
+                } else if constexpr (Util::is_among_v<T, StmScript>) {
+                    script_stms_.emplace_back(stm);
+                } else if constexpr (Util::is_among_v<T, StmDefined>) {
+                    defined_stms_.emplace_back(stm);
+                } else {
+                    meta_stms_.emplace_back(stm);
+                }
+            },
+            stm);
+    }
+    evaluate_const(log, store, const_stms, const_map_);
+
     // setup rewrite context
-    thy_stms_.insert(thy_stms_.end(), prg.thy_stms().begin(), prg.thy_stms().end());
     auto parser = TheoryAtomParser{};
     for (auto const &stm : thy_stms_) {
         parser.add_theory(log, stm);
     }
     auto param_map = ParamMap{};
     auto ctx = RewriteContext{log, store, opts_, parser, param_map, const_map_};
-
-    // process meta statements
-    evaluate_const(log, store, prg.const_stms(), const_map_);
-    for (auto const &stm : prg.meta_stms()) {
-        auto n = std::ssize(meta_stms_);
-        rewrite(ctx, stm, meta_stms_);
-        for (auto it = meta_stms_.begin() + n, ie = meta_stms_.end(); it != ie; ++it) {
-            Gringo::Input::analyze(*it, provide_, depend_);
-        }
-    }
 
     // process program parts
     for (auto const &[program_stm, stms, facts] : prg.parts()) {
