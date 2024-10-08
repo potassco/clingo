@@ -1,6 +1,6 @@
 #pragma once
 
-#include <gringo/grounder/term.hh>
+#include <gringo/control/term.hh>
 
 #include <gringo/input/literal.hh>
 #include <gringo/input/program.hh>

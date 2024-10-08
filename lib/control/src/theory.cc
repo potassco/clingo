@@ -1,6 +1,6 @@
-#include <gringo/grounder/literal.hh>
-#include <gringo/grounder/term.hh>
-#include <gringo/grounder/theory.hh>
+#include <gringo/control/literal.hh>
+#include <gringo/control/term.hh>
+#include <gringo/control/theory.hh>
 
 #include <gringo/ground/theory_atom.hh>
 

@@ -1,4 +1,4 @@
-#include <gringo/grounder/grounder.hh>
+#include <gringo/control/grounder.hh>
 
 #include <gringo/output/text.hh>
 

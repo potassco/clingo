@@ -1,5 +1,5 @@
-#include <gringo/grounder/aggregate.hh>
-#include <gringo/grounder/literal.hh>
+#include <gringo/control/aggregate.hh>
+#include <gringo/control/literal.hh>
 
 #include <gringo/ground/assignment_aggregate.hh>
 #include <gringo/ground/body_aggregate.hh>

@@ -1,7 +1,7 @@
 #pragma once
 
-#include <gringo/grounder/context.hh>
-#include <gringo/grounder/term.hh>
+#include <gringo/control/context.hh>
+#include <gringo/control/term.hh>
 
 #include <gringo/input/literal.hh>
 #include <gringo/input/print.hh>

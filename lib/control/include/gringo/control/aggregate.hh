@@ -1,6 +1,6 @@
 #pragma once
 
-#include <gringo/grounder/context.hh>
+#include <gringo/control/context.hh>
 
 #include <gringo/input/body_literal.hh>
 #include <gringo/input/head_literal.hh>

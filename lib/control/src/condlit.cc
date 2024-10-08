@@ -1,5 +1,5 @@
-#include <gringo/grounder/condlit.hh>
-#include <gringo/grounder/literal.hh>
+#include <gringo/control/condlit.hh>
+#include <gringo/control/literal.hh>
 
 #include <gringo/ground/condlit.hh>
 #include <gringo/ground/disjunction.hh>

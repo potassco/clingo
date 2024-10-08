@@ -1,9 +1,9 @@
-#include <gringo/grounder/aggregate.hh>
-#include <gringo/grounder/condlit.hh>
-#include <gringo/grounder/context.hh>
-#include <gringo/grounder/literal.hh>
-#include <gringo/grounder/statement.hh>
-#include <gringo/grounder/theory.hh>
+#include <gringo/control/aggregate.hh>
+#include <gringo/control/condlit.hh>
+#include <gringo/control/context.hh>
+#include <gringo/control/literal.hh>
+#include <gringo/control/statement.hh>
+#include <gringo/control/theory.hh>
 
 namespace Gringo::Grounder {
 

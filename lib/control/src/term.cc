@@ -1,4 +1,4 @@
-#include <gringo/grounder/term.hh>
+#include <gringo/control/term.hh>
 
 #include <gringo/input/rewrite/analyze.hh>
 

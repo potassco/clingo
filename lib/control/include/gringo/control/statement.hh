@@ -1,6 +1,6 @@
 #pragma once
 
-#include <gringo/grounder/context.hh>
+#include <gringo/control/context.hh>
 
 namespace Gringo::Grounder {
 

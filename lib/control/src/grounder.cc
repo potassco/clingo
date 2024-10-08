@@ -1,6 +1,6 @@
-#include <gringo/grounder/grounder.hh>
-#include <gringo/grounder/parse.hh>
-#include <gringo/grounder/statement.hh>
+#include <gringo/control/grounder.hh>
+#include <gringo/control/parse.hh>
+#include <gringo/control/statement.hh>
 
 #include <gringo/ground/program.hh>
 
