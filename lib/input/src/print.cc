@@ -1,14 +1,14 @@
-#include <gringo/input/print.hh>
+#include <clingo/input/print.hh>
 
-#include <gringo/input/rewrite/analyze.hh>
+#include <clingo/input/rewrite/analyze.hh>
 
-#include <gringo/util/algorithm.hh>
-#include <gringo/util/print.hh>
+#include <clingo/util/algorithm.hh>
+#include <clingo/util/print.hh>
 
 #include <cstring>
 #include <sstream>
 
-namespace Gringo::Input {
+namespace Clingo::Input {
 
 namespace {
 
@@ -1115,4 +1115,4 @@ auto to_string(Stm const &stm) -> std::string {
     return out.str();
 }
 
-} // namespace Gringo::Input
+} // namespace Clingo::Input

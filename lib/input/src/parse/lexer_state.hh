@@ -6,7 +6,7 @@
 #include <cstring>
 #include <istream>
 
-namespace Gringo {
+namespace Clingo {
 
 class LexerState {
   public:
@@ -183,4 +183,4 @@ inline auto LexerState::fill(size_t n, size_t padding) -> bool {
     // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 }
 
-} // namespace Gringo
+} // namespace Clingo

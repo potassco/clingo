@@ -1,14 +1,14 @@
-#include <gringo/core/number.hh>
+#include <clingo/core/number.hh>
 
-#include <gringo/util/checked_math.hh>
-#include <gringo/util/hash.hh>
+#include <clingo/util/checked_math.hh>
+#include <clingo/util/hash.hh>
 
 #include <imath.h>
 
 #include <atomic>
 #include <memory>
 
-namespace Gringo {
+namespace Clingo {
 
 namespace {
 
@@ -1026,4 +1026,4 @@ auto bigint_refcount(uint64_t repr) -> std::atomic_size_t & { return repr_to_big
 
 // NOLINTEND(readability-magic-numbers,cppcoreguidelines-pro-type-reinterpret-cast,performance-no-int-to-ptr,cppcoreguidelines-avoid-c-arrays,cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
-} // namespace Gringo
+} // namespace Clingo

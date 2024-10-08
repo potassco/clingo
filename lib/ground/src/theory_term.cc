@@ -1,8 +1,8 @@
-#include <gringo/ground/theory_term.hh>
+#include <clingo/ground/theory_term.hh>
 
 #include <typeindex>
 
-namespace Gringo::Ground {
+namespace Clingo::Ground {
 
 // definition of TheoryTermSymbol
 
@@ -194,4 +194,4 @@ auto TheoryTermFunction::do_compare_to(TheoryTerm const &other) const -> std::st
     return std::type_index(typeid(this)) <=> std::type_index(typeid(other));
 }
 
-} // namespace Gringo::Ground
+} // namespace Clingo::Ground

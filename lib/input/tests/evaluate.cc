@@ -1,12 +1,12 @@
 #include "test.hh"
 
-#include <gringo/input/rewrite/evaluate.hh>
+#include <clingo/input/rewrite/evaluate.hh>
 
 #include <cmath>
 
 // NOLINTBEGIN(readability-magic-numbers)
 
-namespace Gringo::Input::Test {
+namespace Clingo::Input::Test {
 
 namespace {
 
@@ -122,6 +122,6 @@ TEST_CASE("evaluate_const") {
     }
 }
 
-} // namespace Gringo::Input::Test
+} // namespace Clingo::Input::Test
 
 // NOLINTEND(readability-magic-numbers)

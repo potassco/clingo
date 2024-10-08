@@ -1,10 +1,10 @@
 #include "test.hh"
 
-#include <gringo/input/program.hh>
+#include <clingo/input/program.hh>
 
-#include <gringo/core/logger.hh>
+#include <clingo/core/logger.hh>
 
-namespace Gringo::Input::Test {
+namespace Clingo::Input::Test {
 
 namespace {
 
@@ -44,4 +44,4 @@ TEST_CASE("rewrite_program") {
         SV{"#theory x {\n  t { + : 0, binary, left };\n  &a/0: t, any\n}.", "#program base.", "&a { ((x + y) + z) }."});
 }
 
-} // namespace Gringo::Input::Test
+} // namespace Clingo::Input::Test

@@ -1,13 +1,13 @@
 #include "transform.hh"
 
-#include <gringo/input/rewrite/analyze.hh>
-#include <gringo/input/rewrite/project.hh>
-#include <gringo/input/rewrite/project_anonymous.hh>
-#include <gringo/input/rewrite/visit_variables.hh>
+#include <clingo/input/rewrite/analyze.hh>
+#include <clingo/input/rewrite/project.hh>
+#include <clingo/input/rewrite/project_anonymous.hh>
+#include <clingo/input/rewrite/visit_variables.hh>
 
 #include <algorithm>
 
-namespace Gringo::Input {
+namespace Clingo::Input {
 
 namespace {
 
@@ -288,15 +288,15 @@ auto project(RewriteOptions const &opts, Stm const &stm) -> std::optional<Stm> {
     }
     if (opts.project_anonymous) {
         if (res.has_value()) {
-            auto tmp = Gringo::Input::project_anonymous(res.value());
+            auto tmp = Clingo::Input::project_anonymous(res.value());
             if (tmp.has_value()) {
                 res = std::move(tmp);
             }
         } else {
-            res = Gringo::Input::project_anonymous(stm);
+            res = Clingo::Input::project_anonymous(stm);
         }
     }
     return res;
 }
 
-} // namespace Gringo::Input
+} // namespace Clingo::Input

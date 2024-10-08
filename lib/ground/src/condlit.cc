@@ -1,13 +1,13 @@
-#include <gringo/ground/condlit.hh>
-#include <gringo/ground/matcher.hh>
+#include <clingo/ground/condlit.hh>
+#include <clingo/ground/matcher.hh>
 
-#include <gringo/core/logger.hh>
+#include <clingo/core/logger.hh>
 
-#include <gringo/util/print.hh>
+#include <clingo/util/print.hh>
 
 #include <typeindex>
 
-namespace Gringo::Ground {
+namespace Clingo::Ground {
 
 // StateAtomCondLit
 
@@ -653,4 +653,4 @@ void StmCondLit::do_propagate([[maybe_unused]] SymbolStore &store, Queue &queue)
 
 auto StmCondLit::do_priority() const -> size_t { return prio_; }
 
-} // namespace Gringo::Ground
+} // namespace Clingo::Ground

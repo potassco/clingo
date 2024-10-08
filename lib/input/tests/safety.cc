@@ -1,8 +1,8 @@
 #include "test.hh"
 
-#include <gringo/input/rewrite/safety.hh>
+#include <clingo/input/rewrite/safety.hh>
 
-namespace Gringo::Input::Test {
+namespace Clingo::Input::Test {
 
 namespace {
 
@@ -87,4 +87,4 @@ TEST_CASE("check_safety") {
     REQUIRE(cs_stm("#heuristic p(X) : X=Y, not q(Y). [X@Y,Z]") == "<unsafe>");
 }
 
-} // namespace Gringo::Input::Test
+} // namespace Clingo::Input::Test

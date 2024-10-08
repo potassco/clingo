@@ -1,6 +1,6 @@
-#include <gringo/ground/theory_atom.hh>
+#include <clingo/ground/theory_atom.hh>
 
-namespace Gringo::Ground {
+namespace Clingo::Ground {
 
 // definition of AtomTheory
 
@@ -398,4 +398,4 @@ void StmHdTheory::do_print(std::ostream &out) const {
     out << " :- " << Util::p_range(body_, ", ", [](std::ostream &out, auto const &lit) { out << *lit; }) << ".";
 }
 
-} // namespace Gringo::Ground
+} // namespace Clingo::Ground

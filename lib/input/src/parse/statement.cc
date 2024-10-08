@@ -1,12 +1,12 @@
-#include <gringo/input/literal.hh>
+#include <clingo/input/literal.hh>
 
-#include <gringo/input/rewrite/analyze.hh>
+#include <clingo/input/rewrite/analyze.hh>
 
-#include <gringo/util/type_traits.hh>
+#include <clingo/util/type_traits.hh>
 
 #include "parser_state.hh"
 
-namespace Gringo::Input::Parse {
+namespace Clingo::Input::Parse {
 
 namespace {
 
@@ -987,4 +987,4 @@ auto scan_statement(ParserState &state) -> std::pair<std::optional<Stm>, bool> {
     }
 }
 
-} // namespace Gringo::Input::Parse
+} // namespace Clingo::Input::Parse

@@ -1,8 +1,8 @@
-#include <gringo/util/string.hh>
+#include <clingo/util/string.hh>
 
 #include "parser_state.hh"
 
-namespace Gringo::Input::Parse {
+namespace Clingo::Input::Parse {
 
 namespace {
 
@@ -343,4 +343,4 @@ auto parse_theory_atom(ParserState &state)
     return std::make_tuple(std::move(name), std::move(elems), std::move(rguard), std::move(end));
 }
 
-} // namespace Gringo::Input::Parse
+} // namespace Clingo::Input::Parse

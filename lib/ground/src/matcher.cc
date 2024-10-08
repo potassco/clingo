@@ -1,6 +1,6 @@
-#include <gringo/ground/matcher.hh>
+#include <clingo/ground/matcher.hh>
 
-namespace Gringo::Ground {
+namespace Clingo::Ground {
 
 namespace {
 
@@ -145,4 +145,4 @@ auto make_comp_matcher(std::vector<bool> const &bound, Term const &lhs, Relation
     return std::make_unique<CmpMatcher>(lhs, rel, rhs);
 }
 
-} // namespace Gringo::Ground
+} // namespace Clingo::Ground

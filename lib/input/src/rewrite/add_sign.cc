@@ -1,10 +1,10 @@
 #include "add_sign.hh"
 
-#include <gringo/util/type_traits.hh>
+#include <clingo/util/type_traits.hh>
 
 #include <utility>
 
-namespace Gringo::Input {
+namespace Clingo::Input {
 
 namespace {
 
@@ -54,4 +54,4 @@ auto add_sign(BdLit const &lit, Sign sign, std::optional<Position> pos) -> std::
     return std::nullopt;
 }
 
-} // namespace Gringo::Input
+} // namespace Clingo::Input

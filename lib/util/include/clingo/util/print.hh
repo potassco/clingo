@@ -1,0 +1,271 @@
+#pragma once
+
+#include <cassert>
+#include <charconv>
+#include <cstring>
+#include <span>
+#include <string>
+#include <string_view>
+#include <vector>
+
+namespace Clingo::Util {
+
+//! @addtogroup util_print
+//! @{
+
+//! Create an output buffer that bears some similarities with C++'s iostreams.
+//!
+//! The buffer can optionally be constructed with a file handle for output.
+//! Function endl() can be called to output and discard the buffer's content at
+//! key points; its content will only be written if the buffer has at least
+//! some fixed predefined size. Function flush() should be called to output the
+//! current buffer content and flush the file.
+class OutputBuffer {
+  public:
+    //! Construt the buffer with an optional file handle.
+    OutputBuffer(FILE *out = nullptr) : out_{out} {}
+
+    //! Flush the buffer.
+    //!
+    //! This function is a noop if there is no associated file.
+    void flush() {
+        if (out_ != nullptr) {
+            fwrite(buf_.data(), sizeof(char), size_, out_);
+            fflush(out_);
+            size_ = 0;
+        }
+    }
+
+    //! Flush the buffer if it has a predefined minimum size.
+    //!
+    //! This function is a noop if there is no associated file.
+    void endl() {
+        constexpr auto n = 8192;
+        if (out_ != nullptr && size_ > n) {
+            fwrite(buf_.data(), sizeof(char), size_, out_);
+            size_ = 0;
+        }
+    }
+
+    //! Get the number of bytes currently stored in the buffer.
+    [[nodiscard]] auto size() const -> size_t { return static_cast<size_t>(size_); }
+
+    //! Check if the buffer is currently emtpy.
+    [[nodiscard]] auto empty() const -> bool { return size_ == 0; }
+
+    //! Get a string view of the current buffer content.
+    [[nodiscard]] auto view() const -> std::string_view {
+        return std::string_view{buf_.data(), static_cast<size_t>(size_)};
+    }
+
+    //! Get a string with the current buffer content.
+    [[nodiscard]] auto str() const -> std::string { return std::string{buf_.data(), static_cast<size_t>(size_)}; }
+
+    //! Get a C string with the current buffer content.
+    [[nodiscard]] auto c_str() -> char const * {
+        *ensure_(1) = '\0';
+        return buf_.data();
+    }
+
+    //! Empty the buffer.
+    auto reset() -> OutputBuffer & {
+        size_ = 0;
+        return *this;
+    }
+
+    //! Empty the buffer and return a vector with the previous content.
+    auto release() -> std::vector<char> {
+        buf_.resize(size_);
+        buf_.emplace_back('\0');
+        auto ret = std::move(buf_);
+        buf_.clear();
+        size_ = 0;
+        return ret;
+    }
+
+    //! Append a string to the buffer.
+    void append(char const *str) {
+        auto n = static_cast<ssize_t>(std::strlen(str));
+        std::copy(str, std::next(str, n), ensure_(n));
+        size_ += n;
+    }
+
+    //! Append a string to the buffer.
+    void append(std::string_view str) {
+        auto n = static_cast<ssize_t>(str.length());
+        std::copy(str.begin(), str.end(), ensure_(n));
+        size_ += n;
+    }
+
+    //! Append a char to the buffer.
+    void append(char c) {
+        *ensure_(1) = c;
+        ++size_;
+    }
+
+    //! Append an integral to the buffer.
+    template <std::integral T> void append(T num) {
+        constexpr auto n = 128;
+        auto *end = ensure_(n);
+        auto res = std::to_chars(end, limit_(), num);
+        size_ += res.ptr - end;
+    }
+
+    //! Append n bytes at the end of the buffer.
+    //!
+    //! The returned span should be filled by the calling code.
+    auto reserve(ssize_t n) -> std::span<char> {
+        auto *begin = ensure_(n);
+        size_ += n;
+        return {begin, std::next(begin, n)};
+    }
+
+    //! Append the given integral to the buffer.
+    template <std::integral T> friend auto operator<<(OutputBuffer &out, T num) -> OutputBuffer & {
+        out.append(num);
+        return out;
+    }
+
+    //! Append the given char to the buffer.
+    friend auto operator<<(OutputBuffer &out, char c) -> OutputBuffer & {
+        out.append(c);
+        return out;
+    }
+
+    //! Append the given string to the buffer.
+    friend auto operator<<(OutputBuffer &out, std::string_view str) -> OutputBuffer & {
+        out.append(str);
+        return out;
+    }
+
+    //! Append the given string to the buffer.
+    friend auto operator<<(OutputBuffer &out, char const *str) -> OutputBuffer & {
+        out.append(str);
+        return out;
+    }
+
+  private:
+    auto limit_() -> char * { return std::next(buf_.data(), static_cast<ssize_t>(buf_.size())); }
+
+    auto ensure_(ssize_t n) -> char * {
+        auto m = size_ + n;
+        assert(n >= 0 && m >= 0);
+        if (buf_.size() < static_cast<size_t>(m)) {
+            buf_.reserve(static_cast<size_t>(m));
+            buf_.resize(buf_.capacity());
+        }
+        return std::next(buf_.data(), size_);
+    }
+
+    std::vector<char> buf_;
+    ssize_t size_ = 0;
+    FILE *out_;
+};
+
+namespace Detail {
+
+//! Helper to print an object.
+struct PrintSelf {
+    //! Print the given object.
+    template <class Out> void operator()(Out &out, auto const &x) { out << x; }
+};
+
+//! Wrapper for range with a separator and a mapper for printing.
+template <class It, class F> class PrintRange {
+  public:
+    //! Print the range with the given separator.
+    template <class A>
+    PrintRange(It first, It last, char const *sep, A &&fun)
+        : first_{first}, last_{last}, sep_{sep}, fun_{std::forward<A>(fun)} {}
+    //! Output the range.
+    template <class Out> friend auto operator<<(Out &out, PrintRange rng) -> Out & {
+        if (rng.first_ != rng.last_) {
+            rng.fun_(out, *rng.first_);
+            for (++rng.first_; rng.first_ != rng.last_; ++rng.first_) {
+                out << rng.sep_;
+                rng.fun_(out, *rng.first_);
+            }
+        }
+        return out;
+    }
+
+  private:
+    It first_;
+    It last_;
+    char const *sep_;
+    [[no_unique_address]] F fun_;
+};
+
+template <class It, class F> PrintRange(It, It, char const *, F &&) -> PrintRange<It, std::unwrap_ref_decay_t<F>>;
+
+//! Helper to inject a function to print something.
+template <class F> class PrintFun {
+  public:
+    //! Construct the helper.
+    template <class A> PrintFun([[maybe_unused]] int tag, A &&fun) : fun_{std::forward<A>(fun)} {}
+    //! Call the function while outputting.
+    template <class Out> friend auto operator<<(Out &out, PrintFun x) -> Out & {
+        x.fun_(out);
+        return out;
+    }
+
+  private:
+    F fun_;
+};
+
+template <class F> PrintFun(int, F &&) -> PrintFun<std::unwrap_ref_decay_t<F>>;
+
+//! Helper to print something in quotes.
+class PrintQuoted {
+  public:
+    //! Construct the helper.
+    PrintQuoted(std::string_view str) : str_{str} {}
+    //! Output quoted.
+    template <class Out> friend auto operator<<(Out &out, PrintQuoted x) -> Out & {
+        // TODO: in principle there are the codepoints too...
+        out << '"';
+        for (auto c : x.str_) {
+            if (c == '\\') {
+                out << "\\\\";
+            } else if (c == '\n') {
+                out << "\\n";
+            } else if (c == '\t') {
+                out << "\\t";
+            } else {
+                out << c;
+            }
+        }
+        out << '"';
+        return out;
+    }
+
+  private:
+    std::string_view str_;
+};
+
+} // namespace Detail
+
+//! Print with a function.
+template <class F> auto p_fun(F &&fun) { return Detail::PrintFun(0, std::forward<F>(fun)); }
+
+//! Print a range with a separator.
+template <class T, class F> auto p_range(T const &rng, char const *sep, F &&fun) {
+    using std::begin, std::end;
+    return Detail::PrintRange{begin(rng), end(rng), sep, std::forward<F>(fun)};
+}
+
+//! Print a range separated by comma.
+template <class T> auto p_range(T const &rng) { return p_range(rng, ",", Detail::PrintSelf{}); }
+
+//! Print a range separated by comma.
+template <class T, class F> auto p_range(T const &rng, F &&fun) { return p_range(rng, ",", std::forward<F>(fun)); }
+
+//! Print a range with a separator.
+template <class T> auto p_range(T const &rng, char const *sep) { return p_range(rng, sep, Detail::PrintSelf{}); }
+
+//! Quote and print the given string.
+inline auto p_quoted(std::string_view str) { return Detail::PrintQuoted{str}; }
+
+//! @}
+
+} // namespace Clingo::Util

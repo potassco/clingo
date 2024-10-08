@@ -1,20 +1,20 @@
-#include <gringo/input/print.hh>
+#include <clingo/input/print.hh>
 
-#include <gringo/input/rewrite/analyze.hh>
-#include <gringo/input/rewrite/evaluate.hh>
-#include <gringo/input/rewrite/simplify.hh>
-#include <gringo/input/rewrite/visit_variables.hh>
+#include <clingo/input/rewrite/analyze.hh>
+#include <clingo/input/rewrite/evaluate.hh>
+#include <clingo/input/rewrite/simplify.hh>
+#include <clingo/input/rewrite/visit_variables.hh>
 
-#include <gringo/util/algorithm.hh>
-#include <gringo/util/checked_math.hh>
-#include <gringo/util/optional.hh>
-#include <gringo/util/type_traits.hh>
+#include <clingo/util/algorithm.hh>
+#include <clingo/util/checked_math.hh>
+#include <clingo/util/optional.hh>
+#include <clingo/util/type_traits.hh>
 
 #include <algorithm>
 #include <ctime>
 #include <utility>
 
-namespace Gringo::Input {
+namespace Clingo::Input {
 
 namespace {
 
@@ -38,8 +38,8 @@ template <class R> void extend(R &res, AuxTermVec &aux, bool conjunctive = true)
 //! Ensure that the term only matches numbers.
 [[nodiscard]] auto as_linear_term(Term term) -> Term {
     auto loc = location(term);
-    term = TermBinary(loc, TermSymbol{loc, Gringo::SymbolStore::num_ref(1)}, BinaryOperator::times, std::move(term));
-    return TermBinary(loc, std::move(term), BinaryOperator::plus, TermSymbol{loc, Gringo::SymbolStore::num_ref(0)});
+    term = TermBinary(loc, TermSymbol{loc, Clingo::SymbolStore::num_ref(1)}, BinaryOperator::times, std::move(term));
+    return TermBinary(loc, std::move(term), BinaryOperator::plus, TermSymbol{loc, Clingo::SymbolStore::num_ref(0)});
 }
 
 //! Introduce a fresh variable for the given term.
@@ -1056,7 +1056,7 @@ class LiteralToTuple {
 
     auto operator()(LitBool const &lit) -> TermArray {
         ++n_;
-        return Util::make_vec<Term>(TermSymbol{lit.loc(), Gringo::SymbolStore::num_ref(n_)});
+        return Util::make_vec<Term>(TermSymbol{lit.loc(), Clingo::SymbolStore::num_ref(n_)});
     }
 
     auto operator()(LitComparison const &lit) -> TermArray {
@@ -1066,7 +1066,7 @@ class LiteralToTuple {
         std::sort(var_vec.begin(), var_vec.end());
         std::vector<Term> res;
         res.reserve(var_vec.size() + 1);
-        res.emplace_back(TermSymbol{lit.loc(), Gringo::SymbolStore::num_ref(n_)});
+        res.emplace_back(TermSymbol{lit.loc(), Clingo::SymbolStore::num_ref(n_)});
         for (auto const &var : var_vec) {
             res.emplace_back(TermVariable{lit.loc(), var});
         }
@@ -1091,7 +1091,7 @@ class LiteralToTuple {
                 break;
             }
         }
-        res.emplace_back(TermSymbol{lit.loc(), Gringo::SymbolStore::num_ref(i)});
+        res.emplace_back(TermSymbol{lit.loc(), Clingo::SymbolStore::num_ref(i)});
         res.emplace_back(lit.term());
         return res;
     }
@@ -1857,4 +1857,4 @@ class SimplifyStatement {
     return SimplifyStatement{ctx}(stm);
 }
 
-} // namespace Gringo::Input
+} // namespace Clingo::Input

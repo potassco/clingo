@@ -1,8 +1,8 @@
 #include "test.hh"
 
-#include <gringo/input/rewrite/iesolver.hh>
+#include <clingo/input/rewrite/iesolver.hh>
 
-namespace Gringo::Input::Test {
+namespace Clingo::Input::Test {
 
 // NOLINTBEGIN(readability-magic-numbers)
 
@@ -43,4 +43,4 @@ TEST_CASE("iesolver") {
 
 // NOLINTEND(readability-magic-numbers)
 
-} // namespace Gringo::Input::Test
+} // namespace Clingo::Input::Test

@@ -1,8 +1,8 @@
 #include "test.hh"
 
-#include <gringo/input/rewrite/unpool_relations.hh>
+#include <clingo/input/rewrite/unpool_relations.hh>
 
-namespace Gringo::Input::Test {
+namespace Clingo::Input::Test {
 
 namespace {
 
@@ -103,4 +103,4 @@ TEST_CASE("unpool_relations_stms") {
     REQUIRE_THROWS(unpool_statement(":- not X<Y<Z; #false: X<Y<Z."));
 }
 
-} // namespace Gringo::Input::Test
+} // namespace Clingo::Input::Test

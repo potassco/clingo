@@ -1,8 +1,8 @@
-#include <gringo/input/parser.hh>
+#include <clingo/input/parser.hh>
 
 #include "test.hh"
 
-namespace Gringo::Input::Test {
+namespace Clingo::Input::Test {
 
 TEST_CASE("parsev2") {
     std::vector<std::pair<MessageCode, std::string>> messages;
@@ -472,4 +472,4 @@ TEST_CASE("parsev2") {
     }
 }
 
-} // namespace Gringo::Input::Test
+} // namespace Clingo::Input::Test

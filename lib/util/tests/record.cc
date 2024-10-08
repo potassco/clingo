@@ -1,8 +1,8 @@
-#include <gringo/util/record.hh>
+#include <clingo/util/record.hh>
 
 #include <catch2/catch_test_macros.hpp>
 
-namespace Gringo::Util::Test {
+namespace Clingo::Util::Test {
 
 namespace {
 
@@ -38,4 +38,4 @@ TEST_CASE("record") {
     REQUIRE(moves == 2);
 }
 
-} // namespace Gringo::Util::Test
+} // namespace Clingo::Util::Test

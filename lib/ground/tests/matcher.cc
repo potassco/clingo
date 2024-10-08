@@ -1,10 +1,10 @@
-#include <gringo/ground/matcher.hh>
+#include <clingo/ground/matcher.hh>
 
-#include <gringo/util/algorithm.hh>
+#include <clingo/util/algorithm.hh>
 
 #include <catch2/catch_test_macros.hpp>
 
-namespace Gringo::Ground::Test {
+namespace Clingo::Ground::Test {
 
 // NOLINTBEGIN(readability-magic-numbers,bugprone-unchecked-optional-access)
 
@@ -291,4 +291,4 @@ TEST_CASE("ground_matcher") {
 
 // NOLINTEND(readability-magic-numbers,bugprone-unchecked-optional-access)
 
-} // namespace Gringo::Ground::Test
+} // namespace Clingo::Ground::Test

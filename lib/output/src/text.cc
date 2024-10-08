@@ -1,11 +1,11 @@
-#include <gringo/output/text.hh>
+#include <clingo/output/text.hh>
 
-#include <gringo/util/ordered_set.hh>
-#include <gringo/util/print.hh>
-#include <gringo/util/type_traits.hh>
-#include <gringo/util/unordered_map.hh>
+#include <clingo/util/ordered_set.hh>
+#include <clingo/util/print.hh>
+#include <clingo/util/type_traits.hh>
+#include <clingo/util/unordered_map.hh>
 
-namespace Gringo::Output {
+namespace Clingo::Output {
 
 namespace {
 
@@ -533,4 +533,4 @@ class OutputText : public OutputStm, OutputTheory {
 
 auto make_text_output(Util::OutputBuffer &out) -> UOutputStm { return std::make_unique<OutputText>(out); }
 
-} // namespace Gringo::Output
+} // namespace Clingo::Output

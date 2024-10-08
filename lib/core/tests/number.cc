@@ -1,10 +1,10 @@
-#include <gringo/core/number.hh>
+#include <clingo/core/number.hh>
 
 #include <catch2/catch_test_macros.hpp>
 
 // NOLINTBEGIN(readability-magic-numbers)
 
-namespace Gringo::Test {
+namespace Clingo::Test {
 
 TEST_CASE("number_construct") {
     Number a{1};
@@ -161,6 +161,6 @@ TEST_CASE("number_op") {
     REQUIRE(get_sign(-big) == -1);
 }
 
-} // namespace Gringo::Test
+} // namespace Clingo::Test
 
 // NOLINTEND(readability-magic-numbers)

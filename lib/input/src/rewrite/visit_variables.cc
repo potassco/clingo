@@ -1,8 +1,8 @@
 #include "visit.hh"
 
-#include <gringo/input/rewrite/visit_variables.hh>
+#include <clingo/input/rewrite/visit_variables.hh>
 
-namespace Gringo::Input {
+namespace Clingo::Input {
 
 namespace {
 
@@ -115,4 +115,4 @@ void visit_variables(Stm const &stm, VarVisitFun fun, VariableContext ctx) {
     VisitVariables{std::move(fun), ctx}.visit(stm);
 }
 
-} // namespace Gringo::Input
+} // namespace Clingo::Input

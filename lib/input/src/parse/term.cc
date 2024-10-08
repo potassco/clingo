@@ -1,8 +1,8 @@
-#include <gringo/input/rewrite/evaluate.hh>
+#include <clingo/input/rewrite/evaluate.hh>
 
 #include "parser_state.hh"
 
-namespace Gringo::Input::Parse {
+namespace Clingo::Input::Parse {
 
 namespace {
 
@@ -902,4 +902,4 @@ auto parse_program_parts(ParserState &state) -> std::optional<std::vector<Progra
     return state.separated_until(parse_program_params, TokenType::sem, TokenType::end);
 }
 
-} // namespace Gringo::Input::Parse
+} // namespace Clingo::Input::Parse

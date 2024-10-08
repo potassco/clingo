@@ -1,9 +1,9 @@
 #include "transform.hh"
 
-#include <gringo/input/rewrite/rewrite_anonymous.hh>
-#include <gringo/input/rewrite/visit_variables.hh>
+#include <clingo/input/rewrite/rewrite_anonymous.hh>
+#include <clingo/input/rewrite/visit_variables.hh>
 
-namespace Gringo::Input {
+namespace Clingo::Input {
 
 namespace {
 
@@ -64,4 +64,4 @@ class RewriteAnonymous : public Transformer<RewriteAnonymous> {
     return RewriteAnonymous{gen}.transform(stm);
 }
 
-} // namespace Gringo::Input
+} // namespace Clingo::Input

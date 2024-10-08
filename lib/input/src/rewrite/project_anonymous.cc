@@ -1,9 +1,9 @@
 #include "transform.hh"
 
-#include <gringo/input/rewrite/analyze.hh>
-#include <gringo/input/rewrite/project_anonymous.hh>
+#include <clingo/input/rewrite/analyze.hh>
+#include <clingo/input/rewrite/project_anonymous.hh>
 
-namespace Gringo::Input {
+namespace Clingo::Input {
 
 namespace {
 
@@ -122,4 +122,4 @@ auto project_anonymous(BdLit const &lit) -> std::optional<BdLit> { return Projec
 
 auto project_anonymous(Stm const &stm) -> std::optional<Stm> { return ProjectAnonymous{}.transform(stm); }
 
-} // namespace Gringo::Input
+} // namespace Clingo::Input

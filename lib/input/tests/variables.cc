@@ -1,10 +1,10 @@
 #include "test.hh"
 
-#include <gringo/input/rewrite/visit_variables.hh>
+#include <clingo/input/rewrite/visit_variables.hh>
 
 #include <algorithm>
 
-namespace Gringo::Input::Test {
+namespace Clingo::Input::Test {
 
 namespace {
 
@@ -38,4 +38,4 @@ TEST_CASE("variables_term") {
     REQUIRE(variables_term("f(X,Z;X,Y,Z;X,Y)") == "[X, Y, Z]");
 }
 
-} // namespace Gringo::Input::Test
+} // namespace Clingo::Input::Test

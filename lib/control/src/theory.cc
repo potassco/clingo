@@ -1,10 +1,10 @@
-#include <gringo/control/literal.hh>
-#include <gringo/control/term.hh>
-#include <gringo/control/theory.hh>
+#include <clingo/control/literal.hh>
+#include <clingo/control/term.hh>
+#include <clingo/control/theory.hh>
 
-#include <gringo/ground/theory_atom.hh>
+#include <clingo/ground/theory_atom.hh>
 
-namespace Gringo::Control {
+namespace Clingo::Control {
 
 // Outline for body atoms:
 //
@@ -104,4 +104,4 @@ void build_bd_lit(BuildContext &ctx, Input::BdLitTheoryAtom const &lit) {
     ctx.body().emplace_back(std::make_unique<Ground::LitBdTheory>(state, lit.sign()));
 }
 
-} // namespace Gringo::Control
+} // namespace Clingo::Control

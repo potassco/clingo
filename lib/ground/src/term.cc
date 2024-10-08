@@ -1,10 +1,10 @@
-#include <gringo/ground/term.hh>
+#include <clingo/ground/term.hh>
 
-#include <gringo/util/optional.hh>
+#include <clingo/util/optional.hh>
 
 #include <typeindex>
 
-namespace Gringo::Ground {
+namespace Clingo::Ground {
 
 namespace {
 
@@ -687,4 +687,4 @@ auto TermFunction::do_compare_to([[maybe_unused]] Term const &other) const -> st
     return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
 }
 
-} // namespace Gringo::Ground
+} // namespace Clingo::Ground

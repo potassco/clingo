@@ -1,11 +1,11 @@
-#include <gringo/control/aggregate.hh>
-#include <gringo/control/literal.hh>
+#include <clingo/control/aggregate.hh>
+#include <clingo/control/literal.hh>
 
-#include <gringo/ground/assignment_aggregate.hh>
-#include <gringo/ground/body_aggregate.hh>
-#include <gringo/ground/head_aggregate.hh>
+#include <clingo/ground/assignment_aggregate.hh>
+#include <clingo/ground/body_aggregate.hh>
+#include <clingo/ground/head_aggregate.hh>
 
-namespace Gringo::Control {
+namespace Clingo::Control {
 
 namespace {
 
@@ -326,4 +326,4 @@ void build_bd_lit(BuildContext &ctx, Input::BdLitAggregate const &lit) {
     }
 }
 
-} // namespace Gringo::Control
+} // namespace Clingo::Control

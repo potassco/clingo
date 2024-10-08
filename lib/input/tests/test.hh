@@ -1,19 +1,19 @@
 #pragma once
 
-#include <gringo/input/parser.hh>
-#include <gringo/input/print.hh>
+#include <clingo/input/parser.hh>
+#include <clingo/input/print.hh>
 
-#include <gringo/input/rewrite/rewrite_context.hh>
+#include <clingo/input/rewrite/rewrite_context.hh>
 
-#include <gringo/util/algorithm.hh>
-#include <gringo/util/print.hh>
+#include <clingo/util/algorithm.hh>
+#include <clingo/util/print.hh>
 
 #include <catch2/catch_test_macros.hpp>
 
 #include <span>
 #include <sstream>
 
-namespace Gringo::Input::Test {
+namespace Clingo::Input::Test {
 
 template <class T> inline auto opt_value(T &&opt) {
     REQUIRE(opt);
@@ -169,4 +169,4 @@ struct Print {
 
 template <class T> auto to_str(T const &value, char const *sep = ", ") -> std::string { return Print{sep}(value); }
 
-} // namespace Gringo::Input::Test
+} // namespace Clingo::Input::Test

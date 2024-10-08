@@ -1,19 +1,19 @@
-#include <gringo/input/program.hh>
-#include <gringo/input/rewrite.hh>
+#include <clingo/input/program.hh>
+#include <clingo/input/rewrite.hh>
 
-#include <gringo/input/rewrite/analyze.hh>
-#include <gringo/input/rewrite/dependency.hh>
-#include <gringo/input/rewrite/evaluate.hh>
-#include <gringo/input/rewrite/rewrite_theory.hh>
-#include <gringo/input/rewrite/substitute.hh>
+#include <clingo/input/rewrite/analyze.hh>
+#include <clingo/input/rewrite/dependency.hh>
+#include <clingo/input/rewrite/evaluate.hh>
+#include <clingo/input/rewrite/rewrite_theory.hh>
+#include <clingo/input/rewrite/substitute.hh>
 
-#include <gringo/util/algorithm.hh>
-#include <gringo/util/checked_math.hh>
-#include <gringo/util/type_traits.hh>
+#include <clingo/util/algorithm.hh>
+#include <clingo/util/checked_math.hh>
+#include <clingo/util/type_traits.hh>
 
 #include <iostream>
 
-namespace Gringo::Input {
+namespace Clingo::Input {
 
 void UnprocessedProgram::mark(SymbolCollector &gc) const {
     for (auto const &[part, stms, facts] : parts_) {
@@ -63,7 +63,7 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram const &pr
     // process meta statements
     std::vector<StmConst> const_stms;
     for (auto const &stm : prg.meta_stms()) {
-        Gringo::Input::analyze(stm, provide_, depend_);
+        Clingo::Input::analyze(stm, provide_, depend_);
         std::visit(
             [&, this]<class T>(T const &stm) {
                 if constexpr (Util::is_among_v<T, StmTheory>) {
@@ -119,7 +119,7 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram const &pr
             rewrite(ctx, stm, res_part.stms);
             auto jt = res_part.stms.begin() + n;
             for (auto it = jt, ie = res_part.stms.end(); it != ie; ++it) {
-                Gringo::Input::analyze(*it, provide_, depend_);
+                Clingo::Input::analyze(*it, provide_, depend_);
                 if (auto fact = is_fact(store, *it); fact) {
                     res_part.facts.emplace_back(fact.value());
                 } else {
@@ -231,7 +231,7 @@ auto Program::analyze(SymbolStore &store, ProgramParamVec const &params, Depende
             }
         }
     }
-    return bld.components(Gringo::Input::analyze(store, stms));
+    return bld.components(Clingo::Input::analyze(store, stms));
 }
 
 void Program::mark(SymbolCollector &gc) const {
@@ -247,4 +247,4 @@ void Program::mark(SymbolCollector &gc) const {
     }
 }
 
-} // namespace Gringo::Input
+} // namespace Clingo::Input

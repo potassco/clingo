@@ -1,10 +1,10 @@
-#include <gringo/ground/matcher.hh>
-#include <gringo/ground/statement.hh>
+#include <clingo/ground/matcher.hh>
+#include <clingo/ground/statement.hh>
 
-#include <gringo/util/print.hh>
-#include <gringo/util/unordered_map.hh>
+#include <clingo/util/print.hh>
+#include <clingo/util/unordered_map.hh>
 
-namespace Gringo::Ground {
+namespace Clingo::Ground {
 
 void Linearizer::start(Queue &queue) { iqueue_ = &queue; }
 
@@ -738,4 +738,4 @@ auto StmProject::do_report(InstantiationContext &ctx) -> bool {
 
 void StmProject::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Queue &queue) {}
 
-} // namespace Gringo::Ground
+} // namespace Clingo::Ground

@@ -1,11 +1,11 @@
 #include "transform.hh"
 
-#include <gringo/input/print.hh>
+#include <clingo/input/print.hh>
 
-#include <gringo/input/rewrite/analyze.hh>
-#include <gringo/input/rewrite/rewrite_context.hh>
+#include <clingo/input/rewrite/analyze.hh>
+#include <clingo/input/rewrite/rewrite_context.hh>
 
-namespace Gringo::Input {
+namespace Clingo::Input {
 
 namespace {
 
@@ -245,4 +245,4 @@ auto TheoryAtomParser::has_error() const -> bool {
     return has_error_;
 }
 
-} // namespace Gringo::Input
+} // namespace Clingo::Input

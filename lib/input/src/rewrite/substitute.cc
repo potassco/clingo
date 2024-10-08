@@ -1,9 +1,9 @@
 #include "transform.hh"
 #include "visit.hh"
 
-#include <gringo/input/rewrite/substitute.hh>
+#include <clingo/input/rewrite/substitute.hh>
 
-namespace Gringo::Input {
+namespace Clingo::Input {
 
 namespace {
 
@@ -417,4 +417,4 @@ void collect_ids(Symbol const &sym, StringSet &ids) {
 
 void collect_ids(Stm const &stm, StringSet &ids) { Collect{ids}(stm); }
 
-} // namespace Gringo::Input
+} // namespace Clingo::Input

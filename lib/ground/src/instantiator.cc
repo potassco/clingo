@@ -1,10 +1,10 @@
-#include <gringo/ground/instantiator.hh>
+#include <clingo/ground/instantiator.hh>
 
-#include <gringo/util/checked_math.hh>
+#include <clingo/util/checked_math.hh>
 
-#include <gringo/util/print.hh>
+#include <clingo/util/print.hh>
 
-namespace Gringo::Ground {
+namespace Clingo::Ground {
 
 void Instantiator::BackjumpMatcher::init(SymbolStore &store, size_t gen) { matcher_->init(store, gen); }
 
@@ -176,4 +176,4 @@ auto Queue::process(Logger &log, SymbolStore &store, OutputStm &out) -> bool {
     return true;
 }
 
-} // namespace Gringo::Ground
+} // namespace Clingo::Ground

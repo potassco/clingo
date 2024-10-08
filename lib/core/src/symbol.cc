@@ -1,8 +1,8 @@
-#include <gringo/core/symbol.hh>
+#include <clingo/core/symbol.hh>
 
-#include <gringo/util/macro.hh>
-#include <gringo/util/print.hh>
-#include <gringo/util/unordered_set.hh>
+#include <clingo/util/macro.hh>
+#include <clingo/util/print.hh>
+#include <clingo/util/unordered_set.hh>
 
 #include <atomic>
 #include <condition_variable>
@@ -11,7 +11,7 @@
 
 // NOLINTBEGIN(readability-magic-numbers,modernize-avoid-c-arrays,cppcoreguidelines-pro-bounds-pointer-arithmetic,cppcoreguidelines-pro-type-reinterpret-cast,cppcoreguidelines-pro-bounds-constant-array-index,performance-no-int-to-ptr)
 
-namespace Gringo {
+namespace Clingo {
 
 static_assert(sizeof(size_t) <= sizeof(uint64_t));
 
@@ -1082,6 +1082,6 @@ auto compare(Symbol const &a, Symbol const &b) -> int {
     return 0;
 }
 
-} // namespace Gringo
+} // namespace Clingo
 
 // NOLINTEND(readability-magic-numbers,modernize-avoid-c-arrays,cppcoreguidelines-pro-bounds-pointer-arithmetic,cppcoreguidelines-pro-type-reinterpret-cast,cppcoreguidelines-pro-bounds-constant-array-index,performance-no-int-to-ptr)

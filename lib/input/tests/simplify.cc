@@ -1,9 +1,9 @@
 #include "test.hh"
 
-#include <gringo/input/rewrite/simplify.hh>
-#include <gringo/input/rewrite/unpool.hh>
+#include <clingo/input/rewrite/simplify.hh>
+#include <clingo/input/rewrite/unpool.hh>
 
-namespace Gringo::Input::Test {
+namespace Clingo::Input::Test {
 
 namespace {
 
@@ -373,4 +373,4 @@ TEST_CASE("simplify_weak") {
             ". [__A_0@__A_1,__A_2], U");
 }
 
-} // namespace Gringo::Input::Test
+} // namespace Clingo::Input::Test

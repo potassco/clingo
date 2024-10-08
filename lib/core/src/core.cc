@@ -1,6 +1,6 @@
-#include <gringo/core/core.hh>
+#include <clingo/core/core.hh>
 
-namespace Gringo {
+namespace Clingo {
 
 auto operator-(Sign a) -> Sign {
     switch (a) {
@@ -243,4 +243,4 @@ auto operator<<(Util::OutputBuffer &out, ExternalType type) -> Util::OutputBuffe
     return out;
 }
 
-} // namespace Gringo
+} // namespace Clingo

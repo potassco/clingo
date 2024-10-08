@@ -1,11 +1,11 @@
-#include <gringo/input/rewrite/iesolver.hh>
+#include <clingo/input/rewrite/iesolver.hh>
 
-#include <gringo/input/rewrite/analyze.hh>
-#include <gringo/input/rewrite/compute_bounds.hh>
+#include <clingo/input/rewrite/analyze.hh>
+#include <clingo/input/rewrite/compute_bounds.hh>
 
-#include <gringo/util/type_traits.hh>
+#include <clingo/util/type_traits.hh>
 
-namespace Gringo::Input {
+namespace Clingo::Input {
 
 namespace {
 
@@ -641,4 +641,4 @@ class ComputeBounds {
     return ComputeBounds{ctx}(stm);
 }
 
-} // namespace Gringo::Input
+} // namespace Clingo::Input

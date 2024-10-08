@@ -1,15 +1,15 @@
 #include "graph.hh"
 
-#include <gringo/input/print.hh>
+#include <clingo/input/print.hh>
 
-#include <gringo/input/rewrite/evaluate.hh>
+#include <clingo/input/rewrite/evaluate.hh>
 
-#include <gringo/core/logger.hh>
+#include <clingo/core/logger.hh>
 
-#include <gringo/util/algorithm.hh>
-#include <gringo/util/checked_math.hh>
+#include <clingo/util/algorithm.hh>
+#include <clingo/util/checked_math.hh>
 
-namespace Gringo::Input {
+namespace Clingo::Input {
 
 namespace {
 
@@ -459,4 +459,4 @@ auto evaluate(Logger &log, SymbolStore &store, ConstMap const &map, Term const &
     return std::visit(Evaluate{log, store, map, nullptr}, term);
 }
 
-} // namespace Gringo::Input
+} // namespace Clingo::Input

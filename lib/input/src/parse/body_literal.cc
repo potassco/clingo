@@ -1,10 +1,10 @@
-#include <gringo/input/literal.hh>
+#include <clingo/input/literal.hh>
 
-#include <gringo/input/rewrite/analyze.hh>
+#include <clingo/input/rewrite/analyze.hh>
 
 #include "parser_state.hh"
 
-namespace Gringo::Input::Parse {
+namespace Clingo::Input::Parse {
 
 namespace {
 
@@ -241,4 +241,4 @@ auto parse_body_literal(ParserState &state) -> std::optional<BdLit> {
                                         "<aggregate-function>", "<term>");
 }
 
-} // namespace Gringo::Input::Parse
+} // namespace Clingo::Input::Parse

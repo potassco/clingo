@@ -97,11 +97,11 @@
 //! @}
 
 //! @defgroup input Input
-//! Data structures and functions to parse and rewrite the gringo language.
+//! Data structures and functions to parse and rewrite the clingo language.
 //! @{
 
 //! @defgroup input_language Language
-//! Data structures and functions to capture the gringo language.
+//! Data structures and functions to capture the clingo language.
 //! @{
 
 //! @defgroup input_term Terms

@@ -106,7 +106,7 @@ static constexpr int decimal_base = 10;
             break;
         }
         case clingo_symbol_type_string: {
-            // NOTE: gringo representation is compatible with python
+            // NOTE: clingo representation is compatible with python
             oss << str();
             break;
         }
@@ -246,14 +246,14 @@ Examples
         .value("Function", clingo_symbol_type_function, R"(A function symbol, e.g., `c`, `-c`, or `f(1,"a")`.)");
 
     py::class_<Symbol>(symbol, "Symbol", Core::doc(R"(
-Represents a gringo symbol.
+Represents a clingo symbol.
 
 This includes `#inf` and `#sup`, numbers, strings, tuples, functions (including
 constants with `len(arguments) == 0`.
 
 Symbol objects implement Python's rich comparison operators and are ordered
-like in gringo. They can also be used as keys in dictionaries. Their string
-representation corresponds to their gringo representation.
+like in clingo. They can also be used as keys in dictionaries. Their string
+representation corresponds to their clingo representation.
 
 Notes
 -----
@@ -383,7 +383,7 @@ sign
     The sign of the function.
 )"));
     symbol.def("parse_term", &parse_term, py::arg("lib"), py::arg("string"), Core::doc(R"(
-Parse the given string using gringo's term parser for ground terms.
+Parse the given string using clingo's term parser for ground terms.
 
 The function also evaluates arithmetic functions.
 

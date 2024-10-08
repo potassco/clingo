@@ -1,14 +1,14 @@
-#include <gringo/ground/assignment_aggregate.hh>
+#include <clingo/ground/assignment_aggregate.hh>
 
-#include <gringo/util/print.hh>
-#include <gringo/util/type_traits.hh>
+#include <clingo/util/print.hh>
+#include <clingo/util/type_traits.hh>
 
 // #define DEBUG_AGGR
 #ifdef DEBUG_AGGR
 #include <iostream>
 #endif
 
-namespace Gringo::Ground {
+namespace Clingo::Ground {
 
 // definition of AtomAssignAggr
 
@@ -678,4 +678,4 @@ auto LitAssignAggrStrat::do_equal_to(Lit const &other) const -> bool { return th
 
 auto LitAssignAggrStrat::do_compare_to(Lit const &other) const -> std::weak_ordering { return this <=> &other; }
 
-} // namespace Gringo::Ground
+} // namespace Clingo::Ground

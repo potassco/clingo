@@ -1,21 +1,21 @@
-#include <gringo/control/grounder.hh>
+#include <clingo/control/grounder.hh>
 
-#include <gringo/input/parser.hh>
+#include <clingo/input/parser.hh>
 
-#include <gringo/output/text.hh>
+#include <clingo/output/text.hh>
 
 #include <CLI/CLI.hpp>
 
 #include <iostream>
 
-using namespace Gringo::Input;
+using namespace Clingo::Input;
 
 enum class AppMode : uint8_t { parse, rewrite, ground };
 
 auto run(std::string const &program, std::vector<std::string> args) -> bool {
     auto opts = RewriteOptions{};
     auto mode = AppMode::ground;
-    auto log_level = Gringo::LogLevel::info;
+    auto log_level = Clingo::LogLevel::info;
     auto params_str = std::optional<std::string>{};
     std::vector<std::string> const_defs;
 
@@ -24,10 +24,10 @@ auto run(std::string const &program, std::vector<std::string> args) -> bool {
     app.add_option_no_stream("--const,-c", const_defs, "constant definition");
     app.add_option_no_stream("--params", params_str, "program parts to ground");
     app.add_option("--log-level", "{error,warn,info,debug,trace}")->check([&log_level](std::string const &value) {
-        using P = std::pair<char const *, Gringo::LogLevel>;
-        auto levels = std::array{P{"trace", Gringo::LogLevel::trace}, P{"debug", Gringo::LogLevel::debug},
-                                 P{"info", Gringo::LogLevel::info}, P{"warn", Gringo::LogLevel::warn},
-                                 P{"error", Gringo::LogLevel::error}};
+        using P = std::pair<char const *, Clingo::LogLevel>;
+        auto levels = std::array{P{"trace", Clingo::LogLevel::trace}, P{"debug", Clingo::LogLevel::debug},
+                                 P{"info", Clingo::LogLevel::info}, P{"warn", Clingo::LogLevel::warn},
+                                 P{"error", Clingo::LogLevel::error}};
         for (auto &[name, level] : levels) {
             if (value == name) {
                 log_level = level;
@@ -37,10 +37,10 @@ auto run(std::string const &program, std::vector<std::string> args) -> bool {
         return std::string{"unexpected value"};
     });
     app.add_option("--projection-mode", "{off,anonymous,pure}")->check([&opts](std::string const &value) {
-        using P = std::pair<char const *, Gringo::Input::ProjectionMode>;
-        auto levels = std::array{P{"off", Gringo::Input::ProjectionMode::disabled},
-                                 P{"anonymous", Gringo::Input::ProjectionMode::anonymous},
-                                 P{"pure", Gringo::Input::ProjectionMode::pure}};
+        using P = std::pair<char const *, Clingo::Input::ProjectionMode>;
+        auto levels = std::array{P{"off", Clingo::Input::ProjectionMode::disabled},
+                                 P{"anonymous", Clingo::Input::ProjectionMode::anonymous},
+                                 P{"pure", Clingo::Input::ProjectionMode::pure}};
         for (auto &[name, mode] : levels) {
             if (value == name) {
                 opts.project_mode = mode;
@@ -69,31 +69,31 @@ auto run(std::string const &program, std::vector<std::string> args) -> bool {
         return false;
     }
 
-    auto log = Gringo::Logger{};
+    auto log = Clingo::Logger{};
     try {
         log.enable_color(false);
         log.set_level(log_level);
-        auto store = Gringo::make_symbol_store(true, false);
-        auto buf = Gringo::Util::OutputBuffer{stdout};
-        auto out = Gringo::Output::make_text_output(buf);
-        Gringo::Grounder::Grounder grd{log, *store, opts, *out};
-        auto prs = Gringo::Input::Parser{log, *store};
+        auto store = Clingo::make_symbol_store(true, false);
+        auto buf = Clingo::Util::OutputBuffer{stdout};
+        auto out = Clingo::Output::make_text_output(buf);
+        Clingo::Control::Grounder grd{log, *store, opts, *out};
+        auto prs = Clingo::Input::Parser{log, *store};
 
-        auto params = std::optional<std::vector<Gringo::Input::ProgramParamVec>>();
+        auto params = std::optional<std::vector<Clingo::Input::ProgramParamVec>>();
         [&]() {
-            auto params = std::optional<std::vector<Gringo::Input::ProgramParamVec>>();
+            auto params = std::optional<std::vector<Clingo::Input::ProgramParamVec>>();
             if (params_str) {
                 prs.init(*params_str, *store->string("<string>"));
                 params = prs.parse_program_parts();
                 if (!params) {
-                    throw Gringo::parse_error();
+                    throw Clingo::parse_error();
                 }
             }
             for (auto const &str : const_defs) {
                 prs.init(str, *store->string("<string>"));
                 auto def = prs.parse_const_def();
                 if (!def) {
-                    throw Gringo::parse_error();
+                    throw Clingo::parse_error();
                 }
                 grd.add_const(*def->first, *def->second);
             }
@@ -114,11 +114,11 @@ auto run(std::string const &program, std::vector<std::string> args) -> bool {
                     }
                 }
             } else {
-                std::ignore = grd.ground(Gringo::Input::ProgramParamVec{{store->string("base"), {}}});
+                std::ignore = grd.ground(Clingo::Input::ProgramParamVec{{store->string("base"), {}}});
             }
         }();
     } catch (std::exception const &e) {
-        fprintf(stderr, "%s: %s\n", log.message_prefix(Gringo::MessageCode::error), e.what());
+        fprintf(stderr, "%s: %s\n", log.message_prefix(Clingo::MessageCode::error), e.what());
         fflush(stderr);
         return false;
     }

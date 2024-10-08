@@ -1,7 +1,7 @@
 #pragma once
 
-#include <gringo/util/algorithm.hh>
-#include <gringo/util/immutable_value.hh>
+#include <clingo/util/algorithm.hh>
+#include <clingo/util/immutable_value.hh>
 
 #include <cstddef>
 #include <functional>
@@ -11,7 +11,7 @@
 #include <utility>
 #include <vector>
 
-namespace Gringo::Input {
+namespace Clingo::Input {
 
 namespace Detail {
 
@@ -144,4 +144,4 @@ template <class T, class E, class U, class... A> auto unpool_rewrite(E const &ex
         std::move(args)...);
 }
 
-} // namespace Gringo::Input
+} // namespace Clingo::Input

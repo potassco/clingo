@@ -1,8 +1,8 @@
 #include "test.hh"
 
-#include <gringo/input/rewrite/rewrite_anonymous.hh>
+#include <clingo/input/rewrite/rewrite_anonymous.hh>
 
-namespace Gringo::Input::Test {
+namespace Clingo::Input::Test {
 
 namespace {
 
@@ -90,4 +90,4 @@ TEST_CASE("rewrite_anonymous_statement") {
     REQUIRE(rewrite_statement("#const x=42.") == "#const x=42. [default]");
 }
 
-} // namespace Gringo::Input::Test
+} // namespace Clingo::Input::Test

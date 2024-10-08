@@ -1,7 +1,7 @@
 #include "parser_state.hh"
 
-namespace Gringo::Input::Parse {
+namespace Clingo::Input::Parse {
 
 #include "parse/lexer_impl.hh"
 
-} // namespace Gringo::Input::Parse
+} // namespace Clingo::Input::Parse

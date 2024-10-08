@@ -1,11 +1,11 @@
-#include <gringo/control/aggregate.hh>
-#include <gringo/control/condlit.hh>
-#include <gringo/control/context.hh>
-#include <gringo/control/literal.hh>
-#include <gringo/control/statement.hh>
-#include <gringo/control/theory.hh>
+#include <clingo/control/aggregate.hh>
+#include <clingo/control/condlit.hh>
+#include <clingo/control/context.hh>
+#include <clingo/control/literal.hh>
+#include <clingo/control/statement.hh>
+#include <clingo/control/theory.hh>
 
-namespace Gringo::Control {
+namespace Clingo::Control {
 
 namespace {
 
@@ -155,4 +155,4 @@ class BuilderStm {
 
 void build_stm(BuildContext &ctx, Input::Stm const &stm) { std::visit(BuilderStm{ctx}, stm); }
 
-} // namespace Gringo::Control
+} // namespace Clingo::Control

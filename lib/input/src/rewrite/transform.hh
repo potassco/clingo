@@ -1,17 +1,17 @@
 #pragma once
 
-#include <gringo/input/program.hh>
+#include <clingo/input/program.hh>
 
-#include <gringo/util/algorithm.hh>
-#include <gringo/util/immutable_value.hh>
-#include <gringo/util/optional.hh>
-#include <gringo/util/type_traits.hh>
+#include <clingo/util/algorithm.hh>
+#include <clingo/util/immutable_value.hh>
+#include <clingo/util/optional.hh>
+#include <clingo/util/type_traits.hh>
 
 #include <optional>
 #include <variant>
 #include <vector>
 
-namespace Gringo::Input {
+namespace Clingo::Input {
 
 namespace Detail {
 
@@ -286,4 +286,4 @@ template <class T> class Transformer {
     }
 };
 
-} // namespace Gringo::Input
+} // namespace Clingo::Input

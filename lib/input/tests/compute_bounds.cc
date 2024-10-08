@@ -1,9 +1,9 @@
 #include "test.hh"
 
-#include <gringo/input/rewrite/compute_bounds.hh>
-#include <gringo/input/rewrite/iesolver.hh>
+#include <clingo/input/rewrite/compute_bounds.hh>
+#include <clingo/input/rewrite/iesolver.hh>
 
-namespace Gringo::Input::Test {
+namespace Clingo::Input::Test {
 
 namespace {
 
@@ -52,4 +52,4 @@ TEST_CASE("compute_bounds") {
     REQUIRE(cb_stm(":~ X>=1; X<=3. [1,X]") == " :~ X=1..3. [1,X]");
 }
 
-} // namespace Gringo::Input::Test
+} // namespace Clingo::Input::Test

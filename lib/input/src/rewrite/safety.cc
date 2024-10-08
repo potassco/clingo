@@ -1,14 +1,14 @@
-#include <gringo/input/print.hh>
+#include <clingo/input/print.hh>
 
-#include <gringo/input/rewrite/analyze.hh>
-#include <gringo/input/rewrite/safety.hh>
-#include <gringo/input/rewrite/visit_variables.hh>
+#include <clingo/input/rewrite/analyze.hh>
+#include <clingo/input/rewrite/safety.hh>
+#include <clingo/input/rewrite/visit_variables.hh>
 
-#include <gringo/util/algorithm.hh>
-#include <gringo/util/print.hh>
-#include <gringo/util/type_traits.hh>
+#include <clingo/util/algorithm.hh>
+#include <clingo/util/print.hh>
+#include <clingo/util/type_traits.hh>
 
-namespace Gringo::Input {
+namespace Clingo::Input {
 
 namespace {
 
@@ -476,4 +476,4 @@ auto check_safety(Logger &log, Stm const &stm) -> Util::ResultState<Stm> {
     return CheckGlobal{log, global}(stm);
 }
 
-} // namespace Gringo::Input
+} // namespace Clingo::Input

@@ -1,7 +1,7 @@
 #include "lib.hh"
 #include "streams.hh"
 
-#include <gringo/core/location.hh>
+#include <clingo/core/location.hh>
 
 #include <cstring>
 
@@ -13,11 +13,11 @@ extern "C" void clingo_version(int *major, int *minor, int *revision) {
     *revision = CLINGO_VERSION_REVISION;
 }
 
-static_assert(static_cast<int>(Gringo::ErrorCode::success) == clingo_error_success);
-static_assert(static_cast<int>(Gringo::ErrorCode::runtime) == clingo_error_runtime);
-static_assert(static_cast<int>(Gringo::ErrorCode::logic) == clingo_error_logic);
-static_assert(static_cast<int>(Gringo::ErrorCode::bad_alloc) == clingo_error_bad_alloc);
-static_assert(static_cast<int>(Gringo::ErrorCode::unknown) == clingo_error_unknown);
+static_assert(static_cast<int>(Clingo::ErrorCode::success) == clingo_error_success);
+static_assert(static_cast<int>(Clingo::ErrorCode::runtime) == clingo_error_runtime);
+static_assert(static_cast<int>(Clingo::ErrorCode::logic) == clingo_error_logic);
+static_assert(static_cast<int>(Clingo::ErrorCode::bad_alloc) == clingo_error_bad_alloc);
+static_assert(static_cast<int>(Clingo::ErrorCode::unknown) == clingo_error_unknown);
 
 extern "C" auto clingo_error_string(clingo_error_t code) -> char const * {
     switch (static_cast<clingo_error_e>(code)) {
@@ -40,15 +40,15 @@ extern "C" auto clingo_error_string(clingo_error_t code) -> char const * {
     return nullptr;
 }
 
-static_assert(static_cast<int>(Gringo::MessageCode::trace) == clingo_message_trace);
-static_assert(static_cast<int>(Gringo::MessageCode::debug) == clingo_message_debug);
-static_assert(static_cast<int>(Gringo::MessageCode::info) == clingo_message_info);
-static_assert(static_cast<int>(Gringo::MessageCode::info_operation_undefined) == clingo_message_operation_undefined);
-static_assert(static_cast<int>(Gringo::MessageCode::info_atom_undefined) == clingo_message_atom_undefined);
-static_assert(static_cast<int>(Gringo::MessageCode::info_file_included) == clingo_message_file_included);
-static_assert(static_cast<int>(Gringo::MessageCode::info_global_variable) == clingo_message_global_variable);
-static_assert(static_cast<int>(Gringo::MessageCode::warn) == clingo_message_warn);
-static_assert(static_cast<int>(Gringo::MessageCode::error) == clingo_message_error);
+static_assert(static_cast<int>(Clingo::MessageCode::trace) == clingo_message_trace);
+static_assert(static_cast<int>(Clingo::MessageCode::debug) == clingo_message_debug);
+static_assert(static_cast<int>(Clingo::MessageCode::info) == clingo_message_info);
+static_assert(static_cast<int>(Clingo::MessageCode::info_operation_undefined) == clingo_message_operation_undefined);
+static_assert(static_cast<int>(Clingo::MessageCode::info_atom_undefined) == clingo_message_atom_undefined);
+static_assert(static_cast<int>(Clingo::MessageCode::info_file_included) == clingo_message_file_included);
+static_assert(static_cast<int>(Clingo::MessageCode::info_global_variable) == clingo_message_global_variable);
+static_assert(static_cast<int>(Clingo::MessageCode::warn) == clingo_message_warn);
+static_assert(static_cast<int>(Clingo::MessageCode::error) == clingo_message_error);
 
 extern "C" auto clingo_message_string(clingo_message_t code) -> char const * {
     switch (static_cast<clingo_message_e>(code)) {
@@ -87,16 +87,16 @@ extern "C" auto clingo_lib_new(clingo_lib_flags_t flags, clingo_logger_t logger,
                                size_t message_limit) -> clingo_lib_t * {
     clingo_lib_t *lib = nullptr;
     try {
-        Gringo::Logger::Printer prt = nullptr;
+        Clingo::Logger::Printer prt = nullptr;
         if (logger != nullptr) {
-            prt = [logger, logger_data](Gringo::MessageCode code, char const *msg) {
+            prt = [logger, logger_data](Clingo::MessageCode code, char const *msg) {
                 logger(static_cast<clingo_message_t>(code), msg, logger_data);
             };
         }
         // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
         lib = new clingo_lib{
-            prt, Gringo::Logger{prt, message_limit},
-            Gringo::make_symbol_store((flags & clingo_lib_flags_slotted) != 0, (flags & clingo_lib_flags_shared) != 0)};
+            prt, Clingo::Logger{prt, message_limit},
+            Clingo::make_symbol_store((flags & clingo_lib_flags_slotted) != 0, (flags & clingo_lib_flags_shared) != 0)};
         // NOLINTNEXTLINE(bugprone-empty-catch)
     } catch (...) {
     }
@@ -169,7 +169,7 @@ extern "C" auto clingo_location_equal(clingo_location_t const *a, clingo_locatio
 }
 
 extern "C" auto clingo_location_hash(clingo_location_t const *loc) -> size_t {
-    return Gringo::Util::hash_mix(Gringo::Util::value_hash_record<clingo_location_t>(
+    return Clingo::Util::hash_mix(Clingo::Util::value_hash_record<clingo_location_t>(
         reinterpret_cast<uintptr_t>(loc->begin_file), reinterpret_cast<uintptr_t>(loc->end_file), loc->begin_line,
         loc->end_line, loc->begin_column, loc->end_column));
 }
@@ -180,9 +180,9 @@ extern "C" auto clingo_location_to_string_size(clingo_location_t location, size_
     }
     try {
         // TODO: this is ugly -> the string must be managed
-        static auto store = Gringo::make_symbol_store(false, false);
+        static auto store = Clingo::make_symbol_store(false, false);
         auto loc =
-            Gringo::Input::Location{{*store->string(location.begin_file), location.begin_line, location.begin_column},
+            Clingo::Input::Location{{*store->string(location.begin_file), location.begin_line, location.begin_column},
                                     {*store->string(location.end_file), location.end_line, location.end_column}};
         *size = print_size(loc);
         return true;
@@ -197,9 +197,9 @@ extern "C" auto clingo_location_to_string(clingo_location_t location, char *stri
     }
     try {
         // TODO: this is ugly -> the string must be managed
-        auto store = Gringo::make_symbol_store(false, false);
+        auto store = Clingo::make_symbol_store(false, false);
         auto loc =
-            Gringo::Input::Location{{*store->string(location.begin_file), location.begin_line, location.begin_column},
+            Clingo::Input::Location{{*store->string(location.begin_file), location.begin_line, location.begin_column},
                                     {*store->string(location.end_file), location.end_line, location.end_column}};
         print(string, size, loc);
         return true;

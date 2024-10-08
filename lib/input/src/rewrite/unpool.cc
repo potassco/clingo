@@ -1,19 +1,19 @@
 #include "unpool.hh"
 
-#include <gringo/input/print.hh>
+#include <clingo/input/print.hh>
 
-#include <gringo/input/rewrite/analyze.hh>
-#include <gringo/input/rewrite/simplify.hh>
-#include <gringo/input/rewrite/substitute.hh>
-#include <gringo/input/rewrite/unpool.hh>
-#include <gringo/input/rewrite/visit_variables.hh>
+#include <clingo/input/rewrite/analyze.hh>
+#include <clingo/input/rewrite/simplify.hh>
+#include <clingo/input/rewrite/substitute.hh>
+#include <clingo/input/rewrite/unpool.hh>
+#include <clingo/input/rewrite/visit_variables.hh>
 
-#include <gringo/util/optional.hh>
-#include <gringo/util/type_traits.hh>
+#include <clingo/util/optional.hh>
+#include <clingo/util/type_traits.hh>
 
 #include <algorithm>
 
-namespace Gringo::Input {
+namespace Clingo::Input {
 
 namespace {
 
@@ -33,7 +33,7 @@ class LiteralToTuple {
         std::sort(var_vec.begin(), var_vec.end());
         std::vector<Term> res;
         res.reserve(var_vec.size() + 1);
-        res.emplace_back(TermSymbol{location(orig), Gringo::SymbolStore::num_ref(n)});
+        res.emplace_back(TermSymbol{location(orig), Clingo::SymbolStore::num_ref(n)});
         for (auto const &var : var_vec) {
             res.emplace_back(TermVariable{location(orig), var});
         }
@@ -66,7 +66,7 @@ class LiteralToTuple {
                 break;
             }
         }
-        res.emplace_back(TermSymbol{lit.loc(), Gringo::SymbolStore::num_ref(i)});
+        res.emplace_back(TermSymbol{lit.loc(), Clingo::SymbolStore::num_ref(i)});
         res.emplace_back(lit.term());
         return res;
     }
@@ -600,4 +600,4 @@ auto unpool(RewriteContext &ctx, Stm const &stm) -> std::optional<StmVec> {
     return stms;
 }
 
-} // namespace Gringo::Input
+} // namespace Clingo::Input

@@ -1,3 +1,3 @@
-#include <gringo/ground/program.hh>
+#include <clingo/ground/program.hh>
 
-namespace Gringo::Ground {}
+namespace Clingo::Ground {}

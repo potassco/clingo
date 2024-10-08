@@ -1,6 +1,6 @@
 re2c_target_or_gen("src/parse/lexer_impl.xch")
 
-add_library(gringo_input
+add_library(clingo_input
     ${RE2C_lexer_impl_OUTPUT}
     "src/rewrite/add_sign.cc"
     "src/rewrite/analyze.cc"
@@ -33,11 +33,11 @@ add_library(gringo_input
     "src/program.cc"
     )
 
-target_link_libraries(gringo_input PUBLIC gringo_core)
-target_include_directories(gringo_input PUBLIC "include"
+target_link_libraries(clingo_input PUBLIC clingo_core)
+target_include_directories(clingo_input PUBLIC "include"
     PRIVATE
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src>")
-set_property(TARGET gringo_input PROPERTY POSITION_INDEPENDENT_CODE ON)
+set_property(TARGET clingo_input PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 if (PARSER_BUILD_TESTS)
     add_executable(test_input
@@ -56,7 +56,7 @@ if (PARSER_BUILD_TESTS)
         "tests/unpool.cc"
         "tests/unpool_relations.cc"
         "tests/variables.cc")
-    target_link_libraries(test_input PRIVATE gringo_input Catch2::Catch2WithMain)
+    target_link_libraries(test_input PRIVATE clingo_input Catch2::Catch2WithMain)
     target_include_directories(test_input PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
     add_test(NAME test_input COMMAND test_input)
 endif()

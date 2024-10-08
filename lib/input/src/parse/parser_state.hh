@@ -1,17 +1,17 @@
 #pragma once
 
-#include <gringo/input/statement.hh>
+#include <clingo/input/statement.hh>
 
-#include <gringo/core/logger.hh>
+#include <clingo/core/logger.hh>
 
-#include <gringo/util/macro.hh>
-#include <gringo/util/string.hh>
+#include <clingo/util/macro.hh>
+#include <clingo/util/string.hh>
 
 #include "lexer_state.hh"
 
 #include <deque>
 
-namespace Gringo::Input::Parse {
+namespace Clingo::Input::Parse {
 
 //! The available tokens produced by the lexer.
 enum class TokenType : uint8_t {
@@ -841,4 +841,4 @@ auto parse_statement(ParserState &state) -> std::optional<Stm>;
 //! Scan next statement.
 auto scan_statement(ParserState &state) -> std::pair<std::optional<Stm>, bool>;
 
-} // namespace Gringo::Input::Parse
+} // namespace Clingo::Input::Parse

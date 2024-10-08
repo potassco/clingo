@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <vector>
 
-namespace Gringo::Input {
+namespace Clingo::Input {
 
 //! Graph class to compute strongly connected components.
 class Graph {
@@ -114,4 +114,4 @@ template <class Callback> inline void Graph::tarjan(Callback cb) {
     phase_ = prev_phase_();
 }
 
-} // namespace Gringo::Input
+} // namespace Clingo::Input

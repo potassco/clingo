@@ -1,10 +1,10 @@
-#include <gringo/input/parser.hh>
+#include <clingo/input/parser.hh>
 
-#include <gringo/input/rewrite/check_syntax.hh>
+#include <clingo/input/rewrite/check_syntax.hh>
 
 #include "parse/parser_state.hh"
 
-namespace Gringo::Input {
+namespace Clingo::Input {
 
 namespace {
 
@@ -109,4 +109,4 @@ auto Parser::scan() -> std::pair<std::optional<Stm>, bool> {
     }
 }
 
-} // namespace Gringo::Input
+} // namespace Clingo::Input

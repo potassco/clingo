@@ -1,8 +1,8 @@
 #include "test.hh"
 
-#include <gringo/input/rewrite/unpool.hh>
+#include <clingo/input/rewrite/unpool.hh>
 
-namespace Gringo::Input::Test {
+namespace Clingo::Input::Test {
 
 namespace {
 
@@ -203,4 +203,4 @@ TEST_CASE("unpool_statement") {
     REQUIRE_THROWS(unpool_statement(":- p(X): q(Y); r(X;Y)."));
 }
 
-} // namespace Gringo::Input::Test
+} // namespace Clingo::Input::Test

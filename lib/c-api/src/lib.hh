@@ -1,18 +1,18 @@
 #include <clingo.h>
 
-#include <gringo/core/logger.hh>
-#include <gringo/core/symbol.hh>
+#include <clingo/core/logger.hh>
+#include <clingo/core/symbol.hh>
 
 #include <exception>
 #include <stdexcept>
 #include <string>
 
 struct clingo_lib {
-    clingo_lib(Gringo::Logger::Printer prt, Gringo::Logger log, std::unique_ptr<Gringo::SymbolStore> store)
+    clingo_lib(Clingo::Logger::Printer prt, Clingo::Logger log, std::unique_ptr<Clingo::SymbolStore> store)
         : prt{std::move(prt)}, log{std::move(log)}, store{std::move(store)} {}
-    Gringo::Logger::Printer prt;
-    Gringo::Logger log;
-    std::unique_ptr<Gringo::SymbolStore> store;
+    Clingo::Logger::Printer prt;
+    Clingo::Logger log;
+    std::unique_ptr<Clingo::SymbolStore> store;
     std::exception_ptr last_exception = nullptr;
     std::string last_message;
     clingo_error_t last_code = clingo_error_success;

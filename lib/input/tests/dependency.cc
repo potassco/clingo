@@ -1,9 +1,9 @@
 #include "test.hh"
 
-#include <gringo/input/rewrite/dependency.hh>
-#include <gringo/input/rewrite/simplify.hh>
+#include <clingo/input/rewrite/dependency.hh>
+#include <clingo/input/rewrite/simplify.hh>
 
-namespace Gringo::Input::Test {
+namespace Clingo::Input::Test {
 
 namespace {
 
@@ -208,4 +208,4 @@ TEST_CASE("dependency") {
     }
 }
 
-} // namespace Gringo::Input::Test
+} // namespace Clingo::Input::Test

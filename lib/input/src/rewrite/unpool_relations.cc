@@ -1,14 +1,14 @@
 #include "unpool.hh"
 
-#include <gringo/input/rewrite/analyze.hh>
-#include <gringo/input/rewrite/unpool_relations.hh>
-#include <gringo/input/rewrite/visit_variables.hh>
+#include <clingo/input/rewrite/analyze.hh>
+#include <clingo/input/rewrite/unpool_relations.hh>
+#include <clingo/input/rewrite/visit_variables.hh>
 
-#include <gringo/util/algorithm.hh>
-#include <gringo/util/optional.hh>
-#include <gringo/util/type_traits.hh>
+#include <clingo/util/algorithm.hh>
+#include <clingo/util/optional.hh>
+#include <clingo/util/type_traits.hh>
 
-namespace Gringo::Input {
+namespace Clingo::Input {
 
 namespace {
 
@@ -399,4 +399,4 @@ struct UnpoolStatement {
     return stms;
 }
 
-} // namespace Gringo::Input
+} // namespace Clingo::Input

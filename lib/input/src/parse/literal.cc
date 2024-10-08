@@ -1,10 +1,10 @@
-#include <gringo/input/literal.hh>
+#include <clingo/input/literal.hh>
 
-#include <gringo/input/rewrite/analyze.hh>
+#include <clingo/input/rewrite/analyze.hh>
 
 #include "parser_state.hh"
 
-namespace Gringo::Input::Parse {
+namespace Clingo::Input::Parse {
 
 auto check_relation(TokenType token) -> std::optional<Relation> {
     switch (token) {
@@ -98,4 +98,4 @@ auto parse_literal(ParserState &state) -> std::optional<Lit> {
     return cont_literal(state, std::move(pos), sign);
 }
 
-} // namespace Gringo::Input::Parse
+} // namespace Clingo::Input::Parse

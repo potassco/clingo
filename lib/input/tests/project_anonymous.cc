@@ -1,8 +1,8 @@
 #include "test.hh"
 
-#include <gringo/input/rewrite/project_anonymous.hh>
+#include <clingo/input/rewrite/project_anonymous.hh>
 
-namespace Gringo::Input::Test {
+namespace Clingo::Input::Test {
 
 namespace {
 
@@ -88,4 +88,4 @@ TEST_CASE("project_anonymous_statement") {
     REQUIRE(project_statement("#const x=42.") == "#const x=42. [default]");
 }
 
-} // namespace Gringo::Input::Test
+} // namespace Clingo::Input::Test

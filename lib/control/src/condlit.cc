@@ -1,14 +1,14 @@
-#include <gringo/control/condlit.hh>
-#include <gringo/control/literal.hh>
+#include <clingo/control/condlit.hh>
+#include <clingo/control/literal.hh>
 
-#include <gringo/ground/condlit.hh>
-#include <gringo/ground/disjunction.hh>
+#include <clingo/ground/condlit.hh>
+#include <clingo/ground/disjunction.hh>
 
-#include <gringo/input/rewrite/unpool_relations.hh>
+#include <clingo/input/rewrite/unpool_relations.hh>
 
-#include <gringo/util/type_traits.hh>
+#include <clingo/util/type_traits.hh>
 
-namespace Gringo::Control {
+namespace Clingo::Control {
 
 void build_hd_lit(BuildContext &ctx, Input::HdLitDisjunction const &lit) {
     auto vars_body = Ground::VariableSet{};
@@ -210,4 +210,4 @@ void build_bd_lit(BuildContext &ctx, Input::BdLitConjunction const &lit) {
     }
 }
 
-} // namespace Gringo::Control
+} // namespace Clingo::Control

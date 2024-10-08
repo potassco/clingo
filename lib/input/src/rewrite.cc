@@ -1,20 +1,20 @@
-#include <gringo/input/print.hh>
-#include <gringo/input/rewrite.hh>
+#include <clingo/input/print.hh>
+#include <clingo/input/rewrite.hh>
 
-#include <gringo/input/rewrite/compute_bounds.hh>
-#include <gringo/input/rewrite/project.hh>
-#include <gringo/input/rewrite/rewrite_anonymous.hh>
-#include <gringo/input/rewrite/rewrite_theory.hh>
-#include <gringo/input/rewrite/safety.hh>
-#include <gringo/input/rewrite/simplify.hh>
-#include <gringo/input/rewrite/substitute.hh>
-#include <gringo/input/rewrite/unpool.hh>
-#include <gringo/input/rewrite/unpool_relations.hh>
-#include <gringo/input/rewrite/visit_variables.hh>
+#include <clingo/input/rewrite/compute_bounds.hh>
+#include <clingo/input/rewrite/project.hh>
+#include <clingo/input/rewrite/rewrite_anonymous.hh>
+#include <clingo/input/rewrite/rewrite_theory.hh>
+#include <clingo/input/rewrite/safety.hh>
+#include <clingo/input/rewrite/simplify.hh>
+#include <clingo/input/rewrite/substitute.hh>
+#include <clingo/input/rewrite/unpool.hh>
+#include <clingo/input/rewrite/unpool_relations.hh>
+#include <clingo/input/rewrite/visit_variables.hh>
 
-#include <gringo/core/logger.hh>
+#include <clingo/core/logger.hh>
 
-namespace Gringo::Input {
+namespace Clingo::Input {
 
 void rewrite(RewriteContext &ctx, Stm const &stm, StmVec &stms) {
     ctx.init(select_variables(stm, VariableContext::all), "__A_");
@@ -87,4 +87,4 @@ void rewrite(RewriteContext &ctx, Stm const &stm, StmVec &stms) {
     }
 }
 
-} // namespace Gringo::Input
+} // namespace Clingo::Input

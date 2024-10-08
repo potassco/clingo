@@ -1,8 +1,8 @@
 #include "test.hh"
 
-#include <gringo/input/rewrite/rewrite_theory.hh>
+#include <clingo/input/rewrite/rewrite_theory.hh>
 
-namespace Gringo::Input::Test {
+namespace Clingo::Input::Test {
 
 namespace {
 
@@ -52,4 +52,4 @@ TEST_CASE("rewrite_theory") {
             "&p { (- ((x + y) + (z - (a - (b - c))))) } < (((x / (y / z)) * a) * c).");
 }
 
-} // namespace Gringo::Input::Test
+} // namespace Clingo::Input::Test

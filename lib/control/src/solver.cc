@@ -1,8 +1,8 @@
-#include <gringo/control/solver.hh>
+#include <clingo/control/solver.hh>
 
-#include <gringo/output/text.hh>
+#include <clingo/output/text.hh>
 
-namespace Gringo::Control {
+namespace Clingo::Control {
 
 Solver::Solver(Logger &log, SymbolStore &store, Input::RewriteOptions opts, OutputMode mode)
     : buf_{stdout}, out_{Output::make_text_output(buf_)}, grd_{log, store, opts, *out_} {
@@ -23,4 +23,4 @@ void Solver::output_unprocessed_program(std::ostream &out) { grd_.output_unproce
 
 void Solver::output_program(std::ostream &out) { grd_.output_program(out); }
 
-} // namespace Gringo::Control
+} // namespace Clingo::Control

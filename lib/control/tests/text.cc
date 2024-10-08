@@ -1,12 +1,12 @@
-#include <gringo/control/grounder.hh>
+#include <clingo/control/grounder.hh>
 
-#include <gringo/output/text.hh>
+#include <clingo/output/text.hh>
 
-#include <gringo/util/algorithm.hh>
+#include <clingo/util/algorithm.hh>
 
 #include <catch2/catch_test_macros.hpp>
 
-namespace Gringo::Test {
+namespace Clingo::Test {
 
 TEST_CASE("grounder_text") {
     auto opts = Input::RewriteOptions{};
@@ -656,4 +656,4 @@ TEST_CASE("grounder_text") {
     store->gc();
 }
 
-} // namespace Gringo::Test
+} // namespace Clingo::Test

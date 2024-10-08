@@ -1,15 +1,15 @@
-#include <gringo/input/print.hh>
+#include <clingo/input/print.hh>
 
-#include <gringo/input/rewrite/check_syntax.hh>
+#include <clingo/input/rewrite/check_syntax.hh>
 
-#include <gringo/util/algorithm.hh>
-#include <gringo/util/enum.hh>
-#include <gringo/util/macro.hh>
-#include <gringo/util/type_traits.hh>
+#include <clingo/util/algorithm.hh>
+#include <clingo/util/enum.hh>
+#include <clingo/util/macro.hh>
+#include <clingo/util/type_traits.hh>
 
 #include <algorithm>
 
-namespace Gringo::Input {
+namespace Clingo::Input {
 
 namespace {
 
@@ -292,4 +292,4 @@ auto check_body_literal(Logger &log, BdLit const &lit) -> bool { return CheckSyn
 
 auto check_statement(Logger &log, Stm const &stm) -> bool { return CheckSyntax{log}(stm); }
 
-} // namespace Gringo::Input
+} // namespace Clingo::Input

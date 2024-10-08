@@ -14,7 +14,7 @@ input.setOptions({
   useSoftTabs: true,
   tabSize: 2,
   maxLines: Infinity,
-  mode: "ace/mode/gringo",
+  mode: "ace/mode/clingo",
   autoScrollEditorIntoView: true
 });
 

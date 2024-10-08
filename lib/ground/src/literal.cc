@@ -1,11 +1,11 @@
-#include <gringo/ground/literal.hh>
-#include <gringo/ground/matcher.hh>
+#include <clingo/ground/literal.hh>
+#include <clingo/ground/matcher.hh>
 
-#include <gringo/util/print.hh>
+#include <clingo/util/print.hh>
 
 #include <typeindex>
 
-namespace Gringo::Ground {
+namespace Clingo::Ground {
 
 void LitInterval::do_print(std::ostream &out) const { out << *lhs_ << "=" << *lower_ << ".." << *upper_; }
 
@@ -258,7 +258,7 @@ auto LitSymbolic::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherTy
 
 auto LitSymbolic::do_score(std::vector<bool> const &bound) const -> double {
     if (sign_ != Sign::once) {
-        // TODO: Somehow gringo previously added 10,000,000 if all variables were
+        // TODO: Somehow clingo previously added 10,000,000 if all variables were
         // bound. I don't see the point of this?
         return atom_->score(static_cast<double>(base_->size()), bound);
     }
@@ -619,4 +619,4 @@ void LitFailCheck::do_vars(VariableSet &vars, VarSelectMode mode) const {
     }
 }
 
-} // namespace Gringo::Ground
+} // namespace Clingo::Ground

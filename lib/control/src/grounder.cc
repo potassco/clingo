@@ -1,17 +1,17 @@
-#include <gringo/control/grounder.hh>
-#include <gringo/control/parse.hh>
-#include <gringo/control/statement.hh>
+#include <clingo/control/grounder.hh>
+#include <clingo/control/parse.hh>
+#include <clingo/control/statement.hh>
 
-#include <gringo/ground/program.hh>
+#include <clingo/ground/program.hh>
 
-#include <gringo/input/print.hh>
+#include <clingo/input/print.hh>
 
-#include <gringo/input/rewrite/evaluate.hh>
-#include <gringo/input/rewrite/visit_variables.hh>
+#include <clingo/input/rewrite/evaluate.hh>
+#include <clingo/input/rewrite/visit_variables.hh>
 
-#include <gringo/util/print.hh>
-#include <gringo/util/type_traits.hh>
-#include <gringo/util/unordered_map.hh>
+#include <clingo/util/print.hh>
+#include <clingo/util/type_traits.hh>
+#include <clingo/util/unordered_map.hh>
 
 #ifdef PARSER_PROFILE
 #include <gperftools/profiler.h>
@@ -19,7 +19,7 @@
 
 #include <iostream>
 
-namespace Gringo::Control {
+namespace Clingo::Control {
 
 namespace {
 
@@ -133,7 +133,7 @@ class Builder : public Input::DependencyBuilder {
 } // namespace
 
 //! Class storing/hiding relevant state for grounding.
-struct Grounder::Impl : Gringo::SymbolOwner {
+struct Grounder::Impl : Clingo::SymbolOwner {
     //! Construct the grounder implementation.
     Impl(Logger &log, SymbolStore &store, Input::RewriteOptions opts, OutputStm &out)
         : log{&log}, store{&store}, prg{opts}, out{&out} {
@@ -355,4 +355,4 @@ void Grounder::output_program(std::ostream &out) {
     out.flush();
 }
 
-} // namespace Gringo::Control
+} // namespace Clingo::Control

@@ -1,18 +1,18 @@
-#include <gringo/input/print.hh>
+#include <clingo/input/print.hh>
 
-#include <gringo/input/rewrite/analyze.hh>
-#include <gringo/input/rewrite/evaluate.hh>
-#include <gringo/input/rewrite/visit_variables.hh>
+#include <clingo/input/rewrite/analyze.hh>
+#include <clingo/input/rewrite/evaluate.hh>
+#include <clingo/input/rewrite/visit_variables.hh>
 
-#include <gringo/util/algorithm.hh>
-#include <gringo/util/print.hh>
-#include <gringo/util/type_traits.hh>
+#include <clingo/util/algorithm.hh>
+#include <clingo/util/print.hh>
+#include <clingo/util/type_traits.hh>
 
 #include <algorithm>
 
 #include "visit.hh"
 
-namespace Gringo::Input {
+namespace Clingo::Input {
 
 namespace {
 
@@ -526,4 +526,4 @@ auto signature(Term const &term) -> std::optional<std::tuple<String, size_t, boo
 
 void extract_can_fail(Term const &term, std::vector<Term> &result) { ExtractCanFail{result}.visit(term); }
 
-} // namespace Gringo::Input
+} // namespace Clingo::Input

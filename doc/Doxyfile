@@ -184,7 +184,7 @@ FULL_PATH_NAMES        = YES
 # will be relative from the directory where doxygen is started.
 # This tag requires that the tag FULL_PATH_NAMES is set to YES.
 
-STRIP_FROM_PATH        = ../lib/gringo/include
+STRIP_FROM_PATH        = ../lib/clingo/include
 
 # The STRIP_FROM_INC_PATH tag can be used to strip a user-defined part of the
 # path mentioned in the documentation of a class, which tells the reader which
@@ -944,13 +944,13 @@ WARN_LOGFILE           =
 # Note: If this tag is empty the current directory is searched.
 
 INPUT                  = mainpage.hh \
-                         ../lib/util/include/gringo/util \
-                         ../lib/core/include/gringo/core \
-                         ../lib/input/include/gringo/input \
-                         ../lib/input/include/gringo/input/rewrite \
-                         ../lib/ground/include/gringo/ground \
-                         ../lib/output/include/gringo/output \
-                         ../lib/grounder/include/gringo/grounder \
+                         ../lib/util/include/clingo/util \
+                         ../lib/core/include/clingo/core \
+                         ../lib/input/include/clingo/input \
+                         ../lib/input/include/clingo/input/rewrite \
+                         ../lib/ground/include/clingo/ground \
+                         ../lib/output/include/clingo/output \
+                         ../lib/grounder/include/clingo/grounder \
                          ../lib/c-api/include
 
 # This tag can be used to specify the character encoding of the source files
@@ -1076,9 +1076,9 @@ EXCLUDE_PATTERNS       =
 # ANamespace::AClass, ANamespace::*Test
 
 EXCLUDE_SYMBOLS        = "Detail::*" \
-                         "Gringo::Detail::*" \
-                         "Gringo::Util::Detail::*" \
-                         "Gringo::Input::Detail::*"
+                         "Clingo::Detail::*" \
+                         "Clingo::Util::Detail::*" \
+                         "Clingo::Input::Detail::*"
 
 # The EXAMPLE_PATH tag can be used to specify one or more files or directories
 # that contain example code fragments that are included (see the \include

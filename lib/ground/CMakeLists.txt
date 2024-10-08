@@ -1,4 +1,4 @@
-add_library(gringo_ground
+add_library(clingo_ground
     "src/assignment_aggregate.cc"
     "src/body_aggregate.cc"
     "src/condlit.cc"
@@ -14,18 +14,18 @@ add_library(gringo_ground
     "src/theory_term.cc"
     )
 
-target_link_libraries(gringo_ground PUBLIC gringo_core)
+target_link_libraries(clingo_ground PUBLIC clingo_core)
 if (PARSER_PROFILE)
-    target_compile_definitions(gringo_ground PUBLIC "PARSER_PROFILE")
-    target_link_libraries(gringo_ground PUBLIC Gperftools::Profiler)
+    target_compile_definitions(clingo_ground PUBLIC "PARSER_PROFILE")
+    target_link_libraries(clingo_ground PUBLIC Gperftools::Profiler)
 endif()
-target_include_directories(gringo_ground PUBLIC "include")
-set_property(TARGET gringo_ground PROPERTY POSITION_INDEPENDENT_CODE ON)
+target_include_directories(clingo_ground PUBLIC "include")
+set_property(TARGET clingo_ground PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 if (PARSER_BUILD_TESTS)
     add_executable(test_ground
         "tests/matcher.cc")
-    target_link_libraries(test_ground PRIVATE gringo_ground Catch2::Catch2WithMain)
+    target_link_libraries(test_ground PRIVATE clingo_ground Catch2::Catch2WithMain)
     target_include_directories(test_ground PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
     set_target_properties(test_ground PROPERTIES FOLDER test_ground)
     add_test(NAME test_ground COMMAND test_ground)

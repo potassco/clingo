@@ -7,11 +7,11 @@
 #include <tuple>
 #include <variant>
 
-#include <gringo/util/type_traits.hh>
+#include <clingo/util/type_traits.hh>
 
-#include <gringo/input/program.hh>
+#include <clingo/input/program.hh>
 
-namespace Gringo::Input {
+namespace Clingo::Input {
 
 namespace Detail {
 
@@ -182,4 +182,4 @@ template <class T> class Visitor {
     void accept_(StmConst const &stm) const { visit(stm.value()); }
 };
 
-} // namespace Gringo::Input
+} // namespace Clingo::Input

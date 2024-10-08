@@ -1,6 +1,6 @@
-#include <gringo/input/rewrite/iesolver.hh>
+#include <clingo/input/rewrite/iesolver.hh>
 
-namespace Gringo::Input {
+namespace Clingo::Input {
 
 namespace {
 
@@ -264,4 +264,4 @@ auto IESolver::update_slack_(IETerm const &term, Number &slack) -> bool {
     return false;
 }
 
-} // namespace Gringo::Input
+} // namespace Clingo::Input

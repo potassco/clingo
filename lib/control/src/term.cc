@@ -1,10 +1,10 @@
-#include <gringo/control/term.hh>
+#include <clingo/control/term.hh>
 
-#include <gringo/input/rewrite/analyze.hh>
+#include <clingo/input/rewrite/analyze.hh>
 
-#include <gringo/util/type_traits.hh>
+#include <clingo/util/type_traits.hh>
 
-namespace Gringo::Control {
+namespace Clingo::Control {
 
 namespace {
 
@@ -195,4 +195,4 @@ auto build_theory_term(Util::unordered_map<String, size_t> const &var_map,
     return std::visit(BuilderTheoryTerm{var_map}, term);
 }
 
-} // namespace Gringo::Control
+} // namespace Clingo::Control

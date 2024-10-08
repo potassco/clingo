@@ -1,4 +1,4 @@
-#include <gringo/core/symbol.hh>
+#include <clingo/core/symbol.hh>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -6,7 +6,7 @@
 
 // NOLINTBEGIN(readability-magic-numbers)
 
-namespace Gringo {
+namespace Clingo {
 
 // Note: to enable ADL for catch
 using SL = std::initializer_list<Symbol>;
@@ -271,4 +271,4 @@ TEST_CASE("symbol_shared") {
 
 } // namespace Test
 
-} // namespace Gringo
+} // namespace Clingo

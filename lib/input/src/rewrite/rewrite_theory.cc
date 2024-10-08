@@ -1,9 +1,9 @@
 #include "transform.hh"
 
-#include <gringo/input/rewrite/analyze.hh>
-#include <gringo/input/rewrite/rewrite_theory.hh>
+#include <clingo/input/rewrite/analyze.hh>
+#include <clingo/input/rewrite/rewrite_theory.hh>
 
-namespace Gringo::Input {
+namespace Clingo::Input {
 
 namespace {
 
@@ -33,4 +33,4 @@ auto rewrite_theory(RewriteContext &ctx, Stm const &stm) -> std::optional<Stm> {
     return ParseTheory{ctx.logger(), ctx.parser()}.transform(stm);
 }
 
-} // namespace Gringo::Input
+} // namespace Clingo::Input
