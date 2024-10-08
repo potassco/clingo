@@ -27,5 +27,5 @@ sieved_prefix(I,X) :- sieved_prefix(I,X-1), rec_sieve(I,X).
 % mark the first non sieved number as prime
 prime(I+1,X) :- sieved_prefix(I,X-1), rec_nsieve(I,X).
 
-%#show.
-%#show prime(X) : prime(_,X).
+#show.
+#show prime(X) : prime(_,X).

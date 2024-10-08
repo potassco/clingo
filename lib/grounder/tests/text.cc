@@ -19,45 +19,48 @@ TEST_CASE("grounder_text") {
     auto params = Input::ProgramParamVec{{store->string("base"), {}}};
 
     SECTION("fact") {
-        grd.parse("a.");
+        grd.parse("#show. a.");
         grd.prepare();
         REQUIRE(grd.ground(params));
-        REQUIRE(buf.view() == "a.\n");
+        REQUIRE(buf.view() == "a.\n#show.\n");
     }
     SECTION("basic") {
-        grd.parse("a. b :- a.");
+        grd.parse("#show. a. b :- a.");
         grd.prepare();
         REQUIRE(grd.ground(params));
         REQUIRE(buf.view() == "a.\n"
-                              "b.\n");
+                              "b.\n#show.\n");
     }
     SECTION("normal") {
-        grd.parse("a :- not b. b :- not a.");
-        grd.prepare();
-        REQUIRE(grd.ground(params));
-        REQUIRE(buf.view() == "b :- not a.\n"
-                              "a :- not b.\n");
-    }
-    SECTION("condlit_strat") {
-        grd.parse("a :- not b. b :- not a. c :- a : b.");
+        grd.parse("#show. a :- not b. b :- not a.");
         grd.prepare();
         REQUIRE(grd.ground(params));
         REQUIRE(buf.view() == "b :- not a.\n"
                               "a :- not b.\n"
-                              "c :- #false: b, not a.\n");
+                              "#show.\n");
+    }
+    SECTION("condlit_strat") {
+        grd.parse("#show. a :- not b. b :- not a. c :- a : b.");
+        grd.prepare();
+        REQUIRE(grd.ground(params));
+        REQUIRE(buf.view() == "b :- not a.\n"
+                              "a :- not b.\n"
+                              "c :- #false: b, not a.\n"
+                              "#show.\n");
     }
     SECTION("condlit_rec") {
-        grd.parse("b :- b : a. a :- a : b.");
+        grd.parse("#show. b :- b : a. a :- a : b.");
         grd.prepare();
         REQUIRE(grd.ground(params));
         REQUIRE(buf.view() == "b :- b: a.\n"
-                              "a :- a: b.\n");
+                              "a :- a: b.\n"
+                              "#show.\n");
         auto res = store->gc();
         REQUIRE(res.first == 4);
         REQUIRE(res.second == 0);
     }
     SECTION("condlit_rec") {
-        grd.parse("p(1..3). q(3..5). r(X) :- p(X); q(X).");
+        grd.parse("#show. p(1..3). q(3..5). r(X) :- p(X); q(X).");
         grd.prepare();
         REQUIRE(grd.ground(params));
         auto res = store->gc();
@@ -66,6 +69,7 @@ TEST_CASE("grounder_text") {
     }
     SECTION("condlit_bug") {
         grd.parse(R"(
+            #show.
             a.
             a :- d.
 
@@ -78,10 +82,12 @@ TEST_CASE("grounder_text") {
         REQUIRE(buf.view() == "a.\n"
                               "b.\n"
                               "{ c }.\n"
-                              "d :- c: .\n");
+                              "d :- c: .\n"
+                              "#show.\n");
     }
     SECTION("disjunction") {
         grd.parse(R"(
+            #show.
             { q(1..2) }.
             { p(1..3) }.
 
@@ -108,10 +114,12 @@ TEST_CASE("grounder_text") {
                               "b(1,1) :- a(1,1).\n"
                               "b(1,3) :- a(1,3).\n"
                               "#false :- q(1).\n"
-                              "#false :- q(2).\n");
+                              "#false :- q(2).\n"
+                              "#show.\n");
     }
     SECTION("hd_aggr") {
         grd.parse(R"(
+            #show.
             c(1..3).
             {a(X) : c(X)} >= 2.
             {b(X) : c(X)} >= 4.
@@ -127,10 +135,12 @@ TEST_CASE("grounder_text") {
                               "#sum+ { 1,0,b(1): b(1); 1,0,b(2): b(2); 1,0,b(3): b(3) } >= 4.\n"
                               "aa(1) :- a(1).\n"
                               "aa(2) :- a(2).\n"
-                              "aa(3) :- a(3).\n");
+                              "aa(3) :- a(3).\n"
+                              "#show.\n");
     }
     SECTION("bd_aggr") {
         grd.parse(R"(
+            #show.
             d(1..5).
             { p(X) : d(X) }.
             a(X) :- d(X), 3 <= #sum { 1,Y: p(Y), Y < X } <= 4.)");
@@ -147,10 +157,12 @@ TEST_CASE("grounder_text") {
                               "{ p(4) }.\n"
                               "{ p(5) }.\n"
                               "a(4) :- 3 <= #sum+ { 1,1: p(1); 1,2: p(2); 1,3: p(3) } <= 4.\n"
-                              "a(5) :- 3 <= #sum+ { 1,1: p(1); 1,2: p(2); 1,3: p(3); 1,4: p(4) } <= 4.\n");
+                              "a(5) :- 3 <= #sum+ { 1,1: p(1); 1,2: p(2); 1,3: p(3); 1,4: p(4) } <= 4.\n"
+                              "#show.\n");
     }
     SECTION("bd_aggr") {
         grd.parse(R"(
+            #show.
             d(1..5).
             m(3).
             a(X) :- d(X), #sum { 1,Y: d(Y), Y < X } >= B, m(B).
@@ -169,10 +181,12 @@ TEST_CASE("grounder_text") {
                               "b(4).\n"
                               "b(5).\n"
                               "c(4).\n"
-                              "c(5).\n");
+                              "c(5).\n"
+                              "#show.\n");
     }
     SECTION("aggr_rec") {
         grd.parse(R"(
+            #show.
             d(1..2).
             s(1..2).
             a(1,0).
@@ -186,10 +200,12 @@ TEST_CASE("grounder_text") {
                               "s(2).\n"
                               "#sum+ { 1,0,a(1,1): a(1,1); 1,0,a(2,1): a(2,1) } >= 1.\n"
                               "#sum+ { 1,0,a(1,2): a(1,2); 1,0,a(2,2): a(2,2) } >= 1"
-                              " :- #sum+ { 1,0,a(1,1): a(1,1); 1,0,a(2,1): a(2,1) } >= 1.\n");
+                              " :- #sum+ { 1,0,a(1,1): a(1,1); 1,0,a(2,1): a(2,1) } >= 1.\n"
+                              "#show.\n");
     }
     SECTION("aggr_rec") {
         grd.parse(R"(
+            #show.
             company(c1;c2;c3;c4).
             owns(c1,c2,60;c1,c3,20;c2,c3,35;c3,c4,51).
 
@@ -210,10 +226,12 @@ TEST_CASE("grounder_text") {
                               "controls(c1,c2).\n"
                               "controls(c3,c4).\n"
                               "controls(c1,c3).\n"
-                              "controls(c1,c4).\n");
+                              "controls(c1,c4).\n"
+                              "#show.\n");
     }
     SECTION("aggr_rec") {
         grd.parse(R"(
+            #show.
             node(a;b;c;d;e).
             edge(a,c).
             edge(b,c;b,e).
@@ -237,10 +255,12 @@ TEST_CASE("grounder_text") {
                               "reach(a).\n"
                               "reach(b).\n"
                               "reach(c).\n"
-                              "reach(e).\n");
+                              "reach(e).\n"
+                              "#show.\n");
     }
     SECTION("rec") {
         grd.parse(R"(
+            #show.
             #const n = 10.
 
             % initial prime
@@ -279,6 +299,7 @@ TEST_CASE("grounder_text") {
     }
     SECTION("rec") {
         grd.parse(R"(
+            #show.
             char_to_digit(X,X) :- X=0..9.
 
             digit(Y-1,Y,D) :- char(C,Y), char_to_digit(C,D), Y > 0.
@@ -323,6 +344,7 @@ TEST_CASE("grounder_text") {
     }
     SECTION("assign") {
         grd.parse(R"(
+            #show.
             d(1..5).
             p(X) :- X = #sum {Y: d(Y)}.
             )");
@@ -333,10 +355,12 @@ TEST_CASE("grounder_text") {
                               "d(3).\n"
                               "d(4).\n"
                               "d(5).\n"
-                              "p(15).\n");
+                              "p(15).\n"
+                              "#show.\n");
     }
     SECTION("assign_rec") {
         grd.parse(R"(
+            #show.
             d(1..5).
             s(1..3).
             p(1..5,0).
@@ -363,10 +387,12 @@ TEST_CASE("grounder_text") {
                               "p(30,2) :- #sum { 1; 2; 3; 4; 5; 15: p(15,1) } = 30.\n"
                               "p(30,3) :- #sum { 1; 2; 3; 4; 5; 15: p(15,2); 30: p(30,2) } = 30.\n"
                               "p(45,3) :- #sum { 1; 2; 3; 4; 5; 15: p(15,2); 30: p(30,2) } = 45.\n"
-                              "p(60,3) :- #sum { 1; 2; 3; 4; 5; 15: p(15,2); 30: p(30,2) } = 60.\n");
+                              "p(60,3) :- #sum { 1; 2; 3; 4; 5; 15: p(15,2); 30: p(30,2) } = 60.\n"
+                              "#show.\n");
     }
     SECTION("bd_theory_elems") {
         grd.parse(R"(
+            #show.
             #theory t {
               t {
                 + : 1, binary, left;
@@ -385,10 +411,12 @@ TEST_CASE("grounder_text") {
                               "d(1).\n"
                               "d(2).\n"
                               "d(3).\n"
-                              "a :- &p { ((-1)+1); ((-2)+1); ((-3)+1); 1; 1: a; : ; : a } < 5.\n");
+                              "a :- &p { ((-1)+1); ((-2)+1); ((-3)+1); 1; 1: a; : ; : a } < 5.\n"
+                              "#show.\n");
     }
     SECTION("bd_theory_sign") {
         grd.parse(R"(
+            #show.
             #theory t {
               t {
                 + : 1, binary, left;
@@ -405,10 +433,12 @@ TEST_CASE("grounder_text") {
         REQUIRE(grd.ground(params));
         REQUIRE(buf.view() == "a :- &p.\n"
                               "b :- not &p.\n"
-                              "c :- not not &p.\n");
+                              "c :- not not &p.\n"
+                              "#show.\n");
     }
     SECTION("bd_theory_rec") {
         grd.parse(R"(
+            #show.
             #theory t {
               t {
                 + : 1, binary, left;
@@ -433,10 +463,12 @@ TEST_CASE("grounder_text") {
                               "b(3) :- a(3).\n"
                               "a(1) :- &p { ((-1)+1): b(1); 1 } < 5.\n"
                               "a(2) :- &p { ((-2)+1): b(2); 2 } < 5.\n"
-                              "a(3) :- &p { ((-3)+1): b(3); 3 } < 5.\n");
+                              "a(3) :- &p { ((-3)+1): b(3); 3 } < 5.\n"
+                              "#show.\n");
     }
     SECTION("hd_theory_elems") {
         grd.parse(R"(
+            #show.
             #theory t {
               t {
                 + : 1, binary, left;
@@ -455,10 +487,12 @@ TEST_CASE("grounder_text") {
                               "d(1).\n"
                               "d(2).\n"
                               "d(3).\n"
-                              "&p { ((-1)+1); ((-2)+1); ((-3)+1); 1; :  } < 5.\n");
+                              "&p { ((-1)+1); ((-2)+1); ((-3)+1); 1; :  } < 5.\n"
+                              "#show.\n");
     }
     SECTION("hd_theory_cond") {
         grd.parse(R"(
+            #show.
             #theory t {
               t {
                 + : 1, binary, left;
@@ -479,10 +513,12 @@ TEST_CASE("grounder_text") {
                               "{ a(3) }.\n"
                               "&p { ((-1)+1): a(1); 1 } < 5 :- a(1).\n"
                               "&p { ((-2)+1): a(2); 2 } < 5 :- a(2).\n"
-                              "&p { ((-3)+1): a(3); 3 } < 5 :- a(3).\n");
+                              "&p { ((-3)+1): a(3); 3 } < 5 :- a(3).\n"
+                              "#show.\n");
     }
     SECTION("minimize") {
         grd.parse(R"(
+            #show.
             {p(1..3)}.
             #minimize {X,p: p(X); a; 0 }.)");
         grd.prepare();
@@ -493,10 +529,12 @@ TEST_CASE("grounder_text") {
                               " :~ p(1). [1,p].\n"
                               " :~ p(2). [2,p].\n"
                               " :~ p(3). [3,p].\n"
-                              " :~ . [0].\n");
+                              " :~ . [0].\n"
+                              "#show.\n");
     }
     SECTION("heuristic") {
         grd.parse(R"(
+            #show.
             {p(1,0,true)}.
             {p(2,0,level)}.
             p(3,1,init).
@@ -512,10 +550,12 @@ TEST_CASE("grounder_text") {
                               "{ q(3) }.\n"
                               "#heuristic q(3). [3@1,init]\n"
                               "#heuristic q(1): p(1,0,true). [1@0,true]\n"
-                              "#heuristic q(2): p(2,0,level). [2@0,level]\n");
+                              "#heuristic q(2): p(2,0,level). [2@0,level]\n"
+                              "#show.\n");
     }
     SECTION("edge") {
         grd.parse(R"(
+            #show.
             p(1).
             {p(2..3)}.
             #edge (X,X+1): p(X).)");
@@ -526,10 +566,12 @@ TEST_CASE("grounder_text") {
                               "{ p(3) }.\n"
                               "#edge (1,2).\n"
                               "#edge (2,3): p(2).\n"
-                              "#edge (3,4): p(3).\n");
+                              "#edge (3,4): p(3).\n"
+                              "#show.\n");
     }
     SECTION("external") {
-        grd.parse(R"({a(1..2)}.
+        grd.parse(R"(#show.
+                     {a(1..2)}.
                      #external et(X) : a(X). [true]
                      #external ef(X) : a(X). [false]
                      #external ec(X) : a(X). [free]
@@ -545,10 +587,12 @@ TEST_CASE("grounder_text") {
                               "#external ec(1). [free]\n"
                               "#external ec(2). [free]\n"
                               "#external en(1). [free]\n"
-                              "#external en(2). [free]\n");
+                              "#external en(2). [free]\n"
+                              "#show.\n");
     }
     SECTION("show") {
         grd.parse(R"(
+            #show.
             {p(1..3)}.
             #show a.
             #show X: p(X).)");
@@ -560,10 +604,37 @@ TEST_CASE("grounder_text") {
                               "#show a.\n"
                               "#show 1: p(1).\n"
                               "#show 2: p(2).\n"
-                              "#show 3: p(3).\n");
+                              "#show 3: p(3).\n"
+                              "#show.\n");
+    }
+    SECTION("show_sig") {
+        grd.parse(R"(
+            a.
+            b.
+            #show a/0.
+            )");
+        grd.prepare();
+        REQUIRE(grd.ground(params));
+        REQUIRE(buf.view() == "a.\n"
+                              "b.\n"
+                              "#show a: a.\n"
+                              "#show.\n");
+    }
+    SECTION("show_nothing") {
+        grd.parse(R"(
+            a.
+            b.
+            #show.
+            )");
+        grd.prepare();
+        REQUIRE(grd.ground(params));
+        REQUIRE(buf.view() == "a.\n"
+                              "b.\n"
+                              "#show.\n");
     }
     SECTION("project") {
         grd.parse(R"(
+            #show.
             {a; p(1..3); q(2..4)}.
             #project a.
             #project b.
@@ -579,7 +650,8 @@ TEST_CASE("grounder_text") {
                               "{ q(4) }.\n"
                               "#project a.\n"
                               "#project p(2).\n"
-                              "#project p(3).\n");
+                              "#project p(3).\n"
+                              "#show.\n");
     }
     store->gc();
 }

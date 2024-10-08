@@ -166,16 +166,16 @@ struct Grounder::Impl : Gringo::SymbolOwner {
     //!
     //! This currently handles show statements and projection directives.
     void meta() {
+        bool show_all = true;
+        auto show_base = [this](auto &base) {
+            for (auto i = base.mark_shown(), n = base.size(); i != n; ++i) {
+                auto it = base.nth(i);
+                auto const &atom = it.key();
+                out->body().lit(Sign::none, atom);
+                out->show_term(atom);
+            }
+        };
         for (auto const &stm : prg.meta_stms()) {
-            bool show_all = true;
-            auto show_base = [this](auto &base) {
-                for (auto i = base.mark_shown(), n = base.size(); i != n; ++i) {
-                    auto it = base.nth(i);
-                    auto const &atom = it.key();
-                    out->body().lit(Sign::none, atom);
-                    out->show_term(atom);
-                }
-            };
             std::visit(
                 [&, this]<class T>(T const &stm) {
                     if constexpr (Util::matches<T, Input::StmProjectSig>) {
@@ -199,10 +199,10 @@ struct Grounder::Impl : Gringo::SymbolOwner {
                     }
                 },
                 stm);
-            if (!show_all) {
-                for (auto const &[sig, base] : atom_base) {
-                    show_base(*base);
-                }
+        }
+        if (show_all) {
+            for (auto const &[sig, base] : atom_base) {
+                show_base(*base);
             }
         }
     }

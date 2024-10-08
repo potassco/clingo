@@ -415,7 +415,12 @@ class OutputText : public OutputStm, OutputTheory {
 
     void do_flush() override { body_.flush(*out_); }
 
-    void do_end_step() override { out_->flush(); }
+    void do_end_step() override {
+        if (std::exchange(explicit_show_, false)) {
+            *out_ << "#show.\n";
+        }
+        out_->flush();
+    }
 
     void do_mark([[maybe_unused]] SymbolCollector &gc) override {}
 
@@ -521,6 +526,7 @@ class OutputText : public OutputStm, OutputTheory {
     OutputCond cond_;
     Util::ordered_set<std::string> strs_;
     size_t uids_ = 0;
+    bool explicit_show_ = true;
 };
 
 } // namespace
