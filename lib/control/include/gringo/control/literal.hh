@@ -12,7 +12,7 @@
 
 #include <sstream>
 
-namespace Gringo::Grounder {
+namespace Gringo::Control {
 
 namespace Detail {
 
@@ -96,4 +96,4 @@ template <class F> void build_stratified_lit(BuildContext &ctx, Input::Lit const
     std::visit(Detail::BuilderLit<std::decay_t<F>, true>{ctx, std::forward<F>(fun)}, lit);
 }
 
-} // namespace Gringo::Grounder
+} // namespace Gringo::Control

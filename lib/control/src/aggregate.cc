@@ -5,7 +5,7 @@
 #include <gringo/ground/body_aggregate.hh>
 #include <gringo/ground/head_aggregate.hh>
 
-namespace Gringo::Grounder {
+namespace Gringo::Control {
 
 namespace {
 
@@ -326,4 +326,4 @@ void build_bd_lit(BuildContext &ctx, Input::BdLitAggregate const &lit) {
     }
 }
 
-} // namespace Gringo::Grounder
+} // namespace Gringo::Control

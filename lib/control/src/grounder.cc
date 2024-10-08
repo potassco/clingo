@@ -19,7 +19,7 @@
 
 #include <iostream>
 
-namespace Gringo::Grounder {
+namespace Gringo::Control {
 
 namespace {
 
@@ -355,4 +355,4 @@ void Grounder::output_program(std::ostream &out) {
     out.flush();
 }
 
-} // namespace Gringo::Grounder
+} // namespace Gringo::Control

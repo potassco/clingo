@@ -6,7 +6,7 @@
 #include <gringo/input/term.hh>
 #include <gringo/input/theory.hh>
 
-namespace Gringo::Grounder {
+namespace Gringo::Control {
 
 //! Translates input theory terms to their ground representation.
 auto build_term(Util::unordered_map<String, size_t> const &var_map, Input::Term const &term,
@@ -24,4 +24,4 @@ inline auto build_term(Util::unordered_map<String, size_t> const &var_map, Input
 auto build_theory_term(Util::unordered_map<String, size_t> const &var_map,
                        Input::TheoryTerm const &term) -> Ground::UTheoryTerm;
 
-} // namespace Gringo::Grounder
+} // namespace Gringo::Control

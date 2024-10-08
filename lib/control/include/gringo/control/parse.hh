@@ -7,7 +7,7 @@
 #include <fstream>
 #include <iostream>
 
-namespace Gringo::Grounder {
+namespace Gringo::Control {
 
 //! A helper for parsing.
 //!
@@ -129,4 +129,4 @@ class ParseHelper {
     bool parse_error_ = false;
 };
 
-} // namespace Gringo::Grounder
+} // namespace Gringo::Control

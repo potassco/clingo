@@ -15,7 +15,7 @@ TEST_CASE("grounder_text") {
     auto store = make_symbol_store(true, false);
     auto buf = Util::OutputBuffer{};
     auto out = Output::make_text_output(buf);
-    Grounder::Grounder grd{log, *store, opts, *out};
+    Control::Grounder grd{log, *store, opts, *out};
     auto params = Input::ProgramParamVec{{store->string("base"), {}}};
 
     SECTION("fact") {

@@ -2,7 +2,7 @@
 
 #include <gringo/control/context.hh>
 
-namespace Gringo::Grounder {
+namespace Gringo::Control {
 
 void build_stm(BuildContext &ctx, Input::Stm const &stm);
 

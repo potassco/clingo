@@ -5,7 +5,7 @@
 #include <gringo/control/statement.hh>
 #include <gringo/control/theory.hh>
 
-namespace Gringo::Grounder {
+namespace Gringo::Control {
 
 namespace {
 
@@ -155,4 +155,4 @@ class BuilderStm {
 
 void build_stm(BuildContext &ctx, Input::Stm const &stm) { std::visit(BuilderStm{ctx}, stm); }
 
-} // namespace Gringo::Grounder
+} // namespace Gringo::Control

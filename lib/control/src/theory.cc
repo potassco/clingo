@@ -4,7 +4,7 @@
 
 #include <gringo/ground/theory_atom.hh>
 
-namespace Gringo::Grounder {
+namespace Gringo::Control {
 
 // Outline for body atoms:
 //
@@ -104,4 +104,4 @@ void build_bd_lit(BuildContext &ctx, Input::BdLitTheoryAtom const &lit) {
     ctx.body().emplace_back(std::make_unique<Ground::LitBdTheory>(state, lit.sign()));
 }
 
-} // namespace Gringo::Grounder
+} // namespace Gringo::Control

@@ -13,7 +13,7 @@
 
 #include <gringo/util/type_traits.hh>
 
-namespace Gringo::Grounder {
+namespace Gringo::Control {
 
 //! A map from a terms with projections associated state used during grounding.
 //!
@@ -206,4 +206,4 @@ class BuildContext {
     size_t index_ = 0;
 };
 
-} // namespace Gringo::Grounder
+} // namespace Gringo::Control

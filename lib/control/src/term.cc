@@ -4,7 +4,7 @@
 
 #include <gringo/util/type_traits.hh>
 
-namespace Gringo::Grounder {
+namespace Gringo::Control {
 
 namespace {
 
@@ -195,4 +195,4 @@ auto build_theory_term(Util::unordered_map<String, size_t> const &var_map,
     return std::visit(BuilderTheoryTerm{var_map}, term);
 }
 
-} // namespace Gringo::Grounder
+} // namespace Gringo::Control

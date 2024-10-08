@@ -4,7 +4,7 @@
 
 #include <gringo/input/literal.hh>
 
-namespace Gringo::Grounder {
+namespace Gringo::Control {
 
 //! Translate disjunctions.
 void build_hd_lit(BuildContext &ctx, Input::HdLitDisjunction const &lit);
@@ -12,4 +12,4 @@ void build_hd_lit(BuildContext &ctx, Input::HdLitDisjunction const &lit);
 //! Translate conditional literals.
 void build_bd_lit(BuildContext &ctx, Input::BdLitConjunction const &lit);
 
-} // namespace Gringo::Grounder
+} // namespace Gringo::Control
