@@ -22,6 +22,11 @@ class String {
     //! Empty strings exist independently of symbol stores.
     constexpr String() = default;
 
+    //! Manually increment the reference count of the string.
+    void acquire() const noexcept;
+    //! Manually decrement the reference count of the string.
+    void release() const noexcept;
+
     //! Convert a string to its integer representation.
     static auto to_rep(String str) noexcept -> uint64_t { return static_cast<uint64_t>(str.rep_); }
     //! Construct a string from its integer representation.
@@ -88,28 +93,28 @@ class SharedString {
     //! Take ownership of the string reference.
     explicit SharedString(String ref, bool acquire = true) noexcept : ref_{ref} {
         if (acquire) {
-            acquire_();
+            ref.acquire();
         }
     }
     //! Release ownership of the held string reference.
-    ~SharedString() { release_(); }
+    ~SharedString() { ref_.release(); }
     //! Copy constructor.
-    SharedString(SharedString const &other) noexcept : ref_{other.ref_} { acquire_(); }
+    SharedString(SharedString const &other) noexcept : ref_{other.ref_} { ref_.acquire(); }
     //! Move constructor.
     SharedString(SharedString &&other) noexcept { std::swap(other.ref_, ref_); }
     //! Copy assignment.
     auto operator=(SharedString const &other) noexcept -> SharedString & {
         if (&other != this) {
-            release_();
+            ref_.release();
             ref_ = other.ref_;
-            acquire_();
+            ref_.acquire();
         }
         return *this;
     }
     //! Move assignment.
     auto operator=(SharedString &&other) noexcept -> SharedString & {
         if (&other != this) {
-            release_();
+            ref_.release();
             ref_ = other.ref_;
             other.ref_ = String::from_rep(0);
         }
@@ -148,9 +153,6 @@ class SharedString {
     }
 
   private:
-    void acquire_() const noexcept;
-    void release_() const noexcept;
-
     String ref_;
 };
 
@@ -253,6 +255,11 @@ class Symbol {
     //! Create a symbol from its representation.
     static auto from_rep(uint64_t rep) noexcept -> Symbol { return Symbol{rep}; }
 
+    //! Manually increment the reference count of the symbol.
+    void acquire() const noexcept;
+    //! Manually decrement the reference count of the symbol.
+    void release() const noexcept;
+
     //! Output the given symbol.
     friend auto operator<<(std::ostream &out, Symbol const &sym) -> std::ostream &;
 
@@ -277,28 +284,28 @@ class SharedSymbol {
     //! Take ownership of the symbol.
     explicit SharedSymbol(Symbol sym, bool acquire = true) noexcept : ref_{sym} {
         if (acquire) {
-            acquire_();
+            ref_.acquire();
         }
     }
     //! Release ownership of the held symbol.
-    ~SharedSymbol() { release_(); }
+    ~SharedSymbol() { ref_.release(); }
     //! Copy constructor.
-    SharedSymbol(SharedSymbol const &sym) noexcept : ref_{sym.ref_} { acquire_(); }
+    SharedSymbol(SharedSymbol const &sym) noexcept : ref_{sym.ref_} { ref_.acquire(); }
     //! Move constructor.
     SharedSymbol(SharedSymbol &&sym) noexcept { std::swap(sym.ref_, ref_); }
     //! Copy assignment.
     auto operator=(SharedSymbol const &sym) noexcept -> SharedSymbol & {
         if (&sym != this) {
-            release_();
+            ref_.release();
             ref_ = sym.ref_;
-            acquire_();
+            ref_.acquire();
         }
         return *this;
     }
     //! Move assignment.
     auto operator=(SharedSymbol &&sym) noexcept -> SharedSymbol & {
         if (&sym != this) {
-            release_();
+            ref_.release();
             ref_ = sym.ref_;
             sym.ref_ = Symbol::from_rep(0);
         }
@@ -317,18 +324,15 @@ class SharedSymbol {
     //! The representation increments the reference count of the symbol.
     //! To correctly free the symbol, it has to passed to from_rep again.
     [[nodiscard]] static auto to_rep(SharedSymbol const &sym) -> uint64_t {
-        sym.acquire_();
+        sym.ref_.acquire();
         return Symbol::to_rep(sym.ref_);
     }
     //! Create a shared symbol from its representation.
     //!
     //! No reference counts are touched here.
-    [[nodiscard]] static auto from_rep(uint64_t repr, bool acquire = false) -> SharedSymbol {
+    [[nodiscard]] static auto from_rep(uint64_t repr) -> SharedSymbol {
         auto ret = SharedSymbol();
         ret.ref_ = Symbol::from_rep(repr);
-        if (acquire) {
-            ret.acquire_();
-        }
         return ret;
     }
 
@@ -347,8 +351,6 @@ class SharedSymbol {
     }
 
   private:
-    void acquire_() const noexcept;
-    void release_() const noexcept;
     Symbol ref_ = Symbol::from_rep(0);
 };
 

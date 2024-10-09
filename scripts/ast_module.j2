@@ -56,8 +56,26 @@ auto transform_value(Value val, py::handle transform, py::args const &args, py::
 template <class Value>
 auto transform_opt_value(Value opt, py::handle transform, py::args const &args, py::kwargs const &kwargs) -> std::pair<Value, bool>;
 
-template <class T, class F, class M>
-auto update_value(Library &lib, F *self, M fun, py::kwargs const &kwargs, char const *attr) -> T;
+struct CString {
+    CString(char const *str) : str_{str} {}
+    CString(std::string &&str) : str_{std::move(str)} {}
+    operator char const *() const {
+        return std::visit([]<class T>(T const &x){
+            if constexpr (std::is_same_v<T, std::string>) {
+                return x.c_str();
+            }
+            else {
+                return x;
+            }
+        }, str_);
+    }
+    std::variant<std::string, char const *> str_;
+};
+
+template <class T>
+using update_result_t = std::conditional_t<std::is_same_v<T, char const *>, CString, T>;
+
+template <class T, class F, class M> auto update_value(F *self, M fun, py::kwargs const &kwargs, char const *attr) -> update_result_t<T>;
 
 enum class ProjectionMode {
     Disabled = clingo_projection_mode_disabled,
@@ -211,13 +229,23 @@ auto transform_opt_value(Value opt, py::handle transform, py::args const &args, 
     return {std::nullopt, false};
 }
 
+namespace {
+
+struct CString {
+    CString(std::string &&str) : str_{std::move(str)} { }
+    operator char const*() const {
+        return str_.c_str();
+    }
+    std::string str_;
+};
+
+}
+
 template <class T, class F, class M>
-auto update_value(Library &lib, F *self, M fun, py::kwargs const &kwargs, char const *attr) -> T {
+auto update_value(F *self, M fun, py::kwargs const &kwargs, char const *attr) -> update_result_t<T> {
     if constexpr (std::is_same_v<T, char const *>) {
         if (kwargs.contains(attr)) {
-            char const *res = nullptr;
-            clingo_add_string(lib, py::cast<std::string>(kwargs[attr]).c_str(), &res);
-            return res;
+            return py::cast<std::string>(kwargs[attr]);
         }
     } else {
         if (kwargs.contains(attr)) {

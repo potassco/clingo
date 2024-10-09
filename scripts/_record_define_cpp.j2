@@ -30,7 +30,7 @@ auto {{ c_type_name }}::{{ argument_name }}() -> Symbol {
     if (!clingo_ast_attribute_get_symbol(ast_, clingo_ast_attribute_{{ argument_name }}, &ret)) {
         throw std::runtime_error("could not get symbol attribute");
     }
-    return Symbol::acquire(ret);
+    return Symbol{ret, true};
 }
 {%    elif argument.type == 'string' %}
 auto {{ c_type_name }}::{{ argument_name }}() -> char const * {
@@ -152,6 +152,6 @@ auto {{ c_type_name }}::transform([[maybe_unused]] Library &lib, [[maybe_unused]
 auto {{ c_type_name }}::update(Library &lib, py::kwargs const &kwargs) -> {{ c_type_name }} {
     return {{ c_type_name }}::construct(lib
 {%- for argument_name, argument in type.arguments.items() %}
-        , update_value<{{ argument.type | cval }}>(lib, this, &{{ c_type_name }}::{{ argument_name }}, kwargs, "{{ argument_name }}")
+        , update_value<{{ argument.type | cval }}>(this, &{{ c_type_name }}::{{ argument_name }}, kwargs, "{{ argument_name }}")
 {%- endfor %});
 }

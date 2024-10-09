@@ -12,6 +12,13 @@ namespace py = pybind11;
 
 class Symbol {
   public:
+    explicit Symbol(clingo_symbol_t sym, bool acquire) noexcept;
+    Symbol(Symbol const &other) noexcept;
+    Symbol(Symbol &&other) noexcept;
+    auto operator=(Symbol const &other) noexcept -> Symbol &;
+    auto operator=(Symbol &&other) noexcept -> Symbol &;
+    ~Symbol() noexcept;
+
     [[nodiscard]] auto type() const -> clingo_symbol_type_e;
     [[nodiscard]] auto number() const -> py::int_;
     [[nodiscard]] auto string() const -> py::str;
@@ -37,11 +44,9 @@ class Symbol {
     friend auto operator<(Symbol const &a, Symbol const &b) -> bool;
     CLINGO_CPP_TOTAL_ORDER(friend, Symbol);
 
-    static auto acquire(clingo_symbol_t sym) -> Symbol;
     [[nodiscard]] auto handle() const -> clingo_symbol_t;
 
   private:
-    Symbol(clingo_symbol_t sym) : sym_{sym} {}
     clingo_symbol_t sym_;
 };
 

@@ -228,18 +228,6 @@ enum clingo_truth_value_e {
 //! Corresponding type to ::clingo_truth_value_e.
 typedef int clingo_truth_value_t;
 
-//! Internalize a string.
-//!
-//! This functions takes a string as input and returns an equal unique string
-//! that is stored in the given library.
-//!
-//! @param[in] lib library object storing the symbol
-//! @param[in] string the string to internalize
-//! @param[out] result the internalized string
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_add_string(clingo_lib_t *lib, char const *string, char const **result);
-
 //! Represents a source code location marking its beginning and end.
 //!
 //! @note Strings in locations must be internalized.
@@ -493,6 +481,20 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_function(clingo_lib_t *lib, 
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if parsing fails
 CLINGO_VISIBILITY_DEFAULT bool clingo_parse_term(clingo_lib_t *lib, char const *string, clingo_symbol_t *symbol);
+
+//! Acquire ownership of the given symbol.
+//!
+//! Symbols not having any owners, are freed during garbage collection.
+//!
+//! @param[in] symbol the resulting symbol
+CLINGO_VISIBILITY_DEFAULT void clingo_symbol_acquire(clingo_symbol_t symbol);
+
+//! Release ownership of the given symbol.
+//!
+//! Symbols not having any owners, are freed during garbage collection.
+//!
+//! @param[in] symbol the resulting symbol
+CLINGO_VISIBILITY_DEFAULT void clingo_symbol_release(clingo_symbol_t symbol);
 
 //! @}
 

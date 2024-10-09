@@ -6,6 +6,32 @@ namespace Clingo::Symbol {
 
 static constexpr int decimal_base = 10;
 
+Symbol::Symbol(clingo_symbol_t sym, bool acquire) noexcept : sym_{sym} {
+    if (acquire) {
+        clingo_symbol_acquire(sym_);
+    }
+}
+
+Symbol::Symbol(Symbol const &other) noexcept : sym_{other.sym_} { clingo_symbol_acquire(sym_); }
+
+Symbol::Symbol(Symbol &&other) noexcept : sym_{other.sym_} { clingo_symbol_acquire(sym_); }
+
+auto Symbol::operator=(Symbol const &other) noexcept -> Symbol & {
+    clingo_symbol_acquire(other.sym_);
+    clingo_symbol_release(sym_);
+    sym_ = other.sym_;
+    return *this;
+}
+
+auto Symbol::operator=(Symbol &&other) noexcept -> Symbol & {
+    clingo_symbol_acquire(other.sym_);
+    clingo_symbol_release(sym_);
+    sym_ = other.sym_;
+    return *this;
+}
+
+Symbol::~Symbol() noexcept { clingo_symbol_release(sym_); }
+
 [[nodiscard]] auto Symbol::type() const -> clingo_symbol_type_e {
     return static_cast<clingo_symbol_type_e>(clingo_symbol_type(sym_));
 }
@@ -71,7 +97,7 @@ static constexpr int decimal_base = 10;
     py::list ret;
     for (size_t i = 0; i < size; ++i) {
         // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-        ret.append(Symbol{args[i]});
+        ret.append(Symbol{args[i], true});
     }
     return ret;
 }
@@ -145,17 +171,15 @@ static constexpr int decimal_base = 10;
 
 [[nodiscard]] auto Symbol::hash() const -> size_t { return clingo_symbol_hash(sym_); }
 
-auto Symbol::acquire(clingo_symbol_t sym) -> Symbol { return Symbol{sym}; }
-
 [[nodiscard]] auto Symbol::handle() const -> clingo_symbol_t { return sym_; }
 
 auto operator==(Symbol const &a, Symbol const &b) -> bool { return clingo_symbol_is_equal_to(a.sym_, b.sym_); }
 
 auto operator<(Symbol const &a, Symbol const &b) -> bool { return clingo_symbol_is_less_than(a.sym_, b.sym_); }
 
-auto Infimum() -> Symbol { return clingo_symbol_create_infimum(); }
+auto Infimum() -> Symbol { return Symbol{clingo_symbol_create_infimum(), false}; }
 
-auto Supremum() -> Symbol { return clingo_symbol_create_supremum(); }
+auto Supremum() -> Symbol { return Symbol{clingo_symbol_create_supremum(), false}; }
 
 auto Number(Core::Library &lib, py::int_ num) -> Symbol {
     int overflow = 0;
@@ -164,12 +188,12 @@ auto Number(Core::Library &lib, py::int_ num) -> Symbol {
         throw py::error_already_set();
     }
     if (overflow == 0 && std::numeric_limits<int32_t>::min() <= val && val <= std::numeric_limits<int32_t>::max()) {
-        return Symbol{clingo_symbol_create_number(static_cast<int32_t>(val))};
+        return Symbol{clingo_symbol_create_number(static_cast<int32_t>(val)), false};
     }
     auto sym = clingo_symbol_t{0};
     auto str = static_cast<std::string>(py::str(num));
     handle_error(lib, clingo_symbol_create_number_str(lib, str.c_str(), &sym));
-    return Symbol{sym};
+    return Symbol{sym, false};
     /*
     try {
         auto val = num.cast<int32_t>();
@@ -186,7 +210,7 @@ auto Number(Core::Library &lib, py::int_ num) -> Symbol {
 auto String(Core::Library &lib, std::string const &str) -> Symbol {
     clingo_symbol_t sym = 0;
     handle_error(lib, clingo_symbol_create_string(lib, str.data(), &sym));
-    return sym;
+    return Symbol{sym, false};
 }
 
 auto Tuple(Core::Library &lib, std::vector<Symbol> const &args) -> Symbol {
@@ -194,7 +218,7 @@ auto Tuple(Core::Library &lib, std::vector<Symbol> const &args) -> Symbol {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     auto const *syms = reinterpret_cast<clingo_symbol_t const *>(args.data());
     handle_error(lib, clingo_symbol_create_tuple(lib, syms, args.size(), &sym));
-    return sym;
+    return Symbol{sym, false};
 }
 
 auto Function(Core::Library &lib, std::string const &name, std::vector<Symbol> const &args, bool positive) -> Symbol {
@@ -202,13 +226,13 @@ auto Function(Core::Library &lib, std::string const &name, std::vector<Symbol> c
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     auto const *syms = reinterpret_cast<clingo_symbol_t const *>(args.data());
     handle_error(lib, clingo_symbol_create_function(lib, name.data(), syms, args.size(), positive, &sym));
-    return sym;
+    return Symbol{sym, false};
 }
 
 auto parse_term(Core::Library &lib, std::string str) -> Symbol {
     clingo_symbol_t sym = 0;
     handle_error(lib, clingo_parse_term(lib, str.data(), &sym));
-    return Symbol{sym};
+    return Symbol{sym, false};
 }
 
 void register_module(pybind11::module &m) {

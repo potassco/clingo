@@ -57,8 +57,27 @@ template <class Value>
 auto transform_opt_value(Value opt, py::handle transform, py::args const &args,
                          py::kwargs const &kwargs) -> std::pair<Value, bool>;
 
+struct CString {
+    CString(char const *str) : str_{str} {}
+    CString(std::string &&str) : str_{std::move(str)} {}
+    operator char const *() const {
+        return std::visit(
+            []<class T>(T const &x) {
+                if constexpr (std::is_same_v<T, std::string>) {
+                    return x.c_str();
+                } else {
+                    return x;
+                }
+            },
+            str_);
+    }
+    std::variant<std::string, char const *> str_;
+};
+
+template <class T> using update_result_t = std::conditional_t<std::is_same_v<T, char const *>, CString, T>;
+
 template <class T, class F, class M>
-auto update_value(Library &lib, F *self, M fun, py::kwargs const &kwargs, char const *attr) -> T;
+auto update_value(F *self, M fun, py::kwargs const &kwargs, char const *attr) -> update_result_t<T>;
 
 enum class ProjectionMode {
     Disabled = clingo_projection_mode_disabled,
@@ -5804,8 +5823,7 @@ auto Projection::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::h
 }
 
 auto Projection::update(Library &lib, py::kwargs const &kwargs) -> Projection {
-    return Projection::construct(lib,
-                                 update_value<clingo_location_t>(lib, this, &Projection::location, kwargs, "location"));
+    return Projection::construct(lib, update_value<clingo_location_t>(this, &Projection::location, kwargs, "location"));
 }
 
 auto construct_term_or_projection(clingo_ast_t *ast) -> TermOrProjection {
@@ -5977,10 +5995,10 @@ auto TermVariable::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py:
 }
 
 auto TermVariable::update(Library &lib, py::kwargs const &kwargs) -> TermVariable {
-    return TermVariable::construct(
-        lib, update_value<clingo_location_t>(lib, this, &TermVariable::location, kwargs, "location"),
-        update_value<char const *>(lib, this, &TermVariable::name, kwargs, "name"),
-        update_value<bool>(lib, this, &TermVariable::anonymous, kwargs, "anonymous"));
+    return TermVariable::construct(lib,
+                                   update_value<clingo_location_t>(this, &TermVariable::location, kwargs, "location"),
+                                   update_value<char const *>(this, &TermVariable::name, kwargs, "name"),
+                                   update_value<bool>(this, &TermVariable::anonymous, kwargs, "anonymous"));
 }
 
 auto TermSymbolic::location() -> clingo_location_t {
@@ -5996,7 +6014,7 @@ auto TermSymbolic::symbol() -> Symbol {
     if (!clingo_ast_attribute_get_symbol(ast_, clingo_ast_attribute_symbol, &ret)) {
         throw std::runtime_error("could not get symbol attribute");
     }
-    return Symbol::acquire(ret);
+    return Symbol{ret, true};
 }
 
 auto TermSymbolic::construct(Library &lib, clingo_location_t const &location, Symbol const &symbol) -> TermSymbolic {
@@ -6015,9 +6033,9 @@ auto TermSymbolic::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py:
 }
 
 auto TermSymbolic::update(Library &lib, py::kwargs const &kwargs) -> TermSymbolic {
-    return TermSymbolic::construct(
-        lib, update_value<clingo_location_t>(lib, this, &TermSymbolic::location, kwargs, "location"),
-        update_value<Symbol>(lib, this, &TermSymbolic::symbol, kwargs, "symbol"));
+    return TermSymbolic::construct(lib,
+                                   update_value<clingo_location_t>(this, &TermSymbolic::location, kwargs, "location"),
+                                   update_value<Symbol>(this, &TermSymbolic::symbol, kwargs, "symbol"));
 }
 
 auto TermAbsolute::location() -> clingo_location_t {
@@ -6060,9 +6078,9 @@ auto TermAbsolute::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py:
 }
 
 auto TermAbsolute::update(Library &lib, py::kwargs const &kwargs) -> TermAbsolute {
-    return TermAbsolute::construct(
-        lib, update_value<clingo_location_t>(lib, this, &TermAbsolute::location, kwargs, "location"),
-        update_value<TermArray>(lib, this, &TermAbsolute::pool, kwargs, "pool"));
+    return TermAbsolute::construct(lib,
+                                   update_value<clingo_location_t>(this, &TermAbsolute::location, kwargs, "location"),
+                                   update_value<TermArray>(this, &TermAbsolute::pool, kwargs, "pool"));
 }
 
 auto TermUnaryOperation::location() -> clingo_location_t {
@@ -6114,9 +6132,9 @@ auto TermUnaryOperation::transform([[maybe_unused]] Library &lib, [[maybe_unused
 
 auto TermUnaryOperation::update(Library &lib, py::kwargs const &kwargs) -> TermUnaryOperation {
     return TermUnaryOperation::construct(
-        lib, update_value<clingo_location_t>(lib, this, &TermUnaryOperation::location, kwargs, "location"),
-        update_value<UnaryOperator>(lib, this, &TermUnaryOperation::operator_type, kwargs, "operator_type"),
-        update_value<Term>(lib, this, &TermUnaryOperation::right, kwargs, "right"));
+        lib, update_value<clingo_location_t>(this, &TermUnaryOperation::location, kwargs, "location"),
+        update_value<UnaryOperator>(this, &TermUnaryOperation::operator_type, kwargs, "operator_type"),
+        update_value<Term>(this, &TermUnaryOperation::right, kwargs, "right"));
 }
 
 auto TermBinaryOperation::location() -> clingo_location_t {
@@ -6178,10 +6196,10 @@ auto TermBinaryOperation::transform([[maybe_unused]] Library &lib, [[maybe_unuse
 
 auto TermBinaryOperation::update(Library &lib, py::kwargs const &kwargs) -> TermBinaryOperation {
     return TermBinaryOperation::construct(
-        lib, update_value<clingo_location_t>(lib, this, &TermBinaryOperation::location, kwargs, "location"),
-        update_value<Term>(lib, this, &TermBinaryOperation::left, kwargs, "left"),
-        update_value<BinaryOperator>(lib, this, &TermBinaryOperation::operator_type, kwargs, "operator_type"),
-        update_value<Term>(lib, this, &TermBinaryOperation::right, kwargs, "right"));
+        lib, update_value<clingo_location_t>(this, &TermBinaryOperation::location, kwargs, "location"),
+        update_value<Term>(this, &TermBinaryOperation::left, kwargs, "left"),
+        update_value<BinaryOperator>(this, &TermBinaryOperation::operator_type, kwargs, "operator_type"),
+        update_value<Term>(this, &TermBinaryOperation::right, kwargs, "right"));
 }
 
 auto TermTuple::location() -> clingo_location_t {
@@ -6225,9 +6243,8 @@ auto TermTuple::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::ha
 }
 
 auto TermTuple::update(Library &lib, py::kwargs const &kwargs) -> TermTuple {
-    return TermTuple::construct(lib,
-                                update_value<clingo_location_t>(lib, this, &TermTuple::location, kwargs, "location"),
-                                update_value<TermOrArgumentTupleArray>(lib, this, &TermTuple::pool, kwargs, "pool"));
+    return TermTuple::construct(lib, update_value<clingo_location_t>(this, &TermTuple::location, kwargs, "location"),
+                                update_value<TermOrArgumentTupleArray>(this, &TermTuple::pool, kwargs, "pool"));
 }
 
 auto TermFunction::location() -> clingo_location_t {
@@ -6287,11 +6304,11 @@ auto TermFunction::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py:
 }
 
 auto TermFunction::update(Library &lib, py::kwargs const &kwargs) -> TermFunction {
-    return TermFunction::construct(
-        lib, update_value<clingo_location_t>(lib, this, &TermFunction::location, kwargs, "location"),
-        update_value<char const *>(lib, this, &TermFunction::name, kwargs, "name"),
-        update_value<ArgumentTupleArray>(lib, this, &TermFunction::pool, kwargs, "pool"),
-        update_value<bool>(lib, this, &TermFunction::external, kwargs, "external"));
+    return TermFunction::construct(lib,
+                                   update_value<clingo_location_t>(this, &TermFunction::location, kwargs, "location"),
+                                   update_value<char const *>(this, &TermFunction::name, kwargs, "name"),
+                                   update_value<ArgumentTupleArray>(this, &TermFunction::pool, kwargs, "pool"),
+                                   update_value<bool>(this, &TermFunction::external, kwargs, "external"));
 }
 
 auto ArgumentTuple::arguments() -> TermOrProjectionArray {
@@ -6327,7 +6344,7 @@ auto ArgumentTuple::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py
 
 auto ArgumentTuple::update(Library &lib, py::kwargs const &kwargs) -> ArgumentTuple {
     return ArgumentTuple::construct(
-        lib, update_value<TermOrProjectionArray>(lib, this, &ArgumentTuple::arguments, kwargs, "arguments"));
+        lib, update_value<TermOrProjectionArray>(this, &ArgumentTuple::arguments, kwargs, "arguments"));
 }
 
 auto construct_literal(clingo_ast_t *ast) -> Literal {
@@ -6392,8 +6409,8 @@ auto LeftGuard::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::ha
 }
 
 auto LeftGuard::update(Library &lib, py::kwargs const &kwargs) -> LeftGuard {
-    return LeftGuard::construct(lib, update_value<Term>(lib, this, &LeftGuard::term, kwargs, "term"),
-                                update_value<Relation>(lib, this, &LeftGuard::relation, kwargs, "relation"));
+    return LeftGuard::construct(lib, update_value<Term>(this, &LeftGuard::term, kwargs, "term"),
+                                update_value<Relation>(this, &LeftGuard::relation, kwargs, "relation"));
 }
 
 auto RightGuard::relation() -> Relation {
@@ -6435,8 +6452,8 @@ auto RightGuard::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::h
 }
 
 auto RightGuard::update(Library &lib, py::kwargs const &kwargs) -> RightGuard {
-    return RightGuard::construct(lib, update_value<Relation>(lib, this, &RightGuard::relation, kwargs, "relation"),
-                                 update_value<Term>(lib, this, &RightGuard::term, kwargs, "term"));
+    return RightGuard::construct(lib, update_value<Relation>(this, &RightGuard::relation, kwargs, "relation"),
+                                 update_value<Term>(this, &RightGuard::term, kwargs, "term"));
 }
 
 auto construct_right_guard_array(clingo_ast_t **ast, size_t size) -> RightGuardArray {
@@ -6499,9 +6516,9 @@ auto LiteralBoolean::transform([[maybe_unused]] Library &lib, [[maybe_unused]] p
 
 auto LiteralBoolean::update(Library &lib, py::kwargs const &kwargs) -> LiteralBoolean {
     return LiteralBoolean::construct(
-        lib, update_value<clingo_location_t>(lib, this, &LiteralBoolean::location, kwargs, "location"),
-        update_value<Sign>(lib, this, &LiteralBoolean::sign, kwargs, "sign"),
-        update_value<bool>(lib, this, &LiteralBoolean::value, kwargs, "value"));
+        lib, update_value<clingo_location_t>(this, &LiteralBoolean::location, kwargs, "location"),
+        update_value<Sign>(this, &LiteralBoolean::sign, kwargs, "sign"),
+        update_value<bool>(this, &LiteralBoolean::value, kwargs, "value"));
 }
 
 auto LiteralComparison::location() -> clingo_location_t {
@@ -6564,10 +6581,10 @@ auto LiteralComparison::transform([[maybe_unused]] Library &lib, [[maybe_unused]
 
 auto LiteralComparison::update(Library &lib, py::kwargs const &kwargs) -> LiteralComparison {
     return LiteralComparison::construct(
-        lib, update_value<clingo_location_t>(lib, this, &LiteralComparison::location, kwargs, "location"),
-        update_value<Sign>(lib, this, &LiteralComparison::sign, kwargs, "sign"),
-        update_value<Term>(lib, this, &LiteralComparison::left, kwargs, "left"),
-        update_value<RightGuardArray>(lib, this, &LiteralComparison::right, kwargs, "right"));
+        lib, update_value<clingo_location_t>(this, &LiteralComparison::location, kwargs, "location"),
+        update_value<Sign>(this, &LiteralComparison::sign, kwargs, "sign"),
+        update_value<Term>(this, &LiteralComparison::left, kwargs, "left"),
+        update_value<RightGuardArray>(this, &LiteralComparison::right, kwargs, "right"));
 }
 
 auto LiteralSymbolic::location() -> clingo_location_t {
@@ -6619,9 +6636,9 @@ auto LiteralSymbolic::transform([[maybe_unused]] Library &lib, [[maybe_unused]] 
 
 auto LiteralSymbolic::update(Library &lib, py::kwargs const &kwargs) -> LiteralSymbolic {
     return LiteralSymbolic::construct(
-        lib, update_value<clingo_location_t>(lib, this, &LiteralSymbolic::location, kwargs, "location"),
-        update_value<Sign>(lib, this, &LiteralSymbolic::sign, kwargs, "sign"),
-        update_value<Term>(lib, this, &LiteralSymbolic::atom, kwargs, "atom"));
+        lib, update_value<clingo_location_t>(this, &LiteralSymbolic::location, kwargs, "location"),
+        update_value<Sign>(this, &LiteralSymbolic::sign, kwargs, "sign"),
+        update_value<Term>(this, &LiteralSymbolic::atom, kwargs, "atom"));
 }
 
 auto construct_theory_term(clingo_ast_t *ast) -> TheoryTerm {
@@ -6714,9 +6731,9 @@ auto UnparsedElement::transform([[maybe_unused]] Library &lib, [[maybe_unused]] 
 }
 
 auto UnparsedElement::update(Library &lib, py::kwargs const &kwargs) -> UnparsedElement {
-    return UnparsedElement::construct(
-        lib, update_value<StringArray>(lib, this, &UnparsedElement::operators, kwargs, "operators"),
-        update_value<TheoryTerm>(lib, this, &UnparsedElement::term, kwargs, "term"));
+    return UnparsedElement::construct(lib,
+                                      update_value<StringArray>(this, &UnparsedElement::operators, kwargs, "operators"),
+                                      update_value<TheoryTerm>(this, &UnparsedElement::term, kwargs, "term"));
 }
 
 auto construct_unparsed_element_array(clingo_ast_t **ast, size_t size) -> UnparsedElementArray {
@@ -6779,9 +6796,9 @@ auto TheoryTermVariable::transform([[maybe_unused]] Library &lib, [[maybe_unused
 
 auto TheoryTermVariable::update(Library &lib, py::kwargs const &kwargs) -> TheoryTermVariable {
     return TheoryTermVariable::construct(
-        lib, update_value<clingo_location_t>(lib, this, &TheoryTermVariable::location, kwargs, "location"),
-        update_value<char const *>(lib, this, &TheoryTermVariable::name, kwargs, "name"),
-        update_value<bool>(lib, this, &TheoryTermVariable::anonymous, kwargs, "anonymous"));
+        lib, update_value<clingo_location_t>(this, &TheoryTermVariable::location, kwargs, "location"),
+        update_value<char const *>(this, &TheoryTermVariable::name, kwargs, "name"),
+        update_value<bool>(this, &TheoryTermVariable::anonymous, kwargs, "anonymous"));
 }
 
 auto TheoryTermSymbolic::location() -> clingo_location_t {
@@ -6797,7 +6814,7 @@ auto TheoryTermSymbolic::symbol() -> Symbol {
     if (!clingo_ast_attribute_get_symbol(ast_, clingo_ast_attribute_symbol, &ret)) {
         throw std::runtime_error("could not get symbol attribute");
     }
-    return Symbol::acquire(ret);
+    return Symbol{ret, true};
 }
 
 auto TheoryTermSymbolic::construct(Library &lib, clingo_location_t const &location,
@@ -6819,8 +6836,8 @@ auto TheoryTermSymbolic::transform([[maybe_unused]] Library &lib, [[maybe_unused
 
 auto TheoryTermSymbolic::update(Library &lib, py::kwargs const &kwargs) -> TheoryTermSymbolic {
     return TheoryTermSymbolic::construct(
-        lib, update_value<clingo_location_t>(lib, this, &TheoryTermSymbolic::location, kwargs, "location"),
-        update_value<Symbol>(lib, this, &TheoryTermSymbolic::symbol, kwargs, "symbol"));
+        lib, update_value<clingo_location_t>(this, &TheoryTermSymbolic::location, kwargs, "location"),
+        update_value<Symbol>(this, &TheoryTermSymbolic::symbol, kwargs, "symbol"));
 }
 
 auto TheoryTermTuple::location() -> clingo_location_t {
@@ -6873,9 +6890,9 @@ auto TheoryTermTuple::transform([[maybe_unused]] Library &lib, [[maybe_unused]] 
 
 auto TheoryTermTuple::update(Library &lib, py::kwargs const &kwargs) -> TheoryTermTuple {
     return TheoryTermTuple::construct(
-        lib, update_value<clingo_location_t>(lib, this, &TheoryTermTuple::location, kwargs, "location"),
-        update_value<TheoryTupleType>(lib, this, &TheoryTermTuple::tuple_type, kwargs, "tuple_type"),
-        update_value<TheoryTermArray>(lib, this, &TheoryTermTuple::arguments, kwargs, "arguments"));
+        lib, update_value<clingo_location_t>(this, &TheoryTermTuple::location, kwargs, "location"),
+        update_value<TheoryTupleType>(this, &TheoryTermTuple::tuple_type, kwargs, "tuple_type"),
+        update_value<TheoryTermArray>(this, &TheoryTermTuple::arguments, kwargs, "arguments"));
 }
 
 auto TheoryTermFunction::location() -> clingo_location_t {
@@ -6928,9 +6945,9 @@ auto TheoryTermFunction::transform([[maybe_unused]] Library &lib, [[maybe_unused
 
 auto TheoryTermFunction::update(Library &lib, py::kwargs const &kwargs) -> TheoryTermFunction {
     return TheoryTermFunction::construct(
-        lib, update_value<clingo_location_t>(lib, this, &TheoryTermFunction::location, kwargs, "location"),
-        update_value<char const *>(lib, this, &TheoryTermFunction::name, kwargs, "name"),
-        update_value<TheoryTermArray>(lib, this, &TheoryTermFunction::arguments, kwargs, "arguments"));
+        lib, update_value<clingo_location_t>(this, &TheoryTermFunction::location, kwargs, "location"),
+        update_value<char const *>(this, &TheoryTermFunction::name, kwargs, "name"),
+        update_value<TheoryTermArray>(this, &TheoryTermFunction::arguments, kwargs, "arguments"));
 }
 
 auto TheoryTermUnparsed::location() -> clingo_location_t {
@@ -6975,8 +6992,8 @@ auto TheoryTermUnparsed::transform([[maybe_unused]] Library &lib, [[maybe_unused
 
 auto TheoryTermUnparsed::update(Library &lib, py::kwargs const &kwargs) -> TheoryTermUnparsed {
     return TheoryTermUnparsed::construct(
-        lib, update_value<clingo_location_t>(lib, this, &TheoryTermUnparsed::location, kwargs, "location"),
-        update_value<UnparsedElementArray>(lib, this, &TheoryTermUnparsed::elements, kwargs, "elements"));
+        lib, update_value<clingo_location_t>(this, &TheoryTermUnparsed::location, kwargs, "location"),
+        update_value<UnparsedElementArray>(this, &TheoryTermUnparsed::elements, kwargs, "elements"));
 }
 
 auto TheoryRightGuard::theory_operator() -> char const * {
@@ -7020,8 +7037,8 @@ auto TheoryRightGuard::transform([[maybe_unused]] Library &lib, [[maybe_unused]]
 
 auto TheoryRightGuard::update(Library &lib, py::kwargs const &kwargs) -> TheoryRightGuard {
     return TheoryRightGuard::construct(
-        lib, update_value<char const *>(lib, this, &TheoryRightGuard::theory_operator, kwargs, "theory_operator"),
-        update_value<TheoryTerm>(lib, this, &TheoryRightGuard::term, kwargs, "term"));
+        lib, update_value<char const *>(this, &TheoryRightGuard::theory_operator, kwargs, "theory_operator"),
+        update_value<TheoryTerm>(this, &TheoryRightGuard::term, kwargs, "term"));
 }
 
 auto construct_literal_array(clingo_ast_t **ast, size_t size) -> LiteralArray {
@@ -7093,9 +7110,9 @@ auto SetAggregateElement::transform([[maybe_unused]] Library &lib, [[maybe_unuse
 
 auto SetAggregateElement::update(Library &lib, py::kwargs const &kwargs) -> SetAggregateElement {
     return SetAggregateElement::construct(
-        lib, update_value<clingo_location_t>(lib, this, &SetAggregateElement::location, kwargs, "location"),
-        update_value<Literal>(lib, this, &SetAggregateElement::literal, kwargs, "literal"),
-        update_value<LiteralArray>(lib, this, &SetAggregateElement::condition, kwargs, "condition"));
+        lib, update_value<clingo_location_t>(this, &SetAggregateElement::location, kwargs, "location"),
+        update_value<Literal>(this, &SetAggregateElement::literal, kwargs, "literal"),
+        update_value<LiteralArray>(this, &SetAggregateElement::condition, kwargs, "condition"));
 }
 
 auto construct_set_aggregate_element_array(clingo_ast_t **ast, size_t size) -> SetAggregateElementArray {
@@ -7169,9 +7186,9 @@ auto BodyAggregateElement::transform([[maybe_unused]] Library &lib, [[maybe_unus
 
 auto BodyAggregateElement::update(Library &lib, py::kwargs const &kwargs) -> BodyAggregateElement {
     return BodyAggregateElement::construct(
-        lib, update_value<clingo_location_t>(lib, this, &BodyAggregateElement::location, kwargs, "location"),
-        update_value<TermArray>(lib, this, &BodyAggregateElement::tuple, kwargs, "tuple"),
-        update_value<LiteralArray>(lib, this, &BodyAggregateElement::condition, kwargs, "condition"));
+        lib, update_value<clingo_location_t>(this, &BodyAggregateElement::location, kwargs, "location"),
+        update_value<TermArray>(this, &BodyAggregateElement::tuple, kwargs, "tuple"),
+        update_value<LiteralArray>(this, &BodyAggregateElement::condition, kwargs, "condition"));
 }
 
 auto construct_body_aggregate_element_array(clingo_ast_t **ast, size_t size) -> BodyAggregateElementArray {
@@ -7245,9 +7262,9 @@ auto TheoryAtomElement::transform([[maybe_unused]] Library &lib, [[maybe_unused]
 
 auto TheoryAtomElement::update(Library &lib, py::kwargs const &kwargs) -> TheoryAtomElement {
     return TheoryAtomElement::construct(
-        lib, update_value<clingo_location_t>(lib, this, &TheoryAtomElement::location, kwargs, "location"),
-        update_value<TheoryTermArray>(lib, this, &TheoryAtomElement::tuple, kwargs, "tuple"),
-        update_value<LiteralArray>(lib, this, &TheoryAtomElement::condition, kwargs, "condition"));
+        lib, update_value<clingo_location_t>(this, &TheoryAtomElement::location, kwargs, "location"),
+        update_value<TheoryTermArray>(this, &TheoryAtomElement::tuple, kwargs, "tuple"),
+        update_value<LiteralArray>(this, &TheoryAtomElement::condition, kwargs, "condition"));
 }
 
 auto construct_theory_atom_element_array(clingo_ast_t **ast, size_t size) -> TheoryAtomElementArray {
@@ -7343,8 +7360,8 @@ auto BodySimpleLiteral::transform([[maybe_unused]] Library &lib, [[maybe_unused]
 }
 
 auto BodySimpleLiteral::update(Library &lib, py::kwargs const &kwargs) -> BodySimpleLiteral {
-    return BodySimpleLiteral::construct(
-        lib, update_value<Literal>(lib, this, &BodySimpleLiteral::literal, kwargs, "literal"));
+    return BodySimpleLiteral::construct(lib,
+                                        update_value<Literal>(this, &BodySimpleLiteral::literal, kwargs, "literal"));
 }
 
 auto BodyAggregate::location() -> clingo_location_t {
@@ -7440,12 +7457,12 @@ auto BodyAggregate::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py
 
 auto BodyAggregate::update(Library &lib, py::kwargs const &kwargs) -> BodyAggregate {
     return BodyAggregate::construct(
-        lib, update_value<clingo_location_t>(lib, this, &BodyAggregate::location, kwargs, "location"),
-        update_value<Sign>(lib, this, &BodyAggregate::sign, kwargs, "sign"),
-        update_value<OptionalLeftGuard>(lib, this, &BodyAggregate::left, kwargs, "left"),
-        update_value<AggregateFunction>(lib, this, &BodyAggregate::function, kwargs, "function"),
-        update_value<BodyAggregateElementArray>(lib, this, &BodyAggregate::elements, kwargs, "elements"),
-        update_value<OptionalRightGuard>(lib, this, &BodyAggregate::right, kwargs, "right"));
+        lib, update_value<clingo_location_t>(this, &BodyAggregate::location, kwargs, "location"),
+        update_value<Sign>(this, &BodyAggregate::sign, kwargs, "sign"),
+        update_value<OptionalLeftGuard>(this, &BodyAggregate::left, kwargs, "left"),
+        update_value<AggregateFunction>(this, &BodyAggregate::function, kwargs, "function"),
+        update_value<BodyAggregateElementArray>(this, &BodyAggregate::elements, kwargs, "elements"),
+        update_value<OptionalRightGuard>(this, &BodyAggregate::right, kwargs, "right"));
 }
 
 auto BodySetAggregate::location() -> clingo_location_t {
@@ -7532,11 +7549,11 @@ auto BodySetAggregate::transform([[maybe_unused]] Library &lib, [[maybe_unused]]
 
 auto BodySetAggregate::update(Library &lib, py::kwargs const &kwargs) -> BodySetAggregate {
     return BodySetAggregate::construct(
-        lib, update_value<clingo_location_t>(lib, this, &BodySetAggregate::location, kwargs, "location"),
-        update_value<Sign>(lib, this, &BodySetAggregate::sign, kwargs, "sign"),
-        update_value<OptionalLeftGuard>(lib, this, &BodySetAggregate::left, kwargs, "left"),
-        update_value<SetAggregateElementArray>(lib, this, &BodySetAggregate::elements, kwargs, "elements"),
-        update_value<OptionalRightGuard>(lib, this, &BodySetAggregate::right, kwargs, "right"));
+        lib, update_value<clingo_location_t>(this, &BodySetAggregate::location, kwargs, "location"),
+        update_value<Sign>(this, &BodySetAggregate::sign, kwargs, "sign"),
+        update_value<OptionalLeftGuard>(this, &BodySetAggregate::left, kwargs, "left"),
+        update_value<SetAggregateElementArray>(this, &BodySetAggregate::elements, kwargs, "elements"),
+        update_value<OptionalRightGuard>(this, &BodySetAggregate::right, kwargs, "right"));
 }
 
 auto BodyTheoryAtom::location() -> clingo_location_t {
@@ -7617,11 +7634,11 @@ auto BodyTheoryAtom::transform([[maybe_unused]] Library &lib, [[maybe_unused]] p
 
 auto BodyTheoryAtom::update(Library &lib, py::kwargs const &kwargs) -> BodyTheoryAtom {
     return BodyTheoryAtom::construct(
-        lib, update_value<clingo_location_t>(lib, this, &BodyTheoryAtom::location, kwargs, "location"),
-        update_value<Sign>(lib, this, &BodyTheoryAtom::sign, kwargs, "sign"),
-        update_value<Term>(lib, this, &BodyTheoryAtom::name, kwargs, "name"),
-        update_value<TheoryAtomElementArray>(lib, this, &BodyTheoryAtom::elements, kwargs, "elements"),
-        update_value<OptionalTheoryRightGuard>(lib, this, &BodyTheoryAtom::right, kwargs, "right"));
+        lib, update_value<clingo_location_t>(this, &BodyTheoryAtom::location, kwargs, "location"),
+        update_value<Sign>(this, &BodyTheoryAtom::sign, kwargs, "sign"),
+        update_value<Term>(this, &BodyTheoryAtom::name, kwargs, "name"),
+        update_value<TheoryAtomElementArray>(this, &BodyTheoryAtom::elements, kwargs, "elements"),
+        update_value<OptionalTheoryRightGuard>(this, &BodyTheoryAtom::right, kwargs, "right"));
 }
 
 auto BodyConditionalLiteral::location() -> clingo_location_t {
@@ -7676,9 +7693,9 @@ auto BodyConditionalLiteral::transform([[maybe_unused]] Library &lib, [[maybe_un
 
 auto BodyConditionalLiteral::update(Library &lib, py::kwargs const &kwargs) -> BodyConditionalLiteral {
     return BodyConditionalLiteral::construct(
-        lib, update_value<clingo_location_t>(lib, this, &BodyConditionalLiteral::location, kwargs, "location"),
-        update_value<Literal>(lib, this, &BodyConditionalLiteral::literal, kwargs, "literal"),
-        update_value<LiteralArray>(lib, this, &BodyConditionalLiteral::condition, kwargs, "condition"));
+        lib, update_value<clingo_location_t>(this, &BodyConditionalLiteral::location, kwargs, "location"),
+        update_value<Literal>(this, &BodyConditionalLiteral::literal, kwargs, "literal"),
+        update_value<LiteralArray>(this, &BodyConditionalLiteral::condition, kwargs, "condition"));
 }
 
 auto HeadConditionalLiteral::location() -> clingo_location_t {
@@ -7733,9 +7750,9 @@ auto HeadConditionalLiteral::transform([[maybe_unused]] Library &lib, [[maybe_un
 
 auto HeadConditionalLiteral::update(Library &lib, py::kwargs const &kwargs) -> HeadConditionalLiteral {
     return HeadConditionalLiteral::construct(
-        lib, update_value<clingo_location_t>(lib, this, &HeadConditionalLiteral::location, kwargs, "location"),
-        update_value<Literal>(lib, this, &HeadConditionalLiteral::literal, kwargs, "literal"),
-        update_value<LiteralArray>(lib, this, &HeadConditionalLiteral::condition, kwargs, "condition"));
+        lib, update_value<clingo_location_t>(this, &HeadConditionalLiteral::location, kwargs, "location"),
+        update_value<Literal>(this, &HeadConditionalLiteral::literal, kwargs, "literal"),
+        update_value<LiteralArray>(this, &HeadConditionalLiteral::condition, kwargs, "condition"));
 }
 
 auto construct_disjunction_element(clingo_ast_t *ast) -> DisjunctionElement {
@@ -7845,10 +7862,10 @@ auto HeadAggregateElement::transform([[maybe_unused]] Library &lib, [[maybe_unus
 
 auto HeadAggregateElement::update(Library &lib, py::kwargs const &kwargs) -> HeadAggregateElement {
     return HeadAggregateElement::construct(
-        lib, update_value<clingo_location_t>(lib, this, &HeadAggregateElement::location, kwargs, "location"),
-        update_value<TermArray>(lib, this, &HeadAggregateElement::tuple, kwargs, "tuple"),
-        update_value<Literal>(lib, this, &HeadAggregateElement::literal, kwargs, "literal"),
-        update_value<LiteralArray>(lib, this, &HeadAggregateElement::condition, kwargs, "condition"));
+        lib, update_value<clingo_location_t>(this, &HeadAggregateElement::location, kwargs, "location"),
+        update_value<TermArray>(this, &HeadAggregateElement::tuple, kwargs, "tuple"),
+        update_value<Literal>(this, &HeadAggregateElement::literal, kwargs, "literal"),
+        update_value<LiteralArray>(this, &HeadAggregateElement::condition, kwargs, "condition"));
 }
 
 auto construct_head_aggregate_element_array(clingo_ast_t **ast, size_t size) -> HeadAggregateElementArray {
@@ -7927,8 +7944,8 @@ auto HeadSimpleLiteral::transform([[maybe_unused]] Library &lib, [[maybe_unused]
 }
 
 auto HeadSimpleLiteral::update(Library &lib, py::kwargs const &kwargs) -> HeadSimpleLiteral {
-    return HeadSimpleLiteral::construct(
-        lib, update_value<Literal>(lib, this, &HeadSimpleLiteral::literal, kwargs, "literal"));
+    return HeadSimpleLiteral::construct(lib,
+                                        update_value<Literal>(this, &HeadSimpleLiteral::literal, kwargs, "literal"));
 }
 
 auto HeadAggregate::location() -> clingo_location_t {
@@ -8015,11 +8032,11 @@ auto HeadAggregate::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py
 
 auto HeadAggregate::update(Library &lib, py::kwargs const &kwargs) -> HeadAggregate {
     return HeadAggregate::construct(
-        lib, update_value<clingo_location_t>(lib, this, &HeadAggregate::location, kwargs, "location"),
-        update_value<OptionalLeftGuard>(lib, this, &HeadAggregate::left, kwargs, "left"),
-        update_value<AggregateFunction>(lib, this, &HeadAggregate::function, kwargs, "function"),
-        update_value<HeadAggregateElementArray>(lib, this, &HeadAggregate::elements, kwargs, "elements"),
-        update_value<OptionalRightGuard>(lib, this, &HeadAggregate::right, kwargs, "right"));
+        lib, update_value<clingo_location_t>(this, &HeadAggregate::location, kwargs, "location"),
+        update_value<OptionalLeftGuard>(this, &HeadAggregate::left, kwargs, "left"),
+        update_value<AggregateFunction>(this, &HeadAggregate::function, kwargs, "function"),
+        update_value<HeadAggregateElementArray>(this, &HeadAggregate::elements, kwargs, "elements"),
+        update_value<OptionalRightGuard>(this, &HeadAggregate::right, kwargs, "right"));
 }
 
 auto HeadSetAggregate::location() -> clingo_location_t {
@@ -8097,10 +8114,10 @@ auto HeadSetAggregate::transform([[maybe_unused]] Library &lib, [[maybe_unused]]
 
 auto HeadSetAggregate::update(Library &lib, py::kwargs const &kwargs) -> HeadSetAggregate {
     return HeadSetAggregate::construct(
-        lib, update_value<clingo_location_t>(lib, this, &HeadSetAggregate::location, kwargs, "location"),
-        update_value<OptionalLeftGuard>(lib, this, &HeadSetAggregate::left, kwargs, "left"),
-        update_value<SetAggregateElementArray>(lib, this, &HeadSetAggregate::elements, kwargs, "elements"),
-        update_value<OptionalRightGuard>(lib, this, &HeadSetAggregate::right, kwargs, "right"));
+        lib, update_value<clingo_location_t>(this, &HeadSetAggregate::location, kwargs, "location"),
+        update_value<OptionalLeftGuard>(this, &HeadSetAggregate::left, kwargs, "left"),
+        update_value<SetAggregateElementArray>(this, &HeadSetAggregate::elements, kwargs, "elements"),
+        update_value<OptionalRightGuard>(this, &HeadSetAggregate::right, kwargs, "right"));
 }
 
 auto HeadTheoryAtom::location() -> clingo_location_t {
@@ -8172,10 +8189,10 @@ auto HeadTheoryAtom::transform([[maybe_unused]] Library &lib, [[maybe_unused]] p
 
 auto HeadTheoryAtom::update(Library &lib, py::kwargs const &kwargs) -> HeadTheoryAtom {
     return HeadTheoryAtom::construct(
-        lib, update_value<clingo_location_t>(lib, this, &HeadTheoryAtom::location, kwargs, "location"),
-        update_value<Term>(lib, this, &HeadTheoryAtom::name, kwargs, "name"),
-        update_value<TheoryAtomElementArray>(lib, this, &HeadTheoryAtom::elements, kwargs, "elements"),
-        update_value<OptionalTheoryRightGuard>(lib, this, &HeadTheoryAtom::right, kwargs, "right"));
+        lib, update_value<clingo_location_t>(this, &HeadTheoryAtom::location, kwargs, "location"),
+        update_value<Term>(this, &HeadTheoryAtom::name, kwargs, "name"),
+        update_value<TheoryAtomElementArray>(this, &HeadTheoryAtom::elements, kwargs, "elements"),
+        update_value<OptionalTheoryRightGuard>(this, &HeadTheoryAtom::right, kwargs, "right"));
 }
 
 auto HeadDisjunction::location() -> clingo_location_t {
@@ -8220,8 +8237,8 @@ auto HeadDisjunction::transform([[maybe_unused]] Library &lib, [[maybe_unused]] 
 
 auto HeadDisjunction::update(Library &lib, py::kwargs const &kwargs) -> HeadDisjunction {
     return HeadDisjunction::construct(
-        lib, update_value<clingo_location_t>(lib, this, &HeadDisjunction::location, kwargs, "location"),
-        update_value<DisjunctionElementArray>(lib, this, &HeadDisjunction::elements, kwargs, "elements"));
+        lib, update_value<clingo_location_t>(this, &HeadDisjunction::location, kwargs, "location"),
+        update_value<DisjunctionElementArray>(this, &HeadDisjunction::elements, kwargs, "elements"));
 }
 
 auto TheoryOperatorDefinition::location() -> clingo_location_t {
@@ -8276,10 +8293,10 @@ auto TheoryOperatorDefinition::transform(
 
 auto TheoryOperatorDefinition::update(Library &lib, py::kwargs const &kwargs) -> TheoryOperatorDefinition {
     return TheoryOperatorDefinition::construct(
-        lib, update_value<clingo_location_t>(lib, this, &TheoryOperatorDefinition::location, kwargs, "location"),
-        update_value<char const *>(lib, this, &TheoryOperatorDefinition::name, kwargs, "name"),
-        update_value<int>(lib, this, &TheoryOperatorDefinition::priority, kwargs, "priority"),
-        update_value<TheoryOperatorType>(lib, this, &TheoryOperatorDefinition::operator_type, kwargs, "operator_type"));
+        lib, update_value<clingo_location_t>(this, &TheoryOperatorDefinition::location, kwargs, "location"),
+        update_value<char const *>(this, &TheoryOperatorDefinition::name, kwargs, "name"),
+        update_value<int>(this, &TheoryOperatorDefinition::priority, kwargs, "priority"),
+        update_value<TheoryOperatorType>(this, &TheoryOperatorDefinition::operator_type, kwargs, "operator_type"));
 }
 
 auto construct_theory_operator_definition_array(clingo_ast_t **ast, size_t size) -> TheoryOperatorDefinitionArray {
@@ -8349,9 +8366,9 @@ auto TheoryTermDefinition::transform([[maybe_unused]] Library &lib, [[maybe_unus
 
 auto TheoryTermDefinition::update(Library &lib, py::kwargs const &kwargs) -> TheoryTermDefinition {
     return TheoryTermDefinition::construct(
-        lib, update_value<clingo_location_t>(lib, this, &TheoryTermDefinition::location, kwargs, "location"),
-        update_value<char const *>(lib, this, &TheoryTermDefinition::name, kwargs, "name"),
-        update_value<TheoryOperatorDefinitionArray>(lib, this, &TheoryTermDefinition::operators, kwargs, "operators"));
+        lib, update_value<clingo_location_t>(this, &TheoryTermDefinition::location, kwargs, "location"),
+        update_value<char const *>(this, &TheoryTermDefinition::name, kwargs, "name"),
+        update_value<TheoryOperatorDefinitionArray>(this, &TheoryTermDefinition::operators, kwargs, "operators"));
 }
 
 auto construct_theory_term_definition_array(clingo_ast_t **ast, size_t size) -> TheoryTermDefinitionArray {
@@ -8411,8 +8428,8 @@ auto TheoryGuardDefinition::transform([[maybe_unused]] Library &lib, [[maybe_unu
 
 auto TheoryGuardDefinition::update(Library &lib, py::kwargs const &kwargs) -> TheoryGuardDefinition {
     return TheoryGuardDefinition::construct(
-        lib, update_value<StringArray>(lib, this, &TheoryGuardDefinition::operators, kwargs, "operators"),
-        update_value<char const *>(lib, this, &TheoryGuardDefinition::term, kwargs, "term"));
+        lib, update_value<StringArray>(this, &TheoryGuardDefinition::operators, kwargs, "operators"),
+        update_value<char const *>(this, &TheoryGuardDefinition::term, kwargs, "term"));
 }
 
 auto TheoryAtomDefinition::location() -> clingo_location_t {
@@ -8495,12 +8512,12 @@ auto TheoryAtomDefinition::transform([[maybe_unused]] Library &lib, [[maybe_unus
 
 auto TheoryAtomDefinition::update(Library &lib, py::kwargs const &kwargs) -> TheoryAtomDefinition {
     return TheoryAtomDefinition::construct(
-        lib, update_value<clingo_location_t>(lib, this, &TheoryAtomDefinition::location, kwargs, "location"),
-        update_value<char const *>(lib, this, &TheoryAtomDefinition::name, kwargs, "name"),
-        update_value<int>(lib, this, &TheoryAtomDefinition::arity, kwargs, "arity"),
-        update_value<char const *>(lib, this, &TheoryAtomDefinition::term, kwargs, "term"),
-        update_value<OptionalTheoryGuardDefinition>(lib, this, &TheoryAtomDefinition::guard, kwargs, "guard"),
-        update_value<TheoryAtomType>(lib, this, &TheoryAtomDefinition::atom_type, kwargs, "atom_type"));
+        lib, update_value<clingo_location_t>(this, &TheoryAtomDefinition::location, kwargs, "location"),
+        update_value<char const *>(this, &TheoryAtomDefinition::name, kwargs, "name"),
+        update_value<int>(this, &TheoryAtomDefinition::arity, kwargs, "arity"),
+        update_value<char const *>(this, &TheoryAtomDefinition::term, kwargs, "term"),
+        update_value<OptionalTheoryGuardDefinition>(this, &TheoryAtomDefinition::guard, kwargs, "guard"),
+        update_value<TheoryAtomType>(this, &TheoryAtomDefinition::atom_type, kwargs, "atom_type"));
 }
 
 auto construct_theory_atom_definition_array(clingo_ast_t **ast, size_t size) -> TheoryAtomDefinitionArray {
@@ -8579,9 +8596,9 @@ auto OptimizeTuple::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py
 }
 
 auto OptimizeTuple::update(Library &lib, py::kwargs const &kwargs) -> OptimizeTuple {
-    return OptimizeTuple::construct(lib, update_value<Term>(lib, this, &OptimizeTuple::weight, kwargs, "weight"),
-                                    update_value<OptionalTerm>(lib, this, &OptimizeTuple::priority, kwargs, "priority"),
-                                    update_value<TermArray>(lib, this, &OptimizeTuple::terms, kwargs, "terms"));
+    return OptimizeTuple::construct(lib, update_value<Term>(this, &OptimizeTuple::weight, kwargs, "weight"),
+                                    update_value<OptionalTerm>(this, &OptimizeTuple::priority, kwargs, "priority"),
+                                    update_value<TermArray>(this, &OptimizeTuple::terms, kwargs, "terms"));
 }
 
 auto OptimizeElement::tuple() -> OptimizeTuple {
@@ -8628,8 +8645,8 @@ auto OptimizeElement::transform([[maybe_unused]] Library &lib, [[maybe_unused]] 
 
 auto OptimizeElement::update(Library &lib, py::kwargs const &kwargs) -> OptimizeElement {
     return OptimizeElement::construct(
-        lib, update_value<OptimizeTuple>(lib, this, &OptimizeElement::tuple, kwargs, "tuple"),
-        update_value<LiteralArray>(lib, this, &OptimizeElement::condition, kwargs, "condition"));
+        lib, update_value<OptimizeTuple>(this, &OptimizeElement::tuple, kwargs, "tuple"),
+        update_value<LiteralArray>(this, &OptimizeElement::condition, kwargs, "condition"));
 }
 
 auto construct_optimize_element_array(clingo_ast_t **ast, size_t size) -> OptimizeElementArray {
@@ -8689,8 +8706,8 @@ auto Edge::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle 
 }
 
 auto Edge::update(Library &lib, py::kwargs const &kwargs) -> Edge {
-    return Edge::construct(lib, update_value<Term>(lib, this, &Edge::u, kwargs, "u"),
-                           update_value<Term>(lib, this, &Edge::v, kwargs, "v"));
+    return Edge::construct(lib, update_value<Term>(this, &Edge::u, kwargs, "u"),
+                           update_value<Term>(this, &Edge::v, kwargs, "v"));
 }
 
 auto construct_edge_array(clingo_ast_t **ast, size_t size) -> EdgeArray {
@@ -8829,10 +8846,10 @@ auto StatementRule::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py
 }
 
 auto StatementRule::update(Library &lib, py::kwargs const &kwargs) -> StatementRule {
-    return StatementRule::construct(
-        lib, update_value<clingo_location_t>(lib, this, &StatementRule::location, kwargs, "location"),
-        update_value<HeadLiteral>(lib, this, &StatementRule::head, kwargs, "head"),
-        update_value<BodyLiteralArray>(lib, this, &StatementRule::body, kwargs, "body"));
+    return StatementRule::construct(lib,
+                                    update_value<clingo_location_t>(this, &StatementRule::location, kwargs, "location"),
+                                    update_value<HeadLiteral>(this, &StatementRule::head, kwargs, "head"),
+                                    update_value<BodyLiteralArray>(this, &StatementRule::body, kwargs, "body"));
 }
 
 auto StatementTheory::location() -> clingo_location_t {
@@ -8897,10 +8914,10 @@ auto StatementTheory::transform([[maybe_unused]] Library &lib, [[maybe_unused]] 
 
 auto StatementTheory::update(Library &lib, py::kwargs const &kwargs) -> StatementTheory {
     return StatementTheory::construct(
-        lib, update_value<clingo_location_t>(lib, this, &StatementTheory::location, kwargs, "location"),
-        update_value<char const *>(lib, this, &StatementTheory::name, kwargs, "name"),
-        update_value<TheoryTermDefinitionArray>(lib, this, &StatementTheory::terms, kwargs, "terms"),
-        update_value<TheoryAtomDefinitionArray>(lib, this, &StatementTheory::atoms, kwargs, "atoms"));
+        lib, update_value<clingo_location_t>(this, &StatementTheory::location, kwargs, "location"),
+        update_value<char const *>(this, &StatementTheory::name, kwargs, "name"),
+        update_value<TheoryTermDefinitionArray>(this, &StatementTheory::terms, kwargs, "terms"),
+        update_value<TheoryAtomDefinitionArray>(this, &StatementTheory::atoms, kwargs, "atoms"));
 }
 
 auto StatementOptimize::location() -> clingo_location_t {
@@ -8953,9 +8970,9 @@ auto StatementOptimize::transform([[maybe_unused]] Library &lib, [[maybe_unused]
 
 auto StatementOptimize::update(Library &lib, py::kwargs const &kwargs) -> StatementOptimize {
     return StatementOptimize::construct(
-        lib, update_value<clingo_location_t>(lib, this, &StatementOptimize::location, kwargs, "location"),
-        update_value<OptimizeElementArray>(lib, this, &StatementOptimize::elements, kwargs, "elements"),
-        update_value<OptimizeType>(lib, this, &StatementOptimize::optimize_type, kwargs, "optimize_type"));
+        lib, update_value<clingo_location_t>(this, &StatementOptimize::location, kwargs, "location"),
+        update_value<OptimizeElementArray>(this, &StatementOptimize::elements, kwargs, "elements"),
+        update_value<OptimizeType>(this, &StatementOptimize::optimize_type, kwargs, "optimize_type"));
 }
 
 auto StatementWeakConstraint::location() -> clingo_location_t {
@@ -9010,9 +9027,9 @@ auto StatementWeakConstraint::transform(
 
 auto StatementWeakConstraint::update(Library &lib, py::kwargs const &kwargs) -> StatementWeakConstraint {
     return StatementWeakConstraint::construct(
-        lib, update_value<clingo_location_t>(lib, this, &StatementWeakConstraint::location, kwargs, "location"),
-        update_value<BodyLiteralArray>(lib, this, &StatementWeakConstraint::body, kwargs, "body"),
-        update_value<OptimizeTuple>(lib, this, &StatementWeakConstraint::tuple, kwargs, "tuple"));
+        lib, update_value<clingo_location_t>(this, &StatementWeakConstraint::location, kwargs, "location"),
+        update_value<BodyLiteralArray>(this, &StatementWeakConstraint::body, kwargs, "body"),
+        update_value<OptimizeTuple>(this, &StatementWeakConstraint::tuple, kwargs, "tuple"));
 }
 
 auto StatementShow::location() -> clingo_location_t {
@@ -9066,10 +9083,10 @@ auto StatementShow::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py
 }
 
 auto StatementShow::update(Library &lib, py::kwargs const &kwargs) -> StatementShow {
-    return StatementShow::construct(
-        lib, update_value<clingo_location_t>(lib, this, &StatementShow::location, kwargs, "location"),
-        update_value<Term>(lib, this, &StatementShow::term, kwargs, "term"),
-        update_value<BodyLiteralArray>(lib, this, &StatementShow::body, kwargs, "body"));
+    return StatementShow::construct(lib,
+                                    update_value<clingo_location_t>(this, &StatementShow::location, kwargs, "location"),
+                                    update_value<Term>(this, &StatementShow::term, kwargs, "term"),
+                                    update_value<BodyLiteralArray>(this, &StatementShow::body, kwargs, "body"));
 }
 
 auto StatementShowNothing::location() -> clingo_location_t {
@@ -9097,7 +9114,7 @@ auto StatementShowNothing::transform([[maybe_unused]] Library &lib, [[maybe_unus
 
 auto StatementShowNothing::update(Library &lib, py::kwargs const &kwargs) -> StatementShowNothing {
     return StatementShowNothing::construct(
-        lib, update_value<clingo_location_t>(lib, this, &StatementShowNothing::location, kwargs, "location"));
+        lib, update_value<clingo_location_t>(this, &StatementShowNothing::location, kwargs, "location"));
 }
 
 auto StatementShowSignature::location() -> clingo_location_t {
@@ -9151,10 +9168,10 @@ auto StatementShowSignature::transform([[maybe_unused]] Library &lib, [[maybe_un
 
 auto StatementShowSignature::update(Library &lib, py::kwargs const &kwargs) -> StatementShowSignature {
     return StatementShowSignature::construct(
-        lib, update_value<clingo_location_t>(lib, this, &StatementShowSignature::location, kwargs, "location"),
-        update_value<char const *>(lib, this, &StatementShowSignature::name, kwargs, "name"),
-        update_value<int>(lib, this, &StatementShowSignature::arity, kwargs, "arity"),
-        update_value<bool>(lib, this, &StatementShowSignature::sign, kwargs, "sign"));
+        lib, update_value<clingo_location_t>(this, &StatementShowSignature::location, kwargs, "location"),
+        update_value<char const *>(this, &StatementShowSignature::name, kwargs, "name"),
+        update_value<int>(this, &StatementShowSignature::arity, kwargs, "arity"),
+        update_value<bool>(this, &StatementShowSignature::sign, kwargs, "sign"));
 }
 
 auto StatementProject::location() -> clingo_location_t {
@@ -9209,9 +9226,9 @@ auto StatementProject::transform([[maybe_unused]] Library &lib, [[maybe_unused]]
 
 auto StatementProject::update(Library &lib, py::kwargs const &kwargs) -> StatementProject {
     return StatementProject::construct(
-        lib, update_value<clingo_location_t>(lib, this, &StatementProject::location, kwargs, "location"),
-        update_value<Term>(lib, this, &StatementProject::atom, kwargs, "atom"),
-        update_value<BodyLiteralArray>(lib, this, &StatementProject::body, kwargs, "body"));
+        lib, update_value<clingo_location_t>(this, &StatementProject::location, kwargs, "location"),
+        update_value<Term>(this, &StatementProject::atom, kwargs, "atom"),
+        update_value<BodyLiteralArray>(this, &StatementProject::body, kwargs, "body"));
 }
 
 auto StatementProjectSignature::location() -> clingo_location_t {
@@ -9265,10 +9282,10 @@ auto StatementProjectSignature::transform(
 
 auto StatementProjectSignature::update(Library &lib, py::kwargs const &kwargs) -> StatementProjectSignature {
     return StatementProjectSignature::construct(
-        lib, update_value<clingo_location_t>(lib, this, &StatementProjectSignature::location, kwargs, "location"),
-        update_value<char const *>(lib, this, &StatementProjectSignature::name, kwargs, "name"),
-        update_value<int>(lib, this, &StatementProjectSignature::arity, kwargs, "arity"),
-        update_value<bool>(lib, this, &StatementProjectSignature::sign, kwargs, "sign"));
+        lib, update_value<clingo_location_t>(this, &StatementProjectSignature::location, kwargs, "location"),
+        update_value<char const *>(this, &StatementProjectSignature::name, kwargs, "name"),
+        update_value<int>(this, &StatementProjectSignature::arity, kwargs, "arity"),
+        update_value<bool>(this, &StatementProjectSignature::sign, kwargs, "sign"));
 }
 
 auto StatementDefined::location() -> clingo_location_t {
@@ -9322,10 +9339,10 @@ auto StatementDefined::transform([[maybe_unused]] Library &lib, [[maybe_unused]]
 
 auto StatementDefined::update(Library &lib, py::kwargs const &kwargs) -> StatementDefined {
     return StatementDefined::construct(
-        lib, update_value<clingo_location_t>(lib, this, &StatementDefined::location, kwargs, "location"),
-        update_value<char const *>(lib, this, &StatementDefined::name, kwargs, "name"),
-        update_value<int>(lib, this, &StatementDefined::arity, kwargs, "arity"),
-        update_value<bool>(lib, this, &StatementDefined::sign, kwargs, "sign"));
+        lib, update_value<clingo_location_t>(this, &StatementDefined::location, kwargs, "location"),
+        update_value<char const *>(this, &StatementDefined::name, kwargs, "name"),
+        update_value<int>(this, &StatementDefined::arity, kwargs, "arity"),
+        update_value<bool>(this, &StatementDefined::sign, kwargs, "sign"));
 }
 
 auto StatementExternal::location() -> clingo_location_t {
@@ -9397,10 +9414,10 @@ auto StatementExternal::transform([[maybe_unused]] Library &lib, [[maybe_unused]
 
 auto StatementExternal::update(Library &lib, py::kwargs const &kwargs) -> StatementExternal {
     return StatementExternal::construct(
-        lib, update_value<clingo_location_t>(lib, this, &StatementExternal::location, kwargs, "location"),
-        update_value<Term>(lib, this, &StatementExternal::atom, kwargs, "atom"),
-        update_value<BodyLiteralArray>(lib, this, &StatementExternal::body, kwargs, "body"),
-        update_value<OptionalTerm>(lib, this, &StatementExternal::external_type, kwargs, "external_type"));
+        lib, update_value<clingo_location_t>(this, &StatementExternal::location, kwargs, "location"),
+        update_value<Term>(this, &StatementExternal::atom, kwargs, "atom"),
+        update_value<BodyLiteralArray>(this, &StatementExternal::body, kwargs, "body"),
+        update_value<OptionalTerm>(this, &StatementExternal::external_type, kwargs, "external_type"));
 }
 
 auto StatementEdge::location() -> clingo_location_t {
@@ -9455,10 +9472,10 @@ auto StatementEdge::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py
 }
 
 auto StatementEdge::update(Library &lib, py::kwargs const &kwargs) -> StatementEdge {
-    return StatementEdge::construct(
-        lib, update_value<clingo_location_t>(lib, this, &StatementEdge::location, kwargs, "location"),
-        update_value<EdgeArray>(lib, this, &StatementEdge::pool, kwargs, "pool"),
-        update_value<BodyLiteralArray>(lib, this, &StatementEdge::body, kwargs, "body"));
+    return StatementEdge::construct(lib,
+                                    update_value<clingo_location_t>(this, &StatementEdge::location, kwargs, "location"),
+                                    update_value<EdgeArray>(this, &StatementEdge::pool, kwargs, "pool"),
+                                    update_value<BodyLiteralArray>(this, &StatementEdge::body, kwargs, "body"));
 }
 
 auto StatementHeuristic::location() -> clingo_location_t {
@@ -9552,12 +9569,12 @@ auto StatementHeuristic::transform([[maybe_unused]] Library &lib, [[maybe_unused
 
 auto StatementHeuristic::update(Library &lib, py::kwargs const &kwargs) -> StatementHeuristic {
     return StatementHeuristic::construct(
-        lib, update_value<clingo_location_t>(lib, this, &StatementHeuristic::location, kwargs, "location"),
-        update_value<Term>(lib, this, &StatementHeuristic::atom, kwargs, "atom"),
-        update_value<BodyLiteralArray>(lib, this, &StatementHeuristic::body, kwargs, "body"),
-        update_value<Term>(lib, this, &StatementHeuristic::weight, kwargs, "weight"),
-        update_value<Term>(lib, this, &StatementHeuristic::modifier, kwargs, "modifier"),
-        update_value<OptionalTerm>(lib, this, &StatementHeuristic::priority, kwargs, "priority"));
+        lib, update_value<clingo_location_t>(this, &StatementHeuristic::location, kwargs, "location"),
+        update_value<Term>(this, &StatementHeuristic::atom, kwargs, "atom"),
+        update_value<BodyLiteralArray>(this, &StatementHeuristic::body, kwargs, "body"),
+        update_value<Term>(this, &StatementHeuristic::weight, kwargs, "weight"),
+        update_value<Term>(this, &StatementHeuristic::modifier, kwargs, "modifier"),
+        update_value<OptionalTerm>(this, &StatementHeuristic::priority, kwargs, "priority"));
 }
 
 auto StatementScript::location() -> clingo_location_t {
@@ -9603,9 +9620,9 @@ auto StatementScript::transform([[maybe_unused]] Library &lib, [[maybe_unused]] 
 
 auto StatementScript::update(Library &lib, py::kwargs const &kwargs) -> StatementScript {
     return StatementScript::construct(
-        lib, update_value<clingo_location_t>(lib, this, &StatementScript::location, kwargs, "location"),
-        update_value<char const *>(lib, this, &StatementScript::value, kwargs, "value"),
-        update_value<char const *>(lib, this, &StatementScript::script_type, kwargs, "script_type"));
+        lib, update_value<clingo_location_t>(this, &StatementScript::location, kwargs, "location"),
+        update_value<char const *>(this, &StatementScript::value, kwargs, "value"),
+        update_value<char const *>(this, &StatementScript::script_type, kwargs, "script_type"));
 }
 
 auto StatementInclude::location() -> clingo_location_t {
@@ -9651,9 +9668,9 @@ auto StatementInclude::transform([[maybe_unused]] Library &lib, [[maybe_unused]]
 
 auto StatementInclude::update(Library &lib, py::kwargs const &kwargs) -> StatementInclude {
     return StatementInclude::construct(
-        lib, update_value<clingo_location_t>(lib, this, &StatementInclude::location, kwargs, "location"),
-        update_value<char const *>(lib, this, &StatementInclude::value, kwargs, "value"),
-        update_value<IncludeType>(lib, this, &StatementInclude::include_type, kwargs, "include_type"));
+        lib, update_value<clingo_location_t>(this, &StatementInclude::location, kwargs, "location"),
+        update_value<char const *>(this, &StatementInclude::value, kwargs, "value"),
+        update_value<IncludeType>(this, &StatementInclude::include_type, kwargs, "include_type"));
 }
 
 auto StatementProgram::location() -> clingo_location_t {
@@ -9704,9 +9721,9 @@ auto StatementProgram::transform([[maybe_unused]] Library &lib, [[maybe_unused]]
 
 auto StatementProgram::update(Library &lib, py::kwargs const &kwargs) -> StatementProgram {
     return StatementProgram::construct(
-        lib, update_value<clingo_location_t>(lib, this, &StatementProgram::location, kwargs, "location"),
-        update_value<char const *>(lib, this, &StatementProgram::name, kwargs, "name"),
-        update_value<StringArray>(lib, this, &StatementProgram::arguments, kwargs, "arguments"));
+        lib, update_value<clingo_location_t>(this, &StatementProgram::location, kwargs, "location"),
+        update_value<char const *>(this, &StatementProgram::name, kwargs, "name"),
+        update_value<StringArray>(this, &StatementProgram::arguments, kwargs, "arguments"));
 }
 
 auto StatementConst::location() -> clingo_location_t {
@@ -9766,10 +9783,10 @@ auto StatementConst::transform([[maybe_unused]] Library &lib, [[maybe_unused]] p
 
 auto StatementConst::update(Library &lib, py::kwargs const &kwargs) -> StatementConst {
     return StatementConst::construct(
-        lib, update_value<clingo_location_t>(lib, this, &StatementConst::location, kwargs, "location"),
-        update_value<char const *>(lib, this, &StatementConst::name, kwargs, "name"),
-        update_value<Term>(lib, this, &StatementConst::value, kwargs, "value"),
-        update_value<ConstType>(lib, this, &StatementConst::const_type, kwargs, "const_type"));
+        lib, update_value<clingo_location_t>(this, &StatementConst::location, kwargs, "location"),
+        update_value<char const *>(this, &StatementConst::name, kwargs, "name"),
+        update_value<Term>(this, &StatementConst::value, kwargs, "value"),
+        update_value<ConstType>(this, &StatementConst::const_type, kwargs, "const_type"));
 }
 
 auto StatementComment::location() -> clingo_location_t {
@@ -9815,9 +9832,9 @@ auto StatementComment::transform([[maybe_unused]] Library &lib, [[maybe_unused]]
 
 auto StatementComment::update(Library &lib, py::kwargs const &kwargs) -> StatementComment {
     return StatementComment::construct(
-        lib, update_value<clingo_location_t>(lib, this, &StatementComment::location, kwargs, "location"),
-        update_value<char const *>(lib, this, &StatementComment::value, kwargs, "value"),
-        update_value<CommentType>(lib, this, &StatementComment::comment_type, kwargs, "comment_type"));
+        lib, update_value<clingo_location_t>(this, &StatementComment::location, kwargs, "location"),
+        update_value<char const *>(this, &StatementComment::value, kwargs, "value"),
+        update_value<CommentType>(this, &StatementComment::comment_type, kwargs, "comment_type"));
 }
 
 template <class T> auto c_cast(std::optional<T> const &opt) -> clingo_ast_t * {
@@ -9889,13 +9906,21 @@ auto transform_opt_value(Value opt, py::handle transform, py::args const &args,
     return {std::nullopt, false};
 }
 
+namespace {
+
+struct CString {
+    CString(std::string &&str) : str_{std::move(str)} {}
+    operator char const *() const { return str_.c_str(); }
+    std::string str_;
+};
+
+} // namespace
+
 template <class T, class F, class M>
-auto update_value(Library &lib, F *self, M fun, py::kwargs const &kwargs, char const *attr) -> T {
+auto update_value(F *self, M fun, py::kwargs const &kwargs, char const *attr) -> update_result_t<T> {
     if constexpr (std::is_same_v<T, char const *>) {
         if (kwargs.contains(attr)) {
-            char const *res = nullptr;
-            clingo_add_string(lib, py::cast<std::string>(kwargs[attr]).c_str(), &res);
-            return res;
+            return py::cast<std::string>(kwargs[attr]);
         }
     } else {
         if (kwargs.contains(attr)) {

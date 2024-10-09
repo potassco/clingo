@@ -580,21 +580,77 @@ auto operator<<(Util::OutputBuffer &out, String const &str) -> Util::OutputBuffe
     return out;
 }
 
-// String
-
-void SharedString::acquire_() const noexcept {
-    if (auto rep = String::to_rep(ref_); rep != 0) {
-        inc_ref(CharArray::from_repr(rep).ref_count());
+void String::acquire() const noexcept {
+    if (rep_ != 0) {
+        inc_ref(CharArray::from_repr(rep_).ref_count());
     }
 }
 
-void SharedString::release_() const noexcept {
-    if (auto rep = String::to_rep(ref_); rep != 0) {
-        dec_ref(CharArray::from_repr(rep).ref_count());
+void String::release() const noexcept {
+    if (rep_ != 0) {
+        dec_ref(CharArray::from_repr(rep_).ref_count());
     }
 }
 
 // SymbolRef
+
+void Symbol::acquire() const noexcept {
+    auto val = rep_ & ~TYPE_MASK;
+    switch (rep_ & TYPE_MASK) {
+        case REP_ID:
+        case REP_SIGNED_ID:
+        case REP_STR: {
+            if (val != 0) {
+                inc_ref(CharArray::from_repr(val).ref_count());
+            }
+            break;
+        }
+        case REP_SIGNED_FUN:
+        case REP_FUN:
+        case REP_TUP: {
+            if (val != 0) {
+                inc_ref(SymbolArray::from_repr(val).ref_count());
+            }
+            break;
+        }
+        case REP_BIGINT: {
+            inc_ref(bigint_refcount(rep_));
+            break;
+        }
+        default: {
+            break;
+        }
+    }
+}
+
+void Symbol::release() const noexcept {
+    auto val = rep_ & ~TYPE_MASK;
+    switch (rep_ & TYPE_MASK) {
+        case REP_ID:
+        case REP_SIGNED_ID:
+        case REP_STR: {
+            if (val != 0) {
+                dec_ref(CharArray::from_repr(val).ref_count());
+            }
+            break;
+        }
+        case REP_SIGNED_FUN:
+        case REP_FUN:
+        case REP_TUP: {
+            if (val != 0) {
+                dec_ref(SymbolArray::from_repr(val).ref_count());
+            }
+            break;
+        }
+        case REP_BIGINT: {
+            dec_ref(bigint_refcount(rep_));
+            break;
+        }
+        default: {
+            break;
+        }
+    }
+}
 
 auto Symbol::num() const noexcept -> Number const & {
     assert(type() == SymbolType::number);
@@ -774,66 +830,6 @@ auto operator<<(Util::OutputBuffer &out, Symbol const &sym) -> Util::OutputBuffe
 }
 
 // Symbol
-
-void SharedSymbol::acquire_() const noexcept {
-    auto rep = Symbol::to_rep(ref_);
-    auto val = rep & ~TYPE_MASK;
-    switch (rep & TYPE_MASK) {
-        case REP_ID:
-        case REP_SIGNED_ID:
-        case REP_STR: {
-            if (val != 0) {
-                inc_ref(CharArray::from_repr(val).ref_count());
-            }
-            break;
-        }
-        case REP_SIGNED_FUN:
-        case REP_FUN:
-        case REP_TUP: {
-            if (val != 0) {
-                inc_ref(SymbolArray::from_repr(val).ref_count());
-            }
-            break;
-        }
-        case REP_BIGINT: {
-            inc_ref(bigint_refcount(rep));
-            break;
-        }
-        default: {
-            break;
-        }
-    }
-}
-
-void SharedSymbol::release_() const noexcept {
-    auto rep = Symbol::to_rep(ref_);
-    auto val = rep & ~TYPE_MASK;
-    switch (rep & TYPE_MASK) {
-        case REP_ID:
-        case REP_SIGNED_ID:
-        case REP_STR: {
-            if (val != 0) {
-                dec_ref(CharArray::from_repr(val).ref_count());
-            }
-            break;
-        }
-        case REP_SIGNED_FUN:
-        case REP_FUN:
-        case REP_TUP: {
-            if (val != 0) {
-                dec_ref(SymbolArray::from_repr(val).ref_count());
-            }
-            break;
-        }
-        case REP_BIGINT: {
-            dec_ref(bigint_refcount(rep));
-            break;
-        }
-        default: {
-            break;
-        }
-    }
-}
 
 void SymbolCollector::mark(Symbol const &sym) {
     stack_.emplace_back(sym);

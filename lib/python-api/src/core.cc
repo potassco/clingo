@@ -53,8 +53,11 @@ auto version() -> std::tuple<int, int, int> {
 }
 
 auto Position::construct(Library &lib, char const *file_name, size_t line, size_t column) -> Position {
+    // TODO: positions and locations have to be acquired and released
+    clingo_symbol_t sym = 0;
+    handle_error(lib, clingo_symbol_create_string(lib, file_name, &sym));
     char const *str = nullptr;
-    handle_error(lib, clingo_add_string(lib, file_name, &str));
+    handle_error(lib, clingo_symbol_string(sym, &str));
     return {str, line, column};
 }
 

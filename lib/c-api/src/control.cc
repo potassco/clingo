@@ -44,7 +44,7 @@ extern "C" auto clingo_control_parse_string(clingo_control_t *control, char cons
 extern "C" auto clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts,
                                       size_t parts_size) -> bool {
     CLINGO_TRY {
-        auto make_part = [&](auto const &sym) { return Clingo::SharedSymbol::from_rep(sym, true); };
+        auto make_part = [&](auto const &sym) { return Clingo::SharedSymbol{Clingo::Symbol::from_rep(sym)}; };
         auto make_parts = [&](auto const &part) {
             return Clingo::Input::ProgramParam{control->lib->store->string(part.name),
                                                make_vec(part.params, part.params + part.size, make_part)};
