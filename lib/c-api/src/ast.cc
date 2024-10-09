@@ -1453,6 +1453,78 @@ template <> [[nodiscard]] auto clingo_ast::convert<Clingo::Input::Stm>() const -
     }
 }
 
+// TODO: alternative idea how to store the ast
+
+struct idea {
+    template <class T>
+    idea(std::shared_ptr<T> owner, clingo_ast_type_t type, void *ptr)
+        : type_{type}, ptr_{std::move(owner), ptr} {
+
+                       };
+    clingo_ast_type_t type_;
+    std::shared_ptr<void *> ptr_;
+};
+
+template <class T> auto convert(clingo_lib_t *lib, void *arg) {
+    if constexpr (std::is_same_v<T, char const *>) {
+        return lib->store->string(static_cast<T>(arg));
+    } else if constexpr (std::is_same_v<T, clingo_location_t const *>) {
+        return convert_loc(lib, static_cast<T>(arg));
+    } else if constexpr (std::is_same_v<T, clingo_symbol_t const *>) {
+        return Clingo::Symbol::from_rep(*static_cast<T>(arg));
+    } else if constexpr (std::is_same_v<T, bool>) {
+        return *static_cast<int *>(arg) != 0;
+    } else {
+        static_assert(std::is_same_v<T, void>);
+    }
+}
+
+template <class T> auto to_ref(T arg) {
+    if constexpr (std::is_same_v<T, Clingo::SharedSymbol> || std::is_same_v<T, Clingo::SharedString>) {
+        return *arg;
+    } else {
+        return arg;
+    }
+}
+
+template <class T, class... A>
+auto construct_ast2(clingo_lib_t *lib, clingo_ast_type_t type, void **args, clingo_ast_t **ast) -> bool {
+    *ast = [&]<std::size_t... I>(std::index_sequence<I...>) {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+        auto owner = Clingo::Util::make_immutable<std::any>(T{to_ref(convert<A>(lib, args[I]))...});
+        auto *ptr = std::any_cast<T>(&owner.get());
+        // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+        return new clingo_ast{std::move(owner), static_cast<clingo_ast_type_e>(type), ptr};
+    }(std::index_sequence_for<A...>{});
+    return true;
+}
+
+extern "C" auto clingo_ast_construct2(clingo_lib_t *lib, clingo_ast_type_t type, clingo_ast_t **ast,
+                                      void **args) -> bool {
+    using namespace Clingo::Input;
+    CLINGO_TRY {
+        if (lib == nullptr || ast == nullptr) {
+            throw std::invalid_argument("invalid arguments");
+        }
+        *ast = nullptr;
+        // NOLINTNEXTLINE
+        switch (static_cast<clingo_ast_type_e>(type)) {
+            case clingo_ast_type_projection: {
+                return construct_ast2<Clingo::Input::Projection, clingo_location_t const *>(lib, type, args, ast);
+            }
+            case clingo_ast_type_term_variable: {
+                return construct_ast2<Clingo::Input::TermVariable, clingo_location_t const *, char const *, bool>(
+                    lib, type, args, ast);
+            }
+            case clingo_ast_type_term_symbolic: {
+                return construct_ast2<Clingo::Input::TermSymbol, clingo_location_t const *, clingo_symbol_t const *>(
+                    lib, type, args, ast);
+            }
+        }
+    }
+    CLINGO_CATCH(lib);
+}
+
 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
 extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, clingo_ast_t **ast, ...) -> bool {
     using namespace Clingo::Input;
