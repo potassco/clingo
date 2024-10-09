@@ -735,6 +735,9 @@ class TestAST(TestCase):
         self.assertEqual(str(s2), "#show p/2.")
         self.assertEqual(str(s3), "#show -q/2.")
 
+        s4 = ast.StatementShowNothing(self.lib, self.loc)
+        self.assertEqual(str(s4), "#show.")
+
     def test_statement_project(self):
         """
         Test project statements.

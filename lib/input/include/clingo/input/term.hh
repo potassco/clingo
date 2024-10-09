@@ -24,6 +24,8 @@ using VariableSet = StringSet;
 //! A vector of variable names.
 using VariableVec = StringVec;
 
+using Clingo::location;
+
 class TermVariable;
 class TermSymbol;
 class TermTuple;

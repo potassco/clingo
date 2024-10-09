@@ -181,8 +181,7 @@ extern "C" auto clingo_location_to_string_size(clingo_location_t location, size_
     try {
         // TODO: this is ugly -> the string must be managed
         static auto store = Clingo::make_symbol_store(false, false);
-        auto loc =
-            Clingo::Input::Location{{*store->string(location.begin_file), location.begin_line, location.begin_column},
+        auto loc = Clingo::Location{{*store->string(location.begin_file), location.begin_line, location.begin_column},
                                     {*store->string(location.end_file), location.end_line, location.end_column}};
         *size = print_size(loc);
         return true;
@@ -198,8 +197,7 @@ extern "C" auto clingo_location_to_string(clingo_location_t location, char *stri
     try {
         // TODO: this is ugly -> the string must be managed
         auto store = Clingo::make_symbol_store(false, false);
-        auto loc =
-            Clingo::Input::Location{{*store->string(location.begin_file), location.begin_line, location.begin_column},
+        auto loc = Clingo::Location{{*store->string(location.begin_file), location.begin_line, location.begin_column},
                                     {*store->string(location.end_file), location.end_line, location.end_column}};
         print(string, size, loc);
         return true;

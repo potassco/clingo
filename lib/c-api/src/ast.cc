@@ -63,7 +63,7 @@ template <class T> auto make_ast_vec(Owner const &owner, Clingo::Util::immutable
 
 template <class T> auto convert_ast_vec(clingo_ast const **ast, size_t size) -> std::vector<T>;
 
-auto convert_loc(clingo_lib_t *lib, clingo_location_t const *loc) -> Clingo::Input::Location {
+auto convert_loc(clingo_lib_t *lib, clingo_location_t const *loc) -> Clingo::Location {
     return {{*lib->store->string(loc->begin_file), loc->begin_line, loc->begin_column},
             {*lib->store->string(loc->end_file), loc->end_line, loc->end_column}};
 }
@@ -77,7 +77,7 @@ auto convert_string_array(clingo_lib_t *lib, char const **array, size_t size) ->
     return ret;
 }
 
-[[maybe_unused]] auto make_loc(Clingo::Input::Location const &loc) -> clingo_location_t {
+[[maybe_unused]] auto make_loc(Clingo::Location const &loc) -> clingo_location_t {
     return {loc.begin().file().c_str(), loc.end().file().c_str(), loc.begin().line(),
             loc.end().line(),           loc.begin().column(),     loc.end().column()};
 }

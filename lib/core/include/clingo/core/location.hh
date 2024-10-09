@@ -6,7 +6,7 @@
 #include <optional>
 #include <variant>
 
-namespace Clingo::Input {
+namespace Clingo {
 
 //! @addtogroup core_location
 //! @{
@@ -131,4 +131,4 @@ auto location(std::variant<T...> const &x) -> Location const & {
 
 //! @}
 
-} // namespace Clingo::Input
+} // namespace Clingo

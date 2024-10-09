@@ -4095,6 +4095,8 @@ class StatementWeakConstraint;
 
 class StatementShow;
 
+class StatementShowNothing;
+
 class StatementShowSignature;
 
 class StatementProject;
@@ -4119,10 +4121,11 @@ class StatementConst;
 
 class StatementComment;
 
-using Statement = std::variant<StatementRule, StatementTheory, StatementOptimize, StatementWeakConstraint,
-                               StatementShow, StatementShowSignature, StatementProject, StatementProjectSignature,
-                               StatementDefined, StatementExternal, StatementEdge, StatementHeuristic, StatementScript,
-                               StatementInclude, StatementProgram, StatementConst, StatementComment>;
+using Statement =
+    std::variant<StatementRule, StatementTheory, StatementOptimize, StatementWeakConstraint, StatementShow,
+                 StatementShowNothing, StatementShowSignature, StatementProject, StatementProjectSignature,
+                 StatementDefined, StatementExternal, StatementEdge, StatementHeuristic, StatementScript,
+                 StatementInclude, StatementProgram, StatementConst, StatementComment>;
 
 auto construct_statement(clingo_ast_t *ast) -> Statement;
 
@@ -4568,6 +4571,89 @@ class StatementShow {
 };
 
 inline auto c_cast(StatementShow const &x) -> clingo_ast_t * { return x.ast_; }
+
+class StatementShowNothing {
+  public:
+    // Note: for pybind
+    StatementShowNothing() = default;
+
+    StatementShowNothing(StatementShowNothing const &x) {
+        if (!clingo_ast_copy(x.ast_, &ast_)) {
+            throw std::runtime_error("could not copy ast");
+        }
+    }
+
+    StatementShowNothing(StatementShowNothing &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
+    auto operator=(StatementShowNothing const &x) -> StatementShowNothing & {
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            if (!clingo_ast_copy(x.ast_, &ast_)) {
+                throw std::runtime_error("could not copy ast");
+            }
+        }
+        return *this;
+    }
+
+    auto operator=(StatementShowNothing &&x) noexcept -> StatementShowNothing & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    friend auto operator==(StatementShowNothing const &a, StatementShowNothing const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<(StatementShowNothing const &a, StatementShowNothing const &b) -> bool {
+        return clingo_ast_less_than(a.ast_, b.ast_);
+    }
+
+    CLINGO_CPP_TOTAL_ORDER(friend, StatementShowNothing)
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        if (!clingo_ast_to_string_size(ast_, &len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        std::string str;
+        str.resize(len);
+        if (!clingo_ast_to_string(ast_, str.data(), len)) {
+            throw std::runtime_error("could convert to string");
+        }
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    ~StatementShowNothing() { clingo_ast_free(ast_); }
+
+    auto location() -> clingo_location_t;
+
+    static auto acquire(clingo_ast_t *ast) -> StatementShowNothing { return {ast}; }
+
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
+
+    auto transform(Library &lib, py::handle transform, py::args const &args,
+                   py::kwargs const &kwargs) -> std::optional<StatementShowNothing>;
+
+    auto update(Library &lib, py::kwargs const &kwargs) -> StatementShowNothing;
+
+    static auto construct(Library &lib, clingo_location_t const &location) -> StatementShowNothing;
+
+    friend auto c_cast(StatementShowNothing const &x) -> clingo_ast_t *;
+
+  private:
+    StatementShowNothing(clingo_ast_t *ast) : ast_{ast} {}
+
+    clingo_ast_t *ast_ = nullptr;
+};
+
+inline auto c_cast(StatementShowNothing const &x) -> clingo_ast_t * { return x.ast_; }
 
 class StatementShowSignature {
   public:
@@ -8646,6 +8732,9 @@ auto construct_statement(clingo_ast_t *ast) -> Statement {
         case clingo_ast_type_statement_show: {
             return StatementShow::acquire(ast);
         }
+        case clingo_ast_type_statement_show_nothing: {
+            return StatementShowNothing::acquire(ast);
+        }
         case clingo_ast_type_statement_show_signature: {
             return StatementShowSignature::acquire(ast);
         }
@@ -8981,6 +9070,34 @@ auto StatementShow::update(Library &lib, py::kwargs const &kwargs) -> StatementS
         lib, update_value<clingo_location_t>(lib, this, &StatementShow::location, kwargs, "location"),
         update_value<Term>(lib, this, &StatementShow::term, kwargs, "term"),
         update_value<BodyLiteralArray>(lib, this, &StatementShow::body, kwargs, "body"));
+}
+
+auto StatementShowNothing::location() -> clingo_location_t {
+    clingo_location_t ret;
+    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
+        throw std::runtime_error("could not get location attribute");
+    }
+    return ret;
+}
+
+auto StatementShowNothing::construct(Library &lib, clingo_location_t const &location) -> StatementShowNothing {
+    clingo_ast_t *res_ = nullptr;
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_show_nothing, &res_, &location));
+    return StatementShowNothing::acquire(res_);
+}
+
+void StatementShowNothing::visit([[maybe_unused]] py::handle visitor, [[maybe_unused]] py::args const &args,
+                                 [[maybe_unused]] py::kwargs const &kwargs) {}
+
+auto StatementShowNothing::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::handle transform,
+                                     [[maybe_unused]] py::args const &args,
+                                     [[maybe_unused]] py::kwargs const &kwargs) -> std::optional<StatementShowNothing> {
+    return std::nullopt;
+}
+
+auto StatementShowNothing::update(Library &lib, py::kwargs const &kwargs) -> StatementShowNothing {
+    return StatementShowNothing::construct(
+        lib, update_value<clingo_location_t>(lib, this, &StatementShowNothing::location, kwargs, "location"));
 }
 
 auto StatementShowSignature::location() -> clingo_location_t {
@@ -10145,6 +10262,9 @@ term.)doc");
         py::class_<StatementWeakConstraint>(ast, "StatementWeakConstraint", R"doc(A weak constraint.)doc");
 
     auto py_statement_show = py::class_<StatementShow>(ast, "StatementShow", R"doc(A show statement.)doc");
+
+    auto py_statement_show_nothing =
+        py::class_<StatementShowNothing>(ast, "StatementShowNothing", R"doc(An empty show statement.)doc");
 
     auto py_statement_show_signature =
         py::class_<StatementShowSignature>(ast, "StatementShowSignature", R"doc(A show signature statement.)doc");
@@ -12552,6 +12672,48 @@ transformer
     The transformer accepting the sub expressions.
 )doc")
         .def("update", &StatementShow::update, py::arg("lib"), R"doc(Update the expression.
+
+Accepts keyword arguments with attributes to update.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+)doc")
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+
+    py_statement_show_nothing
+        .def(py::init(&StatementShowNothing::construct), py::arg("lib"), py::arg("location"),
+             R"doc(Construct a StatementShowNothing object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+location
+    The location of the statement.)doc")
+        .def("__str__", &StatementShowNothing::to_string)
+        .def("__hash__", &StatementShowNothing::hash)
+        .def_property_readonly("location", &StatementShowNothing::location, R"doc(The location of the statement.)doc")
+        .def("visit", &StatementShowNothing::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+
+Parameters
+----------
+visitor
+    The visitor accepting the sub expressions.
+)doc")
+        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
+        .def("transform", &StatementShowNothing::transform, R"doc(Transform the expression.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+transformer
+    The transformer accepting the sub expressions.
+)doc")
+        .def("update", &StatementShowNothing::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
