@@ -1,5 +1,6 @@
 #include <clingo.h>
 
+#include <clingo/control/solver.hh>
 #include <clingo/core/logger.hh>
 #include <clingo/core/symbol.hh>
 
@@ -12,6 +13,7 @@ struct clingo_lib {
         : prt{std::move(prt)}, log{std::move(log)}, store{std::move(store)} {}
     Clingo::Logger::Printer prt;
     Clingo::Logger log;
+    Clingo::Control::Scripts scripts;
     std::unique_ptr<Clingo::SymbolStore> store;
     std::exception_ptr last_exception = nullptr;
     std::string last_message;

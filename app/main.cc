@@ -77,7 +77,8 @@ auto run(int argc, char *argv[]) -> int {
     try {
         log.set_level(log_level);
         auto store = Clingo::make_symbol_store(true, false);
-        auto grd = Clingo::Control::Solver{log, *store, opts, Clingo::Control::OutputMode::text};
+        auto scripts = Clingo::Control::Scripts{};
+        auto grd = Clingo::Control::Solver{log, *store, scripts, opts, Clingo::Control::OutputMode::text};
         auto prs = Clingo::Input::Parser{log, *store};
 
         [&]() {

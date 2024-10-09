@@ -69,7 +69,7 @@ class Scripts : public ScriptMain, public ScriptExec {
 class Solver {
   public:
     //! Create a grounder object.
-    Solver(Logger &log, SymbolStore &store, Input::RewriteOptions opts, OutputMode mode);
+    Solver(Logger &log, SymbolStore &store, Scripts &scripts, Input::RewriteOptions opts, OutputMode mode);
 
     //! Parse and ground a program.
     void main(std::span<std::string_view const> const &files);
@@ -94,8 +94,8 @@ class Solver {
   private:
     Util::OutputBuffer buf_;
     std::unique_ptr<OutputStm> out_;
-    Scripts scripts_;
     Grounder grd_;
+    Scripts *scripts_;
 };
 
 //! @}

@@ -51,32 +51,28 @@ void Scripts::do_call(std::string_view name, SymbolSpan args, SymbolVec &out) {
     }
 }
 
-Solver::Solver(Logger &log, SymbolStore &store, Input::RewriteOptions opts, OutputMode mode)
-    : buf_{stdout}, out_{Output::make_text_output(buf_)}, grd_{log, store, opts, *out_} {
+Solver::Solver(Logger &log, SymbolStore &store, Scripts &scripts, Input::RewriteOptions opts, OutputMode mode)
+    : buf_{stdout}, out_{Output::make_text_output(buf_)}, grd_{log, store, opts, *out_}, scripts_{&scripts} {
     static_cast<void>(mode);
 }
 
 void Solver::main(std::span<std::string_view const> const &files) {
     parse(files);
-    if (scripts_.callable("main", 0)) {
-        scripts_.main(*this);
+    if (scripts_->callable("main", 0)) {
+        scripts_->main(*this);
     } else {
         parse(files);
         std::ignore = ground(Clingo::Input::ProgramParamVec{{grd_.store().string("base"), {}}});
     }
 }
 
-void Solver::parse(std::string_view str) { grd_.parse(str, &scripts_); }
+void Solver::parse(std::string_view str) { grd_.parse(str, scripts_); }
 
-void Solver::parse(std::span<std::string_view const> const &files) { grd_.parse(files, &scripts_); }
+void Solver::parse(std::span<std::string_view const> const &files) { grd_.parse(files, scripts_); }
 
 void Solver::add_const(String name, Symbol value) { grd_.add_const(name, value); }
 
 auto Solver::ground(Input::ProgramParamVec const &params) -> bool { return grd_.ground(params); }
-
-void Solver::register_script(std::string_view name, UScript script) {
-    scripts_.register_script(name, std::move(script));
-}
 
 void Solver::output_unprocessed_program(std::ostream &out) { grd_.output_unprocessed_program(out); }
 
