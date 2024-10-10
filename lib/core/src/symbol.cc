@@ -9,6 +9,8 @@
 #include <cstring>
 #include <mutex>
 
+#define DEBUG_GC
+
 // NOLINTBEGIN(readability-magic-numbers,modernize-avoid-c-arrays,cppcoreguidelines-pro-bounds-pointer-arithmetic,cppcoreguidelines-pro-type-reinterpret-cast,cppcoreguidelines-pro-bounds-constant-array-index,performance-no-int-to-ptr)
 
 namespace Clingo {
@@ -194,6 +196,7 @@ constexpr auto mark_bit = static_cast<size_t>(1) << (8 * sizeof(size_t) - 2);
 
 void inc_ref(std::atomic_size_t &ref) noexcept { ref.fetch_add(1, std::memory_order::relaxed); }
 void dec_ref(std::atomic_size_t &ref) noexcept {
+    assert((ref.load(std::memory_order::relaxed) & ~(dec_bit | mark_bit)) > 0);
     ref.fetch_or(dec_bit, std::memory_order::relaxed);
     ref.fetch_sub(1, std::memory_order::relaxed);
 }
@@ -354,22 +357,34 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
     }
 
     [[nodiscard]] auto do_fun(String name, SymbolSpan args, bool sign, bool referenced) -> Symbol override {
-        auto jt = insert_(tuples_, SymbolStore::str_ref(name), args, referenced);
+        auto [jt, ins] = insert_(tuples_, SymbolStore::str_ref(name), args, referenced);
         auto rep = KeySymbolArray::to_repr(*jt) | (sign ? REP_SIGNED_FUN : REP_FUN);
+        auto ret = Symbol::from_rep(rep);
+        if (!ins && referenced) {
+            ret.acquire();
+        }
         return Symbol::from_rep(rep);
     }
 
     [[nodiscard]] auto do_tup(SymbolSpan args, bool referenced) -> Symbol override {
         // Almost the same as for function except that the name does not have to be stored separately.
-        auto jt = insert_(tuples_, args, referenced);
+        auto [jt, ins] = insert_(tuples_, args, referenced);
         auto rep = KeySymbolArray::to_repr(*jt) | REP_TUP;
+        auto ret = Symbol::from_rep(rep);
+        if (!ins && referenced) {
+            ret.acquire();
+        }
         return Symbol::from_rep(rep);
     }
 
     [[nodiscard]] auto do_string(std::string_view str, bool referenced) -> String override {
         assert(!str.empty());
-        auto it = insert_(strings_, str, referenced);
-        return String::from_rep(KeyCharArray::to_repr(*it));
+        auto [it, ins] = insert_(strings_, str, referenced);
+        auto ret = String::from_rep(KeyCharArray::to_repr(*it));
+        if (!ins && referenced) {
+            ret.acquire();
+        }
+        return ret;
     }
 
     void clear() {
@@ -384,7 +399,10 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
 
     void do_gc_del_owner(SymbolOwner const &owner) noexcept override { owners_.erase(&owner); }
 
-    auto do_gc() -> std::pair<size_t, size_t> override {
+    auto do_gc() -> std::tuple<size_t, size_t, size_t> override {
+#ifdef DEBUG_GC
+        printf("performing gc\n");
+#endif
         SymbolCollector collector;
         // mark referenced tuples
         for (auto const &key : tuples_) {
@@ -412,6 +430,9 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
         // destroy tuples
         for (auto it = tuples_.begin(); it != tuples_.end();) {
             if (unmark_ref(SymbolArray::from_repr(KeySymbolArray::to_repr(*it)).ref_count())) {
+#ifdef DEBUG_GC
+                printf("  keep tuple\n");
+#endif
                 ++kept;
                 ++it;
             } else {
@@ -423,9 +444,15 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
         // destroy strings
         for (auto it = strings_.begin(); it != strings_.end();) {
             if (unmark_ref(CharArray::from_repr(KeyCharArray::to_repr(*it)).ref_count())) {
+#ifdef DEBUG_GC
+                printf("  keep string: %s\n", CharArray::from_repr(KeyCharArray::to_repr(*it)).data());
+#endif
                 ++kept;
                 ++it;
             } else {
+#ifdef DEBUG_GC
+                printf("  delete string: %s\n", CharArray::from_repr(KeyCharArray::to_repr(*it)).data());
+#endif
                 ++collected;
                 it->destroy(alloc_);
                 it = strings_.erase(it);
@@ -434,6 +461,9 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
         // destroy numbers
         for (auto it = numbers_.begin(); it != numbers_.end();) {
             if (unmark_ref(bigint_refcount(Number::to_repr(*it)))) {
+#ifdef DEBUG_GC
+                printf("  keep number\n");
+#endif
                 ++kept;
                 ++it;
             } else {
@@ -441,7 +471,12 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
                 it = numbers_.erase(it);
             }
         }
-        return {kept, collected};
+#ifdef DEBUG_GC
+        printf("  owners:    %zu\n", owners_.size());
+        printf("  kept:      %zu\n", kept);
+        printf("  collected: %zu\n", collected);
+#endif
+        return {owners_.size(), kept, collected};
     }
 
   private:
@@ -451,7 +486,7 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
     using OwnerSet =
         Util::unordered_set<SymbolOwner const *, std::hash<SymbolOwner const *>, std::equal_to<SymbolOwner const *>>;
 
-    template <class T, class... Args> auto insert_(T &table, Args &&...args) -> typename T::iterator {
+    template <class T, class... Args> auto insert_(T &table, Args &&...args) -> std::pair<typename T::iterator, bool> {
         typename T::value_type arr(alloc_, std::forward<Args>(args)...);
         try {
             auto [jt, ins] = table.emplace(arr);
@@ -460,7 +495,7 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
             } else {
                 arr.destroy(alloc_);
             }
-            return jt;
+            return {jt, ins};
         } catch (...) {
             arr.destroy(alloc_);
             throw;
@@ -530,7 +565,7 @@ template <class Alloc> class SharedSymbolStore : public SymbolStore {
         store_.gc_del_owner(owner);
     }
 
-    auto do_gc() -> std::pair<size_t, size_t> override {
+    auto do_gc() -> std::tuple<size_t, size_t, size_t> override {
         std::unique_lock ulock{mutex_};
         cv_.wait(ulock, [this] { return blocked_ == 0; });
         std::atomic_thread_fence(std::memory_order::seq_cst);
@@ -883,7 +918,7 @@ auto SymbolStore::string(std::string_view str) -> SharedString {
     if (str.empty()) {
         return {};
     }
-    return SharedString{do_string(str, true), true};
+    return SharedString{do_string(str, true), false};
 }
 
 auto SymbolStore::sup() noexcept -> Symbol { return Symbol::from_rep(EXT_REP_SUP); }
@@ -997,10 +1032,10 @@ auto make_symbol_store(bool slotted, bool shared) -> USymbolStore {
 
 auto NameGen::new_name() -> String {
     while (true) {
-        auto name = store_.string(prefix_ + std::to_string(num_));
+        auto [it, res] = names_.emplace(store_.string(prefix_ + std::to_string(num_)));
         ++num_;
-        if (!names_.contains(name)) {
-            return *name;
+        if (res) {
+            return *it.key();
         }
     }
 }

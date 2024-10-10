@@ -130,15 +130,12 @@ class SharedString {
     //!
     //! To correctly free the string, it has to passed to from_rep again.
     [[nodiscard]] static auto to_rep(SharedString sym) -> uint64_t {
-        auto ret = sym.ref_;
-        sym.ref_ = String{};
+        auto ret = std::exchange(sym.ref_, String{});
         return String::to_rep(ret);
     }
     //! Construct a string from its representation.
     [[nodiscard]] static auto from_rep(uint64_t repr) -> SharedString {
-        auto ret = SharedString();
-        ret.ref_ = String::from_rep(repr);
-        return ret;
+        return SharedString{String::from_rep(repr), false};
     }
 
     //! Compute the hash of the string.
@@ -515,7 +512,10 @@ class SymbolStore {
     //! Delete a symbol owner.
     void gc_del_owner(SymbolOwner const &owner) noexcept { do_gc_del_owner(owner); }
     //! Cleanup symbols.
-    auto gc() -> std::pair<size_t, size_t> { return do_gc(); }
+    //!
+    //! Returns the number of symbols owners, the number of symbols with
+    //! reference count greater 0, and the number of symbols collected.
+    auto gc() -> std::tuple<size_t, size_t, size_t> { return do_gc(); }
 
   private:
     [[nodiscard]] virtual auto do_tup(SymbolSpan args, bool referenced) -> Symbol = 0;
@@ -526,7 +526,7 @@ class SymbolStore {
     virtual void do_gc_block(bool block) noexcept = 0;
     virtual void do_gc_add_owner(SymbolOwner const &owner) = 0;
     virtual void do_gc_del_owner(SymbolOwner const &owner) noexcept = 0;
-    virtual auto do_gc() -> std::pair<size_t, size_t> = 0;
+    virtual auto do_gc() -> std::tuple<size_t, size_t, size_t> = 0;
 };
 
 //! A pointer to a symbol store.

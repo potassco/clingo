@@ -4,6 +4,7 @@
 #include <clingo/core/location.hh>
 
 #include <cstring>
+#include <mutex>
 
 // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
 
@@ -103,9 +104,45 @@ extern "C" auto clingo_lib_new(clingo_lib_flags_t flags, clingo_logger_t logger,
     return lib;
 }
 
-extern "C" void clingo_lib_free(clingo_lib_t *lib) {
-    // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
-    delete lib;
+extern "C" void clingo_lib_free(clingo_lib_t *lib, bool fast) {
+    if (fast) {
+        // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+        delete lib;
+    } else {
+        static auto mut = std::mutex{};
+        static auto *lst = static_cast<clingo_lib_t *>(nullptr);
+        if (lib != nullptr) {
+            auto res = lib->store->gc();
+            if (get<0>(res) > 0 || get<1>(res) > 0) {
+                auto lck = std::unique_lock(mut);
+                lib->next_ = lst;
+                lst = lib;
+            } else {
+                // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+                delete lib;
+            }
+        }
+        // Note that running the gc for the lib object two times is intended.
+        // The current implementation needs two passes to free all symbols.
+        auto lck = std::unique_lock(mut);
+        auto *cur = std::exchange(lst, nullptr);
+        while (cur != nullptr) {
+            auto *nxt = cur->next_;
+            auto res = cur->store->gc();
+            if (get<0>(res) > 0 || get<1>(res) > 0) {
+                cur->next_ = lst;
+                lst = cur;
+            } else {
+                // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+                delete cur;
+            }
+            cur = nxt;
+        }
+        if (lst != nullptr) {
+            fprintf(stderr, "warning: not all symbols have freed before the library was deleted\n");
+            fflush(stderr);
+        }
+    }
 }
 
 extern "C" void clingo_set_error(clingo_lib_t *lib, clingo_error_t code, char const *message) {

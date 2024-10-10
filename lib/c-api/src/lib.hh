@@ -17,6 +17,7 @@ struct clingo_lib {
     std::unique_ptr<Clingo::SymbolStore> store;
     std::exception_ptr last_exception = nullptr;
     std::string last_message;
+    clingo_lib_t *next_ = nullptr;
     clingo_error_t last_code = clingo_error_success;
 };
 

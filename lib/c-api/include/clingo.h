@@ -187,8 +187,20 @@ CLINGO_VISIBILITY_DEFAULT clingo_lib_t *clingo_lib_new(clingo_lib_flags_t flags,
                                                        void *logger_data, size_t message_limit);
 
 //! Free a library object created with clingo_lib_new().
+//!
+//! If parameter fast is set to false, the garbage collector is run to ensure
+//! that all symbols are freed. If there are still referenced symbols, the
+//! library is not deleted but put in a list for later cleanup. Further calls
+//! to this function trigger further cleanups (the lib parameter can be set to
+//! NULL to just run the cleanup).
+//!
+//! The flag is mainly intended for language bindings, where cleanup of all
+//! symbols cannot be guaranteed due to unpredicatable garbage collection.
+//! Objects using the library can still be freed after this call.
+//!
 //! @param[in] lib the target
-CLINGO_VISIBILITY_DEFAULT void clingo_lib_free(clingo_lib_t *lib);
+//! @param[in] fast whether to perform a fast destruction
+CLINGO_VISIBILITY_DEFAULT void clingo_lib_free(clingo_lib_t *lib, bool fast);
 
 //! Get the last error code set by a clingo API call.
 //! @note Each thread has its own local error code.

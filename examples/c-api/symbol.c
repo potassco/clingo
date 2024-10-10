@@ -130,7 +130,7 @@ error:
 
 out:
     free_string_buffer(&buf);
-    clingo_lib_free(lib);
+    clingo_lib_free(lib, true);
 
     return ret;
 }

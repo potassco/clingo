@@ -23,6 +23,7 @@ class TestAST(TestCase):
         )
 
     def tearDown(self):
+        self.loc = None
         self.lib = None
 
     def sym(self, val):
@@ -321,21 +322,6 @@ class TestAST(TestCase):
         self.assertEqual(l3.condition, [l1])
 
         self.assertEqual(p.location, self.loc)
-        print(l3, "==", p.elements[1], "=", l3 == p.elements[1])
-        print(
-            l3.literal,
-            "==",
-            p.elements[1].literal,
-            "=",
-            l3.literal == p.elements[1].literal,
-        )
-        print(
-            l3.condition,
-            "==",
-            p.elements[1].condition,
-            "=",
-            l3.condition == p.elements[1].condition,
-        )
         self.assertEqual(p.elements, [l2, l3])
         self.assertEqual(str(p), "r(X); r(X): not p(X)")
 
