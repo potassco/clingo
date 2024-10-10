@@ -42,7 +42,7 @@ void UnprocessedProgram::add(SymbolStore &store, Stm stm) {
             } else {
                 if (parts_.empty() || ensure_base_) {
                     if (parts_.empty() || parts_.back().part.name() != "base" || !parts_.back().part.args().empty()) {
-                        parts_.emplace_back(StmProgram{location(stm), store.string_ref("base"), {}}, StmVec{},
+                        parts_.emplace_back(StmProgram{location(stm), store.string_ref("base"), StringSpan{}}, StmVec{},
                                             SymbolVec{});
                     }
                     ensure_base_ = false;
@@ -137,9 +137,8 @@ void Program::join(Logger &log, SymbolStore &store, UnprocessedProgram const &pr
     }
 }
 
-[[nodiscard]] auto Program::param_map_(SymbolStore &store,
-                                       ProgramPart const &part) -> Util::ordered_map<String, String> {
-    Util::ordered_map<String, String> res;
+[[nodiscard]] auto Program::param_map_(SymbolStore &store, ProgramPart const &part) -> ParamUnmap {
+    ParamUnmap res;
     if (!part.part.args().empty()) {
         StringSet ids;
         for (auto const &facts : part.facts) {
@@ -205,9 +204,9 @@ auto Program::analyze(SymbolStore &store, ProgramParamVec const &params, Depende
                     }
                     auto name = std::string{};
                     auto const *prefix = "#program_";
-                    name.reserve(std::strlen(prefix) + sig_it->first.size());
+                    name.reserve(std::strlen(prefix) + sig_it->first->size());
                     name += prefix;
-                    name += sig_it->first.c_str();
+                    name += sig_it->first->c_str();
                     auto fun =
                         TermFunction{loc, store.string_ref(name),
                                      Util::make_immutable_array<ArgumentTuple>(ArgumentTuple{std::move(args)}), false};
@@ -236,14 +235,9 @@ auto Program::analyze(SymbolStore &store, ProgramParamVec const &params, Depende
 
 void Program::mark(SymbolCollector &gc) const {
     for (auto const &[sig, part] : parts_) {
-        gc.mark(sig.first);
         for (auto const &sym : part.facts) {
             gc.mark(sym);
         }
-    }
-    for (auto const &[var, assign] : const_map_) {
-        gc.mark(var);
-        gc.mark(assign.second);
     }
 }
 

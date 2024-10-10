@@ -147,15 +147,29 @@ class SharedString {
     //! Equality compare two strings.
     friend auto operator==(SharedString const &a, SharedString const &b) -> bool { return a.ref_ == b.get(); }
 
+    //! Equality compare two strings.
+    friend auto operator==(SharedString const &a, String const &b) -> bool { return a.ref_ == b; }
+
+    //! Equality compare two strings.
+    friend auto operator==(String const &a, SharedString const &b) -> bool { return a == b.get(); }
+
     //! Less than compare two strings.
     friend auto operator<=>(SharedString const &a, SharedString const &b) -> std::strong_ordering {
         return a.get() <=> b.get();
     }
 
+    //! Less than compare two strings.
+    friend auto operator<=>(SharedString const &a, String const &b) -> std::strong_ordering { return a.get() <=> b; }
+
+    //! Less than compare two strings.
+    friend auto operator<=>(String const &a, SharedString const &b) -> std::strong_ordering { return a <=> b.get(); }
+
   private:
     String ref_;
 };
 
+//! A set of strings.
+using SharedStringSet = Util::unordered_set<SharedString>;
 //! A vector of strings.
 using SharedStringVec = std::vector<SharedString>;
 //! An array of strings.
@@ -345,9 +359,25 @@ class SharedSymbol {
     //! Equality compare two symbols.
     friend auto operator==(SharedSymbol const &a, SharedSymbol const &b) -> bool { return a.get() == b.get(); }
 
+    //! Equality compare two symbols.
+    friend auto operator==(SharedSymbol const &a, Symbol const &b) -> bool { return a.get() == b; }
+
+    //! Equality compare two symbols.
+    friend auto operator==(Symbol const &a, SharedSymbol const &b) -> bool { return a == b.get(); }
+
     //! Less than compare two symbols.
     friend auto operator<=>(SharedSymbol const &a, SharedSymbol const &b) -> std::strong_ordering {
         return compare(a, b) <=> 0;
+    }
+
+    //! Less than compare two symbols.
+    friend auto operator<=>(SharedSymbol const &a, Symbol const &b) -> std::strong_ordering {
+        return compare(*a, b) <=> 0;
+    }
+
+    //! Less than compare two symbols.
+    friend auto operator<=>(Symbol const &a, SharedSymbol const &b) -> std::strong_ordering {
+        return compare(a, *b) <=> 0;
     }
 
   private:
@@ -541,13 +571,13 @@ class NameGen {
     //!
     //! The generator ensures that there are no collisions with these names.
     NameGen(SymbolStore &store, StringSet names, char const *prefix)
-        : store_{store}, names_{std::move(names)}, prefix_{prefix} {}
+        : store_{store}, names_{names.begin(), names.end()}, prefix_{prefix} {}
     //! Delete move/copy constructor.
     NameGen(NameGen &&) noexcept = delete;
     //! Initialize/reset the name generator.
     void init(StringSet names, char const *prefix) {
         num_ = 0;
-        names_ = std::move(names);
+        names_.insert(names.begin(), names.end());
         prefix_ = prefix;
     }
     //! Add a name returning true if it is not yet used.
@@ -561,7 +591,7 @@ class NameGen {
     //! Symbol store to store strings.
     SymbolStore &store_;
     //! Taken variable names.
-    StringSet names_;
+    SharedStringSet names_;
     //! The prefix of the generated names.
     char const *prefix_;
     //! Running number used to generate names.

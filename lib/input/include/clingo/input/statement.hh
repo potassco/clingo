@@ -131,8 +131,9 @@ class TheoryRGuardDefinition : public Expression<TheoryRGuardDefinition> {
         return std::tuple{a_ops = &TheoryRGuardDefinition::ops, a_term = &TheoryRGuardDefinition::term_};
     }
     //! Construct a right guard definition.
-    explicit TheoryRGuardDefinition(StringSpan ops, String term)
-        : ops_{ops.begin(), ops.end(), [](auto const &x) { return x; }}, term_{term} {}
+    explicit TheoryRGuardDefinition(StringSpan ops, String term) : ops_{ops.begin(), ops.end()}, term_{term} {}
+    //! Construct a right guard definition.
+    explicit TheoryRGuardDefinition(SharedStringArray ops, String term) : ops_{std::move(ops)}, term_{term} {}
 
     //! The list of operator names.
     [[nodiscard]] auto ops() const -> StringSpan { return as_string_span(ops_); }
@@ -695,7 +696,10 @@ class StmProgram : public Expression<StmProgram> {
 
     //! Construct an program statement.
     explicit StmProgram(Location loc, String name, StringSpan args)
-        : loc_{std::move(loc)}, name_(name), args_{args.begin(), args.end(), [](auto const &x) { return x; }} {}
+        : loc_{std::move(loc)}, name_(name), args_{args.begin(), args.end()} {}
+    //! Construct an program statement.
+    explicit StmProgram(Location loc, String name, SharedStringArray args)
+        : loc_{std::move(loc)}, name_(name), args_{std::move(args)} {}
 
     //! The location of the statement.
     [[nodiscard]] auto loc() const -> Location const & { return loc_; }

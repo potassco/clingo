@@ -887,13 +887,9 @@ auto convert(clingo_lib_t *lib, clingo_location_t const *loc) -> Clingo::Locatio
             {*lib->store->string(loc->end_file), loc->end_line, loc->end_column}};
 }
 
-auto convert(clingo_lib_t *lib, char const **array, size_t size) -> Clingo::StringVec {
-    auto ret = Clingo::StringVec{};
-    ret.reserve(size);
+auto convert(clingo_lib_t *lib, char const **array, size_t size) -> Clingo::SharedStringArray {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    std::transform(array, array + size, std::back_inserter(ret),
-                   [lib](auto str) { return lib->store->string_ref(str); });
-    return ret;
+    return {array, array + size, [lib](auto str) { return lib->store->string(str); }};
 }
 
 // }}} convert
@@ -1532,7 +1528,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *name = va_arg(args, char const *);
                 auto anonymous = va_arg(args, int);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::TermVariable>(type, convert(lib, loc), lib->store->string_ref(name),
+                *ast = construct_ast<Clingo::Input::TermVariable>(type, convert(lib, loc), *lib->store->string(name),
                                                                   anonymous != 0);
                 break;
             }
@@ -1565,7 +1561,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto size = va_arg(args, size_t);
                 auto sign = va_arg(args, int);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::TermFunction>(type, convert(lib, loc), lib->store->string_ref(name),
+                *ast = construct_ast<Clingo::Input::TermFunction>(type, convert(lib, loc), *lib->store->string(name),
                                                                   convert<Clingo::Input::ArgumentTuple>(pool, size),
                                                                   sign != 0);
                 break;
@@ -1691,7 +1687,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto anonymous = va_arg(args, int);
                 va_end(args);
                 *ast = construct_ast<Clingo::Input::TheoryTermVariable>(type, convert(lib, loc),
-                                                                        lib->store->string_ref(name), anonymous != 0);
+                                                                        *lib->store->string(name), anonymous != 0);
                 break;
             }
             case clingo_ast_type_theory_term_symbolic: {
@@ -1726,7 +1722,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto size = va_arg(args, size_t);
                 va_end(args);
                 *ast = construct_ast<Clingo::Input::TheoryTermFunction>(
-                    type, convert(lib, loc), lib->store->string_ref(name),
+                    type, convert(lib, loc), *lib->store->string(name),
                     convert<Clingo::Input::TheoryTerm>(arguments, size));
                 break;
             }
@@ -1773,7 +1769,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *op = va_arg(args, char const *);
                 auto const *term = va_arg(args, clingo_ast_t const *);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::TheoryRGuard>(type, lib->store->string_ref(op),
+                *ast = construct_ast<Clingo::Input::TheoryRGuard>(type, *lib->store->string(op),
                                                                   convert<Clingo::Input::TheoryTerm>(term));
                 break;
             }
@@ -1976,9 +1972,8 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto priority = va_arg(args, int);
                 auto op_type = va_arg(args, int);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::TheoryOpDefinition>(type, convert(lib, loc),
-                                                                        lib->store->string_ref(name), priority,
-                                                                        static_cast<TheoryOpType>(op_type));
+                *ast = construct_ast<Clingo::Input::TheoryOpDefinition>(
+                    type, convert(lib, loc), *lib->store->string(name), priority, static_cast<TheoryOpType>(op_type));
                 break;
             }
             case clingo_ast_type_theory_term_definition: {
@@ -1990,7 +1985,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto ops_size = va_arg(args, size_t);
                 va_end(args);
                 *ast = construct_ast<Clingo::Input::TheoryTermDefinition>(
-                    type, convert(lib, loc), lib->store->string_ref(name), convert<TheoryOpDefinition>(ops, ops_size));
+                    type, convert(lib, loc), *lib->store->string(name), convert<TheoryOpDefinition>(ops, ops_size));
                 break;
             }
             case clingo_ast_type_theory_guard_definition: {
@@ -2001,7 +1996,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *term = va_arg(args, char const *);
                 va_end(args);
                 *ast = construct_ast<Clingo::Input::TheoryRGuardDefinition>(type, convert(lib, ops, ops_size),
-                                                                            lib->store->string_ref(term));
+                                                                            *lib->store->string(term));
                 break;
             }
             case clingo_ast_type_theory_atom_definition: {
@@ -2015,7 +2010,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto atom_type = va_arg(args, int);
                 va_end(args);
                 *ast = construct_ast<Clingo::Input::TheoryAtomDefinition>(
-                    type, convert(lib, loc), lib->store->string_ref(name), arity, lib->store->string_ref(term),
+                    type, convert(lib, loc), *lib->store->string(name), arity, *lib->store->string(term),
                     convert<std::optional<TheoryRGuardDefinition>>(guard), static_cast<TheoryAtomType>(atom_type));
                 break;
             }
@@ -2029,7 +2024,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const **atoms = va_arg(args, clingo_ast_t const **);
                 auto atoms_size = va_arg(args, size_t);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::StmTheory>(type, convert(lib, loc), lib->store->string_ref(name),
+                *ast = construct_ast<Clingo::Input::StmTheory>(type, convert(lib, loc), *lib->store->string(name),
                                                                convert<TheoryTermDefinition>(terms, terms_size),
                                                                convert<TheoryAtomDefinition>(atoms, atoms_size));
                 break;
@@ -2120,7 +2115,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto sign = va_arg(args, int);
                 va_end(args);
                 *ast = construct_ast<Clingo::Input::StmShowSig>(type, convert(lib, loc), sign != 0,
-                                                                lib->store->string_ref(name), arity);
+                                                                *lib->store->string(name), arity);
                 break;
             }
             case clingo_ast_type_statement_project: {
@@ -2144,7 +2139,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto sign = va_arg(args, int);
                 va_end(args);
                 *ast = construct_ast<Clingo::Input::StmProjectSig>(type, convert(lib, loc), sign != 0,
-                                                                   lib->store->string_ref(name), arity);
+                                                                   *lib->store->string(name), arity);
                 break;
             }
             case clingo_ast_type_statement_defined: {
@@ -2156,7 +2151,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto sign = va_arg(args, int);
                 va_end(args);
                 *ast = construct_ast<Clingo::Input::StmDefined>(type, convert(lib, loc), sign != 0,
-                                                                lib->store->string_ref(name), arity);
+                                                                *lib->store->string(name), arity);
                 break;
             }
             case clingo_ast_type_statement_external: {
@@ -2210,7 +2205,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto include_type = va_arg(args, int);
                 va_end(args);
                 *ast = construct_ast<Clingo::Input::StmInclude>(
-                    type, convert(lib, loc), static_cast<IncludeType>(include_type), lib->store->string_ref(value));
+                    type, convert(lib, loc), static_cast<IncludeType>(include_type), *lib->store->string(value));
                 break;
             }
             case clingo_ast_type_statement_program: {
@@ -2221,7 +2216,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const **arguments = va_arg(args, char const **);
                 auto arguments_size = va_arg(args, size_t);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::StmProgram>(type, convert(lib, loc), lib->store->string_ref(name),
+                *ast = construct_ast<Clingo::Input::StmProgram>(type, convert(lib, loc), *lib->store->string(name),
                                                                 convert(lib, arguments, arguments_size));
                 break;
             }
@@ -2233,7 +2228,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *script_type = va_arg(args, char const *);
                 va_end(args);
                 *ast = construct_ast<Clingo::Input::StmScript>(
-                    type, convert(lib, loc), lib->store->string_ref(script_type), lib->store->string_ref(value));
+                    type, convert(lib, loc), *lib->store->string(script_type), *lib->store->string(value));
                 break;
             }
             case clingo_ast_type_statement_const: {
@@ -2246,7 +2241,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 va_end(args);
                 *ast =
                     construct_ast<Clingo::Input::StmConst>(type, convert(lib, loc), static_cast<ConstType>(const_type),
-                                                           lib->store->string_ref(name), convert<Term>(term));
+                                                           *lib->store->string(name), convert<Term>(term));
                 break;
             }
             case clingo_ast_type_statement_comment: {
@@ -2257,7 +2252,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto comment_type = va_arg(args, int);
                 va_end(args);
                 *ast = construct_ast<Clingo::Input::StmComment>(
-                    type, convert(lib, loc), static_cast<CommentType>(comment_type), lib->store->string_ref(value));
+                    type, convert(lib, loc), static_cast<CommentType>(comment_type), *lib->store->string(value));
                 break;
             }
         }
@@ -2612,7 +2607,7 @@ struct clingo_ast_rewrite_context {
     Clingo::Input::ConstMap const_map;
     Clingo::Input::RewriteOptions options;
     Clingo::Input::RewriteContext ctx = {lib->log, *lib->store, options, parser, param_map, const_map};
-    Clingo::Util::ordered_map<Clingo::String, Clingo::String> param_unmap;
+    Clingo::Input::ParamUnmap param_unmap;
 };
 
 extern "C" auto clingo_ast_rewrite_context_create(clingo_lib_t *lib, clingo_ast_rewrite_context_t **context) -> bool {
@@ -2631,8 +2626,8 @@ extern "C" void clingo_ast_rewrite_context_free(clingo_ast_rewrite_context_t *co
 extern "C" auto clingo_ast_rewrite_context_add_param(clingo_ast_rewrite_context_t *context, char const *param) -> bool {
     auto *lib = context->lib;
     CLINGO_TRY {
-        if (auto prm = lib->store->string_ref(param); context->param_map.emplace(prm).second) {
-            auto var = lib->store->string_ref("$" + std::to_string(context->param_unmap.size()));
+        if (auto prm = lib->store->string(param); context->param_map.emplace(prm).second) {
+            auto var = lib->store->string("$" + std::to_string(context->param_unmap.size()));
             context->param_unmap.emplace(var, prm);
         }
     }
@@ -2684,6 +2679,7 @@ extern "C" auto clingo_ast_rewrite(clingo_ast_rewrite_context_t *context, clingo
     using namespace Clingo::Input;
     auto *lib = context->lib;
     CLINGO_TRY {
+        Clingo::GCLock lock{*lib->store};
         *result = nullptr;
         *result_size = 0;
         auto stms = StmVec{};

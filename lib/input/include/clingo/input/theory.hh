@@ -171,8 +171,9 @@ class UnparsedElement : public Expression<UnparsedElement> {
     }
 
     //! Construct the element.
-    UnparsedElement(StringSpan ops, TheoryTerm term)
-        : ops_{ops.begin(), ops.end(), [](auto const &x) { return x; }}, term_{std::move(term)} {}
+    UnparsedElement(StringSpan ops, TheoryTerm term) : ops_{ops.begin(), ops.end()}, term_{std::move(term)} {}
+    //! Construct the element.
+    UnparsedElement(SharedStringArray ops, TheoryTerm term) : ops_{std::move(ops)}, term_{std::move(term)} {}
 
     //! The list of operator names.
     [[nodiscard]] auto ops() const -> StringSpan { return as_string_span(ops_); }

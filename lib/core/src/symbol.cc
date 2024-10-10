@@ -997,10 +997,10 @@ auto make_symbol_store(bool slotted, bool shared) -> USymbolStore {
 
 auto NameGen::new_name() -> String {
     while (true) {
-        auto name = store_.string_ref(prefix_ + std::to_string(num_));
+        auto name = store_.string(prefix_ + std::to_string(num_));
         ++num_;
         if (!names_.contains(name)) {
-            return name;
+            return *name;
         }
     }
 }

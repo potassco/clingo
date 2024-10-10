@@ -31,7 +31,10 @@ struct RewriteOptions {
 };
 
 //! Map from identifiers to constants.
-using ConstMap = Util::ordered_map<String, std::pair<StmConst, Symbol>>;
+using ConstMap = Util::ordered_map<SharedString, std::pair<StmConst, SharedSymbol>>;
+
+//! Map from parameters to their replacements.
+using ParamUnmap = Util::ordered_map<SharedString, SharedString>;
 
 //! A program part.
 struct ProgramPart {
@@ -121,7 +124,7 @@ class DependencyBuilder {
   private:
     virtual void do_param(ProgramParam const &param) = 0;
     virtual void do_meta(std::vector<Stm> const &stms) = 0;
-    virtual void do_fact(std::vector<Symbol> const &facts) = 0;
+    virtual void do_fact(SymbolVec const &facts) = 0;
     [[nodiscard]] virtual auto do_components(Components const &comps) -> bool = 0;
 };
 
@@ -149,7 +152,7 @@ class Program {
         }
         for (auto const &[id, sym] : const_map_) {
             fun(Stm{StmConst{sym.first.loc(), sym.first.type(), sym.first.name(),
-                             TermSymbol{location(sym.first.value()), sym.second}}});
+                             TermSymbol{location(sym.first.value()), *sym.second}}});
         }
         for (auto const &stm : thy_stms_) {
             fun(stm);
@@ -160,10 +163,8 @@ class Program {
         for (auto const &[sig, part] : parts_) {
             auto pum = param_map_(store, part);
             auto loc = part.part.loc();
-            StringVec ids;
-            ids.reserve(sig.second);
-            std::transform(pum.begin(), pum.end(), std::back_inserter(ids), [](auto const &x) { return x.second; });
-            fun(StmProgram{loc, sig.first, std::move(ids)});
+            auto ids = SharedStringArray{pum.begin(), pum.end(), [](auto const &x) { return *x.second; }};
+            fun(StmProgram{loc, *sig.first, std::move(ids)});
             for (auto const &fact : part.facts) {
                 fun(Stm{StmRule{loc, HdLitSimple{LitSymbolic{loc, Sign::none, TermSymbol{loc, fact}}}, BdLitArray{}}});
             }
@@ -192,15 +193,12 @@ class Program {
     //! The signature of a program part.
     //!
     //! (Parameters are numbered from 1 to n.)
-    using Signature = std::pair<String, size_t>;
+    using Signature = std::pair<SharedString, size_t>;
     //! Map from signatures to actual program parts.
     using PartMap = Util::ordered_map<Signature, ProgramPart>;
-    //! Map from parameters to their replacements.
-    using ParamUnmap = Util::ordered_map<String, String>;
 
     //! Gather all identifiers appearing in a program part.
-    [[nodiscard]] static auto param_map_(SymbolStore &store,
-                                         ProgramPart const &part) -> Util::ordered_map<String, String>;
+    [[nodiscard]] static auto param_map_(SymbolStore &store, ProgramPart const &part) -> ParamUnmap;
     //! Replace all bound paramets in a statement by parsable ids.
     [[nodiscard]] static auto unmap_(SymbolStore &store, ParamUnmap const &pum, Stm const &stm) -> std::optional<Stm>;
 

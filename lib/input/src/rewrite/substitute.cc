@@ -108,7 +108,7 @@ class MapParams : public Transformer<MapParams> {
                             // Note: this will evaluated as empty pool later
                             return TermUnary{loc, UnaryOperator::minus, TermSymbol{loc, *value}};
                         }
-                        return value;
+                        return *value;
                     }
                     break;
                 }
@@ -183,7 +183,7 @@ class MapParams : public Transformer<MapParams> {
             return TermVariable{term.loc(), ctx_->store().string_ref("$" + std::to_string(param.value()))};
         }
         if (auto value = ctx_->is_const(term.name()); value) {
-            return TermSymbol{term.loc(), value.value()};
+            return TermSymbol{term.loc(), *value};
         }
         return std::nullopt;
     }
@@ -232,7 +232,7 @@ class MapParams : public Transformer<MapParams> {
 
 class UnmapParams : public Transformer<UnmapParams> {
   public:
-    UnmapParams(SymbolStore &store, Util::ordered_map<String, String> const &map) : store_{&store}, map_{&map} {}
+    UnmapParams(SymbolStore &store, ParamUnmap const &map) : store_{&store}, map_{&map} {}
 
     // protect ourselves -> no unintended overloads
 
@@ -242,7 +242,7 @@ class UnmapParams : public Transformer<UnmapParams> {
 
     [[nodiscard]] auto accept(TermVariable const &term) const -> std::optional<Term> {
         if (auto it = map_->find(term.name()); it != map_->end()) {
-            return TermSymbol{term.loc(), store_->fun_ref(it.value(), {}, false)};
+            return TermSymbol{term.loc(), store_->fun_ref(*it.value(), {}, false)};
         }
         return std::nullopt;
     }
@@ -255,7 +255,7 @@ class UnmapParams : public Transformer<UnmapParams> {
 
   private:
     SymbolStore *store_;
-    Util::ordered_map<String, String> const *map_;
+    ParamUnmap const *map_;
 };
 
 struct Collect : public Visitor<Collect> {
@@ -401,8 +401,7 @@ struct Collect : public Visitor<Collect> {
     return sym;
 }
 
-[[nodiscard]] auto unmap_params(SymbolStore &store, Util::ordered_map<String, String> const &map,
-                                Stm const &stm) -> std::optional<Stm> {
+[[nodiscard]] auto unmap_params(SymbolStore &store, ParamUnmap const &map, Stm const &stm) -> std::optional<Stm> {
     if (!map.empty()) {
         return UnmapParams{store, map}.transform(stm);
     }

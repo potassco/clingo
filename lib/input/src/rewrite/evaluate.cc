@@ -139,9 +139,9 @@ class Evaluate {
                     }
                     auto [type, rep] = it->second;
                     if (sym.has_sign()) {
-                        return evaluate(*store_, UnaryOperator::minus, rep);
+                        return evaluate(*store_, UnaryOperator::minus, *rep);
                     }
-                    return rep;
+                    return *rep;
                 }
                 return std::visit(
                     [this, sym]<class T>(T res) -> std::optional<Symbol> {
@@ -222,7 +222,7 @@ class Evaluate {
         }
         if (term.pool().front().elems().empty()) {
             if (auto it = map_->find(term.name()); it != map_->end()) {
-                return it->second.second;
+                return *it->second.second;
             }
         }
         auto args = eval_(term.pool().front());
@@ -417,10 +417,10 @@ void evaluate_const(Logger &log, SymbolStore &store, std::vector<StmConst> const
             auto const &stm = stms[scc.front()];
             if (map[stm.name()] == scc.front()) {
                 if (auto value = evaluate(log, store, res, stm); value) {
-                    auto [it, ins] = res.try_emplace(stm.name(), stm, *value);
+                    auto [it, ins] = res.try_emplace(SharedString(stm.name()), stm, *value);
                     if (!ins) {
                         if (it->second.first.type() < stm.type()) {
-                            it.value() = std::make_pair(stm, *value);
+                            it.value() = std::pair(stm, SharedSymbol(*value));
                         } else if (it->second.first.type() == stm.type()) {
                             GRINGO_REPORT_LOC(log, error, location(stm))
                                 << "redefinition of constant:\n"

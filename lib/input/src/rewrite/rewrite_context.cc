@@ -49,7 +49,7 @@ void TheoryTermParser::add(Logger &log, TheoryOpDefinition const &def) {
     } else {
         arity = Arity::unary;
     }
-    if (!table_.try_emplace(std::pair(def.op(), arity), def.prio(), assoc).second) {
+    if (!table_.try_emplace(std::pair(SharedString(def.op()), arity), def.prio(), assoc).second) {
         GRINGO_REPORT_LOC(log, error, def.loc()) << "duplicate operator definition `" << def.op() << "`";
         has_error_ = true;
     }
@@ -109,7 +109,7 @@ auto TheoryTermParser::check_(String op) const -> bool {
         return false;
     }
     auto [priority, associativity] = priority_and_associativity_(op);
-    auto previous_priority = priority_(stack_.back().first, stack_.back().second);
+    auto previous_priority = priority_(*stack_.back().first, stack_.back().second);
     return previous_priority > priority || (previous_priority == priority && associativity == Associativity::left);
 }
 
@@ -120,13 +120,13 @@ void TheoryTermParser::reduce_() const {
     auto [op, arity] = std::move(stack_.back());
     stack_.pop_back();
     if (arity == Arity::unary) {
-        terms_.emplace_back(TheoryTermFunction{loc, op, Util::make_immutable_array<TheoryTerm>(std::move(b))});
+        terms_.emplace_back(TheoryTermFunction{loc, *op, Util::make_immutable_array<TheoryTerm>(std::move(b))});
     } else {
         auto a = std::move(terms_.back());
         loc = location(a) + loc;
         terms_.pop_back();
         terms_.emplace_back(
-            TheoryTermFunction{loc, op, Util::make_immutable_array<TheoryTerm>(std::move(a), std::move(b))});
+            TheoryTermFunction{loc, *op, Util::make_immutable_array<TheoryTerm>(std::move(a), std::move(b))});
     }
 }
 
@@ -150,7 +150,8 @@ void TheoryAtomParser::add_theory(Logger &log, StmTheory const &stm) {
         auto guard = std::optional<GuardTable>{};
         if (auto const &rhs = atom_def.rhs(); rhs) {
             if (auto it = term_defs.find(rhs->term()); it != term_defs.end()) {
-                guard.emplace(StringSet(rhs->ops().begin(), rhs->ops().end()), std::distance(term_defs.begin(), it));
+                guard.emplace(SharedStringSet(rhs->ops().begin(), rhs->ops().end()),
+                              std::distance(term_defs.begin(), it));
             } else {
                 GRINGO_REPORT_LOC(log, error, atom_def.loc()) << "term definition not found `" << rhs->term() << "`";
                 has_error_ = true;
@@ -158,7 +159,7 @@ void TheoryAtomParser::add_theory(Logger &log, StmTheory const &stm) {
         }
         if (auto it = term_defs.find(atom_def.term()); it != term_defs.end()) {
             if (!atom_table_
-                     .try_emplace(std::pair{atom_def.name(), atom_def.arity()}, atom_def.type(),
+                     .try_emplace(std::pair{atom_def.name(), static_cast<size_t>(atom_def.arity())}, atom_def.type(),
                                   std::distance(term_defs.begin(), it), std::move(guard))
                      .second) {
                 GRINGO_REPORT_LOC(log, error, atom_def.loc())

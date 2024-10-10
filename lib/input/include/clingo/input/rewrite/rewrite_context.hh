@@ -39,8 +39,8 @@ class TheoryTermParser {
     [[nodiscard]] auto has_error() const { return has_error_; }
 
   private:
-    using Table = Util::unordered_map<std::pair<String, Arity>, std::pair<int, Associativity>>;
-    using Stack = std::vector<std::pair<String, Arity>>;
+    using Table = Util::unordered_map<std::pair<SharedString, Arity>, std::pair<int, Associativity>>;
+    using Stack = std::vector<std::pair<SharedString, Arity>>;
     using Terms = std::vector<TheoryTerm>;
 
     //! Get priority and associativity of the given binary operator.
@@ -78,8 +78,8 @@ class TheoryAtomParser {
 
   private:
     using ParserIndex = size_t;
-    using GuardTable = std::pair<StringSet, ParserIndex>;
-    using AtomTable = Util::unordered_map<std::pair<String, size_t>,
+    using GuardTable = std::pair<SharedStringSet, ParserIndex>;
+    using AtomTable = Util::unordered_map<std::pair<SharedString, size_t>,
                                           std::tuple<TheoryAtomType, ParserIndex, std::optional<GuardTable>>>;
 
     std::vector<TheoryTermParser> term_parsers_;
@@ -91,7 +91,7 @@ class TheoryAtomParser {
 using AuxTermVec = std::vector<std::pair<Term, Term>>;
 
 //! Map from identifiers to constants.
-using ParamMap = Util::ordered_set<String>;
+using ParamMap = Util::ordered_set<SharedString>;
 
 //! Helper to pass arguments to rewrite functions.
 class RewriteContext {
@@ -145,7 +145,7 @@ class RewriteContext {
     [[nodiscard]] auto is_const(String name) const -> std::optional<Symbol> {
         if (auto it = const_map_.find(name); it != const_map_.end()) {
             assert(!is_param(name));
-            return it->second.second;
+            return *it->second.second;
         }
         return std::nullopt;
     }

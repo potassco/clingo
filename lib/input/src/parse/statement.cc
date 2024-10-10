@@ -568,7 +568,7 @@ auto parse_program(ParserState &state) -> std::optional<Stm> {
                 loc += state.cursor_pos();
                 state.mark_stms();
                 state.consume();
-                return StmProgram{std::move(loc), name, *std::move(args)};
+                return StmProgram{std::move(loc), name, *args};
             }
         }
     }

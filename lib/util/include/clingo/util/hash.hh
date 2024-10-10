@@ -75,49 +75,58 @@ struct value_hasher {
 
 //! Helper class to compare pointers and some STL containers holding pointers by value.
 struct value_equal_to {
+    using is_transparent = void;
+
     //! Basic comparison.
-    template <class T> auto operator()(T const &a, T const &b) const -> bool { return a == b; }
+    template <class T, class U> auto operator()(T const &a, U const &b) const -> bool { return a == b; }
     //! Compare reference wrappers by value.
-    template <class T>
-    auto operator()(std::reference_wrapper<T> const &a, std::reference_wrapper<T> const &b) const -> bool {
+    template <class T, class U>
+    auto operator()(std::reference_wrapper<T> const &a, std::reference_wrapper<U> const &b) const -> bool {
         return operator()(a.get(), b.get());
     }
     //! Compare optionals by value.
-    template <class T> auto operator()(std::optional<T> const &a, std::optional<T> const &b) const -> bool {
+    template <class T, class U> auto operator()(std::optional<T> const &a, std::optional<U> const &b) const -> bool {
         return (!a && !b) || (a && b && operator()(*a, *b));
     }
     //! Compare pointers by value.
-    template <class T> auto operator()(T *a, T *b) const -> bool {
+    template <class T, class U> auto operator()(T *a, U *b) const -> bool {
         return a == b || (a != nullptr && b != nullptr && operator()(*a, *b));
     }
     //! Compare unique pointers by value.
-    template <class T, class D>
-    auto operator()(std::unique_ptr<T, D> const &a, std::unique_ptr<T, D> const &b) const -> bool {
+    template <class T, class D, class U, class E>
+    auto operator()(std::unique_ptr<T, D> const &a, std::unique_ptr<U, E> const &b) const -> bool {
         return operator()(a.get(), b.get());
     }
     //! Compare pairs by value.
-    template <class T, class U> auto operator()(std::pair<T, U> const &a, std::pair<T, U> const &b) const -> bool {
+    template <class T, class U, class V, class W>
+    auto operator()(std::pair<T, U> const &a, std::pair<V, W> const &b) const -> bool {
         return operator()(a.first, b.first) && operator()(a.second, b.second);
     }
     //! Compare tuples by value.
-    template <class... T> auto operator()(std::tuple<T...> const &a, std::tuple<T...> const &b) const -> bool {
+    template <class... T, class... U>
+    auto operator()(std::tuple<T...> const &a, std::tuple<U...> const &b) const -> bool {
+        static_assert(sizeof...(T) == sizeof...(U));
         return [&, this]<size_t... I>([[maybe_unused]] std::index_sequence<I...> seq) {
             return (this->operator()(std::get<I>(a), std::get<I>(b)) && ...);
         }(std::index_sequence_for<T...>());
     }
     //! Compare variants by value.
-    template <class... T> auto operator()(std::variant<T...> const &a, std::variant<T...> const &b) const -> bool {
+    template <class... T, class... U>
+    auto operator()(std::variant<T...> const &a, std::variant<U...> const &b) const -> bool {
+        static_assert(sizeof...(T) == sizeof...(U));
         auto i = a.index();
         return i == b.index() && [&, this]<size_t... I>([[maybe_unused]] std::index_sequence<I...> seq) {
             return ((i == I && this->operator()(std::get<I>(a), std::get<I>(b))) || ...);
         }(std::index_sequence_for<T...>());
     }
     //! Compare spans by value.
-    template <class T, size_t E> auto operator()(std::span<T, E> const &a, std::span<T, E> const &b) const -> bool {
+    template <class T, size_t E, class U, size_t F>
+    auto operator()(std::span<T, E> const &a, std::span<U, F> const &b) const -> bool {
         return std::equal(a.begin(), a.end(), b.begin(), b.end(), *this);
     }
     //! Compare vectors by value.
-    template <class T, class A> auto operator()(std::vector<T, A> const &a, std::vector<T, A> const &b) const -> bool {
+    template <class T, class A, class U, class B>
+    auto operator()(std::vector<T, A> const &a, std::vector<U, B> const &b) const -> bool {
         return std::equal(a.begin(), a.end(), b.begin(), b.end(), *this);
     }
 };
