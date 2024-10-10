@@ -188,9 +188,7 @@ extern "C" auto clingo_symbol_is_less_than(clingo_symbol_t a, clingo_symbol_t b)
     return sym_a < sym_b;
 }
 
-extern "C" auto clingo_symbol_hash(clingo_symbol_t symbol) -> size_t {
-    return Clingo::Util::hash_mix(Clingo::Util::value_hash_record<clingo_symbol_t>(Clingo::Symbol::from_rep(symbol)));
-}
+extern "C" auto clingo_symbol_hash(clingo_symbol_t symbol) -> size_t { return Clingo::Symbol::from_rep(symbol).hash(); }
 
 extern "C" auto clingo_parse_term(clingo_lib_t *lib, char const *string, clingo_symbol_t *symbol) -> bool {
     CLINGO_TRY {
