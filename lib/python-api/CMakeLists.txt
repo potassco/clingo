@@ -1,5 +1,6 @@
 pybind11_add_module(pyclingo
     src/ast.cc
+    src/ast2.cc
     src/clingo.cc
     src/core.cc
     src/symbol.cc

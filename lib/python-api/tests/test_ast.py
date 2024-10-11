@@ -6,7 +6,7 @@ from functools import singledispatch
 from textwrap import dedent
 from unittest import TestCase
 
-from clingo import ast
+from clingo import ast, ast2
 from clingo.core import Library, Location, Position
 from clingo.symbol import parse_term
 
@@ -25,6 +25,33 @@ class TestAST(TestCase):
     def tearDown(self):
         self.loc = None
         self.lib = None
+
+    def test_variable2(self):
+        """
+        Test variable terms.
+        """
+        x = ast2.TermVariable(self.lib, self.loc, "X", False)
+        a = ast2.TermVariable(self.lib, self.loc, "_", True)
+
+        self.assertEqual(x.location, self.loc)
+        self.assertEqual(x.name, "X")
+        self.assertFalse(x.anonymous)
+        self.assertEqual(a.name, "_")
+        self.assertTrue(a.anonymous)
+        self.assertEqual(str(x), "X")
+        self.assertEqual(str(a), "_")
+
+        @singledispatch
+        def dispatch(expr, prefix):
+            return expr.transform(self.lib, dispatch, prefix)
+
+        @dispatch.register
+        def _(var: ast2.TermVariable, prefix):
+            return var.update(self.lib, name=prefix + var.name)
+
+        # TODO: does not test transform yet
+        y = dispatch(x, "_")
+        self.assertEqual(str(y), "_X")
 
     def sym(self, val):
         """

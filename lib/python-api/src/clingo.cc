@@ -1,4 +1,5 @@
 #include "ast.hh"
+#include "ast2.hh"
 #include "core.hh"
 #include "symbol.hh"
 
@@ -9,4 +10,5 @@ PYBIND11_MODULE(clingo, m) {
     Clingo::Core::register_module(m);
     Clingo::Symbol::register_module(m);
     Clingo::AST::register_module(m);
+    Clingo::AST2::register_module(m);
 }
