@@ -76,17 +76,13 @@ template <clingo_ast_type_e T> class Node {
 
     template <clingo_ast_attribute_e name, class U> auto get() -> decltype(auto) { return get_<name, U>(); }
 
-    template <size_t i> auto get() -> decltype(auto) {
-        return get<std::get<i>(names), std::tuple_element_t<i, arguments>>();
-    }
+    template <size_t i> auto get() -> decltype(auto) { return get<names[i], std::tuple_element_t<i, arguments>>(); }
 
-    template <size_t i> static constexpr auto attr_name() -> char const * { return std::get<i>(strings); }
+    template <size_t i> static constexpr auto attr_name() -> char const * { return strings[i]; }
 
     static constexpr auto init_doc() -> char const * { return ast_type_info<Node>::doc; }
 
-    template <size_t i> static constexpr auto attr_doc() -> char const * {
-        return std::get<i>(ast_type_info<Node>::docs);
-    }
+    template <size_t i> static constexpr auto attr_doc() -> char const * { return ast_type_info<Node>::docs[i]; }
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) { visit_<0>(visitor, args, kwargs); }
 
@@ -220,7 +216,7 @@ template <clingo_ast_type_e T> class Node {
     // update
 
     template <size_t i> auto update_value_(py::kwargs const &kwargs) {
-        static constexpr char const *attr = std::get<i>(strings);
+        static constexpr char const *attr = strings[i];
         using E = std::tuple_element_t<i, arguments>;
         if constexpr (std::is_same_v<E, char const *>) {
             if (kwargs.contains(attr)) {

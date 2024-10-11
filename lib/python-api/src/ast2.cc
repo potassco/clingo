@@ -46,13 +46,16 @@ anonymous
     Whether the variable is anonymous.
 
     Anonymous variables receive a unique name during preprocessing.)doc";
-    static constexpr auto names =
-        std::make_tuple(clingo_ast_attribute_location, clingo_ast_attribute_name, clingo_ast_attribute_anonymous);
-    static constexpr auto strings = std::make_tuple("location", "name", "anonymous");
-    static constexpr auto docs =
-        std::make_tuple(R"doc(The location of the variable.)doc", R"doc(The name of the variable.)doc",
-                        R"doc(Whether the variable is anonymous.
-Anonymous variables receive a unique name during preprocessing.)doc");
+    // NOLINTNEXTLINE
+    static constexpr clingo_ast_attribute_e names[] = {clingo_ast_attribute_location, clingo_ast_attribute_name,
+                                                       clingo_ast_attribute_anonymous};
+    // NOLINTNEXTLINE
+    static constexpr char const *strings[] = {"location", "name", "anonymous"};
+    // NOLINTNEXTLINE
+    static constexpr char const *docs[] = {R"doc(The location of the variable.)doc",
+                                           R"doc(The name of the variable.)doc",
+                                           R"doc(Whether the variable is anonymous.
+Anonymous variables receive a unique name during preprocessing.)doc"};
     static constexpr auto ast_type = clingo_ast_type_term_variable;
 };
 

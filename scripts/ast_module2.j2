@@ -1,0 +1,286 @@
+#include "ast2.hh"
+#include "ast_node.hh"
+
+namespace Clingo::AST2 {
+
+namespace py = pybind11;
+
+{%  for type_name, type in types.items() -%}
+{%    if type.type == 'enum' %}
+enum class {{ c_type_name }} {
+{%-     for name, attr in type["values"].items() %}
+    {{ name | camel }} = {{ attr.value }},
+{%-     endfor %}
+};
+{%    endif %}
+{%- endfor -%}
+{%  for type_name, type in types.items() -%}
+{%    if type.type == 'record' %}
+using {{ type_name | camel }} = Node<clingo_ast_type_{{ type_name }}>;
+{%    endif %}
+{%- endfor -%}
+{%  for type_name, type in types.items() -%}
+{%    set c_type_name = type_name | camel -%}
+{%    if type.type == 'optional' %}
+using {{ c_type_name }} = std::optional<{{ type.value_type | camel }}>;
+{%    elif type.type == 'array' %}
+using {{ c_type_name }} = std::vector<{{ type.value_type | camel }}>;
+{%    elif type.type == 'union' %}
+using {{ c_type_name }} = std::variant<{{ type.types | map("camel") | join(", ") }}>;
+{%    endif %}
+{%- endfor %}
+{%  for type_name, type in types.items() -%}
+{%    if type.type == 'record' %}
+template <> struct ast_type_info<{{ type_name | camel }}> {
+    static constexpr auto type = Type::record;
+    static constexpr auto ast_type = clingo_ast_type_term_variable;
+    using c_type = clingo_ast_type_t const *;
+    using arguments = std::tuple<
+    {%- for argument_name, argument in type.arguments.items() -%}
+      {{ argument.type | cref -}}
+      {{- ", " if not loop.last else "" -}}
+    {%- endfor -%}>;
+    static constexpr auto doc = R"doc(Construct a {{ c_type_name }} object.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+{%-     for argument_name, argument in type.arguments.items() %}
+{{ argument_name }}
+{{ argument.doc | param_doc }}
+{%-     endfor %})doc";
+    static constexpr char const *names[] = {
+    {%- for argument_name, argument in type.arguments.items() -%}
+      clingo_ast_attribute_{{ argument_name -}}
+      {{- ", " if not loop.last else "" -}}
+    {%- endfor -%}};
+    static constexpr char const *strings[] = {
+    {%- for argument_name, argument in type.arguments.items() -%}
+      "{{ argument_name }}"
+      {{- ", " if not loop.last else "" -}}
+    {%- endfor -%}};
+    static constexpr char const *docs[] = {
+    {%- for argument_name, argument in type.arguments.items() -%}
+      R"doc({{ argument.doc }})doc"
+      {{- ", " if not loop.last else "" -}}
+    {%- endfor -%}};
+};
+{%    endif %}
+{%- endfor %}
+void register_module(pybind11::module &m) {
+    auto ast = m.def_submodule("ast", R"doc(This module provides functions to work with Abstract Syntax Trees of logic programs.)doc");
+
+    ast.def("_type_info_yaml", &clingo_ast_type_info_yaml, R"doc(Return a yaml description of the AST.
+
+This can be used to auto-generate most of the binding.)doc");
+
+    auto py_projection_mode =
+        py::enum_<ProjectionMode>(ast, "ProjectionMode", R"doc(Available projection modes.)doc")
+            .value("Disabled", ProjectionMode::Disabled, R"doc(Do not project.)doc")
+            .value("Anonymous", ProjectionMode::Anonymous, R"doc(Only project anonymous variables.)doc")
+            .value("Pure", ProjectionMode::Pure, R"doc(Project pure variables.)doc");
+{%  for type_name, type in types.items() -%}
+{%    set c_type_name = type_name | camel -%}
+{%    if type.type == 'enum' %}
+    auto py_{{ type_name }} = py::enum_<{{ c_type_name }}>(ast, "{{ c_type_name }}", R"doc({{ type.doc }})doc");
+{%    elif type.type == 'record' %}
+    auto py_{{ type_name }} = py::class_<{{ c_type_name }}>(ast, "{{ c_type_name }}", R"doc({{ type.doc | doc }})doc");
+{%    endif %}
+{%- endfor %}
+{%  for type_name, type in types.items() -%}
+{%    set c_type_name = type_name | camel -%}
+{%    if type.type == 'enum' %}
+    py_{{ type_name }}
+{%-     for value_name, value_type in type["values"].items() %}
+        .value("{{ value_name | camel }}", {{ c_type_name }}::{{ value_name | camel }}, R"doc({{ value_type.doc }})doc")
+{%-       if loop.last %};{% endif -%}
+{%-     endfor %}
+{%    elif type.type == 'record' %}
+    py_{{ type_name }}
+        .def(py::init<Core::Library &
+        {%- for argument_name, argument in type.arguments.items() -%}
+            , {{ argument.type | cref -}}
+        {%- endfor -%}>(), py::arg("lib")
+        {%- for argument_name, argument in type.arguments.items() -%}
+            , py::arg("{{ argument_name }}")
+            {%- if "default" in argument %}
+              {%- if argument.type == "bool" %} = {{ argument.default | string | lower }}
+              {%- elif types[argument.type].type == "array" and argument.default == "empty" %} = {{ argument.type | camel }}{}
+              {%- elif types[argument.type].type == "optional" and argument.default == "empty" %} = std::nullopt
+              {%- endif %}
+            {%- endif %}
+        {%- endfor %}, {{ c_type_name }}::doc_init())
+        .def("__str__", &{{ c_type_name }}::to_string)
+        .def("__hash__", &{{ c_type_name }}::hash)
+{%-     for argument_name in type.arguments.keys() %}
+        .def_property_readonly({{ c_type_name }}::attr_name<{{ loop.index-1 }}>(), &{{ c_type_name }}::{{argument_name}}, {{ c_type_name }}::attr_doc<{{ loop.index-1 }}>())
+{%-     endfor %}
+        .def("visit", &{{ c_type_name }}::visit, py::arg("visitor"), doc_visit)
+        .def("transform", &{{ c_type_name }}::transform, doc_transform)
+        .def("update", &{{ c_type_name }}::update, py::arg("lib"), doc_update)
+        // generate comparison operators
+        CLINGO_PY_TOTAL_ORDER;
+{%    endif %}
+{%- endfor %}
+    py::class_<Scanner>(ast, "Scanner", R"doc( Scanner to parse statements.)doc")
+        .def(py::init<Library &, char const *>(), py::arg("lib"), py::arg("program"),
+            R"doc(Create a scanner to parse from the given string.
+
+Parameters
+----------
+lib
+    A library object to store symbols.
+program
+    The program to parse.
+)doc")
+        .def(py::init<Library &, std::vector<std::string>>(), py::arg("lib"), py::arg("files"), R"(
+Create a scanner to parse from the given files.
+
+The scanner follows clingo's handling of files on the command line. Filename
+"-" is treated as "STDIN" and if an empty list is given, then the parser will
+read from "STDIN".
+
+Parameters
+----------
+lib
+    A library object to store symbols.
+files
+    A list of files to parse.
+)")
+        .def("__enter__", [](Scanner &scanner) -> Scanner & { return scanner; }, R"(Return self.)")
+        .def("__iter__", &Scanner::iter, R"(Return an iterator over parsed statements.)")
+        .def(
+            "__exit__",
+            [](Scanner &scanner, py::object const &, py::object const &, py::object const &) -> bool {
+                scanner.close();
+                return false;
+            },
+            R"doc(Close the scanner object.)doc");
+    ast.def("parse_term", &parse_term, py::arg("lib"), py::arg("string"), R"doc(Parse a term.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+string
+    The string to parse.
+
+Returns
+-------
+The parsed Term object.)doc");
+    ast.def("parse_theory_term", &parse_theory_term, py::arg("lib"), py::arg("string"), R"doc(Parse a theory term.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+string
+    The string to parse.
+
+Returns
+-------
+The parsed TheoryTerm object.)doc");
+    ast.def("parse_literal", &parse_literal, py::arg("lib"), py::arg("string"), R"doc(Parse a literal.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+string
+    The string to parse.
+
+Returns
+-------
+The parsed Literal object.)doc");
+    ast.def("parse_head_literal", &parse_head_literal, py::arg("lib"), py::arg("string"), R"doc(Parse a head literal.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+string
+    The string to parse.
+
+Returns
+-------
+The parsed HeadLiteral object.)doc");
+    ast.def("parse_body_literal", &parse_body_literal, py::arg("lib"), py::arg("string"), R"doc(Parse a body literal.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+string
+    The string to parse.
+
+Returns
+-------
+The parsed BodyLiteral object.)doc");
+    ast.def("parse_statement", &parse_statement, py::arg("lib"), py::arg("string"), R"doc(Parse a statement.
+
+Parameters
+----------
+lib
+    The library object for storing symbols.
+string
+    The string to parse.
+
+Returns
+-------
+The parsed Statement object.)doc");
+
+    py::class_<RewriteContext>(ast, "RewriteContext", R"doc(Context to rewrite statements.)doc")
+        .def(py::init<Library &>(), py::arg("lib"),
+             R"doc(Create a context to rewrite statements.
+
+Parameters
+----------
+lib
+    A library object to store symbols.
+)doc")
+        .def("add_param", &RewriteContext::add_param, py::arg("name"), R"doc(
+Add a parameter.
+
+Parameters are protected from simplification.
+
+Parameters
+----------
+name
+    The name of the parameter.
+)doc")
+        .def("clear_params", &RewriteContext::clear_params, R"doc(
+Remove previously added params
+)doc")
+        .def("add_theory", &RewriteContext::add_theory, py::arg("theory"), R"doc(
+Add a theory definition statement.
+
+The theory definition is used to rewrite theory atoms in statements.
+
+Parameters
+----------
+theory
+    The theory statement to add.
+)doc")
+        .def_property("project_mode", &RewriteContext::get_project_mode, &RewriteContext::set_project_mode,
+                      R"doc(The active projection mode.)doc")
+        .def_property("project_anonymous", &RewriteContext::get_project_anonymous,
+                      &RewriteContext::set_project_anoymous,
+                      R"doc(Whether to project anonymous variables in negative literals.)doc");
+
+    ast.def("rewrite_statement", &rewrite_statement, py::arg("ctx"), py::arg("statement"),
+            R"doc(Simplify the given statement.
+
+Parameters
+----------
+ctx
+    The rewrite context.
+statement
+    The statement to rewrite.
+
+Returns
+-------
+A list of rewritten statements.)doc");
+}
+
+}
