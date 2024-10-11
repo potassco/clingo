@@ -9,7 +9,7 @@
 #include <cstring>
 #include <mutex>
 
-#define DEBUG_GC
+// #define DEBUG_GC
 
 // NOLINTBEGIN(readability-magic-numbers,modernize-avoid-c-arrays,cppcoreguidelines-pro-bounds-pointer-arithmetic,cppcoreguidelines-pro-type-reinterpret-cast,cppcoreguidelines-pro-bounds-constant-array-index,performance-no-int-to-ptr)
 

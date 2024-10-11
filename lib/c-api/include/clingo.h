@@ -240,6 +240,18 @@ enum clingo_truth_value_e {
 //! Corresponding type to ::clingo_truth_value_e.
 typedef int clingo_truth_value_t;
 
+//! A builder for strings.
+typedef struct clingo_string_builder clingo_string_builder_t;
+
+CLINGO_VISIBILITY_DEFAULT bool clingo_string_builder_new(clingo_string_builder_t **bld);
+CLINGO_VISIBILITY_DEFAULT bool clingo_string_builder_copy(clingo_string_builder_t const *src,
+                                                          clingo_string_builder_t **dst);
+CLINGO_VISIBILITY_DEFAULT void clingo_string_builder_free(clingo_string_builder_t const *bld);
+
+CLINGO_VISIBILITY_DEFAULT bool clingo_string_builder_string(clingo_string_builder_t const *bld, char const **str,
+                                                            size_t *size);
+CLINGO_VISIBILITY_DEFAULT void clingo_string_builder_clear(clingo_string_builder_t *bld);
+
 //! Represents a cursor position in source code.
 //!
 //! @note Not all positions refer to physical files.
@@ -247,31 +259,37 @@ typedef int clingo_truth_value_t;
 typedef struct clingo_position clingo_position_t;
 
 // creates a new allocated position
-CLINGO_VISIBILITY_DEFAULT bool clingo_position_new(clingo_lib_t *lib, char const *file, size_t line, size_t column, clingo_position_t const **pos);
+CLINGO_VISIBILITY_DEFAULT bool clingo_position_new(clingo_lib_t *lib, char const *file, size_t line, size_t column,
+                                                   clingo_position_t const **pos);
 // like new but copies an existing location
 CLINGO_VISIBILITY_DEFAULT bool clingo_position_copy(clingo_position_t const *src, clingo_position_t const **dst);
-// frees a position (positions returned from the API do not have to be freed but their lifetime is limited to that of their owner)
+// frees a position (positions returned from the API do not have to be freed but their lifetime is limited to that of
+// their owner)
 CLINGO_VISIBILITY_DEFAULT void clingo_position_free(clingo_position_t const *pos);
 
 CLINGO_VISIBILITY_DEFAULT char const *clingo_position_file(clingo_position_t const *pos);
 CLINGO_VISIBILITY_DEFAULT size_t clingo_position_line(clingo_position_t const *pos);
 CLINGO_VISIBILITY_DEFAULT size_t clingo_position_column(clingo_position_t const *pos);
+CLINGO_VISIBILITY_DEFAULT size_t clingo_position_hash(clingo_position_t const *pos);
 CLINGO_VISIBILITY_DEFAULT bool clingo_position_equal(clingo_position_t const *a, clingo_position_t const *b);
-CLINGO_VISIBILITY_DEFAULT bool clingo_position_compare(clingo_position_t const *a, clingo_position_t const *b);
+CLINGO_VISIBILITY_DEFAULT int clingo_position_compare(clingo_position_t const *a, clingo_position_t const *b);
+CLINGO_VISIBILITY_DEFAULT bool clingo_position_to_string(clingo_position_t const *pos, clingo_string_builder_t *str);
 
 //! Represents a source code location marking its beginning and end.
 typedef struct clingo_location clingo_location_t;
 
-CLINGO_VISIBILITY_DEFAULT bool clingo_location_new(clingo_position_t const *begin, clingo_position_t const *end, clingo_location_t **loc);
+CLINGO_VISIBILITY_DEFAULT bool clingo_location_new(clingo_position_t const *begin, clingo_position_t const *end,
+                                                   clingo_location_t const **loc);
 CLINGO_VISIBILITY_DEFAULT bool clingo_location_copy(clingo_location_t const *src, clingo_location_t const **dst);
-CLINGO_VISIBILITY_DEFAULT void clingo_location_free(clingo_location_t *loc);
+CLINGO_VISIBILITY_DEFAULT void clingo_location_free(clingo_location_t const *loc);
 
 // getters (the first two return borrowed references)
-CLINGO_VISIBILITY_DEFAULT clingo_position_t *clingo_location_begin(clingo_location_t const *loc, clingo_location_t const **pos);
-CLINGO_VISIBILITY_DEFAULT clingo_position_t *clingo_location_end(clingo_location_t const *loc, clingo_location_t const **pos);
+CLINGO_VISIBILITY_DEFAULT clingo_position_t const *clingo_location_begin(clingo_location_t const *loc);
+CLINGO_VISIBILITY_DEFAULT clingo_position_t const *clingo_location_end(clingo_location_t const *loc);
+CLINGO_VISIBILITY_DEFAULT size_t clingo_location_hash(clingo_location_t const *loc);
 CLINGO_VISIBILITY_DEFAULT bool clingo_location_equal(clingo_location_t const *a, clingo_location_t const *b);
-CLINGO_VISIBILITY_DEFAULT bool clingo_location_compare(clingo_location_t const *a, clingo_location_t const *b);
-CLINGO_VISIBILITY_DEFAULT bool clingo_location_to_string(clingo_location_t const *location, char *string, size_t size);
+CLINGO_VISIBILITY_DEFAULT int clingo_location_compare(clingo_location_t const *a, clingo_location_t const *b);
+CLINGO_VISIBILITY_DEFAULT bool clingo_location_to_string(clingo_location_t const *loc, clingo_string_builder_t *str);
 
 //! @}
 
@@ -575,7 +593,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_to_string(clingo_symbol_t symbol, c
 //! @param[in] a first symbol
 //! @param[in] b second symbol
 //! @return whether a == b
-CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_is_equal_to(clingo_symbol_t a, clingo_symbol_t b);
+CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_equal(clingo_symbol_t a, clingo_symbol_t b);
 
 //! Check if a symbol is less than another symbol.
 //!
@@ -586,7 +604,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_is_equal_to(clingo_symbol_t a, clin
 //! @param[in] a first symbol
 //! @param[in] b second symbol
 //! @return whether a < b
-CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_is_less_than(clingo_symbol_t a, clingo_symbol_t b);
+CLINGO_VISIBILITY_DEFAULT int clingo_symbol_compare(clingo_symbol_t a, clingo_symbol_t b);
 
 //! Calculate a hash code of a symbol.
 //!
@@ -1033,7 +1051,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_to_string(clingo_ast_t *ast, char *str
 //! @param[in] a the left-hand-side AST
 //! @param[in] b the right-hand-side AST
 //! @return the result of the comparison
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_less_than(clingo_ast_t *a, clingo_ast_t *b);
+CLINGO_VISIBILITY_DEFAULT int clingo_ast_compare(clingo_ast_t *a, clingo_ast_t *b);
 
 //! Equality compare two AST nodes.
 //!
@@ -1089,7 +1107,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_symbol(clingo_ast_t *ast
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_location(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
-                                                                 clingo_location_t *value);
+                                                                 clingo_location_t const **value);
 
 //! Get the value of a string attribute.
 //!

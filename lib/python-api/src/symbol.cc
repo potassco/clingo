@@ -1,4 +1,5 @@
 #include "symbol.hh"
+#include "util.hh"
 
 #include <sstream>
 
@@ -173,9 +174,11 @@ Symbol::~Symbol() noexcept { clingo_symbol_release(sym_); }
 
 [[nodiscard]] auto Symbol::handle() const -> clingo_symbol_t { return sym_; }
 
-auto operator==(Symbol const &a, Symbol const &b) -> bool { return clingo_symbol_is_equal_to(a.sym_, b.sym_); }
+auto operator==(Symbol const &a, Symbol const &b) -> bool { return clingo_symbol_equal(a.sym_, b.sym_); }
 
-auto operator<(Symbol const &a, Symbol const &b) -> bool { return clingo_symbol_is_less_than(a.sym_, b.sym_); }
+auto operator<=>(Symbol const &a, Symbol const &b) -> std::strong_ordering {
+    return clingo_symbol_compare(a.sym_, b.sym_) <=> 0;
+}
 
 auto Infimum() -> Symbol { return Symbol{clingo_symbol_create_infimum(), false}; }
 

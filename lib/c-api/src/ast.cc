@@ -35,12 +35,12 @@ struct clingo_ast {
     [[nodiscard]] auto copy() const -> std::unique_ptr<clingo_ast_t>;
     void print(std::ostream &out) const;
     [[nodiscard]] auto hash() const -> size_t;
-    [[nodiscard]] auto equal_to(clingo_ast_t const &other) const -> bool;
-    [[nodiscard]] auto less_than(clingo_ast_t const &other) const -> bool;
+    [[nodiscard]] auto equal(clingo_ast_t const &other) const -> bool;
+    [[nodiscard]] auto compare(clingo_ast_t const &other) const -> std::strong_ordering;
     [[nodiscard]] auto get_type() const -> clingo_ast_type_e;
     [[nodiscard]] auto get_number(clingo_ast_attribute_t attr) const -> std::optional<int>;
     [[nodiscard]] auto get_symbol(clingo_ast_attribute_t attr) const -> std::optional<clingo_symbol_t>;
-    [[nodiscard]] auto get_location(clingo_ast_attribute_t attr) const -> std::optional<clingo_location_t>;
+    [[nodiscard]] auto get_location(clingo_ast_attribute_t attr) const -> std::optional<clingo_location_t const *>;
     [[nodiscard]] auto get_string(clingo_ast_attribute_t attr) const -> std::optional<char const *>;
     [[nodiscard]] auto get_string_vec(clingo_ast_attribute_t attr) const -> std::optional<Clingo::StringSpan>;
     [[nodiscard]] auto get_ast(clingo_ast_attribute_t attr) const -> std::optional<std::unique_ptr<clingo_ast_t>>;
@@ -882,10 +882,7 @@ template <class T> auto convert(clingo_ast_t const **ast, size_t size) -> std::v
     return res;
 }
 
-auto convert(clingo_lib_t *lib, clingo_location_t const *loc) -> Clingo::Location {
-    return {{*lib->store->string(loc->begin_file), loc->begin_line, loc->begin_column},
-            {*lib->store->string(loc->end_file), loc->end_line, loc->end_column}};
-}
+auto convert(clingo_location_t const *loc) -> Clingo::Location const & { return *cpp_cast(loc); }
 
 auto convert(clingo_lib_t *lib, char const **array, size_t size) -> Clingo::SharedStringArray {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
@@ -1096,17 +1093,14 @@ auto clingo_ast::visit(V &&visit) const -> std::invoke_result_t<V, Clingo::Input
 
 auto clingo_ast::get_type() const -> clingo_ast_type_e { return type_; }
 
-auto clingo_ast::get_location(clingo_ast_attribute_t attr) const -> std::optional<clingo_location_t> {
+auto clingo_ast::get_location(clingo_ast_attribute_t attr) const -> std::optional<clingo_location_t const *> {
     using namespace Clingo::Input;
     if (attr != clingo_ast_attribute_location) {
         return std::nullopt;
     }
-    return visit([]<class T>(T const &x) -> std::optional<clingo_location_t> {
+    return visit([]<class T>(T const &x) -> std::optional<clingo_location_t const *> {
         if constexpr (requires(T const &x) { x.loc(); }) {
-            auto const &loc = x.loc();
-            return std::optional<clingo_location_t>{
-                std::in_place,    loc.begin().file().c_str(), loc.end().file().c_str(), loc.begin().line(),
-                loc.end().line(), loc.begin().column(),       loc.end().column()};
+            return c_cast(&x.loc());
         }
         return std::nullopt;
     });
@@ -1492,16 +1486,16 @@ auto clingo_ast::hash() const -> size_t {
         [this](auto &x) { return Clingo::Util::hash_mix(Clingo::Util::value_hash_record<clingo_ast>(type_, x)); });
 }
 
-auto clingo_ast::equal_to(clingo_ast_t const &other) const -> bool {
+auto clingo_ast::equal(clingo_ast_t const &other) const -> bool {
     return type_ == other.type_ &&
            visit([&other](auto const &x) { return x == other.cast<std::decay_t<decltype(x)>>(); });
 }
 
-auto clingo_ast::less_than(clingo_ast_t const &other) const -> bool {
+auto clingo_ast::compare(clingo_ast_t const &other) const -> std::strong_ordering {
     if (type_ != other.type_) {
-        return type_ < other.type_;
+        return type_ <=> other.type_;
     }
-    return visit([&other](auto const &x) { return x < other.cast<std::decay_t<decltype(x)>>(); });
+    return visit([&other](auto const &x) { return x <=> other.cast<std::decay_t<decltype(x)>>(); });
 }
 
 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
@@ -1518,7 +1512,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 va_start(args, ast);
                 auto const *loc = va_arg(args, clingo_location_t const *);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::Projection>(type, convert(lib, loc));
+                *ast = construct_ast<Clingo::Input::Projection>(type, convert(loc));
                 break;
             }
             case clingo_ast_type_term_variable: {
@@ -1528,7 +1522,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *name = va_arg(args, char const *);
                 auto anonymous = va_arg(args, int);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::TermVariable>(type, convert(lib, loc), *lib->store->string(name),
+                *ast = construct_ast<Clingo::Input::TermVariable>(type, convert(loc), *lib->store->string(name),
                                                                   anonymous != 0);
                 break;
             }
@@ -1538,7 +1532,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *loc = va_arg(args, clingo_location_t const *);
                 auto sym = va_arg(args, clingo_symbol_t);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::TermSymbol>(type, convert(lib, loc), Clingo::Symbol::from_rep(sym));
+                *ast = construct_ast<Clingo::Input::TermSymbol>(type, convert(loc), Clingo::Symbol::from_rep(sym));
                 break;
             }
             case clingo_ast_type_term_tuple: {
@@ -1548,7 +1542,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const **pool = va_arg(args, clingo_ast_t const **);
                 auto size = va_arg(args, size_t);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::TermTuple>(type, convert(lib, loc),
+                *ast = construct_ast<Clingo::Input::TermTuple>(type, convert(loc),
                                                                convert<Clingo::Input::TupleElement>(pool, size));
                 return true;
             }
@@ -1561,7 +1555,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto size = va_arg(args, size_t);
                 auto sign = va_arg(args, int);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::TermFunction>(type, convert(lib, loc), *lib->store->string(name),
+                *ast = construct_ast<Clingo::Input::TermFunction>(type, convert(loc), *lib->store->string(name),
                                                                   convert<Clingo::Input::ArgumentTuple>(pool, size),
                                                                   sign != 0);
                 break;
@@ -1573,8 +1567,8 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const **pool = va_arg(args, clingo_ast_t const **);
                 auto size = va_arg(args, size_t);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::TermAbs>(type, convert(lib, loc),
-                                                             convert<Clingo::Input::Term>(pool, size));
+                *ast =
+                    construct_ast<Clingo::Input::TermAbs>(type, convert(loc), convert<Clingo::Input::Term>(pool, size));
                 break;
             }
             case clingo_ast_type_term_unary_operation: {
@@ -1585,7 +1579,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *rhs = va_arg(args, clingo_ast_t *);
                 va_end(args);
                 *ast = construct_ast<Clingo::Input::TermUnary>(
-                    type, convert(lib, loc), static_cast<Clingo::Input::UnaryOperator>(op),
+                    type, convert(loc), static_cast<Clingo::Input::UnaryOperator>(op),
                     convert<Clingo::Util::immutable_value<Clingo::Input::Term>>(rhs));
                 break;
             }
@@ -1598,7 +1592,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *rhs = va_arg(args, clingo_ast_t *);
                 va_end(args);
                 *ast = construct_ast<Clingo::Input::TermBinary>(
-                    type, convert(lib, loc), convert<Clingo::Util::immutable_value<Clingo::Input::Term>>(lhs),
+                    type, convert(loc), convert<Clingo::Util::immutable_value<Clingo::Input::Term>>(lhs),
                     static_cast<Clingo::Input::BinaryOperator>(op),
                     convert<Clingo::Util::immutable_value<Clingo::Input::Term>>(rhs));
                 break;
@@ -1639,7 +1633,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto sign = va_arg(args, int);
                 auto value = va_arg(args, int);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::LitBool>(type, convert(lib, loc), static_cast<Clingo::Sign>(sign),
+                *ast = construct_ast<Clingo::Input::LitBool>(type, convert(loc), static_cast<Clingo::Sign>(sign),
                                                              value != 0);
                 break;
             }
@@ -1650,8 +1644,8 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto sign = va_arg(args, int);
                 auto const *atom = va_arg(args, clingo_ast_t const *);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::LitSymbolic>(
-                    type, convert(lib, loc), static_cast<Clingo::Sign>(sign), convert<Clingo::Input::Term>(atom));
+                *ast = construct_ast<Clingo::Input::LitSymbolic>(type, convert(loc), static_cast<Clingo::Sign>(sign),
+                                                                 convert<Clingo::Input::Term>(atom));
                 break;
             }
             case clingo_ast_type_literal_comparison: {
@@ -1663,9 +1657,9 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const **right = va_arg(args, clingo_ast_t const **);
                 auto size = va_arg(args, size_t);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::LitComparison>(
-                    type, convert(lib, loc), static_cast<Clingo::Sign>(sign), convert<Clingo::Input::Term>(left),
-                    convert<Clingo::Input::Guard>(right, size));
+                *ast = construct_ast<Clingo::Input::LitComparison>(type, convert(loc), static_cast<Clingo::Sign>(sign),
+                                                                   convert<Clingo::Input::Term>(left),
+                                                                   convert<Clingo::Input::Guard>(right, size));
                 break;
             }
             case clingo_ast_type_unparsed_element: {
@@ -1686,8 +1680,8 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *name = va_arg(args, char const *);
                 auto anonymous = va_arg(args, int);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::TheoryTermVariable>(type, convert(lib, loc),
-                                                                        *lib->store->string(name), anonymous != 0);
+                *ast = construct_ast<Clingo::Input::TheoryTermVariable>(type, convert(loc), *lib->store->string(name),
+                                                                        anonymous != 0);
                 break;
             }
             case clingo_ast_type_theory_term_symbolic: {
@@ -1696,8 +1690,8 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *loc = va_arg(args, clingo_location_t const *);
                 auto sym = va_arg(args, clingo_symbol_t);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::TheoryTermSymbol>(type, convert(lib, loc),
-                                                                      Clingo::Symbol::from_rep(sym));
+                *ast =
+                    construct_ast<Clingo::Input::TheoryTermSymbol>(type, convert(loc), Clingo::Symbol::from_rep(sym));
                 break;
             }
             case clingo_ast_type_theory_term_tuple: {
@@ -1709,7 +1703,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto size = va_arg(args, size_t);
                 va_end(args);
                 *ast = construct_ast<Clingo::Input::TheoryTermTuple>(
-                    type, convert(lib, loc), static_cast<Clingo::TheoryTermTupleType>(tuple_type),
+                    type, convert(loc), static_cast<Clingo::TheoryTermTupleType>(tuple_type),
                     convert<Clingo::Input::TheoryTerm>(arguments, size));
                 break;
             }
@@ -1722,8 +1716,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto size = va_arg(args, size_t);
                 va_end(args);
                 *ast = construct_ast<Clingo::Input::TheoryTermFunction>(
-                    type, convert(lib, loc), *lib->store->string(name),
-                    convert<Clingo::Input::TheoryTerm>(arguments, size));
+                    type, convert(loc), *lib->store->string(name), convert<Clingo::Input::TheoryTerm>(arguments, size));
                 break;
             }
             case clingo_ast_type_theory_term_unparsed: {
@@ -1734,7 +1727,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto size = va_arg(args, size_t);
                 va_end(args);
                 *ast = construct_ast<Clingo::Input::TheoryTermUnparsed>(
-                    type, convert(lib, loc), convert<Clingo::Input::UnparsedElement>(elems, size));
+                    type, convert(loc), convert<Clingo::Input::UnparsedElement>(elems, size));
                 break;
             }
             case clingo_ast_type_set_aggregate_element: {
@@ -1745,7 +1738,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const **cond = va_arg(args, clingo_ast_t const **);
                 auto size = va_arg(args, size_t);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::SetAggregateElement>(type, convert(lib, loc), convert<Lit>(lit),
+                *ast = construct_ast<Clingo::Input::SetAggregateElement>(type, convert(loc), convert<Lit>(lit),
                                                                          convert<Clingo::Input::Lit>(cond, size));
                 break;
             }
@@ -1759,7 +1752,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto cond_size = va_arg(args, size_t);
                 va_end(args);
                 *ast = construct_ast<Clingo::Input::TheoryElement>(
-                    type, convert(lib, loc), convert<Clingo::Input::TheoryTerm>(tuple, tuple_size),
+                    type, convert(loc), convert<Clingo::Input::TheoryTerm>(tuple, tuple_size),
                     convert<Clingo::Input::Lit>(cond, cond_size));
                 break;
             }
@@ -1791,7 +1784,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto cond_size = va_arg(args, size_t);
                 va_end(args);
                 *ast = construct_ast<Clingo::Input::BdLitAggregateElement>(
-                    type, convert(lib, loc), convert<Clingo::Input::Term>(tuple, tuple_size),
+                    type, convert(loc), convert<Clingo::Input::Term>(tuple, tuple_size),
                     convert<Clingo::Input::Lit>(cond, cond_size));
                 break;
             }
@@ -1807,7 +1800,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *rhs = va_arg(args, clingo_ast_t const *);
                 va_end(args);
                 *ast = construct_ast<Clingo::Input::BdLitAggregate>(
-                    type, convert(lib, loc), static_cast<Clingo::Sign>(sign), convert<Clingo::Input::LGuard>(lhs),
+                    type, convert(loc), static_cast<Clingo::Sign>(sign), convert<Clingo::Input::LGuard>(lhs),
                     static_cast<Clingo::AggregateFunction>(fun),
                     convert<Clingo::Input::BdLitAggregateElement>(elems, elems_size),
                     convert<Clingo::Input::RGuard>(rhs));
@@ -1824,7 +1817,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *rhs = va_arg(args, clingo_ast_t const *);
                 va_end(args);
                 *ast = construct_ast<Clingo::Input::BdLitSetAggregate>(
-                    type, convert(lib, loc), static_cast<Clingo::Sign>(sign), convert<Clingo::Input::LGuard>(lhs),
+                    type, convert(loc), static_cast<Clingo::Sign>(sign), convert<Clingo::Input::LGuard>(lhs),
                     convert<Clingo::Input::SetAggregateElement>(elems, elems_size),
                     convert<Clingo::Input::RGuard>(rhs));
                 break;
@@ -1840,7 +1833,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *rhs = va_arg(args, clingo_ast_t const *);
                 va_end(args);
                 *ast = construct_ast<Clingo::Input::BdLitTheoryAtom>(
-                    type, convert(lib, loc), static_cast<Clingo::Sign>(sign), convert<Clingo::Input::Term>(term),
+                    type, convert(loc), static_cast<Clingo::Sign>(sign), convert<Clingo::Input::Term>(term),
                     convert<Clingo::Input::TheoryElement>(elems, elems_size),
                     convert<std::optional<Clingo::Input::TheoryRGuard>>(rhs));
                 break;
@@ -1854,7 +1847,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto cond_size = va_arg(args, size_t);
                 va_end(args);
                 *ast = construct_ast<Clingo::Input::BdLitConjunction>(
-                    type, Clingo::Input::CondLit{convert(lib, loc), convert<Clingo::Input::Lit>(lit),
+                    type, Clingo::Input::CondLit{convert(loc), convert<Clingo::Input::Lit>(lit),
                                                  convert<Clingo::Input::Lit>(cond, cond_size)});
                 break;
             }
@@ -1877,7 +1870,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto cond_size = va_arg(args, size_t);
                 va_end(args);
                 *ast = construct_ast<Clingo::Input::HdLitAggregateElement>(
-                    type, convert(lib, loc), convert<Clingo::Input::Term>(tuple, tuple_size), convert<Lit>(lit),
+                    type, convert(loc), convert<Clingo::Input::Term>(tuple, tuple_size), convert<Lit>(lit),
                     convert<Clingo::Input::Lit>(cond, cond_size));
                 break;
             }
@@ -1892,7 +1885,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *rhs = va_arg(args, clingo_ast_t const *);
                 va_end(args);
                 *ast = construct_ast<Clingo::Input::HdLitAggregate>(
-                    type, convert(lib, loc), convert<Clingo::Input::LGuard>(lhs),
+                    type, convert(loc), convert<Clingo::Input::LGuard>(lhs),
                     static_cast<Clingo::AggregateFunction>(fun),
                     convert<Clingo::Input::HdLitAggregateElement>(elems, elems_size),
                     convert<Clingo::Input::RGuard>(rhs));
@@ -1908,7 +1901,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *rhs = va_arg(args, clingo_ast_t const *);
                 va_end(args);
                 *ast = construct_ast<Clingo::Input::HdLitSetAggregate>(
-                    type, convert(lib, loc), convert<Clingo::Input::LGuard>(lhs),
+                    type, convert(loc), convert<Clingo::Input::LGuard>(lhs),
                     convert<Clingo::Input::SetAggregateElement>(elems, elems_size),
                     convert<Clingo::Input::RGuard>(rhs));
                 break;
@@ -1923,7 +1916,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *rhs = va_arg(args, clingo_ast_t const *);
                 va_end(args);
                 *ast = construct_ast<Clingo::Input::HdLitTheoryAtom>(
-                    type, convert(lib, loc), convert<Clingo::Input::Term>(term),
+                    type, convert(loc), convert<Clingo::Input::Term>(term),
                     convert<Clingo::Input::TheoryElement>(elems, elems_size),
                     convert<std::optional<Clingo::Input::TheoryRGuard>>(rhs));
                 break;
@@ -1937,7 +1930,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto cond_size = va_arg(args, size_t);
                 va_end(args);
                 *ast = construct_ast<Clingo::Input::CondLit>(
-                    type, Clingo::Input::CondLit{convert(lib, loc), convert<Clingo::Input::Lit>(lit),
+                    type, Clingo::Input::CondLit{convert(loc), convert<Clingo::Input::Lit>(lit),
                                                  convert<Clingo::Input::Lit>(cond, cond_size)});
                 break;
             }
@@ -1949,7 +1942,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto elems_size = va_arg(args, size_t);
                 va_end(args);
                 *ast = construct_ast<Clingo::Input::HdLitDisjunction>(
-                    type, convert(lib, loc), convert<Clingo::Input::HdLitDisjunctionElement>(elems, elems_size));
+                    type, convert(loc), convert<Clingo::Input::HdLitDisjunctionElement>(elems, elems_size));
                 break;
             }
             case clingo_ast_type_statement_rule: {
@@ -1960,7 +1953,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const **body = va_arg(args, clingo_ast_t const **);
                 auto body_size = va_arg(args, size_t);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::StmRule>(type, convert(lib, loc), convert<HdLit>(head),
+                *ast = construct_ast<Clingo::Input::StmRule>(type, convert(loc), convert<HdLit>(head),
                                                              convert<BdLit>(body, body_size));
                 break;
             }
@@ -1972,8 +1965,8 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto priority = va_arg(args, int);
                 auto op_type = va_arg(args, int);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::TheoryOpDefinition>(
-                    type, convert(lib, loc), *lib->store->string(name), priority, static_cast<TheoryOpType>(op_type));
+                *ast = construct_ast<Clingo::Input::TheoryOpDefinition>(type, convert(loc), *lib->store->string(name),
+                                                                        priority, static_cast<TheoryOpType>(op_type));
                 break;
             }
             case clingo_ast_type_theory_term_definition: {
@@ -1984,8 +1977,8 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const **ops = va_arg(args, clingo_ast_t const **);
                 auto ops_size = va_arg(args, size_t);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::TheoryTermDefinition>(
-                    type, convert(lib, loc), *lib->store->string(name), convert<TheoryOpDefinition>(ops, ops_size));
+                *ast = construct_ast<Clingo::Input::TheoryTermDefinition>(type, convert(loc), *lib->store->string(name),
+                                                                          convert<TheoryOpDefinition>(ops, ops_size));
                 break;
             }
             case clingo_ast_type_theory_guard_definition: {
@@ -2010,7 +2003,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto atom_type = va_arg(args, int);
                 va_end(args);
                 *ast = construct_ast<Clingo::Input::TheoryAtomDefinition>(
-                    type, convert(lib, loc), *lib->store->string(name), arity, *lib->store->string(term),
+                    type, convert(loc), *lib->store->string(name), arity, *lib->store->string(term),
                     convert<std::optional<TheoryRGuardDefinition>>(guard), static_cast<TheoryAtomType>(atom_type));
                 break;
             }
@@ -2024,7 +2017,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const **atoms = va_arg(args, clingo_ast_t const **);
                 auto atoms_size = va_arg(args, size_t);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::StmTheory>(type, convert(lib, loc), *lib->store->string(name),
+                *ast = construct_ast<Clingo::Input::StmTheory>(type, convert(loc), *lib->store->string(name),
                                                                convert<TheoryTermDefinition>(terms, terms_size),
                                                                convert<TheoryAtomDefinition>(atoms, atoms_size));
                 break;
@@ -2060,7 +2053,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto elems_size = va_arg(args, size_t);
                 auto optimize_type = va_arg(args, int);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::StmOptimize>(type, convert(lib, loc),
+                *ast = construct_ast<Clingo::Input::StmOptimize>(type, convert(loc),
                                                                  static_cast<OptimizeType>(optimize_type),
                                                                  convert<OptimizeElement>(elems, elems_size));
                 break;
@@ -2074,7 +2067,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *tuple = va_arg(args, clingo_ast_t const *);
                 va_end(args);
                 *ast = construct_ast<Clingo::Input::StmWeakConstraint>(
-                    type, convert(lib, loc), convert<BdLit>(body, body_size), convert<OptimizeTuple>(tuple));
+                    type, convert(loc), convert<BdLit>(body, body_size), convert<OptimizeTuple>(tuple));
                 break;
             }
             case clingo_ast_type_edge: {
@@ -2094,7 +2087,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const **body = va_arg(args, clingo_ast_t const **);
                 auto body_size = va_arg(args, size_t);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::StmShow>(type, convert(lib, loc), convert<Term>(term),
+                *ast = construct_ast<Clingo::Input::StmShow>(type, convert(loc), convert<Term>(term),
                                                              convert<BdLit>(body, body_size));
                 break;
             }
@@ -2103,7 +2096,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 va_start(args, ast);
                 auto const *loc = va_arg(args, clingo_location_t const *);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::StmShowNothing>(type, convert(lib, loc));
+                *ast = construct_ast<Clingo::Input::StmShowNothing>(type, convert(loc));
                 break;
             }
             case clingo_ast_type_statement_show_signature: {
@@ -2114,7 +2107,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto arity = va_arg(args, int);
                 auto sign = va_arg(args, int);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::StmShowSig>(type, convert(lib, loc), sign != 0,
+                *ast = construct_ast<Clingo::Input::StmShowSig>(type, convert(loc), sign != 0,
                                                                 *lib->store->string(name), arity);
                 break;
             }
@@ -2126,7 +2119,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const **body = va_arg(args, clingo_ast_t const **);
                 auto body_size = va_arg(args, size_t);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::StmProject>(type, convert(lib, loc), convert<Term>(atom),
+                *ast = construct_ast<Clingo::Input::StmProject>(type, convert(loc), convert<Term>(atom),
                                                                 convert<BdLit>(body, body_size));
                 break;
             }
@@ -2138,7 +2131,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto arity = va_arg(args, int);
                 auto sign = va_arg(args, int);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::StmProjectSig>(type, convert(lib, loc), sign != 0,
+                *ast = construct_ast<Clingo::Input::StmProjectSig>(type, convert(loc), sign != 0,
                                                                    *lib->store->string(name), arity);
                 break;
             }
@@ -2150,7 +2143,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto arity = va_arg(args, int);
                 auto sign = va_arg(args, int);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::StmDefined>(type, convert(lib, loc), sign != 0,
+                *ast = construct_ast<Clingo::Input::StmDefined>(type, convert(loc), sign != 0,
                                                                 *lib->store->string(name), arity);
                 break;
             }
@@ -2163,7 +2156,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto body_size = va_arg(args, size_t);
                 auto const *external_type = va_arg(args, clingo_ast_t const *);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::StmExternal>(type, convert(lib, loc), convert<Term>(atom),
+                *ast = construct_ast<Clingo::Input::StmExternal>(type, convert(loc), convert<Term>(atom),
                                                                  convert<BdLit>(body, body_size),
                                                                  convert<std::optional<Term>>(external_type));
                 break;
@@ -2177,7 +2170,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const **body = va_arg(args, clingo_ast_t const **);
                 auto body_size = va_arg(args, size_t);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::StmEdge>(type, convert(lib, loc), convert<Edge>(edges, edges_size),
+                *ast = construct_ast<Clingo::Input::StmEdge>(type, convert(loc), convert<Edge>(edges, edges_size),
                                                              convert<BdLit>(body, body_size));
                 break;
             }
@@ -2193,8 +2186,8 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *priority = va_arg(args, clingo_ast_t const *);
                 va_end(args);
                 *ast = construct_ast<Clingo::Input::StmHeuristic>(
-                    type, convert(lib, loc), convert<Term>(atom), convert<BdLit>(body, body_size),
-                    convert<Term>(weight), convert<std::optional<Term>>(priority), convert<Term>(modifier));
+                    type, convert(loc), convert<Term>(atom), convert<BdLit>(body, body_size), convert<Term>(weight),
+                    convert<std::optional<Term>>(priority), convert<Term>(modifier));
                 break;
             }
             case clingo_ast_type_statement_include: {
@@ -2205,7 +2198,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto include_type = va_arg(args, int);
                 va_end(args);
                 *ast = construct_ast<Clingo::Input::StmInclude>(
-                    type, convert(lib, loc), static_cast<IncludeType>(include_type), *lib->store->string(value));
+                    type, convert(loc), static_cast<IncludeType>(include_type), *lib->store->string(value));
                 break;
             }
             case clingo_ast_type_statement_program: {
@@ -2216,7 +2209,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const **arguments = va_arg(args, char const **);
                 auto arguments_size = va_arg(args, size_t);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::StmProgram>(type, convert(lib, loc), *lib->store->string(name),
+                *ast = construct_ast<Clingo::Input::StmProgram>(type, convert(loc), *lib->store->string(name),
                                                                 convert(lib, arguments, arguments_size));
                 break;
             }
@@ -2227,8 +2220,8 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *value = va_arg(args, char const *);
                 auto const *script_type = va_arg(args, char const *);
                 va_end(args);
-                *ast = construct_ast<Clingo::Input::StmScript>(
-                    type, convert(lib, loc), *lib->store->string(script_type), *lib->store->string(value));
+                *ast = construct_ast<Clingo::Input::StmScript>(type, convert(loc), *lib->store->string(script_type),
+                                                               *lib->store->string(value));
                 break;
             }
             case clingo_ast_type_statement_const: {
@@ -2239,9 +2232,8 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto const *term = va_arg(args, clingo_ast_t const *);
                 auto const_type = va_arg(args, int);
                 va_end(args);
-                *ast =
-                    construct_ast<Clingo::Input::StmConst>(type, convert(lib, loc), static_cast<ConstType>(const_type),
-                                                           *lib->store->string(name), convert<Term>(term));
+                *ast = construct_ast<Clingo::Input::StmConst>(type, convert(loc), static_cast<ConstType>(const_type),
+                                                              *lib->store->string(name), convert<Term>(term));
                 break;
             }
             case clingo_ast_type_statement_comment: {
@@ -2252,7 +2244,7 @@ extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, 
                 auto comment_type = va_arg(args, int);
                 va_end(args);
                 *ast = construct_ast<Clingo::Input::StmComment>(
-                    type, convert(lib, loc), static_cast<CommentType>(comment_type), *lib->store->string(value));
+                    type, convert(loc), static_cast<CommentType>(comment_type), *lib->store->string(value));
                 break;
             }
         }
@@ -2281,9 +2273,9 @@ extern "C" auto clingo_ast_to_string(clingo_ast_t *ast, char *string, size_t siz
     CLINGO_CATCH(nullptr);
 }
 
-extern "C" auto clingo_ast_less_than(clingo_ast_t *a, clingo_ast_t *b) -> bool { return a->less_than(*b); }
+extern "C" auto clingo_ast_compare(clingo_ast_t *a, clingo_ast_t *b) -> int { return c_cast(a->compare(*b)); }
 
-extern "C" auto clingo_ast_equal(clingo_ast_t *a, clingo_ast_t *b) -> bool { return a->equal_to(*b); }
+extern "C" auto clingo_ast_equal(clingo_ast_t *a, clingo_ast_t *b) -> bool { return a->equal(*b); }
 
 extern "C" auto clingo_ast_hash(clingo_ast_t *ast) -> size_t { return ast->hash(); }
 
@@ -2350,7 +2342,7 @@ extern "C" auto clingo_ast_attribute_get_symbol(clingo_ast_t *ast, clingo_ast_at
 }
 
 extern "C" auto clingo_ast_attribute_get_location(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
-                                                  clingo_location_t *value) -> bool {
+                                                  clingo_location_t const **value) -> bool {
     CLINGO_TRY {
         if (ast == nullptr || value == nullptr) {
             throw std::invalid_argument("invalid arguments");

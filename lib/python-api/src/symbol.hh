@@ -41,8 +41,7 @@ class Symbol {
                          bool positive) -> Symbol;
     friend auto parse_term(Core::Library &lib, std::string str) -> Symbol;
     friend auto operator==(Symbol const &a, Symbol const &b) -> bool;
-    friend auto operator<(Symbol const &a, Symbol const &b) -> bool;
-    CLINGO_CPP_TOTAL_ORDER(friend, Symbol);
+    friend auto operator<=>(Symbol const &a, Symbol const &b) -> std::strong_ordering;
 
     [[nodiscard]] auto handle() const -> clingo_symbol_t;
 

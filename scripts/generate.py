@@ -18,10 +18,10 @@ def camel(name):
 
 def cval(name):
     """
-    Convert the given type to a C++ const reference.
+    Convert the given type to a C++ value.
     """
     if name == "location":
-        return "clingo_location_t"
+        return "Location"
     if name == "string":
         return "char const *"
     if name == "number":
@@ -38,7 +38,7 @@ def cref(name):
     Convert the given type to a C++ const reference.
     """
     if name == "location":
-        return "clingo_location_t const &"
+        return "Location const &"
     if name == "string":
         return "char const *"
     if name == "number":
@@ -57,7 +57,7 @@ def c_cast(arguments, type_map):
     res = []
     for argument_name, argument in arguments.items():
         if argument["type"] == "location":
-            res.append(f"&{argument_name}")
+            res.append(f"static_cast<clingo_location_t const *>({argument_name})")
         elif argument["type"] == "string":
             res.append(f"{argument_name}")
         elif argument["type"] == "number":

@@ -1,12 +1,12 @@
 {%  for argument_name, argument in type.arguments.items() -%}
 {%    set argument_type = argument.type | camel -%}
 {%    if argument.type == 'location' %}
-auto {{ c_type_name }}::{{argument_name}}() -> clingo_location_t {
-    clingo_location_t ret;
+auto {{ c_type_name }}::{{argument_name}}() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_{{argument_name}}, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 {%    elif argument.type == 'number' %}
 auto {{ c_type_name }}::{{ argument_name }}() -> int {

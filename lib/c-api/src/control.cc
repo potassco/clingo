@@ -78,7 +78,7 @@ class CScript : public Clingo::Control::Script {
     CScript(clingo_lib *lib, clingo_script_t script, void *data) : lib_{lib}, script_{script}, data_{data} {}
 
   private:
-    void do_exec(std::string_view code) override { script_.execute(&dummy_loc_, std::string(code).c_str(), data_); }
+    void do_exec(std::string_view code) override { script_.execute(nullptr, std::string(code).c_str(), data_); }
 
     void do_main(Clingo::Control::Solver &slv) override {
         clingo_control_t ctl{lib_, &slv};
@@ -109,13 +109,11 @@ class CScript : public Clingo::Control::Script {
 
     void do_call(std::string_view name, Clingo::SymbolSpan args, Clingo::SymbolVec &out) override {
         auto data = CBData{this, out};
-        if (!script_.call(&dummy_loc_, std::string(name).c_str(), to_c_sym(args.data()), args.size(), &cb, &data,
-                          data_)) {
+        if (!script_.call(nullptr, std::string(name).c_str(), to_c_sym(args.data()), args.size(), &cb, &data, data_)) {
             throw std::runtime_error("error");
         }
     }
 
-    static constexpr clingo_location_t dummy_loc_ = {"<dummy>", "<dummy>", 0, 0, 0, 0};
     clingo_lib_t *lib_;
     clingo_script_t script_;
     void *data_;

@@ -1,6 +1,7 @@
 #include "ast.hh"
 #include "core.hh"
 #include "symbol.hh"
+#include "util.hh"
 
 #include <pybind11/functional.h>
 #include <pybind11/operators.h>
@@ -17,6 +18,7 @@ using Clingo::Symbol::Symbol;
 
 using Clingo::Core::handle_error;
 using Clingo::Core::Library;
+using Clingo::Core::Location;
 
 using StringArray = std::vector<std::string>;
 
@@ -225,11 +227,9 @@ class Projection {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(Projection const &a, Projection const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(Projection const &a, Projection const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, Projection)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -249,7 +249,7 @@ class Projection {
 
     ~Projection() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     static auto acquire(clingo_ast_t *ast) -> Projection { return {ast}; }
 
@@ -260,7 +260,7 @@ class Projection {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> Projection;
 
-    static auto construct(Library &lib, clingo_location_t const &location) -> Projection;
+    static auto construct(Library &lib, Location const &location) -> Projection;
 
     friend auto c_cast(Projection const &x) -> clingo_ast_t *;
 
@@ -332,11 +332,9 @@ class TermVariable {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(TermVariable const &a, TermVariable const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(TermVariable const &a, TermVariable const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, TermVariable)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -356,7 +354,7 @@ class TermVariable {
 
     ~TermVariable() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto name() -> char const *;
 
@@ -371,8 +369,7 @@ class TermVariable {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> TermVariable;
 
-    static auto construct(Library &lib, clingo_location_t const &location, char const *name,
-                          bool anonymous) -> TermVariable;
+    static auto construct(Library &lib, Location const &location, char const *name, bool anonymous) -> TermVariable;
 
     friend auto c_cast(TermVariable const &x) -> clingo_ast_t *;
 
@@ -420,11 +417,9 @@ class TermSymbolic {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(TermSymbolic const &a, TermSymbolic const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(TermSymbolic const &a, TermSymbolic const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, TermSymbolic)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -444,7 +439,7 @@ class TermSymbolic {
 
     ~TermSymbolic() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto symbol() -> Symbol;
 
@@ -457,7 +452,7 @@ class TermSymbolic {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> TermSymbolic;
 
-    static auto construct(Library &lib, clingo_location_t const &location, Symbol const &symbol) -> TermSymbolic;
+    static auto construct(Library &lib, Location const &location, Symbol const &symbol) -> TermSymbolic;
 
     friend auto c_cast(TermSymbolic const &x) -> clingo_ast_t *;
 
@@ -505,11 +500,9 @@ class TermAbsolute {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(TermAbsolute const &a, TermAbsolute const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(TermAbsolute const &a, TermAbsolute const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, TermAbsolute)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -529,7 +522,7 @@ class TermAbsolute {
 
     ~TermAbsolute() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto pool() -> TermArray;
 
@@ -542,7 +535,7 @@ class TermAbsolute {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> TermAbsolute;
 
-    static auto construct(Library &lib, clingo_location_t const &location, TermArray const &pool) -> TermAbsolute;
+    static auto construct(Library &lib, Location const &location, TermArray const &pool) -> TermAbsolute;
 
     friend auto c_cast(TermAbsolute const &x) -> clingo_ast_t *;
 
@@ -590,11 +583,9 @@ class TermUnaryOperation {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(TermUnaryOperation const &a, TermUnaryOperation const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(TermUnaryOperation const &a, TermUnaryOperation const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, TermUnaryOperation)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -614,7 +605,7 @@ class TermUnaryOperation {
 
     ~TermUnaryOperation() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto operator_type() -> UnaryOperator;
 
@@ -629,7 +620,7 @@ class TermUnaryOperation {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> TermUnaryOperation;
 
-    static auto construct(Library &lib, clingo_location_t const &location, UnaryOperator const &operator_type,
+    static auto construct(Library &lib, Location const &location, UnaryOperator const &operator_type,
                           Term const &right) -> TermUnaryOperation;
 
     friend auto c_cast(TermUnaryOperation const &x) -> clingo_ast_t *;
@@ -678,11 +669,9 @@ class TermBinaryOperation {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(TermBinaryOperation const &a, TermBinaryOperation const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(TermBinaryOperation const &a, TermBinaryOperation const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, TermBinaryOperation)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -702,7 +691,7 @@ class TermBinaryOperation {
 
     ~TermBinaryOperation() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto left() -> Term;
 
@@ -719,8 +708,8 @@ class TermBinaryOperation {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> TermBinaryOperation;
 
-    static auto construct(Library &lib, clingo_location_t const &location, Term const &left,
-                          BinaryOperator const &operator_type, Term const &right) -> TermBinaryOperation;
+    static auto construct(Library &lib, Location const &location, Term const &left, BinaryOperator const &operator_type,
+                          Term const &right) -> TermBinaryOperation;
 
     friend auto c_cast(TermBinaryOperation const &x) -> clingo_ast_t *;
 
@@ -766,11 +755,9 @@ class TermTuple {
 
     friend auto operator==(TermTuple const &a, TermTuple const &b) -> bool { return clingo_ast_equal(a.ast_, b.ast_); }
 
-    friend auto operator<(TermTuple const &a, TermTuple const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(TermTuple const &a, TermTuple const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, TermTuple)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -790,7 +777,7 @@ class TermTuple {
 
     ~TermTuple() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto pool() -> TermOrArgumentTupleArray;
 
@@ -803,8 +790,7 @@ class TermTuple {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> TermTuple;
 
-    static auto construct(Library &lib, clingo_location_t const &location,
-                          TermOrArgumentTupleArray const &pool) -> TermTuple;
+    static auto construct(Library &lib, Location const &location, TermOrArgumentTupleArray const &pool) -> TermTuple;
 
     friend auto c_cast(TermTuple const &x) -> clingo_ast_t *;
 
@@ -852,11 +838,9 @@ class TermFunction {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(TermFunction const &a, TermFunction const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(TermFunction const &a, TermFunction const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, TermFunction)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -876,7 +860,7 @@ class TermFunction {
 
     ~TermFunction() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto name() -> char const *;
 
@@ -893,8 +877,8 @@ class TermFunction {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> TermFunction;
 
-    static auto construct(Library &lib, clingo_location_t const &location, char const *name,
-                          ArgumentTupleArray const &pool, bool external) -> TermFunction;
+    static auto construct(Library &lib, Location const &location, char const *name, ArgumentTupleArray const &pool,
+                          bool external) -> TermFunction;
 
     friend auto c_cast(TermFunction const &x) -> clingo_ast_t *;
 
@@ -942,11 +926,9 @@ class ArgumentTuple {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(ArgumentTuple const &a, ArgumentTuple const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(ArgumentTuple const &a, ArgumentTuple const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, ArgumentTuple)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -1033,11 +1015,9 @@ class LeftGuard {
 
     friend auto operator==(LeftGuard const &a, LeftGuard const &b) -> bool { return clingo_ast_equal(a.ast_, b.ast_); }
 
-    friend auto operator<(LeftGuard const &a, LeftGuard const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(LeftGuard const &a, LeftGuard const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, LeftGuard)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -1120,11 +1100,9 @@ class RightGuard {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(RightGuard const &a, RightGuard const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(RightGuard const &a, RightGuard const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, RightGuard)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -1211,11 +1189,9 @@ class LiteralBoolean {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(LiteralBoolean const &a, LiteralBoolean const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(LiteralBoolean const &a, LiteralBoolean const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, LiteralBoolean)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -1235,7 +1211,7 @@ class LiteralBoolean {
 
     ~LiteralBoolean() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto sign() -> Sign;
 
@@ -1250,8 +1226,7 @@ class LiteralBoolean {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> LiteralBoolean;
 
-    static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign,
-                          bool value) -> LiteralBoolean;
+    static auto construct(Library &lib, Location const &location, Sign const &sign, bool value) -> LiteralBoolean;
 
     friend auto c_cast(LiteralBoolean const &x) -> clingo_ast_t *;
 
@@ -1299,11 +1274,9 @@ class LiteralComparison {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(LiteralComparison const &a, LiteralComparison const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(LiteralComparison const &a, LiteralComparison const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, LiteralComparison)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -1323,7 +1296,7 @@ class LiteralComparison {
 
     ~LiteralComparison() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto sign() -> Sign;
 
@@ -1340,7 +1313,7 @@ class LiteralComparison {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> LiteralComparison;
 
-    static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign, Term const &left,
+    static auto construct(Library &lib, Location const &location, Sign const &sign, Term const &left,
                           RightGuardArray const &right) -> LiteralComparison;
 
     friend auto c_cast(LiteralComparison const &x) -> clingo_ast_t *;
@@ -1389,11 +1362,9 @@ class LiteralSymbolic {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(LiteralSymbolic const &a, LiteralSymbolic const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(LiteralSymbolic const &a, LiteralSymbolic const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, LiteralSymbolic)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -1413,7 +1384,7 @@ class LiteralSymbolic {
 
     ~LiteralSymbolic() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto sign() -> Sign;
 
@@ -1428,7 +1399,7 @@ class LiteralSymbolic {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> LiteralSymbolic;
 
-    static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign,
+    static auto construct(Library &lib, Location const &location, Sign const &sign,
                           Term const &atom) -> LiteralSymbolic;
 
     friend auto c_cast(LiteralSymbolic const &x) -> clingo_ast_t *;
@@ -1496,11 +1467,9 @@ class UnparsedElement {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(UnparsedElement const &a, UnparsedElement const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(UnparsedElement const &a, UnparsedElement const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, UnparsedElement)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -1585,11 +1554,9 @@ class TheoryTermVariable {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(TheoryTermVariable const &a, TheoryTermVariable const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(TheoryTermVariable const &a, TheoryTermVariable const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, TheoryTermVariable)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -1609,7 +1576,7 @@ class TheoryTermVariable {
 
     ~TheoryTermVariable() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto name() -> char const *;
 
@@ -1624,7 +1591,7 @@ class TheoryTermVariable {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryTermVariable;
 
-    static auto construct(Library &lib, clingo_location_t const &location, char const *name,
+    static auto construct(Library &lib, Location const &location, char const *name,
                           bool anonymous) -> TheoryTermVariable;
 
     friend auto c_cast(TheoryTermVariable const &x) -> clingo_ast_t *;
@@ -1673,11 +1640,9 @@ class TheoryTermSymbolic {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(TheoryTermSymbolic const &a, TheoryTermSymbolic const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(TheoryTermSymbolic const &a, TheoryTermSymbolic const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, TheoryTermSymbolic)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -1697,7 +1662,7 @@ class TheoryTermSymbolic {
 
     ~TheoryTermSymbolic() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto symbol() -> Symbol;
 
@@ -1710,7 +1675,7 @@ class TheoryTermSymbolic {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryTermSymbolic;
 
-    static auto construct(Library &lib, clingo_location_t const &location, Symbol const &symbol) -> TheoryTermSymbolic;
+    static auto construct(Library &lib, Location const &location, Symbol const &symbol) -> TheoryTermSymbolic;
 
     friend auto c_cast(TheoryTermSymbolic const &x) -> clingo_ast_t *;
 
@@ -1758,11 +1723,9 @@ class TheoryTermTuple {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(TheoryTermTuple const &a, TheoryTermTuple const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(TheoryTermTuple const &a, TheoryTermTuple const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, TheoryTermTuple)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -1782,7 +1745,7 @@ class TheoryTermTuple {
 
     ~TheoryTermTuple() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto tuple_type() -> TheoryTupleType;
 
@@ -1797,7 +1760,7 @@ class TheoryTermTuple {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryTermTuple;
 
-    static auto construct(Library &lib, clingo_location_t const &location, TheoryTupleType const &tuple_type,
+    static auto construct(Library &lib, Location const &location, TheoryTupleType const &tuple_type,
                           TheoryTermArray const &arguments) -> TheoryTermTuple;
 
     friend auto c_cast(TheoryTermTuple const &x) -> clingo_ast_t *;
@@ -1846,11 +1809,9 @@ class TheoryTermFunction {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(TheoryTermFunction const &a, TheoryTermFunction const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(TheoryTermFunction const &a, TheoryTermFunction const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, TheoryTermFunction)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -1870,7 +1831,7 @@ class TheoryTermFunction {
 
     ~TheoryTermFunction() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto name() -> char const *;
 
@@ -1885,7 +1846,7 @@ class TheoryTermFunction {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryTermFunction;
 
-    static auto construct(Library &lib, clingo_location_t const &location, char const *name,
+    static auto construct(Library &lib, Location const &location, char const *name,
                           TheoryTermArray const &arguments) -> TheoryTermFunction;
 
     friend auto c_cast(TheoryTermFunction const &x) -> clingo_ast_t *;
@@ -1934,11 +1895,9 @@ class TheoryTermUnparsed {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, TheoryTermUnparsed)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -1958,7 +1917,7 @@ class TheoryTermUnparsed {
 
     ~TheoryTermUnparsed() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto elements() -> UnparsedElementArray;
 
@@ -1971,7 +1930,7 @@ class TheoryTermUnparsed {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryTermUnparsed;
 
-    static auto construct(Library &lib, clingo_location_t const &location,
+    static auto construct(Library &lib, Location const &location,
                           UnparsedElementArray const &elements) -> TheoryTermUnparsed;
 
     friend auto c_cast(TheoryTermUnparsed const &x) -> clingo_ast_t *;
@@ -2020,11 +1979,9 @@ class TheoryRightGuard {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(TheoryRightGuard const &a, TheoryRightGuard const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(TheoryRightGuard const &a, TheoryRightGuard const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, TheoryRightGuard)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -2111,11 +2068,9 @@ class SetAggregateElement {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(SetAggregateElement const &a, SetAggregateElement const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(SetAggregateElement const &a, SetAggregateElement const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, SetAggregateElement)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -2135,7 +2090,7 @@ class SetAggregateElement {
 
     ~SetAggregateElement() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto literal() -> Literal;
 
@@ -2150,7 +2105,7 @@ class SetAggregateElement {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> SetAggregateElement;
 
-    static auto construct(Library &lib, clingo_location_t const &location, Literal const &literal,
+    static auto construct(Library &lib, Location const &location, Literal const &literal,
                           LiteralArray const &condition) -> SetAggregateElement;
 
     friend auto c_cast(SetAggregateElement const &x) -> clingo_ast_t *;
@@ -2203,11 +2158,9 @@ class BodyAggregateElement {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(BodyAggregateElement const &a, BodyAggregateElement const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(BodyAggregateElement const &a, BodyAggregateElement const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, BodyAggregateElement)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -2227,7 +2180,7 @@ class BodyAggregateElement {
 
     ~BodyAggregateElement() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto tuple() -> TermArray;
 
@@ -2242,7 +2195,7 @@ class BodyAggregateElement {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> BodyAggregateElement;
 
-    static auto construct(Library &lib, clingo_location_t const &location, TermArray const &tuple,
+    static auto construct(Library &lib, Location const &location, TermArray const &tuple,
                           LiteralArray const &condition) -> BodyAggregateElement;
 
     friend auto c_cast(BodyAggregateElement const &x) -> clingo_ast_t *;
@@ -2295,11 +2248,9 @@ class TheoryAtomElement {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(TheoryAtomElement const &a, TheoryAtomElement const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(TheoryAtomElement const &a, TheoryAtomElement const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, TheoryAtomElement)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -2319,7 +2270,7 @@ class TheoryAtomElement {
 
     ~TheoryAtomElement() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto tuple() -> TheoryTermArray;
 
@@ -2334,7 +2285,7 @@ class TheoryAtomElement {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryAtomElement;
 
-    static auto construct(Library &lib, clingo_location_t const &location, TheoryTermArray const &tuple,
+    static auto construct(Library &lib, Location const &location, TheoryTermArray const &tuple,
                           LiteralArray const &condition) -> TheoryAtomElement;
 
     friend auto c_cast(TheoryAtomElement const &x) -> clingo_ast_t *;
@@ -2406,11 +2357,9 @@ class BodySimpleLiteral {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(BodySimpleLiteral const &a, BodySimpleLiteral const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(BodySimpleLiteral const &a, BodySimpleLiteral const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, BodySimpleLiteral)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -2489,11 +2438,9 @@ class BodyAggregate {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(BodyAggregate const &a, BodyAggregate const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(BodyAggregate const &a, BodyAggregate const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, BodyAggregate)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -2513,7 +2460,7 @@ class BodyAggregate {
 
     ~BodyAggregate() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto sign() -> Sign;
 
@@ -2534,9 +2481,9 @@ class BodyAggregate {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> BodyAggregate;
 
-    static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign,
-                          OptionalLeftGuard const &left, AggregateFunction const &function,
-                          BodyAggregateElementArray const &elements, OptionalRightGuard const &right) -> BodyAggregate;
+    static auto construct(Library &lib, Location const &location, Sign const &sign, OptionalLeftGuard const &left,
+                          AggregateFunction const &function, BodyAggregateElementArray const &elements,
+                          OptionalRightGuard const &right) -> BodyAggregate;
 
     friend auto c_cast(BodyAggregate const &x) -> clingo_ast_t *;
 
@@ -2584,11 +2531,9 @@ class BodySetAggregate {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(BodySetAggregate const &a, BodySetAggregate const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(BodySetAggregate const &a, BodySetAggregate const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, BodySetAggregate)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -2608,7 +2553,7 @@ class BodySetAggregate {
 
     ~BodySetAggregate() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto sign() -> Sign;
 
@@ -2627,8 +2572,8 @@ class BodySetAggregate {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> BodySetAggregate;
 
-    static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign,
-                          OptionalLeftGuard const &left, SetAggregateElementArray const &elements,
+    static auto construct(Library &lib, Location const &location, Sign const &sign, OptionalLeftGuard const &left,
+                          SetAggregateElementArray const &elements,
                           OptionalRightGuard const &right) -> BodySetAggregate;
 
     friend auto c_cast(BodySetAggregate const &x) -> clingo_ast_t *;
@@ -2677,11 +2622,9 @@ class BodyTheoryAtom {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(BodyTheoryAtom const &a, BodyTheoryAtom const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(BodyTheoryAtom const &a, BodyTheoryAtom const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, BodyTheoryAtom)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -2701,7 +2644,7 @@ class BodyTheoryAtom {
 
     ~BodyTheoryAtom() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto sign() -> Sign;
 
@@ -2720,7 +2663,7 @@ class BodyTheoryAtom {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> BodyTheoryAtom;
 
-    static auto construct(Library &lib, clingo_location_t const &location, Sign const &sign, Term const &name,
+    static auto construct(Library &lib, Location const &location, Sign const &sign, Term const &name,
                           TheoryAtomElementArray const &elements,
                           OptionalTheoryRightGuard const &right) -> BodyTheoryAtom;
 
@@ -2770,11 +2713,9 @@ class BodyConditionalLiteral {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(BodyConditionalLiteral const &a, BodyConditionalLiteral const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(BodyConditionalLiteral const &a, BodyConditionalLiteral const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, BodyConditionalLiteral)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -2794,7 +2735,7 @@ class BodyConditionalLiteral {
 
     ~BodyConditionalLiteral() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto literal() -> Literal;
 
@@ -2809,7 +2750,7 @@ class BodyConditionalLiteral {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> BodyConditionalLiteral;
 
-    static auto construct(Library &lib, clingo_location_t const &location, Literal const &literal,
+    static auto construct(Library &lib, Location const &location, Literal const &literal,
                           LiteralArray const &condition) -> BodyConditionalLiteral;
 
     friend auto c_cast(BodyConditionalLiteral const &x) -> clingo_ast_t *;
@@ -2858,11 +2799,9 @@ class HeadConditionalLiteral {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(HeadConditionalLiteral const &a, HeadConditionalLiteral const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(HeadConditionalLiteral const &a, HeadConditionalLiteral const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, HeadConditionalLiteral)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -2882,7 +2821,7 @@ class HeadConditionalLiteral {
 
     ~HeadConditionalLiteral() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto literal() -> Literal;
 
@@ -2897,7 +2836,7 @@ class HeadConditionalLiteral {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> HeadConditionalLiteral;
 
-    static auto construct(Library &lib, clingo_location_t const &location, Literal const &literal,
+    static auto construct(Library &lib, Location const &location, Literal const &literal,
                           LiteralArray const &condition) -> HeadConditionalLiteral;
 
     friend auto c_cast(HeadConditionalLiteral const &x) -> clingo_ast_t *;
@@ -2954,11 +2893,9 @@ class HeadAggregateElement {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(HeadAggregateElement const &a, HeadAggregateElement const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(HeadAggregateElement const &a, HeadAggregateElement const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, HeadAggregateElement)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -2978,7 +2915,7 @@ class HeadAggregateElement {
 
     ~HeadAggregateElement() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto tuple() -> TermArray;
 
@@ -2995,8 +2932,8 @@ class HeadAggregateElement {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> HeadAggregateElement;
 
-    static auto construct(Library &lib, clingo_location_t const &location, TermArray const &tuple,
-                          Literal const &literal, LiteralArray const &condition) -> HeadAggregateElement;
+    static auto construct(Library &lib, Location const &location, TermArray const &tuple, Literal const &literal,
+                          LiteralArray const &condition) -> HeadAggregateElement;
 
     friend auto c_cast(HeadAggregateElement const &x) -> clingo_ast_t *;
 
@@ -3062,11 +2999,9 @@ class HeadSimpleLiteral {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(HeadSimpleLiteral const &a, HeadSimpleLiteral const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(HeadSimpleLiteral const &a, HeadSimpleLiteral const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, HeadSimpleLiteral)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -3145,11 +3080,9 @@ class HeadAggregate {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(HeadAggregate const &a, HeadAggregate const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(HeadAggregate const &a, HeadAggregate const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, HeadAggregate)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -3169,7 +3102,7 @@ class HeadAggregate {
 
     ~HeadAggregate() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto left() -> OptionalLeftGuard;
 
@@ -3188,7 +3121,7 @@ class HeadAggregate {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> HeadAggregate;
 
-    static auto construct(Library &lib, clingo_location_t const &location, OptionalLeftGuard const &left,
+    static auto construct(Library &lib, Location const &location, OptionalLeftGuard const &left,
                           AggregateFunction const &function, HeadAggregateElementArray const &elements,
                           OptionalRightGuard const &right) -> HeadAggregate;
 
@@ -3238,11 +3171,9 @@ class HeadSetAggregate {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(HeadSetAggregate const &a, HeadSetAggregate const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(HeadSetAggregate const &a, HeadSetAggregate const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, HeadSetAggregate)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -3262,7 +3193,7 @@ class HeadSetAggregate {
 
     ~HeadSetAggregate() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto left() -> OptionalLeftGuard;
 
@@ -3279,7 +3210,7 @@ class HeadSetAggregate {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> HeadSetAggregate;
 
-    static auto construct(Library &lib, clingo_location_t const &location, OptionalLeftGuard const &left,
+    static auto construct(Library &lib, Location const &location, OptionalLeftGuard const &left,
                           SetAggregateElementArray const &elements,
                           OptionalRightGuard const &right) -> HeadSetAggregate;
 
@@ -3329,11 +3260,9 @@ class HeadTheoryAtom {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(HeadTheoryAtom const &a, HeadTheoryAtom const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(HeadTheoryAtom const &a, HeadTheoryAtom const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, HeadTheoryAtom)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -3353,7 +3282,7 @@ class HeadTheoryAtom {
 
     ~HeadTheoryAtom() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto name() -> Term;
 
@@ -3370,7 +3299,7 @@ class HeadTheoryAtom {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> HeadTheoryAtom;
 
-    static auto construct(Library &lib, clingo_location_t const &location, Term const &name,
+    static auto construct(Library &lib, Location const &location, Term const &name,
                           TheoryAtomElementArray const &elements,
                           OptionalTheoryRightGuard const &right) -> HeadTheoryAtom;
 
@@ -3420,11 +3349,9 @@ class HeadDisjunction {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(HeadDisjunction const &a, HeadDisjunction const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(HeadDisjunction const &a, HeadDisjunction const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, HeadDisjunction)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -3444,7 +3371,7 @@ class HeadDisjunction {
 
     ~HeadDisjunction() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto elements() -> DisjunctionElementArray;
 
@@ -3457,7 +3384,7 @@ class HeadDisjunction {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> HeadDisjunction;
 
-    static auto construct(Library &lib, clingo_location_t const &location,
+    static auto construct(Library &lib, Location const &location,
                           DisjunctionElementArray const &elements) -> HeadDisjunction;
 
     friend auto c_cast(HeadDisjunction const &x) -> clingo_ast_t *;
@@ -3506,11 +3433,10 @@ class TheoryOperatorDefinition {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(TheoryOperatorDefinition const &a, TheoryOperatorDefinition const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(TheoryOperatorDefinition const &a,
+                            TheoryOperatorDefinition const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, TheoryOperatorDefinition)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -3530,7 +3456,7 @@ class TheoryOperatorDefinition {
 
     ~TheoryOperatorDefinition() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto name() -> char const *;
 
@@ -3547,7 +3473,7 @@ class TheoryOperatorDefinition {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryOperatorDefinition;
 
-    static auto construct(Library &lib, clingo_location_t const &location, char const *name, int priority,
+    static auto construct(Library &lib, Location const &location, char const *name, int priority,
                           TheoryOperatorType const &operator_type) -> TheoryOperatorDefinition;
 
     friend auto c_cast(TheoryOperatorDefinition const &x) -> clingo_ast_t *;
@@ -3600,11 +3526,9 @@ class TheoryTermDefinition {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(TheoryTermDefinition const &a, TheoryTermDefinition const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(TheoryTermDefinition const &a, TheoryTermDefinition const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, TheoryTermDefinition)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -3624,7 +3548,7 @@ class TheoryTermDefinition {
 
     ~TheoryTermDefinition() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto name() -> char const *;
 
@@ -3639,7 +3563,7 @@ class TheoryTermDefinition {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryTermDefinition;
 
-    static auto construct(Library &lib, clingo_location_t const &location, char const *name,
+    static auto construct(Library &lib, Location const &location, char const *name,
                           TheoryOperatorDefinitionArray const &operators) -> TheoryTermDefinition;
 
     friend auto c_cast(TheoryTermDefinition const &x) -> clingo_ast_t *;
@@ -3692,11 +3616,9 @@ class TheoryGuardDefinition {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(TheoryGuardDefinition const &a, TheoryGuardDefinition const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(TheoryGuardDefinition const &a, TheoryGuardDefinition const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, TheoryGuardDefinition)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -3779,11 +3701,9 @@ class TheoryAtomDefinition {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(TheoryAtomDefinition const &a, TheoryAtomDefinition const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(TheoryAtomDefinition const &a, TheoryAtomDefinition const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, TheoryAtomDefinition)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -3803,7 +3723,7 @@ class TheoryAtomDefinition {
 
     ~TheoryAtomDefinition() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto name() -> char const *;
 
@@ -3824,8 +3744,8 @@ class TheoryAtomDefinition {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryAtomDefinition;
 
-    static auto construct(Library &lib, clingo_location_t const &location, char const *name, int arity,
-                          char const *term, OptionalTheoryGuardDefinition const &guard,
+    static auto construct(Library &lib, Location const &location, char const *name, int arity, char const *term,
+                          OptionalTheoryGuardDefinition const &guard,
                           TheoryAtomType const &atom_type) -> TheoryAtomDefinition;
 
     friend auto c_cast(TheoryAtomDefinition const &x) -> clingo_ast_t *;
@@ -3878,11 +3798,9 @@ class OptimizeTuple {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(OptimizeTuple const &a, OptimizeTuple const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(OptimizeTuple const &a, OptimizeTuple const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, OptimizeTuple)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -3966,11 +3884,9 @@ class OptimizeElement {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(OptimizeElement const &a, OptimizeElement const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(OptimizeElement const &a, OptimizeElement const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, OptimizeElement)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -4053,9 +3969,9 @@ class Edge {
 
     friend auto operator==(Edge const &a, Edge const &b) -> bool { return clingo_ast_equal(a.ast_, b.ast_); }
 
-    friend auto operator<(Edge const &a, Edge const &b) -> bool { return clingo_ast_less_than(a.ast_, b.ast_); }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, Edge)
+    friend auto operator<=>(Edge const &a, Edge const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
+    }
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -4184,11 +4100,9 @@ class StatementRule {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(StatementRule const &a, StatementRule const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(StatementRule const &a, StatementRule const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, StatementRule)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -4208,7 +4122,7 @@ class StatementRule {
 
     ~StatementRule() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto head() -> HeadLiteral;
 
@@ -4223,7 +4137,7 @@ class StatementRule {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementRule;
 
-    static auto construct(Library &lib, clingo_location_t const &location, HeadLiteral const &head,
+    static auto construct(Library &lib, Location const &location, HeadLiteral const &head,
                           BodyLiteralArray const &body) -> StatementRule;
 
     friend auto c_cast(StatementRule const &x) -> clingo_ast_t *;
@@ -4272,11 +4186,9 @@ class StatementTheory {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(StatementTheory const &a, StatementTheory const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(StatementTheory const &a, StatementTheory const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, StatementTheory)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -4296,7 +4208,7 @@ class StatementTheory {
 
     ~StatementTheory() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto name() -> char const *;
 
@@ -4313,7 +4225,7 @@ class StatementTheory {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementTheory;
 
-    static auto construct(Library &lib, clingo_location_t const &location, char const *name,
+    static auto construct(Library &lib, Location const &location, char const *name,
                           TheoryTermDefinitionArray const &terms,
                           TheoryAtomDefinitionArray const &atoms) -> StatementTheory;
 
@@ -4363,11 +4275,9 @@ class StatementOptimize {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(StatementOptimize const &a, StatementOptimize const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(StatementOptimize const &a, StatementOptimize const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, StatementOptimize)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -4387,7 +4297,7 @@ class StatementOptimize {
 
     ~StatementOptimize() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto elements() -> OptimizeElementArray;
 
@@ -4402,7 +4312,7 @@ class StatementOptimize {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementOptimize;
 
-    static auto construct(Library &lib, clingo_location_t const &location, OptimizeElementArray const &elements,
+    static auto construct(Library &lib, Location const &location, OptimizeElementArray const &elements,
                           OptimizeType const &optimize_type) -> StatementOptimize;
 
     friend auto c_cast(StatementOptimize const &x) -> clingo_ast_t *;
@@ -4451,11 +4361,10 @@ class StatementWeakConstraint {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(StatementWeakConstraint const &a, StatementWeakConstraint const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(StatementWeakConstraint const &a,
+                            StatementWeakConstraint const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, StatementWeakConstraint)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -4475,7 +4384,7 @@ class StatementWeakConstraint {
 
     ~StatementWeakConstraint() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto body() -> BodyLiteralArray;
 
@@ -4490,7 +4399,7 @@ class StatementWeakConstraint {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementWeakConstraint;
 
-    static auto construct(Library &lib, clingo_location_t const &location, BodyLiteralArray const &body,
+    static auto construct(Library &lib, Location const &location, BodyLiteralArray const &body,
                           OptimizeTuple const &tuple) -> StatementWeakConstraint;
 
     friend auto c_cast(StatementWeakConstraint const &x) -> clingo_ast_t *;
@@ -4539,11 +4448,9 @@ class StatementShow {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(StatementShow const &a, StatementShow const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(StatementShow const &a, StatementShow const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, StatementShow)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -4563,7 +4470,7 @@ class StatementShow {
 
     ~StatementShow() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto term() -> Term;
 
@@ -4578,7 +4485,7 @@ class StatementShow {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementShow;
 
-    static auto construct(Library &lib, clingo_location_t const &location, Term const &term,
+    static auto construct(Library &lib, Location const &location, Term const &term,
                           BodyLiteralArray const &body) -> StatementShow;
 
     friend auto c_cast(StatementShow const &x) -> clingo_ast_t *;
@@ -4627,11 +4534,9 @@ class StatementShowNothing {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(StatementShowNothing const &a, StatementShowNothing const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(StatementShowNothing const &a, StatementShowNothing const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, StatementShowNothing)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -4651,7 +4556,7 @@ class StatementShowNothing {
 
     ~StatementShowNothing() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     static auto acquire(clingo_ast_t *ast) -> StatementShowNothing { return {ast}; }
 
@@ -4662,7 +4567,7 @@ class StatementShowNothing {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementShowNothing;
 
-    static auto construct(Library &lib, clingo_location_t const &location) -> StatementShowNothing;
+    static auto construct(Library &lib, Location const &location) -> StatementShowNothing;
 
     friend auto c_cast(StatementShowNothing const &x) -> clingo_ast_t *;
 
@@ -4710,11 +4615,9 @@ class StatementShowSignature {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(StatementShowSignature const &a, StatementShowSignature const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(StatementShowSignature const &a, StatementShowSignature const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, StatementShowSignature)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -4734,7 +4637,7 @@ class StatementShowSignature {
 
     ~StatementShowSignature() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto name() -> char const *;
 
@@ -4751,7 +4654,7 @@ class StatementShowSignature {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementShowSignature;
 
-    static auto construct(Library &lib, clingo_location_t const &location, char const *name, int arity,
+    static auto construct(Library &lib, Location const &location, char const *name, int arity,
                           bool sign) -> StatementShowSignature;
 
     friend auto c_cast(StatementShowSignature const &x) -> clingo_ast_t *;
@@ -4800,11 +4703,9 @@ class StatementProject {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(StatementProject const &a, StatementProject const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(StatementProject const &a, StatementProject const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, StatementProject)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -4824,7 +4725,7 @@ class StatementProject {
 
     ~StatementProject() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto atom() -> Term;
 
@@ -4839,7 +4740,7 @@ class StatementProject {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementProject;
 
-    static auto construct(Library &lib, clingo_location_t const &location, Term const &atom,
+    static auto construct(Library &lib, Location const &location, Term const &atom,
                           BodyLiteralArray const &body) -> StatementProject;
 
     friend auto c_cast(StatementProject const &x) -> clingo_ast_t *;
@@ -4888,11 +4789,10 @@ class StatementProjectSignature {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(StatementProjectSignature const &a, StatementProjectSignature const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(StatementProjectSignature const &a,
+                            StatementProjectSignature const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, StatementProjectSignature)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -4912,7 +4812,7 @@ class StatementProjectSignature {
 
     ~StatementProjectSignature() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto name() -> char const *;
 
@@ -4929,7 +4829,7 @@ class StatementProjectSignature {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementProjectSignature;
 
-    static auto construct(Library &lib, clingo_location_t const &location, char const *name, int arity,
+    static auto construct(Library &lib, Location const &location, char const *name, int arity,
                           bool sign) -> StatementProjectSignature;
 
     friend auto c_cast(StatementProjectSignature const &x) -> clingo_ast_t *;
@@ -4978,11 +4878,9 @@ class StatementDefined {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(StatementDefined const &a, StatementDefined const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(StatementDefined const &a, StatementDefined const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, StatementDefined)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -5002,7 +4900,7 @@ class StatementDefined {
 
     ~StatementDefined() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto name() -> char const *;
 
@@ -5019,7 +4917,7 @@ class StatementDefined {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementDefined;
 
-    static auto construct(Library &lib, clingo_location_t const &location, char const *name, int arity,
+    static auto construct(Library &lib, Location const &location, char const *name, int arity,
                           bool sign) -> StatementDefined;
 
     friend auto c_cast(StatementDefined const &x) -> clingo_ast_t *;
@@ -5068,11 +4966,9 @@ class StatementExternal {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(StatementExternal const &a, StatementExternal const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(StatementExternal const &a, StatementExternal const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, StatementExternal)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -5092,7 +4988,7 @@ class StatementExternal {
 
     ~StatementExternal() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto atom() -> Term;
 
@@ -5109,8 +5005,8 @@ class StatementExternal {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementExternal;
 
-    static auto construct(Library &lib, clingo_location_t const &location, Term const &atom,
-                          BodyLiteralArray const &body, OptionalTerm const &external_type) -> StatementExternal;
+    static auto construct(Library &lib, Location const &location, Term const &atom, BodyLiteralArray const &body,
+                          OptionalTerm const &external_type) -> StatementExternal;
 
     friend auto c_cast(StatementExternal const &x) -> clingo_ast_t *;
 
@@ -5158,11 +5054,9 @@ class StatementEdge {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(StatementEdge const &a, StatementEdge const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(StatementEdge const &a, StatementEdge const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, StatementEdge)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -5182,7 +5076,7 @@ class StatementEdge {
 
     ~StatementEdge() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto pool() -> EdgeArray;
 
@@ -5197,7 +5091,7 @@ class StatementEdge {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementEdge;
 
-    static auto construct(Library &lib, clingo_location_t const &location, EdgeArray const &pool,
+    static auto construct(Library &lib, Location const &location, EdgeArray const &pool,
                           BodyLiteralArray const &body) -> StatementEdge;
 
     friend auto c_cast(StatementEdge const &x) -> clingo_ast_t *;
@@ -5246,11 +5140,9 @@ class StatementHeuristic {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(StatementHeuristic const &a, StatementHeuristic const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(StatementHeuristic const &a, StatementHeuristic const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, StatementHeuristic)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -5270,7 +5162,7 @@ class StatementHeuristic {
 
     ~StatementHeuristic() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto atom() -> Term;
 
@@ -5291,9 +5183,8 @@ class StatementHeuristic {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementHeuristic;
 
-    static auto construct(Library &lib, clingo_location_t const &location, Term const &atom,
-                          BodyLiteralArray const &body, Term const &weight, Term const &modifier,
-                          OptionalTerm const &priority) -> StatementHeuristic;
+    static auto construct(Library &lib, Location const &location, Term const &atom, BodyLiteralArray const &body,
+                          Term const &weight, Term const &modifier, OptionalTerm const &priority) -> StatementHeuristic;
 
     friend auto c_cast(StatementHeuristic const &x) -> clingo_ast_t *;
 
@@ -5341,11 +5232,9 @@ class StatementScript {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(StatementScript const &a, StatementScript const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(StatementScript const &a, StatementScript const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, StatementScript)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -5365,7 +5254,7 @@ class StatementScript {
 
     ~StatementScript() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto value() -> char const *;
 
@@ -5380,7 +5269,7 @@ class StatementScript {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementScript;
 
-    static auto construct(Library &lib, clingo_location_t const &location, char const *value,
+    static auto construct(Library &lib, Location const &location, char const *value,
                           char const *script_type) -> StatementScript;
 
     friend auto c_cast(StatementScript const &x) -> clingo_ast_t *;
@@ -5429,11 +5318,9 @@ class StatementInclude {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(StatementInclude const &a, StatementInclude const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(StatementInclude const &a, StatementInclude const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, StatementInclude)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -5453,7 +5340,7 @@ class StatementInclude {
 
     ~StatementInclude() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto value() -> char const *;
 
@@ -5468,7 +5355,7 @@ class StatementInclude {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementInclude;
 
-    static auto construct(Library &lib, clingo_location_t const &location, char const *value,
+    static auto construct(Library &lib, Location const &location, char const *value,
                           IncludeType const &include_type) -> StatementInclude;
 
     friend auto c_cast(StatementInclude const &x) -> clingo_ast_t *;
@@ -5517,11 +5404,9 @@ class StatementProgram {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(StatementProgram const &a, StatementProgram const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(StatementProgram const &a, StatementProgram const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, StatementProgram)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -5541,7 +5426,7 @@ class StatementProgram {
 
     ~StatementProgram() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto name() -> char const *;
 
@@ -5556,7 +5441,7 @@ class StatementProgram {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementProgram;
 
-    static auto construct(Library &lib, clingo_location_t const &location, char const *name,
+    static auto construct(Library &lib, Location const &location, char const *name,
                           StringArray const &arguments) -> StatementProgram;
 
     friend auto c_cast(StatementProgram const &x) -> clingo_ast_t *;
@@ -5605,11 +5490,9 @@ class StatementConst {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(StatementConst const &a, StatementConst const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(StatementConst const &a, StatementConst const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, StatementConst)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -5629,7 +5512,7 @@ class StatementConst {
 
     ~StatementConst() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto name() -> char const *;
 
@@ -5646,7 +5529,7 @@ class StatementConst {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementConst;
 
-    static auto construct(Library &lib, clingo_location_t const &location, char const *name, Term const &value,
+    static auto construct(Library &lib, Location const &location, char const *name, Term const &value,
                           ConstType const &const_type) -> StatementConst;
 
     friend auto c_cast(StatementConst const &x) -> clingo_ast_t *;
@@ -5695,11 +5578,9 @@ class StatementComment {
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<(StatementComment const &a, StatementComment const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>(StatementComment const &a, StatementComment const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, StatementComment)
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -5719,7 +5600,7 @@ class StatementComment {
 
     ~StatementComment() { clingo_ast_free(ast_); }
 
-    auto location() -> clingo_location_t;
+    auto location() -> Location;
 
     auto value() -> char const *;
 
@@ -5734,7 +5615,7 @@ class StatementComment {
 
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementComment;
 
-    static auto construct(Library &lib, clingo_location_t const &location, char const *value,
+    static auto construct(Library &lib, Location const &location, char const *value,
                           CommentType const &comment_type) -> StatementComment;
 
     friend auto c_cast(StatementComment const &x) -> clingo_ast_t *;
@@ -5799,17 +5680,18 @@ auto construct_term_array(clingo_ast_t **ast, size_t size) -> TermArray {
     return ret;
 }
 
-auto Projection::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto Projection::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
-auto Projection::construct(Library &lib, clingo_location_t const &location) -> Projection {
+auto Projection::construct(Library &lib, Location const &location) -> Projection {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_projection, &res_, &location));
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_projection, &res_,
+                                           static_cast<clingo_location_t const *>(location)));
     return Projection::acquire(res_);
 }
 
@@ -5823,7 +5705,7 @@ auto Projection::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::h
 }
 
 auto Projection::update(Library &lib, py::kwargs const &kwargs) -> Projection {
-    return Projection::construct(lib, update_value<clingo_location_t>(this, &Projection::location, kwargs, "location"));
+    return Projection::construct(lib, update_value<Location>(this, &Projection::location, kwargs, "location"));
 }
 
 auto construct_term_or_projection(clingo_ast_t *ast) -> TermOrProjection {
@@ -5953,12 +5835,12 @@ auto construct_term_or_argument_tuple_array(clingo_ast_t **ast, size_t size) -> 
     return ret;
 }
 
-auto TermVariable::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto TermVariable::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto TermVariable::name() -> char const * {
@@ -5977,10 +5859,10 @@ auto TermVariable::anonymous() -> bool {
     return ret != 0;
 }
 
-auto TermVariable::construct(Library &lib, clingo_location_t const &location, char const *name,
-                             bool anonymous) -> TermVariable {
+auto TermVariable::construct(Library &lib, Location const &location, char const *name, bool anonymous) -> TermVariable {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_term_variable, &res_, &location, name,
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_term_variable, &res_,
+                                           static_cast<clingo_location_t const *>(location), name,
                                            static_cast<int>(anonymous)));
     return TermVariable::acquire(res_);
 }
@@ -5995,18 +5877,17 @@ auto TermVariable::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py:
 }
 
 auto TermVariable::update(Library &lib, py::kwargs const &kwargs) -> TermVariable {
-    return TermVariable::construct(lib,
-                                   update_value<clingo_location_t>(this, &TermVariable::location, kwargs, "location"),
+    return TermVariable::construct(lib, update_value<Location>(this, &TermVariable::location, kwargs, "location"),
                                    update_value<char const *>(this, &TermVariable::name, kwargs, "name"),
                                    update_value<bool>(this, &TermVariable::anonymous, kwargs, "anonymous"));
 }
 
-auto TermSymbolic::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto TermSymbolic::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto TermSymbolic::symbol() -> Symbol {
@@ -6017,9 +5898,10 @@ auto TermSymbolic::symbol() -> Symbol {
     return Symbol{ret, true};
 }
 
-auto TermSymbolic::construct(Library &lib, clingo_location_t const &location, Symbol const &symbol) -> TermSymbolic {
+auto TermSymbolic::construct(Library &lib, Location const &location, Symbol const &symbol) -> TermSymbolic {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_term_symbolic, &res_, &location, symbol.handle()));
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_term_symbolic, &res_,
+                                           static_cast<clingo_location_t const *>(location), symbol.handle()));
     return TermSymbolic::acquire(res_);
 }
 
@@ -6033,17 +5915,16 @@ auto TermSymbolic::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py:
 }
 
 auto TermSymbolic::update(Library &lib, py::kwargs const &kwargs) -> TermSymbolic {
-    return TermSymbolic::construct(lib,
-                                   update_value<clingo_location_t>(this, &TermSymbolic::location, kwargs, "location"),
+    return TermSymbolic::construct(lib, update_value<Location>(this, &TermSymbolic::location, kwargs, "location"),
                                    update_value<Symbol>(this, &TermSymbolic::symbol, kwargs, "symbol"));
 }
 
-auto TermAbsolute::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto TermAbsolute::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto TermAbsolute::pool() -> TermArray {
@@ -6055,9 +5936,10 @@ auto TermAbsolute::pool() -> TermArray {
     return construct_term_array(ast, size);
 }
 
-auto TermAbsolute::construct(Library &lib, clingo_location_t const &location, TermArray const &pool) -> TermAbsolute {
+auto TermAbsolute::construct(Library &lib, Location const &location, TermArray const &pool) -> TermAbsolute {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_term_absolute, &res_, &location, c_cast(pool).data(),
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_term_absolute, &res_,
+                                           static_cast<clingo_location_t const *>(location), c_cast(pool).data(),
                                            pool.size()));
     return TermAbsolute::acquire(res_);
 }
@@ -6078,17 +5960,16 @@ auto TermAbsolute::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py:
 }
 
 auto TermAbsolute::update(Library &lib, py::kwargs const &kwargs) -> TermAbsolute {
-    return TermAbsolute::construct(lib,
-                                   update_value<clingo_location_t>(this, &TermAbsolute::location, kwargs, "location"),
+    return TermAbsolute::construct(lib, update_value<Location>(this, &TermAbsolute::location, kwargs, "location"),
                                    update_value<TermArray>(this, &TermAbsolute::pool, kwargs, "pool"));
 }
 
-auto TermUnaryOperation::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto TermUnaryOperation::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto TermUnaryOperation::operator_type() -> UnaryOperator {
@@ -6107,10 +5988,11 @@ auto TermUnaryOperation::right() -> Term {
     return construct_term(ast);
 }
 
-auto TermUnaryOperation::construct(Library &lib, clingo_location_t const &location, UnaryOperator const &operator_type,
+auto TermUnaryOperation::construct(Library &lib, Location const &location, UnaryOperator const &operator_type,
                                    Term const &right) -> TermUnaryOperation {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_term_unary_operation, &res_, &location,
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_term_unary_operation, &res_,
+                                           static_cast<clingo_location_t const *>(location),
                                            static_cast<int>(operator_type), c_cast(right)));
     return TermUnaryOperation::acquire(res_);
 }
@@ -6132,17 +6014,17 @@ auto TermUnaryOperation::transform([[maybe_unused]] Library &lib, [[maybe_unused
 
 auto TermUnaryOperation::update(Library &lib, py::kwargs const &kwargs) -> TermUnaryOperation {
     return TermUnaryOperation::construct(
-        lib, update_value<clingo_location_t>(this, &TermUnaryOperation::location, kwargs, "location"),
+        lib, update_value<Location>(this, &TermUnaryOperation::location, kwargs, "location"),
         update_value<UnaryOperator>(this, &TermUnaryOperation::operator_type, kwargs, "operator_type"),
         update_value<Term>(this, &TermUnaryOperation::right, kwargs, "right"));
 }
 
-auto TermBinaryOperation::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto TermBinaryOperation::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto TermBinaryOperation::left() -> Term {
@@ -6169,10 +6051,11 @@ auto TermBinaryOperation::right() -> Term {
     return construct_term(ast);
 }
 
-auto TermBinaryOperation::construct(Library &lib, clingo_location_t const &location, Term const &left,
+auto TermBinaryOperation::construct(Library &lib, Location const &location, Term const &left,
                                     BinaryOperator const &operator_type, Term const &right) -> TermBinaryOperation {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_term_binary_operation, &res_, &location, c_cast(left),
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_term_binary_operation, &res_,
+                                           static_cast<clingo_location_t const *>(location), c_cast(left),
                                            static_cast<int>(operator_type), c_cast(right)));
     return TermBinaryOperation::acquire(res_);
 }
@@ -6196,18 +6079,18 @@ auto TermBinaryOperation::transform([[maybe_unused]] Library &lib, [[maybe_unuse
 
 auto TermBinaryOperation::update(Library &lib, py::kwargs const &kwargs) -> TermBinaryOperation {
     return TermBinaryOperation::construct(
-        lib, update_value<clingo_location_t>(this, &TermBinaryOperation::location, kwargs, "location"),
+        lib, update_value<Location>(this, &TermBinaryOperation::location, kwargs, "location"),
         update_value<Term>(this, &TermBinaryOperation::left, kwargs, "left"),
         update_value<BinaryOperator>(this, &TermBinaryOperation::operator_type, kwargs, "operator_type"),
         update_value<Term>(this, &TermBinaryOperation::right, kwargs, "right"));
 }
 
-auto TermTuple::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto TermTuple::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto TermTuple::pool() -> TermOrArgumentTupleArray {
@@ -6219,11 +6102,11 @@ auto TermTuple::pool() -> TermOrArgumentTupleArray {
     return construct_term_or_argument_tuple_array(ast, size);
 }
 
-auto TermTuple::construct(Library &lib, clingo_location_t const &location,
-                          TermOrArgumentTupleArray const &pool) -> TermTuple {
+auto TermTuple::construct(Library &lib, Location const &location, TermOrArgumentTupleArray const &pool) -> TermTuple {
     clingo_ast_t *res_ = nullptr;
-    handle_error(
-        lib, clingo_ast_construct(lib, clingo_ast_type_term_tuple, &res_, &location, c_cast(pool).data(), pool.size()));
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_term_tuple, &res_,
+                                           static_cast<clingo_location_t const *>(location), c_cast(pool).data(),
+                                           pool.size()));
     return TermTuple::acquire(res_);
 }
 
@@ -6243,16 +6126,16 @@ auto TermTuple::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py::ha
 }
 
 auto TermTuple::update(Library &lib, py::kwargs const &kwargs) -> TermTuple {
-    return TermTuple::construct(lib, update_value<clingo_location_t>(this, &TermTuple::location, kwargs, "location"),
+    return TermTuple::construct(lib, update_value<Location>(this, &TermTuple::location, kwargs, "location"),
                                 update_value<TermOrArgumentTupleArray>(this, &TermTuple::pool, kwargs, "pool"));
 }
 
-auto TermFunction::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto TermFunction::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto TermFunction::name() -> char const * {
@@ -6280,11 +6163,12 @@ auto TermFunction::external() -> bool {
     return ret != 0;
 }
 
-auto TermFunction::construct(Library &lib, clingo_location_t const &location, char const *name,
-                             ArgumentTupleArray const &pool, bool external) -> TermFunction {
+auto TermFunction::construct(Library &lib, Location const &location, char const *name, ArgumentTupleArray const &pool,
+                             bool external) -> TermFunction {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_term_function, &res_, &location, name,
-                                           c_cast(pool).data(), pool.size(), static_cast<int>(external)));
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_term_function, &res_,
+                                           static_cast<clingo_location_t const *>(location), name, c_cast(pool).data(),
+                                           pool.size(), static_cast<int>(external)));
     return TermFunction::acquire(res_);
 }
 
@@ -6304,8 +6188,7 @@ auto TermFunction::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py:
 }
 
 auto TermFunction::update(Library &lib, py::kwargs const &kwargs) -> TermFunction {
-    return TermFunction::construct(lib,
-                                   update_value<clingo_location_t>(this, &TermFunction::location, kwargs, "location"),
+    return TermFunction::construct(lib, update_value<Location>(this, &TermFunction::location, kwargs, "location"),
                                    update_value<char const *>(this, &TermFunction::name, kwargs, "name"),
                                    update_value<ArgumentTupleArray>(this, &TermFunction::pool, kwargs, "pool"),
                                    update_value<bool>(this, &TermFunction::external, kwargs, "external"));
@@ -6473,12 +6356,12 @@ auto construct_right_guard_array(clingo_ast_t **ast, size_t size) -> RightGuardA
     return ret;
 }
 
-auto LiteralBoolean::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto LiteralBoolean::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto LiteralBoolean::sign() -> Sign {
@@ -6497,11 +6380,11 @@ auto LiteralBoolean::value() -> bool {
     return ret != 0;
 }
 
-auto LiteralBoolean::construct(Library &lib, clingo_location_t const &location, Sign const &sign,
-                               bool value) -> LiteralBoolean {
+auto LiteralBoolean::construct(Library &lib, Location const &location, Sign const &sign, bool value) -> LiteralBoolean {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_literal_boolean, &res_, &location,
-                                           static_cast<int>(sign), static_cast<int>(value)));
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_literal_boolean, &res_,
+                                           static_cast<clingo_location_t const *>(location), static_cast<int>(sign),
+                                           static_cast<int>(value)));
     return LiteralBoolean::acquire(res_);
 }
 
@@ -6515,18 +6398,17 @@ auto LiteralBoolean::transform([[maybe_unused]] Library &lib, [[maybe_unused]] p
 }
 
 auto LiteralBoolean::update(Library &lib, py::kwargs const &kwargs) -> LiteralBoolean {
-    return LiteralBoolean::construct(
-        lib, update_value<clingo_location_t>(this, &LiteralBoolean::location, kwargs, "location"),
-        update_value<Sign>(this, &LiteralBoolean::sign, kwargs, "sign"),
-        update_value<bool>(this, &LiteralBoolean::value, kwargs, "value"));
+    return LiteralBoolean::construct(lib, update_value<Location>(this, &LiteralBoolean::location, kwargs, "location"),
+                                     update_value<Sign>(this, &LiteralBoolean::sign, kwargs, "sign"),
+                                     update_value<bool>(this, &LiteralBoolean::value, kwargs, "value"));
 }
 
-auto LiteralComparison::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto LiteralComparison::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto LiteralComparison::sign() -> Sign {
@@ -6554,11 +6436,12 @@ auto LiteralComparison::right() -> RightGuardArray {
     return construct_right_guard_array(ast, size);
 }
 
-auto LiteralComparison::construct(Library &lib, clingo_location_t const &location, Sign const &sign, Term const &left,
+auto LiteralComparison::construct(Library &lib, Location const &location, Sign const &sign, Term const &left,
                                   RightGuardArray const &right) -> LiteralComparison {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_literal_comparison, &res_, &location,
-                                           static_cast<int>(sign), c_cast(left), c_cast(right).data(), right.size()));
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_literal_comparison, &res_,
+                                           static_cast<clingo_location_t const *>(location), static_cast<int>(sign),
+                                           c_cast(left), c_cast(right).data(), right.size()));
     return LiteralComparison::acquire(res_);
 }
 
@@ -6581,18 +6464,18 @@ auto LiteralComparison::transform([[maybe_unused]] Library &lib, [[maybe_unused]
 
 auto LiteralComparison::update(Library &lib, py::kwargs const &kwargs) -> LiteralComparison {
     return LiteralComparison::construct(
-        lib, update_value<clingo_location_t>(this, &LiteralComparison::location, kwargs, "location"),
+        lib, update_value<Location>(this, &LiteralComparison::location, kwargs, "location"),
         update_value<Sign>(this, &LiteralComparison::sign, kwargs, "sign"),
         update_value<Term>(this, &LiteralComparison::left, kwargs, "left"),
         update_value<RightGuardArray>(this, &LiteralComparison::right, kwargs, "right"));
 }
 
-auto LiteralSymbolic::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto LiteralSymbolic::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto LiteralSymbolic::sign() -> Sign {
@@ -6611,11 +6494,12 @@ auto LiteralSymbolic::atom() -> Term {
     return construct_term(ast);
 }
 
-auto LiteralSymbolic::construct(Library &lib, clingo_location_t const &location, Sign const &sign,
+auto LiteralSymbolic::construct(Library &lib, Location const &location, Sign const &sign,
                                 Term const &atom) -> LiteralSymbolic {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_literal_symbolic, &res_, &location,
-                                           static_cast<int>(sign), c_cast(atom)));
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_literal_symbolic, &res_,
+                                           static_cast<clingo_location_t const *>(location), static_cast<int>(sign),
+                                           c_cast(atom)));
     return LiteralSymbolic::acquire(res_);
 }
 
@@ -6635,10 +6519,9 @@ auto LiteralSymbolic::transform([[maybe_unused]] Library &lib, [[maybe_unused]] 
 }
 
 auto LiteralSymbolic::update(Library &lib, py::kwargs const &kwargs) -> LiteralSymbolic {
-    return LiteralSymbolic::construct(
-        lib, update_value<clingo_location_t>(this, &LiteralSymbolic::location, kwargs, "location"),
-        update_value<Sign>(this, &LiteralSymbolic::sign, kwargs, "sign"),
-        update_value<Term>(this, &LiteralSymbolic::atom, kwargs, "atom"));
+    return LiteralSymbolic::construct(lib, update_value<Location>(this, &LiteralSymbolic::location, kwargs, "location"),
+                                      update_value<Sign>(this, &LiteralSymbolic::sign, kwargs, "sign"),
+                                      update_value<Term>(this, &LiteralSymbolic::atom, kwargs, "atom"));
 }
 
 auto construct_theory_term(clingo_ast_t *ast) -> TheoryTerm {
@@ -6753,12 +6636,12 @@ auto construct_unparsed_element_array(clingo_ast_t **ast, size_t size) -> Unpars
     return ret;
 }
 
-auto TheoryTermVariable::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto TheoryTermVariable::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto TheoryTermVariable::name() -> char const * {
@@ -6777,10 +6660,11 @@ auto TheoryTermVariable::anonymous() -> bool {
     return ret != 0;
 }
 
-auto TheoryTermVariable::construct(Library &lib, clingo_location_t const &location, char const *name,
+auto TheoryTermVariable::construct(Library &lib, Location const &location, char const *name,
                                    bool anonymous) -> TheoryTermVariable {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_theory_term_variable, &res_, &location, name,
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_theory_term_variable, &res_,
+                                           static_cast<clingo_location_t const *>(location), name,
                                            static_cast<int>(anonymous)));
     return TheoryTermVariable::acquire(res_);
 }
@@ -6796,17 +6680,17 @@ auto TheoryTermVariable::transform([[maybe_unused]] Library &lib, [[maybe_unused
 
 auto TheoryTermVariable::update(Library &lib, py::kwargs const &kwargs) -> TheoryTermVariable {
     return TheoryTermVariable::construct(
-        lib, update_value<clingo_location_t>(this, &TheoryTermVariable::location, kwargs, "location"),
+        lib, update_value<Location>(this, &TheoryTermVariable::location, kwargs, "location"),
         update_value<char const *>(this, &TheoryTermVariable::name, kwargs, "name"),
         update_value<bool>(this, &TheoryTermVariable::anonymous, kwargs, "anonymous"));
 }
 
-auto TheoryTermSymbolic::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto TheoryTermSymbolic::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto TheoryTermSymbolic::symbol() -> Symbol {
@@ -6817,11 +6701,10 @@ auto TheoryTermSymbolic::symbol() -> Symbol {
     return Symbol{ret, true};
 }
 
-auto TheoryTermSymbolic::construct(Library &lib, clingo_location_t const &location,
-                                   Symbol const &symbol) -> TheoryTermSymbolic {
+auto TheoryTermSymbolic::construct(Library &lib, Location const &location, Symbol const &symbol) -> TheoryTermSymbolic {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib,
-                 clingo_ast_construct(lib, clingo_ast_type_theory_term_symbolic, &res_, &location, symbol.handle()));
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_theory_term_symbolic, &res_,
+                                           static_cast<clingo_location_t const *>(location), symbol.handle()));
     return TheoryTermSymbolic::acquire(res_);
 }
 
@@ -6836,16 +6719,16 @@ auto TheoryTermSymbolic::transform([[maybe_unused]] Library &lib, [[maybe_unused
 
 auto TheoryTermSymbolic::update(Library &lib, py::kwargs const &kwargs) -> TheoryTermSymbolic {
     return TheoryTermSymbolic::construct(
-        lib, update_value<clingo_location_t>(this, &TheoryTermSymbolic::location, kwargs, "location"),
+        lib, update_value<Location>(this, &TheoryTermSymbolic::location, kwargs, "location"),
         update_value<Symbol>(this, &TheoryTermSymbolic::symbol, kwargs, "symbol"));
 }
 
-auto TheoryTermTuple::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto TheoryTermTuple::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto TheoryTermTuple::tuple_type() -> TheoryTupleType {
@@ -6865,10 +6748,11 @@ auto TheoryTermTuple::arguments() -> TheoryTermArray {
     return construct_theory_term_array(ast, size);
 }
 
-auto TheoryTermTuple::construct(Library &lib, clingo_location_t const &location, TheoryTupleType const &tuple_type,
+auto TheoryTermTuple::construct(Library &lib, Location const &location, TheoryTupleType const &tuple_type,
                                 TheoryTermArray const &arguments) -> TheoryTermTuple {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_theory_term_tuple, &res_, &location,
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_theory_term_tuple, &res_,
+                                           static_cast<clingo_location_t const *>(location),
                                            static_cast<int>(tuple_type), c_cast(arguments).data(), arguments.size()));
     return TheoryTermTuple::acquire(res_);
 }
@@ -6890,17 +6774,17 @@ auto TheoryTermTuple::transform([[maybe_unused]] Library &lib, [[maybe_unused]] 
 
 auto TheoryTermTuple::update(Library &lib, py::kwargs const &kwargs) -> TheoryTermTuple {
     return TheoryTermTuple::construct(
-        lib, update_value<clingo_location_t>(this, &TheoryTermTuple::location, kwargs, "location"),
+        lib, update_value<Location>(this, &TheoryTermTuple::location, kwargs, "location"),
         update_value<TheoryTupleType>(this, &TheoryTermTuple::tuple_type, kwargs, "tuple_type"),
         update_value<TheoryTermArray>(this, &TheoryTermTuple::arguments, kwargs, "arguments"));
 }
 
-auto TheoryTermFunction::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto TheoryTermFunction::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto TheoryTermFunction::name() -> char const * {
@@ -6920,10 +6804,11 @@ auto TheoryTermFunction::arguments() -> TheoryTermArray {
     return construct_theory_term_array(ast, size);
 }
 
-auto TheoryTermFunction::construct(Library &lib, clingo_location_t const &location, char const *name,
+auto TheoryTermFunction::construct(Library &lib, Location const &location, char const *name,
                                    TheoryTermArray const &arguments) -> TheoryTermFunction {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_theory_term_function, &res_, &location, name,
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_theory_term_function, &res_,
+                                           static_cast<clingo_location_t const *>(location), name,
                                            c_cast(arguments).data(), arguments.size()));
     return TheoryTermFunction::acquire(res_);
 }
@@ -6945,17 +6830,17 @@ auto TheoryTermFunction::transform([[maybe_unused]] Library &lib, [[maybe_unused
 
 auto TheoryTermFunction::update(Library &lib, py::kwargs const &kwargs) -> TheoryTermFunction {
     return TheoryTermFunction::construct(
-        lib, update_value<clingo_location_t>(this, &TheoryTermFunction::location, kwargs, "location"),
+        lib, update_value<Location>(this, &TheoryTermFunction::location, kwargs, "location"),
         update_value<char const *>(this, &TheoryTermFunction::name, kwargs, "name"),
         update_value<TheoryTermArray>(this, &TheoryTermFunction::arguments, kwargs, "arguments"));
 }
 
-auto TheoryTermUnparsed::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto TheoryTermUnparsed::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto TheoryTermUnparsed::elements() -> UnparsedElementArray {
@@ -6967,11 +6852,12 @@ auto TheoryTermUnparsed::elements() -> UnparsedElementArray {
     return construct_unparsed_element_array(ast, size);
 }
 
-auto TheoryTermUnparsed::construct(Library &lib, clingo_location_t const &location,
+auto TheoryTermUnparsed::construct(Library &lib, Location const &location,
                                    UnparsedElementArray const &elements) -> TheoryTermUnparsed {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_theory_term_unparsed, &res_, &location,
-                                           c_cast(elements).data(), elements.size()));
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_theory_term_unparsed, &res_,
+                                           static_cast<clingo_location_t const *>(location), c_cast(elements).data(),
+                                           elements.size()));
     return TheoryTermUnparsed::acquire(res_);
 }
 
@@ -6992,7 +6878,7 @@ auto TheoryTermUnparsed::transform([[maybe_unused]] Library &lib, [[maybe_unused
 
 auto TheoryTermUnparsed::update(Library &lib, py::kwargs const &kwargs) -> TheoryTermUnparsed {
     return TheoryTermUnparsed::construct(
-        lib, update_value<clingo_location_t>(this, &TheoryTermUnparsed::location, kwargs, "location"),
+        lib, update_value<Location>(this, &TheoryTermUnparsed::location, kwargs, "location"),
         update_value<UnparsedElementArray>(this, &TheoryTermUnparsed::elements, kwargs, "elements"));
 }
 
@@ -7058,12 +6944,12 @@ auto construct_literal_array(clingo_ast_t **ast, size_t size) -> LiteralArray {
     return ret;
 }
 
-auto SetAggregateElement::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto SetAggregateElement::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto SetAggregateElement::literal() -> Literal {
@@ -7083,11 +6969,12 @@ auto SetAggregateElement::condition() -> LiteralArray {
     return construct_literal_array(ast, size);
 }
 
-auto SetAggregateElement::construct(Library &lib, clingo_location_t const &location, Literal const &literal,
+auto SetAggregateElement::construct(Library &lib, Location const &location, Literal const &literal,
                                     LiteralArray const &condition) -> SetAggregateElement {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_set_aggregate_element, &res_, &location,
-                                           c_cast(literal), c_cast(condition).data(), condition.size()));
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_set_aggregate_element, &res_,
+                                           static_cast<clingo_location_t const *>(location), c_cast(literal),
+                                           c_cast(condition).data(), condition.size()));
     return SetAggregateElement::acquire(res_);
 }
 
@@ -7110,7 +6997,7 @@ auto SetAggregateElement::transform([[maybe_unused]] Library &lib, [[maybe_unuse
 
 auto SetAggregateElement::update(Library &lib, py::kwargs const &kwargs) -> SetAggregateElement {
     return SetAggregateElement::construct(
-        lib, update_value<clingo_location_t>(this, &SetAggregateElement::location, kwargs, "location"),
+        lib, update_value<Location>(this, &SetAggregateElement::location, kwargs, "location"),
         update_value<Literal>(this, &SetAggregateElement::literal, kwargs, "literal"),
         update_value<LiteralArray>(this, &SetAggregateElement::condition, kwargs, "condition"));
 }
@@ -7132,12 +7019,12 @@ auto construct_set_aggregate_element_array(clingo_ast_t **ast, size_t size) -> S
     return ret;
 }
 
-auto BodyAggregateElement::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto BodyAggregateElement::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto BodyAggregateElement::tuple() -> TermArray {
@@ -7158,12 +7045,12 @@ auto BodyAggregateElement::condition() -> LiteralArray {
     return construct_literal_array(ast, size);
 }
 
-auto BodyAggregateElement::construct(Library &lib, clingo_location_t const &location, TermArray const &tuple,
+auto BodyAggregateElement::construct(Library &lib, Location const &location, TermArray const &tuple,
                                      LiteralArray const &condition) -> BodyAggregateElement {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib,
-                 clingo_ast_construct(lib, clingo_ast_type_body_aggregate_element, &res_, &location,
-                                      c_cast(tuple).data(), tuple.size(), c_cast(condition).data(), condition.size()));
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_body_aggregate_element, &res_,
+                                           static_cast<clingo_location_t const *>(location), c_cast(tuple).data(),
+                                           tuple.size(), c_cast(condition).data(), condition.size()));
     return BodyAggregateElement::acquire(res_);
 }
 
@@ -7186,7 +7073,7 @@ auto BodyAggregateElement::transform([[maybe_unused]] Library &lib, [[maybe_unus
 
 auto BodyAggregateElement::update(Library &lib, py::kwargs const &kwargs) -> BodyAggregateElement {
     return BodyAggregateElement::construct(
-        lib, update_value<clingo_location_t>(this, &BodyAggregateElement::location, kwargs, "location"),
+        lib, update_value<Location>(this, &BodyAggregateElement::location, kwargs, "location"),
         update_value<TermArray>(this, &BodyAggregateElement::tuple, kwargs, "tuple"),
         update_value<LiteralArray>(this, &BodyAggregateElement::condition, kwargs, "condition"));
 }
@@ -7208,12 +7095,12 @@ auto construct_body_aggregate_element_array(clingo_ast_t **ast, size_t size) -> 
     return ret;
 }
 
-auto TheoryAtomElement::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto TheoryAtomElement::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto TheoryAtomElement::tuple() -> TheoryTermArray {
@@ -7234,12 +7121,12 @@ auto TheoryAtomElement::condition() -> LiteralArray {
     return construct_literal_array(ast, size);
 }
 
-auto TheoryAtomElement::construct(Library &lib, clingo_location_t const &location, TheoryTermArray const &tuple,
+auto TheoryAtomElement::construct(Library &lib, Location const &location, TheoryTermArray const &tuple,
                                   LiteralArray const &condition) -> TheoryAtomElement {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib,
-                 clingo_ast_construct(lib, clingo_ast_type_theory_atom_element, &res_, &location, c_cast(tuple).data(),
-                                      tuple.size(), c_cast(condition).data(), condition.size()));
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_theory_atom_element, &res_,
+                                           static_cast<clingo_location_t const *>(location), c_cast(tuple).data(),
+                                           tuple.size(), c_cast(condition).data(), condition.size()));
     return TheoryAtomElement::acquire(res_);
 }
 
@@ -7262,7 +7149,7 @@ auto TheoryAtomElement::transform([[maybe_unused]] Library &lib, [[maybe_unused]
 
 auto TheoryAtomElement::update(Library &lib, py::kwargs const &kwargs) -> TheoryAtomElement {
     return TheoryAtomElement::construct(
-        lib, update_value<clingo_location_t>(this, &TheoryAtomElement::location, kwargs, "location"),
+        lib, update_value<Location>(this, &TheoryAtomElement::location, kwargs, "location"),
         update_value<TheoryTermArray>(this, &TheoryAtomElement::tuple, kwargs, "tuple"),
         update_value<LiteralArray>(this, &TheoryAtomElement::condition, kwargs, "condition"));
 }
@@ -7364,12 +7251,12 @@ auto BodySimpleLiteral::update(Library &lib, py::kwargs const &kwargs) -> BodySi
                                         update_value<Literal>(this, &BodySimpleLiteral::literal, kwargs, "literal"));
 }
 
-auto BodyAggregate::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto BodyAggregate::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto BodyAggregate::sign() -> Sign {
@@ -7421,14 +7308,14 @@ auto BodyAggregate::right() -> OptionalRightGuard {
     return std::nullopt;
 }
 
-auto BodyAggregate::construct(Library &lib, clingo_location_t const &location, Sign const &sign,
-                              OptionalLeftGuard const &left, AggregateFunction const &function,
-                              BodyAggregateElementArray const &elements,
+auto BodyAggregate::construct(Library &lib, Location const &location, Sign const &sign, OptionalLeftGuard const &left,
+                              AggregateFunction const &function, BodyAggregateElementArray const &elements,
                               OptionalRightGuard const &right) -> BodyAggregate {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_body_aggregate, &res_, &location,
-                                           static_cast<int>(sign), c_cast(left), static_cast<int>(function),
-                                           c_cast(elements).data(), elements.size(), c_cast(right)));
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_body_aggregate, &res_,
+                                           static_cast<clingo_location_t const *>(location), static_cast<int>(sign),
+                                           c_cast(left), static_cast<int>(function), c_cast(elements).data(),
+                                           elements.size(), c_cast(right)));
     return BodyAggregate::acquire(res_);
 }
 
@@ -7457,7 +7344,7 @@ auto BodyAggregate::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py
 
 auto BodyAggregate::update(Library &lib, py::kwargs const &kwargs) -> BodyAggregate {
     return BodyAggregate::construct(
-        lib, update_value<clingo_location_t>(this, &BodyAggregate::location, kwargs, "location"),
+        lib, update_value<Location>(this, &BodyAggregate::location, kwargs, "location"),
         update_value<Sign>(this, &BodyAggregate::sign, kwargs, "sign"),
         update_value<OptionalLeftGuard>(this, &BodyAggregate::left, kwargs, "left"),
         update_value<AggregateFunction>(this, &BodyAggregate::function, kwargs, "function"),
@@ -7465,12 +7352,12 @@ auto BodyAggregate::update(Library &lib, py::kwargs const &kwargs) -> BodyAggreg
         update_value<OptionalRightGuard>(this, &BodyAggregate::right, kwargs, "right"));
 }
 
-auto BodySetAggregate::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto BodySetAggregate::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto BodySetAggregate::sign() -> Sign {
@@ -7514,13 +7401,13 @@ auto BodySetAggregate::right() -> OptionalRightGuard {
     return std::nullopt;
 }
 
-auto BodySetAggregate::construct(Library &lib, clingo_location_t const &location, Sign const &sign,
+auto BodySetAggregate::construct(Library &lib, Location const &location, Sign const &sign,
                                  OptionalLeftGuard const &left, SetAggregateElementArray const &elements,
                                  OptionalRightGuard const &right) -> BodySetAggregate {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib,
-                 clingo_ast_construct(lib, clingo_ast_type_body_set_aggregate, &res_, &location, static_cast<int>(sign),
-                                      c_cast(left), c_cast(elements).data(), elements.size(), c_cast(right)));
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_body_set_aggregate, &res_,
+                                           static_cast<clingo_location_t const *>(location), static_cast<int>(sign),
+                                           c_cast(left), c_cast(elements).data(), elements.size(), c_cast(right)));
     return BodySetAggregate::acquire(res_);
 }
 
@@ -7549,19 +7436,19 @@ auto BodySetAggregate::transform([[maybe_unused]] Library &lib, [[maybe_unused]]
 
 auto BodySetAggregate::update(Library &lib, py::kwargs const &kwargs) -> BodySetAggregate {
     return BodySetAggregate::construct(
-        lib, update_value<clingo_location_t>(this, &BodySetAggregate::location, kwargs, "location"),
+        lib, update_value<Location>(this, &BodySetAggregate::location, kwargs, "location"),
         update_value<Sign>(this, &BodySetAggregate::sign, kwargs, "sign"),
         update_value<OptionalLeftGuard>(this, &BodySetAggregate::left, kwargs, "left"),
         update_value<SetAggregateElementArray>(this, &BodySetAggregate::elements, kwargs, "elements"),
         update_value<OptionalRightGuard>(this, &BodySetAggregate::right, kwargs, "right"));
 }
 
-auto BodyTheoryAtom::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto BodyTheoryAtom::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto BodyTheoryAtom::sign() -> Sign {
@@ -7601,13 +7488,13 @@ auto BodyTheoryAtom::right() -> OptionalTheoryRightGuard {
     return std::nullopt;
 }
 
-auto BodyTheoryAtom::construct(Library &lib, clingo_location_t const &location, Sign const &sign, Term const &name,
+auto BodyTheoryAtom::construct(Library &lib, Location const &location, Sign const &sign, Term const &name,
                                TheoryAtomElementArray const &elements,
                                OptionalTheoryRightGuard const &right) -> BodyTheoryAtom {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib,
-                 clingo_ast_construct(lib, clingo_ast_type_body_theory_atom, &res_, &location, static_cast<int>(sign),
-                                      c_cast(name), c_cast(elements).data(), elements.size(), c_cast(right)));
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_body_theory_atom, &res_,
+                                           static_cast<clingo_location_t const *>(location), static_cast<int>(sign),
+                                           c_cast(name), c_cast(elements).data(), elements.size(), c_cast(right)));
     return BodyTheoryAtom::acquire(res_);
 }
 
@@ -7634,19 +7521,19 @@ auto BodyTheoryAtom::transform([[maybe_unused]] Library &lib, [[maybe_unused]] p
 
 auto BodyTheoryAtom::update(Library &lib, py::kwargs const &kwargs) -> BodyTheoryAtom {
     return BodyTheoryAtom::construct(
-        lib, update_value<clingo_location_t>(this, &BodyTheoryAtom::location, kwargs, "location"),
+        lib, update_value<Location>(this, &BodyTheoryAtom::location, kwargs, "location"),
         update_value<Sign>(this, &BodyTheoryAtom::sign, kwargs, "sign"),
         update_value<Term>(this, &BodyTheoryAtom::name, kwargs, "name"),
         update_value<TheoryAtomElementArray>(this, &BodyTheoryAtom::elements, kwargs, "elements"),
         update_value<OptionalTheoryRightGuard>(this, &BodyTheoryAtom::right, kwargs, "right"));
 }
 
-auto BodyConditionalLiteral::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto BodyConditionalLiteral::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto BodyConditionalLiteral::literal() -> Literal {
@@ -7666,11 +7553,12 @@ auto BodyConditionalLiteral::condition() -> LiteralArray {
     return construct_literal_array(ast, size);
 }
 
-auto BodyConditionalLiteral::construct(Library &lib, clingo_location_t const &location, Literal const &literal,
+auto BodyConditionalLiteral::construct(Library &lib, Location const &location, Literal const &literal,
                                        LiteralArray const &condition) -> BodyConditionalLiteral {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_body_conditional_literal, &res_, &location,
-                                           c_cast(literal), c_cast(condition).data(), condition.size()));
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_body_conditional_literal, &res_,
+                                           static_cast<clingo_location_t const *>(location), c_cast(literal),
+                                           c_cast(condition).data(), condition.size()));
     return BodyConditionalLiteral::acquire(res_);
 }
 
@@ -7693,17 +7581,17 @@ auto BodyConditionalLiteral::transform([[maybe_unused]] Library &lib, [[maybe_un
 
 auto BodyConditionalLiteral::update(Library &lib, py::kwargs const &kwargs) -> BodyConditionalLiteral {
     return BodyConditionalLiteral::construct(
-        lib, update_value<clingo_location_t>(this, &BodyConditionalLiteral::location, kwargs, "location"),
+        lib, update_value<Location>(this, &BodyConditionalLiteral::location, kwargs, "location"),
         update_value<Literal>(this, &BodyConditionalLiteral::literal, kwargs, "literal"),
         update_value<LiteralArray>(this, &BodyConditionalLiteral::condition, kwargs, "condition"));
 }
 
-auto HeadConditionalLiteral::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto HeadConditionalLiteral::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto HeadConditionalLiteral::literal() -> Literal {
@@ -7723,11 +7611,12 @@ auto HeadConditionalLiteral::condition() -> LiteralArray {
     return construct_literal_array(ast, size);
 }
 
-auto HeadConditionalLiteral::construct(Library &lib, clingo_location_t const &location, Literal const &literal,
+auto HeadConditionalLiteral::construct(Library &lib, Location const &location, Literal const &literal,
                                        LiteralArray const &condition) -> HeadConditionalLiteral {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_head_conditional_literal, &res_, &location,
-                                           c_cast(literal), c_cast(condition).data(), condition.size()));
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_head_conditional_literal, &res_,
+                                           static_cast<clingo_location_t const *>(location), c_cast(literal),
+                                           c_cast(condition).data(), condition.size()));
     return HeadConditionalLiteral::acquire(res_);
 }
 
@@ -7750,7 +7639,7 @@ auto HeadConditionalLiteral::transform([[maybe_unused]] Library &lib, [[maybe_un
 
 auto HeadConditionalLiteral::update(Library &lib, py::kwargs const &kwargs) -> HeadConditionalLiteral {
     return HeadConditionalLiteral::construct(
-        lib, update_value<clingo_location_t>(this, &HeadConditionalLiteral::location, kwargs, "location"),
+        lib, update_value<Location>(this, &HeadConditionalLiteral::location, kwargs, "location"),
         update_value<Literal>(this, &HeadConditionalLiteral::literal, kwargs, "literal"),
         update_value<LiteralArray>(this, &HeadConditionalLiteral::condition, kwargs, "condition"));
 }
@@ -7798,12 +7687,12 @@ auto construct_disjunction_element_array(clingo_ast_t **ast, size_t size) -> Dis
     return ret;
 }
 
-auto HeadAggregateElement::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto HeadAggregateElement::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto HeadAggregateElement::tuple() -> TermArray {
@@ -7832,12 +7721,12 @@ auto HeadAggregateElement::condition() -> LiteralArray {
     return construct_literal_array(ast, size);
 }
 
-auto HeadAggregateElement::construct(Library &lib, clingo_location_t const &location, TermArray const &tuple,
+auto HeadAggregateElement::construct(Library &lib, Location const &location, TermArray const &tuple,
                                      Literal const &literal, LiteralArray const &condition) -> HeadAggregateElement {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_head_aggregate_element, &res_, &location,
-                                           c_cast(tuple).data(), tuple.size(), c_cast(literal),
-                                           c_cast(condition).data(), condition.size()));
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_head_aggregate_element, &res_,
+                                           static_cast<clingo_location_t const *>(location), c_cast(tuple).data(),
+                                           tuple.size(), c_cast(literal), c_cast(condition).data(), condition.size()));
     return HeadAggregateElement::acquire(res_);
 }
 
@@ -7862,7 +7751,7 @@ auto HeadAggregateElement::transform([[maybe_unused]] Library &lib, [[maybe_unus
 
 auto HeadAggregateElement::update(Library &lib, py::kwargs const &kwargs) -> HeadAggregateElement {
     return HeadAggregateElement::construct(
-        lib, update_value<clingo_location_t>(this, &HeadAggregateElement::location, kwargs, "location"),
+        lib, update_value<Location>(this, &HeadAggregateElement::location, kwargs, "location"),
         update_value<TermArray>(this, &HeadAggregateElement::tuple, kwargs, "tuple"),
         update_value<Literal>(this, &HeadAggregateElement::literal, kwargs, "literal"),
         update_value<LiteralArray>(this, &HeadAggregateElement::condition, kwargs, "condition"));
@@ -7948,12 +7837,12 @@ auto HeadSimpleLiteral::update(Library &lib, py::kwargs const &kwargs) -> HeadSi
                                         update_value<Literal>(this, &HeadSimpleLiteral::literal, kwargs, "literal"));
 }
 
-auto HeadAggregate::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto HeadAggregate::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto HeadAggregate::left() -> OptionalLeftGuard {
@@ -7997,11 +7886,12 @@ auto HeadAggregate::right() -> OptionalRightGuard {
     return std::nullopt;
 }
 
-auto HeadAggregate::construct(Library &lib, clingo_location_t const &location, OptionalLeftGuard const &left,
+auto HeadAggregate::construct(Library &lib, Location const &location, OptionalLeftGuard const &left,
                               AggregateFunction const &function, HeadAggregateElementArray const &elements,
                               OptionalRightGuard const &right) -> HeadAggregate {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_head_aggregate, &res_, &location, c_cast(left),
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_head_aggregate, &res_,
+                                           static_cast<clingo_location_t const *>(location), c_cast(left),
                                            static_cast<int>(function), c_cast(elements).data(), elements.size(),
                                            c_cast(right)));
     return HeadAggregate::acquire(res_);
@@ -8032,19 +7922,19 @@ auto HeadAggregate::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py
 
 auto HeadAggregate::update(Library &lib, py::kwargs const &kwargs) -> HeadAggregate {
     return HeadAggregate::construct(
-        lib, update_value<clingo_location_t>(this, &HeadAggregate::location, kwargs, "location"),
+        lib, update_value<Location>(this, &HeadAggregate::location, kwargs, "location"),
         update_value<OptionalLeftGuard>(this, &HeadAggregate::left, kwargs, "left"),
         update_value<AggregateFunction>(this, &HeadAggregate::function, kwargs, "function"),
         update_value<HeadAggregateElementArray>(this, &HeadAggregate::elements, kwargs, "elements"),
         update_value<OptionalRightGuard>(this, &HeadAggregate::right, kwargs, "right"));
 }
 
-auto HeadSetAggregate::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto HeadSetAggregate::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto HeadSetAggregate::left() -> OptionalLeftGuard {
@@ -8080,11 +7970,12 @@ auto HeadSetAggregate::right() -> OptionalRightGuard {
     return std::nullopt;
 }
 
-auto HeadSetAggregate::construct(Library &lib, clingo_location_t const &location, OptionalLeftGuard const &left,
+auto HeadSetAggregate::construct(Library &lib, Location const &location, OptionalLeftGuard const &left,
                                  SetAggregateElementArray const &elements,
                                  OptionalRightGuard const &right) -> HeadSetAggregate {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_head_set_aggregate, &res_, &location, c_cast(left),
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_head_set_aggregate, &res_,
+                                           static_cast<clingo_location_t const *>(location), c_cast(left),
                                            c_cast(elements).data(), elements.size(), c_cast(right)));
     return HeadSetAggregate::acquire(res_);
 }
@@ -8114,18 +8005,18 @@ auto HeadSetAggregate::transform([[maybe_unused]] Library &lib, [[maybe_unused]]
 
 auto HeadSetAggregate::update(Library &lib, py::kwargs const &kwargs) -> HeadSetAggregate {
     return HeadSetAggregate::construct(
-        lib, update_value<clingo_location_t>(this, &HeadSetAggregate::location, kwargs, "location"),
+        lib, update_value<Location>(this, &HeadSetAggregate::location, kwargs, "location"),
         update_value<OptionalLeftGuard>(this, &HeadSetAggregate::left, kwargs, "left"),
         update_value<SetAggregateElementArray>(this, &HeadSetAggregate::elements, kwargs, "elements"),
         update_value<OptionalRightGuard>(this, &HeadSetAggregate::right, kwargs, "right"));
 }
 
-auto HeadTheoryAtom::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto HeadTheoryAtom::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto HeadTheoryAtom::name() -> Term {
@@ -8157,11 +8048,12 @@ auto HeadTheoryAtom::right() -> OptionalTheoryRightGuard {
     return std::nullopt;
 }
 
-auto HeadTheoryAtom::construct(Library &lib, clingo_location_t const &location, Term const &name,
+auto HeadTheoryAtom::construct(Library &lib, Location const &location, Term const &name,
                                TheoryAtomElementArray const &elements,
                                OptionalTheoryRightGuard const &right) -> HeadTheoryAtom {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_head_theory_atom, &res_, &location, c_cast(name),
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_head_theory_atom, &res_,
+                                           static_cast<clingo_location_t const *>(location), c_cast(name),
                                            c_cast(elements).data(), elements.size(), c_cast(right)));
     return HeadTheoryAtom::acquire(res_);
 }
@@ -8189,18 +8081,18 @@ auto HeadTheoryAtom::transform([[maybe_unused]] Library &lib, [[maybe_unused]] p
 
 auto HeadTheoryAtom::update(Library &lib, py::kwargs const &kwargs) -> HeadTheoryAtom {
     return HeadTheoryAtom::construct(
-        lib, update_value<clingo_location_t>(this, &HeadTheoryAtom::location, kwargs, "location"),
+        lib, update_value<Location>(this, &HeadTheoryAtom::location, kwargs, "location"),
         update_value<Term>(this, &HeadTheoryAtom::name, kwargs, "name"),
         update_value<TheoryAtomElementArray>(this, &HeadTheoryAtom::elements, kwargs, "elements"),
         update_value<OptionalTheoryRightGuard>(this, &HeadTheoryAtom::right, kwargs, "right"));
 }
 
-auto HeadDisjunction::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto HeadDisjunction::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto HeadDisjunction::elements() -> DisjunctionElementArray {
@@ -8212,11 +8104,12 @@ auto HeadDisjunction::elements() -> DisjunctionElementArray {
     return construct_disjunction_element_array(ast, size);
 }
 
-auto HeadDisjunction::construct(Library &lib, clingo_location_t const &location,
+auto HeadDisjunction::construct(Library &lib, Location const &location,
                                 DisjunctionElementArray const &elements) -> HeadDisjunction {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_head_disjunction, &res_, &location,
-                                           c_cast(elements).data(), elements.size()));
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_head_disjunction, &res_,
+                                           static_cast<clingo_location_t const *>(location), c_cast(elements).data(),
+                                           elements.size()));
     return HeadDisjunction::acquire(res_);
 }
 
@@ -8237,16 +8130,16 @@ auto HeadDisjunction::transform([[maybe_unused]] Library &lib, [[maybe_unused]] 
 
 auto HeadDisjunction::update(Library &lib, py::kwargs const &kwargs) -> HeadDisjunction {
     return HeadDisjunction::construct(
-        lib, update_value<clingo_location_t>(this, &HeadDisjunction::location, kwargs, "location"),
+        lib, update_value<Location>(this, &HeadDisjunction::location, kwargs, "location"),
         update_value<DisjunctionElementArray>(this, &HeadDisjunction::elements, kwargs, "elements"));
 }
 
-auto TheoryOperatorDefinition::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto TheoryOperatorDefinition::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto TheoryOperatorDefinition::name() -> char const * {
@@ -8273,12 +8166,12 @@ auto TheoryOperatorDefinition::operator_type() -> TheoryOperatorType {
     return static_cast<TheoryOperatorType>(ret);
 }
 
-auto TheoryOperatorDefinition::construct(Library &lib, clingo_location_t const &location, char const *name,
-                                         int priority,
+auto TheoryOperatorDefinition::construct(Library &lib, Location const &location, char const *name, int priority,
                                          TheoryOperatorType const &operator_type) -> TheoryOperatorDefinition {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_theory_operator_definition, &res_, &location, name,
-                                           priority, static_cast<int>(operator_type)));
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_theory_operator_definition, &res_,
+                                           static_cast<clingo_location_t const *>(location), name, priority,
+                                           static_cast<int>(operator_type)));
     return TheoryOperatorDefinition::acquire(res_);
 }
 
@@ -8293,7 +8186,7 @@ auto TheoryOperatorDefinition::transform(
 
 auto TheoryOperatorDefinition::update(Library &lib, py::kwargs const &kwargs) -> TheoryOperatorDefinition {
     return TheoryOperatorDefinition::construct(
-        lib, update_value<clingo_location_t>(this, &TheoryOperatorDefinition::location, kwargs, "location"),
+        lib, update_value<Location>(this, &TheoryOperatorDefinition::location, kwargs, "location"),
         update_value<char const *>(this, &TheoryOperatorDefinition::name, kwargs, "name"),
         update_value<int>(this, &TheoryOperatorDefinition::priority, kwargs, "priority"),
         update_value<TheoryOperatorType>(this, &TheoryOperatorDefinition::operator_type, kwargs, "operator_type"));
@@ -8316,12 +8209,12 @@ auto construct_theory_operator_definition_array(clingo_ast_t **ast, size_t size)
     return ret;
 }
 
-auto TheoryTermDefinition::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto TheoryTermDefinition::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto TheoryTermDefinition::name() -> char const * {
@@ -8341,10 +8234,11 @@ auto TheoryTermDefinition::operators() -> TheoryOperatorDefinitionArray {
     return construct_theory_operator_definition_array(ast, size);
 }
 
-auto TheoryTermDefinition::construct(Library &lib, clingo_location_t const &location, char const *name,
+auto TheoryTermDefinition::construct(Library &lib, Location const &location, char const *name,
                                      TheoryOperatorDefinitionArray const &operators) -> TheoryTermDefinition {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_theory_term_definition, &res_, &location, name,
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_theory_term_definition, &res_,
+                                           static_cast<clingo_location_t const *>(location), name,
                                            c_cast(operators).data(), operators.size()));
     return TheoryTermDefinition::acquire(res_);
 }
@@ -8366,7 +8260,7 @@ auto TheoryTermDefinition::transform([[maybe_unused]] Library &lib, [[maybe_unus
 
 auto TheoryTermDefinition::update(Library &lib, py::kwargs const &kwargs) -> TheoryTermDefinition {
     return TheoryTermDefinition::construct(
-        lib, update_value<clingo_location_t>(this, &TheoryTermDefinition::location, kwargs, "location"),
+        lib, update_value<Location>(this, &TheoryTermDefinition::location, kwargs, "location"),
         update_value<char const *>(this, &TheoryTermDefinition::name, kwargs, "name"),
         update_value<TheoryOperatorDefinitionArray>(this, &TheoryTermDefinition::operators, kwargs, "operators"));
 }
@@ -8432,12 +8326,12 @@ auto TheoryGuardDefinition::update(Library &lib, py::kwargs const &kwargs) -> Th
         update_value<char const *>(this, &TheoryGuardDefinition::term, kwargs, "term"));
 }
 
-auto TheoryAtomDefinition::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto TheoryAtomDefinition::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto TheoryAtomDefinition::name() -> char const * {
@@ -8484,12 +8378,13 @@ auto TheoryAtomDefinition::atom_type() -> TheoryAtomType {
     return static_cast<TheoryAtomType>(ret);
 }
 
-auto TheoryAtomDefinition::construct(Library &lib, clingo_location_t const &location, char const *name, int arity,
+auto TheoryAtomDefinition::construct(Library &lib, Location const &location, char const *name, int arity,
                                      char const *term, OptionalTheoryGuardDefinition const &guard,
                                      TheoryAtomType const &atom_type) -> TheoryAtomDefinition {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_theory_atom_definition, &res_, &location, name, arity,
-                                           term, c_cast(guard), static_cast<int>(atom_type)));
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_theory_atom_definition, &res_,
+                                           static_cast<clingo_location_t const *>(location), name, arity, term,
+                                           c_cast(guard), static_cast<int>(atom_type)));
     return TheoryAtomDefinition::acquire(res_);
 }
 
@@ -8512,7 +8407,7 @@ auto TheoryAtomDefinition::transform([[maybe_unused]] Library &lib, [[maybe_unus
 
 auto TheoryAtomDefinition::update(Library &lib, py::kwargs const &kwargs) -> TheoryAtomDefinition {
     return TheoryAtomDefinition::construct(
-        lib, update_value<clingo_location_t>(this, &TheoryAtomDefinition::location, kwargs, "location"),
+        lib, update_value<Location>(this, &TheoryAtomDefinition::location, kwargs, "location"),
         update_value<char const *>(this, &TheoryAtomDefinition::name, kwargs, "name"),
         update_value<int>(this, &TheoryAtomDefinition::arity, kwargs, "arity"),
         update_value<char const *>(this, &TheoryAtomDefinition::term, kwargs, "term"),
@@ -8795,12 +8690,12 @@ auto construct_statement(clingo_ast_t *ast) -> Statement {
     }
 }
 
-auto StatementRule::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto StatementRule::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto StatementRule::head() -> HeadLiteral {
@@ -8820,10 +8715,11 @@ auto StatementRule::body() -> BodyLiteralArray {
     return construct_body_literal_array(ast, size);
 }
 
-auto StatementRule::construct(Library &lib, clingo_location_t const &location, HeadLiteral const &head,
+auto StatementRule::construct(Library &lib, Location const &location, HeadLiteral const &head,
                               BodyLiteralArray const &body) -> StatementRule {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_rule, &res_, &location, c_cast(head),
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_rule, &res_,
+                                           static_cast<clingo_location_t const *>(location), c_cast(head),
                                            c_cast(body).data(), body.size()));
     return StatementRule::acquire(res_);
 }
@@ -8846,18 +8742,17 @@ auto StatementRule::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py
 }
 
 auto StatementRule::update(Library &lib, py::kwargs const &kwargs) -> StatementRule {
-    return StatementRule::construct(lib,
-                                    update_value<clingo_location_t>(this, &StatementRule::location, kwargs, "location"),
+    return StatementRule::construct(lib, update_value<Location>(this, &StatementRule::location, kwargs, "location"),
                                     update_value<HeadLiteral>(this, &StatementRule::head, kwargs, "head"),
                                     update_value<BodyLiteralArray>(this, &StatementRule::body, kwargs, "body"));
 }
 
-auto StatementTheory::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto StatementTheory::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto StatementTheory::name() -> char const * {
@@ -8886,12 +8781,13 @@ auto StatementTheory::atoms() -> TheoryAtomDefinitionArray {
     return construct_theory_atom_definition_array(ast, size);
 }
 
-auto StatementTheory::construct(Library &lib, clingo_location_t const &location, char const *name,
+auto StatementTheory::construct(Library &lib, Location const &location, char const *name,
                                 TheoryTermDefinitionArray const &terms,
                                 TheoryAtomDefinitionArray const &atoms) -> StatementTheory {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_theory, &res_, &location, name,
-                                           c_cast(terms).data(), terms.size(), c_cast(atoms).data(), atoms.size()));
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_theory, &res_,
+                                           static_cast<clingo_location_t const *>(location), name, c_cast(terms).data(),
+                                           terms.size(), c_cast(atoms).data(), atoms.size()));
     return StatementTheory::acquire(res_);
 }
 
@@ -8914,18 +8810,18 @@ auto StatementTheory::transform([[maybe_unused]] Library &lib, [[maybe_unused]] 
 
 auto StatementTheory::update(Library &lib, py::kwargs const &kwargs) -> StatementTheory {
     return StatementTheory::construct(
-        lib, update_value<clingo_location_t>(this, &StatementTheory::location, kwargs, "location"),
+        lib, update_value<Location>(this, &StatementTheory::location, kwargs, "location"),
         update_value<char const *>(this, &StatementTheory::name, kwargs, "name"),
         update_value<TheoryTermDefinitionArray>(this, &StatementTheory::terms, kwargs, "terms"),
         update_value<TheoryAtomDefinitionArray>(this, &StatementTheory::atoms, kwargs, "atoms"));
 }
 
-auto StatementOptimize::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto StatementOptimize::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto StatementOptimize::elements() -> OptimizeElementArray {
@@ -8945,11 +8841,12 @@ auto StatementOptimize::optimize_type() -> OptimizeType {
     return static_cast<OptimizeType>(ret);
 }
 
-auto StatementOptimize::construct(Library &lib, clingo_location_t const &location, OptimizeElementArray const &elements,
+auto StatementOptimize::construct(Library &lib, Location const &location, OptimizeElementArray const &elements,
                                   OptimizeType const &optimize_type) -> StatementOptimize {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_optimize, &res_, &location,
-                                           c_cast(elements).data(), elements.size(), static_cast<int>(optimize_type)));
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_optimize, &res_,
+                                           static_cast<clingo_location_t const *>(location), c_cast(elements).data(),
+                                           elements.size(), static_cast<int>(optimize_type)));
     return StatementOptimize::acquire(res_);
 }
 
@@ -8970,17 +8867,17 @@ auto StatementOptimize::transform([[maybe_unused]] Library &lib, [[maybe_unused]
 
 auto StatementOptimize::update(Library &lib, py::kwargs const &kwargs) -> StatementOptimize {
     return StatementOptimize::construct(
-        lib, update_value<clingo_location_t>(this, &StatementOptimize::location, kwargs, "location"),
+        lib, update_value<Location>(this, &StatementOptimize::location, kwargs, "location"),
         update_value<OptimizeElementArray>(this, &StatementOptimize::elements, kwargs, "elements"),
         update_value<OptimizeType>(this, &StatementOptimize::optimize_type, kwargs, "optimize_type"));
 }
 
-auto StatementWeakConstraint::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto StatementWeakConstraint::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto StatementWeakConstraint::body() -> BodyLiteralArray {
@@ -9000,11 +8897,12 @@ auto StatementWeakConstraint::tuple() -> OptimizeTuple {
     return OptimizeTuple::acquire(ast);
 }
 
-auto StatementWeakConstraint::construct(Library &lib, clingo_location_t const &location, BodyLiteralArray const &body,
+auto StatementWeakConstraint::construct(Library &lib, Location const &location, BodyLiteralArray const &body,
                                         OptimizeTuple const &tuple) -> StatementWeakConstraint {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_weak_constraint, &res_, &location,
-                                           c_cast(body).data(), body.size(), c_cast(tuple)));
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_weak_constraint, &res_,
+                                           static_cast<clingo_location_t const *>(location), c_cast(body).data(),
+                                           body.size(), c_cast(tuple)));
     return StatementWeakConstraint::acquire(res_);
 }
 
@@ -9027,17 +8925,17 @@ auto StatementWeakConstraint::transform(
 
 auto StatementWeakConstraint::update(Library &lib, py::kwargs const &kwargs) -> StatementWeakConstraint {
     return StatementWeakConstraint::construct(
-        lib, update_value<clingo_location_t>(this, &StatementWeakConstraint::location, kwargs, "location"),
+        lib, update_value<Location>(this, &StatementWeakConstraint::location, kwargs, "location"),
         update_value<BodyLiteralArray>(this, &StatementWeakConstraint::body, kwargs, "body"),
         update_value<OptimizeTuple>(this, &StatementWeakConstraint::tuple, kwargs, "tuple"));
 }
 
-auto StatementShow::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto StatementShow::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto StatementShow::term() -> Term {
@@ -9057,10 +8955,11 @@ auto StatementShow::body() -> BodyLiteralArray {
     return construct_body_literal_array(ast, size);
 }
 
-auto StatementShow::construct(Library &lib, clingo_location_t const &location, Term const &term,
+auto StatementShow::construct(Library &lib, Location const &location, Term const &term,
                               BodyLiteralArray const &body) -> StatementShow {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_show, &res_, &location, c_cast(term),
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_show, &res_,
+                                           static_cast<clingo_location_t const *>(location), c_cast(term),
                                            c_cast(body).data(), body.size()));
     return StatementShow::acquire(res_);
 }
@@ -9083,23 +8982,23 @@ auto StatementShow::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py
 }
 
 auto StatementShow::update(Library &lib, py::kwargs const &kwargs) -> StatementShow {
-    return StatementShow::construct(lib,
-                                    update_value<clingo_location_t>(this, &StatementShow::location, kwargs, "location"),
+    return StatementShow::construct(lib, update_value<Location>(this, &StatementShow::location, kwargs, "location"),
                                     update_value<Term>(this, &StatementShow::term, kwargs, "term"),
                                     update_value<BodyLiteralArray>(this, &StatementShow::body, kwargs, "body"));
 }
 
-auto StatementShowNothing::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto StatementShowNothing::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
-auto StatementShowNothing::construct(Library &lib, clingo_location_t const &location) -> StatementShowNothing {
+auto StatementShowNothing::construct(Library &lib, Location const &location) -> StatementShowNothing {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_show_nothing, &res_, &location));
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_show_nothing, &res_,
+                                           static_cast<clingo_location_t const *>(location)));
     return StatementShowNothing::acquire(res_);
 }
 
@@ -9114,15 +9013,15 @@ auto StatementShowNothing::transform([[maybe_unused]] Library &lib, [[maybe_unus
 
 auto StatementShowNothing::update(Library &lib, py::kwargs const &kwargs) -> StatementShowNothing {
     return StatementShowNothing::construct(
-        lib, update_value<clingo_location_t>(this, &StatementShowNothing::location, kwargs, "location"));
+        lib, update_value<Location>(this, &StatementShowNothing::location, kwargs, "location"));
 }
 
-auto StatementShowSignature::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto StatementShowSignature::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto StatementShowSignature::name() -> char const * {
@@ -9149,10 +9048,11 @@ auto StatementShowSignature::sign() -> bool {
     return ret != 0;
 }
 
-auto StatementShowSignature::construct(Library &lib, clingo_location_t const &location, char const *name, int arity,
+auto StatementShowSignature::construct(Library &lib, Location const &location, char const *name, int arity,
                                        bool sign) -> StatementShowSignature {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_show_signature, &res_, &location, name, arity,
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_show_signature, &res_,
+                                           static_cast<clingo_location_t const *>(location), name, arity,
                                            static_cast<int>(sign)));
     return StatementShowSignature::acquire(res_);
 }
@@ -9168,18 +9068,18 @@ auto StatementShowSignature::transform([[maybe_unused]] Library &lib, [[maybe_un
 
 auto StatementShowSignature::update(Library &lib, py::kwargs const &kwargs) -> StatementShowSignature {
     return StatementShowSignature::construct(
-        lib, update_value<clingo_location_t>(this, &StatementShowSignature::location, kwargs, "location"),
+        lib, update_value<Location>(this, &StatementShowSignature::location, kwargs, "location"),
         update_value<char const *>(this, &StatementShowSignature::name, kwargs, "name"),
         update_value<int>(this, &StatementShowSignature::arity, kwargs, "arity"),
         update_value<bool>(this, &StatementShowSignature::sign, kwargs, "sign"));
 }
 
-auto StatementProject::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto StatementProject::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto StatementProject::atom() -> Term {
@@ -9199,10 +9099,11 @@ auto StatementProject::body() -> BodyLiteralArray {
     return construct_body_literal_array(ast, size);
 }
 
-auto StatementProject::construct(Library &lib, clingo_location_t const &location, Term const &atom,
+auto StatementProject::construct(Library &lib, Location const &location, Term const &atom,
                                  BodyLiteralArray const &body) -> StatementProject {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_project, &res_, &location, c_cast(atom),
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_project, &res_,
+                                           static_cast<clingo_location_t const *>(location), c_cast(atom),
                                            c_cast(body).data(), body.size()));
     return StatementProject::acquire(res_);
 }
@@ -9225,18 +9126,18 @@ auto StatementProject::transform([[maybe_unused]] Library &lib, [[maybe_unused]]
 }
 
 auto StatementProject::update(Library &lib, py::kwargs const &kwargs) -> StatementProject {
-    return StatementProject::construct(
-        lib, update_value<clingo_location_t>(this, &StatementProject::location, kwargs, "location"),
-        update_value<Term>(this, &StatementProject::atom, kwargs, "atom"),
-        update_value<BodyLiteralArray>(this, &StatementProject::body, kwargs, "body"));
+    return StatementProject::construct(lib,
+                                       update_value<Location>(this, &StatementProject::location, kwargs, "location"),
+                                       update_value<Term>(this, &StatementProject::atom, kwargs, "atom"),
+                                       update_value<BodyLiteralArray>(this, &StatementProject::body, kwargs, "body"));
 }
 
-auto StatementProjectSignature::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto StatementProjectSignature::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto StatementProjectSignature::name() -> char const * {
@@ -9263,11 +9164,12 @@ auto StatementProjectSignature::sign() -> bool {
     return ret != 0;
 }
 
-auto StatementProjectSignature::construct(Library &lib, clingo_location_t const &location, char const *name, int arity,
+auto StatementProjectSignature::construct(Library &lib, Location const &location, char const *name, int arity,
                                           bool sign) -> StatementProjectSignature {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_project_signature, &res_, &location, name,
-                                           arity, static_cast<int>(sign)));
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_project_signature, &res_,
+                                           static_cast<clingo_location_t const *>(location), name, arity,
+                                           static_cast<int>(sign)));
     return StatementProjectSignature::acquire(res_);
 }
 
@@ -9282,18 +9184,18 @@ auto StatementProjectSignature::transform(
 
 auto StatementProjectSignature::update(Library &lib, py::kwargs const &kwargs) -> StatementProjectSignature {
     return StatementProjectSignature::construct(
-        lib, update_value<clingo_location_t>(this, &StatementProjectSignature::location, kwargs, "location"),
+        lib, update_value<Location>(this, &StatementProjectSignature::location, kwargs, "location"),
         update_value<char const *>(this, &StatementProjectSignature::name, kwargs, "name"),
         update_value<int>(this, &StatementProjectSignature::arity, kwargs, "arity"),
         update_value<bool>(this, &StatementProjectSignature::sign, kwargs, "sign"));
 }
 
-auto StatementDefined::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto StatementDefined::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto StatementDefined::name() -> char const * {
@@ -9320,10 +9222,11 @@ auto StatementDefined::sign() -> bool {
     return ret != 0;
 }
 
-auto StatementDefined::construct(Library &lib, clingo_location_t const &location, char const *name, int arity,
+auto StatementDefined::construct(Library &lib, Location const &location, char const *name, int arity,
                                  bool sign) -> StatementDefined {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_defined, &res_, &location, name, arity,
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_defined, &res_,
+                                           static_cast<clingo_location_t const *>(location), name, arity,
                                            static_cast<int>(sign)));
     return StatementDefined::acquire(res_);
 }
@@ -9338,19 +9241,19 @@ auto StatementDefined::transform([[maybe_unused]] Library &lib, [[maybe_unused]]
 }
 
 auto StatementDefined::update(Library &lib, py::kwargs const &kwargs) -> StatementDefined {
-    return StatementDefined::construct(
-        lib, update_value<clingo_location_t>(this, &StatementDefined::location, kwargs, "location"),
-        update_value<char const *>(this, &StatementDefined::name, kwargs, "name"),
-        update_value<int>(this, &StatementDefined::arity, kwargs, "arity"),
-        update_value<bool>(this, &StatementDefined::sign, kwargs, "sign"));
+    return StatementDefined::construct(lib,
+                                       update_value<Location>(this, &StatementDefined::location, kwargs, "location"),
+                                       update_value<char const *>(this, &StatementDefined::name, kwargs, "name"),
+                                       update_value<int>(this, &StatementDefined::arity, kwargs, "arity"),
+                                       update_value<bool>(this, &StatementDefined::sign, kwargs, "sign"));
 }
 
-auto StatementExternal::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto StatementExternal::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto StatementExternal::atom() -> Term {
@@ -9382,11 +9285,12 @@ auto StatementExternal::external_type() -> OptionalTerm {
     return std::nullopt;
 }
 
-auto StatementExternal::construct(Library &lib, clingo_location_t const &location, Term const &atom,
+auto StatementExternal::construct(Library &lib, Location const &location, Term const &atom,
                                   BodyLiteralArray const &body,
                                   OptionalTerm const &external_type) -> StatementExternal {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_external, &res_, &location, c_cast(atom),
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_external, &res_,
+                                           static_cast<clingo_location_t const *>(location), c_cast(atom),
                                            c_cast(body).data(), body.size(), c_cast(external_type)));
     return StatementExternal::acquire(res_);
 }
@@ -9414,18 +9318,18 @@ auto StatementExternal::transform([[maybe_unused]] Library &lib, [[maybe_unused]
 
 auto StatementExternal::update(Library &lib, py::kwargs const &kwargs) -> StatementExternal {
     return StatementExternal::construct(
-        lib, update_value<clingo_location_t>(this, &StatementExternal::location, kwargs, "location"),
+        lib, update_value<Location>(this, &StatementExternal::location, kwargs, "location"),
         update_value<Term>(this, &StatementExternal::atom, kwargs, "atom"),
         update_value<BodyLiteralArray>(this, &StatementExternal::body, kwargs, "body"),
         update_value<OptionalTerm>(this, &StatementExternal::external_type, kwargs, "external_type"));
 }
 
-auto StatementEdge::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto StatementEdge::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto StatementEdge::pool() -> EdgeArray {
@@ -9446,10 +9350,11 @@ auto StatementEdge::body() -> BodyLiteralArray {
     return construct_body_literal_array(ast, size);
 }
 
-auto StatementEdge::construct(Library &lib, clingo_location_t const &location, EdgeArray const &pool,
+auto StatementEdge::construct(Library &lib, Location const &location, EdgeArray const &pool,
                               BodyLiteralArray const &body) -> StatementEdge {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_edge, &res_, &location, c_cast(pool).data(),
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_edge, &res_,
+                                           static_cast<clingo_location_t const *>(location), c_cast(pool).data(),
                                            pool.size(), c_cast(body).data(), body.size()));
     return StatementEdge::acquire(res_);
 }
@@ -9472,18 +9377,17 @@ auto StatementEdge::transform([[maybe_unused]] Library &lib, [[maybe_unused]] py
 }
 
 auto StatementEdge::update(Library &lib, py::kwargs const &kwargs) -> StatementEdge {
-    return StatementEdge::construct(lib,
-                                    update_value<clingo_location_t>(this, &StatementEdge::location, kwargs, "location"),
+    return StatementEdge::construct(lib, update_value<Location>(this, &StatementEdge::location, kwargs, "location"),
                                     update_value<EdgeArray>(this, &StatementEdge::pool, kwargs, "pool"),
                                     update_value<BodyLiteralArray>(this, &StatementEdge::body, kwargs, "body"));
 }
 
-auto StatementHeuristic::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto StatementHeuristic::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto StatementHeuristic::atom() -> Term {
@@ -9531,11 +9435,12 @@ auto StatementHeuristic::priority() -> OptionalTerm {
     return std::nullopt;
 }
 
-auto StatementHeuristic::construct(Library &lib, clingo_location_t const &location, Term const &atom,
+auto StatementHeuristic::construct(Library &lib, Location const &location, Term const &atom,
                                    BodyLiteralArray const &body, Term const &weight, Term const &modifier,
                                    OptionalTerm const &priority) -> StatementHeuristic {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_heuristic, &res_, &location, c_cast(atom),
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_heuristic, &res_,
+                                           static_cast<clingo_location_t const *>(location), c_cast(atom),
                                            c_cast(body).data(), body.size(), c_cast(weight), c_cast(modifier),
                                            c_cast(priority)));
     return StatementHeuristic::acquire(res_);
@@ -9569,7 +9474,7 @@ auto StatementHeuristic::transform([[maybe_unused]] Library &lib, [[maybe_unused
 
 auto StatementHeuristic::update(Library &lib, py::kwargs const &kwargs) -> StatementHeuristic {
     return StatementHeuristic::construct(
-        lib, update_value<clingo_location_t>(this, &StatementHeuristic::location, kwargs, "location"),
+        lib, update_value<Location>(this, &StatementHeuristic::location, kwargs, "location"),
         update_value<Term>(this, &StatementHeuristic::atom, kwargs, "atom"),
         update_value<BodyLiteralArray>(this, &StatementHeuristic::body, kwargs, "body"),
         update_value<Term>(this, &StatementHeuristic::weight, kwargs, "weight"),
@@ -9577,12 +9482,12 @@ auto StatementHeuristic::update(Library &lib, py::kwargs const &kwargs) -> State
         update_value<OptionalTerm>(this, &StatementHeuristic::priority, kwargs, "priority"));
 }
 
-auto StatementScript::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto StatementScript::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto StatementScript::value() -> char const * {
@@ -9601,11 +9506,11 @@ auto StatementScript::script_type() -> char const * {
     return ret;
 }
 
-auto StatementScript::construct(Library &lib, clingo_location_t const &location, char const *value,
+auto StatementScript::construct(Library &lib, Location const &location, char const *value,
                                 char const *script_type) -> StatementScript {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib,
-                 clingo_ast_construct(lib, clingo_ast_type_statement_script, &res_, &location, value, script_type));
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_script, &res_,
+                                           static_cast<clingo_location_t const *>(location), value, script_type));
     return StatementScript::acquire(res_);
 }
 
@@ -9620,17 +9525,17 @@ auto StatementScript::transform([[maybe_unused]] Library &lib, [[maybe_unused]] 
 
 auto StatementScript::update(Library &lib, py::kwargs const &kwargs) -> StatementScript {
     return StatementScript::construct(
-        lib, update_value<clingo_location_t>(this, &StatementScript::location, kwargs, "location"),
+        lib, update_value<Location>(this, &StatementScript::location, kwargs, "location"),
         update_value<char const *>(this, &StatementScript::value, kwargs, "value"),
         update_value<char const *>(this, &StatementScript::script_type, kwargs, "script_type"));
 }
 
-auto StatementInclude::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto StatementInclude::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto StatementInclude::value() -> char const * {
@@ -9649,10 +9554,11 @@ auto StatementInclude::include_type() -> IncludeType {
     return static_cast<IncludeType>(ret);
 }
 
-auto StatementInclude::construct(Library &lib, clingo_location_t const &location, char const *value,
+auto StatementInclude::construct(Library &lib, Location const &location, char const *value,
                                  IncludeType const &include_type) -> StatementInclude {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_include, &res_, &location, value,
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_include, &res_,
+                                           static_cast<clingo_location_t const *>(location), value,
                                            static_cast<int>(include_type)));
     return StatementInclude::acquire(res_);
 }
@@ -9668,17 +9574,17 @@ auto StatementInclude::transform([[maybe_unused]] Library &lib, [[maybe_unused]]
 
 auto StatementInclude::update(Library &lib, py::kwargs const &kwargs) -> StatementInclude {
     return StatementInclude::construct(
-        lib, update_value<clingo_location_t>(this, &StatementInclude::location, kwargs, "location"),
+        lib, update_value<Location>(this, &StatementInclude::location, kwargs, "location"),
         update_value<char const *>(this, &StatementInclude::value, kwargs, "value"),
         update_value<IncludeType>(this, &StatementInclude::include_type, kwargs, "include_type"));
 }
 
-auto StatementProgram::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto StatementProgram::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto StatementProgram::name() -> char const * {
@@ -9702,10 +9608,11 @@ auto StatementProgram::arguments() -> std::vector<char const *> {
     return ret;
 }
 
-auto StatementProgram::construct(Library &lib, clingo_location_t const &location, char const *name,
+auto StatementProgram::construct(Library &lib, Location const &location, char const *name,
                                  StringArray const &arguments) -> StatementProgram {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_program, &res_, &location, name,
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_program, &res_,
+                                           static_cast<clingo_location_t const *>(location), name,
                                            c_cast(arguments).data(), arguments.size()));
     return StatementProgram::acquire(res_);
 }
@@ -9721,17 +9628,17 @@ auto StatementProgram::transform([[maybe_unused]] Library &lib, [[maybe_unused]]
 
 auto StatementProgram::update(Library &lib, py::kwargs const &kwargs) -> StatementProgram {
     return StatementProgram::construct(
-        lib, update_value<clingo_location_t>(this, &StatementProgram::location, kwargs, "location"),
+        lib, update_value<Location>(this, &StatementProgram::location, kwargs, "location"),
         update_value<char const *>(this, &StatementProgram::name, kwargs, "name"),
         update_value<StringArray>(this, &StatementProgram::arguments, kwargs, "arguments"));
 }
 
-auto StatementConst::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto StatementConst::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto StatementConst::name() -> char const * {
@@ -9758,10 +9665,11 @@ auto StatementConst::const_type() -> ConstType {
     return static_cast<ConstType>(ret);
 }
 
-auto StatementConst::construct(Library &lib, clingo_location_t const &location, char const *name, Term const &value,
+auto StatementConst::construct(Library &lib, Location const &location, char const *name, Term const &value,
                                ConstType const &const_type) -> StatementConst {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_const, &res_, &location, name, c_cast(value),
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_const, &res_,
+                                           static_cast<clingo_location_t const *>(location), name, c_cast(value),
                                            static_cast<int>(const_type)));
     return StatementConst::acquire(res_);
 }
@@ -9782,19 +9690,18 @@ auto StatementConst::transform([[maybe_unused]] Library &lib, [[maybe_unused]] p
 }
 
 auto StatementConst::update(Library &lib, py::kwargs const &kwargs) -> StatementConst {
-    return StatementConst::construct(
-        lib, update_value<clingo_location_t>(this, &StatementConst::location, kwargs, "location"),
-        update_value<char const *>(this, &StatementConst::name, kwargs, "name"),
-        update_value<Term>(this, &StatementConst::value, kwargs, "value"),
-        update_value<ConstType>(this, &StatementConst::const_type, kwargs, "const_type"));
+    return StatementConst::construct(lib, update_value<Location>(this, &StatementConst::location, kwargs, "location"),
+                                     update_value<char const *>(this, &StatementConst::name, kwargs, "name"),
+                                     update_value<Term>(this, &StatementConst::value, kwargs, "value"),
+                                     update_value<ConstType>(this, &StatementConst::const_type, kwargs, "const_type"));
 }
 
-auto StatementComment::location() -> clingo_location_t {
-    clingo_location_t ret;
+auto StatementComment::location() -> Location {
+    clingo_location_t const *ret = nullptr;
     if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
         throw std::runtime_error("could not get location attribute");
     }
-    return ret;
+    return Location{ret};
 }
 
 auto StatementComment::value() -> char const * {
@@ -9813,10 +9720,11 @@ auto StatementComment::comment_type() -> CommentType {
     return static_cast<CommentType>(ret);
 }
 
-auto StatementComment::construct(Library &lib, clingo_location_t const &location, char const *value,
+auto StatementComment::construct(Library &lib, Location const &location, char const *value,
                                  CommentType const &comment_type) -> StatementComment {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_comment, &res_, &location, value,
+    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_comment, &res_,
+                                           static_cast<clingo_location_t const *>(location), value,
                                            static_cast<int>(comment_type)));
     return StatementComment::acquire(res_);
 }
@@ -9832,7 +9740,7 @@ auto StatementComment::transform([[maybe_unused]] Library &lib, [[maybe_unused]]
 
 auto StatementComment::update(Library &lib, py::kwargs const &kwargs) -> StatementComment {
     return StatementComment::construct(
-        lib, update_value<clingo_location_t>(this, &StatementComment::location, kwargs, "location"),
+        lib, update_value<Location>(this, &StatementComment::location, kwargs, "location"),
         update_value<char const *>(this, &StatementComment::value, kwargs, "value"),
         update_value<CommentType>(this, &StatementComment::comment_type, kwargs, "comment_type"));
 }

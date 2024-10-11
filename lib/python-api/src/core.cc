@@ -1,4 +1,5 @@
 #include "core.hh"
+#include "util.hh"
 
 #include <sstream>
 
@@ -52,78 +53,173 @@ auto version() -> std::tuple<int, int, int> {
     return {major, minor, patch};
 }
 
-auto Position::construct(Library &lib, char const *file_name, size_t line, size_t column) -> Position {
-    // TODO: positions and locations have to be acquired and released
-    clingo_symbol_t sym = 0;
-    handle_error(lib, clingo_symbol_create_string(lib, file_name, &sym));
+// definition of StringBuilder
+
+StringBuilder::StringBuilder() {
+    if (!clingo_string_builder_new(&bld_)) {
+        throw std::bad_alloc();
+    }
+}
+
+StringBuilder::StringBuilder(StringBuilder const &other) {
+    if (!clingo_string_builder_copy(other, &bld_)) {
+        throw std::bad_alloc();
+    }
+}
+
+auto StringBuilder::operator=(StringBuilder const &other) -> StringBuilder & {
+    if (this != &other) {
+        clingo_string_builder_free(bld_);
+        if (!clingo_string_builder_copy(other, &bld_)) {
+            throw std::bad_alloc();
+        }
+    }
+    return *this;
+}
+
+StringBuilder::~StringBuilder() noexcept { clingo_string_builder_free(bld_); }
+
+auto StringBuilder::str() const -> std::string {
     char const *str = nullptr;
-    handle_error(lib, clingo_symbol_string(sym, &str));
-    return {str, line, column};
+    size_t size = 0;
+    if (!clingo_string_builder_string(bld_, &str, &size)) {
+        throw std::bad_alloc();
+    }
+    return std::string{str, size};
 }
 
-[[nodiscard]] auto Position::str() const -> std::string {
-    std::ostringstream oss;
-    oss << file << ":" << line << ":" << column;
-    return oss.str();
+// definition of position
+
+Position::Position(clingo_position_t const *pos) {
+    if (!clingo_position_copy(pos, &pos_)) {
+        throw std::bad_alloc();
+    }
 }
 
-[[nodiscard]] auto Position::repr() const -> std::string {
+Position::Position(Library &lib, char const *file, size_t line, size_t column) {
+    handle_error(lib, clingo_position_new(lib, file, line, column, &pos_));
+}
+
+Position::Position(Position const &other) {
+    if (!clingo_position_copy(other, &pos_)) {
+        throw std::bad_alloc();
+    }
+}
+
+Position::Position(Position &&other) noexcept : pos_{std::exchange(other.pos_, nullptr)} {}
+
+auto Position::operator=(Position const &other) -> Position & {
+    if (this != &other) {
+        clingo_position_free(pos_);
+        if (!clingo_position_copy(other, &pos_)) {
+            throw std::bad_alloc();
+        }
+    }
+    return *this;
+}
+
+auto Position::operator=(Position &&other) noexcept -> Position & {
+    std::swap(pos_, other.pos_);
+    return *this;
+}
+
+Position::~Position() noexcept { clingo_position_free(pos_); }
+
+auto Position::file() const -> char const * { return clingo_position_file(pos_); }
+
+auto Position::line() const -> size_t { return clingo_position_line(pos_); }
+
+auto Position::column() const -> size_t { return clingo_position_column(pos_); }
+
+auto Position::str() const -> std::string {
+    auto bld = StringBuilder{};
+    if (!clingo_position_to_string(pos_, bld)) {
+        throw std::bad_alloc();
+    }
+    return bld.str();
+}
+
+auto Position::repr() const -> std::string {
     std::ostringstream oss;
-    oss << "Position(" << py::cast<std::string>(py::str{file}.attr("__repr__")()) << "," << line << "," << column
+    oss << "Position(" << py::cast<std::string>(py::str{file()}.attr("__repr__")()) << "," << line() << "," << column()
         << ")";
     return oss.str();
 }
 
-[[nodiscard]] auto Position::hash() const -> size_t {
-    clingo_location_t loc = {file, "", line, 0, column, 0};
-    return clingo_location_hash(&loc);
-}
+auto Position::hash() const -> size_t { return clingo_position_hash(pos_); }
 
-auto operator==(Position const &a, Position const &b) -> bool {
-    return a.file == b.file && a.line == b.line && a.column == b.column;
-}
+auto operator==(Position const &a, Position const &b) -> bool { return clingo_position_equal(a, b); }
 
 auto operator<=>(Position const &a, Position const &b) -> std::strong_ordering {
-    if (a.file != b.file) {
-        return std::strcmp(a.file, b.file) <=> 0;
-    }
-    if (a.line != b.line) {
-        return a.line <=> b.line;
-    }
-    return a.column <=> b.column;
+    return clingo_position_compare(a, b) <=> 0;
 }
 
-auto location_hash(clingo_location_t const &a) -> size_t { return clingo_location_hash(&a); }
+// definition of location
 
-[[nodiscard]] auto location_str(clingo_location_t const &loc) -> std::string {
-    size_t len = 0;
-    if (!clingo_location_to_string_size(loc, &len)) {
-        throw std::runtime_error("could convert to string");
+Location::Location(clingo_location_t const *loc) {
+    if (!clingo_location_copy(loc, &loc_)) {
+        throw std::bad_alloc();
     }
-    std::string str;
-    str.resize(len);
-    if (!clingo_location_to_string(loc, str.data(), len)) {
-        throw std::runtime_error("could convert to string");
-    }
-    if (!str.empty() && str.back() == '\0') {
-        str.pop_back();
-    }
-    return str;
 }
 
-[[nodiscard]] auto location_repr(clingo_location_t const &loc) -> std::string {
+Location::Location(Position const &begin, Position const &end) {
+    if (!clingo_location_new(begin, end, &loc_)) {
+        throw std::bad_alloc();
+    }
+}
+
+Location::Location(Location const &other) {
+    if (!clingo_location_copy(other, &loc_)) {
+        throw std::bad_alloc();
+    }
+}
+
+Location::Location(Location &&other) noexcept : loc_{std::exchange(other.loc_, nullptr)} {}
+
+auto Location::operator=(Location const &other) -> Location & {
+    if (this != &other) {
+        clingo_location_free(loc_);
+        if (!clingo_location_copy(other, &loc_)) {
+            throw std::bad_alloc();
+        }
+    }
+    return *this;
+}
+
+auto Location::operator=(Location &&other) noexcept -> Location & {
+    std::swap(loc_, other.loc_);
+    return *this;
+}
+
+Location::~Location() noexcept { clingo_location_free(loc_); }
+
+auto Location::begin() const -> Position { return Position{clingo_location_begin(loc_)}; }
+
+auto Location::end() const -> Position { return Position{clingo_location_end(loc_)}; }
+
+auto Location::str() const -> std::string {
+    auto bld = StringBuilder{};
+    if (!clingo_location_to_string(loc_, bld)) {
+        throw std::bad_alloc();
+    }
+    return bld.str();
+}
+
+auto Location::repr() const -> std::string {
     std::ostringstream oss;
-    oss << "Location("
-        << "Position(" << py::cast<std::string>(py::str{loc.begin_file}.attr("__repr__")()) << "," << loc.begin_line
-        << "," << loc.begin_column << "),"
-        << "Position(" << py::cast<std::string>(py::str{loc.end_file}.attr("__repr__")()) << "," << loc.end_line << ","
-        << loc.end_column << "))";
+    oss << "Location(" << begin().repr() << "," << end().repr() << ")";
     return oss.str();
 }
 
-inline auto construct_location(Position const &begin, Position const &end) -> clingo_location_t {
-    return {begin.file, end.file, begin.line, end.line, begin.column, end.column};
+auto Location::hash() const -> size_t { return clingo_location_hash(loc_); }
+
+auto operator==(Location const &a, Location const &b) -> bool { return clingo_location_equal(a, b); }
+
+auto operator<=>(Location const &a, Location const &b) -> std::strong_ordering {
+    return clingo_location_compare(a, b) <=> 0;
 }
+
+// register module
 
 void register_module(pybind11::module &m) {
     auto core = m.def_submodule("core", doc(R"(
@@ -185,26 +281,24 @@ Return self.
 Close the library object.
 )"));
     py::class_<Position>(core, "Position", R"(Position tracking object.)")
-        .def(py::init(&Position::construct), py::arg("lib"), py::arg("file"), py::arg("line"), py::arg("column"))
-        .def_readonly("file", &Position::file)
-        .def_readonly("line", &Position::line)
-        .def_readonly("column", &Position::column)
+        .def(py::init<Library &, char const *, size_t, size_t>(), py::arg("lib"), py::arg("file"), py::arg("line"),
+             py::arg("column"))
+        .def_property_readonly("file", &Position::file)
+        .def_property_readonly("line", &Position::line)
+        .def_property_readonly("column", &Position::column)
         .def("__str__", &Position::str)
         .def("__repr__", &Position::repr)
         .def("__hash__", &Position::hash)
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 
-    py::class_<clingo_location_t>(core, "Location", R"(Location tracking object.)")
-        .def(py::init(&construct_location), py::arg("begin"), py::arg("end"))
-        .def_property_readonly(
-            "begin",
-            [](clingo_location_t const &loc) { return Position{loc.begin_file, loc.begin_line, loc.begin_column}; })
-        .def_property_readonly(
-            "end", [](clingo_location_t const &loc) { return Position{loc.end_file, loc.end_line, loc.end_column}; })
-        .def("__str__", &location_str)
-        .def("__repr__", &location_repr)
-        .def("__hash__", &location_hash)
+    py::class_<Location>(core, "Location", R"(Location tracking object.)")
+        .def(py::init<Position const &, Position const &>(), py::arg("begin"), py::arg("end"))
+        .def_property_readonly("begin", &Location::begin)
+        .def_property_readonly("end", &Location::end)
+        .def("__str__", &Location::str)
+        .def("__repr__", &Location::repr)
+        .def("__hash__", &Location::hash)
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
 }

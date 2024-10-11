@@ -38,11 +38,9 @@ public:
         return clingo_ast_equal(a.ast_, b.ast_);
     }
 
-    friend auto operator<({{ c_type_name }} const &a, {{ c_type_name }} const &b) -> bool {
-        return clingo_ast_less_than(a.ast_, b.ast_);
+    friend auto operator<=>({{ c_type_name }} const &a, {{ c_type_name }} const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
     }
-
-    CLINGO_CPP_TOTAL_ORDER(friend, {{ c_type_name }})
 
     auto to_string() -> std::string {
         size_t len = 0;
@@ -65,7 +63,7 @@ public:
     }
 {% for argument_name, argument in type.arguments.items() -%}
 {% if argument.type == 'location' %}
-    auto {{ argument_name }}() -> clingo_location_t;
+    auto {{ argument_name }}() -> Location;
 {% elif argument.type == 'string' %}
     auto {{ argument_name }}() -> char const *;
 {% elif argument.type == 'number' %}

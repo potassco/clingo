@@ -101,7 +101,7 @@ int main() {
         if (!print_symbol(lib, symbols[0], &buf)) {
             goto error;
         }
-        printf(" %s ", clingo_symbol_is_equal_to(symbols[0], args[i]) ? "is equal to" : "is not equal to");
+        printf(" %s ", clingo_symbol_equal(symbols[0], args[i]) ? "is equal to" : "is not equal to");
         if (!print_symbol(lib, args[i], &buf)) {
             goto error;
         }
@@ -111,7 +111,7 @@ int main() {
     if (!print_symbol(lib, symbols[0], &buf)) {
         goto error;
     }
-    printf(" %s ", clingo_symbol_is_less_than(symbols[0], symbols[1]) ? "is less than" : "is not less than");
+    printf(" %s ", clingo_symbol_compare(symbols[0], symbols[1]) < 0 ? "is less than" : "is not less than");
     if (!print_symbol(lib, symbols[1], &buf)) {
         goto error;
     }

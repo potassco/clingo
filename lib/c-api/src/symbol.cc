@@ -176,16 +176,16 @@ extern "C" auto clingo_symbol_to_string(clingo_symbol_t symbol, char *string, si
     }
 }
 
-extern "C" auto clingo_symbol_is_equal_to(clingo_symbol_t a, clingo_symbol_t b) -> bool {
+extern "C" auto clingo_symbol_equal(clingo_symbol_t a, clingo_symbol_t b) -> bool {
     auto sym_a = Clingo::Symbol::from_rep(a);
     auto sym_b = Clingo::Symbol::from_rep(b);
     return sym_a == sym_b;
 }
 
-extern "C" auto clingo_symbol_is_less_than(clingo_symbol_t a, clingo_symbol_t b) -> bool {
+extern "C" auto clingo_symbol_compare(clingo_symbol_t a, clingo_symbol_t b) -> int {
     auto sym_a = Clingo::Symbol::from_rep(a);
     auto sym_b = Clingo::Symbol::from_rep(b);
-    return sym_a < sym_b;
+    return c_cast(sym_a <=> sym_b);
 }
 
 extern "C" auto clingo_symbol_hash(clingo_symbol_t symbol) -> size_t { return Clingo::Symbol::from_rep(symbol).hash(); }
