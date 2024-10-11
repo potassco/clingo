@@ -240,54 +240,38 @@ enum clingo_truth_value_e {
 //! Corresponding type to ::clingo_truth_value_e.
 typedef int clingo_truth_value_t;
 
-//! Represents a source code location marking its beginning and end.
+//! Represents a cursor position in source code.
 //!
-//! @note Strings in locations must be internalized.
-//!
-//! @note Not all locations refer to physical files.
+//! @note Not all positions refer to physical files.
 //! By convention, such locations use a name put in angular brackets as filename.
-//! The string members of a location object are internalized and stored in a library object.
-typedef struct clingo_location {
-    char const *begin_file; //!< the file where the location begins
-    char const *end_file;   //!< the file where the location ends
-    size_t begin_line;      //!< the line where the location begins
-    size_t end_line;        //!< the line where the location ends
-    size_t begin_column;    //!< the column where the location begins
-    size_t end_column;      //!< the column where the location ends
-} clingo_location_t;
+typedef struct clingo_position clingo_position_t;
 
-//! Less than compare two locations.
-//!
-//! @param[in] a the left-hand-side
-//! @param[in] b the right-hand-side
-//! @return the result of the comparison
-CLINGO_VISIBILITY_DEFAULT bool clingo_location_less_than(clingo_location_t const *a, clingo_location_t const *b);
-//! Equality compare two locations.
-//!
-//! @param[in] a the left-hand-side
-//! @param[in] b the right-hand-side
-//! @return the result of the comparison
+// creates a new allocated position
+CLINGO_VISIBILITY_DEFAULT bool clingo_position_new(clingo_lib_t *lib, char const *file, size_t line, size_t column, clingo_position_t const **pos);
+// like new but copies an existing location
+CLINGO_VISIBILITY_DEFAULT bool clingo_position_copy(clingo_position_t const *src, clingo_position_t const **dst);
+// frees a position (positions returned from the API do not have to be freed but their lifetime is limited to that of their owner)
+CLINGO_VISIBILITY_DEFAULT void clingo_position_free(clingo_position_t const *pos);
+
+CLINGO_VISIBILITY_DEFAULT char const *clingo_position_file(clingo_position_t const *pos);
+CLINGO_VISIBILITY_DEFAULT size_t clingo_position_line(clingo_position_t const *pos);
+CLINGO_VISIBILITY_DEFAULT size_t clingo_position_column(clingo_position_t const *pos);
+CLINGO_VISIBILITY_DEFAULT bool clingo_position_equal(clingo_position_t const *a, clingo_position_t const *b);
+CLINGO_VISIBILITY_DEFAULT bool clingo_position_compare(clingo_position_t const *a, clingo_position_t const *b);
+
+//! Represents a source code location marking its beginning and end.
+typedef struct clingo_location clingo_location_t;
+
+CLINGO_VISIBILITY_DEFAULT bool clingo_location_new(clingo_position_t const *begin, clingo_position_t const *end, clingo_location_t **loc);
+CLINGO_VISIBILITY_DEFAULT bool clingo_location_copy(clingo_location_t const *src, clingo_location_t const **dst);
+CLINGO_VISIBILITY_DEFAULT void clingo_location_free(clingo_location_t *loc);
+
+// getters (the first two return borrowed references)
+CLINGO_VISIBILITY_DEFAULT clingo_position_t *clingo_location_begin(clingo_location_t const *loc, clingo_location_t const **pos);
+CLINGO_VISIBILITY_DEFAULT clingo_position_t *clingo_location_end(clingo_location_t const *loc, clingo_location_t const **pos);
 CLINGO_VISIBILITY_DEFAULT bool clingo_location_equal(clingo_location_t const *a, clingo_location_t const *b);
-//! Compute a hash for a location.
-//!
-//! @param[in] loc the target
-//! @return the resulting hash code
-CLINGO_VISIBILITY_DEFAULT size_t clingo_location_hash(clingo_location_t const *loc);
-
-//! Get the size of the string representation of a location (including the terminating 0).
-//!
-//! @param[in] location the target location
-//! @param[out] size the resulting size
-//! @return whether the size has been set
-CLINGO_VISIBILITY_DEFAULT bool clingo_location_to_string_size(clingo_location_t location, size_t *size);
-
-//! Get the string representation of a location.
-//!
-//! @param[in] location the target location
-//! @param[out] string the resulting string
-//! @param[in] size the size of the string
-//! @return whether the string has been set
-CLINGO_VISIBILITY_DEFAULT bool clingo_location_to_string(clingo_location_t location, char *string, size_t size);
+CLINGO_VISIBILITY_DEFAULT bool clingo_location_compare(clingo_location_t const *a, clingo_location_t const *b);
+CLINGO_VISIBILITY_DEFAULT bool clingo_location_to_string(clingo_location_t const *location, char *string, size_t size);
 
 //! @}
 
