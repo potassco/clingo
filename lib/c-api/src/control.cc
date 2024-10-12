@@ -1,15 +1,10 @@
 #include <clingo/control/solver.hh>
 
+#include <clingo/util/algorithm.hh>
+
 #include "lib.hh"
 
 // NOLINTBEGIN(cppcoreguidelines-owning-memory,cppcoreguidelines-pro-bounds-pointer-arithmetic)
-
-template <class It, class Pred> auto make_vec(It begin, It end, Pred pred) {
-    auto p = std::vector<std::invoke_result_t<Pred, typename std::iterator_traits<It>::value_type>>{};
-    p.reserve(std::distance(begin, end));
-    std::transform(begin, end, std::back_inserter(p), pred);
-    return p;
-}
 
 template <typename In, typename C, typename Pred> auto append_n(In begin, size_t n, C out, Pred pred) {
     out.reserve(out.size() + n);
@@ -64,10 +59,11 @@ extern "C" auto clingo_control_ground(clingo_control_t *control, clingo_part_t c
     CLINGO_TRY {
         auto make_part = [&](auto const &sym) { return Clingo::SharedSymbol{Clingo::Symbol::from_rep(sym)}; };
         auto make_parts = [&](auto const &part) {
-            return Clingo::Input::ProgramParam{control->lib->store->string(part.name),
-                                               make_vec(part.params, part.params + part.size, make_part)};
+            return Clingo::Input::ProgramParam{
+                control->lib->store->string(part.name),
+                Clingo::Util::transform(part.params, part.params + part.size, make_part)};
         };
-        std::ignore = control->slv->ground(make_vec(parts, parts + parts_size, make_parts));
+        std::ignore = control->slv->ground(Clingo::Util::transform(parts, parts + parts_size, make_parts));
     }
     CLINGO_CATCH;
 }

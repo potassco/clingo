@@ -10,10 +10,10 @@ namespace Clingo::Util {
 //! @{
 
 //! Return a vector with the first n elements from the given one.
-template <class Span> auto copy_n(Span const &vec, size_t n) -> std::vector<typename Span::value_type> {
-    std::vector<std::remove_const_t<typename Span::value_type>> ret;
-    ret.reserve(vec.size());
-    for (auto it = vec.begin(), ie = it + n; it != ie; ++it) {
+template <class Rng> auto copy_n(Rng const &rng, size_t n) -> std::vector<typename Rng::value_type> {
+    std::vector<std::remove_const_t<typename Rng::value_type>> ret;
+    ret.reserve(rng.size());
+    for (auto it = rng.begin(), ie = it + n; it != ie; ++it) {
         ret.emplace_back(*it);
     }
     return ret;
@@ -25,6 +25,21 @@ template <class T, class... Ts> auto make_vec(Ts &&...args) -> std::vector<T> {
     res.reserve(sizeof...(Ts));
     (res.emplace_back(std::forward<Ts>(args)), ...);
     return res;
+}
+
+//! Use std::transform to build a vector.
+template <class It, class Pred> auto transform(It begin, It end, Pred pred) {
+    auto p = std::vector<std::invoke_result_t<Pred, typename std::iterator_traits<It>::value_type>>{};
+    p.reserve(std::distance(begin, end));
+    std::transform(begin, end, std::back_inserter(p), pred);
+    return p;
+}
+
+//! Use std::transform to build a vector.
+template <class Rng, class Pred> auto transform(Rng const &rng, Pred pred) {
+    using std::begin;
+    using std::end;
+    return transform_vec(begin(rng), end(rng), pred);
 }
 
 //! Remove all elements from the vector matching the given predicate.

@@ -40,6 +40,14 @@ template <class F, bool stratify = false> class BuilderLit {
             auto upper = build_term(ctx_->var_map(), *rng.rhs());
             cb_(std::make_unique<Ground::LitInterval>(std::move(lhs), std::move(lower), std::move(upper)));
         } else if (Input::is_external(lit.rhs().front().second)) {
+            /*
+            auto lhs = build_term(ctx_->var_map(), lit.lhs());
+            auto const &rng = std::get<Input::TermFunction>(lit.rhs().front().second);
+            auto args = Clingo::Util::transform(rng.pool().front().elems(), [this](auto const &elem) {
+                return build_term(ctx_->var_map(), std::get<Input::Term>(elem));
+            });
+            cb_(std::make_unique<Ground::LitExternal>(rng.name(), std::move(lhs), std::move(args)));
+            */
             std::ostringstream oss;
             oss << "implement me: handle external function call " << lit << " with context " << ctx_->context();
             throw std::logic_error(oss.str());
