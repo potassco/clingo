@@ -12,10 +12,12 @@ namespace Clingo::Control {
 class ScriptExec {
   public:
     virtual ~ScriptExec() = default;
-    void exec(Logger &log, std::string_view name, std::string_view code) { do_exec(log, name, code); }
+    void exec(Location const &loc, Logger &log, std::string_view name, std::string_view code) {
+        do_exec(loc, log, name, code);
+    }
 
   private:
-    virtual void do_exec(Logger &log, std::string_view name, std::string_view code) = 0;
+    virtual void do_exec(Location const &loc, Logger &log, std::string_view name, std::string_view code) = 0;
 };
 
 //! A helper for parsing.
@@ -121,7 +123,7 @@ class ParseHelper {
                 includes_.emplace_back(dir, *include);
             } else {
                 if (auto *script = std::get_if<Input::StmScript>(&*stm); exec_ != nullptr && script != nullptr) {
-                    exec_->exec(*log_, script->type().view(), script->value().view());
+                    exec_->exec(script->loc(), *log_, script->type().view(), script->value().view());
                 }
                 prg_->add(*store_, *std::move(stm));
             }

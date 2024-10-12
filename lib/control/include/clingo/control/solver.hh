@@ -18,11 +18,13 @@ class ScriptCallback {
   public:
     virtual ~ScriptCallback() = default;
     auto callable(std::string_view name, size_t args) -> bool { return do_callable(name, args); }
-    void call(std::string_view name, SymbolSpan args, SymbolVec &out) { do_call(name, args, out); }
+    void call(Location const &loc, std::string_view name, SymbolSpan args, SymbolVec &out) {
+        do_call(loc, name, args, out);
+    }
 
   private:
     virtual auto do_callable(std::string_view name, size_t args) -> bool = 0;
-    virtual void do_call(std::string_view name, SymbolSpan args, SymbolVec &out) = 0;
+    virtual void do_call(Location const &loc, std::string_view name, SymbolSpan args, SymbolVec &out) = 0;
 };
 
 //! Script with a main function and callbacks.
@@ -39,10 +41,10 @@ class ScriptMain : public ScriptCallback {
 //! This interface should be implemend by custom scripts.
 class Script : public ScriptMain {
   public:
-    void exec(std::string_view code) { do_exec(code); }
+    void exec(Location const &loc, std::string_view code) { do_exec(loc, code); }
 
   private:
-    virtual void do_exec(std::string_view code) = 0;
+    virtual void do_exec(Location const &loc, std::string_view code) = 0;
 };
 using UScript = std::unique_ptr<Script>;
 
@@ -55,10 +57,10 @@ class Scripts : public ScriptMain, public ScriptExec {
     void register_script(std::string_view name, UScript script);
 
   private:
-    void do_exec(Logger &log, std::string_view name, std::string_view code) override;
+    void do_exec(Location const &loc, Logger &log, std::string_view name, std::string_view code) override;
     void do_main(Solver &slv) override;
     auto do_callable(std::string_view name, size_t args) -> bool override;
-    void do_call(std::string_view name, SymbolSpan args, SymbolVec &out) override;
+    void do_call(Location const &loc, std::string_view name, SymbolSpan args, SymbolVec &out) override;
 
     std::vector<std::pair<std::string, UScript>> scripts_;
 };
