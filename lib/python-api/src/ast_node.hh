@@ -1,5 +1,7 @@
 #include <clingo.h>
 
+#include <variant>
+
 #include "core.hh"
 
 namespace Clingo::AST2 {
@@ -154,7 +156,7 @@ template <clingo_ast_type_e T> class Node {
             clingo_ast_free(ast);
             throw std::runtime_error("unexpected ast type");
         }
-    };
+    }
 
     // conversion from C++ to C
 
