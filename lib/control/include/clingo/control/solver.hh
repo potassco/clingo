@@ -69,9 +69,6 @@ class Solver {
     //! Ground the program.
     [[nodiscard]] auto ground(Input::ProgramParamVec const &params) -> bool;
 
-    //! Register script.
-    void register_script(std::string_view name, UScript script);
-
     //! Output the current unprocessed program.
     void output_unprocessed_program(std::ostream &out);
     //! Output the current program.
