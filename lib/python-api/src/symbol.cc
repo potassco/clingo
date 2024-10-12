@@ -5,6 +5,8 @@
 
 namespace Clingo::Symbol {
 
+using Core::handle_error;
+
 static constexpr int decimal_base = 10;
 
 Symbol::Symbol(clingo_symbol_t sym, bool acquire) noexcept : sym_{sym} {
@@ -42,7 +44,7 @@ Symbol::~Symbol() noexcept { clingo_symbol_release(sym_); }
         throw std::invalid_argument("symbol is not a number");
     }
     int32_t num = 0;
-    if (clingo_symbol_number(sym_, &num)) {
+    if (clingo_symbol_number(sym_, &num) == clingo_result_success) {
         return num;
     }
     return py::reinterpret_steal<py::int_>(PyLong_FromString(str().c_str(), nullptr, decimal_base));
@@ -54,9 +56,7 @@ Symbol::~Symbol() noexcept { clingo_symbol_release(sym_); }
         throw std::invalid_argument("symbol is not a string");
     }
     char const *name = nullptr;
-    if (!clingo_symbol_string(sym_, &name)) {
-        throw std::runtime_error("could not get string value");
-    }
+    handle_error(clingo_symbol_string(sym_, &name));
     return name;
 }
 
@@ -66,9 +66,7 @@ Symbol::~Symbol() noexcept { clingo_symbol_release(sym_); }
         throw std::invalid_argument("symbol is not a function");
     }
     char const *name = nullptr;
-    if (!clingo_symbol_name(sym_, &name)) {
-        throw std::runtime_error("could not get name");
-    }
+    handle_error(clingo_symbol_name(sym_, &name));
     return name;
 }
 
@@ -79,9 +77,7 @@ Symbol::~Symbol() noexcept { clingo_symbol_release(sym_); }
     }
     clingo_symbol_t const *args = nullptr;
     size_t size = 0;
-    if (!clingo_symbol_arguments(sym_, &args, &size)) {
-        throw std::runtime_error("could not get arguments");
-    }
+    handle_error(clingo_symbol_arguments(sym_, &args, &size));
     return size;
 }
 
@@ -92,9 +88,7 @@ Symbol::~Symbol() noexcept { clingo_symbol_release(sym_); }
     }
     clingo_symbol_t const *args = nullptr;
     size_t size = 0;
-    if (!clingo_symbol_arguments(sym_, &args, &size)) {
-        throw std::runtime_error("could not get arguments");
-    }
+    handle_error(clingo_symbol_arguments(sym_, &args, &size));
     py::list ret;
     for (size_t i = 0; i < size; ++i) {
         // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
@@ -105,14 +99,10 @@ Symbol::~Symbol() noexcept { clingo_symbol_release(sym_); }
 
 [[nodiscard]] auto Symbol::str() const -> std::string {
     size_t len = 0;
-    if (!clingo_symbol_to_string_size(sym_, &len)) {
-        throw std::runtime_error("could convert to string");
-    }
+    handle_error(clingo_symbol_to_string_size(sym_, &len));
     std::string str;
     str.resize(len);
-    if (!clingo_symbol_to_string(sym_, str.data(), len)) {
-        throw std::runtime_error("could convert to string");
-    }
+    handle_error(clingo_symbol_to_string(sym_, str.data(), len));
     if (!str.empty() && str.back() == '\0') {
         str.pop_back();
     }
@@ -155,9 +145,7 @@ Symbol::~Symbol() noexcept { clingo_symbol_release(sym_); }
         throw std::invalid_argument("symbol is not a number or function");
     }
     bool sign = false;
-    if (!clingo_symbol_has_sign(sym_, &sign)) {
-        throw std::runtime_error("could not get name");
-    }
+    handle_error(clingo_symbol_has_sign(sym_, &sign));
     return sign;
 }
 
@@ -195,7 +183,7 @@ auto Number(Core::Library &lib, py::int_ num) -> Symbol {
     }
     auto sym = clingo_symbol_t{0};
     auto str = static_cast<std::string>(py::str(num));
-    handle_error(lib, clingo_symbol_create_number_str(lib, str.c_str(), &sym));
+    handle_error(clingo_symbol_create_number_str(lib, str.c_str(), &sym));
     return Symbol{sym, false};
     /*
     try {
@@ -204,7 +192,7 @@ auto Number(Core::Library &lib, py::int_ num) -> Symbol {
     } catch (py::cast_error const &) {
         auto sym = clingo_symbol_t{0};
         auto str = static_cast<std::string>(py::str(num));
-        handle_error(lib, clingo_symbol_create_number_str(lib, str.c_str(), &sym));
+        handle_error(clingo_symbol_create_number_str(lib, str.c_str(), &sym));
         return Symbol{sym};
     }
     */
@@ -212,7 +200,7 @@ auto Number(Core::Library &lib, py::int_ num) -> Symbol {
 
 auto String(Core::Library &lib, std::string const &str) -> Symbol {
     clingo_symbol_t sym = 0;
-    handle_error(lib, clingo_symbol_create_string(lib, str.data(), &sym));
+    handle_error(clingo_symbol_create_string(lib, str.data(), &sym));
     return Symbol{sym, false};
 }
 
@@ -220,7 +208,7 @@ auto Tuple(Core::Library &lib, std::vector<Symbol> const &args) -> Symbol {
     clingo_symbol_t sym = 0;
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     auto const *syms = reinterpret_cast<clingo_symbol_t const *>(args.data());
-    handle_error(lib, clingo_symbol_create_tuple(lib, syms, args.size(), &sym));
+    handle_error(clingo_symbol_create_tuple(lib, syms, args.size(), &sym));
     return Symbol{sym, false};
 }
 
@@ -228,13 +216,13 @@ auto Function(Core::Library &lib, std::string const &name, std::vector<Symbol> c
     clingo_symbol_t sym = 0;
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     auto const *syms = reinterpret_cast<clingo_symbol_t const *>(args.data());
-    handle_error(lib, clingo_symbol_create_function(lib, name.data(), syms, args.size(), positive, &sym));
+    handle_error(clingo_symbol_create_function(lib, name.data(), syms, args.size(), positive, &sym));
     return Symbol{sym, false};
 }
 
 auto parse_term(Core::Library &lib, std::string str) -> Symbol {
     clingo_symbol_t sym = 0;
-    handle_error(lib, clingo_parse_term(lib, str.data(), &sym));
+    handle_error(clingo_parse_term(lib, str.data(), &sym));
     return Symbol{sym, false};
 }
 

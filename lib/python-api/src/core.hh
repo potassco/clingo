@@ -36,21 +36,29 @@ class Library {
     LoggerCB cb_;
 };
 
-inline void handle_error(clingo_lib_t *lib, bool success) {
-    if (!success) {
-        auto const *msg = clingo_error_message(lib);
-        switch (static_cast<clingo_error_e>(clingo_error_code(lib))) {
-            case clingo_error_success:
-            case clingo_error_unknown:
-            case clingo_error_runtime:
-            case clingo_error_logic: {
-                throw std::logic_error(msg);
-            }
-            case clingo_error_bad_alloc: {
-                break;
-            }
+inline void handle_error(clingo_result_t code) {
+    switch (static_cast<clingo_result_e>(code)) {
+        case clingo_result_success: {
+            break;
         }
-        throw std::bad_alloc();
+        case clingo_result_unknown: {
+            throw std::runtime_error("unknown error");
+        }
+        case clingo_result_runtime: {
+            throw std::runtime_error("runtime error");
+        }
+        case clingo_result_logic: {
+            throw std::logic_error("logic error");
+        }
+        case clingo_result_invalid: {
+            throw std::invalid_argument("invalid argumets");
+        }
+        case clingo_result_range: {
+            throw std::range_error("range error");
+        }
+        case clingo_result_bad_alloc: {
+            throw std::bad_alloc();
+        }
     }
 }
 

@@ -143,7 +143,7 @@ auto construct_{{ type_name }}(clingo_ast_t **ast, size_t size) -> {{ c_type_nam
 {%    elif type.type == 'union' %}
 auto construct_{{ type_name }}(clingo_ast_t *ast) -> {{ c_type_name }} {
     clingo_ast_type_t type = 0;
-    if (!clingo_ast_get_type(ast, &type)) {
+    if (clingo_ast_get_type(ast, &type) != clingo_result_success) {
         clingo_ast_free(ast);
         throw std::runtime_error("could not get type");
     }
@@ -194,9 +194,7 @@ void visit_array(clingo_ast_t *ast, clingo_ast_attribute_t attr, py::handle visi
         size_t size = 0;
     };
     auto array = Array{};
-    if (!clingo_ast_attribute_get_ast_array(ast, attr, &array.begin, &array.size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast, attr, &array.begin, &array.size));
     std::for_each_n(array.begin, array.size, [&](auto *&cld) {
         auto *cpy = cld;
         cld = nullptr;
@@ -265,37 +263,37 @@ auto update_value(F *self, M fun, py::kwargs const &kwargs, char const *attr) ->
 
 auto parse_term(Library &lib, char const *string) -> Term {
     clingo_ast_t *ast = nullptr;
-    handle_error(lib, clingo_ast_parse_expression(lib, clingo_ast_parse_type_term, string, &ast));
+    handle_error(clingo_ast_parse_expression(lib, clingo_ast_parse_type_term, string, &ast));
     return construct_term(ast);
 }
 
 auto parse_theory_term(Library &lib, char const *string) -> TheoryTerm {
     clingo_ast_t *ast = nullptr;
-    handle_error(lib, clingo_ast_parse_expression(lib, clingo_ast_parse_type_theory_term, string, &ast));
+    handle_error(clingo_ast_parse_expression(lib, clingo_ast_parse_type_theory_term, string, &ast));
     return construct_theory_term(ast);
 }
 
 auto parse_literal(Library &lib, char const *string) -> Literal {
     clingo_ast_t *ast = nullptr;
-    handle_error(lib, clingo_ast_parse_expression(lib, clingo_ast_parse_type_literal, string, &ast));
+    handle_error(clingo_ast_parse_expression(lib, clingo_ast_parse_type_literal, string, &ast));
     return construct_literal(ast);
 }
 
 auto parse_head_literal(Library &lib, char const *string) -> HeadLiteral {
     clingo_ast_t *ast = nullptr;
-    handle_error(lib, clingo_ast_parse_expression(lib, clingo_ast_parse_type_head_literal, string, &ast));
+    handle_error(clingo_ast_parse_expression(lib, clingo_ast_parse_type_head_literal, string, &ast));
     return construct_head_literal(ast);
 }
 
 auto parse_body_literal(Library &lib, char const *string) -> BodyLiteral {
     clingo_ast_t *ast = nullptr;
-    handle_error(lib, clingo_ast_parse_expression(lib, clingo_ast_parse_type_body_literal, string, &ast));
+    handle_error(clingo_ast_parse_expression(lib, clingo_ast_parse_type_body_literal, string, &ast));
     return construct_body_literal(ast);
 }
 
 auto parse_statement(Library &lib, char const *string) -> Statement {
     clingo_ast_t *ast = nullptr;
-    handle_error(lib, clingo_ast_parse_expression(lib, clingo_ast_parse_type_statement, string, &ast));
+    handle_error(clingo_ast_parse_expression(lib, clingo_ast_parse_type_statement, string, &ast));
     return construct_statement(ast);
 }
 
@@ -351,14 +349,14 @@ public:
     friend auto operator!=(Iterator const &a, Iterator const &b) -> bool;
 
     Scanner(Library &lib, char const *program) : lib_{lib} {
-        handle_error(lib, clingo_ast_scan_string(lib, program, &scanner_));
+        handle_error(clingo_ast_scan_string(lib, program, &scanner_));
     }
 
     Scanner(Library &lib, std::vector<std::string> files) : lib_{lib} {
         std::vector<char const *> cfiles;
         cfiles.reserve(cfiles.size());
         std::transform(files.begin(), files.end(), std::back_inserter(cfiles), [](auto const &file){ return file.c_str(); });
-        handle_error(lib, clingo_ast_scan_files(lib, cfiles.data(), cfiles.size(), &scanner_));
+        handle_error(clingo_ast_scan_files(lib, cfiles.data(), cfiles.size(), &scanner_));
     }
 
     Scanner(Scanner const &other) = delete;
@@ -380,7 +378,7 @@ public:
     }
     void next() {
         clingo_ast_t *ast = nullptr;
-        handle_error(lib_, clingo_ast_scanner_next(scanner_, &ast));
+        handle_error(clingo_ast_scanner_next(scanner_, &ast));
         if (ast != nullptr) {
             value_ = construct_statement(ast);
         }
@@ -407,7 +405,7 @@ private:
 
 class RewriteContext {
   public:
-    RewriteContext(Library &lib) { handle_error(lib, clingo_ast_rewrite_context_create(lib, &ctx_)); }
+    RewriteContext(Library &lib) { handle_error(clingo_ast_rewrite_context_create(lib, &ctx_)); }
     ~RewriteContext() { clingo_ast_rewrite_context_free(ctx_); }
     void set_project_mode(ProjectionMode value) {
         clingo_ast_rewrite_context_set_project_mode(ctx_, static_cast<clingo_projection_mode_t>(value));
@@ -418,15 +416,13 @@ class RewriteContext {
     void set_project_anoymous(bool value) { clingo_ast_rewrite_context_set_project_anonymous(ctx_, value); }
     auto get_project_anonymous() -> bool { return clingo_ast_rewrite_context_get_project_mode(ctx_) != 0; }
     void add_param(std::string const &name) {
-        handle_error(clingo_ast_rewrite_context_get_lib(ctx_),
-                     clingo_ast_rewrite_context_add_param(ctx_, name.c_str()));
+        handle_error(clingo_ast_rewrite_context_add_param(ctx_, name.c_str()));
     }
     void clear_params() {
         clingo_ast_rewrite_context_clear_params(ctx_);
     }
     void add_theory(StatementTheory const &stm) {
-        handle_error(clingo_ast_rewrite_context_get_lib(ctx_),
-                     clingo_ast_rewrite_context_add_theory(ctx_, c_cast(stm)));
+        handle_error(clingo_ast_rewrite_context_add_theory(ctx_, c_cast(stm)));
     }
     friend auto c_cast(RewriteContext const &x) -> clingo_ast_rewrite_context_t * { return x.ctx_; }
 
@@ -436,14 +432,13 @@ class RewriteContext {
 
 auto rewrite_statement(RewriteContext &ctx, Statement &stm) -> std::vector<Statement> {
     auto *c_ctx = c_cast(ctx);
-    auto *lib = clingo_ast_rewrite_context_get_lib(c_ctx);
     struct Array {
         ~Array() { clingo_ast_array_free(result, result_size); }
         clingo_ast_t **result = nullptr;
         size_t result_size = 0;
     };
     auto arr = Array{};
-    handle_error(lib, clingo_ast_rewrite(c_ctx, c_cast(stm), &arr.result, &arr.result_size));
+    handle_error(clingo_ast_rewrite(c_ctx, c_cast(stm), &arr.result, &arr.result_size));
     std::vector<Statement> res;
     res.reserve(arr.result_size);
     std::for_each_n(arr.result, arr.result_size, [&res](clingo_ast *&ast) {

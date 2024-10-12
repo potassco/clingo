@@ -117,20 +117,22 @@ CLINGO_VISIBILITY_DEFAULT void clingo_version(int *major, int *minor, int *revis
 //! functions do not provide strong exception guarantees.  This means that in
 //! case of errors associated objects cannot be used further.  If such an
 //! object has a free function, this function can and should still be called.
-enum clingo_error_e {
-    clingo_error_success = 0,   //!< successful API calls
-    clingo_error_runtime = 1,   //!< errors only detectable at runtime like invalid input
-    clingo_error_logic = 2,     //!< wrong usage of the clingo API
-    clingo_error_bad_alloc = 3, //!< memory could not be allocated
-    clingo_error_unknown = 4    //!< errors unrelated to clingo
+enum clingo_result_e {
+    clingo_result_success = 0,   //!< successful API calls
+    clingo_result_runtime = 1,   //!< errors only detectable at runtime like invalid input
+    clingo_result_logic = 2,     //!< wrong usage of the clingo API
+    clingo_result_bad_alloc = 3, //!< memory could not be allocated
+    clingo_result_invalid = 4,   //!< invalid arguments passed to function
+    clingo_result_range = 5,     //!< result out of range
+    clingo_result_unknown = 6    //!< errors unrelated to clingo
 };
-//! Corresponding type to ::clingo_error_e.
-typedef int clingo_error_t;
+//! Corresponding type to ::clingo_result_e.
+typedef int clingo_result_t;
 
 //! Convert the given error code into a string.
-CLINGO_VISIBILITY_DEFAULT char const *clingo_error_string(clingo_error_t code);
+CLINGO_VISIBILITY_DEFAULT char const *clingo_result_string(clingo_result_t code);
 
-//! Enumeration of warning codes.
+//! Enumeration of message codes.
 enum clingo_message_e {
     clingo_message_trace = 0,               //!< a trace message
     clingo_message_debug = 1,               //!< a debug message
@@ -145,13 +147,13 @@ enum clingo_message_e {
 //! Corresponding type to ::clingo_message_e.
 typedef int clingo_message_t;
 
-//! Convert the giving warning code into a string.
+//! Convert the giving message code into a string.
 CLINGO_VISIBILITY_DEFAULT char const *clingo_message_string(clingo_message_t code);
 
-//! Callback to intercept warning messages.
+//! Callback to intercept messages.
 //!
-//! @param[in] code associated warning code
-//! @param[in] message warning message
+//! @param[in] code associated code
+//! @param[in] message message
 //! @param[in] data user data for callback
 //!
 //! @see clingo_control_new()
@@ -202,21 +204,6 @@ CLINGO_VISIBILITY_DEFAULT clingo_lib_t *clingo_lib_new(clingo_lib_flags_t flags,
 //! @param[in] fast whether to perform a fast destruction
 CLINGO_VISIBILITY_DEFAULT void clingo_lib_free(clingo_lib_t *lib, bool fast);
 
-//! Get the last error code set by a clingo API call.
-//! @note Each thread has its own local error code.
-//! @return error code
-CLINGO_VISIBILITY_DEFAULT clingo_error_t clingo_error_code(clingo_lib_t *lib);
-
-//! Get the last error message set if an API call fails.
-//! @return error message or NULL if there is none
-CLINGO_VISIBILITY_DEFAULT char const *clingo_error_message(clingo_lib_t *lib);
-
-//! Set a custom error code and message in the given library.
-//! @param[in] lib the target library
-//! @param[in] code the error code
-//! @param[in] message the error message
-CLINGO_VISIBILITY_DEFAULT void clingo_set_error(clingo_lib_t *lib, clingo_error_t code, char const *message);
-
 //! Signed integer type used for aspif and solver literals.
 typedef int32_t clingo_literal_t;
 //! Unsigned integer type used for aspif atoms.
@@ -243,13 +230,13 @@ typedef int clingo_truth_value_t;
 //! A builder for strings.
 typedef struct clingo_string_builder clingo_string_builder_t;
 
-CLINGO_VISIBILITY_DEFAULT bool clingo_string_builder_new(clingo_string_builder_t **bld);
-CLINGO_VISIBILITY_DEFAULT bool clingo_string_builder_copy(clingo_string_builder_t const *src,
-                                                          clingo_string_builder_t **dst);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_string_builder_new(clingo_string_builder_t **bld);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_string_builder_copy(clingo_string_builder_t const *src,
+                                                                     clingo_string_builder_t **dst);
 CLINGO_VISIBILITY_DEFAULT void clingo_string_builder_free(clingo_string_builder_t const *bld);
 
-CLINGO_VISIBILITY_DEFAULT bool clingo_string_builder_string(clingo_string_builder_t const *bld, char const **str,
-                                                            size_t *size);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_string_builder_string(clingo_string_builder_t const *bld,
+                                                                       char const **str, size_t *size);
 CLINGO_VISIBILITY_DEFAULT void clingo_string_builder_clear(clingo_string_builder_t *bld);
 
 //! Represents a cursor position in source code.
@@ -259,10 +246,11 @@ CLINGO_VISIBILITY_DEFAULT void clingo_string_builder_clear(clingo_string_builder
 typedef struct clingo_position clingo_position_t;
 
 // creates a new allocated position
-CLINGO_VISIBILITY_DEFAULT bool clingo_position_new(clingo_lib_t *lib, char const *file, size_t line, size_t column,
-                                                   clingo_position_t const **pos);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_position_new(clingo_lib_t *lib, char const *file, size_t line,
+                                                              size_t column, clingo_position_t const **pos);
 // like new but copies an existing location
-CLINGO_VISIBILITY_DEFAULT bool clingo_position_copy(clingo_position_t const *src, clingo_position_t const **dst);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_position_copy(clingo_position_t const *src,
+                                                               clingo_position_t const **dst);
 // frees a position (positions returned from the API do not have to be freed but their lifetime is limited to that of
 // their owner)
 CLINGO_VISIBILITY_DEFAULT void clingo_position_free(clingo_position_t const *pos);
@@ -273,14 +261,17 @@ CLINGO_VISIBILITY_DEFAULT size_t clingo_position_column(clingo_position_t const 
 CLINGO_VISIBILITY_DEFAULT size_t clingo_position_hash(clingo_position_t const *pos);
 CLINGO_VISIBILITY_DEFAULT bool clingo_position_equal(clingo_position_t const *a, clingo_position_t const *b);
 CLINGO_VISIBILITY_DEFAULT int clingo_position_compare(clingo_position_t const *a, clingo_position_t const *b);
-CLINGO_VISIBILITY_DEFAULT bool clingo_position_to_string(clingo_position_t const *pos, clingo_string_builder_t *str);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_position_to_string(clingo_position_t const *pos,
+                                                                    clingo_string_builder_t *str);
 
 //! Represents a source code location marking its beginning and end.
 typedef struct clingo_location clingo_location_t;
 
-CLINGO_VISIBILITY_DEFAULT bool clingo_location_new(clingo_position_t const *begin, clingo_position_t const *end,
-                                                   clingo_location_t const **loc);
-CLINGO_VISIBILITY_DEFAULT bool clingo_location_copy(clingo_location_t const *src, clingo_location_t const **dst);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_location_new(clingo_position_t const *begin,
+                                                              clingo_position_t const *end,
+                                                              clingo_location_t const **loc);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_location_copy(clingo_location_t const *src,
+                                                               clingo_location_t const **dst);
 CLINGO_VISIBILITY_DEFAULT void clingo_location_free(clingo_location_t const *loc);
 
 // getters (the first two return borrowed references)
@@ -289,7 +280,8 @@ CLINGO_VISIBILITY_DEFAULT clingo_position_t const *clingo_location_end(clingo_lo
 CLINGO_VISIBILITY_DEFAULT size_t clingo_location_hash(clingo_location_t const *loc);
 CLINGO_VISIBILITY_DEFAULT bool clingo_location_equal(clingo_location_t const *a, clingo_location_t const *b);
 CLINGO_VISIBILITY_DEFAULT int clingo_location_compare(clingo_location_t const *a, clingo_location_t const *b);
-CLINGO_VISIBILITY_DEFAULT bool clingo_location_to_string(clingo_location_t const *loc, clingo_string_builder_t *str);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_location_to_string(clingo_location_t const *loc,
+                                                                    clingo_string_builder_t *str);
 
 //! @}
 
@@ -431,8 +423,8 @@ CLINGO_VISIBILITY_DEFAULT clingo_symbol_t clingo_symbol_create_number(int32_t nu
 //! @param[out] symbol the resulting symbol
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_number_str(clingo_lib_t *lib, char const *number,
-                                                               clingo_symbol_t *symbol);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_create_number_str(clingo_lib_t *lib, char const *number,
+                                                                          clingo_symbol_t *symbol);
 
 //! Construct a symbol representing a string.
 //!
@@ -441,8 +433,8 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_number_str(clingo_lib_t *lib
 //! @param[out] symbol the resulting symbol
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_string(clingo_lib_t *lib, char const *string,
-                                                           clingo_symbol_t *symbol);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_create_string(clingo_lib_t *lib, char const *string,
+                                                                      clingo_symbol_t *symbol);
 
 //! Construct a symbol representing an id.
 //!
@@ -455,8 +447,8 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_string(clingo_lib_t *lib, ch
 //! @param[out] symbol the resulting symbol
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_id(clingo_lib_t *lib, char const *name, bool sign,
-                                                       clingo_symbol_t *symbol);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_create_id(clingo_lib_t *lib, char const *name, bool sign,
+                                                                  clingo_symbol_t *symbol);
 
 //! Construct a symbol representing a tuple.
 //!
@@ -466,8 +458,9 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_id(clingo_lib_t *lib, char c
 //! @param[out] symbol the resulting symbol
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_tuple(clingo_lib_t *lib, clingo_symbol_t const *arguments,
-                                                          size_t arguments_size, clingo_symbol_t *symbol);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_create_tuple(clingo_lib_t *lib,
+                                                                     clingo_symbol_t const *arguments,
+                                                                     size_t arguments_size, clingo_symbol_t *symbol);
 
 //! Construct a symbol representing a function.
 //!
@@ -479,9 +472,10 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_tuple(clingo_lib_t *lib, cli
 //! @param[out] symbol the resulting symbol
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_function(clingo_lib_t *lib, char const *name,
-                                                             clingo_symbol_t const *arguments, size_t arguments_size,
-                                                             bool sign, clingo_symbol_t *symbol);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_create_function(clingo_lib_t *lib, char const *name,
+                                                                        clingo_symbol_t const *arguments,
+                                                                        size_t arguments_size, bool sign,
+                                                                        clingo_symbol_t *symbol);
 
 //! Parse a term in string form.
 //!
@@ -494,7 +488,8 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_create_function(clingo_lib_t *lib, 
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if parsing fails
-CLINGO_VISIBILITY_DEFAULT bool clingo_parse_term(clingo_lib_t *lib, char const *string, clingo_symbol_t *symbol);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_parse_term(clingo_lib_t *lib, char const *string,
+                                                            clingo_symbol_t *symbol);
 
 //! Acquire ownership of the given symbol.
 //!
@@ -524,7 +519,7 @@ CLINGO_VISIBILITY_DEFAULT void clingo_symbol_release(clingo_symbol_t symbol);
 //! @param[in] symbol the target symbol
 //! @param[out] number the resulting number
 //! @return whether the number has been set
-CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_number(clingo_symbol_t symbol, int32_t *number);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_number(clingo_symbol_t symbol, int32_t *number);
 
 //! Get the name of a symbol.
 //!
@@ -534,7 +529,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_number(clingo_symbol_t symbol, int3
 //! @param[in] symbol the target symbol
 //! @param[out] name the resulting name
 //! @return whether the name has been set
-CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_name(clingo_symbol_t symbol, char const **name);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_name(clingo_symbol_t symbol, char const **name);
 
 //! Get the string of a symbol.
 //!
@@ -544,14 +539,14 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_name(clingo_symbol_t symbol, char c
 //! @param[in] symbol the target symbol
 //! @param[out] string the resulting string
 //! @return whether the string has been set
-CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_string(clingo_symbol_t symbol, char const **string);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_string(clingo_symbol_t symbol, char const **string);
 
 //! Check whether a function or number has a sign.
 //!
 //! @param[in] symbol the target symbol
 //! @param[out] has_sign the result
 //! @return whether the sign has been set
-CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_has_sign(clingo_symbol_t symbol, bool *has_sign);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_has_sign(clingo_symbol_t symbol, bool *has_sign);
 
 //! Get the arguments of a symbol.
 //!
@@ -559,8 +554,9 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_has_sign(clingo_symbol_t symbol, bo
 //! @param[out] arguments the resulting arguments
 //! @param[out] arguments_size the number of arguments
 //! @return whether the arguments have been set
-CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_arguments(clingo_symbol_t symbol, clingo_symbol_t const **arguments,
-                                                       size_t *arguments_size);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_arguments(clingo_symbol_t symbol,
+                                                                  clingo_symbol_t const **arguments,
+                                                                  size_t *arguments_size);
 
 //! Get the type of a symbol.
 //!
@@ -573,7 +569,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_symbol_type_t clingo_symbol_type(clingo_symbol_
 //! @param[in] symbol the target symbol
 //! @param[out] size the resulting size
 //! @return whether the size has been set
-CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_to_string_size(clingo_symbol_t symbol, size_t *size);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_to_string_size(clingo_symbol_t symbol, size_t *size);
 
 //! Get the string representation of a symbol.
 //!
@@ -581,7 +577,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_to_string_size(clingo_symbol_t symb
 //! @param[out] string the resulting string
 //! @param[in] size the size of the string
 //! @return whether the string has been set
-CLINGO_VISIBILITY_DEFAULT bool clingo_symbol_to_string(clingo_symbol_t symbol, char *string, size_t size);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_symbol_to_string(clingo_symbol_t symbol, char *string, size_t size);
 
 //! @}
 
@@ -675,8 +671,8 @@ typedef struct clingo_part {
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if argument parsing fails
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_new(clingo_lib_t *lib, char const *const *arguments,
-                                                  size_t arguments_size, clingo_control_t **control);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_new(clingo_lib_t *lib, char const *const *arguments,
+                                                             size_t arguments_size, clingo_control_t **control);
 
 //! Free a control object created with clingo_control_new().
 //! @param[in] control the target
@@ -690,8 +686,8 @@ CLINGO_VISIBILITY_DEFAULT void clingo_control_free(clingo_control_t *control);
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if parsing or checking fails
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_parse_file(clingo_control_t *control, char const **files,
-                                                         size_t files_size);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_parse_file(clingo_control_t *control, char const **files,
+                                                                    size_t files_size);
 
 //! Extend the logic program with the given non-ground logic program in string form.
 //!
@@ -705,7 +701,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_parse_file(clingo_control_t *contr
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if parsing fails
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_parse_string(clingo_control_t *control, char const *program);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_parse_string(clingo_control_t *control, char const *program);
 
 //! Ground the selected @link ::clingo_part parts @endlink of the current (non-ground) logic program.
 //!
@@ -725,8 +721,8 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_parse_string(clingo_control_t *con
 //! - error code of ground callback
 //!
 //! @see clingo_part
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts,
-                                                     size_t parts_size);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts,
+                                                                size_t parts_size);
 
 //! @}
 
@@ -744,7 +740,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_ground(clingo_control_t *control, 
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! @see ::clingo_ground_callback_t
-typedef bool (*clingo_symbol_callback_t)(clingo_symbol_t const *symbols, size_t symbols_size, void *data);
+typedef clingo_result_t (*clingo_symbol_callback_t)(clingo_symbol_t const *symbols, size_t symbols_size, void *data);
 
 //! Custom scripting language to run functions during grounding.
 typedef struct clingo_script {
@@ -753,7 +749,7 @@ typedef struct clingo_script {
     //! @param[in] code the code to evaluate
     //! @param[in] data user data as given when registering the script
     //! @return whether the function call was successful
-    bool (*execute)(clingo_location_t const *location, char const *code, void *data);
+    clingo_result_t (*execute)(clingo_location_t const *location, char const *code, void *data);
     //! Call the function with the given name and arguments.
     //! @param[in] location the location in the logic program of the function call
     //! @param[in] name the name of the function
@@ -763,21 +759,21 @@ typedef struct clingo_script {
     //! @param[in] symbol_callback_data user data for the symbol callback
     //! @param[in] data user data as given when registering the script
     //! @return whether the function call was successful
-    bool (*call)(clingo_location_t const *location, char const *name, clingo_symbol_t const *arguments,
-                 size_t arguments_size, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data,
-                 void *data);
+    clingo_result_t (*call)(clingo_location_t const *location, char const *name, clingo_symbol_t const *arguments,
+                            size_t arguments_size, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data,
+                            void *data);
     //! Check if the given function is callable.
     //! @param[in] name the name of the function
     //! @param[in] arguments the number of arguments
     //! @param[out] result whether the function is callable
     //! @param[in] data user data as given when registering the script
     //! @return whether the function call was successful
-    bool (*callable)(char const *name, size_t arguments, bool *result, void *data);
+    clingo_result_t (*callable)(char const *name, size_t arguments, bool *result, void *data);
     //! Run the main function.
     //! @param[in] control the control object to pass to the main function
     //! @param[in] data user data as given when registering the script
     //! @return whether the function call was successful
-    bool (*main)(clingo_control_t *control, void *data);
+    clingo_result_t (*main)(clingo_control_t *control, void *data);
     //! Get the name of the script.
     //! @return the name of the script.
     char const *(*name)(void *data);
@@ -795,7 +791,8 @@ typedef struct clingo_script {
 //! @param[in] script struct with functions implementing the language
 //! @param[in] data user data to pass to callbacks in the script
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_script_register(clingo_lib_t *lib, clingo_script_t const *script, void *data);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_script_register(clingo_lib_t *lib, clingo_script_t const *script,
+                                                                 void *data);
 
 //! Get the version of the registered scripting language.
 //!
@@ -969,7 +966,8 @@ typedef struct clingo_ast clingo_ast_t;
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if one of the arguments is incompatible with the type
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, clingo_ast_t **ast, ...);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type,
+                                                               clingo_ast_t **ast, ...);
 
 //! Copy the given AST node.
 //!
@@ -978,7 +976,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_construct(clingo_lib_t *lib, clingo_as
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime for invalid arguments
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_copy(clingo_ast_t *ast, clingo_ast_t **copy);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_copy(clingo_ast_t *ast, clingo_ast_t **copy);
 
 //! Enumeration of expressions that can be parsed.
 enum clingo_ast_parse_type_e {
@@ -1003,8 +1001,8 @@ typedef int clingo_ast_parse_type_t;
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime for invalid arguments or expressions
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_type_t type,
-                                                           char const *string, clingo_ast_t **ast);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_type_t type,
+                                                                      char const *string, clingo_ast_t **ast);
 
 //! Free an AST node.
 //!
@@ -1030,7 +1028,7 @@ CLINGO_VISIBILITY_DEFAULT void clingo_ast_array_free(clingo_ast_t **ast, size_t 
 //! @param[out] size the size of the string representation
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_to_string_size(clingo_ast_t *ast, size_t *size);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_to_string_size(clingo_ast_t *ast, size_t *size);
 
 //! Get the string representation of an AST node.
 //!
@@ -1039,7 +1037,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_to_string_size(clingo_ast_t *ast, size
 //! @param[out] size the size of the string representation
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_to_string(clingo_ast_t *ast, char *string, size_t size);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_to_string(clingo_ast_t *ast, char *string, size_t size);
 
 //! @}
 
@@ -1077,7 +1075,7 @@ CLINGO_VISIBILITY_DEFAULT size_t clingo_ast_hash(clingo_ast_t *ast);
 //! @param[out] type the resulting type
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_get_type(clingo_ast_t *ast, clingo_ast_type_t *type);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_get_type(clingo_ast_t *ast, clingo_ast_type_t *type);
 
 //! Get the value of numeric attribute.
 //!
@@ -1086,8 +1084,8 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_get_type(clingo_ast_t *ast, clingo_ast
 //! @param[out] value the resulting value
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_number(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
-                                                               int *value);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_attribute_get_number(clingo_ast_t *ast,
+                                                                          clingo_ast_attribute_t attribute, int *value);
 
 //! Get the value of a symbol attribute.
 //!
@@ -1096,8 +1094,9 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_number(clingo_ast_t *ast
 //! @param[out] value the resulting value
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_symbol(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
-                                                               clingo_symbol_t *value);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_attribute_get_symbol(clingo_ast_t *ast,
+                                                                          clingo_ast_attribute_t attribute,
+                                                                          clingo_symbol_t *value);
 
 //! Get the value of a location attribute.
 //!
@@ -1106,8 +1105,9 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_symbol(clingo_ast_t *ast
 //! @param[out] value the resulting value
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_location(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
-                                                                 clingo_location_t const **value);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_attribute_get_location(clingo_ast_t *ast,
+                                                                            clingo_ast_attribute_t attribute,
+                                                                            clingo_location_t const **value);
 
 //! Get the value of a string attribute.
 //!
@@ -1116,8 +1116,9 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_location(clingo_ast_t *a
 //! @param[out] value the resulting value
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_string(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
-                                                               char const **value);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_attribute_get_string(clingo_ast_t *ast,
+                                                                          clingo_ast_attribute_t attribute,
+                                                                          char const **value);
 
 //! Get the value of a string array attribute.
 //!
@@ -1129,9 +1130,9 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_string(clingo_ast_t *ast
 //! @param[out] size the size of the array
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_string_array(clingo_ast_t *ast,
-                                                                     clingo_ast_attribute_t attribute,
-                                                                     char const **value, size_t *size);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_attribute_get_string_array(clingo_ast_t *ast,
+                                                                                clingo_ast_attribute_t attribute,
+                                                                                char const **value, size_t *size);
 
 //! Get the value of an ast attribute.
 //!
@@ -1144,8 +1145,9 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_string_array(clingo_ast_
 //! @param[out] value the resulting value
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_ast(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
-                                                            clingo_ast_t **value);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_attribute_get_ast(clingo_ast_t *ast,
+                                                                       clingo_ast_attribute_t attribute,
+                                                                       clingo_ast_t **value);
 
 //! Get the value of an ast array attribute.
 //!
@@ -1157,8 +1159,9 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_ast(clingo_ast_t *ast, c
 //! @param[out] size the size of the array
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_runtime
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_ast_array(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
-                                                                  clingo_ast_t ***value, size_t *size);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_attribute_get_ast_array(clingo_ast_t *ast,
+                                                                             clingo_ast_attribute_t attribute,
+                                                                             clingo_ast_t ***value, size_t *size);
 
 //! Get a description of the AST structure in form of a YAML document.
 //!
@@ -1179,8 +1182,8 @@ typedef struct clingo_ast_scanner clingo_ast_scanner_t;
 //! @param[in] program the string to read from
 //! @param[out] scanner the resulting scanner
 //! @return whether the call was successful or an error has been set
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_scan_string(clingo_lib_t *lib, char const *program,
-                                                      clingo_ast_scanner_t **scanner);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_scan_string(clingo_lib_t *lib, char const *program,
+                                                                 clingo_ast_scanner_t **scanner);
 
 //! Creater a scanner reading a program from a string.
 //!
@@ -1189,15 +1192,15 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_scan_string(clingo_lib_t *lib, char co
 //! @param[in] size the number of file paths
 //! @param[out] scanner the resulting scanner
 //! @return whether the call was successful or an error has been set
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_scan_files(clingo_lib_t *lib, char const *const *files, size_t size,
-                                                     clingo_ast_scanner_t **scanner);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_scan_files(clingo_lib_t *lib, char const *const *files,
+                                                                size_t size, clingo_ast_scanner_t **scanner);
 
 //! Parse the next statement.
 //!
 //! @param[in] scanner the scanner to use for parsing
 //! @param[out] ast the resulting ast
 //! @return whether the call was successful or an error has been set
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_scanner_next(clingo_ast_scanner_t *scanner, clingo_ast_t **ast);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_scanner_next(clingo_ast_scanner_t *scanner, clingo_ast_t **ast);
 
 //! Check if there was a parse error.
 //!
@@ -1228,8 +1231,8 @@ typedef struct clingo_ast_rewrite_context clingo_ast_rewrite_context_t;
 //! @param[in] lib the library object to store symbols
 //! @param[out] context the resulting context object
 //! @return whether the call was successful or an error has been set
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_rewrite_context_create(clingo_lib_t *lib,
-                                                                 clingo_ast_rewrite_context_t **context);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_rewrite_context_create(clingo_lib_t *lib,
+                                                                            clingo_ast_rewrite_context_t **context);
 
 //! Free the given rewrite context.
 //!
@@ -1243,8 +1246,8 @@ CLINGO_VISIBILITY_DEFAULT void clingo_ast_rewrite_context_free(clingo_ast_rewrit
 //! @param[in] context the context object
 //! @param[in] param the parameter to protect
 //! @return whether the call was successful or an error has been set
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_rewrite_context_add_param(clingo_ast_rewrite_context_t *context,
-                                                                    char const *param);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_rewrite_context_add_param(clingo_ast_rewrite_context_t *context,
+                                                                               char const *param);
 
 //! Remove all previously added parameters.
 //!
@@ -1258,8 +1261,8 @@ CLINGO_VISIBILITY_DEFAULT void clingo_ast_rewrite_context_clear_params(clingo_as
 //! @param[in] context the context object
 //! @param[in] theory the theory definition
 //! @return whether the call was successful or an error has been set
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_rewrite_context_add_theory(clingo_ast_rewrite_context_t *context,
-                                                                     clingo_ast_t const *theory);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_rewrite_context_add_theory(clingo_ast_rewrite_context_t *context,
+                                                                                clingo_ast_t const *theory);
 
 //! Configure whether anonymous variables in negative literals are projected.
 //!
@@ -1303,8 +1306,9 @@ CLINGO_VISIBILITY_DEFAULT clingo_lib_t *clingo_ast_rewrite_context_get_lib(cling
 //! @param[out] result the resulting rewritten statements
 //! @param[out] result_size the number of resulting statements
 //! @return whether the call was successful or an error has been set
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_rewrite(clingo_ast_rewrite_context_t *context, clingo_ast_t *statement,
-                                                  clingo_ast_t ***result, size_t *result_size);
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_rewrite(clingo_ast_rewrite_context_t *context,
+                                                             clingo_ast_t *statement, clingo_ast_t ***result,
+                                                             size_t *result_size);
 
 //! @}
 

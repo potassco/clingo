@@ -17,17 +17,6 @@ namespace Clingo {
 //! The default message limit.
 static constexpr size_t default_message_limit = 20;
 
-//! Error codes.
-//!
-//! This is used by the C-API.
-enum class ErrorCode : uint8_t {
-    success = 0,   //!< There was no error.
-    runtime = 1,   //!< A runtime error.
-    logic = 2,     //!< A logic error.
-    bad_alloc = 3, //!< A failed allocation.
-    unknown = 4    //!< An uncategorised error.
-};
-
 //! Exception thrown when an error code is set.
 //!
 //! This is used by the C-API.

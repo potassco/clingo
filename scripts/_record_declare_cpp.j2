@@ -4,9 +4,7 @@ public:
     {{ c_type_name }}() = default;
 
     {{ c_type_name }}({{ c_type_name }} const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
+        handle_error(clingo_ast_copy(x.ast_, &ast_));
     }
 
     {{ c_type_name }}({{ c_type_name }} &&x) noexcept {
@@ -18,9 +16,7 @@ public:
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -44,14 +40,10 @@ public:
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }

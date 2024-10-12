@@ -55,24 +55,14 @@ auto version() -> std::tuple<int, int, int> {
 
 // definition of StringBuilder
 
-StringBuilder::StringBuilder() {
-    if (!clingo_string_builder_new(&bld_)) {
-        throw std::bad_alloc();
-    }
-}
+StringBuilder::StringBuilder() { handle_error(clingo_string_builder_new(&bld_)); }
 
-StringBuilder::StringBuilder(StringBuilder const &other) {
-    if (!clingo_string_builder_copy(other, &bld_)) {
-        throw std::bad_alloc();
-    }
-}
+StringBuilder::StringBuilder(StringBuilder const &other) { handle_error(clingo_string_builder_copy(other, &bld_)); }
 
 auto StringBuilder::operator=(StringBuilder const &other) -> StringBuilder & {
     if (this != &other) {
         clingo_string_builder_free(bld_);
-        if (!clingo_string_builder_copy(other, &bld_)) {
-            throw std::bad_alloc();
-        }
+        handle_error(clingo_string_builder_copy(other, &bld_));
     }
     return *this;
 }
@@ -82,38 +72,26 @@ StringBuilder::~StringBuilder() noexcept { clingo_string_builder_free(bld_); }
 auto StringBuilder::str() const -> std::string {
     char const *str = nullptr;
     size_t size = 0;
-    if (!clingo_string_builder_string(bld_, &str, &size)) {
-        throw std::bad_alloc();
-    }
+    handle_error(clingo_string_builder_string(bld_, &str, &size));
     return std::string{str, size};
 }
 
 // definition of position
 
-Position::Position(clingo_position_t const *pos) {
-    if (!clingo_position_copy(pos, &pos_)) {
-        throw std::bad_alloc();
-    }
-}
+Position::Position(clingo_position_t const *pos) { handle_error(clingo_position_copy(pos, &pos_)); }
 
 Position::Position(Library &lib, char const *file, size_t line, size_t column) {
-    handle_error(lib, clingo_position_new(lib, file, line, column, &pos_));
+    handle_error(clingo_position_new(lib, file, line, column, &pos_));
 }
 
-Position::Position(Position const &other) {
-    if (!clingo_position_copy(other, &pos_)) {
-        throw std::bad_alloc();
-    }
-}
+Position::Position(Position const &other) { handle_error(clingo_position_copy(other, &pos_)); }
 
 Position::Position(Position &&other) noexcept : pos_{std::exchange(other.pos_, nullptr)} {}
 
 auto Position::operator=(Position const &other) -> Position & {
     if (this != &other) {
         clingo_position_free(pos_);
-        if (!clingo_position_copy(other, &pos_)) {
-            throw std::bad_alloc();
-        }
+        handle_error(clingo_position_copy(other, &pos_));
     }
     return *this;
 }
@@ -133,9 +111,7 @@ auto Position::column() const -> size_t { return clingo_position_column(pos_); }
 
 auto Position::str() const -> std::string {
     auto bld = StringBuilder{};
-    if (!clingo_position_to_string(pos_, bld)) {
-        throw std::bad_alloc();
-    }
+    handle_error(clingo_position_to_string(pos_, bld));
     return bld.str();
 }
 
@@ -156,32 +132,18 @@ auto operator<=>(Position const &a, Position const &b) -> std::strong_ordering {
 
 // definition of location
 
-Location::Location(clingo_location_t const *loc) {
-    if (!clingo_location_copy(loc, &loc_)) {
-        throw std::bad_alloc();
-    }
-}
+Location::Location(clingo_location_t const *loc) { handle_error(clingo_location_copy(loc, &loc_)); }
 
-Location::Location(Position const &begin, Position const &end) {
-    if (!clingo_location_new(begin, end, &loc_)) {
-        throw std::bad_alloc();
-    }
-}
+Location::Location(Position const &begin, Position const &end) { handle_error(clingo_location_new(begin, end, &loc_)); }
 
-Location::Location(Location const &other) {
-    if (!clingo_location_copy(other, &loc_)) {
-        throw std::bad_alloc();
-    }
-}
+Location::Location(Location const &other) { handle_error(clingo_location_copy(other, &loc_)); }
 
 Location::Location(Location &&other) noexcept : loc_{std::exchange(other.loc_, nullptr)} {}
 
 auto Location::operator=(Location const &other) -> Location & {
     if (this != &other) {
         clingo_location_free(loc_);
-        if (!clingo_location_copy(other, &loc_)) {
-            throw std::bad_alloc();
-        }
+        handle_error(clingo_location_copy(other, &loc_));
     }
     return *this;
 }
@@ -199,9 +161,7 @@ auto Location::end() const -> Position { return Position{clingo_location_end(loc
 
 auto Location::str() const -> std::string {
     auto bld = StringBuilder{};
-    if (!clingo_location_to_string(loc_, bld)) {
-        throw std::bad_alloc();
-    }
+    handle_error(clingo_location_to_string(loc_, bld));
     return bld.str();
 }
 

@@ -15,6 +15,14 @@ typedef struct {
     size_t string_n;
 } string_buffer_t;
 
+bool handle_result(clingo_result_t res) {
+    if (res != clingo_result_success) {
+        printf("%s\n", clingo_result_string(res));
+        return false;
+    }
+    return true;
+}
+
 void free_string_buffer(string_buffer_t *buf) {
     if (buf->string) {
         free(buf->string);
@@ -23,22 +31,22 @@ void free_string_buffer(string_buffer_t *buf) {
     }
 }
 
-bool print_symbol(clingo_lib_t *lib, clingo_symbol_t symbol, string_buffer_t *buf) {
-    bool ret = true;
+clingo_result_t print_symbol(clingo_lib_t *lib, clingo_symbol_t symbol, string_buffer_t *buf) {
+    clingo_result_t ret = clingo_result_success;
     char *string = NULL;
     size_t n = 0;
 
     // determine size of the string representation of the next symbol in the model
-    if (!clingo_symbol_to_string_size(symbol, &n)) {
-        goto error;
+    ret = clingo_symbol_to_string_size(symbol, &n);
+    if (ret != clingo_result_success) {
+        return ret;
     }
 
     if (buf->string_n < n) {
         // allocate required memory to hold the symbol's string
         string = (char *)realloc(buf->string, sizeof(*buf->string) * n);
         if (string == NULL) {
-            clingo_set_error(lib, clingo_error_bad_alloc, "could not allocate memory for symbol's string");
-            goto error;
+            return clingo_result_bad_alloc;
         }
 
         buf->string = string;
@@ -46,21 +54,18 @@ bool print_symbol(clingo_lib_t *lib, clingo_symbol_t symbol, string_buffer_t *bu
     }
 
     // retrieve the symbol's string
-    if (!clingo_symbol_to_string(symbol, buf->string, n)) {
-        goto error;
+    ret = clingo_symbol_to_string(symbol, buf->string, n);
+    if (ret != clingo_result_success) {
+        return ret;
     }
+
     printf("%s", buf->string);
-    goto out;
-
-error:
-    ret = false;
-
-out:
-    return ret;
+    return clingo_result_success;
 }
 
 int main() {
     char const *error_message = NULL;
+    clingo_result_t res = clingo_result_success;
     int ret = 0;
     clingo_lib_t *lib = NULL;
     clingo_symbol_t symbols[] = {0, 0, 0};
@@ -70,64 +75,62 @@ int main() {
 
     lib = clingo_lib_new(0, NULL, NULL, message_limit);
     if (lib == NULL) {
-        goto error;
+        handle_result(clingo_result_bad_alloc);
+        goto out;
     }
 
     // create a number, identifier (function without arguments), and a function symbol
     symbols[0] = clingo_symbol_create_number(example_number);
-    if (!clingo_symbol_create_id(lib, "x", true, &symbols[1])) {
-        goto error;
+
+    res = clingo_symbol_create_id(lib, "x", true, &symbols[1]);
+    if (!handle_result(res)) {
+        goto out;
     }
-    if (!clingo_symbol_create_function(lib, "x", symbols, 2, true, &symbols[2])) {
-        goto error;
+    res = clingo_symbol_create_function(lib, "x", symbols, 2, true, &symbols[2]);
+    if (!handle_result(res)) {
+        goto out;
     }
 
     // print the symbols along with their hash values
     for (size_t i = 0; i < sizeof(symbols) / sizeof(*symbols); ++i) {
         printf("the hash of ");
-        if (!print_symbol(lib, symbols[i], &buf)) {
-            goto error;
+        res = print_symbol(lib, symbols[i], &buf);
+        if (!handle_result(res)) {
+            goto out;
         }
         printf(" is %zu\n", clingo_symbol_hash(symbols[i]));
     }
 
     // compare symbols
-    if (!clingo_symbol_arguments(symbols[2], &args, &size)) {
-        goto error;
+    res = clingo_symbol_arguments(symbols[2], &args, &size);
+    if (!handle_result(res)) {
+        goto out;
     }
     assert(size == 2);
     // equal to comparison
     for (size_t i = 0; i < size; ++i) {
-        if (!print_symbol(lib, symbols[0], &buf)) {
-            goto error;
+        res = print_symbol(lib, symbols[0], &buf);
+        if (!handle_result(res)) {
+            goto out;
         }
         printf(" %s ", clingo_symbol_equal(symbols[0], args[i]) ? "is equal to" : "is not equal to");
-        if (!print_symbol(lib, args[i], &buf)) {
-            goto error;
+        res = print_symbol(lib, args[i], &buf);
+        if (!handle_result(res)) {
+            goto out;
         }
         printf("\n");
     }
     // less than comparison
-    if (!print_symbol(lib, symbols[0], &buf)) {
-        goto error;
+    res = print_symbol(lib, symbols[0], &buf);
+    if (!handle_result(res)) {
+        goto out;
     }
     printf(" %s ", clingo_symbol_compare(symbols[0], symbols[1]) < 0 ? "is less than" : "is not less than");
-    if (!print_symbol(lib, symbols[1], &buf)) {
-        goto error;
+    res = print_symbol(lib, symbols[1], &buf);
+    if (!handle_result(res)) {
+        goto out;
     }
     printf("\n");
-
-    goto out;
-
-error:
-    error_message = clingo_error_message(lib);
-    if (error_message == NULL) {
-        error_message = "error";
-    }
-
-    printf("%s\n", error_message);
-    ret = clingo_error_code(lib);
-
 out:
     free_string_buffer(&buf);
     clingo_lib_free(lib, true);

@@ -19,11 +19,7 @@ template <clingo_ast_type_e T> class Node {
 
     explicit Node(clingo_ast_t *ast) : ast_{ast} {}
 
-    Node(Node const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    Node(Node const &x) { Core::handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     template <class... U>
     Node(Core::Library &lib, U &&...args)
@@ -38,9 +34,7 @@ template <clingo_ast_type_e T> class Node {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            Core::handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -60,14 +54,10 @@ template <clingo_ast_type_e T> class Node {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        Core::handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        Core::handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -112,9 +102,7 @@ template <clingo_ast_type_e T> class Node {
         requires(ast_type_info<U>::type == Type::location)
     auto get_() -> U {
         clingo_location_t const *ret = nullptr;
-        if (!clingo_ast_attribute_get_location(ast_, name, &ret)) {
-            throw std::runtime_error("could not get location attribute");
-        }
+        Core::handle_error(clingo_ast_attribute_get_location(ast_, name, &ret));
         return Core::Location{ret};
     }
 
@@ -122,9 +110,7 @@ template <clingo_ast_type_e T> class Node {
         requires(ast_type_info<U>::type == Type::string)
     auto get_() -> U {
         char const *ret = nullptr;
-        if (!clingo_ast_attribute_get_string(ast_, name, &ret)) {
-            throw std::runtime_error("could not get string attribute");
-        }
+        Core::handle_error(clingo_ast_attribute_get_string(ast_, name, &ret));
         return ret;
     }
 
@@ -132,9 +118,7 @@ template <clingo_ast_type_e T> class Node {
         requires(ast_type_info<U>::type == Type::number)
     auto get_() -> U {
         int ret = 0;
-        if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_anonymous, &ret)) {
-            throw std::runtime_error("could not get number attribute");
-        }
+        Core::handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_anonymous, &ret));
         return static_cast<U>(ret);
     }
 
@@ -142,9 +126,7 @@ template <clingo_ast_type_e T> class Node {
         requires(ast_type_info<U>::type == Type::record)
     auto get_() -> U {
         clingo_ast_t *ast = nullptr;
-        if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_term, &ast)) {
-            throw std::runtime_error("could not get ast attribute");
-        }
+        Core::handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_term, &ast));
         return U{ast};
     }
 
@@ -152,11 +134,9 @@ template <clingo_ast_type_e T> class Node {
         requires(ast_type_info<U>::type == Type::variant)
     auto get_() -> U {
         clingo_ast_t *ast = nullptr;
-        if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_term, &ast)) {
-            throw std::runtime_error("could not get ast attribute");
-        }
+        Core::handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_term, &ast));
         clingo_ast_type_t type = 0;
-        if (!clingo_ast_get_type(ast, &type)) {
+        if (clingo_ast_get_type(ast, &type) != clingo_result_success) {
             clingo_ast_free(ast);
             throw std::runtime_error("could not get type");
         }
@@ -193,7 +173,7 @@ template <clingo_ast_type_e T> class Node {
     template <class... U> static auto construct_(clingo_lib_t *lib, U &&...args) -> clingo_ast_t * {
         clingo_ast_t *ast = nullptr;
         Core::handle_error(
-            lib, clingo_ast_construct(lib, static_cast<clingo_ast_type_t>(T), &ast, std::forward<U>(args)...));
+            clingo_ast_construct(lib, static_cast<clingo_ast_type_t>(T), &ast, std::forward<U>(args)...));
         return ast;
     }
 

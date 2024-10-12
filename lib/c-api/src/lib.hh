@@ -6,9 +6,7 @@
 #include <clingo/core/logger.hh>
 #include <clingo/core/symbol.hh>
 
-#include <exception>
 #include <stdexcept>
-#include <string>
 
 struct clingo_lib {
     clingo_lib(Clingo::Logger::Printer prt, Clingo::Logger log, std::unique_ptr<Clingo::SymbolStore> store)
@@ -17,10 +15,7 @@ struct clingo_lib {
     Clingo::Logger log;
     Clingo::Control::Scripts scripts;
     std::unique_ptr<Clingo::SymbolStore> store;
-    std::exception_ptr last_exception = nullptr;
-    std::string last_message;
     clingo_lib_t *next_ = nullptr;
-    clingo_error_t last_code = clingo_error_success;
 };
 
 static constexpr auto c_cast(std::strong_ordering cmp) noexcept -> int {
@@ -38,31 +33,42 @@ inline auto cpp_cast(clingo_location const *loc) -> Clingo::Location const * {
     return reinterpret_cast<Clingo::Location const *>(loc);
 }
 
-inline void handle_error(clingo_lib_t *lib) {
+class ClingoError : public std::exception {
+  public:
+    ClingoError(clingo_result_t code) : code_{code} {}
+    [[nodiscard]] auto code() const -> clingo_result_t { return code_; }
+
+  private:
+    clingo_result_t code_;
+};
+
+inline void handle_error(clingo_result_t code) { throw ClingoError(code); }
+
+inline auto handle_error() -> clingo_result_t {
     try {
         throw;
     } catch (std::bad_alloc const &) {
-        lib->last_exception = std::current_exception();
-        lib->last_code = clingo_error_bad_alloc;
+        return clingo_result_bad_alloc;
+    } catch (std::range_error const &) {
+        return clingo_result_range;
+    } catch (std::invalid_argument const &) {
+        return clingo_result_invalid;
     } catch (std::logic_error const &) {
-        lib->last_exception = std::current_exception();
-        lib->last_code = clingo_error_logic;
+        return clingo_result_logic;
+    } catch (ClingoError const &e) {
+        return e.code();
     } catch (...) {
-        lib->last_exception = std::current_exception();
-        lib->last_code = clingo_error_runtime;
+        return clingo_result_runtime;
     }
 }
 
 // NOLINTBEGIN(cppcoreguidelines-macro-usage)
 
 #define CLINGO_TRY try
-#define CLINGO_CATCH(lib)                                                                                              \
+#define CLINGO_CATCH                                                                                                   \
     catch (...) {                                                                                                      \
-        if ((lib) != nullptr) {                                                                                        \
-            handle_error(lib);                                                                                         \
-        }                                                                                                              \
-        return false;                                                                                                  \
+        return handle_error();                                                                                         \
     }                                                                                                                  \
-    return true
+    return clingo_result_success
 
 // NOLINTEND(cppcoreguidelines-macro-usage)

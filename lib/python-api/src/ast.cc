@@ -196,11 +196,7 @@ class Projection {
     // Note: for pybind
     Projection() = default;
 
-    Projection(Projection const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    Projection(Projection const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     Projection(Projection &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -209,9 +205,7 @@ class Projection {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -233,14 +227,10 @@ class Projection {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -301,11 +291,7 @@ class TermVariable {
     // Note: for pybind
     TermVariable() = default;
 
-    TermVariable(TermVariable const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    TermVariable(TermVariable const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     TermVariable(TermVariable &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -314,9 +300,7 @@ class TermVariable {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -338,14 +322,10 @@ class TermVariable {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -386,11 +366,7 @@ class TermSymbolic {
     // Note: for pybind
     TermSymbolic() = default;
 
-    TermSymbolic(TermSymbolic const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    TermSymbolic(TermSymbolic const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     TermSymbolic(TermSymbolic &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -399,9 +375,7 @@ class TermSymbolic {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -423,14 +397,10 @@ class TermSymbolic {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -469,11 +439,7 @@ class TermAbsolute {
     // Note: for pybind
     TermAbsolute() = default;
 
-    TermAbsolute(TermAbsolute const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    TermAbsolute(TermAbsolute const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     TermAbsolute(TermAbsolute &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -482,9 +448,7 @@ class TermAbsolute {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -506,14 +470,10 @@ class TermAbsolute {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -552,11 +512,7 @@ class TermUnaryOperation {
     // Note: for pybind
     TermUnaryOperation() = default;
 
-    TermUnaryOperation(TermUnaryOperation const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    TermUnaryOperation(TermUnaryOperation const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     TermUnaryOperation(TermUnaryOperation &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -565,9 +521,7 @@ class TermUnaryOperation {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -589,14 +543,10 @@ class TermUnaryOperation {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -638,11 +588,7 @@ class TermBinaryOperation {
     // Note: for pybind
     TermBinaryOperation() = default;
 
-    TermBinaryOperation(TermBinaryOperation const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    TermBinaryOperation(TermBinaryOperation const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     TermBinaryOperation(TermBinaryOperation &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -651,9 +597,7 @@ class TermBinaryOperation {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -675,14 +619,10 @@ class TermBinaryOperation {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -726,11 +666,7 @@ class TermTuple {
     // Note: for pybind
     TermTuple() = default;
 
-    TermTuple(TermTuple const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    TermTuple(TermTuple const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     TermTuple(TermTuple &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -739,9 +675,7 @@ class TermTuple {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -761,14 +695,10 @@ class TermTuple {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -807,11 +737,7 @@ class TermFunction {
     // Note: for pybind
     TermFunction() = default;
 
-    TermFunction(TermFunction const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    TermFunction(TermFunction const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     TermFunction(TermFunction &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -820,9 +746,7 @@ class TermFunction {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -844,14 +768,10 @@ class TermFunction {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -895,11 +815,7 @@ class ArgumentTuple {
     // Note: for pybind
     ArgumentTuple() = default;
 
-    ArgumentTuple(ArgumentTuple const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    ArgumentTuple(ArgumentTuple const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     ArgumentTuple(ArgumentTuple &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -908,9 +824,7 @@ class ArgumentTuple {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -932,14 +846,10 @@ class ArgumentTuple {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -986,11 +896,7 @@ class LeftGuard {
     // Note: for pybind
     LeftGuard() = default;
 
-    LeftGuard(LeftGuard const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    LeftGuard(LeftGuard const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     LeftGuard(LeftGuard &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -999,9 +905,7 @@ class LeftGuard {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -1021,14 +925,10 @@ class LeftGuard {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -1069,11 +969,7 @@ class RightGuard {
     // Note: for pybind
     RightGuard() = default;
 
-    RightGuard(RightGuard const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    RightGuard(RightGuard const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     RightGuard(RightGuard &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -1082,9 +978,7 @@ class RightGuard {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -1106,14 +1000,10 @@ class RightGuard {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -1158,11 +1048,7 @@ class LiteralBoolean {
     // Note: for pybind
     LiteralBoolean() = default;
 
-    LiteralBoolean(LiteralBoolean const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    LiteralBoolean(LiteralBoolean const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     LiteralBoolean(LiteralBoolean &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -1171,9 +1057,7 @@ class LiteralBoolean {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -1195,14 +1079,10 @@ class LiteralBoolean {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -1243,11 +1123,7 @@ class LiteralComparison {
     // Note: for pybind
     LiteralComparison() = default;
 
-    LiteralComparison(LiteralComparison const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    LiteralComparison(LiteralComparison const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     LiteralComparison(LiteralComparison &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -1256,9 +1132,7 @@ class LiteralComparison {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -1280,14 +1154,10 @@ class LiteralComparison {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -1331,11 +1201,7 @@ class LiteralSymbolic {
     // Note: for pybind
     LiteralSymbolic() = default;
 
-    LiteralSymbolic(LiteralSymbolic const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    LiteralSymbolic(LiteralSymbolic const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     LiteralSymbolic(LiteralSymbolic &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -1344,9 +1210,7 @@ class LiteralSymbolic {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -1368,14 +1232,10 @@ class LiteralSymbolic {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -1436,11 +1296,7 @@ class UnparsedElement {
     // Note: for pybind
     UnparsedElement() = default;
 
-    UnparsedElement(UnparsedElement const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    UnparsedElement(UnparsedElement const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     UnparsedElement(UnparsedElement &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -1449,9 +1305,7 @@ class UnparsedElement {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -1473,14 +1327,10 @@ class UnparsedElement {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -1523,11 +1373,7 @@ class TheoryTermVariable {
     // Note: for pybind
     TheoryTermVariable() = default;
 
-    TheoryTermVariable(TheoryTermVariable const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    TheoryTermVariable(TheoryTermVariable const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     TheoryTermVariable(TheoryTermVariable &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -1536,9 +1382,7 @@ class TheoryTermVariable {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -1560,14 +1404,10 @@ class TheoryTermVariable {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -1609,11 +1449,7 @@ class TheoryTermSymbolic {
     // Note: for pybind
     TheoryTermSymbolic() = default;
 
-    TheoryTermSymbolic(TheoryTermSymbolic const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    TheoryTermSymbolic(TheoryTermSymbolic const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     TheoryTermSymbolic(TheoryTermSymbolic &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -1622,9 +1458,7 @@ class TheoryTermSymbolic {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -1646,14 +1480,10 @@ class TheoryTermSymbolic {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -1692,11 +1522,7 @@ class TheoryTermTuple {
     // Note: for pybind
     TheoryTermTuple() = default;
 
-    TheoryTermTuple(TheoryTermTuple const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    TheoryTermTuple(TheoryTermTuple const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     TheoryTermTuple(TheoryTermTuple &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -1705,9 +1531,7 @@ class TheoryTermTuple {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -1729,14 +1553,10 @@ class TheoryTermTuple {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -1778,11 +1598,7 @@ class TheoryTermFunction {
     // Note: for pybind
     TheoryTermFunction() = default;
 
-    TheoryTermFunction(TheoryTermFunction const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    TheoryTermFunction(TheoryTermFunction const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     TheoryTermFunction(TheoryTermFunction &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -1791,9 +1607,7 @@ class TheoryTermFunction {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -1815,14 +1629,10 @@ class TheoryTermFunction {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -1864,11 +1674,7 @@ class TheoryTermUnparsed {
     // Note: for pybind
     TheoryTermUnparsed() = default;
 
-    TheoryTermUnparsed(TheoryTermUnparsed const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    TheoryTermUnparsed(TheoryTermUnparsed const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     TheoryTermUnparsed(TheoryTermUnparsed &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -1877,9 +1683,7 @@ class TheoryTermUnparsed {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -1901,14 +1705,10 @@ class TheoryTermUnparsed {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -1948,11 +1748,7 @@ class TheoryRightGuard {
     // Note: for pybind
     TheoryRightGuard() = default;
 
-    TheoryRightGuard(TheoryRightGuard const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    TheoryRightGuard(TheoryRightGuard const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     TheoryRightGuard(TheoryRightGuard &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -1961,9 +1757,7 @@ class TheoryRightGuard {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -1985,14 +1779,10 @@ class TheoryRightGuard {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -2037,11 +1827,7 @@ class SetAggregateElement {
     // Note: for pybind
     SetAggregateElement() = default;
 
-    SetAggregateElement(SetAggregateElement const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    SetAggregateElement(SetAggregateElement const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     SetAggregateElement(SetAggregateElement &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -2050,9 +1836,7 @@ class SetAggregateElement {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -2074,14 +1858,10 @@ class SetAggregateElement {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -2127,11 +1907,7 @@ class BodyAggregateElement {
     // Note: for pybind
     BodyAggregateElement() = default;
 
-    BodyAggregateElement(BodyAggregateElement const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    BodyAggregateElement(BodyAggregateElement const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     BodyAggregateElement(BodyAggregateElement &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -2140,9 +1916,7 @@ class BodyAggregateElement {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -2164,14 +1938,10 @@ class BodyAggregateElement {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -2217,11 +1987,7 @@ class TheoryAtomElement {
     // Note: for pybind
     TheoryAtomElement() = default;
 
-    TheoryAtomElement(TheoryAtomElement const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    TheoryAtomElement(TheoryAtomElement const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     TheoryAtomElement(TheoryAtomElement &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -2230,9 +1996,7 @@ class TheoryAtomElement {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -2254,14 +2018,10 @@ class TheoryAtomElement {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -2326,11 +2086,7 @@ class BodySimpleLiteral {
     // Note: for pybind
     BodySimpleLiteral() = default;
 
-    BodySimpleLiteral(BodySimpleLiteral const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    BodySimpleLiteral(BodySimpleLiteral const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     BodySimpleLiteral(BodySimpleLiteral &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -2339,9 +2095,7 @@ class BodySimpleLiteral {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -2363,14 +2117,10 @@ class BodySimpleLiteral {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -2407,11 +2157,7 @@ class BodyAggregate {
     // Note: for pybind
     BodyAggregate() = default;
 
-    BodyAggregate(BodyAggregate const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    BodyAggregate(BodyAggregate const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     BodyAggregate(BodyAggregate &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -2420,9 +2166,7 @@ class BodyAggregate {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -2444,14 +2188,10 @@ class BodyAggregate {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -2500,11 +2240,7 @@ class BodySetAggregate {
     // Note: for pybind
     BodySetAggregate() = default;
 
-    BodySetAggregate(BodySetAggregate const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    BodySetAggregate(BodySetAggregate const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     BodySetAggregate(BodySetAggregate &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -2513,9 +2249,7 @@ class BodySetAggregate {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -2537,14 +2271,10 @@ class BodySetAggregate {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -2591,11 +2321,7 @@ class BodyTheoryAtom {
     // Note: for pybind
     BodyTheoryAtom() = default;
 
-    BodyTheoryAtom(BodyTheoryAtom const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    BodyTheoryAtom(BodyTheoryAtom const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     BodyTheoryAtom(BodyTheoryAtom &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -2604,9 +2330,7 @@ class BodyTheoryAtom {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -2628,14 +2352,10 @@ class BodyTheoryAtom {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -2682,11 +2402,7 @@ class BodyConditionalLiteral {
     // Note: for pybind
     BodyConditionalLiteral() = default;
 
-    BodyConditionalLiteral(BodyConditionalLiteral const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    BodyConditionalLiteral(BodyConditionalLiteral const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     BodyConditionalLiteral(BodyConditionalLiteral &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -2695,9 +2411,7 @@ class BodyConditionalLiteral {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -2719,14 +2433,10 @@ class BodyConditionalLiteral {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -2768,11 +2478,7 @@ class HeadConditionalLiteral {
     // Note: for pybind
     HeadConditionalLiteral() = default;
 
-    HeadConditionalLiteral(HeadConditionalLiteral const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    HeadConditionalLiteral(HeadConditionalLiteral const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     HeadConditionalLiteral(HeadConditionalLiteral &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -2781,9 +2487,7 @@ class HeadConditionalLiteral {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -2805,14 +2509,10 @@ class HeadConditionalLiteral {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -2862,11 +2562,7 @@ class HeadAggregateElement {
     // Note: for pybind
     HeadAggregateElement() = default;
 
-    HeadAggregateElement(HeadAggregateElement const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    HeadAggregateElement(HeadAggregateElement const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     HeadAggregateElement(HeadAggregateElement &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -2875,9 +2571,7 @@ class HeadAggregateElement {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -2899,14 +2593,10 @@ class HeadAggregateElement {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -2968,11 +2658,7 @@ class HeadSimpleLiteral {
     // Note: for pybind
     HeadSimpleLiteral() = default;
 
-    HeadSimpleLiteral(HeadSimpleLiteral const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    HeadSimpleLiteral(HeadSimpleLiteral const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     HeadSimpleLiteral(HeadSimpleLiteral &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -2981,9 +2667,7 @@ class HeadSimpleLiteral {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -3005,14 +2689,10 @@ class HeadSimpleLiteral {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -3049,11 +2729,7 @@ class HeadAggregate {
     // Note: for pybind
     HeadAggregate() = default;
 
-    HeadAggregate(HeadAggregate const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    HeadAggregate(HeadAggregate const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     HeadAggregate(HeadAggregate &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -3062,9 +2738,7 @@ class HeadAggregate {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -3086,14 +2760,10 @@ class HeadAggregate {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -3140,11 +2810,7 @@ class HeadSetAggregate {
     // Note: for pybind
     HeadSetAggregate() = default;
 
-    HeadSetAggregate(HeadSetAggregate const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    HeadSetAggregate(HeadSetAggregate const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     HeadSetAggregate(HeadSetAggregate &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -3153,9 +2819,7 @@ class HeadSetAggregate {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -3177,14 +2841,10 @@ class HeadSetAggregate {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -3229,11 +2889,7 @@ class HeadTheoryAtom {
     // Note: for pybind
     HeadTheoryAtom() = default;
 
-    HeadTheoryAtom(HeadTheoryAtom const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    HeadTheoryAtom(HeadTheoryAtom const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     HeadTheoryAtom(HeadTheoryAtom &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -3242,9 +2898,7 @@ class HeadTheoryAtom {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -3266,14 +2920,10 @@ class HeadTheoryAtom {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -3318,11 +2968,7 @@ class HeadDisjunction {
     // Note: for pybind
     HeadDisjunction() = default;
 
-    HeadDisjunction(HeadDisjunction const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    HeadDisjunction(HeadDisjunction const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     HeadDisjunction(HeadDisjunction &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -3331,9 +2977,7 @@ class HeadDisjunction {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -3355,14 +2999,10 @@ class HeadDisjunction {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -3402,11 +3042,7 @@ class TheoryOperatorDefinition {
     // Note: for pybind
     TheoryOperatorDefinition() = default;
 
-    TheoryOperatorDefinition(TheoryOperatorDefinition const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    TheoryOperatorDefinition(TheoryOperatorDefinition const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     TheoryOperatorDefinition(TheoryOperatorDefinition &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -3415,9 +3051,7 @@ class TheoryOperatorDefinition {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -3440,14 +3074,10 @@ class TheoryOperatorDefinition {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -3495,11 +3125,7 @@ class TheoryTermDefinition {
     // Note: for pybind
     TheoryTermDefinition() = default;
 
-    TheoryTermDefinition(TheoryTermDefinition const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    TheoryTermDefinition(TheoryTermDefinition const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     TheoryTermDefinition(TheoryTermDefinition &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -3508,9 +3134,7 @@ class TheoryTermDefinition {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -3532,14 +3156,10 @@ class TheoryTermDefinition {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -3585,11 +3205,7 @@ class TheoryGuardDefinition {
     // Note: for pybind
     TheoryGuardDefinition() = default;
 
-    TheoryGuardDefinition(TheoryGuardDefinition const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    TheoryGuardDefinition(TheoryGuardDefinition const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     TheoryGuardDefinition(TheoryGuardDefinition &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -3598,9 +3214,7 @@ class TheoryGuardDefinition {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -3622,14 +3236,10 @@ class TheoryGuardDefinition {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -3670,11 +3280,7 @@ class TheoryAtomDefinition {
     // Note: for pybind
     TheoryAtomDefinition() = default;
 
-    TheoryAtomDefinition(TheoryAtomDefinition const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    TheoryAtomDefinition(TheoryAtomDefinition const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     TheoryAtomDefinition(TheoryAtomDefinition &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -3683,9 +3289,7 @@ class TheoryAtomDefinition {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -3707,14 +3311,10 @@ class TheoryAtomDefinition {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -3767,11 +3367,7 @@ class OptimizeTuple {
     // Note: for pybind
     OptimizeTuple() = default;
 
-    OptimizeTuple(OptimizeTuple const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    OptimizeTuple(OptimizeTuple const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     OptimizeTuple(OptimizeTuple &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -3780,9 +3376,7 @@ class OptimizeTuple {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -3804,14 +3398,10 @@ class OptimizeTuple {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -3853,11 +3443,7 @@ class OptimizeElement {
     // Note: for pybind
     OptimizeElement() = default;
 
-    OptimizeElement(OptimizeElement const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    OptimizeElement(OptimizeElement const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     OptimizeElement(OptimizeElement &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -3866,9 +3452,7 @@ class OptimizeElement {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -3890,14 +3474,10 @@ class OptimizeElement {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -3940,11 +3520,7 @@ class Edge {
     // Note: for pybind
     Edge() = default;
 
-    Edge(Edge const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    Edge(Edge const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     Edge(Edge &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -3953,9 +3529,7 @@ class Edge {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -3975,14 +3549,10 @@ class Edge {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -4069,11 +3639,7 @@ class StatementRule {
     // Note: for pybind
     StatementRule() = default;
 
-    StatementRule(StatementRule const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    StatementRule(StatementRule const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     StatementRule(StatementRule &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -4082,9 +3648,7 @@ class StatementRule {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -4106,14 +3670,10 @@ class StatementRule {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -4155,11 +3715,7 @@ class StatementTheory {
     // Note: for pybind
     StatementTheory() = default;
 
-    StatementTheory(StatementTheory const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    StatementTheory(StatementTheory const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     StatementTheory(StatementTheory &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -4168,9 +3724,7 @@ class StatementTheory {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -4192,14 +3746,10 @@ class StatementTheory {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -4244,11 +3794,7 @@ class StatementOptimize {
     // Note: for pybind
     StatementOptimize() = default;
 
-    StatementOptimize(StatementOptimize const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    StatementOptimize(StatementOptimize const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     StatementOptimize(StatementOptimize &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -4257,9 +3803,7 @@ class StatementOptimize {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -4281,14 +3825,10 @@ class StatementOptimize {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -4330,11 +3870,7 @@ class StatementWeakConstraint {
     // Note: for pybind
     StatementWeakConstraint() = default;
 
-    StatementWeakConstraint(StatementWeakConstraint const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    StatementWeakConstraint(StatementWeakConstraint const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     StatementWeakConstraint(StatementWeakConstraint &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -4343,9 +3879,7 @@ class StatementWeakConstraint {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -4368,14 +3902,10 @@ class StatementWeakConstraint {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -4417,11 +3947,7 @@ class StatementShow {
     // Note: for pybind
     StatementShow() = default;
 
-    StatementShow(StatementShow const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    StatementShow(StatementShow const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     StatementShow(StatementShow &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -4430,9 +3956,7 @@ class StatementShow {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -4454,14 +3978,10 @@ class StatementShow {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -4503,11 +4023,7 @@ class StatementShowNothing {
     // Note: for pybind
     StatementShowNothing() = default;
 
-    StatementShowNothing(StatementShowNothing const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    StatementShowNothing(StatementShowNothing const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     StatementShowNothing(StatementShowNothing &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -4516,9 +4032,7 @@ class StatementShowNothing {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -4540,14 +4054,10 @@ class StatementShowNothing {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -4584,11 +4094,7 @@ class StatementShowSignature {
     // Note: for pybind
     StatementShowSignature() = default;
 
-    StatementShowSignature(StatementShowSignature const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    StatementShowSignature(StatementShowSignature const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     StatementShowSignature(StatementShowSignature &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -4597,9 +4103,7 @@ class StatementShowSignature {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -4621,14 +4125,10 @@ class StatementShowSignature {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -4672,11 +4172,7 @@ class StatementProject {
     // Note: for pybind
     StatementProject() = default;
 
-    StatementProject(StatementProject const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    StatementProject(StatementProject const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     StatementProject(StatementProject &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -4685,9 +4181,7 @@ class StatementProject {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -4709,14 +4203,10 @@ class StatementProject {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -4758,11 +4248,7 @@ class StatementProjectSignature {
     // Note: for pybind
     StatementProjectSignature() = default;
 
-    StatementProjectSignature(StatementProjectSignature const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    StatementProjectSignature(StatementProjectSignature const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     StatementProjectSignature(StatementProjectSignature &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -4771,9 +4257,7 @@ class StatementProjectSignature {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -4796,14 +4280,10 @@ class StatementProjectSignature {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -4847,11 +4327,7 @@ class StatementDefined {
     // Note: for pybind
     StatementDefined() = default;
 
-    StatementDefined(StatementDefined const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    StatementDefined(StatementDefined const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     StatementDefined(StatementDefined &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -4860,9 +4336,7 @@ class StatementDefined {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -4884,14 +4358,10 @@ class StatementDefined {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -4935,11 +4405,7 @@ class StatementExternal {
     // Note: for pybind
     StatementExternal() = default;
 
-    StatementExternal(StatementExternal const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    StatementExternal(StatementExternal const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     StatementExternal(StatementExternal &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -4948,9 +4414,7 @@ class StatementExternal {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -4972,14 +4436,10 @@ class StatementExternal {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -5023,11 +4483,7 @@ class StatementEdge {
     // Note: for pybind
     StatementEdge() = default;
 
-    StatementEdge(StatementEdge const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    StatementEdge(StatementEdge const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     StatementEdge(StatementEdge &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -5036,9 +4492,7 @@ class StatementEdge {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -5060,14 +4514,10 @@ class StatementEdge {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -5109,11 +4559,7 @@ class StatementHeuristic {
     // Note: for pybind
     StatementHeuristic() = default;
 
-    StatementHeuristic(StatementHeuristic const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    StatementHeuristic(StatementHeuristic const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     StatementHeuristic(StatementHeuristic &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -5122,9 +4568,7 @@ class StatementHeuristic {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -5146,14 +4590,10 @@ class StatementHeuristic {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -5201,11 +4641,7 @@ class StatementScript {
     // Note: for pybind
     StatementScript() = default;
 
-    StatementScript(StatementScript const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    StatementScript(StatementScript const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     StatementScript(StatementScript &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -5214,9 +4650,7 @@ class StatementScript {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -5238,14 +4672,10 @@ class StatementScript {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -5287,11 +4717,7 @@ class StatementInclude {
     // Note: for pybind
     StatementInclude() = default;
 
-    StatementInclude(StatementInclude const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    StatementInclude(StatementInclude const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     StatementInclude(StatementInclude &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -5300,9 +4726,7 @@ class StatementInclude {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -5324,14 +4748,10 @@ class StatementInclude {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -5373,11 +4793,7 @@ class StatementProgram {
     // Note: for pybind
     StatementProgram() = default;
 
-    StatementProgram(StatementProgram const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    StatementProgram(StatementProgram const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     StatementProgram(StatementProgram &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -5386,9 +4802,7 @@ class StatementProgram {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -5410,14 +4824,10 @@ class StatementProgram {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -5459,11 +4869,7 @@ class StatementConst {
     // Note: for pybind
     StatementConst() = default;
 
-    StatementConst(StatementConst const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    StatementConst(StatementConst const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     StatementConst(StatementConst &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -5472,9 +4878,7 @@ class StatementConst {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -5496,14 +4900,10 @@ class StatementConst {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -5547,11 +4947,7 @@ class StatementComment {
     // Note: for pybind
     StatementComment() = default;
 
-    StatementComment(StatementComment const &x) {
-        if (!clingo_ast_copy(x.ast_, &ast_)) {
-            throw std::runtime_error("could not copy ast");
-        }
-    }
+    StatementComment(StatementComment const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     StatementComment(StatementComment &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -5560,9 +4956,7 @@ class StatementComment {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            if (!clingo_ast_copy(x.ast_, &ast_)) {
-                throw std::runtime_error("could not copy ast");
-            }
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -5584,14 +4978,10 @@ class StatementComment {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        if (!clingo_ast_to_string_size(ast_, &len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        if (!clingo_ast_to_string(ast_, str.data(), len)) {
-            throw std::runtime_error("could convert to string");
-        }
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -5630,7 +5020,7 @@ inline auto c_cast(StatementComment const &x) -> clingo_ast_t * { return x.ast_;
 
 auto construct_term(clingo_ast_t *ast) -> Term {
     clingo_ast_type_t type = 0;
-    if (!clingo_ast_get_type(ast, &type)) {
+    if (clingo_ast_get_type(ast, &type) != clingo_result_success) {
         clingo_ast_free(ast);
         throw std::runtime_error("could not get type");
     }
@@ -5682,16 +5072,14 @@ auto construct_term_array(clingo_ast_t **ast, size_t size) -> TermArray {
 
 auto Projection::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto Projection::construct(Library &lib, Location const &location) -> Projection {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_projection, &res_,
-                                           static_cast<clingo_location_t const *>(location)));
+    handle_error(
+        clingo_ast_construct(lib, clingo_ast_type_projection, &res_, static_cast<clingo_location_t const *>(location)));
     return Projection::acquire(res_);
 }
 
@@ -5710,7 +5098,7 @@ auto Projection::update(Library &lib, py::kwargs const &kwargs) -> Projection {
 
 auto construct_term_or_projection(clingo_ast_t *ast) -> TermOrProjection {
     clingo_ast_type_t type = 0;
-    if (!clingo_ast_get_type(ast, &type)) {
+    if (clingo_ast_get_type(ast, &type) != clingo_result_success) {
         clingo_ast_free(ast);
         throw std::runtime_error("could not get type");
     }
@@ -5782,7 +5170,7 @@ auto construct_argument_tuple_array(clingo_ast_t **ast, size_t size) -> Argument
 
 auto construct_term_or_argument_tuple(clingo_ast_t *ast) -> TermOrArgumentTuple {
     clingo_ast_type_t type = 0;
-    if (!clingo_ast_get_type(ast, &type)) {
+    if (clingo_ast_get_type(ast, &type) != clingo_result_success) {
         clingo_ast_free(ast);
         throw std::runtime_error("could not get type");
     }
@@ -5837,33 +5225,27 @@ auto construct_term_or_argument_tuple_array(clingo_ast_t **ast, size_t size) -> 
 
 auto TermVariable::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto TermVariable::name() -> char const * {
     char const *ret = nullptr;
-    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret)) {
-        throw std::runtime_error("could not get string attribute");
-    }
+    handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret));
     return ret;
 }
 
 auto TermVariable::anonymous() -> bool {
     int ret = 0;
-    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_anonymous, &ret)) {
-        throw std::runtime_error("could not get number attribute");
-    }
+    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_anonymous, &ret));
     return ret != 0;
 }
 
 auto TermVariable::construct(Library &lib, Location const &location, char const *name, bool anonymous) -> TermVariable {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_term_variable, &res_,
-                                           static_cast<clingo_location_t const *>(location), name,
-                                           static_cast<int>(anonymous)));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_term_variable, &res_,
+                                      static_cast<clingo_location_t const *>(location), name,
+                                      static_cast<int>(anonymous)));
     return TermVariable::acquire(res_);
 }
 
@@ -5884,24 +5266,20 @@ auto TermVariable::update(Library &lib, py::kwargs const &kwargs) -> TermVariabl
 
 auto TermSymbolic::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto TermSymbolic::symbol() -> Symbol {
     clingo_symbol_t ret = 0;
-    if (!clingo_ast_attribute_get_symbol(ast_, clingo_ast_attribute_symbol, &ret)) {
-        throw std::runtime_error("could not get symbol attribute");
-    }
+    handle_error(clingo_ast_attribute_get_symbol(ast_, clingo_ast_attribute_symbol, &ret));
     return Symbol{ret, true};
 }
 
 auto TermSymbolic::construct(Library &lib, Location const &location, Symbol const &symbol) -> TermSymbolic {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_term_symbolic, &res_,
-                                           static_cast<clingo_location_t const *>(location), symbol.handle()));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_term_symbolic, &res_,
+                                      static_cast<clingo_location_t const *>(location), symbol.handle()));
     return TermSymbolic::acquire(res_);
 }
 
@@ -5921,26 +5299,22 @@ auto TermSymbolic::update(Library &lib, py::kwargs const &kwargs) -> TermSymboli
 
 auto TermAbsolute::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto TermAbsolute::pool() -> TermArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_pool, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_pool, &ast, &size));
     return construct_term_array(ast, size);
 }
 
 auto TermAbsolute::construct(Library &lib, Location const &location, TermArray const &pool) -> TermAbsolute {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_term_absolute, &res_,
-                                           static_cast<clingo_location_t const *>(location), c_cast(pool).data(),
-                                           pool.size()));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_term_absolute, &res_,
+                                      static_cast<clingo_location_t const *>(location), c_cast(pool).data(),
+                                      pool.size()));
     return TermAbsolute::acquire(res_);
 }
 
@@ -5966,34 +5340,28 @@ auto TermAbsolute::update(Library &lib, py::kwargs const &kwargs) -> TermAbsolut
 
 auto TermUnaryOperation::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto TermUnaryOperation::operator_type() -> UnaryOperator {
     int ret = 0;
-    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_operator_type, &ret)) {
-        throw std::runtime_error("could not get number attribute");
-    }
+    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_operator_type, &ret));
     return static_cast<UnaryOperator>(ret);
 }
 
 auto TermUnaryOperation::right() -> Term {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_right, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_right, &ast));
     return construct_term(ast);
 }
 
 auto TermUnaryOperation::construct(Library &lib, Location const &location, UnaryOperator const &operator_type,
                                    Term const &right) -> TermUnaryOperation {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_term_unary_operation, &res_,
-                                           static_cast<clingo_location_t const *>(location),
-                                           static_cast<int>(operator_type), c_cast(right)));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_term_unary_operation, &res_,
+                                      static_cast<clingo_location_t const *>(location), static_cast<int>(operator_type),
+                                      c_cast(right)));
     return TermUnaryOperation::acquire(res_);
 }
 
@@ -6021,42 +5389,34 @@ auto TermUnaryOperation::update(Library &lib, py::kwargs const &kwargs) -> TermU
 
 auto TermBinaryOperation::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto TermBinaryOperation::left() -> Term {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_left, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_left, &ast));
     return construct_term(ast);
 }
 
 auto TermBinaryOperation::operator_type() -> BinaryOperator {
     int ret = 0;
-    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_operator_type, &ret)) {
-        throw std::runtime_error("could not get number attribute");
-    }
+    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_operator_type, &ret));
     return static_cast<BinaryOperator>(ret);
 }
 
 auto TermBinaryOperation::right() -> Term {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_right, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_right, &ast));
     return construct_term(ast);
 }
 
 auto TermBinaryOperation::construct(Library &lib, Location const &location, Term const &left,
                                     BinaryOperator const &operator_type, Term const &right) -> TermBinaryOperation {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_term_binary_operation, &res_,
-                                           static_cast<clingo_location_t const *>(location), c_cast(left),
-                                           static_cast<int>(operator_type), c_cast(right)));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_term_binary_operation, &res_,
+                                      static_cast<clingo_location_t const *>(location), c_cast(left),
+                                      static_cast<int>(operator_type), c_cast(right)));
     return TermBinaryOperation::acquire(res_);
 }
 
@@ -6087,26 +5447,22 @@ auto TermBinaryOperation::update(Library &lib, py::kwargs const &kwargs) -> Term
 
 auto TermTuple::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto TermTuple::pool() -> TermOrArgumentTupleArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_pool, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_pool, &ast, &size));
     return construct_term_or_argument_tuple_array(ast, size);
 }
 
 auto TermTuple::construct(Library &lib, Location const &location, TermOrArgumentTupleArray const &pool) -> TermTuple {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_term_tuple, &res_,
-                                           static_cast<clingo_location_t const *>(location), c_cast(pool).data(),
-                                           pool.size()));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_term_tuple, &res_,
+                                      static_cast<clingo_location_t const *>(location), c_cast(pool).data(),
+                                      pool.size()));
     return TermTuple::acquire(res_);
 }
 
@@ -6132,43 +5488,35 @@ auto TermTuple::update(Library &lib, py::kwargs const &kwargs) -> TermTuple {
 
 auto TermFunction::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto TermFunction::name() -> char const * {
     char const *ret = nullptr;
-    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret)) {
-        throw std::runtime_error("could not get string attribute");
-    }
+    handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret));
     return ret;
 }
 
 auto TermFunction::pool() -> ArgumentTupleArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_pool, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_pool, &ast, &size));
     return construct_argument_tuple_array(ast, size);
 }
 
 auto TermFunction::external() -> bool {
     int ret = 0;
-    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_external, &ret)) {
-        throw std::runtime_error("could not get number attribute");
-    }
+    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_external, &ret));
     return ret != 0;
 }
 
 auto TermFunction::construct(Library &lib, Location const &location, char const *name, ArgumentTupleArray const &pool,
                              bool external) -> TermFunction {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_term_function, &res_,
-                                           static_cast<clingo_location_t const *>(location), name, c_cast(pool).data(),
-                                           pool.size(), static_cast<int>(external)));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_term_function, &res_,
+                                      static_cast<clingo_location_t const *>(location), name, c_cast(pool).data(),
+                                      pool.size(), static_cast<int>(external)));
     return TermFunction::acquire(res_);
 }
 
@@ -6197,16 +5545,14 @@ auto TermFunction::update(Library &lib, py::kwargs const &kwargs) -> TermFunctio
 auto ArgumentTuple::arguments() -> TermOrProjectionArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_arguments, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_arguments, &ast, &size));
     return construct_term_or_projection_array(ast, size);
 }
 
 auto ArgumentTuple::construct(Library &lib, TermOrProjectionArray const &arguments) -> ArgumentTuple {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_argument_tuple, &res_, c_cast(arguments).data(),
-                                           arguments.size()));
+    handle_error(
+        clingo_ast_construct(lib, clingo_ast_type_argument_tuple, &res_, c_cast(arguments).data(), arguments.size()));
     return ArgumentTuple::acquire(res_);
 }
 
@@ -6232,7 +5578,7 @@ auto ArgumentTuple::update(Library &lib, py::kwargs const &kwargs) -> ArgumentTu
 
 auto construct_literal(clingo_ast_t *ast) -> Literal {
     clingo_ast_type_t type = 0;
-    if (!clingo_ast_get_type(ast, &type)) {
+    if (clingo_ast_get_type(ast, &type) != clingo_result_success) {
         clingo_ast_free(ast);
         throw std::runtime_error("could not get type");
     }
@@ -6255,24 +5601,20 @@ auto construct_literal(clingo_ast_t *ast) -> Literal {
 
 auto LeftGuard::term() -> Term {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_term, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_term, &ast));
     return construct_term(ast);
 }
 
 auto LeftGuard::relation() -> Relation {
     int ret = 0;
-    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_relation, &ret)) {
-        throw std::runtime_error("could not get number attribute");
-    }
+    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_relation, &ret));
     return static_cast<Relation>(ret);
 }
 
 auto LeftGuard::construct(Library &lib, Term const &term, Relation const &relation) -> LeftGuard {
     clingo_ast_t *res_ = nullptr;
     handle_error(
-        lib, clingo_ast_construct(lib, clingo_ast_type_left_guard, &res_, c_cast(term), static_cast<int>(relation)));
+        clingo_ast_construct(lib, clingo_ast_type_left_guard, &res_, c_cast(term), static_cast<int>(relation)));
     return LeftGuard::acquire(res_);
 }
 
@@ -6298,24 +5640,20 @@ auto LeftGuard::update(Library &lib, py::kwargs const &kwargs) -> LeftGuard {
 
 auto RightGuard::relation() -> Relation {
     int ret = 0;
-    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_relation, &ret)) {
-        throw std::runtime_error("could not get number attribute");
-    }
+    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_relation, &ret));
     return static_cast<Relation>(ret);
 }
 
 auto RightGuard::term() -> Term {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_term, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_term, &ast));
     return construct_term(ast);
 }
 
 auto RightGuard::construct(Library &lib, Relation const &relation, Term const &term) -> RightGuard {
     clingo_ast_t *res_ = nullptr;
     handle_error(
-        lib, clingo_ast_construct(lib, clingo_ast_type_right_guard, &res_, static_cast<int>(relation), c_cast(term)));
+        clingo_ast_construct(lib, clingo_ast_type_right_guard, &res_, static_cast<int>(relation), c_cast(term)));
     return RightGuard::acquire(res_);
 }
 
@@ -6358,33 +5696,27 @@ auto construct_right_guard_array(clingo_ast_t **ast, size_t size) -> RightGuardA
 
 auto LiteralBoolean::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto LiteralBoolean::sign() -> Sign {
     int ret = 0;
-    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_sign, &ret)) {
-        throw std::runtime_error("could not get number attribute");
-    }
+    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_sign, &ret));
     return static_cast<Sign>(ret);
 }
 
 auto LiteralBoolean::value() -> bool {
     int ret = 0;
-    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_value, &ret)) {
-        throw std::runtime_error("could not get number attribute");
-    }
+    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_value, &ret));
     return ret != 0;
 }
 
 auto LiteralBoolean::construct(Library &lib, Location const &location, Sign const &sign, bool value) -> LiteralBoolean {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_literal_boolean, &res_,
-                                           static_cast<clingo_location_t const *>(location), static_cast<int>(sign),
-                                           static_cast<int>(value)));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_literal_boolean, &res_,
+                                      static_cast<clingo_location_t const *>(location), static_cast<int>(sign),
+                                      static_cast<int>(value)));
     return LiteralBoolean::acquire(res_);
 }
 
@@ -6405,43 +5737,35 @@ auto LiteralBoolean::update(Library &lib, py::kwargs const &kwargs) -> LiteralBo
 
 auto LiteralComparison::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto LiteralComparison::sign() -> Sign {
     int ret = 0;
-    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_sign, &ret)) {
-        throw std::runtime_error("could not get number attribute");
-    }
+    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_sign, &ret));
     return static_cast<Sign>(ret);
 }
 
 auto LiteralComparison::left() -> Term {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_left, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_left, &ast));
     return construct_term(ast);
 }
 
 auto LiteralComparison::right() -> RightGuardArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_right, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_right, &ast, &size));
     return construct_right_guard_array(ast, size);
 }
 
 auto LiteralComparison::construct(Library &lib, Location const &location, Sign const &sign, Term const &left,
                                   RightGuardArray const &right) -> LiteralComparison {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_literal_comparison, &res_,
-                                           static_cast<clingo_location_t const *>(location), static_cast<int>(sign),
-                                           c_cast(left), c_cast(right).data(), right.size()));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_literal_comparison, &res_,
+                                      static_cast<clingo_location_t const *>(location), static_cast<int>(sign),
+                                      c_cast(left), c_cast(right).data(), right.size()));
     return LiteralComparison::acquire(res_);
 }
 
@@ -6472,34 +5796,28 @@ auto LiteralComparison::update(Library &lib, py::kwargs const &kwargs) -> Litera
 
 auto LiteralSymbolic::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto LiteralSymbolic::sign() -> Sign {
     int ret = 0;
-    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_sign, &ret)) {
-        throw std::runtime_error("could not get number attribute");
-    }
+    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_sign, &ret));
     return static_cast<Sign>(ret);
 }
 
 auto LiteralSymbolic::atom() -> Term {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_atom, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_atom, &ast));
     return construct_term(ast);
 }
 
 auto LiteralSymbolic::construct(Library &lib, Location const &location, Sign const &sign,
                                 Term const &atom) -> LiteralSymbolic {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_literal_symbolic, &res_,
-                                           static_cast<clingo_location_t const *>(location), static_cast<int>(sign),
-                                           c_cast(atom)));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_literal_symbolic, &res_,
+                                      static_cast<clingo_location_t const *>(location), static_cast<int>(sign),
+                                      c_cast(atom)));
     return LiteralSymbolic::acquire(res_);
 }
 
@@ -6526,7 +5844,7 @@ auto LiteralSymbolic::update(Library &lib, py::kwargs const &kwargs) -> LiteralS
 
 auto construct_theory_term(clingo_ast_t *ast) -> TheoryTerm {
     clingo_ast_type_t type = 0;
-    if (!clingo_ast_get_type(ast, &type)) {
+    if (clingo_ast_get_type(ast, &type) != clingo_result_success) {
         clingo_ast_free(ast);
         throw std::runtime_error("could not get type");
     }
@@ -6572,29 +5890,23 @@ auto construct_theory_term_array(clingo_ast_t **ast, size_t size) -> TheoryTermA
 
 auto UnparsedElement::operators() -> std::vector<char const *> {
     size_t size = 0;
-    if (!clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_operators, nullptr, &size)) {
-        throw std::runtime_error("could not get string array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_operators, nullptr, &size));
     std::vector<char const *> ret;
     ret.resize(size, nullptr);
-    if (!clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_operators, ret.data(), &size)) {
-        throw std::runtime_error("could not get string array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_operators, ret.data(), &size));
     return ret;
 }
 
 auto UnparsedElement::term() -> TheoryTerm {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_term, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_term, &ast));
     return construct_theory_term(ast);
 }
 
 auto UnparsedElement::construct(Library &lib, StringArray const &operators, TheoryTerm const &term) -> UnparsedElement {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_unparsed_element, &res_, c_cast(operators).data(),
-                                           operators.size(), c_cast(term)));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_unparsed_element, &res_, c_cast(operators).data(),
+                                      operators.size(), c_cast(term)));
     return UnparsedElement::acquire(res_);
 }
 
@@ -6638,34 +5950,28 @@ auto construct_unparsed_element_array(clingo_ast_t **ast, size_t size) -> Unpars
 
 auto TheoryTermVariable::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto TheoryTermVariable::name() -> char const * {
     char const *ret = nullptr;
-    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret)) {
-        throw std::runtime_error("could not get string attribute");
-    }
+    handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret));
     return ret;
 }
 
 auto TheoryTermVariable::anonymous() -> bool {
     int ret = 0;
-    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_anonymous, &ret)) {
-        throw std::runtime_error("could not get number attribute");
-    }
+    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_anonymous, &ret));
     return ret != 0;
 }
 
 auto TheoryTermVariable::construct(Library &lib, Location const &location, char const *name,
                                    bool anonymous) -> TheoryTermVariable {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_theory_term_variable, &res_,
-                                           static_cast<clingo_location_t const *>(location), name,
-                                           static_cast<int>(anonymous)));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_theory_term_variable, &res_,
+                                      static_cast<clingo_location_t const *>(location), name,
+                                      static_cast<int>(anonymous)));
     return TheoryTermVariable::acquire(res_);
 }
 
@@ -6687,24 +5993,20 @@ auto TheoryTermVariable::update(Library &lib, py::kwargs const &kwargs) -> Theor
 
 auto TheoryTermSymbolic::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto TheoryTermSymbolic::symbol() -> Symbol {
     clingo_symbol_t ret = 0;
-    if (!clingo_ast_attribute_get_symbol(ast_, clingo_ast_attribute_symbol, &ret)) {
-        throw std::runtime_error("could not get symbol attribute");
-    }
+    handle_error(clingo_ast_attribute_get_symbol(ast_, clingo_ast_attribute_symbol, &ret));
     return Symbol{ret, true};
 }
 
 auto TheoryTermSymbolic::construct(Library &lib, Location const &location, Symbol const &symbol) -> TheoryTermSymbolic {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_theory_term_symbolic, &res_,
-                                           static_cast<clingo_location_t const *>(location), symbol.handle()));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_theory_term_symbolic, &res_,
+                                      static_cast<clingo_location_t const *>(location), symbol.handle()));
     return TheoryTermSymbolic::acquire(res_);
 }
 
@@ -6725,35 +6027,29 @@ auto TheoryTermSymbolic::update(Library &lib, py::kwargs const &kwargs) -> Theor
 
 auto TheoryTermTuple::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto TheoryTermTuple::tuple_type() -> TheoryTupleType {
     int ret = 0;
-    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_tuple_type, &ret)) {
-        throw std::runtime_error("could not get number attribute");
-    }
+    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_tuple_type, &ret));
     return static_cast<TheoryTupleType>(ret);
 }
 
 auto TheoryTermTuple::arguments() -> TheoryTermArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_arguments, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_arguments, &ast, &size));
     return construct_theory_term_array(ast, size);
 }
 
 auto TheoryTermTuple::construct(Library &lib, Location const &location, TheoryTupleType const &tuple_type,
                                 TheoryTermArray const &arguments) -> TheoryTermTuple {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_theory_term_tuple, &res_,
-                                           static_cast<clingo_location_t const *>(location),
-                                           static_cast<int>(tuple_type), c_cast(arguments).data(), arguments.size()));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_theory_term_tuple, &res_,
+                                      static_cast<clingo_location_t const *>(location), static_cast<int>(tuple_type),
+                                      c_cast(arguments).data(), arguments.size()));
     return TheoryTermTuple::acquire(res_);
 }
 
@@ -6781,35 +6077,29 @@ auto TheoryTermTuple::update(Library &lib, py::kwargs const &kwargs) -> TheoryTe
 
 auto TheoryTermFunction::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto TheoryTermFunction::name() -> char const * {
     char const *ret = nullptr;
-    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret)) {
-        throw std::runtime_error("could not get string attribute");
-    }
+    handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret));
     return ret;
 }
 
 auto TheoryTermFunction::arguments() -> TheoryTermArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_arguments, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_arguments, &ast, &size));
     return construct_theory_term_array(ast, size);
 }
 
 auto TheoryTermFunction::construct(Library &lib, Location const &location, char const *name,
                                    TheoryTermArray const &arguments) -> TheoryTermFunction {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_theory_term_function, &res_,
-                                           static_cast<clingo_location_t const *>(location), name,
-                                           c_cast(arguments).data(), arguments.size()));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_theory_term_function, &res_,
+                                      static_cast<clingo_location_t const *>(location), name, c_cast(arguments).data(),
+                                      arguments.size()));
     return TheoryTermFunction::acquire(res_);
 }
 
@@ -6837,27 +6127,23 @@ auto TheoryTermFunction::update(Library &lib, py::kwargs const &kwargs) -> Theor
 
 auto TheoryTermUnparsed::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto TheoryTermUnparsed::elements() -> UnparsedElementArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &ast, &size));
     return construct_unparsed_element_array(ast, size);
 }
 
 auto TheoryTermUnparsed::construct(Library &lib, Location const &location,
                                    UnparsedElementArray const &elements) -> TheoryTermUnparsed {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_theory_term_unparsed, &res_,
-                                           static_cast<clingo_location_t const *>(location), c_cast(elements).data(),
-                                           elements.size()));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_theory_term_unparsed, &res_,
+                                      static_cast<clingo_location_t const *>(location), c_cast(elements).data(),
+                                      elements.size()));
     return TheoryTermUnparsed::acquire(res_);
 }
 
@@ -6884,25 +6170,20 @@ auto TheoryTermUnparsed::update(Library &lib, py::kwargs const &kwargs) -> Theor
 
 auto TheoryRightGuard::theory_operator() -> char const * {
     char const *ret = nullptr;
-    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_theory_operator, &ret)) {
-        throw std::runtime_error("could not get string attribute");
-    }
+    handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_theory_operator, &ret));
     return ret;
 }
 
 auto TheoryRightGuard::term() -> TheoryTerm {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_term, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_term, &ast));
     return construct_theory_term(ast);
 }
 
 auto TheoryRightGuard::construct(Library &lib, char const *theory_operator,
                                  TheoryTerm const &term) -> TheoryRightGuard {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib,
-                 clingo_ast_construct(lib, clingo_ast_type_theory_right_guard, &res_, theory_operator, c_cast(term)));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_theory_right_guard, &res_, theory_operator, c_cast(term)));
     return TheoryRightGuard::acquire(res_);
 }
 
@@ -6946,35 +6227,29 @@ auto construct_literal_array(clingo_ast_t **ast, size_t size) -> LiteralArray {
 
 auto SetAggregateElement::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto SetAggregateElement::literal() -> Literal {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_literal, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_literal, &ast));
     return construct_literal(ast);
 }
 
 auto SetAggregateElement::condition() -> LiteralArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_condition, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_condition, &ast, &size));
     return construct_literal_array(ast, size);
 }
 
 auto SetAggregateElement::construct(Library &lib, Location const &location, Literal const &literal,
                                     LiteralArray const &condition) -> SetAggregateElement {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_set_aggregate_element, &res_,
-                                           static_cast<clingo_location_t const *>(location), c_cast(literal),
-                                           c_cast(condition).data(), condition.size()));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_set_aggregate_element, &res_,
+                                      static_cast<clingo_location_t const *>(location), c_cast(literal),
+                                      c_cast(condition).data(), condition.size()));
     return SetAggregateElement::acquire(res_);
 }
 
@@ -7021,36 +6296,30 @@ auto construct_set_aggregate_element_array(clingo_ast_t **ast, size_t size) -> S
 
 auto BodyAggregateElement::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto BodyAggregateElement::tuple() -> TermArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_tuple, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_tuple, &ast, &size));
     return construct_term_array(ast, size);
 }
 
 auto BodyAggregateElement::condition() -> LiteralArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_condition, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_condition, &ast, &size));
     return construct_literal_array(ast, size);
 }
 
 auto BodyAggregateElement::construct(Library &lib, Location const &location, TermArray const &tuple,
                                      LiteralArray const &condition) -> BodyAggregateElement {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_body_aggregate_element, &res_,
-                                           static_cast<clingo_location_t const *>(location), c_cast(tuple).data(),
-                                           tuple.size(), c_cast(condition).data(), condition.size()));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_body_aggregate_element, &res_,
+                                      static_cast<clingo_location_t const *>(location), c_cast(tuple).data(),
+                                      tuple.size(), c_cast(condition).data(), condition.size()));
     return BodyAggregateElement::acquire(res_);
 }
 
@@ -7097,36 +6366,30 @@ auto construct_body_aggregate_element_array(clingo_ast_t **ast, size_t size) -> 
 
 auto TheoryAtomElement::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto TheoryAtomElement::tuple() -> TheoryTermArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_tuple, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_tuple, &ast, &size));
     return construct_theory_term_array(ast, size);
 }
 
 auto TheoryAtomElement::condition() -> LiteralArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_condition, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_condition, &ast, &size));
     return construct_literal_array(ast, size);
 }
 
 auto TheoryAtomElement::construct(Library &lib, Location const &location, TheoryTermArray const &tuple,
                                   LiteralArray const &condition) -> TheoryAtomElement {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_theory_atom_element, &res_,
-                                           static_cast<clingo_location_t const *>(location), c_cast(tuple).data(),
-                                           tuple.size(), c_cast(condition).data(), condition.size()));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_theory_atom_element, &res_,
+                                      static_cast<clingo_location_t const *>(location), c_cast(tuple).data(),
+                                      tuple.size(), c_cast(condition).data(), condition.size()));
     return TheoryAtomElement::acquire(res_);
 }
 
@@ -7173,7 +6436,7 @@ auto construct_theory_atom_element_array(clingo_ast_t **ast, size_t size) -> The
 
 auto construct_body_literal(clingo_ast_t *ast) -> BodyLiteral {
     clingo_ast_type_t type = 0;
-    if (!clingo_ast_get_type(ast, &type)) {
+    if (clingo_ast_get_type(ast, &type) != clingo_result_success) {
         clingo_ast_free(ast);
         throw std::runtime_error("could not get type");
     }
@@ -7219,15 +6482,13 @@ auto construct_body_literal_array(clingo_ast_t **ast, size_t size) -> BodyLitera
 
 auto BodySimpleLiteral::literal() -> Literal {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_literal, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_literal, &ast));
     return construct_literal(ast);
 }
 
 auto BodySimpleLiteral::construct(Library &lib, Literal const &literal) -> BodySimpleLiteral {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_body_simple_literal, &res_, c_cast(literal)));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_body_simple_literal, &res_, c_cast(literal)));
     return BodySimpleLiteral::acquire(res_);
 }
 
@@ -7253,25 +6514,19 @@ auto BodySimpleLiteral::update(Library &lib, py::kwargs const &kwargs) -> BodySi
 
 auto BodyAggregate::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto BodyAggregate::sign() -> Sign {
     int ret = 0;
-    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_sign, &ret)) {
-        throw std::runtime_error("could not get number attribute");
-    }
+    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_sign, &ret));
     return static_cast<Sign>(ret);
 }
 
 auto BodyAggregate::left() -> OptionalLeftGuard {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_left, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_left, &ast));
     if (ast != nullptr) {
         // left_guard
         return LeftGuard::acquire(ast);
@@ -7281,26 +6536,20 @@ auto BodyAggregate::left() -> OptionalLeftGuard {
 
 auto BodyAggregate::function() -> AggregateFunction {
     int ret = 0;
-    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_function, &ret)) {
-        throw std::runtime_error("could not get number attribute");
-    }
+    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_function, &ret));
     return static_cast<AggregateFunction>(ret);
 }
 
 auto BodyAggregate::elements() -> BodyAggregateElementArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &ast, &size));
     return construct_body_aggregate_element_array(ast, size);
 }
 
 auto BodyAggregate::right() -> OptionalRightGuard {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_right, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_right, &ast));
     if (ast != nullptr) {
         // right_guard
         return RightGuard::acquire(ast);
@@ -7312,10 +6561,10 @@ auto BodyAggregate::construct(Library &lib, Location const &location, Sign const
                               AggregateFunction const &function, BodyAggregateElementArray const &elements,
                               OptionalRightGuard const &right) -> BodyAggregate {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_body_aggregate, &res_,
-                                           static_cast<clingo_location_t const *>(location), static_cast<int>(sign),
-                                           c_cast(left), static_cast<int>(function), c_cast(elements).data(),
-                                           elements.size(), c_cast(right)));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_body_aggregate, &res_,
+                                      static_cast<clingo_location_t const *>(location), static_cast<int>(sign),
+                                      c_cast(left), static_cast<int>(function), c_cast(elements).data(),
+                                      elements.size(), c_cast(right)));
     return BodyAggregate::acquire(res_);
 }
 
@@ -7354,25 +6603,19 @@ auto BodyAggregate::update(Library &lib, py::kwargs const &kwargs) -> BodyAggreg
 
 auto BodySetAggregate::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto BodySetAggregate::sign() -> Sign {
     int ret = 0;
-    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_sign, &ret)) {
-        throw std::runtime_error("could not get number attribute");
-    }
+    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_sign, &ret));
     return static_cast<Sign>(ret);
 }
 
 auto BodySetAggregate::left() -> OptionalLeftGuard {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_left, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_left, &ast));
     if (ast != nullptr) {
         // left_guard
         return LeftGuard::acquire(ast);
@@ -7383,17 +6626,13 @@ auto BodySetAggregate::left() -> OptionalLeftGuard {
 auto BodySetAggregate::elements() -> SetAggregateElementArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &ast, &size));
     return construct_set_aggregate_element_array(ast, size);
 }
 
 auto BodySetAggregate::right() -> OptionalRightGuard {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_right, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_right, &ast));
     if (ast != nullptr) {
         // right_guard
         return RightGuard::acquire(ast);
@@ -7405,9 +6644,9 @@ auto BodySetAggregate::construct(Library &lib, Location const &location, Sign co
                                  OptionalLeftGuard const &left, SetAggregateElementArray const &elements,
                                  OptionalRightGuard const &right) -> BodySetAggregate {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_body_set_aggregate, &res_,
-                                           static_cast<clingo_location_t const *>(location), static_cast<int>(sign),
-                                           c_cast(left), c_cast(elements).data(), elements.size(), c_cast(right)));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_body_set_aggregate, &res_,
+                                      static_cast<clingo_location_t const *>(location), static_cast<int>(sign),
+                                      c_cast(left), c_cast(elements).data(), elements.size(), c_cast(right)));
     return BodySetAggregate::acquire(res_);
 }
 
@@ -7445,42 +6684,32 @@ auto BodySetAggregate::update(Library &lib, py::kwargs const &kwargs) -> BodySet
 
 auto BodyTheoryAtom::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto BodyTheoryAtom::sign() -> Sign {
     int ret = 0;
-    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_sign, &ret)) {
-        throw std::runtime_error("could not get number attribute");
-    }
+    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_sign, &ret));
     return static_cast<Sign>(ret);
 }
 
 auto BodyTheoryAtom::name() -> Term {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_name, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_name, &ast));
     return construct_term(ast);
 }
 
 auto BodyTheoryAtom::elements() -> TheoryAtomElementArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &ast, &size));
     return construct_theory_atom_element_array(ast, size);
 }
 
 auto BodyTheoryAtom::right() -> OptionalTheoryRightGuard {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_right, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_right, &ast));
     if (ast != nullptr) {
         // theory_right_guard
         return TheoryRightGuard::acquire(ast);
@@ -7492,9 +6721,9 @@ auto BodyTheoryAtom::construct(Library &lib, Location const &location, Sign cons
                                TheoryAtomElementArray const &elements,
                                OptionalTheoryRightGuard const &right) -> BodyTheoryAtom {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_body_theory_atom, &res_,
-                                           static_cast<clingo_location_t const *>(location), static_cast<int>(sign),
-                                           c_cast(name), c_cast(elements).data(), elements.size(), c_cast(right)));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_body_theory_atom, &res_,
+                                      static_cast<clingo_location_t const *>(location), static_cast<int>(sign),
+                                      c_cast(name), c_cast(elements).data(), elements.size(), c_cast(right)));
     return BodyTheoryAtom::acquire(res_);
 }
 
@@ -7530,35 +6759,29 @@ auto BodyTheoryAtom::update(Library &lib, py::kwargs const &kwargs) -> BodyTheor
 
 auto BodyConditionalLiteral::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto BodyConditionalLiteral::literal() -> Literal {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_literal, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_literal, &ast));
     return construct_literal(ast);
 }
 
 auto BodyConditionalLiteral::condition() -> LiteralArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_condition, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_condition, &ast, &size));
     return construct_literal_array(ast, size);
 }
 
 auto BodyConditionalLiteral::construct(Library &lib, Location const &location, Literal const &literal,
                                        LiteralArray const &condition) -> BodyConditionalLiteral {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_body_conditional_literal, &res_,
-                                           static_cast<clingo_location_t const *>(location), c_cast(literal),
-                                           c_cast(condition).data(), condition.size()));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_body_conditional_literal, &res_,
+                                      static_cast<clingo_location_t const *>(location), c_cast(literal),
+                                      c_cast(condition).data(), condition.size()));
     return BodyConditionalLiteral::acquire(res_);
 }
 
@@ -7588,35 +6811,29 @@ auto BodyConditionalLiteral::update(Library &lib, py::kwargs const &kwargs) -> B
 
 auto HeadConditionalLiteral::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto HeadConditionalLiteral::literal() -> Literal {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_literal, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_literal, &ast));
     return construct_literal(ast);
 }
 
 auto HeadConditionalLiteral::condition() -> LiteralArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_condition, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_condition, &ast, &size));
     return construct_literal_array(ast, size);
 }
 
 auto HeadConditionalLiteral::construct(Library &lib, Location const &location, Literal const &literal,
                                        LiteralArray const &condition) -> HeadConditionalLiteral {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_head_conditional_literal, &res_,
-                                           static_cast<clingo_location_t const *>(location), c_cast(literal),
-                                           c_cast(condition).data(), condition.size()));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_head_conditional_literal, &res_,
+                                      static_cast<clingo_location_t const *>(location), c_cast(literal),
+                                      c_cast(condition).data(), condition.size()));
     return HeadConditionalLiteral::acquire(res_);
 }
 
@@ -7646,7 +6863,7 @@ auto HeadConditionalLiteral::update(Library &lib, py::kwargs const &kwargs) -> H
 
 auto construct_disjunction_element(clingo_ast_t *ast) -> DisjunctionElement {
     clingo_ast_type_t type = 0;
-    if (!clingo_ast_get_type(ast, &type)) {
+    if (clingo_ast_get_type(ast, &type) != clingo_result_success) {
         clingo_ast_free(ast);
         throw std::runtime_error("could not get type");
     }
@@ -7689,44 +6906,36 @@ auto construct_disjunction_element_array(clingo_ast_t **ast, size_t size) -> Dis
 
 auto HeadAggregateElement::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto HeadAggregateElement::tuple() -> TermArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_tuple, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_tuple, &ast, &size));
     return construct_term_array(ast, size);
 }
 
 auto HeadAggregateElement::literal() -> Literal {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_literal, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_literal, &ast));
     return construct_literal(ast);
 }
 
 auto HeadAggregateElement::condition() -> LiteralArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_condition, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_condition, &ast, &size));
     return construct_literal_array(ast, size);
 }
 
 auto HeadAggregateElement::construct(Library &lib, Location const &location, TermArray const &tuple,
                                      Literal const &literal, LiteralArray const &condition) -> HeadAggregateElement {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_head_aggregate_element, &res_,
-                                           static_cast<clingo_location_t const *>(location), c_cast(tuple).data(),
-                                           tuple.size(), c_cast(literal), c_cast(condition).data(), condition.size()));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_head_aggregate_element, &res_,
+                                      static_cast<clingo_location_t const *>(location), c_cast(tuple).data(),
+                                      tuple.size(), c_cast(literal), c_cast(condition).data(), condition.size()));
     return HeadAggregateElement::acquire(res_);
 }
 
@@ -7776,7 +6985,7 @@ auto construct_head_aggregate_element_array(clingo_ast_t **ast, size_t size) -> 
 
 auto construct_head_literal(clingo_ast_t *ast) -> HeadLiteral {
     clingo_ast_type_t type = 0;
-    if (!clingo_ast_get_type(ast, &type)) {
+    if (clingo_ast_get_type(ast, &type) != clingo_result_success) {
         clingo_ast_free(ast);
         throw std::runtime_error("could not get type");
     }
@@ -7805,15 +7014,13 @@ auto construct_head_literal(clingo_ast_t *ast) -> HeadLiteral {
 
 auto HeadSimpleLiteral::literal() -> Literal {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_literal, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_literal, &ast));
     return construct_literal(ast);
 }
 
 auto HeadSimpleLiteral::construct(Library &lib, Literal const &literal) -> HeadSimpleLiteral {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_head_simple_literal, &res_, c_cast(literal)));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_head_simple_literal, &res_, c_cast(literal)));
     return HeadSimpleLiteral::acquire(res_);
 }
 
@@ -7839,17 +7046,13 @@ auto HeadSimpleLiteral::update(Library &lib, py::kwargs const &kwargs) -> HeadSi
 
 auto HeadAggregate::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto HeadAggregate::left() -> OptionalLeftGuard {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_left, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_left, &ast));
     if (ast != nullptr) {
         // left_guard
         return LeftGuard::acquire(ast);
@@ -7859,26 +7062,20 @@ auto HeadAggregate::left() -> OptionalLeftGuard {
 
 auto HeadAggregate::function() -> AggregateFunction {
     int ret = 0;
-    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_function, &ret)) {
-        throw std::runtime_error("could not get number attribute");
-    }
+    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_function, &ret));
     return static_cast<AggregateFunction>(ret);
 }
 
 auto HeadAggregate::elements() -> HeadAggregateElementArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &ast, &size));
     return construct_head_aggregate_element_array(ast, size);
 }
 
 auto HeadAggregate::right() -> OptionalRightGuard {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_right, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_right, &ast));
     if (ast != nullptr) {
         // right_guard
         return RightGuard::acquire(ast);
@@ -7890,10 +7087,9 @@ auto HeadAggregate::construct(Library &lib, Location const &location, OptionalLe
                               AggregateFunction const &function, HeadAggregateElementArray const &elements,
                               OptionalRightGuard const &right) -> HeadAggregate {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_head_aggregate, &res_,
-                                           static_cast<clingo_location_t const *>(location), c_cast(left),
-                                           static_cast<int>(function), c_cast(elements).data(), elements.size(),
-                                           c_cast(right)));
+    handle_error(clingo_ast_construct(
+        lib, clingo_ast_type_head_aggregate, &res_, static_cast<clingo_location_t const *>(location), c_cast(left),
+        static_cast<int>(function), c_cast(elements).data(), elements.size(), c_cast(right)));
     return HeadAggregate::acquire(res_);
 }
 
@@ -7931,17 +7127,13 @@ auto HeadAggregate::update(Library &lib, py::kwargs const &kwargs) -> HeadAggreg
 
 auto HeadSetAggregate::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto HeadSetAggregate::left() -> OptionalLeftGuard {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_left, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_left, &ast));
     if (ast != nullptr) {
         // left_guard
         return LeftGuard::acquire(ast);
@@ -7952,17 +7144,13 @@ auto HeadSetAggregate::left() -> OptionalLeftGuard {
 auto HeadSetAggregate::elements() -> SetAggregateElementArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &ast, &size));
     return construct_set_aggregate_element_array(ast, size);
 }
 
 auto HeadSetAggregate::right() -> OptionalRightGuard {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_right, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_right, &ast));
     if (ast != nullptr) {
         // right_guard
         return RightGuard::acquire(ast);
@@ -7974,9 +7162,9 @@ auto HeadSetAggregate::construct(Library &lib, Location const &location, Optiona
                                  SetAggregateElementArray const &elements,
                                  OptionalRightGuard const &right) -> HeadSetAggregate {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_head_set_aggregate, &res_,
-                                           static_cast<clingo_location_t const *>(location), c_cast(left),
-                                           c_cast(elements).data(), elements.size(), c_cast(right)));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_head_set_aggregate, &res_,
+                                      static_cast<clingo_location_t const *>(location), c_cast(left),
+                                      c_cast(elements).data(), elements.size(), c_cast(right)));
     return HeadSetAggregate::acquire(res_);
 }
 
@@ -8013,34 +7201,26 @@ auto HeadSetAggregate::update(Library &lib, py::kwargs const &kwargs) -> HeadSet
 
 auto HeadTheoryAtom::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto HeadTheoryAtom::name() -> Term {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_name, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_name, &ast));
     return construct_term(ast);
 }
 
 auto HeadTheoryAtom::elements() -> TheoryAtomElementArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &ast, &size));
     return construct_theory_atom_element_array(ast, size);
 }
 
 auto HeadTheoryAtom::right() -> OptionalTheoryRightGuard {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_right, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_right, &ast));
     if (ast != nullptr) {
         // theory_right_guard
         return TheoryRightGuard::acquire(ast);
@@ -8052,9 +7232,9 @@ auto HeadTheoryAtom::construct(Library &lib, Location const &location, Term cons
                                TheoryAtomElementArray const &elements,
                                OptionalTheoryRightGuard const &right) -> HeadTheoryAtom {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_head_theory_atom, &res_,
-                                           static_cast<clingo_location_t const *>(location), c_cast(name),
-                                           c_cast(elements).data(), elements.size(), c_cast(right)));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_head_theory_atom, &res_,
+                                      static_cast<clingo_location_t const *>(location), c_cast(name),
+                                      c_cast(elements).data(), elements.size(), c_cast(right)));
     return HeadTheoryAtom::acquire(res_);
 }
 
@@ -8089,27 +7269,23 @@ auto HeadTheoryAtom::update(Library &lib, py::kwargs const &kwargs) -> HeadTheor
 
 auto HeadDisjunction::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto HeadDisjunction::elements() -> DisjunctionElementArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &ast, &size));
     return construct_disjunction_element_array(ast, size);
 }
 
 auto HeadDisjunction::construct(Library &lib, Location const &location,
                                 DisjunctionElementArray const &elements) -> HeadDisjunction {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_head_disjunction, &res_,
-                                           static_cast<clingo_location_t const *>(location), c_cast(elements).data(),
-                                           elements.size()));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_head_disjunction, &res_,
+                                      static_cast<clingo_location_t const *>(location), c_cast(elements).data(),
+                                      elements.size()));
     return HeadDisjunction::acquire(res_);
 }
 
@@ -8136,42 +7312,34 @@ auto HeadDisjunction::update(Library &lib, py::kwargs const &kwargs) -> HeadDisj
 
 auto TheoryOperatorDefinition::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto TheoryOperatorDefinition::name() -> char const * {
     char const *ret = nullptr;
-    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret)) {
-        throw std::runtime_error("could not get string attribute");
-    }
+    handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret));
     return ret;
 }
 
 auto TheoryOperatorDefinition::priority() -> int {
     int ret = 0;
-    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_priority, &ret)) {
-        throw std::runtime_error("could not get number attribute");
-    }
+    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_priority, &ret));
     return ret;
 }
 
 auto TheoryOperatorDefinition::operator_type() -> TheoryOperatorType {
     int ret = 0;
-    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_operator_type, &ret)) {
-        throw std::runtime_error("could not get number attribute");
-    }
+    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_operator_type, &ret));
     return static_cast<TheoryOperatorType>(ret);
 }
 
 auto TheoryOperatorDefinition::construct(Library &lib, Location const &location, char const *name, int priority,
                                          TheoryOperatorType const &operator_type) -> TheoryOperatorDefinition {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_theory_operator_definition, &res_,
-                                           static_cast<clingo_location_t const *>(location), name, priority,
-                                           static_cast<int>(operator_type)));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_theory_operator_definition, &res_,
+                                      static_cast<clingo_location_t const *>(location), name, priority,
+                                      static_cast<int>(operator_type)));
     return TheoryOperatorDefinition::acquire(res_);
 }
 
@@ -8211,35 +7379,29 @@ auto construct_theory_operator_definition_array(clingo_ast_t **ast, size_t size)
 
 auto TheoryTermDefinition::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto TheoryTermDefinition::name() -> char const * {
     char const *ret = nullptr;
-    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret)) {
-        throw std::runtime_error("could not get string attribute");
-    }
+    handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret));
     return ret;
 }
 
 auto TheoryTermDefinition::operators() -> TheoryOperatorDefinitionArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_operators, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_operators, &ast, &size));
     return construct_theory_operator_definition_array(ast, size);
 }
 
 auto TheoryTermDefinition::construct(Library &lib, Location const &location, char const *name,
                                      TheoryOperatorDefinitionArray const &operators) -> TheoryTermDefinition {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_theory_term_definition, &res_,
-                                           static_cast<clingo_location_t const *>(location), name,
-                                           c_cast(operators).data(), operators.size()));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_theory_term_definition, &res_,
+                                      static_cast<clingo_location_t const *>(location), name, c_cast(operators).data(),
+                                      operators.size()));
     return TheoryTermDefinition::acquire(res_);
 }
 
@@ -8284,30 +7446,24 @@ auto construct_theory_term_definition_array(clingo_ast_t **ast, size_t size) -> 
 
 auto TheoryGuardDefinition::operators() -> std::vector<char const *> {
     size_t size = 0;
-    if (!clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_operators, nullptr, &size)) {
-        throw std::runtime_error("could not get string array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_operators, nullptr, &size));
     std::vector<char const *> ret;
     ret.resize(size, nullptr);
-    if (!clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_operators, ret.data(), &size)) {
-        throw std::runtime_error("could not get string array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_operators, ret.data(), &size));
     return ret;
 }
 
 auto TheoryGuardDefinition::term() -> char const * {
     char const *ret = nullptr;
-    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_term, &ret)) {
-        throw std::runtime_error("could not get string attribute");
-    }
+    handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_term, &ret));
     return ret;
 }
 
 auto TheoryGuardDefinition::construct(Library &lib, StringArray const &operators,
                                       char const *term) -> TheoryGuardDefinition {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_theory_guard_definition, &res_,
-                                           c_cast(operators).data(), operators.size(), term));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_theory_guard_definition, &res_, c_cast(operators).data(),
+                                      operators.size(), term));
     return TheoryGuardDefinition::acquire(res_);
 }
 
@@ -8328,41 +7484,31 @@ auto TheoryGuardDefinition::update(Library &lib, py::kwargs const &kwargs) -> Th
 
 auto TheoryAtomDefinition::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto TheoryAtomDefinition::name() -> char const * {
     char const *ret = nullptr;
-    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret)) {
-        throw std::runtime_error("could not get string attribute");
-    }
+    handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret));
     return ret;
 }
 
 auto TheoryAtomDefinition::arity() -> int {
     int ret = 0;
-    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_arity, &ret)) {
-        throw std::runtime_error("could not get number attribute");
-    }
+    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_arity, &ret));
     return ret;
 }
 
 auto TheoryAtomDefinition::term() -> char const * {
     char const *ret = nullptr;
-    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_term, &ret)) {
-        throw std::runtime_error("could not get string attribute");
-    }
+    handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_term, &ret));
     return ret;
 }
 
 auto TheoryAtomDefinition::guard() -> OptionalTheoryGuardDefinition {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_guard, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_guard, &ast));
     if (ast != nullptr) {
         // theory_guard_definition
         return TheoryGuardDefinition::acquire(ast);
@@ -8372,9 +7518,7 @@ auto TheoryAtomDefinition::guard() -> OptionalTheoryGuardDefinition {
 
 auto TheoryAtomDefinition::atom_type() -> TheoryAtomType {
     int ret = 0;
-    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_atom_type, &ret)) {
-        throw std::runtime_error("could not get number attribute");
-    }
+    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_atom_type, &ret));
     return static_cast<TheoryAtomType>(ret);
 }
 
@@ -8382,9 +7526,9 @@ auto TheoryAtomDefinition::construct(Library &lib, Location const &location, cha
                                      char const *term, OptionalTheoryGuardDefinition const &guard,
                                      TheoryAtomType const &atom_type) -> TheoryAtomDefinition {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_theory_atom_definition, &res_,
-                                           static_cast<clingo_location_t const *>(location), name, arity, term,
-                                           c_cast(guard), static_cast<int>(atom_type)));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_theory_atom_definition, &res_,
+                                      static_cast<clingo_location_t const *>(location), name, arity, term,
+                                      c_cast(guard), static_cast<int>(atom_type)));
     return TheoryAtomDefinition::acquire(res_);
 }
 
@@ -8434,17 +7578,13 @@ auto construct_theory_atom_definition_array(clingo_ast_t **ast, size_t size) -> 
 
 auto OptimizeTuple::weight() -> Term {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_weight, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_weight, &ast));
     return construct_term(ast);
 }
 
 auto OptimizeTuple::priority() -> OptionalTerm {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_priority, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_priority, &ast));
     if (ast != nullptr) {
         // term
         return construct_term(ast);
@@ -8455,17 +7595,15 @@ auto OptimizeTuple::priority() -> OptionalTerm {
 auto OptimizeTuple::terms() -> TermArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_terms, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_terms, &ast, &size));
     return construct_term_array(ast, size);
 }
 
 auto OptimizeTuple::construct(Library &lib, Term const &weight, OptionalTerm const &priority,
                               TermArray const &terms) -> OptimizeTuple {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_optimize_tuple, &res_, c_cast(weight), c_cast(priority),
-                                           c_cast(terms).data(), terms.size()));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_optimize_tuple, &res_, c_cast(weight), c_cast(priority),
+                                      c_cast(terms).data(), terms.size()));
     return OptimizeTuple::acquire(res_);
 }
 
@@ -8498,26 +7636,22 @@ auto OptimizeTuple::update(Library &lib, py::kwargs const &kwargs) -> OptimizeTu
 
 auto OptimizeElement::tuple() -> OptimizeTuple {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_tuple, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_tuple, &ast));
     return OptimizeTuple::acquire(ast);
 }
 
 auto OptimizeElement::condition() -> LiteralArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_condition, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_condition, &ast, &size));
     return construct_literal_array(ast, size);
 }
 
 auto OptimizeElement::construct(Library &lib, OptimizeTuple const &tuple,
                                 LiteralArray const &condition) -> OptimizeElement {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_optimize_element, &res_, c_cast(tuple),
-                                           c_cast(condition).data(), condition.size()));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_optimize_element, &res_, c_cast(tuple),
+                                      c_cast(condition).data(), condition.size()));
     return OptimizeElement::acquire(res_);
 }
 
@@ -8563,23 +7697,19 @@ auto construct_optimize_element_array(clingo_ast_t **ast, size_t size) -> Optimi
 
 auto Edge::u() -> Term {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_u, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_u, &ast));
     return construct_term(ast);
 }
 
 auto Edge::v() -> Term {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_v, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_v, &ast));
     return construct_term(ast);
 }
 
 auto Edge::construct(Library &lib, Term const &u, Term const &v) -> Edge {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_edge, &res_, c_cast(u), c_cast(v)));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_edge, &res_, c_cast(u), c_cast(v)));
     return Edge::acquire(res_);
 }
 
@@ -8624,7 +7754,7 @@ auto construct_edge_array(clingo_ast_t **ast, size_t size) -> EdgeArray {
 
 auto construct_statement(clingo_ast_t *ast) -> Statement {
     clingo_ast_type_t type = 0;
-    if (!clingo_ast_get_type(ast, &type)) {
+    if (clingo_ast_get_type(ast, &type) != clingo_result_success) {
         clingo_ast_free(ast);
         throw std::runtime_error("could not get type");
     }
@@ -8692,35 +7822,29 @@ auto construct_statement(clingo_ast_t *ast) -> Statement {
 
 auto StatementRule::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto StatementRule::head() -> HeadLiteral {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_head, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_head, &ast));
     return construct_head_literal(ast);
 }
 
 auto StatementRule::body() -> BodyLiteralArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_body, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_body, &ast, &size));
     return construct_body_literal_array(ast, size);
 }
 
 auto StatementRule::construct(Library &lib, Location const &location, HeadLiteral const &head,
                               BodyLiteralArray const &body) -> StatementRule {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_rule, &res_,
-                                           static_cast<clingo_location_t const *>(location), c_cast(head),
-                                           c_cast(body).data(), body.size()));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_rule, &res_,
+                                      static_cast<clingo_location_t const *>(location), c_cast(head),
+                                      c_cast(body).data(), body.size()));
     return StatementRule::acquire(res_);
 }
 
@@ -8749,35 +7873,27 @@ auto StatementRule::update(Library &lib, py::kwargs const &kwargs) -> StatementR
 
 auto StatementTheory::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto StatementTheory::name() -> char const * {
     char const *ret = nullptr;
-    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret)) {
-        throw std::runtime_error("could not get string attribute");
-    }
+    handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret));
     return ret;
 }
 
 auto StatementTheory::terms() -> TheoryTermDefinitionArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_terms, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_terms, &ast, &size));
     return construct_theory_term_definition_array(ast, size);
 }
 
 auto StatementTheory::atoms() -> TheoryAtomDefinitionArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_atoms, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_atoms, &ast, &size));
     return construct_theory_atom_definition_array(ast, size);
 }
 
@@ -8785,9 +7901,9 @@ auto StatementTheory::construct(Library &lib, Location const &location, char con
                                 TheoryTermDefinitionArray const &terms,
                                 TheoryAtomDefinitionArray const &atoms) -> StatementTheory {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_theory, &res_,
-                                           static_cast<clingo_location_t const *>(location), name, c_cast(terms).data(),
-                                           terms.size(), c_cast(atoms).data(), atoms.size()));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_theory, &res_,
+                                      static_cast<clingo_location_t const *>(location), name, c_cast(terms).data(),
+                                      terms.size(), c_cast(atoms).data(), atoms.size()));
     return StatementTheory::acquire(res_);
 }
 
@@ -8818,35 +7934,29 @@ auto StatementTheory::update(Library &lib, py::kwargs const &kwargs) -> Statemen
 
 auto StatementOptimize::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto StatementOptimize::elements() -> OptimizeElementArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_elements, &ast, &size));
     return construct_optimize_element_array(ast, size);
 }
 
 auto StatementOptimize::optimize_type() -> OptimizeType {
     int ret = 0;
-    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_optimize_type, &ret)) {
-        throw std::runtime_error("could not get number attribute");
-    }
+    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_optimize_type, &ret));
     return static_cast<OptimizeType>(ret);
 }
 
 auto StatementOptimize::construct(Library &lib, Location const &location, OptimizeElementArray const &elements,
                                   OptimizeType const &optimize_type) -> StatementOptimize {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_optimize, &res_,
-                                           static_cast<clingo_location_t const *>(location), c_cast(elements).data(),
-                                           elements.size(), static_cast<int>(optimize_type)));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_optimize, &res_,
+                                      static_cast<clingo_location_t const *>(location), c_cast(elements).data(),
+                                      elements.size(), static_cast<int>(optimize_type)));
     return StatementOptimize::acquire(res_);
 }
 
@@ -8874,35 +7984,29 @@ auto StatementOptimize::update(Library &lib, py::kwargs const &kwargs) -> Statem
 
 auto StatementWeakConstraint::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto StatementWeakConstraint::body() -> BodyLiteralArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_body, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_body, &ast, &size));
     return construct_body_literal_array(ast, size);
 }
 
 auto StatementWeakConstraint::tuple() -> OptimizeTuple {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_tuple, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_tuple, &ast));
     return OptimizeTuple::acquire(ast);
 }
 
 auto StatementWeakConstraint::construct(Library &lib, Location const &location, BodyLiteralArray const &body,
                                         OptimizeTuple const &tuple) -> StatementWeakConstraint {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_weak_constraint, &res_,
-                                           static_cast<clingo_location_t const *>(location), c_cast(body).data(),
-                                           body.size(), c_cast(tuple)));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_weak_constraint, &res_,
+                                      static_cast<clingo_location_t const *>(location), c_cast(body).data(),
+                                      body.size(), c_cast(tuple)));
     return StatementWeakConstraint::acquire(res_);
 }
 
@@ -8932,35 +8036,29 @@ auto StatementWeakConstraint::update(Library &lib, py::kwargs const &kwargs) -> 
 
 auto StatementShow::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto StatementShow::term() -> Term {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_term, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_term, &ast));
     return construct_term(ast);
 }
 
 auto StatementShow::body() -> BodyLiteralArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_body, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_body, &ast, &size));
     return construct_body_literal_array(ast, size);
 }
 
 auto StatementShow::construct(Library &lib, Location const &location, Term const &term,
                               BodyLiteralArray const &body) -> StatementShow {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_show, &res_,
-                                           static_cast<clingo_location_t const *>(location), c_cast(term),
-                                           c_cast(body).data(), body.size()));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_show, &res_,
+                                      static_cast<clingo_location_t const *>(location), c_cast(term),
+                                      c_cast(body).data(), body.size()));
     return StatementShow::acquire(res_);
 }
 
@@ -8989,16 +8087,14 @@ auto StatementShow::update(Library &lib, py::kwargs const &kwargs) -> StatementS
 
 auto StatementShowNothing::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto StatementShowNothing::construct(Library &lib, Location const &location) -> StatementShowNothing {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_show_nothing, &res_,
-                                           static_cast<clingo_location_t const *>(location)));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_show_nothing, &res_,
+                                      static_cast<clingo_location_t const *>(location)));
     return StatementShowNothing::acquire(res_);
 }
 
@@ -9018,42 +8114,34 @@ auto StatementShowNothing::update(Library &lib, py::kwargs const &kwargs) -> Sta
 
 auto StatementShowSignature::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto StatementShowSignature::name() -> char const * {
     char const *ret = nullptr;
-    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret)) {
-        throw std::runtime_error("could not get string attribute");
-    }
+    handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret));
     return ret;
 }
 
 auto StatementShowSignature::arity() -> int {
     int ret = 0;
-    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_arity, &ret)) {
-        throw std::runtime_error("could not get number attribute");
-    }
+    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_arity, &ret));
     return ret;
 }
 
 auto StatementShowSignature::sign() -> bool {
     int ret = 0;
-    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_sign, &ret)) {
-        throw std::runtime_error("could not get number attribute");
-    }
+    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_sign, &ret));
     return ret != 0;
 }
 
 auto StatementShowSignature::construct(Library &lib, Location const &location, char const *name, int arity,
                                        bool sign) -> StatementShowSignature {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_show_signature, &res_,
-                                           static_cast<clingo_location_t const *>(location), name, arity,
-                                           static_cast<int>(sign)));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_show_signature, &res_,
+                                      static_cast<clingo_location_t const *>(location), name, arity,
+                                      static_cast<int>(sign)));
     return StatementShowSignature::acquire(res_);
 }
 
@@ -9076,35 +8164,29 @@ auto StatementShowSignature::update(Library &lib, py::kwargs const &kwargs) -> S
 
 auto StatementProject::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto StatementProject::atom() -> Term {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_atom, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_atom, &ast));
     return construct_term(ast);
 }
 
 auto StatementProject::body() -> BodyLiteralArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_body, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_body, &ast, &size));
     return construct_body_literal_array(ast, size);
 }
 
 auto StatementProject::construct(Library &lib, Location const &location, Term const &atom,
                                  BodyLiteralArray const &body) -> StatementProject {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_project, &res_,
-                                           static_cast<clingo_location_t const *>(location), c_cast(atom),
-                                           c_cast(body).data(), body.size()));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_project, &res_,
+                                      static_cast<clingo_location_t const *>(location), c_cast(atom),
+                                      c_cast(body).data(), body.size()));
     return StatementProject::acquire(res_);
 }
 
@@ -9134,42 +8216,34 @@ auto StatementProject::update(Library &lib, py::kwargs const &kwargs) -> Stateme
 
 auto StatementProjectSignature::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto StatementProjectSignature::name() -> char const * {
     char const *ret = nullptr;
-    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret)) {
-        throw std::runtime_error("could not get string attribute");
-    }
+    handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret));
     return ret;
 }
 
 auto StatementProjectSignature::arity() -> int {
     int ret = 0;
-    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_arity, &ret)) {
-        throw std::runtime_error("could not get number attribute");
-    }
+    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_arity, &ret));
     return ret;
 }
 
 auto StatementProjectSignature::sign() -> bool {
     int ret = 0;
-    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_sign, &ret)) {
-        throw std::runtime_error("could not get number attribute");
-    }
+    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_sign, &ret));
     return ret != 0;
 }
 
 auto StatementProjectSignature::construct(Library &lib, Location const &location, char const *name, int arity,
                                           bool sign) -> StatementProjectSignature {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_project_signature, &res_,
-                                           static_cast<clingo_location_t const *>(location), name, arity,
-                                           static_cast<int>(sign)));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_project_signature, &res_,
+                                      static_cast<clingo_location_t const *>(location), name, arity,
+                                      static_cast<int>(sign)));
     return StatementProjectSignature::acquire(res_);
 }
 
@@ -9192,42 +8266,34 @@ auto StatementProjectSignature::update(Library &lib, py::kwargs const &kwargs) -
 
 auto StatementDefined::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto StatementDefined::name() -> char const * {
     char const *ret = nullptr;
-    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret)) {
-        throw std::runtime_error("could not get string attribute");
-    }
+    handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret));
     return ret;
 }
 
 auto StatementDefined::arity() -> int {
     int ret = 0;
-    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_arity, &ret)) {
-        throw std::runtime_error("could not get number attribute");
-    }
+    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_arity, &ret));
     return ret;
 }
 
 auto StatementDefined::sign() -> bool {
     int ret = 0;
-    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_sign, &ret)) {
-        throw std::runtime_error("could not get number attribute");
-    }
+    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_sign, &ret));
     return ret != 0;
 }
 
 auto StatementDefined::construct(Library &lib, Location const &location, char const *name, int arity,
                                  bool sign) -> StatementDefined {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_defined, &res_,
-                                           static_cast<clingo_location_t const *>(location), name, arity,
-                                           static_cast<int>(sign)));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_defined, &res_,
+                                      static_cast<clingo_location_t const *>(location), name, arity,
+                                      static_cast<int>(sign)));
     return StatementDefined::acquire(res_);
 }
 
@@ -9250,34 +8316,26 @@ auto StatementDefined::update(Library &lib, py::kwargs const &kwargs) -> Stateme
 
 auto StatementExternal::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto StatementExternal::atom() -> Term {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_atom, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_atom, &ast));
     return construct_term(ast);
 }
 
 auto StatementExternal::body() -> BodyLiteralArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_body, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_body, &ast, &size));
     return construct_body_literal_array(ast, size);
 }
 
 auto StatementExternal::external_type() -> OptionalTerm {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_external_type, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_external_type, &ast));
     if (ast != nullptr) {
         // term
         return construct_term(ast);
@@ -9289,9 +8347,9 @@ auto StatementExternal::construct(Library &lib, Location const &location, Term c
                                   BodyLiteralArray const &body,
                                   OptionalTerm const &external_type) -> StatementExternal {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_external, &res_,
-                                           static_cast<clingo_location_t const *>(location), c_cast(atom),
-                                           c_cast(body).data(), body.size(), c_cast(external_type)));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_external, &res_,
+                                      static_cast<clingo_location_t const *>(location), c_cast(atom),
+                                      c_cast(body).data(), body.size(), c_cast(external_type)));
     return StatementExternal::acquire(res_);
 }
 
@@ -9326,36 +8384,30 @@ auto StatementExternal::update(Library &lib, py::kwargs const &kwargs) -> Statem
 
 auto StatementEdge::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto StatementEdge::pool() -> EdgeArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_pool, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_pool, &ast, &size));
     return construct_edge_array(ast, size);
 }
 
 auto StatementEdge::body() -> BodyLiteralArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_body, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_body, &ast, &size));
     return construct_body_literal_array(ast, size);
 }
 
 auto StatementEdge::construct(Library &lib, Location const &location, EdgeArray const &pool,
                               BodyLiteralArray const &body) -> StatementEdge {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_edge, &res_,
-                                           static_cast<clingo_location_t const *>(location), c_cast(pool).data(),
-                                           pool.size(), c_cast(body).data(), body.size()));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_edge, &res_,
+                                      static_cast<clingo_location_t const *>(location), c_cast(pool).data(),
+                                      pool.size(), c_cast(body).data(), body.size()));
     return StatementEdge::acquire(res_);
 }
 
@@ -9384,50 +8436,38 @@ auto StatementEdge::update(Library &lib, py::kwargs const &kwargs) -> StatementE
 
 auto StatementHeuristic::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto StatementHeuristic::atom() -> Term {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_atom, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_atom, &ast));
     return construct_term(ast);
 }
 
 auto StatementHeuristic::body() -> BodyLiteralArray {
     clingo_ast_t **ast = nullptr;
     size_t size = 0;
-    if (!clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_body, &ast, &size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast_, clingo_ast_attribute_body, &ast, &size));
     return construct_body_literal_array(ast, size);
 }
 
 auto StatementHeuristic::weight() -> Term {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_weight, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_weight, &ast));
     return construct_term(ast);
 }
 
 auto StatementHeuristic::modifier() -> Term {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_modifier, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_modifier, &ast));
     return construct_term(ast);
 }
 
 auto StatementHeuristic::priority() -> OptionalTerm {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_priority, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_priority, &ast));
     if (ast != nullptr) {
         // term
         return construct_term(ast);
@@ -9439,10 +8479,9 @@ auto StatementHeuristic::construct(Library &lib, Location const &location, Term 
                                    BodyLiteralArray const &body, Term const &weight, Term const &modifier,
                                    OptionalTerm const &priority) -> StatementHeuristic {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_heuristic, &res_,
-                                           static_cast<clingo_location_t const *>(location), c_cast(atom),
-                                           c_cast(body).data(), body.size(), c_cast(weight), c_cast(modifier),
-                                           c_cast(priority)));
+    handle_error(clingo_ast_construct(
+        lib, clingo_ast_type_statement_heuristic, &res_, static_cast<clingo_location_t const *>(location), c_cast(atom),
+        c_cast(body).data(), body.size(), c_cast(weight), c_cast(modifier), c_cast(priority)));
     return StatementHeuristic::acquire(res_);
 }
 
@@ -9484,33 +8523,27 @@ auto StatementHeuristic::update(Library &lib, py::kwargs const &kwargs) -> State
 
 auto StatementScript::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto StatementScript::value() -> char const * {
     char const *ret = nullptr;
-    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_value, &ret)) {
-        throw std::runtime_error("could not get string attribute");
-    }
+    handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_value, &ret));
     return ret;
 }
 
 auto StatementScript::script_type() -> char const * {
     char const *ret = nullptr;
-    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_script_type, &ret)) {
-        throw std::runtime_error("could not get string attribute");
-    }
+    handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_script_type, &ret));
     return ret;
 }
 
 auto StatementScript::construct(Library &lib, Location const &location, char const *value,
                                 char const *script_type) -> StatementScript {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_script, &res_,
-                                           static_cast<clingo_location_t const *>(location), value, script_type));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_script, &res_,
+                                      static_cast<clingo_location_t const *>(location), value, script_type));
     return StatementScript::acquire(res_);
 }
 
@@ -9532,34 +8565,28 @@ auto StatementScript::update(Library &lib, py::kwargs const &kwargs) -> Statemen
 
 auto StatementInclude::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto StatementInclude::value() -> char const * {
     char const *ret = nullptr;
-    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_value, &ret)) {
-        throw std::runtime_error("could not get string attribute");
-    }
+    handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_value, &ret));
     return ret;
 }
 
 auto StatementInclude::include_type() -> IncludeType {
     int ret = 0;
-    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_include_type, &ret)) {
-        throw std::runtime_error("could not get number attribute");
-    }
+    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_include_type, &ret));
     return static_cast<IncludeType>(ret);
 }
 
 auto StatementInclude::construct(Library &lib, Location const &location, char const *value,
                                  IncludeType const &include_type) -> StatementInclude {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_include, &res_,
-                                           static_cast<clingo_location_t const *>(location), value,
-                                           static_cast<int>(include_type)));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_include, &res_,
+                                      static_cast<clingo_location_t const *>(location), value,
+                                      static_cast<int>(include_type)));
     return StatementInclude::acquire(res_);
 }
 
@@ -9581,39 +8608,31 @@ auto StatementInclude::update(Library &lib, py::kwargs const &kwargs) -> Stateme
 
 auto StatementProgram::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto StatementProgram::name() -> char const * {
     char const *ret = nullptr;
-    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret)) {
-        throw std::runtime_error("could not get string attribute");
-    }
+    handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret));
     return ret;
 }
 
 auto StatementProgram::arguments() -> std::vector<char const *> {
     size_t size = 0;
-    if (!clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_arguments, nullptr, &size)) {
-        throw std::runtime_error("could not get string array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_arguments, nullptr, &size));
     std::vector<char const *> ret;
     ret.resize(size, nullptr);
-    if (!clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_arguments, ret.data(), &size)) {
-        throw std::runtime_error("could not get string array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_arguments, ret.data(), &size));
     return ret;
 }
 
 auto StatementProgram::construct(Library &lib, Location const &location, char const *name,
                                  StringArray const &arguments) -> StatementProgram {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_program, &res_,
-                                           static_cast<clingo_location_t const *>(location), name,
-                                           c_cast(arguments).data(), arguments.size()));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_program, &res_,
+                                      static_cast<clingo_location_t const *>(location), name, c_cast(arguments).data(),
+                                      arguments.size()));
     return StatementProgram::acquire(res_);
 }
 
@@ -9635,42 +8654,34 @@ auto StatementProgram::update(Library &lib, py::kwargs const &kwargs) -> Stateme
 
 auto StatementConst::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto StatementConst::name() -> char const * {
     char const *ret = nullptr;
-    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret)) {
-        throw std::runtime_error("could not get string attribute");
-    }
+    handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_name, &ret));
     return ret;
 }
 
 auto StatementConst::value() -> Term {
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_value, &ast)) {
-        throw std::runtime_error("could not get ast attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_value, &ast));
     return construct_term(ast);
 }
 
 auto StatementConst::const_type() -> ConstType {
     int ret = 0;
-    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_const_type, &ret)) {
-        throw std::runtime_error("could not get number attribute");
-    }
+    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_const_type, &ret));
     return static_cast<ConstType>(ret);
 }
 
 auto StatementConst::construct(Library &lib, Location const &location, char const *name, Term const &value,
                                ConstType const &const_type) -> StatementConst {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_const, &res_,
-                                           static_cast<clingo_location_t const *>(location), name, c_cast(value),
-                                           static_cast<int>(const_type)));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_const, &res_,
+                                      static_cast<clingo_location_t const *>(location), name, c_cast(value),
+                                      static_cast<int>(const_type)));
     return StatementConst::acquire(res_);
 }
 
@@ -9698,34 +8709,28 @@ auto StatementConst::update(Library &lib, py::kwargs const &kwargs) -> Statement
 
 auto StatementComment::location() -> Location {
     clingo_location_t const *ret = nullptr;
-    if (!clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret)) {
-        throw std::runtime_error("could not get location attribute");
-    }
+    handle_error(clingo_ast_attribute_get_location(ast_, clingo_ast_attribute_location, &ret));
     return Location{ret};
 }
 
 auto StatementComment::value() -> char const * {
     char const *ret = nullptr;
-    if (!clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_value, &ret)) {
-        throw std::runtime_error("could not get string attribute");
-    }
+    handle_error(clingo_ast_attribute_get_string(ast_, clingo_ast_attribute_value, &ret));
     return ret;
 }
 
 auto StatementComment::comment_type() -> CommentType {
     int ret = 0;
-    if (!clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_comment_type, &ret)) {
-        throw std::runtime_error("could not get number attribute");
-    }
+    handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_comment_type, &ret));
     return static_cast<CommentType>(ret);
 }
 
 auto StatementComment::construct(Library &lib, Location const &location, char const *value,
                                  CommentType const &comment_type) -> StatementComment {
     clingo_ast_t *res_ = nullptr;
-    handle_error(lib, clingo_ast_construct(lib, clingo_ast_type_statement_comment, &res_,
-                                           static_cast<clingo_location_t const *>(location), value,
-                                           static_cast<int>(comment_type)));
+    handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_comment, &res_,
+                                      static_cast<clingo_location_t const *>(location), value,
+                                      static_cast<int>(comment_type)));
     return StatementComment::acquire(res_);
 }
 
@@ -9774,9 +8779,7 @@ void visit_array(clingo_ast_t *ast, clingo_ast_attribute_t attr, py::handle visi
         size_t size = 0;
     };
     auto array = Array{};
-    if (!clingo_ast_attribute_get_ast_array(ast, attr, &array.begin, &array.size)) {
-        throw std::runtime_error("could not get ast array attribute");
-    }
+    handle_error(clingo_ast_attribute_get_ast_array(ast, attr, &array.begin, &array.size));
     std::for_each_n(array.begin, array.size, [&](auto *&cld) {
         auto *cpy = cld;
         cld = nullptr;
@@ -9845,37 +8848,37 @@ auto update_value(F *self, M fun, py::kwargs const &kwargs, char const *attr) ->
 
 auto parse_term(Library &lib, char const *string) -> Term {
     clingo_ast_t *ast = nullptr;
-    handle_error(lib, clingo_ast_parse_expression(lib, clingo_ast_parse_type_term, string, &ast));
+    handle_error(clingo_ast_parse_expression(lib, clingo_ast_parse_type_term, string, &ast));
     return construct_term(ast);
 }
 
 auto parse_theory_term(Library &lib, char const *string) -> TheoryTerm {
     clingo_ast_t *ast = nullptr;
-    handle_error(lib, clingo_ast_parse_expression(lib, clingo_ast_parse_type_theory_term, string, &ast));
+    handle_error(clingo_ast_parse_expression(lib, clingo_ast_parse_type_theory_term, string, &ast));
     return construct_theory_term(ast);
 }
 
 auto parse_literal(Library &lib, char const *string) -> Literal {
     clingo_ast_t *ast = nullptr;
-    handle_error(lib, clingo_ast_parse_expression(lib, clingo_ast_parse_type_literal, string, &ast));
+    handle_error(clingo_ast_parse_expression(lib, clingo_ast_parse_type_literal, string, &ast));
     return construct_literal(ast);
 }
 
 auto parse_head_literal(Library &lib, char const *string) -> HeadLiteral {
     clingo_ast_t *ast = nullptr;
-    handle_error(lib, clingo_ast_parse_expression(lib, clingo_ast_parse_type_head_literal, string, &ast));
+    handle_error(clingo_ast_parse_expression(lib, clingo_ast_parse_type_head_literal, string, &ast));
     return construct_head_literal(ast);
 }
 
 auto parse_body_literal(Library &lib, char const *string) -> BodyLiteral {
     clingo_ast_t *ast = nullptr;
-    handle_error(lib, clingo_ast_parse_expression(lib, clingo_ast_parse_type_body_literal, string, &ast));
+    handle_error(clingo_ast_parse_expression(lib, clingo_ast_parse_type_body_literal, string, &ast));
     return construct_body_literal(ast);
 }
 
 auto parse_statement(Library &lib, char const *string) -> Statement {
     clingo_ast_t *ast = nullptr;
-    handle_error(lib, clingo_ast_parse_expression(lib, clingo_ast_parse_type_statement, string, &ast));
+    handle_error(clingo_ast_parse_expression(lib, clingo_ast_parse_type_statement, string, &ast));
     return construct_statement(ast);
 }
 
@@ -9927,7 +8930,7 @@ class Scanner {
     friend auto operator!=(Iterator const &a, Iterator const &b) -> bool;
 
     Scanner(Library &lib, char const *program) : lib_{lib} {
-        handle_error(lib, clingo_ast_scan_string(lib, program, &scanner_));
+        handle_error(clingo_ast_scan_string(lib, program, &scanner_));
     }
 
     Scanner(Library &lib, std::vector<std::string> files) : lib_{lib} {
@@ -9935,7 +8938,7 @@ class Scanner {
         cfiles.reserve(cfiles.size());
         std::transform(files.begin(), files.end(), std::back_inserter(cfiles),
                        [](auto const &file) { return file.c_str(); });
-        handle_error(lib, clingo_ast_scan_files(lib, cfiles.data(), cfiles.size(), &scanner_));
+        handle_error(clingo_ast_scan_files(lib, cfiles.data(), cfiles.size(), &scanner_));
     }
 
     Scanner(Scanner const &other) = delete;
@@ -9955,7 +8958,7 @@ class Scanner {
     }
     void next() {
         clingo_ast_t *ast = nullptr;
-        handle_error(lib_, clingo_ast_scanner_next(scanner_, &ast));
+        handle_error(clingo_ast_scanner_next(scanner_, &ast));
         if (ast != nullptr) {
             value_ = construct_statement(ast);
         } else {
@@ -9979,7 +8982,7 @@ class Scanner {
 
 class RewriteContext {
   public:
-    RewriteContext(Library &lib) { handle_error(lib, clingo_ast_rewrite_context_create(lib, &ctx_)); }
+    RewriteContext(Library &lib) { handle_error(clingo_ast_rewrite_context_create(lib, &ctx_)); }
     ~RewriteContext() { clingo_ast_rewrite_context_free(ctx_); }
     void set_project_mode(ProjectionMode value) {
         clingo_ast_rewrite_context_set_project_mode(ctx_, static_cast<clingo_projection_mode_t>(value));
@@ -9989,14 +8992,10 @@ class RewriteContext {
     }
     void set_project_anoymous(bool value) { clingo_ast_rewrite_context_set_project_anonymous(ctx_, value); }
     auto get_project_anonymous() -> bool { return clingo_ast_rewrite_context_get_project_mode(ctx_) != 0; }
-    void add_param(std::string const &name) {
-        handle_error(clingo_ast_rewrite_context_get_lib(ctx_),
-                     clingo_ast_rewrite_context_add_param(ctx_, name.c_str()));
-    }
+    void add_param(std::string const &name) { handle_error(clingo_ast_rewrite_context_add_param(ctx_, name.c_str())); }
     void clear_params() { clingo_ast_rewrite_context_clear_params(ctx_); }
     void add_theory(StatementTheory const &stm) {
-        handle_error(clingo_ast_rewrite_context_get_lib(ctx_),
-                     clingo_ast_rewrite_context_add_theory(ctx_, c_cast(stm)));
+        handle_error(clingo_ast_rewrite_context_add_theory(ctx_, c_cast(stm)));
     }
     friend auto c_cast(RewriteContext const &x) -> clingo_ast_rewrite_context_t * { return x.ctx_; }
 
@@ -10006,14 +9005,13 @@ class RewriteContext {
 
 auto rewrite_statement(RewriteContext &ctx, Statement &stm) -> std::vector<Statement> {
     auto *c_ctx = c_cast(ctx);
-    auto *lib = clingo_ast_rewrite_context_get_lib(c_ctx);
     struct Array {
         ~Array() { clingo_ast_array_free(result, result_size); }
         clingo_ast_t **result = nullptr;
         size_t result_size = 0;
     };
     auto arr = Array{};
-    handle_error(lib, clingo_ast_rewrite(c_ctx, c_cast(stm), &arr.result, &arr.result_size));
+    handle_error(clingo_ast_rewrite(c_ctx, c_cast(stm), &arr.result, &arr.result_size));
     std::vector<Statement> res;
     res.reserve(arr.result_size);
     std::for_each_n(arr.result, arr.result_size, [&res](clingo_ast *&ast) {
