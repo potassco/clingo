@@ -72,7 +72,7 @@ void Solver::parse(std::span<std::string_view const> const &files) { grd_.parse(
 
 void Solver::add_const(String name, Symbol value) { grd_.add_const(name, value); }
 
-auto Solver::ground(Input::ProgramParamVec const &params) -> bool { return grd_.ground(params); }
+auto Solver::ground(Input::ProgramParamVec const &params) -> bool { return grd_.ground(params, scripts_); }
 
 void Solver::output_unprocessed_program(std::ostream &out) { grd_.output_unprocessed_program(out); }
 
