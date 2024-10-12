@@ -41,8 +41,9 @@ class Builder : public Input::DependencyBuilder {
   public:
     //! Construct the builder.
     Builder(std::pmr::monotonic_buffer_resource &mbr, Logger &log, SymbolStore &store, BaseMap &base_atom,
-            ProjectMap &base_project, OutputStm &out)
-        : mbr_{&mbr}, log_{&log}, store_{&store}, base_{base_atom, base_aux_, base_project}, out_{&out} {}
+            ProjectMap &base_project, Ground::ScriptCallback *context, OutputStm &out)
+        : mbr_{&mbr}, log_{&log}, store_{&store}, base_{base_atom, base_aux_, base_project}, context_{context},
+          out_{&out} {}
 
   private:
     //! Handle program parameters.
@@ -99,8 +100,8 @@ class Builder : public Input::DependencyBuilder {
                         }
                         ++i;
                     }
-                    auto ctx =
-                        BuildContext{*mbr_, *log_, *store_, base_, ref_comp, def_map, gcomp, var_map, body, states};
+                    auto ctx = BuildContext{*mbr_, *log_,   *store_, base_,  ref_comp, def_map,
+                                            gcomp, var_map, body,    states, context_};
                     build_stm(ctx, *stm);
                 }
                 auto queue = Ground::Queue{};
@@ -126,6 +127,7 @@ class Builder : public Input::DependencyBuilder {
     SymbolStore *store_;
     BaseMap base_aux_;
     BaseHelper base_;
+    Ground::ScriptCallback *context_;
     OutputStm *out_;
     std::ostringstream buf_;
 };
@@ -259,7 +261,7 @@ void Grounder::add_const(String name, Symbol value) {
     }
 }
 
-void Grounder::parse(std::string_view str, ScriptExec *code) {
+void Grounder::parse(std::string_view str, Ground::ScriptExec *code) {
     GRINGO_REPORT(*impl_->log, debug) << "parsing...";
     if (impl_->is_sat) {
         GCLock lock{*impl_->store};
@@ -270,7 +272,7 @@ void Grounder::parse(std::string_view str, ScriptExec *code) {
     }
 }
 
-void Grounder::parse(std::span<std::string_view const> const &files, ScriptExec *code) {
+void Grounder::parse(std::span<std::string_view const> const &files, Ground::ScriptExec *code) {
     GRINGO_REPORT(*impl_->log, debug) << "parsing...";
     if (impl_->is_sat) {
         GCLock lock{*impl_->store};
@@ -300,7 +302,7 @@ void Grounder::prepare_() {
     }
 }
 
-auto Grounder::ground(Input::ProgramParamVec const &params) -> bool {
+auto Grounder::ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *context) -> bool {
     prepare_();
     GRINGO_REPORT(*impl_->log, debug) << "grounding...";
     GCLock lock{*impl_->store};
@@ -309,7 +311,8 @@ auto Grounder::ground(Input::ProgramParamVec const &params) -> bool {
 #endif
     if (impl_->is_sat) {
         impl_->prg.check(*impl_->log);
-        auto bld = Builder{impl_->mbr, *impl_->log, *impl_->store, impl_->atom_base, impl_->project_base, *impl_->out};
+        auto bld = Builder{impl_->mbr,          *impl_->log, *impl_->store, impl_->atom_base,
+                           impl_->project_base, context,     *impl_->out};
         impl_->is_sat = impl_->prg.analyze(*impl_->store, params, bld);
         impl_->meta();
         impl_->clear();

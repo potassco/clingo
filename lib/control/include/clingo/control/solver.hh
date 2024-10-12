@@ -11,24 +11,8 @@ enum class OutputMode : uint8_t { text };
 
 class Solver;
 
-//! Callbacks that can be called during parsing/grounding.
-//!
-//! This interface is used by external functions.
-class ScriptCallback {
-  public:
-    virtual ~ScriptCallback() = default;
-    auto callable(std::string_view name, size_t args) -> bool { return do_callable(name, args); }
-    void call(Location const &loc, std::string_view name, SymbolSpan args, SymbolVec &out) {
-        do_call(loc, name, args, out);
-    }
-
-  private:
-    virtual auto do_callable(std::string_view name, size_t args) -> bool = 0;
-    virtual void do_call(Location const &loc, std::string_view name, SymbolSpan args, SymbolVec &out) = 0;
-};
-
 //! Script with a main function and callbacks.
-class ScriptMain : public ScriptCallback {
+class ScriptMain : public Ground::ScriptCallback {
   public:
     void main(Solver &slv) { do_main(slv); }
 
@@ -52,7 +36,7 @@ using UScript = std::unique_ptr<Script>;
 //!
 //! Named scripts can be registered. Code, main, and callback execution and is
 //! dispatched to registered scripts.
-class Scripts : public ScriptMain, public ScriptExec {
+class Scripts : public ScriptMain, public Ground::ScriptExec {
   public:
     void register_script(std::string_view name, UScript script);
 

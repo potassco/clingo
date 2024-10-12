@@ -8,6 +8,7 @@
 
 #include <clingo/ground/base.hh>
 #include <clingo/ground/program.hh>
+#include <clingo/ground/script.hh>
 
 #include <clingo/input/rewrite/analyze.hh>
 
@@ -74,9 +75,9 @@ class BuildContext {
   public:
     BuildContext(std::pmr::monotonic_buffer_resource &mbr, Logger &log, SymbolStore &store, BaseHelper base,
                  Input::Component const &comp, DefMap &def_map, Ground::Component &gcomp, VarMap &var_map,
-                 Ground::ULitVec &body, Ground::UStateVec &states)
+                 Ground::ULitVec &body, Ground::UStateVec &states, Ground::ScriptCallback *context)
         : mbr_{&mbr}, log_{&log}, store_{&store}, base_{base}, comp_{&comp}, def_map_{&def_map}, gcomp_{&gcomp},
-          var_map_{&var_map}, body_{&body}, states_{&states} {}
+          var_map_{&var_map}, body_{&body}, states_{&states}, context_{context} {}
 
     //! Get the index of the given symbolic literal.
     [[nodiscard]] auto index(Input::LitSymbolic const &lit) const -> size_t {
@@ -110,6 +111,9 @@ class BuildContext {
 
     //! Get the symbol store.
     [[nodiscard]] auto store() const -> SymbolStore & { return *store_; }
+
+    //! Get the associated context to call scripts.
+    [[nodiscard]] auto context() const -> Ground::ScriptCallback * { return context_; }
 
     //! Add a base for a projection.
     auto add_project(Ground::UTerm const &term,
@@ -202,6 +206,7 @@ class BuildContext {
     Util::unordered_map<String, size_t> *var_map_;
     Ground::ULitVec *body_;
     Ground::UStateVec *states_;
+    Ground::ScriptCallback *context_;
     size_t priority = 0;
     size_t index_ = 0;
 };

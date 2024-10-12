@@ -22,13 +22,13 @@ class Grounder {
     //! Destroy grounder.
     ~Grounder() noexcept;
     //! Parse a program from the given string.
-    void parse(std::string_view str, ScriptExec *code = nullptr);
+    void parse(std::string_view str, Ground::ScriptExec *code = nullptr);
     //! Parse the given files.
-    void parse(std::span<std::string_view const> const &files, ScriptExec *code = nullptr);
+    void parse(std::span<std::string_view const> const &files, Ground::ScriptExec *code = nullptr);
     //! Define a constant.
     void add_const(String name, Symbol value);
     //! Ground the program.
-    [[nodiscard]] auto ground(Input::ProgramParamVec const &params) -> bool;
+    [[nodiscard]] auto ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *context = nullptr) -> bool;
 
     //! Output the current unprocessed program.
     void output_unprocessed_program(std::ostream &out);

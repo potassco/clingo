@@ -3,22 +3,15 @@
 #include <clingo/input/parser.hh>
 #include <clingo/input/program.hh>
 
+#include <clingo/ground/script.hh>
+
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 
 namespace Clingo::Control {
 
-class ScriptExec {
-  public:
-    virtual ~ScriptExec() = default;
-    void exec(Location const &loc, Logger &log, std::string_view name, std::string_view code) {
-        do_exec(loc, log, name, code);
-    }
-
-  private:
-    virtual void do_exec(Location const &loc, Logger &log, std::string_view name, std::string_view code) = 0;
-};
+// Note: the tow interfaces below are candidates for a standalone header
 
 //! A helper for parsing.
 //!
@@ -26,7 +19,7 @@ class ScriptExec {
 class ParseHelper {
   public:
     //! Construct the helper.
-    ParseHelper(Logger &log, SymbolStore &store, Input::UnprocessedProgram &prg, ScriptExec *exec = nullptr)
+    ParseHelper(Logger &log, SymbolStore &store, Input::UnprocessedProgram &prg, Ground::ScriptExec *exec = nullptr)
         : log_{&log}, store_{&store}, exec_{exec}, parser_{log, store}, prg_{&prg} {}
 
     //! Parse a program from the given string.
@@ -133,7 +126,7 @@ class ParseHelper {
 
     Logger *log_;
     SymbolStore *store_;
-    ScriptExec *exec_;
+    Ground::ScriptExec *exec_;
     std::ifstream fin_;
     Input::Parser parser_;
     Input::UnprocessedProgram *prg_;

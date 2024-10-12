@@ -41,7 +41,7 @@ template <class F, bool stratify = false> class BuilderLit {
             cb_(std::make_unique<Ground::LitInterval>(std::move(lhs), std::move(lower), std::move(upper)));
         } else if (Input::is_external(lit.rhs().front().second)) {
             std::ostringstream oss;
-            oss << "implement me: handle external function call " << lit;
+            oss << "implement me: handle external function call " << lit << " with context " << ctx_->context();
             throw std::logic_error(oss.str());
         } else {
             auto add_cmp = [this](auto const &lhs, auto rel, auto const &rhs) {
