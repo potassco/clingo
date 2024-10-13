@@ -223,8 +223,8 @@ namespace {
 
 class ExternalMatcher : public Matcher {
   public:
-    ExternalMatcher(ScriptCallback &ctx, String name, Term const &lhs, UTermVec const &args)
-        : ctx_{&ctx}, name_{name}, lhs_{&lhs}, args_{&args} {
+    ExternalMatcher(ScriptCallback &ctx, String name, Term const &lhs, UTermVec const &args, VariableVec free)
+        : ctx_{&ctx}, name_{name}, lhs_{&lhs}, args_{&args}, free_{std::move(free)} {
         syms_.resize(args_->size());
     }
 
@@ -244,6 +244,10 @@ class ExternalMatcher : public Matcher {
         cur_ = matches_.begin();
     }
     auto do_next(InstantiationContext &ctx) -> bool override {
+        auto &ass = ctx.ass();
+        for (auto const &var : free_) {
+            ass[var] = std::nullopt;
+        }
         while (cur_ != matches_.end()) {
             if (lhs_->match(ctx.store(), *cur_++, ctx.ass())) {
                 return true;
@@ -263,6 +267,7 @@ class ExternalMatcher : public Matcher {
     Term const *lhs_;
     SymbolVec syms_;
     UTermVec const *args_;
+    VariableVec free_;
     SymbolVec matches_;
     SymbolVec::const_iterator cur_;
 };
@@ -270,9 +275,12 @@ class ExternalMatcher : public Matcher {
 } // namespace
 
 auto LitExternal::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resource &mbr,
-                             [[maybe_unused]] MatcherType type, [[maybe_unused]] std::vector<bool> const &bound)
-    -> std::pair<UMatcher, std::optional<size_t>> {
-    return {std::make_unique<ExternalMatcher>(*ctx_, name_, *lhs_, args_), std::nullopt};
+                             [[maybe_unused]] MatcherType type,
+                             std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
+    VariableSet vars;
+    lhs_->vars(vars);
+    erase_if(vars, [&bound](auto const &var) { return bound[var]; });
+    return {std::make_unique<ExternalMatcher>(*ctx_, name_, *lhs_, args_, vars.release()), std::nullopt};
 }
 
 auto LitExternal::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return -1; }
