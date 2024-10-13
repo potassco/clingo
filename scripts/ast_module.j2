@@ -10,15 +10,9 @@
 
 // NOLINTBEGIN(readability-convert-member-functions-to-static,performance-enum-size)
 
-namespace Clingo::AST {
+namespace Clingo::Python {
 
 namespace py = pybind11;
-
-using Clingo::Symbol::Symbol;
-
-using Clingo::Core::Library;
-using Clingo::Core::Location;
-using Clingo::Core::handle_error;
 
 using StringArray = std::vector<std::string>;
 

@@ -3,11 +3,9 @@
 
 #include <sstream>
 
-namespace Clingo::Core {
+namespace Clingo::Python {
 
-namespace py = pybind11;
-
-Library::Library(bool shared, bool slotted, LoggerCB cb, size_t default_message_limit) {
+Library::Library(bool shared, bool slotted, Logger cb, size_t default_message_limit) {
     clingo_lib_flags_t flags = 0;
     if (shared) {
         flags |= clingo_lib_flags_shared;
@@ -181,7 +179,7 @@ auto operator<=>(Location const &a, Location const &b) -> std::strong_ordering {
 
 // register module
 
-void register_module(pybind11::module &m) {
+void register_core(pybind11::module &m) {
     auto core = m.def_submodule("core", doc(R"(
 Core functionality used throughout the clingo package.
 )"));
@@ -208,7 +206,7 @@ Destroying the library object frees all symbols.
 
 This class implements the ContextManager interface.
 )"))
-        .def(py::init<bool, bool, LoggerCB, size_t>(), "Create a library object.", py::arg("shared") = true,
+        .def(py::init<bool, bool, Logger, size_t>(), "Create a library object.", py::arg("shared") = true,
              py::arg("slotted") = true, py::arg("logger") = nullptr, py::arg("message_limit") = default_message_limit,
              doc(R"(
 Create a library object.
@@ -263,4 +261,4 @@ Close the library object.
         CLINGO_PY_TOTAL_ORDER;
 }
 
-} // namespace Clingo::Core
+} // namespace Clingo::Python

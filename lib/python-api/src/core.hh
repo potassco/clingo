@@ -2,26 +2,17 @@
 
 #include <clingo.h>
 
-#include <pybind11/functional.h>
-#include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
 
-namespace Clingo::Core {
+namespace Clingo::Python {
 
-namespace py = pybind11;
-
-using LoggerCB = std::function<void(clingo_message_e, char const *)>;
+using Logger = std::function<void(clingo_message_e, char const *)>;
 
 static constexpr size_t default_message_limit = 25;
 
-constexpr auto doc(char const *str) -> char const * {
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    return str + 1;
-}
-
 class Library {
   public:
-    Library(bool shared, bool slotted, LoggerCB cb, size_t default_message_limit);
+    Library(bool shared, bool slotted, Logger cb, size_t default_message_limit);
     Library(Library const &other) = delete;
     Library(Library &&other) = delete;
     ~Library() noexcept;
@@ -33,34 +24,8 @@ class Library {
     static void logger_(clingo_message_t code, char const *message, void *self);
 
     clingo_lib_t *lib_ = nullptr;
-    LoggerCB cb_;
+    Logger cb_;
 };
-
-inline void handle_error(clingo_result_t code) {
-    switch (static_cast<clingo_result_e>(code)) {
-        case clingo_result_success: {
-            break;
-        }
-        case clingo_result_unknown: {
-            throw std::runtime_error("unknown error");
-        }
-        case clingo_result_runtime: {
-            throw std::runtime_error("runtime error");
-        }
-        case clingo_result_logic: {
-            throw std::logic_error("logic error");
-        }
-        case clingo_result_invalid: {
-            throw std::invalid_argument("invalid argumets");
-        }
-        case clingo_result_range: {
-            throw std::range_error("range error");
-        }
-        case clingo_result_bad_alloc: {
-            throw std::bad_alloc();
-        }
-    }
-}
 
 class StringBuilder {
   public:
@@ -129,6 +94,6 @@ class Location {
     clingo_location_t const *loc_ = nullptr;
 };
 
-void register_module(pybind11::module &m);
+void register_core(pybind11::module &m);
 
-} // namespace Clingo::Core
+} // namespace Clingo::Python

@@ -1,7 +1,7 @@
 #include "ast2.hh"
 #include "ast_node.hh"
 
-namespace Clingo::AST2 {
+namespace Clingo::Python {
 
 namespace py = pybind11;
 
@@ -98,7 +98,7 @@ This can be used to auto-generate most of the binding.)doc");
 {%-     endfor %}
 {%    elif type.type == 'record' %}
     py_{{ type_name }}
-        .def(py::init<Core::Library &
+        .def(py::init<Library &
         {%- for argument_name, argument in type.arguments.items() -%}
             , {{ argument.type | cref -}}
         {%- endfor -%}>(), py::arg("lib")

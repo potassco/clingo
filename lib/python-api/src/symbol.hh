@@ -2,11 +2,11 @@
 
 #include "core.hh"
 
-#include <pybind11/operators.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
+#include <clingo.h>
 
-namespace Clingo::Symbol {
+#include <pybind11/pybind11.h>
+
+namespace Clingo::Python {
 
 namespace py = pybind11;
 
@@ -34,12 +34,12 @@ class Symbol {
 
     friend auto Infimum() -> Symbol;
     friend auto Supremum() -> Symbol;
-    friend auto Number(Core::Library &lib, py::int_ num) -> Symbol;
-    friend auto String(Core::Library &lib, std::string const &str) -> Symbol;
-    friend auto Tuple(Core::Library &lib, std::vector<Symbol> const &args) -> Symbol;
-    friend auto Function(Core::Library &lib, std::string const &name, std::vector<Symbol> const &args,
+    friend auto Number(Library &lib, py::int_ num) -> Symbol;
+    friend auto String(Library &lib, std::string const &str) -> Symbol;
+    friend auto Tuple(Library &lib, std::vector<Symbol> const &args) -> Symbol;
+    friend auto Function(Library &lib, std::string const &name, std::vector<Symbol> const &args,
                          bool positive) -> Symbol;
-    friend auto parse_term(Core::Library &lib, std::string str) -> Symbol;
+    friend auto parse_term(Library &lib, std::string str) -> Symbol;
     friend auto operator==(Symbol const &a, Symbol const &b) -> bool;
     friend auto operator<=>(Symbol const &a, Symbol const &b) -> std::strong_ordering;
 
@@ -49,6 +49,8 @@ class Symbol {
     clingo_symbol_t sym_;
 };
 
-void register_module(pybind11::module &m);
+using SymbolVec = std::vector<Symbol>;
 
-} // namespace Clingo::Symbol
+void register_symbol(pybind11::module &m);
+
+} // namespace Clingo::Python

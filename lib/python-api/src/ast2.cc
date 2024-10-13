@@ -1,14 +1,14 @@
 #include "ast2.hh"
 #include "ast_node.hh"
 
-namespace Clingo::AST2 {
+namespace Clingo::Python {
 
 namespace py = pybind11;
 
 using TermVariable = Node<clingo_ast_type_term_variable>;
 using Term = std::variant<TermVariable>;
 
-template <> struct ast_type_info<Core::Location> {
+template <> struct ast_type_info<Location> {
     static constexpr auto type = Type::location;
     using c_type = clingo_location_t const *;
 };
@@ -31,7 +31,7 @@ template <> struct ast_type_info<Term> {
 template <> struct ast_type_info<TermVariable> {
     static constexpr auto type = Type::record;
     using c_type = clingo_ast_type_t const *;
-    using arguments = std::tuple<Core::Location, char const *, bool>;
+    using arguments = std::tuple<Location, char const *, bool>;
     static constexpr auto doc = R"doc(Construct a TermVariable object.
 
 Parameters
@@ -87,7 +87,7 @@ lib
     The library object for storing symbols.
 )doc";
 
-void register_module(pybind11::module &m) {
+void register_ast2(pybind11::module &m) {
 
     auto ast = m.def_submodule(
         "ast2", R"doc(This module provides functions to work with Abstract Syntax Trees of logic programs.)doc");
@@ -99,8 +99,8 @@ This can be used to auto-generate most of the binding.)doc");
     auto py_term_variable = py::class_<TermVariable>(ast, "TermVariable", R"doc(A term representing a variable.)doc");
 
     py_term_variable
-        .def(py::init<Core::Library &, Core::Location const &, char const *, bool>(), py::arg("lib"),
-             py::arg("location"), py::arg("name"), py::arg("anonymous") = false, TermVariable::init_doc())
+        .def(py::init<Library &, Location const &, char const *, bool>(), py::arg("lib"), py::arg("location"),
+             py::arg("name"), py::arg("anonymous") = false, TermVariable::init_doc())
         .def("__str__", &TermVariable::to_string)
         .def("__hash__", &TermVariable::hash)
         .def_property_readonly(TermVariable::attr_name<0>(), &TermVariable::get<0>, TermVariable::attr_doc<0>())
@@ -111,4 +111,4 @@ This can be used to auto-generate most of the binding.)doc");
         .def("update", &TermVariable::update, py::arg("lib"), doc_update);
 }
 
-} // namespace Clingo::AST2
+} // namespace Clingo::Python

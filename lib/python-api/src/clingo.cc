@@ -1,14 +1,16 @@
 #include "ast.hh"
 #include "ast2.hh"
 #include "core.hh"
+#include "script.hh"
 #include "symbol.hh"
 
 #include <pybind11/pybind11.h>
 
 PYBIND11_MODULE(clingo, m) {
     m.doc() = "the clingo python module";
-    Clingo::Core::register_module(m);
-    Clingo::Symbol::register_module(m);
-    Clingo::AST::register_module(m);
-    Clingo::AST2::register_module(m);
+    Clingo::Python::register_core(m);
+    Clingo::Python::register_symbol(m);
+    Clingo::Python::register_script(m);
+    Clingo::Python::register_ast(m);
+    Clingo::Python::register_ast2(m);
 }

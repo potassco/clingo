@@ -10,15 +10,9 @@
 
 // NOLINTBEGIN(readability-convert-member-functions-to-static,performance-enum-size)
 
-namespace Clingo::AST {
+namespace Clingo::Python {
 
 namespace py = pybind11;
-
-using Clingo::Symbol::Symbol;
-
-using Clingo::Core::handle_error;
-using Clingo::Core::Library;
-using Clingo::Core::Location;
 
 using StringArray = std::vector<std::string>;
 
@@ -9022,7 +9016,7 @@ auto rewrite_statement(RewriteContext &ctx, Statement &stm) -> std::vector<State
     return res;
 }
 
-void register_module(pybind11::module &m) {
+void register_ast(pybind11::module &m) {
     auto ast = m.def_submodule(
         "ast", R"doc(This module provides functions to work with Abstract Syntax Trees of logic programs.)doc");
 
@@ -12420,6 +12414,6 @@ Returns
 A list of rewritten statements.)doc");
 }
 
-} // namespace Clingo::AST
+} // namespace Clingo::Python
 
 // NOLINTEND(readability-convert-member-functions-to-static,performance-enum-size)

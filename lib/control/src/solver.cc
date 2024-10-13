@@ -4,6 +4,8 @@
 
 namespace Clingo::Control {
 
+void Scripts::register_script(std::string_view name, UScript script) { scripts_.emplace_back(name, std::move(script)); }
+
 void Scripts::do_exec(Location const &loc, Logger &log, std::string_view name, std::string_view code) {
     bool found = false;
     for (auto const &script : scripts_) {

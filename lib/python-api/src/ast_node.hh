@@ -3,8 +3,9 @@
 #include <variant>
 
 #include "core.hh"
+#include "util.hh"
 
-namespace Clingo::AST2 {
+namespace Clingo::Python {
 
 namespace py = pybind11;
 
@@ -21,11 +22,10 @@ template <clingo_ast_type_e T> class Node {
 
     explicit Node(clingo_ast_t *ast) : ast_{ast} {}
 
-    Node(Node const &x) { Core::handle_error(clingo_ast_copy(x.ast_, &ast_)); }
+    Node(Node const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
 
     template <class... U>
-    Node(Core::Library &lib, U &&...args)
-        : ast_{construct_(std::forward<U>(args)..., static_cast<clingo_lib_t *>(lib))} {}
+    Node(Library &lib, U &&...args) : ast_{construct_(std::forward<U>(args)..., static_cast<clingo_lib_t *>(lib))} {}
 
     Node(Node &&x) noexcept { std::swap(ast_, x.ast_); }
 
@@ -36,7 +36,7 @@ template <clingo_ast_type_e T> class Node {
         if (ast_ != x.ast_) {
             clingo_ast_free(ast_);
             ast_ = nullptr;
-            Core::handle_error(clingo_ast_copy(x.ast_, &ast_));
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
         }
         return *this;
     }
@@ -56,10 +56,10 @@ template <clingo_ast_type_e T> class Node {
 
     auto to_string() -> std::string {
         size_t len = 0;
-        Core::handle_error(clingo_ast_to_string_size(ast_, &len));
+        handle_error(clingo_ast_to_string_size(ast_, &len));
         std::string str;
         str.resize(len);
-        Core::handle_error(clingo_ast_to_string(ast_, str.data(), len));
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
         if (!str.empty() && str.back() == '\0') {
             str.pop_back();
         }
@@ -78,13 +78,13 @@ template <clingo_ast_type_e T> class Node {
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs) { visit_<0>(visitor, args, kwargs); }
 
-    auto update(Core::Library &lib, py::kwargs const &kwargs) -> Node {
+    auto update(Library &lib, py::kwargs const &kwargs) -> Node {
         return [&]<size_t... I>([[maybe_unused]] std::index_sequence<I...> seq) {
             return Node{lib, update_value_<I>(kwargs)...};
         }(std::make_index_sequence<std::tuple_size_v<arguments>>{});
     }
 
-    auto transform(Core::Library &lib, py::handle transform, py::args const &args,
+    auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<Node> {
         return [&]<size_t... I>([[maybe_unused]] std::index_sequence<I...> seq) {
             return transform_<I...>(lib, transform_value_<I>(transform, args, kwargs)...);
@@ -104,15 +104,15 @@ template <clingo_ast_type_e T> class Node {
         requires(ast_type_info<U>::type == Type::location)
     auto get_() -> U {
         clingo_location_t const *ret = nullptr;
-        Core::handle_error(clingo_ast_attribute_get_location(ast_, name, &ret));
-        return Core::Location{ret};
+        handle_error(clingo_ast_attribute_get_location(ast_, name, &ret));
+        return Location{ret};
     }
 
     template <clingo_ast_attribute_e name, class U>
         requires(ast_type_info<U>::type == Type::string)
     auto get_() -> U {
         char const *ret = nullptr;
-        Core::handle_error(clingo_ast_attribute_get_string(ast_, name, &ret));
+        handle_error(clingo_ast_attribute_get_string(ast_, name, &ret));
         return ret;
     }
 
@@ -120,7 +120,7 @@ template <clingo_ast_type_e T> class Node {
         requires(ast_type_info<U>::type == Type::number)
     auto get_() -> U {
         int ret = 0;
-        Core::handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_anonymous, &ret));
+        handle_error(clingo_ast_attribute_get_number(ast_, clingo_ast_attribute_anonymous, &ret));
         return static_cast<U>(ret);
     }
 
@@ -128,7 +128,7 @@ template <clingo_ast_type_e T> class Node {
         requires(ast_type_info<U>::type == Type::record)
     auto get_() -> U {
         clingo_ast_t *ast = nullptr;
-        Core::handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_term, &ast));
+        handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_term, &ast));
         return U{ast};
     }
 
@@ -136,7 +136,7 @@ template <clingo_ast_type_e T> class Node {
         requires(ast_type_info<U>::type == Type::variant)
     auto get_() -> U {
         clingo_ast_t *ast = nullptr;
-        Core::handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_term, &ast));
+        handle_error(clingo_ast_attribute_get_ast(ast_, clingo_ast_attribute_term, &ast));
         clingo_ast_type_t type = 0;
         if (clingo_ast_get_type(ast, &type) != clingo_result_success) {
             clingo_ast_free(ast);
@@ -160,7 +160,7 @@ template <clingo_ast_type_e T> class Node {
 
     // conversion from C++ to C
 
-    static auto convert_(Core::Location const &loc) -> clingo_location_t const * {
+    static auto convert_(Location const &loc) -> clingo_location_t const * {
         return static_cast<clingo_location_t const *>(loc);
     }
 
@@ -174,8 +174,7 @@ template <clingo_ast_type_e T> class Node {
 
     template <class... U> static auto construct_(clingo_lib_t *lib, U &&...args) -> clingo_ast_t * {
         clingo_ast_t *ast = nullptr;
-        Core::handle_error(
-            clingo_ast_construct(lib, static_cast<clingo_ast_type_t>(T), &ast, std::forward<U>(args)...));
+        handle_error(clingo_ast_construct(lib, static_cast<clingo_ast_type_t>(T), &ast, std::forward<U>(args)...));
         return ast;
     }
 
@@ -223,7 +222,7 @@ template <clingo_ast_type_e T> class Node {
         return get<i>();
     }
 
-    template <size_t... I, class... U> auto transform_(Core::Library &lib, U &&...args) -> std::optional<Node> {
+    template <size_t... I, class... U> auto transform_(Library &lib, U &&...args) -> std::optional<Node> {
         if ((false || ... || args.has_value())) {
             return std::make_optional<Node>(lib, transformed_value_<I>(std::forward<U>(args))...);
         }
@@ -249,4 +248,4 @@ template <clingo_ast_type_e T> class Node {
 
 template <clingo_ast_type_e T> inline auto c_cast(Node<T> const &x) -> clingo_ast_t * { return x.ast_; }
 
-} // namespace Clingo::AST2
+} // namespace Clingo::Python
