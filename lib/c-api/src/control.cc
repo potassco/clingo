@@ -6,7 +6,7 @@
 
 // NOLINTBEGIN(cppcoreguidelines-owning-memory,cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
-template <typename In, typename C, typename Pred> auto append_n(In begin, size_t n, C out, Pred pred) {
+template <typename In, typename C, typename Pred> auto append_n(In begin, size_t n, C &out, Pred pred) {
     out.reserve(out.size() + n);
     for (auto end = begin + n; begin != end; ++begin) {
         out.emplace_back(pred(*begin));
@@ -76,9 +76,7 @@ class CScript : public Clingo::Control::Script {
     ~CScript() noexcept override { script_.free(data_); }
 
   private:
-    void do_exec(Clingo::Location const &loc, std::string_view code) override {
-        script_.execute(c_cast(&loc), std::string(code).c_str(), data_);
-    }
+    void do_exec(std::string_view code) override { script_.execute(std::string(code).c_str(), data_); }
 
     void do_main(Clingo::Control::Solver &slv) override {
         clingo_control_t ctl{lib_, &slv};
@@ -101,11 +99,9 @@ class CScript : public Clingo::Control::Script {
         CLINGO_CATCH;
     }
 
-    void do_call(Clingo::Location const &loc, std::string_view name, Clingo::SymbolSpan args,
-                 Clingo::SymbolVec &out) override {
+    void do_call(std::string_view name, Clingo::SymbolSpan args, Clingo::SymbolVec &out) override {
         auto data = CBData{this, out};
-        handle_error(script_.call(c_cast(&loc), std::string(name).c_str(), to_c_sym(args.data()), args.size(), &cb,
-                                  &data, data_));
+        handle_error(script_.call(std::string(name).c_str(), to_c_sym(args.data()), args.size(), &cb, &data, data_));
     }
 
     clingo_lib_t *lib_;

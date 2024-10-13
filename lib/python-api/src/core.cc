@@ -34,7 +34,7 @@ Library::operator clingo_lib_t *() const {
     return lib_;
 }
 
-void Library::logger_(clingo_message_t code, char const *message, void *self) {
+void Library::logger_(clingo_message_t code, char const *message, void *self) noexcept {
     try {
         static_cast<Library *>(self)->cb_(static_cast<clingo_message_e>(code), message);
     } catch (std::exception const &e) {

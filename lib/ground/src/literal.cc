@@ -176,6 +176,113 @@ auto LitComparison::do_compare_to(Lit const &other) const -> std::weak_ordering 
     return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
 }
 
+// LitExternal
+
+void LitExternal::do_print(std::ostream &out) const {
+    out << *lhs_ << "=@" << name_;
+    if (!args_.empty()) {
+        out << "(" << Util::p_range(args_, [](auto &out, auto &term) { out << *term; }) << ")";
+    }
+}
+
+auto LitExternal::do_output([[maybe_unused]] InstantiationContext &ctx, [[maybe_unused]] OutputLit &out) const -> bool {
+    return false;
+}
+
+auto LitExternal::do_copy() const -> ULit {
+    return std::make_unique<LitExternal>(*ctx_, name_, lhs_->copy(), copy_uvec(args_));
+}
+
+auto LitExternal::do_domain() const -> bool { return true; }
+
+auto LitExternal::do_single_pass() const -> bool { return true; }
+
+void LitExternal::do_vars(VariableSet &vars, VarSelectMode mode) const {
+    if (mode == VarSelectMode::all) {
+        lhs_->vars(vars);
+    }
+    if (mode == VarSelectMode::provide) {
+        VariableSet provide;
+        lhs_->vars(vars);
+        VariableSet depend;
+        for (auto const &arg : args_) {
+            arg->vars(vars);
+        }
+        for (auto const &var : depend) {
+            provide.erase(var);
+        }
+        vars.insert(provide.begin(), provide.end());
+    } else {
+        for (auto const &arg : args_) {
+            arg->vars(vars);
+        }
+    }
+}
+
+namespace {
+
+class ExternalMatcher : public Matcher {
+  public:
+    ExternalMatcher(ScriptCallback &ctx, String name, Term const &lhs, UTermVec const &args)
+        : ctx_{&ctx}, name_{name}, lhs_{&lhs}, args_{&args} {
+        syms_.resize(args_->size());
+    }
+
+  private:
+    void do_init([[maybe_unused]] SymbolStore &store, [[maybe_unused]] size_t gen) override {}
+    void do_match(InstantiationContext &ctx) override {
+        syms_.clear();
+        matches_.clear();
+        for (auto const &arg : *args_) {
+            if (auto sym = arg->eval(ctx.store(), ctx.ass())) {
+                syms_.emplace_back(*sym);
+            } else {
+                return;
+            }
+        }
+        ctx_->call(name_.view(), syms_, matches_);
+        cur_ = matches_.begin();
+    }
+    auto do_next(InstantiationContext &ctx) -> bool override {
+        while (cur_ != matches_.end()) {
+            if (lhs_->match(ctx.store(), *cur_++, ctx.ass())) {
+                return true;
+            }
+        }
+        return false;
+    }
+    void do_print(std::ostream &out) const override {
+        out << *lhs_ << "=@" << name_;
+        if (!args_->empty()) {
+            out << "(" << Util::p_range(*args_, [](auto &out, auto &term) { out << *term; }) << ")";
+        }
+    }
+
+    ScriptCallback *ctx_;
+    String name_;
+    Term const *lhs_;
+    SymbolVec syms_;
+    UTermVec const *args_;
+    SymbolVec matches_;
+    SymbolVec::const_iterator cur_;
+};
+
+} // namespace
+
+auto LitExternal::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resource &mbr,
+                             [[maybe_unused]] MatcherType type, [[maybe_unused]] std::vector<bool> const &bound)
+    -> std::pair<UMatcher, std::optional<size_t>> {
+    return {std::make_unique<ExternalMatcher>(*ctx_, name_, *lhs_, args_), std::nullopt};
+}
+
+auto LitExternal::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return -1; }
+
+auto LitExternal::do_hash() const -> size_t { return Util::value_hash(std::hash<LitExternal const *>{}(this)); }
+
+auto LitExternal::do_equal_to(Lit const &other) const -> bool { return this == &other; }
+
+auto LitExternal::do_compare_to(Lit const &other) const -> std::weak_ordering { return this <=> &other; }
+
 // LitSymbolic
 
 void LitSymbolic::do_print(std::ostream &out) const {

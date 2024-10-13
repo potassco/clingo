@@ -9,13 +9,6 @@
 
 // NOLINTBEGIN(cppcoreguidelines-macro-usage,bugprone-macro-parentheses)
 
-#define CLINGO_TRY try
-#define CLINGO_CATCH                                                                                                   \
-    catch (...) {                                                                                                      \
-        return handle_error();                                                                                         \
-    }                                                                                                                  \
-    return clingo_result_success
-
 #define CLINGO_PY_TOTAL_ORDER                                                                                          \
     .def(py::self == py::self)                                                                                         \
         .def(py::self != py::self)                                                                                     \
@@ -64,22 +57,6 @@ inline void handle_error(clingo_result_t code) {
         case clingo_result_bad_alloc: {
             throw std::bad_alloc();
         }
-    }
-}
-
-inline auto handle_error() -> clingo_result_t {
-    try {
-        throw;
-    } catch (std::invalid_argument const &e) {
-        return clingo_result_invalid;
-    } catch (std::range_error const &e) {
-        return clingo_result_range;
-    } catch (std::bad_alloc const &e) {
-        return clingo_result_bad_alloc;
-    } catch (std::logic_error const &e) {
-        return clingo_result_logic;
-    } catch (...) {
-        return clingo_result_runtime;
     }
 }
 

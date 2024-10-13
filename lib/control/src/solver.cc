@@ -10,17 +10,12 @@ void Scripts::do_exec(Location const &loc, Logger &log, std::string_view name, s
     bool found = false;
     for (auto const &script : scripts_) {
         if (script.first == name) {
-            try {
-                script.second->exec(loc, code);
-            } catch (std::runtime_error const &e) {
-                GRINGO_REPORT(log, error) << "script execution failed: " << e.what();
-                throw;
-            }
+            script.second->exec(code);
             found = true;
         }
     }
     if (!found) {
-        GRINGO_REPORT(log, error) << "script support for '" << name << "' not available";
+        GRINGO_REPORT_LOC(log, error, loc) << "script support for '" << name << "' not available";
         throw std::runtime_error("script support not available");
     }
 }
@@ -42,11 +37,11 @@ auto Scripts::do_callable(std::string_view name, size_t args) -> bool {
     return false;
 }
 
-void Scripts::do_call(Location const &loc, std::string_view name, SymbolSpan args, SymbolVec &out) {
+void Scripts::do_call(std::string_view name, SymbolSpan args, SymbolVec &out) {
     out.clear();
     for (auto const &script : scripts_) {
         if (script.second->callable(name, args.size())) {
-            script.second->call(loc, name, args, out);
+            script.second->call(name, args, out);
         }
     }
 }

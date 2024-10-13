@@ -4,11 +4,13 @@
 
 #include <clingo/ground/base.hh>
 #include <clingo/ground/instantiator.hh>
+#include <clingo/ground/script.hh>
 #include <clingo/ground/term.hh>
 
 #include <clingo/util/ordered_map.hh>
 
 #include <memory_resource>
+#include <utility>
 
 namespace Clingo::Ground {
 
@@ -119,6 +121,37 @@ class LitComparison : public Lit {
     UTerm lhs_;
     UTerm rhs_;
     Relation cmp_;
+};
+
+//! A literal representing a comparison.
+class LitExternal : public Lit {
+  public:
+    //! Construct the literal.
+    LitExternal(ScriptCallback &ctx, String name, UTerm lhs, UTermVec args)
+        : ctx_{&ctx}, name_{name}, lhs_{std::move(lhs)}, args_{std::move(args)} {}
+
+  private:
+    void do_vars(VariableSet &vars, VarSelectMode mode) const override;
+    [[nodiscard]] auto do_domain() const -> bool override;
+    [[nodiscard]] auto do_single_pass() const -> bool override;
+    [[nodiscard]] auto
+    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
+
+    void do_print(std::ostream &out) const override;
+    auto do_output(InstantiationContext &ctx, OutputLit &out) const -> bool override;
+
+    [[nodiscard]] auto do_copy() const -> ULit override;
+
+    [[nodiscard]] auto do_hash() const -> size_t override;
+    [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
+    [[nodiscard]] auto do_compare_to(Lit const &other) const -> std::weak_ordering override;
+
+    ScriptCallback *ctx_;
+    String name_;
+    UTerm lhs_;
+    UTermVec args_;
 };
 
 //! A literal representing an interval assignment.

@@ -4,7 +4,20 @@
 
 #include <pybind11/pybind11.h>
 
+// NOLINTBEGIN(cppcoreguidelines-macro-usage,bugprone-macro-parentheses)
+
+#define CLINGO_TRY try
+#define CLINGO_CATCH(lib)                                                                                              \
+    catch (...) {                                                                                                      \
+        return handle_error(lib);                                                                                      \
+    }                                                                                                                  \
+    return clingo_result_success
+
+// NOLINTEND(cppcoreguidelines-macro-usage,bugprone-macro-parentheses)
+
 namespace Clingo::Python {
+
+namespace py = pybind11;
 
 using Logger = std::function<void(clingo_message_e, char const *)>;
 
@@ -21,11 +34,32 @@ class Library {
     operator clingo_lib_t *() const;
 
   private:
-    static void logger_(clingo_message_t code, char const *message, void *self);
+    static void logger_(clingo_message_t code, char const *message, void *self) noexcept;
 
     clingo_lib_t *lib_ = nullptr;
     Logger cb_;
 };
+
+inline auto handle_error(clingo_lib_t *lib) -> clingo_result_t {
+    try {
+        throw;
+    } catch (std::invalid_argument const &e) {
+        clingo_lib_report(lib, clingo_message_error, e.what());
+        return clingo_result_invalid;
+    } catch (std::range_error const &e) {
+        clingo_lib_report(lib, clingo_message_error, e.what());
+        return clingo_result_range;
+    } catch (std::bad_alloc const &e) {
+        clingo_lib_report(lib, clingo_message_error, e.what());
+        return clingo_result_bad_alloc;
+    } catch (std::logic_error const &e) {
+        clingo_lib_report(lib, clingo_message_error, e.what());
+        return clingo_result_logic;
+    } catch (std::exception const &e) {
+        clingo_lib_report(lib, clingo_message_error, e.what());
+        return clingo_result_runtime;
+    }
+}
 
 class StringBuilder {
   public:

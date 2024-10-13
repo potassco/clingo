@@ -188,6 +188,13 @@ typedef uint32_t clingo_lib_flags_t;
 CLINGO_VISIBILITY_DEFAULT clingo_lib_t *clingo_lib_new(clingo_lib_flags_t flags, clingo_logger_t logger,
                                                        void *logger_data, size_t message_limit);
 
+//! Report a message via the libraries logger.
+//!
+//! @param[in] lib the libary
+//! @param[in] code associated code
+//! @param[in] message message
+CLINGO_VISIBILITY_DEFAULT void clingo_lib_report(clingo_lib_t *lib, clingo_message_t code, char const *message);
+
 //! Free a library object created with clingo_lib_new().
 //!
 //! If parameter fast is set to false, the garbage collector is run to ensure
@@ -745,13 +752,11 @@ typedef clingo_result_t (*clingo_symbol_callback_t)(clingo_symbol_t const *symbo
 //! Custom scripting language to run functions during grounding.
 typedef struct clingo_script {
     //! Evaluate the given source code.
-    //! @param[in] location the location in the logic program of the source code
     //! @param[in] code the code to evaluate
     //! @param[in] data user data as given when registering the script
     //! @return whether the function call was successful
-    clingo_result_t (*execute)(clingo_location_t const *location, char const *code, void *data);
+    clingo_result_t (*execute)(char const *code, void *data);
     //! Call the function with the given name and arguments.
-    //! @param[in] location the location in the logic program of the function call
     //! @param[in] name the name of the function
     //! @param[in] arguments the arguments to the function
     //! @param[in] arguments_size the number of arguments
@@ -759,9 +764,8 @@ typedef struct clingo_script {
     //! @param[in] symbol_callback_data user data for the symbol callback
     //! @param[in] data user data as given when registering the script
     //! @return whether the function call was successful
-    clingo_result_t (*call)(clingo_location_t const *location, char const *name, clingo_symbol_t const *arguments,
-                            size_t arguments_size, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data,
-                            void *data);
+    clingo_result_t (*call)(char const *name, clingo_symbol_t const *arguments, size_t arguments_size,
+                            clingo_symbol_callback_t symbol_callback, void *symbol_callback_data, void *data);
     //! Check if the given function is callable.
     //! @param[in] name the name of the function
     //! @param[in] arguments the number of arguments

@@ -23,13 +23,11 @@ class ScriptCallback {
   public:
     virtual ~ScriptCallback() = default;
     auto callable(std::string_view name, size_t args) -> bool { return do_callable(name, args); }
-    void call(Location const &loc, std::string_view name, SymbolSpan args, SymbolVec &out) {
-        do_call(loc, name, args, out);
-    }
+    void call(std::string_view name, SymbolSpan args, SymbolVec &out) { do_call(name, args, out); }
 
   private:
     virtual auto do_callable(std::string_view name, size_t args) -> bool = 0;
-    virtual void do_call(Location const &loc, std::string_view name, SymbolSpan args, SymbolVec &out) = 0;
+    virtual void do_call(std::string_view name, SymbolSpan args, SymbolVec &out) = 0;
 };
 
 } // namespace Clingo::Ground

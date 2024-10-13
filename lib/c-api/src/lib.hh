@@ -41,7 +41,11 @@ class ClingoError : public std::exception {
     clingo_result_t code_;
 };
 
-inline void handle_error(clingo_result_t code) { throw ClingoError(code); }
+inline void handle_error(clingo_result_t code) {
+    if (code != clingo_result_success) {
+        throw ClingoError(code);
+    }
+}
 
 inline auto handle_error() -> clingo_result_t {
     try {

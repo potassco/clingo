@@ -10,8 +10,6 @@
 
 #include <clingo/input/rewrite/analyze.hh>
 
-#include <sstream>
-
 namespace Clingo::Control {
 
 namespace Detail {
@@ -40,17 +38,16 @@ template <class F, bool stratify = false> class BuilderLit {
             auto upper = build_term(ctx_->var_map(), *rng.rhs());
             cb_(std::make_unique<Ground::LitInterval>(std::move(lhs), std::move(lower), std::move(upper)));
         } else if (Input::is_external(lit.rhs().front().second)) {
-            /*
+            if (ctx_->context() == nullptr) {
+                GRINGO_REPORT_LOC(ctx_->logger(), error, lit.loc()) << "script context unavailable";
+                throw std::runtime_error("script context unavailable");
+            }
             auto lhs = build_term(ctx_->var_map(), lit.lhs());
             auto const &rng = std::get<Input::TermFunction>(lit.rhs().front().second);
             auto args = Clingo::Util::transform(rng.pool().front().elems(), [this](auto const &elem) {
                 return build_term(ctx_->var_map(), std::get<Input::Term>(elem));
             });
-            cb_(std::make_unique<Ground::LitExternal>(rng.name(), std::move(lhs), std::move(args)));
-            */
-            std::ostringstream oss;
-            oss << "implement me: handle external function call " << lit << " with context " << ctx_->context();
-            throw std::logic_error(oss.str());
+            cb_(std::make_unique<Ground::LitExternal>(*ctx_->context(), rng.name(), std::move(lhs), std::move(args)));
         } else {
             auto add_cmp = [this](auto const &lhs, auto rel, auto const &rhs) {
                 auto l = build_term(ctx_->var_map(), lhs);

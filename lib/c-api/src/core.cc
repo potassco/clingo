@@ -101,6 +101,13 @@ extern "C" auto clingo_lib_new(clingo_lib_flags_t flags, clingo_logger_t logger,
     return lib;
 }
 
+extern "C" void clingo_lib_report(clingo_lib_t *lib, clingo_message_t code, char const *message) {
+    auto c = static_cast<Clingo::MessageCode>(code);
+    if (lib != nullptr && lib->log.check(c)) {
+        Clingo::Report(lib->log, c).out() << message;
+    }
+}
+
 extern "C" void clingo_lib_free(clingo_lib_t *lib, bool fast) {
     if (fast) {
         // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
