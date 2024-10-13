@@ -93,7 +93,7 @@ extern "C" auto clingo_lib_new(clingo_lib_flags_t flags, clingo_logger_t logger,
         }
         // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
         lib = new clingo_lib{
-            prt, Clingo::Logger{prt, message_limit},
+            Clingo::Logger{prt, message_limit},
             Clingo::make_symbol_store((flags & clingo_lib_flags_slotted) != 0, (flags & clingo_lib_flags_shared) != 0)};
         // NOLINTNEXTLINE(bugprone-empty-catch)
     } catch (...) {
@@ -109,6 +109,10 @@ extern "C" void clingo_lib_free(clingo_lib_t *lib, bool fast) {
         static auto mut = std::mutex{};
         static auto *lst = static_cast<clingo_lib_t *>(nullptr);
         if (lib != nullptr) {
+            // reset logger and scripts in case they are holding symbols
+            // the store might be kept alive if it is still holding symbols
+            lib->log = Clingo::Logger{};
+            lib->scripts = Clingo::Control::Scripts{};
             auto res = lib->store->gc();
             if (get<0>(res) > 0 || get<1>(res) > 0) {
                 auto lck = std::unique_lock(mut);

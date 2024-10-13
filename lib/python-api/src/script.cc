@@ -102,14 +102,14 @@ void register_script(pybind11::module &m) {
     auto script = m.def_submodule("script", doc(R"(
 Module containing functions to add custom scripts, which can be embedded into logic programs.
 )"));
-    py::class_<Script>(m, "Script")
+    py::class_<Script>(script, "Script")
         .def(py::init<>())
         .def("execute", &Script::execute)
-        .def("execute", &Script::call)
-        .def("execute", &Script::callable)
-        //.def("execute", &Script::main)
-        .def("execute", &Script::name)
-        .def("execute", &Script::version);
+        .def("call", &Script::call)
+        .def("callable", &Script::callable)
+        //.def("main", &Script::main)
+        .def("name", &Script::name)
+        .def("version", &Script::version);
 
     script.def("register", &reg_script, "Registers a script language which can then be embedded into a logic program.");
 }

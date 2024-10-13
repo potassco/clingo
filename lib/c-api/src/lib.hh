@@ -9,9 +9,8 @@
 #include <stdexcept>
 
 struct clingo_lib {
-    clingo_lib(Clingo::Logger::Printer prt, Clingo::Logger log, std::unique_ptr<Clingo::SymbolStore> store)
-        : prt{std::move(prt)}, log{std::move(log)}, store{std::move(store)} {}
-    Clingo::Logger::Printer prt;
+    clingo_lib(Clingo::Logger log, std::unique_ptr<Clingo::SymbolStore> store)
+        : log{std::move(log)}, store{std::move(store)} {}
     Clingo::Logger log;
     Clingo::Control::Scripts scripts;
     std::unique_ptr<Clingo::SymbolStore> store;

@@ -95,7 +95,7 @@ template <class It, class Pred> auto transform(It begin, It end, Pred pred) {
 template <class Rng, class Pred> auto transform(Rng const &rng, Pred pred) {
     using std::begin;
     using std::end;
-    return transform_vec(begin(rng), end(rng), pred);
+    return transform(begin(rng), end(rng), pred);
 }
 
 } // namespace Clingo::Python
