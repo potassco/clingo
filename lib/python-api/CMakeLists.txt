@@ -3,6 +3,7 @@ pybind11_add_module(pyclingo
     src/ast2.cc
     src/clingo.cc
     src/core.cc
+    src/control.cc
     src/script.cc
     src/symbol.cc
     )

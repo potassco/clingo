@@ -1,5 +1,6 @@
 #include "ast.hh"
 #include "ast2.hh"
+#include "control.hh"
 #include "core.hh"
 #include "script.hh"
 #include "symbol.hh"
@@ -11,6 +12,7 @@ PYBIND11_MODULE(clingo, m) {
     Clingo::Python::register_core(m);
     Clingo::Python::register_symbol(m);
     Clingo::Python::register_script(m);
+    Clingo::Python::register_control(m);
     Clingo::Python::register_ast(m);
     Clingo::Python::register_ast2(m);
 }
