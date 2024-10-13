@@ -20,7 +20,7 @@ void Scripts::do_exec(Location const &loc, Logger &log, std::string_view name, s
     }
 }
 
-void Scripts::do_main(Solver &slv) {
+void Scripts::main(Solver &slv) {
     for (auto const &script : scripts_) {
         if (script.second->callable("main", 0)) {
             script.second->main(slv);
