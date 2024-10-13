@@ -41,7 +41,6 @@ class Script {
 
     static auto c_callable(char const *name, size_t arguments, bool *result, void *data) -> clingo_result_t {
         CLINGO_TRY {
-            // TODO: must catch exceptions
             auto *self = static_cast<py::object *>(data)->cast<Script *>();
             *result = self->callable(name, arguments);
         }

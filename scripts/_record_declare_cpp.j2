@@ -1,95 +1,41 @@
-class {{ c_type_name }} {
+class {{ c_type_name }} : public ASTBase {
 public:
-    // Note: for pybind
     {{ c_type_name }}() = default;
-
-    {{ c_type_name }}({{ c_type_name }} const &x) {
-        handle_error(clingo_ast_copy(x.ast_, &ast_));
-    }
-
-    {{ c_type_name }}({{ c_type_name }} &&x) noexcept {
-        std::swap(ast_, x.ast_);
-    }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=({{ c_type_name }} const &x) -> {{ c_type_name }}& {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=({{ c_type_name }} &&x) noexcept -> {{ c_type_name }}& {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t {
-        return clingo_ast_hash(ast_);
-    }
-
-    friend auto operator==({{ c_type_name }} const &a, {{ c_type_name }} const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>({{ c_type_name }} const &a, {{ c_type_name }} const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~{{ c_type_name }}() {
-        clingo_ast_free(ast_);
-    }
+    {{ c_type_name }}({{ c_type_name }} const &x) = default;
+    {{ c_type_name }}({{ c_type_name }} &&x) noexcept = default;
+    auto operator=({{ c_type_name }} const &x) -> {{ c_type_name }}& = default;
+    auto operator=({{ c_type_name }} &&x) noexcept -> {{ c_type_name }}& = default;
+    ~{{ c_type_name }}() noexcept = default;
 {% for argument_name, argument in type.arguments.items() -%}
-{% if argument.type == 'location' %}
+{%- if argument.type == 'location' %}
     auto {{ argument_name }}() -> Location;
-{% elif argument.type == 'string' %}
+{%- elif argument.type == 'string' %}
     auto {{ argument_name }}() -> char const *;
-{% elif argument.type == 'number' %}
+{%- elif argument.type == 'number' %}
     auto {{ argument_name }}() -> int;
-{% elif argument.type == 'bool' %}
+{%- elif argument.type == 'bool' %}
     auto {{ argument_name }}() -> bool;
-{% elif argument.type == 'symbol' %}
+{%- elif argument.type == 'symbol' %}
     auto {{ argument_name }}() -> Symbol;
-{% elif argument.type == 'string_array' %}
+{%- elif argument.type == 'string_array' %}
     auto {{ argument_name }}() -> std::vector<char const *>;
-{% else %}
+{%- else %}
     auto {{ argument_name }}() -> {{ argument.type | camel }};
-{% endif %}
+{%- endif %}
 {%- endfor %}
+
+    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
+    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs) -> std::optional<{{ c_type_name }}>;
+    auto update(Library &lib, py::kwargs const &kwargs) -> {{ c_type_name }};
+
+    static auto construct(Library &lib{% for argument_name, argument in type.arguments.items() %}, {{ argument.type | cref }}{{ argument_name }}{% endfor %}) -> {{ c_type_name }};
     static auto acquire(clingo_ast_t *ast) -> {{ c_type_name }} {
         return {ast};
     }
 
-    void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
-    auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs) -> std::optional<{{ c_type_name }}>;
-
-    auto update(Library &lib, py::kwargs const &kwargs) -> {{ c_type_name }};
-
-    static auto construct(Library &lib{% for argument_name, argument in type.arguments.items() %}, {{ argument.type | cref }}{{ argument_name }}{% endfor %}) -> {{ c_type_name }};
-
-    friend auto c_cast({{ c_type_name }} const &x) -> clingo_ast_t *;
+    friend auto operator==({{ c_type_name }} const &a, {{ c_type_name }} const &b) -> bool = default;
+    friend auto operator<=>({{ c_type_name }} const &a, {{ c_type_name }} const &b) -> std::strong_ordering = default;
 
 private:
-    {{ c_type_name }}(clingo_ast_t *ast) : ast_{ast} { }
-
-    clingo_ast_t *ast_ = nullptr;
+    {{ c_type_name }}(clingo_ast_t *ast) : ASTBase{ast} { }
 };
-
-inline auto c_cast({{ c_type_name }} const &x) -> clingo_ast_t * {
-    return x.ast_;
-}

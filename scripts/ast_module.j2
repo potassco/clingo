@@ -52,6 +52,71 @@ auto transform_value(Value val, py::handle transform, py::args const &args, py::
 template <class Value>
 auto transform_opt_value(Value opt, py::handle transform, py::args const &args, py::kwargs const &kwargs) -> std::pair<Value, bool>;
 
+class ASTBase {
+public:
+    // Note: for pybind
+    ASTBase() = default;
+
+    ASTBase(ASTBase const &x) {
+        handle_error(clingo_ast_copy(x.ast_, &ast_));
+    }
+
+    ASTBase(ASTBase &&x) noexcept {
+        std::swap(ast_, x.ast_);
+    }
+
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
+    auto operator=(ASTBase const &x) -> ASTBase& {
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
+        }
+        return *this;
+    }
+
+    auto operator=(ASTBase &&x) noexcept -> ASTBase& {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t {
+        return clingo_ast_hash(ast_);
+    }
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        handle_error(clingo_ast_to_string_size(ast_, &len));
+        std::string str;
+        str.resize(len);
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    friend auto operator==(ASTBase const &a, ASTBase const &b) -> bool {
+        return clingo_ast_equal(a.ast_, b.ast_);
+    }
+
+    friend auto operator<=>(ASTBase const &a, ASTBase const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
+    }
+
+    friend auto c_cast(ASTBase const &x) -> clingo_ast_t *;
+
+protected:
+    ASTBase(clingo_ast_t *ast) : ast_{ast} { }
+
+    // NOLINTNEXTLINE
+    clingo_ast_t *ast_ = nullptr;
+};
+
+auto c_cast(ASTBase const &x) -> clingo_ast_t * {
+    return x.ast_;
+}
+
 struct CString {
     CString(char const *str) : str_{str} {}
     CString(std::string &&str) : str_{std::move(str)} {}
@@ -443,7 +508,7 @@ auto rewrite_statement(RewriteContext &ctx, Statement &stm) -> std::vector<State
     return res;
 }
 
-void register_module(pybind11::module &m) {
+void register_ast(pybind11::module &m) {
     auto ast = m.def_submodule("ast", R"doc(This module provides functions to work with Abstract Syntax Trees of logic programs.)doc");
 
     ast.def("_type_info_yaml", &clingo_ast_type_info_yaml, R"doc(Return a yaml description of the AST.

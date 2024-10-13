@@ -53,6 +53,61 @@ template <class Value>
 auto transform_opt_value(Value opt, py::handle transform, py::args const &args,
                          py::kwargs const &kwargs) -> std::pair<Value, bool>;
 
+class ASTBase {
+  public:
+    // Note: for pybind
+    ASTBase() = default;
+
+    ASTBase(ASTBase const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
+
+    ASTBase(ASTBase &&x) noexcept { std::swap(ast_, x.ast_); }
+
+    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
+    auto operator=(ASTBase const &x) -> ASTBase & {
+        if (ast_ != x.ast_) {
+            clingo_ast_free(ast_);
+            ast_ = nullptr;
+            handle_error(clingo_ast_copy(x.ast_, &ast_));
+        }
+        return *this;
+    }
+
+    auto operator=(ASTBase &&x) noexcept -> ASTBase & {
+        std::swap(ast_, x.ast_);
+        return *this;
+    }
+
+    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
+
+    auto to_string() -> std::string {
+        size_t len = 0;
+        handle_error(clingo_ast_to_string_size(ast_, &len));
+        std::string str;
+        str.resize(len);
+        handle_error(clingo_ast_to_string(ast_, str.data(), len));
+        if (!str.empty() && str.back() == '\0') {
+            str.pop_back();
+        }
+        return str;
+    }
+
+    friend auto operator==(ASTBase const &a, ASTBase const &b) -> bool { return clingo_ast_equal(a.ast_, b.ast_); }
+
+    friend auto operator<=>(ASTBase const &a, ASTBase const &b) -> std::strong_ordering {
+        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
+    }
+
+    friend auto c_cast(ASTBase const &x) -> clingo_ast_t *;
+
+  protected:
+    ASTBase(clingo_ast_t *ast) : ast_{ast} {}
+
+    // NOLINTNEXTLINE
+    clingo_ast_t *ast_ = nullptr;
+};
+
+auto c_cast(ASTBase const &x) -> clingo_ast_t * { return x.ast_; }
+
 struct CString {
     CString(char const *str) : str_{str} {}
     CString(std::string &&str) : str_{std::move(str)} {}
@@ -185,76 +240,31 @@ auto construct_term_array(clingo_ast_t **ast, size_t size) -> TermArray;
 
 using OptionalTerm = std::optional<Term>;
 
-class Projection {
+class Projection : public ASTBase {
   public:
-    // Note: for pybind
     Projection() = default;
-
-    Projection(Projection const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    Projection(Projection &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(Projection const &x) -> Projection & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(Projection &&x) noexcept -> Projection & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(Projection const &a, Projection const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(Projection const &a, Projection const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~Projection() { clingo_ast_free(ast_); }
+    Projection(Projection const &x) = default;
+    Projection(Projection &&x) noexcept = default;
+    auto operator=(Projection const &x) -> Projection & = default;
+    auto operator=(Projection &&x) noexcept -> Projection & = default;
+    ~Projection() noexcept = default;
 
     auto location() -> Location;
 
-    static auto acquire(clingo_ast_t *ast) -> Projection { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<Projection>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> Projection;
 
     static auto construct(Library &lib, Location const &location) -> Projection;
+    static auto acquire(clingo_ast_t *ast) -> Projection { return {ast}; }
 
-    friend auto c_cast(Projection const &x) -> clingo_ast_t *;
+    friend auto operator==(Projection const &a, Projection const &b) -> bool = default;
+    friend auto operator<=>(Projection const &a, Projection const &b) -> std::strong_ordering = default;
 
   private:
-    Projection(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    Projection(clingo_ast_t *ast) : ASTBase{ast} {}
 };
-
-inline auto c_cast(Projection const &x) -> clingo_ast_t * { return x.ast_; }
 
 using TermOrProjection = std::variant<Term, Projection>;
 
@@ -280,600 +290,230 @@ using TermOrArgumentTupleArray = std::vector<TermOrArgumentTuple>;
 
 auto construct_term_or_argument_tuple_array(clingo_ast_t **ast, size_t size) -> TermOrArgumentTupleArray;
 
-class TermVariable {
+class TermVariable : public ASTBase {
   public:
-    // Note: for pybind
     TermVariable() = default;
-
-    TermVariable(TermVariable const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    TermVariable(TermVariable &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(TermVariable const &x) -> TermVariable & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(TermVariable &&x) noexcept -> TermVariable & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(TermVariable const &a, TermVariable const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(TermVariable const &a, TermVariable const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~TermVariable() { clingo_ast_free(ast_); }
+    TermVariable(TermVariable const &x) = default;
+    TermVariable(TermVariable &&x) noexcept = default;
+    auto operator=(TermVariable const &x) -> TermVariable & = default;
+    auto operator=(TermVariable &&x) noexcept -> TermVariable & = default;
+    ~TermVariable() noexcept = default;
 
     auto location() -> Location;
-
     auto name() -> char const *;
-
     auto anonymous() -> bool;
 
-    static auto acquire(clingo_ast_t *ast) -> TermVariable { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<TermVariable>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> TermVariable;
 
     static auto construct(Library &lib, Location const &location, char const *name, bool anonymous) -> TermVariable;
+    static auto acquire(clingo_ast_t *ast) -> TermVariable { return {ast}; }
 
-    friend auto c_cast(TermVariable const &x) -> clingo_ast_t *;
+    friend auto operator==(TermVariable const &a, TermVariable const &b) -> bool = default;
+    friend auto operator<=>(TermVariable const &a, TermVariable const &b) -> std::strong_ordering = default;
 
   private:
-    TermVariable(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    TermVariable(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(TermVariable const &x) -> clingo_ast_t * { return x.ast_; }
-
-class TermSymbolic {
+class TermSymbolic : public ASTBase {
   public:
-    // Note: for pybind
     TermSymbolic() = default;
-
-    TermSymbolic(TermSymbolic const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    TermSymbolic(TermSymbolic &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(TermSymbolic const &x) -> TermSymbolic & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(TermSymbolic &&x) noexcept -> TermSymbolic & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(TermSymbolic const &a, TermSymbolic const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(TermSymbolic const &a, TermSymbolic const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~TermSymbolic() { clingo_ast_free(ast_); }
+    TermSymbolic(TermSymbolic const &x) = default;
+    TermSymbolic(TermSymbolic &&x) noexcept = default;
+    auto operator=(TermSymbolic const &x) -> TermSymbolic & = default;
+    auto operator=(TermSymbolic &&x) noexcept -> TermSymbolic & = default;
+    ~TermSymbolic() noexcept = default;
 
     auto location() -> Location;
-
     auto symbol() -> Symbol;
 
-    static auto acquire(clingo_ast_t *ast) -> TermSymbolic { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<TermSymbolic>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> TermSymbolic;
 
     static auto construct(Library &lib, Location const &location, Symbol const &symbol) -> TermSymbolic;
+    static auto acquire(clingo_ast_t *ast) -> TermSymbolic { return {ast}; }
 
-    friend auto c_cast(TermSymbolic const &x) -> clingo_ast_t *;
+    friend auto operator==(TermSymbolic const &a, TermSymbolic const &b) -> bool = default;
+    friend auto operator<=>(TermSymbolic const &a, TermSymbolic const &b) -> std::strong_ordering = default;
 
   private:
-    TermSymbolic(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    TermSymbolic(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(TermSymbolic const &x) -> clingo_ast_t * { return x.ast_; }
-
-class TermAbsolute {
+class TermAbsolute : public ASTBase {
   public:
-    // Note: for pybind
     TermAbsolute() = default;
-
-    TermAbsolute(TermAbsolute const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    TermAbsolute(TermAbsolute &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(TermAbsolute const &x) -> TermAbsolute & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(TermAbsolute &&x) noexcept -> TermAbsolute & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(TermAbsolute const &a, TermAbsolute const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(TermAbsolute const &a, TermAbsolute const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~TermAbsolute() { clingo_ast_free(ast_); }
+    TermAbsolute(TermAbsolute const &x) = default;
+    TermAbsolute(TermAbsolute &&x) noexcept = default;
+    auto operator=(TermAbsolute const &x) -> TermAbsolute & = default;
+    auto operator=(TermAbsolute &&x) noexcept -> TermAbsolute & = default;
+    ~TermAbsolute() noexcept = default;
 
     auto location() -> Location;
-
     auto pool() -> TermArray;
 
-    static auto acquire(clingo_ast_t *ast) -> TermAbsolute { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<TermAbsolute>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> TermAbsolute;
 
     static auto construct(Library &lib, Location const &location, TermArray const &pool) -> TermAbsolute;
+    static auto acquire(clingo_ast_t *ast) -> TermAbsolute { return {ast}; }
 
-    friend auto c_cast(TermAbsolute const &x) -> clingo_ast_t *;
+    friend auto operator==(TermAbsolute const &a, TermAbsolute const &b) -> bool = default;
+    friend auto operator<=>(TermAbsolute const &a, TermAbsolute const &b) -> std::strong_ordering = default;
 
   private:
-    TermAbsolute(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    TermAbsolute(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(TermAbsolute const &x) -> clingo_ast_t * { return x.ast_; }
-
-class TermUnaryOperation {
+class TermUnaryOperation : public ASTBase {
   public:
-    // Note: for pybind
     TermUnaryOperation() = default;
-
-    TermUnaryOperation(TermUnaryOperation const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    TermUnaryOperation(TermUnaryOperation &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(TermUnaryOperation const &x) -> TermUnaryOperation & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(TermUnaryOperation &&x) noexcept -> TermUnaryOperation & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(TermUnaryOperation const &a, TermUnaryOperation const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(TermUnaryOperation const &a, TermUnaryOperation const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~TermUnaryOperation() { clingo_ast_free(ast_); }
+    TermUnaryOperation(TermUnaryOperation const &x) = default;
+    TermUnaryOperation(TermUnaryOperation &&x) noexcept = default;
+    auto operator=(TermUnaryOperation const &x) -> TermUnaryOperation & = default;
+    auto operator=(TermUnaryOperation &&x) noexcept -> TermUnaryOperation & = default;
+    ~TermUnaryOperation() noexcept = default;
 
     auto location() -> Location;
-
     auto operator_type() -> UnaryOperator;
-
     auto right() -> Term;
 
-    static auto acquire(clingo_ast_t *ast) -> TermUnaryOperation { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<TermUnaryOperation>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> TermUnaryOperation;
 
     static auto construct(Library &lib, Location const &location, UnaryOperator const &operator_type,
                           Term const &right) -> TermUnaryOperation;
+    static auto acquire(clingo_ast_t *ast) -> TermUnaryOperation { return {ast}; }
 
-    friend auto c_cast(TermUnaryOperation const &x) -> clingo_ast_t *;
+    friend auto operator==(TermUnaryOperation const &a, TermUnaryOperation const &b) -> bool = default;
+    friend auto operator<=>(TermUnaryOperation const &a, TermUnaryOperation const &b) -> std::strong_ordering = default;
 
   private:
-    TermUnaryOperation(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    TermUnaryOperation(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(TermUnaryOperation const &x) -> clingo_ast_t * { return x.ast_; }
-
-class TermBinaryOperation {
+class TermBinaryOperation : public ASTBase {
   public:
-    // Note: for pybind
     TermBinaryOperation() = default;
-
-    TermBinaryOperation(TermBinaryOperation const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    TermBinaryOperation(TermBinaryOperation &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(TermBinaryOperation const &x) -> TermBinaryOperation & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(TermBinaryOperation &&x) noexcept -> TermBinaryOperation & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(TermBinaryOperation const &a, TermBinaryOperation const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(TermBinaryOperation const &a, TermBinaryOperation const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~TermBinaryOperation() { clingo_ast_free(ast_); }
+    TermBinaryOperation(TermBinaryOperation const &x) = default;
+    TermBinaryOperation(TermBinaryOperation &&x) noexcept = default;
+    auto operator=(TermBinaryOperation const &x) -> TermBinaryOperation & = default;
+    auto operator=(TermBinaryOperation &&x) noexcept -> TermBinaryOperation & = default;
+    ~TermBinaryOperation() noexcept = default;
 
     auto location() -> Location;
-
     auto left() -> Term;
-
     auto operator_type() -> BinaryOperator;
-
     auto right() -> Term;
 
-    static auto acquire(clingo_ast_t *ast) -> TermBinaryOperation { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<TermBinaryOperation>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> TermBinaryOperation;
 
     static auto construct(Library &lib, Location const &location, Term const &left, BinaryOperator const &operator_type,
                           Term const &right) -> TermBinaryOperation;
+    static auto acquire(clingo_ast_t *ast) -> TermBinaryOperation { return {ast}; }
 
-    friend auto c_cast(TermBinaryOperation const &x) -> clingo_ast_t *;
+    friend auto operator==(TermBinaryOperation const &a, TermBinaryOperation const &b) -> bool = default;
+    friend auto operator<=>(TermBinaryOperation const &a,
+                            TermBinaryOperation const &b) -> std::strong_ordering = default;
 
   private:
-    TermBinaryOperation(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    TermBinaryOperation(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(TermBinaryOperation const &x) -> clingo_ast_t * { return x.ast_; }
-
-class TermTuple {
+class TermTuple : public ASTBase {
   public:
-    // Note: for pybind
     TermTuple() = default;
-
-    TermTuple(TermTuple const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    TermTuple(TermTuple &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(TermTuple const &x) -> TermTuple & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(TermTuple &&x) noexcept -> TermTuple & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(TermTuple const &a, TermTuple const &b) -> bool { return clingo_ast_equal(a.ast_, b.ast_); }
-
-    friend auto operator<=>(TermTuple const &a, TermTuple const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~TermTuple() { clingo_ast_free(ast_); }
+    TermTuple(TermTuple const &x) = default;
+    TermTuple(TermTuple &&x) noexcept = default;
+    auto operator=(TermTuple const &x) -> TermTuple & = default;
+    auto operator=(TermTuple &&x) noexcept -> TermTuple & = default;
+    ~TermTuple() noexcept = default;
 
     auto location() -> Location;
-
     auto pool() -> TermOrArgumentTupleArray;
 
-    static auto acquire(clingo_ast_t *ast) -> TermTuple { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<TermTuple>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> TermTuple;
 
     static auto construct(Library &lib, Location const &location, TermOrArgumentTupleArray const &pool) -> TermTuple;
+    static auto acquire(clingo_ast_t *ast) -> TermTuple { return {ast}; }
 
-    friend auto c_cast(TermTuple const &x) -> clingo_ast_t *;
+    friend auto operator==(TermTuple const &a, TermTuple const &b) -> bool = default;
+    friend auto operator<=>(TermTuple const &a, TermTuple const &b) -> std::strong_ordering = default;
 
   private:
-    TermTuple(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    TermTuple(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(TermTuple const &x) -> clingo_ast_t * { return x.ast_; }
-
-class TermFunction {
+class TermFunction : public ASTBase {
   public:
-    // Note: for pybind
     TermFunction() = default;
-
-    TermFunction(TermFunction const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    TermFunction(TermFunction &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(TermFunction const &x) -> TermFunction & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(TermFunction &&x) noexcept -> TermFunction & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(TermFunction const &a, TermFunction const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(TermFunction const &a, TermFunction const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~TermFunction() { clingo_ast_free(ast_); }
+    TermFunction(TermFunction const &x) = default;
+    TermFunction(TermFunction &&x) noexcept = default;
+    auto operator=(TermFunction const &x) -> TermFunction & = default;
+    auto operator=(TermFunction &&x) noexcept -> TermFunction & = default;
+    ~TermFunction() noexcept = default;
 
     auto location() -> Location;
-
     auto name() -> char const *;
-
     auto pool() -> ArgumentTupleArray;
-
     auto external() -> bool;
 
-    static auto acquire(clingo_ast_t *ast) -> TermFunction { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<TermFunction>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> TermFunction;
 
     static auto construct(Library &lib, Location const &location, char const *name, ArgumentTupleArray const &pool,
                           bool external) -> TermFunction;
+    static auto acquire(clingo_ast_t *ast) -> TermFunction { return {ast}; }
 
-    friend auto c_cast(TermFunction const &x) -> clingo_ast_t *;
+    friend auto operator==(TermFunction const &a, TermFunction const &b) -> bool = default;
+    friend auto operator<=>(TermFunction const &a, TermFunction const &b) -> std::strong_ordering = default;
 
   private:
-    TermFunction(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    TermFunction(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(TermFunction const &x) -> clingo_ast_t * { return x.ast_; }
-
-class ArgumentTuple {
+class ArgumentTuple : public ASTBase {
   public:
-    // Note: for pybind
     ArgumentTuple() = default;
-
-    ArgumentTuple(ArgumentTuple const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    ArgumentTuple(ArgumentTuple &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(ArgumentTuple const &x) -> ArgumentTuple & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(ArgumentTuple &&x) noexcept -> ArgumentTuple & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(ArgumentTuple const &a, ArgumentTuple const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(ArgumentTuple const &a, ArgumentTuple const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~ArgumentTuple() { clingo_ast_free(ast_); }
+    ArgumentTuple(ArgumentTuple const &x) = default;
+    ArgumentTuple(ArgumentTuple &&x) noexcept = default;
+    auto operator=(ArgumentTuple const &x) -> ArgumentTuple & = default;
+    auto operator=(ArgumentTuple &&x) noexcept -> ArgumentTuple & = default;
+    ~ArgumentTuple() noexcept = default;
 
     auto arguments() -> TermOrProjectionArray;
 
-    static auto acquire(clingo_ast_t *ast) -> ArgumentTuple { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<ArgumentTuple>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> ArgumentTuple;
 
     static auto construct(Library &lib, TermOrProjectionArray const &arguments) -> ArgumentTuple;
+    static auto acquire(clingo_ast_t *ast) -> ArgumentTuple { return {ast}; }
 
-    friend auto c_cast(ArgumentTuple const &x) -> clingo_ast_t *;
+    friend auto operator==(ArgumentTuple const &a, ArgumentTuple const &b) -> bool = default;
+    friend auto operator<=>(ArgumentTuple const &a, ArgumentTuple const &b) -> std::strong_ordering = default;
 
   private:
-    ArgumentTuple(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    ArgumentTuple(clingo_ast_t *ast) : ASTBase{ast} {}
 };
-
-inline auto c_cast(ArgumentTuple const &x) -> clingo_ast_t * { return x.ast_; }
 
 class LiteralBoolean;
 
@@ -885,151 +525,61 @@ using Literal = std::variant<LiteralBoolean, LiteralComparison, LiteralSymbolic>
 
 auto construct_literal(clingo_ast_t *ast) -> Literal;
 
-class LeftGuard {
+class LeftGuard : public ASTBase {
   public:
-    // Note: for pybind
     LeftGuard() = default;
-
-    LeftGuard(LeftGuard const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    LeftGuard(LeftGuard &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(LeftGuard const &x) -> LeftGuard & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(LeftGuard &&x) noexcept -> LeftGuard & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(LeftGuard const &a, LeftGuard const &b) -> bool { return clingo_ast_equal(a.ast_, b.ast_); }
-
-    friend auto operator<=>(LeftGuard const &a, LeftGuard const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~LeftGuard() { clingo_ast_free(ast_); }
+    LeftGuard(LeftGuard const &x) = default;
+    LeftGuard(LeftGuard &&x) noexcept = default;
+    auto operator=(LeftGuard const &x) -> LeftGuard & = default;
+    auto operator=(LeftGuard &&x) noexcept -> LeftGuard & = default;
+    ~LeftGuard() noexcept = default;
 
     auto term() -> Term;
-
     auto relation() -> Relation;
 
-    static auto acquire(clingo_ast_t *ast) -> LeftGuard { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<LeftGuard>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> LeftGuard;
 
     static auto construct(Library &lib, Term const &term, Relation const &relation) -> LeftGuard;
+    static auto acquire(clingo_ast_t *ast) -> LeftGuard { return {ast}; }
 
-    friend auto c_cast(LeftGuard const &x) -> clingo_ast_t *;
+    friend auto operator==(LeftGuard const &a, LeftGuard const &b) -> bool = default;
+    friend auto operator<=>(LeftGuard const &a, LeftGuard const &b) -> std::strong_ordering = default;
 
   private:
-    LeftGuard(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    LeftGuard(clingo_ast_t *ast) : ASTBase{ast} {}
 };
-
-inline auto c_cast(LeftGuard const &x) -> clingo_ast_t * { return x.ast_; }
 
 using OptionalLeftGuard = std::optional<LeftGuard>;
 
-class RightGuard {
+class RightGuard : public ASTBase {
   public:
-    // Note: for pybind
     RightGuard() = default;
-
-    RightGuard(RightGuard const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    RightGuard(RightGuard &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(RightGuard const &x) -> RightGuard & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(RightGuard &&x) noexcept -> RightGuard & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(RightGuard const &a, RightGuard const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(RightGuard const &a, RightGuard const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~RightGuard() { clingo_ast_free(ast_); }
+    RightGuard(RightGuard const &x) = default;
+    RightGuard(RightGuard &&x) noexcept = default;
+    auto operator=(RightGuard const &x) -> RightGuard & = default;
+    auto operator=(RightGuard &&x) noexcept -> RightGuard & = default;
+    ~RightGuard() noexcept = default;
 
     auto relation() -> Relation;
-
     auto term() -> Term;
 
-    static auto acquire(clingo_ast_t *ast) -> RightGuard { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<RightGuard>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> RightGuard;
 
     static auto construct(Library &lib, Relation const &relation, Term const &term) -> RightGuard;
+    static auto acquire(clingo_ast_t *ast) -> RightGuard { return {ast}; }
 
-    friend auto c_cast(RightGuard const &x) -> clingo_ast_t *;
+    friend auto operator==(RightGuard const &a, RightGuard const &b) -> bool = default;
+    friend auto operator<=>(RightGuard const &a, RightGuard const &b) -> std::strong_ordering = default;
 
   private:
-    RightGuard(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    RightGuard(clingo_ast_t *ast) : ASTBase{ast} {}
 };
-
-inline auto c_cast(RightGuard const &x) -> clingo_ast_t * { return x.ast_; }
 
 using OptionalRightGuard = std::optional<RightGuard>;
 
@@ -1037,234 +587,92 @@ using RightGuardArray = std::vector<RightGuard>;
 
 auto construct_right_guard_array(clingo_ast_t **ast, size_t size) -> RightGuardArray;
 
-class LiteralBoolean {
+class LiteralBoolean : public ASTBase {
   public:
-    // Note: for pybind
     LiteralBoolean() = default;
-
-    LiteralBoolean(LiteralBoolean const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    LiteralBoolean(LiteralBoolean &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(LiteralBoolean const &x) -> LiteralBoolean & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(LiteralBoolean &&x) noexcept -> LiteralBoolean & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(LiteralBoolean const &a, LiteralBoolean const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(LiteralBoolean const &a, LiteralBoolean const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~LiteralBoolean() { clingo_ast_free(ast_); }
+    LiteralBoolean(LiteralBoolean const &x) = default;
+    LiteralBoolean(LiteralBoolean &&x) noexcept = default;
+    auto operator=(LiteralBoolean const &x) -> LiteralBoolean & = default;
+    auto operator=(LiteralBoolean &&x) noexcept -> LiteralBoolean & = default;
+    ~LiteralBoolean() noexcept = default;
 
     auto location() -> Location;
-
     auto sign() -> Sign;
-
     auto value() -> bool;
 
-    static auto acquire(clingo_ast_t *ast) -> LiteralBoolean { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<LiteralBoolean>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> LiteralBoolean;
 
     static auto construct(Library &lib, Location const &location, Sign const &sign, bool value) -> LiteralBoolean;
+    static auto acquire(clingo_ast_t *ast) -> LiteralBoolean { return {ast}; }
 
-    friend auto c_cast(LiteralBoolean const &x) -> clingo_ast_t *;
+    friend auto operator==(LiteralBoolean const &a, LiteralBoolean const &b) -> bool = default;
+    friend auto operator<=>(LiteralBoolean const &a, LiteralBoolean const &b) -> std::strong_ordering = default;
 
   private:
-    LiteralBoolean(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    LiteralBoolean(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(LiteralBoolean const &x) -> clingo_ast_t * { return x.ast_; }
-
-class LiteralComparison {
+class LiteralComparison : public ASTBase {
   public:
-    // Note: for pybind
     LiteralComparison() = default;
-
-    LiteralComparison(LiteralComparison const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    LiteralComparison(LiteralComparison &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(LiteralComparison const &x) -> LiteralComparison & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(LiteralComparison &&x) noexcept -> LiteralComparison & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(LiteralComparison const &a, LiteralComparison const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(LiteralComparison const &a, LiteralComparison const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~LiteralComparison() { clingo_ast_free(ast_); }
+    LiteralComparison(LiteralComparison const &x) = default;
+    LiteralComparison(LiteralComparison &&x) noexcept = default;
+    auto operator=(LiteralComparison const &x) -> LiteralComparison & = default;
+    auto operator=(LiteralComparison &&x) noexcept -> LiteralComparison & = default;
+    ~LiteralComparison() noexcept = default;
 
     auto location() -> Location;
-
     auto sign() -> Sign;
-
     auto left() -> Term;
-
     auto right() -> RightGuardArray;
 
-    static auto acquire(clingo_ast_t *ast) -> LiteralComparison { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<LiteralComparison>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> LiteralComparison;
 
     static auto construct(Library &lib, Location const &location, Sign const &sign, Term const &left,
                           RightGuardArray const &right) -> LiteralComparison;
+    static auto acquire(clingo_ast_t *ast) -> LiteralComparison { return {ast}; }
 
-    friend auto c_cast(LiteralComparison const &x) -> clingo_ast_t *;
+    friend auto operator==(LiteralComparison const &a, LiteralComparison const &b) -> bool = default;
+    friend auto operator<=>(LiteralComparison const &a, LiteralComparison const &b) -> std::strong_ordering = default;
 
   private:
-    LiteralComparison(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    LiteralComparison(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(LiteralComparison const &x) -> clingo_ast_t * { return x.ast_; }
-
-class LiteralSymbolic {
+class LiteralSymbolic : public ASTBase {
   public:
-    // Note: for pybind
     LiteralSymbolic() = default;
-
-    LiteralSymbolic(LiteralSymbolic const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    LiteralSymbolic(LiteralSymbolic &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(LiteralSymbolic const &x) -> LiteralSymbolic & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(LiteralSymbolic &&x) noexcept -> LiteralSymbolic & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(LiteralSymbolic const &a, LiteralSymbolic const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(LiteralSymbolic const &a, LiteralSymbolic const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~LiteralSymbolic() { clingo_ast_free(ast_); }
+    LiteralSymbolic(LiteralSymbolic const &x) = default;
+    LiteralSymbolic(LiteralSymbolic &&x) noexcept = default;
+    auto operator=(LiteralSymbolic const &x) -> LiteralSymbolic & = default;
+    auto operator=(LiteralSymbolic &&x) noexcept -> LiteralSymbolic & = default;
+    ~LiteralSymbolic() noexcept = default;
 
     auto location() -> Location;
-
     auto sign() -> Sign;
-
     auto atom() -> Term;
 
-    static auto acquire(clingo_ast_t *ast) -> LiteralSymbolic { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<LiteralSymbolic>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> LiteralSymbolic;
 
     static auto construct(Library &lib, Location const &location, Sign const &sign,
                           Term const &atom) -> LiteralSymbolic;
+    static auto acquire(clingo_ast_t *ast) -> LiteralSymbolic { return {ast}; }
 
-    friend auto c_cast(LiteralSymbolic const &x) -> clingo_ast_t *;
+    friend auto operator==(LiteralSymbolic const &a, LiteralSymbolic const &b) -> bool = default;
+    friend auto operator<=>(LiteralSymbolic const &a, LiteralSymbolic const &b) -> std::strong_ordering = default;
 
   private:
-    LiteralSymbolic(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    LiteralSymbolic(clingo_ast_t *ast) : ASTBase{ast} {}
 };
-
-inline auto c_cast(LiteralSymbolic const &x) -> clingo_ast_t * { return x.ast_; }
 
 class TheoryTermVariable;
 
@@ -1285,530 +693,205 @@ using TheoryTermArray = std::vector<TheoryTerm>;
 
 auto construct_theory_term_array(clingo_ast_t **ast, size_t size) -> TheoryTermArray;
 
-class UnparsedElement {
+class UnparsedElement : public ASTBase {
   public:
-    // Note: for pybind
     UnparsedElement() = default;
-
-    UnparsedElement(UnparsedElement const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    UnparsedElement(UnparsedElement &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(UnparsedElement const &x) -> UnparsedElement & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(UnparsedElement &&x) noexcept -> UnparsedElement & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(UnparsedElement const &a, UnparsedElement const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(UnparsedElement const &a, UnparsedElement const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~UnparsedElement() { clingo_ast_free(ast_); }
+    UnparsedElement(UnparsedElement const &x) = default;
+    UnparsedElement(UnparsedElement &&x) noexcept = default;
+    auto operator=(UnparsedElement const &x) -> UnparsedElement & = default;
+    auto operator=(UnparsedElement &&x) noexcept -> UnparsedElement & = default;
+    ~UnparsedElement() noexcept = default;
 
     auto operators() -> std::vector<char const *>;
-
     auto term() -> TheoryTerm;
 
-    static auto acquire(clingo_ast_t *ast) -> UnparsedElement { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<UnparsedElement>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> UnparsedElement;
 
     static auto construct(Library &lib, StringArray const &operators, TheoryTerm const &term) -> UnparsedElement;
+    static auto acquire(clingo_ast_t *ast) -> UnparsedElement { return {ast}; }
 
-    friend auto c_cast(UnparsedElement const &x) -> clingo_ast_t *;
+    friend auto operator==(UnparsedElement const &a, UnparsedElement const &b) -> bool = default;
+    friend auto operator<=>(UnparsedElement const &a, UnparsedElement const &b) -> std::strong_ordering = default;
 
   private:
-    UnparsedElement(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    UnparsedElement(clingo_ast_t *ast) : ASTBase{ast} {}
 };
-
-inline auto c_cast(UnparsedElement const &x) -> clingo_ast_t * { return x.ast_; }
 
 using UnparsedElementArray = std::vector<UnparsedElement>;
 
 auto construct_unparsed_element_array(clingo_ast_t **ast, size_t size) -> UnparsedElementArray;
 
-class TheoryTermVariable {
+class TheoryTermVariable : public ASTBase {
   public:
-    // Note: for pybind
     TheoryTermVariable() = default;
-
-    TheoryTermVariable(TheoryTermVariable const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    TheoryTermVariable(TheoryTermVariable &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(TheoryTermVariable const &x) -> TheoryTermVariable & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(TheoryTermVariable &&x) noexcept -> TheoryTermVariable & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(TheoryTermVariable const &a, TheoryTermVariable const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(TheoryTermVariable const &a, TheoryTermVariable const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~TheoryTermVariable() { clingo_ast_free(ast_); }
+    TheoryTermVariable(TheoryTermVariable const &x) = default;
+    TheoryTermVariable(TheoryTermVariable &&x) noexcept = default;
+    auto operator=(TheoryTermVariable const &x) -> TheoryTermVariable & = default;
+    auto operator=(TheoryTermVariable &&x) noexcept -> TheoryTermVariable & = default;
+    ~TheoryTermVariable() noexcept = default;
 
     auto location() -> Location;
-
     auto name() -> char const *;
-
     auto anonymous() -> bool;
 
-    static auto acquire(clingo_ast_t *ast) -> TheoryTermVariable { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<TheoryTermVariable>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryTermVariable;
 
     static auto construct(Library &lib, Location const &location, char const *name,
                           bool anonymous) -> TheoryTermVariable;
+    static auto acquire(clingo_ast_t *ast) -> TheoryTermVariable { return {ast}; }
 
-    friend auto c_cast(TheoryTermVariable const &x) -> clingo_ast_t *;
+    friend auto operator==(TheoryTermVariable const &a, TheoryTermVariable const &b) -> bool = default;
+    friend auto operator<=>(TheoryTermVariable const &a, TheoryTermVariable const &b) -> std::strong_ordering = default;
 
   private:
-    TheoryTermVariable(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    TheoryTermVariable(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(TheoryTermVariable const &x) -> clingo_ast_t * { return x.ast_; }
-
-class TheoryTermSymbolic {
+class TheoryTermSymbolic : public ASTBase {
   public:
-    // Note: for pybind
     TheoryTermSymbolic() = default;
-
-    TheoryTermSymbolic(TheoryTermSymbolic const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    TheoryTermSymbolic(TheoryTermSymbolic &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(TheoryTermSymbolic const &x) -> TheoryTermSymbolic & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(TheoryTermSymbolic &&x) noexcept -> TheoryTermSymbolic & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(TheoryTermSymbolic const &a, TheoryTermSymbolic const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(TheoryTermSymbolic const &a, TheoryTermSymbolic const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~TheoryTermSymbolic() { clingo_ast_free(ast_); }
+    TheoryTermSymbolic(TheoryTermSymbolic const &x) = default;
+    TheoryTermSymbolic(TheoryTermSymbolic &&x) noexcept = default;
+    auto operator=(TheoryTermSymbolic const &x) -> TheoryTermSymbolic & = default;
+    auto operator=(TheoryTermSymbolic &&x) noexcept -> TheoryTermSymbolic & = default;
+    ~TheoryTermSymbolic() noexcept = default;
 
     auto location() -> Location;
-
     auto symbol() -> Symbol;
 
-    static auto acquire(clingo_ast_t *ast) -> TheoryTermSymbolic { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<TheoryTermSymbolic>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryTermSymbolic;
 
     static auto construct(Library &lib, Location const &location, Symbol const &symbol) -> TheoryTermSymbolic;
+    static auto acquire(clingo_ast_t *ast) -> TheoryTermSymbolic { return {ast}; }
 
-    friend auto c_cast(TheoryTermSymbolic const &x) -> clingo_ast_t *;
+    friend auto operator==(TheoryTermSymbolic const &a, TheoryTermSymbolic const &b) -> bool = default;
+    friend auto operator<=>(TheoryTermSymbolic const &a, TheoryTermSymbolic const &b) -> std::strong_ordering = default;
 
   private:
-    TheoryTermSymbolic(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    TheoryTermSymbolic(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(TheoryTermSymbolic const &x) -> clingo_ast_t * { return x.ast_; }
-
-class TheoryTermTuple {
+class TheoryTermTuple : public ASTBase {
   public:
-    // Note: for pybind
     TheoryTermTuple() = default;
-
-    TheoryTermTuple(TheoryTermTuple const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    TheoryTermTuple(TheoryTermTuple &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(TheoryTermTuple const &x) -> TheoryTermTuple & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(TheoryTermTuple &&x) noexcept -> TheoryTermTuple & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(TheoryTermTuple const &a, TheoryTermTuple const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(TheoryTermTuple const &a, TheoryTermTuple const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~TheoryTermTuple() { clingo_ast_free(ast_); }
+    TheoryTermTuple(TheoryTermTuple const &x) = default;
+    TheoryTermTuple(TheoryTermTuple &&x) noexcept = default;
+    auto operator=(TheoryTermTuple const &x) -> TheoryTermTuple & = default;
+    auto operator=(TheoryTermTuple &&x) noexcept -> TheoryTermTuple & = default;
+    ~TheoryTermTuple() noexcept = default;
 
     auto location() -> Location;
-
     auto tuple_type() -> TheoryTupleType;
-
     auto arguments() -> TheoryTermArray;
 
-    static auto acquire(clingo_ast_t *ast) -> TheoryTermTuple { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<TheoryTermTuple>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryTermTuple;
 
     static auto construct(Library &lib, Location const &location, TheoryTupleType const &tuple_type,
                           TheoryTermArray const &arguments) -> TheoryTermTuple;
+    static auto acquire(clingo_ast_t *ast) -> TheoryTermTuple { return {ast}; }
 
-    friend auto c_cast(TheoryTermTuple const &x) -> clingo_ast_t *;
+    friend auto operator==(TheoryTermTuple const &a, TheoryTermTuple const &b) -> bool = default;
+    friend auto operator<=>(TheoryTermTuple const &a, TheoryTermTuple const &b) -> std::strong_ordering = default;
 
   private:
-    TheoryTermTuple(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    TheoryTermTuple(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(TheoryTermTuple const &x) -> clingo_ast_t * { return x.ast_; }
-
-class TheoryTermFunction {
+class TheoryTermFunction : public ASTBase {
   public:
-    // Note: for pybind
     TheoryTermFunction() = default;
-
-    TheoryTermFunction(TheoryTermFunction const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    TheoryTermFunction(TheoryTermFunction &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(TheoryTermFunction const &x) -> TheoryTermFunction & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(TheoryTermFunction &&x) noexcept -> TheoryTermFunction & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(TheoryTermFunction const &a, TheoryTermFunction const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(TheoryTermFunction const &a, TheoryTermFunction const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~TheoryTermFunction() { clingo_ast_free(ast_); }
+    TheoryTermFunction(TheoryTermFunction const &x) = default;
+    TheoryTermFunction(TheoryTermFunction &&x) noexcept = default;
+    auto operator=(TheoryTermFunction const &x) -> TheoryTermFunction & = default;
+    auto operator=(TheoryTermFunction &&x) noexcept -> TheoryTermFunction & = default;
+    ~TheoryTermFunction() noexcept = default;
 
     auto location() -> Location;
-
     auto name() -> char const *;
-
     auto arguments() -> TheoryTermArray;
 
-    static auto acquire(clingo_ast_t *ast) -> TheoryTermFunction { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<TheoryTermFunction>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryTermFunction;
 
     static auto construct(Library &lib, Location const &location, char const *name,
                           TheoryTermArray const &arguments) -> TheoryTermFunction;
+    static auto acquire(clingo_ast_t *ast) -> TheoryTermFunction { return {ast}; }
 
-    friend auto c_cast(TheoryTermFunction const &x) -> clingo_ast_t *;
+    friend auto operator==(TheoryTermFunction const &a, TheoryTermFunction const &b) -> bool = default;
+    friend auto operator<=>(TheoryTermFunction const &a, TheoryTermFunction const &b) -> std::strong_ordering = default;
 
   private:
-    TheoryTermFunction(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    TheoryTermFunction(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(TheoryTermFunction const &x) -> clingo_ast_t * { return x.ast_; }
-
-class TheoryTermUnparsed {
+class TheoryTermUnparsed : public ASTBase {
   public:
-    // Note: for pybind
     TheoryTermUnparsed() = default;
-
-    TheoryTermUnparsed(TheoryTermUnparsed const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    TheoryTermUnparsed(TheoryTermUnparsed &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(TheoryTermUnparsed const &x) -> TheoryTermUnparsed & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(TheoryTermUnparsed &&x) noexcept -> TheoryTermUnparsed & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~TheoryTermUnparsed() { clingo_ast_free(ast_); }
+    TheoryTermUnparsed(TheoryTermUnparsed const &x) = default;
+    TheoryTermUnparsed(TheoryTermUnparsed &&x) noexcept = default;
+    auto operator=(TheoryTermUnparsed const &x) -> TheoryTermUnparsed & = default;
+    auto operator=(TheoryTermUnparsed &&x) noexcept -> TheoryTermUnparsed & = default;
+    ~TheoryTermUnparsed() noexcept = default;
 
     auto location() -> Location;
-
     auto elements() -> UnparsedElementArray;
 
-    static auto acquire(clingo_ast_t *ast) -> TheoryTermUnparsed { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<TheoryTermUnparsed>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryTermUnparsed;
 
     static auto construct(Library &lib, Location const &location,
                           UnparsedElementArray const &elements) -> TheoryTermUnparsed;
+    static auto acquire(clingo_ast_t *ast) -> TheoryTermUnparsed { return {ast}; }
 
-    friend auto c_cast(TheoryTermUnparsed const &x) -> clingo_ast_t *;
+    friend auto operator==(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> bool = default;
+    friend auto operator<=>(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> std::strong_ordering = default;
 
   private:
-    TheoryTermUnparsed(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    TheoryTermUnparsed(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(TheoryTermUnparsed const &x) -> clingo_ast_t * { return x.ast_; }
-
-class TheoryRightGuard {
+class TheoryRightGuard : public ASTBase {
   public:
-    // Note: for pybind
     TheoryRightGuard() = default;
-
-    TheoryRightGuard(TheoryRightGuard const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    TheoryRightGuard(TheoryRightGuard &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(TheoryRightGuard const &x) -> TheoryRightGuard & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(TheoryRightGuard &&x) noexcept -> TheoryRightGuard & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(TheoryRightGuard const &a, TheoryRightGuard const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(TheoryRightGuard const &a, TheoryRightGuard const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~TheoryRightGuard() { clingo_ast_free(ast_); }
+    TheoryRightGuard(TheoryRightGuard const &x) = default;
+    TheoryRightGuard(TheoryRightGuard &&x) noexcept = default;
+    auto operator=(TheoryRightGuard const &x) -> TheoryRightGuard & = default;
+    auto operator=(TheoryRightGuard &&x) noexcept -> TheoryRightGuard & = default;
+    ~TheoryRightGuard() noexcept = default;
 
     auto theory_operator() -> char const *;
-
     auto term() -> TheoryTerm;
 
-    static auto acquire(clingo_ast_t *ast) -> TheoryRightGuard { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<TheoryRightGuard>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryRightGuard;
 
     static auto construct(Library &lib, char const *theory_operator, TheoryTerm const &term) -> TheoryRightGuard;
+    static auto acquire(clingo_ast_t *ast) -> TheoryRightGuard { return {ast}; }
 
-    friend auto c_cast(TheoryRightGuard const &x) -> clingo_ast_t *;
+    friend auto operator==(TheoryRightGuard const &a, TheoryRightGuard const &b) -> bool = default;
+    friend auto operator<=>(TheoryRightGuard const &a, TheoryRightGuard const &b) -> std::strong_ordering = default;
 
   private:
-    TheoryRightGuard(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    TheoryRightGuard(clingo_ast_t *ast) : ASTBase{ast} {}
 };
-
-inline auto c_cast(TheoryRightGuard const &x) -> clingo_ast_t * { return x.ast_; }
 
 using OptionalTheoryRightGuard = std::optional<TheoryRightGuard>;
 
@@ -1816,241 +899,102 @@ using LiteralArray = std::vector<Literal>;
 
 auto construct_literal_array(clingo_ast_t **ast, size_t size) -> LiteralArray;
 
-class SetAggregateElement {
+class SetAggregateElement : public ASTBase {
   public:
-    // Note: for pybind
     SetAggregateElement() = default;
-
-    SetAggregateElement(SetAggregateElement const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    SetAggregateElement(SetAggregateElement &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(SetAggregateElement const &x) -> SetAggregateElement & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(SetAggregateElement &&x) noexcept -> SetAggregateElement & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(SetAggregateElement const &a, SetAggregateElement const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(SetAggregateElement const &a, SetAggregateElement const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~SetAggregateElement() { clingo_ast_free(ast_); }
+    SetAggregateElement(SetAggregateElement const &x) = default;
+    SetAggregateElement(SetAggregateElement &&x) noexcept = default;
+    auto operator=(SetAggregateElement const &x) -> SetAggregateElement & = default;
+    auto operator=(SetAggregateElement &&x) noexcept -> SetAggregateElement & = default;
+    ~SetAggregateElement() noexcept = default;
 
     auto location() -> Location;
-
     auto literal() -> Literal;
-
     auto condition() -> LiteralArray;
 
-    static auto acquire(clingo_ast_t *ast) -> SetAggregateElement { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<SetAggregateElement>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> SetAggregateElement;
 
     static auto construct(Library &lib, Location const &location, Literal const &literal,
                           LiteralArray const &condition) -> SetAggregateElement;
+    static auto acquire(clingo_ast_t *ast) -> SetAggregateElement { return {ast}; }
 
-    friend auto c_cast(SetAggregateElement const &x) -> clingo_ast_t *;
+    friend auto operator==(SetAggregateElement const &a, SetAggregateElement const &b) -> bool = default;
+    friend auto operator<=>(SetAggregateElement const &a,
+                            SetAggregateElement const &b) -> std::strong_ordering = default;
 
   private:
-    SetAggregateElement(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    SetAggregateElement(clingo_ast_t *ast) : ASTBase{ast} {}
 };
-
-inline auto c_cast(SetAggregateElement const &x) -> clingo_ast_t * { return x.ast_; }
 
 using SetAggregateElementArray = std::vector<SetAggregateElement>;
 
 auto construct_set_aggregate_element_array(clingo_ast_t **ast, size_t size) -> SetAggregateElementArray;
 
-class BodyAggregateElement {
+class BodyAggregateElement : public ASTBase {
   public:
-    // Note: for pybind
     BodyAggregateElement() = default;
-
-    BodyAggregateElement(BodyAggregateElement const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    BodyAggregateElement(BodyAggregateElement &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(BodyAggregateElement const &x) -> BodyAggregateElement & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(BodyAggregateElement &&x) noexcept -> BodyAggregateElement & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(BodyAggregateElement const &a, BodyAggregateElement const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(BodyAggregateElement const &a, BodyAggregateElement const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~BodyAggregateElement() { clingo_ast_free(ast_); }
+    BodyAggregateElement(BodyAggregateElement const &x) = default;
+    BodyAggregateElement(BodyAggregateElement &&x) noexcept = default;
+    auto operator=(BodyAggregateElement const &x) -> BodyAggregateElement & = default;
+    auto operator=(BodyAggregateElement &&x) noexcept -> BodyAggregateElement & = default;
+    ~BodyAggregateElement() noexcept = default;
 
     auto location() -> Location;
-
     auto tuple() -> TermArray;
-
     auto condition() -> LiteralArray;
 
-    static auto acquire(clingo_ast_t *ast) -> BodyAggregateElement { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<BodyAggregateElement>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> BodyAggregateElement;
 
     static auto construct(Library &lib, Location const &location, TermArray const &tuple,
                           LiteralArray const &condition) -> BodyAggregateElement;
+    static auto acquire(clingo_ast_t *ast) -> BodyAggregateElement { return {ast}; }
 
-    friend auto c_cast(BodyAggregateElement const &x) -> clingo_ast_t *;
+    friend auto operator==(BodyAggregateElement const &a, BodyAggregateElement const &b) -> bool = default;
+    friend auto operator<=>(BodyAggregateElement const &a,
+                            BodyAggregateElement const &b) -> std::strong_ordering = default;
 
   private:
-    BodyAggregateElement(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    BodyAggregateElement(clingo_ast_t *ast) : ASTBase{ast} {}
 };
-
-inline auto c_cast(BodyAggregateElement const &x) -> clingo_ast_t * { return x.ast_; }
 
 using BodyAggregateElementArray = std::vector<BodyAggregateElement>;
 
 auto construct_body_aggregate_element_array(clingo_ast_t **ast, size_t size) -> BodyAggregateElementArray;
 
-class TheoryAtomElement {
+class TheoryAtomElement : public ASTBase {
   public:
-    // Note: for pybind
     TheoryAtomElement() = default;
-
-    TheoryAtomElement(TheoryAtomElement const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    TheoryAtomElement(TheoryAtomElement &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(TheoryAtomElement const &x) -> TheoryAtomElement & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(TheoryAtomElement &&x) noexcept -> TheoryAtomElement & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(TheoryAtomElement const &a, TheoryAtomElement const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(TheoryAtomElement const &a, TheoryAtomElement const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~TheoryAtomElement() { clingo_ast_free(ast_); }
+    TheoryAtomElement(TheoryAtomElement const &x) = default;
+    TheoryAtomElement(TheoryAtomElement &&x) noexcept = default;
+    auto operator=(TheoryAtomElement const &x) -> TheoryAtomElement & = default;
+    auto operator=(TheoryAtomElement &&x) noexcept -> TheoryAtomElement & = default;
+    ~TheoryAtomElement() noexcept = default;
 
     auto location() -> Location;
-
     auto tuple() -> TheoryTermArray;
-
     auto condition() -> LiteralArray;
 
-    static auto acquire(clingo_ast_t *ast) -> TheoryAtomElement { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<TheoryAtomElement>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryAtomElement;
 
     static auto construct(Library &lib, Location const &location, TheoryTermArray const &tuple,
                           LiteralArray const &condition) -> TheoryAtomElement;
+    static auto acquire(clingo_ast_t *ast) -> TheoryAtomElement { return {ast}; }
 
-    friend auto c_cast(TheoryAtomElement const &x) -> clingo_ast_t *;
+    friend auto operator==(TheoryAtomElement const &a, TheoryAtomElement const &b) -> bool = default;
+    friend auto operator<=>(TheoryAtomElement const &a, TheoryAtomElement const &b) -> std::strong_ordering = default;
 
   private:
-    TheoryAtomElement(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    TheoryAtomElement(clingo_ast_t *ast) : ASTBase{ast} {}
 };
-
-inline auto c_cast(TheoryAtomElement const &x) -> clingo_ast_t * { return x.ast_; }
 
 using TheoryAtomElementArray = std::vector<TheoryAtomElement>;
 
@@ -2075,473 +1019,188 @@ using BodyLiteralArray = std::vector<BodyLiteral>;
 
 auto construct_body_literal_array(clingo_ast_t **ast, size_t size) -> BodyLiteralArray;
 
-class BodySimpleLiteral {
+class BodySimpleLiteral : public ASTBase {
   public:
-    // Note: for pybind
     BodySimpleLiteral() = default;
-
-    BodySimpleLiteral(BodySimpleLiteral const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    BodySimpleLiteral(BodySimpleLiteral &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(BodySimpleLiteral const &x) -> BodySimpleLiteral & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(BodySimpleLiteral &&x) noexcept -> BodySimpleLiteral & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(BodySimpleLiteral const &a, BodySimpleLiteral const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(BodySimpleLiteral const &a, BodySimpleLiteral const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~BodySimpleLiteral() { clingo_ast_free(ast_); }
+    BodySimpleLiteral(BodySimpleLiteral const &x) = default;
+    BodySimpleLiteral(BodySimpleLiteral &&x) noexcept = default;
+    auto operator=(BodySimpleLiteral const &x) -> BodySimpleLiteral & = default;
+    auto operator=(BodySimpleLiteral &&x) noexcept -> BodySimpleLiteral & = default;
+    ~BodySimpleLiteral() noexcept = default;
 
     auto literal() -> Literal;
 
-    static auto acquire(clingo_ast_t *ast) -> BodySimpleLiteral { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<BodySimpleLiteral>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> BodySimpleLiteral;
 
     static auto construct(Library &lib, Literal const &literal) -> BodySimpleLiteral;
+    static auto acquire(clingo_ast_t *ast) -> BodySimpleLiteral { return {ast}; }
 
-    friend auto c_cast(BodySimpleLiteral const &x) -> clingo_ast_t *;
+    friend auto operator==(BodySimpleLiteral const &a, BodySimpleLiteral const &b) -> bool = default;
+    friend auto operator<=>(BodySimpleLiteral const &a, BodySimpleLiteral const &b) -> std::strong_ordering = default;
 
   private:
-    BodySimpleLiteral(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    BodySimpleLiteral(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(BodySimpleLiteral const &x) -> clingo_ast_t * { return x.ast_; }
-
-class BodyAggregate {
+class BodyAggregate : public ASTBase {
   public:
-    // Note: for pybind
     BodyAggregate() = default;
-
-    BodyAggregate(BodyAggregate const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    BodyAggregate(BodyAggregate &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(BodyAggregate const &x) -> BodyAggregate & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(BodyAggregate &&x) noexcept -> BodyAggregate & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(BodyAggregate const &a, BodyAggregate const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(BodyAggregate const &a, BodyAggregate const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~BodyAggregate() { clingo_ast_free(ast_); }
+    BodyAggregate(BodyAggregate const &x) = default;
+    BodyAggregate(BodyAggregate &&x) noexcept = default;
+    auto operator=(BodyAggregate const &x) -> BodyAggregate & = default;
+    auto operator=(BodyAggregate &&x) noexcept -> BodyAggregate & = default;
+    ~BodyAggregate() noexcept = default;
 
     auto location() -> Location;
-
     auto sign() -> Sign;
-
     auto left() -> OptionalLeftGuard;
-
     auto function() -> AggregateFunction;
-
     auto elements() -> BodyAggregateElementArray;
-
     auto right() -> OptionalRightGuard;
 
-    static auto acquire(clingo_ast_t *ast) -> BodyAggregate { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<BodyAggregate>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> BodyAggregate;
 
     static auto construct(Library &lib, Location const &location, Sign const &sign, OptionalLeftGuard const &left,
                           AggregateFunction const &function, BodyAggregateElementArray const &elements,
                           OptionalRightGuard const &right) -> BodyAggregate;
+    static auto acquire(clingo_ast_t *ast) -> BodyAggregate { return {ast}; }
 
-    friend auto c_cast(BodyAggregate const &x) -> clingo_ast_t *;
+    friend auto operator==(BodyAggregate const &a, BodyAggregate const &b) -> bool = default;
+    friend auto operator<=>(BodyAggregate const &a, BodyAggregate const &b) -> std::strong_ordering = default;
 
   private:
-    BodyAggregate(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    BodyAggregate(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(BodyAggregate const &x) -> clingo_ast_t * { return x.ast_; }
-
-class BodySetAggregate {
+class BodySetAggregate : public ASTBase {
   public:
-    // Note: for pybind
     BodySetAggregate() = default;
-
-    BodySetAggregate(BodySetAggregate const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    BodySetAggregate(BodySetAggregate &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(BodySetAggregate const &x) -> BodySetAggregate & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(BodySetAggregate &&x) noexcept -> BodySetAggregate & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(BodySetAggregate const &a, BodySetAggregate const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(BodySetAggregate const &a, BodySetAggregate const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~BodySetAggregate() { clingo_ast_free(ast_); }
+    BodySetAggregate(BodySetAggregate const &x) = default;
+    BodySetAggregate(BodySetAggregate &&x) noexcept = default;
+    auto operator=(BodySetAggregate const &x) -> BodySetAggregate & = default;
+    auto operator=(BodySetAggregate &&x) noexcept -> BodySetAggregate & = default;
+    ~BodySetAggregate() noexcept = default;
 
     auto location() -> Location;
-
     auto sign() -> Sign;
-
     auto left() -> OptionalLeftGuard;
-
     auto elements() -> SetAggregateElementArray;
-
     auto right() -> OptionalRightGuard;
 
-    static auto acquire(clingo_ast_t *ast) -> BodySetAggregate { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<BodySetAggregate>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> BodySetAggregate;
 
     static auto construct(Library &lib, Location const &location, Sign const &sign, OptionalLeftGuard const &left,
                           SetAggregateElementArray const &elements,
                           OptionalRightGuard const &right) -> BodySetAggregate;
+    static auto acquire(clingo_ast_t *ast) -> BodySetAggregate { return {ast}; }
 
-    friend auto c_cast(BodySetAggregate const &x) -> clingo_ast_t *;
+    friend auto operator==(BodySetAggregate const &a, BodySetAggregate const &b) -> bool = default;
+    friend auto operator<=>(BodySetAggregate const &a, BodySetAggregate const &b) -> std::strong_ordering = default;
 
   private:
-    BodySetAggregate(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    BodySetAggregate(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(BodySetAggregate const &x) -> clingo_ast_t * { return x.ast_; }
-
-class BodyTheoryAtom {
+class BodyTheoryAtom : public ASTBase {
   public:
-    // Note: for pybind
     BodyTheoryAtom() = default;
-
-    BodyTheoryAtom(BodyTheoryAtom const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    BodyTheoryAtom(BodyTheoryAtom &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(BodyTheoryAtom const &x) -> BodyTheoryAtom & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(BodyTheoryAtom &&x) noexcept -> BodyTheoryAtom & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(BodyTheoryAtom const &a, BodyTheoryAtom const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(BodyTheoryAtom const &a, BodyTheoryAtom const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~BodyTheoryAtom() { clingo_ast_free(ast_); }
+    BodyTheoryAtom(BodyTheoryAtom const &x) = default;
+    BodyTheoryAtom(BodyTheoryAtom &&x) noexcept = default;
+    auto operator=(BodyTheoryAtom const &x) -> BodyTheoryAtom & = default;
+    auto operator=(BodyTheoryAtom &&x) noexcept -> BodyTheoryAtom & = default;
+    ~BodyTheoryAtom() noexcept = default;
 
     auto location() -> Location;
-
     auto sign() -> Sign;
-
     auto name() -> Term;
-
     auto elements() -> TheoryAtomElementArray;
-
     auto right() -> OptionalTheoryRightGuard;
 
-    static auto acquire(clingo_ast_t *ast) -> BodyTheoryAtom { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<BodyTheoryAtom>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> BodyTheoryAtom;
 
     static auto construct(Library &lib, Location const &location, Sign const &sign, Term const &name,
                           TheoryAtomElementArray const &elements,
                           OptionalTheoryRightGuard const &right) -> BodyTheoryAtom;
+    static auto acquire(clingo_ast_t *ast) -> BodyTheoryAtom { return {ast}; }
 
-    friend auto c_cast(BodyTheoryAtom const &x) -> clingo_ast_t *;
+    friend auto operator==(BodyTheoryAtom const &a, BodyTheoryAtom const &b) -> bool = default;
+    friend auto operator<=>(BodyTheoryAtom const &a, BodyTheoryAtom const &b) -> std::strong_ordering = default;
 
   private:
-    BodyTheoryAtom(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    BodyTheoryAtom(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(BodyTheoryAtom const &x) -> clingo_ast_t * { return x.ast_; }
-
-class BodyConditionalLiteral {
+class BodyConditionalLiteral : public ASTBase {
   public:
-    // Note: for pybind
     BodyConditionalLiteral() = default;
-
-    BodyConditionalLiteral(BodyConditionalLiteral const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    BodyConditionalLiteral(BodyConditionalLiteral &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(BodyConditionalLiteral const &x) -> BodyConditionalLiteral & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(BodyConditionalLiteral &&x) noexcept -> BodyConditionalLiteral & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(BodyConditionalLiteral const &a, BodyConditionalLiteral const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(BodyConditionalLiteral const &a, BodyConditionalLiteral const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~BodyConditionalLiteral() { clingo_ast_free(ast_); }
+    BodyConditionalLiteral(BodyConditionalLiteral const &x) = default;
+    BodyConditionalLiteral(BodyConditionalLiteral &&x) noexcept = default;
+    auto operator=(BodyConditionalLiteral const &x) -> BodyConditionalLiteral & = default;
+    auto operator=(BodyConditionalLiteral &&x) noexcept -> BodyConditionalLiteral & = default;
+    ~BodyConditionalLiteral() noexcept = default;
 
     auto location() -> Location;
-
     auto literal() -> Literal;
-
     auto condition() -> LiteralArray;
 
-    static auto acquire(clingo_ast_t *ast) -> BodyConditionalLiteral { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<BodyConditionalLiteral>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> BodyConditionalLiteral;
 
     static auto construct(Library &lib, Location const &location, Literal const &literal,
                           LiteralArray const &condition) -> BodyConditionalLiteral;
+    static auto acquire(clingo_ast_t *ast) -> BodyConditionalLiteral { return {ast}; }
 
-    friend auto c_cast(BodyConditionalLiteral const &x) -> clingo_ast_t *;
+    friend auto operator==(BodyConditionalLiteral const &a, BodyConditionalLiteral const &b) -> bool = default;
+    friend auto operator<=>(BodyConditionalLiteral const &a,
+                            BodyConditionalLiteral const &b) -> std::strong_ordering = default;
 
   private:
-    BodyConditionalLiteral(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    BodyConditionalLiteral(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(BodyConditionalLiteral const &x) -> clingo_ast_t * { return x.ast_; }
-
-class HeadConditionalLiteral {
+class HeadConditionalLiteral : public ASTBase {
   public:
-    // Note: for pybind
     HeadConditionalLiteral() = default;
-
-    HeadConditionalLiteral(HeadConditionalLiteral const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    HeadConditionalLiteral(HeadConditionalLiteral &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(HeadConditionalLiteral const &x) -> HeadConditionalLiteral & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(HeadConditionalLiteral &&x) noexcept -> HeadConditionalLiteral & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(HeadConditionalLiteral const &a, HeadConditionalLiteral const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(HeadConditionalLiteral const &a, HeadConditionalLiteral const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~HeadConditionalLiteral() { clingo_ast_free(ast_); }
+    HeadConditionalLiteral(HeadConditionalLiteral const &x) = default;
+    HeadConditionalLiteral(HeadConditionalLiteral &&x) noexcept = default;
+    auto operator=(HeadConditionalLiteral const &x) -> HeadConditionalLiteral & = default;
+    auto operator=(HeadConditionalLiteral &&x) noexcept -> HeadConditionalLiteral & = default;
+    ~HeadConditionalLiteral() noexcept = default;
 
     auto location() -> Location;
-
     auto literal() -> Literal;
-
     auto condition() -> LiteralArray;
 
-    static auto acquire(clingo_ast_t *ast) -> HeadConditionalLiteral { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<HeadConditionalLiteral>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> HeadConditionalLiteral;
 
     static auto construct(Library &lib, Location const &location, Literal const &literal,
                           LiteralArray const &condition) -> HeadConditionalLiteral;
+    static auto acquire(clingo_ast_t *ast) -> HeadConditionalLiteral { return {ast}; }
 
-    friend auto c_cast(HeadConditionalLiteral const &x) -> clingo_ast_t *;
+    friend auto operator==(HeadConditionalLiteral const &a, HeadConditionalLiteral const &b) -> bool = default;
+    friend auto operator<=>(HeadConditionalLiteral const &a,
+                            HeadConditionalLiteral const &b) -> std::strong_ordering = default;
 
   private:
-    HeadConditionalLiteral(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    HeadConditionalLiteral(clingo_ast_t *ast) : ASTBase{ast} {}
 };
-
-inline auto c_cast(HeadConditionalLiteral const &x) -> clingo_ast_t * { return x.ast_; }
 
 using DisjunctionElement = std::variant<Literal, HeadConditionalLiteral>;
 
@@ -2551,83 +1210,36 @@ using DisjunctionElementArray = std::vector<DisjunctionElement>;
 
 auto construct_disjunction_element_array(clingo_ast_t **ast, size_t size) -> DisjunctionElementArray;
 
-class HeadAggregateElement {
+class HeadAggregateElement : public ASTBase {
   public:
-    // Note: for pybind
     HeadAggregateElement() = default;
-
-    HeadAggregateElement(HeadAggregateElement const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    HeadAggregateElement(HeadAggregateElement &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(HeadAggregateElement const &x) -> HeadAggregateElement & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(HeadAggregateElement &&x) noexcept -> HeadAggregateElement & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(HeadAggregateElement const &a, HeadAggregateElement const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(HeadAggregateElement const &a, HeadAggregateElement const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~HeadAggregateElement() { clingo_ast_free(ast_); }
+    HeadAggregateElement(HeadAggregateElement const &x) = default;
+    HeadAggregateElement(HeadAggregateElement &&x) noexcept = default;
+    auto operator=(HeadAggregateElement const &x) -> HeadAggregateElement & = default;
+    auto operator=(HeadAggregateElement &&x) noexcept -> HeadAggregateElement & = default;
+    ~HeadAggregateElement() noexcept = default;
 
     auto location() -> Location;
-
     auto tuple() -> TermArray;
-
     auto literal() -> Literal;
-
     auto condition() -> LiteralArray;
 
-    static auto acquire(clingo_ast_t *ast) -> HeadAggregateElement { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<HeadAggregateElement>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> HeadAggregateElement;
 
     static auto construct(Library &lib, Location const &location, TermArray const &tuple, Literal const &literal,
                           LiteralArray const &condition) -> HeadAggregateElement;
+    static auto acquire(clingo_ast_t *ast) -> HeadAggregateElement { return {ast}; }
 
-    friend auto c_cast(HeadAggregateElement const &x) -> clingo_ast_t *;
+    friend auto operator==(HeadAggregateElement const &a, HeadAggregateElement const &b) -> bool = default;
+    friend auto operator<=>(HeadAggregateElement const &a,
+                            HeadAggregateElement const &b) -> std::strong_ordering = default;
 
   private:
-    HeadAggregateElement(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    HeadAggregateElement(clingo_ast_t *ast) : ASTBase{ast} {}
 };
-
-inline auto c_cast(HeadAggregateElement const &x) -> clingo_ast_t * { return x.ast_; }
 
 using HeadAggregateElementArray = std::vector<HeadAggregateElement>;
 
@@ -2647,938 +1259,377 @@ using HeadLiteral = std::variant<HeadSimpleLiteral, HeadAggregate, HeadSetAggreg
 
 auto construct_head_literal(clingo_ast_t *ast) -> HeadLiteral;
 
-class HeadSimpleLiteral {
+class HeadSimpleLiteral : public ASTBase {
   public:
-    // Note: for pybind
     HeadSimpleLiteral() = default;
-
-    HeadSimpleLiteral(HeadSimpleLiteral const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    HeadSimpleLiteral(HeadSimpleLiteral &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(HeadSimpleLiteral const &x) -> HeadSimpleLiteral & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(HeadSimpleLiteral &&x) noexcept -> HeadSimpleLiteral & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(HeadSimpleLiteral const &a, HeadSimpleLiteral const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(HeadSimpleLiteral const &a, HeadSimpleLiteral const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~HeadSimpleLiteral() { clingo_ast_free(ast_); }
+    HeadSimpleLiteral(HeadSimpleLiteral const &x) = default;
+    HeadSimpleLiteral(HeadSimpleLiteral &&x) noexcept = default;
+    auto operator=(HeadSimpleLiteral const &x) -> HeadSimpleLiteral & = default;
+    auto operator=(HeadSimpleLiteral &&x) noexcept -> HeadSimpleLiteral & = default;
+    ~HeadSimpleLiteral() noexcept = default;
 
     auto literal() -> Literal;
 
-    static auto acquire(clingo_ast_t *ast) -> HeadSimpleLiteral { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<HeadSimpleLiteral>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> HeadSimpleLiteral;
 
     static auto construct(Library &lib, Literal const &literal) -> HeadSimpleLiteral;
+    static auto acquire(clingo_ast_t *ast) -> HeadSimpleLiteral { return {ast}; }
 
-    friend auto c_cast(HeadSimpleLiteral const &x) -> clingo_ast_t *;
+    friend auto operator==(HeadSimpleLiteral const &a, HeadSimpleLiteral const &b) -> bool = default;
+    friend auto operator<=>(HeadSimpleLiteral const &a, HeadSimpleLiteral const &b) -> std::strong_ordering = default;
 
   private:
-    HeadSimpleLiteral(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    HeadSimpleLiteral(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(HeadSimpleLiteral const &x) -> clingo_ast_t * { return x.ast_; }
-
-class HeadAggregate {
+class HeadAggregate : public ASTBase {
   public:
-    // Note: for pybind
     HeadAggregate() = default;
-
-    HeadAggregate(HeadAggregate const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    HeadAggregate(HeadAggregate &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(HeadAggregate const &x) -> HeadAggregate & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(HeadAggregate &&x) noexcept -> HeadAggregate & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(HeadAggregate const &a, HeadAggregate const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(HeadAggregate const &a, HeadAggregate const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~HeadAggregate() { clingo_ast_free(ast_); }
+    HeadAggregate(HeadAggregate const &x) = default;
+    HeadAggregate(HeadAggregate &&x) noexcept = default;
+    auto operator=(HeadAggregate const &x) -> HeadAggregate & = default;
+    auto operator=(HeadAggregate &&x) noexcept -> HeadAggregate & = default;
+    ~HeadAggregate() noexcept = default;
 
     auto location() -> Location;
-
     auto left() -> OptionalLeftGuard;
-
     auto function() -> AggregateFunction;
-
     auto elements() -> HeadAggregateElementArray;
-
     auto right() -> OptionalRightGuard;
 
-    static auto acquire(clingo_ast_t *ast) -> HeadAggregate { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<HeadAggregate>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> HeadAggregate;
 
     static auto construct(Library &lib, Location const &location, OptionalLeftGuard const &left,
                           AggregateFunction const &function, HeadAggregateElementArray const &elements,
                           OptionalRightGuard const &right) -> HeadAggregate;
+    static auto acquire(clingo_ast_t *ast) -> HeadAggregate { return {ast}; }
 
-    friend auto c_cast(HeadAggregate const &x) -> clingo_ast_t *;
+    friend auto operator==(HeadAggregate const &a, HeadAggregate const &b) -> bool = default;
+    friend auto operator<=>(HeadAggregate const &a, HeadAggregate const &b) -> std::strong_ordering = default;
 
   private:
-    HeadAggregate(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    HeadAggregate(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(HeadAggregate const &x) -> clingo_ast_t * { return x.ast_; }
-
-class HeadSetAggregate {
+class HeadSetAggregate : public ASTBase {
   public:
-    // Note: for pybind
     HeadSetAggregate() = default;
-
-    HeadSetAggregate(HeadSetAggregate const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    HeadSetAggregate(HeadSetAggregate &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(HeadSetAggregate const &x) -> HeadSetAggregate & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(HeadSetAggregate &&x) noexcept -> HeadSetAggregate & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(HeadSetAggregate const &a, HeadSetAggregate const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(HeadSetAggregate const &a, HeadSetAggregate const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~HeadSetAggregate() { clingo_ast_free(ast_); }
+    HeadSetAggregate(HeadSetAggregate const &x) = default;
+    HeadSetAggregate(HeadSetAggregate &&x) noexcept = default;
+    auto operator=(HeadSetAggregate const &x) -> HeadSetAggregate & = default;
+    auto operator=(HeadSetAggregate &&x) noexcept -> HeadSetAggregate & = default;
+    ~HeadSetAggregate() noexcept = default;
 
     auto location() -> Location;
-
     auto left() -> OptionalLeftGuard;
-
     auto elements() -> SetAggregateElementArray;
-
     auto right() -> OptionalRightGuard;
 
-    static auto acquire(clingo_ast_t *ast) -> HeadSetAggregate { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<HeadSetAggregate>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> HeadSetAggregate;
 
     static auto construct(Library &lib, Location const &location, OptionalLeftGuard const &left,
                           SetAggregateElementArray const &elements,
                           OptionalRightGuard const &right) -> HeadSetAggregate;
+    static auto acquire(clingo_ast_t *ast) -> HeadSetAggregate { return {ast}; }
 
-    friend auto c_cast(HeadSetAggregate const &x) -> clingo_ast_t *;
+    friend auto operator==(HeadSetAggregate const &a, HeadSetAggregate const &b) -> bool = default;
+    friend auto operator<=>(HeadSetAggregate const &a, HeadSetAggregate const &b) -> std::strong_ordering = default;
 
   private:
-    HeadSetAggregate(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    HeadSetAggregate(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(HeadSetAggregate const &x) -> clingo_ast_t * { return x.ast_; }
-
-class HeadTheoryAtom {
+class HeadTheoryAtom : public ASTBase {
   public:
-    // Note: for pybind
     HeadTheoryAtom() = default;
-
-    HeadTheoryAtom(HeadTheoryAtom const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    HeadTheoryAtom(HeadTheoryAtom &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(HeadTheoryAtom const &x) -> HeadTheoryAtom & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(HeadTheoryAtom &&x) noexcept -> HeadTheoryAtom & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(HeadTheoryAtom const &a, HeadTheoryAtom const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(HeadTheoryAtom const &a, HeadTheoryAtom const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~HeadTheoryAtom() { clingo_ast_free(ast_); }
+    HeadTheoryAtom(HeadTheoryAtom const &x) = default;
+    HeadTheoryAtom(HeadTheoryAtom &&x) noexcept = default;
+    auto operator=(HeadTheoryAtom const &x) -> HeadTheoryAtom & = default;
+    auto operator=(HeadTheoryAtom &&x) noexcept -> HeadTheoryAtom & = default;
+    ~HeadTheoryAtom() noexcept = default;
 
     auto location() -> Location;
-
     auto name() -> Term;
-
     auto elements() -> TheoryAtomElementArray;
-
     auto right() -> OptionalTheoryRightGuard;
 
-    static auto acquire(clingo_ast_t *ast) -> HeadTheoryAtom { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<HeadTheoryAtom>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> HeadTheoryAtom;
 
     static auto construct(Library &lib, Location const &location, Term const &name,
                           TheoryAtomElementArray const &elements,
                           OptionalTheoryRightGuard const &right) -> HeadTheoryAtom;
+    static auto acquire(clingo_ast_t *ast) -> HeadTheoryAtom { return {ast}; }
 
-    friend auto c_cast(HeadTheoryAtom const &x) -> clingo_ast_t *;
+    friend auto operator==(HeadTheoryAtom const &a, HeadTheoryAtom const &b) -> bool = default;
+    friend auto operator<=>(HeadTheoryAtom const &a, HeadTheoryAtom const &b) -> std::strong_ordering = default;
 
   private:
-    HeadTheoryAtom(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    HeadTheoryAtom(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(HeadTheoryAtom const &x) -> clingo_ast_t * { return x.ast_; }
-
-class HeadDisjunction {
+class HeadDisjunction : public ASTBase {
   public:
-    // Note: for pybind
     HeadDisjunction() = default;
-
-    HeadDisjunction(HeadDisjunction const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    HeadDisjunction(HeadDisjunction &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(HeadDisjunction const &x) -> HeadDisjunction & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(HeadDisjunction &&x) noexcept -> HeadDisjunction & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(HeadDisjunction const &a, HeadDisjunction const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(HeadDisjunction const &a, HeadDisjunction const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~HeadDisjunction() { clingo_ast_free(ast_); }
+    HeadDisjunction(HeadDisjunction const &x) = default;
+    HeadDisjunction(HeadDisjunction &&x) noexcept = default;
+    auto operator=(HeadDisjunction const &x) -> HeadDisjunction & = default;
+    auto operator=(HeadDisjunction &&x) noexcept -> HeadDisjunction & = default;
+    ~HeadDisjunction() noexcept = default;
 
     auto location() -> Location;
-
     auto elements() -> DisjunctionElementArray;
 
-    static auto acquire(clingo_ast_t *ast) -> HeadDisjunction { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<HeadDisjunction>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> HeadDisjunction;
 
     static auto construct(Library &lib, Location const &location,
                           DisjunctionElementArray const &elements) -> HeadDisjunction;
+    static auto acquire(clingo_ast_t *ast) -> HeadDisjunction { return {ast}; }
 
-    friend auto c_cast(HeadDisjunction const &x) -> clingo_ast_t *;
+    friend auto operator==(HeadDisjunction const &a, HeadDisjunction const &b) -> bool = default;
+    friend auto operator<=>(HeadDisjunction const &a, HeadDisjunction const &b) -> std::strong_ordering = default;
 
   private:
-    HeadDisjunction(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    HeadDisjunction(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(HeadDisjunction const &x) -> clingo_ast_t * { return x.ast_; }
-
-class TheoryOperatorDefinition {
+class TheoryOperatorDefinition : public ASTBase {
   public:
-    // Note: for pybind
     TheoryOperatorDefinition() = default;
-
-    TheoryOperatorDefinition(TheoryOperatorDefinition const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    TheoryOperatorDefinition(TheoryOperatorDefinition &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(TheoryOperatorDefinition const &x) -> TheoryOperatorDefinition & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(TheoryOperatorDefinition &&x) noexcept -> TheoryOperatorDefinition & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(TheoryOperatorDefinition const &a, TheoryOperatorDefinition const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(TheoryOperatorDefinition const &a,
-                            TheoryOperatorDefinition const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~TheoryOperatorDefinition() { clingo_ast_free(ast_); }
+    TheoryOperatorDefinition(TheoryOperatorDefinition const &x) = default;
+    TheoryOperatorDefinition(TheoryOperatorDefinition &&x) noexcept = default;
+    auto operator=(TheoryOperatorDefinition const &x) -> TheoryOperatorDefinition & = default;
+    auto operator=(TheoryOperatorDefinition &&x) noexcept -> TheoryOperatorDefinition & = default;
+    ~TheoryOperatorDefinition() noexcept = default;
 
     auto location() -> Location;
-
     auto name() -> char const *;
-
     auto priority() -> int;
-
     auto operator_type() -> TheoryOperatorType;
 
-    static auto acquire(clingo_ast_t *ast) -> TheoryOperatorDefinition { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<TheoryOperatorDefinition>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryOperatorDefinition;
 
     static auto construct(Library &lib, Location const &location, char const *name, int priority,
                           TheoryOperatorType const &operator_type) -> TheoryOperatorDefinition;
+    static auto acquire(clingo_ast_t *ast) -> TheoryOperatorDefinition { return {ast}; }
 
-    friend auto c_cast(TheoryOperatorDefinition const &x) -> clingo_ast_t *;
+    friend auto operator==(TheoryOperatorDefinition const &a, TheoryOperatorDefinition const &b) -> bool = default;
+    friend auto operator<=>(TheoryOperatorDefinition const &a,
+                            TheoryOperatorDefinition const &b) -> std::strong_ordering = default;
 
   private:
-    TheoryOperatorDefinition(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    TheoryOperatorDefinition(clingo_ast_t *ast) : ASTBase{ast} {}
 };
-
-inline auto c_cast(TheoryOperatorDefinition const &x) -> clingo_ast_t * { return x.ast_; }
 
 using TheoryOperatorDefinitionArray = std::vector<TheoryOperatorDefinition>;
 
 auto construct_theory_operator_definition_array(clingo_ast_t **ast, size_t size) -> TheoryOperatorDefinitionArray;
 
-class TheoryTermDefinition {
+class TheoryTermDefinition : public ASTBase {
   public:
-    // Note: for pybind
     TheoryTermDefinition() = default;
-
-    TheoryTermDefinition(TheoryTermDefinition const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    TheoryTermDefinition(TheoryTermDefinition &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(TheoryTermDefinition const &x) -> TheoryTermDefinition & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(TheoryTermDefinition &&x) noexcept -> TheoryTermDefinition & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(TheoryTermDefinition const &a, TheoryTermDefinition const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(TheoryTermDefinition const &a, TheoryTermDefinition const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~TheoryTermDefinition() { clingo_ast_free(ast_); }
+    TheoryTermDefinition(TheoryTermDefinition const &x) = default;
+    TheoryTermDefinition(TheoryTermDefinition &&x) noexcept = default;
+    auto operator=(TheoryTermDefinition const &x) -> TheoryTermDefinition & = default;
+    auto operator=(TheoryTermDefinition &&x) noexcept -> TheoryTermDefinition & = default;
+    ~TheoryTermDefinition() noexcept = default;
 
     auto location() -> Location;
-
     auto name() -> char const *;
-
     auto operators() -> TheoryOperatorDefinitionArray;
 
-    static auto acquire(clingo_ast_t *ast) -> TheoryTermDefinition { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<TheoryTermDefinition>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryTermDefinition;
 
     static auto construct(Library &lib, Location const &location, char const *name,
                           TheoryOperatorDefinitionArray const &operators) -> TheoryTermDefinition;
+    static auto acquire(clingo_ast_t *ast) -> TheoryTermDefinition { return {ast}; }
 
-    friend auto c_cast(TheoryTermDefinition const &x) -> clingo_ast_t *;
+    friend auto operator==(TheoryTermDefinition const &a, TheoryTermDefinition const &b) -> bool = default;
+    friend auto operator<=>(TheoryTermDefinition const &a,
+                            TheoryTermDefinition const &b) -> std::strong_ordering = default;
 
   private:
-    TheoryTermDefinition(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    TheoryTermDefinition(clingo_ast_t *ast) : ASTBase{ast} {}
 };
-
-inline auto c_cast(TheoryTermDefinition const &x) -> clingo_ast_t * { return x.ast_; }
 
 using TheoryTermDefinitionArray = std::vector<TheoryTermDefinition>;
 
 auto construct_theory_term_definition_array(clingo_ast_t **ast, size_t size) -> TheoryTermDefinitionArray;
 
-class TheoryGuardDefinition {
+class TheoryGuardDefinition : public ASTBase {
   public:
-    // Note: for pybind
     TheoryGuardDefinition() = default;
-
-    TheoryGuardDefinition(TheoryGuardDefinition const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    TheoryGuardDefinition(TheoryGuardDefinition &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(TheoryGuardDefinition const &x) -> TheoryGuardDefinition & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(TheoryGuardDefinition &&x) noexcept -> TheoryGuardDefinition & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(TheoryGuardDefinition const &a, TheoryGuardDefinition const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(TheoryGuardDefinition const &a, TheoryGuardDefinition const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~TheoryGuardDefinition() { clingo_ast_free(ast_); }
+    TheoryGuardDefinition(TheoryGuardDefinition const &x) = default;
+    TheoryGuardDefinition(TheoryGuardDefinition &&x) noexcept = default;
+    auto operator=(TheoryGuardDefinition const &x) -> TheoryGuardDefinition & = default;
+    auto operator=(TheoryGuardDefinition &&x) noexcept -> TheoryGuardDefinition & = default;
+    ~TheoryGuardDefinition() noexcept = default;
 
     auto operators() -> std::vector<char const *>;
-
     auto term() -> char const *;
 
-    static auto acquire(clingo_ast_t *ast) -> TheoryGuardDefinition { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<TheoryGuardDefinition>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryGuardDefinition;
 
     static auto construct(Library &lib, StringArray const &operators, char const *term) -> TheoryGuardDefinition;
+    static auto acquire(clingo_ast_t *ast) -> TheoryGuardDefinition { return {ast}; }
 
-    friend auto c_cast(TheoryGuardDefinition const &x) -> clingo_ast_t *;
+    friend auto operator==(TheoryGuardDefinition const &a, TheoryGuardDefinition const &b) -> bool = default;
+    friend auto operator<=>(TheoryGuardDefinition const &a,
+                            TheoryGuardDefinition const &b) -> std::strong_ordering = default;
 
   private:
-    TheoryGuardDefinition(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    TheoryGuardDefinition(clingo_ast_t *ast) : ASTBase{ast} {}
 };
-
-inline auto c_cast(TheoryGuardDefinition const &x) -> clingo_ast_t * { return x.ast_; }
 
 using OptionalTheoryGuardDefinition = std::optional<TheoryGuardDefinition>;
 
-class TheoryAtomDefinition {
+class TheoryAtomDefinition : public ASTBase {
   public:
-    // Note: for pybind
     TheoryAtomDefinition() = default;
-
-    TheoryAtomDefinition(TheoryAtomDefinition const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    TheoryAtomDefinition(TheoryAtomDefinition &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(TheoryAtomDefinition const &x) -> TheoryAtomDefinition & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(TheoryAtomDefinition &&x) noexcept -> TheoryAtomDefinition & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(TheoryAtomDefinition const &a, TheoryAtomDefinition const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(TheoryAtomDefinition const &a, TheoryAtomDefinition const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~TheoryAtomDefinition() { clingo_ast_free(ast_); }
+    TheoryAtomDefinition(TheoryAtomDefinition const &x) = default;
+    TheoryAtomDefinition(TheoryAtomDefinition &&x) noexcept = default;
+    auto operator=(TheoryAtomDefinition const &x) -> TheoryAtomDefinition & = default;
+    auto operator=(TheoryAtomDefinition &&x) noexcept -> TheoryAtomDefinition & = default;
+    ~TheoryAtomDefinition() noexcept = default;
 
     auto location() -> Location;
-
     auto name() -> char const *;
-
     auto arity() -> int;
-
     auto term() -> char const *;
-
     auto guard() -> OptionalTheoryGuardDefinition;
-
     auto atom_type() -> TheoryAtomType;
 
-    static auto acquire(clingo_ast_t *ast) -> TheoryAtomDefinition { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<TheoryAtomDefinition>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryAtomDefinition;
 
     static auto construct(Library &lib, Location const &location, char const *name, int arity, char const *term,
                           OptionalTheoryGuardDefinition const &guard,
                           TheoryAtomType const &atom_type) -> TheoryAtomDefinition;
+    static auto acquire(clingo_ast_t *ast) -> TheoryAtomDefinition { return {ast}; }
 
-    friend auto c_cast(TheoryAtomDefinition const &x) -> clingo_ast_t *;
+    friend auto operator==(TheoryAtomDefinition const &a, TheoryAtomDefinition const &b) -> bool = default;
+    friend auto operator<=>(TheoryAtomDefinition const &a,
+                            TheoryAtomDefinition const &b) -> std::strong_ordering = default;
 
   private:
-    TheoryAtomDefinition(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    TheoryAtomDefinition(clingo_ast_t *ast) : ASTBase{ast} {}
 };
-
-inline auto c_cast(TheoryAtomDefinition const &x) -> clingo_ast_t * { return x.ast_; }
 
 using TheoryAtomDefinitionArray = std::vector<TheoryAtomDefinition>;
 
 auto construct_theory_atom_definition_array(clingo_ast_t **ast, size_t size) -> TheoryAtomDefinitionArray;
 
-class OptimizeTuple {
+class OptimizeTuple : public ASTBase {
   public:
-    // Note: for pybind
     OptimizeTuple() = default;
-
-    OptimizeTuple(OptimizeTuple const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    OptimizeTuple(OptimizeTuple &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(OptimizeTuple const &x) -> OptimizeTuple & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(OptimizeTuple &&x) noexcept -> OptimizeTuple & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(OptimizeTuple const &a, OptimizeTuple const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(OptimizeTuple const &a, OptimizeTuple const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~OptimizeTuple() { clingo_ast_free(ast_); }
+    OptimizeTuple(OptimizeTuple const &x) = default;
+    OptimizeTuple(OptimizeTuple &&x) noexcept = default;
+    auto operator=(OptimizeTuple const &x) -> OptimizeTuple & = default;
+    auto operator=(OptimizeTuple &&x) noexcept -> OptimizeTuple & = default;
+    ~OptimizeTuple() noexcept = default;
 
     auto weight() -> Term;
-
     auto priority() -> OptionalTerm;
-
     auto terms() -> TermArray;
 
-    static auto acquire(clingo_ast_t *ast) -> OptimizeTuple { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<OptimizeTuple>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> OptimizeTuple;
 
     static auto construct(Library &lib, Term const &weight, OptionalTerm const &priority,
                           TermArray const &terms) -> OptimizeTuple;
+    static auto acquire(clingo_ast_t *ast) -> OptimizeTuple { return {ast}; }
 
-    friend auto c_cast(OptimizeTuple const &x) -> clingo_ast_t *;
+    friend auto operator==(OptimizeTuple const &a, OptimizeTuple const &b) -> bool = default;
+    friend auto operator<=>(OptimizeTuple const &a, OptimizeTuple const &b) -> std::strong_ordering = default;
 
   private:
-    OptimizeTuple(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    OptimizeTuple(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(OptimizeTuple const &x) -> clingo_ast_t * { return x.ast_; }
-
-class OptimizeElement {
+class OptimizeElement : public ASTBase {
   public:
-    // Note: for pybind
     OptimizeElement() = default;
-
-    OptimizeElement(OptimizeElement const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    OptimizeElement(OptimizeElement &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(OptimizeElement const &x) -> OptimizeElement & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(OptimizeElement &&x) noexcept -> OptimizeElement & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(OptimizeElement const &a, OptimizeElement const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(OptimizeElement const &a, OptimizeElement const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~OptimizeElement() { clingo_ast_free(ast_); }
+    OptimizeElement(OptimizeElement const &x) = default;
+    OptimizeElement(OptimizeElement &&x) noexcept = default;
+    auto operator=(OptimizeElement const &x) -> OptimizeElement & = default;
+    auto operator=(OptimizeElement &&x) noexcept -> OptimizeElement & = default;
+    ~OptimizeElement() noexcept = default;
 
     auto tuple() -> OptimizeTuple;
-
     auto condition() -> LiteralArray;
 
-    static auto acquire(clingo_ast_t *ast) -> OptimizeElement { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<OptimizeElement>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> OptimizeElement;
 
     static auto construct(Library &lib, OptimizeTuple const &tuple, LiteralArray const &condition) -> OptimizeElement;
+    static auto acquire(clingo_ast_t *ast) -> OptimizeElement { return {ast}; }
 
-    friend auto c_cast(OptimizeElement const &x) -> clingo_ast_t *;
+    friend auto operator==(OptimizeElement const &a, OptimizeElement const &b) -> bool = default;
+    friend auto operator<=>(OptimizeElement const &a, OptimizeElement const &b) -> std::strong_ordering = default;
 
   private:
-    OptimizeElement(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    OptimizeElement(clingo_ast_t *ast) : ASTBase{ast} {}
 };
-
-inline auto c_cast(OptimizeElement const &x) -> clingo_ast_t * { return x.ast_; }
 
 using OptimizeElementArray = std::vector<OptimizeElement>;
 
 auto construct_optimize_element_array(clingo_ast_t **ast, size_t size) -> OptimizeElementArray;
 
-class Edge {
+class Edge : public ASTBase {
   public:
-    // Note: for pybind
     Edge() = default;
-
-    Edge(Edge const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    Edge(Edge &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(Edge const &x) -> Edge & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(Edge &&x) noexcept -> Edge & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(Edge const &a, Edge const &b) -> bool { return clingo_ast_equal(a.ast_, b.ast_); }
-
-    friend auto operator<=>(Edge const &a, Edge const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~Edge() { clingo_ast_free(ast_); }
+    Edge(Edge const &x) = default;
+    Edge(Edge &&x) noexcept = default;
+    auto operator=(Edge const &x) -> Edge & = default;
+    auto operator=(Edge &&x) noexcept -> Edge & = default;
+    ~Edge() noexcept = default;
 
     auto u() -> Term;
-
     auto v() -> Term;
 
-    static auto acquire(clingo_ast_t *ast) -> Edge { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<Edge>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> Edge;
 
     static auto construct(Library &lib, Term const &u, Term const &v) -> Edge;
+    static auto acquire(clingo_ast_t *ast) -> Edge { return {ast}; }
 
-    friend auto c_cast(Edge const &x) -> clingo_ast_t *;
+    friend auto operator==(Edge const &a, Edge const &b) -> bool = default;
+    friend auto operator<=>(Edge const &a, Edge const &b) -> std::strong_ordering = default;
 
   private:
-    Edge(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    Edge(clingo_ast_t *ast) : ASTBase{ast} {}
 };
-
-inline auto c_cast(Edge const &x) -> clingo_ast_t * { return x.ast_; }
 
 using EdgeArray = std::vector<Edge>;
 
@@ -3628,1389 +1679,538 @@ using Statement =
 
 auto construct_statement(clingo_ast_t *ast) -> Statement;
 
-class StatementRule {
+class StatementRule : public ASTBase {
   public:
-    // Note: for pybind
     StatementRule() = default;
-
-    StatementRule(StatementRule const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    StatementRule(StatementRule &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(StatementRule const &x) -> StatementRule & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(StatementRule &&x) noexcept -> StatementRule & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(StatementRule const &a, StatementRule const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(StatementRule const &a, StatementRule const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~StatementRule() { clingo_ast_free(ast_); }
+    StatementRule(StatementRule const &x) = default;
+    StatementRule(StatementRule &&x) noexcept = default;
+    auto operator=(StatementRule const &x) -> StatementRule & = default;
+    auto operator=(StatementRule &&x) noexcept -> StatementRule & = default;
+    ~StatementRule() noexcept = default;
 
     auto location() -> Location;
-
     auto head() -> HeadLiteral;
-
     auto body() -> BodyLiteralArray;
 
-    static auto acquire(clingo_ast_t *ast) -> StatementRule { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<StatementRule>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementRule;
 
     static auto construct(Library &lib, Location const &location, HeadLiteral const &head,
                           BodyLiteralArray const &body) -> StatementRule;
+    static auto acquire(clingo_ast_t *ast) -> StatementRule { return {ast}; }
 
-    friend auto c_cast(StatementRule const &x) -> clingo_ast_t *;
+    friend auto operator==(StatementRule const &a, StatementRule const &b) -> bool = default;
+    friend auto operator<=>(StatementRule const &a, StatementRule const &b) -> std::strong_ordering = default;
 
   private:
-    StatementRule(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    StatementRule(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(StatementRule const &x) -> clingo_ast_t * { return x.ast_; }
-
-class StatementTheory {
+class StatementTheory : public ASTBase {
   public:
-    // Note: for pybind
     StatementTheory() = default;
-
-    StatementTheory(StatementTheory const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    StatementTheory(StatementTheory &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(StatementTheory const &x) -> StatementTheory & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(StatementTheory &&x) noexcept -> StatementTheory & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(StatementTheory const &a, StatementTheory const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(StatementTheory const &a, StatementTheory const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~StatementTheory() { clingo_ast_free(ast_); }
+    StatementTheory(StatementTheory const &x) = default;
+    StatementTheory(StatementTheory &&x) noexcept = default;
+    auto operator=(StatementTheory const &x) -> StatementTheory & = default;
+    auto operator=(StatementTheory &&x) noexcept -> StatementTheory & = default;
+    ~StatementTheory() noexcept = default;
 
     auto location() -> Location;
-
     auto name() -> char const *;
-
     auto terms() -> TheoryTermDefinitionArray;
-
     auto atoms() -> TheoryAtomDefinitionArray;
 
-    static auto acquire(clingo_ast_t *ast) -> StatementTheory { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<StatementTheory>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementTheory;
 
     static auto construct(Library &lib, Location const &location, char const *name,
                           TheoryTermDefinitionArray const &terms,
                           TheoryAtomDefinitionArray const &atoms) -> StatementTheory;
+    static auto acquire(clingo_ast_t *ast) -> StatementTheory { return {ast}; }
 
-    friend auto c_cast(StatementTheory const &x) -> clingo_ast_t *;
+    friend auto operator==(StatementTheory const &a, StatementTheory const &b) -> bool = default;
+    friend auto operator<=>(StatementTheory const &a, StatementTheory const &b) -> std::strong_ordering = default;
 
   private:
-    StatementTheory(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    StatementTheory(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(StatementTheory const &x) -> clingo_ast_t * { return x.ast_; }
-
-class StatementOptimize {
+class StatementOptimize : public ASTBase {
   public:
-    // Note: for pybind
     StatementOptimize() = default;
-
-    StatementOptimize(StatementOptimize const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    StatementOptimize(StatementOptimize &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(StatementOptimize const &x) -> StatementOptimize & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(StatementOptimize &&x) noexcept -> StatementOptimize & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(StatementOptimize const &a, StatementOptimize const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(StatementOptimize const &a, StatementOptimize const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~StatementOptimize() { clingo_ast_free(ast_); }
+    StatementOptimize(StatementOptimize const &x) = default;
+    StatementOptimize(StatementOptimize &&x) noexcept = default;
+    auto operator=(StatementOptimize const &x) -> StatementOptimize & = default;
+    auto operator=(StatementOptimize &&x) noexcept -> StatementOptimize & = default;
+    ~StatementOptimize() noexcept = default;
 
     auto location() -> Location;
-
     auto elements() -> OptimizeElementArray;
-
     auto optimize_type() -> OptimizeType;
 
-    static auto acquire(clingo_ast_t *ast) -> StatementOptimize { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<StatementOptimize>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementOptimize;
 
     static auto construct(Library &lib, Location const &location, OptimizeElementArray const &elements,
                           OptimizeType const &optimize_type) -> StatementOptimize;
+    static auto acquire(clingo_ast_t *ast) -> StatementOptimize { return {ast}; }
 
-    friend auto c_cast(StatementOptimize const &x) -> clingo_ast_t *;
+    friend auto operator==(StatementOptimize const &a, StatementOptimize const &b) -> bool = default;
+    friend auto operator<=>(StatementOptimize const &a, StatementOptimize const &b) -> std::strong_ordering = default;
 
   private:
-    StatementOptimize(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    StatementOptimize(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(StatementOptimize const &x) -> clingo_ast_t * { return x.ast_; }
-
-class StatementWeakConstraint {
+class StatementWeakConstraint : public ASTBase {
   public:
-    // Note: for pybind
     StatementWeakConstraint() = default;
-
-    StatementWeakConstraint(StatementWeakConstraint const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    StatementWeakConstraint(StatementWeakConstraint &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(StatementWeakConstraint const &x) -> StatementWeakConstraint & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(StatementWeakConstraint &&x) noexcept -> StatementWeakConstraint & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(StatementWeakConstraint const &a, StatementWeakConstraint const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(StatementWeakConstraint const &a,
-                            StatementWeakConstraint const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~StatementWeakConstraint() { clingo_ast_free(ast_); }
+    StatementWeakConstraint(StatementWeakConstraint const &x) = default;
+    StatementWeakConstraint(StatementWeakConstraint &&x) noexcept = default;
+    auto operator=(StatementWeakConstraint const &x) -> StatementWeakConstraint & = default;
+    auto operator=(StatementWeakConstraint &&x) noexcept -> StatementWeakConstraint & = default;
+    ~StatementWeakConstraint() noexcept = default;
 
     auto location() -> Location;
-
     auto body() -> BodyLiteralArray;
-
     auto tuple() -> OptimizeTuple;
 
-    static auto acquire(clingo_ast_t *ast) -> StatementWeakConstraint { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<StatementWeakConstraint>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementWeakConstraint;
 
     static auto construct(Library &lib, Location const &location, BodyLiteralArray const &body,
                           OptimizeTuple const &tuple) -> StatementWeakConstraint;
+    static auto acquire(clingo_ast_t *ast) -> StatementWeakConstraint { return {ast}; }
 
-    friend auto c_cast(StatementWeakConstraint const &x) -> clingo_ast_t *;
+    friend auto operator==(StatementWeakConstraint const &a, StatementWeakConstraint const &b) -> bool = default;
+    friend auto operator<=>(StatementWeakConstraint const &a,
+                            StatementWeakConstraint const &b) -> std::strong_ordering = default;
 
   private:
-    StatementWeakConstraint(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    StatementWeakConstraint(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(StatementWeakConstraint const &x) -> clingo_ast_t * { return x.ast_; }
-
-class StatementShow {
+class StatementShow : public ASTBase {
   public:
-    // Note: for pybind
     StatementShow() = default;
-
-    StatementShow(StatementShow const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    StatementShow(StatementShow &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(StatementShow const &x) -> StatementShow & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(StatementShow &&x) noexcept -> StatementShow & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(StatementShow const &a, StatementShow const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(StatementShow const &a, StatementShow const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~StatementShow() { clingo_ast_free(ast_); }
+    StatementShow(StatementShow const &x) = default;
+    StatementShow(StatementShow &&x) noexcept = default;
+    auto operator=(StatementShow const &x) -> StatementShow & = default;
+    auto operator=(StatementShow &&x) noexcept -> StatementShow & = default;
+    ~StatementShow() noexcept = default;
 
     auto location() -> Location;
-
     auto term() -> Term;
-
     auto body() -> BodyLiteralArray;
 
-    static auto acquire(clingo_ast_t *ast) -> StatementShow { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<StatementShow>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementShow;
 
     static auto construct(Library &lib, Location const &location, Term const &term,
                           BodyLiteralArray const &body) -> StatementShow;
+    static auto acquire(clingo_ast_t *ast) -> StatementShow { return {ast}; }
 
-    friend auto c_cast(StatementShow const &x) -> clingo_ast_t *;
+    friend auto operator==(StatementShow const &a, StatementShow const &b) -> bool = default;
+    friend auto operator<=>(StatementShow const &a, StatementShow const &b) -> std::strong_ordering = default;
 
   private:
-    StatementShow(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    StatementShow(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(StatementShow const &x) -> clingo_ast_t * { return x.ast_; }
-
-class StatementShowNothing {
+class StatementShowNothing : public ASTBase {
   public:
-    // Note: for pybind
     StatementShowNothing() = default;
-
-    StatementShowNothing(StatementShowNothing const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    StatementShowNothing(StatementShowNothing &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(StatementShowNothing const &x) -> StatementShowNothing & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(StatementShowNothing &&x) noexcept -> StatementShowNothing & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(StatementShowNothing const &a, StatementShowNothing const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(StatementShowNothing const &a, StatementShowNothing const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~StatementShowNothing() { clingo_ast_free(ast_); }
+    StatementShowNothing(StatementShowNothing const &x) = default;
+    StatementShowNothing(StatementShowNothing &&x) noexcept = default;
+    auto operator=(StatementShowNothing const &x) -> StatementShowNothing & = default;
+    auto operator=(StatementShowNothing &&x) noexcept -> StatementShowNothing & = default;
+    ~StatementShowNothing() noexcept = default;
 
     auto location() -> Location;
 
-    static auto acquire(clingo_ast_t *ast) -> StatementShowNothing { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<StatementShowNothing>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementShowNothing;
 
     static auto construct(Library &lib, Location const &location) -> StatementShowNothing;
+    static auto acquire(clingo_ast_t *ast) -> StatementShowNothing { return {ast}; }
 
-    friend auto c_cast(StatementShowNothing const &x) -> clingo_ast_t *;
+    friend auto operator==(StatementShowNothing const &a, StatementShowNothing const &b) -> bool = default;
+    friend auto operator<=>(StatementShowNothing const &a,
+                            StatementShowNothing const &b) -> std::strong_ordering = default;
 
   private:
-    StatementShowNothing(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    StatementShowNothing(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(StatementShowNothing const &x) -> clingo_ast_t * { return x.ast_; }
-
-class StatementShowSignature {
+class StatementShowSignature : public ASTBase {
   public:
-    // Note: for pybind
     StatementShowSignature() = default;
-
-    StatementShowSignature(StatementShowSignature const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    StatementShowSignature(StatementShowSignature &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(StatementShowSignature const &x) -> StatementShowSignature & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(StatementShowSignature &&x) noexcept -> StatementShowSignature & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(StatementShowSignature const &a, StatementShowSignature const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(StatementShowSignature const &a, StatementShowSignature const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~StatementShowSignature() { clingo_ast_free(ast_); }
+    StatementShowSignature(StatementShowSignature const &x) = default;
+    StatementShowSignature(StatementShowSignature &&x) noexcept = default;
+    auto operator=(StatementShowSignature const &x) -> StatementShowSignature & = default;
+    auto operator=(StatementShowSignature &&x) noexcept -> StatementShowSignature & = default;
+    ~StatementShowSignature() noexcept = default;
 
     auto location() -> Location;
-
     auto name() -> char const *;
-
     auto arity() -> int;
-
     auto sign() -> bool;
 
-    static auto acquire(clingo_ast_t *ast) -> StatementShowSignature { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<StatementShowSignature>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementShowSignature;
 
     static auto construct(Library &lib, Location const &location, char const *name, int arity,
                           bool sign) -> StatementShowSignature;
+    static auto acquire(clingo_ast_t *ast) -> StatementShowSignature { return {ast}; }
 
-    friend auto c_cast(StatementShowSignature const &x) -> clingo_ast_t *;
+    friend auto operator==(StatementShowSignature const &a, StatementShowSignature const &b) -> bool = default;
+    friend auto operator<=>(StatementShowSignature const &a,
+                            StatementShowSignature const &b) -> std::strong_ordering = default;
 
   private:
-    StatementShowSignature(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    StatementShowSignature(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(StatementShowSignature const &x) -> clingo_ast_t * { return x.ast_; }
-
-class StatementProject {
+class StatementProject : public ASTBase {
   public:
-    // Note: for pybind
     StatementProject() = default;
-
-    StatementProject(StatementProject const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    StatementProject(StatementProject &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(StatementProject const &x) -> StatementProject & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(StatementProject &&x) noexcept -> StatementProject & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(StatementProject const &a, StatementProject const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(StatementProject const &a, StatementProject const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~StatementProject() { clingo_ast_free(ast_); }
+    StatementProject(StatementProject const &x) = default;
+    StatementProject(StatementProject &&x) noexcept = default;
+    auto operator=(StatementProject const &x) -> StatementProject & = default;
+    auto operator=(StatementProject &&x) noexcept -> StatementProject & = default;
+    ~StatementProject() noexcept = default;
 
     auto location() -> Location;
-
     auto atom() -> Term;
-
     auto body() -> BodyLiteralArray;
 
-    static auto acquire(clingo_ast_t *ast) -> StatementProject { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<StatementProject>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementProject;
 
     static auto construct(Library &lib, Location const &location, Term const &atom,
                           BodyLiteralArray const &body) -> StatementProject;
+    static auto acquire(clingo_ast_t *ast) -> StatementProject { return {ast}; }
 
-    friend auto c_cast(StatementProject const &x) -> clingo_ast_t *;
+    friend auto operator==(StatementProject const &a, StatementProject const &b) -> bool = default;
+    friend auto operator<=>(StatementProject const &a, StatementProject const &b) -> std::strong_ordering = default;
 
   private:
-    StatementProject(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    StatementProject(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(StatementProject const &x) -> clingo_ast_t * { return x.ast_; }
-
-class StatementProjectSignature {
+class StatementProjectSignature : public ASTBase {
   public:
-    // Note: for pybind
     StatementProjectSignature() = default;
-
-    StatementProjectSignature(StatementProjectSignature const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    StatementProjectSignature(StatementProjectSignature &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(StatementProjectSignature const &x) -> StatementProjectSignature & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(StatementProjectSignature &&x) noexcept -> StatementProjectSignature & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(StatementProjectSignature const &a, StatementProjectSignature const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(StatementProjectSignature const &a,
-                            StatementProjectSignature const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~StatementProjectSignature() { clingo_ast_free(ast_); }
+    StatementProjectSignature(StatementProjectSignature const &x) = default;
+    StatementProjectSignature(StatementProjectSignature &&x) noexcept = default;
+    auto operator=(StatementProjectSignature const &x) -> StatementProjectSignature & = default;
+    auto operator=(StatementProjectSignature &&x) noexcept -> StatementProjectSignature & = default;
+    ~StatementProjectSignature() noexcept = default;
 
     auto location() -> Location;
-
     auto name() -> char const *;
-
     auto arity() -> int;
-
     auto sign() -> bool;
 
-    static auto acquire(clingo_ast_t *ast) -> StatementProjectSignature { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<StatementProjectSignature>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementProjectSignature;
 
     static auto construct(Library &lib, Location const &location, char const *name, int arity,
                           bool sign) -> StatementProjectSignature;
+    static auto acquire(clingo_ast_t *ast) -> StatementProjectSignature { return {ast}; }
 
-    friend auto c_cast(StatementProjectSignature const &x) -> clingo_ast_t *;
+    friend auto operator==(StatementProjectSignature const &a, StatementProjectSignature const &b) -> bool = default;
+    friend auto operator<=>(StatementProjectSignature const &a,
+                            StatementProjectSignature const &b) -> std::strong_ordering = default;
 
   private:
-    StatementProjectSignature(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    StatementProjectSignature(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(StatementProjectSignature const &x) -> clingo_ast_t * { return x.ast_; }
-
-class StatementDefined {
+class StatementDefined : public ASTBase {
   public:
-    // Note: for pybind
     StatementDefined() = default;
-
-    StatementDefined(StatementDefined const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    StatementDefined(StatementDefined &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(StatementDefined const &x) -> StatementDefined & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(StatementDefined &&x) noexcept -> StatementDefined & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(StatementDefined const &a, StatementDefined const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(StatementDefined const &a, StatementDefined const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~StatementDefined() { clingo_ast_free(ast_); }
+    StatementDefined(StatementDefined const &x) = default;
+    StatementDefined(StatementDefined &&x) noexcept = default;
+    auto operator=(StatementDefined const &x) -> StatementDefined & = default;
+    auto operator=(StatementDefined &&x) noexcept -> StatementDefined & = default;
+    ~StatementDefined() noexcept = default;
 
     auto location() -> Location;
-
     auto name() -> char const *;
-
     auto arity() -> int;
-
     auto sign() -> bool;
 
-    static auto acquire(clingo_ast_t *ast) -> StatementDefined { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<StatementDefined>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementDefined;
 
     static auto construct(Library &lib, Location const &location, char const *name, int arity,
                           bool sign) -> StatementDefined;
+    static auto acquire(clingo_ast_t *ast) -> StatementDefined { return {ast}; }
 
-    friend auto c_cast(StatementDefined const &x) -> clingo_ast_t *;
+    friend auto operator==(StatementDefined const &a, StatementDefined const &b) -> bool = default;
+    friend auto operator<=>(StatementDefined const &a, StatementDefined const &b) -> std::strong_ordering = default;
 
   private:
-    StatementDefined(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    StatementDefined(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(StatementDefined const &x) -> clingo_ast_t * { return x.ast_; }
-
-class StatementExternal {
+class StatementExternal : public ASTBase {
   public:
-    // Note: for pybind
     StatementExternal() = default;
-
-    StatementExternal(StatementExternal const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    StatementExternal(StatementExternal &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(StatementExternal const &x) -> StatementExternal & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(StatementExternal &&x) noexcept -> StatementExternal & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(StatementExternal const &a, StatementExternal const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(StatementExternal const &a, StatementExternal const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~StatementExternal() { clingo_ast_free(ast_); }
+    StatementExternal(StatementExternal const &x) = default;
+    StatementExternal(StatementExternal &&x) noexcept = default;
+    auto operator=(StatementExternal const &x) -> StatementExternal & = default;
+    auto operator=(StatementExternal &&x) noexcept -> StatementExternal & = default;
+    ~StatementExternal() noexcept = default;
 
     auto location() -> Location;
-
     auto atom() -> Term;
-
     auto body() -> BodyLiteralArray;
-
     auto external_type() -> OptionalTerm;
 
-    static auto acquire(clingo_ast_t *ast) -> StatementExternal { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<StatementExternal>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementExternal;
 
     static auto construct(Library &lib, Location const &location, Term const &atom, BodyLiteralArray const &body,
                           OptionalTerm const &external_type) -> StatementExternal;
+    static auto acquire(clingo_ast_t *ast) -> StatementExternal { return {ast}; }
 
-    friend auto c_cast(StatementExternal const &x) -> clingo_ast_t *;
+    friend auto operator==(StatementExternal const &a, StatementExternal const &b) -> bool = default;
+    friend auto operator<=>(StatementExternal const &a, StatementExternal const &b) -> std::strong_ordering = default;
 
   private:
-    StatementExternal(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    StatementExternal(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(StatementExternal const &x) -> clingo_ast_t * { return x.ast_; }
-
-class StatementEdge {
+class StatementEdge : public ASTBase {
   public:
-    // Note: for pybind
     StatementEdge() = default;
-
-    StatementEdge(StatementEdge const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    StatementEdge(StatementEdge &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(StatementEdge const &x) -> StatementEdge & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(StatementEdge &&x) noexcept -> StatementEdge & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(StatementEdge const &a, StatementEdge const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(StatementEdge const &a, StatementEdge const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~StatementEdge() { clingo_ast_free(ast_); }
+    StatementEdge(StatementEdge const &x) = default;
+    StatementEdge(StatementEdge &&x) noexcept = default;
+    auto operator=(StatementEdge const &x) -> StatementEdge & = default;
+    auto operator=(StatementEdge &&x) noexcept -> StatementEdge & = default;
+    ~StatementEdge() noexcept = default;
 
     auto location() -> Location;
-
     auto pool() -> EdgeArray;
-
     auto body() -> BodyLiteralArray;
 
-    static auto acquire(clingo_ast_t *ast) -> StatementEdge { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<StatementEdge>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementEdge;
 
     static auto construct(Library &lib, Location const &location, EdgeArray const &pool,
                           BodyLiteralArray const &body) -> StatementEdge;
+    static auto acquire(clingo_ast_t *ast) -> StatementEdge { return {ast}; }
 
-    friend auto c_cast(StatementEdge const &x) -> clingo_ast_t *;
+    friend auto operator==(StatementEdge const &a, StatementEdge const &b) -> bool = default;
+    friend auto operator<=>(StatementEdge const &a, StatementEdge const &b) -> std::strong_ordering = default;
 
   private:
-    StatementEdge(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    StatementEdge(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(StatementEdge const &x) -> clingo_ast_t * { return x.ast_; }
-
-class StatementHeuristic {
+class StatementHeuristic : public ASTBase {
   public:
-    // Note: for pybind
     StatementHeuristic() = default;
-
-    StatementHeuristic(StatementHeuristic const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    StatementHeuristic(StatementHeuristic &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(StatementHeuristic const &x) -> StatementHeuristic & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(StatementHeuristic &&x) noexcept -> StatementHeuristic & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(StatementHeuristic const &a, StatementHeuristic const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(StatementHeuristic const &a, StatementHeuristic const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~StatementHeuristic() { clingo_ast_free(ast_); }
+    StatementHeuristic(StatementHeuristic const &x) = default;
+    StatementHeuristic(StatementHeuristic &&x) noexcept = default;
+    auto operator=(StatementHeuristic const &x) -> StatementHeuristic & = default;
+    auto operator=(StatementHeuristic &&x) noexcept -> StatementHeuristic & = default;
+    ~StatementHeuristic() noexcept = default;
 
     auto location() -> Location;
-
     auto atom() -> Term;
-
     auto body() -> BodyLiteralArray;
-
     auto weight() -> Term;
-
     auto modifier() -> Term;
-
     auto priority() -> OptionalTerm;
 
-    static auto acquire(clingo_ast_t *ast) -> StatementHeuristic { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<StatementHeuristic>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementHeuristic;
 
     static auto construct(Library &lib, Location const &location, Term const &atom, BodyLiteralArray const &body,
                           Term const &weight, Term const &modifier, OptionalTerm const &priority) -> StatementHeuristic;
+    static auto acquire(clingo_ast_t *ast) -> StatementHeuristic { return {ast}; }
 
-    friend auto c_cast(StatementHeuristic const &x) -> clingo_ast_t *;
+    friend auto operator==(StatementHeuristic const &a, StatementHeuristic const &b) -> bool = default;
+    friend auto operator<=>(StatementHeuristic const &a, StatementHeuristic const &b) -> std::strong_ordering = default;
 
   private:
-    StatementHeuristic(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    StatementHeuristic(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(StatementHeuristic const &x) -> clingo_ast_t * { return x.ast_; }
-
-class StatementScript {
+class StatementScript : public ASTBase {
   public:
-    // Note: for pybind
     StatementScript() = default;
-
-    StatementScript(StatementScript const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    StatementScript(StatementScript &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(StatementScript const &x) -> StatementScript & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(StatementScript &&x) noexcept -> StatementScript & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(StatementScript const &a, StatementScript const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(StatementScript const &a, StatementScript const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~StatementScript() { clingo_ast_free(ast_); }
+    StatementScript(StatementScript const &x) = default;
+    StatementScript(StatementScript &&x) noexcept = default;
+    auto operator=(StatementScript const &x) -> StatementScript & = default;
+    auto operator=(StatementScript &&x) noexcept -> StatementScript & = default;
+    ~StatementScript() noexcept = default;
 
     auto location() -> Location;
-
     auto value() -> char const *;
-
     auto script_type() -> char const *;
 
-    static auto acquire(clingo_ast_t *ast) -> StatementScript { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<StatementScript>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementScript;
 
     static auto construct(Library &lib, Location const &location, char const *value,
                           char const *script_type) -> StatementScript;
+    static auto acquire(clingo_ast_t *ast) -> StatementScript { return {ast}; }
 
-    friend auto c_cast(StatementScript const &x) -> clingo_ast_t *;
+    friend auto operator==(StatementScript const &a, StatementScript const &b) -> bool = default;
+    friend auto operator<=>(StatementScript const &a, StatementScript const &b) -> std::strong_ordering = default;
 
   private:
-    StatementScript(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    StatementScript(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(StatementScript const &x) -> clingo_ast_t * { return x.ast_; }
-
-class StatementInclude {
+class StatementInclude : public ASTBase {
   public:
-    // Note: for pybind
     StatementInclude() = default;
-
-    StatementInclude(StatementInclude const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    StatementInclude(StatementInclude &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(StatementInclude const &x) -> StatementInclude & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(StatementInclude &&x) noexcept -> StatementInclude & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(StatementInclude const &a, StatementInclude const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(StatementInclude const &a, StatementInclude const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~StatementInclude() { clingo_ast_free(ast_); }
+    StatementInclude(StatementInclude const &x) = default;
+    StatementInclude(StatementInclude &&x) noexcept = default;
+    auto operator=(StatementInclude const &x) -> StatementInclude & = default;
+    auto operator=(StatementInclude &&x) noexcept -> StatementInclude & = default;
+    ~StatementInclude() noexcept = default;
 
     auto location() -> Location;
-
     auto value() -> char const *;
-
     auto include_type() -> IncludeType;
 
-    static auto acquire(clingo_ast_t *ast) -> StatementInclude { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<StatementInclude>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementInclude;
 
     static auto construct(Library &lib, Location const &location, char const *value,
                           IncludeType const &include_type) -> StatementInclude;
+    static auto acquire(clingo_ast_t *ast) -> StatementInclude { return {ast}; }
 
-    friend auto c_cast(StatementInclude const &x) -> clingo_ast_t *;
+    friend auto operator==(StatementInclude const &a, StatementInclude const &b) -> bool = default;
+    friend auto operator<=>(StatementInclude const &a, StatementInclude const &b) -> std::strong_ordering = default;
 
   private:
-    StatementInclude(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    StatementInclude(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(StatementInclude const &x) -> clingo_ast_t * { return x.ast_; }
-
-class StatementProgram {
+class StatementProgram : public ASTBase {
   public:
-    // Note: for pybind
     StatementProgram() = default;
-
-    StatementProgram(StatementProgram const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    StatementProgram(StatementProgram &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(StatementProgram const &x) -> StatementProgram & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(StatementProgram &&x) noexcept -> StatementProgram & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(StatementProgram const &a, StatementProgram const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(StatementProgram const &a, StatementProgram const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~StatementProgram() { clingo_ast_free(ast_); }
+    StatementProgram(StatementProgram const &x) = default;
+    StatementProgram(StatementProgram &&x) noexcept = default;
+    auto operator=(StatementProgram const &x) -> StatementProgram & = default;
+    auto operator=(StatementProgram &&x) noexcept -> StatementProgram & = default;
+    ~StatementProgram() noexcept = default;
 
     auto location() -> Location;
-
     auto name() -> char const *;
-
     auto arguments() -> std::vector<char const *>;
 
-    static auto acquire(clingo_ast_t *ast) -> StatementProgram { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<StatementProgram>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementProgram;
 
     static auto construct(Library &lib, Location const &location, char const *name,
                           StringArray const &arguments) -> StatementProgram;
+    static auto acquire(clingo_ast_t *ast) -> StatementProgram { return {ast}; }
 
-    friend auto c_cast(StatementProgram const &x) -> clingo_ast_t *;
+    friend auto operator==(StatementProgram const &a, StatementProgram const &b) -> bool = default;
+    friend auto operator<=>(StatementProgram const &a, StatementProgram const &b) -> std::strong_ordering = default;
 
   private:
-    StatementProgram(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    StatementProgram(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(StatementProgram const &x) -> clingo_ast_t * { return x.ast_; }
-
-class StatementConst {
+class StatementConst : public ASTBase {
   public:
-    // Note: for pybind
     StatementConst() = default;
-
-    StatementConst(StatementConst const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    StatementConst(StatementConst &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(StatementConst const &x) -> StatementConst & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(StatementConst &&x) noexcept -> StatementConst & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(StatementConst const &a, StatementConst const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(StatementConst const &a, StatementConst const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~StatementConst() { clingo_ast_free(ast_); }
+    StatementConst(StatementConst const &x) = default;
+    StatementConst(StatementConst &&x) noexcept = default;
+    auto operator=(StatementConst const &x) -> StatementConst & = default;
+    auto operator=(StatementConst &&x) noexcept -> StatementConst & = default;
+    ~StatementConst() noexcept = default;
 
     auto location() -> Location;
-
     auto name() -> char const *;
-
     auto value() -> Term;
-
     auto const_type() -> ConstType;
 
-    static auto acquire(clingo_ast_t *ast) -> StatementConst { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<StatementConst>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementConst;
 
     static auto construct(Library &lib, Location const &location, char const *name, Term const &value,
                           ConstType const &const_type) -> StatementConst;
+    static auto acquire(clingo_ast_t *ast) -> StatementConst { return {ast}; }
 
-    friend auto c_cast(StatementConst const &x) -> clingo_ast_t *;
+    friend auto operator==(StatementConst const &a, StatementConst const &b) -> bool = default;
+    friend auto operator<=>(StatementConst const &a, StatementConst const &b) -> std::strong_ordering = default;
 
   private:
-    StatementConst(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    StatementConst(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-inline auto c_cast(StatementConst const &x) -> clingo_ast_t * { return x.ast_; }
-
-class StatementComment {
+class StatementComment : public ASTBase {
   public:
-    // Note: for pybind
     StatementComment() = default;
-
-    StatementComment(StatementComment const &x) { handle_error(clingo_ast_copy(x.ast_, &ast_)); }
-
-    StatementComment(StatementComment &&x) noexcept { std::swap(ast_, x.ast_); }
-
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(StatementComment const &x) -> StatementComment & {
-        if (ast_ != x.ast_) {
-            clingo_ast_free(ast_);
-            ast_ = nullptr;
-            handle_error(clingo_ast_copy(x.ast_, &ast_));
-        }
-        return *this;
-    }
-
-    auto operator=(StatementComment &&x) noexcept -> StatementComment & {
-        std::swap(ast_, x.ast_);
-        return *this;
-    }
-
-    [[nodiscard]] auto hash() const -> size_t { return clingo_ast_hash(ast_); }
-
-    friend auto operator==(StatementComment const &a, StatementComment const &b) -> bool {
-        return clingo_ast_equal(a.ast_, b.ast_);
-    }
-
-    friend auto operator<=>(StatementComment const &a, StatementComment const &b) -> std::strong_ordering {
-        return clingo_ast_compare(a.ast_, b.ast_) <=> 0;
-    }
-
-    auto to_string() -> std::string {
-        size_t len = 0;
-        handle_error(clingo_ast_to_string_size(ast_, &len));
-        std::string str;
-        str.resize(len);
-        handle_error(clingo_ast_to_string(ast_, str.data(), len));
-        if (!str.empty() && str.back() == '\0') {
-            str.pop_back();
-        }
-        return str;
-    }
-
-    ~StatementComment() { clingo_ast_free(ast_); }
+    StatementComment(StatementComment const &x) = default;
+    StatementComment(StatementComment &&x) noexcept = default;
+    auto operator=(StatementComment const &x) -> StatementComment & = default;
+    auto operator=(StatementComment &&x) noexcept -> StatementComment & = default;
+    ~StatementComment() noexcept = default;
 
     auto location() -> Location;
-
     auto value() -> char const *;
-
     auto comment_type() -> CommentType;
 
-    static auto acquire(clingo_ast_t *ast) -> StatementComment { return {ast}; }
-
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
-
     auto transform(Library &lib, py::handle transform, py::args const &args,
                    py::kwargs const &kwargs) -> std::optional<StatementComment>;
-
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementComment;
 
     static auto construct(Library &lib, Location const &location, char const *value,
                           CommentType const &comment_type) -> StatementComment;
+    static auto acquire(clingo_ast_t *ast) -> StatementComment { return {ast}; }
 
-    friend auto c_cast(StatementComment const &x) -> clingo_ast_t *;
+    friend auto operator==(StatementComment const &a, StatementComment const &b) -> bool = default;
+    friend auto operator<=>(StatementComment const &a, StatementComment const &b) -> std::strong_ordering = default;
 
   private:
-    StatementComment(clingo_ast_t *ast) : ast_{ast} {}
-
-    clingo_ast_t *ast_ = nullptr;
+    StatementComment(clingo_ast_t *ast) : ASTBase{ast} {}
 };
-
-inline auto c_cast(StatementComment const &x) -> clingo_ast_t * { return x.ast_; }
 
 auto construct_term(clingo_ast_t *ast) -> Term {
     clingo_ast_type_t type = 0;

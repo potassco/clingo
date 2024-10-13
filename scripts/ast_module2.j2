@@ -68,7 +68,7 @@ lib
 };
 {%    endif %}
 {%- endfor %}
-void register_module(pybind11::module &m) {
+void register_ast2(pybind11::module &m) {
     auto ast = m.def_submodule("ast", R"doc(This module provides functions to work with Abstract Syntax Trees of logic programs.)doc");
 
     ast.def("_type_info_yaml", &clingo_ast_type_info_yaml, R"doc(Return a yaml description of the AST.
