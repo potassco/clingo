@@ -1,4 +1,5 @@
 #include "script.hh"
+#include "control.hh"
 #include "symbol.hh"
 #include "util.hh"
 
@@ -47,11 +48,15 @@ class Script {
         CLINGO_CATCH(self->lib_);
     }
 
-    static auto main(clingo_control_t *control, void *data) -> clingo_result_t {
-        static_cast<void>(control);
-        static_cast<void>(data);
-        fprintf(stderr, "TODO: implement script main\n");
-        return clingo_result_logic;
+    void main(Library lib, Control ctl) { PYBIND11_OVERRIDE_PURE(void, Script, main, lib, ctl); }
+
+    static auto c_main(clingo_lib_t *lib, clingo_control_t *control, void *data) -> clingo_result_t {
+        auto *self = static_cast<py::object *>(data)->cast<Script *>();
+        CLINGO_TRY {
+            auto *self = static_cast<py::object *>(data)->cast<Script *>();
+            self->main(lib, control);
+        }
+        CLINGO_CATCH(self->lib_);
     }
 
     auto name() -> std::string { PYBIND11_OVERRIDE_PURE(std::string, Script, name); }
@@ -97,7 +102,7 @@ class Script {
 
 void reg_script(Library &lib, Script &script) {
     script.lib(lib);
-    auto c_script = clingo_script_t{Script::c_execute, Script::c_call,    Script::c_callable, Script::main,
+    auto c_script = clingo_script_t{Script::c_execute, Script::c_call,    Script::c_callable, Script::c_main,
                                     Script::c_name,    Script::c_version, Script::c_free};
     handle_error(clingo_script_register(lib, &c_script, std::make_unique<py::object>(py::cast(script)).release()));
 }

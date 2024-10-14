@@ -80,7 +80,7 @@ class CScript : public Clingo::Control::Script {
 
     void do_main(Clingo::Control::Solver &slv) override {
         clingo_control_t ctl{lib_, &slv};
-        handle_error(script_.main(&ctl, data_));
+        handle_error(script_.main(lib_, &ctl, data_));
     }
 
     auto do_callable(std::string_view name, size_t args) -> bool override {

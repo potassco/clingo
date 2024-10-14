@@ -30,7 +30,7 @@ class Interpreter {
         return scope_[name](&lib, *py::cast(args)).cast<SymbolVec>();
     }
 
-    auto main(Control ctl) { scope_["main"](&ctl); }
+    auto main(Library lib, Control ctl) { scope_["main"](&lib, &ctl); }
 
     auto version() -> char const * { return version_.c_str(); }
 
@@ -83,11 +83,11 @@ class MainScript {
         CLINGO_CATCH(self->lib_);
     }
 
-    static auto main(clingo_control_t *control, void *data) -> clingo_result_t {
+    static auto main(clingo_lib_t *lib, clingo_control_t *control, void *data) -> clingo_result_t {
         auto *self = cast(data);
         CLINGO_TRY {
             // NOLINTNEXTLINE
-            self->py().main(control);
+            self->py().main(lib, control);
         }
         CLINGO_CATCH(self->lib_);
     }
