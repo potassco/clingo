@@ -36,6 +36,11 @@ template <class It, class Pred> auto transform(It begin, It end, Pred pred) {
 }
 
 //! Use std::transform to build a vector.
+template <class It, class Pred> auto transform_n(It begin, size_t n, Pred pred) {
+    return transform(begin, begin + n, pred);
+}
+
+//! Use std::transform to build a vector.
 template <class Rng, class Pred> auto transform(Rng const &rng, Pred pred) {
     using std::begin;
     using std::end;

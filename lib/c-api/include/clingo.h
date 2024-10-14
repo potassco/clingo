@@ -1316,6 +1316,8 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_rewrite(clingo_ast_rewrite_
 
 //! @}
 
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_main(clingo_lib_t *lib, char const *const *arguments, size_t size);
+
 //! @}
 
 // NOLINTEND(modernize-*,cppcoreguidelines-macro-usage,performance-enum-size)

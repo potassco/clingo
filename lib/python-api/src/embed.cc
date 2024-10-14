@@ -21,11 +21,11 @@ class Interpreter {
           callable_{py::module_::import("builtins").attr("callable")},
           version_{py::module_::import("sys").attr("version").cast<std::string>()} {}
 
-    void eval(char const *code) { py::eval(code, scope_); }
+    void exec(char const *code) { py::exec(code, scope_); }
 
-    auto callable(char const *name) -> bool { return callable_(name).cast<bool>(); }
+    auto callable(char const *name) -> bool { return callable_(scope_[name]).cast<bool>(); }
 
-    auto call(char const *name, SymbolVec args) -> SymbolVec { return scope_.attr(name)(args).cast<SymbolVec>(); }
+    auto call(char const *name, SymbolVec args) -> SymbolVec { return scope_[name](args).cast<SymbolVec>(); }
 
     auto version() -> char const * { return version_.c_str(); }
 
@@ -51,7 +51,7 @@ class MainScript {
 
     static auto c_execute(char const *code, void *data) -> clingo_result_t {
         auto *self = cast(data);
-        CLINGO_TRY { self->py().eval(code); }
+        CLINGO_TRY { self->py().exec(code); }
         CLINGO_CATCH(self->lib_);
     }
 
@@ -111,12 +111,11 @@ class MainScript {
 
 } // namespace Clingo::Python
 
-extern "C" auto register_python(clingo_lib_t *lib) -> clingo_result_t {
+extern "C" auto clingo_register_python(clingo_lib_t *lib) -> clingo_result_t {
     using Script = Clingo::Python::MainScript;
-    auto script = std::make_unique<Script>(lib);
     auto c_script = clingo_script_t{Script::c_execute, Script::c_call,    Script::c_callable, Script::main,
                                     Script::c_name,    Script::c_version, Script::c_free};
-    return clingo_script_register(lib, &c_script, lib);
+    return clingo_script_register(lib, &c_script, std::make_unique<Script>(lib).release());
 }
 
 PYBIND11_EMBEDDED_MODULE(clingo, m) { Clingo::Python::register_clingo(m); }
