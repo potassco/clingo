@@ -14,18 +14,19 @@ class Script {
         CLINGO_CATCH(self->lib_);
     }
 
-    auto call(char const *name, SymbolVec const &args) -> SymbolVec {
-        PYBIND11_OVERRIDE_PURE(SymbolVec, Script, call, name, args);
+    auto call(Library &lib, char const *name, SymbolVec const &args) -> SymbolVec {
+        PYBIND11_OVERRIDE_PURE(SymbolVec, Script, call, lib, name, args);
     }
 
-    static auto c_call(char const *name, clingo_symbol_t const *arguments, size_t arguments_size,
+    static auto c_call(clingo_lib_t *lib, char const *name, clingo_symbol_t const *arguments, size_t arguments_size,
                        clingo_symbol_callback_t symbol_callback, void *symbol_callback_data,
                        void *data) -> clingo_result_t {
         auto *self = static_cast<py::object *>(data)->cast<Script *>();
         CLINGO_TRY {
             auto args = transform(arguments, std::next(arguments, static_cast<ssize_t>(arguments_size)),
                                   [](auto sym) { return Symbol{sym, true}; });
-            auto syms = self->call(name, args);
+            Library l(lib);
+            auto syms = self->call(l, name, args);
             // NOLINTNEXTLINE
             auto const *c_syms = reinterpret_cast<clingo_symbol_t *>(syms.data());
             handle_error(symbol_callback(c_syms, syms.size(), symbol_callback_data));

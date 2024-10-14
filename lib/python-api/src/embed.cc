@@ -1,4 +1,5 @@
 #include "clingo.hh"
+#include "control.hh"
 #include "core.hh"
 #include "symbol.hh"
 #include "util.hh"
@@ -25,7 +26,11 @@ class Interpreter {
 
     auto callable(char const *name) -> bool { return callable_(scope_[name]).cast<bool>(); }
 
-    auto call(char const *name, SymbolVec args) -> SymbolVec { return scope_[name](args).cast<SymbolVec>(); }
+    auto call(Library lib, char const *name, SymbolVec args) -> SymbolVec {
+        return scope_[name](&lib, *py::cast(args)).cast<SymbolVec>();
+    }
+
+    auto main(Control ctl) { scope_["main"](&ctl); }
 
     auto version() -> char const * { return version_.c_str(); }
 
@@ -55,14 +60,14 @@ class MainScript {
         CLINGO_CATCH(self->lib_);
     }
 
-    static auto c_call(char const *name, clingo_symbol_t const *arguments, size_t arguments_size,
+    static auto c_call(clingo_lib_t *lib, char const *name, clingo_symbol_t const *arguments, size_t arguments_size,
                        clingo_symbol_callback_t symbol_callback, void *symbol_callback_data,
                        void *data) -> clingo_result_t {
         auto *self = cast(data);
         CLINGO_TRY {
             auto args = transform(arguments, std::next(arguments, static_cast<ssize_t>(arguments_size)),
                                   [](auto sym) { return Symbol{sym, true}; });
-            auto syms = self->py().call(name, args);
+            auto syms = self->py().call(lib, name, args);
             // NOLINTNEXTLINE
             auto const *c_syms = reinterpret_cast<clingo_symbol_t *>(syms.data());
             handle_error(symbol_callback(c_syms, syms.size(), symbol_callback_data));
@@ -79,9 +84,12 @@ class MainScript {
     }
 
     static auto main(clingo_control_t *control, void *data) -> clingo_result_t {
-        static_cast<void>(control);
-        static_cast<void>(data);
-        return clingo_result_logic;
+        auto *self = cast(data);
+        CLINGO_TRY {
+            // NOLINTNEXTLINE
+            self->py().main(control);
+        }
+        CLINGO_CATCH(self->lib_);
     }
 
     static auto c_name(void *data) -> char const * {

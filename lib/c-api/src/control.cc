@@ -101,7 +101,8 @@ class CScript : public Clingo::Control::Script {
 
     void do_call(std::string_view name, Clingo::SymbolSpan args, Clingo::SymbolVec &out) override {
         auto data = CBData{this, out};
-        handle_error(script_.call(std::string(name).c_str(), to_c_sym(args.data()), args.size(), &cb, &data, data_));
+        handle_error(
+            script_.call(lib_, std::string(name).c_str(), to_c_sym(args.data()), args.size(), &cb, &data, data_));
     }
 
     clingo_lib_t *lib_;

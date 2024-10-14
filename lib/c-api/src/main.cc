@@ -14,11 +14,9 @@ namespace {
 
 using namespace Clingo::Input;
 
-enum class AppMode : uint8_t { parse, rewrite, ground };
-
 auto run(clingo_lib_t *lib, std::vector<std::string> &&args) -> clingo_result_t {
     auto opts = RewriteOptions{};
-    auto mode = AppMode::ground;
+    auto mode = Clingo::Control::AppMode::ground;
     std::vector<std::string> files;
     std::vector<std::string> const_defs;
     auto log_level = Clingo::LogLevel::info;
@@ -58,9 +56,10 @@ auto run(clingo_lib_t *lib, std::vector<std::string> &&args) -> clingo_result_t 
         return std::string{"unexpected value"};
     });
     app.add_option("--mode", "{parse,rewrite,ground}")->check([&mode](std::string const &value) {
-        using P = std::pair<char const *, AppMode>;
+        using P = std::pair<char const *, Clingo::Control::AppMode>;
         auto modes =
-            std::array{P{"parse", AppMode::parse}, P{"rewrite", AppMode::rewrite}, P{"ground", AppMode::ground}};
+            std::array{P{"parse", Clingo::Control::AppMode::parse}, P{"rewrite", Clingo::Control::AppMode::rewrite},
+                       P{"ground", Clingo::Control::AppMode::ground}};
         for (auto &[name, m] : modes) {
             if (name == value) {
                 mode = m;
@@ -101,25 +100,7 @@ auto run(clingo_lib_t *lib, std::vector<std::string> &&args) -> clingo_result_t 
                 }
                 slv.add_const(*def->first, *def->second);
             }
-            // TODO: from here onward, slv.main() should be used
-            slv.parse(std::vector<std::string_view>{files.begin(), files.end()});
-            if (mode == AppMode::parse) {
-                slv.output_unprocessed_program(std::cout);
-                return;
-            }
-            if (mode == AppMode::rewrite) {
-                slv.output_program(std::cout);
-                return;
-            }
-            if (params) {
-                for (auto const &param : *params) {
-                    if (!slv.ground(param)) {
-                        break;
-                    }
-                }
-            } else {
-                std::ignore = slv.ground(Clingo::Input::ProgramParamVec{{lib->store->string("base"), {}}});
-            }
+            slv.main(mode, std::vector<std::string_view>{files.begin(), files.end()}, params);
         }();
     } catch (std::exception const &e) {
         fprintf(stderr, "%s: %s\n", lib->log.message_prefix(Clingo::MessageCode::error), e.what());

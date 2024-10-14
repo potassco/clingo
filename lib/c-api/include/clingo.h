@@ -757,6 +757,7 @@ typedef struct clingo_script {
     //! @return whether the function call was successful
     clingo_result_t (*execute)(char const *code, void *data);
     //! Call the function with the given name and arguments.
+    //! @param[in] lib library object
     //! @param[in] name the name of the function
     //! @param[in] arguments the arguments to the function
     //! @param[in] arguments_size the number of arguments
@@ -764,8 +765,9 @@ typedef struct clingo_script {
     //! @param[in] symbol_callback_data user data for the symbol callback
     //! @param[in] data user data as given when registering the script
     //! @return whether the function call was successful
-    clingo_result_t (*call)(char const *name, clingo_symbol_t const *arguments, size_t arguments_size,
-                            clingo_symbol_callback_t symbol_callback, void *symbol_callback_data, void *data);
+    clingo_result_t (*call)(clingo_lib_t *lib, char const *name, clingo_symbol_t const *arguments,
+                            size_t arguments_size, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data,
+                            void *data);
     //! Check if the given function is callable.
     //! @param[in] name the name of the function
     //! @param[in] arguments the number of arguments

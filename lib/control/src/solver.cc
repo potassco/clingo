@@ -51,13 +51,32 @@ Solver::Solver(Logger &log, SymbolStore &store, Scripts &scripts, Input::Rewrite
     static_cast<void>(mode);
 }
 
-void Solver::main(std::span<std::string_view const> const &files) {
+void Solver::main(AppMode mode, std::span<std::string_view const> const &files,
+                  std::optional<std::vector<Clingo::Input::ProgramParamVec>> const &params) {
     parse(files);
     if (scripts_->callable("main", 0)) {
         scripts_->main(*this);
     } else {
-        parse(files);
-        std::ignore = ground(Clingo::Input::ProgramParamVec{{grd_.store().string("base"), {}}});
+        if (mode == AppMode::parse) {
+            output_unprocessed_program(std::cout);
+            return;
+        }
+        if (mode == AppMode::rewrite) {
+            output_program(std::cout);
+            return;
+        }
+        if (mode == AppMode::parse) {
+            parse(files);
+        }
+        if (params) {
+            for (auto const &param : *params) {
+                if (!ground(param)) {
+                    break;
+                }
+            }
+        } else {
+            std::ignore = ground(Clingo::Input::ProgramParamVec{{grd_.store().string("base"), {}}});
+        }
     }
 }
 

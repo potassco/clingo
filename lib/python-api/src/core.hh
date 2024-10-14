@@ -25,6 +25,7 @@ static constexpr size_t default_message_limit = 25;
 
 class Library {
   public:
+    Library(clingo_lib_t *lib) : lib_{lib}, own_{false} {}
     Library(bool shared, bool slotted, Logger cb, size_t default_message_limit);
     Library(Library const &other) = delete;
     Library(Library &&other) = delete;
@@ -37,7 +38,8 @@ class Library {
     static void logger_(clingo_message_t code, char const *message, void *self) noexcept;
 
     clingo_lib_t *lib_ = nullptr;
-    Logger cb_;
+    Logger cb_ = nullptr;
+    bool own_{true};
 };
 
 inline auto handle_error(clingo_lib_t *lib) -> clingo_result_t {

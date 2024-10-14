@@ -42,6 +42,8 @@ class Scripts : public Ground::ScriptCallback, public Ground::ScriptExec {
     std::vector<std::pair<std::string, UScript>> scripts_;
 };
 
+enum class AppMode : uint8_t { parse, rewrite, ground };
+
 //! A grounder and solver for logic programs.
 //!
 //! Takes care of parsing, grounding, and solving.
@@ -51,7 +53,8 @@ class Solver {
     Solver(Logger &log, SymbolStore &store, Scripts &scripts, Input::RewriteOptions opts, OutputMode mode);
 
     //! Parse and ground a program.
-    void main(std::span<std::string_view const> const &files);
+    void main(AppMode mode, std::span<std::string_view const> const &files,
+              std::optional<std::vector<Clingo::Input::ProgramParamVec>> const &params);
 
     //! Parse a program from the given string.
     void parse(std::string_view str);

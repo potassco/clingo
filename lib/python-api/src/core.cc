@@ -20,11 +20,17 @@ Library::Library(bool shared, bool slotted, Logger cb, size_t default_message_li
     }
 }
 
-Library::~Library() noexcept { clingo_lib_free(lib_, false); }
+Library::~Library() noexcept {
+    if (own_) {
+        clingo_lib_free(lib_, false);
+    }
+}
 
 void Library::close() noexcept {
-    clingo_lib_free(lib_, false);
-    lib_ = nullptr;
+    if (own_) {
+        clingo_lib_free(lib_, false);
+        lib_ = nullptr;
+    }
 }
 
 Library::operator clingo_lib_t *() const {
