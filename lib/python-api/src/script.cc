@@ -16,7 +16,7 @@ class Script {
     }
 
     auto call(Library &lib, char const *name, SymbolVec const &args) -> SymbolVec {
-        PYBIND11_OVERRIDE_PURE(SymbolVec, Script, call, lib, name, args);
+        PYBIND11_OVERRIDE_PURE(SymbolVec, Script, call, &lib, name, args);
     }
 
     static auto c_call(clingo_lib_t *lib, char const *name, clingo_symbol_t const *arguments, size_t arguments_size,
@@ -26,7 +26,7 @@ class Script {
         CLINGO_TRY {
             auto args = transform(arguments, std::next(arguments, static_cast<ssize_t>(arguments_size)),
                                   [](auto sym) { return Symbol{sym, true}; });
-            Library l(lib);
+            Library l{lib};
             auto syms = self->call(l, name, args);
             // NOLINTNEXTLINE
             auto const *c_syms = reinterpret_cast<clingo_symbol_t *>(syms.data());
@@ -48,13 +48,15 @@ class Script {
         CLINGO_CATCH(self->lib_);
     }
 
-    void main(Library lib, Control ctl) { PYBIND11_OVERRIDE_PURE(void, Script, main, lib, ctl); }
+    void main(Library &lib, Control &ctl) { PYBIND11_OVERRIDE_PURE(void, Script, main, &lib, &ctl); }
 
     static auto c_main(clingo_lib_t *lib, clingo_control_t *control, void *data) -> clingo_result_t {
         auto *self = static_cast<py::object *>(data)->cast<Script *>();
         CLINGO_TRY {
             auto *self = static_cast<py::object *>(data)->cast<Script *>();
-            self->main(lib, control);
+            Library l{lib};
+            Control c{control};
+            self->main(l, c);
         }
         CLINGO_CATCH(self->lib_);
     }
