@@ -19,7 +19,7 @@ target_link_libraries(pyclingo_module PRIVATE clingo pyclingo_lib)
 add_library(pyclingo_embed src/embed.cc)
 target_include_directories(pyclingo_embed PUBLIC "include")
 target_link_libraries(pyclingo_embed PRIVATE pybind11::embed clingo pyclingo_lib)
-
+target_compile_definitions(pyclingo_embed PRIVATE CLINGO_PYTHON_VERSION="${Python_VERSION}")
 if (PYTHON_EXECUTABLE AND NOT Python_EXECUTABLE)
     set(Python_EXECUTABLE "${PYTHON_EXECUTABLE}")
 endif()

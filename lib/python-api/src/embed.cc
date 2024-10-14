@@ -24,7 +24,7 @@ class Interpreter {
 
     void exec(char const *code) { py::exec(code, scope_); }
 
-    auto callable(char const *name) -> bool { return callable_(scope_[name]).cast<bool>(); }
+    auto callable(char const *name) -> bool { return scope_.contains(name) && callable_(scope_[name]).cast<bool>(); }
 
     auto call(Library lib, char const *name, SymbolVec args) -> SymbolVec {
         return scope_[name](&lib, *py::cast(args)).cast<SymbolVec>();
@@ -45,18 +45,16 @@ class MainScript {
   public:
     MainScript(clingo_lib_t *lib) : lib_{lib} {}
 
-    auto py() -> Interpreter & {
-        if (!py_) {
-            py_ = std::make_unique<Interpreter>();
-        }
-        return *py_;
-    }
-
     static auto cast(void *data) -> MainScript * { return static_cast<MainScript *>(data); }
 
     static auto c_execute(char const *code, void *data) -> clingo_result_t {
         auto *self = cast(data);
-        CLINGO_TRY { self->py().exec(code); }
+        CLINGO_TRY {
+            if (!self->py_) {
+                self->py_ = std::make_unique<Interpreter>();
+            }
+            self->py_->exec(code);
+        }
         CLINGO_CATCH(self->lib_);
     }
 
@@ -67,10 +65,12 @@ class MainScript {
         CLINGO_TRY {
             auto args = transform(arguments, std::next(arguments, static_cast<ssize_t>(arguments_size)),
                                   [](auto sym) { return Symbol{sym, true}; });
-            auto syms = self->py().call(lib, name, args);
-            // NOLINTNEXTLINE
-            auto const *c_syms = reinterpret_cast<clingo_symbol_t *>(syms.data());
-            handle_error(symbol_callback(c_syms, syms.size(), symbol_callback_data));
+            if (self->py_) {
+                auto syms = self->py_->call(lib, name, args);
+                // NOLINTNEXTLINE
+                auto const *c_syms = reinterpret_cast<clingo_symbol_t *>(syms.data());
+                handle_error(symbol_callback(c_syms, syms.size(), symbol_callback_data));
+            }
         }
         CLINGO_CATCH(self->lib_);
     }
@@ -79,15 +79,16 @@ class MainScript {
         // Note: that python cannot check the number of arguments
         static_cast<void>(arguments);
         auto *self = cast(data);
-        CLINGO_TRY { *result = self->py().callable(name); }
+        CLINGO_TRY { *result = self->py_ && self->py_->callable(name); }
         CLINGO_CATCH(self->lib_);
     }
 
     static auto main(clingo_lib_t *lib, clingo_control_t *control, void *data) -> clingo_result_t {
         auto *self = cast(data);
         CLINGO_TRY {
-            // NOLINTNEXTLINE
-            self->py().main(lib, control);
+            if (self->py_) {
+                self->py_->main(lib, control);
+            }
         }
         CLINGO_CATCH(self->lib_);
     }
@@ -98,11 +99,8 @@ class MainScript {
     }
 
     static auto c_version(void *data) -> char const * {
-        try {
-            return cast(data)->py().version();
-        } catch (...) {
-            return "<error>";
-        }
+        static_cast<void>(data);
+        return CLINGO_PYTHON_VERSION;
     }
 
     static void c_free(void *data) {
