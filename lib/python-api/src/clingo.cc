@@ -1,6 +1,5 @@
 #include "clingo.hh"
 #include "ast.hh"
-#include "ast2.hh"
 #include "control.hh"
 #include "core.hh"
 #include "script.hh"
@@ -17,7 +16,6 @@ void register_clingo(pybind11::module &m) {
     Clingo::Python::register_script(m);
     Clingo::Python::register_control(m);
     Clingo::Python::register_ast(m);
-    Clingo::Python::register_ast2(m);
 }
 
 } // namespace Clingo::Python

@@ -1,0 +1,20 @@
+#ifndef CLINGO_EMBED_H
+#define CLINGO_EMBED_H
+
+#include <clingo.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// NOLINTBEGIN(modernize-*,cppcoreguidelines-macro-usage,performance-enum-size)
+
+CLINGO_VISIBILITY_DEFAULT clingo_result_t register_python(clingo_lib_t *lib);
+
+// NOLINTEND(modernize-*,cppcoreguidelines-macro-usage,performance-enum-size)
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

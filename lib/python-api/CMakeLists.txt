@@ -1,7 +1,6 @@
 # functionality shared between embedded library and standalone module
 add_library(pyclingo_lib
     src/ast.cc
-    src/ast2.cc
     src/clingo.cc
     src/core.cc
     src/control.cc
@@ -14,11 +13,12 @@ set_property(TARGET pyclingo_lib PROPERTY POSITION_INDEPENDENT_CODE ON)
 # the standalone module
 pybind11_add_module(pyclingo_module src/module.cc)
 set_target_properties(pyclingo_module PROPERTIES OUTPUT_NAME "clingo")
-target_link_libraries(pyclingo_module PRIVATE pyclingo_lib)
+target_link_libraries(pyclingo_module PRIVATE clingo pyclingo_lib)
 
 # the embedded library
 add_library(pyclingo_embed src/embed.cc)
-target_link_libraries(pyclingo_embed PRIVATE pybind11::embed pyclingo_lib)
+target_include_directories(pyclingo_embed PUBLIC "include")
+target_link_libraries(pyclingo_embed PRIVATE pybind11::embed clingo pyclingo_lib)
 
 if (PYTHON_EXECUTABLE AND NOT Python_EXECUTABLE)
     set(Python_EXECUTABLE "${PYTHON_EXECUTABLE}")
