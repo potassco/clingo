@@ -12,43 +12,70 @@ namespace Clingo::Python {
 
 namespace py = pybind11;
 
+namespace {
+
+class Interpreter {
+  public:
+    Interpreter()
+        : scope_{py::module_::import("__main__").attr("__dict__")},
+          callable_{py::module_::import("builtins").attr("callable")},
+          version_{py::module_::import("sys").attr("version").cast<std::string>()} {}
+
+    void eval(char const *code) { py::eval(code, scope_); }
+
+    auto callable(char const *name) -> bool { return callable_(name).cast<bool>(); }
+
+    auto call(char const *name, SymbolVec args) -> SymbolVec { return scope_.attr(name)(args).cast<SymbolVec>(); }
+
+    auto version() -> char const * { return version_.c_str(); }
+
+  private:
+    py::scoped_interpreter py_;
+    py::object scope_;
+    py::object callable_;
+    std::string version_;
+};
+
 class MainScript {
   public:
-    static auto c_execute(char const *code, void *data) -> clingo_result_t {
-        auto *lib = static_cast<clingo_lib_t *>(data);
-        CLINGO_TRY {
-            // TODO: execute
-            static_cast<void>(code);
+    MainScript(clingo_lib_t *lib) : lib_{lib} {}
+
+    auto py() -> Interpreter & {
+        if (!py_) {
+            py_ = std::make_unique<Interpreter>();
         }
-        CLINGO_CATCH(lib);
+        return *py_;
+    }
+
+    static auto cast(void *data) -> MainScript * { return static_cast<MainScript *>(data); }
+
+    static auto c_execute(char const *code, void *data) -> clingo_result_t {
+        auto *self = cast(data);
+        CLINGO_TRY { self->py().eval(code); }
+        CLINGO_CATCH(self->lib_);
     }
 
     static auto c_call(char const *name, clingo_symbol_t const *arguments, size_t arguments_size,
                        clingo_symbol_callback_t symbol_callback, void *symbol_callback_data,
                        void *data) -> clingo_result_t {
-        auto *lib = static_cast<clingo_lib_t *>(data);
+        auto *self = cast(data);
         CLINGO_TRY {
             auto args = transform(arguments, std::next(arguments, static_cast<ssize_t>(arguments_size)),
                                   [](auto sym) { return Symbol{sym, true}; });
-            auto syms = SymbolVec{};
-            // TODO: call
-            static_cast<void>(name);
+            auto syms = self->py().call(name, args);
             // NOLINTNEXTLINE
             auto const *c_syms = reinterpret_cast<clingo_symbol_t *>(syms.data());
             handle_error(symbol_callback(c_syms, syms.size(), symbol_callback_data));
         }
-        CLINGO_CATCH(lib);
+        CLINGO_CATCH(self->lib_);
     }
 
     static auto c_callable(char const *name, size_t arguments, bool *result, void *data) -> clingo_result_t {
-        auto *lib = static_cast<clingo_lib_t *>(data);
-        CLINGO_TRY {
-            // TODO: callable
-            static_cast<void>(name);
-            static_cast<void>(arguments);
-            *result = false;
-        }
-        CLINGO_CATCH(lib);
+        // Note: that python cannot check the number of arguments
+        static_cast<void>(arguments);
+        auto *self = cast(data);
+        CLINGO_TRY { *result = self->py().callable(name); }
+        CLINGO_CATCH(self->lib_);
     }
 
     static auto main(clingo_control_t *control, void *data) -> clingo_result_t {
@@ -63,21 +90,30 @@ class MainScript {
     }
 
     static auto c_version(void *data) -> char const * {
-        // TODO: get correct python version
-        static_cast<void>(data);
-        return "3.10";
+        try {
+            return cast(data)->py().version();
+        } catch (...) {
+            return "<error>";
+        }
     }
 
     static void c_free(void *data) {
         // NOLINTNEXTLINE
-        delete static_cast<py::object *>(data);
+        delete cast(data);
     }
+
+  private:
+    std::unique_ptr<Interpreter> py_;
+    clingo_lib_t *lib_;
 };
+
+} // namespace
 
 } // namespace Clingo::Python
 
 extern "C" auto register_python(clingo_lib_t *lib) -> clingo_result_t {
     using Script = Clingo::Python::MainScript;
+    auto script = std::make_unique<Script>(lib);
     auto c_script = clingo_script_t{Script::c_execute, Script::c_call,    Script::c_callable, Script::main,
                                     Script::c_name,    Script::c_version, Script::c_free};
     return clingo_script_register(lib, &c_script, lib);

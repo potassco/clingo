@@ -91,7 +91,7 @@ template <clingo_ast_type_e T> class Node {
         }(std::make_index_sequence<std::tuple_size_v<arguments>>{});
     }
 
-    friend auto c_cast(Node const &x) -> clingo_ast_t *;
+    friend auto c_cast(Node const &x) -> clingo_ast_t * { return x.ast_; }
 
   private:
     using arguments = ast_type_info<Node>::arguments;
@@ -245,7 +245,5 @@ template <clingo_ast_type_e T> class Node {
 
     clingo_ast_t *ast_ = nullptr;
 };
-
-template <clingo_ast_type_e T> inline auto c_cast(Node<T> const &x) -> clingo_ast_t * { return x.ast_; }
 
 } // namespace Clingo::Python
