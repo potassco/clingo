@@ -114,8 +114,8 @@ class OutputBuffer {
     //! Append n bytes at the end of the buffer.
     //!
     //! The returned span should be filled by the calling code.
-    auto reserve(ssize_t n) -> std::span<char> {
-        auto *begin = ensure_(n);
+    auto reserve(ssize_t n, ssize_t extra = 0) -> std::span<char> {
+        auto *begin = ensure_(n + extra);
         size_ += n;
         return {begin, std::next(begin, n)};
     }

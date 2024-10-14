@@ -71,12 +71,6 @@ void handle_error(mp_result res) {
     }
 }
 
-void handle_error(mp_result res, mp_result skip) {
-    if (res != skip) {
-        handle_error(res);
-    }
-}
-
 class mp_int_ptr {
   public:
     mp_int_ptr() : ptr_{mp_int_ref_alloc()} {
@@ -609,7 +603,7 @@ Number::~Number() noexcept {
     auto *z = repr_to_bigint(repr_);
     auto len = mp_int_string_len(&z->num, BASE);
     ret.resize(len, '0');
-    handle_error(mp_int_to_string(&z->num, BASE, ret.data(), len), MP_TRUNC);
+    handle_error(mp_int_to_string(&z->num, BASE, ret.data(), len));
     ret.pop_back();
     return ret;
 }
@@ -1015,9 +1009,9 @@ auto operator<<(Util::OutputBuffer &out, Number const &num) -> Util::OutputBuffe
         out << repr_to_int(num.repr_);
     } else {
         auto *z = repr_to_bigint(num.repr_);
-        auto len = mp_int_string_len(&z->num, BASE) - 1;
-        auto target = out.reserve(len);
-        handle_error(mp_int_to_string(&z->num, BASE, target.data(), len), MP_TRUNC);
+        auto len = mp_int_string_len(&z->num, BASE);
+        auto target = out.reserve(len - 1, 1);
+        handle_error(mp_int_to_string(&z->num, BASE, target.data(), len));
     }
     return out;
 }
