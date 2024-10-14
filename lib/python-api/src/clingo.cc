@@ -1,3 +1,4 @@
+#include "clingo.hh"
 #include "ast.hh"
 #include "ast2.hh"
 #include "control.hh"
@@ -7,7 +8,9 @@
 
 #include <pybind11/pybind11.h>
 
-PYBIND11_MODULE(clingo, m) {
+namespace Clingo::Python {
+
+void register_clingo(pybind11::module &m) {
     m.doc() = "the clingo python module";
     Clingo::Python::register_core(m);
     Clingo::Python::register_symbol(m);
@@ -16,3 +19,5 @@ PYBIND11_MODULE(clingo, m) {
     Clingo::Python::register_ast(m);
     Clingo::Python::register_ast2(m);
 }
+
+} // namespace Clingo::Python
