@@ -192,7 +192,7 @@ void StmRule::do_init(size_t gen) {
     }
 }
 
-auto StmRule::do_report(InstantiationContext &ctx) -> bool {
+auto StmRule::do_report(InstantiationContext const &ctx) -> bool {
     bool fact = type_ == RuleType::normal;
     auto &out = ctx.out().body();
     for (auto const &lit : body_) {
@@ -226,16 +226,15 @@ void StmExternal::init_() {
         LitExternalCheck(StmExternal &stm) : stm_{&stm} {}
 
       private:
-        [[nodiscard]] auto do_check(InstantiationContext &ctx) -> bool override {
-            if (auto atom = stm_->atom_->eval(ctx.store(), ctx.ass()); atom && !stm_->base_->is_fact(*atom)) {
+        [[nodiscard]] auto do_check(InstantiationContext const &ctx) -> bool override {
+            if (auto atom = stm_->atom_->eval(ctx); atom && !stm_->base_->is_fact(*atom)) {
                 stm_->res_atom_ = *atom;
             } else {
                 return false;
             }
             if (stm_->type_) {
-                if (auto type = stm_->type_->eval(ctx.store(), ctx.ass());
-                    type && type->type() == SymbolType::function && type->args().empty() &&
-                    !type->has_classical_sign()) {
+                if (auto type = stm_->type_->eval(ctx); type && type->type() == SymbolType::function &&
+                                                        type->args().empty() && !type->has_classical_sign()) {
                     if (type->name() == "true") {
                         stm_->res_type_ = ExternalType::true_;
                     } else if (type->name() == "false") {
@@ -302,7 +301,7 @@ auto StmExternal::do_important() const -> VariableSet {
 
 void StmExternal::do_init(size_t gen) { base_->update(gen); }
 
-auto StmExternal::do_report(InstantiationContext &ctx) -> bool {
+auto StmExternal::do_report(InstantiationContext const &ctx) -> bool {
     ctx.out().external(res_atom_, res_type_);
     return true;
 }
@@ -364,7 +363,7 @@ void StmWeakConstraint::do_print_head(std::ostream &out) const {
 
 void StmWeakConstraint::do_init([[maybe_unused]] size_t gen) {}
 
-auto StmWeakConstraint::do_report(InstantiationContext &ctx) -> bool {
+auto StmWeakConstraint::do_report(InstantiationContext const &ctx) -> bool {
     assert(syms_.size() > (prio_ ? 1 : 0));
     auto &out = ctx.out().body();
     for (auto const &lit : body_) {
@@ -391,21 +390,20 @@ void StmHeuristic::init_() {
         LitHeuristicCheck(StmHeuristic &stm) : stm_{&stm} {}
 
       private:
-        [[nodiscard]] auto do_check(InstantiationContext &ctx) -> bool override {
-            if (auto weight = stm_->weight_->eval(ctx.store(), ctx.ass());
-                weight && weight->type() == SymbolType::number) {
+        [[nodiscard]] auto do_check(InstantiationContext const &ctx) -> bool override {
+            if (auto weight = stm_->weight_->eval(ctx); weight && weight->type() == SymbolType::number) {
                 stm_->res_weight_ = *weight;
             } else {
                 return false;
             }
             if (stm_->prio_) {
-                if (auto prio = stm_->prio_->eval(ctx.store(), ctx.ass()); prio && prio->type() == SymbolType::number) {
+                if (auto prio = stm_->prio_->eval(ctx); prio && prio->type() == SymbolType::number) {
                     stm_->res_prio_ = *prio;
                 } else {
                     return false;
                 }
             }
-            if (auto type = stm_->type_->eval(ctx.store(), ctx.ass());
+            if (auto type = stm_->type_->eval(ctx);
                 type && type->type() == SymbolType::function && type->args().empty() && !type->has_classical_sign()) {
                 if (type->name() == "factor") {
                     stm_->res_type_ = HeuristicType::factor;
@@ -455,7 +453,7 @@ void StmHeuristic::init_() {
       private:
         void do_print(std::ostream &out) const override { out << *stm_->atom_; }
 
-        [[nodiscard]] auto do_output([[maybe_unused]] InstantiationContext &ctx,
+        [[nodiscard]] auto do_output([[maybe_unused]] InstantiationContext const &ctx,
                                      [[maybe_unused]] OutputLit &out) const -> bool override {
             return false;
         }
@@ -525,7 +523,7 @@ void StmHeuristic::do_print_head(std::ostream &out) const {
 
 void StmHeuristic::do_init([[maybe_unused]] size_t gen) {}
 
-auto StmHeuristic::do_report(InstantiationContext &ctx) -> bool {
+auto StmHeuristic::do_report(InstantiationContext const &ctx) -> bool {
     auto &out = ctx.out().body();
     for (auto const &lit : body_) {
         std::ignore = lit->output(ctx, out);
@@ -545,13 +543,13 @@ void StmEdge::init_() {
         LitEdgeCheck(StmEdge &stm) : stm_{&stm} {}
 
       private:
-        [[nodiscard]] auto do_check(InstantiationContext &ctx) -> bool override {
-            if (auto src = stm_->src_->eval(ctx.store(), ctx.ass())) {
+        [[nodiscard]] auto do_check(InstantiationContext const &ctx) -> bool override {
+            if (auto src = stm_->src_->eval(ctx)) {
                 stm_->res_src_ = *src;
             } else {
                 return false;
             }
-            if (auto dst = stm_->dst_->eval(ctx.store(), ctx.ass())) {
+            if (auto dst = stm_->dst_->eval(ctx)) {
                 stm_->res_dst_ = *dst;
             } else {
                 return false;
@@ -594,7 +592,7 @@ void StmEdge::do_print_head(std::ostream &out) const { out << "#edge (" << *src_
 
 void StmEdge::do_init([[maybe_unused]] size_t gen) {}
 
-auto StmEdge::do_report(InstantiationContext &ctx) -> bool {
+auto StmEdge::do_report(InstantiationContext const &ctx) -> bool {
     auto &out = ctx.out().body();
     for (auto const &lit : body_) {
         std::ignore = lit->output(ctx, out);
@@ -613,8 +611,8 @@ void StmShow::init_() {
         LitShowCheck(StmShow &stm) : stm_{&stm} {}
 
       private:
-        [[nodiscard]] auto do_check(InstantiationContext &ctx) -> bool override {
-            if (auto term = stm_->term_->eval(ctx.store(), ctx.ass())) {
+        [[nodiscard]] auto do_check(InstantiationContext const &ctx) -> bool override {
+            if (auto term = stm_->term_->eval(ctx)) {
                 stm_->res_term_ = *term;
             } else {
                 return false;
@@ -652,7 +650,7 @@ void StmShow::do_print_head(std::ostream &out) const { out << "#show " << *term_
 
 void StmShow::do_init([[maybe_unused]] size_t gen) {}
 
-auto StmShow::do_report(InstantiationContext &ctx) -> bool {
+auto StmShow::do_report(InstantiationContext const &ctx) -> bool {
     auto &out = ctx.out().body();
     for (auto const &lit : body_) {
         std::ignore = lit->output(ctx, out);
@@ -673,7 +671,7 @@ void StmProject::init_() {
       private:
         void do_print(std::ostream &out) const override { out << *stm_->atom_; }
 
-        [[nodiscard]] auto do_output([[maybe_unused]] InstantiationContext &ctx,
+        [[nodiscard]] auto do_output([[maybe_unused]] InstantiationContext const &ctx,
                                      [[maybe_unused]] OutputLit &out) const -> bool override {
             return false;
         }
@@ -731,7 +729,7 @@ void StmProject::do_print_head(std::ostream &out) const { out << "#project " << 
 
 void StmProject::do_init([[maybe_unused]] size_t gen) {}
 
-auto StmProject::do_report(InstantiationContext &ctx) -> bool {
+auto StmProject::do_report(InstantiationContext const &ctx) -> bool {
     ctx.out().project(base_->nth(offset_).key());
     return true;
 }

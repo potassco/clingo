@@ -9,13 +9,13 @@ class CmpMatcher : public OnceMatcher {
     CmpMatcher(Term const &lhs, Relation cmp, Term const &rhs) : lhs_{&lhs}, rhs_{&rhs}, cmp_{cmp} {}
 
   private:
-    auto do_once(InstantiationContext &ctx) -> bool override {
+    auto do_once(InstantiationContext const &ctx) -> bool override {
         // std::cerr << "doing a cmp match: " << *lhs_ << " " << cmp_ << " " << *rhs_ << "\n";
-        auto lhs = lhs_->eval(ctx.store(), ctx.ass());
+        auto lhs = lhs_->eval(ctx);
         if (!lhs) {
             return false;
         }
-        auto rhs = rhs_->eval(ctx.store(), ctx.ass());
+        auto rhs = rhs_->eval(ctx);
         if (!rhs) {
             return false;
         }
@@ -54,16 +54,16 @@ class AssignMatcher : public OnceMatcher {
         : lhs_{&lhs}, rhs_{&rhs}, free_{std::move(free)} {}
 
   private:
-    auto do_once(InstantiationContext &ctx) -> bool override {
+    auto do_once(InstantiationContext const &ctx) -> bool override {
         // unbind variables
         for (auto const &var : free_) {
             ctx.ass()[var] = std::nullopt;
         }
-        auto rhs = rhs_->eval(ctx.store(), ctx.ass());
+        auto rhs = rhs_->eval(ctx);
         // if (rhs) {
         //     std::cerr << "matching: " << *lhs_ << " and " << *rhs << "\n";
         // }
-        return rhs && lhs_->match(ctx.store(), *rhs, ctx.ass());
+        return rhs && lhs_->match(ctx, *rhs);
     }
     void do_print(std::ostream &out) const override { out << *lhs_ << ":=" << *rhs_; }
 
@@ -78,11 +78,11 @@ class IntervalMatcher : public Matcher {
         : lhs_{&lhs}, lower_{&lower}, upper_{&upper}, free_{std::move(free)} {}
 
   private:
-    void do_init([[maybe_unused]] SymbolStore &store, [[maybe_unused]] size_t gen) override {}
-    void do_match(InstantiationContext &ctx) override {
+    void do_init([[maybe_unused]] InitContext const &ctx, [[maybe_unused]] size_t gen) override {}
+    void do_match(InstantiationContext const &ctx) override {
         val_current_ = 1;
         val_upper_ = 0;
-        if (auto lower = lower_->eval(ctx.store(), ctx.ass()), upper = upper_->eval(ctx.store(), ctx.ass());
+        if (auto lower = lower_->eval(ctx), upper = upper_->eval(ctx);
             lower && upper && lower->type() == SymbolType::number && upper->type() == SymbolType::number) {
             if (!free_.empty()) {
                 val_current_ = lower->num();
@@ -90,22 +90,21 @@ class IntervalMatcher : public Matcher {
             }
             // Note: that the case free is empty could be handled a little more
             // efficiently. I would not expect a big impact, though.
-            else if (auto lhs = lhs_->eval(ctx.store(), ctx.ass()); lhs && lhs->type() == SymbolType::number &&
-                                                                    lower->num() <= lhs->num() &&
-                                                                    lhs->num() <= upper->num()) {
+            else if (auto lhs = lhs_->eval(ctx); lhs && lhs->type() == SymbolType::number &&
+                                                 lower->num() <= lhs->num() && lhs->num() <= upper->num()) {
                 val_current_ = lhs->num();
                 val_upper_ = lhs->num();
             }
         }
     }
-    auto do_next(InstantiationContext &ctx) -> bool override {
+    auto do_next(InstantiationContext const &ctx) -> bool override {
         while (val_current_ <= val_upper_) {
             for (auto const &var : free_) {
                 ctx.ass()[var] = std::nullopt;
             }
             auto num = val_current_;
             val_current_ += 1;
-            if (lhs_->match(ctx.store(), ctx.store().num_ref(std::move(num)), ctx.ass())) {
+            if (lhs_->match(ctx, ctx.store().num_ref(std::move(num)))) {
                 return true;
             }
         }

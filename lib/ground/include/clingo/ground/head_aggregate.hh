@@ -135,12 +135,12 @@ class StateHdAggr : public State {
 
       public:
         //! Private constructor.
-        ElementKey(priv_tag tag, SymbolStore &store, Assignment &ass, AggregateFunction fun, size_t atom_idx,
+        ElementKey(priv_tag tag, InstantiationContext const &ctx, AggregateFunction fun, size_t atom_idx,
                    UTermVec const &tuple, bool &res);
         //! Prevent copying and moving.
         ElementKey(ElementKey const &other) = delete;
         //! Construct an element key evaluating the given tuple.
-        [[nodiscard]] static auto construct(auto &mbr, SymbolStore &store, Assignment &ass, AggregateFunction fun,
+        [[nodiscard]] static auto construct(auto &mbr, InstantiationContext const &ctx, AggregateFunction fun,
                                             size_t atom_idx, UTermVec const &tuple, ElementKey *&target) -> bool;
 
         //! Mark as fact.
@@ -207,11 +207,11 @@ class StateHdAggr : public State {
     void propagate(Queue &queue);
 
     //! Insert an aggregate atom.
-    auto insert_atom(SymbolStore &store, Assignment &ass) -> std::optional<std::pair<AtomMap::iterator, bool>>;
+    auto insert_atom(InstantiationContext const &ctx) -> std::optional<std::pair<AtomMap::iterator, bool>>;
 
     //! Insert an aggregate element.
-    void insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iterator it, UTerm const &head,
-                     UTermVec const &tuple, ElementKey *&elem_key, auto const &get_cond);
+    void insert_elem(InstantiationContext const &ctx, AtomMap::iterator it, UTerm const &head, UTermVec const &tuple,
+                     ElementKey *&elem_key, auto const &get_cond);
 
     //! Print a non-ground representation of the aggregate.
     void print(std::ostream &out, bool print_index);
@@ -262,7 +262,7 @@ class StmHdAggr : public Stm {
     // InstanceCallback interface
     void do_print_head(std::ostream &out) const override;
     void do_init(size_t gen) override;
-    [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override;
+    [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
     void do_propagate(SymbolStore &store, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override;
 
@@ -283,7 +283,7 @@ class StmHdAggrElem : public Stm {
     [[nodiscard]] auto do_body() const -> ULitVec const & override;
     [[nodiscard]] auto do_important() const -> VariableSet override;
     void do_init(size_t gen) override;
-    [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override;
+    [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
     void do_propagate(SymbolStore &store, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override;
     void do_print_head(std::ostream &out) const override;
@@ -315,10 +315,10 @@ class MatchHdAggr {
     [[nodiscard]] auto signature(VariableSet const &bound, VariableSet const &bind) const -> VariableVec;
 
     //! Match a span of symbols representing an atom or element with the assignment.
-    [[nodiscard]] auto match(SymbolStore &store, Symbol const *sym, Assignment &ass) const -> bool;
+    [[nodiscard]] auto match(EvalContext const &ctx, Symbol const *sym) const -> bool;
 
     //! Evaluate w.r.t. the given assignment and return a span representing an atom or element.
-    [[nodiscard]] auto eval(SymbolStore &store, Assignment &ass) const -> std::optional<Symbol const *>;
+    [[nodiscard]] auto eval(EvalContext const &ctx) const -> std::optional<Symbol const *>;
 
     //! Print a string representation of the matcher.
     friend auto operator<<(std::ostream &out, MatchHdAggr const &m) -> std::ostream &;
@@ -353,7 +353,7 @@ class LitHdAggr : public Lit, private MatchHdAggr {
 
     void do_print(std::ostream &out) const override;
 
-    auto do_output(InstantiationContext &ctx, OutputLit &out) const -> bool override;
+    auto do_output(InstantiationContext const &ctx, OutputLit &out) const -> bool override;
 
     [[nodiscard]] auto do_copy() const -> ULit override;
 

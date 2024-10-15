@@ -82,7 +82,7 @@ auto StateCondLit::add_empty(Assignment const &ass) -> std::pair<MapAtomCondLit:
     return {it, ins};
 }
 
-auto StateCondLit::add_premise(InstantiationContext &ctx, ULitVec const &premise) -> bool {
+auto StateCondLit::add_premise(InstantiationContext const &ctx, ULitVec const &premise) -> bool {
     // no further elements have to be accumulated if the literal is false
     auto it = atom_find(ctx.ass());
     if (it.value().is_false()) {
@@ -226,19 +226,20 @@ auto MatchCondLit::signature(VariableSet const &bound, [[maybe_unused]] Variable
     return {bound.begin(), bound.end()};
 };
 
-auto MatchCondLit::match([[maybe_unused]] SymbolStore &store, Symbol const *sym, Assignment &ass) const -> bool {
+auto MatchCondLit::match(EvalContext const &ctx, Symbol const *sym) const -> bool {
     if (type_ == LitCondLitType::premise) {
         auto it = state_->atom_nth(Symbol::to_rep(*sym));
-        return match_(ass, it.key(), state_->vars_global()) && match_(ass, std::next(sym), state_->vars_local());
+        return match_(ctx.ass(), it.key(), state_->vars_global()) &&
+               match_(ctx.ass(), std::next(sym), state_->vars_local());
     }
-    return match_(ass, sym, state_->vars_global());
+    return match_(ctx.ass(), sym, state_->vars_global());
 };
 
-auto MatchCondLit::eval([[maybe_unused]] SymbolStore &store, Assignment &ass) const -> std::optional<Symbol const *> {
+auto MatchCondLit::eval(EvalContext const &ctx) const -> std::optional<Symbol const *> {
     eval_.clear();
     bool is_premise = type_ == LitCondLitType::premise;
     if (is_premise) {
-        if (auto index = state_->atom_index(ass); index) {
+        if (auto index = state_->atom_index(ctx.ass()); index) {
             eval_.emplace_back(Symbol::from_rep(*index));
         } else {
             return std::nullopt;
@@ -246,7 +247,7 @@ auto MatchCondLit::eval([[maybe_unused]] SymbolStore &store, Assignment &ass) co
     }
     for (auto var : is_premise ? state_->vars_local() : state_->vars_global()) {
         // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-        eval_.emplace_back(ass[var].value());
+        eval_.emplace_back(ctx.ass()[var].value());
     }
     return eval_.data();
 };
@@ -349,7 +350,7 @@ void LitCondLit::do_print(std::ostream &out) const {
     }
 }
 
-auto LitCondLit::do_output(InstantiationContext &ctx, OutputLit &out) const -> bool {
+auto LitCondLit::do_output(InstantiationContext const &ctx, OutputLit &out) const -> bool {
     if (type() == LitCondLitType::lit) {
         auto it = state().atom_find(ctx.ass());
         if (state().atom_is_fact(it)) {
@@ -389,12 +390,12 @@ class MatcherCondLitStrat : public OnceMatcher {
     MatcherCondLitStrat(StateCondLit &state, Instantiator inst) : state_{&state}, inst_{std::move(inst)} {}
 
   private:
-    auto do_once(InstantiationContext &ctx) -> bool override {
+    auto do_once(InstantiationContext const &ctx) -> bool override {
         if (init_) {
             state_->base_empty().update(0);
         } else {
             init_ = true;
-            inst_.init(ctx.store(), 0);
+            inst_.init(ctx, 0);
         }
         auto [it, ins] = state_->add_empty(ctx.ass());
         if (ins) {
@@ -424,7 +425,7 @@ class MatcherCondLitStrat : public OnceMatcher {
 
 void LitCondLitStrat::do_init([[maybe_unused]] size_t gen) {}
 
-auto LitCondLitStrat::do_report(InstantiationContext &ctx) -> bool {
+auto LitCondLitStrat::do_report(InstantiationContext const &ctx) -> bool {
     // In the stratified case, the conclusion is always false. Furthermore,
     // exactly one literal is bound. Thus, we can exit instantiation early
     // here.
@@ -481,7 +482,7 @@ void LitCondLitStrat::do_print(std::ostream &out) const {
     out << ")";
 }
 
-auto LitCondLitStrat::do_output(InstantiationContext &ctx, OutputLit &out) const -> bool {
+auto LitCondLitStrat::do_output(InstantiationContext const &ctx, OutputLit &out) const -> bool {
     if (auto it = state_->atom_find(ctx.ass()); !state_->atom_is_fact(it)) {
         it.value().uid(out.cond_lit(it.value().uid()));
         return true;
@@ -579,7 +580,7 @@ void StmCondLit::do_init(size_t gen) {
     }
 }
 
-auto StmCondLit::do_report(InstantiationContext &ctx) -> bool {
+auto StmCondLit::do_report(InstantiationContext const &ctx) -> bool {
     switch (type_) {
         case StmCondLitType::empty: {
             state_->add_empty(ctx.ass());

@@ -94,7 +94,7 @@ class StmRule : public Stm {
     // InstanceCallback interface
     void do_print_head(std::ostream &out) const override;
     void do_init(size_t gen) override;
-    [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override;
+    [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
     void do_propagate(SymbolStore &store, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override { return std::numeric_limits<size_t>::max(); }
 
@@ -134,7 +134,7 @@ class StmExternal : public Stm {
     // InstanceCallback interface
     void do_print_head(std::ostream &out) const override;
     void do_init(size_t gen) override;
-    [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override;
+    [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
     void do_propagate(SymbolStore &store, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override { return std::numeric_limits<size_t>::max(); }
     [[nodiscard]] auto do_is_important([[maybe_unused]] size_t index) const -> bool override { return false; }
@@ -175,7 +175,7 @@ class StmWeakConstraint : public Stm {
     // InstanceCallback interface
     void do_print_head(std::ostream &out) const override;
     void do_init(size_t gen) override;
-    [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override;
+    [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
     void do_propagate(SymbolStore &store, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override { return std::numeric_limits<size_t>::max(); }
 
@@ -206,7 +206,7 @@ class StmHeuristic : public Stm {
     // InstanceCallback interface
     void do_print_head(std::ostream &out) const override;
     void do_init(size_t gen) override;
-    [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override;
+    [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
     void do_propagate(SymbolStore &store, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override { return std::numeric_limits<size_t>::max(); }
 
@@ -240,7 +240,7 @@ class StmEdge : public Stm {
     // InstanceCallback interface
     void do_print_head(std::ostream &out) const override;
     void do_init(size_t gen) override;
-    [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override;
+    [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
     void do_propagate(SymbolStore &store, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override { return std::numeric_limits<size_t>::max(); }
 
@@ -267,7 +267,7 @@ class StmShow : public Stm {
     // InstanceCallback interface
     void do_print_head(std::ostream &out) const override;
     void do_init(size_t gen) override;
-    [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override;
+    [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
     void do_propagate(SymbolStore &store, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override { return std::numeric_limits<size_t>::max(); }
 
@@ -294,7 +294,7 @@ class StmProject : public Stm {
     // InstanceCallback interface
     void do_print_head(std::ostream &out) const override;
     void do_init(size_t gen) override;
-    [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override;
+    [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
     void do_propagate(SymbolStore &store, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override { return std::numeric_limits<size_t>::max(); }
     [[nodiscard]] auto do_is_important([[maybe_unused]] size_t index) const -> bool override { return false; }

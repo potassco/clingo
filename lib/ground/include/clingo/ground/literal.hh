@@ -60,7 +60,9 @@ class Lit {
     //!
     //! If the literal is a fact, it should not be output and the function
     //! should return false.
-    [[nodiscard]] auto output(InstantiationContext &ctx, OutputLit &out) const -> bool { return do_output(ctx, out); }
+    [[nodiscard]] auto output(InstantiationContext const &ctx, OutputLit &out) const -> bool {
+        return do_output(ctx, out);
+    }
 
     //! Copy the literal.
     [[nodiscard]] auto copy() const -> ULit { return do_copy(); }
@@ -87,7 +89,7 @@ class Lit {
                std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> = 0;
     [[nodiscard]] virtual auto do_score(std::vector<bool> const &bound) const -> double = 0;
     virtual void do_print(std::ostream &out) const = 0;
-    virtual auto do_output(InstantiationContext &ctx, OutputLit &out) const -> bool = 0;
+    virtual auto do_output(InstantiationContext const &ctx, OutputLit &out) const -> bool = 0;
     [[nodiscard]] virtual auto do_copy() const -> ULit = 0;
     [[nodiscard]] virtual auto do_hash() const -> size_t = 0;
     [[nodiscard]] virtual auto do_equal_to(Lit const &other) const -> bool = 0;
@@ -110,7 +112,7 @@ class LitComparison : public Lit {
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
 
     void do_print(std::ostream &out) const override;
-    auto do_output(InstantiationContext &ctx, OutputLit &out) const -> bool override;
+    auto do_output(InstantiationContext const &ctx, OutputLit &out) const -> bool override;
 
     [[nodiscard]] auto do_copy() const -> ULit override;
 
@@ -140,7 +142,7 @@ class LitExternal : public Lit {
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
 
     void do_print(std::ostream &out) const override;
-    auto do_output(InstantiationContext &ctx, OutputLit &out) const -> bool override;
+    auto do_output(InstantiationContext const &ctx, OutputLit &out) const -> bool override;
 
     [[nodiscard]] auto do_copy() const -> ULit override;
 
@@ -171,7 +173,7 @@ class LitInterval : public Lit {
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
 
     void do_print(std::ostream &out) const override;
-    auto do_output(InstantiationContext &ctx, OutputLit &out) const -> bool override;
+    auto do_output(InstantiationContext const &ctx, OutputLit &out) const -> bool override;
 
     [[nodiscard]] auto do_copy() const -> ULit override;
 
@@ -204,7 +206,7 @@ class LitSymbolic : public Lit {
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
 
     void do_print(std::ostream &out) const override;
-    auto do_output(InstantiationContext &ctx, OutputLit &out) const -> bool override;
+    auto do_output(InstantiationContext const &ctx, OutputLit &out) const -> bool override;
 
     [[nodiscard]] auto do_copy() const -> ULit override;
 
@@ -251,7 +253,7 @@ class LitProject : public Lit {
         //! Initialize the projected base.
         //!
         //! This populates the projected base.
-        void init(SymbolStore &store, size_t gen);
+        void init(InitContext const &ctx, size_t gen);
 
       private:
         SharedString name_;
@@ -276,7 +278,7 @@ class LitProject : public Lit {
                std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
     void do_print(std::ostream &out) const override;
-    auto do_output(InstantiationContext &ctx, OutputLit &out) const -> bool override;
+    auto do_output(InstantiationContext const &ctx, OutputLit &out) const -> bool override;
 
     [[nodiscard]] auto do_copy() const -> ULit override;
 
@@ -311,7 +313,7 @@ class LitTuple : public Lit {
                std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double override;
     void do_print(std::ostream &out) const override;
-    auto do_output([[maybe_unused]] InstantiationContext &ctx, OutputLit &out) const -> bool override;
+    auto do_output([[maybe_unused]] InstantiationContext const &ctx, OutputLit &out) const -> bool override;
     [[nodiscard]] auto do_copy() const -> ULit override;
     [[nodiscard]] auto do_hash() const -> size_t override;
     [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
@@ -324,7 +326,7 @@ class LitTuple : public Lit {
 //! A literal ensuring that a list of terms evaluates.
 class LitCheck : public Lit {
   private:
-    [[nodiscard]] virtual auto do_check(InstantiationContext &ctx) -> bool = 0;
+    [[nodiscard]] virtual auto do_check(InstantiationContext const &ctx) -> bool = 0;
 
     [[nodiscard]] auto do_domain() const -> bool override;
     [[nodiscard]] auto do_single_pass() const -> bool override;
@@ -333,7 +335,7 @@ class LitCheck : public Lit {
                std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
 
-    auto do_output(InstantiationContext &ctx, OutputLit &out) const -> bool override;
+    auto do_output(InstantiationContext const &ctx, OutputLit &out) const -> bool override;
 
     [[nodiscard]] auto do_hash() const -> size_t override;
     [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
@@ -347,7 +349,7 @@ class LitBool : public LitCheck {
     LitBool(bool value) : value_{value} {}
 
   private:
-    [[nodiscard]] auto do_check(InstantiationContext &ctx) -> bool override;
+    [[nodiscard]] auto do_check(InstantiationContext const &ctx) -> bool override;
     void do_vars(VariableSet &vars, VarSelectMode mode) const override;
     void do_print(std::ostream &out) const override;
     [[nodiscard]] auto do_copy() const -> ULit override;
@@ -364,7 +366,7 @@ class LitFactCheck : public LitCheck {
     LitFactCheck(Base &base, Term const &atom, Symbol &target) : base_{&base}, atom_{&atom}, target_{&target} {}
 
   private:
-    [[nodiscard]] auto do_check(InstantiationContext &ctx) -> bool override;
+    [[nodiscard]] auto do_check(InstantiationContext const &ctx) -> bool override;
     void do_vars(VariableSet &vars, VarSelectMode mode) const override;
     void do_print(std::ostream &out) const override;
     [[nodiscard]] auto do_copy() const -> ULit override;
@@ -389,7 +391,7 @@ class LitFailCheck : public LitCheck {
     }
 
   private:
-    [[nodiscard]] auto do_check(InstantiationContext &ctx) -> bool override;
+    [[nodiscard]] auto do_check(InstantiationContext const &ctx) -> bool override;
     void do_vars(VariableSet &vars, VarSelectMode mode) const override;
     void do_print(std::ostream &out) const override;
     [[nodiscard]] auto do_copy() const -> ULit override;

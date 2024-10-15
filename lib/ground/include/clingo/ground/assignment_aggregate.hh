@@ -118,8 +118,8 @@ class StateAssignAggr : public State {
         //! Prevent copying and moving.
         ElementKey(ElementKey const &other) = delete;
         //! Construct an element key evaluating the given tuple.
-        [[nodiscard]] static auto construct(auto &mbr, SymbolStore &store, Assignment &ass, AggregateFunction fun,
-                                            size_t atom_idx, UTermVec const &tuple, ElementKey *&target) -> bool;
+        [[nodiscard]] static auto construct(auto &mbr, EvalContext const &ctx, AggregateFunction fun, size_t atom_idx,
+                                            UTermVec const &tuple, ElementKey *&target) -> bool;
 
         //! Get the tuple.
         [[nodiscard]] auto span() const -> SymbolSpan;
@@ -129,8 +129,7 @@ class StateAssignAggr : public State {
         friend auto operator==(ElementKey const &a, ElementKey const &b) -> bool;
 
       private:
-        ElementKey(SymbolStore &store, Assignment &ass, AggregateFunction fun, size_t atom_idx, UTermVec const &tuple,
-                   bool &res);
+        ElementKey(EvalContext const &ctx, AggregateFunction fun, size_t atom_idx, UTermVec const &tuple, bool &res);
 
         // Note that these two could be combined to save a little bit of memory.
         size_t n_;
@@ -186,11 +185,11 @@ class StateAssignAggr : public State {
     //!
     //! This function also enqueues freshly inserted atoms to cover the case
     //! that the aggregate matches the empty element set.
-    auto insert_atom(Assignment &ass) -> std::pair<AtomMap::iterator, bool>;
+    auto insert_atom(EvalContext const &ctx) -> std::pair<AtomMap::iterator, bool>;
 
     //! Insert an aggregate element.
-    void insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iterator it, UTermVec const &tuple,
-                     ElementKey *&elem_key, auto const &get_cond);
+    void insert_elem(EvalContext const &ctx, AtomMap::iterator it, UTermVec const &tuple, ElementKey *&elem_key,
+                     auto const &get_cond);
 
     //! Get the index of an aggregate atom.
     auto atom_index(AtomMap::iterator it) -> size_t;
@@ -237,10 +236,10 @@ class MatchAssignAggr {
                                  [[maybe_unused]] VariableSet const &bind) const -> VariableVec;
 
     //! Match a span of symbols representing an atom or element with the assignment.
-    [[nodiscard]] auto match([[maybe_unused]] SymbolStore &store, Key key, Assignment &ass) const -> bool;
+    [[nodiscard]] auto match(EvalContext const &ctx, Key key) const -> bool;
 
     //! Evaluate w.r.t. the given assignment and return a span representing an atom or element.
-    [[nodiscard]] auto eval(SymbolStore &store, Assignment &ass) const -> std::optional<Key>;
+    [[nodiscard]] auto eval(EvalContext const &ctx) const -> std::optional<Key>;
 
     //! Print a string representation of the matcher.
     friend auto operator<<(std::ostream &out, MatchAssignAggr const &m) -> std::ostream &;
@@ -275,7 +274,7 @@ class LitAssignAggr : public Lit, private MatchAssignAggr {
 
     void do_print(std::ostream &out) const override;
 
-    auto do_output([[maybe_unused]] InstantiationContext &ctx, OutputLit &out) const -> bool override;
+    auto do_output([[maybe_unused]] InstantiationContext const &ctx, OutputLit &out) const -> bool override;
 
     [[nodiscard]] auto do_copy() const -> ULit override;
 
@@ -320,7 +319,7 @@ class StmAssignAggrElem : public Stm {
     [[nodiscard]] auto do_important() const -> VariableSet override;
     [[nodiscard]] auto do_is_important(size_t index) const -> bool override;
     void do_init([[maybe_unused]] size_t gen) override;
-    [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override;
+    [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
     void do_propagate(SymbolStore &store, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override;
     void do_print_head(std::ostream &out) const override;
@@ -360,7 +359,7 @@ class LitAssignAggrStrat : public Lit, private MatchAssignAggr {
 
     void do_print(std::ostream &out) const override;
 
-    auto do_output([[maybe_unused]] InstantiationContext &ctx, OutputLit &out) const -> bool override;
+    auto do_output([[maybe_unused]] InstantiationContext const &ctx, OutputLit &out) const -> bool override;
 
     [[nodiscard]] auto do_copy() const -> ULit override;
 

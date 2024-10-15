@@ -8,10 +8,10 @@ namespace Clingo::Ground {
 
 namespace {
 
-auto eval_args(SymbolStore &store, Assignment const &ass, UTermVec const &args, std::vector<Symbol> &res) -> bool {
+auto eval_args(EvalContext const &ctx, UTermVec const &args, std::vector<Symbol> &res) -> bool {
     res.clear();
     for (auto const &arg : args) {
-        if (auto sym = arg->eval(store, ass); sym) {
+        if (auto sym = arg->eval(ctx); sym) {
             res.emplace_back(*sym);
         } else {
             return false;
@@ -20,13 +20,13 @@ auto eval_args(SymbolStore &store, Assignment const &ass, UTermVec const &args, 
     return true;
 }
 
-auto match_args(SymbolStore &store, Assignment &ass, UTermVec const &term_args, SymbolSpan sym_args) -> bool {
+auto match_args(EvalContext const &ctx, UTermVec const &term_args, SymbolSpan sym_args) -> bool {
     if (term_args.size() != sym_args.size()) {
         return false;
     }
     auto it = sym_args.begin();
     for (auto const &arg : term_args) {
-        if (!arg->match(store, *it++, ass)) {
+        if (!arg->match(ctx, *it++)) {
             return false;
         }
     }
@@ -45,6 +45,14 @@ auto rename_args(UTermVec const &args, SymbolStore &store, RenameMode mode, size
     return res;
 }
 
+auto check_(EvalContext const &ctx, Location const &loc, bool cond, char const *msg) -> bool {
+    if (!cond) {
+        GRINGO_REPORT_LOC(ctx.log(), info_operation_undefined, loc) << msg;
+        return false;
+    }
+    return true;
+}
+
 } // namespace
 
 // TermProjection
@@ -54,15 +62,13 @@ auto TermProjection::do_score([[maybe_unused]] double size,
     return 0;
 }
 
-auto TermProjection::do_match([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Symbol sym,
-                              [[maybe_unused]] Assignment &ass) const -> bool {
+auto TermProjection::do_match([[maybe_unused]] EvalContext const &ctx, [[maybe_unused]] Symbol sym) const -> bool {
     return true;
 }
 
-auto TermProjection::do_eval(SymbolStore &store,
-                             [[maybe_unused]] Assignment const &ass) const -> std::optional<Symbol> {
+auto TermProjection::do_eval(EvalContext const &ctx) const -> std::optional<Symbol> {
     // Note: this is a sentinel symbol intended for text output
-    return store.fun_ref(store.string_ref("*"), {}, false);
+    return ctx.store().fun_ref(ctx.store().string_ref("*"), {}, false);
 }
 
 auto TermProjection::do_rename([[maybe_unused]] SymbolStore &store, RenameMode mode,
@@ -102,20 +108,14 @@ auto TermProjection::do_compare_to([[maybe_unused]] Term const &other) const -> 
 
 // TermSymbol
 
-auto TermSymbol::do_match([[maybe_unused]] SymbolStore &store, Symbol sym,
-                          [[maybe_unused]] Assignment &ass) const -> bool {
-    return sym == *sym_;
-}
+auto TermSymbol::do_match([[maybe_unused]] EvalContext const &ctx, Symbol sym) const -> bool { return sym == *sym_; }
 
 auto TermSymbol::do_score([[maybe_unused]] double size,
                           [[maybe_unused]] std::vector<bool> const &bound) const -> double {
     return 0;
 }
 
-auto TermSymbol::do_eval([[maybe_unused]] SymbolStore &store,
-                         [[maybe_unused]] Assignment const &ass) const -> std::optional<Symbol> {
-    return *sym_;
-}
+auto TermSymbol::do_eval([[maybe_unused]] EvalContext const &ctx) const -> std::optional<Symbol> { return *sym_; }
 
 auto TermSymbol::do_rename([[maybe_unused]] SymbolStore &store, [[maybe_unused]] RenameMode mode, String const *name,
                            [[maybe_unused]] size_t *vars) const -> UTerm {
@@ -158,16 +158,16 @@ auto TermVariable::do_score(double size, std::vector<bool> const &bound) const -
     return bound[var_] ? 0.0 : size;
 }
 
-auto TermVariable::do_match([[maybe_unused]] SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
-    if (ass[var_]) {
-        return ass[var_] == sym;
+auto TermVariable::do_match(EvalContext const &ctx, Symbol sym) const -> bool {
+    if (ctx.ass()[var_]) {
+        return ctx.ass()[var_] == sym;
     }
-    ass[var_] = sym;
+    ctx.ass()[var_] = sym;
     return true;
 }
 
-auto TermVariable::do_eval([[maybe_unused]] SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> {
-    return ass[var_];
+auto TermVariable::do_eval([[maybe_unused]] EvalContext const &ctx) const -> std::optional<Symbol> {
+    return ctx.ass()[var_];
 }
 
 auto TermVariable::do_rename([[maybe_unused]] SymbolStore &store, RenameMode mode, [[maybe_unused]] String const *name,
@@ -206,11 +206,11 @@ auto TermLinear::do_score(double size, std::vector<bool> const &bound) const -> 
     return bound[var_] ? 0.0 : size;
 }
 
-auto TermLinear::do_match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
+auto TermLinear::do_match(EvalContext const &ctx, Symbol sym) const -> bool {
     if (sym.type() != SymbolType::number) {
         return false;
     }
-    if (auto var = ass[var_]; var) {
+    if (auto var = ctx.ass()[var_]; var) {
         // m * x + n == s
         if (var->type() != SymbolType::number) {
             return false;
@@ -220,15 +220,15 @@ auto TermLinear::do_match(SymbolStore &store, Symbol sym, Assignment &ass) const
     // x == (s - n) / m
     auto sn = sym.num() - n_;
     if (sn % m_ == 0) {
-        ass[var_] = store.num_ref(std::move(sn) / m_);
+        ctx.ass()[var_] = ctx.store().num_ref(std::move(sn) / m_);
         return true;
     }
     return false;
 }
 
-auto TermLinear::do_eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> {
-    if (auto var = ass[var_]; var && var->type() == SymbolType::number) {
-        return store.num_ref(m_ * var->num() + n_);
+auto TermLinear::do_eval(EvalContext const &ctx) const -> std::optional<Symbol> {
+    if (auto var = ctx.ass()[var_]; var && var->type() == SymbolType::number) {
+        return ctx.store().num_ref(m_ * var->num() + n_);
     }
     return std::nullopt;
 }
@@ -272,38 +272,38 @@ auto TermUnary::do_score(double size, std::vector<bool> const &bound) const -> d
     return op_ == UnaryOperator::minus ? rhs_->score(size, bound) : 0.0;
 }
 
-auto TermUnary::do_match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
+auto TermUnary::do_match(EvalContext const &ctx, Symbol sym) const -> bool {
     if (op_ == UnaryOperator::minus) {
         if (sym.type() == SymbolType::function) {
             // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-            return rhs_->match(store, *sym.flip_classical_sign(), ass);
+            return rhs_->match(ctx, *sym.flip_classical_sign());
         }
         if (sym.type() == SymbolType::number) {
-            return rhs_->match(store, store.num_ref(-sym.num()), ass);
+            return rhs_->match(ctx, ctx.store().num_ref(-sym.num()));
         }
         return false;
     }
-    return sym.type() == SymbolType::number && eval(store, ass) == sym;
+    return sym.type() == SymbolType::number && eval(ctx) == sym;
 }
 
-auto TermUnary::do_eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> {
-    if (auto rhs = rhs_->eval(store, ass); rhs) {
+auto TermUnary::do_eval(EvalContext const &ctx) const -> std::optional<Symbol> {
+    if (auto rhs = rhs_->eval(ctx); rhs) {
         switch (op_) {
             case UnaryOperator::minus: {
                 if (rhs->type() == SymbolType::number) {
-                    return store.num_ref(-rhs->num());
+                    return ctx.store().num_ref(-rhs->num());
                 }
                 return rhs->flip_classical_sign();
             }
             case UnaryOperator::negate: {
                 if (rhs->type() == SymbolType::number) {
-                    return store.num_ref(~rhs->num());
+                    return ctx.store().num_ref(~rhs->num());
                 }
                 break;
             }
             case UnaryOperator::abs: {
                 if (rhs->type() == SymbolType::number) {
-                    return store.num_ref(abs(rhs->num()));
+                    return ctx.store().num_ref(abs(rhs->num()));
                 }
                 break;
             }
@@ -376,19 +376,22 @@ auto TermBinary::do_score([[maybe_unused]] double size,
     return 0;
 }
 
-auto TermBinary::do_match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
-    return sym.type() == SymbolType::number && eval(store, ass) == sym;
+auto TermBinary::do_match(EvalContext const &ctx, Symbol sym) const -> bool {
+    return check_(ctx, loc_, sym.type() == Clingo::SymbolType::number, "number expected") && eval(ctx) == sym;
 }
 
-auto TermBinary::do_eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> {
-    if (auto lhs = lhs_->eval(store, ass); lhs && lhs->type() == SymbolType::number) {
-        if (auto rhs = rhs_->eval(store, ass); rhs && rhs->type() == SymbolType::number) {
+auto TermBinary::do_eval(EvalContext const &ctx) const -> std::optional<Symbol> {
+    if (auto lhs = lhs_->eval(ctx);
+        lhs && check_(ctx, loc_, lhs->type() == Clingo::SymbolType::number, "number expected")) {
+        if (auto rhs = rhs_->eval(ctx);
+            rhs && check_(ctx, loc_, rhs->type() == Clingo::SymbolType::number, "number expected")) {
+            auto &store = ctx.store();
             switch (op_) {
                 case BinaryOperator::and_: {
                     return store.num_ref(lhs->num() & rhs->num());
                 }
                 case BinaryOperator::div: {
-                    if (rhs->num() != 0) {
+                    if (check_(ctx, loc_, rhs->num() != 0, "non-zero number expected")) {
                         return store.num_ref(lhs->num() / rhs->num());
                     }
                     break;
@@ -397,7 +400,7 @@ auto TermBinary::do_eval(SymbolStore &store, Assignment const &ass) const -> std
                     return store.num_ref(lhs->num() - rhs->num());
                 }
                 case BinaryOperator::mod: {
-                    if (rhs->num() != 0) {
+                    if (check_(ctx, loc_, rhs->num() != 0, "non-zero number expected")) {
                         return store.num_ref(lhs->num() % rhs->num());
                     }
                     break;
@@ -409,7 +412,7 @@ auto TermBinary::do_eval(SymbolStore &store, Assignment const &ass) const -> std
                     return store.num_ref(lhs->num() + rhs->num());
                 }
                 case BinaryOperator::pow: {
-                    if (rhs->num() >= 0) {
+                    if (check_(ctx, loc_, rhs->num() >= 0, "non-negative number expected")) {
                         return store.num_ref(pow(lhs->num(), rhs->num()));
                     }
                     break;
@@ -432,13 +435,13 @@ auto TermBinary::do_rename(SymbolStore &store, RenameMode mode, String const *na
         return std::make_unique<TermVariable>((*vars)++);
     }
     auto lhs = lhs_->rename(store, mode, name, vars);
-    return std::make_unique<TermBinary>(std::move(lhs), op_, rhs_->rename(store, mode, name, vars));
+    return std::make_unique<TermBinary>(loc_, std::move(lhs), op_, rhs_->rename(store, mode, name, vars));
 }
 
 auto TermBinary::do_rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm {
     auto lhs = lhs_->rename(vars);
     auto rhs = rhs_->rename(vars);
-    return std::make_unique<TermBinary>(std::move(lhs), op_, std::move(rhs));
+    return std::make_unique<TermBinary>(loc_, std::move(lhs), op_, std::move(rhs));
 }
 
 void TermBinary::do_vars(VariableSet &vars, bool provide) const {
@@ -493,7 +496,9 @@ void TermBinary::do_print(std::ostream &out) const {
     out << ")";
 }
 
-auto TermBinary::do_copy() const -> UTerm { return std::make_unique<TermBinary>(lhs_->copy(), op_, rhs_->copy()); }
+auto TermBinary::do_copy() const -> UTerm {
+    return std::make_unique<TermBinary>(loc_, lhs_->copy(), op_, rhs_->copy());
+}
 
 auto TermBinary::do_hash() const -> size_t { return Util::value_hash_record<TermBinary>(op_, *rhs_); }
 
@@ -525,13 +530,13 @@ auto TermTuple::do_score(double size, std::vector<bool> const &bound) const -> d
     return ret;
 }
 
-auto TermTuple::do_match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
-    return sym.type() == SymbolType::tuple && match_args(store, ass, args_, sym.args());
+auto TermTuple::do_match(EvalContext const &ctx, Symbol sym) const -> bool {
+    return sym.type() == SymbolType::tuple && match_args(ctx, args_, sym.args());
 }
 
-auto TermTuple::do_eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> {
-    if (eval_args(store, ass, args_, eval_)) {
-        return store.tup_ref(eval_);
+auto TermTuple::do_eval(EvalContext const &ctx) const -> std::optional<Symbol> {
+    if (eval_args(ctx, args_, eval_)) {
+        return ctx.store().tup_ref(eval_);
     }
     return std::nullopt;
 }
@@ -613,14 +618,14 @@ auto TermFunction::do_score(double size, std::vector<bool> const &bound) const -
     return ret;
 }
 
-auto TermFunction::do_match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
+auto TermFunction::do_match(EvalContext const &ctx, Symbol sym) const -> bool {
     return sym.type() == SymbolType::function && !sym.has_classical_sign() && sym.name() == *name_ &&
-           match_args(store, ass, args_, sym.args());
+           match_args(ctx, args_, sym.args());
 }
 
-auto TermFunction::do_eval(SymbolStore &store, Assignment const &ass) const -> std::optional<Symbol> {
-    if (eval_args(store, ass, args_, eval_)) {
-        return store.fun_ref(*name_, eval_, false);
+auto TermFunction::do_eval(EvalContext const &ctx) const -> std::optional<Symbol> {
+    if (eval_args(ctx, args_, eval_)) {
+        return ctx.store().fun_ref(*name_, eval_, false);
     }
     return std::nullopt;
 }

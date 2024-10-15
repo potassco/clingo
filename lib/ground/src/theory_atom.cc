@@ -35,18 +35,18 @@ auto BaseTheory::atoms() -> AtomMap & { return atoms_; }
 
 // definition of StateBdTheory
 
-StateTheory::ElementKey::ElementKey([[maybe_unused]] priv_tag tag, SymbolStore &store, Assignment &ass,
-                                    OutputTheory &out, size_t atom_idx, UTheoryTermVec const &terms)
+StateTheory::ElementKey::ElementKey([[maybe_unused]] priv_tag tag, InstantiationContext const &ctx, OutputTheory &out,
+                                    size_t atom_idx, UTheoryTermVec const &terms)
     : n_{terms.size()}, atom_idx_{atom_idx} {
     // NOLINTBEGIN
     auto *it = syms_;
     for (auto const &term : terms) {
-        *it++ = term->output(store, ass, out);
+        *it++ = term->output(ctx, out);
     }
     // NOLINTEND
 }
 
-void StateTheory::ElementKey::construct(std::pmr::monotonic_buffer_resource &mbr, SymbolStore &store, Assignment &ass,
+void StateTheory::ElementKey::construct(std::pmr::monotonic_buffer_resource &mbr, InstantiationContext const &ctx,
                                         OutputTheory &out, size_t atom_idx, UTheoryTermVec const &terms,
                                         ElementKey *&target) {
     auto n = sizeof(ElementKey) + terms.size() * sizeof(Symbol);
@@ -55,7 +55,7 @@ void StateTheory::ElementKey::construct(std::pmr::monotonic_buffer_resource &mbr
     } else {
         std::destroy_at(target);
     }
-    std::construct_at(target, priv_tag{}, store, ass, out, atom_idx, terms);
+    std::construct_at(target, priv_tag{}, ctx, out, atom_idx, terms);
 }
 
 auto StateTheory::ElementKey::size() const -> size_t { return n_; }
@@ -134,10 +134,9 @@ auto StateTheory::insert_atom(Symbol name, std::optional<size_t> rhs,
     return res;
 }
 
-void StateTheory::insert_elem(InstantiationContext &ctx, AtomMap::iterator it, UTheoryTermVec const &tuple,
+void StateTheory::insert_elem(InstantiationContext const &ctx, AtomMap::iterator it, UTheoryTermVec const &tuple,
                               ElementKey *&elem_key, auto const &get_cond) {
-    ElementKey::construct(*mbr_, ctx.store(), ctx.ass(), ctx.out().theory(), it - base().atoms().begin(), tuple,
-                          elem_key);
+    ElementKey::construct(*mbr_, ctx, ctx.out().theory(), it - base().atoms().begin(), tuple, elem_key);
     auto [jt, jns] = tuples_.try_emplace(elem_key);
     if (jns) {
         elem_key = nullptr;
@@ -189,25 +188,25 @@ auto MatchTheory::signature(VariableSet const &bound, [[maybe_unused]] VariableS
     return {bound.begin(), bound.end()};
 }
 
-auto MatchTheory::match([[maybe_unused]] SymbolStore &store, Symbol const *sym, Assignment &ass) const -> bool {
+auto MatchTheory::match(EvalContext const &ctx, Symbol const *sym) const -> bool {
     for (auto var : state_->global()) {
-        if (auto &opt = ass[var]; opt) {
+        if (auto &opt = ctx.ass()[var]; opt) {
             if (*opt != *sym) {
                 return false;
             }
         } else {
-            ass[var] = *sym;
+            ctx.ass()[var] = *sym;
         }
         sym = std::next(sym);
     }
     return true;
 }
 
-auto MatchTheory::eval([[maybe_unused]] SymbolStore &store, Assignment &ass) const -> std::optional<Symbol const *> {
+auto MatchTheory::eval(EvalContext const &ctx) const -> std::optional<Symbol const *> {
     eval_.clear();
     for (auto var : state_->global()) {
         // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-        eval_.emplace_back(*ass[var]);
+        eval_.emplace_back(*ctx.ass()[var]);
     }
     return eval_.data();
 }
@@ -250,7 +249,7 @@ auto LitMatchTheory::do_score([[maybe_unused]] std::vector<bool> const &bound) c
 
 void LitMatchTheory::do_print(std::ostream &out) const { state().print(out); }
 
-auto LitMatchTheory::do_output([[maybe_unused]] InstantiationContext &ctx,
+auto LitMatchTheory::do_output([[maybe_unused]] InstantiationContext const &ctx,
                                [[maybe_unused]] OutputLit &out) const -> bool {
     return false;
 }
@@ -281,7 +280,7 @@ auto StmTheoryElement::do_important() const -> VariableSet {
 
 void StmTheoryElement::do_init(size_t gen) { state_->base().update(gen); }
 
-auto StmTheoryElement::do_report(InstantiationContext &ctx) -> bool {
+auto StmTheoryElement::do_report(InstantiationContext const &ctx) -> bool {
     auto &ass = ctx.ass();
     auto it = state_->find_atom(ass);
     auto get_cond = [this, &ctx]() {
@@ -337,10 +336,10 @@ void LitBdTheory::do_print(std::ostream &out) const {
     state_->print(out);
 }
 
-auto LitBdTheory::do_output(InstantiationContext &ctx, OutputLit &out) const -> bool {
+auto LitBdTheory::do_output(InstantiationContext const &ctx, OutputLit &out) const -> bool {
     auto rhs = std::optional<size_t>{};
     if (auto const &guard = state_->guard()) {
-        rhs.emplace(guard->second->output(ctx.store(), ctx.ass(), ctx.out().theory()));
+        rhs.emplace(guard->second->output(ctx, ctx.out().theory()));
     }
     auto res = state_->insert_atom(name_, rhs, ctx.ass());
     auto &atm = res.first.value();
@@ -369,15 +368,15 @@ auto StmHdTheory::do_important() const -> VariableSet {
 
 void StmHdTheory::do_init([[maybe_unused]] size_t gen) { state_->base().update(gen); }
 
-auto StmHdTheory::do_report(InstantiationContext &ctx) -> bool {
-    if (auto name = state_->name()->eval(ctx.store(), ctx.ass())) {
+auto StmHdTheory::do_report(InstantiationContext const &ctx) -> bool {
+    if (auto name = state_->name()->eval(ctx)) {
         auto &out = ctx.out().body();
         for (auto const &lit : body_) {
             std::ignore = lit->output(ctx, out);
         }
         auto rhs = std::optional<size_t>{};
         if (auto const &guard = state_->guard()) {
-            rhs.emplace(guard->second->output(ctx.store(), ctx.ass(), ctx.out().theory()));
+            rhs.emplace(guard->second->output(ctx, ctx.out().theory()));
         }
         auto res = state_->insert_atom(*name, rhs, ctx.ass());
         auto &atm = res.first.value();

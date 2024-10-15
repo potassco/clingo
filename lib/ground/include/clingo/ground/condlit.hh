@@ -280,7 +280,7 @@ class StateCondLit : public State {
     //! Add a new cond lit element with the given premise.
     //!
     //! If the function returns false the corresponding conditional literal is false.
-    auto add_premise(InstantiationContext &ctx, ULitVec const &premise) -> bool;
+    auto add_premise(InstantiationContext const &ctx, ULitVec const &premise) -> bool;
 
     //! Add a conclusion to an element.
     void add_conclusion(Assignment const &ass, MapAtomCondLit::iterator it, size_t conclusion, bool fact);
@@ -374,11 +374,10 @@ class MatchCondLit {
                                  [[maybe_unused]] VariableSet const &bind) const -> VariableVec;
 
     //! Match a span of symbols representing an atom or element with the assignment.
-    [[nodiscard]] auto match([[maybe_unused]] SymbolStore &store, Symbol const *sym, Assignment &ass) const -> bool;
+    [[nodiscard]] auto match(EvalContext const &ctx, Symbol const *sym) const -> bool;
 
     //! Evaluate w.r.t. the given assignment and return a span representing an atom or element.
-    [[nodiscard]] auto eval([[maybe_unused]] SymbolStore &store,
-                            Assignment &ass) const -> std::optional<Symbol const *>;
+    [[nodiscard]] auto eval(EvalContext const &ctx) const -> std::optional<Symbol const *>;
 
     //! Print a string representation of the matcher.
     friend auto operator<<(std::ostream &out, MatchCondLit const &m) -> std::ostream &;
@@ -411,7 +410,7 @@ class LitCondLit : public Lit, private MatchCondLit {
                std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
     void do_print(std::ostream &out) const override;
-    [[nodiscard]] auto do_output(InstantiationContext &ctx, OutputLit &out) const -> bool override;
+    [[nodiscard]] auto do_output(InstantiationContext const &ctx, OutputLit &out) const -> bool override;
     [[nodiscard]] auto do_copy() const -> ULit override;
     [[nodiscard]] auto do_hash() const -> size_t override;
     [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
@@ -437,7 +436,7 @@ class LitCondLitStrat : public Lit, private InstanceCallback {
                std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
     void do_print(std::ostream &out) const override;
-    [[nodiscard]] auto do_output(InstantiationContext &ctx, OutputLit &out) const -> bool override;
+    [[nodiscard]] auto do_output(InstantiationContext const &ctx, OutputLit &out) const -> bool override;
     [[nodiscard]] auto do_copy() const -> ULit override;
     [[nodiscard]] auto do_hash() const -> size_t override;
     [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
@@ -445,7 +444,7 @@ class LitCondLitStrat : public Lit, private InstanceCallback {
 
     // cb interface
     void do_init(size_t gen) override;
-    [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override;
+    [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
     void do_propagate(SymbolStore &store, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override;
     void do_print_head(std::ostream &out) const override;
@@ -479,7 +478,7 @@ class StmCondLit : public Stm {
     // solution callback interface
     void do_print_head(std::ostream &out) const override;
     void do_init(size_t gen) override;
-    [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override;
+    [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
     void do_propagate(SymbolStore &store, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override;
 

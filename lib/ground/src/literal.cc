@@ -9,7 +9,8 @@ namespace Clingo::Ground {
 
 void LitInterval::do_print(std::ostream &out) const { out << *lhs_ << "=" << *lower_ << ".." << *upper_; }
 
-auto LitInterval::do_output([[maybe_unused]] InstantiationContext &ctx, [[maybe_unused]] OutputLit &out) const -> bool {
+auto LitInterval::do_output([[maybe_unused]] InstantiationContext const &ctx,
+                            [[maybe_unused]] OutputLit &out) const -> bool {
     return false;
 }
 
@@ -97,7 +98,7 @@ auto LitInterval::do_compare_to(Lit const &other) const -> std::weak_ordering {
 
 void LitComparison::do_print(std::ostream &out) const { out << *lhs_ << cmp_ << *rhs_; }
 
-auto LitComparison::do_output([[maybe_unused]] InstantiationContext &ctx,
+auto LitComparison::do_output([[maybe_unused]] InstantiationContext const &ctx,
                               [[maybe_unused]] OutputLit &out) const -> bool {
     return false;
 }
@@ -185,7 +186,8 @@ void LitExternal::do_print(std::ostream &out) const {
     }
 }
 
-auto LitExternal::do_output([[maybe_unused]] InstantiationContext &ctx, [[maybe_unused]] OutputLit &out) const -> bool {
+auto LitExternal::do_output([[maybe_unused]] InstantiationContext const &ctx,
+                            [[maybe_unused]] OutputLit &out) const -> bool {
     return false;
 }
 
@@ -229,12 +231,12 @@ class ExternalMatcher : public Matcher {
     }
 
   private:
-    void do_init([[maybe_unused]] SymbolStore &store, [[maybe_unused]] size_t gen) override {}
-    void do_match(InstantiationContext &ctx) override {
+    void do_init([[maybe_unused]] InitContext const &ctx, [[maybe_unused]] size_t gen) override {}
+    void do_match(InstantiationContext const &ctx) override {
         syms_.clear();
         matches_.clear();
         for (auto const &arg : *args_) {
-            if (auto sym = arg->eval(ctx.store(), ctx.ass())) {
+            if (auto sym = arg->eval(ctx)) {
                 syms_.emplace_back(*sym);
             } else {
                 return;
@@ -243,13 +245,13 @@ class ExternalMatcher : public Matcher {
         ctx_->call(name_.view(), syms_, matches_);
         cur_ = matches_.begin();
     }
-    auto do_next(InstantiationContext &ctx) -> bool override {
+    auto do_next(InstantiationContext const &ctx) -> bool override {
         auto &ass = ctx.ass();
         for (auto const &var : free_) {
             ass[var] = std::nullopt;
         }
         while (cur_ != matches_.end()) {
-            if (lhs_->match(ctx.store(), *cur_++, ctx.ass())) {
+            if (lhs_->match(ctx, *cur_++)) {
                 return true;
             }
         }
@@ -300,7 +302,7 @@ void LitSymbolic::do_print(std::ostream &out) const {
     }
 }
 
-auto LitSymbolic::do_output(InstantiationContext &ctx, OutputLit &out) const -> bool {
+auto LitSymbolic::do_output(InstantiationContext const &ctx, OutputLit &out) const -> bool {
     if ((index_ == stratified_index || sign_ == Sign::none) && base_->domain()) {
         return false;
     }
@@ -311,7 +313,7 @@ auto LitSymbolic::do_output(InstantiationContext &ctx, OutputLit &out) const -> 
         if (sign_ == Sign::once) {
             return symbol_;
         }
-        return atom_->eval(ctx.store(), ctx.ass());
+        return atom_->eval(ctx);
     };
     if (auto sym = get_symbol(); sym) {
         if (sign_ == Sign::once ? index_ == stratified_index && !base_->contains(*sym) : base_->is_fact(*sym)) {
@@ -399,15 +401,16 @@ auto LitSymbolic::do_compare_to(Lit const &other) const -> std::weak_ordering {
 // - quite a bit of c&p
 // - composition...
 
-void LitProject::State::init(SymbolStore &store, size_t gen) {
+void LitProject::State::init(InitContext const &ctx, size_t gen) {
     base_->update(gen);
     for (size_t n = base_->end(MatcherType::all_atoms); imported_ != n; ++imported_) {
         auto atom = base_->nth(imported_);
         for (auto &sym : ass_) {
             sym = std::nullopt;
         }
-        if (p_body_->match(store, atom->first, ass_)) {
-            if (auto sym = p_head_->eval(store, ass_); sym) {
+        auto eval_ctx = EvalContext{ctx.log(), ctx.store(), ass_};
+        if (p_body_->match(eval_ctx, atom->first)) {
+            if (auto sym = p_head_->eval(eval_ctx); sym) {
                 p_base_.add(*sym, atom->second.state);
             }
         }
@@ -422,7 +425,7 @@ void LitProject::do_print(std::ostream &out) const {
     }
 }
 
-auto LitProject::do_output(InstantiationContext &ctx, OutputLit &out) const -> bool {
+auto LitProject::do_output(InstantiationContext const &ctx, OutputLit &out) const -> bool {
     // Note: eval can be avoided for lookup matchers
     if ((index_ == stratified_index || sign_ == Sign::none) && state_->p_base().domain()) {
         return false;
@@ -434,7 +437,7 @@ auto LitProject::do_output(InstantiationContext &ctx, OutputLit &out) const -> b
         if (sign_ == Sign::once) {
             return symbol_;
         }
-        return p_atom_->eval(ctx.store(), ctx.ass());
+        return p_atom_->eval(ctx);
     };
     if (auto p_sym = get_symbol()) {
         if (sign_ == Sign::once ? index_ == stratified_index && !state_->p_base().contains(*p_sym)
@@ -442,7 +445,7 @@ auto LitProject::do_output(InstantiationContext &ctx, OutputLit &out) const -> b
             return false;
         }
     }
-    if (auto sym = atom_->eval(ctx.store(), ctx.ass())) {
+    if (auto sym = atom_->eval(ctx)) {
         out.lit(sign_, *sym);
     } else {
         // note: cannot happen by construction
@@ -489,12 +492,12 @@ auto LitProject::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherTyp
         MatcherProject(State &state, UMatcher matcher) : state_{&state}, matcher_{std::move(matcher)} {}
 
       private:
-        void do_init(SymbolStore &store, size_t gen) override {
-            state_->init(store, gen);
-            matcher_->init(store, gen);
+        void do_init(InitContext const &ctx, size_t gen) override {
+            state_->init(ctx, gen);
+            matcher_->init(ctx, gen);
         }
-        void do_match(InstantiationContext &ctx) override { matcher_->match(ctx); }
-        auto do_next(InstantiationContext &ctx) -> bool override { return matcher_->next(ctx); }
+        void do_match(InstantiationContext const &ctx) override { matcher_->match(ctx); }
+        auto do_next(InstantiationContext const &ctx) -> bool override { return matcher_->next(ctx); }
         void do_print(std::ostream &out) const override { matcher_->print(out); }
 
         State *state_;
@@ -548,7 +551,7 @@ class MatcherLitTuple : public OnceMatcher {
         : bind_{std::move(bind)}, vars_{&vars}, syms_{&syms} {}
 
   private:
-    auto do_once(InstantiationContext &ctx) -> bool override {
+    auto do_once(InstantiationContext const &ctx) -> bool override {
         auto &ass = ctx.ass();
         for (auto const &var : bind_) {
             ass[var] = std::nullopt;
@@ -604,7 +607,8 @@ void LitTuple::do_print(std::ostream &out) const {
     out << "#once(" << Util::p_range(vars_, [](std::ostream &out, auto var) { out << "X_" << var; }) << ")";
 }
 
-auto LitTuple::do_output([[maybe_unused]] InstantiationContext &ctx, [[maybe_unused]] OutputLit &out) const -> bool {
+auto LitTuple::do_output([[maybe_unused]] InstantiationContext const &ctx,
+                         [[maybe_unused]] OutputLit &out) const -> bool {
     return false;
 }
 
@@ -633,7 +637,8 @@ auto LitCheck::do_single_pass() const -> bool { return true; }
 
 auto LitCheck::do_domain() const -> bool { return true; }
 
-auto LitCheck::do_output([[maybe_unused]] InstantiationContext &ctx, [[maybe_unused]] OutputLit &out) const -> bool {
+auto LitCheck::do_output([[maybe_unused]] InstantiationContext const &ctx,
+                         [[maybe_unused]] OutputLit &out) const -> bool {
     return false;
 }
 
@@ -645,7 +650,7 @@ auto LitCheck::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resource &
         CheckMatcher(LitCheck &lit) : lit_{&lit} {}
 
       private:
-        auto do_once(InstantiationContext &ctx) -> bool override { return lit_->do_check(ctx); }
+        auto do_once(InstantiationContext const &ctx) -> bool override { return lit_->do_check(ctx); }
         void do_print(std::ostream &out) const override { out << *lit_; }
 
         LitCheck *lit_;
@@ -673,12 +678,12 @@ auto LitBool::do_copy() const -> ULit { return std::make_unique<LitBool>(value_)
 
 void LitBool::do_vars([[maybe_unused]] VariableSet &vars, [[maybe_unused]] VarSelectMode mode) const {}
 
-auto LitBool::do_check([[maybe_unused]] InstantiationContext &ctx) -> bool { return value_; }
+auto LitBool::do_check([[maybe_unused]] InstantiationContext const &ctx) -> bool { return value_; }
 
 // LitFactCheck
 
-auto LitFactCheck::do_check(InstantiationContext &ctx) -> bool {
-    if (auto sym = atom_->eval(ctx.store(), ctx.ass())) {
+auto LitFactCheck::do_check(InstantiationContext const &ctx) -> bool {
+    if (auto sym = atom_->eval(ctx)) {
         *target_ = *sym;
         return !base_->is_fact(*sym);
     }
@@ -697,13 +702,13 @@ auto LitFactCheck::do_copy() const -> ULit { return std::make_unique<LitFactChec
 
 // LitFailCheck
 
-auto LitFailCheck::do_check(InstantiationContext &ctx) -> bool {
+auto LitFailCheck::do_check(InstantiationContext const &ctx) -> bool {
     if (result_ != nullptr) {
         result_->clear();
     }
     auto i = size_t{0};
     for (auto const &term : terms_) {
-        if (auto res = term->eval(ctx.store(), ctx.ass())) {
+        if (auto res = term->eval(ctx)) {
             if (i < num_) {
                 if (res->type() != SymbolType::number) {
                     return false;

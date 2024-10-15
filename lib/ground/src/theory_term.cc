@@ -52,9 +52,8 @@ auto output_symbol(SymbolStore &store, OutputTheory &out, Symbol sym) -> size_t 
 
 } // namespace
 
-auto TheoryTermSymbol::do_output(SymbolStore &store, [[maybe_unused]] Assignment const &ass,
-                                 OutputTheory &out) const -> size_t {
-    return output_symbol(store, out, sym_);
+auto TheoryTermSymbol::do_output(InstantiationContext const &ctx, OutputTheory &out) const -> size_t {
+    return output_symbol(ctx.store(), out, sym_);
 }
 
 auto TheoryTermSymbol::do_copy() const -> UTheoryTerm { return std::make_unique<TheoryTermSymbol>(sym_); }
@@ -80,10 +79,10 @@ void TheoryTermVariable::do_vars([[maybe_unused]] VariableSet &vars) const { var
 
 void TheoryTermVariable::do_print(std::ostream &out) const { out << "X_" << var_; }
 
-auto TheoryTermVariable::do_output(SymbolStore &store, Assignment const &ass, OutputTheory &out) const -> size_t {
-    assert(ass[var_]);
+auto TheoryTermVariable::do_output(InstantiationContext const &ctx, OutputTheory &out) const -> size_t {
+    assert(ctx.ass()[var_]);
     // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-    return output_symbol(store, out, *ass[var_]);
+    return output_symbol(ctx.store(), out, *ctx.ass()[var_]);
 }
 
 auto TheoryTermVariable::do_copy() const -> UTheoryTerm { return std::make_unique<TheoryTermVariable>(var_); }
@@ -115,11 +114,11 @@ void TheoryTermTuple::do_print(std::ostream &out) const {
     out << "(" << Util::p_range(args_, [](auto &out, auto const &x) { out << *x; }) << (args_.size() == 1 ? ",)" : ")");
 }
 
-auto TheoryTermTuple::do_output(SymbolStore &store, Assignment const &ass, OutputTheory &out) const -> size_t {
+auto TheoryTermTuple::do_output(InstantiationContext const &ctx, OutputTheory &out) const -> size_t {
     auto args = std::vector<size_t>{};
     args.reserve(args_.size());
     for (auto const &arg : args_) {
-        args.emplace_back(arg->output(store, ass, out));
+        args.emplace_back(arg->output(ctx, out));
     }
     return out.tup(TheoryTermTupleType::tuple, args);
 }
@@ -162,11 +161,11 @@ void TheoryTermFunction::do_print(std::ostream &out) const {
     }
 }
 
-auto TheoryTermFunction::do_output(SymbolStore &store, Assignment const &ass, OutputTheory &out) const -> size_t {
+auto TheoryTermFunction::do_output(InstantiationContext const &ctx, OutputTheory &out) const -> size_t {
     auto args = std::vector<size_t>{};
     args.reserve(args_.size());
     for (auto const &arg : args_) {
-        args.emplace_back(arg->output(store, ass, out));
+        args.emplace_back(arg->output(ctx, out));
     }
     return out.fun(name_, args);
 }

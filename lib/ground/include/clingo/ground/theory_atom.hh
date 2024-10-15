@@ -114,12 +114,12 @@ class StateTheory : public Ground::State {
 
       public:
         //! Constructor.
-        ElementKey(priv_tag tag, SymbolStore &store, Assignment &ass, OutputTheory &out, size_t atom_idx,
+        ElementKey(priv_tag tag, InstantiationContext const &ctx, OutputTheory &out, size_t atom_idx,
                    UTheoryTermVec const &terms);
         //! Prevent copying and moving.
         ElementKey(ElementKey const &other) = delete;
         //! Construct an element key evaluating the given tuple.
-        static void construct(std::pmr::monotonic_buffer_resource &mbr, SymbolStore &store, Assignment &ass,
+        static void construct(std::pmr::monotonic_buffer_resource &mbr, InstantiationContext const &ctx,
                               OutputTheory &out, size_t atom_idx, UTheoryTermVec const &terms, ElementKey *&target);
 
         //! Get the terms.
@@ -152,7 +152,7 @@ class StateTheory : public Ground::State {
 
     auto find_atom(Assignment &ass) -> AtomMap::iterator;
     auto insert_atom(Symbol name, std::optional<size_t> rhs, Assignment &ass) -> std::pair<AtomMap::iterator, bool>;
-    void insert_elem(InstantiationContext &ctx, AtomMap::iterator it, UTheoryTermVec const &tuple,
+    void insert_elem(InstantiationContext const &ctx, AtomMap::iterator it, UTheoryTermVec const &tuple,
                      ElementKey *&elem_key, auto const &get_cond);
     //! Print a debug representation of the theory atom.
     void print(std::ostream &out);
@@ -196,10 +196,10 @@ class MatchTheory {
     [[nodiscard]] auto signature(VariableSet const &bound, VariableSet const &bind) const -> VariableVec;
 
     //! Match a span of symbols representing an atom or element with the assignment.
-    [[nodiscard]] auto match(SymbolStore &store, Symbol const *sym, Assignment &ass) const -> bool;
+    [[nodiscard]] auto match(EvalContext const &ctx, Symbol const *sym) const -> bool;
 
     //! Evaluate w.r.t. the given assignment and return a span representing an atom or element.
-    [[nodiscard]] auto eval(SymbolStore &store, Assignment &ass) const -> std::optional<Symbol const *>;
+    [[nodiscard]] auto eval(EvalContext const &ctx) const -> std::optional<Symbol const *>;
 
     //! Print a string representation of the matcher.
     friend auto operator<<(std::ostream &out, MatchTheory const &m) -> std::ostream &;
@@ -227,7 +227,7 @@ class LitMatchTheory : public Lit, private MatchTheory {
                std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
     void do_print(std::ostream &out) const override;
-    auto do_output(InstantiationContext &ctx, OutputLit &out) const -> bool override;
+    auto do_output(InstantiationContext const &ctx, OutputLit &out) const -> bool override;
     [[nodiscard]] auto do_copy() const -> ULit override;
     [[nodiscard]] auto do_hash() const -> size_t override;
     [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
@@ -247,7 +247,7 @@ class StmTheoryElement : public Stm {
     [[nodiscard]] auto do_body() const -> ULitVec const & override;
     [[nodiscard]] auto do_important() const -> VariableSet override;
     void do_init([[maybe_unused]] size_t gen) override;
-    [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override;
+    [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
     void do_propagate(SymbolStore &store, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override;
     void do_print_head(std::ostream &out) const override;
@@ -274,7 +274,7 @@ class LitBdTheory : public Lit {
                std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
     [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
     void do_print(std::ostream &out) const override;
-    auto do_output(InstantiationContext &ctx, OutputLit &out) const -> bool override;
+    auto do_output(InstantiationContext const &ctx, OutputLit &out) const -> bool override;
     [[nodiscard]] auto do_copy() const -> ULit override;
     [[nodiscard]] auto do_hash() const -> size_t override;
     [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
@@ -295,7 +295,7 @@ class StmHdTheory : public Stm {
     [[nodiscard]] auto do_body() const -> ULitVec const & override;
     [[nodiscard]] auto do_important() const -> VariableSet override;
     void do_init([[maybe_unused]] size_t gen) override;
-    [[nodiscard]] auto do_report(InstantiationContext &ctx) -> bool override;
+    [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
     void do_propagate(SymbolStore &store, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override;
     void do_print_head(std::ostream &out) const override;

@@ -175,9 +175,9 @@ auto StateDisjunction::insert_atom(Assignment &ass) -> std::pair<AtomMap::iterat
     return res;
 }
 
-void StateDisjunction::insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iterator it, UTerm const &head,
+void StateDisjunction::insert_elem(EvalContext const &ctx, AtomMap::iterator it, UTerm const &head,
                                    auto const &get_cond) {
-    if (auto opt = head->eval(store, ass); opt) {
+    if (auto opt = head->eval(ctx); opt) {
         auto [jt, jns] = elems_.try_emplace(ElementKey{*opt, atom_index_(it)});
         if (jns) {
             it.value().add_elem(jt - elems_.begin());
@@ -236,7 +236,7 @@ auto StmDisjunction::do_important() const -> VariableSet {
 
 void StmDisjunction::do_init([[maybe_unused]] size_t gen) { state_->base().ensure(gen); }
 
-auto StmDisjunction::do_report(InstantiationContext &ctx) -> bool {
+auto StmDisjunction::do_report(InstantiationContext const &ctx) -> bool {
     auto &lit = state_->insert_atom(ctx.ass()).first.value();
     auto &out = ctx.out().body();
     for (auto const &lit : body_) {
@@ -280,7 +280,7 @@ void StmDisjunctionElem::do_init(size_t gen) {
     }
 }
 
-auto StmDisjunctionElem::do_report(InstantiationContext &ctx) -> bool {
+auto StmDisjunctionElem::do_report(InstantiationContext const &ctx) -> bool {
     auto &ass = ctx.ass();
     // insert aggregate atom
     if (auto it = state_->insert_atom(ass).first; !it.value().is_fact()) {
@@ -296,7 +296,7 @@ auto StmDisjunctionElem::do_report(InstantiationContext &ctx) -> bool {
             return std::make_pair(ctx.out().cond_id(), fact);
         };
         // insert the element
-        state_->insert_elem(ctx.store(), ass, it, head_, get_cond);
+        state_->insert_elem(ctx, it, head_, get_cond);
     }
     return true;
 }
@@ -342,26 +342,25 @@ auto MatchDisjunction::signature(VariableSet const &bound,
     return {bound.begin(), bound.end()};
 }
 
-auto MatchDisjunction::match([[maybe_unused]] SymbolStore &store, Symbol const *sym, Assignment &ass) const -> bool {
+auto MatchDisjunction::match(EvalContext const &ctx, Symbol const *sym) const -> bool {
     for (auto var : state_->global()) {
-        if (auto &opt = ass[var]; opt) {
+        if (auto &opt = ctx.ass()[var]; opt) {
             if (*opt != *sym) {
                 return false;
             }
         } else {
-            ass[var] = *sym;
+            ctx.ass()[var] = *sym;
         }
         sym = std::next(sym);
     }
     return true;
 }
 
-auto MatchDisjunction::eval([[maybe_unused]] SymbolStore &store,
-                            Assignment &ass) const -> std::optional<Symbol const *> {
+auto MatchDisjunction::eval(EvalContext const &ctx) const -> std::optional<Symbol const *> {
     eval_.clear();
     for (auto var : state_->global()) {
         // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-        eval_.emplace_back(ass[var].value());
+        eval_.emplace_back(ctx.ass()[var].value());
     }
     return eval_.data();
 }
@@ -407,7 +406,7 @@ auto LitDisjunction::do_score([[maybe_unused]] std::vector<bool> const &bound) c
 
 void LitDisjunction::do_print(std::ostream &out) const { state().print(out, true); }
 
-auto LitDisjunction::do_output([[maybe_unused]] InstantiationContext &ctx,
+auto LitDisjunction::do_output([[maybe_unused]] InstantiationContext const &ctx,
                                [[maybe_unused]] OutputLit &out) const -> bool {
     return false;
 }

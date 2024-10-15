@@ -59,7 +59,7 @@ class NullOutputStm : public OutputStm {
 } // namespace
 
 TEST_CASE("ground_matcher") {
-    Logger log;
+    auto log = Logger{};
     auto store = make_symbol_store(true, true);
     auto ass = Assignment{};
     auto out = NullOutputStm{};
@@ -143,7 +143,7 @@ TEST_CASE("ground_matcher") {
         auto term = std::make_unique<TermFunction>(name, Util::make_vec<UTerm>(std::move(a1)));
         auto symbol = Symbol{};
         auto matcher = make_non_fact_matcher(base, *term, symbol);
-        matcher->init(*store, 0);
+        matcher->init(ctx, 0);
         base.add(sym(3), StateAtom::derived);
         base.add(sym(4), StateAtom::fact);
         ass[0] = store->num_ref(0);
@@ -186,7 +186,7 @@ TEST_CASE("ground_matcher") {
         // match all
         auto o1 = size_t{0};
         auto m1 = make_atom_matcher(mbr, bound, base, *term, MatcherType::all_atoms, o1);
-        m1->init(*store, 0);
+        m1->init(ctx, 0);
         m1->match(ctx);
         base.add(sym(1, 4), StateAtom::derived);
         base.add(sym(2, 5), StateAtom::derived);
@@ -195,7 +195,7 @@ TEST_CASE("ground_matcher") {
         REQUIRE(m1->next(ctx));
         REQUIRE(ass[0] == store->num_ref(3));
         REQUIRE(!m1->next(ctx));
-        m1->init(*store, 1);
+        m1->init(ctx, 1);
         m1->match(ctx);
         REQUIRE(m1->next(ctx));
         REQUIRE(ass[0] == store->num_ref(1));
@@ -207,7 +207,7 @@ TEST_CASE("ground_matcher") {
         base.add(sym(1, 6), StateAtom::derived);
         // match old
         m1 = make_atom_matcher(mbr, bound, base, *term, MatcherType::old_atoms, o1);
-        m1->init(*store, 1);
+        m1->init(ctx, 1);
         REQUIRE(m1->next(ctx));
         REQUIRE(ass[0] == store->num_ref(1));
         REQUIRE(m1->next(ctx));
@@ -215,7 +215,7 @@ TEST_CASE("ground_matcher") {
         REQUIRE(!m1->next(ctx));
         // match new
         m1 = make_atom_matcher(mbr, bound, base, *term, MatcherType::new_atoms, o1);
-        m1->init(*store, 1);
+        m1->init(ctx, 1);
         m1->match(ctx);
         REQUIRE(m1->next(ctx));
         REQUIRE(ass[0] == store->num_ref(4));
@@ -252,8 +252,8 @@ TEST_CASE("ground_matcher") {
         base.add(sym(1, 3, 4), StateAtom::derived);
         base.add(sym(1, 1, 3), StateAtom::derived);
         // gen 0
-        m1->init(*store, 0);
-        m2->init(*store, 0);
+        m1->init(ctx, 0);
+        m2->init(ctx, 0);
         m1->match(ctx);
         REQUIRE(m1->next(ctx));
         REQUIRE(ass[1] == store->num_ref(1));
@@ -276,8 +276,8 @@ TEST_CASE("ground_matcher") {
         // gen 1
         base.add(sym(1, 1, 5), StateAtom::derived);
         base.add(sym(1, 5, 6), StateAtom::derived);
-        m1->init(*store, 1);
-        m2->init(*store, 1);
+        m1->init(ctx, 1);
+        m2->init(ctx, 1);
         m1->match(ctx);
         REQUIRE(m1->next(ctx));
         REQUIRE(ass[1] == store->num_ref(5));

@@ -47,15 +47,15 @@ concept IsBase = requires(Base &b) {
 template <class Match>
 concept IsMatch = requires(Match const &m) {
     { m.vars() } -> std::same_as<VariableSet>;
-    m.match(std::declval<SymbolStore &>(), std::declval<typename Match::Key>(), std::declval<Assignment &>());
-    m.eval(std::declval<SymbolStore &>(), std::declval<Assignment &>());
+    m.match(std::declval<EvalContext const &>(), std::declval<typename Match::Key>());
+    m.eval(std::declval<EvalContext const &>());
     m.signature(std::declval<VariableSet const &>(), std::declval<VariableSet const &>());
     std::declval<std::ostream &>() << m;
 };
 
 //! Concept for evaluable expressions.
 template <class Eval>
-concept IsEval = requires(Eval const &m) { m.eval(std::declval<SymbolStore &>(), std::declval<Assignment &>()); };
+concept IsEval = requires(Eval const &m) { m.eval(std::declval<EvalContext const &>()); };
 
 static constexpr auto invalid_offset = std::numeric_limits<size_t>::max();
 
@@ -72,11 +72,11 @@ class OnceMatcher : public Matcher {
     //! Return true if the matcher matches.
     //!
     //! Only called once.
-    virtual auto do_once([[maybe_unused]] InstantiationContext &ctx) -> bool { return true; }
+    virtual auto do_once([[maybe_unused]] InstantiationContext const &ctx) -> bool { return true; }
 
-    void do_init([[maybe_unused]] SymbolStore &store, [[maybe_unused]] size_t gen) override {}
-    void do_match([[maybe_unused]] InstantiationContext &ctx) override { match_ = true; }
-    auto do_next(InstantiationContext &ctx) -> bool override {
+    void do_init([[maybe_unused]] InitContext const &ctx, [[maybe_unused]] size_t gen) override {}
+    void do_match([[maybe_unused]] InstantiationContext const &ctx) override { match_ = true; }
+    auto do_next(InstantiationContext const &ctx) -> bool override {
         if (match_) {
             match_ = false;
             return do_once(ctx);
@@ -139,7 +139,7 @@ template <IsBase Base> class FullIndex {
             cur};
     }
     template <IsMatch Match>
-    auto next(SymbolStore &store, Assignment &ass, Match const &m, VariableVec &free, MatcherType type, size_t &pos,
+    auto next(InstantiationContext const &ctx, Match const &m, VariableVec &free, MatcherType type, size_t &pos,
               size_t &cur) -> bool {
         auto n = base_->end(type);
         // populate the index if it does not yet hold enough elements
@@ -149,9 +149,9 @@ template <IsBase Base> class FullIndex {
                 return false;
             }
             for (auto const &var : free) {
-                ass[var] = std::nullopt;
+                ctx.ass()[var] = std::nullopt;
             }
-            if (m.match(store, base_->nth(imported_).key(), ass)) {
+            if (m.match(ctx, base_->nth(imported_).key())) {
                 if (index_.empty() || index_.back().second != imported_) {
                     pos = index_.size();
                     index_.emplace_back(imported_, imported_ + 1);
@@ -182,9 +182,9 @@ template <IsBase Base> class FullIndex {
             // match the next atom in the interval
             if (cur < index_[pos].second) {
                 for (auto const &var : free) {
-                    ass[var] = std::nullopt;
+                    ctx.ass()[var] = std::nullopt;
                 }
-                return m.match(store, base_->nth(cur++).key(), ass);
+                return m.match(ctx, base_->nth(cur++).key());
             }
         }
         return false;
@@ -243,8 +243,9 @@ template <IsBase Base> class SingleIndex {
     void init(size_t gen) { base_->update(gen); }
 
     template <IsMatch Match>
-    void match(SymbolStore &store, Assignment &ass, size_t bound_var, VariableVec &bind_vars, Match const &m,
+    void match(InstantiationContext const &ctx, size_t bound_var, VariableVec &bind_vars, Match const &m,
                MatcherType type, KeyIterator &it, ValIterator &jt) {
+        auto &ass = ctx.ass();
         // store the bound values
         auto bound_val = *ass[bound_var];
         // import
@@ -256,7 +257,7 @@ template <IsBase Base> class SingleIndex {
                     ass[var] = std::nullopt;
                 }
                 // try to match
-                if (m.match(store, base_->nth(imported_).key(), ass)) {
+                if (m.match(ctx, base_->nth(imported_).key())) {
                     index_.try_emplace(*ass[bound_var]).first.value().add(ass, bind_vars, imported_);
                 }
             }
@@ -269,9 +270,9 @@ template <IsBase Base> class SingleIndex {
         }
     }
 
-    auto next(Assignment &ass, VariableVec &bind_vars, MatcherType type, KeyIterator it, ValIterator &jt,
-              size_t &offset) -> bool {
-        return it != index_.end() && it.value().next(ass, bind_vars, base_->end(type), jt, offset);
+    auto next(InstantiationContext const &ctx, VariableVec &bind_vars, MatcherType type, KeyIterator it,
+              ValIterator &jt, size_t &offset) -> bool {
+        return it != index_.end() && it.value().next(ctx.ass(), bind_vars, base_->end(type), jt, offset);
     }
 
   private:
@@ -326,8 +327,9 @@ template <IsBase Base> class HashIndex {
     void init(size_t gen) { base_->update(gen); }
 
     template <IsMatch Match>
-    void match(SymbolStore &store, Assignment &ass, VariableVec &bound_vars, VariableVec &bind_vars, Match const &m,
+    void match(InstantiationContext const &ctx, VariableVec &bound_vars, VariableVec &bind_vars, Match const &m,
                MatcherType type, KeyIterator &it, ValIterator &jt) {
+        auto &ass = ctx.ass();
         // store the bound values
         temp_values_.clear();
         for (auto const &var : bound_vars) {
@@ -344,7 +346,7 @@ template <IsBase Base> class HashIndex {
                     ass[var] = std::nullopt;
                 }
                 // try to match
-                if (m.match(store, base_->nth(imported_).key(), ass)) {
+                if (m.match(ctx, base_->nth(imported_).key())) {
                     if (key_ == nullptr) {
                         key_ =
                             static_cast<Symbol *>(mbr_->allocate(bound_vars.size() * sizeof(Symbol), alignof(Symbol)));
@@ -376,9 +378,9 @@ template <IsBase Base> class HashIndex {
         }
     }
 
-    auto next(Assignment &ass, VariableVec &bind_vars, MatcherType type, KeyIterator it, ValIterator &jt,
-              size_t &offset) -> bool {
-        return it != index_.end() && it.value().next(ass, bind_vars, base_->end(type), jt, offset);
+    auto next(InstantiationContext const &ctx, VariableVec &bind_vars, MatcherType type, KeyIterator it,
+              ValIterator &jt, size_t &offset) -> bool {
+        return it != index_.end() && it.value().next(ctx.ass(), bind_vars, base_->end(type), jt, offset);
     }
 
   private:
@@ -396,9 +398,9 @@ template <IsBase Base, IsMatch Match> class LookupMatcher : public OnceMatcher {
         : base_{&base}, match_{&m}, type_{type}, offset_{&offset} {}
 
   private:
-    void do_init([[maybe_unused]] SymbolStore &store, size_t gen) override { base_->update(gen); }
-    auto do_once(InstantiationContext &ctx) -> bool override {
-        if (auto sym = match_->eval(ctx.store(), ctx.ass()); sym) {
+    void do_init([[maybe_unused]] InitContext const &ctx, size_t gen) override { base_->update(gen); }
+    auto do_once(InstantiationContext const &ctx) -> bool override {
+        if (auto sym = match_->eval(ctx); sym) {
             if (auto idx = base_->contains(*sym, type_); idx) {
                 *offset_ = *idx;
                 return true;
@@ -423,11 +425,13 @@ template <IsBase Base, IsMatch Match> class FullMatcher : public Matcher {
         : index_{&index}, offset_{&offset}, match_{&m}, free_{std::move(free)}, type_{type} {}
 
   private:
-    void do_init([[maybe_unused]] SymbolStore &store, size_t gen) override { index_->init(gen); }
-    void do_match([[maybe_unused]] InstantiationContext &ctx) override { std::tie(pos_, cur_) = index_->match(type_); }
-    auto do_next(InstantiationContext &ctx) -> bool override {
+    void do_init([[maybe_unused]] InitContext const &ctx, size_t gen) override { index_->init(gen); }
+    void do_match([[maybe_unused]] InstantiationContext const &ctx) override {
+        std::tie(pos_, cur_) = index_->match(type_);
+    }
+    auto do_next(InstantiationContext const &ctx) -> bool override {
         *offset_ = cur_;
-        return index_->next(ctx.store(), ctx.ass(), *match_, free_, type_, pos_, cur_);
+        return index_->next(ctx, *match_, free_, type_, pos_, cur_);
     }
     void do_print(std::ostream &out) const override { out << *match_; }
     [[nodiscard]] auto do_type() const -> MatcherType override { return type_; }
@@ -451,12 +455,12 @@ template <IsBase Base, IsMatch Match> class SingleMatcher : public Matcher {
         : index_{&index}, match_{&m}, offset_{&offset}, bound_{bound}, bind_{std::move(bind)}, type_{type} {}
 
   private:
-    void do_init([[maybe_unused]] SymbolStore &store, size_t gen) override { index_->init(gen); }
-    void do_match([[maybe_unused]] InstantiationContext &ctx) override {
-        return index_->match(ctx.store(), ctx.ass(), bound_, bind_, *match_, type_, pos_, cur_);
+    void do_init([[maybe_unused]] InitContext const &ctx, size_t gen) override { index_->init(gen); }
+    void do_match([[maybe_unused]] InstantiationContext const &ctx) override {
+        return index_->match(ctx, bound_, bind_, *match_, type_, pos_, cur_);
     }
-    auto do_next(InstantiationContext &ctx) -> bool override {
-        return index_->next(ctx.ass(), bind_, type_, pos_, cur_, *offset_);
+    auto do_next(InstantiationContext const &ctx) -> bool override {
+        return index_->next(ctx, bind_, type_, pos_, cur_, *offset_);
     }
     void do_print(std::ostream &out) const override { out << *match_; }
     [[nodiscard]] auto do_type() const -> MatcherType override { return type_; }
@@ -481,12 +485,12 @@ template <IsBase Base, IsMatch Match> class HashMatcher : public Matcher {
         : index_{&index}, match_{&m}, offset_{&offset}, bound_{std::move(bound)}, bind_{std::move(bind)}, type_{type} {}
 
   private:
-    void do_init([[maybe_unused]] SymbolStore &store, size_t gen) override { index_->init(gen); }
-    void do_match([[maybe_unused]] InstantiationContext &ctx) override {
-        return index_->match(ctx.store(), ctx.ass(), bound_, bind_, *match_, type_, pos_, cur_);
+    void do_init([[maybe_unused]] InitContext const &ctx, size_t gen) override { index_->init(gen); }
+    void do_match([[maybe_unused]] InstantiationContext const &ctx) override {
+        return index_->match(ctx, bound_, bind_, *match_, type_, pos_, cur_);
     }
-    auto do_next(InstantiationContext &ctx) -> bool override {
-        return index_->next(ctx.ass(), bind_, type_, pos_, cur_, *offset_);
+    auto do_next(InstantiationContext const &ctx) -> bool override {
+        return index_->next(ctx, bind_, type_, pos_, cur_, *offset_);
     }
     void do_print(std::ostream &out) const override { out << *match_; }
     [[nodiscard]] auto do_type() const -> MatcherType override { return type_; }
@@ -540,9 +544,9 @@ template <IsBase Base, IsMatch Match> class NonFactMatcher : public OnceMatcher 
         : base_{&base}, match_{&match}, target_{&target} {}
 
   private:
-    void do_init([[maybe_unused]] SymbolStore &store, size_t gen) override { base_->update(gen); }
-    auto do_once(InstantiationContext &ctx) -> bool override {
-        if (auto sym = match_->eval(ctx.store(), ctx.ass())) {
+    void do_init([[maybe_unused]] InitContext const &ctx, size_t gen) override { base_->update(gen); }
+    auto do_once(InstantiationContext const &ctx) -> bool override {
+        if (auto sym = match_->eval(ctx)) {
             *target_ = *sym;
             return !base_->is_fact(*sym);
         }
@@ -563,8 +567,8 @@ template <IsMatch Match> class EvalMatcher : public OnceMatcher {
 
   private:
     //! Evaluate the matcher in the current context.
-    auto do_once(InstantiationContext &ctx) -> bool override {
-        if (auto sym = match_->eval(ctx.store(), ctx.ass())) {
+    auto do_once(InstantiationContext const &ctx) -> bool override {
+        if (auto sym = match_->eval(ctx)) {
             *target_ = *sym;
             return true;
         }

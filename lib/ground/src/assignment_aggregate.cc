@@ -191,20 +191,20 @@ class StateAssignAggr::AtomKey {
     GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
 };
 
-StateAssignAggr::ElementKey::ElementKey(SymbolStore &store, Assignment &ass, AggregateFunction fun, size_t atom_idx,
+StateAssignAggr::ElementKey::ElementKey(EvalContext const &ctx, AggregateFunction fun, size_t atom_idx,
                                         UTermVec const &tuple, bool &res)
     : n_{tuple.size()}, atom_idx_{atom_idx} {
     auto *it = syms_;
     if (auto jt = tuple.begin(), je = tuple.end(); jt != je) {
         // check the weight of the tuple
-        if (auto val = (*jt)->eval(store, ass); val && relevant_val(fun, *val)) {
+        if (auto val = (*jt)->eval(ctx); val && relevant_val(fun, *val)) {
             *it = *val;
         } else {
             res = false;
             return;
         }
         for (++jt, ++it; jt != je; ++jt, ++it) {
-            if (auto val = (*jt)->eval(store, ass); val) {
+            if (auto val = (*jt)->eval(ctx); val) {
                 *it = *val;
             } else {
                 res = false;
@@ -217,9 +217,8 @@ StateAssignAggr::ElementKey::ElementKey(SymbolStore &store, Assignment &ass, Agg
     }
 }
 
-auto StateAssignAggr::ElementKey::construct(auto &mbr, SymbolStore &store, Assignment &ass, AggregateFunction fun,
-                                            size_t atom_idx, UTermVec const &tuple,
-                                            StateAssignAggr::ElementKey *&target) -> bool {
+auto StateAssignAggr::ElementKey::construct(auto &mbr, EvalContext const &ctx, AggregateFunction fun, size_t atom_idx,
+                                            UTermVec const &tuple, StateAssignAggr::ElementKey *&target) -> bool {
     bool res = true;
     auto n = sizeof(ElementKey) + tuple.size() * sizeof(Symbol);
     if (target == nullptr) {
@@ -227,7 +226,7 @@ auto StateAssignAggr::ElementKey::construct(auto &mbr, SymbolStore &store, Assig
     } else {
         target->~ElementKey();
     }
-    new (target) ElementKey{store, ass, fun, atom_idx, tuple, res};
+    new (target) ElementKey{ctx, fun, atom_idx, tuple, res};
     return res;
 }
 
@@ -309,8 +308,8 @@ void StateAssignAggr::enqueue_(AtomMap::iterator it) {
     }
 }
 
-auto StateAssignAggr::insert_atom(Assignment &ass) -> std::pair<AtomMap::iterator, bool> {
-    AtomKey::construct(*mbr_, ass, global_, atom_key_);
+auto StateAssignAggr::insert_atom(EvalContext const &ctx) -> std::pair<AtomMap::iterator, bool> {
+    AtomKey::construct(*mbr_, ctx.ass(), global_, atom_key_);
     auto [it, ins] = base_.atoms().try_emplace(atom_key_->syms(), fun_);
     if (ins) {
         atom_key_ = nullptr;
@@ -319,9 +318,9 @@ auto StateAssignAggr::insert_atom(Assignment &ass) -> std::pair<AtomMap::iterato
     return {it, ins};
 }
 
-void StateAssignAggr::insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iterator it, UTermVec const &tuple,
+void StateAssignAggr::insert_elem(EvalContext const &ctx, AtomMap::iterator it, UTermVec const &tuple,
                                   ElementKey *&elem_key, auto const &get_cond) {
-    if (ElementKey::construct(*mbr_, store, ass, fun_, atom_index(it), tuple, elem_key)) {
+    if (ElementKey::construct(*mbr_, ctx, fun_, atom_index(it), tuple, elem_key)) {
         auto [jt, jns] = tuples_.try_emplace(elem_key);
         if (jns) {
             elem_key = nullptr;
@@ -383,7 +382,8 @@ auto MatchAssignAggr::signature(VariableSet const &bound,
     return {bound.begin(), bound.end()};
 }
 
-auto MatchAssignAggr::match(SymbolStore &store, Key key, Assignment &ass) const -> bool {
+auto MatchAssignAggr::match(EvalContext const &ctx, Key key) const -> bool {
+    auto &ass = ctx.ass();
     auto const *sym = state().base().atoms().nth(key.first).key();
     for (auto var : state_->global()) {
         if (auto &opt = ass[var]; opt) {
@@ -395,14 +395,14 @@ auto MatchAssignAggr::match(SymbolStore &store, Key key, Assignment &ass) const 
         }
         sym = std::next(sym);
     }
-    return state().term().match(store, key.second, ass);
+    return state().term().match(ctx, key.second);
 }
 
-auto MatchAssignAggr::eval(SymbolStore &store, Assignment &ass) const -> std::optional<Key> {
+auto MatchAssignAggr::eval(EvalContext const &ctx) const -> std::optional<Key> {
     eval_.clear();
     for (auto var : state_->global()) {
         // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-        eval_.emplace_back(ass[var].value());
+        eval_.emplace_back(ctx.ass()[var].value());
     }
     auto &atoms = state().base().atoms();
     auto it = atoms.find(eval_.data());
@@ -412,7 +412,7 @@ auto MatchAssignAggr::eval(SymbolStore &store, Assignment &ass) const -> std::op
         // here corresponds to not matching.
         return std::nullopt;
     }
-    auto sym = state().term().eval(store, ass);
+    auto sym = state().term().eval(ctx);
     if (!sym) {
         return std::nullopt;
     }
@@ -461,7 +461,7 @@ auto LitAssignAggr::do_score([[maybe_unused]] std::vector<bool> const &bound) co
 
 void LitAssignAggr::do_print(std::ostream &out) const { state().print(out, true); }
 
-auto LitAssignAggr::do_output([[maybe_unused]] InstantiationContext &ctx, OutputLit &out) const -> bool {
+auto LitAssignAggr::do_output([[maybe_unused]] InstantiationContext const &ctx, OutputLit &out) const -> bool {
     if (domain()) {
         return false;
     }
@@ -510,10 +510,9 @@ auto StmAssignAggrElem::do_is_important(size_t index) const -> bool {
 
 void StmAssignAggrElem::do_init(size_t gen) { state_->base().ensure(gen); }
 
-auto StmAssignAggrElem::do_report(InstantiationContext &ctx) -> bool {
-    auto &ass = ctx.ass();
+auto StmAssignAggrElem::do_report(InstantiationContext const &ctx) -> bool {
     // insert aggregate atom
-    auto it = state_->insert_atom(ass).first;
+    auto it = state_->insert_atom(ctx).first;
     auto get_cond = [this, &ctx]() {
         // output the condition
         bool fact = true;
@@ -526,7 +525,7 @@ auto StmAssignAggrElem::do_report(InstantiationContext &ctx) -> bool {
         return std::make_pair(ctx.out().cond_id(), fact);
     };
     // insert the element
-    state_->insert_elem(ctx.store(), ass, it, tuple_, key_, get_cond);
+    state_->insert_elem(ctx, it, tuple_, key_, get_cond);
     return true;
 }
 
@@ -567,21 +566,20 @@ class MatcherAssignAggrStrat : public Matcher {
         : state_{&state}, insts_{std::move(insts)}, matcher_{std::move(matcher)} {}
 
   private:
-    void do_init(SymbolStore &store, [[maybe_unused]] size_t gen) override {
+    void do_init(InitContext const &ctx, [[maybe_unused]] size_t gen) override {
         for (auto &inst : insts_) {
-            inst.init(store, 0);
+            inst.init(ctx, 0);
         }
-        matcher_->init(store, 0);
+        matcher_->init(ctx, 0);
     }
-    void do_match(InstantiationContext &ctx) override {
-        auto &ass = ctx.ass();
-        auto [it, ins] = state_->insert_atom(ass);
+    void do_match(InstantiationContext const &ctx) override {
+        auto [it, ins] = state_->insert_atom(ctx);
         if (ins) {
             // bind global variables
             auto jt = state_->symbols().begin();
             for (auto const &var : state_->global()) {
                 // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-                *jt++ = *ass[var];
+                *jt++ = *ctx.ass()[var];
             }
             // ground elems
             GRINGO_REPORT(ctx.log(), trace) << "<<< begin nested instantiation";
@@ -596,7 +594,7 @@ class MatcherAssignAggrStrat : public Matcher {
         }
         matcher_->match(ctx);
     }
-    [[nodiscard]] auto do_next(InstantiationContext &ctx) -> bool override { return matcher_->next(ctx); }
+    [[nodiscard]] auto do_next(InstantiationContext const &ctx) -> bool override { return matcher_->next(ctx); }
     void do_print(std::ostream &out) const override { matcher_->print(out); }
     [[nodiscard]] auto do_type() const -> MatcherType override { return matcher_->type(); }
 
@@ -650,7 +648,7 @@ auto LitAssignAggrStrat::do_score([[maybe_unused]] std::vector<bool> const &boun
 
 void LitAssignAggrStrat::do_print(std::ostream &out) const { state().print(out, true); }
 
-auto LitAssignAggrStrat::do_output([[maybe_unused]] InstantiationContext &ctx, OutputLit &out) const -> bool {
+auto LitAssignAggrStrat::do_output([[maybe_unused]] InstantiationContext const &ctx, OutputLit &out) const -> bool {
     assert(state().single_pass_elems());
     if (domain()) {
         return false;

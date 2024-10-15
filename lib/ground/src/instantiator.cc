@@ -6,11 +6,11 @@
 
 namespace Clingo::Ground {
 
-void Instantiator::BackjumpMatcher::init(SymbolStore &store, size_t gen) { matcher_->init(store, gen); }
+void Instantiator::BackjumpMatcher::init(InitContext const &ctx, size_t gen) { matcher_->init(ctx, gen); }
 
-void Instantiator::BackjumpMatcher::match(InstantiationContext &ctx) { matcher_->match(ctx); }
+void Instantiator::BackjumpMatcher::match(InstantiationContext const &ctx) { matcher_->match(ctx); }
 
-auto Instantiator::BackjumpMatcher::next(InstantiationContext &ctx) -> bool {
+auto Instantiator::BackjumpMatcher::next(InstantiationContext const &ctx) -> bool {
     if (matcher_->next(ctx)) {
         backjumpable_ = true;
         return true;
@@ -18,7 +18,7 @@ auto Instantiator::BackjumpMatcher::next(InstantiationContext &ctx) -> bool {
     return false;
 }
 
-auto Instantiator::BackjumpMatcher::first(InstantiationContext &ctx) -> bool {
+auto Instantiator::BackjumpMatcher::first(InstantiationContext const &ctx) -> bool {
     matcher_->match(ctx);
     return next(ctx);
 }
@@ -42,19 +42,19 @@ void Instantiator::add(UMatcher matcher, DependVec depend) {
     matchers_.emplace_back(std::move(matcher), std::move(depend));
 }
 
-void Instantiator::init(SymbolStore &store, size_t gen) {
+void Instantiator::init(InitContext const &ctx, size_t gen) {
     icb_->init(gen);
     for (auto &matcher : matchers_) {
-        matcher.init(store, gen);
+        matcher.init(ctx, gen);
     }
 }
 
 void Instantiator::finalize(DependVec depend) {
     class SolutionMatcher : public Matcher {
       public:
-        void do_init([[maybe_unused]] SymbolStore &store, [[maybe_unused]] size_t gen) override {};
-        void do_match([[maybe_unused]] InstantiationContext &ctx) override {}
-        auto do_next([[maybe_unused]] InstantiationContext &ctx) -> bool override { return false; }
+        void do_init([[maybe_unused]] InitContext const &ctx, [[maybe_unused]] size_t gen) override {};
+        void do_match([[maybe_unused]] InstantiationContext const &ctx) override {}
+        auto do_next([[maybe_unused]] InstantiationContext const &ctx) -> bool override { return false; }
         void do_print(std::ostream &out) const override { out << "#solution"; }
     };
     matchers_.emplace_back(std::make_unique<SolutionMatcher>(), std::move(depend));
@@ -161,7 +161,7 @@ auto Queue::process(Logger &log, SymbolStore &store, OutputStm &out) -> bool {
             current.swap(queue);
             size_ -= current.size();
             for (auto *inst : current) {
-                inst->init(store, gen);
+                inst->init(InitContext{log, store}, gen);
             }
             for (auto *inst : current) {
                 if (!inst->instantiate(log, store, out)) {

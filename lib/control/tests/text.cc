@@ -9,7 +9,6 @@
 namespace Clingo::Test {
 
 TEST_CASE("grounder_text") {
-    printf("grounder test\n");
     auto store = make_symbol_store(true, false);
     SECTION("ground") {
         auto opts = Input::RewriteOptions{};

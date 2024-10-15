@@ -183,7 +183,7 @@ class StateBdAggr::AtomKey {
     //! Construct an atom key from the global variables and guards.
     //!
     //! Returns false if evaluating the guards fails.
-    static auto construct(auto &mbr, SymbolStore &store, Assignment &ass, VariableVec const &global, GuardVec &guards,
+    static auto construct(auto &mbr, EvalContext const &ctx, VariableVec const &global, GuardVec &guards,
                           AtomKey *&target) -> bool {
         if (target == nullptr) {
             auto n = (global.size() + guards.size()) * sizeof(Symbol);
@@ -192,7 +192,7 @@ class StateBdAggr::AtomKey {
             target->~AtomKey();
         }
         bool res = true;
-        new (target) AtomKey{store, ass, global, guards, res};
+        new (target) AtomKey{ctx, global, guards, res};
         return res;
     }
     //! Construct an atom key from the given symbols.
@@ -212,13 +212,13 @@ class StateBdAggr::AtomKey {
     auto syms() -> Symbol const * { return syms_; }
 
   private:
-    AtomKey(SymbolStore &store, Assignment &ass, VariableVec const &global, GuardVec &guards, bool &res) {
+    AtomKey(EvalContext const &ctx, VariableVec const &global, GuardVec &guards, bool &res) {
         auto *it = syms_;
         for (auto const &var : global) {
-            *it++ = ass[var].value();
+            *it++ = ctx.ass()[var].value();
         }
         for (auto const &guard : guards) {
-            if (auto val = guard.second->eval(store, ass); val) {
+            if (auto val = guard.second->eval(ctx); val) {
                 *it++ = *val;
             } else {
                 res = false;
@@ -233,13 +233,13 @@ class StateBdAggr::AtomKey {
     GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
 };
 
-StateBdAggr::ElementKey::ElementKey(SymbolStore &store, Assignment &ass, AggregateFunction fun, size_t atom_idx,
+StateBdAggr::ElementKey::ElementKey(EvalContext const &ctx, AggregateFunction fun, size_t atom_idx,
                                     UTermVec const &tuple, bool &res)
     : n_{tuple.size()}, atom_idx_{atom_idx} {
     auto *it = syms_;
     if (auto jt = tuple.begin(), je = tuple.end(); jt != je) {
         // check the weight of the tuple
-        if (auto val = (*jt)->eval(store, ass); val && relevant_val(fun, *val)) {
+        if (auto val = (*jt)->eval(ctx); val && relevant_val(fun, *val)) {
             *it = *val;
         } else {
             res = false;
@@ -247,7 +247,7 @@ StateBdAggr::ElementKey::ElementKey(SymbolStore &store, Assignment &ass, Aggrega
         }
         // evaluate the remaining terms
         for (++jt, ++it; jt != je; ++jt, ++it) {
-            if (auto val = (*jt)->eval(store, ass); val) {
+            if (auto val = (*jt)->eval(ctx); val) {
                 *it = *val;
             } else {
                 res = false;
@@ -260,8 +260,8 @@ StateBdAggr::ElementKey::ElementKey(SymbolStore &store, Assignment &ass, Aggrega
     }
 }
 
-auto StateBdAggr::ElementKey::construct(auto &mbr, SymbolStore &store, Assignment &ass, AggregateFunction fun,
-                                        size_t atom_idx, UTermVec const &tuple, ElementKey *&target) -> bool {
+auto StateBdAggr::ElementKey::construct(auto &mbr, EvalContext const &ctx, AggregateFunction fun, size_t atom_idx,
+                                        UTermVec const &tuple, ElementKey *&target) -> bool {
     bool res = true;
     auto n = sizeof(ElementKey) + tuple.size() * sizeof(Symbol);
     if (target == nullptr) {
@@ -269,7 +269,7 @@ auto StateBdAggr::ElementKey::construct(auto &mbr, SymbolStore &store, Assignmen
     } else {
         target->~ElementKey();
     }
-    new (target) ElementKey{store, ass, fun, atom_idx, tuple, res};
+    new (target) ElementKey{ctx, fun, atom_idx, tuple, res};
     return res;
 }
 
@@ -352,9 +352,8 @@ void StateBdAggr::enqueue_(AtomMap::iterator it) {
     }
 }
 
-auto StateBdAggr::insert_atom(SymbolStore &store,
-                              Assignment &ass) -> std::optional<std::pair<AtomMap::iterator, bool>> {
-    if (AtomKey::construct(*mbr_, store, ass, global_, guards_, atom_key_)) {
+auto StateBdAggr::insert_atom(EvalContext const &ctx) -> std::optional<std::pair<AtomMap::iterator, bool>> {
+    if (AtomKey::construct(*mbr_, ctx, global_, guards_, atom_key_)) {
         auto [it, ins] = base_.atoms().try_emplace(atom_key_->syms(), fun_);
         if (ins) {
             atom_key_ = nullptr;
@@ -374,9 +373,9 @@ auto StateBdAggr::insert_atom(Symbol const *tuple) -> AtomMap::iterator {
     return it;
 }
 
-void StateBdAggr::insert_elem(SymbolStore &store, Assignment &ass, AtomMap::iterator it, UTermVec const &tuple,
+void StateBdAggr::insert_elem(EvalContext const &ctx, AtomMap::iterator it, UTermVec const &tuple,
                               ElementKey *&elem_key, auto const &get_cond) {
-    if (ElementKey::construct(*mbr_, store, ass, fun_, atom_index_(it), tuple, elem_key)) {
+    if (ElementKey::construct(*mbr_, ctx, fun_, atom_index_(it), tuple, elem_key)) {
         auto [jt, jns] = tuples_.try_emplace(elem_key);
         if (jns) {
             elem_key = nullptr;
@@ -446,28 +445,28 @@ auto MatchBdAggr::signature(VariableSet const &bound, [[maybe_unused]] VariableS
     return {bound.begin(), bound.end()};
 }
 
-auto MatchBdAggr::match([[maybe_unused]] SymbolStore &store, Symbol const *sym, Assignment &ass) const -> bool {
+auto MatchBdAggr::match(EvalContext const &ctx, Symbol const *sym) const -> bool {
     for (auto var : state_->global()) {
-        if (auto &opt = ass[var]; opt) {
+        if (auto &opt = ctx.ass()[var]; opt) {
             if (*opt != *sym) {
                 return false;
             }
         } else {
-            ass[var] = *sym;
+            ctx.ass()[var] = *sym;
         }
         sym = std::next(sym);
     }
     return true;
 }
 
-auto MatchBdAggr::eval(SymbolStore &store, Assignment &ass) const -> std::optional<Symbol const *> {
+auto MatchBdAggr::eval(EvalContext const &ctx) const -> std::optional<Symbol const *> {
     eval_.clear();
     for (auto var : state_->global()) {
         // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-        eval_.emplace_back(ass[var].value());
+        eval_.emplace_back(ctx.ass()[var].value());
     }
     for (auto const &guard : state().guards()) {
-        if (auto sym = guard.second->eval(store, ass); sym) {
+        if (auto sym = guard.second->eval(ctx); sym) {
             eval_.emplace_back(*sym);
         } else {
             return std::nullopt;
@@ -543,7 +542,7 @@ auto LitBdAggr::do_score([[maybe_unused]] std::vector<bool> const &bound) const 
 
 void LitBdAggr::do_print(std::ostream &out) const { state().print(out, true); }
 
-auto LitBdAggr::do_output([[maybe_unused]] InstantiationContext &ctx, OutputLit &out) const -> bool {
+auto LitBdAggr::do_output([[maybe_unused]] InstantiationContext const &ctx, OutputLit &out) const -> bool {
     if (domain()) {
         return false;
     }
@@ -614,10 +613,9 @@ auto StmBdAggrElem::do_is_important(size_t index) const -> bool {
 
 void StmBdAggrElem::do_init(size_t gen) { state_->base().ensure(gen); }
 
-auto StmBdAggrElem::do_report(InstantiationContext &ctx) -> bool {
-    auto &ass = ctx.ass();
+auto StmBdAggrElem::do_report(InstantiationContext const &ctx) -> bool {
     // insert aggregate atom
-    if (auto it = state_->insert_atom(ctx.store(), ass)) {
+    if (auto it = state_->insert_atom(ctx)) {
         auto get_cond = [this, &ctx]() {
             // output the condition
             bool fact = true;
@@ -630,7 +628,7 @@ auto StmBdAggrElem::do_report(InstantiationContext &ctx) -> bool {
             return std::make_pair(ctx.out().cond_id(), fact);
         };
         // insert the element
-        state_->insert_elem(ctx.store(), ass, it->first, tuple_, elem_key_, get_cond);
+        state_->insert_elem(ctx, it->first, tuple_, elem_key_, get_cond);
     }
     return true;
 }
@@ -672,13 +670,13 @@ class MatcherBdAggrStrat : public OnceMatcher {
         : state_{&state}, insts_{std::move(insts)}, offset_{&offset}, positive_{positive} {}
 
   private:
-    void do_init(SymbolStore &store, [[maybe_unused]] size_t gen) override {
+    void do_init(InitContext const &ctx, [[maybe_unused]] size_t gen) override {
         for (auto &inst : insts_) {
-            inst.init(store, 0);
+            inst.init(ctx, 0);
         }
     }
-    auto do_once(InstantiationContext &ctx) -> bool override {
-        if (auto it = state_->insert_atom(ctx.store(), ctx.ass())) {
+    auto do_once(InstantiationContext const &ctx) -> bool override {
+        if (auto it = state_->insert_atom(ctx)) {
             *offset_ = it->first - state_->base().atoms().begin();
             if (it->second) {
                 // bind global variables
@@ -752,7 +750,7 @@ auto LitBdAggrStrat::do_score([[maybe_unused]] std::vector<bool> const &bound) c
 
 void LitBdAggrStrat::do_print(std::ostream &out) const { state_->print(out, true); }
 
-auto LitBdAggrStrat::do_output([[maybe_unused]] InstantiationContext &ctx, OutputLit &out) const -> bool {
+auto LitBdAggrStrat::do_output([[maybe_unused]] InstantiationContext const &ctx, OutputLit &out) const -> bool {
     if (domain()) {
         return false;
     }

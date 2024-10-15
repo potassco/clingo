@@ -126,8 +126,8 @@ class BuilderTerm {
             assert(var_map_->find(lin->x()) != var_map_->end());
             return std::make_unique<Ground::TermLinear>(lin->m(), var_map_->find(lin->x())->second, lin->n());
         }
-        return std::make_unique<Ground::TermBinary>(std::visit(*this, *term.lhs()), map_binary_op(term.op()),
-                                                    std::visit(*this, *term.rhs()));
+        return std::make_unique<Ground::TermBinary>(term.loc(), std::visit(*this, *term.lhs()),
+                                                    map_binary_op(term.op()), std::visit(*this, *term.rhs()));
     }
 
   private:
