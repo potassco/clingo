@@ -15,7 +15,7 @@ class Script {
         CLINGO_CATCH(self->lib_);
     }
 
-    auto call(Library &lib, char const *name, SymbolVec const &args) -> SymbolVec {
+    auto call(Library lib, char const *name, SymbolVec const &args) -> SymbolVec {
         PYBIND11_OVERRIDE_PURE(SymbolVec, Script, call, &lib, name, args);
     }
 
@@ -26,8 +26,7 @@ class Script {
         CLINGO_TRY {
             auto args = transform(arguments, std::next(arguments, static_cast<ssize_t>(arguments_size)),
                                   [](auto sym) { return Symbol{sym, true}; });
-            Library l{lib};
-            auto syms = self->call(l, name, args);
+            auto syms = self->call(lib, name, args);
             // NOLINTNEXTLINE
             auto const *c_syms = reinterpret_cast<clingo_symbol_t *>(syms.data());
             handle_error(symbol_callback(c_syms, syms.size(), symbol_callback_data));
@@ -48,15 +47,13 @@ class Script {
         CLINGO_CATCH(self->lib_);
     }
 
-    void main(Library &lib, Control &ctl) { PYBIND11_OVERRIDE_PURE(void, Script, main, &lib, &ctl); }
+    void main(Library lib, Control ctl) { PYBIND11_OVERRIDE_PURE(void, Script, main, &lib, &ctl); }
 
     static auto c_main(clingo_lib_t *lib, clingo_control_t *control, void *data) -> clingo_result_t {
         auto *self = static_cast<py::object *>(data)->cast<Script *>();
         CLINGO_TRY {
             auto *self = static_cast<py::object *>(data)->cast<Script *>();
-            Library l{lib};
-            Control c{control};
-            self->main(l, c);
+            self->main(lib, control);
         }
         CLINGO_CATCH(self->lib_);
     }
@@ -102,7 +99,7 @@ class Script {
     std::string version_;
 };
 
-void reg_script(Library &lib, Script &script) {
+void reg_script(Library const &lib, Script &script) {
     script.lib(lib);
     auto c_script = clingo_script_t{Script::c_execute, Script::c_call,    Script::c_callable, Script::c_main,
                                     Script::c_name,    Script::c_version, Script::c_free};
@@ -118,7 +115,7 @@ Module containing functions to add custom scripts, which can be embedded into lo
         .def("execute", &Script::execute)
         .def("call", &Script::call)
         .def("callable", &Script::callable)
-        //.def("main", &Script::main)
+        .def("main", &Script::main)
         .def("name", &Script::name)
         .def("version", &Script::version);
 

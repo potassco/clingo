@@ -161,6 +161,8 @@ CLINGO_VISIBILITY_DEFAULT char const *clingo_message_string(clingo_message_t cod
 //! @see clingo_parse_program()
 typedef void (*clingo_logger_t)(clingo_message_t code, char const *message, void *data);
 
+typedef void (*clingo_free_t)(void *data);
+
 //! A library object storing global information.
 typedef struct clingo_lib clingo_lib_t;
 
@@ -178,15 +180,15 @@ typedef uint32_t clingo_lib_flags_t;
 //!
 //! If the logger is NULL, the default logger printing messages to stderr is used.
 //!
-//! Note that the function returns NULL, in case the of a memout.
-//!
 //! @param[in] flags construction flags
 //! @param[in] logger callback functions for warnings and info messages
 //! @param[in] logger_data user data for the logger callback
 //! @param[in] message_limit maximum number of times the logger callback is called
-//! @return the resulting library object
-CLINGO_VISIBILITY_DEFAULT clingo_lib_t *clingo_lib_new(clingo_lib_flags_t flags, clingo_logger_t logger,
-                                                       void *logger_data, size_t message_limit);
+//! @param[in] lib the resulting library object
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_lib_new(clingo_lib_flags_t flags, clingo_logger_t logger,
+                                                         clingo_free_t logger_free, void *logger_data,
+                                                         size_t message_limit, clingo_lib_t **lib);
 
 //! Report a message via the libraries logger.
 //!

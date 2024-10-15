@@ -73,8 +73,8 @@ int main() {
     clingo_symbol_t const *args = NULL;
     size_t size = 0;
 
-    lib = clingo_lib_new(0, NULL, NULL, message_limit);
-    if (lib == NULL) {
+    res = clingo_lib_new(0, NULL, NULL, NULL, message_limit, &lib);
+    if (res != clingo_result_success) {
         handle_result(clingo_result_bad_alloc);
         goto out;
     }

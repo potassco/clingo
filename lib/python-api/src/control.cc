@@ -6,9 +6,13 @@ namespace Clingo::Python {
 
 Control::Control(Library &lib, std::vector<std::string> const &args) {
     auto c_args = transform(args, [](auto const &str) { return str.c_str(); });
-    handle_error(clingo_control_new(lib, c_args.data(), c_args.size(), &ctl_));
+    auto *ctl = static_cast<clingo_control_t *>(nullptr);
+    handle_error(clingo_control_new(lib, c_args.data(), c_args.size(), &ctl));
+    ctl_.reset(ctl);
 }
-void Control::parse_string(char const *str) { handle_error(clingo_control_parse_string(ctl_, str)); }
+
+void Control::parse_string(char const *str) { handle_error(clingo_control_parse_string(ctl_.get(), str)); }
+
 void Control::ground(std::vector<std::pair<std::string, SymbolVec>> const &parts) {
     auto c_args = transform(parts, [](auto const &part) {
         return clingo_part_t{part.first.c_str(),
@@ -16,12 +20,7 @@ void Control::ground(std::vector<std::pair<std::string, SymbolVec>> const &parts
                              reinterpret_cast<clingo_symbol_t const *>(part.second.data()), part.second.size()};
     });
 
-    handle_error(clingo_control_ground(ctl_, c_args.data(), c_args.size()));
-}
-Control::~Control() noexcept {
-    if (own_) {
-        clingo_control_free(ctl_);
-    }
+    handle_error(clingo_control_ground(ctl_.get(), c_args.data(), c_args.size()));
 }
 
 void register_control(pybind11::module &m) {

@@ -5,8 +5,9 @@ static constexpr auto message_limit = 25;
 
 auto main(int argc, char *argv[]) -> int {
     clingo_result_t res = clingo_result_success;
-    auto *lib = clingo_lib_new(clingo_lib_flags_slotted, nullptr, nullptr, message_limit);
-    if (lib == nullptr) {
+    clingo_lib_t *lib = nullptr;
+    res = clingo_lib_new(clingo_lib_flags_slotted, nullptr, nullptr, nullptr, message_limit, &lib);
+    if (res != clingo_result_success) {
         return 1;
     }
     res = clingo_register_python(lib);

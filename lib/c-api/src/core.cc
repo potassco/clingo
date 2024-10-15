@@ -81,24 +81,24 @@ extern "C" auto clingo_message_string(clingo_message_t code) -> char const * {
     return "unknown message code";
 }
 
-extern "C" auto clingo_lib_new(clingo_lib_flags_t flags, clingo_logger_t logger, void *logger_data,
-                               size_t message_limit) -> clingo_lib_t * {
-    clingo_lib_t *lib = nullptr;
+extern "C" auto clingo_lib_new(clingo_lib_flags_t flags, clingo_logger_t logger, clingo_free_t logger_free,
+                               void *logger_data, size_t message_limit, clingo_lib_t **lib) -> clingo_result_t {
     try {
+        *lib = nullptr;
         Clingo::Logger::Printer prt = nullptr;
+        auto data = std::unique_ptr<void, clingo_free_t>{logger_data, logger_free};
         if (logger != nullptr) {
             prt = [logger, logger_data](Clingo::MessageCode code, char const *msg) {
                 logger(static_cast<clingo_message_t>(code), msg, logger_data);
             };
         }
-        // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
-        lib = new clingo_lib{
-            Clingo::Logger{prt, message_limit},
-            Clingo::make_symbol_store((flags & clingo_lib_flags_slotted) != 0, (flags & clingo_lib_flags_shared) != 0)};
-        // NOLINTNEXTLINE(bugprone-empty-catch)
-    } catch (...) {
+        *lib = std::make_unique<clingo_lib>(Clingo::Logger{prt, message_limit},
+                                            Clingo::make_symbol_store((flags & clingo_lib_flags_slotted) != 0,
+                                                                      (flags & clingo_lib_flags_shared) != 0),
+                                            std::move(data))
+                   .release();
     }
-    return lib;
+    CLINGO_CATCH;
 }
 
 extern "C" void clingo_lib_report(clingo_lib_t *lib, clingo_message_t code, char const *message) {

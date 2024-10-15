@@ -13,36 +13,24 @@ Library::Library(bool shared, bool slotted, Logger cb, size_t default_message_li
     if (slotted) {
         flags |= clingo_lib_flags_slotted;
     }
-    cb_ = std::move(cb);
-    lib_ = clingo_lib_new(flags, cb_ ? static_cast<clingo_logger_t>(&logger_) : nullptr, this, default_message_limit);
-    if (lib_ == nullptr) {
-        throw std::bad_alloc{};
-    }
+    bool has_logger = cb != nullptr;
+    auto *ptr = py::cast(std::move(cb)).release().ptr();
+    auto *lib = static_cast<clingo_lib_t *>(nullptr);
+    handle_error(clingo_lib_new(flags, has_logger ? &logger_ : nullptr, has_logger ? &free : nullptr,
+                                has_logger ? ptr : nullptr, default_message_limit, &lib));
+    lib_.reset(lib);
 }
 
-Library::~Library() noexcept {
-    if (own_) {
-        clingo_lib_free(lib_, false);
-    }
-}
+void Library::close() noexcept { lib_.reset(); }
 
-void Library::close() noexcept {
-    if (own_) {
-        clingo_lib_free(lib_, false);
-        lib_ = nullptr;
-    }
-}
+Library::operator clingo_lib_t *() const { return lib_.get(); }
 
-Library::operator clingo_lib_t *() const {
-    if (lib_ == nullptr) {
-        throw std::runtime_error("library has already been closed");
-    }
-    return lib_;
-}
+void Library::free_logger_(void *log) noexcept { py::reinterpret_steal<py::object>(static_cast<PyObject *>(log)); }
 
-void Library::logger_(clingo_message_t code, char const *message, void *self) noexcept {
+void Library::logger_(clingo_message_t code, char const *message, void *log) noexcept {
     try {
-        static_cast<Library *>(self)->cb_(static_cast<clingo_message_e>(code), message);
+        auto hnd = py::reinterpret_borrow<py::object>(static_cast<PyObject *>(log));
+        hnd.cast<Logger>()(static_cast<clingo_message_e>(code), message);
     } catch (std::exception const &e) {
         printf("panic: exception with message %s thrown in logger\n", e.what());
         std::terminate();

@@ -75,4 +75,67 @@ template <class Rng, class Pred> auto transform(Rng const &rng, Pred pred) {
     return transform(begin(rng), end(rng), pred);
 }
 
+//! Smart pointer whose copies model references.
+template <class T, void (*deleter)(T *) noexcept> class owner_ptr {
+  public:
+    explicit constexpr owner_ptr(T *ptr) noexcept : ptr_{ptr}, own_{false} {}
+    explicit constexpr owner_ptr(T *ptr, bool own) noexcept : ptr_{ptr}, own_{own && ptr != nullptr} {}
+    constexpr owner_ptr() noexcept : ptr_{nullptr}, own_{false} {}
+    constexpr owner_ptr(owner_ptr const &other) noexcept : ptr_{other.ptr_}, own_{false} {};
+    constexpr owner_ptr(owner_ptr &&other) noexcept
+        : ptr_{std::exchange(other.ptr_, nullptr)}, own_{std::exchange(other.own_, false)} {};
+    // NOLINTNEXTLINE
+    auto operator=(owner_ptr const &other) noexcept -> owner_ptr & {
+        if (ptr_ != other.ptr_) {
+            if (own_) {
+                deleter(ptr_);
+            }
+            ptr_ = other.lib_;
+            own_ = false;
+        }
+        return *this;
+    }
+    auto operator=(owner_ptr &&other) noexcept -> owner_ptr & {
+        if (ptr_ != other.ptr_) {
+            if (own_) {
+                deleter(ptr_);
+            }
+            ptr_ = std::exchange(other.ptr_, nullptr);
+            own_ = std::exchange(other.own_, false);
+        } else if (other.own_) {
+            own_ = std::exchange(other.own_, false);
+        }
+        return *this;
+    }
+    ~owner_ptr() noexcept {
+        if (own_) {
+            deleter(ptr_);
+        }
+    }
+
+    [[nodiscard]] auto get() const -> T * { return ptr_; }
+
+    auto operator->() const -> T * { return ptr_; }
+
+    void reset(T *ptr) noexcept {
+        if (own_) {
+            deleter(ptr_);
+        }
+        ptr_ = ptr;
+        own_ = ptr != nullptr;
+    }
+
+    void reset(std::nullptr_t = nullptr) noexcept {
+        if (own_) {
+            deleter(ptr_);
+        }
+        ptr_ = nullptr;
+        own_ = false;
+    }
+
+  private:
+    T *ptr_;
+    bool own_;
+};
+
 } // namespace Clingo::Python

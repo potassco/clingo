@@ -8,77 +8,74 @@
 
 #include <CLI/CLI.hpp>
 
-#include <iostream>
-
 namespace {
 
 using namespace Clingo::Input;
 
 auto run(clingo_lib_t *lib, std::vector<std::string> &&args) -> clingo_result_t {
-    auto opts = RewriteOptions{};
-    auto mode = Clingo::Control::AppMode::ground;
-    std::vector<std::string> files;
-    std::vector<std::string> const_defs;
-    auto log_level = Clingo::LogLevel::info;
-    auto params_str = std::optional<std::string>{};
-
-    CLI::App app{"ASP preprocessor that wants to become a grounder"};
-
-    app.add_option("files", files, "files to parse");
-    // later...
-    // ->check(CLI::ExistingFile);
-    app.add_option_no_stream("--const,-c", const_defs, "constant definition");
-    app.add_option_no_stream("--params", params_str, "program parts to ground");
-    app.add_option("--log-level", "{error,warn,info,debug,trace}")->check([&log_level](std::string const &value) {
-        using P = std::pair<char const *, Clingo::LogLevel>;
-        auto levels = std::array{P{"trace", Clingo::LogLevel::trace}, P{"debug", Clingo::LogLevel::debug},
-                                 P{"info", Clingo::LogLevel::info}, P{"warn", Clingo::LogLevel::warn},
-                                 P{"error", Clingo::LogLevel::error}};
-        for (auto &[name, level] : levels) {
-            if (value == name) {
-                log_level = level;
-                return std::string{};
-            }
-        }
-        return std::string{"unexpected value"};
-    });
-    app.add_option("--projection-mode", "{off,anonymous,pure}")->check([&opts](std::string const &value) {
-        using P = std::pair<char const *, Clingo::Input::ProjectionMode>;
-        auto levels = std::array{P{"off", Clingo::Input::ProjectionMode::disabled},
-                                 P{"anonymous", Clingo::Input::ProjectionMode::anonymous},
-                                 P{"pure", Clingo::Input::ProjectionMode::pure}};
-        for (auto &[name, mode] : levels) {
-            if (value == name) {
-                opts.project_mode = mode;
-                return std::string{};
-            }
-        }
-        return std::string{"unexpected value"};
-    });
-    app.add_option("--mode", "{parse,rewrite,ground}")->check([&mode](std::string const &value) {
-        using P = std::pair<char const *, Clingo::Control::AppMode>;
-        auto modes =
-            std::array{P{"parse", Clingo::Control::AppMode::parse}, P{"rewrite", Clingo::Control::AppMode::rewrite},
-                       P{"ground", Clingo::Control::AppMode::ground}};
-        for (auto &[name, m] : modes) {
-            if (name == value) {
-                mode = m;
-                return std::string{};
-            }
-        }
-        return std::string{"unexpected value"};
-    });
-    app.add_flag("--project-anonymous", opts.project_anonymous, "project anoymous variables in negated literals");
     try {
-        app.parse(std::move(args));
-    } catch (CLI::ParseError const &e) {
-        return app.exit(e);
-    }
+        auto opts = RewriteOptions{};
+        auto mode = Clingo::Control::AppMode::ground;
+        std::vector<std::string> files;
+        std::vector<std::string> const_defs;
+        auto log_level = Clingo::LogLevel::info;
+        auto params_str = std::optional<std::string>{};
 
-    try {
+        CLI::App app{"ASP preprocessor that wants to become a grounder"};
+
+        app.add_option("files", files, "files to parse");
+        // later...
+        // ->check(CLI::ExistingFile);
+        app.add_option_no_stream("--const,-c", const_defs, "constant definition");
+        app.add_option_no_stream("--params", params_str, "program parts to ground");
+        app.add_option("--log-level", "{error,warn,info,debug,trace}")->check([&log_level](std::string const &value) {
+            using P = std::pair<char const *, Clingo::LogLevel>;
+            auto levels = std::array{P{"trace", Clingo::LogLevel::trace}, P{"debug", Clingo::LogLevel::debug},
+                                     P{"info", Clingo::LogLevel::info}, P{"warn", Clingo::LogLevel::warn},
+                                     P{"error", Clingo::LogLevel::error}};
+            for (auto &[name, level] : levels) {
+                if (value == name) {
+                    log_level = level;
+                    return std::string{};
+                }
+            }
+            return std::string{"unexpected value"};
+        });
+        app.add_option("--projection-mode", "{off,anonymous,pure}")->check([&opts](std::string const &value) {
+            using P = std::pair<char const *, Clingo::Input::ProjectionMode>;
+            auto levels = std::array{P{"off", Clingo::Input::ProjectionMode::disabled},
+                                     P{"anonymous", Clingo::Input::ProjectionMode::anonymous},
+                                     P{"pure", Clingo::Input::ProjectionMode::pure}};
+            for (auto &[name, mode] : levels) {
+                if (value == name) {
+                    opts.project_mode = mode;
+                    return std::string{};
+                }
+            }
+            return std::string{"unexpected value"};
+        });
+        app.add_option("--mode", "{parse,rewrite,ground}")->check([&mode](std::string const &value) {
+            using P = std::pair<char const *, Clingo::Control::AppMode>;
+            auto modes =
+                std::array{P{"parse", Clingo::Control::AppMode::parse}, P{"rewrite", Clingo::Control::AppMode::rewrite},
+                           P{"ground", Clingo::Control::AppMode::ground}};
+            for (auto &[name, m] : modes) {
+                if (name == value) {
+                    mode = m;
+                    return std::string{};
+                }
+            }
+            return std::string{"unexpected value"};
+        });
+        app.add_flag("--project-anonymous", opts.project_anonymous, "project anoymous variables in negated literals");
+        try {
+            app.parse(std::move(args));
+        } catch (CLI::ParseError const &e) {
+            return app.exit(e) != 0 ? clingo_result_runtime : clingo_result_success;
+        }
+
         // TODO: maybe this should not happen here
         lib->log.set_level(log_level);
-        // TODO: the mode should be passed to the solver object
         auto slv =
             Clingo::Control::Solver{lib->log, *lib->store, lib->scripts, opts, Clingo::Control::OutputMode::text};
         auto prs = Clingo::Input::Parser{lib->log, *lib->store};
@@ -103,9 +100,8 @@ auto run(clingo_lib_t *lib, std::vector<std::string> &&args) -> clingo_result_t 
             slv.main(mode, std::vector<std::string_view>{files.begin(), files.end()}, params);
         }();
     } catch (std::exception const &e) {
-        fprintf(stderr, "%s: %s\n", lib->log.message_prefix(Clingo::MessageCode::error), e.what());
-        fflush(stderr);
-        return clingo_result_runtime;
+        GRINGO_REPORT(lib->log, error) << e.what();
+        return handle_error();
     }
     return clingo_result_success;
 }
@@ -116,7 +112,7 @@ extern "C" auto clingo_main(clingo_lib_t *lib, char const *const *arguments, siz
     try {
         return run(lib, Clingo::Util::transform_n(arguments, size, [](auto const *str) { return std::string(str); }));
     } catch (std::exception const &e) {
-        fprintf(stderr, "panic: %s\n", "unrecoverable error during startup");
+        fprintf(stderr, "panic: %s\n", e.what());
         fflush(stderr);
         return clingo_result_runtime;
     }

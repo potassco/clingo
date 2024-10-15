@@ -1,5 +1,7 @@
 #pragma once
 
+#include "util.hh"
+
 #include <clingo.h>
 
 #include <pybind11/pybind11.h>
@@ -25,21 +27,22 @@ static constexpr size_t default_message_limit = 25;
 
 class Library {
   public:
-    Library(clingo_lib_t *lib) : lib_{lib}, own_{false} {}
     Library(bool shared, bool slotted, Logger cb, size_t default_message_limit);
-    Library(Library const &other) = delete;
-    Library(Library &&other) = delete;
-    ~Library() noexcept;
+    Library(clingo_lib_t *lib) : lib_{lib} {}
     void close() noexcept;
 
     operator clingo_lib_t *() const;
 
   private:
-    static void logger_(clingo_message_t code, char const *message, void *self) noexcept;
+    static void free_lib_(clingo_lib_t *lib) noexcept {
+        if (lib != nullptr) {
+            clingo_lib_free(lib, false);
+        }
+    }
+    static void free_logger_(void *log) noexcept;
+    static void logger_(clingo_message_t code, char const *message, void *log) noexcept;
 
-    clingo_lib_t *lib_ = nullptr;
-    Logger cb_ = nullptr;
-    bool own_{true};
+    owner_ptr<clingo_lib_t, free_lib_> lib_;
 };
 
 inline auto handle_error(clingo_lib_t *lib) -> clingo_result_t {
