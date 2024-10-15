@@ -206,7 +206,7 @@ auto TermLinear::do_score(double size, std::vector<bool> const &bound) const -> 
     return bound[var_] ? 0.0 : size;
 }
 
-auto TermLinear::do_match([[maybe_unused]] SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
+auto TermLinear::do_match(SymbolStore &store, Symbol sym, Assignment &ass) const -> bool {
     if (sym.type() != SymbolType::number) {
         return false;
     }
