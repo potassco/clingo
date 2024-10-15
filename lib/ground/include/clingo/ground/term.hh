@@ -299,6 +299,7 @@ class TermBinary : public Term {
     UTerm lhs_;
     UTerm rhs_;
     BinaryOperator op_;
+    mutable bool logged_ = false;
 };
 
 //! A term capturing a tuple.

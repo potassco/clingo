@@ -45,9 +45,12 @@ auto rename_args(UTermVec const &args, SymbolStore &store, RenameMode mode, size
     return res;
 }
 
-auto check_(EvalContext const &ctx, Location const &loc, bool cond, char const *msg) -> bool {
+auto check_(EvalContext const &ctx, Location const &loc, bool cond, char const *msg, bool &logged) -> bool {
     if (!cond) {
-        GRINGO_REPORT_LOC(ctx.log(), info_operation_undefined, loc) << msg;
+        if (!logged) {
+            logged = true;
+            GRINGO_REPORT_LOC(ctx.log(), info_operation_undefined, loc) << msg;
+        }
         return false;
     }
     return true;
@@ -377,21 +380,21 @@ auto TermBinary::do_score([[maybe_unused]] double size,
 }
 
 auto TermBinary::do_match(EvalContext const &ctx, Symbol sym) const -> bool {
-    return check_(ctx, loc_, sym.type() == Clingo::SymbolType::number, "number expected") && eval(ctx) == sym;
+    return check_(ctx, loc_, sym.type() == Clingo::SymbolType::number, "number expected", logged_) && eval(ctx) == sym;
 }
 
 auto TermBinary::do_eval(EvalContext const &ctx) const -> std::optional<Symbol> {
     if (auto lhs = lhs_->eval(ctx);
-        lhs && check_(ctx, loc_, lhs->type() == Clingo::SymbolType::number, "number expected")) {
+        lhs && check_(ctx, loc_, lhs->type() == Clingo::SymbolType::number, "number expected", logged_)) {
         if (auto rhs = rhs_->eval(ctx);
-            rhs && check_(ctx, loc_, rhs->type() == Clingo::SymbolType::number, "number expected")) {
+            rhs && check_(ctx, loc_, rhs->type() == Clingo::SymbolType::number, "number expected", logged_)) {
             auto &store = ctx.store();
             switch (op_) {
                 case BinaryOperator::and_: {
                     return store.num_ref(lhs->num() & rhs->num());
                 }
                 case BinaryOperator::div: {
-                    if (check_(ctx, loc_, rhs->num() != 0, "non-zero number expected")) {
+                    if (check_(ctx, loc_, rhs->num() != 0, "non-zero number expected", logged_)) {
                         return store.num_ref(lhs->num() / rhs->num());
                     }
                     break;
@@ -400,7 +403,7 @@ auto TermBinary::do_eval(EvalContext const &ctx) const -> std::optional<Symbol> 
                     return store.num_ref(lhs->num() - rhs->num());
                 }
                 case BinaryOperator::mod: {
-                    if (check_(ctx, loc_, rhs->num() != 0, "non-zero number expected")) {
+                    if (check_(ctx, loc_, rhs->num() != 0, "non-zero number expected", logged_)) {
                         return store.num_ref(lhs->num() % rhs->num());
                     }
                     break;
@@ -412,7 +415,7 @@ auto TermBinary::do_eval(EvalContext const &ctx) const -> std::optional<Symbol> 
                     return store.num_ref(lhs->num() + rhs->num());
                 }
                 case BinaryOperator::pow: {
-                    if (check_(ctx, loc_, rhs->num() >= 0, "non-negative number expected")) {
+                    if (check_(ctx, loc_, rhs->num() >= 0, "non-negative number expected", logged_)) {
                         return store.num_ref(pow(lhs->num(), rhs->num()));
                     }
                     break;
