@@ -68,13 +68,18 @@ class BuilderStm {
     }
 
     void operator()(Input::StmWeakConstraint const &stm) const {
+        // NOLINTBEGIN(bugprone-unchecked-optional-access)
         build_body_(stm.body());
         auto const &tuple = stm.tuple();
         auto prio = build_term_(tuple.prio());
         auto weight = build_term_(tuple.weight());
         auto terms = build_term_vec_(tuple.terms());
-        ctx_->gcomp().add(std::make_unique<Ground::StmWeakConstraint>(std::move(weight), std::move(prio),
-                                                                      std::move(terms), std::move(ctx_->body())));
+        ctx_->gcomp().add(std::make_unique<Ground::StmWeakConstraint>(
+            location(tuple.weight()), std::move(weight),
+            prio ? std::make_optional<std::pair<Location, Ground::UTerm>>(location(*tuple.prio()), *std::move(prio))
+                 : std::nullopt,
+            std::move(terms), std::move(ctx_->body())));
+        // NOLINTEND(bugprone-unchecked-optional-access)
     }
 
     void operator()(Input::StmHeuristic const &stm) const {
@@ -102,11 +107,15 @@ class BuilderStm {
     }
 
     void operator()(Input::StmExternal const &stm) const {
+        // NOLINTBEGIN(bugprone-unchecked-optional-access)
         build_body_(stm.body());
         auto [atom, base, indices] = ctx_->simple_lit(stm.atom());
         auto type = build_term_(stm.type());
-        ctx_->gcomp().add(std::make_unique<Ground::StmExternal>(std::move(atom), base, std::move(indices),
-                                                                std::move(ctx_->body()), std::move(type)));
+        ctx_->gcomp().add(std::make_unique<Ground::StmExternal>(
+            std::move(atom), base, std::move(indices), std::move(ctx_->body()),
+            type ? std::make_optional<std::pair<Location, Ground::UTerm>>(location(*stm.type()), *std::move(type))
+                 : std::nullopt));
+        // NOLINTEND(bugprone-unchecked-optional-access)
     }
 
     void operator()(Input::StmShow const &stm) const {

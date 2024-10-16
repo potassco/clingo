@@ -117,8 +117,9 @@ class StmRule : public Stm {
 class StmExternal : public Stm {
   public:
     //! Construct the statement.
-    StmExternal(Ground::UTerm atom, Base &base, std::vector<size_t> indices, ULitVec body, std::optional<UTerm> type)
-        : type_{type ? *std::move(type) : nullptr}, atom_{std::move(atom)}, base_{&base}, indices_{std::move(indices)},
+    StmExternal(Ground::UTerm atom, Base &base, std::vector<size_t> indices, ULitVec body,
+                std::optional<std::pair<Location, UTerm>> type)
+        : type_{std::move(type)}, atom_{std::move(atom)}, base_{&base}, indices_{std::move(indices)},
           body_{std::move(body)} {
         init_();
     }
@@ -139,7 +140,7 @@ class StmExternal : public Stm {
     [[nodiscard]] auto do_priority() const -> size_t override { return std::numeric_limits<size_t>::max(); }
     [[nodiscard]] auto do_is_important([[maybe_unused]] size_t index) const -> bool override { return false; }
 
-    UTerm type_;
+    std::optional<std::pair<Location, UTerm>> type_;
     //! The head of the rule.
     //!
     //! Note that this unique pointer is zero in case of constraints.
@@ -159,8 +160,10 @@ class StmExternal : public Stm {
 class StmWeakConstraint : public Stm {
   public:
     //! Construct the statement.
-    StmWeakConstraint(UTerm weight, std::optional<UTerm> prio, UTermVec terms, ULitVec body)
-        : weight_{std::move(weight)}, prio_{prio ? *std::move(prio) : nullptr}, terms_{std::move(terms)},
+    StmWeakConstraint(Location loc_weight, UTerm weight, std::optional<std::pair<Location, UTerm>> prio, UTermVec terms,
+                      ULitVec body)
+        : loc_weight_{std::move(loc_weight)}, loc_prio_{prio ? std::move(prio->first) : loc_weight_},
+          weight_{std::move(weight)}, prio_{prio ? std::move(prio->second) : nullptr}, terms_{std::move(terms)},
           body_{std::move(body)} {
         init_();
     }
@@ -179,11 +182,15 @@ class StmWeakConstraint : public Stm {
     void do_propagate(SymbolStore &store, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override { return std::numeric_limits<size_t>::max(); }
 
+    Location loc_weight_;
+    Location loc_prio_;
     UTerm weight_;
     UTerm prio_;
     UTermVec terms_;
     ULitVec body_;
-    SymbolVec syms_;
+    Symbol res_weight_;
+    std::optional<Symbol> res_prio_;
+    SymbolVec res_terms_;
 };
 
 //! Statement capturing heuristic directives.

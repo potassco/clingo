@@ -799,7 +799,7 @@ class AnalyzeVisitor {
     }
     void visit(StmDefined const &stm) { provide_->emplace(stm.name(), stm.arity(), stm.sign()); }
     void visit(StmExternal const &stm) {
-        add_(stm.atom(), false);
+        add_(stm.atom(), true);
         visit(stm.body());
     }
     void visit(StmEdge const &stm) { visit(stm.body()); }

@@ -233,8 +233,8 @@ void StmExternal::init_() {
                 return false;
             }
             if (stm_->type_) {
-                if (auto type = stm_->type_->eval(ctx); type && type->type() == SymbolType::function &&
-                                                        type->args().empty() && !type->has_classical_sign()) {
+                if (auto type = stm_->type_->second->eval(ctx); type && type->type() == SymbolType::function &&
+                                                                type->args().empty() && !type->has_classical_sign()) {
                     if (type->name() == "true") {
                         stm_->res_type_ = ExternalType::true_;
                     } else if (type->name() == "false") {
@@ -242,7 +242,7 @@ void StmExternal::init_() {
                     } else if (type->name() == "free") {
                         stm_->res_type_ = ExternalType::free;
                     } else {
-                        return false;
+                        return expect(ctx, stm_->type_->first, logged_, "unexpected external type (got ", *type, ")");
                     }
                 } else {
                     return false;
@@ -255,7 +255,7 @@ void StmExternal::init_() {
         void do_vars(VariableSet &vars, VarSelectMode mode) const override {
             if (mode != VarSelectMode::provide) {
                 if (stm_->type_) {
-                    stm_->type_->vars(vars);
+                    stm_->type_->second->vars(vars);
                 }
                 stm_->atom_->vars(vars);
             }
@@ -263,13 +263,14 @@ void StmExternal::init_() {
         void do_print(std::ostream &out) const override {
             out << "#check(" << *stm_->atom_;
             if (stm_->type_) {
-                out << "," << *stm_->type_;
+                out << "," << *stm_->type_->second;
             }
             out << ")";
         }
         [[nodiscard]] auto do_copy() const -> ULit override { return std::make_unique<LitExternalCheck>(*stm_); }
 
         StmExternal *stm_;
+        bool logged_ = false;
     };
     body_.emplace_back(std::make_unique<LitExternalCheck>(*this));
 }
@@ -284,7 +285,7 @@ void StmExternal::do_print(std::ostream &out) const {
     }
     out << " :- " << Util::p_range(body_, ", ", [](std::ostream &out, auto const &lit) { out << *lit; }) << ".";
     if (type_) {
-        out << " [" << *type_ << "]";
+        out << " [" << *type_->second << "]";
     }
 }
 
@@ -294,7 +295,7 @@ auto StmExternal::do_important() const -> VariableSet {
     VariableSet important;
     atom_->vars(important);
     if (type_) {
-        type_->vars(important);
+        type_->second->vars(important);
     }
     return important;
 }
@@ -318,16 +319,66 @@ void StmExternal::do_propagate([[maybe_unused]] SymbolStore &store, Queue &queue
 // definition of StmWeakConstraint
 
 void StmWeakConstraint::init_() {
-    UTermVec terms;
-    terms.reserve(terms_.size() + (prio_ ? 2 : 1));
-    terms.emplace_back(weight_->copy());
-    if (prio_) {
-        terms.emplace_back(prio_->copy());
-    }
-    for (auto const &term : terms_) {
-        terms.emplace_back(term->copy());
-    }
-    body_.emplace_back(std::make_unique<LitFailCheck>(std::move(terms), 1, &syms_));
+    class LitTupleCheck : public LitCheck {
+      public:
+        LitTupleCheck(StmWeakConstraint &stm) : stm_{&stm} {}
+
+      private:
+        [[nodiscard]] auto do_check(InstantiationContext const &ctx) -> bool override {
+            if (auto weight = stm_->weight_->eval(ctx);
+                weight && (weight->type() == SymbolType::number ||
+                           expect(ctx, stm_->loc_weight_, logged_, "number expected (", *weight, ")"))) {
+                stm_->res_weight_ = *weight;
+            } else {
+                return false;
+            }
+            if (stm_->prio_) {
+                if (auto prio = stm_->prio_->eval(ctx)) {
+                    stm_->res_prio_ = *prio;
+                } else {
+                    return false;
+                }
+            } else {
+                stm_->res_prio_ = std::nullopt;
+            }
+            stm_->res_terms_.clear();
+            for (auto const &term : stm_->terms_) {
+                if (auto sym = term->eval(ctx)) {
+                    stm_->res_terms_.emplace_back(*sym);
+                } else {
+                    return false;
+                }
+            }
+            return true;
+        }
+        void do_vars(VariableSet &vars, VarSelectMode mode) const override {
+            if (mode != VarSelectMode::provide) {
+                stm_->weight_->vars(vars);
+                if (stm_->prio_) {
+                    stm_->prio_->vars(vars);
+                }
+                for (auto const &term : stm_->terms_) {
+                    term->vars(vars);
+                }
+            }
+        }
+        void do_print(std::ostream &out) const override {
+            out << "#check(" << *stm_->weight_;
+            if (stm_->prio_) {
+                out << "@" << *stm_->prio_;
+            }
+            for (auto const &term : stm_->terms_) {
+                out << "," << *term;
+            }
+            out << ")";
+        }
+        [[nodiscard]] auto do_copy() const -> ULit override { return std::make_unique<LitTupleCheck>(*stm_); }
+
+        StmWeakConstraint *stm_;
+        bool logged_ = false;
+    };
+    res_terms_.reserve(terms_.size());
+    body_.emplace_back(std::make_unique<LitTupleCheck>(*this));
 }
 
 void StmWeakConstraint::do_print(std::ostream &out) const {
@@ -364,19 +415,11 @@ void StmWeakConstraint::do_print_head(std::ostream &out) const {
 void StmWeakConstraint::do_init([[maybe_unused]] size_t gen) {}
 
 auto StmWeakConstraint::do_report(InstantiationContext const &ctx) -> bool {
-    assert(syms_.size() > (prio_ ? 1 : 0));
     auto &out = ctx.out().body();
     for (auto const &lit : body_) {
         std::ignore = lit->output(ctx, out);
     }
-    auto it = syms_.begin();
-    auto weight = *it++;
-    auto prio = std::optional<Symbol>{};
-    if (prio_) {
-        prio.emplace(*it++);
-    }
-    auto terms = std::span(it, syms_.end());
-    ctx.out().weak_constraint(weight.num(), prio, terms);
+    ctx.out().weak_constraint(res_weight_.num(), res_prio_, res_terms_);
     return true;
 }
 

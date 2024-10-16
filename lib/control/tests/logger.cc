@@ -22,7 +22,6 @@ TEST_CASE("logger_test") {
         grd.parse(str);
         auto params = Input::ProgramParamVec{{store->string("base"), {}}};
         REQUIRE(grd.ground(params));
-        printf("buf: %s\n", buf.c_str());
         return msgs;
     };
     SECTION("term") {
@@ -32,11 +31,10 @@ TEST_CASE("logger_test") {
         REQUIRE(ground("p(a). q(~X) :- p(X).") == V{"<string>:1:10-11: info: number expected (got a)"});
         REQUIRE(ground("p(a). q(X+1) :- p(X).") == V{"<string>:1:9-10: info: number expected (got a)"});
     }
-    SECTION("head") {
-        // REQUIRE(ground("") == V{});
-    }
-    SECTION("body") {
-        // REQUIRE(ground("") == V{});
+    SECTION("aggregate") {
+        // TODO:
+        // - tuples of head/body/assignement aggregate
+        // - tuples of body/assignement aggregate
     }
     SECTION("stm") {
         REQUIRE(ground("p(1). #heuristic p(X). [1@2,snarf]") ==
@@ -45,7 +43,10 @@ TEST_CASE("logger_test") {
                 V{"<string>:1:25-29: info: number expected (got foo)"});
         REQUIRE(ground("p(1). #heuristic p(X). [1@bar,true]") ==
                 V{"<string>:1:27-31: info: number expected (got bar)"});
-        // REQUIRE(ground("") == V{});
+        REQUIRE(ground("#external a. [snarf]") == V{"<string>:1:15-21: info: unexpected external type (got snarf)"});
+        REQUIRE(ground("p(a). #minimize { X: p(X) }.") == V{"<string>:1:19-20: info: number expected (a)"});
+        // Note: currently arbitrary priorities are supported
+        REQUIRE(ground("p(a). #minimize { 1@X: p(X) }.").empty());
     }
     // Note: the current implementation takes two iterations to clean up everything
     auto res = store->gc();
