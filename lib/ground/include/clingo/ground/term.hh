@@ -244,7 +244,8 @@ enum class UnaryOperator : uint8_t {
 class TermUnary : public Term {
   public:
     //! Construct the term.
-    TermUnary(Location loc, UnaryOperator op, UTerm rhs) : loc_{std::move(loc)}, rhs_{std::move(rhs)}, op_{op} {}
+    TermUnary(UnaryOperator op, Location loc_rhs, UTerm rhs)
+        : loc_rhs_{std::move(loc_rhs)}, rhs_{std::move(rhs)}, op_{op} {}
 
   private:
     [[nodiscard]] auto do_score(double size, std::vector<bool> const &bound) const -> double override;
@@ -260,7 +261,7 @@ class TermUnary : public Term {
     [[nodiscard]] auto do_equal_to(Term const &other) const -> bool override;
     [[nodiscard]] auto do_compare_to(Term const &other) const -> std::strong_ordering override;
 
-    Location loc_;
+    Location loc_rhs_;
     UTerm rhs_;
     UnaryOperator op_;
     mutable bool logged_ = false;
@@ -283,8 +284,9 @@ enum class BinaryOperator : uint8_t {
 class TermBinary : public Term {
   public:
     //! Construct the term.
-    TermBinary(Location loc, UTerm lhs, BinaryOperator op, UTerm rhs)
-        : loc_{std::move(loc)}, lhs_{std::move(lhs)}, rhs_{std::move(rhs)}, op_{op} {}
+    TermBinary(Location loc_lhs, UTerm lhs, BinaryOperator op, Location loc_rhs, UTerm rhs)
+        : loc_lhs_{std::move(loc_lhs)}, loc_rhs_{std::move(loc_rhs)}, lhs_{std::move(lhs)}, rhs_{std::move(rhs)},
+          op_{op} {}
 
   private:
     [[nodiscard]] auto do_score(double size, std::vector<bool> const &bound) const -> double override;
@@ -300,7 +302,8 @@ class TermBinary : public Term {
     [[nodiscard]] auto do_equal_to(Term const &other) const -> bool override;
     [[nodiscard]] auto do_compare_to(Term const &other) const -> std::strong_ordering override;
 
-    Location loc_;
+    Location loc_lhs_;
+    Location loc_rhs_;
     UTerm lhs_;
     UTerm rhs_;
     BinaryOperator op_;
@@ -355,6 +358,15 @@ class TermFunction : public Term {
     UTermVec args_;
     std::vector<Symbol> mutable eval_;
 };
+
+template <class... T>
+inline auto expect(EvalContext const &ctx, Location const &loc, bool &logged, T &&...args) -> bool {
+    if (!logged && ctx.log().check(MessageCode::info_operation_undefined)) {
+        logged = true;
+        (Clingo::Report(ctx.log(), MessageCode::info_operation_undefined, loc).out() << ... << std::forward<T>(args));
+    }
+    return false;
+}
 
 //! @}
 

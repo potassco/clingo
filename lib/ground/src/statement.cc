@@ -391,13 +391,17 @@ void StmHeuristic::init_() {
 
       private:
         [[nodiscard]] auto do_check(InstantiationContext const &ctx) -> bool override {
-            if (auto weight = stm_->weight_->eval(ctx); weight && weight->type() == SymbolType::number) {
+            if (auto weight = stm_->weight_->eval(ctx);
+                weight && (weight->type() == SymbolType::number ||
+                           expect(ctx, stm_->loc_weight_, logged_, "number expected (got ", *weight, ")"))) {
                 stm_->res_weight_ = *weight;
             } else {
                 return false;
             }
             if (stm_->prio_) {
-                if (auto prio = stm_->prio_->eval(ctx); prio && prio->type() == SymbolType::number) {
+                if (auto prio = stm_->prio_->eval(ctx);
+                    prio && (prio->type() == SymbolType::number ||
+                             expect(ctx, stm_->loc_prio_, logged_, "number expected (got ", *prio, ")"))) {
                     stm_->res_prio_ = *prio;
                 } else {
                     return false;
@@ -418,7 +422,7 @@ void StmHeuristic::init_() {
                 } else if (type->name() == "true") {
                     stm_->res_type_ = HeuristicType::true_;
                 } else {
-                    return false;
+                    return expect(ctx, stm_->loc_type_, logged_, "unexpected heuristic modifier (got ", *type, ")");
                 }
             } else {
                 return false;
@@ -444,6 +448,7 @@ void StmHeuristic::init_() {
         [[nodiscard]] auto do_copy() const -> ULit override { return std::make_unique<LitHeuristicCheck>(*stm_); }
 
         StmHeuristic *stm_;
+        bool logged_ = false;
     };
 
     class LitAtom : public Lit {

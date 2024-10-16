@@ -190,9 +190,11 @@ class StmWeakConstraint : public Stm {
 class StmHeuristic : public Stm {
   public:
     //! Construct the statement.
-    StmHeuristic(UTerm atom, Base &base, ULitVec body, UTerm weight, std::optional<UTerm> prio, UTerm type)
-        : atom_{std::move(atom)}, base_{&base}, weight_{std::move(weight)}, prio_{prio ? *std::move(prio) : nullptr},
-          type_{std::move(type)}, body_{std::move(body)} {
+    StmHeuristic(UTerm atom, Base &base, ULitVec body, Location loc_weight, UTerm weight,
+                 std::optional<std::pair<Location, UTerm>> prio, Location loc_type, UTerm type)
+        : loc_weight_{std::move(loc_weight)}, loc_prio_{prio ? std::move(prio->first) : loc_weight_},
+          loc_type_{std::move(loc_type)}, atom_{std::move(atom)}, base_{&base}, weight_{std::move(weight)},
+          prio_{prio ? std::move(prio->second) : nullptr}, type_{std::move(type)}, body_{std::move(body)} {
         init_();
     }
 
@@ -210,6 +212,9 @@ class StmHeuristic : public Stm {
     void do_propagate(SymbolStore &store, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override { return std::numeric_limits<size_t>::max(); }
 
+    Location loc_weight_;
+    Location loc_prio_;
+    Location loc_type_;
     UTerm atom_;
     Base *base_;
     UTerm weight_;

@@ -78,15 +78,19 @@ class BuilderStm {
     }
 
     void operator()(Input::StmHeuristic const &stm) const {
+        // NOLINTBEGIN(bugprone-unchecked-optional-access)
         build_body_(stm.body());
         auto atom = build_term_(stm.atom());
-        // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
         auto &base = *ctx_->add_base(*signature(stm.atom())).value();
         auto prio = build_term_(stm.prio());
         auto weight = build_term_(stm.weight());
         auto type = build_term_(stm.type());
-        ctx_->gcomp().add(std::make_unique<Ground::StmHeuristic>(std::move(atom), base, std::move(ctx_->body()),
-                                                                 std::move(weight), std::move(prio), std::move(type)));
+        ctx_->gcomp().add(std::make_unique<Ground::StmHeuristic>(
+            std::move(atom), base, std::move(ctx_->body()), location(stm.weight()), std::move(weight),
+            prio ? std::make_optional<std::pair<Location, Ground::UTerm>>(location(*stm.prio()), *std::move(prio))
+                 : std::nullopt,
+            location(stm.type()), std::move(type)));
+        // NOLINTEND(bugprone-unchecked-optional-access)
     }
 
     void operator()(Input::StmEdge const &stm) const {

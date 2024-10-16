@@ -109,14 +109,14 @@ class BuilderTerm {
     //! Assumes that there is a single argument.
     auto operator()(Input::TermAbs const &term) const -> Ground::UTerm {
         assert(term.pool().size() == 1);
-        return std::make_unique<Ground::TermUnary>(term.loc(), Ground::UnaryOperator::abs,
-                                                   std::visit(*this, term.pool().front()));
+        auto const &rhs = term.pool().front();
+        return std::make_unique<Ground::TermUnary>(Ground::UnaryOperator::abs, location(rhs), std::visit(*this, rhs));
     }
     //! Translate a unary term.
     auto operator()(Input::TermUnary const &term) const -> Ground::UTerm {
         Ground::UnaryOperator op =
             term.op() == Input::UnaryOperator::minus ? Ground::UnaryOperator::minus : Ground::UnaryOperator::negate;
-        return std::make_unique<Ground::TermUnary>(term.loc(), op, std::visit(*this, *term.rhs()));
+        return std::make_unique<Ground::TermUnary>(op, location(*term.rhs()), std::visit(*this, *term.rhs()));
     }
     //! Translate a unary term.
     //!
@@ -128,8 +128,9 @@ class BuilderTerm {
             return std::make_unique<Ground::TermLinear>(term.loc(), lin->m(), var_map_->find(lin->x())->second,
                                                         lin->n());
         }
-        return std::make_unique<Ground::TermBinary>(term.loc(), std::visit(*this, *term.lhs()),
-                                                    map_binary_op(term.op()), std::visit(*this, *term.rhs()));
+        return std::make_unique<Ground::TermBinary>(location(*term.lhs()), std::visit(*this, *term.lhs()),
+                                                    map_binary_op(term.op()), location(*term.rhs()),
+                                                    std::visit(*this, *term.rhs()));
     }
 
   private:

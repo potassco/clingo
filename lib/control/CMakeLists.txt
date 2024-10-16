@@ -13,6 +13,7 @@ set_property(TARGET clingo_control PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 if (PARSER_BUILD_TESTS)
     add_executable(test_control
+        "tests/logger.cc"
         "tests/text.cc")
     target_link_libraries(test_control PRIVATE clingo_control Catch2::Catch2WithMain)
     target_include_directories(test_control PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)

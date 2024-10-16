@@ -45,17 +45,6 @@ auto rename_args(UTermVec const &args, SymbolStore &store, RenameMode mode, size
     return res;
 }
 
-auto check_(EvalContext const &ctx, Location const &loc, bool cond, char const *msg, bool &logged) -> bool {
-    if (!cond) {
-        if (!logged) {
-            logged = true;
-            GRINGO_REPORT_LOC(ctx.log(), info_operation_undefined, loc) << msg;
-        }
-        return false;
-    }
-    return true;
-}
-
 } // namespace
 
 // TermProjection
@@ -215,8 +204,8 @@ auto TermLinear::do_match(EvalContext const &ctx, Symbol sym) const -> bool {
     }
     if (auto var = ctx.ass()[var_]; var) {
         // m * x + n == s
-        if (!check_(ctx, loc_, var->type() == SymbolType::number, "number expected", logged_)) {
-            return false;
+        if (var->type() != SymbolType::number) {
+            return expect(ctx, loc_, logged_, "number expected (got ", *var, ")");
         }
         return m_ * var->num() + n_ == sym.num();
     }
@@ -231,7 +220,7 @@ auto TermLinear::do_match(EvalContext const &ctx, Symbol sym) const -> bool {
 
 auto TermLinear::do_eval(EvalContext const &ctx) const -> std::optional<Symbol> {
     if (auto var = ctx.ass()[var_];
-        var && check_(ctx, loc_, var->type() == SymbolType::number, "number expected", logged_)) {
+        var && (var->type() == SymbolType::number || expect(ctx, loc_, logged_, "number expected (got ", *var, ")"))) {
         return ctx.store().num_ref(m_ * var->num() + n_);
     }
     return std::nullopt;
@@ -285,9 +274,10 @@ auto TermUnary::do_match(EvalContext const &ctx, Symbol sym) const -> bool {
         if (sym.type() == SymbolType::number) {
             return rhs_->match(ctx, ctx.store().num_ref(-sym.num()));
         }
-        return check_(ctx, loc_, false, "number or function expected", logged_);
+        return expect(ctx, loc_rhs_, logged_, "number or function expected (got ", sym, ")");
     }
-    return check_(ctx, loc_, sym.type() == SymbolType::number, "number expected", logged_) && eval(ctx) == sym;
+    return (sym.type() == SymbolType::number || expect(ctx, loc_rhs_, logged_, "number expected (got ", sym, ")")) &&
+           eval(ctx) == sym;
 }
 
 auto TermUnary::do_eval(EvalContext const &ctx) const -> std::optional<Symbol> {
@@ -300,17 +290,19 @@ auto TermUnary::do_eval(EvalContext const &ctx) const -> std::optional<Symbol> {
                 if (rhs->type() == SymbolType::function) {
                     return rhs->flip_classical_sign();
                 }
-                check_(ctx, loc_, false, "number or function expected", logged_);
+                expect(ctx, loc_rhs_, logged_, "number or function expected (got ", *rhs, ")");
                 break;
             }
             case UnaryOperator::negate: {
-                if (check_(ctx, loc_, rhs->type() == SymbolType::number, "number expected", logged_)) {
+                if (rhs->type() == SymbolType::number ||
+                    expect(ctx, loc_rhs_, logged_, "number expected (got ", *rhs, ")")) {
                     return ctx.store().num_ref(~rhs->num());
                 }
                 break;
             }
             case UnaryOperator::abs: {
-                if (check_(ctx, loc_, rhs->type() == SymbolType::number, "number expected", logged_)) {
+                if (rhs->type() == SymbolType::number ||
+                    expect(ctx, loc_rhs_, logged_, "number expected (got ", *rhs, ")")) {
                     return ctx.store().num_ref(abs(rhs->num()));
                 }
                 break;
@@ -325,11 +317,11 @@ auto TermUnary::do_rename(SymbolStore &store, RenameMode mode, String const *nam
     if (op_ == UnaryOperator::negate && mode == RenameMode::rename_vars && vars != nullptr) {
         return std::make_unique<TermVariable>((*vars)++);
     }
-    return std::make_unique<TermUnary>(loc_, op_, rhs_->rename(store, mode, name, vars));
+    return std::make_unique<TermUnary>(op_, loc_rhs_, rhs_->rename(store, mode, name, vars));
 }
 
 auto TermUnary::do_rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm {
-    return std::make_unique<TermUnary>(loc_, op_, rhs_->rename(vars));
+    return std::make_unique<TermUnary>(op_, loc_rhs_, rhs_->rename(vars));
 }
 
 void TermUnary::do_vars(VariableSet &vars, bool provide) const {
@@ -361,7 +353,7 @@ void TermUnary::do_print(std::ostream &out) const {
     out << ")";
 }
 
-auto TermUnary::do_copy() const -> UTerm { return std::make_unique<TermUnary>(loc_, op_, rhs_->copy()); }
+auto TermUnary::do_copy() const -> UTerm { return std::make_unique<TermUnary>(op_, loc_rhs_, rhs_->copy()); }
 
 auto TermUnary::do_hash() const -> size_t { return Util::value_hash_record<TermUnary>(op_, *rhs_); }
 
@@ -385,21 +377,24 @@ auto TermBinary::do_score([[maybe_unused]] double size,
 }
 
 auto TermBinary::do_match(EvalContext const &ctx, Symbol sym) const -> bool {
-    return check_(ctx, loc_, sym.type() == Clingo::SymbolType::number, "number expected", logged_) && eval(ctx) == sym;
+    return (sym.type() == Clingo::SymbolType::number ||
+            expect(ctx, loc_lhs_ + loc_rhs_, logged_, "number expected (got ", sym, ")")) &&
+           eval(ctx) == sym;
 }
 
 auto TermBinary::do_eval(EvalContext const &ctx) const -> std::optional<Symbol> {
-    if (auto lhs = lhs_->eval(ctx);
-        lhs && check_(ctx, loc_, lhs->type() == Clingo::SymbolType::number, "number expected", logged_)) {
-        if (auto rhs = rhs_->eval(ctx);
-            rhs && check_(ctx, loc_, rhs->type() == Clingo::SymbolType::number, "number expected", logged_)) {
+    if (auto lhs = lhs_->eval(ctx); lhs && (lhs->type() == Clingo::SymbolType::number ||
+                                            expect(ctx, loc_lhs_, logged_, "number expected (got ", *lhs, ")"))) {
+        if (auto rhs = rhs_->eval(ctx); rhs && (rhs->type() == Clingo::SymbolType::number ||
+                                                expect(ctx, loc_rhs_, logged_, "number expected (got ", *rhs, ")"))) {
             auto &store = ctx.store();
             switch (op_) {
                 case BinaryOperator::and_: {
                     return store.num_ref(lhs->num() & rhs->num());
                 }
                 case BinaryOperator::div: {
-                    if (check_(ctx, loc_, rhs->num() != 0, "non-zero number expected", logged_)) {
+                    if (rhs->num() != 0 ||
+                        expect(ctx, loc_rhs_, logged_, "non-zero number expected (got ", *rhs, ")")) {
                         return store.num_ref(lhs->num() / rhs->num());
                     }
                     break;
@@ -408,7 +403,8 @@ auto TermBinary::do_eval(EvalContext const &ctx) const -> std::optional<Symbol> 
                     return store.num_ref(lhs->num() - rhs->num());
                 }
                 case BinaryOperator::mod: {
-                    if (check_(ctx, loc_, rhs->num() != 0, "non-zero number expected", logged_)) {
+                    if (rhs->num() != 0 ||
+                        expect(ctx, loc_rhs_, logged_, "non-zero number expected (got ", *rhs, ")")) {
                         return store.num_ref(lhs->num() % rhs->num());
                     }
                     break;
@@ -420,7 +416,8 @@ auto TermBinary::do_eval(EvalContext const &ctx) const -> std::optional<Symbol> 
                     return store.num_ref(lhs->num() + rhs->num());
                 }
                 case BinaryOperator::pow: {
-                    if (check_(ctx, loc_, rhs->num() >= 0, "non-negative number expected", logged_)) {
+                    if (rhs->num() >= 0 ||
+                        expect(ctx, loc_rhs_, logged_, "non-negative number expected (got ", *rhs, ")")) {
                         return store.num_ref(pow(lhs->num(), rhs->num()));
                     }
                     break;
@@ -443,13 +440,13 @@ auto TermBinary::do_rename(SymbolStore &store, RenameMode mode, String const *na
         return std::make_unique<TermVariable>((*vars)++);
     }
     auto lhs = lhs_->rename(store, mode, name, vars);
-    return std::make_unique<TermBinary>(loc_, std::move(lhs), op_, rhs_->rename(store, mode, name, vars));
+    return std::make_unique<TermBinary>(loc_lhs_, std::move(lhs), op_, loc_rhs_, rhs_->rename(store, mode, name, vars));
 }
 
 auto TermBinary::do_rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm {
     auto lhs = lhs_->rename(vars);
     auto rhs = rhs_->rename(vars);
-    return std::make_unique<TermBinary>(loc_, std::move(lhs), op_, std::move(rhs));
+    return std::make_unique<TermBinary>(loc_lhs_, std::move(lhs), op_, loc_rhs_, std::move(rhs));
 }
 
 void TermBinary::do_vars(VariableSet &vars, bool provide) const {
@@ -505,19 +502,19 @@ void TermBinary::do_print(std::ostream &out) const {
 }
 
 auto TermBinary::do_copy() const -> UTerm {
-    return std::make_unique<TermBinary>(loc_, lhs_->copy(), op_, rhs_->copy());
+    return std::make_unique<TermBinary>(loc_lhs_, lhs_->copy(), op_, loc_rhs_, rhs_->copy());
 }
 
-auto TermBinary::do_hash() const -> size_t { return Util::value_hash_record<TermBinary>(op_, *rhs_); }
+auto TermBinary::do_hash() const -> size_t { return Util::value_hash_record<TermBinary>(*lhs_, op_, *rhs_); }
 
 auto TermBinary::do_equal_to(Term const &other) const -> bool {
     auto const *x = dynamic_cast<TermBinary const *>(&other);
-    return x != nullptr && std::tie(op_, *rhs_) == std::tie(x->op_, *x->rhs_);
+    return x != nullptr && std::tie(*lhs_, op_, *rhs_) == std::tie(*x->lhs_, x->op_, *x->rhs_);
 }
 
 auto TermBinary::do_compare_to([[maybe_unused]] Term const &other) const -> std::strong_ordering {
     if (auto const *x = dynamic_cast<TermBinary const *>(&other); x != nullptr) {
-        return std::tie(op_, *rhs_) <=> std::tie(x->op_, *x->rhs_);
+        return std::tie(*lhs_, op_, *rhs_) <=> std::tie(*x->lhs_, x->op_, *x->rhs_);
     }
     return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
 }
