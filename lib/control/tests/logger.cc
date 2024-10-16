@@ -32,8 +32,11 @@ TEST_CASE("logger_test") {
         REQUIRE(ground("p(a). q(X+1) :- p(X).") == V{"<string>:1:9-10: info: number expected (got a)"});
     }
     SECTION("aggregate") {
+        REQUIRE(ground("p(a). #sum { X: q(X): p(X) } >= 1.") ==
+                V{"<string>:1:14-15: info: non-negative number expected (got a)"});
+        REQUIRE(ground("p(a). #count { : q(X): p(X) } >= 1.").empty());
+        REQUIRE(ground("p(a). #min { X : q(X): p(X) } >= 1.").empty());
         // TODO:
-        // - tuples of head/body/assignement aggregate
         // - tuples of body/assignement aggregate
     }
     SECTION("stm") {

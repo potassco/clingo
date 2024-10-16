@@ -122,6 +122,9 @@ class BaseHdAggr : public BaseImpl<Symbol const *, BaseHdAggr> {
     AtomMap atoms_;
 };
 
+// Note: this could as well be a small container class
+class StmHdAggrElem;
+
 //! State storing all necessary information to ground head aggregates.
 class StateHdAggr : public State {
   public:
@@ -136,12 +139,12 @@ class StateHdAggr : public State {
       public:
         //! Private constructor.
         ElementKey(priv_tag tag, InstantiationContext const &ctx, AggregateFunction fun, size_t atom_idx,
-                   UTermVec const &tuple, bool &res);
+                   StmHdAggrElem &elem, bool &res);
         //! Prevent copying and moving.
         ElementKey(ElementKey const &other) = delete;
         //! Construct an element key evaluating the given tuple.
         [[nodiscard]] static auto construct(auto &mbr, InstantiationContext const &ctx, AggregateFunction fun,
-                                            size_t atom_idx, UTermVec const &tuple, ElementKey *&target) -> bool;
+                                            size_t atom_idx, StmHdAggrElem &elem) -> bool;
 
         //! Mark as fact.
         void mark_fact() const;
@@ -210,8 +213,7 @@ class StateHdAggr : public State {
     auto insert_atom(InstantiationContext const &ctx) -> std::optional<std::pair<AtomMap::iterator, bool>>;
 
     //! Insert an aggregate element.
-    void insert_elem(InstantiationContext const &ctx, AtomMap::iterator it, UTerm const &head, UTermVec const &tuple,
-                     ElementKey *&elem_key, auto const &get_cond);
+    void insert_elem(InstantiationContext const &ctx, AtomMap::iterator it, StmHdAggrElem &elem, auto const &get_cond);
 
     //! Print a non-ground representation of the aggregate.
     void print(std::ostream &out, bool print_index);
@@ -275,11 +277,15 @@ class StmHdAggr : public Stm {
 class StmHdAggrElem : public Stm {
   public:
     //! Construct the statement.
-    StmHdAggrElem(StateHdAggr &state, std::optional<std::pair<UTerm, Base *>> head, UTermVec tuple, ULitVec body)
-        : state_{&state}, head_{head ? std::move(head->first) : nullptr}, base_{head ? head->second : nullptr},
-          tuple_{std::move(tuple)}, body_{std::move(body)} {}
+    StmHdAggrElem(StateHdAggr &state, std::optional<std::pair<UTerm, Base *>> head, Location loc_weight, UTermVec tuple,
+                  ULitVec body)
+        : loc_weight_{std::move(loc_weight)}, state_{&state}, head_{head ? std::move(head->first) : nullptr},
+          base_{head ? head->second : nullptr}, tuple_{std::move(tuple)}, body_{std::move(body)} {}
 
   private:
+    friend class StateHdAggr;
+    friend class StateHdAggr::ElementKey;
+
     [[nodiscard]] auto do_body() const -> ULitVec const & override;
     [[nodiscard]] auto do_important() const -> VariableSet override;
     void do_init(size_t gen) override;
@@ -289,12 +295,14 @@ class StmHdAggrElem : public Stm {
     void do_print_head(std::ostream &out) const override;
     void do_print(std::ostream &out) const override;
 
+    Location loc_weight_;
     StateHdAggr *state_;
     StateHdAggr::ElementKey *elem_key_ = nullptr;
     UTerm head_;
     Base *base_;
     UTermVec tuple_;
     ULitVec body_;
+    bool logged_ = false;
 };
 
 //! A term like object used to match head aggregates.

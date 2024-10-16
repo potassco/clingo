@@ -197,13 +197,19 @@ class StateHdAggr::AtomKey {
 };
 
 StateHdAggr::ElementKey::ElementKey([[maybe_unused]] priv_tag tag, InstantiationContext const &ctx,
-                                    AggregateFunction fun, size_t atom_idx, UTermVec const &tuple, bool &res)
-    : n_{tuple.size() << 1}, atom_idx_{atom_idx} {
+                                    AggregateFunction fun, size_t atom_idx, StmHdAggrElem &elem, bool &res)
+    : n_{elem.tuple_.size() << 1}, atom_idx_{atom_idx} {
     auto *it = syms_;
-    if (auto jt = tuple.begin(), je = tuple.end(); jt != je) {
+    if (auto jt = elem.tuple_.begin(), je = elem.tuple_.end(); jt != je) {
         // check the weight of the tuple
-        if (auto val = (*jt)->eval(ctx); val && relevant_val(fun, *val)) {
-            *it = *val;
+        if (auto val = (*jt)->eval(ctx); val) {
+            if (relevant_val(fun, *val)) {
+                *it = *val;
+            } else {
+                res = neutral_val(fun) == *val ||
+                      expect(ctx, elem.loc_weight_, elem.logged_, "non-negative number expected (got ", *val, ")");
+                return;
+            }
         } else {
             res = false;
             return;
@@ -224,15 +230,15 @@ StateHdAggr::ElementKey::ElementKey([[maybe_unused]] priv_tag tag, Instantiation
 }
 
 auto StateHdAggr::ElementKey::construct(auto &mbr, InstantiationContext const &ctx, AggregateFunction fun,
-                                        size_t atom_idx, UTermVec const &tuple, ElementKey *&target) -> bool {
+                                        size_t atom_idx, StmHdAggrElem &elem) -> bool {
     bool res = true;
-    auto n = sizeof(ElementKey) + tuple.size() * sizeof(Symbol);
-    if (target == nullptr) {
-        target = static_cast<ElementKey *>(mbr.allocate(n, alignof(ElementKey)));
+    auto n = sizeof(ElementKey) + elem.tuple_.size() * sizeof(Symbol);
+    if (elem.elem_key_ == nullptr) {
+        elem.elem_key_ = static_cast<ElementKey *>(mbr.allocate(n, alignof(ElementKey)));
     } else {
-        std::destroy_at(target);
+        std::destroy_at(elem.elem_key_);
     }
-    std::construct_at(target, priv_tag{}, ctx, fun, atom_idx, tuple, res);
+    std::construct_at(elem.elem_key_, priv_tag{}, ctx, fun, atom_idx, elem, res);
     return res;
 }
 
@@ -358,26 +364,26 @@ auto StateHdAggr::insert_atom(InstantiationContext const &ctx) -> std::optional<
     return std::nullopt;
 }
 
-void StateHdAggr::insert_elem(InstantiationContext const &ctx, AtomMap::iterator it, UTerm const &head,
-                              UTermVec const &tuple, ElementKey *&elem_key, auto const &get_cond) {
+void StateHdAggr::insert_elem(InstantiationContext const &ctx, AtomMap::iterator it, StmHdAggrElem &elem,
+                              auto const &get_cond) {
     auto sym = SymbolStore::sup();
-    if (head != nullptr) {
-        if (auto opt = head->eval(ctx)) {
+    if (elem.head_ != nullptr) {
+        if (auto opt = elem.head_->eval(ctx)) {
             sym = *opt;
         } else {
             return;
         }
     }
-    if (ElementKey::construct(*mbr_, ctx, fun_, atom_index_(it), tuple, elem_key)) {
-        auto [jt, jns] = tuples_.try_emplace(elem_key);
+    if (ElementKey::construct(*mbr_, ctx, fun_, atom_index_(it), elem)) {
+        auto [jt, jns] = tuples_.try_emplace(elem.elem_key_);
         if (jns) {
-            elem_key = nullptr;
+            elem.elem_key_ = nullptr;
             it.value().add_elem(jt - tuples_.begin());
             enqueue_(it);
         }
 
         auto [cond_id, fact] = get_cond();
-        if (head != nullptr && fact) {
+        if (elem.head_ != nullptr && fact) {
             jt.key()->mark_fact();
         }
         auto &cond = jt.value();
@@ -503,7 +509,7 @@ auto StmHdAggrElem::do_report(InstantiationContext const &ctx) -> bool {
             return std::make_pair(ctx.out().cond_id(), fact);
         };
         // insert the element
-        state_->insert_elem(ctx, it->first, head_, tuple_, elem_key_, get_cond);
+        state_->insert_elem(ctx, it->first, *this, get_cond);
     }
     return true;
 }

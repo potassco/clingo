@@ -84,7 +84,7 @@ void build_hd_lit(BuildContext &ctx, Input::HdLitAggregate const &lit) {
 
     auto pos = lit.fun() == AggregateFunction::sum; // sum aggregate can be turned into a sum+ aggregate
     using TermBase = std::optional<std::pair<Ground::UTerm, Ground::Base *>>;
-    auto elems = std::vector<std::tuple<Ground::UTermVec, TermBase, Ground::ULitVec>>{};
+    auto elems = std::vector<std::tuple<Ground::UTermVec, TermBase, Location, Ground::ULitVec>>{};
     elems.reserve(lit.elems().size());
     Ground::BaseVec bases;
     bases.reserve(elems.size());
@@ -92,6 +92,7 @@ void build_hd_lit(BuildContext &ctx, Input::HdLitAggregate const &lit) {
         auto elem_vars = Ground::VariableSet{};
         // tuple
         auto tuple = Ground::UTermVec{};
+        auto loc = elem.tuple().empty() ? elem.loc() : location(elem.tuple().front());
         if (lit.fun() == AggregateFunction::count) {
             tuple.reserve(elem.tuple().size() + 1);
             tuple.emplace_back(std::make_unique<Ground::TermSymbol>(SymbolStore::num_ref(1)));
@@ -133,7 +134,7 @@ void build_hd_lit(BuildContext &ctx, Input::HdLitAggregate const &lit) {
             }
         };
         // append element
-        elems.emplace_back(std::move(tuple), std::move(head), std::move(cond));
+        elems.emplace_back(std::move(tuple), std::move(head), std::move(loc), std::move(cond));
     }
     auto fun = pos ? AggregateFunction::sump : lit.fun();
     // Note that this slightly increases the required storage for count
@@ -157,10 +158,10 @@ void build_hd_lit(BuildContext &ctx, Input::HdLitAggregate const &lit) {
 
     // add accumulation rules for tuples
     auto add_elem = [&](auto &state) {
-        for (auto &[tuple, head, cond] : elems) {
+        for (auto &[tuple, head, loc, cond] : elems) {
             cond.emplace_back(std::make_unique<Ground::LitHdAggr>(state));
-            ctx.gcomp().add(
-                std::make_unique<Ground::StmHdAggrElem>(state, std::move(head), std::move(tuple), std::move(cond)));
+            ctx.gcomp().add(std::make_unique<Ground::StmHdAggrElem>(state, std::move(head), std::move(loc),
+                                                                    std::move(tuple), std::move(cond)));
         }
     };
 
