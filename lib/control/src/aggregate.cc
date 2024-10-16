@@ -185,11 +185,12 @@ void build_bd_lit(BuildContext &ctx, Input::BdLitAggregate const &lit) {
     auto dom = true;                                // all literals in conditions are domain
     auto sp_elems = true;                           // all conditions are single-pass
     auto pos = lit.fun() == AggregateFunction::sum; // sum aggregate can be turned into a sum+ aggregate
-    auto elems = std::vector<std::tuple<Ground::UTermVec, Ground::ULitVec>>{};
+    auto elems = std::vector<std::tuple<Location, Ground::UTermVec, Ground::ULitVec>>{};
     elems.reserve(lit.elems().size());
     for (auto const &elem : lit.elems()) {
         auto elem_vars = Ground::VariableSet{};
         // tuple
+        auto loc = elem.tuple().empty() ? elem.loc() : location(elem.tuple().front());
         auto tuple = Ground::UTermVec{};
         if (lit.fun() == AggregateFunction::count) {
             tuple.reserve(elem.tuple().size() + 1);
@@ -226,7 +227,7 @@ void build_bd_lit(BuildContext &ctx, Input::BdLitAggregate const &lit) {
                 vars_global.emplace(var);
             }
         };
-        elems.emplace_back(std::move(tuple), std::move(cond));
+        elems.emplace_back(std::move(loc), std::move(tuple), std::move(cond));
     }
     auto fun = pos ? AggregateFunction::sump : lit.fun();
     // Note that this slightly increases the required storage for count
@@ -250,20 +251,20 @@ void build_bd_lit(BuildContext &ctx, Input::BdLitAggregate const &lit) {
 
     // add accumulation rule for neutral tuples
     auto add_empty = [&]<class T>(auto &state, Symbol neutral, Ground::ULitVec &&body) {
-        ctx.gcomp().add(
-            std::make_unique<T>(state, Util::make_vec<Ground::UTerm>(std::make_unique<Ground::TermSymbol>(neutral)),
-                                std::move(body), 0, elem_priority));
+        ctx.gcomp().add(std::make_unique<T>(
+            state, lit.loc(), Util::make_vec<Ground::UTerm>(std::make_unique<Ground::TermSymbol>(neutral)),
+            std::move(body), 0, elem_priority));
     };
 
     // add accumulation rules for tuples
     auto add_elem = [&]<class T>(auto &state) {
-        for (auto &[tuple, cond] : elems) {
+        for (auto &[loc, tuple, cond] : elems) {
             auto num = cond.size();
             cond.reserve(ctx.body().size() + cond.size());
             for (auto const &lit : ctx.body()) {
                 cond.emplace_back(lit->copy());
             }
-            ctx.gcomp().add(std::make_unique<T>(state, std::move(tuple), std::move(cond), num, elem_priority));
+            ctx.gcomp().add(std::make_unique<T>(state, loc, std::move(tuple), std::move(cond), num, elem_priority));
         }
     };
 
@@ -271,10 +272,10 @@ void build_bd_lit(BuildContext &ctx, Input::BdLitAggregate const &lit) {
     auto add_sp_elems = [&]<class T>(auto &state) {
         std::vector<T> stms;
         stms.reserve(elems.size());
-        for (auto &[tuple, cond] : elems) {
+        for (auto &[loc, tuple, cond] : elems) {
             auto num = cond.size();
             cond.emplace_back(std::make_unique<Ground::LitTuple>(state.global(), state.symbols()));
-            stms.emplace_back(state, std::move(tuple), std::move(cond), num, elem_priority);
+            stms.emplace_back(state, loc, std::move(tuple), std::move(cond), num, elem_priority);
         }
         return stms;
     };

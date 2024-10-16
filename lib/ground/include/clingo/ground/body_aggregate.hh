@@ -128,6 +128,9 @@ class BaseBdAggr : public BaseImpl<Symbol const *, BaseBdAggr> {
     Util::index_sequence<size_t> derived_;
 };
 
+// see node in head_aggregate.h
+class StmBdAggrElem;
+
 //! State storing all necessary information to ground body aggregates.
 class StateBdAggr : public State {
   public:
@@ -136,12 +139,18 @@ class StateBdAggr : public State {
     //!
     //! The atom index is used to store all elements in one big hash table.
     class ElementKey {
+      private:
+        struct priv_tag {};
+
       public:
+        //! Construct the element.
+        ElementKey(priv_tag tag, EvalContext const &ctx, AggregateFunction fun, size_t atom_idx, StmBdAggrElem &elem,
+                   bool &res);
         //! Prevent copying and moving.
         ElementKey(ElementKey const &other) = delete;
         //! Construct an element key evaluating the given tuple.
         [[nodiscard]] static auto construct(auto &mbr, EvalContext const &ctx, AggregateFunction fun, size_t atom_idx,
-                                            UTermVec const &tuple, ElementKey *&target) -> bool;
+                                            StmBdAggrElem &elem) -> bool;
 
         //! Get the tuple.
         [[nodiscard]] auto span() const -> SymbolSpan;
@@ -151,8 +160,6 @@ class StateBdAggr : public State {
         friend auto operator==(ElementKey const &a, ElementKey const &b) -> bool;
 
       private:
-        ElementKey(EvalContext const &ctx, AggregateFunction fun, size_t atom_idx, UTermVec const &tuple, bool &res);
-
         // Note that these two could be combined to save a little bit of memory.
         size_t n_;
         size_t atom_idx_;
@@ -221,8 +228,7 @@ class StateBdAggr : public State {
     auto insert_atom(Symbol const *tuple) -> AtomMap::iterator;
 
     //! Insert an aggregate element.
-    void insert_elem(EvalContext const &ctx, AtomMap::iterator it, UTermVec const &tuple, ElementKey *&elem_key,
-                     auto const &get_cond);
+    void insert_elem(InstantiationContext const &ctx, AtomMap::iterator it, StmBdAggrElem &elem);
 
     //! Print a non-ground representation of the aggregate.
     void print(std::ostream &out, bool print_index);
@@ -350,13 +356,15 @@ class StmBdAggrElem : public Stm {
     //! The first num_cond literals of the body must form the aggregate
     //! element's condition. The following literals are just used for grounding
     //! binding global variables of the aggregate and ensuring safety.
-    StmBdAggrElem(StateBdAggr &state, UTermVec tuple, ULitVec body, size_t num_cond, size_t priority)
-        : state_{&state}, tuple_{std::move(tuple)}, body_{std::move(body)}, num_cond_{num_cond}, priority_{priority} {}
+    StmBdAggrElem(StateBdAggr &state, Location loc_weight, UTermVec tuple, ULitVec body, size_t num_cond,
+                  size_t priority)
+        : state_{&state}, loc_weight_{std::move(loc_weight)}, tuple_{std::move(tuple)}, body_{std::move(body)},
+          num_cond_{num_cond}, priority_{priority} {}
 
     //! Copy constructor.
     StmBdAggrElem(StmBdAggrElem const &other)
-        : state_{other.state_}, tuple_{copy_uvec(other.tuple_)}, body_{copy_uvec(other.body_)},
-          num_cond_{other.num_cond_}, priority_{other.priority_} {};
+        : state_{other.state_}, loc_weight_{other.loc_weight_}, tuple_{copy_uvec(other.tuple_)},
+          body_{copy_uvec(other.body_)}, num_cond_{other.num_cond_}, priority_{other.priority_} {};
     //! Move constructor.
     StmBdAggrElem(StmBdAggrElem &&other) noexcept = default;
     //! Copy assignment.
@@ -365,6 +373,9 @@ class StmBdAggrElem : public Stm {
     auto operator=(StmBdAggrElem &&other) noexcept -> StmBdAggrElem & = default;
 
   private:
+    friend class StateBdAggr;
+    friend class StateBdAggr::ElementKey;
+
     [[nodiscard]] auto do_body() const -> ULitVec const & override;
     [[nodiscard]] auto do_important() const -> VariableSet override;
     [[nodiscard]] auto do_is_important(size_t index) const -> bool override;
@@ -375,12 +386,16 @@ class StmBdAggrElem : public Stm {
     void do_print_head(std::ostream &out) const override;
     void do_print(std::ostream &out) const override;
 
+    auto get_cond_(InstantiationContext const &ctx) -> std::pair<size_t, bool>;
+
     StateBdAggr *state_;
     StateBdAggr::ElementKey *elem_key_ = nullptr;
+    Location loc_weight_;
     UTermVec tuple_;
     ULitVec body_;
     size_t num_cond_;
     size_t priority_;
+    bool logged_ = false;
 };
 
 static_assert(std::is_nothrow_move_constructible_v<StmBdAggrElem>);

@@ -213,7 +213,7 @@ class StateHdAggr : public State {
     auto insert_atom(InstantiationContext const &ctx) -> std::optional<std::pair<AtomMap::iterator, bool>>;
 
     //! Insert an aggregate element.
-    void insert_elem(InstantiationContext const &ctx, AtomMap::iterator it, StmHdAggrElem &elem, auto const &get_cond);
+    void insert_elem(InstantiationContext const &ctx, AtomMap::iterator it, StmHdAggrElem &elem);
 
     //! Print a non-ground representation of the aggregate.
     void print(std::ostream &out, bool print_index);
@@ -294,6 +294,8 @@ class StmHdAggrElem : public Stm {
     [[nodiscard]] auto do_priority() const -> size_t override;
     void do_print_head(std::ostream &out) const override;
     void do_print(std::ostream &out) const override;
+
+    auto get_cond_(InstantiationContext const &ctx) -> std::pair<size_t, bool>;
 
     Location loc_weight_;
     StateHdAggr *state_;

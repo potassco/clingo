@@ -165,68 +165,75 @@ auto BaseAssignAggr::single_pass_elems() const -> bool { return single_pass_elem
 // NOLINTBEGIN
 
 class StateAssignAggr::AtomKey {
-  public:
-    static void construct(auto &mbr, Assignment &ass, VariableVec const &global, AtomKey *&target) {
-        auto n = global.size() * sizeof(Symbol);
-        if (target == nullptr) {
-            target = static_cast<AtomKey *>(mbr.allocate(n, alignof(AtomKey)));
-        } else {
-            target->~AtomKey();
-        }
-        new (target) AtomKey{ass, global};
-    }
-
-    auto syms() -> Symbol const * { return syms_; }
-
   private:
-    AtomKey(Assignment &ass, VariableVec const &global) {
+    struct priv_tag {};
+
+  public:
+    AtomKey([[maybe_unused]] priv_tag tag, Assignment &ass, VariableVec const &global) {
         auto *it = syms_;
         for (auto const &var : global) {
             *it++ = ass[var].value();
         }
     }
 
+    static void construct(auto &mbr, Assignment &ass, VariableVec const &global, AtomKey *&target) {
+        auto n = global.size() * sizeof(Symbol);
+        if (target == nullptr) {
+            target = static_cast<AtomKey *>(mbr.allocate(n, alignof(AtomKey)));
+        } else {
+            std::destroy_at(target);
+        }
+        std::construct_at(target, priv_tag{}, ass, global);
+    }
+
+    auto syms() -> Symbol const * { return syms_; }
+
+  private:
     GRINGO_IGNORE_ZERO_SIZED_ARRAY_B
     Symbol syms_[0];
     GRINGO_IGNORE_ZERO_SIZED_ARRAY_E
 };
 
-StateAssignAggr::ElementKey::ElementKey(EvalContext const &ctx, AggregateFunction fun, size_t atom_idx,
-                                        UTermVec const &tuple, bool &res)
-    : n_{tuple.size()}, atom_idx_{atom_idx} {
+StateAssignAggr::ElementKey::ElementKey([[maybe_unused]] priv_tag tag, EvalContext const &ctx, AggregateFunction fun,
+                                        size_t atom_idx, StmAssignAggrElem &elem, bool &res)
+    : n_{elem.tuple_.size()}, atom_idx_{atom_idx} {
     auto *it = syms_;
-    if (auto jt = tuple.begin(), je = tuple.end(); jt != je) {
+    if (auto jt = elem.tuple_.begin(), je = elem.tuple_.end(); jt != je) {
         // check the weight of the tuple
-        if (auto val = (*jt)->eval(ctx); val && relevant_val(fun, *val)) {
-            *it = *val;
+        if (auto val = (*jt)->eval(ctx); val) {
+            if (relevant_val(fun, *val)) {
+                *it = *val;
+            } else {
+                neutral_val(fun) !=
+                    *val &&expect(ctx, elem.loc_weight_, elem.logged_, "non-negative number expected (got ", *val, ")");
+                return;
+            }
         } else {
-            res = false;
             return;
         }
         for (++jt, ++it; jt != je; ++jt, ++it) {
             if (auto val = (*jt)->eval(ctx); val) {
                 *it = *val;
             } else {
-                res = false;
                 return;
             }
         }
     } else if (fun != AggregateFunction::count) {
-        res = false;
         return;
     }
+    res = true;
 }
 
 auto StateAssignAggr::ElementKey::construct(auto &mbr, EvalContext const &ctx, AggregateFunction fun, size_t atom_idx,
-                                            UTermVec const &tuple, StateAssignAggr::ElementKey *&target) -> bool {
-    bool res = true;
-    auto n = sizeof(ElementKey) + tuple.size() * sizeof(Symbol);
-    if (target == nullptr) {
-        target = static_cast<StateAssignAggr::ElementKey *>(mbr.allocate(n, alignof(ElementKey)));
+                                            StmAssignAggrElem &elem) -> bool {
+    if (elem.key_ == nullptr) {
+        auto n = sizeof(ElementKey) + elem.tuple_.size() * sizeof(Symbol);
+        elem.key_ = static_cast<StateAssignAggr::ElementKey *>(mbr.allocate(n, alignof(ElementKey)));
     } else {
-        target->~ElementKey();
+        std::destroy_at(elem.key_);
     }
-    new (target) ElementKey{ctx, fun, atom_idx, tuple, res};
+    bool res = false;
+    std::construct_at(elem.key_, priv_tag{}, ctx, fun, atom_idx, elem, res);
     return res;
 }
 
@@ -318,17 +325,16 @@ auto StateAssignAggr::insert_atom(EvalContext const &ctx) -> std::pair<AtomMap::
     return {it, ins};
 }
 
-void StateAssignAggr::insert_elem(EvalContext const &ctx, AtomMap::iterator it, UTermVec const &tuple,
-                                  ElementKey *&elem_key, auto const &get_cond) {
-    if (ElementKey::construct(*mbr_, ctx, fun_, atom_index(it), tuple, elem_key)) {
-        auto [jt, jns] = tuples_.try_emplace(elem_key);
+void StateAssignAggr::insert_elem(InstantiationContext const &ctx, AtomMap::iterator it, StmAssignAggrElem &elem) {
+    if (ElementKey::construct(*mbr_, ctx, fun_, atom_index(it), elem)) {
+        auto [jt, jns] = tuples_.try_emplace(elem.key_);
         if (jns) {
-            elem_key = nullptr;
+            elem.key_ = nullptr;
             it.value().add_elem(jt - tuples_.begin());
             enqueue_(it);
         }
 
-        auto [cond_id, fact] = get_cond();
+        auto [cond_id, fact] = elem.get_cond_(ctx);
         // we use an empty vector to indicate that one of the conditions is fact
         if (fact) {
             jt.value().clear();
@@ -510,22 +516,20 @@ auto StmAssignAggrElem::do_is_important(size_t index) const -> bool {
 
 void StmAssignAggrElem::do_init(size_t gen) { state_->base().ensure(gen); }
 
-auto StmAssignAggrElem::do_report(InstantiationContext const &ctx) -> bool {
-    // insert aggregate atom
-    auto it = state_->insert_atom(ctx).first;
-    auto get_cond = [this, &ctx]() {
-        // output the condition
-        bool fact = true;
-        auto &out = ctx.out().cond();
-        for (auto const &lit : body_) {
-            if (lit->output(ctx, out)) {
-                fact = false;
-            }
+auto StmAssignAggrElem::get_cond_(InstantiationContext const &ctx) -> std::pair<size_t, bool> {
+    bool fact = true;
+    auto &out = ctx.out().cond();
+    for (auto const &lit : body_) {
+        if (lit->output(ctx, out)) {
+            fact = false;
         }
-        return std::make_pair(ctx.out().cond_id(), fact);
-    };
-    // insert the element
-    state_->insert_elem(ctx, it, tuple_, key_, get_cond);
+    }
+    return {ctx.out().cond_id(), fact};
+}
+
+auto StmAssignAggrElem::do_report(InstantiationContext const &ctx) -> bool {
+    auto it = state_->insert_atom(ctx).first;
+    state_->insert_elem(ctx, it, *this);
     return true;
 }
 

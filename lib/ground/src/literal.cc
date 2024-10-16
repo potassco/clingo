@@ -703,24 +703,10 @@ auto LitFactCheck::do_copy() const -> ULit { return std::make_unique<LitFactChec
 // LitFailCheck
 
 auto LitFailCheck::do_check(InstantiationContext const &ctx) -> bool {
-    if (result_ != nullptr) {
-        result_->clear();
-    }
-    auto i = size_t{0};
     for (auto const &term : terms_) {
-        if (auto res = term->eval(ctx)) {
-            if (i < num_) {
-                if (res->type() != SymbolType::number) {
-                    return false;
-                }
-            }
-            if (result_ != nullptr) {
-                result_->emplace_back(*res);
-            }
-        } else {
+        if (!term->eval(ctx)) {
             return false;
         }
-        ++i;
     }
     return true;
 }
@@ -729,7 +715,7 @@ void LitFailCheck::do_print(std::ostream &out) const {
     out << "#check(" << Util::p_range(terms_, [](std::ostream &out, auto const &x) { out << *x; }) << ")";
 }
 
-auto LitFailCheck::do_copy() const -> ULit { return std::make_unique<LitFailCheck>(copy_uvec(terms_), num_, result_); }
+auto LitFailCheck::do_copy() const -> ULit { return std::make_unique<LitFailCheck>(copy_uvec(terms_)); }
 
 void LitFailCheck::do_vars(VariableSet &vars, VarSelectMode mode) const {
     if (mode != VarSelectMode::provide) {

@@ -165,10 +165,10 @@ class StateHdAggr::AtomKey {
             if (auto val = guard.second->eval(ctx); val) {
                 *it++ = *val;
             } else {
-                res = false;
-                break;
+                return;
             }
         }
+        res = true;
     }
 
     //! Construct an atom key from the global variables and guards.
@@ -182,7 +182,7 @@ class StateHdAggr::AtomKey {
         } else {
             std::destroy_at(target);
         }
-        bool res = true;
+        bool res = false;
         std::construct_at(target, priv_tag{}, ctx, global, guards, res);
         return res;
     }
@@ -206,12 +206,11 @@ StateHdAggr::ElementKey::ElementKey([[maybe_unused]] priv_tag tag, Instantiation
             if (relevant_val(fun, *val)) {
                 *it = *val;
             } else {
-                res = neutral_val(fun) == *val ||
-                      expect(ctx, elem.loc_weight_, elem.logged_, "non-negative number expected (got ", *val, ")");
+                neutral_val(fun) !=
+                    *val &&expect(ctx, elem.loc_weight_, elem.logged_, "non-negative number expected (got ", *val, ")");
                 return;
             }
         } else {
-            res = false;
             return;
         }
         // evaluate the remaining terms
@@ -219,25 +218,24 @@ StateHdAggr::ElementKey::ElementKey([[maybe_unused]] priv_tag tag, Instantiation
             if (auto val = (*jt)->eval(ctx); val) {
                 *it = *val;
             } else {
-                res = false;
                 return;
             }
         }
     } else if (fun != AggregateFunction::count) {
-        res = false;
         return;
     }
+    res = true;
 }
 
 auto StateHdAggr::ElementKey::construct(auto &mbr, InstantiationContext const &ctx, AggregateFunction fun,
                                         size_t atom_idx, StmHdAggrElem &elem) -> bool {
-    bool res = true;
-    auto n = sizeof(ElementKey) + elem.tuple_.size() * sizeof(Symbol);
     if (elem.elem_key_ == nullptr) {
+        auto n = sizeof(ElementKey) + elem.tuple_.size() * sizeof(Symbol);
         elem.elem_key_ = static_cast<ElementKey *>(mbr.allocate(n, alignof(ElementKey)));
     } else {
         std::destroy_at(elem.elem_key_);
     }
+    bool res = false;
     std::construct_at(elem.elem_key_, priv_tag{}, ctx, fun, atom_idx, elem, res);
     return res;
 }
@@ -364,8 +362,7 @@ auto StateHdAggr::insert_atom(InstantiationContext const &ctx) -> std::optional<
     return std::nullopt;
 }
 
-void StateHdAggr::insert_elem(InstantiationContext const &ctx, AtomMap::iterator it, StmHdAggrElem &elem,
-                              auto const &get_cond) {
+void StateHdAggr::insert_elem(InstantiationContext const &ctx, AtomMap::iterator it, StmHdAggrElem &elem) {
     auto sym = SymbolStore::sup();
     if (elem.head_ != nullptr) {
         if (auto opt = elem.head_->eval(ctx)) {
@@ -382,7 +379,7 @@ void StateHdAggr::insert_elem(InstantiationContext const &ctx, AtomMap::iterator
             enqueue_(it);
         }
 
-        auto [cond_id, fact] = get_cond();
+        auto [cond_id, fact] = elem.get_cond_(ctx);
         if (elem.head_ != nullptr && fact) {
             jt.key()->mark_fact();
         }
@@ -494,22 +491,20 @@ void StmHdAggrElem::do_init(size_t gen) {
     }
 }
 
+auto StmHdAggrElem::get_cond_(InstantiationContext const &ctx) -> std::pair<size_t, bool> {
+    bool fact = true;
+    auto &out = ctx.out().cond();
+    for (auto const &lit : body_) {
+        if (lit->output(ctx, out)) {
+            fact = false;
+        }
+    }
+    return {ctx.out().cond_id(), fact};
+}
+
 auto StmHdAggrElem::do_report(InstantiationContext const &ctx) -> bool {
-    // insert aggregate atom
     if (auto it = state_->insert_atom(ctx)) {
-        auto get_cond = [this, &ctx]() {
-            // output the condition
-            bool fact = true;
-            auto &out = ctx.out().cond();
-            for (auto const &lit : body_) {
-                if (lit->output(ctx, out)) {
-                    fact = false;
-                }
-            }
-            return std::make_pair(ctx.out().cond_id(), fact);
-        };
-        // insert the element
-        state_->insert_elem(ctx, it->first, *this, get_cond);
+        state_->insert_elem(ctx, it->first, *this);
     }
     return true;
 }

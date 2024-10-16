@@ -32,12 +32,21 @@ TEST_CASE("logger_test") {
         REQUIRE(ground("p(a). q(X+1) :- p(X).") == V{"<string>:1:9-10: info: number expected (got a)"});
     }
     SECTION("aggregate") {
+        // head
         REQUIRE(ground("p(a). #sum { X: q(X): p(X) } >= 1.") ==
                 V{"<string>:1:14-15: info: non-negative number expected (got a)"});
         REQUIRE(ground("p(a). #count { : q(X): p(X) } >= 1.").empty());
         REQUIRE(ground("p(a). #min { X : q(X): p(X) } >= 1.").empty());
-        // TODO:
-        // - tuples of body/assignement aggregate
+        // body
+        REQUIRE(ground("p(a). x :- #sum { X: p(X) } >= 1.") ==
+                V{"<string>:1:19-20: info: non-negative number expected (got a)"});
+        REQUIRE(ground("p(a). x :- #count { : p(X) } >= 1.").empty());
+        REQUIRE(ground("p(a). x :- #min { X : p(X) } >= 1.").empty());
+        // assign
+        REQUIRE(ground("p(a). x(Y) :- Y = #sum { X: p(X) }.") ==
+                V{"<string>:1:26-27: info: non-negative number expected (got a)"});
+        REQUIRE(ground("p(a). x(Y) :- Y = #count { : p(X) }.").empty());
+        REQUIRE(ground("p(a). x(Y) :- Y = #min { X : p(X) }.").empty());
     }
     SECTION("stm") {
         REQUIRE(ground("p(1). #heuristic p(X). [1@2,snarf]") ==

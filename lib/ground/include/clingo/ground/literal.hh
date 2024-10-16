@@ -383,12 +383,7 @@ class LitFailCheck : public LitCheck {
     //!
     //! Additionally, the first num terms are required to be numbers.
     //! The result of the evalution is stored in the optional result vector.
-    LitFailCheck(UTermVec terms, size_t num = 0, SymbolVec *result = nullptr)
-        : terms_{std::move(terms)}, num_{num}, result_{result} {
-        if (result_ != nullptr) {
-            result_->reserve(terms_.size());
-        }
-    }
+    LitFailCheck(UTermVec terms) : terms_{std::move(terms)} {}
 
   private:
     [[nodiscard]] auto do_check(InstantiationContext const &ctx) -> bool override;
@@ -397,8 +392,6 @@ class LitFailCheck : public LitCheck {
     [[nodiscard]] auto do_copy() const -> ULit override;
 
     UTermVec terms_;
-    size_t num_;
-    SymbolVec *result_;
 };
 
 //! A vector of signatures, bases, and indices.
