@@ -209,7 +209,8 @@ class TermVariable : public Term {
 class TermLinear : public Term {
   public:
     //! Construct the term.
-    TermLinear(Number m, size_t var, Number n) : m_{std::move(m)}, n_{std::move(n)}, var_{var} {}
+    TermLinear(Location loc, Number m, size_t var, Number n)
+        : loc_{std::move(loc)}, m_{std::move(m)}, n_{std::move(n)}, var_{var} {}
 
   private:
     [[nodiscard]] auto do_score(double size, std::vector<bool> const &bound) const -> double override;
@@ -225,9 +226,11 @@ class TermLinear : public Term {
     [[nodiscard]] auto do_equal_to(Term const &other) const -> bool override;
     [[nodiscard]] auto do_compare_to(Term const &other) const -> std::strong_ordering override;
 
+    Location loc_;
     Number m_;
     Number n_;
     size_t var_;
+    mutable bool logged_ = false;
 };
 
 //! Available unary operations.
@@ -241,7 +244,7 @@ enum class UnaryOperator : uint8_t {
 class TermUnary : public Term {
   public:
     //! Construct the term.
-    TermUnary(UnaryOperator op, UTerm rhs) : rhs_{std::move(rhs)}, op_{op} {}
+    TermUnary(Location loc, UnaryOperator op, UTerm rhs) : loc_{std::move(loc)}, rhs_{std::move(rhs)}, op_{op} {}
 
   private:
     [[nodiscard]] auto do_score(double size, std::vector<bool> const &bound) const -> double override;
@@ -257,8 +260,10 @@ class TermUnary : public Term {
     [[nodiscard]] auto do_equal_to(Term const &other) const -> bool override;
     [[nodiscard]] auto do_compare_to(Term const &other) const -> std::strong_ordering override;
 
+    Location loc_;
     UTerm rhs_;
     UnaryOperator op_;
+    mutable bool logged_ = false;
 };
 
 //! Available binary operations.
