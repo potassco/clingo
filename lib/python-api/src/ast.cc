@@ -6413,7 +6413,7 @@ term.)doc");
 
     auto py_statement_include = py::class_<StatementInclude>(ast, "StatementInclude", R"doc(An include statement.)doc");
 
-    auto py_statement_program = py::class_<StatementProgram>(ast, "StatementProgram", R"doc(An program statement.)doc");
+    auto py_statement_program = py::class_<StatementProgram>(ast, "StatementProgram", R"doc(A program statement.)doc");
 
     auto py_statement_const = py::class_<StatementConst>(ast, "StatementConst", R"doc(A const statement.)doc");
 

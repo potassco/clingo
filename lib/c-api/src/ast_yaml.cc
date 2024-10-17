@@ -1125,7 +1125,7 @@ statement_include:
       doc: The type of the include.
 statement_program:
   type: record
-  doc: An program statement.
+  doc: A program statement.
   arguments:
     location:
       type: location

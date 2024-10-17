@@ -193,10 +193,12 @@ Core functionality used throughout the clingo package.
         .value("Error", clingo_message_error, R"(An error message.)");
 
     py::class_<Library>(core, "Library", doc(R"(
-Library objects are used to store symbols. Any function/or class that needs to
-create symbols takes this object as a parameter.
+Library objects are used to store the logger, symbols, strings, and scripts.
 
-Destroying the library object frees all symbols.
+Any function/or class that needs to create symbols takes this object as a
+parameter.
+
+Destroying the library object frees the logger, the symbols, and the scripts.
 
 This class implements the ContextManager interface.
 )"))
@@ -232,12 +234,25 @@ Return self.
             doc(R"(
 Close the library object.
 )"));
-    py::class_<Position>(core, "Position", R"(Position tracking object.)")
+    py::class_<Position>(core, "Position", R"(Position object tracking locations in files.)")
         .def(py::init<Library &, char const *, size_t, size_t>(), py::arg("lib"), py::arg("file"), py::arg("line"),
-             py::arg("column"))
-        .def_property_readonly("file", &Position::file)
-        .def_property_readonly("line", &Position::line)
-        .def_property_readonly("column", &Position::column)
+             py::arg("column"), doc(R"(
+Create a position object.
+
+Parameters
+----------
+lib
+    The library to object storing symbols.
+file
+    The file name of the position.
+line
+    The line number of the postion.
+column
+    The column number of the postion.
+)"))
+        .def_property_readonly("file", &Position::file, "The file name.")
+        .def_property_readonly("line", &Position::line, "The line number.")
+        .def_property_readonly("column", &Position::column, "The column number.")
         .def("__str__", &Position::str)
         .def("__repr__", &Position::repr)
         .def("__hash__", &Position::hash)
@@ -245,9 +260,18 @@ Close the library object.
         CLINGO_PY_TOTAL_ORDER;
 
     py::class_<Location>(core, "Location", R"(Location tracking object.)")
-        .def(py::init<Position const &, Position const &>(), py::arg("begin"), py::arg("end"))
-        .def_property_readonly("begin", &Location::begin)
-        .def_property_readonly("end", &Location::end)
+        .def(py::init<Position const &, Position const &>(), py::arg("begin"), py::arg("end"), doc(R"(
+Create a location object.
+
+Parameters
+----------
+begin
+    The beginning of the location.
+end
+    The end of the location.
+)"))
+        .def_property_readonly("begin", &Location::begin, "The beginning of the location.")
+        .def_property_readonly("end", &Location::end, "The end of the location.")
         .def("__str__", &Location::str)
         .def("__repr__", &Location::repr)
         .def("__hash__", &Location::hash)

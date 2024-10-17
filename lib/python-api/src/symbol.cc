@@ -307,41 +307,13 @@ Returns
 -------
 Whether the tuple matches.
 )"))
-        .def_property_readonly("type", &Symbol::type, doc(R"(
-type: clingo.symbol.SymbolType
-
-The type of the symbol.
-)"))
-        .def_property_readonly("number", &Symbol::number, doc(R"(
-number: int
-
-The numeric value.
-)"))
-        .def_property_readonly("string", &Symbol::string, doc(R"(
-string: str
-
-The string value.
-)"))
-        .def_property_readonly("name", &Symbol::name, doc(R"(
-name: str
-
-The name.
-)"))
-        .def_property_readonly("arguments", &Symbol::args, doc(R"(
-arguments: list[clingo.symbol.Symbol]
-
-The list of arguments.
-)"))
-        .def_property_readonly("arity", &Symbol::arity, doc(R"(
-arity: int
-
-The arity of a function or tuple.
-)"))
-        .def_property_readonly("sign", &Symbol::sign, doc(R"(
-sign: bool
-
-Whether the symbol has a sign.
-)")) CLINGO_PY_TOTAL_ORDER;
+        .def_property_readonly("type", &Symbol::type, R"(The type of the symbol.)")
+        .def_property_readonly("number", &Symbol::number, R"(The numeric value.)")
+        .def_property_readonly("string", &Symbol::string, R"(The string value.)")
+        .def_property_readonly("name", &Symbol::name, R"(The name.)")
+        .def_property_readonly("arguments", &Symbol::args, R"(The list of arguments.)")
+        .def_property_readonly("arity", &Symbol::arity, R"(The arity of a function or tuple.)")
+        .def_property_readonly("sign", &Symbol::sign, R"(Whether the symbol has a sign.)") CLINGO_PY_TOTAL_ORDER;
 
     symbol.add_object("Infimum", py::cast(Infimum()));
     symbol.add_object("Supremum", py::cast(Supremum()));

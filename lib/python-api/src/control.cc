@@ -27,10 +27,33 @@ void register_control(pybind11::module &m) {
     auto control = m.def_submodule("control", doc(R"(
 Module containing the Control class responsible for grounding and solving.
 )"));
-    py::class_<Control>(control, "Control")
-        .def(py::init<Library &, std::vector<std::string> const &>())
-        .def("parse_string", &Control::parse_string)
-        .def("ground", &Control::ground);
+    py::class_<Control>(control, "Control", R"(A control object for grounding and solving.)")
+        .def(py::init<Library &, std::vector<std::string> const &>(), py::arg("lib"), py::arg("options"), doc(R"(
+Construct a control object.
+
+Parameters
+----------
+lib
+    The library storing symbols and scripts.
+options
+    The command line options to initialize the control object.
+)"))
+        .def("parse_string", &Control::parse_string, py::arg("program"), doc(R"(
+Parses a logic program given as a string.
+
+Parameters
+----------
+program
+    The logic program as string.
+)"))
+        .def("ground", &Control::ground, py::arg("parts"), doc(R"(
+Ground the given program parts.
+
+Parameters
+----------
+parts
+    A list of tuples of part names and their symbolic arguments.
+)"));
 }
 
 } // namespace Clingo::Python

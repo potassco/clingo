@@ -110,8 +110,8 @@ void register_script(pybind11::module &m) {
     auto script = m.def_submodule("script", doc(R"(
 Module containing functions to add custom scripts, which can be embedded into logic programs.
 )"));
-    py::class_<Script>(script, "Script")
-        .def(py::init<>())
+    py::class_<Script>(script, "Script", R"(ABC for custom scripts.)")
+        .def(py::init<>(), R"(Construct a script object.)")
         .def("execute", &Script::execute, py::arg("code"), doc(R"(
 Execute the given code.
 
