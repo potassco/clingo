@@ -27,6 +27,7 @@ auto AtomAssignAggr::is_fact() const {
 }
 
 void AtomAssignAggr::accumulate(AggregateFunction fun, SymbolSpan tup, bool fact) {
+    assert(fun != AggregateFunction::count);
     if (tup.empty()) {
         return;
     }
@@ -197,6 +198,7 @@ class StateAssignAggr::AtomKey {
 StateAssignAggr::ElementKey::ElementKey([[maybe_unused]] priv_tag tag, EvalContext const &ctx, AggregateFunction fun,
                                         size_t atom_idx, StmAssignAggrElem &elem, bool &res)
     : n_{elem.tuple_.size()}, atom_idx_{atom_idx} {
+    assert(fun != AggregateFunction::count);
     auto *it = syms_;
     if (auto jt = elem.tuple_.begin(), je = elem.tuple_.end(); jt != je) {
         // check the weight of the tuple
@@ -218,7 +220,7 @@ StateAssignAggr::ElementKey::ElementKey([[maybe_unused]] priv_tag tag, EvalConte
                 return;
             }
         }
-    } else if (fun != AggregateFunction::count) {
+    } else {
         return;
     }
     res = true;

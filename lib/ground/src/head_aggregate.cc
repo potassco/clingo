@@ -13,6 +13,7 @@ namespace Clingo::Ground {
 // definition of AtomAggr
 
 void AtomHdAggr::accumulate(AggregateFunction fun, SymbolSpan tup, bool fact) {
+    assert(fun != AggregateFunction::count);
     if (!tup.empty()) {
         if (fun == AggregateFunction::min) {
             auto &val = std::get<1>(bound_);
@@ -199,6 +200,7 @@ class StateHdAggr::AtomKey {
 StateHdAggr::ElementKey::ElementKey([[maybe_unused]] priv_tag tag, InstantiationContext const &ctx,
                                     AggregateFunction fun, size_t atom_idx, StmHdAggrElem &elem, bool &res)
     : n_{elem.tuple_.size() << 1}, atom_idx_{atom_idx} {
+    assert(fun != AggregateFunction::count);
     auto *it = syms_;
     if (auto jt = elem.tuple_.begin(), je = elem.tuple_.end(); jt != je) {
         // check the weight of the tuple
@@ -221,7 +223,7 @@ StateHdAggr::ElementKey::ElementKey([[maybe_unused]] priv_tag tag, Instantiation
                 return;
             }
         }
-    } else if (fun != AggregateFunction::count) {
+    } else {
         return;
     }
     res = true;
