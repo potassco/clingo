@@ -80,7 +80,7 @@ release_clang_lto:
 	$(MAKE) -C build/$@
 	$(MAKE) -C build/$@ test
 
-$@:
+profile:
 	mkdir -p build/$@
 	cmake -S. -Bbuild/$@ \
 		-DCMAKE_BUILD_TYPE=release \
