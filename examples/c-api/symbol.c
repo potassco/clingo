@@ -31,7 +31,7 @@ void free_string_buffer(string_buffer_t *buf) {
     }
 }
 
-clingo_result_t print_symbol(clingo_lib_t *lib, clingo_symbol_t symbol, string_buffer_t *buf) {
+clingo_result_t print_symbol(clingo_symbol_t symbol, string_buffer_t *buf) {
     clingo_result_t ret = clingo_result_success;
     char *string = NULL;
     size_t n = 0;
@@ -95,7 +95,7 @@ int main(int argc, char *argv[]) {
     // print the symbols along with their hash values
     for (size_t i = 0; i < sizeof(symbols) / sizeof(*symbols); ++i) {
         printf("the hash of ");
-        res = print_symbol(lib, symbols[i], &buf);
+        res = print_symbol(symbols[i], &buf);
         if (!handle_result(res)) {
             goto out;
         }
@@ -110,24 +110,24 @@ int main(int argc, char *argv[]) {
     assert(size == 2);
     // equal to comparison
     for (size_t i = 0; i < size; ++i) {
-        res = print_symbol(lib, symbols[0], &buf);
+        res = print_symbol(symbols[0], &buf);
         if (!handle_result(res)) {
             goto out;
         }
         printf(" %s ", clingo_symbol_equal(symbols[0], args[i]) ? "is equal to" : "is not equal to");
-        res = print_symbol(lib, args[i], &buf);
+        res = print_symbol(args[i], &buf);
         if (!handle_result(res)) {
             goto out;
         }
         printf("\n");
     }
     // less than comparison
-    res = print_symbol(lib, symbols[0], &buf);
+    res = print_symbol(symbols[0], &buf);
     if (!handle_result(res)) {
         goto out;
     }
     printf(" %s ", clingo_symbol_compare(symbols[0], symbols[1]) < 0 ? "is less than" : "is not less than");
-    res = print_symbol(lib, symbols[1], &buf);
+    res = print_symbol(symbols[1], &buf);
     if (!handle_result(res)) {
         goto out;
     }
