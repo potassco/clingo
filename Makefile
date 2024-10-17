@@ -15,9 +15,15 @@ compdb: all
 	compdb -p "build/debug" list -1 > compile_commands.json
 	python3 "scripts/compdb-cpp-headers.py"
 
-debug:
+.venv:
+	python3 -m venv .venv
+	source .venv/bin/activate && pip install pynvim pyyaml jinja2 mypy pybind11-stubgen jedi
+
+venv: .venv
+
+debug: venv
 	mkdir -p build/$@
-	cmake -S. -Bbuild/$@ \
+	source .venv/bin/activate && cmake -S. -Bbuild/$@ \
 		-DCMAKE_BUILD_TYPE=debug \
 		-DPARSER_BUILD_TESTS=On \
 		-DCMAKE_CXX_FLAGS="-Wall -Wextra -pedantic" \
@@ -103,14 +109,7 @@ gen:
 format_yaml:
 	PYTHONPATH=build/debug/lib/python-api python scripts/format_yaml.py
 
-venv: SHELL:=/bin/bash
-venv:
-	python3 -m venv .venv
-	source .venv/bin/activate && pip install pynvim pyyaml jinja2 mypy pybind11-stubgen
-	ln -rft .venv/lib/python*/site-packages -s build/debug/lib/python-api/clingo.*.so
+stubs: debug
+	source .venv/bin/activate && python3 scripts/stubs.py
 
-stubs: SHELL:=/bin/bash
-stubs:
-	source .venv/bin/activate && PYTHONPATH=build/debug/lib/python-api python scripts/stubs.py
-
-.PHONY: all doc test compdb stubs venv gen format_yaml debug release release_lto release_clang release_clang_lto web
+.PHONY: all doc test compdb stubs venv debug gen format_yaml debug release release_lto release_clang release_clang_lto web
