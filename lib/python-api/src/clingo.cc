@@ -10,7 +10,7 @@
 namespace Clingo::Python {
 
 void register_clingo(pybind11::module &m) {
-    m.doc() = "the clingo python module";
+    m.doc() = "The clingo python module.";
     Clingo::Python::register_core(m);
     Clingo::Python::register_symbol(m);
     Clingo::Python::register_control(m);
