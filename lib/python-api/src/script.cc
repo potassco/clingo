@@ -119,7 +119,16 @@ Module containing functions to add custom scripts, which can be embedded into lo
         .def("name", &Script::name)
         .def("version", &Script::version);
 
-    script.def("register", &reg_script, "Registers a script language which can then be embedded into a logic program.");
+    script.def("register", &reg_script, py::arg("lib"), py::arg("script"), doc(R"(
+Registers a script language which can then be embedded into a logic program.
+
+Parameters
+----------
+lib
+    The library to register the script with.
+script
+    The script to register.
+)"));
 }
 
 } // namespace Clingo::Python
