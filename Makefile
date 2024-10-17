@@ -86,7 +86,8 @@ release:
 	current="$$(pwd -P)" && cd build/release && cd "$$(pwd -P)" && cmake \
 		-DCMAKE_BUILD_TYPE=release \
 		-DPARSER_BUILD_TESTS=On \
-		-DCMAKE_CXX_FLAGS="-Wall -Wextra -pedantic" \
+		-DCMAKE_CXX_FLAGS="-flto=auto -fuse-linker-plugin -Wall -Wextra -pedantic" \
+		-DCMAKE_C_FLAGS="-flto=auto -fuse-linker-plugin -Wall -Wextra -pedantic" \
 		"$${current}"
 	$(MAKE) -C build/release
 	$(MAKE) -C build/release test
@@ -110,7 +111,8 @@ release_clang:
 		-DCMAKE_CXX_COMPILER="clang++" \
 		-DCMAKE_C_COMPILER="clang" \
 		-DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld -L${CONDA_PREFIX}/lib" \
-		-DCMAKE_CXX_FLAGS="-stdlib=libc++ -Wall -Wextra -pedantic" \
+		-DCMAKE_CXX_FLAGS="-stdlib=libc++ -flto -Wall -Wextra -pedantic" \
+		-DCMAKE_C_FLAGS="-stdlib=libc++ -flto -Wall -Wextra -pedantic" \
 		"$${current}"
 	$(MAKE) -C build/release_clang
 	$(MAKE) -C build/release_clang test

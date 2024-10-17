@@ -63,8 +63,9 @@ clingo_result_t print_symbol(clingo_lib_t *lib, clingo_symbol_t symbol, string_b
     return clingo_result_success;
 }
 
-int main() {
-    char const *error_message = NULL;
+int main(int argc, char *argv[]) {
+    (void)argc;
+    (void)argv;
     clingo_result_t res = clingo_result_success;
     int ret = 0;
     clingo_lib_t *lib = NULL;
