@@ -112,12 +112,56 @@ Module containing functions to add custom scripts, which can be embedded into lo
 )"));
     py::class_<Script>(script, "Script")
         .def(py::init<>())
-        .def("execute", &Script::execute)
-        .def("call", &Script::call)
-        .def("callable", &Script::callable)
-        .def("main", &Script::main)
-        .def("name", &Script::name)
-        .def("version", &Script::version);
+        .def("execute", &Script::execute, py::arg("code"), doc(R"(
+Execute the given code.
+
+Parameters
+----------
+code
+    The code to execute.
+)"))
+        .def("call", &Script::call, py::arg("lib"), py::arg("name"), py::arg("arguments"), doc(R"(
+Call the function with the given name and arguments.
+
+Parameters
+----------
+lib
+    The library object to store symbols.
+name
+    The name of the function.
+arguments
+    The arguments of the function.
+
+Returns
+-------
+A list of symbols.
+)"))
+        .def("callable", &Script::callable, py::arg("name"), py::arg("arguments"), doc(R"(
+Check if the function with the given signature is callable.
+
+Parameters
+----------
+name
+    The name of the function.
+arguments
+    The number of arguments of the function.
+
+Returns
+-------
+Whether the function is callable.
+)"))
+        .def("main", &Script::main, py::arg("lib"), py::arg("control"), doc(R"(
+Run the main function.
+
+Parameters
+----------
+lib
+    The (main) library object.
+control
+    The (main) control object.
+)"))
+        .def_property_readonly("name", &Script::name, R"(The name of the script.)")
+        .def_property_readonly("version", &Script::version, R"(The version of the script.)");
 
     script.def("register", &reg_script, py::arg("lib"), py::arg("script"), doc(R"(
 Registers a script language which can then be embedded into a logic program.

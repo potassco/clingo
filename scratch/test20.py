@@ -3,12 +3,10 @@ Example showing the use of scripts.
 """
 
 import __main__
-from clingo.control import Control
-
-# pylint: disable=import-error
-from clingo.core import Library
-from clingo.script import Script, register
-from clingo.symbol import Number, Symbol
+from clingo.control import Control  # pylint: disable=import-error
+from clingo.core import Library  # pylint: disable=import-error
+from clingo.script import Script, register  # pylint: disable=import-error
+from clingo.symbol import Number, Symbol  # pylint: disable=import-error
 
 
 class PyScript(Script):

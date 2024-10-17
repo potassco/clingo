@@ -1,16 +1,23 @@
+"""
+Install the package and stubs into the virtual environment `.venv`.
+"""
+
 import os
 import subprocess
 import sysconfig
 from glob import glob
 
+# https://typing.readthedocs.io/en/latest/spec/distributing.html
+
 libpath = sysconfig.get_path("purelib")
-clingo = os.path.join(libpath, "clingo")
+clingo_stubs = os.path.join(libpath, "clingo-stubs")
 
 env = os.environ.copy()
 env["PYTHONPATH"] = "./build/debug/lib/python-api"
 subprocess.check_call(
     [
         "pybind11-stubgen",
+        "--root-suffix=-stubs",
         "-o",
         libpath,
         "clingo",
@@ -21,29 +28,8 @@ subprocess.check_call(
 try:
     for lib in glob("./build/debug/lib/python-api/clingo*.so"):
         name = os.path.basename(lib)
-        src = os.path.relpath(lib, clingo)
-        dst = os.path.relpath(os.path.join(clingo, name), ".")
+        src = os.path.relpath(lib, libpath)
+        dst = os.path.relpath(os.path.join(libpath, name), ".")
         os.symlink(src, dst)
 except FileExistsError:
     pass
-
-# better ideas are welcome!
-init = os.path.join(libpath, "clingo", "__init__.py")
-with open(init, "w") as hnd:
-    hnd.write(
-        """\
-import sys
-from . import clingo as _clingo
-
-# we remap the included modules
-for key in list(sys.modules.keys()):
-    if key.startswith("clingo.clingo"):
-        mod = sys.modules[key]
-        del sys.modules[key]
-        sys.modules[key[7:]] = mod
-"""
-    )
-
-typed = os.path.join(libpath, "clingo", "py.typed")
-with open(typed, "w") as hnd:
-    hnd.write("\n")
