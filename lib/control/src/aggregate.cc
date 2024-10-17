@@ -148,8 +148,7 @@ void build_hd_lit(BuildContext &ctx, Input::HdLitAggregate const &lit) {
     auto index = sp_body ? Ground::stratified_index : ctx.next_index();
 
     // initialize state
-    std::sort(bases.begin(), bases.end(), [](auto const &x, auto const &y) { return std::get<0>(x) < std::get<0>(y); }),
-        bases.end();
+    std::sort(bases.begin(), bases.end(), [](auto const &x, auto const &y) { return std::get<0>(x) < std::get<0>(y); });
     bases.erase(std::unique(bases.begin(), bases.end(),
                             [](auto const &x, auto const &y) { return std::get<0>(x) == std::get<0>(y); }),
                 bases.end());
