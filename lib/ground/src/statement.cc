@@ -6,6 +6,100 @@
 
 namespace Clingo::Ground {
 
+namespace {
+
+class AssignmentAnalyzer {
+  public:
+    //! Add an assignment depending on and providing the given variables.
+    void add(VariableVec depend, VariableVec provide) {
+        if (auto it = std::max_element(depend.begin(), depend.end()); it != depend.end()) {
+            if (vars_.size() <= *it) {
+                vars_.resize(*it + 1);
+            }
+        }
+        if (auto it = std::max_element(provide.begin(), provide.end()); it != provide.end()) {
+            if (vars_.size() <= *it) {
+                vars_.resize(*it + 1);
+            }
+        }
+        std::erase_if(depend, [this](auto var_idx) { return vars_[var_idx].bound; });
+        if (depend.empty()) {
+            propagate(provide);
+        } else {
+            nodes_.emplace_back(0, std::move(depend), std::move(provide));
+        }
+    }
+    //! Propagate the given variables.
+    void propagate(VariableVec const &vars) {
+        last_ = trail_.size();
+        for (auto var_idx : vars) {
+            trail_.emplace_back(var_idx);
+            vars_[var_idx].bound = true;
+        }
+        for (auto cur = last_; cur < trail_.size(); ++cur) {
+            auto &var = vars_[trail_[cur]];
+            std::erase_if(var.nodes, [&, this](auto node_idx) {
+                auto &node = nodes_[node_idx];
+                auto dep = node.depend;
+                if (auto var_idx = update_(node)) {
+                    assert(trail_[cur] != *var_idx);
+                    vars_[*var_idx].nodes.emplace_back(node_idx);
+                    return true;
+                }
+                for (auto var_idx : node.provide) {
+                    if (!vars_[var_idx].bound) {
+                        vars_[var_idx].bound = true;
+                        trail_.emplace_back(var_idx);
+                    }
+                }
+                return false;
+            });
+        }
+    }
+    //! Undo the last propagate.
+    void backtrack() {
+        for (auto it = trail_.begin() + static_cast<ssize_t>(last_), ie = trail_.end(); it != ie; ++it) {
+            vars_[*it].bound = false;
+        }
+        trail_.resize(last_);
+    }
+
+  private:
+    struct Var {
+        std::vector<size_t> nodes;
+        bool bound = false;
+    };
+    struct Node {
+        size_t unbound_;
+        VariableVec depend;
+        VariableVec provide;
+    };
+
+    auto update_(Node &node) -> std::optional<size_t> {
+        auto &dep = node.depend;
+        for (size_t i = node.unbound_ + 1, e = dep.size(); i < e; ++i) {
+            if (!vars_[dep[i]].bound) {
+                node.unbound_ = i;
+                return dep[i];
+            }
+        }
+        for (size_t i = 0, e = node.unbound_; i < e; ++i) {
+            if (!vars_[dep[i]].bound) {
+                node.unbound_ = i;
+                return dep[i];
+            }
+        }
+        return std::nullopt;
+    }
+
+    std::vector<Node> nodes_;
+    std::vector<Var> vars_;
+    VariableVec trail_;
+    size_t last_ = 0;
+};
+
+} // namespace
+
 void Linearizer::start(Queue &queue) { iqueue_ = &queue; }
 
 void Linearizer::prepare(InstanceCallback &cb, ULitVec const &body, VariableSet important) {
