@@ -26,8 +26,8 @@ auto run(clingo_lib_t *lib, std::vector<std::string> &&args) -> clingo_result_t 
         app.add_option("files", files, "files to parse");
         // later...
         // ->check(CLI::ExistingFile);
-        app.add_option_no_stream("--const,-c", const_defs, "constant definition");
-        app.add_option_no_stream("--params", params_str, "program parts to ground");
+        app.add_option("--const,-c", const_defs, "constant definition")->take_all();
+        app.add_option("--params", params_str, "program parts to ground");
         app.add_option("--log-level", "{error,warn,info,debug,trace}")->check([&log_level](std::string const &value) {
             using P = std::pair<char const *, Clingo::LogLevel>;
             auto levels = std::array{P{"trace", Clingo::LogLevel::trace}, P{"debug", Clingo::LogLevel::debug},

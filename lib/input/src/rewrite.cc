@@ -1,6 +1,7 @@
 #include <clingo/input/print.hh>
 #include <clingo/input/rewrite.hh>
 
+#include <clingo/input/rewrite/analyze.hh>
 #include <clingo/input/rewrite/compute_bounds.hh>
 #include <clingo/input/rewrite/project.hh>
 #include <clingo/input/rewrite/rewrite_anonymous.hh>
@@ -14,7 +15,86 @@
 
 #include <clingo/core/logger.hh>
 
+#include "rewrite/transform.hh"
+
 namespace Clingo::Input {
+
+namespace {
+
+class AssignmentRemover : public Transformer<AssignmentRemover> {
+  public:
+    AssignmentRemover(Util::unordered_map<String, Term> &rep) : rep_{&rep} {}
+    [[nodiscard]] auto accept(LitComparison const &lit) const -> std::optional<Lit> {
+        assert(lit.sign() == Sign::none && lit.rhs().size() == 1);
+        auto const &[rel, rhs] = lit.rhs().front();
+        if (auto const *var = get_if<TermVariable>(&lit.lhs());
+            var != nullptr && rel == Relation::equal && is_matchable(rhs) && check(var->name(), rhs)) {
+            rep_->emplace(var->name(), rhs);
+            return LitBool{lit.loc(), Sign::none, true};
+        }
+        return std::nullopt;
+    }
+
+  private:
+    static auto check(String name, Term const &rhs) -> bool {
+        bool status = true;
+        visit_variables(rhs, [&]([[maybe_unused]] auto const &loc, String var) {
+            if (name == var) {
+                status = false;
+            }
+        });
+        return status;
+    }
+    Util::unordered_map<String, Term> *rep_;
+};
+
+class AssignmentSubstituter : public Transformer<AssignmentSubstituter> {
+  public:
+    AssignmentSubstituter(Util::unordered_map<String, Term> const &rep) : rep_{&rep} {}
+    [[nodiscard]] auto accept(TermVariable const &term) const -> std::optional<Term> {
+        if (auto it = rep_->find(term.name()); it != rep_->end()) {
+            return it->second;
+        }
+        return std::nullopt;
+    }
+
+  private:
+    Util::unordered_map<String, Term> const *rep_;
+};
+
+auto substitute_one(RewriteContext &ctx, Stm const &stm) -> SimplifyResult<Stm> {
+    auto res_sub = std::optional<Stm>{};
+    Util::unordered_map<String, Term> rep;
+    if (auto rem = AssignmentRemover{rep}.transform(stm)) {
+        if (auto sub = AssignmentSubstituter{rep}.transform(*rem)) {
+            res_sub = std::move(sub);
+        } else {
+            res_sub = std::move(rem);
+        }
+    }
+    auto res_smp = SimplifyResult<Stm>{TruthValue::unknown};
+    if (res_sub) {
+        res_smp = simplify(ctx, *res_sub);
+        if (!res_smp.value) {
+            res_smp.value = *std::move(res_sub);
+        }
+    }
+    return res_smp;
+}
+
+auto substitute_all(RewriteContext &ctx, Stm const &stm) -> SimplifyResult<Stm> {
+    auto res = substitute_one(ctx, stm);
+    while (res.value) {
+        if (auto next = substitute_one(ctx, *res.value); next.value) {
+            res = std::move(next);
+        } else {
+            break;
+        }
+    }
+    return res;
+}
+
+} // namespace
 
 void rewrite(RewriteContext &ctx, Stm const &stm, StmVec &stms) {
     ctx.init(select_variables(stm, VariableContext::all), "__A_");
@@ -27,25 +107,32 @@ void rewrite(RewriteContext &ctx, Stm const &stm, StmVec &stms) {
 
     auto rewrite_unpooled = [&stms, &ctx](Stm stm, char const *indent) {
         auto rewrite_unpooled = [&stms, &ctx, indent](Stm stm, char const *sub_indent) {
-            auto [state_cb, res_cb] = compute_bounds(ctx, stm);
-            if (res_cb) {
-                GRINGO_REPORT(ctx.logger(), debug) << indent << sub_indent << "compute bounds: " << *res_cb;
+            auto [state_sub, res_sub] = substitute_all(ctx, stm);
+            if (res_sub) {
+                GRINGO_REPORT(ctx.logger(), debug) << indent << sub_indent << "substitute assignments: " << *res_sub;
+                stm = *std::move(res_sub);
             }
-            if (state_cb) {
-                stm = std::move(res_cb).value_or(std::move(stm));
-                if (auto [state_cs, res_cs] = check_safety(ctx.logger(), stm); state_cs) {
-                    if (res_cs) {
-                        GRINGO_REPORT(ctx.logger(), debug) << indent << sub_indent << "check safety: " << *res_cs;
+            if (state_sub != TruthValue::top) {
+                auto [state_cb, res_cb] = compute_bounds(ctx, stm);
+                if (res_cb) {
+                    GRINGO_REPORT(ctx.logger(), debug) << indent << sub_indent << "compute bounds: " << *res_cb;
+                }
+                if (state_cb) {
+                    stm = std::move(res_cb).value_or(std::move(stm));
+                    if (auto [state_cs, res_cs] = check_safety(ctx.logger(), stm); state_cs) {
+                        if (res_cs) {
+                            GRINGO_REPORT(ctx.logger(), debug) << indent << sub_indent << "check safety: " << *res_cs;
+                        }
+                        stm = std::move(res_cs).value_or(std::move(stm));
+                        auto res_thy = rewrite_theory(ctx, stm);
+                        if (res_thy) {
+                            GRINGO_REPORT(ctx.logger(), debug) << indent << "theory: " << *res_thy;
+                        }
+                        stm = std::move(res_thy).value_or(std::move(stm));
+                        stms.emplace_back(std::move(stm));
+                    } else {
+                        ctx.set_error();
                     }
-                    stm = std::move(res_cs).value_or(std::move(stm));
-                    auto res_thy = rewrite_theory(ctx, stm);
-                    if (res_thy) {
-                        GRINGO_REPORT(ctx.logger(), debug) << indent << "theory: " << *res_thy;
-                    }
-                    stm = std::move(res_thy).value_or(std::move(stm));
-                    stms.emplace_back(std::move(stm));
-                } else {
-                    ctx.set_error();
                 }
             }
         };

@@ -7,6 +7,9 @@
 
 namespace Clingo::Ground {
 
+static constexpr double score_fast = -1.0;
+static constexpr double score_maybe_fast = -0.1;
+
 void LitInterval::do_print(std::ostream &out) const { out << *lhs_ << "=" << *lower_ << ".." << *upper_; }
 
 auto LitInterval::do_output([[maybe_unused]] InstantiationContext const &ctx,
@@ -54,17 +57,17 @@ auto LitInterval::do_score(std::vector<bool> const &bound) const -> double {
         VariableSet vars;
         lhs_->vars(vars);
         if (std::all_of(vars.begin(), vars.end(), [&bound](auto var) { return bound[var]; })) {
-            return -1;
+            return score_fast;
         }
         auto sl = l->symbol();
         auto sr = r->symbol();
         if (sl.type() != SymbolType::number || sr.type() != SymbolType::number) {
-            return -1;
+            return score_fast;
         }
         auto const &nl = sl.num();
         auto const &nr = sr.num();
         if (nl > nr) {
-            return -1;
+            return score_fast;
         }
         auto d = nr - nl;
         if (auto id = d.as_int(); id) {
@@ -145,7 +148,7 @@ auto LitComparison::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resou
     return {make_comp_matcher(bound, *lhs_, cmp_, *rhs_), std::nullopt};
 }
 
-auto LitComparison::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return -1; }
+auto LitComparison::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return score_fast; }
 
 auto LitComparison::do_hash() const -> size_t {
     if (cmp_ == Relation::equal && *rhs_ < *lhs_) {
@@ -285,7 +288,7 @@ auto LitExternal::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resourc
     return {std::make_unique<ExternalMatcher>(*ctx_, name_, *lhs_, args_, vars.release()), std::nullopt};
 }
 
-auto LitExternal::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return -1; }
+auto LitExternal::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return score_maybe_fast; }
 
 auto LitExternal::do_hash() const -> size_t { return Util::value_hash(std::hash<LitExternal const *>{}(this)); }
 

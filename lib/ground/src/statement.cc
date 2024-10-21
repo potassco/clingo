@@ -4,8 +4,6 @@
 #include <clingo/util/print.hh>
 #include <clingo/util/unordered_map.hh>
 
-#include <iostream>
-
 namespace Clingo::Ground {
 
 namespace {
@@ -204,21 +202,27 @@ auto Linearizer::order_(InstanceCallback &cb, std::vector<MatcherType> const &to
     for (size_t k = 0, n = lits.size(); k < n; ++k) {
         auto const &[cur, dep, prv] = lit_map_[k];
         if (!dep.empty()) {
-            analyzer.add(dep, prv);
+            // Note: variables are deliberately swapped, see (*)
+            analyzer.add(prv, dep);
         }
     }
     for (size_t k = 0; !queue_.empty();) {
         // recompute score
         for (auto &[idx, gen, score] : queue_) {
-            score = lits[idx]->score(bound);
+            score = -1;
             // compute the assignments propagated by this choice of literal
             auto const &[cur, dep, prv] = lit_map_[idx];
-            auto extra = analyzer.propagate(prv);
-            if (!extra.empty()) {
-                // each propagated variable reduces the score
-                score = std::pow(score, 1 / (extra.size() + 1));
+            if (!std::all_of(prv.begin(), prv.end(), [&bound](auto idx) { return bound[idx]; })) {
+                score = lits[idx]->score(bound);
+                if (score > 0) {
+                    auto extra = analyzer.propagate(prv);
+                    if (!extra.empty()) {
+                        // (*) each variable that is provided by an assignment increases the score
+                        score *= 1.0 + static_cast<double>(extra.size());
+                    }
+                    analyzer.backtrack();
+                }
             }
-            analyzer.backtrack();
         }
         // get minimum element in queue (breaking ties using insertion order)
         auto pred = [&](auto const &ei, auto const &ej) -> bool {

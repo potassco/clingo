@@ -25,6 +25,7 @@ build/debug/CMakeCache.txt: .venv
 	mkdir -p build/debug
 	source .venv/bin/activate && cmake -S. -Bbuild/debug \
 		-DCMAKE_BUILD_TYPE=debug \
+		-DCMAKE_EXPORT_COMPILE_COMMANDS=On \
 		-DPARSER_BUILD_TESTS=On \
 		-DCMAKE_CXX_FLAGS="-Wall -Wextra -pedantic" \
 		-DCMAKE_C_FLAGS="-Wall -Wextra -pedantic"
