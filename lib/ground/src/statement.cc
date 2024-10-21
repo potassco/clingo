@@ -4,49 +4,48 @@
 #include <clingo/util/print.hh>
 #include <clingo/util/unordered_map.hh>
 
+#include <iostream>
+
 namespace Clingo::Ground {
 
 namespace {
 
 class AssignmentAnalyzer {
   public:
+    AssignmentAnalyzer(size_t vars) : vars_{vars} {}
     //! Add an assignment depending on and providing the given variables.
-    void add(VariableVec depend, VariableVec provide) {
-        if (auto it = std::max_element(depend.begin(), depend.end()); it != depend.end()) {
-            if (vars_.size() <= *it) {
-                vars_.resize(*it + 1);
-            }
-        }
-        if (auto it = std::max_element(provide.begin(), provide.end()); it != provide.end()) {
-            if (vars_.size() <= *it) {
-                vars_.resize(*it + 1);
-            }
-        }
-        std::erase_if(depend, [this](auto var_idx) { return vars_[var_idx].bound; });
-        if (depend.empty()) {
-            propagate(provide);
+    void add(VariableVec dep, VariableVec prv) {
+        std::erase_if(dep, [this](auto var_idx) { return vars_[var_idx].bound; });
+        if (dep.empty()) {
+            propagate(prv);
         } else {
-            nodes_.emplace_back(0, std::move(depend), std::move(provide));
+            vars_[dep.front()].nodes.emplace_back(nodes_.size());
+            nodes_.emplace_back(0, std::move(dep), std::move(prv));
         }
     }
+
     //! Propagate the given variables.
-    void propagate(VariableVec const &vars) {
+    auto propagate(VariableVec const &vars) -> std::span<size_t const> {
         last_ = trail_.size();
         for (auto var_idx : vars) {
-            trail_.emplace_back(var_idx);
-            vars_[var_idx].bound = true;
+            auto &var = vars_[var_idx];
+            if (!var.bound) {
+                trail_.emplace_back(var_idx);
+                var.bound = true;
+            }
         }
+        auto extra = trail_.size();
         for (auto cur = last_; cur < trail_.size(); ++cur) {
             auto &var = vars_[trail_[cur]];
             std::erase_if(var.nodes, [&, this](auto node_idx) {
                 auto &node = nodes_[node_idx];
-                auto dep = node.depend;
+                auto dep = node.dep;
                 if (auto var_idx = update_(node)) {
                     assert(trail_[cur] != *var_idx);
                     vars_[*var_idx].nodes.emplace_back(node_idx);
                     return true;
                 }
-                for (auto var_idx : node.provide) {
+                for (auto var_idx : node.prv) {
                     if (!vars_[var_idx].bound) {
                         vars_[var_idx].bound = true;
                         trail_.emplace_back(var_idx);
@@ -55,7 +54,9 @@ class AssignmentAnalyzer {
                 return false;
             });
         }
+        return {trail_.begin() + static_cast<ssize_t>(extra), trail_.end()};
     }
+
     //! Undo the last propagate.
     void backtrack() {
         for (auto it = trail_.begin() + static_cast<ssize_t>(last_), ie = trail_.end(); it != ie; ++it) {
@@ -71,12 +72,12 @@ class AssignmentAnalyzer {
     };
     struct Node {
         size_t unbound_;
-        VariableVec depend;
-        VariableVec provide;
+        VariableVec dep;
+        VariableVec prv;
     };
 
     auto update_(Node &node) -> std::optional<size_t> {
-        auto &dep = node.depend;
+        auto &dep = node.dep;
         for (size_t i = node.unbound_ + 1, e = dep.size(); i < e; ++i) {
             if (!vars_[dep[i]].bound) {
                 node.unbound_ = i;
@@ -144,16 +145,14 @@ void Linearizer::build_(ULitVec const &lits) {
     lit_map_.reserve(lits.size());
     for (auto const &lit : lits) {
         lit->vars(vars, VarSelectMode::depend);
-        auto depend = std::vector<size_t>(vars.begin(), vars.end());
+        auto dep = std::vector<size_t>(vars.begin(), vars.end());
         vars.clear();
         lit->vars(vars, VarSelectMode::provide);
-        auto provide = std::vector<size_t>(vars.begin(), vars.end());
+        auto prv = std::vector<size_t>(vars.begin(), vars.end());
         vars.clear();
-        num_vars =
-            std::accumulate(depend.begin(), depend.end(), num_vars, [](auto a, auto b) { return std::max(a, b + 1); });
-        num_vars = std::accumulate(provide.begin(), provide.end(), num_vars,
-                                   [](auto a, auto b) { return std::max(a, b + 1); });
-        lit_map_.emplace_back(0, std::move(depend), std::move(provide));
+        num_vars = std::accumulate(dep.begin(), dep.end(), num_vars, [](auto a, auto b) { return std::max(a, b + 1); });
+        num_vars = std::accumulate(prv.begin(), prv.end(), num_vars, [](auto a, auto b) { return std::max(a, b + 1); });
+        lit_map_.emplace_back(0, std::move(dep), std::move(prv));
         ++i;
     }
     i = 0;
@@ -175,7 +174,7 @@ auto Linearizer::order_(InstanceCallback &cb, std::vector<MatcherType> const &to
     // initialize the queue
     for (auto &[cur, dep, prv] : lit_map_) {
         if (cur = dep.size(); cur == 0) {
-            queue_.emplace_back(i, ++gen);
+            queue_.emplace_back(i, ++gen, 0);
         }
         ++i;
     }
@@ -200,21 +199,41 @@ auto Linearizer::order_(InstanceCallback &cb, std::vector<MatcherType> const &to
     auto done = Util::unordered_set<Lit const *>{};
     done.reserve(lits.size());
     auto res_index = std::optional<size_t>{};
+    // initialize the analyzer
+    auto analyzer = AssignmentAnalyzer{var_map_.size()};
+    for (size_t k = 0, n = lits.size(); k < n; ++k) {
+        auto const &[cur, dep, prv] = lit_map_[k];
+        if (!dep.empty()) {
+            analyzer.add(dep, prv);
+        }
+    }
     for (size_t k = 0; !queue_.empty();) {
+        // recompute score
+        for (auto &[idx, gen, score] : queue_) {
+            score = lits[idx]->score(bound);
+            // compute the assignments propagated by this choice of literal
+            auto const &[cur, dep, prv] = lit_map_[idx];
+            auto extra = analyzer.propagate(prv);
+            if (!extra.empty()) {
+                // each propagated variable reduces the score
+                score = std::pow(score, 1 / (extra.size() + 1));
+            }
+            analyzer.backtrack();
+        }
         // get minimum element in queue (breaking ties using insertion order)
         auto pred = [&](auto const &ei, auto const &ej) -> bool {
-            auto si(lits[ei.first]->score(bound));
-            auto sj(lits[ej.first]->score(bound));
-            auto ti = todo[ei.first];
-            auto tj = todo[ej.first];
+            auto si = get<2>(ei);
+            auto sj = get<2>(ej);
+            auto ti = todo[get<0>(ei)];
+            auto tj = todo[get<0>(ej)];
             if ((ti == MatcherType::new_atoms || tj == MatcherType::new_atoms) && (si >= 0 && sj >= 0)) {
                 assert(ti != tj);
                 return ti < tj;
             }
-            return std::tie(si, ei.second) < std::tie(sj, ej.second);
+            return std::tie(si, get<1>(ei)) < std::tie(sj, get<1>(ej));
         };
         std::iter_swap(queue_.rbegin(), std::min_element(queue_.rbegin(), queue_.rend(), pred));
-        i = queue_.back().first;
+        i = get<0>(queue_.back());
         queue_.pop_back();
         // skip if an equivalent matcher has already been added (i.e., X=Y and Y=X)
         if (!done.emplace(lits[i].get()).second && todo[i] == MatcherType::all_atoms) {
@@ -233,7 +252,7 @@ auto Linearizer::order_(InstanceCallback &cb, std::vector<MatcherType> const &to
             assert(var < var_map_.size());
             for (auto j : var_map_[var]) {
                 if (--std::get<0>(lit_map_[j]) == 0) {
-                    queue_.emplace_back(j, ++gen);
+                    queue_.emplace_back(j, ++gen, 0);
                 }
             }
             provided[var] = k;

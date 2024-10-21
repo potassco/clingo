@@ -64,7 +64,7 @@ class Linearizer {
     std::pmr::monotonic_buffer_resource *mbr_;
     std::vector<size_t> rec_;
     std::vector<std::vector<MatcherType>> todos_;
-    std::vector<std::pair<size_t, size_t>> queue_;
+    std::vector<std::tuple<size_t, size_t, double>> queue_;
     //! A map from literal indices to provided variables.
     std::vector<std::tuple<size_t, std::vector<size_t>, std::vector<size_t>>> lit_map_;
     //! A map from variables to provided literals.

@@ -21,13 +21,15 @@ compdb: all
 
 venv: .venv
 
-debug: venv
-	mkdir -p build/$@
-	source .venv/bin/activate && cmake -S. -Bbuild/$@ \
+build/debug/CMakeCache.txt: .venv
+	mkdir -p build/debug
+	source .venv/bin/activate && cmake -S. -Bbuild/debug \
 		-DCMAKE_BUILD_TYPE=debug \
 		-DPARSER_BUILD_TESTS=On \
 		-DCMAKE_CXX_FLAGS="-Wall -Wextra -pedantic" \
 		-DCMAKE_C_FLAGS="-Wall -Wextra -pedantic"
+
+debug: build/debug/CMakeCache.txt
 	$(MAKE) -C build/$@
 
 release:
