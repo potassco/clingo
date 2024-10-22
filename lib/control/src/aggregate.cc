@@ -183,6 +183,7 @@ void build_bd_lit(BuildContext &ctx, Input::BdLitAggregate const &lit) {
 
     auto dom = true;                                // all literals in conditions are domain
     auto sp_elems = true;                           // all conditions are single-pass
+    auto has_cond = false;                          // at least one element has a condition
     auto pos = lit.fun() == AggregateFunction::sum; // sum aggregate can be turned into a sum+ aggregate
     auto elems = std::vector<std::tuple<Location, Ground::UTermVec, Ground::ULitVec>>{};
     elems.reserve(lit.elems().size());
@@ -226,6 +227,7 @@ void build_bd_lit(BuildContext &ctx, Input::BdLitAggregate const &lit) {
                 vars_global.emplace(var);
             }
         };
+        has_cond = has_cond || !cond.empty();
         elems.emplace_back(std::move(loc), std::move(tuple), std::move(cond));
     }
     auto fun = pos ? AggregateFunction::sump : lit.fun();
@@ -235,6 +237,22 @@ void build_bd_lit(BuildContext &ctx, Input::BdLitAggregate const &lit) {
         fun = AggregateFunction::sump;
     }
     auto mon = Input::reduct_is_monotone(lit.lhs(), fun, lit.rhs());
+
+    if (!has_cond) {
+        for (auto &guard : guards) {
+            auto cmp = guard.first;
+            if (lit.sign() != Sign::once) {
+                cmp = flip(cmp);
+            }
+            auto tuples = std::vector<Ground::UTermVec>{};
+            for (auto const &elem : elems) {
+                tuples.emplace_back(Ground::copy_uvec(get<1>(elem)));
+            }
+            ctx.body().emplace_back(
+                std::make_unique<Ground::LitSimpleAggr>(std::move(guard.second), cmp, fun, std::move(tuples)));
+        }
+        return;
+    }
 
     auto elem_priority = ctx.inc_priority();
     auto index = sp_elems ? Ground::stratified_index : ctx.next_index();

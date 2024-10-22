@@ -49,6 +49,19 @@ auto copy_uvec(std::vector<std::unique_ptr<T>> const &vec) {
     }
     return res;
 }
+//! Helper to copy vectors with copyable elements.
+template <class T>
+    requires requires(T x) {
+        { x.copy() } -> std::convertible_to<std::unique_ptr<T>>;
+    }
+auto copy_uvec(std::vector<std::vector<std::unique_ptr<T>>> const &vec) {
+    std::vector<std::vector<std::unique_ptr<T>>> res;
+    res.reserve(vec.size());
+    for (auto const &x : vec) {
+        res.emplace_back(copy_uvec(x));
+    }
+    return res;
+}
 
 //! Term interface.
 class Term {

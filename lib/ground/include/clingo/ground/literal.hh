@@ -400,6 +400,37 @@ class LitFailCheck : public LitCheck {
 //! is identified by the signature and the vector sorted by this signature.
 using BaseVec = std::vector<std::tuple<std::tuple<String, size_t, bool>, Base *, std::vector<size_t>>>;
 
+//! An aggregate literal without conditions.
+class LitSimpleAggr : public Lit {
+  public:
+    //! Construct the literal.
+    LitSimpleAggr(UTerm lhs, Relation cmp, AggregateFunction fun, std::vector<UTermVec> tuples)
+        : lhs_{std::move(lhs)}, tuples_{std::move(tuples)}, fun_{fun}, cmp_{cmp} {}
+
+  private:
+    void do_vars(VariableSet &vars, VarSelectMode mode) const override;
+    [[nodiscard]] auto do_domain() const -> bool override;
+    [[nodiscard]] auto do_single_pass() const -> bool override;
+    [[nodiscard]] auto
+    do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherType type,
+               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> override;
+    [[nodiscard]] auto do_score(std::vector<bool> const &bound) const -> double override;
+
+    void do_print(std::ostream &out) const override;
+    auto do_output(InstantiationContext const &ctx, OutputLit &out) const -> bool override;
+
+    [[nodiscard]] auto do_copy() const -> ULit override;
+
+    [[nodiscard]] auto do_hash() const -> size_t override;
+    [[nodiscard]] auto do_equal_to(Lit const &other) const -> bool override;
+    [[nodiscard]] auto do_compare_to(Lit const &other) const -> std::weak_ordering override;
+
+    UTerm lhs_;
+    std::vector<UTermVec> tuples_;
+    AggregateFunction fun_;
+    Relation cmp_;
+};
+
 //! @}
 
 } // namespace Clingo::Ground

@@ -728,4 +728,166 @@ void LitFailCheck::do_vars(VariableSet &vars, VarSelectMode mode) const {
     }
 }
 
+// LitSimpleAggregate
+
+void LitSimpleAggr::do_print(std::ostream &out) const {
+    out << *lhs_ << " " << cmp_ << " " << fun_ << " { "
+        << Util::p_range(tuples_, "; ",
+                         [](auto &out, auto const &tuple) {
+                             if (tuple.empty()) {
+                                 out << ":";
+                             } else {
+                                 out << Util::p_range(tuple, [](auto &out, auto const &term) { out << *term; });
+                             }
+                         })
+        << (tuples_.empty() ? "}" : " }");
+}
+
+auto LitSimpleAggr::do_output([[maybe_unused]] InstantiationContext const &ctx,
+                              [[maybe_unused]] OutputLit &out) const -> bool {
+    return false;
+}
+
+auto LitSimpleAggr::do_copy() const -> ULit {
+    return std::make_unique<LitSimpleAggr>(lhs_->copy(), cmp_, fun_, copy_uvec(tuples_));
+}
+
+auto LitSimpleAggr::do_domain() const -> bool { return true; }
+
+auto LitSimpleAggr::do_single_pass() const -> bool { return true; }
+
+void LitSimpleAggr::do_vars(VariableSet &vars, VarSelectMode mode) const {
+    if (cmp_ != Relation::equal) {
+        mode = VarSelectMode::all;
+    }
+    switch (mode) {
+        case VarSelectMode::all: {
+            lhs_->vars(vars);
+            for (auto const &tuple : tuples_) {
+                for (auto const &term : tuple) {
+                    term->vars(vars);
+                }
+            }
+            break;
+        }
+        case VarSelectMode::provide: {
+            lhs_->vars(vars, true);
+            break;
+        }
+        case VarSelectMode::depend: {
+            // Note: the rewriting ensures that if variables can be provided,
+            //       then all of them can be provided.
+            VariableSet provide;
+            lhs_->vars(provide, true);
+            for (auto const &tuple : tuples_) {
+                for (auto const &term : tuple) {
+                    term->vars(vars);
+                }
+            }
+            break;
+        }
+    }
+}
+
+auto LitSimpleAggr::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resource &mbr,
+                               [[maybe_unused]] MatcherType type,
+                               std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
+    class AggrMatcher : public OnceMatcher {
+      public:
+        AggrMatcher(LitSimpleAggr &lit, VariableVec free) : lit_{&lit}, free_{std::move(free)} {
+            free_.shrink_to_fit();
+            syms_.resize(lit_->tuples_.size());
+            tuples_.reserve(lit_->tuples_.size());
+        }
+
+      private:
+        auto do_once(InstantiationContext const &ctx) -> bool override {
+            for (auto const &var : free_) {
+                ctx.ass()[var] = std::nullopt;
+            }
+            tuples_.clear();
+            auto rhs_num = Number(0);
+            auto rhs_sym = neutral_val(lit_->fun_);
+            auto it = syms_.begin();
+            for (auto const &tuple : lit_->tuples_) {
+                auto &syms = *it;
+                syms.clear();
+                for (auto const &term : tuple) {
+                    if (auto sym = term->eval(ctx)) {
+                        syms.emplace_back(*sym);
+                    } else {
+                        syms.clear();
+                        break;
+                    }
+                }
+                // Note: maybe report messages...
+                if (!syms.empty()) {
+                    auto weight = syms.front();
+                    switch (lit_->fun_) {
+                        case AggregateFunction::max: {
+                            rhs_sym = std::max(rhs_sym, weight);
+                            break;
+                        }
+                        case AggregateFunction::min: {
+                            rhs_sym = std::min(rhs_sym, weight);
+                            break;
+                        }
+                        case AggregateFunction::sum: {
+                            if (tuples_.emplace(&syms).second && weight.type() == SymbolType::number) {
+                                rhs_num += weight.num();
+                            }
+                            break;
+                        }
+                        case AggregateFunction::sump: {
+                            if (tuples_.emplace(&syms).second && weight.type() == SymbolType::number &&
+                                weight.num() > 0) {
+                                rhs_num += weight.num();
+                            }
+                            break;
+                        }
+                        case AggregateFunction::count: {
+                            Util::unreachable();
+                        }
+                    }
+                }
+            }
+            if (lit_->fun_ != AggregateFunction::max && lit_->fun_ != AggregateFunction::min) {
+                rhs_sym = ctx.store().num_ref(rhs_num);
+            }
+            if (lit_->cmp_ == Relation::equal) {
+                return lit_->lhs_->match(ctx, rhs_sym);
+            }
+            if (auto lhs = lit_->lhs_->eval(ctx)) {
+                return evaluate(*lhs, lit_->cmp_, rhs_sym);
+            }
+            return false;
+        }
+
+        void do_print(std::ostream &out) const override { lit_->do_print(out); }
+
+        LitSimpleAggr *lit_;
+        VariableVec free_;
+        std::vector<SymbolVec> syms_;
+        Util::unordered_set<SymbolVec *> tuples_;
+    };
+
+    VariableSet vars;
+    lhs_->vars(vars);
+    VariableVec free;
+    for (auto const &var : vars) {
+        if (!bound[var]) {
+            free.emplace_back(var);
+        }
+    }
+    return {std::make_unique<AggrMatcher>(*this, std::move(free)), std::nullopt};
+}
+
+auto LitSimpleAggr::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return score_fast; }
+
+auto LitSimpleAggr::do_hash() const -> size_t { return Util::value_hash(std::hash<LitSimpleAggr const *>{}(this)); }
+
+auto LitSimpleAggr::do_equal_to(Lit const &other) const -> bool { return this == &other; }
+
+auto LitSimpleAggr::do_compare_to(Lit const &other) const -> std::weak_ordering { return this <=> &other; }
+
 } // namespace Clingo::Ground
