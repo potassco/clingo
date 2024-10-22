@@ -349,7 +349,59 @@ struct Collect : public Visitor<Collect> {
 class AssignmentRemover : public Transformer<AssignmentRemover> {
   public:
     AssignmentRemover(Util::unordered_map<String, Term> &rep) : rep_{&rep} {}
+
+    // TODO: local should be rewritten as well..
+
+    [[nodiscard]] auto accept(HdLitTheoryAtom const &lit) const -> std::optional<HdLit> {
+        static_cast<void>(lit);
+        static_cast<void>(this);
+        return std::nullopt;
+    }
+
+    [[nodiscard]] auto accept(HdLitSetAggregate const &lit) const -> std::optional<HdLit> {
+        static_cast<void>(lit);
+        static_cast<void>(this);
+        return std::nullopt;
+    }
+
+    [[nodiscard]] auto accept(HdLitAggregate const &lit) const -> std::optional<HdLit> {
+        static_cast<void>(lit);
+        static_cast<void>(this);
+        return std::nullopt;
+    }
+
+    [[nodiscard]] auto accept(HdLitDisjunction const &lit) const -> std::optional<HdLit> {
+        static_cast<void>(lit);
+        static_cast<void>(this);
+        return std::nullopt;
+    }
+
+    [[nodiscard]] auto accept(BdLitTheoryAtom const &lit) const -> std::optional<BdLit> {
+        static_cast<void>(lit);
+        static_cast<void>(this);
+        return std::nullopt;
+    }
+
+    [[nodiscard]] auto accept(BdLitSetAggregate const &lit) const -> std::optional<BdLit> {
+        static_cast<void>(lit);
+        static_cast<void>(this);
+        return std::nullopt;
+    }
+
+    [[nodiscard]] auto accept(BdLitAggregate const &lit) const -> std::optional<BdLit> {
+        static_cast<void>(lit);
+        static_cast<void>(this);
+        return std::nullopt;
+    }
+
+    [[nodiscard]] auto accept(BdLitConjunction const &lit) const -> std::optional<BdLit> {
+        static_cast<void>(lit);
+        static_cast<void>(this);
+        return std::nullopt;
+    }
+
     [[nodiscard]] auto accept(LitComparison const &lit) const -> std::optional<Lit> {
+        // TODO: we cannot substitute assignments from local contexts in global ones
         assert(lit.sign() == Sign::none && lit.rhs().size() == 1);
         auto const &[rel, rhs] = lit.rhs().front();
         if (auto const *var = get_if<TermVariable>(&lit.lhs());
