@@ -140,14 +140,6 @@ auto operator<<(std::ostream &out, IE const &ie) -> std::ostream & {
 void IESolver::add(IE ie) {
     auto &terms = ie.terms;
 
-    // remove terms not associated with a variable
-    auto last = std::partition(terms.begin(), terms.end(),
-                               [](auto &term) { return !term.variable.empty() && term.coefficient != 0; });
-    for (auto end = terms.end(), current = last; current != end; ++current) {
-        ie.bound -= current->coefficient;
-    }
-    terms.erase(last, terms.end());
-
     // sort according to variables
     std::sort(terms.begin(), terms.end());
 
@@ -161,6 +153,15 @@ void IESolver::add(IE ie) {
                                     return false;
                                 }),
                 terms.end());
+
+    // remove terms not associated with a variable
+    auto last = std::partition(terms.begin(), terms.end(),
+                               [](auto &term) { return !term.variable.empty() && term.coefficient != 0; });
+    for (auto end = terms.end(), current = last; current != end; ++current) {
+        ie.bound -= current->coefficient;
+    }
+    terms.erase(last, terms.end());
+
     ies_.emplace_back(std::move(ie));
 }
 
@@ -233,6 +234,7 @@ auto IESolver::strengthens(String var) const -> bool {
 }
 
 auto IESolver::update_bound_(IETerm const &term, Number slack, size_t num_unbounded) -> bool {
+    assert(term.coefficient != 0);
     bool positive = term.coefficient > 0;
     auto type = positive ? IEInterval::Upper : IEInterval::Lower;
     // remove contribution of this term from slack
