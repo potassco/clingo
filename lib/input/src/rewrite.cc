@@ -65,7 +65,7 @@ void rewrite(RewriteContext &ctx, Stm const &stm, StmVec &stms) {
         stm = std::move(res_project).value_or(std::move(stm));
         auto res_subst = map_params(ctx, stm);
         if (res_subst) {
-            GRINGO_REPORT(ctx.logger(), debug) << indent << "substitute: " << *res_subst;
+            GRINGO_REPORT(ctx.logger(), debug) << indent << "substitute parameters: " << *res_subst;
         }
         stm = std::move(res_subst).value_or(std::move(stm));
         auto [state_stm, res_stm] = simplify(ctx, stm);
