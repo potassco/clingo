@@ -346,62 +346,38 @@ struct Collect : public Visitor<Collect> {
     StringSet *ids_;
 };
 
+class AssignmentSubstituter : public Transformer<AssignmentSubstituter> {
+  public:
+    AssignmentSubstituter(Util::unordered_map<String, Term> const &rep) : rep_{&rep} {}
+    [[nodiscard]] auto accept(TermVariable const &term) const -> std::optional<Term> {
+        if (auto it = rep_->find(term.name()); it != rep_->end()) {
+            return it->second;
+        }
+        return std::nullopt;
+    }
+
+  private:
+    Util::unordered_map<String, Term> const *rep_;
+};
+
 class AssignmentRemover : public Transformer<AssignmentRemover> {
   public:
-    AssignmentRemover(Util::unordered_map<String, Term> &rep) : rep_{&rep} {}
+    AssignmentRemover(Util::unordered_map<String, Term> &rep, StringSet *blocked = nullptr)
+        : blocked_{blocked}, rep_{&rep} {}
 
-    // TODO: local should be rewritten as well..
-
-    [[nodiscard]] auto accept(HdLitTheoryAtom const &lit) const -> std::optional<HdLit> {
-        static_cast<void>(lit);
-        static_cast<void>(this);
+    template <class T>
+        requires Util::matches<T, HdLitTheoryAtom, HdLitSetAggregate, HdLitAggregate, HdLitDisjunction>
+    [[nodiscard]] static auto accept([[maybe_unused]] T const &lit) -> std::optional<HdLit> {
         return std::nullopt;
     }
 
-    [[nodiscard]] auto accept(HdLitSetAggregate const &lit) const -> std::optional<HdLit> {
-        static_cast<void>(lit);
-        static_cast<void>(this);
-        return std::nullopt;
-    }
-
-    [[nodiscard]] auto accept(HdLitAggregate const &lit) const -> std::optional<HdLit> {
-        static_cast<void>(lit);
-        static_cast<void>(this);
-        return std::nullopt;
-    }
-
-    [[nodiscard]] auto accept(HdLitDisjunction const &lit) const -> std::optional<HdLit> {
-        static_cast<void>(lit);
-        static_cast<void>(this);
-        return std::nullopt;
-    }
-
-    [[nodiscard]] auto accept(BdLitTheoryAtom const &lit) const -> std::optional<BdLit> {
-        static_cast<void>(lit);
-        static_cast<void>(this);
-        return std::nullopt;
-    }
-
-    [[nodiscard]] auto accept(BdLitSetAggregate const &lit) const -> std::optional<BdLit> {
-        static_cast<void>(lit);
-        static_cast<void>(this);
-        return std::nullopt;
-    }
-
-    [[nodiscard]] auto accept(BdLitAggregate const &lit) const -> std::optional<BdLit> {
-        static_cast<void>(lit);
-        static_cast<void>(this);
-        return std::nullopt;
-    }
-
-    [[nodiscard]] auto accept(BdLitConjunction const &lit) const -> std::optional<BdLit> {
-        static_cast<void>(lit);
-        static_cast<void>(this);
+    template <class T>
+        requires Util::matches<T, BdLitTheoryAtom, BdLitSetAggregate, BdLitAggregate, BdLitConjunction>
+    [[nodiscard]] static auto accept([[maybe_unused]] T const &lit) -> std::optional<BdLit> {
         return std::nullopt;
     }
 
     [[nodiscard]] auto accept(LitComparison const &lit) const -> std::optional<Lit> {
-        // TODO: we cannot substitute assignments from local contexts in global ones
         assert(lit.sign() == Sign::none && lit.rhs().size() == 1);
         auto const &[rel, rhs] = lit.rhs().front();
         if (auto const *var = get_if<TermVariable>(&lit.lhs());
@@ -414,7 +390,7 @@ class AssignmentRemover : public Transformer<AssignmentRemover> {
 
   private:
     [[nodiscard]] auto check(String name, Term const &rhs) const -> bool {
-        bool status = !rep_->contains(name);
+        bool status = !rep_->contains(name) && (blocked_ == nullptr || !blocked_->contains(name));
         auto visit = [&, this](auto const &term) {
             if (status) {
                 visit_variables(term, [&, this]([[maybe_unused]] auto const &loc, String var) {
@@ -430,39 +406,55 @@ class AssignmentRemover : public Transformer<AssignmentRemover> {
         }
         return status;
     }
+    StringSet *blocked_;
     Util::unordered_map<String, Term> *rep_;
 };
 
-class AssignmentSubstituter : public Transformer<AssignmentSubstituter> {
+class LocalRemover : public Transformer<LocalRemover> {
   public:
-    AssignmentSubstituter(Util::unordered_map<String, Term> const &rep) : rep_{&rep} {}
-    [[nodiscard]] auto accept(TermVariable const &term) const -> std::optional<Term> {
-        if (auto it = rep_->find(term.name()); it != rep_->end()) {
-            return it->second;
+    LocalRemover(StringSet &blocked) : blocked_{&blocked} {}
+
+    template <class T>
+        requires Util::matches<T, HdLitDisjunctionElement, HdLitAggregateElement, BdLitAggregateElement,
+                               SetAggregateElement, TheoryElement, CondLit>
+    [[nodiscard]] auto accept(T const &elem) const -> std::optional<T> {
+        Util::unordered_map<String, Term> rep;
+        if (auto elems_rem = AssignmentRemover{rep, blocked_}.transform(elem)) {
+            if (auto elems_sub = AssignmentSubstituter{rep}.transform(*elems_rem)) {
+                return elems_sub;
+            }
+            return elems_rem;
         }
         return std::nullopt;
     }
 
-  private:
-    Util::unordered_map<String, Term> const *rep_;
+    StringSet *blocked_;
 };
 
 auto substitute_one(RewriteContext &ctx, Stm const &stm) -> SimplifyResult<Stm> {
     auto res_sub = std::optional<Stm>{};
     Util::unordered_map<String, Term> rep;
     if (auto rem = AssignmentRemover{rep}.transform(stm)) {
-        VariableSet global = select_variables(stm, VariableContext::global);
         if (auto sub = AssignmentSubstituter{rep}.transform(*rem)) {
             res_sub = std::move(sub);
         } else {
             res_sub = std::move(rem);
         }
-    }
-    // Note that it might happen in (constructed) statements that a global
-    // variable becomes local during rewriting. Such statements are discarded
-    // here.
-    if (res_sub && !check_global(ctx.logger(), select_variables(stm, VariableContext::global), *res_sub)) {
-        ctx.set_error();
+        // Note that it might happen in (constructed) statements that a global
+        // variable becomes local during rewriting. Such statements are discarded
+        // here.
+        if (res_sub && !check_global(ctx.logger(), select_variables(stm, VariableContext::global), *res_sub)) {
+            ctx.set_error();
+        }
+    } else {
+        VariableSet global = select_variables(stm, VariableContext::global);
+        if (auto rem = LocalRemover{global}.transform(stm)) {
+            if (auto sub = AssignmentSubstituter{rep}.transform(*rem)) {
+                res_sub = std::move(sub);
+            } else {
+                res_sub = std::move(rem);
+            }
+        }
     }
     auto res_smp = SimplifyResult<Stm>{TruthValue::unknown};
     if (res_sub) {
