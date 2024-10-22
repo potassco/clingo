@@ -624,6 +624,14 @@ TEST_CASE("grounder_text") {
                                   "#project p(3).\n"
                                   "#show.\n");
         }
+        SECTION("simple_aggr") {
+            grd.parse(R"(
+                #show.
+                p(Y) :- X=10, Y = #sum { X: X=11; Z: Z=2; Z: Z=3 }.)");
+            REQUIRE(grd.ground(params));
+            REQUIRE(buf.view() == "p(5).\n"
+                                  "#show.\n");
+        }
     }
     // Note: the current implementation takes two iterations to clean up everything
     auto res = store->gc();

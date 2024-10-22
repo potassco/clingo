@@ -44,4 +44,8 @@ TEST_CASE("rewrite_program") {
         SV{"#theory x {\n  t { + : 0, binary, left };\n  &a/0: t, any\n}.", "#program base.", "&a { ((x + y) + z) }."});
 }
 
+TEST_CASE("rewrite_substitute") {
+    REQUIRE(rewrite_program({"p(Y) :- X=10, Y = #sum { X: X=11; Z: Z=2; Z: Z=3 }."}) == SV{"#program base.", "p(5)."});
+}
+
 } // namespace Clingo::Input::Test
