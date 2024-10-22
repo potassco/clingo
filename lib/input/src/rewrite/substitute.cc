@@ -1,7 +1,10 @@
 #include "transform.hh"
 #include "visit.hh"
 
+#include <clingo/input/rewrite/analyze.hh>
+#include <clingo/input/rewrite/simplify.hh>
 #include <clingo/input/rewrite/substitute.hh>
+#include <clingo/input/rewrite/visit_variables.hh>
 
 namespace Clingo::Input {
 
@@ -343,6 +346,82 @@ struct Collect : public Visitor<Collect> {
     StringSet *ids_;
 };
 
+class AssignmentRemover : public Transformer<AssignmentRemover> {
+  public:
+    AssignmentRemover(Util::unordered_map<String, Term> &rep) : rep_{&rep} {}
+    [[nodiscard]] auto accept(LitComparison const &lit) const -> std::optional<Lit> {
+        assert(lit.sign() == Sign::none && lit.rhs().size() == 1);
+        auto const &[rel, rhs] = lit.rhs().front();
+        if (auto const *var = get_if<TermVariable>(&lit.lhs());
+            var != nullptr && rel == Relation::equal && is_matchable(rhs) && check(var->name(), rhs)) {
+            rep_->emplace(var->name(), rhs);
+            return LitBool{lit.loc(), Sign::none, true};
+        }
+        return std::nullopt;
+    }
+
+  private:
+    [[nodiscard]] auto check(String name, Term const &rhs) const -> bool {
+        bool status = !rep_->contains(name);
+        auto visit = [&, this](auto const &term) {
+            if (status) {
+                visit_variables(term, [&, this]([[maybe_unused]] auto const &loc, String var) {
+                    if (name == var || rep_->contains(var)) {
+                        status = false;
+                    }
+                });
+            }
+        };
+        visit(rhs);
+        for (auto const &[var, term] : *rep_) {
+            visit(term);
+        }
+        return status;
+    }
+    Util::unordered_map<String, Term> *rep_;
+};
+
+class AssignmentSubstituter : public Transformer<AssignmentSubstituter> {
+  public:
+    AssignmentSubstituter(Util::unordered_map<String, Term> const &rep) : rep_{&rep} {}
+    [[nodiscard]] auto accept(TermVariable const &term) const -> std::optional<Term> {
+        if (auto it = rep_->find(term.name()); it != rep_->end()) {
+            return it->second;
+        }
+        return std::nullopt;
+    }
+
+  private:
+    Util::unordered_map<String, Term> const *rep_;
+};
+
+auto substitute_one(RewriteContext &ctx, Stm const &stm) -> SimplifyResult<Stm> {
+    auto res_sub = std::optional<Stm>{};
+    Util::unordered_map<String, Term> rep;
+    if (auto rem = AssignmentRemover{rep}.transform(stm)) {
+        VariableSet global = select_variables(stm, VariableContext::global);
+        if (auto sub = AssignmentSubstituter{rep}.transform(*rem)) {
+            res_sub = std::move(sub);
+        } else {
+            res_sub = std::move(rem);
+        }
+    }
+    // Note that it might happen in (constructed) statements that a global
+    // variable becomes local during rewriting. Such statements are discarded
+    // here.
+    if (res_sub && !check_global(ctx.logger(), select_variables(stm, VariableContext::global), *res_sub)) {
+        ctx.set_error();
+    }
+    auto res_smp = SimplifyResult<Stm>{TruthValue::unknown};
+    if (res_sub) {
+        res_smp = simplify(ctx, *res_sub);
+        if (!res_smp.value) {
+            res_smp.value = *std::move(res_sub);
+        }
+    }
+    return res_smp;
+}
+
 } // namespace
 
 [[nodiscard]] auto map_params(RewriteContext &ctx, Term const &term) -> std::optional<Term> {
@@ -415,5 +494,17 @@ void collect_ids(Symbol const &sym, StringSet &ids) {
 }
 
 void collect_ids(Stm const &stm, StringSet &ids) { Collect{ids}(stm); }
+
+auto substitute(RewriteContext &ctx, Stm const &stm) -> Util::ResultState<Stm, TruthValue> {
+    auto res = substitute_one(ctx, stm);
+    while (res.value) {
+        if (auto next = substitute_one(ctx, *res.value); next.value) {
+            res = std::move(next);
+        } else {
+            break;
+        }
+    }
+    return res;
+}
 
 } // namespace Clingo::Input

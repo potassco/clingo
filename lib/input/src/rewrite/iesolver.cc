@@ -162,7 +162,10 @@ void IESolver::add(IE ie) {
     }
     terms.erase(last, terms.end());
 
-    ies_.emplace_back(std::move(ie));
+    // add the preprocessed constraint
+    if (!terms.empty() || ie.bound < 0) {
+        ies_.emplace_back(std::move(ie));
+    }
 }
 
 auto IESolver::compute(Logger &log) -> bool {

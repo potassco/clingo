@@ -34,6 +34,9 @@ void collect_ids(Symbol const &sym, StringSet &ids);
 //! Collect all ids appearing in the statement.
 void collect_ids(Stm const &stm, StringSet &ids);
 
+//! Substitute variables in terms of form `X=term` in the statement.
+auto substitute(RewriteContext &ctx, Stm const &stm) -> Util::ResultState<Stm, TruthValue>;
+
 //! @}
 
 } // namespace Clingo::Input
