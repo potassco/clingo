@@ -509,10 +509,10 @@ class Control:
         Parameters
         ----------
         observer
-            The observer to register. See below for a description of the requirede
+            The observer to register. See below for a description of the required
             interface.
         replace
-            If set to true, the output is just passed to the observer and nolonger to
+            If set to true, the output is just passed to the observer and no longer to
             the underlying solver (or any previously registered observers).
 
         See Also
@@ -767,7 +767,7 @@ class Control:
         on_model
             Optional callback for intercepting models.
             A `clingo.solving.Model` object is passed to the callback. The
-            search can be interruped from the model callback by returning
+            search can be interrupted from the model callback by returning
             False.
         on_unsat
             Optional callback to intercept lower bounds during optimization.
@@ -777,7 +777,7 @@ class Control:
         on_finish
             Optional callback called once search has finished.
             A `clingo.solving.SolveResult` also indicating whether the solve
-            call has been intrrupted is passed to the callback.
+            call has been interrupted is passed to the callback.
         on_core
             Optional callback called with the assumptions that made a problem
             unsatisfiable.
@@ -892,7 +892,7 @@ class Control:
     @property
     def enable_enumeration_assumption(self) -> bool:
         """
-        Whether do discard or keep learnt information from enumeration modes.
+        Whether to discard or keep learnt information from enumeration modes.
 
         If the enumeration assumption is enabled, then all information learnt from
         clasp's various enumeration modes is removed after a solve call. This includes
