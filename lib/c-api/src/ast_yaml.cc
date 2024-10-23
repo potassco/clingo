@@ -83,19 +83,19 @@ aggregate_function:
   values:
     count:
       value: 0
-      doc: Operator "^".
+      doc: Aggregate function `#count`.
     sum:
       value: 1
-      doc: Operator "?".
+      doc: Aggregate function `#sum`.
     sump:
       value: 2
-      doc: Operator "&".
+      doc: Aggregate function `#sum+`
     min:
       value: 3
-      doc: Operator "+".
+      doc: Aggregate function `#min`.
     max:
       value: 4
-      doc: Operator "-".
+      doc: Aggregate function `#max`.
 theory_operator_type:
   type: enum
   doc: Enumeration of theory operators.

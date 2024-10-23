@@ -6443,11 +6443,11 @@ term.)doc");
         .value("Greater", Relation::Greater, R"doc(The greater than relation.)doc")
         .value("GreaterEqual", Relation::GreaterEqual, R"doc(The greater than or equal to relation.)doc");
 
-    py_aggregate_function.value("Count", AggregateFunction::Count, R"doc(Operator "^".)doc")
-        .value("Sum", AggregateFunction::Sum, R"doc(Operator "?".)doc")
-        .value("Sump", AggregateFunction::Sump, R"doc(Operator "&".)doc")
-        .value("Min", AggregateFunction::Min, R"doc(Operator "+".)doc")
-        .value("Max", AggregateFunction::Max, R"doc(Operator "-".)doc");
+    py_aggregate_function.value("Count", AggregateFunction::Count, R"doc(Aggregate function `#count`.)doc")
+        .value("Sum", AggregateFunction::Sum, R"doc(Aggregate function `#sum`.)doc")
+        .value("Sump", AggregateFunction::Sump, R"doc(Aggregate function `#sum+`)doc")
+        .value("Min", AggregateFunction::Min, R"doc(Aggregate function `#min`.)doc")
+        .value("Max", AggregateFunction::Max, R"doc(Aggregate function `#max`.)doc");
 
     py_theory_operator_type.value("Unary", TheoryOperatorType::Unary, R"doc(An unary theory operator.)doc")
         .value("BinaryLeft", TheoryOperatorType::BinaryLeft, R"doc(A left associative binary operator.)doc")

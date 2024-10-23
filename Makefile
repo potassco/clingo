@@ -115,4 +115,13 @@ format_yaml:
 stubs: debug
 	source .venv/bin/activate && python3 scripts/stubs.py
 
-.PHONY: all doc test compdb stubs venv debug gen format_yaml debug release release_lto release_clang release_clang_lto web
+pdoc: stubs
+	source .venv/bin/activate && pybind11-stubgen -o pdoc --stub-extension py clingo
+	python3 scripts/rewrite.py pdoc/clingo/ast.py
+	python3 scripts/rewrite.py pdoc/clingo/control.py
+	python3 scripts/rewrite.py pdoc/clingo/core.py
+	python3 scripts/rewrite.py pdoc/clingo/script.py
+	python3 scripts/rewrite.py pdoc/clingo/symbol.py
+	cd pdoc && python3 -m venv .venv && source .venv/bin/activate && pip install pdoc && rm -rf html && pdoc -o html --no-show-source -d google ./clingo
+
+.PHONY: all doc test compdb stubs pdoc venv debug gen format_yaml debug release release_lto release_clang release_clang_lto web
