@@ -2689,6 +2689,12 @@ extern "C" auto clingo_ast_rewrite(clingo_ast_rewrite_context_t *context, clingo
     CLINGO_CATCH;
 }
 
+clingo_program::clingo_program(clingo_lib_t *lib) : lib{lib} { lib->store->gc_add_owner(*this); }
+
+clingo_program::~clingo_program() noexcept { lib->store->gc_del_owner(*this); }
+
+void clingo_program::mark(Clingo::SymbolCollector &gc) const { program.mark(gc); }
+
 extern "C" auto clingo_program_new(clingo_lib_t *lib, clingo_program_t **program) -> clingo_result_t {
     CLINGO_TRY { *program = std::make_unique<clingo_program>(lib).release(); }
     CLINGO_CATCH;
