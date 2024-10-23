@@ -39,9 +39,11 @@ enum class StateAtom : uint64_t {
 
 //! Capture the state of an atom.
 struct AtomInfo {
-    uint64_t id : 63;    //!< A unique id among all atoms.
+    uint64_t id : 62;    //!< A unique id among all atoms.
     StateAtom state : 2; //!< The atom state.
 };
+
+static_assert(sizeof(AtomInfo) == sizeof(uint64_t));
 
 //! An atom consisting of a symbol and its (mutable) state.
 using SymbolicAtom = std::pair<Symbol, AtomInfo>;
@@ -230,10 +232,7 @@ class Base : public BaseImpl<Symbol, Base> {
     //! Check if the base contains the given atom.
     //!
     //! This might includes atoms that have not (yet) been derived.
-    [[nodiscard]] auto contains(Symbol const &sym) const -> bool {
-        auto it = atoms_.find(sym);
-        return it != atoms_.end();
-    }
+    [[nodiscard]] auto contains(Symbol const &sym) const -> bool { return atoms_.contains(sym); }
 
     //! Add an atom to the base.
     auto add(Symbol atom, StateAtom state) -> AtomUpdate {
@@ -244,12 +243,10 @@ class Base : public BaseImpl<Symbol, Base> {
             }
             return AtomUpdate::added;
         }
-        if (state < it->second.state) {
-            // note transitions from external to derived are ignored
-            // because there is no additional information for grounding
-            auto prev = it.value().state;
-            it.value().state = state;
-            if (prev == StateAtom::unknown) {
+        auto &prev = it.value();
+        if (state < prev.state) {
+            prev.state = state;
+            if (prev.state == StateAtom::unknown) {
                 derived_.add(atom_index_(it));
                 return AtomUpdate::added;
             }
