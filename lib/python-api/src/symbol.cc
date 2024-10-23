@@ -231,23 +231,25 @@ Functions and classes for symbol manipulation.
 Examples
 --------
 
-    >>> from clingo.core import Library
-    >>> from clingo.symbol import Function, Number, parse_term
-    >>>
-    >>> lib = Library()
-    >>>
-    >>> num = Number(lib, 42)
-    >>> num.number
-    42
-    >>> fun = Function(lib, "f", [num])
-    >>> fun.name
-    'f'
-    >>> [ str(arg) for arg in fun.arguments ]
-    ['42']
-    >>> parse_term(lib, str(fun)) == fun
-    True
-    >>> parse_term(lib, 'p(1+2)')
-    p(3)
+```python
+>>> from clingo.core import Library
+>>> from clingo.symbol import Function, Number, parse_term
+>>>
+>>> lib = Library()
+>>>
+>>> num = Number(lib, 42)
+>>> num.number
+42
+>>> fun = Function(lib, "f", [num])
+>>> fun.name
+'f'
+>>> [ str(arg) for arg in fun.arguments ]
+['42']
+>>> parse_term(lib, str(fun)) == fun
+True
+>>> parse_term(lib, 'p(1+2)')
+p(3)
+```
 )"));
 
     py::enum_<clingo_symbol_type_e>(symbol, "SymbolType", R"(Enumeration of symbols types.)")
@@ -268,8 +270,6 @@ Symbol objects implement Python's rich comparison operators and are ordered
 like in clingo. They can also be used as keys in dictionaries. Their string
 representation corresponds to their clingo representation.
 
-Notes
------
 Note that this class does not have a constructor. Instead there are the
 preconstructed symbols `Infimum` and `Supremum` and the functions `Number`,
 `String`, `Tuple_`, and `Function` to construct symbol objects.
@@ -280,32 +280,22 @@ preconstructed symbols `Infimum` and `Supremum` and the functions `Number`,
         .def("match", &Symbol::match_function, py::arg("name"), py::arg("arity") = 0, py::arg("sign") = false, doc(R"(
 Check if this is a function symbol with the given signature.
 
-Parameters
-----------
-name
-    The name of the function.
+Args:
+    name: The name of the function.
+    arity: The arity of the function.
+    sign: Whether to match positive or negative signatures.
 
-arity
-    The arity of the function.
-
-sign
-    Whether to match positive or negative signatures.
-
-Returns
--------
-Whether the function matches.
+Returns:
+    Whether the function matches.
 )"))
         .def("match", &Symbol::match_tuple, py::arg("arity") = 0, doc(R"(
 Check if this is a tuple symbol with the given arity.
 
-Parameters
-----------
-arity
-    The arity of the function.
+Args:
+    arity: The arity of the function.
 
-Returns
--------
-Whether the tuple matches.
+Returns:
+    Whether the tuple matches.
 )"))
         .def_property_readonly("type", &Symbol::type, R"(The type of the symbol.)")
         .def_property_readonly("number", &Symbol::number, R"(The numeric value.)")
@@ -320,32 +310,23 @@ Whether the tuple matches.
     symbol.def("Number", &Number, py::arg("lib"), py::arg("number"), doc(R"(
 Construct a numeric symbol given a number.
 
-Parameters
-----------
-lib
-    A library object to store the function in.
-number
-    The given number.
+Args:
+    lib: A library object to store the function in.
+    number: The given number.
 )"));
     symbol.def("String", &String, py::arg("lib"), py::arg("string"), doc(R"(
 Construct a string symbol given a string.
 
-Parameters
-----------
-lib
-    A library object to store the function in.
-string
-    The given string.
+Args:
+    lib: A library object to store the function in.
+    string: The given string.
 )"));
     symbol.def("Tuple_", &Tuple, py::arg("lib"), py::arg("arguments"), doc(R"(
 Construct a tuple symbol.
 
-Parameters
-----------
-lib
-    A library object to store the function in.
-arguments
-    The arguments in form of a list of symbols.
+Args:
+    lib: A library object to store the function in.
+    arguments: The arguments in form of a list of symbols.
 )"));
     symbol.def("Function", &Function, py::arg("lib"), py::arg("name"), py::arg("arguments") = std::vector<Symbol>{},
                py::arg("sign") = false, doc(R"(
@@ -355,28 +336,20 @@ This includes constants and tuples. Constants have an empty argument list and
 tuples have an empty name. Functions can represent classically negated atoms.
 Argument positive has to be set to false to represent such atoms.
 
-Parameters
-----------
-lib
-    A library object to store the function in.
-name
-    The name of the function.
-arguments
-    The arguments in form of a list of symbols.
-sign
-    The sign of the function.
+Args:
+    lib: A library object to store the function in.
+    name: The name of the function.
+    arguments: The arguments in form of a list of symbols.
+    sign: The sign of the function.
 )"));
     symbol.def("parse_term", &parse_term, py::arg("lib"), py::arg("string"), doc(R"(
 Parse the given string using clingo's term parser for ground terms.
 
 The function also evaluates arithmetic functions.
 
-Parameters
-----------
-lib
-    A library object to store parsed symbols in.
-string
-    The string to be parsed.
+Args:
+    lib: A library object to store parsed symbols in.
+    string: The string to be parsed.
 )"));
 }
 

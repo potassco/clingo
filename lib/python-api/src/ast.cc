@@ -6477,40 +6477,36 @@ term.)doc");
     py_projection
         .def(py::init(&Projection::construct), py::arg("lib"), py::arg("location"), R"doc(Construct a Projection object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the placeholder.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the placeholder.)doc")
         .def("__str__", &Projection::to_string)
         .def("__hash__", &Projection::hash)
         .def_property_readonly("location", &Projection::location, R"doc(The location of the placeholder.)doc")
         .def("visit", &Projection::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &Projection::transform, R"doc(Transform the expression.
+        .def("transform", &Projection::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &Projection::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -6519,16 +6515,11 @@ lib
         .def(py::init(&TermVariable::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
              py::arg("anonymous") = false, R"doc(Construct a TermVariable object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the variable.
-name
-    The name of the variable.
-anonymous
-    Whether the variable is anonymous.
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the variable.
+    name:     The name of the variable.
+    anonymous:     Whether the variable is anonymous.
 
     Anonymous variables receive a unique name during preprocessing.)doc")
         .def("__str__", &TermVariable::to_string)
@@ -6539,29 +6530,28 @@ anonymous
 Anonymous variables receive a unique name during preprocessing.)doc")
         .def("visit", &TermVariable::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &TermVariable::transform, R"doc(Transform the expression.
+        .def("transform", &TermVariable::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &TermVariable::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -6570,43 +6560,38 @@ lib
         .def(py::init(&TermSymbolic::construct), py::arg("lib"), py::arg("location"), py::arg("symbol"),
              R"doc(Construct a TermSymbolic object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the symbol.
-symbol
-    The symbol.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the symbol.
+    symbol:     The symbol.)doc")
         .def("__str__", &TermSymbolic::to_string)
         .def("__hash__", &TermSymbolic::hash)
         .def_property_readonly("location", &TermSymbolic::location, R"doc(The location of the symbol.)doc")
         .def_property_readonly("symbol", &TermSymbolic::symbol, R"doc(The symbol.)doc")
         .def("visit", &TermSymbolic::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &TermSymbolic::transform, R"doc(Transform the expression.
+        .def("transform", &TermSymbolic::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &TermSymbolic::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -6615,14 +6600,10 @@ lib
         .def(py::init(&TermAbsolute::construct), py::arg("lib"), py::arg("location"), py::arg("pool"),
              R"doc(Construct a TermAbsolute object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the operation.
-pool
-    The argument pool.
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the operation.
+    pool:     The argument pool.
 
     If there is more than one argument in the pool, the term is
     unpooled during preprocessing.)doc")
@@ -6633,29 +6614,28 @@ pool
 If there is more than one argument in the pool, the term is unpooled during preprocessing.)doc")
         .def("visit", &TermAbsolute::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &TermAbsolute::transform, R"doc(Transform the expression.
+        .def("transform", &TermAbsolute::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &TermAbsolute::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -6664,16 +6644,11 @@ lib
         .def(py::init(&TermUnaryOperation::construct), py::arg("lib"), py::arg("location"), py::arg("operator_type"),
              py::arg("right"), R"doc(Construct a TermUnaryOperation object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the operation.
-operator_type
-    The type of the operation.
-right
-    The argument of the operation.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the operation.
+    operator_type:     The type of the operation.
+    right:     The argument of the operation.)doc")
         .def("__str__", &TermUnaryOperation::to_string)
         .def("__hash__", &TermUnaryOperation::hash)
         .def_property_readonly("location", &TermUnaryOperation::location, R"doc(The location of the operation.)doc")
@@ -6682,29 +6657,28 @@ right
         .def_property_readonly("right", &TermUnaryOperation::right, R"doc(The argument of the operation.)doc")
         .def("visit", &TermUnaryOperation::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &TermUnaryOperation::transform, R"doc(Transform the expression.
+        .def("transform", &TermUnaryOperation::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &TermUnaryOperation::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -6713,18 +6687,12 @@ lib
         .def(py::init(&TermBinaryOperation::construct), py::arg("lib"), py::arg("location"), py::arg("left"),
              py::arg("operator_type"), py::arg("right"), R"doc(Construct a TermBinaryOperation object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the operation.
-left
-    The left argument of the operation.
-operator_type
-    The type of the operation.
-right
-    The right argument of the operation.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the operation.
+    left:     The left argument of the operation.
+    operator_type:     The type of the operation.
+    right:     The right argument of the operation.)doc")
         .def("__str__", &TermBinaryOperation::to_string)
         .def("__hash__", &TermBinaryOperation::hash)
         .def_property_readonly("location", &TermBinaryOperation::location, R"doc(The location of the operation.)doc")
@@ -6734,29 +6702,28 @@ right
         .def_property_readonly("right", &TermBinaryOperation::right, R"doc(The right argument of the operation.)doc")
         .def("visit", &TermBinaryOperation::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &TermBinaryOperation::transform, R"doc(Transform the expression.
+        .def("transform", &TermBinaryOperation::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &TermBinaryOperation::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -6765,14 +6732,10 @@ lib
         .def(py::init(&TermTuple::construct), py::arg("lib"), py::arg("location"), py::arg("pool"),
              R"doc(Construct a TermTuple object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the tuple.
-pool
-    The argument pool of the tuple.
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the tuple.
+    pool:     The argument pool of the tuple.
 
     If there is more than one element in the pool, the term is
     unpooled during preprocessing.)doc")
@@ -6783,29 +6746,27 @@ pool
 If there is more than one element in the pool, the term is unpooled during preprocessing.)doc")
         .def("visit", &TermTuple::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &TermTuple::transform, R"doc(Transform the expression.
+        .def("transform", &TermTuple::transform, py::arg("lib"), py::arg("transformer"), R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &TermTuple::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -6814,21 +6775,15 @@ lib
         .def(py::init(&TermFunction::construct), py::arg("lib"), py::arg("location"), py::arg("name"), py::arg("pool"),
              py::arg("external") = false, R"doc(Construct a TermFunction object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the function.
-name
-    The name of the function.
-pool
-    The argument pool of the function.
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the function.
+    name:     The name of the function.
+    pool:     The argument pool of the function.
 
     If there is more than one element in the pool, the term is
     unpooled during preprocessing.
-external
-    Whether the function is external.)doc")
+    external:     Whether the function is external.)doc")
         .def("__str__", &TermFunction::to_string)
         .def("__hash__", &TermFunction::hash)
         .def_property_readonly("location", &TermFunction::location, R"doc(The location of the function.)doc")
@@ -6838,29 +6793,28 @@ If there is more than one element in the pool, the term is unpooled during prepr
         .def_property_readonly("external", &TermFunction::external, R"doc(Whether the function is external.)doc")
         .def("visit", &TermFunction::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &TermFunction::transform, R"doc(Transform the expression.
+        .def("transform", &TermFunction::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &TermFunction::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -6869,40 +6823,36 @@ lib
         .def(py::init(&ArgumentTuple::construct), py::arg("lib"), py::arg("arguments") = TermOrProjectionArray{},
              R"doc(Construct a ArgumentTuple object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-arguments
-    The arguments of the tuple.)doc")
+Args:
+    lib: The library object for storing symbols.
+    arguments:     The arguments of the tuple.)doc")
         .def("__str__", &ArgumentTuple::to_string)
         .def("__hash__", &ArgumentTuple::hash)
         .def_property_readonly("arguments", &ArgumentTuple::arguments, R"doc(The arguments of the tuple.)doc")
         .def("visit", &ArgumentTuple::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &ArgumentTuple::transform, R"doc(Transform the expression.
+        .def("transform", &ArgumentTuple::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &ArgumentTuple::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -6911,43 +6861,37 @@ lib
         .def(py::init(&LeftGuard::construct), py::arg("lib"), py::arg("term"), py::arg("relation"),
              R"doc(Construct a LeftGuard object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-term
-    The term of the guard.
-relation
-    The relation of the guard.)doc")
+Args:
+    lib: The library object for storing symbols.
+    term:     The term of the guard.
+    relation:     The relation of the guard.)doc")
         .def("__str__", &LeftGuard::to_string)
         .def("__hash__", &LeftGuard::hash)
         .def_property_readonly("term", &LeftGuard::term, R"doc(The term of the guard.)doc")
         .def_property_readonly("relation", &LeftGuard::relation, R"doc(The relation of the guard.)doc")
         .def("visit", &LeftGuard::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &LeftGuard::transform, R"doc(Transform the expression.
+        .def("transform", &LeftGuard::transform, py::arg("lib"), py::arg("transformer"), R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &LeftGuard::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -6956,43 +6900,38 @@ lib
         .def(py::init(&RightGuard::construct), py::arg("lib"), py::arg("relation"), py::arg("term"),
              R"doc(Construct a RightGuard object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-relation
-    The relation of the guard.
-term
-    The term of the guard.)doc")
+Args:
+    lib: The library object for storing symbols.
+    relation:     The relation of the guard.
+    term:     The term of the guard.)doc")
         .def("__str__", &RightGuard::to_string)
         .def("__hash__", &RightGuard::hash)
         .def_property_readonly("relation", &RightGuard::relation, R"doc(The relation of the guard.)doc")
         .def_property_readonly("term", &RightGuard::term, R"doc(The term of the guard.)doc")
         .def("visit", &RightGuard::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &RightGuard::transform, R"doc(Transform the expression.
+        .def("transform", &RightGuard::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &RightGuard::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -7001,16 +6940,11 @@ lib
         .def(py::init(&LiteralBoolean::construct), py::arg("lib"), py::arg("location"), py::arg("sign"),
              py::arg("value"), R"doc(Construct a LiteralBoolean object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the symbol.
-sign
-    The sign of the literal.
-value
-    The fixed value of the literal.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the symbol.
+    sign:     The sign of the literal.
+    value:     The fixed value of the literal.)doc")
         .def("__str__", &LiteralBoolean::to_string)
         .def("__hash__", &LiteralBoolean::hash)
         .def_property_readonly("location", &LiteralBoolean::location, R"doc(The location of the symbol.)doc")
@@ -7018,29 +6952,28 @@ value
         .def_property_readonly("value", &LiteralBoolean::value, R"doc(The fixed value of the literal.)doc")
         .def("visit", &LiteralBoolean::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &LiteralBoolean::transform, R"doc(Transform the expression.
+        .def("transform", &LiteralBoolean::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &LiteralBoolean::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -7049,18 +6982,12 @@ lib
         .def(py::init(&LiteralComparison::construct), py::arg("lib"), py::arg("location"), py::arg("sign"),
              py::arg("left"), py::arg("right"), R"doc(Construct a LiteralComparison object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the symbol.
-sign
-    The sign of the literal.
-left
-    The first term of the comparison.
-right
-    The chain of comparisons.
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the symbol.
+    sign:     The sign of the literal.
+    left:     The first term of the comparison.
+    right:     The chain of comparisons.
 
     Note that the chain must have at least length one.)doc")
         .def("__str__", &LiteralComparison::to_string)
@@ -7072,29 +6999,28 @@ right
 Note that the chain must have at least length one.)doc")
         .def("visit", &LiteralComparison::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &LiteralComparison::transform, R"doc(Transform the expression.
+        .def("transform", &LiteralComparison::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &LiteralComparison::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -7103,16 +7029,11 @@ lib
         .def(py::init(&LiteralSymbolic::construct), py::arg("lib"), py::arg("location"), py::arg("sign"),
              py::arg("atom"), R"doc(Construct a LiteralSymbolic object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the symbol.
-sign
-    The sign of the literal.
-atom
-    The term representing the atom.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the symbol.
+    sign:     The sign of the literal.
+    atom:     The term representing the atom.)doc")
         .def("__str__", &LiteralSymbolic::to_string)
         .def("__hash__", &LiteralSymbolic::hash)
         .def_property_readonly("location", &LiteralSymbolic::location, R"doc(The location of the symbol.)doc")
@@ -7120,29 +7041,28 @@ atom
         .def_property_readonly("atom", &LiteralSymbolic::atom, R"doc(The term representing the atom.)doc")
         .def("visit", &LiteralSymbolic::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &LiteralSymbolic::transform, R"doc(Transform the expression.
+        .def("transform", &LiteralSymbolic::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &LiteralSymbolic::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -7151,43 +7071,38 @@ lib
         .def(py::init(&UnparsedElement::construct), py::arg("lib"), py::arg("operators"), py::arg("term"),
              R"doc(Construct a UnparsedElement object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-operators
-    The list of theory operators.
-term
-    The theory term.)doc")
+Args:
+    lib: The library object for storing symbols.
+    operators:     The list of theory operators.
+    term:     The theory term.)doc")
         .def("__str__", &UnparsedElement::to_string)
         .def("__hash__", &UnparsedElement::hash)
         .def_property_readonly("operators", &UnparsedElement::operators, R"doc(The list of theory operators.)doc")
         .def_property_readonly("term", &UnparsedElement::term, R"doc(The theory term.)doc")
         .def("visit", &UnparsedElement::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &UnparsedElement::transform, R"doc(Transform the expression.
+        .def("transform", &UnparsedElement::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &UnparsedElement::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -7196,16 +7111,11 @@ lib
         .def(py::init(&TheoryTermVariable::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
              py::arg("anonymous") = false, R"doc(Construct a TheoryTermVariable object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the variable.
-name
-    The name of the variable.
-anonymous
-    Whether the variable is anonymous.
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the variable.
+    name:     The name of the variable.
+    anonymous:     Whether the variable is anonymous.
 
     Anonymous variables receive a unique name during preprocessing.)doc")
         .def("__str__", &TheoryTermVariable::to_string)
@@ -7216,29 +7126,28 @@ anonymous
 Anonymous variables receive a unique name during preprocessing.)doc")
         .def("visit", &TheoryTermVariable::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &TheoryTermVariable::transform, R"doc(Transform the expression.
+        .def("transform", &TheoryTermVariable::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &TheoryTermVariable::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -7247,43 +7156,38 @@ lib
         .def(py::init(&TheoryTermSymbolic::construct), py::arg("lib"), py::arg("location"), py::arg("symbol"),
              R"doc(Construct a TheoryTermSymbolic object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the symbol.
-symbol
-    The symbol.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the symbol.
+    symbol:     The symbol.)doc")
         .def("__str__", &TheoryTermSymbolic::to_string)
         .def("__hash__", &TheoryTermSymbolic::hash)
         .def_property_readonly("location", &TheoryTermSymbolic::location, R"doc(The location of the symbol.)doc")
         .def_property_readonly("symbol", &TheoryTermSymbolic::symbol, R"doc(The symbol.)doc")
         .def("visit", &TheoryTermSymbolic::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &TheoryTermSymbolic::transform, R"doc(Transform the expression.
+        .def("transform", &TheoryTermSymbolic::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &TheoryTermSymbolic::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -7292,16 +7196,11 @@ lib
         .def(py::init(&TheoryTermTuple::construct), py::arg("lib"), py::arg("location"), py::arg("tuple_type"),
              py::arg("arguments"), R"doc(Construct a TheoryTermTuple object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the tuple.
-tuple_type
-    The type of the tuple.
-arguments
-    The arguments of the tuple.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the tuple.
+    tuple_type:     The type of the tuple.
+    arguments:     The arguments of the tuple.)doc")
         .def("__str__", &TheoryTermTuple::to_string)
         .def("__hash__", &TheoryTermTuple::hash)
         .def_property_readonly("location", &TheoryTermTuple::location, R"doc(The location of the tuple.)doc")
@@ -7309,29 +7208,28 @@ arguments
         .def_property_readonly("arguments", &TheoryTermTuple::arguments, R"doc(The arguments of the tuple.)doc")
         .def("visit", &TheoryTermTuple::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &TheoryTermTuple::transform, R"doc(Transform the expression.
+        .def("transform", &TheoryTermTuple::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &TheoryTermTuple::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -7340,16 +7238,11 @@ lib
         .def(py::init(&TheoryTermFunction::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
              py::arg("arguments"), R"doc(Construct a TheoryTermFunction object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the function.
-name
-    The name of the function.
-arguments
-    The arguments of the function.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the function.
+    name:     The name of the function.
+    arguments:     The arguments of the function.)doc")
         .def("__str__", &TheoryTermFunction::to_string)
         .def("__hash__", &TheoryTermFunction::hash)
         .def_property_readonly("location", &TheoryTermFunction::location, R"doc(The location of the function.)doc")
@@ -7357,29 +7250,28 @@ arguments
         .def_property_readonly("arguments", &TheoryTermFunction::arguments, R"doc(The arguments of the function.)doc")
         .def("visit", &TheoryTermFunction::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &TheoryTermFunction::transform, R"doc(Transform the expression.
+        .def("transform", &TheoryTermFunction::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &TheoryTermFunction::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -7388,43 +7280,38 @@ lib
         .def(py::init(&TheoryTermUnparsed::construct), py::arg("lib"), py::arg("location"), py::arg("elements"),
              R"doc(Construct a TheoryTermUnparsed object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the theory term.
-elements
-    The unparsed theory elements.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the theory term.
+    elements:     The unparsed theory elements.)doc")
         .def("__str__", &TheoryTermUnparsed::to_string)
         .def("__hash__", &TheoryTermUnparsed::hash)
         .def_property_readonly("location", &TheoryTermUnparsed::location, R"doc(The location of the theory term.)doc")
         .def_property_readonly("elements", &TheoryTermUnparsed::elements, R"doc(The unparsed theory elements.)doc")
         .def("visit", &TheoryTermUnparsed::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &TheoryTermUnparsed::transform, R"doc(Transform the expression.
+        .def("transform", &TheoryTermUnparsed::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &TheoryTermUnparsed::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -7433,14 +7320,10 @@ lib
         .def(py::init(&TheoryRightGuard::construct), py::arg("lib"), py::arg("theory_operator"), py::arg("term"),
              R"doc(Construct a TheoryRightGuard object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-theory_operator
-    The operator of the guard.
-term
-    The theory term of the guard.)doc")
+Args:
+    lib: The library object for storing symbols.
+    theory_operator:     The operator of the guard.
+    term:     The theory term of the guard.)doc")
         .def("__str__", &TheoryRightGuard::to_string)
         .def("__hash__", &TheoryRightGuard::hash)
         .def_property_readonly("theory_operator", &TheoryRightGuard::theory_operator,
@@ -7448,29 +7331,28 @@ term
         .def_property_readonly("term", &TheoryRightGuard::term, R"doc(The theory term of the guard.)doc")
         .def("visit", &TheoryRightGuard::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &TheoryRightGuard::transform, R"doc(Transform the expression.
+        .def("transform", &TheoryRightGuard::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &TheoryRightGuard::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -7479,16 +7361,11 @@ lib
         .def(py::init(&SetAggregateElement::construct), py::arg("lib"), py::arg("location"), py::arg("literal"),
              py::arg("condition"), R"doc(Construct a SetAggregateElement object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the element.
-literal
-    The literal of the element.
-condition
-    The condition of the element.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the element.
+    literal:     The literal of the element.
+    condition:     The condition of the element.)doc")
         .def("__str__", &SetAggregateElement::to_string)
         .def("__hash__", &SetAggregateElement::hash)
         .def_property_readonly("location", &SetAggregateElement::location, R"doc(The location of the element.)doc")
@@ -7496,29 +7373,28 @@ condition
         .def_property_readonly("condition", &SetAggregateElement::condition, R"doc(The condition of the element.)doc")
         .def("visit", &SetAggregateElement::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &SetAggregateElement::transform, R"doc(Transform the expression.
+        .def("transform", &SetAggregateElement::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &SetAggregateElement::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -7527,16 +7403,11 @@ lib
         .def(py::init(&BodyAggregateElement::construct), py::arg("lib"), py::arg("location"), py::arg("tuple"),
              py::arg("condition"), R"doc(Construct a BodyAggregateElement object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the element.
-tuple
-    The term tuple of the element.
-condition
-    The condition of the element.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the element.
+    tuple:     The term tuple of the element.
+    condition:     The condition of the element.)doc")
         .def("__str__", &BodyAggregateElement::to_string)
         .def("__hash__", &BodyAggregateElement::hash)
         .def_property_readonly("location", &BodyAggregateElement::location, R"doc(The location of the element.)doc")
@@ -7544,29 +7415,28 @@ condition
         .def_property_readonly("condition", &BodyAggregateElement::condition, R"doc(The condition of the element.)doc")
         .def("visit", &BodyAggregateElement::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &BodyAggregateElement::transform, R"doc(Transform the expression.
+        .def("transform", &BodyAggregateElement::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &BodyAggregateElement::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -7575,16 +7445,11 @@ lib
         .def(py::init(&TheoryAtomElement::construct), py::arg("lib"), py::arg("location"), py::arg("tuple"),
              py::arg("condition"), R"doc(Construct a TheoryAtomElement object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the element.
-tuple
-    The theory term tuple of the element.
-condition
-    The condition of the element.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the element.
+    tuple:     The theory term tuple of the element.
+    condition:     The condition of the element.)doc")
         .def("__str__", &TheoryAtomElement::to_string)
         .def("__hash__", &TheoryAtomElement::hash)
         .def_property_readonly("location", &TheoryAtomElement::location, R"doc(The location of the element.)doc")
@@ -7592,29 +7457,28 @@ condition
         .def_property_readonly("condition", &TheoryAtomElement::condition, R"doc(The condition of the element.)doc")
         .def("visit", &TheoryAtomElement::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &TheoryAtomElement::transform, R"doc(Transform the expression.
+        .def("transform", &TheoryAtomElement::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &TheoryAtomElement::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -7623,40 +7487,36 @@ lib
         .def(py::init(&BodySimpleLiteral::construct), py::arg("lib"), py::arg("literal"),
              R"doc(Construct a BodySimpleLiteral object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-literal
-    The literal.)doc")
+Args:
+    lib: The library object for storing symbols.
+    literal:     The literal.)doc")
         .def("__str__", &BodySimpleLiteral::to_string)
         .def("__hash__", &BodySimpleLiteral::hash)
         .def_property_readonly("literal", &BodySimpleLiteral::literal, R"doc(The literal.)doc")
         .def("visit", &BodySimpleLiteral::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &BodySimpleLiteral::transform, R"doc(Transform the expression.
+        .def("transform", &BodySimpleLiteral::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &BodySimpleLiteral::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -7665,22 +7525,14 @@ lib
         .def(py::init(&BodyAggregate::construct), py::arg("lib"), py::arg("location"), py::arg("sign"), py::arg("left"),
              py::arg("function"), py::arg("elements"), py::arg("right"), R"doc(Construct a BodyAggregate object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the element.
-sign
-    The sign of the literal.
-left
-    The left guard of the aggregate.
-function
-    The aggregate function.
-elements
-    The aggregate elements.
-right
-    The right guard of the aggregate.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the element.
+    sign:     The sign of the literal.
+    left:     The left guard of the aggregate.
+    function:     The aggregate function.
+    elements:     The aggregate elements.
+    right:     The right guard of the aggregate.)doc")
         .def("__str__", &BodyAggregate::to_string)
         .def("__hash__", &BodyAggregate::hash)
         .def_property_readonly("location", &BodyAggregate::location, R"doc(The location of the element.)doc")
@@ -7691,29 +7543,28 @@ right
         .def_property_readonly("right", &BodyAggregate::right, R"doc(The right guard of the aggregate.)doc")
         .def("visit", &BodyAggregate::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &BodyAggregate::transform, R"doc(Transform the expression.
+        .def("transform", &BodyAggregate::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &BodyAggregate::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -7722,20 +7573,13 @@ lib
         .def(py::init(&BodySetAggregate::construct), py::arg("lib"), py::arg("location"), py::arg("sign"),
              py::arg("left"), py::arg("elements"), py::arg("right"), R"doc(Construct a BodySetAggregate object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the element.
-sign
-    The sign of the literal.
-left
-    The left guard of the aggregate.
-elements
-    The aggregate elements.
-right
-    The right guard of the aggregate.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the element.
+    sign:     The sign of the literal.
+    left:     The left guard of the aggregate.
+    elements:     The aggregate elements.
+    right:     The right guard of the aggregate.)doc")
         .def("__str__", &BodySetAggregate::to_string)
         .def("__hash__", &BodySetAggregate::hash)
         .def_property_readonly("location", &BodySetAggregate::location, R"doc(The location of the element.)doc")
@@ -7745,29 +7589,28 @@ right
         .def_property_readonly("right", &BodySetAggregate::right, R"doc(The right guard of the aggregate.)doc")
         .def("visit", &BodySetAggregate::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &BodySetAggregate::transform, R"doc(Transform the expression.
+        .def("transform", &BodySetAggregate::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &BodySetAggregate::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -7776,20 +7619,13 @@ lib
         .def(py::init(&BodyTheoryAtom::construct), py::arg("lib"), py::arg("location"), py::arg("sign"),
              py::arg("name"), py::arg("elements"), py::arg("right"), R"doc(Construct a BodyTheoryAtom object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the element.
-sign
-    The sign of the literal.
-name
-    The name of the theory atom.
-elements
-    The aggregate elements.
-right
-    The right guard of the theory atom.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the element.
+    sign:     The sign of the literal.
+    name:     The name of the theory atom.
+    elements:     The aggregate elements.
+    right:     The right guard of the theory atom.)doc")
         .def("__str__", &BodyTheoryAtom::to_string)
         .def("__hash__", &BodyTheoryAtom::hash)
         .def_property_readonly("location", &BodyTheoryAtom::location, R"doc(The location of the element.)doc")
@@ -7799,29 +7635,28 @@ right
         .def_property_readonly("right", &BodyTheoryAtom::right, R"doc(The right guard of the theory atom.)doc")
         .def("visit", &BodyTheoryAtom::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &BodyTheoryAtom::transform, R"doc(Transform the expression.
+        .def("transform", &BodyTheoryAtom::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &BodyTheoryAtom::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -7830,16 +7665,11 @@ lib
         .def(py::init(&BodyConditionalLiteral::construct), py::arg("lib"), py::arg("location"), py::arg("literal"),
              py::arg("condition"), R"doc(Construct a BodyConditionalLiteral object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the element.
-literal
-    The literal of the element.
-condition
-    The condition of the element.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the element.
+    literal:     The literal of the element.
+    condition:     The condition of the element.)doc")
         .def("__str__", &BodyConditionalLiteral::to_string)
         .def("__hash__", &BodyConditionalLiteral::hash)
         .def_property_readonly("location", &BodyConditionalLiteral::location, R"doc(The location of the element.)doc")
@@ -7848,29 +7678,28 @@ condition
                                R"doc(The condition of the element.)doc")
         .def("visit", &BodyConditionalLiteral::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &BodyConditionalLiteral::transform, R"doc(Transform the expression.
+        .def("transform", &BodyConditionalLiteral::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &BodyConditionalLiteral::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -7879,16 +7708,11 @@ lib
         .def(py::init(&HeadConditionalLiteral::construct), py::arg("lib"), py::arg("location"), py::arg("literal"),
              py::arg("condition"), R"doc(Construct a HeadConditionalLiteral object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the element.
-literal
-    The literal of the element.
-condition
-    The condition of the element.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the element.
+    literal:     The literal of the element.
+    condition:     The condition of the element.)doc")
         .def("__str__", &HeadConditionalLiteral::to_string)
         .def("__hash__", &HeadConditionalLiteral::hash)
         .def_property_readonly("location", &HeadConditionalLiteral::location, R"doc(The location of the element.)doc")
@@ -7897,29 +7721,28 @@ condition
                                R"doc(The condition of the element.)doc")
         .def("visit", &HeadConditionalLiteral::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &HeadConditionalLiteral::transform, R"doc(Transform the expression.
+        .def("transform", &HeadConditionalLiteral::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &HeadConditionalLiteral::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -7928,18 +7751,12 @@ lib
         .def(py::init(&HeadAggregateElement::construct), py::arg("lib"), py::arg("location"), py::arg("tuple"),
              py::arg("literal"), py::arg("condition"), R"doc(Construct a HeadAggregateElement object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the element.
-tuple
-    The term tuple of the element.
-literal
-    The literal of the element.
-condition
-    The condition of the element.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the element.
+    tuple:     The term tuple of the element.
+    literal:     The literal of the element.
+    condition:     The condition of the element.)doc")
         .def("__str__", &HeadAggregateElement::to_string)
         .def("__hash__", &HeadAggregateElement::hash)
         .def_property_readonly("location", &HeadAggregateElement::location, R"doc(The location of the element.)doc")
@@ -7948,29 +7765,28 @@ condition
         .def_property_readonly("condition", &HeadAggregateElement::condition, R"doc(The condition of the element.)doc")
         .def("visit", &HeadAggregateElement::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &HeadAggregateElement::transform, R"doc(Transform the expression.
+        .def("transform", &HeadAggregateElement::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &HeadAggregateElement::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -7979,40 +7795,36 @@ lib
         .def(py::init(&HeadSimpleLiteral::construct), py::arg("lib"), py::arg("literal"),
              R"doc(Construct a HeadSimpleLiteral object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-literal
-    The literal.)doc")
+Args:
+    lib: The library object for storing symbols.
+    literal:     The literal.)doc")
         .def("__str__", &HeadSimpleLiteral::to_string)
         .def("__hash__", &HeadSimpleLiteral::hash)
         .def_property_readonly("literal", &HeadSimpleLiteral::literal, R"doc(The literal.)doc")
         .def("visit", &HeadSimpleLiteral::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &HeadSimpleLiteral::transform, R"doc(Transform the expression.
+        .def("transform", &HeadSimpleLiteral::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &HeadSimpleLiteral::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -8021,20 +7833,13 @@ lib
         .def(py::init(&HeadAggregate::construct), py::arg("lib"), py::arg("location"), py::arg("left"),
              py::arg("function"), py::arg("elements"), py::arg("right"), R"doc(Construct a HeadAggregate object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the element.
-left
-    The left guard of the aggregate.
-function
-    The aggregate function.
-elements
-    The aggregate elements.
-right
-    The right guard of the aggregate.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the element.
+    left:     The left guard of the aggregate.
+    function:     The aggregate function.
+    elements:     The aggregate elements.
+    right:     The right guard of the aggregate.)doc")
         .def("__str__", &HeadAggregate::to_string)
         .def("__hash__", &HeadAggregate::hash)
         .def_property_readonly("location", &HeadAggregate::location, R"doc(The location of the element.)doc")
@@ -8044,29 +7849,28 @@ right
         .def_property_readonly("right", &HeadAggregate::right, R"doc(The right guard of the aggregate.)doc")
         .def("visit", &HeadAggregate::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &HeadAggregate::transform, R"doc(Transform the expression.
+        .def("transform", &HeadAggregate::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &HeadAggregate::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -8075,18 +7879,12 @@ lib
         .def(py::init(&HeadSetAggregate::construct), py::arg("lib"), py::arg("location"), py::arg("left"),
              py::arg("elements"), py::arg("right"), R"doc(Construct a HeadSetAggregate object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the element.
-left
-    The left guard of the aggregate.
-elements
-    The aggregate elements.
-right
-    The right guard of the aggregate.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the element.
+    left:     The left guard of the aggregate.
+    elements:     The aggregate elements.
+    right:     The right guard of the aggregate.)doc")
         .def("__str__", &HeadSetAggregate::to_string)
         .def("__hash__", &HeadSetAggregate::hash)
         .def_property_readonly("location", &HeadSetAggregate::location, R"doc(The location of the element.)doc")
@@ -8095,29 +7893,28 @@ right
         .def_property_readonly("right", &HeadSetAggregate::right, R"doc(The right guard of the aggregate.)doc")
         .def("visit", &HeadSetAggregate::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &HeadSetAggregate::transform, R"doc(Transform the expression.
+        .def("transform", &HeadSetAggregate::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &HeadSetAggregate::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -8126,18 +7923,12 @@ lib
         .def(py::init(&HeadTheoryAtom::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
              py::arg("elements"), py::arg("right"), R"doc(Construct a HeadTheoryAtom object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the element.
-name
-    The name of the theory atom.
-elements
-    The aggregate elements.
-right
-    The right guard of the theory atom.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the element.
+    name:     The name of the theory atom.
+    elements:     The aggregate elements.
+    right:     The right guard of the theory atom.)doc")
         .def("__str__", &HeadTheoryAtom::to_string)
         .def("__hash__", &HeadTheoryAtom::hash)
         .def_property_readonly("location", &HeadTheoryAtom::location, R"doc(The location of the element.)doc")
@@ -8146,29 +7937,28 @@ right
         .def_property_readonly("right", &HeadTheoryAtom::right, R"doc(The right guard of the theory atom.)doc")
         .def("visit", &HeadTheoryAtom::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &HeadTheoryAtom::transform, R"doc(Transform the expression.
+        .def("transform", &HeadTheoryAtom::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &HeadTheoryAtom::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -8177,43 +7967,38 @@ lib
         .def(py::init(&HeadDisjunction::construct), py::arg("lib"), py::arg("location"), py::arg("elements"),
              R"doc(Construct a HeadDisjunction object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the element.
-elements
-    The elements of the disjunction.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the element.
+    elements:     The elements of the disjunction.)doc")
         .def("__str__", &HeadDisjunction::to_string)
         .def("__hash__", &HeadDisjunction::hash)
         .def_property_readonly("location", &HeadDisjunction::location, R"doc(The location of the element.)doc")
         .def_property_readonly("elements", &HeadDisjunction::elements, R"doc(The elements of the disjunction.)doc")
         .def("visit", &HeadDisjunction::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &HeadDisjunction::transform, R"doc(Transform the expression.
+        .def("transform", &HeadDisjunction::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &HeadDisjunction::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -8222,18 +8007,12 @@ lib
         .def(py::init(&TheoryOperatorDefinition::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
              py::arg("priority"), py::arg("operator_type"), R"doc(Construct a TheoryOperatorDefinition object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the definition.
-name
-    The name of the definition.
-priority
-    The priority of the operator.
-operator_type
-    The type of the operator.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the definition.
+    name:     The name of the definition.
+    priority:     The priority of the operator.
+    operator_type:     The type of the operator.)doc")
         .def("__str__", &TheoryOperatorDefinition::to_string)
         .def("__hash__", &TheoryOperatorDefinition::hash)
         .def_property_readonly("location", &TheoryOperatorDefinition::location,
@@ -8245,29 +8024,28 @@ operator_type
                                R"doc(The type of the operator.)doc")
         .def("visit", &TheoryOperatorDefinition::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &TheoryOperatorDefinition::transform, R"doc(Transform the expression.
+        .def("transform", &TheoryOperatorDefinition::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &TheoryOperatorDefinition::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -8276,16 +8054,11 @@ lib
         .def(py::init(&TheoryTermDefinition::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
              py::arg("operators"), R"doc(Construct a TheoryTermDefinition object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the definition.
-name
-    The name of the definition.
-operators
-    The operator definitions to construct terms.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the definition.
+    name:     The name of the definition.
+    operators:     The operator definitions to construct terms.)doc")
         .def("__str__", &TheoryTermDefinition::to_string)
         .def("__hash__", &TheoryTermDefinition::hash)
         .def_property_readonly("location", &TheoryTermDefinition::location, R"doc(The location of the definition.)doc")
@@ -8294,29 +8067,28 @@ operators
                                R"doc(The operator definitions to construct terms.)doc")
         .def("visit", &TheoryTermDefinition::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &TheoryTermDefinition::transform, R"doc(Transform the expression.
+        .def("transform", &TheoryTermDefinition::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &TheoryTermDefinition::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -8325,14 +8097,10 @@ lib
         .def(py::init(&TheoryGuardDefinition::construct), py::arg("lib"), py::arg("operators"), py::arg("term"),
              R"doc(Construct a TheoryGuardDefinition object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-operators
-    A list of operator definition names.
-term
-    The name of a term definition.)doc")
+Args:
+    lib: The library object for storing symbols.
+    operators:     A list of operator definition names.
+    term:     The name of a term definition.)doc")
         .def("__str__", &TheoryGuardDefinition::to_string)
         .def("__hash__", &TheoryGuardDefinition::hash)
         .def_property_readonly("operators", &TheoryGuardDefinition::operators,
@@ -8340,29 +8108,28 @@ term
         .def_property_readonly("term", &TheoryGuardDefinition::term, R"doc(The name of a term definition.)doc")
         .def("visit", &TheoryGuardDefinition::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &TheoryGuardDefinition::transform, R"doc(Transform the expression.
+        .def("transform", &TheoryGuardDefinition::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &TheoryGuardDefinition::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -8372,22 +8139,14 @@ lib
              py::arg("arity"), py::arg("term"), py::arg("guard"), py::arg("atom_type"),
              R"doc(Construct a TheoryAtomDefinition object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the definition.
-name
-    The name of the atom.
-arity
-    The arity of the atom.
-term
-    The name of a term definition.
-guard
-    An optional guard definition.
-atom_type
-    The type of the atom definition.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the definition.
+    name:     The name of the atom.
+    arity:     The arity of the atom.
+    term:     The name of a term definition.
+    guard:     An optional guard definition.
+    atom_type:     The type of the atom definition.)doc")
         .def("__str__", &TheoryAtomDefinition::to_string)
         .def("__hash__", &TheoryAtomDefinition::hash)
         .def_property_readonly("location", &TheoryAtomDefinition::location, R"doc(The location of the definition.)doc")
@@ -8399,29 +8158,28 @@ atom_type
                                R"doc(The type of the atom definition.)doc")
         .def("visit", &TheoryAtomDefinition::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &TheoryAtomDefinition::transform, R"doc(Transform the expression.
+        .def("transform", &TheoryAtomDefinition::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &TheoryAtomDefinition::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -8430,16 +8188,11 @@ lib
         .def(py::init(&OptimizeTuple::construct), py::arg("lib"), py::arg("weight"), py::arg("priority"),
              py::arg("terms"), R"doc(Construct a OptimizeTuple object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-weight
-    The weight of the tuple.
-priority
-    An optional priority.
-terms
-    The remaining terms in the tuple.)doc")
+Args:
+    lib: The library object for storing symbols.
+    weight:     The weight of the tuple.
+    priority:     An optional priority.
+    terms:     The remaining terms in the tuple.)doc")
         .def("__str__", &OptimizeTuple::to_string)
         .def("__hash__", &OptimizeTuple::hash)
         .def_property_readonly("weight", &OptimizeTuple::weight, R"doc(The weight of the tuple.)doc")
@@ -8447,29 +8200,28 @@ terms
         .def_property_readonly("terms", &OptimizeTuple::terms, R"doc(The remaining terms in the tuple.)doc")
         .def("visit", &OptimizeTuple::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &OptimizeTuple::transform, R"doc(Transform the expression.
+        .def("transform", &OptimizeTuple::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &OptimizeTuple::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -8478,43 +8230,38 @@ lib
         .def(py::init(&OptimizeElement::construct), py::arg("lib"), py::arg("tuple"), py::arg("condition"),
              R"doc(Construct a OptimizeElement object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-tuple
-    The tuple of the element.
-condition
-    The condition of the element.)doc")
+Args:
+    lib: The library object for storing symbols.
+    tuple:     The tuple of the element.
+    condition:     The condition of the element.)doc")
         .def("__str__", &OptimizeElement::to_string)
         .def("__hash__", &OptimizeElement::hash)
         .def_property_readonly("tuple", &OptimizeElement::tuple, R"doc(The tuple of the element.)doc")
         .def_property_readonly("condition", &OptimizeElement::condition, R"doc(The condition of the element.)doc")
         .def("visit", &OptimizeElement::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &OptimizeElement::transform, R"doc(Transform the expression.
+        .def("transform", &OptimizeElement::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &OptimizeElement::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -8522,43 +8269,37 @@ lib
     py_edge
         .def(py::init(&Edge::construct), py::arg("lib"), py::arg("u"), py::arg("v"), R"doc(Construct a Edge object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-u
-    The start vertex.
-v
-    The end vertex.)doc")
+Args:
+    lib: The library object for storing symbols.
+    u:     The start vertex.
+    v:     The end vertex.)doc")
         .def("__str__", &Edge::to_string)
         .def("__hash__", &Edge::hash)
         .def_property_readonly("u", &Edge::u, R"doc(The start vertex.)doc")
         .def_property_readonly("v", &Edge::v, R"doc(The end vertex.)doc")
         .def("visit", &Edge::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &Edge::transform, R"doc(Transform the expression.
+        .def("transform", &Edge::transform, py::arg("lib"), py::arg("transformer"), R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &Edge::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -8567,16 +8308,11 @@ lib
         .def(py::init(&StatementRule::construct), py::arg("lib"), py::arg("location"), py::arg("head"), py::arg("body"),
              R"doc(Construct a StatementRule object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the statement.
-head
-    The head literal.
-body
-    The body of the statement.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the statement.
+    head:     The head literal.
+    body:     The body of the statement.)doc")
         .def("__str__", &StatementRule::to_string)
         .def("__hash__", &StatementRule::hash)
         .def_property_readonly("location", &StatementRule::location, R"doc(The location of the statement.)doc")
@@ -8584,29 +8320,28 @@ body
         .def_property_readonly("body", &StatementRule::body, R"doc(The body of the statement.)doc")
         .def("visit", &StatementRule::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &StatementRule::transform, R"doc(Transform the expression.
+        .def("transform", &StatementRule::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &StatementRule::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -8615,18 +8350,12 @@ lib
         .def(py::init(&StatementTheory::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
              py::arg("terms"), py::arg("atoms"), R"doc(Construct a StatementTheory object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the statement.
-name
-    The name of the theory.
-terms
-    A list of term definitions.
-atoms
-    A list of atom definitions.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the statement.
+    name:     The name of the theory.
+    terms:     A list of term definitions.
+    atoms:     A list of atom definitions.)doc")
         .def("__str__", &StatementTheory::to_string)
         .def("__hash__", &StatementTheory::hash)
         .def_property_readonly("location", &StatementTheory::location, R"doc(The location of the statement.)doc")
@@ -8635,29 +8364,28 @@ atoms
         .def_property_readonly("atoms", &StatementTheory::atoms, R"doc(A list of atom definitions.)doc")
         .def("visit", &StatementTheory::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &StatementTheory::transform, R"doc(Transform the expression.
+        .def("transform", &StatementTheory::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &StatementTheory::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -8666,16 +8394,11 @@ lib
         .def(py::init(&StatementOptimize::construct), py::arg("lib"), py::arg("location"), py::arg("elements"),
              py::arg("optimize_type"), R"doc(Construct a StatementOptimize object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the statement.
-elements
-    The elements of the statement.
-optimize_type
-    The type of the statement.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the statement.
+    elements:     The elements of the statement.
+    optimize_type:     The type of the statement.)doc")
         .def("__str__", &StatementOptimize::to_string)
         .def("__hash__", &StatementOptimize::hash)
         .def_property_readonly("location", &StatementOptimize::location, R"doc(The location of the statement.)doc")
@@ -8684,29 +8407,28 @@ optimize_type
                                R"doc(The type of the statement.)doc")
         .def("visit", &StatementOptimize::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &StatementOptimize::transform, R"doc(Transform the expression.
+        .def("transform", &StatementOptimize::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &StatementOptimize::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -8715,16 +8437,11 @@ lib
         .def(py::init(&StatementWeakConstraint::construct), py::arg("lib"), py::arg("location"), py::arg("body"),
              py::arg("tuple"), R"doc(Construct a StatementWeakConstraint object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the statement.
-body
-    The body of the statement.
-tuple
-    The tuple of the statement.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the statement.
+    body:     The body of the statement.
+    tuple:     The tuple of the statement.)doc")
         .def("__str__", &StatementWeakConstraint::to_string)
         .def("__hash__", &StatementWeakConstraint::hash)
         .def_property_readonly("location", &StatementWeakConstraint::location,
@@ -8733,29 +8450,28 @@ tuple
         .def_property_readonly("tuple", &StatementWeakConstraint::tuple, R"doc(The tuple of the statement.)doc")
         .def("visit", &StatementWeakConstraint::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &StatementWeakConstraint::transform, R"doc(Transform the expression.
+        .def("transform", &StatementWeakConstraint::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &StatementWeakConstraint::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -8764,16 +8480,11 @@ lib
         .def(py::init(&StatementShow::construct), py::arg("lib"), py::arg("location"), py::arg("term"), py::arg("body"),
              R"doc(Construct a StatementShow object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the statement.
-term
-    The term to show.
-body
-    The body of the statement.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the statement.
+    term:     The term to show.
+    body:     The body of the statement.)doc")
         .def("__str__", &StatementShow::to_string)
         .def("__hash__", &StatementShow::hash)
         .def_property_readonly("location", &StatementShow::location, R"doc(The location of the statement.)doc")
@@ -8781,29 +8492,28 @@ body
         .def_property_readonly("body", &StatementShow::body, R"doc(The body of the statement.)doc")
         .def("visit", &StatementShow::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &StatementShow::transform, R"doc(Transform the expression.
+        .def("transform", &StatementShow::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &StatementShow::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -8812,40 +8522,36 @@ lib
         .def(py::init(&StatementShowNothing::construct), py::arg("lib"), py::arg("location"),
              R"doc(Construct a StatementShowNothing object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the statement.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the statement.)doc")
         .def("__str__", &StatementShowNothing::to_string)
         .def("__hash__", &StatementShowNothing::hash)
         .def_property_readonly("location", &StatementShowNothing::location, R"doc(The location of the statement.)doc")
         .def("visit", &StatementShowNothing::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &StatementShowNothing::transform, R"doc(Transform the expression.
+        .def("transform", &StatementShowNothing::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &StatementShowNothing::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -8854,18 +8560,12 @@ lib
         .def(py::init(&StatementShowSignature::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
              py::arg("arity"), py::arg("sign") = false, R"doc(Construct a StatementShowSignature object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the statement.
-name
-    The name of the atom to show.
-arity
-    The arity of the atom to show.
-sign
-    The classical sign of the atom.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the statement.
+    name:     The name of the atom to show.
+    arity:     The arity of the atom to show.
+    sign:     The classical sign of the atom.)doc")
         .def("__str__", &StatementShowSignature::to_string)
         .def("__hash__", &StatementShowSignature::hash)
         .def_property_readonly("location", &StatementShowSignature::location, R"doc(The location of the statement.)doc")
@@ -8874,29 +8574,28 @@ sign
         .def_property_readonly("sign", &StatementShowSignature::sign, R"doc(The classical sign of the atom.)doc")
         .def("visit", &StatementShowSignature::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &StatementShowSignature::transform, R"doc(Transform the expression.
+        .def("transform", &StatementShowSignature::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &StatementShowSignature::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -8905,16 +8604,11 @@ lib
         .def(py::init(&StatementProject::construct), py::arg("lib"), py::arg("location"), py::arg("atom"),
              py::arg("body"), R"doc(Construct a StatementProject object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the statement.
-atom
-    The atom to project.
-body
-    The body of the statement.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the statement.
+    atom:     The atom to project.
+    body:     The body of the statement.)doc")
         .def("__str__", &StatementProject::to_string)
         .def("__hash__", &StatementProject::hash)
         .def_property_readonly("location", &StatementProject::location, R"doc(The location of the statement.)doc")
@@ -8922,29 +8616,28 @@ body
         .def_property_readonly("body", &StatementProject::body, R"doc(The body of the statement.)doc")
         .def("visit", &StatementProject::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &StatementProject::transform, R"doc(Transform the expression.
+        .def("transform", &StatementProject::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &StatementProject::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -8953,18 +8646,12 @@ lib
         .def(py::init(&StatementProjectSignature::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
              py::arg("arity"), py::arg("sign") = false, R"doc(Construct a StatementProjectSignature object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the statement.
-name
-    The name of the atom to project.
-arity
-    The arity of the atom to project.
-sign
-    The classical sign of the atom.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the statement.
+    name:     The name of the atom to project.
+    arity:     The arity of the atom to project.
+    sign:     The classical sign of the atom.)doc")
         .def("__str__", &StatementProjectSignature::to_string)
         .def("__hash__", &StatementProjectSignature::hash)
         .def_property_readonly("location", &StatementProjectSignature::location,
@@ -8974,29 +8661,28 @@ sign
         .def_property_readonly("sign", &StatementProjectSignature::sign, R"doc(The classical sign of the atom.)doc")
         .def("visit", &StatementProjectSignature::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &StatementProjectSignature::transform, R"doc(Transform the expression.
+        .def("transform", &StatementProjectSignature::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &StatementProjectSignature::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -9005,18 +8691,12 @@ lib
         .def(py::init(&StatementDefined::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
              py::arg("arity"), py::arg("sign") = false, R"doc(Construct a StatementDefined object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the statement.
-name
-    The name of the atom to project.
-arity
-    The arity of the atom to project.
-sign
-    The classical sign of the atom.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the statement.
+    name:     The name of the atom to project.
+    arity:     The arity of the atom to project.
+    sign:     The classical sign of the atom.)doc")
         .def("__str__", &StatementDefined::to_string)
         .def("__hash__", &StatementDefined::hash)
         .def_property_readonly("location", &StatementDefined::location, R"doc(The location of the statement.)doc")
@@ -9025,29 +8705,28 @@ sign
         .def_property_readonly("sign", &StatementDefined::sign, R"doc(The classical sign of the atom.)doc")
         .def("visit", &StatementDefined::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &StatementDefined::transform, R"doc(Transform the expression.
+        .def("transform", &StatementDefined::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &StatementDefined::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -9056,18 +8735,12 @@ lib
         .def(py::init(&StatementExternal::construct), py::arg("lib"), py::arg("location"), py::arg("atom"),
              py::arg("body"), py::arg("external_type") = std::nullopt, R"doc(Construct a StatementExternal object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the statement.
-atom
-    The atom to project.
-body
-    The body of the statement.
-external_type
-    The type of the external.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the statement.
+    atom:     The atom to project.
+    body:     The body of the statement.
+    external_type:     The type of the external.)doc")
         .def("__str__", &StatementExternal::to_string)
         .def("__hash__", &StatementExternal::hash)
         .def_property_readonly("location", &StatementExternal::location, R"doc(The location of the statement.)doc")
@@ -9076,29 +8749,28 @@ external_type
         .def_property_readonly("external_type", &StatementExternal::external_type, R"doc(The type of the external.)doc")
         .def("visit", &StatementExternal::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &StatementExternal::transform, R"doc(Transform the expression.
+        .def("transform", &StatementExternal::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &StatementExternal::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -9107,16 +8779,11 @@ lib
         .def(py::init(&StatementEdge::construct), py::arg("lib"), py::arg("location"), py::arg("pool"), py::arg("body"),
              R"doc(Construct a StatementEdge object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the statement.
-pool
-    The edge pool of the statement.
-body
-    The body of the statement.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the statement.
+    pool:     The edge pool of the statement.
+    body:     The body of the statement.)doc")
         .def("__str__", &StatementEdge::to_string)
         .def("__hash__", &StatementEdge::hash)
         .def_property_readonly("location", &StatementEdge::location, R"doc(The location of the statement.)doc")
@@ -9124,29 +8791,28 @@ body
         .def_property_readonly("body", &StatementEdge::body, R"doc(The body of the statement.)doc")
         .def("visit", &StatementEdge::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &StatementEdge::transform, R"doc(Transform the expression.
+        .def("transform", &StatementEdge::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &StatementEdge::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -9156,22 +8822,14 @@ lib
              py::arg("body"), py::arg("weight"), py::arg("modifier"), py::arg("priority") = std::nullopt,
              R"doc(Construct a StatementHeuristic object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the statement.
-atom
-    The atom to heuristically modify.
-body
-    The body of the statement.
-weight
-    The weight of the heuristic modification.
-modifier
-    The heuristic modifier.
-priority
-    An optional priority.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the statement.
+    atom:     The atom to heuristically modify.
+    body:     The body of the statement.
+    weight:     The weight of the heuristic modification.
+    modifier:     The heuristic modifier.
+    priority:     An optional priority.)doc")
         .def("__str__", &StatementHeuristic::to_string)
         .def("__hash__", &StatementHeuristic::hash)
         .def_property_readonly("location", &StatementHeuristic::location, R"doc(The location of the statement.)doc")
@@ -9183,29 +8841,28 @@ priority
         .def_property_readonly("priority", &StatementHeuristic::priority, R"doc(An optional priority.)doc")
         .def("visit", &StatementHeuristic::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &StatementHeuristic::transform, R"doc(Transform the expression.
+        .def("transform", &StatementHeuristic::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &StatementHeuristic::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -9214,16 +8871,11 @@ lib
         .def(py::init(&StatementScript::construct), py::arg("lib"), py::arg("location"), py::arg("value"),
              py::arg("script_type"), R"doc(Construct a StatementScript object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the statement.
-value
-    The content of the script.
-script_type
-    The type of the script.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the statement.
+    value:     The content of the script.
+    script_type:     The type of the script.)doc")
         .def("__str__", &StatementScript::to_string)
         .def("__hash__", &StatementScript::hash)
         .def_property_readonly("location", &StatementScript::location, R"doc(The location of the statement.)doc")
@@ -9231,29 +8883,28 @@ script_type
         .def_property_readonly("script_type", &StatementScript::script_type, R"doc(The type of the script.)doc")
         .def("visit", &StatementScript::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &StatementScript::transform, R"doc(Transform the expression.
+        .def("transform", &StatementScript::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &StatementScript::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -9262,16 +8913,11 @@ lib
         .def(py::init(&StatementInclude::construct), py::arg("lib"), py::arg("location"), py::arg("value"),
              py::arg("include_type"), R"doc(Construct a StatementInclude object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the statement.
-value
-    The path of the statement.
-include_type
-    The type of the include.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the statement.
+    value:     The path of the statement.
+    include_type:     The type of the include.)doc")
         .def("__str__", &StatementInclude::to_string)
         .def("__hash__", &StatementInclude::hash)
         .def_property_readonly("location", &StatementInclude::location, R"doc(The location of the statement.)doc")
@@ -9279,29 +8925,28 @@ include_type
         .def_property_readonly("include_type", &StatementInclude::include_type, R"doc(The type of the include.)doc")
         .def("visit", &StatementInclude::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &StatementInclude::transform, R"doc(Transform the expression.
+        .def("transform", &StatementInclude::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &StatementInclude::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -9310,16 +8955,11 @@ lib
         .def(py::init(&StatementProgram::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
              py::arg("arguments"), R"doc(Construct a StatementProgram object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the statement.
-name
-    The name of the program.
-arguments
-    The arguments of the program.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the statement.
+    name:     The name of the program.
+    arguments:     The arguments of the program.)doc")
         .def("__str__", &StatementProgram::to_string)
         .def("__hash__", &StatementProgram::hash)
         .def_property_readonly("location", &StatementProgram::location, R"doc(The location of the statement.)doc")
@@ -9327,29 +8967,28 @@ arguments
         .def_property_readonly("arguments", &StatementProgram::arguments, R"doc(The arguments of the program.)doc")
         .def("visit", &StatementProgram::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &StatementProgram::transform, R"doc(Transform the expression.
+        .def("transform", &StatementProgram::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &StatementProgram::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -9358,18 +8997,12 @@ lib
         .def(py::init(&StatementConst::construct), py::arg("lib"), py::arg("location"), py::arg("name"),
              py::arg("value"), py::arg("const_type"), R"doc(Construct a StatementConst object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the statement.
-name
-    The name of the statement.
-value
-    The term of the statement.
-const_type
-    The type of the statement.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the statement.
+    name:     The name of the statement.
+    value:     The term of the statement.
+    const_type:     The type of the statement.)doc")
         .def("__str__", &StatementConst::to_string)
         .def("__hash__", &StatementConst::hash)
         .def_property_readonly("location", &StatementConst::location, R"doc(The location of the statement.)doc")
@@ -9378,29 +9011,28 @@ const_type
         .def_property_readonly("const_type", &StatementConst::const_type, R"doc(The type of the statement.)doc")
         .def("visit", &StatementConst::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &StatementConst::transform, R"doc(Transform the expression.
+        .def("transform", &StatementConst::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &StatementConst::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -9409,16 +9041,11 @@ lib
         .def(py::init(&StatementComment::construct), py::arg("lib"), py::arg("location"), py::arg("value"),
              py::arg("comment_type"), R"doc(Construct a StatementComment object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-location
-    The location of the comment.
-value
-    The value of the comment.
-comment_type
-    The type of the comment.)doc")
+Args:
+    lib: The library object for storing symbols.
+    location:     The location of the comment.
+    value:     The value of the comment.
+    comment_type:     The type of the comment.)doc")
         .def("__str__", &StatementComment::to_string)
         .def("__hash__", &StatementComment::hash)
         .def_property_readonly("location", &StatementComment::location, R"doc(The location of the comment.)doc")
@@ -9426,29 +9053,28 @@ comment_type
         .def_property_readonly("comment_type", &StatementComment::comment_type, R"doc(The type of the comment.)doc")
         .def("visit", &StatementComment::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &StatementComment::transform, R"doc(Transform the expression.
+        .def("transform", &StatementComment::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &StatementComment::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -9457,12 +9083,9 @@ lib
         .def(py::init<Library &, char const *>(), py::arg("lib"), py::arg("program"),
              R"doc(Create a scanner to parse from the given string.
 
-Parameters
-----------
-lib
-    A library object to store symbols.
-program
-    The program to parse.
+Args:
+    lib: A library object to store symbols.
+    program: The program to parse.
 )doc")
         .def(py::init<Library &, std::vector<std::string>>(), py::arg("lib"), py::arg("files"), R"(
 Create a scanner to parse from the given files.
@@ -9471,12 +9094,9 @@ The scanner follows clingo's handling of files on the command line. Filename
 "-" is treated as "STDIN" and if an empty list is given, then the parser will
 read from "STDIN".
 
-Parameters
-----------
-lib
-    A library object to store symbols.
-files
-    A list of files to parse.
+Args:
+    lib: A library object to store symbols.
+    files: A list of files to parse.
 )")
         .def(
             "__enter__", [](Scanner &scanner) -> Scanner & { return scanner; }, R"(Return self.)")
@@ -9490,95 +9110,67 @@ files
             R"doc(Close the scanner object.)doc");
     ast.def("parse_term", &parse_term, py::arg("lib"), py::arg("string"), R"doc(Parse a term.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-string
-    The string to parse.
+Args:
+    lib: The library object for storing symbols.
+    string: The string to parse.
 
-Returns
--------
-The parsed Term object.)doc");
+Returns:
+    The parsed Term object.)doc");
     ast.def("parse_theory_term", &parse_theory_term, py::arg("lib"), py::arg("string"), R"doc(Parse a theory term.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-string
-    The string to parse.
+Args:
+    lib: The library object for storing symbols.
+    string: The string to parse.
 
-Returns
--------
-The parsed TheoryTerm object.)doc");
+Returns:
+    The parsed TheoryTerm object.)doc");
     ast.def("parse_literal", &parse_literal, py::arg("lib"), py::arg("string"), R"doc(Parse a literal.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-string
-    The string to parse.
+Args:
+    lib: The library object for storing symbols.
+    string: The string to parse.
 
-Returns
--------
-The parsed Literal object.)doc");
+Returns:
+    The parsed Literal object.)doc");
     ast.def("parse_head_literal", &parse_head_literal, py::arg("lib"), py::arg("string"), R"doc(Parse a head literal.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-string
-    The string to parse.
+Args:
+    lib: The library object for storing symbols.
+    string: The string to parse.
 
-Returns
--------
-The parsed HeadLiteral object.)doc");
+Returns:
+    The parsed HeadLiteral object.)doc");
     ast.def("parse_body_literal", &parse_body_literal, py::arg("lib"), py::arg("string"), R"doc(Parse a body literal.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-string
-    The string to parse.
+Args:
+    lib: The library object for storing symbols.
+    string: The string to parse.
 
-Returns
--------
-The parsed BodyLiteral object.)doc");
+Returns:
+    The parsed BodyLiteral object.)doc");
     ast.def("parse_statement", &parse_statement, py::arg("lib"), py::arg("string"), R"doc(Parse a statement.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-string
-    The string to parse.
+Args:
+    lib: The library object for storing symbols.
+    string: The string to parse.
 
-Returns
--------
-The parsed Statement object.)doc");
+Returns:
+    The parsed Statement object.)doc");
 
     py::class_<RewriteContext>(ast, "RewriteContext", R"doc(Context to rewrite statements.)doc")
         .def(py::init<Library &>(), py::arg("lib"),
              R"doc(Create a context to rewrite statements.
 
-Parameters
-----------
-lib
-    A library object to store symbols.
+Args:
+    lib: A library object to store symbols.
 )doc")
         .def("add_param", &RewriteContext::add_param, py::arg("name"), R"doc(
 Add a parameter.
 
 Parameters are protected from simplification.
 
-Parameters
-----------
-name
-    The name of the parameter.
+Args:
+    name: The name of the parameter.
 )doc")
         .def("clear_params", &RewriteContext::clear_params, R"doc(
 Remove previously added params
@@ -9588,10 +9180,8 @@ Add a theory definition statement.
 
 The theory definition is used to rewrite theory atoms in statements.
 
-Parameters
-----------
-theory
-    The theory statement to add.
+Args:
+    theory: The theory statement to add.
 )doc")
         .def_property("project_mode", &RewriteContext::get_project_mode, &RewriteContext::set_project_mode,
                       R"doc(The active projection mode.)doc")
@@ -9602,16 +9192,12 @@ theory
     ast.def("rewrite_statement", &rewrite_statement, py::arg("ctx"), py::arg("statement"),
             R"doc(Simplify the given statement.
 
-Parameters
-----------
-ctx
-    The rewrite context.
-statement
-    The statement to rewrite.
+Args:
+    ctx: The rewrite context.
+    statement: The statement to rewrite.
 
-Returns
--------
-A list of rewritten statements.)doc");
+Returns:
+    A list of rewritten statements.)doc");
 }
 
 } // namespace Clingo::Python

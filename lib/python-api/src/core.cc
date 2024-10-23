@@ -207,19 +207,14 @@ This class implements the ContextManager interface.
              doc(R"(
 Create a library object.
 
-Parameters
-----------
-slotted
-    Use a slotted allocator to store symbols. Setting this to true might
-    improve performance.
-shared
-    Indicates whether symbols should be created in a thread-safe manner.
-    Setting this to false might improve performance in single-threaded
-    applications.
-logger
-    A logger to emit/intercept messages.
-message_limit
-    The maximum number of messages to emit.
+Args:
+    slotted: Use a slotted allocator to store symbols. Setting this to true
+        might improve performance.
+    shared: Indicates whether symbols should be created in a thread-safe
+        manner. Setting this to false might improve performance in
+        single-threaded applications.
+    logger: A logger to emit/intercept messages.
+    message_limit: The maximum number of messages to emit.
 )"))
         .def(
             "__enter__", [](Library &lib) -> Library & { return lib; }, doc(R"(
@@ -239,16 +234,11 @@ Close the library object.
              py::arg("column"), doc(R"(
 Create a position object.
 
-Parameters
-----------
-lib
-    The library to object storing symbols.
-file
-    The file name of the position.
-line
-    The line number of the postion.
-column
-    The column number of the postion.
+Args:
+    lib: The library to object storing symbols.
+    file: The file name of the position.
+    line: The line number of the postion.
+    column: The column number of the postion.
 )"))
         .def_property_readonly("file", &Position::file, "The file name.")
         .def_property_readonly("line", &Position::line, "The line number.")
@@ -263,12 +253,9 @@ column
         .def(py::init<Position const &, Position const &>(), py::arg("begin"), py::arg("end"), doc(R"(
 Create a location object.
 
-Parameters
-----------
-begin
-    The beginning of the location.
-end
-    The end of the location.
+Args:
+    begin: The beginning of the location.
+    end: The end of the location.
 )"))
         .def_property_readonly("begin", &Location::begin, "The beginning of the location.")
         .def_property_readonly("end", &Location::end, "The end of the location.")

@@ -549,13 +549,10 @@ This can be used to auto-generate most of the binding.)doc");
             {%- endif %}
         {%- endfor %}, R"doc(Construct a {{ c_type_name }} object.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
 {%-     for argument_name, argument in type.arguments.items() %}
-{{ argument_name }}
-{{ argument.doc | param_doc }}
+    {{ argument_name }}: {{ argument.doc | param_doc }}
 {%-     endfor %})doc")
         .def("__str__", &{{ c_type_name }}::to_string)
         .def("__hash__", &{{ c_type_name }}::hash)
@@ -564,29 +561,27 @@ lib
 {%-     endfor %}
         .def("visit", &{{ c_type_name }}::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
 
-Parameters
-----------
-visitor
-    The visitor accepting the sub expressions.
+Args:
+    visitor: The visitor accepting the sub expressions.
 )doc")
-        // for some reason argument annotations do not work: py::arg("lib"), py::arg("transformer")
-        .def("transform", &{{ c_type_name }}::transform, R"doc(Transform the expression.
+        .def("transform", &{{ c_type_name }}::transform, py::arg("lib"), py::arg("transformer"), R"doc(Transform the expression.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-transformer
-    The transformer accepting the sub expressions.
+Additional arguments are passed to the transformer.
+
+Args:
+    lib: The library object for storing symbols.
+    transformer: The transformer accepting the sub expressions.
+Returns:
+    The transformed object or None.
 )doc")
         .def("update", &{{ c_type_name }}::update, py::arg("lib"), R"doc(Update the expression.
 
 Accepts keyword arguments with attributes to update.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
+Args:
+    lib: The library object for storing symbols.
+Returns:
+    The updated object.
 )doc")
         // generate comparison operators
         CLINGO_PY_TOTAL_ORDER;
@@ -596,12 +591,9 @@ lib
         .def(py::init<Library &, char const *>(), py::arg("lib"), py::arg("program"),
             R"doc(Create a scanner to parse from the given string.
 
-Parameters
-----------
-lib
-    A library object to store symbols.
-program
-    The program to parse.
+Args:
+    lib: A library object to store symbols.
+    program: The program to parse.
 )doc")
         .def(py::init<Library &, std::vector<std::string>>(), py::arg("lib"), py::arg("files"), R"(
 Create a scanner to parse from the given files.
@@ -610,12 +602,9 @@ The scanner follows clingo's handling of files on the command line. Filename
 "-" is treated as "STDIN" and if an empty list is given, then the parser will
 read from "STDIN".
 
-Parameters
-----------
-lib
-    A library object to store symbols.
-files
-    A list of files to parse.
+Args:
+    lib: A library object to store symbols.
+    files: A list of files to parse.
 )")
         .def("__enter__", [](Scanner &scanner) -> Scanner & { return scanner; }, R"(Return self.)")
         .def("__iter__", &Scanner::iter, R"(Return an iterator over parsed statements.)")
@@ -628,95 +617,67 @@ files
             R"doc(Close the scanner object.)doc");
     ast.def("parse_term", &parse_term, py::arg("lib"), py::arg("string"), R"doc(Parse a term.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-string
-    The string to parse.
+Args:
+    lib: The library object for storing symbols.
+    string: The string to parse.
 
-Returns
--------
-The parsed Term object.)doc");
+Returns:
+    The parsed Term object.)doc");
     ast.def("parse_theory_term", &parse_theory_term, py::arg("lib"), py::arg("string"), R"doc(Parse a theory term.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-string
-    The string to parse.
+Args:
+    lib: The library object for storing symbols.
+    string: The string to parse.
 
-Returns
--------
-The parsed TheoryTerm object.)doc");
+Returns:
+    The parsed TheoryTerm object.)doc");
     ast.def("parse_literal", &parse_literal, py::arg("lib"), py::arg("string"), R"doc(Parse a literal.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-string
-    The string to parse.
+Args:
+    lib: The library object for storing symbols.
+    string: The string to parse.
 
-Returns
--------
-The parsed Literal object.)doc");
+Returns:
+    The parsed Literal object.)doc");
     ast.def("parse_head_literal", &parse_head_literal, py::arg("lib"), py::arg("string"), R"doc(Parse a head literal.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-string
-    The string to parse.
+Args:
+    lib: The library object for storing symbols.
+    string: The string to parse.
 
-Returns
--------
-The parsed HeadLiteral object.)doc");
+Returns:
+    The parsed HeadLiteral object.)doc");
     ast.def("parse_body_literal", &parse_body_literal, py::arg("lib"), py::arg("string"), R"doc(Parse a body literal.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-string
-    The string to parse.
+Args:
+    lib: The library object for storing symbols.
+    string: The string to parse.
 
-Returns
--------
-The parsed BodyLiteral object.)doc");
+Returns:
+    The parsed BodyLiteral object.)doc");
     ast.def("parse_statement", &parse_statement, py::arg("lib"), py::arg("string"), R"doc(Parse a statement.
 
-Parameters
-----------
-lib
-    The library object for storing symbols.
-string
-    The string to parse.
+Args:
+    lib: The library object for storing symbols.
+    string: The string to parse.
 
-Returns
--------
-The parsed Statement object.)doc");
+Returns:
+    The parsed Statement object.)doc");
 
     py::class_<RewriteContext>(ast, "RewriteContext", R"doc(Context to rewrite statements.)doc")
         .def(py::init<Library &>(), py::arg("lib"),
              R"doc(Create a context to rewrite statements.
 
-Parameters
-----------
-lib
-    A library object to store symbols.
+Args:
+    lib: A library object to store symbols.
 )doc")
         .def("add_param", &RewriteContext::add_param, py::arg("name"), R"doc(
 Add a parameter.
 
 Parameters are protected from simplification.
 
-Parameters
-----------
-name
-    The name of the parameter.
+Args:
+    name: The name of the parameter.
 )doc")
         .def("clear_params", &RewriteContext::clear_params, R"doc(
 Remove previously added params
@@ -726,10 +687,8 @@ Add a theory definition statement.
 
 The theory definition is used to rewrite theory atoms in statements.
 
-Parameters
-----------
-theory
-    The theory statement to add.
+Args:
+    theory: The theory statement to add.
 )doc")
         .def_property("project_mode", &RewriteContext::get_project_mode, &RewriteContext::set_project_mode,
                       R"doc(The active projection mode.)doc")
@@ -740,16 +699,12 @@ theory
     ast.def("rewrite_statement", &rewrite_statement, py::arg("ctx"), py::arg("statement"),
             R"doc(Simplify the given statement.
 
-Parameters
-----------
-ctx
-    The rewrite context.
-statement
-    The statement to rewrite.
+Args:
+    ctx: The rewrite context.
+    statement: The statement to rewrite.
 
-Returns
--------
-A list of rewritten statements.)doc");
+Returns:
+    A list of rewritten statements.)doc");
 }
 
 }
