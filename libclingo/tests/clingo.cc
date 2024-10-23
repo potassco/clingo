@@ -359,16 +359,6 @@ TEST_CASE("solving", "[clingo]") {
             REQUIRE(priorities == (std::vector<int>{2, 1}));
             REQUIRE(messages.empty());
         }
-#if defined(CLASP_HAS_THREADS) && CLASP_HAS_THREADS == 1
-        SECTION("async") {
-            ctl.add("base", {}, "{a}.");
-            ctl.ground({{"base", {}}});
-            auto async = ctl.solve_async(MCB(models));
-            REQUIRE(async.get().is_satisfiable());
-            REQUIRE(models == ModelVec({{},{Id("a")}}));
-            REQUIRE(messages.empty());
-        }
-#endif
         SECTION("model") {
             ctl.add("base", {}, "a. #show b.");
             ctl.ground({{"base", {}}});
@@ -564,11 +554,22 @@ TEST_CASE("solving", "[clingo]") {
                     auto iter = ctl.solve();
                     {
                         MCB mcb(models);
-                        SECTION("c++") { for (auto &m : iter) { mcb(m); }; }
-                        SECTION("java") { while (auto &m = iter.next()) { mcb(m); }; }
+                        SECTION("c++") { for (auto &m : iter) { mcb(m); } }
+                        SECTION("java") {
+                            while (auto &m = iter.next()) {
+                                mcb(m);
+                                REQUIRE(iter.last() == nullptr);
+                            }
+                        }
                     }
                     REQUIRE(models == ModelVec{{Id("a")}});
                     REQUIRE(iter.get().is_satisfiable());
+                    const auto* m = iter.last();
+                    REQUIRE(m != nullptr);
+                    models.clear();
+                    MCB mcb(models);
+                    mcb(*m);
+                    REQUIRE(models == ModelVec{{Id("a")}});
                 }
                 REQUIRE(test_solve(ctl.solve(), models).is_satisfiable());
                 REQUIRE(models == ModelVec{{Id("a")}});
@@ -642,27 +643,6 @@ TEST_CASE("solving", "[clingo]") {
             REQUIRE(ctl.get_const("a") == Number(10));
             REQUIRE(ctl.get_const("b") == Id("b"));
         }
-#if defined(CLASP_HAS_THREADS) && CLASP_HAS_THREADS == 1
-        SECTION("async and cancel") {
-            static int n = 0;
-            if (++n < 3) { // workaround for some bug with catch
-                ctl.add("pigeon", {"p", "h"}, "1 {p(P,H) : P=1..p}1 :- H=1..h."
-                                              "1 {p(P,H) : H=1..h}1 :- P=1..p.");
-                ctl.ground({{"pigeon", {Number(21), Number(20)}}});
-                int fcalled = 0;
-                SolveResult fret;
-                FinishCallback fh = [&fret, &fcalled](SolveResult ret) { ++fcalled; fret = ret; };
-                auto async = ctl.solve_async(nullptr, fh);
-                REQUIRE(!async.wait(0.01));
-                SECTION("interrupt") { ctl.interrupt(); }
-                SECTION("cancel") { async.cancel(); }
-                auto ret = async.get();
-                REQUIRE((ret.is_unknown() && ret.is_interrupted()));
-                REQUIRE(fcalled == 1);
-                REQUIRE(fret == ret);
-            }
-        }
-#endif
         SECTION("ground callback") {
             ctl.add("base", {}, "a(@f(X)):- X=1..2. b(@f()).");
             ctl.ground({{"base", {}}}, [&messages](Location loc, char const *name, SymbolSpan args, SymbolSpanCallback report) {

@@ -865,6 +865,14 @@ Model const *ClingoSolveFuture::model() {
     }
     else { return nullptr; }
 }
+Model const *ClingoSolveFuture::lastModel() {
+    auto &facade = *model_.context().clasp_;
+    if (!facade.solved() || !facade.summary().sat() || !facade.summary().model()) {
+        return nullptr;
+    }
+    model_.reset(*facade.summary().model());
+    return &model_;
+}
 Potassco::LitSpan ClingoSolveFuture::unsatCore() {
     auto &facade = *model_.context().clasp_;
     auto &summary = facade.summary();

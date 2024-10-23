@@ -1261,6 +1261,12 @@ extern "C" bool clingo_solve_handle_core(clingo_solve_handle_t *handle, clingo_l
     }
     GRINGO_CLINGO_CATCH;
 }
+extern "C" bool clingo_solve_handle_last(clingo_solve_handle_t *handle, clingo_model_t const **model) {
+    GRINGO_CLINGO_TRY {
+        *model = handle->lastModel();
+    }
+    GRINGO_CLINGO_CATCH;
+}
 extern "C" bool clingo_solve_handle_resume(clingo_solve_handle_t *handle) {
     GRINGO_CLINGO_TRY { handle->resume(); }
     GRINGO_CLINGO_CATCH;

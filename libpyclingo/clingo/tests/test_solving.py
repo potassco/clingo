@@ -60,11 +60,12 @@ class TestSolving(TestCase):
             self,
             cast(
                 SolveResult,
-                self.ctl.solve(on_model=self.mcb.on_model, yield_=False, async_=False),
+                self.ctl.solve(on_model=self.mcb.on_model, on_last=self.mcb.on_last, yield_=False, async_=False),
             ),
         )
         self.assertEqual(self.mcb.models, _p(["a", "c"], ["b", "c"]))
         self.assertEqual(self.mcb.last[0], ModelType.StableModel)
+        self.assertEqual(self.mcb.last, self.mcb.final)
 
     def test_solve_async(self):
         """
@@ -78,6 +79,8 @@ class TestSolving(TestCase):
         ) as hnd:
             _check_sat(self, hnd.get())
             self.assertEqual(self.mcb.models, _p(["a", "c"], ["b", "c"]))
+            self.mit.on_last(hnd.last())
+            self.assertEqual(self.mcb.last, self.mit.final)
 
     def test_solve_yield(self):
         """
@@ -91,7 +94,10 @@ class TestSolving(TestCase):
         ) as hnd:
             for m in hnd:
                 self.mit.on_model(m)
+                self.assertEqual(hnd.last(), None) # Not yet finished
             _check_sat(self, hnd.get())
+            self.mit.on_last(hnd.last())
+            self.assertEqual(self.mcb.last, self.mit.final)
             self.assertEqual(self.mcb.models, _p(["a", "c"], ["b", "c"]))
             self.assertEqual(self.mit.models, _p(["a", "c"], ["b", "c"]))
 
@@ -112,7 +118,10 @@ class TestSolving(TestCase):
                 if m is None:
                     break
                 self.mit.on_model(m)
+                self.assertEqual(hnd.last(), None) # Not yet finished
             _check_sat(self, hnd.get())
+            self.mit.on_last(hnd.last())
+            self.assertEqual(self.mcb.last, self.mit.final)
             self.assertEqual(self.mcb.models, _p(["a", "c"], ["b", "c"]))
             self.assertEqual(self.mit.models, _p(["a", "c"], ["b", "c"]))
 
@@ -160,23 +169,26 @@ class TestSolving(TestCase):
         self.ctl = Control(["0", "-e", "cautious"])
         self.ctl.add("base", [], "1 {a; b} 1. c.")
         self.ctl.ground([("base", [])])
-        self.ctl.solve(on_model=self.mcb.on_model)
+        self.ctl.solve(on_model=self.mcb.on_model, on_last=self.mcb.on_last)
         self.assertEqual(self.mcb.last[0], ModelType.CautiousConsequences)
         self.assertEqual([self.mcb.last[1]], _p(["c"]))
+        self.assertEqual(self.mcb.last, self.mcb.final)
 
+        self.mcb.final = None
         self.ctl = Control(["0", "-e", "brave"])
         self.ctl.add("base", [], "1 {a; b} 1. c.")
         self.ctl.ground([("base", [])])
-        self.ctl.solve(on_model=self.mcb.on_model)
+        self.ctl.solve(on_model=self.mcb.on_model, on_last=self.mcb.on_last)
         self.assertEqual(self.mcb.last[0], ModelType.BraveConsequences)
         self.assertEqual([self.mcb.last[1]], _p(["a", "b", "c"]))
+        self.assertEqual(self.mcb.last, self.mcb.final)
 
     def test_model(self):
         """
         Test functions of model.
         """
 
-        def on_model(m: Model):
+        def on_model(m: Model, last: bool):
             self.assertTrue(m.contains(Function("a")))
             self.assertTrue(
                 m.is_true(
@@ -186,15 +198,16 @@ class TestSolving(TestCase):
             self.assertFalse(m.is_true(1000))
             self.assertEqual(m.thread_id, 0)
             self.assertEqual(m.number, 1)
-            self.assertFalse(m.optimality_proven)
+            self.assertEqual(m.optimality_proven, last)
             self.assertEqual(m.cost, [3])
             self.assertEqual(m.priority, [5])
-            m.extend([Function("e")])
+            if not last:
+                m.extend([Function("e")])
             self.assertSequenceEqual(m.symbols(theory=True), [Function("e")])
 
         self.ctl.add("base", [], "a. b. c. #minimize { 1@5,a:a; 1@5,b:b; 1@5,c:c }.")
         self.ctl.ground([("base", [])])
-        self.ctl.solve(on_model=on_model)
+        self.ctl.solve(on_model=lambda m:on_model(m, False), on_last=lambda m:on_model(m, True))
 
     def test_cautious_consequences(self):
         """

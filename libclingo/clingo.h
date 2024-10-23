@@ -611,7 +611,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_symbolic_atoms_is_fact(clingo_symbolic_ato
 //!
 //! @param[in] atoms the target
 //! @param[in] iterator iterator to the atom
-//! @param[out] external whether the atom is a external
+//! @param[out] external whether the atom is an external
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_symbolic_atoms_is_external(clingo_symbolic_atoms_t const *atoms, clingo_symbolic_atom_iterator_t iterator, bool *external);
 //! Returns the (numeric) aspif literal corresponding to the given symbolic atom.
@@ -910,14 +910,14 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_theory_atoms_atom_to_string(clingo_theory_
 // {{{1 propagator
 
 //! @example propagator.c
-//! The example shows how to write a simple propagator for the pigeon hole problem. For
+//! The example shows how to write a simple propagator for the pigeonhole problem. For
 //! a detailed description of what is implemented here and some background, take a look at the following paper:
 //!
 //! https://www.cs.uni-potsdam.de/wv/publications/#DBLP:conf/iclp/GebserKKOSW16x
 //!
 //! ## Output ##
 //!
-//! The output is empty because the pigeon hole problem is unsatisfiable.
+//! The output is empty because the pigeonhole problem is unsatisfiable.
 //!
 //! ## Code ##
 
@@ -1026,7 +1026,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_at(clingo_assignment_t const *a
 //! Check if the assignment is total, i.e. there are no free literal.
 //!
 //! @param[in] assignment the target
-//! @return wheather the assignment is total
+//! @return whether the assignment is total
 CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_is_total(clingo_assignment_t const *assignment);
 //! Returns the number of literals in the trail, i.e., the number of assigned literals.
 //!
@@ -1050,7 +1050,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_trail_size(clingo_assignment_t 
 CLINGO_VISIBILITY_DEFAULT bool clingo_assignment_trail_begin(clingo_assignment_t const *assignment, uint32_t level, uint32_t *offset);
 //! Returns the offset following the last literal with the given decision level.
 //!
-//! @note This function is the counter part to clingo_assignment_trail_begin().
+//! @note This function is the counterpart to clingo_assignment_trail_begin().
 //!
 //! @param[in] assignment the target
 //! @param[in] level the decision level
@@ -1464,7 +1464,7 @@ typedef struct clingo_propagator {
     //!
     //! @param[in] thread_id the solver's thread id
     //! @param[in] assignment the assignment of the solver
-    //! @param[in] fallback the literal choosen by the solver's heuristic
+    //! @param[in] fallback the literal chosen by the solver's heuristic
     //! @param[out] decision the literal to make true
     //! @return whether the call was successful
     bool (*decide) (clingo_id_t thread_id, clingo_assignment_t const *assignment, clingo_literal_t fallback, void *data, clingo_literal_t *decision);
@@ -1475,7 +1475,7 @@ typedef struct clingo_propagator {
 // {{{1 backend
 
 //! @example backend.c
-//! The example shows how to used the backend to extend a grounded program.
+//! The example shows how to use the backend to extend a grounded program.
 //!
 //! ## Output ##
 //!
@@ -1617,7 +1617,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_backend_external(clingo_backend_t *backend
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 CLINGO_VISIBILITY_DEFAULT bool clingo_backend_assume(clingo_backend_t *backend, clingo_literal_t const *literals, size_t size);
-//! Add an heuristic directive.
+//! Add a heuristic directive.
 //!
 //! @param[in] backend the target backend
 //! @param[in] atom the target atom
@@ -1841,7 +1841,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_configuration_map_size(clingo_configuratio
 //! @note Multiple levels can be looked up by concatenating keys with a period.
 //! @param[in] configuration the target configuration
 //! @param[in] key the key
-//! @param[in] name the name to lookup the subkey
+//! @param[in] name the name to look up the subkey
 //! @param[out] result whether the key is in the map
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_configuration_map_has_subkey(clingo_configuration_t const *configuration, clingo_id_t key, char const *name, bool *result);
@@ -1860,7 +1860,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_configuration_map_subkey_name(clingo_confi
 //! @note Multiple levels can be looked up by concatenating keys with a period.
 //! @param[in] configuration the target configuration
 //! @param[in] key the key
-//! @param[in] name the name to lookup the subkey
+//! @param[in] name the name to look up the subkey
 //! @param[out] subkey the resulting subkey
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_configuration_map_at(clingo_configuration_t const *configuration, clingo_id_t key, char const *name, clingo_id_t* subkey);
@@ -1869,7 +1869,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_configuration_map_at(clingo_configuration_
 //! @name Functions to access values
 //! @{
 
-//! Check whether a entry has a value.
+//! Check whether an entry has a value.
 //!
 //! @pre The @link clingo_configuration_type() type@endlink of the entry must be @ref ::clingo_configuration_type_value.
 //! @param[in] configuration the target configuration
@@ -2042,7 +2042,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_map_subkey_name(clingo_statisti
 //! @note Multiple levels can be looked up by concatenating keys with a period.
 //! @param[in] statistics the target statistics
 //! @param[in] key the key
-//! @param[in] name the name to lookup the subkey
+//! @param[in] name the name to look up the subkey
 //! @param[out] subkey the resulting subkey
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_statistics_map_at(clingo_statistics_t const *statistics, uint64_t key, char const *name, uint64_t *subkey);
@@ -2431,6 +2431,16 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_model(clingo_solve_handle_t *
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_core(clingo_solve_handle_t *handle, clingo_literal_t const **core, size_t *size);
+//! When a problem is satisfiable and the search is finished, get the last computed model.
+//!
+//! If the program is unsatisfiable or the search is not finished, model is set to NULL.
+//!
+//! @param[in] handle the target
+//! @param[out] model the last computed model (or NULL if the program is unsatisfiable or the search is still ongoing)
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if solving fails
+CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_last(clingo_solve_handle_t *handle, clingo_model_t const **model);
 //! Discards the last model and starts the search for the next one.
 //!
 //! If the search has been started asynchronously, this function continues the search in the background.
@@ -2862,7 +2872,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_solve(clingo_control_t *control, c
 //!
 //! This function removes atoms from domains that are false and marks atoms as
 //! facts that are true.  With multi-shot solving, this can result in smaller
-//! groundings because less rules have to be instantiated and more
+//! groundings because fewer rules have to be instantiated and more
 //! simplifications can be applied.
 //!
 //! @note It is typically not necessary to call this function manually because
@@ -3838,7 +3848,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_unpool(clingo_ast_t *ast, clingo_ast_u
 //! @example application.c
 //! The example shows how to extend the clingo application.
 //!
-//! It behaves like a normal normal clingo but adds one option to override the default program part to ground.
+//! It behaves like a normal clingo but adds one option to override the default program part to ground.
 //! ## Example calls ##
 //!
 //! ~~~~~~~~~~~~

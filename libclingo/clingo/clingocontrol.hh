@@ -447,6 +447,7 @@ public:
     SolveResult  get()  override;
     Model const *model() override;
     Potassco::LitSpan unsatCore() override;
+    Model const *lastModel() override;
     bool wait(double timeout) override;
     void resume() override;
     void cancel() override;
