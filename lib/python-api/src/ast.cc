@@ -62,6 +62,8 @@ class ASTBase {
 
     ASTBase(ASTBase &&x) noexcept { std::swap(ast_, x.ast_); }
 
+    ~ASTBase() noexcept { clingo_ast_free(ast_); }
+
     // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
     auto operator=(ASTBase const &x) -> ASTBase & {
         if (ast_ != x.ast_) {
