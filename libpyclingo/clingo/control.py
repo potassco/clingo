@@ -688,6 +688,7 @@ class Control:
             on_statistics: Optional[Callable[[StatisticsMap, StatisticsMap], None]] = None,
             on_finish: Optional[Callable[[SolveResult], None]] = None,
             on_core: Optional[Callable[[Sequence[int]], None]] = None,
+            on_last: Optional[Callable[[Model], None]] = None,
             *,
             yield_: Literal[False] = False,
             async_: Literal[False] = False,
@@ -728,6 +729,7 @@ class Control:
             on_statistics: Optional[Callable[[StatisticsMap, StatisticsMap], None]] = None,
             on_finish: Optional[Callable[[SolveResult], None]] = None,
             on_core: Optional[Callable[[Sequence[int]], None]] = None,
+            on_last: Optional[Callable[[Model], None]] = None,
         ) -> SolveResult: ...
 
     @overload
@@ -739,6 +741,7 @@ class Control:
         on_statistics: Optional[Callable[[StatisticsMap, StatisticsMap], None]] = None,
         on_finish: Optional[Callable[[SolveResult], None]] = None,
         on_core: Optional[Callable[[Sequence[int]], None]] = None,
+        on_last: Optional[Callable[[Model], None]] = None,
         yield_: bool = False,
         async_: bool = False,
     ) -> Union[SolveHandle, SolveResult]: ...
@@ -751,6 +754,7 @@ class Control:
         on_statistics: Optional[Callable[[StatisticsMap, StatisticsMap], None]] = None,
         on_finish: Optional[Callable[[SolveResult], None]] = None,
         on_core: Optional[Callable[[Sequence[int]], None]] = None,
+        on_last: Optional[Callable[[Model], None]] = None,
         yield_: bool = False,
         async_: bool = False,
     ) -> Union[SolveHandle, SolveResult]:
@@ -781,6 +785,9 @@ class Control:
         on_core
             Optional callback called with the assumptions that made a problem
             unsatisfiable.
+        on_last
+            Optional callback for getting the last model computed for a satisfiable problem.
+            A `clingo.solving.Model` object is passed to the callback.
         yield_
             The resulting `clingo.solving.SolveHandle` is iterable yielding
             `clingo.solving.Model` objects.
@@ -864,6 +871,9 @@ class Control:
                 ret = handle.get()
                 if on_core is not None and ret.unsatisfiable:
                     on_core(handle.core())
+                if on_last is not None:
+                    m = handle.last()
+                    if m is not None: on_last(m)
                 return ret
         return handle
 

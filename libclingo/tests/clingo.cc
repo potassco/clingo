@@ -554,11 +554,22 @@ TEST_CASE("solving", "[clingo]") {
                     auto iter = ctl.solve();
                     {
                         MCB mcb(models);
-                        SECTION("c++") { for (auto &m : iter) { mcb(m); }; }
-                        SECTION("java") { while (auto &m = iter.next()) { mcb(m); }; }
+                        SECTION("c++") { for (auto &m : iter) { mcb(m); } }
+                        SECTION("java") {
+                            while (auto &m = iter.next()) {
+                                mcb(m);
+                                REQUIRE(iter.last() == nullptr);
+                            }
+                        }
                     }
                     REQUIRE(models == ModelVec{{Id("a")}});
                     REQUIRE(iter.get().is_satisfiable());
+                    const auto* m = iter.last();
+                    REQUIRE(m != nullptr);
+                    models.clear();
+                    MCB mcb(models);
+                    mcb(*m);
+                    REQUIRE(models == ModelVec{{Id("a")}});
                 }
                 REQUIRE(test_solve(ctl.solve(), models).is_satisfiable());
                 REQUIRE(models == ModelVec{{Id("a")}});

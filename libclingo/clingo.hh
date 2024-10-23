@@ -1664,6 +1664,7 @@ public:
     Model const &next();
     LiteralSpan core();
     SolveResult get();
+    Model const *last();
     void cancel();
     clingo_solve_handle_t *to_c() const { return iter_; }
 private:
@@ -3087,6 +3088,12 @@ inline Model const &SolveHandle::model() {
     Detail::handle_error(clingo_solve_handle_model(iter_, &m), *exception_);
     new (&model_) Model{const_cast<clingo_model_t*>(m)}; // NOLINT
     return model_;
+}
+ inline Model const *SolveHandle::last() {
+    clingo_model_t const *m = nullptr;
+    Detail::handle_error(clingo_solve_handle_last(iter_, &m), *exception_);
+    new (&model_) Model{const_cast<clingo_model_t*>(m)}; // NOLINT
+    return m ? &model_ : nullptr;
 }
 
 inline LiteralSpan SolveHandle::core() {

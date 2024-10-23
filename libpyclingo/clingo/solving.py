@@ -559,6 +559,20 @@ class SolveHandle(ContextManager["SolveHandle"]):
         )
         return [core[i] for i in range(size)]
 
+    def last(self) -> Optional[Model]:
+        """
+        The last computed model if there is any.
+
+        Notes
+        -----
+        If the search is not completed yet or the problem is unsatisfiable, the function returns None.
+        """
+        p_model = _ffi.new("clingo_model_t**")
+        _handle_error(_lib.clingo_solve_handle_last(self._rep, p_model), self._handler)
+        if p_model[0] == _ffi.NULL:
+            return None
+        return Model(p_model[0])
+
     def get(self) -> SolveResult:
         """
         Get the result of a solve call.
