@@ -80,6 +80,8 @@ void Solver::main(AppMode mode, std::span<std::string_view const> const &files,
     }
 }
 
+void Solver::join(Input::UnprocessedProgram const &prg) { grd_.join(prg); }
+
 void Solver::parse(std::string_view str) { grd_.parse(str, scripts_); }
 
 void Solver::parse(std::span<std::string_view const> const &files) { grd_.parse(files, scripts_); }

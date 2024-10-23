@@ -6216,6 +6216,16 @@ auto rewrite_statement(RewriteContext &ctx, Statement &stm) -> std::vector<State
     return res;
 }
 
+Program::Program(Library &lib) {
+    clingo_program_t *prg = nullptr;
+    handle_error(clingo_program_new(lib, &prg));
+    prg_.reset(prg);
+}
+
+void Program::free(clingo_program_t *prg) noexcept { clingo_program_free(prg); }
+
+void add(Program &prg, Statement &stm) { handle_error(clingo_program_add(prg, c_cast(stm))); }
+
 void register_ast(pybind11::module &m) {
     auto ast = m.def_submodule(
         "ast", R"doc(This module provides functions to work with Abstract Syntax Trees of logic programs.)doc");
@@ -9198,6 +9208,17 @@ Args:
 
 Returns:
     A list of rewritten statements.)doc");
+
+    py::class_<Program>(ast, "Program", R"doc(A non-ground program.)doc")
+        .def(py::init<Library &>(), py::arg("lib"), R"doc(Create an empty non-ground program.
+
+Args:
+    lib: A library object to store symbols.
+)doc")
+        .def("add", &add, py::arg("statement"), R"doc(Add a statement to a program.
+
+Args:
+    statement: The statement to add.)doc");
 }
 
 } // namespace Clingo::Python

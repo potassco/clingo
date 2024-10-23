@@ -1,3 +1,4 @@
+#include "ast.hh"
 #include "lib.hh"
 #include "streams.hh"
 
@@ -2685,6 +2686,21 @@ extern "C" auto clingo_ast_rewrite(clingo_ast_rewrite_context_t *context, clingo
         }
         std::tie(*result, *result_size) = res.release();
     }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_program_new(clingo_lib_t *lib, clingo_program_t **program) -> clingo_result_t {
+    CLINGO_TRY { *program = std::make_unique<clingo_program>(lib).release(); }
+    CLINGO_CATCH;
+}
+
+extern "C" void clingo_program_free(clingo_program_t *program) {
+    // NOLINTNEXTLINE
+    delete program;
+}
+
+extern "C" auto clingo_program_add(clingo_program_t *program, clingo_ast_t *statement) -> clingo_result_t {
+    CLINGO_TRY { program->program.add(*program->lib->store, convert<Clingo::Input::Stm>(statement)); }
     CLINGO_CATCH;
 }
 

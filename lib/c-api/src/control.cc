@@ -2,6 +2,7 @@
 
 #include <clingo/util/algorithm.hh>
 
+#include "ast.hh"
 #include "lib.hh"
 
 // NOLINTBEGIN(cppcoreguidelines-owning-memory,cppcoreguidelines-pro-bounds-pointer-arithmetic)
@@ -51,6 +52,11 @@ extern "C" auto clingo_control_parse_files(clingo_control_t *control, char const
 
 extern "C" auto clingo_control_parse_string(clingo_control_t *control, char const *program) -> clingo_result_t {
     CLINGO_TRY { control->slv->parse(program); }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_control_join(clingo_control_t *control, clingo_program_t const *program) -> clingo_result_t {
+    CLINGO_TRY { control->slv->join(program->program); }
     CLINGO_CATCH;
 }
 

@@ -11,6 +11,8 @@ Control::Control(Library &lib, std::vector<std::string> const &args) {
     ctl_.reset(ctl);
 }
 
+void Control::join(Program &prg) { handle_error(clingo_control_join(ctl_.get(), prg)); }
+
 void Control::parse_string(char const *str) { handle_error(clingo_control_parse_string(ctl_.get(), str)); }
 
 void Control::ground(std::vector<std::pair<std::string, SymbolVec>> const &parts) {
@@ -35,16 +37,22 @@ Args:
     lib: The library storing symbols and scripts.
     options: The command line options to initialize the control object.
 )"))
+        .def("join", &Control::join, py::arg("program"), doc(R"(
+Join with the given non-ground logic program.
+
+Args:
+    program: A non-ground logic program.
+)"))
         .def("parse_string", &Control::parse_string, py::arg("program"), doc(R"(
 Parses a logic program given as a string.
 
-Parameters:
+Args:
     program: The logic program as string.
 )"))
         .def("ground", &Control::ground, py::arg("parts"), doc(R"(
 Ground the given program parts.
 
-Parameters:
+Args:
     parts: A list of tuples of part names and their symbolic arguments.
 )"));
 }

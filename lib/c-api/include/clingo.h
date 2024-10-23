@@ -621,196 +621,6 @@ CLINGO_VISIBILITY_DEFAULT size_t clingo_symbol_hash(clingo_symbol_t symbol);
 
 //! @}
 
-// {{{1 Control
-
-//! @example control.c
-//! The example shows how to ground and solve a simple logic program, and print
-//! its answer sets.
-//!
-//! ## Output ##
-//!
-//! ~~~~~~~~~~~~
-//! ./control 0
-//! Model: a
-//! Model: b
-//! ~~~~~~~~~~~~
-//!
-//! ## Code ##
-
-//! @defgroup Control Grounding and Solving
-//! Functions to control the grounding and solving process.
-//!
-//! For an example, see @ref control.c.
-//! @addtogroup Control
-//! @{
-
-//! Control object holding grounding and solving state.
-typedef struct clingo_control clingo_control_t;
-
-//! Struct used to specify the program parts that have to be grounded.
-//!
-//! Programs may be structured into parts, which can be grounded independently with ::clingo_control_ground.
-//! Program parts are mainly interesting for incremental grounding and multi-shot solving.
-//! For single-shot solving, program parts are not needed.
-//!
-//! @note Parts of a logic program without an explicit <tt>\#program</tt>
-//! specification are by default put into a program called `base` without
-//! arguments.
-//!
-//! @see clingo_control_ground()
-typedef struct clingo_part {
-    char const *name;              //!< name of the program part
-    clingo_symbol_t const *params; //!< array of parameters
-    size_t size;                   //!< number of parameters
-} clingo_part_t;
-
-//! Create a new control object.
-//!
-//! A control object has to be freed using clingo_control_free().
-//!
-//! @note Only gringo options (without <code>\-\-output</code>) and clasp's options are supported as arguments,
-//! except basic options such as <code>\-\-help</code>.
-//! Furthermore, a control object is blocked while a search call is active;
-//! you must not call any member function during search.
-//!
-//! @param[in] lib clingo library object
-//! @param[in] arguments C string array of command line arguments
-//! @param[in] arguments_size size of the arguments array
-//! @param[out] control resulting control object
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - ::clingo_error_runtime if argument parsing fails
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_new(clingo_lib_t *lib, char const *const *arguments,
-                                                             size_t arguments_size, clingo_control_t **control);
-
-//! Free a control object created with clingo_control_new().
-//! @param[in] control the target
-CLINGO_VISIBILITY_DEFAULT void clingo_control_free(clingo_control_t *control);
-
-//! Extend the logic program with a program in a file.
-//!
-//! @param[in] control the target
-//! @param[in] files the files to parse
-//! @param[in] files_size the number of files to parse
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - ::clingo_error_runtime if parsing or checking fails
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_parse_file(clingo_control_t *control, char const **files,
-                                                                    size_t files_size);
-
-//! Extend the logic program with the given non-ground logic program in string form.
-//!
-//! This function puts the given program into a block of form: <tt>\#program name(parameters).</tt>
-//!
-//! After extending the logic program, the corresponding program parts are typically grounded with
-//! ::clingo_control_ground.
-//!
-//! @param[in] control the target
-//! @param[in] program string representation of the program
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - ::clingo_error_runtime if parsing fails
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_parse_string(clingo_control_t *control, char const *program);
-
-//! Ground the selected @link ::clingo_part parts @endlink of the current (non-ground) logic program.
-//!
-//! After grounding, logic programs can be solved with ::clingo_control_solve().
-//!
-//! @note Parts of a logic program without an explicit <tt>\#program</tt>
-//! specification are by default put into a program called `base` without
-//! arguments.
-//!
-//! @param[in] control the target
-//! @param[in] parts array of parts to ground
-//! @param[in] parts_size size of the parts array
-//! @param[in] ground_callback callback to implement external functions
-//! @param[in] ground_callback_data user data for ground_callback
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! - error code of ground callback
-//!
-//! @see clingo_part
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts,
-                                                                size_t parts_size);
-
-//! @}
-
-//! @defgroup Scripting Scripting Support for Grounding
-//! Support for calling exteral functions during grounding and customizing the main solving loop.
-
-//! @addtogroup Scripting
-//! @{
-
-//! Callback function to inject symbols.
-//!
-//! @param symbols array of symbols
-//! @param symbols_size size of the symbol array
-//! @param data user data of the callback
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-//! @see ::clingo_ground_callback_t
-typedef clingo_result_t (*clingo_symbol_callback_t)(clingo_symbol_t const *symbols, size_t symbols_size, void *data);
-
-//! Custom scripting language to run functions during grounding.
-typedef struct clingo_script {
-    //! Evaluate the given source code.
-    //! @param[in] code the code to evaluate
-    //! @param[in] data user data as given when registering the script
-    //! @return whether the function call was successful
-    clingo_result_t (*execute)(char const *code, void *data);
-    //! Call the function with the given name and arguments.
-    //! @param[in] lib library object
-    //! @param[in] name the name of the function
-    //! @param[in] arguments the arguments to the function
-    //! @param[in] arguments_size the number of arguments
-    //! @param[in] symbol_callback callback to return a pool of symbols
-    //! @param[in] symbol_callback_data user data for the symbol callback
-    //! @param[in] data user data as given when registering the script
-    //! @return whether the function call was successful
-    clingo_result_t (*call)(clingo_lib_t *lib, char const *name, clingo_symbol_t const *arguments,
-                            size_t arguments_size, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data,
-                            void *data);
-    //! Check if the given function is callable.
-    //! @param[in] name the name of the function
-    //! @param[in] arguments the number of arguments
-    //! @param[out] result whether the function is callable
-    //! @param[in] data user data as given when registering the script
-    //! @return whether the function call was successful
-    clingo_result_t (*callable)(char const *name, size_t arguments, bool *result, void *data);
-    //! Run the main function.
-    //! @param[in] control the control object to pass to the main function
-    //! @param[in] data user data as given when registering the script
-    //! @return whether the function call was successful
-    clingo_result_t (*main)(clingo_lib_t *lib, clingo_control_t *control, void *data);
-    //! Get the name of the script.
-    //! @return the name of the script.
-    char const *(*name)(void *data);
-    //! Get the version of the script.
-    //! @return the version of the script.
-    char const *(*version)(void *data);
-    //! This function is called once when the script is deleted.
-    //! @param[in] data user data as given when registering the script
-    void (*free)(void *data);
-} clingo_script_t;
-
-//! Add a custom scripting language to a control object.
-//!
-//! @param[in] lib the library object to register the script with
-//! @param[in] script struct with functions implementing the language
-//! @param[in] data user data to pass to callbacks in the script
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_script_register(clingo_lib_t *lib, clingo_script_t const *script,
-                                                                 void *data);
-
-//! Get the version of the registered scripting language.
-//!
-//! @param[in] lib the library object
-//! @param[in] name the name of the scripting language
-//! @return the version
-CLINGO_VISIBILITY_DEFAULT char const *clingo_script_version(clingo_lib_t *lib, char const *name);
-
-//! @}
-
 // {{{1 AST
 
 //! @example ast.c
@@ -1317,6 +1127,234 @@ CLINGO_VISIBILITY_DEFAULT clingo_lib_t *clingo_ast_rewrite_context_get_lib(cling
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_rewrite(clingo_ast_rewrite_context_t *context,
                                                              clingo_ast_t *statement, clingo_ast_t ***result,
                                                              size_t *result_size);
+
+//! Object to store
+typedef struct clingo_program clingo_program_t;
+
+//! @name Functions to add ASTs to logic programs
+//! @{
+
+//! Create an empty non-ground program.
+//!
+//! @param[in] lib the library object
+//! @param[out] builder the program builder object
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_program_new(clingo_lib_t *lib, clingo_program_t **program);
+//! Destroy the given program object.
+//!
+//! @param[in] builder the program builder object
+CLINGO_VISIBILITY_DEFAULT void clingo_program_free(clingo_program_t *program);
+//! Adds a statement to the program.
+//!
+//! @param[in] builder the target program builder
+//! @param[in] statement the statement to add
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_runtime for statements of invalid form or AST nodes that do not represent statements
+//! - ::clingo_error_bad_alloc
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_program_add(clingo_program_t *program, clingo_ast_t *statement);
+
+//! @}
+
+//! @}
+
+// {{{1 Control
+
+//! @example control.c
+//! The example shows how to ground and solve a simple logic program, and print
+//! its answer sets.
+//!
+//! ## Output ##
+//!
+//! ~~~~~~~~~~~~
+//! ./control 0
+//! Model: a
+//! Model: b
+//! ~~~~~~~~~~~~
+//!
+//! ## Code ##
+
+//! @defgroup Control Grounding and Solving
+//! Functions to control the grounding and solving process.
+//!
+//! For an example, see @ref control.c.
+//! @addtogroup Control
+//! @{
+
+//! Control object holding grounding and solving state.
+typedef struct clingo_control clingo_control_t;
+
+//! Struct used to specify the program parts that have to be grounded.
+//!
+//! Programs may be structured into parts, which can be grounded independently with ::clingo_control_ground.
+//! Program parts are mainly interesting for incremental grounding and multi-shot solving.
+//! For single-shot solving, program parts are not needed.
+//!
+//! @note Parts of a logic program without an explicit <tt>\#program</tt>
+//! specification are by default put into a program called `base` without
+//! arguments.
+//!
+//! @see clingo_control_ground()
+typedef struct clingo_part {
+    char const *name;              //!< name of the program part
+    clingo_symbol_t const *params; //!< array of parameters
+    size_t size;                   //!< number of parameters
+} clingo_part_t;
+
+//! Create a new control object.
+//!
+//! A control object has to be freed using clingo_control_free().
+//!
+//! @note Only gringo options (without <code>\-\-output</code>) and clasp's options are supported as arguments,
+//! except basic options such as <code>\-\-help</code>.
+//! Furthermore, a control object is blocked while a search call is active;
+//! you must not call any member function during search.
+//!
+//! @param[in] lib clingo library object
+//! @param[in] arguments C string array of command line arguments
+//! @param[in] arguments_size size of the arguments array
+//! @param[out] control resulting control object
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if argument parsing fails
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_new(clingo_lib_t *lib, char const *const *arguments,
+                                                             size_t arguments_size, clingo_control_t **control);
+
+//! Free a control object created with clingo_control_new().
+//! @param[in] control the target
+CLINGO_VISIBILITY_DEFAULT void clingo_control_free(clingo_control_t *control);
+
+//! Extend the logic program with a program in a file.
+//!
+//! @param[in] control the target
+//! @param[in] files the files to parse
+//! @param[in] files_size the number of files to parse
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if parsing or checking fails
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_parse_file(clingo_control_t *control, char const **files,
+                                                                    size_t files_size);
+
+//! Extend the logic program with the given non-ground logic program in string form.
+//!
+//! After extending the logic program, the corresponding program parts are typically grounded with
+//! ::clingo_control_ground.
+//!
+//! @param[in] control the target
+//! @param[in] program string representation of the program
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if parsing fails
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_parse_string(clingo_control_t *control, char const *program);
+
+//! Extend the control objects's program with the given one.
+//!
+//! After extending the logic program, the corresponding program parts are typically grounded with
+//! ::clingo_control_ground.
+//!
+//! @param[in] control the target
+//! @param[in] program the program to add
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if rewriting fails
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_join(clingo_control_t *control,
+                                                              clingo_program_t const *program);
+
+//! Ground the selected @link ::clingo_part parts @endlink of the current (non-ground) logic program.
+//!
+//! After grounding, logic programs can be solved with ::clingo_control_solve().
+//!
+//! @note Parts of a logic program without an explicit <tt>\#program</tt>
+//! specification are by default put into a program called `base` without
+//! arguments.
+//!
+//! @param[in] control the target
+//! @param[in] parts array of parts to ground
+//! @param[in] parts_size size of the parts array
+//! @param[in] ground_callback callback to implement external functions
+//! @param[in] ground_callback_data user data for ground_callback
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - error code of ground callback
+//!
+//! @see clingo_part
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts,
+                                                                size_t parts_size);
+
+//! @}
+
+//! @defgroup Scripting Scripting Support for Grounding
+//! Support for calling exteral functions during grounding and customizing the main solving loop.
+
+//! @addtogroup Scripting
+//! @{
+
+//! Callback function to inject symbols.
+//!
+//! @param symbols array of symbols
+//! @param symbols_size size of the symbol array
+//! @param data user data of the callback
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! @see ::clingo_ground_callback_t
+typedef clingo_result_t (*clingo_symbol_callback_t)(clingo_symbol_t const *symbols, size_t symbols_size, void *data);
+
+//! Custom scripting language to run functions during grounding.
+typedef struct clingo_script {
+    //! Evaluate the given source code.
+    //! @param[in] code the code to evaluate
+    //! @param[in] data user data as given when registering the script
+    //! @return whether the function call was successful
+    clingo_result_t (*execute)(char const *code, void *data);
+    //! Call the function with the given name and arguments.
+    //! @param[in] lib library object
+    //! @param[in] name the name of the function
+    //! @param[in] arguments the arguments to the function
+    //! @param[in] arguments_size the number of arguments
+    //! @param[in] symbol_callback callback to return a pool of symbols
+    //! @param[in] symbol_callback_data user data for the symbol callback
+    //! @param[in] data user data as given when registering the script
+    //! @return whether the function call was successful
+    clingo_result_t (*call)(clingo_lib_t *lib, char const *name, clingo_symbol_t const *arguments,
+                            size_t arguments_size, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data,
+                            void *data);
+    //! Check if the given function is callable.
+    //! @param[in] name the name of the function
+    //! @param[in] arguments the number of arguments
+    //! @param[out] result whether the function is callable
+    //! @param[in] data user data as given when registering the script
+    //! @return whether the function call was successful
+    clingo_result_t (*callable)(char const *name, size_t arguments, bool *result, void *data);
+    //! Run the main function.
+    //! @param[in] control the control object to pass to the main function
+    //! @param[in] data user data as given when registering the script
+    //! @return whether the function call was successful
+    clingo_result_t (*main)(clingo_lib_t *lib, clingo_control_t *control, void *data);
+    //! Get the name of the script.
+    //! @return the name of the script.
+    char const *(*name)(void *data);
+    //! Get the version of the script.
+    //! @return the version of the script.
+    char const *(*version)(void *data);
+    //! This function is called once when the script is deleted.
+    //! @param[in] data user data as given when registering the script
+    void (*free)(void *data);
+} clingo_script_t;
+
+//! Add a custom scripting language to a control object.
+//!
+//! @param[in] lib the library object to register the script with
+//! @param[in] script struct with functions implementing the language
+//! @param[in] data user data to pass to callbacks in the script
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_script_register(clingo_lib_t *lib, clingo_script_t const *script,
+                                                                 void *data);
+
+//! Get the version of the registered scripting language.
+//!
+//! @param[in] lib the library object
+//! @param[in] name the name of the scripting language
+//! @return the version
+CLINGO_VISIBILITY_DEFAULT char const *clingo_script_version(clingo_lib_t *lib, char const *name);
 
 //! @}
 

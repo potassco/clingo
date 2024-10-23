@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ast.hh"
 #include "symbol.hh"
 
 #include <pybind11/pybind11.h>
@@ -12,6 +13,7 @@ class Control {
     Control(clingo_control_t *ctl) : ctl_{ctl} {}
 
     void parse_string(char const *str);
+    void join(Program &prg);
     void ground(std::vector<std::pair<std::string, SymbolVec>> const &parts);
 
   private:

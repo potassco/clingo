@@ -21,6 +21,8 @@ class Grounder {
     Grounder(Logger &log, SymbolStore &store, Input::RewriteOptions opts, OutputStm &out);
     //! Destroy grounder.
     ~Grounder() noexcept;
+    //! Join with the given program.
+    void join(Input::UnprocessedProgram const &prg);
     //! Parse a program from the given string.
     void parse(std::string_view str, Ground::ScriptExec *code = nullptr);
     //! Parse the given files.

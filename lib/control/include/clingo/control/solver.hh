@@ -57,6 +57,8 @@ class Solver {
               std::optional<std::vector<Clingo::Input::ProgramParamVec>> const &params);
 
     //! Parse a program from the given string.
+    void join(Input::UnprocessedProgram const &prg);
+    //! Parse a program from the given string.
     void parse(std::string_view str);
     //! Parse the given files.
     void parse(std::span<std::string_view const> const &files);
