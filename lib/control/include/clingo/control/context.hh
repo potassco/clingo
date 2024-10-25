@@ -21,7 +21,7 @@ namespace Clingo::Control {
 
 //! A map from a terms with projections associated state used during grounding.
 //!
-//! The terms represensts a class of similar terms that can reuse the same projection state.
+//! The terms represents a class of similar terms that can reuse the same projection state.
 using ProjectMap = Util::ordered_map<Ground::UTerm, std::unique_ptr<Ground::LitProject::State>>;
 
 //! A map from signatures to atom bases.
@@ -30,9 +30,13 @@ using BaseMap = Util::ordered_map<std::tuple<String, size_t, bool>, std::unique_
 //! A helper that manages atom bases and auxiliary bases.
 class BaseHelper {
   public:
+    //! Construct the base helper.
     BaseHelper(BaseMap &atom_base, BaseMap &aux_base, ProjectMap &project_base)
         : atom_base_{&atom_base}, aux_base_{&aux_base}, project_base_{&project_base} {}
 
+    //! Add a base.
+    //!
+    //! Names starting with a `#` are added as auxiliary bases.
     [[nodiscard]] auto add_base(std::tuple<String, size_t, bool> sig) -> BaseMap::iterator {
         auto aux = std::get<0>(sig).starts_with("#");
         auto dom_it = (aux ? aux_base_ : atom_base_)->try_emplace(std::move(sig), nullptr).first;
@@ -76,6 +80,7 @@ using DefMap = Util::unordered_map<Input::Term const *, std::vector<size_t>>;
 //! representation.
 class BuildContext {
   public:
+    //! Construct the build context.
     BuildContext(std::pmr::monotonic_buffer_resource &mbr, Logger &log, SymbolStore &store, BaseHelper base,
                  Input::Component const &comp, DefMap &def_map, Ground::Component &gcomp, VarMap &var_map,
                  Ground::ULitVec &body, Ground::UStateVec &states, Ground::ScriptCallback *context)
@@ -107,6 +112,7 @@ class BuildContext {
                std::all_of(body_->begin(), body_->end(), [](auto const &lit) { return lit->single_pass(); });
     }
 
+    //! Return a fresh atom index.
     [[nodiscard]] auto next_index() -> size_t { return comp_->incomplete.size() + index_++; }
 
     //! Get the logger.
@@ -124,7 +130,7 @@ class BuildContext {
         return base_.add_project(*store_, term, base);
     }
 
-    //! Get the componennt type.
+    //! Get the component type.
     [[nodiscard]] auto type() const -> Input::ComponentType { return comp_->type; };
 
     //! Add an atom base for the given signature.
@@ -152,6 +158,7 @@ class BuildContext {
     //! Increment the priority and return its previous value.
     auto inc_priority() -> size_t { return priority++; }
 
+    //! Translate the given simple input literal into a simple ground atom.
     [[nodiscard]] auto simple_lit(Input::Lit const &lit) -> Ground::AtomSimple {
         auto res = Ground::AtomSimple{};
         with_simple_lit(lit, [&res]([[maybe_unused]] auto sig, auto term, auto &base, auto provides) {
@@ -160,6 +167,7 @@ class BuildContext {
         return res;
     }
 
+    //! Translate the given input term (for an atom) into a simple ground atom.
     [[nodiscard]] auto simple_lit(Input::Term const &term) -> Ground::AtomSimple::value_type {
         auto res = Ground::AtomSimple{};
         with_simple_lit(term, [&res]([[maybe_unused]] auto sig, auto term, auto &base, auto provides) {
@@ -169,6 +177,7 @@ class BuildContext {
         return *std::move(res);
     }
 
+    //! Translate the given input term (for an atom) with a callback.
     template <class F> void with_simple_lit(Input::Term const &term, F &&fun) {
         auto provides = std::vector<size_t>{};
         auto sig = signature(term);
@@ -181,6 +190,7 @@ class BuildContext {
         std::invoke(std::forward<F>(fun), *sig, build_term(*var_map_, term), base, std::move(provides));
     }
 
+    //! Translate the given simple input literal with a callback.
     template <class F> void with_simple_lit(Input::Lit const &lit, F &&fun) {
         std::visit(
             [&]<class T>(T const &lit) {

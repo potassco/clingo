@@ -11,7 +11,9 @@ namespace Clingo {
 //! Interface to output literals.
 class OutputTheory {
   public:
+    //! A span of indices.
     using IndexSpan = std::span<size_t const>;
+    //! An optional guard of string and term indices.
     using OptGuard = std::optional<std::pair<size_t, size_t>>;
     //! Destroy the output.
     virtual ~OutputTheory() = default;

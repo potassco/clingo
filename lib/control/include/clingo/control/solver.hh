@@ -7,7 +7,10 @@ namespace Clingo::Control {
 //! @addtogroup control
 //! @{
 
-enum class OutputMode : uint8_t { text };
+//! Enumeration of available outputs.
+enum class OutputMode : uint8_t {
+    text //!< The text output.
+};
 
 class Solver;
 
@@ -16,13 +19,16 @@ class Solver;
 //! This interface should be implemend by custom scripts.
 class Script : public Ground::ScriptCallback {
   public:
+    //! Run the main function.
     void main(Solver &slv) { do_main(slv); }
+    //! Execute the given code.
     void exec(std::string_view code) { do_exec(code); }
 
   private:
     virtual void do_exec(std::string_view code) = 0;
     virtual void do_main(Solver &slv) = 0;
 };
+//! A unique pointer to a script.
 using UScript = std::unique_ptr<Script>;
 
 //! Helper to run specific code and callbacks.
@@ -31,7 +37,9 @@ using UScript = std::unique_ptr<Script>;
 //! dispatched to registered scripts.
 class Scripts : public Ground::ScriptCallback, public Ground::ScriptExec {
   public:
+    //! Register the given script.
     void register_script(std::string_view name, UScript script);
+    //! Run the main function.
     void main(Solver &slv);
 
   private:
@@ -42,7 +50,12 @@ class Scripts : public Ground::ScriptCallback, public Ground::ScriptExec {
     std::vector<std::pair<std::string, UScript>> scripts_;
 };
 
-enum class AppMode : uint8_t { parse, rewrite, ground };
+//! Enumeration of available application modes.
+enum class AppMode : uint8_t {
+    parse,   //!< Stop processing after parsing.
+    rewrite, //!< Stop processing after rewriting.
+    ground   //!< Stop processing after grounding.
+};
 
 //! A grounder and solver for logic programs.
 //!
