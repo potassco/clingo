@@ -332,19 +332,68 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_position_to_string(clingo_posit
 //! Represents a source code location marking its beginning and end.
 typedef struct clingo_location clingo_location_t;
 
+//! Create a new source location object.
+//!
+//! @param[in] lib the library storing strings
+//! @param[in] begin the position marking the beginning
+//! @param[in] end the position marking the end
+//! @param[out] loc the resulting location
+//! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_location_new(clingo_position_t const *begin,
                                                               clingo_position_t const *end,
                                                               clingo_location_t const **loc);
+//! Copy the given location.
+//!
+//! @param[in] src the location to copy
+//! @param[out] dst the resulting location
+//! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_location_copy(clingo_location_t const *src,
                                                                clingo_location_t const **dst);
+//! Free the given location.
+//!
+//! @param[in] loc the location to free
 CLINGO_VISIBILITY_DEFAULT void clingo_location_free(clingo_location_t const *loc);
 
-// getters (the first two return borrowed references)
+//! Get the beginning of the location.
+//!
+//! The lifetime of the position is tied to that of the location.
+//!
+//! @param[in] loc the location
+//! @return the beginning position
 CLINGO_VISIBILITY_DEFAULT clingo_position_t const *clingo_location_begin(clingo_location_t const *loc);
+//! Get the end of the location.
+//!
+//! The lifetime of the position is tied to that of the location.
+//!
+//! @param[in] loc the location
+//! @return the end position
 CLINGO_VISIBILITY_DEFAULT clingo_position_t const *clingo_location_end(clingo_location_t const *loc);
+//! Compute a hash of the location.
+//!
+//! @param[in] pos the location
+//! @return the resulting hash
 CLINGO_VISIBILITY_DEFAULT size_t clingo_location_hash(clingo_location_t const *loc);
+//! Check if two locations are equal.
+//!
+//! Only locations associcated with the same library may be compared.
+//!
+//! @param[in] a the first location
+//! @param[in] b the second location
+//! @return whether the location are equal
 CLINGO_VISIBILITY_DEFAULT bool clingo_location_equal(clingo_location_t const *a, clingo_location_t const *b);
+//! Compare two locations.
+//!
+//! Only locations associcated with the same library may be compared.
+//!
+//! @param[in] a the first location
+//! @param[in] b the second location
+//! @return the comparator
 CLINGO_VISIBILITY_DEFAULT int clingo_location_compare(clingo_location_t const *a, clingo_location_t const *b);
+//! Convert the given location into a string.
+//!
+//! @param[in] loc the location
+//! @param[in] str the string builder
+//! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_location_to_string(clingo_location_t const *loc,
                                                                     clingo_string_builder_t *str);
 
