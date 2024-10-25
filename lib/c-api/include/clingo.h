@@ -87,7 +87,7 @@ extern "C" {
 //!
 //! ## Code ##
 
-//! @defgroup Core Core
+//! @defgroup Core Core Functionality
 //! Core types and functions used throughout all modules and version information.
 //!
 //! For an example, see @ref version.c.
@@ -345,7 +345,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_location_to_string(clingo_locat
 //!
 //! ## Code ##
 
-//! @defgroup Symbols Symbols
+//! @defgroup Symbols Symbol Handling
 //! Working with (evaluated) ground terms and related functions.
 //!
 //! @note Functions to create symbols are only thread-safe if library flags have been requested accordingly.
@@ -1256,7 +1256,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_buffer(clingo_control_t
 //! @defgroup Script Scripting Support for Grounding
 //! Support for calling exteral functions during grounding and customizing the main solving loop.
 
-//! @addtogroup Scripting
+//! @addtogroup Script
 //! @{
 
 //! Callback function to inject symbols.
