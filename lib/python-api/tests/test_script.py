@@ -1,5 +1,5 @@
 """
-Unit tests for clingo.control module.
+Unit tests for clingo.script module.
 """
 
 from textwrap import dedent
@@ -60,7 +60,6 @@ class TestScript(TestCase):
         register(self.lib, MyScript())
 
     def tearDown(self):
-        self.loc = None
         self.lib = None
 
     def test_script(self):
