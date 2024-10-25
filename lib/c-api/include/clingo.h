@@ -1238,6 +1238,64 @@ typedef struct clingo_part {
     size_t size;                   //!< number of parameters
 } clingo_part_t;
 
+//! Callback function to inject symbols.
+//!
+//! @param symbols array of symbols
+//! @param symbols_size size of the symbol array
+//! @param data user data of the callback
+//! @return the result code; might return one of the following codes:
+//! - ::clingo_result_bad_alloc
+//! @see ::clingo_ground_callback_t
+typedef clingo_result_t (*clingo_symbol_callback_t)(clingo_symbol_t const *symbols, size_t symbols_size, void *data);
+
+//! Callback function to implement external functions.
+//!
+//! If an external function of form <tt>\@name(parameters)</tt> occurs in a logic program,
+//! then this function is called with its location, name, parameters, and a callback to inject symbols as arguments.
+//! The callback can be called multiple times; all symbols passed are injected.
+//!
+//! If a (non-recoverable) clingo API function fails in this callback, for example, the symbol callback, the callback
+//! must return its return code. In case of errors not related to clingo, this function can return
+//! ::clingo_result_unknown to stop grounding with an error.
+//!
+//! @param[in] lib the library object
+//! @param[in] location location from which the external function was called
+//! @param[in] name name of the called external function
+//! @param[in] arguments arguments of the called external function
+//! @param[in] arguments_size number of arguments
+//! @param[in] data user data of the callback
+//! @param[in] symbol_callback function to inject symbols
+//! @param[in] symbol_callback_data user data for the symbol callback
+//!            (must be passed untouched)
+//! @return whether the call was successful
+//! @see clingo_control_ground()
+//!
+//! The following example implements the external function <tt>\@f()</tt> returning 42.
+//! ~~~~~~~~~~~~~~~{.c}
+//! bool
+//! ground_callback(clingo_lib_t *lib,
+//!                 clingo_location_t const *location,
+//!                 char const *name,
+//!                 clingo_symbol_t const *arguments,
+//!                 size_t arguments_size,
+//!                 void *data,
+//!                 clingo_symbol_callback_t symbol_callback,
+//!                 void *symbol_callback_data) {
+//!   if (strcmp(name, "f") == 0 && arguments_size == 0) {
+//!     clingo_symbol_t sym;
+//!     sym = clingo_symbol_create_number(42);
+//!     return symbol_callback(&sym, 1, symbol_callback_data);
+//!   }
+//!   clingo_lib_report(lib, clingo_result_runtime, "function not found");
+//!   return clingo_result_runtime;
+//! }
+//! ~~~~~~~~~~~~~~~
+typedef clingo_result_t (*clingo_ground_callback_t)(clingo_lib_t *lib, clingo_location_t const *location,
+                                                    char const *name, clingo_symbol_t const *arguments,
+                                                    size_t arguments_size, void *data,
+                                                    clingo_symbol_callback_t symbol_callback,
+                                                    void *symbol_callback_data);
+
 //! Create a new control object.
 //!
 //! A control object has to be freed using clingo_control_free().
@@ -1351,16 +1409,6 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_solve(clingo_control_t 
 
 //! @addtogroup Script
 //! @{
-
-//! Callback function to inject symbols.
-//!
-//! @param symbols array of symbols
-//! @param symbols_size size of the symbol array
-//! @param data user data of the callback
-//! @return the result code; might return one of the following codes:
-//! - ::clingo_result_bad_alloc
-//! @see ::clingo_ground_callback_t
-typedef clingo_result_t (*clingo_symbol_callback_t)(clingo_symbol_t const *symbols, size_t symbols_size, void *data);
 
 //! Custom scripting language to run functions during grounding.
 typedef struct clingo_script {
