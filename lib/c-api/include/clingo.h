@@ -1,5 +1,3 @@
-// {{{1 Preamble
-
 //! @file clingo.h
 //! Single header containing the whole clingo API.
 //!
@@ -129,7 +127,12 @@ enum clingo_result_e {
 //! Corresponding type to ::clingo_result_e.
 typedef int clingo_result_t;
 
-//! Convert the given error code into a string.
+//! Convert the given result code into a string.
+//!
+//! The function returns string literals that do not have to be cleaned up.
+//!
+//! @param[in] code the result code
+//! @return the string representation
 CLINGO_VISIBILITY_DEFAULT char const *clingo_result_string(clingo_result_t code);
 
 //! Enumeration of message codes.
@@ -148,6 +151,11 @@ enum clingo_message_e {
 typedef int clingo_message_t;
 
 //! Convert the giving message code into a string.
+//!
+//! The function returns string literals that do not have to be cleaned up.
+//!
+//! @param[in] code the message code
+//! @return the string representation
 CLINGO_VISIBILITY_DEFAULT char const *clingo_message_string(clingo_message_t code);
 
 //! Callback to intercept messages.
@@ -156,11 +164,12 @@ CLINGO_VISIBILITY_DEFAULT char const *clingo_message_string(clingo_message_t cod
 //! @param[in] message message
 //! @param[in] data user data for callback
 //!
-//! @see clingo_control_new()
-//! @see clingo_parse_term()
-//! @see clingo_parse_program()
+//! @see clingo_lib_new()
 typedef void (*clingo_logger_t)(clingo_message_t code, char const *message, void *data);
 
+//! Callback to free user data.
+//!
+//! @param[in] data the user data to free
 typedef void (*clingo_free_t)(void *data);
 
 //! A library object storing global information.
@@ -239,13 +248,36 @@ typedef int clingo_truth_value_t;
 //! A builder for strings.
 typedef struct clingo_string_builder clingo_string_builder_t;
 
+//! Create a new string builder.
+//!
+//! @param[out] bld the resulting builder
+//! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_string_builder_new(clingo_string_builder_t **bld);
+//! Copy the string builder.
+//!
+//! @param[in] src the builder to copy
+//! @param[out] dst the resulting builder
+//! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_string_builder_copy(clingo_string_builder_t const *src,
                                                                      clingo_string_builder_t **dst);
+//! Free the string builder.
+//!
+//! @param[in] src the builder
 CLINGO_VISIBILITY_DEFAULT void clingo_string_builder_free(clingo_string_builder_t const *bld);
 
+//! Get the string in the builder.
+//!
+//! Note that the string is not zero terminated.
+//!
+//! @param[in] bld the builder
+//! @param[out] str the resulting string
+//! @param[out] size the resulting size
+//! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_string_builder_string(clingo_string_builder_t const *bld,
                                                                        char const **str, size_t *size);
+//! Clear the string in the builder.
+//!
+//! @param[in] bld the builder
 CLINGO_VISIBILITY_DEFAULT void clingo_string_builder_clear(clingo_string_builder_t *bld);
 
 //! Represents a cursor position in source code.
@@ -320,73 +352,6 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_location_to_string(clingo_locat
 //!
 //! For an example, see @ref symbol.c.
 //! @{
-
-/*
-//! Represents a predicate signature.
-//!
-//! Signatures have a name and an arity, and can be positive or negative (to
-//! represent classical negation).
-typedef uint64_t clingo_signature_t;
-
-//! @name Signature Functions
-//! @{
-
-//! Create a new signature.
-//!
-//! @param[in] name name of the signature
-//! @param[in] arity arity of the signature
-//! @param[in] positive false if the signature has a classical negation sign
-//! @param[out] signature the resulting signature
-//! @return whether the call was successful; might set one of the following error codes:
-//! - ::clingo_error_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_signature_create(char const *name, uint32_t arity, bool positive,
-                                                       clingo_signature_t *signature);
-//! Get the name of a signature.
-//!
-//! @note
-//! The string is internalized and valid for the duration of the process.
-//!
-//! @param[in] signature the target signature
-//! @return the name of the signature
-CLINGO_VISIBILITY_DEFAULT char const *clingo_signature_name(clingo_signature_t signature);
-//! Get the arity of a signature.
-//!
-//! @param[in] signature the target signature
-//! @return the arity of the signature
-CLINGO_VISIBILITY_DEFAULT uint32_t clingo_signature_arity(clingo_signature_t signature);
-//! Whether the signature is positive (is not classically negated).
-//!
-//! @param[in] signature the target signature
-//! @return whether the signature has no sign
-CLINGO_VISIBILITY_DEFAULT bool clingo_signature_is_positive(clingo_signature_t signature);
-//! Whether the signature is negative (is classically negated).
-//!
-//! @param[in] signature the target signature
-//! @return whether the signature has a sign
-CLINGO_VISIBILITY_DEFAULT bool clingo_signature_is_negative(clingo_signature_t signature);
-//! Check if two signatures are equal.
-//!
-//! @param[in] a first signature
-//! @param[in] b second signature
-//! @return whether a == b
-CLINGO_VISIBILITY_DEFAULT bool clingo_signature_is_equal_to(clingo_signature_t a, clingo_signature_t b);
-//! Check if a signature is less than another signature.
-//!
-//! Signatures are compared first by sign (unsigned < signed), then by arity,
-//! then by name.
-//!
-//! @param[in] a first signature
-//! @param[in] b second signature
-//! @return whether a < b
-CLINGO_VISIBILITY_DEFAULT bool clingo_signature_is_less_than(clingo_signature_t a, clingo_signature_t b);
-//! Calculate a hash code of a signature.
-//!
-//! @param[in] signature the target signature
-//! @return the hash code of the signature
-CLINGO_VISIBILITY_DEFAULT size_t clingo_signature_hash(clingo_signature_t signature);
-
-//! @}
-*/
 
 //! Enumeration of available symbol types.
 enum clingo_symbol_type_e {
@@ -1286,7 +1251,9 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_buffer(clingo_control_t
 
 //! @}
 
-//! @defgroup Scripting Scripting Support for Grounding
+// {{{1 Script
+
+//! @defgroup Script Scripting Support for Grounding
 //! Support for calling exteral functions during grounding and customizing the main solving loop.
 
 //! @addtogroup Scripting
@@ -1362,7 +1329,19 @@ CLINGO_VISIBILITY_DEFAULT char const *clingo_script_version(clingo_lib_t *lib, c
 
 //! @}
 
+// {{{1 Application
+
+//! @defgroup Application Applications on top of Clingo
+//! Support for building applications on top of clingo.
+
+//! @addtogroup Application
+//! @{
+
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_main(clingo_lib_t *lib, char const *const *arguments, size_t size);
+
+//! @}
+
+// }}}1
 
 //! @}
 
