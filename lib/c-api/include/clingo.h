@@ -222,29 +222,6 @@ CLINGO_VISIBILITY_DEFAULT void clingo_lib_report(clingo_lib_t *lib, clingo_messa
 //! @param[in] fast whether to perform a fast destruction
 CLINGO_VISIBILITY_DEFAULT void clingo_lib_free(clingo_lib_t *lib, bool fast);
 
-//! Signed integer type used for aspif and solver literals.
-typedef int32_t clingo_literal_t;
-//! Unsigned integer type used for aspif atoms.
-typedef uint32_t clingo_atom_t;
-//! Unsigned integer type used in various places.
-typedef uint32_t clingo_id_t;
-//! Signed integer type for weights in sum aggregates and minimize constraints.
-typedef int32_t clingo_weight_t;
-//! A Literal with an associated weight.
-typedef struct clingo_weighted_literal {
-    clingo_literal_t literal; //!< the literal
-    clingo_weight_t weight;   //!< the weight
-} clingo_weighted_literal_t;
-
-//! Represents three-valued truth values.
-enum clingo_truth_value_e {
-    clingo_truth_value_free = 0, //!< no truth value
-    clingo_truth_value_true = 1, //!< true
-    clingo_truth_value_false = 2 //!< false
-};
-//! Corresponding type to ::clingo_truth_value_e.
-typedef int clingo_truth_value_t;
-
 //! A builder for strings.
 typedef struct clingo_string_builder clingo_string_builder_t;
 
