@@ -20,6 +20,7 @@ class _MCB:
         self._models = []
         self._core = None
         self.last = None
+        self.final = None
 
     def on_core(self, c):
         self._core = c
@@ -27,6 +28,10 @@ class _MCB:
     def on_model(self, m):
         self.last = (m.type, sorted(m.symbols(shown=True)))
         self._models.append(self.last[1])
+
+    def on_last(self, m):
+        assert self.final is None
+        self.final = (m.type, sorted(m.symbols(shown=True)))
 
     @property
     def core(self):

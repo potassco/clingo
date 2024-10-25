@@ -14991,6 +14991,59 @@ _cffi_f_clingo_solve_handle_get(PyObject *self, PyObject *args)
 #  define _cffi_f_clingo_solve_handle_get _cffi_d_clingo_solve_handle_get
 #endif
 
+static _Bool _cffi_d_clingo_solve_handle_last(clingo_solve_handle_t * x0, clingo_model_t const * * x1)
+{
+  return clingo_solve_handle_last(x0, x1);
+}
+#ifndef PYPY_VERSION
+static PyObject *
+_cffi_f_clingo_solve_handle_last(PyObject *self, PyObject *args)
+{
+  clingo_solve_handle_t * x0;
+  clingo_model_t const * * x1;
+  Py_ssize_t datasize;
+  struct _cffi_freeme_s *large_args_free = NULL;
+  _Bool result;
+  PyObject *pyresult;
+  PyObject *arg0;
+  PyObject *arg1;
+
+  if (!PyArg_UnpackTuple(args, "clingo_solve_handle_last", 2, 2, &arg0, &arg1))
+    return NULL;
+
+  datasize = _cffi_prepare_pointer_call_argument(
+      _cffi_type(778), arg0, (char **)&x0);
+  if (datasize != 0) {
+    x0 = ((size_t)datasize) <= 640 ? (clingo_solve_handle_t *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(778), arg0, (char **)&x0,
+            datasize, &large_args_free) < 0)
+      return NULL;
+  }
+
+  datasize = _cffi_prepare_pointer_call_argument(
+      _cffi_type(782), arg1, (char **)&x1);
+  if (datasize != 0) {
+    x1 = ((size_t)datasize) <= 640 ? (clingo_model_t const * *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(782), arg1, (char **)&x1,
+            datasize, &large_args_free) < 0)
+      return NULL;
+  }
+
+  Py_BEGIN_ALLOW_THREADS
+  _cffi_restore_errno();
+  { result = clingo_solve_handle_last(x0, x1); }
+  _cffi_save_errno();
+  Py_END_ALLOW_THREADS
+
+  (void)self; /* unused */
+  pyresult = _cffi_from_c__Bool(result);
+  if (large_args_free != NULL) _cffi_free_array_arguments(large_args_free);
+  return pyresult;
+}
+#else
+#  define _cffi_f_clingo_solve_handle_last _cffi_d_clingo_solve_handle_last
+#endif
+
 static _Bool _cffi_d_clingo_solve_handle_model(clingo_solve_handle_t * x0, clingo_model_t const * * x1)
 {
   return clingo_solve_handle_model(x0, x1);
@@ -19303,6 +19356,7 @@ static const struct _cffi_global_s _cffi_globals[] = {
   { "clingo_solve_handle_close", (void *)_cffi_f_clingo_solve_handle_close, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 777), (void *)_cffi_d_clingo_solve_handle_close },
   { "clingo_solve_handle_core", (void *)_cffi_f_clingo_solve_handle_core, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 784), (void *)_cffi_d_clingo_solve_handle_core },
   { "clingo_solve_handle_get", (void *)_cffi_f_clingo_solve_handle_get, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 789), (void *)_cffi_d_clingo_solve_handle_get },
+  { "clingo_solve_handle_last", (void *)_cffi_f_clingo_solve_handle_last, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 780), (void *)_cffi_d_clingo_solve_handle_last },
   { "clingo_solve_handle_model", (void *)_cffi_f_clingo_solve_handle_model, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 780), (void *)_cffi_d_clingo_solve_handle_model },
   { "clingo_solve_handle_resume", (void *)_cffi_f_clingo_solve_handle_resume, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 777), (void *)_cffi_d_clingo_solve_handle_resume },
   { "clingo_solve_handle_wait", (void *)_cffi_f_clingo_solve_handle_wait, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 1186), (void *)_cffi_d_clingo_solve_handle_wait },
@@ -19845,7 +19899,7 @@ static const struct _cffi_type_context_s _cffi_type_context = {
   _cffi_struct_unions,
   _cffi_enums,
   _cffi_typenames,
-  517,  /* num_globals */
+  518,  /* num_globals */
   26,  /* num_struct_unions */
   33,  /* num_enums */
   78,  /* num_typenames */

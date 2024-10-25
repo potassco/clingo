@@ -509,10 +509,10 @@ class Control:
         Parameters
         ----------
         observer
-            The observer to register. See below for a description of the requirede
+            The observer to register. See below for a description of the required
             interface.
         replace
-            If set to true, the output is just passed to the observer and nolonger to
+            If set to true, the output is just passed to the observer and no longer to
             the underlying solver (or any previously registered observers).
 
         See Also
@@ -688,6 +688,7 @@ class Control:
             on_statistics: Optional[Callable[[StatisticsMap, StatisticsMap], None]] = None,
             on_finish: Optional[Callable[[SolveResult], None]] = None,
             on_core: Optional[Callable[[Sequence[int]], None]] = None,
+            on_last: Optional[Callable[[Model], None]] = None,
             *,
             yield_: Literal[False] = False,
             async_: Literal[False] = False,
@@ -728,6 +729,7 @@ class Control:
             on_statistics: Optional[Callable[[StatisticsMap, StatisticsMap], None]] = None,
             on_finish: Optional[Callable[[SolveResult], None]] = None,
             on_core: Optional[Callable[[Sequence[int]], None]] = None,
+            on_last: Optional[Callable[[Model], None]] = None,
         ) -> SolveResult: ...
 
     @overload
@@ -739,6 +741,7 @@ class Control:
         on_statistics: Optional[Callable[[StatisticsMap, StatisticsMap], None]] = None,
         on_finish: Optional[Callable[[SolveResult], None]] = None,
         on_core: Optional[Callable[[Sequence[int]], None]] = None,
+        on_last: Optional[Callable[[Model], None]] = None,
         yield_: bool = False,
         async_: bool = False,
     ) -> Union[SolveHandle, SolveResult]: ...
@@ -751,6 +754,7 @@ class Control:
         on_statistics: Optional[Callable[[StatisticsMap, StatisticsMap], None]] = None,
         on_finish: Optional[Callable[[SolveResult], None]] = None,
         on_core: Optional[Callable[[Sequence[int]], None]] = None,
+        on_last: Optional[Callable[[Model], None]] = None,
         yield_: bool = False,
         async_: bool = False,
     ) -> Union[SolveHandle, SolveResult]:
@@ -767,7 +771,7 @@ class Control:
         on_model
             Optional callback for intercepting models.
             A `clingo.solving.Model` object is passed to the callback. The
-            search can be interruped from the model callback by returning
+            search can be interrupted from the model callback by returning
             False.
         on_unsat
             Optional callback to intercept lower bounds during optimization.
@@ -777,10 +781,13 @@ class Control:
         on_finish
             Optional callback called once search has finished.
             A `clingo.solving.SolveResult` also indicating whether the solve
-            call has been intrrupted is passed to the callback.
+            call has been interrupted is passed to the callback.
         on_core
             Optional callback called with the assumptions that made a problem
             unsatisfiable.
+        on_last
+            Optional callback for getting the last model computed for a satisfiable problem.
+            A `clingo.solving.Model` object is passed to the callback.
         yield_
             The resulting `clingo.solving.SolveHandle` is iterable yielding
             `clingo.solving.Model` objects.
@@ -864,6 +871,9 @@ class Control:
                 ret = handle.get()
                 if on_core is not None and ret.unsatisfiable:
                     on_core(handle.core())
+                if on_last is not None:
+                    m = handle.last()
+                    if m is not None: on_last(m)
                 return ret
         return handle
 
@@ -892,7 +902,7 @@ class Control:
     @property
     def enable_enumeration_assumption(self) -> bool:
         """
-        Whether do discard or keep learnt information from enumeration modes.
+        Whether to discard or keep learnt information from enumeration modes.
 
         If the enumeration assumption is enabled, then all information learnt from
         clasp's various enumeration modes is removed after a solve call. This includes
