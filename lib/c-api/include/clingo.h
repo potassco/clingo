@@ -263,22 +263,69 @@ CLINGO_VISIBILITY_DEFAULT void clingo_string_builder_clear(clingo_string_builder
 //! By convention, such locations use a name put in angular brackets as filename.
 typedef struct clingo_position clingo_position_t;
 
-// creates a new allocated position
+//! Create a new source position object.
+//!
+//! @param[in] lib the library storing strings
+//! @param[in] file the file of the position
+//! @param[in] line the line number of the position
+//! @param[in] column the column number of the position
+//! @param[out] pos the resulting position
+//! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_position_new(clingo_lib_t *lib, char const *file, size_t line,
                                                               size_t column, clingo_position_t const **pos);
-// like new but copies an existing location
+//! Copy the given position.
+//!
+//! @param[in] src the position to copy
+//! @param[out] dst the resulting position
+//! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_position_copy(clingo_position_t const *src,
                                                                clingo_position_t const **dst);
-// frees a position (positions returned from the API do not have to be freed but their lifetime is limited to that of
-// their owner)
+//! Free the given position.
+//!
+//! @param[in] pos the position to free
 CLINGO_VISIBILITY_DEFAULT void clingo_position_free(clingo_position_t const *pos);
 
+//! Get the file name of the position.
+//!
+//! @param[in] pos the position
+//! @return the file name
 CLINGO_VISIBILITY_DEFAULT char const *clingo_position_file(clingo_position_t const *pos);
+//! Get the line number of the position.
+//!
+//! @param[in] pos the position
+//! @return the line number
 CLINGO_VISIBILITY_DEFAULT size_t clingo_position_line(clingo_position_t const *pos);
+//! Get the column number of the position.
+//!
+//! @param[in] pos the position
+//! @return the column number
 CLINGO_VISIBILITY_DEFAULT size_t clingo_position_column(clingo_position_t const *pos);
+//! Compute a hash of the position.
+//!
+//! @param[in] pos the position
+//! @return the resulting hash
 CLINGO_VISIBILITY_DEFAULT size_t clingo_position_hash(clingo_position_t const *pos);
+//! Check if two positions are equal.
+//!
+//! Only positions associcated with the same library may be compared.
+//!
+//! @param[in] a the first position
+//! @param[in] b the second position
+//! @return whether the positions are equal
 CLINGO_VISIBILITY_DEFAULT bool clingo_position_equal(clingo_position_t const *a, clingo_position_t const *b);
+//! Compare two positions.
+//!
+//! Only positions associcated with the same library may be compared.
+//!
+//! @param[in] a the first position
+//! @param[in] b the second position
+//! @return the comparator
 CLINGO_VISIBILITY_DEFAULT int clingo_position_compare(clingo_position_t const *a, clingo_position_t const *b);
+//! Convert the given position into a string.
+//!
+//! @param[in] pos the position
+//! @param[in] str the string builder
+//! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_position_to_string(clingo_position_t const *pos,
                                                                     clingo_string_builder_t *str);
 
