@@ -8,6 +8,9 @@
 
 namespace Clingo::Control {
 
+//! @addtogroup control
+//! @{
+
 //! Translates input theory terms to their ground representation.
 auto build_term(Util::unordered_map<String, size_t> const &var_map, Input::Term const &term,
                 bool &has_projection) -> Ground::UTerm;
@@ -23,5 +26,7 @@ inline auto build_term(Util::unordered_map<String, size_t> const &var_map, Input
 //! Translates input theory terms to their ground representation.
 auto build_theory_term(Util::unordered_map<String, size_t> const &var_map,
                        Input::TheoryTerm const &term) -> Ground::UTheoryTerm;
+
+//! @}
 
 } // namespace Clingo::Control

@@ -372,6 +372,7 @@ class TermFunction : public Term {
     std::vector<Symbol> mutable eval_;
 };
 
+//! Helper to report a message only once.
 template <class... T>
 inline auto expect(EvalContext const &ctx, Location const &loc, bool &logged, T &&...args) -> bool {
     if (!logged && ctx.log().check(MessageCode::info_operation_undefined)) {

@@ -35,6 +35,10 @@ namespace Clingo::Ground {
 //   - LitTheoryAtom    (atom to capture theory atoms in bodies)
 //   - StmTheoryAtom    (statement to capture theory atoms in heads)
 
+//! @addtogroup ground_theory
+//! @{
+
+//! The right-hand-side of a theory atom.
 using TheoryRGuard = std::optional<std::pair<String, UTheoryTerm>>;
 
 //! Extensible ground representation for theory atoms.
@@ -103,6 +107,7 @@ class BaseTheory : public BaseImpl<Symbol const *, BaseTheory> {
     AtomMap atoms_;
 };
 
+//! State storing all necessary information to ground theory atoms.
 class StateTheory : public Ground::State {
   public:
     //! Keys for aggregate elements storing their tuple and their aggregate index.
@@ -143,15 +148,27 @@ class StateTheory : public Ground::State {
         // NOLINTEND
     };
 
+    //! Map containing the atoms.
     using AtomMap = BaseTheory::AtomMap;
+    //! Map capturing the elements of theory atoms.
     using ElementMap = Util::ordered_map<ElementKey *, Util::small_vector<size_t>>;
 
+    //! Construct the state.
     StateTheory(std::pmr::monotonic_buffer_resource &mbr, VariableVec global, UTerm name, TheoryRGuard guard)
         : base_{global.size()}, mbr_{&mbr}, global_{std::move(global)}, name_{std::move(name)},
           guard_{std::move(guard)} {}
 
+    //! Find a previously grounded theory atom.
+    //!
+    //! Assumes that the assignment binds the global variables of the atom.
     auto find_atom(Assignment &ass) -> AtomMap::iterator;
+    //! Insert a theory atom.
+    //!
+    //! Assumes that the assignment binds the global variables of the atom.
     auto insert_atom(Symbol name, std::optional<size_t> rhs, Assignment &ass) -> std::pair<AtomMap::iterator, bool>;
+    //! Insert a theory atom element.
+    //!
+    //! Assumes that the assignment binds the global/local variables of the element.
     void insert_elem(InstantiationContext const &ctx, AtomMap::iterator it, UTheoryTermVec const &tuple,
                      ElementKey *&elem_key, auto const &get_cond);
     //! Print a debug representation of the theory atom.
@@ -304,5 +321,7 @@ class StmHdTheory : public Stm {
     StateTheory *state_;
     ULitVec body_;
 };
+
+//! @}
 
 } // namespace Clingo::Ground

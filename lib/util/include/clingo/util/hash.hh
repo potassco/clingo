@@ -75,6 +75,7 @@ struct value_hasher {
 
 //! Helper class to compare pointers and some STL containers holding pointers by value.
 struct value_equal_to {
+    //! Mark the comparison operator as transparent.
     using is_transparent = void;
 
     //! Basic comparison.

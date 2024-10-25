@@ -314,7 +314,9 @@ class State {
     //! Output delayed literals.
     virtual void output(Logger &log, SymbolStore &store, OutputStm &out) = 0;
 };
+//! A unique pointer to a state.
 using UState = std::unique_ptr<State>;
+//! A vector of states.
 using UStateVec = std::vector<UState>;
 
 //! @}

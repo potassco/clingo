@@ -7,7 +7,7 @@
 
 namespace Clingo::Ground {
 
-//! @addtogroup ground_condlit
+//! @addtogroup ground_bdcondlit
 //! @{
 
 //! The type of the literals involved in grounding conditional literals.

@@ -11,6 +11,9 @@
 
 namespace Clingo::Ground {
 
+//! @addtogroup ground_bdaggr
+//! @{
+
 //! Derivation state of body aggregates.
 enum class AtomBdAggrState : uint8_t {
     unknown = 0, //!< The aggregate has not yet been derived.
@@ -437,5 +440,7 @@ class LitBdAggrStrat : public Lit {
     size_t offset_ = invalid_offset;
     Sign sign_;
 };
+
+//! @}
 
 } // namespace Clingo::Ground

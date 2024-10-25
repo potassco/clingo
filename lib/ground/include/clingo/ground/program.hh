@@ -6,10 +6,10 @@
 
 namespace Clingo::Ground {
 
-//! @addtogroup ground_program
+//! @addtogroup ground_stm
 //! @{
 
-//! Captures statements dependening cyclically on each other.
+//! Captures statements depending cyclically on each other.
 class Component {
   public:
     //! Construct a component.

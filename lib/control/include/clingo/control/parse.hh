@@ -11,7 +11,8 @@
 
 namespace Clingo::Control {
 
-// Note: the tow interfaces below are candidates for a standalone header
+//! @addtogroup control
+//! @{
 
 //! A helper for parsing.
 //!
@@ -136,5 +137,7 @@ class ParseHelper {
     bool processed_stdin_ = false;
     bool parse_error_ = false;
 };
+
+//! @}
 
 } // namespace Clingo::Control

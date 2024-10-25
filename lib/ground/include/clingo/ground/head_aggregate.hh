@@ -35,6 +35,9 @@ namespace Clingo::Ground {
 //   - StmHdAggrElem (to accumulate elements)
 //   - LitHdAggr     (to be used in StmHdAggrElem)
 
+//! @addtogroup ground_hdaggr
+//! @{
+
 //! Extensible ground representation of head aggregates.
 //!
 //! Elements can be added to this representation and it can be enqueued for
@@ -375,5 +378,7 @@ class LitHdAggr : public Lit, private MatchHdAggr {
 
     size_t offset_ = invalid_offset;
 };
+
+//! @}
 
 } // namespace Clingo::Ground

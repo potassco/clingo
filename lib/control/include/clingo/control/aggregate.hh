@@ -7,10 +7,15 @@
 
 namespace Clingo::Control {
 
+//! @addtogroup control
+//! @{
+
 //! Translate head aggregates.
 void build_hd_lit(BuildContext &ctx, Input::HdLitAggregate const &lit);
 
 //! Translate body aggregates.
 void build_bd_lit(BuildContext &ctx, Input::BdLitAggregate const &lit);
+
+//! @}
 
 } // namespace Clingo::Control

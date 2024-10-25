@@ -16,6 +16,9 @@
 
 namespace Clingo::Control {
 
+//! @addtogroup control
+//! @{
+
 //! A map from a terms with projections associated state used during grounding.
 //!
 //! The terms represensts a class of similar terms that can reuse the same projection state.
@@ -210,5 +213,7 @@ class BuildContext {
     size_t priority = 0;
     size_t index_ = 0;
 };
+
+//! @}
 
 } // namespace Clingo::Control

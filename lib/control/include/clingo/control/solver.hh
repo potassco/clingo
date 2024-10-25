@@ -4,7 +4,7 @@
 
 namespace Clingo::Control {
 
-//! @addtogroup grounder
+//! @addtogroup control
 //! @{
 
 enum class OutputMode : uint8_t { text };

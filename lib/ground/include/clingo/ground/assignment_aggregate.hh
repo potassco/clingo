@@ -10,6 +10,9 @@
 
 namespace Clingo::Ground {
 
+//! @addtogroup ground_assignaggr
+//! @{
+
 //! Extensible ground representation of assignemnt aggregates.
 class AtomAssignAggr {
   public:
@@ -387,5 +390,7 @@ class LitAssignAggrStrat : public Lit, private MatchAssignAggr {
     std::vector<StmAssignAggrElem> elems_;
     size_t offset_ = invalid_offset;
 };
+
+//! @}
 
 } // namespace Clingo::Ground

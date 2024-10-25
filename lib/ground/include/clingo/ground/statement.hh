@@ -71,7 +71,11 @@ class Linearizer {
     std::vector<std::vector<size_t>> var_map_;
 };
 
-enum class RuleType : uint8_t { normal, choice };
+//! Enumeration of available rule types.
+enum class RuleType : uint8_t {
+    normal, //!< A normal rule.
+    choice  //!< A choice rule.
+};
 
 //! A statement capturing normal rules and integrity constraints.
 class StmRule : public Stm {

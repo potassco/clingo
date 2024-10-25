@@ -5,7 +5,7 @@
 //! @{
 
 //! @defgroup util Utility
-//! Utility data structures and functions.
+//! Library for utility functionality.
 //! @{
 
 //! @defgroup util_traits Type Traits
@@ -66,7 +66,7 @@
 //! @}
 
 //! @defgroup core Core
-//! Core functionality shared across modules.
+//! Library for core functionality.
 //! @{
 
 //! @defgroup core_number Numbers
@@ -97,7 +97,7 @@
 //! @}
 
 //! @defgroup input Input
-//! Data structures and functions to parse and rewrite the clingo language.
+//! Library for representing and rewriting logic programs.
 //! @{
 
 //! @defgroup input_language Language
@@ -190,8 +190,13 @@
 //! @}
 
 //! @defgroup ground Grounding
-//! Data structures and functions to ground logic programs.
+//! Library for grounding statements.
 //! @{
+
+//! @defgroup ground_script Scripts
+//! Interfaces to run scripts.
+//! @{
+//! @}
 
 //! @defgroup ground_base Atom Bases
 //! Data structures and functions to represent bases for atoms, aggregate atoms, and similar.
@@ -222,8 +227,33 @@
 //! @{
 //! @}
 
-//! @defgroup ground_condlit Conditional Literals
-//! Data structures and functions to ground conditional literals.
+//! @defgroup ground_hdcondlit Head Conditional Literals
+//! Data structures and functions to ground head conditional literals.
+//! @{
+//! @}
+
+//! @defgroup ground_bdcondlit Body Conditional Literals
+//! Data structures and functions to ground body conditional literals.
+//! @{
+//! @}
+
+//! @defgroup ground_hdaggr Head Aggregates
+//! Data structures and functions to ground head aggregates.
+//! @{
+//! @}
+
+//! @defgroup ground_bdaggr Body Aggregates
+//! Data structures and functions to ground body aggregates.
+//! @{
+//! @}
+
+//! @defgroup ground_assignaggr Assignment Aggregates
+//! Data structures and functions to ground assignment aggregates.
+//! @{
+//! @}
+
+//! @defgroup ground_theory Theory Atoms
+//! Data structures and functions to ground theory atoms.
 //! @{
 //! @}
 
@@ -232,22 +262,17 @@
 //! @{
 //! @}
 
-//! @defgroup ground_program Programs
-//! Data structures and functions to ground programs.
-//! @{
-//! @}
-
 //! @}
 
 //! @}
 
 //! @defgroup output Output
-//! Data structures and functions to output logic programs.
+//! Library for outputting grounded statements.
 //! @{
 //! @}
 
-//! @defgroup grounder Grounder
-//! Functions for parising, rewriting, grounding, and outputting.
+//! @defgroup control Control
+//! Library combining input, ground, and output.
 //! @{
 //! @}
 

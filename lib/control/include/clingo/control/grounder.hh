@@ -8,7 +8,7 @@
 
 namespace Clingo::Control {
 
-//! @addtogroup grounder
+//! @addtogroup control
 //! @{
 
 //! A grounder for logic programs.

@@ -950,7 +950,7 @@ INPUT                  = mainpage.hh \
                          ../lib/input/include/clingo/input/rewrite \
                          ../lib/ground/include/clingo/ground \
                          ../lib/output/include/clingo/output \
-                         ../lib/grounder/include/clingo/grounder \
+                         ../lib/control/include/clingo/control \
                          ../lib/c-api/include
 
 # This tag can be used to specify the character encoding of the source files

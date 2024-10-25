@@ -11,6 +11,9 @@
 
 namespace Clingo::Ground {
 
+//! @addtogroup ground_hdcondlit
+//! @{
+
 // Outline:
 // - grounding of disjunctions is very similar to the grounding of head aggregates
 // - the differences are small
@@ -280,5 +283,7 @@ class LitDisjunction : public Lit, private MatchDisjunction {
 
     size_t offset_ = invalid_offset;
 };
+
+//! @}
 
 } // namespace Clingo::Ground

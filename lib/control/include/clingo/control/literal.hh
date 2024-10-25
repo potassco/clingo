@@ -12,6 +12,9 @@
 
 namespace Clingo::Control {
 
+//! @addtogroup control
+//! @{
+
 namespace Detail {
 
 //! Translate input literals to their ground representation.
@@ -100,5 +103,7 @@ template <class F> void build_lit(BuildContext &ctx, Input::Lit const &lit, F &&
 template <class F> void build_stratified_lit(BuildContext &ctx, Input::Lit const &lit, F &&fun) {
     std::visit(Detail::BuilderLit<std::decay_t<F>, true>{ctx, std::forward<F>(fun)}, lit);
 }
+
+//! @}
 
 } // namespace Clingo::Control

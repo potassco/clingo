@@ -5,11 +5,16 @@
 
 namespace Clingo::Ground {
 
+//! @addtogroup ground_theory
+//! @{
+
 class TheoryTerm;
+//! A unique pointer to a theory term.
 using UTheoryTerm = std::unique_ptr<TheoryTerm>;
+//! A vector of theory terms.
 using UTheoryTermVec = std::vector<UTheoryTerm>;
 
-//! TheoryTerm interface.
+//! The TheoryTerm interface.
 class TheoryTerm {
   public:
     //! Destructor.
@@ -56,6 +61,7 @@ class TheoryTerm {
 //! A symbolic theory term.
 class TheoryTermSymbol : public TheoryTerm {
   public:
+    //! Construct a theory symbol.
     TheoryTermSymbol(Symbol sym) : sym_{sym} {}
 
   private:
@@ -73,6 +79,7 @@ class TheoryTermSymbol : public TheoryTerm {
 //! A variable theory term.
 class TheoryTermVariable : public TheoryTerm {
   public:
+    //! Construct a theory variable.
     TheoryTermVariable(size_t var) : var_{var} {}
 
   private:
@@ -90,6 +97,7 @@ class TheoryTermVariable : public TheoryTerm {
 //! A tuple (set or list) theory term.
 class TheoryTermTuple : public TheoryTerm {
   public:
+    //! Construct a theory tuple/set/list.
     TheoryTermTuple(TheoryTermTupleType type, UTheoryTermVec args) : type_{type}, args_{std::move(args)} {}
 
   private:
@@ -108,6 +116,7 @@ class TheoryTermTuple : public TheoryTerm {
 //! A function theory term.
 class TheoryTermFunction : public TheoryTerm {
   public:
+    //! Construct a theory function.
     TheoryTermFunction(String name, UTheoryTermVec args) : name_{name}, args_{std::move(args)} {}
 
   private:
@@ -122,5 +131,7 @@ class TheoryTermFunction : public TheoryTerm {
     String name_;
     UTheoryTermVec args_;
 };
+
+//! @}
 
 } // namespace Clingo::Ground
