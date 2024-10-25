@@ -50,11 +50,14 @@ enum class AppMode : uint8_t { parse, rewrite, ground };
 class Solver {
   public:
     //! Create a grounder object.
-    Solver(Logger &log, SymbolStore &store, Scripts &scripts, Input::RewriteOptions opts, OutputMode mode);
+    Solver(Logger &log, SymbolStore &store, Scripts &scripts, Input::RewriteOptions opts, OutputMode mode,
+           FILE *out = stdout);
 
     //! Parse and ground a program.
     void main(AppMode mode, std::span<std::string_view const> const &files,
               std::optional<std::vector<Clingo::Input::ProgramParamVec>> const &params);
+    //! Ground a program.
+    void main(AppMode mode, std::optional<std::vector<Clingo::Input::ProgramParamVec>> const &params);
 
     //! Parse a program from the given string.
     void join(Input::UnprocessedProgram const &prg);
@@ -71,6 +74,12 @@ class Solver {
     void output_unprocessed_program(std::ostream &out);
     //! Output the current program.
     void output_program(std::ostream &out);
+
+    //! Get the output buffer.
+    //!
+    //! If the control object has been constructed without a null output FILE,
+    //! this buffer contains the output of the textoutput.
+    [[nodiscard]] auto buf() -> Util::OutputBuffer & { return buf_; };
 
   private:
     Util::OutputBuffer buf_;

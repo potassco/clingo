@@ -15,6 +15,8 @@ class Control {
     void parse_string(char const *str);
     void join(Program &prg);
     void ground(std::vector<std::pair<std::string, SymbolVec>> const &parts);
+    void main();
+    auto buffer() -> char const *;
 
   private:
     static void free_(clingo_control_t *ctl) noexcept { clingo_control_free(ctl); }

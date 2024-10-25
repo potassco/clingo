@@ -28,11 +28,17 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, char const *const *argumen
                                    clingo_control_t **control) -> clingo_result_t {
     CLINGO_TRY {
         // for now could use the main stuff
+        auto *out = stdout;
+        for (auto const *arg : std::span(arguments, arguments_size)) {
+            if (std::strcmp(arg, "--text-buffer") == 0) {
+                out = nullptr;
+            }
+        }
         static_cast<void>(arguments);
         static_cast<void>(arguments_size);
         auto opts = Clingo::Input::RewriteOptions{};
         auto slv = std::make_unique<Clingo::Control::Solver>(lib->log, *lib->store, lib->scripts, opts,
-                                                             Clingo::Control::OutputMode::text);
+                                                             Clingo::Control::OutputMode::text, out);
         *control = new clingo_control{lib, nullptr};
         (*control)->slv = slv.release();
     }
@@ -71,6 +77,16 @@ extern "C" auto clingo_control_ground(clingo_control_t *control, clingo_part_t c
         };
         std::ignore = control->slv->ground(Clingo::Util::transform(parts, parts + parts_size, make_parts));
     }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_control_main(clingo_control_t *control) -> clingo_result_t {
+    CLINGO_TRY { control->slv->main(Clingo::Control::AppMode::ground, std::nullopt); }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_control_buffer(clingo_control_t *control, char const **buffer) -> clingo_result_t {
+    CLINGO_TRY { *buffer = control->slv->buf().c_str(); }
     CLINGO_CATCH;
 }
 

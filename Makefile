@@ -24,10 +24,15 @@ venv: .venv
 build/debug/CMakeCache.txt: .venv
 	mkdir -p build/debug
 	source .venv/bin/activate && cmake -S. -Bbuild/debug \
+		-DCMAKE_CXX_COMPILER="clang++" \
+		-DCMAKE_C_COMPILER="clang" \
 		-DCMAKE_BUILD_TYPE=debug \
 		-DCMAKE_EXPORT_COMPILE_COMMANDS=On \
 		-DPARSER_BUILD_TESTS=On \
-		-DCMAKE_CXX_FLAGS="-Wall -Wextra -pedantic" \
+		-DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld" \
+		-DCMAKE_MODULE_LINKER_FLAGS="-fuse-ld=lld" \
+		-DCMAKE_SHARED_LINKER_FLAGS="-fuse-ld=lld" \
+		-DCMAKE_CXX_FLAGS="-stdlib=libc++ -Wall -Wextra -pedantic" \
 		-DCMAKE_C_FLAGS="-Wall -Wextra -pedantic"
 
 debug: build/debug/CMakeCache.txt

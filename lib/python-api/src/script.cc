@@ -146,8 +146,8 @@ Args:
     lib: The (main) library object.
     control: The (main) control object.
 )"))
-        .def_property_readonly("name", &Script::name, R"(The name of the script.)")
-        .def_property_readonly("version", &Script::version, R"(The version of the script.)");
+        .def("name", &Script::name, R"(Get the name of the script.)")
+        .def("version", &Script::version, R"(Get the version of the script.)");
 
     script.def("register", &reg_script, py::arg("lib"), py::arg("script"), doc(R"(
 Registers a script language which can then be embedded into a logic program.

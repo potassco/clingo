@@ -46,14 +46,19 @@ void Scripts::do_call(std::string_view name, SymbolSpan args, SymbolVec &out) {
     }
 }
 
-Solver::Solver(Logger &log, SymbolStore &store, Scripts &scripts, Input::RewriteOptions opts, OutputMode mode)
-    : buf_{stdout}, out_{Output::make_text_output(buf_)}, grd_{log, store, opts, *out_}, scripts_{&scripts} {
+Solver::Solver(Logger &log, SymbolStore &store, Scripts &scripts, Input::RewriteOptions opts, OutputMode mode,
+               FILE *out)
+    : buf_{out}, out_{Output::make_text_output(buf_)}, grd_{log, store, opts, *out_}, scripts_{&scripts} {
     static_cast<void>(mode);
 }
 
 void Solver::main(AppMode mode, std::span<std::string_view const> const &files,
                   std::optional<std::vector<Clingo::Input::ProgramParamVec>> const &params) {
     parse(files);
+    main(mode, params);
+}
+
+void Solver::main(AppMode mode, std::optional<std::vector<Clingo::Input::ProgramParamVec>> const &params) {
     if (scripts_->callable("main", 0)) {
         scripts_->main(*this);
     } else {
@@ -64,9 +69,6 @@ void Solver::main(AppMode mode, std::span<std::string_view const> const &files,
         if (mode == AppMode::rewrite) {
             output_program(std::cout);
             return;
-        }
-        if (mode == AppMode::parse) {
-            parse(files);
         }
         if (params) {
             for (auto const &param : *params) {

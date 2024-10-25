@@ -25,6 +25,14 @@ void Control::ground(std::vector<std::pair<std::string, SymbolVec>> const &parts
     handle_error(clingo_control_ground(ctl_.get(), c_args.data(), c_args.size()));
 }
 
+void Control::main() { handle_error(clingo_control_main(ctl_.get())); }
+
+auto Control::buffer() -> char const * {
+    char const *ret = nullptr;
+    handle_error(clingo_control_buffer(ctl_.get(), &ret));
+    return ret;
+}
+
 void register_control(pybind11::module &m) {
     auto control = m.def_submodule("control", doc(R"(
 Module containing the Control class responsible for grounding and solving.
@@ -54,7 +62,14 @@ Ground the given program parts.
 
 Args:
     parts: A list of tuples of part names and their symbolic arguments.
-)"));
+)"))
+        .def("main", &Control::main, doc(R"(
+Ground and solver a logic program.
+
+This function proceeds as clingo calling the main function from a script if
+there is any.
+)"))
+        .def_property_readonly("buffer", &Control::buffer, R"(The content of the output bufer.)");
 }
 
 } // namespace Clingo::Python

@@ -114,10 +114,18 @@ class OutputBuffer {
     //! Append n bytes at the end of the buffer.
     //!
     //! The returned span should be filled by the calling code.
-    auto reserve(ssize_t n, ssize_t extra = 0) -> std::span<char> {
-        auto *begin = ensure_(n + extra);
+    auto reserve(ssize_t n) -> std::span<char> {
+        auto *begin = ensure_(n);
         size_ += n;
         return {begin, std::next(begin, n)};
+    }
+
+    //! Trim trailing zeros.
+    void trim_zero() {
+        auto sp = std::span{buf_.data(), static_cast<size_t>(size_)};
+        for (auto it = sp.rbegin(); it != sp.rend() && *it == '\0'; ++it) {
+            --size_;
+        }
     }
 
     //! Append the given integral to the buffer.
