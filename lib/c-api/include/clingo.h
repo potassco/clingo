@@ -191,9 +191,10 @@ typedef uint32_t clingo_lib_flags_t;
 //!
 //! @param[in] flags construction flags
 //! @param[in] logger callback functions for warnings and info messages
+//! @param[in] logger_free callback to free the logger
 //! @param[in] logger_data user data for the logger callback
 //! @param[in] message_limit maximum number of times the logger callback is called
-//! @param[in] lib the resulting library object
+//! @param[out] lib the resulting library object
 //! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_lib_new(clingo_lib_flags_t flags, clingo_logger_t logger,
                                                          clingo_free_t logger_free, void *logger_data,
@@ -239,7 +240,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_string_builder_copy(clingo_stri
                                                                      clingo_string_builder_t **dst);
 //! Free the string builder.
 //!
-//! @param[in] src the builder
+//! @param[in] bld the builder
 CLINGO_VISIBILITY_DEFAULT void clingo_string_builder_free(clingo_string_builder_t const *bld);
 
 //! Get the string in the builder.
@@ -334,7 +335,6 @@ typedef struct clingo_location clingo_location_t;
 
 //! Create a new source location object.
 //!
-//! @param[in] lib the library storing strings
 //! @param[in] begin the position marking the beginning
 //! @param[in] end the position marking the end
 //! @param[out] loc the resulting location
@@ -370,7 +370,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_position_t const *clingo_location_begin(clingo_
 CLINGO_VISIBILITY_DEFAULT clingo_position_t const *clingo_location_end(clingo_location_t const *loc);
 //! Compute a hash of the location.
 //!
-//! @param[in] pos the location
+//! @param[in] loc the location
 //! @return the resulting hash
 CLINGO_VISIBILITY_DEFAULT size_t clingo_location_hash(clingo_location_t const *loc);
 //! Check if two locations are equal.
@@ -1037,7 +1037,7 @@ typedef struct clingo_ast_scanner clingo_ast_scanner_t;
 //! @param[in] lib the library object to store symbols
 //! @param[in] program the string to read from
 //! @param[out] scanner the resulting scanner
-//! @return whether the call was successful or an error has been set
+//! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_scan_string(clingo_lib_t *lib, char const *program,
                                                                  clingo_ast_scanner_t **scanner);
 
@@ -1047,7 +1047,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_scan_string(clingo_lib_t *l
 //! @param[in] files the file paths to read from
 //! @param[in] size the number of file paths
 //! @param[out] scanner the resulting scanner
-//! @return whether the call was successful or an error has been set
+//! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_scan_files(clingo_lib_t *lib, char const *const *files,
                                                                 size_t size, clingo_ast_scanner_t **scanner);
 
@@ -1055,7 +1055,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_scan_files(clingo_lib_t *li
 //!
 //! @param[in] scanner the scanner to use for parsing
 //! @param[out] ast the resulting ast
-//! @return whether the call was successful or an error has been set
+//! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_scanner_next(clingo_ast_scanner_t *scanner, clingo_ast_t **ast);
 
 //! Check if there was a parse error.
@@ -1086,7 +1086,7 @@ typedef struct clingo_ast_rewrite_context clingo_ast_rewrite_context_t;
 //!
 //! @param[in] lib the library object to store symbols
 //! @param[out] context the resulting context object
-//! @return whether the call was successful or an error has been set
+//! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_rewrite_context_create(clingo_lib_t *lib,
                                                                             clingo_ast_rewrite_context_t **context);
 
@@ -1101,7 +1101,7 @@ CLINGO_VISIBILITY_DEFAULT void clingo_ast_rewrite_context_free(clingo_ast_rewrit
 //!
 //! @param[in] context the context object
 //! @param[in] param the parameter to protect
-//! @return whether the call was successful or an error has been set
+//! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_rewrite_context_add_param(clingo_ast_rewrite_context_t *context,
                                                                                char const *param);
 
@@ -1116,7 +1116,7 @@ CLINGO_VISIBILITY_DEFAULT void clingo_ast_rewrite_context_clear_params(clingo_as
 //!
 //! @param[in] context the context object
 //! @param[in] theory the theory definition
-//! @return whether the call was successful or an error has been set
+//! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_rewrite_context_add_theory(clingo_ast_rewrite_context_t *context,
                                                                                 clingo_ast_t const *theory);
 
@@ -1161,7 +1161,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_lib_t *clingo_ast_rewrite_context_get_lib(cling
 //! @param[in] statement the statement object
 //! @param[out] result the resulting rewritten statements
 //! @param[out] result_size the number of resulting statements
-//! @return whether the call was successful or an error has been set
+//! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_rewrite(clingo_ast_rewrite_context_t *context,
                                                              clingo_ast_t *statement, clingo_ast_t ***result,
                                                              size_t *result_size);
@@ -1175,16 +1175,16 @@ typedef struct clingo_program clingo_program_t;
 //! Create an empty non-ground program.
 //!
 //! @param[in] lib the library object
-//! @param[out] builder the program builder object
-//! @return whether the call was successful
+//! @param[out] program the program builder object
+//! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_program_new(clingo_lib_t *lib, clingo_program_t **program);
 //! Destroy the given program object.
 //!
-//! @param[in] builder the program builder object
+//! @param[in] program the program object
 CLINGO_VISIBILITY_DEFAULT void clingo_program_free(clingo_program_t *program);
 //! Adds a statement to the program.
 //!
-//! @param[in] builder the target program builder
+//! @param[in] program the target program
 //! @param[in] statement the statement to add
 //! @return the result code; might return one of the following codes:
 //! - ::clingo_result_runtime for statements of invalid form or AST nodes that do not represent statements
@@ -1297,7 +1297,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_parse_string(clingo_con
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_join(clingo_control_t *control,
                                                               clingo_program_t const *program);
 
-//! Ground the selected @link ::clingo_part parts @endlink of the current (non-ground) logic program.
+//! Ground the selected parts of the current (non-ground) logic program.
 //!
 //! After grounding, logic programs can be solved with ::clingo_control_solve().
 //!
@@ -1318,10 +1318,30 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_join(clingo_control_t *
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts,
                                                                 size_t parts_size);
 
+//! Execute the default ground and solve flow after parsing.
+//!
+//! @param[in] control the target
+//! @return the result code; might return one of the following codes:
+//! - ::clingo_result_bad_alloc
+//! - error code of ground callback
+//!
+//! @see clingo_part
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_main(clingo_control_t *control);
 
+//! Get the output of the text output.
+//!
+//! @note The control object has to be created passing option `--text-buffer`.
+//!
+//! @param[in] control the target
+//! @param[out] buffer the resulting string
+//! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_buffer(clingo_control_t *control, char const **buffer);
 
+//! A dummy place holder for the moment.
+//!
+//! @param[in] control the target
+//! @return the result code
+CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_solve(clingo_control_t *control);
 //! @}
 
 // {{{1 Script
@@ -1389,7 +1409,7 @@ typedef struct clingo_script {
 //! @param[in] lib the library object to register the script with
 //! @param[in] script struct with functions implementing the language
 //! @param[in] data user data to pass to callbacks in the script
-//! @return whether the call was successful
+//! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_script_register(clingo_lib_t *lib, clingo_script_t const *script,
                                                                  void *data);
 
@@ -1410,6 +1430,12 @@ CLINGO_VISIBILITY_DEFAULT char const *clingo_script_version(clingo_lib_t *lib, c
 //! @addtogroup Application
 //! @{
 
+//! Run a clingo application with the given library and arguments.
+//!
+//! @param[in] lib the library object
+//! @param[in] arguments the command line arguments
+//! @param[in] size the number of command line arguments
+//! @return the result code
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_main(clingo_lib_t *lib, char const *const *arguments, size_t size);
 
 //! @}
