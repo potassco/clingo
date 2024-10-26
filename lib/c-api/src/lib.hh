@@ -34,6 +34,16 @@ inline auto cpp_cast(clingo_location const *loc) -> Clingo::Location const * {
     return reinterpret_cast<Clingo::Location const *>(loc);
 }
 
+inline auto c_cast(Clingo::Symbol const *sym) -> clingo_symbol_t const * {
+    // NOLINTNEXTLINE
+    return reinterpret_cast<clingo_symbol_t const *>(sym);
+}
+
+inline auto cpp_cast(clingo_symbol_t const *sym) -> Clingo::Symbol const * {
+    // NOLINTNEXTLINE
+    return reinterpret_cast<Clingo::Symbol const *>(sym);
+}
+
 class ClingoError : public std::exception {
   public:
     ClingoError(clingo_result_t code) : code_{code} {}

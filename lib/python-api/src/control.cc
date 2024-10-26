@@ -22,7 +22,7 @@ void Control::ground(std::vector<std::pair<std::string, SymbolVec>> const &parts
                              reinterpret_cast<clingo_symbol_t const *>(part.second.data()), part.second.size()};
     });
 
-    handle_error(clingo_control_ground(ctl_.get(), c_args.data(), c_args.size()));
+    handle_error(clingo_control_ground(ctl_.get(), c_args.data(), c_args.size(), nullptr, nullptr));
 }
 
 void Control::main() { handle_error(clingo_control_main(ctl_.get())); }

@@ -66,15 +66,52 @@ extern "C" auto clingo_control_join(clingo_control_t *control, clingo_program_t 
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts,
-                                      size_t parts_size) -> clingo_result_t {
+namespace {
+
+class Context : public Clingo::Ground::ScriptCallback {
+  public:
+    Context(clingo_lib_t *lib, clingo_ground_callback_t cb, void *data) : lib_{lib}, cb_{cb}, data_{data} {}
+
+  private:
+    auto do_callable([[maybe_unused]] std::string_view name, [[maybe_unused]] size_t args) -> bool override {
+        return true;
+    }
+
+    void do_call(std::string_view name, Clingo::SymbolSpan args, Clingo::SymbolVec &out) override {
+        auto c_name = std::string{name};
+        cb_(lib_, nullptr, c_name.c_str(), c_cast(args.data()), args.size(), data_, &Context::sym_cb_, &out);
+    }
+
+    static auto sym_cb_(clingo_symbol_t const *symbols, size_t symbols_size, void *data) -> clingo_result_t {
+        CLINGO_TRY {
+            auto *out = static_cast<Clingo::SymbolVec *>(data);
+            auto const *it = cpp_cast(symbols);
+            out->insert(out->end(), it, std::next(it, static_cast<ssize_t>(symbols_size)));
+        }
+        CLINGO_CATCH;
+    }
+
+    clingo_lib_t *lib_;
+    clingo_ground_callback_t cb_;
+    void *data_;
+};
+
+} // namespace
+
+extern "C" auto clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts, size_t parts_size,
+                                      clingo_ground_callback_t ground_callback,
+                                      void *ground_callback_data) -> clingo_result_t {
     CLINGO_TRY {
+        auto ctx = ground_callback != nullptr
+                       ? std::make_optional<Context>(control->lib, ground_callback, ground_callback_data)
+                       : std::nullopt;
         auto make_part = [&](auto const &sym) { return Clingo::SharedSymbol{Clingo::Symbol::from_rep(sym)}; };
         auto make_parts = [&](auto const &part) {
             return Clingo::Input::ProgramParam{
                 control->lib->store->string(part.name),
                 Clingo::Util::transform(part.params, part.params + part.size, make_part)};
         };
+        // TODO: pass context object
         std::ignore = control->slv->ground(Clingo::Util::transform(parts, parts + parts_size, make_parts));
     }
     CLINGO_CATCH;

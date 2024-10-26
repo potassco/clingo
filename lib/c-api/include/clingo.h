@@ -1374,7 +1374,9 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_join(clingo_control_t *
 //!
 //! @see clingo_part
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts,
-                                                                size_t parts_size);
+                                                                size_t parts_size,
+                                                                clingo_ground_callback_t ground_callback,
+                                                                void *ground_callback_data);
 
 //! Execute the default ground and solve flow after parsing.
 //!
