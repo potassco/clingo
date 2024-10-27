@@ -32,11 +32,13 @@ class ScriptCallback {
     //! Check if the function with the given name and number of arguments is callable.
     auto callable(std::string_view name, size_t args) -> bool { return do_callable(name, args); }
     //! Call the function with the given name and arguments.
-    void call(std::string_view name, SymbolSpan args, SymbolVec &out) { do_call(name, args, out); }
+    void call(Location const &loc, std::string_view name, SymbolSpan args, SymbolVec &out) {
+        do_call(loc, name, args, out);
+    }
 
   private:
     virtual auto do_callable(std::string_view name, size_t args) -> bool = 0;
-    virtual void do_call(std::string_view name, SymbolSpan args, SymbolVec &out) = 0;
+    virtual void do_call(Location const &loc, std::string_view name, SymbolSpan args, SymbolVec &out) = 0;
 };
 
 //! @}

@@ -129,8 +129,8 @@ class LitComparison : public Lit {
 class LitExternal : public Lit {
   public:
     //! Construct the literal.
-    LitExternal(ScriptCallback &ctx, String name, UTerm lhs, UTermVec args)
-        : ctx_{&ctx}, name_{name}, lhs_{std::move(lhs)}, args_{std::move(args)} {}
+    LitExternal(ScriptCallback &ctx, Location loc, String name, UTerm lhs, UTermVec args)
+        : ctx_{&ctx}, loc_{std::move(loc)}, name_{name}, lhs_{std::move(lhs)}, args_{std::move(args)} {}
 
   private:
     void do_vars(VariableSet &vars, VarSelectMode mode) const override;
@@ -151,6 +151,7 @@ class LitExternal : public Lit {
     [[nodiscard]] auto do_compare_to(Lit const &other) const -> std::weak_ordering override;
 
     ScriptCallback *ctx_;
+    Location loc_;
     String name_;
     UTerm lhs_;
     UTermVec args_;

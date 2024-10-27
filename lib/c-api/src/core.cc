@@ -147,7 +147,7 @@ extern "C" void clingo_lib_free(clingo_lib_t *lib, bool fast) {
             cur = nxt;
         }
         if (lst != nullptr) {
-            fprintf(stderr, "warning: not all symbols have freed before the library was deleted\n");
+            fprintf(stderr, "warning: not all symbols have been freed before the library was deleted\n");
             fflush(stderr);
         }
     }

@@ -45,7 +45,7 @@ class Scripts : public Ground::ScriptCallback, public Ground::ScriptExec {
   private:
     void do_exec(Location const &loc, Logger &log, std::string_view name, std::string_view code) override;
     auto do_callable(std::string_view name, size_t args) -> bool override;
-    void do_call(std::string_view name, SymbolSpan args, SymbolVec &out) override;
+    void do_call(Location const &loc, std::string_view name, SymbolSpan args, SymbolVec &out) override;
 
     std::vector<std::pair<std::string, UScript>> scripts_;
 };

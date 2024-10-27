@@ -2,6 +2,8 @@
 #include "core.hh"
 #include "util.hh"
 
+#include <span>
+
 namespace Clingo::Python {
 
 Control::Control(Library &lib, std::vector<std::string> const &args) {
@@ -22,11 +24,11 @@ auto Control::ctx_(clingo_lib_t *lib, clingo_location_t const *location, char co
     static_cast<void>(location);
     CLINGO_TRY {
         auto *handle = static_cast<py::handle *>(data);
-        auto args = transform(arguments, std::next(arguments, static_cast<ssize_t>(arguments_size)),
-                              [](auto sym) { return Symbol{sym, true}; });
-        // TODO: *args
-        // TODO: cast fails for vectors
-        auto syms = handle->attr(name)(args).cast<std::variant<SymbolVec, Symbol>>();
+        py::list args;
+        for (auto sym : std::span{arguments, arguments_size}) {
+            args.append(Symbol{sym, true});
+        }
+        auto syms = handle->attr(name)(*args).cast<std::variant<SymbolVec, Symbol>>();
         return std::visit(
             [&]<class T>(T const &res) {
                 if constexpr (std::is_same_v<T, Symbol>) {

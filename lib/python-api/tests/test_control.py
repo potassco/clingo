@@ -61,3 +61,38 @@ class TestScript(TestCase):
                 """
             ),
         )
+
+    def test_context(self):
+        """
+        Test the control class.
+        """
+
+        class Context:
+            def __init__(self, lib):
+                self._lib = lib
+
+            def f(self, arg):
+                return [arg, Number(self._lib, arg.number + 1)]
+
+            def g(self, arg):
+                return Number(self._lib, arg.number + 1)
+
+        ctl = Control(self.lib, ["--text-buffer"])
+
+        ctl.parse_string("p(@f(1)).")
+        ctl.parse_string("q(@f(2)).")
+        ctl.parse_string("#show.")
+        ctl.ground([("base", [])], context=Context(self.lib))
+
+        self.assertEqual(
+            ctl.buffer,
+            dedent(
+                """\
+                p(1).
+                p(2).
+                q(2).
+                q(3).
+                #show.
+                """
+            ),
+        )

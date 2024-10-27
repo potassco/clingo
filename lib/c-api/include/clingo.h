@@ -450,12 +450,12 @@ typedef uint64_t clingo_symbol_t;
 //! Construct a symbol representing <tt>\#inf</tt>.
 //!
 //! @return the resulting symbol
-CLINGO_VISIBILITY_DEFAULT clingo_symbol_t clingo_symbol_create_infimum();
+CLINGO_VISIBILITY_DEFAULT clingo_symbol_t clingo_symbol_create_infimum(void);
 
 //! Construct a symbol representing \#sup.
 //!
 //! @return the resulting symbol
-CLINGO_VISIBILITY_DEFAULT clingo_symbol_t clingo_symbol_create_supremum();
+CLINGO_VISIBILITY_DEFAULT clingo_symbol_t clingo_symbol_create_supremum(void);
 
 //! Construct a symbol representing a number.
 //!
@@ -1022,7 +1022,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_ast_attribute_get_ast_array(cli
 //! Get a description of the AST structure in form of a YAML document.
 //!
 //! @return A YAML string.
-CLINGO_VISIBILITY_DEFAULT char const *clingo_ast_type_info_yaml();
+CLINGO_VISIBILITY_DEFAULT char const *clingo_ast_type_info_yaml(void);
 
 //! @}
 
@@ -1428,9 +1428,9 @@ typedef struct clingo_script {
     //! @param[in] symbol_callback_data user data for the symbol callback
     //! @param[in] data user data as given when registering the script
     //! @return whether the function call was successful
-    clingo_result_t (*call)(clingo_lib_t *lib, char const *name, clingo_symbol_t const *arguments,
-                            size_t arguments_size, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data,
-                            void *data);
+    clingo_result_t (*call)(clingo_lib_t *lib, clingo_location_t const *loc, char const *name,
+                            clingo_symbol_t const *arguments, size_t arguments_size,
+                            clingo_symbol_callback_t symbol_callback, void *symbol_callback_data, void *data);
     //! Check if the given function is callable.
     //! @param[in] name the name of the function
     //! @param[in] arguments the number of arguments

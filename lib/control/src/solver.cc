@@ -37,11 +37,11 @@ auto Scripts::do_callable(std::string_view name, size_t args) -> bool {
     return false;
 }
 
-void Scripts::do_call(std::string_view name, SymbolSpan args, SymbolVec &out) {
+void Scripts::do_call(Location const &loc, std::string_view name, SymbolSpan args, SymbolVec &out) {
     out.clear();
     for (auto const &script : scripts_) {
         if (script.second->callable(name, args.size())) {
-            script.second->call(name, args, out);
+            script.second->call(loc, name, args, out);
         }
     }
 }

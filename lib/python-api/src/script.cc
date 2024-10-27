@@ -15,21 +15,34 @@ class Script {
         CLINGO_CATCH(self->lib_);
     }
 
-    auto call(Library lib, char const *name, SymbolVec const &args) -> SymbolVec {
+    auto call(Library lib, char const *name, SymbolVec const &args) -> std::variant<SymbolVec, Symbol> {
         PYBIND11_OVERRIDE_PURE(SymbolVec, Script, call, &lib, name, args);
     }
 
-    static auto c_call(clingo_lib_t *lib, char const *name, clingo_symbol_t const *arguments, size_t arguments_size,
+    static auto c_call(clingo_lib_t *lib, clingo_location_t const *loc, char const *name,
+                       clingo_symbol_t const *arguments, size_t arguments_size,
                        clingo_symbol_callback_t symbol_callback, void *symbol_callback_data,
                        void *data) -> clingo_result_t {
+        // Note that the location could in principle be used for better error reporting.
+        static_cast<void>(loc);
         auto *self = static_cast<py::object *>(data)->cast<Script *>();
         CLINGO_TRY {
             auto args = transform(arguments, std::next(arguments, static_cast<ssize_t>(arguments_size)),
                                   [](auto sym) { return Symbol{sym, true}; });
             auto syms = self->call(lib, name, args);
-            // NOLINTNEXTLINE
-            auto const *c_syms = reinterpret_cast<clingo_symbol_t *>(syms.data());
-            handle_error(symbol_callback(c_syms, syms.size(), symbol_callback_data));
+            return std::visit(
+                [&]<class T>(T const &res) {
+                    if constexpr (std::is_same_v<T, Symbol>) {
+                        // NOLINTNEXTLINE
+                        auto const *c_syms = reinterpret_cast<clingo_symbol_t const *>(&res);
+                        return symbol_callback(c_syms, 1, symbol_callback_data);
+                    } else {
+                        // NOLINTNEXTLINE
+                        auto const *c_syms = reinterpret_cast<clingo_symbol_t const *>(res.data());
+                        return symbol_callback(c_syms, res.size(), symbol_callback_data);
+                    }
+                },
+                syms);
         }
         CLINGO_CATCH(self->lib_);
     }

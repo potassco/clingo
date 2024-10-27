@@ -77,9 +77,10 @@ class Context : public Clingo::Ground::ScriptCallback {
         return true;
     }
 
-    void do_call(std::string_view name, Clingo::SymbolSpan args, Clingo::SymbolVec &out) override {
+    void do_call(Clingo::Location const &loc, std::string_view name, Clingo::SymbolSpan args,
+                 Clingo::SymbolVec &out) override {
         auto c_name = std::string{name};
-        cb_(lib_, nullptr, c_name.c_str(), c_cast(args.data()), args.size(), data_, &Context::sym_cb_, &out);
+        cb_(lib_, c_cast(&loc), c_name.c_str(), c_cast(args.data()), args.size(), data_, &Context::sym_cb_, &out);
     }
 
     static auto sym_cb_(clingo_symbol_t const *symbols, size_t symbols_size, void *data) -> clingo_result_t {
@@ -159,10 +160,11 @@ class CScript : public Clingo::Control::Script {
         CLINGO_CATCH;
     }
 
-    void do_call(std::string_view name, Clingo::SymbolSpan args, Clingo::SymbolVec &out) override {
+    void do_call(Clingo::Location const &loc, std::string_view name, Clingo::SymbolSpan args,
+                 Clingo::SymbolVec &out) override {
         auto data = CBData{this, out};
-        handle_error(
-            script_.call(lib_, std::string(name).c_str(), to_c_sym(args.data()), args.size(), &cb, &data, data_));
+        handle_error(script_.call(lib_, c_cast(&loc), std::string(name).c_str(), to_c_sym(args.data()), args.size(),
+                                  &cb, &data, data_));
     }
 
     clingo_lib_t *lib_;

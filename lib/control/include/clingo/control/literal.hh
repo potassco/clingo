@@ -50,7 +50,8 @@ template <class F, bool stratify = false> class BuilderLit {
             auto args = Clingo::Util::transform(rng.pool().front().elems(), [this](auto const &elem) {
                 return build_term(ctx_->var_map(), std::get<Input::Term>(elem));
             });
-            cb_(std::make_unique<Ground::LitExternal>(*ctx_->context(), rng.name(), std::move(lhs), std::move(args)));
+            cb_(std::make_unique<Ground::LitExternal>(*ctx_->context(), lit.loc(), rng.name(), std::move(lhs),
+                                                      std::move(args)));
         } else {
             auto add_cmp = [this](auto const &lhs, auto rel, auto const &rhs) {
                 auto l = build_term(ctx_->var_map(), lhs);

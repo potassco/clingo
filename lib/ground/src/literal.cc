@@ -195,7 +195,7 @@ auto LitExternal::do_output([[maybe_unused]] InstantiationContext const &ctx,
 }
 
 auto LitExternal::do_copy() const -> ULit {
-    return std::make_unique<LitExternal>(*ctx_, name_, lhs_->copy(), copy_uvec(args_));
+    return std::make_unique<LitExternal>(*ctx_, loc_, name_, lhs_->copy(), copy_uvec(args_));
 }
 
 auto LitExternal::do_domain() const -> bool { return true; }
@@ -224,68 +224,60 @@ void LitExternal::do_vars(VariableSet &vars, VarSelectMode mode) const {
     }
 }
 
-namespace {
-
-class ExternalMatcher : public Matcher {
-  public:
-    ExternalMatcher(ScriptCallback &ctx, String name, Term const &lhs, UTermVec const &args, VariableVec free)
-        : ctx_{&ctx}, name_{name}, lhs_{&lhs}, args_{&args}, free_{std::move(free)} {
-        syms_.resize(args_->size());
-    }
-
-  private:
-    void do_init([[maybe_unused]] InitContext const &ctx, [[maybe_unused]] size_t gen) override {}
-    void do_match(InstantiationContext const &ctx) override {
-        syms_.clear();
-        matches_.clear();
-        for (auto const &arg : *args_) {
-            if (auto sym = arg->eval(ctx)) {
-                syms_.emplace_back(*sym);
-            } else {
-                return;
-            }
-        }
-        ctx_->call(name_.view(), syms_, matches_);
-        cur_ = matches_.begin();
-    }
-    auto do_next(InstantiationContext const &ctx) -> bool override {
-        auto &ass = ctx.ass();
-        for (auto const &var : free_) {
-            ass[var] = std::nullopt;
-        }
-        while (cur_ != matches_.end()) {
-            if (lhs_->match(ctx, *cur_++)) {
-                return true;
-            }
-        }
-        return false;
-    }
-    void do_print(std::ostream &out) const override {
-        out << *lhs_ << "=@" << name_;
-        if (!args_->empty()) {
-            out << "(" << Util::p_range(*args_, [](auto &out, auto &term) { out << *term; }) << ")";
-        }
-    }
-
-    ScriptCallback *ctx_;
-    String name_;
-    Term const *lhs_;
-    SymbolVec syms_;
-    UTermVec const *args_;
-    VariableVec free_;
-    SymbolVec matches_;
-    SymbolVec::const_iterator cur_;
-};
-
-} // namespace
-
 auto LitExternal::do_matcher([[maybe_unused]] std::pmr::monotonic_buffer_resource &mbr,
                              [[maybe_unused]] MatcherType type,
                              std::vector<bool> const &bound) -> std::pair<UMatcher, std::optional<size_t>> {
+    class ExternalMatcher : public Matcher {
+      public:
+        ExternalMatcher(LitExternal &lit, VariableVec free) : lit_{&lit}, free_{std::move(free)} {
+            syms_.resize(lit_->args_.size());
+        }
+
+      private:
+        void do_init([[maybe_unused]] InitContext const &ctx, [[maybe_unused]] size_t gen) override {}
+        void do_match(InstantiationContext const &ctx) override {
+            syms_.clear();
+            matches_.clear();
+            for (auto const &arg : lit_->args_) {
+                if (auto sym = arg->eval(ctx)) {
+                    syms_.emplace_back(*sym);
+                } else {
+                    return;
+                }
+            }
+            lit_->ctx_->call(lit_->loc_, lit_->name_.view(), syms_, matches_);
+            cur_ = matches_.begin();
+        }
+        auto do_next(InstantiationContext const &ctx) -> bool override {
+            auto &ass = ctx.ass();
+            for (auto const &var : free_) {
+                ass[var] = std::nullopt;
+            }
+            while (cur_ != matches_.end()) {
+                if (lit_->lhs_->match(ctx, *cur_++)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        void do_print(std::ostream &out) const override {
+            out << *lit_->lhs_ << "=@" << lit_->name_;
+            if (!lit_->args_.empty()) {
+                out << "(" << Util::p_range(lit_->args_, [](auto &out, auto &term) { out << *term; }) << ")";
+            }
+        }
+
+        LitExternal *lit_;
+        SymbolVec syms_;
+        VariableVec free_;
+        SymbolVec matches_;
+        SymbolVec::const_iterator cur_;
+    };
+
     VariableSet vars;
     lhs_->vars(vars);
     erase_if(vars, [&bound](auto const &var) { return bound[var]; });
-    return {std::make_unique<ExternalMatcher>(*ctx_, name_, *lhs_, args_, vars.release()), std::nullopt};
+    return {std::make_unique<ExternalMatcher>(*this, vars.release()), std::nullopt};
 }
 
 auto LitExternal::do_score([[maybe_unused]] std::vector<bool> const &bound) const -> double { return score_maybe_fast; }
