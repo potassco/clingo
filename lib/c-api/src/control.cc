@@ -112,7 +112,8 @@ extern "C" auto clingo_control_ground(clingo_control_t *control, clingo_part_t c
                 Clingo::Util::transform(part.params, part.params + part.size, make_part)};
         };
         // TODO: pass context object
-        std::ignore = control->slv->ground(Clingo::Util::transform(parts, parts + parts_size, make_parts));
+        std::ignore = control->slv->ground(Clingo::Util::transform(parts, parts + parts_size, make_parts),
+                                           ctx ? &ctx.value() : nullptr);
     }
     CLINGO_CATCH;
 }

@@ -72,12 +72,12 @@ void Solver::main(AppMode mode, std::optional<std::vector<Clingo::Input::Program
         }
         if (params) {
             for (auto const &param : *params) {
-                if (!ground(param)) {
+                if (!ground(param, nullptr)) {
                     break;
                 }
             }
         } else {
-            std::ignore = ground(Clingo::Input::ProgramParamVec{{grd_.store().string("base"), {}}});
+            std::ignore = ground(Clingo::Input::ProgramParamVec{{grd_.store().string("base"), {}}}, nullptr);
         }
     }
 }
@@ -90,7 +90,9 @@ void Solver::parse(std::span<std::string_view const> const &files) { grd_.parse(
 
 void Solver::add_const(String name, Symbol value) { grd_.add_const(name, value); }
 
-auto Solver::ground(Input::ProgramParamVec const &params) -> bool { return grd_.ground(params, scripts_); }
+auto Solver::ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *ctx) -> bool {
+    return grd_.ground(params, ctx != nullptr ? ctx : scripts_);
+}
 
 void Solver::output_unprocessed_program(std::ostream &out) { grd_.output_unprocessed_program(out); }
 

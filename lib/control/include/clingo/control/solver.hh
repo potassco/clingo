@@ -81,7 +81,7 @@ class Solver {
     //! Define a constant.
     void add_const(String name, Symbol value);
     //! Ground the program.
-    [[nodiscard]] auto ground(Input::ProgramParamVec const &params) -> bool;
+    [[nodiscard]] auto ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *ctx) -> bool;
 
     //! Output the current unprocessed program.
     void output_unprocessed_program(std::ostream &out);

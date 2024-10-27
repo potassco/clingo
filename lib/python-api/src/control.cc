@@ -15,14 +15,43 @@ void Control::join(Program &prg) { handle_error(clingo_control_join(ctl_.get(), 
 
 void Control::parse_string(char const *str) { handle_error(clingo_control_parse_string(ctl_.get(), str)); }
 
-void Control::ground(std::vector<std::pair<std::string, SymbolVec>> const &parts) {
+auto Control::ctx_(clingo_lib_t *lib, clingo_location_t const *location, char const *name,
+                   clingo_symbol_t const *arguments, size_t arguments_size, void *data,
+                   clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) -> clingo_result_t {
+    // TODO: handle location!!!
+    static_cast<void>(location);
+    CLINGO_TRY {
+        auto *handle = static_cast<py::handle *>(data);
+        auto args = transform(arguments, std::next(arguments, static_cast<ssize_t>(arguments_size)),
+                              [](auto sym) { return Symbol{sym, true}; });
+        // TODO: *args
+        // TODO: cast fails for vectors
+        auto syms = handle->attr(name)(args).cast<std::variant<SymbolVec, Symbol>>();
+        return std::visit(
+            [&]<class T>(T const &res) {
+                if constexpr (std::is_same_v<T, Symbol>) {
+                    // NOLINTNEXTLINE
+                    auto const *c_syms = reinterpret_cast<clingo_symbol_t const *>(&res);
+                    return symbol_callback(c_syms, 1, symbol_callback_data);
+                } else {
+                    // NOLINTNEXTLINE
+                    auto const *c_syms = reinterpret_cast<clingo_symbol_t const *>(res.data());
+                    return symbol_callback(c_syms, res.size(), symbol_callback_data);
+                }
+            },
+            syms);
+    }
+    CLINGO_CATCH(lib);
+}
+
+void Control::ground(std::vector<std::pair<std::string, SymbolVec>> const &parts, py::handle ctx) {
     auto c_args = transform(parts, [](auto const &part) {
         return clingo_part_t{part.first.c_str(),
                              // NOLINTNEXTLINE
                              reinterpret_cast<clingo_symbol_t const *>(part.second.data()), part.second.size()};
     });
-
-    handle_error(clingo_control_ground(ctl_.get(), c_args.data(), c_args.size(), nullptr, nullptr));
+    handle_error(clingo_control_ground(ctl_.get(), c_args.data(), c_args.size(),
+                                       !ctx.is_none() ? &Control::ctx_ : nullptr, &ctx));
 }
 
 void Control::main() { handle_error(clingo_control_main(ctl_.get())); }
@@ -57,11 +86,12 @@ Parses a logic program given as a string.
 Args:
     program: The logic program as string.
 )"))
-        .def("ground", &Control::ground, py::arg("parts"), doc(R"(
+        .def("ground", &Control::ground, py::arg("parts"), py::arg("context") = py::none(), doc(R"(
 Ground the given program parts.
 
 Args:
     parts: A list of tuples of part names and their symbolic arguments.
+    context: An optional object with functions to call during grounding.
 )"))
         .def("main", &Control::main, doc(R"(
 Ground and solver a logic program.
