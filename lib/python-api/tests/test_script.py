@@ -5,10 +5,10 @@ Unit tests for clingo.script module.
 from textwrap import dedent
 from unittest import TestCase
 
-from clingo.control import Control  # pylint: disable=import-error
-from clingo.core import Library  # pylint: disable=import-error
-from clingo.script import Script, register  # pylint: disable=import-error
-from clingo.symbol import Symbol  # pylint: disable=import-error
+from clingo.control import Control
+from clingo.core import Library
+from clingo.script import Script, register
+from clingo.symbol import Symbol
 
 
 class MyScript(Script):
@@ -17,10 +17,13 @@ class MyScript(Script):
     """
 
     def __init__(self):
-        super(MyScript, self).__init__()
-        self._scope = dict()
+        super().__init__()
+        self._scope = {}
 
     def name(self) -> str:
+        """
+        Get the name of the script.
+        """
         return "myScript"
 
     def execute(self, code: str) -> None:
@@ -46,7 +49,6 @@ class MyScript(Script):
         """
         Run the main function from the main scope.
         """
-        # pylint: disable=c-extension-no-member
         self._scope["main"](lib, control)
 
 

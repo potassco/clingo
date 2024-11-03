@@ -5,10 +5,10 @@ Unit tests for clingo.control module.
 from textwrap import dedent
 from unittest import TestCase
 
-from clingo.ast import Program, parse_statement  # pylint: disable=import-error
-from clingo.control import Control  # pylint: disable=import-error
-from clingo.core import Library  # pylint: disable=import-error
-from clingo.symbol import Number  # pylint: disable=import-error
+from clingo.ast import Program, parse_statement
+from clingo.control import Control
+from clingo.core import Library
+from clingo.symbol import Number
 
 
 class TestScript(TestCase):
