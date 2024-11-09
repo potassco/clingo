@@ -401,8 +401,8 @@ void StateBdAggr::insert_elem(InstantiationContext const &ctx, AtomMap::iterator
         } else if (jns || !jt.value().empty()) {
             auto &cond = jt.value();
             cond.emplace_back(cond_id);
-            std::sort(cond.begin(), cond.end());
-            cond.erase(std::unique(cond.begin(), cond.end()), cond.end());
+            std::ranges::sort(cond);
+            cond.erase(std::ranges::unique(cond).begin(), cond.end());
         }
     }
 }

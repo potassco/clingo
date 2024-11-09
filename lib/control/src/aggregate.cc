@@ -148,10 +148,12 @@ void build_hd_lit(BuildContext &ctx, Input::HdLitAggregate const &lit) {
     auto index = sp_body ? Ground::stratified_index : ctx.next_index();
 
     // initialize state
-    std::sort(bases.begin(), bases.end(), [](auto const &x, auto const &y) { return std::get<0>(x) < std::get<0>(y); });
-    bases.erase(std::unique(bases.begin(), bases.end(),
-                            [](auto const &x, auto const &y) { return std::get<0>(x) == std::get<0>(y); }),
-                bases.end());
+    std::ranges::sort(bases, [](auto const &x, auto const &y) { return std::get<0>(x) < std::get<0>(y); });
+
+    bases.erase(
+        std::ranges::unique(bases, [](auto const &x, auto const &y) { return std::get<0>(x) == std::get<0>(y); })
+            .begin(),
+        bases.end());
     auto &state = ctx.state<Ground::StateHdAggr>(ctx.mbr(), std::move(bases), vars_global.release(), std::move(guards),
                                                  fun, index, sp_body);
 
@@ -174,8 +176,7 @@ void build_bd_lit(BuildContext &ctx, Input::BdLitAggregate const &lit) {
     auto guards = init_guards(ctx, vars_global, lit);
 
     // check for assignment aggregates
-    auto assign = !std::all_of(vars_global.begin(), vars_global.end(),
-                               [&vars_body](auto const &var) { return vars_body.contains(var); });
+    auto assign = !std::ranges::all_of(vars_global, [&vars_body](auto const &var) { return vars_body.contains(var); });
 
     if (assign) {
         vars_global.clear();
@@ -221,7 +222,7 @@ void build_bd_lit(BuildContext &ctx, Input::BdLitAggregate const &lit) {
                 cond.emplace_back(std::forward<Lit>(glit));
             });
         }
-        dom = dom && std::all_of(cond.begin(), cond.end(), [](auto const &glit) { return glit->domain(); });
+        dom = dom && std::ranges::all_of(cond, [](auto const &glit) { return glit->domain(); });
         for (auto const &var : elem_vars) {
             if (vars_body.contains(var)) {
                 vars_global.emplace(var);

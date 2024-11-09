@@ -2,6 +2,7 @@
 
 #include <clingo/util/print.hh>
 #include <clingo/util/type_traits.hh>
+#include <functional>
 
 // #define DEBUG_AGGR
 #ifdef DEBUG_AGGR
@@ -281,8 +282,8 @@ auto StateHdAggr::indices() const -> std::vector<size_t> {
     for (auto const &[sig, base, indices] : bases_) {
         res.insert(res.end(), indices.begin(), indices.end());
     }
-    std::sort(res.begin(), res.end());
-    res.erase(std::unique(res.begin(), res.end()), res.end());
+    std::ranges::sort(res);
+    res.erase(std::ranges::unique(res).begin(), res.end());
     return res;
 }
 
@@ -320,8 +321,8 @@ void StateHdAggr::propagate(Queue &queue) {
             for (auto elem_idx : state.todo()) {
                 for (auto const &[sym, cond] : tuples_.nth(elem_idx).value()) {
                     auto sig = std::make_tuple(sym.name(), sym.args().size(), sym.has_classical_sign());
-                    auto it = std::lower_bound(bases_.begin(), bases_.end(), sig,
-                                               [](auto const &a, auto const &b) { return std::get<0>(a) < b; });
+                    auto it = std::ranges::lower_bound(bases_, sig, std::less<>{},
+                                                       [](auto const &a) -> decltype(auto) { return std::get<0>(a); });
                     assert(it != bases_.end());
                     auto *base = std::get<1>(*it);
                     base->add(sym, StateAtom::derived);
@@ -387,8 +388,8 @@ void StateHdAggr::insert_elem(InstantiationContext const &ctx, AtomMap::iterator
         }
         auto &cond = jt.value();
         cond.emplace_back(sym, cond_id);
-        std::sort(cond.begin(), cond.end());
-        cond.erase(std::unique(cond.begin(), cond.end()), cond.end());
+        std::ranges::sort(cond);
+        cond.erase(std::ranges::unique(cond).begin(), cond.end());
     }
 }
 

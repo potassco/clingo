@@ -40,12 +40,12 @@ void AtomAssignAggr::accumulate(AggregateFunction fun, SymbolSpan tup, bool fact
                 return lt ? a < b : b < a;
             };
             if (fact) {
-                if (auto *it = std::lower_bound(vals.begin(), vals.end(), val, cmp); it != vals.end()) {
+                if (auto *it = std::ranges::lower_bound(vals, val, cmp); it != vals.end()) {
                     vals.erase(it, vals.end());
                     vals.emplace_back(val);
                 }
             } else {
-                if (auto *it = std::lower_bound(vals.begin(), vals.end(), val, cmp); it != vals.end() && *it != val) {
+                if (auto *it = std::ranges::lower_bound(vals, val, cmp); it != vals.end() && *it != val) {
                     vals.emplace(it, val);
                 }
             }
@@ -125,7 +125,7 @@ auto AtomAssignAggr::enqueue() -> bool {
 
 void AtomAssignAggr::dequeue() {
     assert(enqueued_);
-    std::visit([](auto &x) { std::sort(x.begin(), x.end()); }, values_);
+    std::visit([](auto &x) { std::ranges::sort(x); }, values_);
     propagated_vals_ = num_values_();
     propagated_ = elems_.size();
     enqueued_ = false;
