@@ -13,6 +13,7 @@ examples/js/parser.js
 examples/js/parser.wasm
 doc/html
 doc/latex
+pdoc
 example.*
 __pycache__
 .venv
