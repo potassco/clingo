@@ -189,8 +189,8 @@ auto Linearizer::order_(InstanceCallback &cb, std::vector<MatcherType> const &to
                 res.emplace_back(provided[var]);
             }
         }
-        std::sort(res.begin(), res.end());
-        res.erase(std::unique(res.begin(), res.end()), res.end());
+        std::ranges::sort(res);
+        res.erase(std::ranges::unique(res).begin(), res.end());
         return res;
     };
     // process the queue

@@ -15,7 +15,7 @@ template <class T> auto variables_str(T const &value) -> std::string {
     for (auto &var : vars) {
         sorted.emplace_back(var.view());
     }
-    std::sort(sorted.begin(), sorted.end());
+    std::ranges::sort(sorted);
     return to_str(sorted);
 }
 

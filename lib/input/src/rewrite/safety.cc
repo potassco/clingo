@@ -287,8 +287,8 @@ void report(Logger &log, VariableSet const &vars, VariableSet const &bound, auto
     unsafe.reserve(vars.size() - bound.size());
     std::copy_if(vars.begin(), vars.end(), std::back_inserter(unsafe),
                  [&bound](auto const &var) { return !bound.contains(var); });
-    std::sort(unsafe.begin(), unsafe.end());
-    unsafe.erase(std::unique(unsafe.begin(), unsafe.end()), unsafe.end());
+    std::ranges::sort(unsafe);
+    unsafe.erase(std::ranges::unique(unsafe).begin(), unsafe.end());
     GRINGO_REPORT_LOC(log, error, location(x)) << "unsafe variables in:\n"
                                                << "  " << x << "\n"
                                                << "note: the following variables are unsafe:\n"

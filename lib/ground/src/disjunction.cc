@@ -79,8 +79,8 @@ auto StateDisjunction::indices() const -> std::vector<size_t> {
     for (auto const &[sig, base, indices] : bases_) {
         res.insert(res.end(), indices.begin(), indices.end());
     }
-    std::sort(res.begin(), res.end());
-    res.erase(std::unique(res.begin(), res.end()), res.end());
+    std::ranges::sort(res);
+    res.erase(std::ranges::unique(res).begin(), res.end());
     return res;
 }
 

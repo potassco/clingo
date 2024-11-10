@@ -35,7 +35,7 @@ auto simplify(IETermVec &terms) -> Number {
     terms.erase(last, terms.end());
 
     // sort according to variables
-    std::sort(terms.begin(), terms.end());
+    std::ranges::sort(terms);
 
     // combine adjacent terms referring to the same variable
     terms.erase(merge_adjancent(terms.begin(), terms.end(),
@@ -141,7 +141,7 @@ void IESolver::add(IE ie) {
     auto &terms = ie.terms;
 
     // sort according to variables
-    std::sort(terms.begin(), terms.end());
+    std::ranges::sort(terms);
 
     // combine adjacent terms referring to the same variable
     terms.erase(merge_adjancent(terms.begin(), terms.end(),

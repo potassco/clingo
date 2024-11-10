@@ -30,7 +30,7 @@ class LiteralToTuple {
     [[nodiscard]] auto tuple_from_vars(Lit const &orig) const -> std::vector<Term> {
         auto var_set = select_variables(orig);
         auto var_vec = VariableVec(var_set.begin(), var_set.end());
-        std::sort(var_vec.begin(), var_vec.end());
+        std::ranges::sort(var_vec);
         std::vector<Term> res;
         res.reserve(var_vec.size() + 1);
         res.emplace_back(TermSymbol{location(orig), Clingo::SymbolStore::num_ref(n)});

@@ -1063,7 +1063,7 @@ class LiteralToTuple {
         ++n_;
         auto var_set = select_variables(lit);
         auto var_vec = VariableVec(var_set.begin(), var_set.end());
-        std::sort(var_vec.begin(), var_vec.end());
+        std::ranges::sort(var_vec);
         std::vector<Term> res;
         res.reserve(var_vec.size() + 1);
         res.emplace_back(TermSymbol{lit.loc(), Clingo::SymbolStore::num_ref(n_)});

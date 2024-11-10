@@ -70,10 +70,11 @@ void build_hd_lit(BuildContext &ctx, Input::HdLitDisjunction const &lit) {
     auto index = sp_body ? Ground::stratified_index : ctx.next_index();
 
     // initialize state
-    std::sort(bases.begin(), bases.end(), [](auto const &x, auto const &y) { return std::get<0>(x) < std::get<0>(y); });
-    bases.erase(std::unique(bases.begin(), bases.end(),
-                            [](auto const &x, auto const &y) { return std::get<0>(x) == std::get<0>(y); }),
-                bases.end());
+    std::ranges::sort(bases, std::less<>{}, [](auto const &x) -> decltype(auto) { return std::get<0>(x); });
+    bases.erase(
+        std::ranges::unique(bases, std::less<>{}, [](auto const &x) -> decltype(auto) { return std::get<0>(x); })
+            .begin(),
+        bases.end());
     auto &state =
         ctx.state<Ground::StateDisjunction>(ctx.mbr(), std::move(bases), vars_global.release(), index, sp_body);
 
