@@ -133,10 +133,10 @@ template <IsBase Base> class FullIndex {
         // select the index of the first atom of the matcher's generation
         auto cur = base_->begin(type);
         // select the first interval that contains an atom of the matcher's generation
-        return {
-            std::distance(index_.begin(), std::upper_bound(index_.begin(), index_.end(), cur,
-                                                           [](auto const &a, auto const &b) { return a < b.second; })),
-            cur};
+        return {std::distance(index_.begin(),
+                              std::ranges::upper_bound(index_, cur, std::less<>{},
+                                                       [](auto const &a) -> decltype(auto) { return a.second; })),
+                cur};
     }
     template <IsMatch Match>
     auto next(InstantiationContext const &ctx, Match const &m, VariableVec &free, MatcherType type, size_t &pos,

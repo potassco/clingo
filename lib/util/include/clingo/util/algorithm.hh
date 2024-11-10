@@ -49,7 +49,7 @@ template <class Rng, class Pred> auto transform(Rng const &rng, Pred pred) {
 
 //! Remove all elements from the vector matching the given predicate.
 template <class Vec, class Pred> auto erase_if(Vec &vec, Pred pred) -> size_t {
-    auto it = std::remove_if(vec.begin(), vec.end(), std::move(pred));
+    auto it = std::ranges::remove_if(vec, std::move(pred));
     auto n = vec.end() - it;
     vec.erase(it, vec.end());
     return n;

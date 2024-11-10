@@ -104,8 +104,8 @@ void StateDisjunction::propagate(Queue &queue) {
                 if (elem.value().empty()) {
                     auto sym = elem.key().first;
                     auto sig = std::make_tuple(sym.name(), sym.args().size(), sym.has_classical_sign());
-                    auto jt = std::lower_bound(bases_.begin(), bases_.end(), sig,
-                                               [](auto const &a, auto const &b) { return std::get<0>(a) < b; });
+                    auto jt = std::ranges::lower_bound(bases_, sig, std::less<>{},
+                                                       [](auto const &a) -> decltype(auto) { return std::get<0>(a); });
                     if (std::get<1>(*jt)->is_fact(sym)) {
                         state.mark_fact();
                     }
@@ -124,8 +124,8 @@ void StateDisjunction::propagate(Queue &queue) {
             for (auto elem_idx : state.todo()) {
                 auto sym = elems_.nth(elem_idx).key().first;
                 auto sig = std::make_tuple(sym.name(), sym.args().size(), sym.has_classical_sign());
-                auto it = std::lower_bound(bases_.begin(), bases_.end(), sig,
-                                           [](auto const &a, auto const &b) { return std::get<0>(a) < b; });
+                auto it = std::ranges::lower_bound(bases_, sig, std::less<>{},
+                                                   [](auto const &a) -> decltype(auto) { return std::get<0>(a); });
                 assert(it != bases_.end());
                 std::get<1>(*it)->add(sym, StateAtom::derived);
             }
@@ -188,7 +188,7 @@ void StateDisjunction::insert_elem(EvalContext const &ctx, AtomMap::iterator it,
         if (fact) {
             conds.clear();
         } else if (jns || !jt.value().empty()) {
-            auto kt = std::lower_bound(conds.begin(), conds.end(), cond_id);
+            auto kt = std::ranges::lower_bound(conds, cond_id);
             if (kt == conds.end() || *kt != cond_id) {
                 conds.emplace(kt, cond_id);
             }
