@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <clingo/input/rewrite/iesolver.hh>
 
 namespace Clingo::Input {
@@ -27,8 +28,9 @@ void add_term(IETermVec &terms, IETerm term) { terms.emplace_back(std::move(term
 auto simplify(IETermVec &terms) -> Number {
     auto bound = Number{0};
     // remove terms not associated with a variable
-    auto last = std::partition(terms.begin(), terms.end(),
-                               [](auto &term) { return !term.variable.empty() && term.coefficient != 0; });
+    auto last = std::ranges::partition(terms, [](auto &term) {
+                    return !term.variable.empty() && term.coefficient != 0;
+                }).begin();
     for (auto end = terms.end(), current = last; current != end; ++current) {
         bound += current->coefficient;
     }
@@ -155,8 +157,9 @@ void IESolver::add(IE ie) {
                 terms.end());
 
     // remove terms not associated with a variable
-    auto last = std::partition(terms.begin(), terms.end(),
-                               [](auto &term) { return !term.variable.empty() && term.coefficient != 0; });
+    auto last = std::ranges::partition(terms, [](auto &term) {
+                    return !term.variable.empty() && term.coefficient != 0;
+                }).begin();
     for (auto end = terms.end(), current = last; current != end; ++current) {
         ie.bound -= current->coefficient;
     }

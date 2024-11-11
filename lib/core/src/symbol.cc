@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <clingo/core/symbol.hh>
 
 #include <clingo/util/macro.hh>
@@ -263,7 +264,7 @@ class KeySymbolArray {
         static_assert(alignof(Symbol) <= alignof(uint64_t));
         size_t n = symbols.size();
         auto *data = SymbolArray::alloc(alloc, n, referenced);
-        std::copy(symbols.begin(), symbols.end(), data->data());
+        std::ranges::copy(symbols, data->data());
         hash_ = data->hash(n);
         repr_ = reinterpret_cast<uintptr_t>(data);
     }
@@ -273,7 +274,7 @@ class KeySymbolArray {
         size_t n = symbols.size() + 1;
         auto *data = SymbolArray::alloc(alloc, n, referenced);
         *data->data() = name;
-        std::copy(symbols.begin(), symbols.end(), data->data() + 1);
+        std::ranges::copy(symbols, data->data() + 1);
         hash_ = data->hash(n);
         repr_ = reinterpret_cast<uintptr_t>(data);
     }
@@ -289,7 +290,7 @@ class KeySymbolArray {
         if (a.marked() || b.marked()) {
             auto sa = a.repr().span();
             auto sb = b.repr().span();
-            return std::equal(sa.begin(), sa.end(), sb.begin(), sb.end());
+            return std::ranges::equal(sa, sb);
         }
         return KeySymbolArray::to_repr(a) == KeySymbolArray::to_repr(b);
     }
