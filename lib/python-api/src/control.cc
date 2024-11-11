@@ -46,8 +46,9 @@ auto Control::ctx_(clingo_lib_t *lib, clingo_location_t const *location, char co
     CLINGO_CATCH(lib);
 }
 
-void Control::ground(std::vector<std::pair<std::string, SymbolVec>> const &parts, py::handle ctx) {
-    auto c_args = transform(parts, [](auto const &part) {
+void Control::ground(std::optional<std::vector<std::pair<std::string, SymbolVec>>> const &parts, py::handle ctx) {
+    static auto const base = std::vector{std::pair{std::string{"base"}, SymbolVec{}}};
+    auto c_args = transform(parts ? *parts : base, [](auto const &part) {
         return clingo_part_t{part.first.c_str(),
                              // NOLINTNEXTLINE
                              reinterpret_cast<clingo_symbol_t const *>(part.second.data()), part.second.size()};
@@ -67,9 +68,22 @@ auto Control::buffer() -> char const * {
 void register_control(pybind11::module &m) {
     auto control = m.def_submodule("control", doc(R"(
 Module containing the Control class responsible for grounding and solving.
+
+```python
+>>> from clingo.core import Library
+>>> from clingo.control import Control
+>>>
+>>> lib = Library()
+>>> ctl = Control(lib, [])
+>>> ctl.parse_string("1 { a; b }.")
+>>> ctl.ground()
+>>> ctl.solve(on_model=print)
+a
+```
 )"));
     py::class_<Control>(control, "Control", R"(A control object for grounding and solving.)")
-        .def(py::init<Library &, std::vector<std::string> const &>(), py::arg("lib"), py::arg("options"), doc(R"(
+        .def(py::init<Library &, std::vector<std::string> const &>(), py::arg("lib"),
+             py::arg("options") = std::vector<std::string>{}, doc(R"(
 Construct a control object.
 
 Args:
@@ -88,7 +102,7 @@ Parses a logic program given as a string.
 Args:
     program: The logic program as string.
 )"))
-        .def("ground", &Control::ground, py::arg("parts"), py::arg("context") = py::none(), doc(R"(
+        .def("ground", &Control::ground, py::arg("parts") = std::nullopt, py::arg("context") = py::none(), doc(R"(
 Ground the given program parts.
 
 Args:

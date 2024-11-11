@@ -122,6 +122,39 @@ void reg_script(Library const &lib, Script &script) {
 void register_script(pybind11::module &m) {
     auto script = m.def_submodule("script", doc(R"(
 Module containing functions to add custom scripts, which can be embedded into logic programs.
+
+# Examples
+
+The following example shows how to register a script that executes functions from the main context.
+
+```python
+>>> import __main__
+>>> from clingo.control import Control
+>>> from clingo.core import Library
+>>> from clingo.script import Script, register
+>>> from clingo.symbol import Number, Symbol
+>>>
+>>> class PyScript(Script):
+...     def execute(self, code: str) -> None:
+...         exec(code, __main__.__dict__, __main__.__dict__)
+...     def call(self, lib: Library, name: str, arguments: list[Symbol]) -> list[Symbol]:
+...         return [getattr(__main__, name)(lib, *arguments)]
+...     def callable(self, name: str, args: int) -> bool:
+...         return name in __main__.__dict__ and callable(__main__.__dict__[name])
+...     def main(self, lib: Library, control: Control) -> None:
+...         __main__.main(lib, control)
+...
+>>> def fun(lib: Library, num: Symbol) -> Symbol:
+...     return Number(lib, num.number * 3)
+...
+>>> lib = Library()
+>>> register(lib, PyScript())
+>>> ctl = Control(lib, ["--mode=ground", "--text-buffer"])
+>>> ctl.parse_string("p(@fun(3)).")
+>>> ctl.ground()
+>>> ctl.buffer
+'p(9).\n#show p(9): p(9).\n#show.\n'
+```
 )"));
     py::class_<Script>(script, "Script", R"(ABC for custom scripts.)")
         .def(py::init<>(), R"(Construct a script object.)")

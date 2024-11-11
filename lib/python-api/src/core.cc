@@ -176,6 +176,15 @@ auto operator<=>(Location const &a, Location const &b) -> std::strong_ordering {
 void register_core(pybind11::module &m) {
     auto core = m.def_submodule("core", doc(R"(
 Core functionality used throughout the clingo package.
+
+Examples
+--------
+
+```python
+>>> from clingo.core import version
+>>> version()
+(6, 0, 0)
+```
 )"));
     core.def("version", &version, "Clingo's version as a tuple (major, minor, revision).");
 

@@ -6230,7 +6230,29 @@ void add(Program &prg, Statement &stm) { handle_error(clingo_program_add(prg, c_
 
 void register_ast(pybind11::module &m) {
     auto ast = m.def_submodule(
-        "ast", R"doc(This module provides functions to work with Abstract Syntax Trees of logic programs.)doc");
+        "ast", R"doc(This module provides functions to work with Abstract Syntax Trees of logic programs.
+
+# Examples
+
+The following example shows how to parse individual statements and add them to a control object.
+
+```python
+>>> from clingo.core import Library
+>>> from clingo.control import Control
+>>> from clingo import ast
+>>>
+>>> lib = Library()
+>>> ctl = Control(lib, ["--mode=ground", "--text-buffer"])
+>>> ctl.parse_string("a(1).")
+>>> prg = ast.Program(lib)
+>>> prg.add(ast.parse_statement(lib, "b(X+1) :- a(X)."))
+>>> prg.add(ast.parse_statement(lib, "c(X+1) :- b(X)."))
+>>> ctl.join(prg)
+>>> ctl.ground()
+>>> ctl.buffer
+'a(1).\nb(2).\nc(3).\n#show a(1): a(1).\n#show b(2): b(2).\n#show c(3): c(3).\n#show.\n'
+```
+)doc");
 
     ast.def("_type_info_yaml", &clingo_ast_type_info_yaml, R"doc(Return a yaml description of the AST.
 
