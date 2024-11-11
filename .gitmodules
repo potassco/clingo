@@ -16,3 +16,6 @@
 [submodule "third_party/pybind11"]
 	path = third_party/pybind11
 	url = ../../pybind/pybind11.git
+[submodule "doc/doxygen-awesome-css"]
+	path = doc/doxygen-awesome-css
+	url = https://github.com/jothepro/doxygen-awesome-css.git
