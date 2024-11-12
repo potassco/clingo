@@ -102,6 +102,7 @@ class Solver {
     std::unique_ptr<OutputStm> out_;
     Grounder grd_;
     Scripts *scripts_;
+    Clasp::ClaspConfig cfg_;
     Clasp::ClaspFacade clasp_;
 };
 

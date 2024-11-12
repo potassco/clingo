@@ -87,8 +87,7 @@ class EH : public Clasp::EventHandler {
 };
 
 void Solver::main(AppMode mode, std::optional<std::vector<Clingo::Input::ProgramParamVec>> const &params) {
-    Clasp::ClaspConfig cfg;
-    clasp_.start(cfg, Clasp::Problem_t::asp);
+    clasp_.start(cfg_, Clasp::Problem_t::asp);
     if (scripts_->callable("main", 0)) {
         scripts_->main(*this);
     } else {
