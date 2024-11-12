@@ -19,10 +19,11 @@ if (NOT PARSER_BUILD_WEB)
     add_subdirectory(pybind11)
 endif()
 
+add_subdirectory(CLI11)
+
+add_subdirectory(clasp)
+
 if (PARSER_BUILD_TESTS)
     set(CATCH_BUILD_STATIC_LIBRARY ON CACHE INTERNAL "" FORCE)
     enable_testing()
-    add_subdirectory(Catch2)
 endif()
-
-add_subdirectory(CLI11)

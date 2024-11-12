@@ -32,8 +32,9 @@ add_library(clingo_input
     "src/print.cc"
     "src/program.cc"
     )
+add_library(clingo::input ALIAS clingo_input)
 
-target_link_libraries(clingo_input PUBLIC clingo_core)
+target_link_libraries(clingo_input PUBLIC clingo::core)
 target_include_directories(clingo_input PUBLIC "include"
     PRIVATE
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src>")
@@ -56,7 +57,7 @@ if (PARSER_BUILD_TESTS)
         "tests/unpool.cc"
         "tests/unpool_relations.cc"
         "tests/variables.cc")
-    target_link_libraries(test_input PRIVATE clingo_input Catch2::Catch2WithMain)
+    target_link_libraries(test_input PRIVATE clingo::input Catch2::Catch2WithMain)
     target_include_directories(test_input PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
     add_test(NAME test_input COMMAND test_input)
 endif()

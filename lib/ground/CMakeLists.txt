@@ -13,8 +13,9 @@ add_library(clingo_ground
     "src/theory_atom.cc"
     "src/theory_term.cc"
     )
+add_library(clingo::ground ALIAS clingo_ground)
 
-target_link_libraries(clingo_ground PUBLIC clingo_core)
+target_link_libraries(clingo_ground PUBLIC clingo::core)
 if (PARSER_PROFILE)
     target_compile_definitions(clingo_ground PUBLIC "PARSER_PROFILE")
     target_link_libraries(clingo_ground PUBLIC Gperftools::Profiler)
@@ -25,7 +26,7 @@ set_property(TARGET clingo_ground PROPERTY POSITION_INDEPENDENT_CODE ON)
 if (PARSER_BUILD_TESTS)
     add_executable(test_ground
         "tests/matcher.cc")
-    target_link_libraries(test_ground PRIVATE clingo_ground Catch2::Catch2WithMain)
+    target_link_libraries(test_ground PRIVATE clingo::ground Catch2::Catch2WithMain)
     target_include_directories(test_ground PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
     set_target_properties(test_ground PROPERTIES FOLDER test_ground)
     add_test(NAME test_ground COMMAND test_ground)
