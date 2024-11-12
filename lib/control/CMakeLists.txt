@@ -12,7 +12,7 @@ target_link_libraries(clingo_control PUBLIC clingo::input clingo::ground clingo:
 target_include_directories(clingo_control PUBLIC "include")
 set_property(TARGET clingo_control PROPERTY POSITION_INDEPENDENT_CODE ON)
 
-if (PARSER_BUILD_TESTS)
+if(PARSER_BUILD_TESTS)
     add_executable(test_control
         "tests/logger.cc"
         "tests/text.cc")
