@@ -2,6 +2,8 @@
 
 #include <clingo/control/grounder.hh>
 
+#include <clasp/clasp_facade.h>
+
 namespace Clingo::Control {
 
 //! @addtogroup control
@@ -54,7 +56,8 @@ class Scripts : public Ground::ScriptCallback, public Ground::ScriptExec {
 enum class AppMode : uint8_t {
     parse,   //!< Stop processing after parsing.
     rewrite, //!< Stop processing after rewriting.
-    ground   //!< Stop processing after grounding.
+    ground,  //!< Stop processing after grounding.
+    solve    //!< Stop processing after solving.
 };
 
 //! A grounder and solver for logic programs.
@@ -99,6 +102,7 @@ class Solver {
     std::unique_ptr<OutputStm> out_;
     Grounder grd_;
     Scripts *scripts_;
+    Clasp::ClaspFacade clasp_;
 };
 
 //! @}

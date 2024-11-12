@@ -15,7 +15,7 @@ using namespace Clingo::Input;
 auto run(clingo_lib_t *lib, std::vector<std::string> &&args) -> clingo_result_t {
     try {
         auto opts = RewriteOptions{};
-        auto mode = Clingo::Control::AppMode::ground;
+        auto mode = Clingo::Control::AppMode::solve;
         std::vector<std::string> files;
         std::vector<std::string> const_defs;
         auto log_level = Clingo::LogLevel::info;
@@ -58,7 +58,7 @@ auto run(clingo_lib_t *lib, std::vector<std::string> &&args) -> clingo_result_t 
             using P = std::pair<char const *, Clingo::Control::AppMode>;
             auto modes =
                 std::array{P{"parse", Clingo::Control::AppMode::parse}, P{"rewrite", Clingo::Control::AppMode::rewrite},
-                           P{"ground", Clingo::Control::AppMode::ground}};
+                           P{"ground", Clingo::Control::AppMode::ground}, P{"solve", Clingo::Control::AppMode::solve}};
             for (auto &[name, m] : modes) {
                 if (name == value) {
                     mode = m;

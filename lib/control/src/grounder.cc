@@ -346,6 +346,8 @@ void Grounder::output_program(std::ostream &out) {
     out.flush();
 }
 
+auto Grounder::base() const -> BaseMap const & { return impl_->atom_base; }
+
 auto Grounder::store() const -> SymbolStore & { return *impl_->store; }
 
 auto Grounder::log() const -> Logger & { return *impl_->log; }

@@ -8,7 +8,7 @@ add_library(clingo_control
     "src/term.cc")
 add_library(clingo::control ALIAS clingo_control)
 
-target_link_libraries(clingo_control PUBLIC clingo::input clingo::ground clingo::output)
+target_link_libraries(clingo_control PUBLIC clingo::input clingo::ground clingo::output libclasp)
 target_include_directories(clingo_control PUBLIC "include")
 set_property(TARGET clingo_control PROPERTY POSITION_INDEPENDENT_CODE ON)
 

@@ -2,6 +2,8 @@
 
 #include <clingo/output/text.hh>
 
+#include <clasp/solver.h>
+
 namespace Clingo::Control {
 
 void Scripts::register_script(std::string_view name, UScript script) { scripts_.emplace_back(name, std::move(script)); }
@@ -58,7 +60,35 @@ void Solver::main(AppMode mode, std::span<std::string_view const> const &files,
     main(mode, params);
 }
 
+//! Dummy model printer.
+//!
+//! Note that currently all atoms are reported because there is no ClaspOutput yet and ids are zero.
+class EH : public Clasp::EventHandler {
+  public:
+    EH(Grounder &grd) : grd_{&grd} {}
+    auto onModel([[maybe_unused]] Clasp::Solver const &slv, Clasp::Model const &mdl) -> bool override {
+        std::cerr << "Model:";
+        for (auto const &[sig, base] : grd_->base()) {
+            for (auto i = size_t{0}, e = base->size(); i != e; ++i) {
+                auto const &atom = base->nth(i);
+                if (slv.assignment().valid(atom->second.id) &&
+                    mdl.isTrue(Clasp::toLit(static_cast<int32_t>(atom->second.id)))) {
+                    std::cerr << " " << atom->first;
+                }
+            }
+        }
+        std::cerr << "\n";
+        std::cerr.flush();
+        return true;
+    }
+
+  private:
+    Grounder *grd_;
+};
+
 void Solver::main(AppMode mode, std::optional<std::vector<Clingo::Input::ProgramParamVec>> const &params) {
+    Clasp::ClaspConfig cfg;
+    clasp_.start(cfg, Clasp::Problem_t::asp);
     if (scripts_->callable("main", 0)) {
         scripts_->main(*this);
     } else {
@@ -79,6 +109,11 @@ void Solver::main(AppMode mode, std::optional<std::vector<Clingo::Input::Program
         } else {
             std::ignore = ground(Clingo::Input::ProgramParamVec{{grd_.store().string("base"), {}}}, nullptr);
         }
+        if (mode == AppMode::ground) {
+            return;
+        }
+        auto eh = EH{grd_};
+        clasp_.solve(&eh);
     }
 }
 

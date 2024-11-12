@@ -1189,6 +1189,13 @@ CLINGO_VISIBILITY_DEFAULT void clingo_program_free(clingo_program_t *program);
 //! @return the result code; might return one of the following codes:
 //! - ::clingo_result_runtime for statements of invalid form or AST nodes that do not represent statements
 //! - ::clingo_result_bad_alloc
+//! test
+//!
+//! [TODO:description]
+//!
+//! @param program [TODO:parameter]
+//! @param statement [TODO:parameter]
+//! @return [TODO:return]
 CLINGO_VISIBILITY_DEFAULT clingo_result_t clingo_program_add(clingo_program_t *program, clingo_ast_t *statement);
 
 //! @}
