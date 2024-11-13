@@ -97,7 +97,7 @@ class OutputBody : public OutputLit {
         }
     }
 
-    void do_lit(Sign sign, Symbol sym) override {
+    void do_lit(Sign sign, Symbol sym, [[maybe_unused]] size_t uid) override {
         sep();
         buf_ << sign << sym;
     }
@@ -147,7 +147,7 @@ class OutputCond : public OutputLit {
         }
     }
 
-    void do_lit(Sign sign, Symbol sym) override {
+    void do_lit(Sign sign, Symbol sym, [[maybe_unused]] size_t uid) override {
         sep();
         buf_ << sign << sym;
     }

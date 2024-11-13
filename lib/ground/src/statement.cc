@@ -4,6 +4,8 @@
 #include <clingo/util/print.hh>
 #include <clingo/util/unordered_map.hh>
 
+#include <ranges>
+
 namespace Clingo::Ground {
 
 namespace {
@@ -212,7 +214,7 @@ auto Linearizer::order_(InstanceCallback &cb, std::vector<MatcherType> const &to
             score = -1;
             // compute the assignments propagated by this choice of literal
             auto const &[cur, dep, prv] = lit_map_[idx];
-            if (!std::all_of(prv.begin(), prv.end(), [&bound](auto idx) { return bound[idx]; })) {
+            if (!std::ranges::all_of(prv, [&bound](auto idx) { return bound[idx]; })) {
                 score = lits[idx]->score(bound);
                 if (score > 0) {
                     auto extra = analyzer.propagate(prv);
@@ -236,7 +238,7 @@ auto Linearizer::order_(InstanceCallback &cb, std::vector<MatcherType> const &to
             }
             return std::tie(si, get<1>(ei)) < std::tie(sj, get<1>(ej));
         };
-        std::iter_swap(queue_.rbegin(), std::min_element(queue_.rbegin(), queue_.rend(), pred));
+        std::iter_swap(queue_.rbegin(), std::ranges::min_element(std::ranges::reverse_view(queue_), pred));
         i = get<0>(queue_.back());
         queue_.pop_back();
         // skip if an equivalent matcher has already been added (i.e., X=Y and Y=X)
@@ -318,7 +320,7 @@ auto StmRule::do_report(InstantiationContext const &ctx) -> bool {
         }
     }
     if (head_ != nullptr) {
-        base_->add(atom_, fact ? StateAtom::fact : StateAtom::derived);
+        base_->add(atom_, fact ? StateAtom::fact : StateAtom::derived, [&ctx]() { return ctx.out().uid(); });
         ctx.out().rule(std::make_pair(atom_, type_ == RuleType::choice));
     } else if (type_ == RuleType::normal) {
         ctx.out().rule(std::nullopt);
@@ -326,7 +328,7 @@ auto StmRule::do_report(InstantiationContext const &ctx) -> bool {
     return head_ != nullptr || !fact;
 }
 
-void StmRule::do_propagate([[maybe_unused]] SymbolStore &store, Queue &queue) {
+void StmRule::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] OutputStm &out, Queue &queue) {
     // Consider adding the propagation to the instantiator...
     if (base_ != nullptr && base_->has_update()) {
         for (auto const &idx : indices_) {
@@ -424,7 +426,7 @@ auto StmExternal::do_report(InstantiationContext const &ctx) -> bool {
     return true;
 }
 
-void StmExternal::do_propagate([[maybe_unused]] SymbolStore &store, Queue &queue) {
+void StmExternal::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] OutputStm &out, Queue &queue) {
     // Consider adding the propagation to the instantiator...
     if (base_->has_update()) {
         for (auto const &idx : indices_) {
@@ -540,7 +542,8 @@ auto StmWeakConstraint::do_report(InstantiationContext const &ctx) -> bool {
     return true;
 }
 
-void StmWeakConstraint::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Queue &queue) {}
+void StmWeakConstraint::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] OutputStm &out,
+                                     [[maybe_unused]] Queue &queue) {}
 
 // definitition of StmHeuristic
 
@@ -698,7 +701,8 @@ auto StmHeuristic::do_report(InstantiationContext const &ctx) -> bool {
     return true;
 }
 
-void StmHeuristic::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Queue &queue) {}
+void StmHeuristic::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] OutputStm &out,
+                                [[maybe_unused]] Queue &queue) {}
 
 // definitition of StmEdge
 
@@ -766,7 +770,8 @@ auto StmEdge::do_report(InstantiationContext const &ctx) -> bool {
     return true;
 }
 
-void StmEdge::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Queue &queue) {}
+void StmEdge::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] OutputStm &out,
+                           [[maybe_unused]] Queue &queue) {}
 
 // definitition of StmShow
 
@@ -824,7 +829,8 @@ auto StmShow::do_report(InstantiationContext const &ctx) -> bool {
     return true;
 }
 
-void StmShow::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Queue &queue) {}
+void StmShow::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] OutputStm &out,
+                           [[maybe_unused]] Queue &queue) {}
 
 // definitition of StmProject
 
@@ -899,6 +905,7 @@ auto StmProject::do_report(InstantiationContext const &ctx) -> bool {
     return true;
 }
 
-void StmProject::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Queue &queue) {}
+void StmProject::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] OutputStm &out,
+                              [[maybe_unused]] Queue &queue) {}
 
 } // namespace Clingo::Ground

@@ -189,6 +189,9 @@ template <class KeyType, class BaseType> class BaseImpl {
     [[nodiscard]] auto has_update() const -> bool { return counts_.has_update(base().size()); }
 
   private:
+    friend BaseType;
+    BaseImpl() = default;
+
     [[nodiscard]] auto base() -> BaseType & { return *static_cast<BaseType *>(this); }
     [[nodiscard]] auto base() const -> BaseType const & { return *static_cast<BaseType const *>(this); }
 
@@ -206,7 +209,6 @@ template <class KeyType, class BaseType> class BaseImpl {
 //! store them here is to associated them with a unique id.
 class Base : public BaseImpl<Symbol, Base> {
   public:
-    using BaseImpl::contains;
     //! Map containing the atoms.
     using MapAtom = Util::ordered_map<Symbol, AtomInfo>;
 
@@ -229,32 +231,37 @@ class Base : public BaseImpl<Symbol, Base> {
         auto it = atoms_.find(sym);
         return it != atoms_.end() && it->second.state == StateAtom::fact;
     }
+
     //! Check if the base contains the given atom.
-    //!
-    //! This might includes atoms that have not (yet) been derived.
-    [[nodiscard]] auto contains(Symbol const &sym) const -> bool { return atoms_.contains(sym); }
+    [[nodiscard]] auto find(Symbol const &sym) -> std::optional<MapAtom::iterator> {
+        auto it = atoms_.find(sym);
+        if (it != atoms_.end() && it->second.state != StateAtom::unknown) {
+            return it;
+        }
+        return std::nullopt;
+    }
 
     //! Add an atom to the base.
-    auto add(Symbol atom, StateAtom state) -> AtomUpdate {
+    template <class Gen> auto add(Symbol atom, StateAtom state, Gen &&gen) -> std::pair<MapAtom::iterator, AtomUpdate> {
         auto [it, ins] = atoms_.try_emplace(atom, 0, state);
         if (ins) {
+            it.value().id = std::invoke(std::forward<Gen>(gen));
             if (state != StateAtom::unknown) {
                 derived_.add(atom_index_(it));
             }
-            return AtomUpdate::added;
+            return {it, AtomUpdate::added};
         }
         auto &prev = it.value();
         if (state < prev.state) {
-            prev.state = state;
             if (prev.state == StateAtom::unknown) {
+                prev.state = state;
                 derived_.add(atom_index_(it));
-                return AtomUpdate::added;
+                return {it, AtomUpdate::added};
             }
-            if (state == StateAtom::fact) {
-                return AtomUpdate::changed;
-            }
+            prev.state = state;
+            return {it, AtomUpdate::changed};
         }
-        return AtomUpdate::unchanged;
+        return {it, AtomUpdate::unchanged};
     }
 
     //! Get the number of derived atoms.

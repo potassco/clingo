@@ -48,10 +48,29 @@ void Scripts::do_call(Location const &loc, std::string_view name, SymbolSpan arg
     }
 }
 
+namespace {
+
+class BackendClasp : public Output::Backend {
+  public:
+};
+
+} // namespace
+
 Solver::Solver(Logger &log, SymbolStore &store, Scripts &scripts, Input::RewriteOptions opts, OutputMode mode,
                FILE *out)
-    : buf_{out}, out_{Output::make_text_output(buf_)}, grd_{log, store, opts, *out_}, scripts_{&scripts} {
-    static_cast<void>(mode);
+    : buf_{out}, out_{make_output_(mode)}, grd_{log, store, opts, *out_}, scripts_{&scripts} {}
+
+auto Solver::make_output_(OutputMode mode) -> UOutputStm {
+    switch (mode) {
+        case Clingo::Control::OutputMode::text: {
+            return Output::make_text_output(buf_);
+        }
+        case Clingo::Control::OutputMode::clasp: {
+            backend_ = std::make_unique<BackendClasp>();
+            return Output::make_backend_output(*backend_);
+        }
+    }
+    Util::unreachable();
 }
 
 void Solver::main(AppMode mode, std::span<std::string_view const> const &files,
@@ -87,7 +106,9 @@ class EH : public Clasp::EventHandler {
 };
 
 void Solver::main(AppMode mode, std::optional<std::vector<Clingo::Input::ProgramParamVec>> const &params) {
-    clasp_.start(cfg_, Clasp::Problem_t::asp);
+    if (mode == AppMode::solve) {
+        clasp_.start(cfg_, Clasp::Problem_t::asp);
+    }
     if (scripts_->callable("main", 0)) {
         scripts_->main(*this);
     } else {

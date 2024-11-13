@@ -535,7 +535,7 @@ auto StmAssignAggrElem::do_report(InstantiationContext const &ctx) -> bool {
     return true;
 }
 
-void StmAssignAggrElem::do_propagate(SymbolStore &store, Queue &queue) {
+void StmAssignAggrElem::do_propagate(SymbolStore &store, [[maybe_unused]] OutputStm &out, Queue &queue) {
     // This is called after all statements on the current priority have
     // been processed. Thus, all element aggregation rules have been
     // processed. Here, aggregates that can match are added to the base and

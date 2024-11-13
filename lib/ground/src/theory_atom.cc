@@ -49,7 +49,7 @@ StateTheory::ElementKey::ElementKey([[maybe_unused]] priv_tag tag, Instantiation
 void StateTheory::ElementKey::construct(std::pmr::monotonic_buffer_resource &mbr, InstantiationContext const &ctx,
                                         OutputTheory &out, size_t atom_idx, UTheoryTermVec const &terms,
                                         ElementKey *&target) {
-    auto n = sizeof(ElementKey) + terms.size() * sizeof(Symbol);
+    auto n = sizeof(ElementKey) + (terms.size() * sizeof(Symbol));
     if (target == nullptr) {
         target = static_cast<ElementKey *>(mbr.allocate(n, alignof(ElementKey)));
     } else {
@@ -295,7 +295,8 @@ auto StmTheoryElement::do_report(InstantiationContext const &ctx) -> bool {
     return true;
 }
 
-void StmTheoryElement::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Queue &queue) {}
+void StmTheoryElement::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] OutputStm &out,
+                                    [[maybe_unused]] Queue &queue) {}
 
 auto StmTheoryElement::do_priority() const -> size_t { return std::numeric_limits<size_t>::max(); }
 
@@ -385,7 +386,8 @@ auto StmHdTheory::do_report(InstantiationContext const &ctx) -> bool {
     return true;
 }
 
-void StmHdTheory::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] Queue &queue) {}
+void StmHdTheory::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] OutputStm &out,
+                               [[maybe_unused]] Queue &queue) {}
 
 auto StmHdTheory::do_priority() const -> size_t { return std::numeric_limits<size_t>::max(); }
 

@@ -210,7 +210,7 @@ class StateHdAggr : public State {
     void enqueue(Queue &queue);
 
     //! Propagate enqueued aggregates.
-    void propagate(Queue &queue);
+    void propagate(OutputStm &out, Queue &queue);
 
     //! Insert an aggregate atom.
     auto insert_atom(InstantiationContext const &ctx) -> std::optional<std::pair<AtomMap::iterator, bool>>;
@@ -268,7 +268,7 @@ class StmHdAggr : public Stm {
     void do_print_head(std::ostream &out) const override;
     void do_init(size_t gen) override;
     [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
-    void do_propagate(SymbolStore &store, Queue &queue) override;
+    void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override;
 
     StateHdAggr *state_;
@@ -293,7 +293,7 @@ class StmHdAggrElem : public Stm {
     [[nodiscard]] auto do_important() const -> VariableSet override;
     void do_init(size_t gen) override;
     [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
-    void do_propagate(SymbolStore &store, Queue &queue) override;
+    void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override;
     void do_print_head(std::ostream &out) const override;
     void do_print(std::ostream &out) const override;

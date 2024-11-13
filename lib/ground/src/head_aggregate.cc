@@ -295,7 +295,7 @@ void StateHdAggr::enqueue(Queue &queue) {
     }
 }
 
-void StateHdAggr::propagate(Queue &queue) {
+void StateHdAggr::propagate(OutputStm &out, Queue &queue) {
     // process enqueued atoms
     for (auto atom_idx : queue_) {
         auto it = base_.nth(atom_idx);
@@ -325,7 +325,7 @@ void StateHdAggr::propagate(Queue &queue) {
                                                        [](auto const &a) -> decltype(auto) { return std::get<0>(a); });
                     assert(it != bases_.end());
                     auto *base = std::get<1>(*it);
-                    base->add(sym, StateAtom::derived);
+                    base->add(sym, StateAtom::derived, [&out]() { return out.uid(); });
                 }
             }
 #ifdef DEBUG_AGGR
@@ -457,7 +457,7 @@ auto StmHdAggr::do_report(InstantiationContext const &ctx) -> bool {
     return true;
 }
 
-void StmHdAggr::do_propagate([[maybe_unused]] SymbolStore &store, Queue &queue) {
+void StmHdAggr::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] OutputStm &out, Queue &queue) {
     // enqueue the aggregate element statements for propagation
     state_->enqueue(queue);
 }
@@ -512,11 +512,11 @@ auto StmHdAggrElem::do_report(InstantiationContext const &ctx) -> bool {
     return true;
 }
 
-void StmHdAggrElem::do_propagate([[maybe_unused]] SymbolStore &store, Queue &queue) {
+void StmHdAggrElem::do_propagate([[maybe_unused]] SymbolStore &store, OutputStm &out, Queue &queue) {
     // This is called after all statements on the current priority have been
     // processed. Thus, all element aggregation rules have been processed.
     // Here, literals are derived by the head aggregate are propagated.
-    state_->propagate(queue);
+    state_->propagate(out, queue);
 }
 
 auto StmHdAggrElem::do_priority() const -> size_t { return std::numeric_limits<size_t>::max(); }

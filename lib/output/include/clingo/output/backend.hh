@@ -10,6 +10,7 @@ class Backend {
   public:
     virtual ~Backend() = default;
 };
+using UBackend = std::unique_ptr<Backend>;
 
 //! Create an output that forwards ground statements to a backend.
 //!

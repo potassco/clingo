@@ -107,7 +107,7 @@ auto Instantiator::instantiate(Logger &log, SymbolStore &store, OutputStm &out) 
     return true;
 }
 
-void Instantiator::propagate(SymbolStore &store, Queue &queue) { icb_->propagate(store, queue); }
+void Instantiator::propagate(SymbolStore &store, OutputStm &out, Queue &queue) { icb_->propagate(store, out, queue); }
 
 void Queue::insert(Instantiator inst, std::optional<size_t> index) {
     if (index) {
@@ -169,7 +169,7 @@ auto Queue::process(Logger &log, SymbolStore &store, OutputStm &out) -> bool {
                 }
             }
             for (auto *inst : current) {
-                inst->propagate(store, *this);
+                inst->propagate(store, out, *this);
             }
         }
     }

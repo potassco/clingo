@@ -2,6 +2,8 @@
 
 #include <clingo/control/grounder.hh>
 
+#include <clingo/output/backend.hh>
+
 #include <clasp/clasp_facade.h>
 
 namespace Clingo::Control {
@@ -11,7 +13,8 @@ namespace Clingo::Control {
 
 //! Enumeration of available outputs.
 enum class OutputMode : uint8_t {
-    text //!< The text output.
+    text, //!< Text output.
+    clasp //!< Clasp output.
 };
 
 class Solver;
@@ -98,8 +101,18 @@ class Solver {
     [[nodiscard]] auto buf() -> Util::OutputBuffer & { return buf_; };
 
   private:
+    //! Create output according to mode.
+    //!
+    //! This function additionally initizalizes required members, for example,
+    //! the backend for clasp output.
+    //!
+    //! @param mode the configured output mode
+    //! @return the resulting output
+    auto make_output_(OutputMode mode) -> UOutputStm;
+
     Util::OutputBuffer buf_;
-    std::unique_ptr<OutputStm> out_;
+    Output::UBackend backend_;
+    UOutputStm out_;
     Grounder grd_;
     Scripts *scripts_;
     Clasp::ClaspConfig cfg_;

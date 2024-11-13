@@ -92,7 +92,7 @@ void StateDisjunction::enqueue(Queue &queue) {
     }
 }
 
-void StateDisjunction::propagate(Queue &queue) {
+void StateDisjunction::propagate(OutputStm &out, Queue &queue) {
     // process enqueued atoms
     for (auto atom_idx : queue_) {
         auto it = base_.nth(atom_idx);
@@ -127,7 +127,7 @@ void StateDisjunction::propagate(Queue &queue) {
                 auto it = std::ranges::lower_bound(bases_, sig, std::less<>{},
                                                    [](auto const &a) -> decltype(auto) { return std::get<0>(a); });
                 assert(it != bases_.end());
-                std::get<1>(*it)->add(sym, StateAtom::derived);
+                std::get<1>(*it)->add(sym, StateAtom::derived, [&out]() { return out.uid(); });
             }
 #ifdef DEBUG_AGGR
             std::cerr << "propagate: a: " << atom_idx << "\n";
@@ -248,7 +248,7 @@ auto StmDisjunction::do_report(InstantiationContext const &ctx) -> bool {
     return true;
 }
 
-void StmDisjunction::do_propagate([[maybe_unused]] SymbolStore &store, Queue &queue) {
+void StmDisjunction::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] OutputStm &out, Queue &queue) {
     // enqueue the aggregate element statements for propagation
     state_->enqueue(queue);
 }
@@ -301,11 +301,11 @@ auto StmDisjunctionElem::do_report(InstantiationContext const &ctx) -> bool {
     return true;
 }
 
-void StmDisjunctionElem::do_propagate([[maybe_unused]] SymbolStore &store, Queue &queue) {
+void StmDisjunctionElem::do_propagate([[maybe_unused]] SymbolStore &store, OutputStm &out, Queue &queue) {
     // This is called after all statements on the current priority have been
     // processed. Thus, all element aggregation rules have been processed.
     // Here, literals are derived by the disjunction are propagated.
-    state_->propagate(queue);
+    state_->propagate(out, queue);
 }
 
 auto StmDisjunctionElem::do_priority() const -> size_t { return std::numeric_limits<size_t>::max(); }

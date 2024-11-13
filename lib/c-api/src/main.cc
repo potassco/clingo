@@ -54,7 +54,7 @@ auto run(clingo_lib_t *lib, std::vector<std::string> &&args) -> clingo_result_t 
             }
             return std::string{"unexpected value"};
         });
-        app.add_option("--mode", "{parse,rewrite,ground}")->check([&mode](std::string const &value) {
+        app.add_option("--mode", "{parse,rewrite,ground,solve}")->check([&mode](std::string const &value) {
             using P = std::pair<char const *, Clingo::Control::AppMode>;
             auto modes =
                 std::array{P{"parse", Clingo::Control::AppMode::parse}, P{"rewrite", Clingo::Control::AppMode::rewrite},
@@ -74,10 +74,14 @@ auto run(clingo_lib_t *lib, std::vector<std::string> &&args) -> clingo_result_t 
             return app.exit(e) != 0 ? clingo_result_runtime : clingo_result_success;
         }
 
+        auto output_mode = Clingo::Control::OutputMode::text;
+        if (mode == Clingo::Control::AppMode::solve) {
+            output_mode = Clingo::Control::OutputMode::clasp;
+        }
+
         // TODO: maybe this should not happen here
         lib->log.set_level(log_level);
-        auto slv =
-            Clingo::Control::Solver{lib->log, *lib->store, lib->scripts, opts, Clingo::Control::OutputMode::text};
+        auto slv = Clingo::Control::Solver{lib->log, *lib->store, lib->scripts, opts, output_mode};
         auto prs = Clingo::Input::Parser{lib->log, *lib->store};
 
         [&]() {

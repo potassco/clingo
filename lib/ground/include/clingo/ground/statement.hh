@@ -99,7 +99,7 @@ class StmRule : public Stm {
     void do_print_head(std::ostream &out) const override;
     void do_init(size_t gen) override;
     [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
-    void do_propagate(SymbolStore &store, Queue &queue) override;
+    void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override { return std::numeric_limits<size_t>::max(); }
 
     //! The head of the rule.
@@ -140,7 +140,7 @@ class StmExternal : public Stm {
     void do_print_head(std::ostream &out) const override;
     void do_init(size_t gen) override;
     [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
-    void do_propagate(SymbolStore &store, Queue &queue) override;
+    void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override { return std::numeric_limits<size_t>::max(); }
     [[nodiscard]] auto do_is_important([[maybe_unused]] size_t index) const -> bool override { return false; }
 
@@ -183,7 +183,7 @@ class StmWeakConstraint : public Stm {
     void do_print_head(std::ostream &out) const override;
     void do_init(size_t gen) override;
     [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
-    void do_propagate(SymbolStore &store, Queue &queue) override;
+    void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override { return std::numeric_limits<size_t>::max(); }
 
     Location loc_weight_;
@@ -220,7 +220,7 @@ class StmHeuristic : public Stm {
     void do_print_head(std::ostream &out) const override;
     void do_init(size_t gen) override;
     [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
-    void do_propagate(SymbolStore &store, Queue &queue) override;
+    void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override { return std::numeric_limits<size_t>::max(); }
 
     Location loc_weight_;
@@ -257,7 +257,7 @@ class StmEdge : public Stm {
     void do_print_head(std::ostream &out) const override;
     void do_init(size_t gen) override;
     [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
-    void do_propagate(SymbolStore &store, Queue &queue) override;
+    void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override { return std::numeric_limits<size_t>::max(); }
 
     UTerm src_;
@@ -284,7 +284,7 @@ class StmShow : public Stm {
     void do_print_head(std::ostream &out) const override;
     void do_init(size_t gen) override;
     [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
-    void do_propagate(SymbolStore &store, Queue &queue) override;
+    void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override { return std::numeric_limits<size_t>::max(); }
 
     UTerm term_;
@@ -311,7 +311,7 @@ class StmProject : public Stm {
     void do_print_head(std::ostream &out) const override;
     void do_init(size_t gen) override;
     [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
-    void do_propagate(SymbolStore &store, Queue &queue) override;
+    void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override { return std::numeric_limits<size_t>::max(); }
     [[nodiscard]] auto do_is_important([[maybe_unused]] size_t index) const -> bool override { return false; }
 

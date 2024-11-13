@@ -130,7 +130,7 @@ class StateDisjunction : public State {
     void enqueue(Queue &queue);
 
     //! Propagate equeued disjunction atoms.
-    void propagate(Queue &queue);
+    void propagate(OutputStm &out, Queue &queue);
 
     //! Insert a disjunction atom.
     auto insert_atom(Assignment &ass) -> std::pair<AtomMap::iterator, bool>;
@@ -186,7 +186,7 @@ class StmDisjunction : public Stm {
     void do_print_head(std::ostream &out) const override;
     void do_init(size_t gen) override;
     [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
-    void do_propagate(SymbolStore &store, Queue &queue) override;
+    void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override;
 
     StateDisjunction *state_;
@@ -206,7 +206,7 @@ class StmDisjunctionElem : public Stm {
     [[nodiscard]] auto do_important() const -> VariableSet override;
     void do_init(size_t gen) override;
     [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
-    void do_propagate(SymbolStore &store, Queue &queue) override;
+    void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override;
     void do_print_head(std::ostream &out) const override;
     void do_print(std::ostream &out) const override;

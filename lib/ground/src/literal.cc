@@ -56,7 +56,7 @@ auto LitInterval::do_score(std::vector<bool> const &bound) const -> double {
         l != nullptr && r != nullptr) {
         VariableSet vars;
         lhs_->vars(vars);
-        if (std::all_of(vars.begin(), vars.end(), [&bound](auto var) { return bound[var]; })) {
+        if (std::ranges::all_of(vars, [&bound](auto var) { return bound[var]; })) {
             return score_fast;
         }
         auto sl = l->symbol();
@@ -297,29 +297,37 @@ void LitSymbolic::do_print(std::ostream &out) const {
     }
 }
 
-auto LitSymbolic::do_output(InstantiationContext const &ctx, OutputLit &out) const -> bool {
-    if ((index_ == stratified_index || sign_ == Sign::none) && base_->domain()) {
-        return false;
+namespace {
+
+auto get_atom(Base &base, OutputStm &out, Sign sign, size_t index, Symbol symbol,
+              size_t offset) -> std::optional<Base::MapAtom::iterator> {
+    // avoid lookups if the literal is known to be true
+    if ((index == stratified_index || sign == Sign::none) && base.domain()) {
+        return std::nullopt;
     }
-    auto get_symbol = [&, this]() -> std::optional<Symbol> {
-        if (offset_ != invalid_offset) {
-            return base_->nth(offset_).key();
+    if (offset != invalid_offset) {
+        if (auto it = base.nth(offset); it->second.state != StateAtom::fact) {
+            return it;
         }
-        if (sign_ == Sign::once) {
-            return symbol_;
-        }
-        return atom_->eval(ctx);
-    };
-    if (auto sym = get_symbol(); sym) {
-        if (sign_ == Sign::once ? index_ == stratified_index && !base_->contains(*sym) : base_->is_fact(*sym)) {
-            return false;
-        }
-        out.lit(sign_, *sym);
-    } else {
-        // note: cannot happen by construction
-        out.boolean(false);
+        // Cannot happen because the literal would not have matched.
+        assert(sign != Sign::once);
+        return std::nullopt;
     }
-    return true;
+    // Avoid adding ids for literals whose atoms are false.
+    if (sign == Sign::once && index == stratified_index) {
+        return base.find(symbol);
+    }
+    return base.add(symbol, StateAtom::unknown, [&out]() { return out.uid(); }).first;
+}
+
+} // namespace
+
+auto LitSymbolic::do_output([[maybe_unused]] InstantiationContext const &ctx, OutputLit &out) const -> bool {
+    if (auto atom = get_atom(*base_, ctx.out(), sign_, index_, symbol_, offset_)) {
+        out.lit(sign_, atom->key(), atom->value().id);
+        return true;
+    }
+    return false;
 }
 
 auto LitSymbolic::do_copy() const -> ULit {
@@ -358,7 +366,7 @@ auto LitSymbolic::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherTy
         return {make_non_fact_matcher(*base_, *atom_, symbol_), std::nullopt};
     }
     if (sign_ == Sign::twice && index_ != stratified_index) {
-        return {make_once_matcher(), std::nullopt};
+        return {make_once_matcher(*atom_, symbol_), std::nullopt};
     }
 
     auto index = std::optional<size_t>{};
@@ -406,7 +414,7 @@ void LitProject::State::init(InitContext const &ctx, size_t gen) {
         auto eval_ctx = EvalContext{ctx.log(), ctx.store(), ass_};
         if (p_body_->match(eval_ctx, atom->first)) {
             if (auto sym = p_head_->eval(eval_ctx); sym) {
-                p_base_.add(*sym, atom->second.state);
+                p_base_.add(*sym, atom->second.state, [id = atom->second.id]() { return id; });
             }
         }
     }
@@ -421,32 +429,14 @@ void LitProject::do_print(std::ostream &out) const {
 }
 
 auto LitProject::do_output(InstantiationContext const &ctx, OutputLit &out) const -> bool {
-    // Note: eval can be avoided for lookup matchers
-    if ((index_ == stratified_index || sign_ == Sign::none) && state_->p_base().domain()) {
-        return false;
+    if (auto atom = get_atom(state_->p_base(), ctx.out(), Sign::none, index_, symbol_, offset_)) {
+        // evaluation cannot fail by construction
+        auto sym = atom_->eval(ctx);
+        assert(sym);
+        out.lit(sign_, *sym, atom->value().id);
+        return true;
     }
-    auto get_symbol = [&, this]() -> std::optional<Symbol> {
-        if (offset_ != invalid_offset) {
-            return state_->p_base().nth(offset_).key();
-        }
-        if (sign_ == Sign::once) {
-            return symbol_;
-        }
-        return p_atom_->eval(ctx);
-    };
-    if (auto p_sym = get_symbol()) {
-        if (sign_ == Sign::once ? index_ == stratified_index && !state_->p_base().contains(*p_sym)
-                                : state_->p_base().is_fact(*p_sym)) {
-            return false;
-        }
-    }
-    if (auto sym = atom_->eval(ctx)) {
-        out.lit(sign_, *sym);
-    } else {
-        // note: cannot happen by construction
-        out.boolean(false);
-    }
-    return true;
+    return false;
 }
 
 auto LitProject::do_copy() const -> ULit {
@@ -506,7 +496,7 @@ auto LitProject::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherTyp
         return {m(make_non_fact_matcher(state_->p_base(), *p_atom_, symbol_)), std::nullopt};
     }
     if (sign_ == Sign::twice && index_ != stratified_index) {
-        return {m(make_once_matcher()), std::nullopt};
+        return {m(make_once_matcher(*p_atom_, symbol_)), std::nullopt};
     }
     auto index = std::optional<size_t>{};
     if (index_ != stratified_index && type == MatcherType::new_atoms) {

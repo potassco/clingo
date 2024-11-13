@@ -265,7 +265,7 @@ class StmTheoryElement : public Stm {
     [[nodiscard]] auto do_important() const -> VariableSet override;
     void do_init([[maybe_unused]] size_t gen) override;
     [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
-    void do_propagate(SymbolStore &store, Queue &queue) override;
+    void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override;
     void do_print_head(std::ostream &out) const override;
     void do_print(std::ostream &out) const override;
@@ -313,7 +313,7 @@ class StmHdTheory : public Stm {
     [[nodiscard]] auto do_important() const -> VariableSet override;
     void do_init([[maybe_unused]] size_t gen) override;
     [[nodiscard]] auto do_report(InstantiationContext const &ctx) -> bool override;
-    void do_propagate(SymbolStore &store, Queue &queue) override;
+    void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) override;
     [[nodiscard]] auto do_priority() const -> size_t override;
     void do_print_head(std::ostream &out) const override;
     void do_print(std::ostream &out) const override;

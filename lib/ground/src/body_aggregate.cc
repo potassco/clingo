@@ -642,7 +642,7 @@ auto StmBdAggrElem::do_report(InstantiationContext const &ctx) -> bool {
     return true;
 }
 
-void StmBdAggrElem::do_propagate([[maybe_unused]] SymbolStore &store, Queue &queue) {
+void StmBdAggrElem::do_propagate([[maybe_unused]] SymbolStore &store, [[maybe_unused]] OutputStm &out, Queue &queue) {
     // This is called after all statements on the current priority have
     // been processed. Thus, all element aggregation rules have been
     // processed. Here, aggregates that can match are added to the base and

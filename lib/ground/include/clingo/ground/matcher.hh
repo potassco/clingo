@@ -172,9 +172,7 @@ template <IsBase Base> class FullIndex {
         // obtain a (guaranteed) match from the index
         for (; pos < index_.size(); ++pos) {
             // all atoms in the interval have been matched
-            if (cur < index_[pos].first) {
-                cur = index_[pos].first;
-            }
+            cur = std::max(cur, index_[pos].first);
             // the current index can no longer provide a match
             if (cur >= n) {
                 return false;

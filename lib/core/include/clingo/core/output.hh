@@ -47,7 +47,7 @@ class OutputLit {
     //! Destroy the output.
     virtual ~OutputLit() = default;
     //! Output the given symbolic literal.
-    void lit(Sign sign, Symbol sym) { do_lit(sign, sym); }
+    void lit(Sign sign, Symbol sym, size_t uid) { do_lit(sign, sym, uid); }
     //! Output the given boolean constant.
     void boolean(bool value) { do_boolean(value); }
     //! Output the given conditional literal.
@@ -63,7 +63,7 @@ class OutputLit {
     auto bd_theory(Sign sign, std::optional<size_t> uid) -> size_t { return do_bd_theory(sign, uid); }
 
   private:
-    virtual void do_lit(Sign sign, Symbol sym) = 0;
+    virtual void do_lit(Sign sign, Symbol sym, size_t uid) = 0;
     virtual void do_boolean(bool value) = 0;
     virtual auto do_cond_lit(std::optional<size_t> uid) -> size_t = 0;
     virtual auto do_bd_aggr(Sign sign, std::optional<size_t> uid) -> size_t = 0;

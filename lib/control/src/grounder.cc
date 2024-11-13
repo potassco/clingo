@@ -52,7 +52,7 @@ class Builder : public Input::DependencyBuilder {
         buf_ << "#program_" << *param.first;
         auto dom_it = base_.add_base(std::make_tuple(store_->string_ref(buf_.view()), param.second.size(), false));
         dom_it.value()->add(store_->fun_ref(std::get<0>(dom_it.key()), as_symbol_span(param.second), false),
-                            Ground::StateAtom::fact);
+                            Ground::StateAtom::fact, []() { return size_t{1}; });
     }
 
     //! Handle meta statements.
@@ -62,7 +62,7 @@ class Builder : public Input::DependencyBuilder {
     void do_fact(std::vector<Symbol> const &facts) override {
         for (auto const &fact : facts) {
             auto dom_it = base_.add_base(std::make_tuple(fact.name(), fact.args().size(), fact.has_sign()));
-            dom_it->second->add(fact, Ground::StateAtom::fact);
+            dom_it->second->add(fact, Ground::StateAtom::fact, [this]() { return out_->uid(); });
             out_->fact(fact);
         }
     }
@@ -79,8 +79,9 @@ class Builder : public Input::DependencyBuilder {
                 // negative cycle) and all bases it depends on are domain.
                 // A domain component only derives facts.
                 bool domain = test(ref_comp.type, Input::ComponentType::positive) &&
-                              std::all_of(ref_comp.depend.begin(), ref_comp.depend.end(),
-                                          [this](auto const &sig) { return base_.add_base(sig)->second->domain(); });
+                              std::ranges::all_of(ref_comp.depend, [this](auto const &sig) {
+                                  return base_.add_base(sig)->second->domain();
+                              });
                 auto gcomp = Ground::Component{domain};
                 auto states = Ground::UStateVec{};
                 for (auto const &stm : ref_comp.stms) {
@@ -173,7 +174,7 @@ struct Grounder::Impl : Clingo::SymbolOwner {
             for (auto i = base.mark_shown(), n = base.size(); i != n; ++i) {
                 auto it = base.nth(i);
                 auto const &atom = it.key();
-                out->body().lit(Sign::none, atom);
+                out->body().lit(Sign::none, atom, it.value().id);
                 out->show_term(atom);
             }
         };

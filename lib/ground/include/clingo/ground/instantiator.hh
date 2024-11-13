@@ -122,7 +122,7 @@ class InstanceCallback {
     //! Report an assignment giving rise to an instance for a statement.
     [[nodiscard]] auto report(InstantiationContext const &ctx) -> bool { return do_report(ctx); }
     //! Notify a statement that instantiation has finished.
-    void propagate(SymbolStore &store, Queue &queue) { do_propagate(store, queue); }
+    void propagate(SymbolStore &store, OutputStm &out, Queue &queue) { do_propagate(store, out, queue); }
     //! The priority of the callback.
     [[nodiscard]] auto priority() const -> size_t { return do_priority(); }
     //! Print representation for debugging.
@@ -133,7 +133,7 @@ class InstanceCallback {
   private:
     virtual void do_init(size_t gen) = 0;
     [[nodiscard]] virtual auto do_report(InstantiationContext const &ctx) -> bool = 0;
-    virtual void do_propagate(SymbolStore &store, Queue &queue) = 0;
+    virtual void do_propagate(SymbolStore &store, OutputStm &out, Queue &queue) = 0;
     [[nodiscard]] virtual auto do_priority() const -> size_t = 0;
     virtual void do_print_head(std::ostream &out) const = 0;
     [[nodiscard]] virtual auto do_is_important([[maybe_unused]] size_t index) const -> bool { return true; }
@@ -171,7 +171,7 @@ class Instantiator {
     //! Assignments are reported via the InstanceCallback.
     [[nodiscard]] auto instantiate(Logger &log, SymbolStore &store, OutputStm &out) -> bool;
     //! Add instantiators that need grounding to queue.
-    void propagate(SymbolStore &store, Queue &queue);
+    void propagate(SymbolStore &store, OutputStm &out, Queue &queue);
     //! Print the instantiator.
     void print(std::ostream &out) const;
     //! The priority of the instantiator.

@@ -9,127 +9,68 @@ namespace Clingo::Output {
 
 namespace {
 
-/*
+//! Output handling rule bodies.
+//!
+//! Each literal is mapped to a program literal and appended to a vector of
+//! literals that can be retrieved via function literals.
 class OutputBody : public OutputLit {
   public:
     OutputBody(size_t &uids) : uids_{&uids} {}
 
-    void start() {
-        buf_.reset();
-        if (delayed_.empty() || !delayed_.back().empty()) {
-            delayed_.emplace_back();
-        }
-        has_body_ = false;
-    }
+    //! Get the literals of the body.
+    //!
+    //! Literals are added via the OutputLit interface.
+    //!
+    //! @return the literals
+    [[nodiscard]] auto literals() const -> std::vector<size_t> const & { return body_; }
 
-    [[nodiscard]] auto end() -> std::string_view {
-        assert(delayed_.back().empty());
-        return buf_.view();
-    }
-
-    [[nodiscard]] auto delayed() -> bool { return !delayed_.back().empty(); }
-
-    void delay() {
-        if (!buf_.empty()) {
-            assert(!delayed_.empty());
-            delayed_.back().emplace_back(buf_.str());
-            buf_.reset();
-        }
-    }
-
-    [[nodiscard]] auto delay_head(std::optional<size_t> uid, char const *sep) -> size_t {
-        bool fact = buf_.empty() && delayed_.back().empty();
-        buf_ << ".\n";
-        delayed_.back().emplace_back(buf_.str());
-        buf_.reset();
-        if (!uid) {
-            uid = ++*uids_;
-        }
-        // Note: leaves room for optimization...
-        if (!fact) {
-            delayed_.back().emplace(delayed_.back().begin(), sep);
-        }
-        delayed_.back().emplace(delayed_.back().begin(), *uid);
-        return *uid;
-    }
-
-    [[nodiscard]] auto buf() -> Util::OutputBuffer & { return buf_; }
-
-    void prepend() { delayed_.back().insert(delayed_.back().begin(), buf_.str()); }
-
-    [[nodiscard]] auto empty() const -> bool { return !has_body_; }
-
-    void define(size_t index, std::string str) { defined_.emplace(index, std::move(str)); }
-
-    void flush(Util::OutputBuffer &out) {
-        for (auto &delayed : delayed_) {
-            for (auto &elem : delayed) {
-                std::visit(
-                    [&out, this]<class T>(T const &elem) {
-                        if constexpr (Util::is_among_v<T, std::string>) {
-                            out << elem;
-                        } else if constexpr (Util::is_among_v<T, size_t>) {
-                            auto it = defined_.find(elem);
-                            if (it != defined_.end()) {
-                                out << it.value();
-                            } else {
-                                out << "#false";
-                            }
-                        }
-                    },
-                    elem);
-                out.endl();
-            }
-        }
-        delayed_.clear();
-    }
-
-    void end_step() {
-        delayed_.clear();
-        defined_.clear();
-    }
+    void start() { body_.clear(); }
 
   private:
-    void sep() {
-        if (has_body_) {
-            buf_ << "; ";
-        } else {
-            has_body_ = true;
-        }
-    }
-
-    void do_lit(Sign sign, Symbol sym) override {
-        sep();
-        buf_ << sign << sym;
+    void do_lit(Sign sign, Symbol sym, size_t uid) override {
+        static_cast<void>(sign);
+        static_cast<void>(sym);
+        body_.emplace_back(uid);
     }
 
     void do_boolean(bool value) override {
-        sep();
-        buf_ << (value ? "#true" : "#false");
+        if (!value) {
+            // TODO: need to introduce false literal
+            body_.emplace_back(-1);
+        }
     }
 
-    auto do_cond_lit(std::optional<size_t> uid) -> size_t override { return do_bd_aggr(Sign::none, uid); }
-
-    auto do_bd_aggr(Sign sign, std::optional<size_t> uid) -> size_t override {
+    auto do_cond_lit(std::optional<size_t> uid) -> size_t override {
         if (!uid) {
             uid = ++*uids_;
         }
-        sep();
-        buf_ << sign;
-        delay();
-        delayed_.back().emplace_back(*uid);
+        body_.emplace_back(*uid);
         return *uid;
     }
 
-    auto do_bd_theory(Sign sign, std::optional<size_t> uid) -> size_t override { return do_bd_aggr(sign, uid); }
+    auto do_bd_aggr(Sign sign, std::optional<size_t> uid) -> size_t override {
+        static_cast<void>(sign);
+        if (!uid) {
+            uid = ++*uids_;
+        }
+        body_.emplace_back(*uid);
+        return *uid;
+    }
 
-    bool has_body_ = false;
+    auto do_bd_theory(Sign sign, std::optional<size_t> uid) -> size_t override {
+        static_cast<void>(sign);
+        if (!uid) {
+            uid = ++*uids_;
+        }
+        body_.emplace_back(*uid);
+        return *uid;
+    }
+
     size_t *uids_;
-    Util::OutputBuffer buf_;
-    Util::unordered_map<size_t, std::string> defined_;
-    std::vector<std::vector<std::variant<std::string, size_t>>> delayed_;
+    std::vector<size_t> body_;
 };
 
+/*
 class OutputCond : public OutputLit {
   public:
     void start() {
@@ -202,27 +143,14 @@ class OutputBackend : public OutputStm, OutputTheory {
     }
 
     [[nodiscard]] auto do_body() -> OutputLit & override {
-        // body_.start();
-        // return body_;
-        throw std::logic_error{"implement me!!"};
+        body_.start();
+        return body_;
     }
 
     void do_rule(std::optional<std::pair<Symbol, bool>> head) override {
         static_cast<void>(head);
-        // if (!body_.delayed()) {
-        //     simple_head_(*out_, head);
-        //     if (!body_.empty() || !head) {
-        //         *out_ << " :- ";
-        //     }
-        //     *out_ << body_.end() << ".\n";
-        //     out_->endl();
-        // } else {
-        //     body_.buf() << ".\n";
-        //     body_.delay();
-        //     simple_head_(body_.buf(), head);
-        //     body_.buf() << " :- ";
-        //     body_.prepend();
-        // }
+        // backend_->rule(head, body_.literals());
+        //  TODO: simply pass rule to backend
         throw std::logic_error{"implement me"};
     }
 
@@ -611,12 +539,12 @@ class OutputBackend : public OutputStm, OutputTheory {
         throw std::logic_error{"implement me"};
     }
 
+    size_t uids_ = 0;
+    OutputBody body_{uids_};
     Backend *backend_;
     // Util::OutputBuffer tmp_;
-    // OutputBody body_{uids_};
     // OutputCond cond_;
     // Util::ordered_set<std::string> strs_;
-    // size_t uids_ = 0;
     // bool explicit_show_ = true;
 };
 
