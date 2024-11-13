@@ -293,10 +293,7 @@ class OutputBackend : public OutputStm, OutputTheory {
         throw std::logic_error{"implement me"};
     }
 
-    auto do_uid() -> size_t override {
-        // return ++uids_;
-        throw std::logic_error{"implement me"};
-    }
+    auto do_uid() -> size_t override { return ++uids_; }
 
     void do_cond_lit(size_t uid, CondLits elems) override {
         static_cast<void>(uid);
