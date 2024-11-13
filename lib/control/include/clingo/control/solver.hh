@@ -110,13 +110,13 @@ class Solver {
     //! @return the resulting output
     auto make_output_(OutputMode mode) -> UOutputStm;
 
+    Clasp::ClaspConfig cfg_;
+    Clasp::ClaspFacade clasp_;
     Util::OutputBuffer buf_;
     Output::UBackend backend_;
     UOutputStm out_;
     Grounder grd_;
     Scripts *scripts_;
-    Clasp::ClaspConfig cfg_;
-    Clasp::ClaspFacade clasp_;
 };
 
 //! @}

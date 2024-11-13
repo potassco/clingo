@@ -52,6 +52,30 @@ namespace {
 
 class BackendClasp : public Output::Backend {
   public:
+    BackendClasp(Clasp::Asp::LogicProgram &prg) : prg_{&prg} {}
+
+  private:
+    void do_rule(std::span<uint32_t const> head, std::span<int32_t const> body, bool choice) override {
+        bld_.clear();
+        bld_.start(choice ? Potassco::Head_t::choice : Potassco::Head_t::disjunctive);
+        for (auto const &atom : head) {
+            bld_.addHead(atom);
+        }
+        bld_.startBody();
+        for (auto const &lit : body) {
+            bld_.addGoal(lit);
+        }
+        prg_->addRule(bld_);
+    }
+    void do_show(Symbol sym, std::span<int32_t const> body) override {
+        buf_.reset();
+        buf_ << sym;
+        prg_->addOutput(buf_.c_str(), prg_->newCondition(body));
+    }
+
+    Util::OutputBuffer buf_;
+    Potassco::RuleBuilder bld_;
+    Clasp::Asp::LogicProgram *prg_;
 };
 
 } // namespace
@@ -66,7 +90,9 @@ auto Solver::make_output_(OutputMode mode) -> UOutputStm {
             return Output::make_text_output(buf_);
         }
         case Clingo::Control::OutputMode::clasp: {
-            backend_ = std::make_unique<BackendClasp>();
+            // TODO: find a better place to do this
+            cfg_.solve.numModels = 0;
+            backend_ = std::make_unique<BackendClasp>(clasp_.startAsp(cfg_, true));
             return Output::make_backend_output(*backend_);
         }
     }
@@ -79,19 +105,17 @@ void Solver::main(AppMode mode, std::span<std::string_view const> const &files,
     main(mode, params);
 }
 
-//! Dummy model printer.
-//!
-//! Note that currently all atoms are reported because there is no ClaspOutput yet and ids are zero.
+//! Test model printer.
 class EH : public Clasp::EventHandler {
   public:
-    EH(Grounder &grd) : grd_{&grd} {}
+    EH(Clasp::Asp::LogicProgram &prg, Grounder &grd) : prg_{&prg}, grd_{&grd} {}
     auto onModel([[maybe_unused]] Clasp::Solver const &slv, Clasp::Model const &mdl) -> bool override {
         std::cerr << "Model:";
         for (auto const &[sig, base] : grd_->base()) {
             for (auto i = size_t{0}, e = base->size(); i != e; ++i) {
                 auto const &atom = base->nth(i);
-                if (slv.assignment().valid(atom->second.id) &&
-                    mdl.isTrue(Clasp::toLit(static_cast<int32_t>(atom->second.id)))) {
+                if (auto lit = Clasp::Asp::solverLiteral(*prg_, static_cast<int32_t>(atom->second.id));
+                    mdl.isTrue(lit)) {
                     std::cerr << " " << atom->first;
                 }
             }
@@ -102,13 +126,11 @@ class EH : public Clasp::EventHandler {
     }
 
   private:
+    Clasp::Asp::LogicProgram *prg_;
     Grounder *grd_;
 };
 
 void Solver::main(AppMode mode, std::optional<std::vector<Clingo::Input::ProgramParamVec>> const &params) {
-    if (mode == AppMode::solve) {
-        clasp_.start(cfg_, Clasp::Problem_t::asp);
-    }
     if (scripts_->callable("main", 0)) {
         scripts_->main(*this);
     } else {
@@ -132,7 +154,8 @@ void Solver::main(AppMode mode, std::optional<std::vector<Clingo::Input::Program
         if (mode == AppMode::ground) {
             return;
         }
-        auto eh = EH{grd_};
+        clasp_.prepare();
+        auto eh = EH{*clasp_.asp(), grd_};
         clasp_.solve(&eh);
     }
 }

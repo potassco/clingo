@@ -8,7 +8,15 @@ namespace Clingo::Output {
 //! other forms of backends).
 class Backend {
   public:
+    void rule(std::span<uint32_t const> head, std::span<int32_t const> body, bool choice) {
+        do_rule(head, body, choice);
+    }
+    void show(Symbol sym, std::span<int32_t const> body) { do_show(sym, body); }
     virtual ~Backend() = default;
+
+  private:
+    virtual void do_rule(std::span<uint32_t const> head, std::span<int32_t const> body, bool choice) = 0;
+    virtual void do_show(Symbol sym, std::span<int32_t const> body) = 0;
 };
 using UBackend = std::unique_ptr<Backend>;
 

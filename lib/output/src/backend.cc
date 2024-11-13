@@ -22,15 +22,26 @@ class OutputBody : public OutputLit {
     //! Literals are added via the OutputLit interface.
     //!
     //! @return the literals
-    [[nodiscard]] auto literals() const -> std::vector<size_t> const & { return body_; }
+    [[nodiscard]] auto literals() const -> std::vector<int32_t> const & { return body_; }
 
     void start() { body_.clear(); }
 
   private:
-    void do_lit(Sign sign, Symbol sym, size_t uid) override {
-        static_cast<void>(sign);
-        static_cast<void>(sym);
-        body_.emplace_back(uid);
+    void do_lit(Sign sign, [[maybe_unused]] Symbol sym, size_t uid) override {
+        switch (sign) {
+            case Sign::none: {
+                body_.emplace_back(static_cast<int32_t>(uid));
+                return;
+            }
+            case Sign::once: {
+                body_.emplace_back(-static_cast<int32_t>(uid));
+                return;
+            }
+            case Sign::twice: {
+                throw std::logic_error("implement me");
+            }
+        }
+        Util::unreachable();
     }
 
     void do_boolean(bool value) override {
@@ -67,7 +78,7 @@ class OutputBody : public OutputLit {
     }
 
     size_t *uids_;
-    std::vector<size_t> body_;
+    std::vector<int32_t> body_;
 };
 
 /*
@@ -148,29 +159,17 @@ class OutputBackend : public OutputStm, OutputTheory {
     }
 
     void do_rule(std::optional<std::tuple<Symbol, size_t, bool>> head) override {
-        static_cast<void>(head);
-        // backend_->rule(head, body_.literals());
-        //  TODO: simply pass rule to backend
-        throw std::logic_error{"implement me"};
+        // TODO: no need to allocate a vector here
+        atoms_.clear();
+        bool choice = false;
+        if (head) {
+            choice = get<2>(*head);
+            atoms_.emplace_back(get<1>(*head));
+        }
+        backend_->rule(atoms_, body_.literals(), choice);
     }
 
-    void do_show_term(Symbol term) override {
-        static_cast<void>(term);
-        // if (!body_.delayed()) {
-        //     *out_ << "#show " << term;
-        //     if (!body_.empty()) {
-        //         *out_ << ": " << body_.end();
-        //     }
-        //     *out_ << ".\n";
-        //     out_->endl();
-        // } else {
-        //     body_.buf() << ".\n";
-        //     body_.delay();
-        //     body_.buf() << "#show " << term << ": ";
-        //     body_.prepend();
-        // }
-        throw std::logic_error{"implement me"};
-    }
+    void do_show_term(Symbol term) override { backend_->show(term, body_.literals()); }
 
     void do_external(Symbol atom, ExternalType type) override {
         static_cast<void>(atom);
@@ -405,18 +404,9 @@ class OutputBackend : public OutputStm, OutputTheory {
         throw std::logic_error{"implement me"};
     }
 
-    void do_flush() override {
-        // body_.flush(*out_);
-        throw std::logic_error{"implement me"};
-    }
+    void do_flush() override {}
 
-    void do_end_step() override {
-        // if (std::exchange(explicit_show_, false)) {
-        //     *out_ << "#show.\n";
-        // }
-        // out_->flush();
-        throw std::logic_error{"implement me"};
-    }
+    void do_end_step() override {}
 
     void do_mark([[maybe_unused]] SymbolCollector &gc) override {}
 
@@ -539,6 +529,7 @@ class OutputBackend : public OutputStm, OutputTheory {
     size_t uids_ = 0;
     OutputBody body_{uids_};
     Backend *backend_;
+    std::vector<uint32_t> atoms_;
     // Util::OutputBuffer tmp_;
     // OutputCond cond_;
     // Util::ordered_set<std::string> strs_;
