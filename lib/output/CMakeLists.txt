@@ -1,5 +1,6 @@
 add_library(clingo_output
     "src/text.cc"
+    "src/backend.cc"
     )
 add_library(clingo::output ALIAS clingo_output)
 
