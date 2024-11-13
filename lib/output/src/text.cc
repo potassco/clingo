@@ -190,7 +190,7 @@ class OutputText : public OutputStm, OutputTheory {
         }
     }
 
-    void do_fact(Symbol sym) override {
+    void do_fact(Symbol sym, [[maybe_unused]] size_t uid) override {
         *out_ << sym << ".\n";
         out_->endl();
     }

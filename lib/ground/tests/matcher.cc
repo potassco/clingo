@@ -26,7 +26,7 @@ class NullOutputLit : public OutputLit {
 class NullOutputStm : public OutputStm {
   private:
     auto do_uid() -> size_t override { return 0; }
-    void do_fact([[maybe_unused]] Symbol sym) override {}
+    void do_fact([[maybe_unused]] Symbol sym, [[maybe_unused]] size_t uid) override {}
     auto do_body() -> OutputLit & override { return lout; }
     void do_rule([[maybe_unused]] std::optional<std::tuple<Symbol, size_t, bool>> head) override {}
     void do_external([[maybe_unused]] Symbol atom, [[maybe_unused]] ExternalType type) override {}

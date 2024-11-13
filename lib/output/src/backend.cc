@@ -15,7 +15,7 @@ namespace {
 //! literals that can be retrieved via function literals.
 class OutputBody : public OutputLit {
   public:
-    OutputBody(size_t &uids) : uids_{&uids} {}
+    OutputBody(Backend &backend, size_t &uids) : backend_{&backend}, uids_{&uids} {}
 
     //! Get the literals of the body.
     //!
@@ -38,7 +38,12 @@ class OutputBody : public OutputLit {
                 return;
             }
             case Sign::twice: {
-                throw std::logic_error("implement me");
+                // Note: better way to handle?
+                auto bd = std::array{-static_cast<int32_t>(uid)};
+                auto hd = std::array{static_cast<uint32_t>(++*uids_)};
+                backend_->rule(hd, bd, false);
+                body_.emplace_back(-static_cast<int32_t>(hd[0]));
+                return;
             }
         }
         Util::unreachable();
@@ -46,7 +51,8 @@ class OutputBody : public OutputLit {
 
     void do_boolean(bool value) override {
         if (!value) {
-            // TODO: need to introduce false literal
+            // Note: implemented for completeness; should not happen.
+            body_.emplace_back(1);
             body_.emplace_back(-1);
         }
     }
@@ -77,6 +83,7 @@ class OutputBody : public OutputLit {
         return *uid;
     }
 
+    Backend *backend_;
     size_t *uids_;
     std::vector<int32_t> body_;
 };
@@ -145,12 +152,11 @@ class OutputBackend : public OutputStm, OutputTheory {
     //     }
     // }
 
-    void do_fact(Symbol sym) override {
-        static_cast<void>(sym);
-        static_cast<void>(backend_);
-        // *out_ << sym << ".\n";
-        // out_->endl();
-        throw std::logic_error{"implement me"};
+    void do_fact(Symbol sym, size_t uid) override {
+        auto hd = std::array{static_cast<uint32_t>(uid)};
+        auto bd = std::array{static_cast<int32_t>(uid)};
+        backend_->rule(hd, std::span<int32_t>{}, false);
+        backend_->show(sym, bd);
     }
 
     [[nodiscard]] auto do_body() -> OutputLit & override {
@@ -527,8 +533,8 @@ class OutputBackend : public OutputStm, OutputTheory {
     }
 
     size_t uids_ = 0;
-    OutputBody body_{uids_};
     Backend *backend_;
+    OutputBody body_{*backend_, uids_};
     std::vector<uint32_t> atoms_;
     // Util::OutputBuffer tmp_;
     // OutputCond cond_;

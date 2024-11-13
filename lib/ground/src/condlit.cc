@@ -67,11 +67,7 @@ auto StateCondLit::add_empty(Assignment const &ass) -> std::pair<MapAtomCondLit:
     if (syms_atom_ == nullptr) {
         syms_atom_ = static_cast<Symbol *>(mbr_->allocate(global_.size() * sizeof(Symbol), alignof(Symbol)));
     }
-    auto *jt = syms_atom_;
-    for (auto &var : global_) {
-        // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-        *jt = *ass[var];
-    }
+    std::ranges::transform(global_, syms_atom_, [&ass](auto const &var) { return *ass[var]; });
     auto [it, ins] = atoms_.try_emplace(syms_atom_);
     if (ins) {
         syms_atom_ = nullptr;

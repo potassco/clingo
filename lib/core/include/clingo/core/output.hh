@@ -107,7 +107,7 @@ class OutputStm {
     auto uid() -> size_t { return do_uid(); }
 
     //! Output the given fact.
-    void fact(Symbol sym) { do_fact(sym); }
+    void fact(Symbol sym, size_t uid) { do_fact(sym, uid); }
 
     //! Get an output for body literals.
     auto body() -> OutputLit & { return do_body(); }
@@ -181,7 +181,7 @@ class OutputStm {
   private:
     virtual auto do_uid() -> size_t = 0;
 
-    virtual void do_fact(Symbol sym) = 0;
+    virtual void do_fact(Symbol sym, size_t uid) = 0;
 
     virtual auto do_body() -> OutputLit & = 0;
     virtual void do_rule(std::optional<std::tuple<Symbol, size_t, bool>> head) = 0;
