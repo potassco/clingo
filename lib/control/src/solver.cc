@@ -110,22 +110,25 @@ class EH : public Clasp::EventHandler {
   public:
     EH(Clasp::Asp::LogicProgram &prg, Grounder &grd) : prg_{&prg}, grd_{&grd} {}
     auto onModel([[maybe_unused]] Clasp::Solver const &slv, Clasp::Model const &mdl) -> bool override {
-        std::cerr << "Model:";
+        buf_.reset();
+        buf_ << "Model:";
         for (auto const &[sig, base] : grd_->base()) {
             for (auto i = size_t{0}, e = base->size(); i != e; ++i) {
                 auto const &atom = base->nth(i);
                 if (auto lit = Clasp::Asp::solverLiteral(*prg_, static_cast<int32_t>(atom->second.id));
                     mdl.isTrue(lit)) {
-                    std::cerr << " " << atom->first;
+                    buf_ << " " << atom->first;
                 }
             }
         }
-        std::cerr << "\n";
-        std::cerr.flush();
+        buf_ << "\n";
+        printf("%s\n", buf_.c_str());
+        fflush(stdout);
         return true;
     }
 
   private:
+    Util::OutputBuffer buf_;
     Clasp::Asp::LogicProgram *prg_;
     Grounder *grd_;
 };
