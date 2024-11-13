@@ -178,13 +178,13 @@ class OutputText : public OutputStm, OutputTheory {
     OutputText(Util::OutputBuffer &out) : out_{&out} {};
 
   private:
-    template <class T> static void simple_head_(T &out, std::optional<std::pair<Symbol, bool>> const &head) {
+    template <class T> static void simple_head_(T &out, std::optional<std::tuple<Symbol, size_t, bool>> const &head) {
         if (head) {
-            if (head->second) {
+            if (get<2>(*head)) {
                 out << "{ ";
             }
-            out << head->first;
-            if (head->second) {
+            out << get<0>(*head);
+            if (get<2>(*head)) {
                 out << " }";
             }
         }
@@ -200,7 +200,7 @@ class OutputText : public OutputStm, OutputTheory {
         return body_;
     }
 
-    void do_rule(std::optional<std::pair<Symbol, bool>> head) override {
+    void do_rule(std::optional<std::tuple<Symbol, size_t, bool>> head) override {
         if (!body_.delayed()) {
             simple_head_(*out_, head);
             if (!body_.empty() || !head) {

@@ -320,8 +320,9 @@ auto StmRule::do_report(InstantiationContext const &ctx) -> bool {
         }
     }
     if (head_ != nullptr) {
-        base_->add(atom_, fact ? StateAtom::fact : StateAtom::derived, [&ctx]() { return ctx.out().uid(); });
-        ctx.out().rule(std::make_pair(atom_, type_ == RuleType::choice));
+        auto it =
+            base_->add(atom_, fact ? StateAtom::fact : StateAtom::derived, [&ctx]() { return ctx.out().uid(); }).first;
+        ctx.out().rule(std::tuple{atom_, size_t{it.value().id}, type_ == RuleType::choice});
     } else if (type_ == RuleType::normal) {
         ctx.out().rule(std::nullopt);
     }

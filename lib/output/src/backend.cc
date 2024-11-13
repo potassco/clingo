@@ -147,7 +147,7 @@ class OutputBackend : public OutputStm, OutputTheory {
         return body_;
     }
 
-    void do_rule(std::optional<std::pair<Symbol, bool>> head) override {
+    void do_rule(std::optional<std::tuple<Symbol, size_t, bool>> head) override {
         static_cast<void>(head);
         // backend_->rule(head, body_.literals());
         //  TODO: simply pass rule to backend
