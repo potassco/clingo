@@ -110,7 +110,6 @@ class EH : public Clasp::EventHandler {
   public:
     EH(Clasp::Asp::LogicProgram &prg, Grounder &grd) : prg_{&prg}, grd_{&grd} {}
     auto onModel([[maybe_unused]] Clasp::Solver const &slv, Clasp::Model const &mdl) -> bool override {
-        buf_.reset();
         buf_ << "Model:";
         for (auto const &[sig, base] : grd_->base()) {
             for (auto i = size_t{0}, e = base->size(); i != e; ++i) {
@@ -122,13 +121,12 @@ class EH : public Clasp::EventHandler {
             }
         }
         buf_ << "\n";
-        printf("%s\n", buf_.c_str());
-        fflush(stdout);
+        buf_.flush();
         return true;
     }
 
   private:
-    Util::OutputBuffer buf_;
+    Util::OutputBuffer buf_{stdout};
     Clasp::Asp::LogicProgram *prg_;
     Grounder *grd_;
 };

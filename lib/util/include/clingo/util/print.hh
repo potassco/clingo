@@ -159,7 +159,7 @@ class OutputBuffer {
         auto m = size_ + n;
         assert(n >= 0 && m >= 0);
         if (buf_.size() < static_cast<size_t>(m)) {
-            buf_.reserve(static_cast<size_t>(m));
+            buf_.reserve(2 * static_cast<size_t>(m));
             buf_.resize(buf_.capacity());
         }
         return std::next(buf_.data(), size_);

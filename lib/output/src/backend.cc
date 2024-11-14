@@ -9,13 +9,15 @@ namespace Clingo::Output {
 
 namespace {
 
-//! Output handling rule bodies.
+//! Output handling conditions.
 //!
 //! Each literal is mapped to a program literal and appended to a vector of
 //! literals that can be retrieved via function literals.
-class OutputBody : public OutputLit {
+//!
+//! Only supports simple literals excluding aggregates, theory atoms and conditions.
+class OutputCond : public OutputLit {
   public:
-    OutputBody(Backend &backend, size_t &uids) : backend_{&backend}, uids_{&uids} {}
+    OutputCond(Backend &backend, size_t &uids) : backend_{&backend}, uids_{&uids} {}
 
     //! Get the literals of the body.
     //!
@@ -24,10 +26,9 @@ class OutputBody : public OutputLit {
     //! @return the literals
     [[nodiscard]] auto literals() const -> std::vector<int32_t> const & { return body_; }
 
-    void start() { body_.clear(); }
+    auto backend() -> Backend & { return *backend_; };
 
-  private:
-    void do_lit(Sign sign, [[maybe_unused]] Symbol sym, size_t uid) override {
+    auto append(Sign sign, size_t uid) {
         switch (sign) {
             case Sign::none: {
                 body_.emplace_back(static_cast<int32_t>(uid));
@@ -49,72 +50,21 @@ class OutputBody : public OutputLit {
         Util::unreachable();
     }
 
+    auto append(size_t uid) { body_.emplace_back(static_cast<int32_t>(uid)); }
+
+    auto uid() -> size_t { return ++*uids_; }
+
+    void start() { body_.clear(); }
+
+  private:
+    void do_lit(Sign sign, [[maybe_unused]] Symbol sym, size_t uid) override { append(sign, uid); }
+
     void do_boolean(bool value) override {
         if (!value) {
             // Note: implemented for completeness; should not happen.
             body_.emplace_back(1);
             body_.emplace_back(-1);
         }
-    }
-
-    auto do_cond_lit(std::optional<size_t> uid) -> size_t override {
-        if (!uid) {
-            uid = ++*uids_;
-        }
-        body_.emplace_back(*uid);
-        return *uid;
-    }
-
-    auto do_bd_aggr(Sign sign, std::optional<size_t> uid) -> size_t override {
-        static_cast<void>(sign);
-        if (!uid) {
-            uid = ++*uids_;
-        }
-        body_.emplace_back(*uid);
-        return *uid;
-    }
-
-    auto do_bd_theory(Sign sign, std::optional<size_t> uid) -> size_t override {
-        static_cast<void>(sign);
-        if (!uid) {
-            uid = ++*uids_;
-        }
-        body_.emplace_back(*uid);
-        return *uid;
-    }
-
-    Backend *backend_;
-    size_t *uids_;
-    std::vector<int32_t> body_;
-};
-
-/*
-class OutputCond : public OutputLit {
-  public:
-    void start() {
-        buf_.reset();
-        has_lits_ = false;
-    }
-
-    [[nodiscard]] auto end() -> std::string_view { return buf_.view(); }
-
-  private:
-    void sep() {
-        if (has_lits_) {
-            buf_ << ", ";
-        } else {
-            has_lits_ = true;
-        }
-    }
-
-    void do_lit(Sign sign, Symbol sym) override {
-        sep();
-        buf_ << sign << sym;
-    }
-
-    void do_boolean(bool value) override {
-        sep();
-        buf_ << (value ? "#true" : "#false");
     }
 
     auto do_cond_lit([[maybe_unused]] std::optional<size_t> uid) -> size_t override {
@@ -129,29 +79,52 @@ class OutputCond : public OutputLit {
         throw std::runtime_error("unsupported literal");
     }
 
-    bool has_lits_ = false;
-    Util::OutputBuffer buf_;
+    Backend *backend_;
+    size_t *uids_;
+    std::vector<int32_t> body_;
 };
 
-*/
+//! Output handling rule bodies.
+//!
+//! Each literal is mapped to a program literal and appended to a vector of
+//! literals that can be retrieved via function literals.
+//!
+//! Supports the full range of clingo's body literals.
+class OutputBody : public OutputCond {
+  public:
+    OutputBody(Backend &backend, size_t &uids) : OutputCond(backend, uids) {}
+
+  private:
+    auto do_cond_lit(std::optional<size_t> uid) -> size_t override {
+        if (!uid) {
+            uid = this->uid();
+        }
+        append(*uid);
+        return *uid;
+    }
+
+    auto do_bd_aggr(Sign sign, std::optional<size_t> uid) -> size_t override {
+        if (!uid) {
+            uid = this->uid();
+        }
+        append(sign, *uid);
+        return *uid;
+    }
+
+    auto do_bd_theory(Sign sign, std::optional<size_t> uid) -> size_t override {
+        if (!uid) {
+            uid = this->uid();
+        }
+        append(sign, *uid);
+        return *uid;
+    }
+};
 
 class OutputBackend : public OutputStm, OutputTheory {
   public:
     OutputBackend(Backend &backend) : backend_{&backend} {};
 
   private:
-    // template <class T> static void simple_head_(T &out, std::optional<std::pair<Symbol, bool>> const &head) {
-    //     if (head) {
-    //         if (head->second) {
-    //             out << "{ ";
-    //         }
-    //         out << head->first;
-    //         if (head->second) {
-    //             out << " }";
-    //         }
-    //     }
-    // }
-
     void do_fact(Symbol sym, size_t uid) override {
         auto hd = std::array{static_cast<uint32_t>(uid)};
         auto bd = std::array{static_cast<int32_t>(uid)};
@@ -165,7 +138,6 @@ class OutputBackend : public OutputStm, OutputTheory {
     }
 
     void do_rule(std::optional<std::tuple<Symbol, size_t, bool>> head) override {
-        // TODO: no need to allocate a vector here
         atoms_.clear();
         bool choice = false;
         if (head) {
@@ -182,32 +154,32 @@ class OutputBackend : public OutputStm, OutputTheory {
         static_cast<void>(type);
         // *out_ << "#external " << atom << ". [" << type << "]\n";
         // out_->endl();
-        throw std::logic_error{"implement me"};
+        throw std::logic_error{"implement me: external"};
     }
 
     void do_project(Symbol atom) override {
         static_cast<void>(atom);
         // *out_ << "#project " << atom << ".\n";
         // out_->endl();
-        throw std::logic_error{"implement me"};
+        throw std::logic_error{"implement me: project"};
     }
 
     auto do_aggr_rule(std::optional<size_t> uid) -> size_t override {
         static_cast<void>(uid);
         // return body_.delay_head(uid, " :- ");
-        throw std::logic_error{"implement me"};
+        throw std::logic_error{"implement me: aggr_rule"};
     }
 
     auto do_theory_rule(std::optional<size_t> uid) -> size_t override {
         static_cast<void>(uid);
         // return body_.delay_head(uid, " :- ");
-        throw std::logic_error{"implement me"};
+        throw std::logic_error{"implement me: theory_rule"};
     }
 
     auto do_disjunctive_rule(std::optional<size_t> uid) -> size_t override {
         static_cast<void>(uid);
         // return body_.delay_head(uid, " :- ");
-        throw std::logic_error{"implement me"};
+        throw std::logic_error{"implement me: disjunctive_rule"};
     }
 
     void do_weak_constraint(Number const &weight, std::optional<Symbol> prio, SymbolSpan terms) override {
@@ -235,7 +207,7 @@ class OutputBackend : public OutputStm, OutputTheory {
         //     body_.buf() << " :~ ";
         //     body_.prepend();
         // }
-        throw std::logic_error{"implement me"};
+        throw std::logic_error{"implement me: weak_constraint"};
     }
 
     void do_heuristic(Symbol atom, Number const &weight, Number const *prio, HeuristicType type) override {
@@ -265,7 +237,7 @@ class OutputBackend : public OutputStm, OutputTheory {
         //     body_.buf() << "#heuristic " << atom << ": ";
         //     body_.prepend();
         // }
-        throw std::logic_error{"implement me"};
+        throw std::logic_error{"implement me: heuristic"};
     }
 
     void do_edge(Symbol src, Symbol dst) override {
@@ -284,18 +256,21 @@ class OutputBackend : public OutputStm, OutputTheory {
         //     *out_ << "#edge (" << src << "," << dst << "): ";
         //     body_.prepend();
         // }
-        throw std::logic_error{"implement me"};
+        throw std::logic_error{"implement me: edge"};
     }
 
     auto do_cond() -> OutputLit & override {
-        // cond_.start();
-        // return cond_;
-        throw std::logic_error{"implement me"};
+        cond_.start();
+        return cond_;
     }
 
     auto do_cond_id() -> size_t override {
-        // return str_id_(cond_.end());
-        throw std::logic_error{"implement me"};
+        auto lits = cond_.literals();
+        // TODO: implement special handling for one-elementary conditions here!!!
+        // TODO: maintain a dictionary of conditions
+        auto hd = std::array{static_cast<uint32_t>(uid())};
+        backend_->rule(hd, lits, false);
+        return hd[0];
     }
 
     auto do_uid() -> size_t override { return ++uids_; }
@@ -317,7 +292,7 @@ class OutputBackend : public OutputStm, OutputTheory {
         //     });
         //     body_.define(uid, tmp_.str());
         // }
-        throw std::logic_error{"implement me"};
+        throw std::logic_error{"implement me: cond_lit"};
     }
 
     void aggr(size_t uid, AggregateFunction fun, auto elems, Guards guards, auto prt) {
@@ -338,7 +313,7 @@ class OutputBackend : public OutputStm, OutputTheory {
         //     tmp_ << " " << it->first << " " << it->second;
         // }
         // body_.define(uid, tmp_.str());
-        throw std::logic_error{"implement me"};
+        throw std::logic_error{"implement me: aggr"};
     }
 
     void do_bd_aggr(size_t uid, AggregateFunction fun, BdElems elems, Guards guards) override {
@@ -358,7 +333,7 @@ class OutputBackend : public OutputStm, OutputTheory {
         //         });
         //     }
         // });
-        throw std::logic_error{"implement me"};
+        throw std::logic_error{"implement me: bd_aggr"};
     }
 
     void do_hd_aggr(size_t uid, AggregateFunction fun, HdElems elems, Guards guards) override {
@@ -377,7 +352,7 @@ class OutputBackend : public OutputStm, OutputTheory {
         //         buf << *strs_.nth(hc.second);
         //     });
         // });
-        throw std::logic_error{"implement me"};
+        throw std::logic_error{"implement me: hd_aggr"};
     }
 
     void do_disjunction(size_t uid, DisjunctionElems elems) override {
@@ -402,12 +377,12 @@ class OutputBackend : public OutputStm, OutputTheory {
         //     });
         // }
         // body_.define(uid, tmp_.str());
-        throw std::logic_error{"implement me"};
+        throw std::logic_error{"implement me: disjunction"};
     }
 
     auto do_theory() -> OutputTheory & override {
         // return *this;
-        throw std::logic_error{"implement me"};
+        throw std::logic_error{"implement me: theory"};
     }
 
     void do_flush() override {}
@@ -419,7 +394,7 @@ class OutputBackend : public OutputStm, OutputTheory {
     auto do_str(String val) -> size_t override {
         static_cast<void>(val);
         // return str_id_(val.view());
-        throw std::logic_error{"implement me"};
+        throw std::logic_error{"implement me: theory str"};
     }
 
     auto do_num(Number const &val) -> size_t override {
@@ -430,7 +405,7 @@ class OutputBackend : public OutputStm, OutputTheory {
         //     tmp_.reset() << val;
         // }
         // return str_id_(tmp_.view());
-        throw std::logic_error{"implement me"};
+        throw std::logic_error{"implement me: theory num"};
     }
 
     auto do_fun(String name, std::span<size_t const> args) -> size_t override {
@@ -477,7 +452,7 @@ class OutputBackend : public OutputStm, OutputTheory {
         //     }
         // }
         // return str_id_(tmp_.view());
-        throw std::logic_error{"implement me"};
+        throw std::logic_error{"implement me: theory fun"};
     }
 
     auto do_tup(TheoryTermTupleType type, std::span<size_t const> args) -> size_t override {
@@ -499,7 +474,7 @@ class OutputBackend : public OutputStm, OutputTheory {
         // }();
         // tmp_.reset() << od << Util::p_range(args, [&](auto &out, auto idx) { out << *strs_.nth(idx); }) << cd;
         // return str_id_(tmp_.view());
-        throw std::logic_error{"implement me"};
+        throw std::logic_error{"implement me: theory tup"};
     }
 
     auto do_elem(IndexSpan tuple, size_t cond) -> size_t override {
@@ -512,7 +487,7 @@ class OutputBackend : public OutputStm, OutputTheory {
         // }
         // tmp_ << *strs_.nth(cond);
         // return str_id_(tmp_.view());
-        throw std::logic_error{"implement me"};
+        throw std::logic_error{"implement me: theory elem"};
     }
 
     void do_atm(size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard) override {
@@ -529,12 +504,13 @@ class OutputBackend : public OutputStm, OutputTheory {
         //     tmp_ << " " << *strs_.nth(guard->first) << " " << *strs_.nth(guard->second);
         // }
         // body_.define(atom_uid, tmp_.str());
-        throw std::logic_error{"implement me"};
+        throw std::logic_error{"implement me: theory atom"};
     }
 
     size_t uids_ = 0;
     Backend *backend_;
     OutputBody body_{*backend_, uids_};
+    OutputCond cond_{*backend_, uids_};
     std::vector<uint32_t> atoms_;
     // Util::OutputBuffer tmp_;
     // OutputCond cond_;
