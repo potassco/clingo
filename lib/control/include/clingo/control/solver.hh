@@ -88,6 +88,10 @@ class Solver {
     void add_const(String name, Symbol value);
     //! Ground the program.
     [[nodiscard]] auto ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *ctx) -> bool;
+    //! Solve the program.
+    //!
+    //! @todo Incomplete and just to get started.
+    void solve();
 
     //! Output the current unprocessed program.
     void output_unprocessed_program(std::ostream &out);
@@ -117,6 +121,8 @@ class Solver {
     UOutputStm out_;
     Grounder grd_;
     Scripts *scripts_;
+    int need_update_ = 0; //< marker to indicate that the next solve or ground should start a new step
+    bool has_clasp_;      //< TODO: Try to get rid of this one
 };
 
 //! @}

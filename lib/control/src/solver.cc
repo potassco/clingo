@@ -82,14 +82,15 @@ class BackendClasp : public Output::Backend {
 
 Solver::Solver(Logger &log, SymbolStore &store, Scripts &scripts, Input::RewriteOptions opts, OutputMode mode,
                FILE *out)
-    : buf_{out}, out_{make_output_(mode)}, grd_{log, store, opts, *out_}, scripts_{&scripts} {}
+    : buf_{out}, out_{make_output_(mode)}, grd_{log, store, opts, *out_}, scripts_{&scripts},
+      has_clasp_{mode == OutputMode::clasp} {}
 
 auto Solver::make_output_(OutputMode mode) -> UOutputStm {
     switch (mode) {
-        case Clingo::Control::OutputMode::text: {
+        case OutputMode::text: {
             return Output::make_text_output(buf_);
         }
-        case Clingo::Control::OutputMode::clasp: {
+        case OutputMode::clasp: {
             // TODO: find a better place to do this
             cfg_.solve.numModels = 0;
             backend_ = std::make_unique<BackendClasp>(clasp_.startAsp(cfg_, true));
@@ -148,13 +149,27 @@ void Solver::main(AppMode mode, std::optional<std::vector<Clingo::Input::Program
                 if (!ground(param, nullptr)) {
                     break;
                 }
+                if (mode == AppMode::solve) {
+                    solve();
+                }
             }
         } else {
             std::ignore = ground(Clingo::Input::ProgramParamVec{{grd_.store().string("base"), {}}}, nullptr);
+            if (mode == AppMode::solve) {
+                solve();
+            }
         }
-        if (mode == AppMode::ground) {
-            return;
+    }
+}
+
+void Solver::solve() {
+    if (has_clasp_) {
+        if (need_update_ == 2) {
+            // calling ground with an empty parameter list ensures that the
+            // program is updated
+            std::ignore = ground(Input::ProgramParamVec{}, nullptr);
         }
+        need_update_ = 2;
         clasp_.prepare();
         auto eh = EH{*clasp_.asp(), grd_};
         clasp_.solve(&eh);
@@ -170,6 +185,13 @@ void Solver::parse(std::span<std::string_view const> const &files) { grd_.parse(
 void Solver::add_const(String name, Symbol value) { grd_.add_const(name, value); }
 
 auto Solver::ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *ctx) -> bool {
+    if (has_clasp_ && need_update_ > 0) {
+        clasp_.update(true);
+    }
+    need_update_ = 1;
+    // TODO: there is no need for a return value here. Instead, the program
+    // should be marked unsatisfiable and further grounding be suppressed.
+    // It should even be possible to handle this in the grounder.
     return grd_.ground(params, ctx != nullptr ? ctx : scripts_);
 }
 

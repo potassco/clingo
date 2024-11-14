@@ -276,23 +276,21 @@ class OutputBackend : public OutputStm, OutputTheory {
     auto do_uid() -> size_t override { return ++uids_; }
 
     void do_cond_lit(size_t uid, CondLits elems) override {
-        static_cast<void>(uid);
-        static_cast<void>(elems);
-        // if (elems.empty()) {
-        //     body_.define(uid, "#true");
-        // } else {
-        //     tmp_.reset();
-        //     tmp_ << Util::p_range(elems, "; ", [this](auto &buf, auto const &elem) {
-        //         if (elem.first) {
-        //             buf << *strs_.nth(*elem.first);
-        //         } else {
-        //             buf << "#false";
-        //         }
-        //         buf << ": " << *strs_.nth(elem.second);
-        //     });
-        //     body_.define(uid, tmp_.str());
-        // }
-        throw std::logic_error{"implement me: cond_lit"};
+        // TODO: can be a member
+        std::vector<int32_t> body;
+        body.reserve(elems.size());
+        for (auto const &elem : elems) {
+            auto const &[conc, cond] = elem;
+            if (conc) {
+                // TODO: needs translation
+                // the current logic does not work because the recursive case requires an equivalence between a
+                // condition and its elements
+                throw std::logic_error{"implement me: cond_lit"};
+            }
+            body.emplace_back(-static_cast<int32_t>(cond));
+        }
+        auto hd = std::array{static_cast<uint32_t>(uid)};
+        backend_->rule(hd, body, false);
     }
 
     void aggr(size_t uid, AggregateFunction fun, auto elems, Guards guards, auto prt) {
