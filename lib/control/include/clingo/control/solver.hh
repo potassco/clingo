@@ -105,6 +105,20 @@ class Solver {
     [[nodiscard]] auto buf() -> Util::OutputBuffer & { return buf_; };
 
   private:
+    //! States for step transitions.
+    //!
+    //! The updated state is special and is only entered intially. The prepared
+    //! state is entered after some API functions. For example, when
+    //! information about literals is requested that needs help of the solver.
+    //! The grounded and solved states are entederd after grounding and
+    //! solving.
+    enum class State : uint8_t {
+        updated,  //< intial step
+        grounded, //< step has been grounded
+        prepared, //< step is prepared for solving
+        solved,   //< step has been solved
+    };
+
     //! Create output according to mode.
     //!
     //! This function additionally initizalizes required members, for example,
@@ -121,8 +135,8 @@ class Solver {
     UOutputStm out_;
     Grounder grd_;
     Scripts *scripts_;
-    int need_update_ = 0; //< marker to indicate that the next solve or ground should start a new step
-    bool has_clasp_;      //< TODO: Try to get rid of this one
+    State state_ = State::updated;
+    bool has_clasp_; //< TODO: Try to get rid of this one
 };
 
 //! @}

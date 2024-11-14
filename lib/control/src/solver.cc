@@ -164,12 +164,11 @@ void Solver::main(AppMode mode, std::optional<std::vector<Clingo::Input::Program
 
 void Solver::solve() {
     if (has_clasp_) {
-        if (need_update_ == 2) {
-            // calling ground with an empty parameter list ensures that the
-            // program is updated
+        if (state_ == State::solved || state_ == State::updated) {
+            // we inject an emtpy ground
             std::ignore = ground(Input::ProgramParamVec{}, nullptr);
         }
-        need_update_ = 2;
+        state_ = State::solved;
         clasp_.prepare();
         auto eh = EH{*clasp_.asp(), grd_};
         clasp_.solve(&eh);
@@ -185,10 +184,10 @@ void Solver::parse(std::span<std::string_view const> const &files) { grd_.parse(
 void Solver::add_const(String name, Symbol value) { grd_.add_const(name, value); }
 
 auto Solver::ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *ctx) -> bool {
-    if (has_clasp_ && need_update_ > 0) {
+    if (has_clasp_ && state_ != State::updated) {
         clasp_.update(true);
     }
-    need_update_ = 1;
+    state_ = State::grounded;
     // TODO: there is no need for a return value here. Instead, the program
     // should be marked unsatisfiable and further grounding be suppressed.
     // It should even be possible to handle this in the grounder.
