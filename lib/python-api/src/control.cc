@@ -57,6 +57,8 @@ void Control::ground(std::optional<std::vector<std::pair<std::string, SymbolVec>
                                        !ctx.is_none() ? &Control::ctx_ : nullptr, &ctx));
 }
 
+void Control::solve() { handle_error(clingo_control_solve(ctl_.get())); }
+
 void Control::main() { handle_error(clingo_control_main(ctl_.get())); }
 
 auto Control::buffer() -> char const * {
@@ -108,6 +110,9 @@ Ground the given program parts.
 Args:
     parts: A list of tuples of part names and their symbolic arguments.
     context: An optional object with functions to call during grounding.
+)"))
+        .def("solve", &Control::solve, doc(R"(
+Solve the current ground program.
 )"))
         .def("main", &Control::main, doc(R"(
 Ground and solver a logic program.

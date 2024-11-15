@@ -74,14 +74,9 @@ auto run(clingo_lib_t *lib, std::vector<std::string> &&args) -> clingo_result_t 
             return app.exit(e) != 0 ? clingo_result_runtime : clingo_result_success;
         }
 
-        auto output_mode = Clingo::Control::OutputMode::text;
-        if (mode == Clingo::Control::AppMode::solve) {
-            output_mode = Clingo::Control::OutputMode::clasp;
-        }
-
         // TODO: maybe this should not happen here
         lib->log.set_level(log_level);
-        auto slv = Clingo::Control::Solver{lib->log, *lib->store, lib->scripts, opts, output_mode};
+        auto slv = Clingo::Control::Solver{lib->log, *lib->store, lib->scripts, opts, mode};
         auto prs = Clingo::Input::Parser{lib->log, *lib->store};
 
         [&]() {
@@ -101,7 +96,7 @@ auto run(clingo_lib_t *lib, std::vector<std::string> &&args) -> clingo_result_t 
                 }
                 slv.add_const(*def->first, *def->second);
             }
-            slv.main(mode, std::vector<std::string_view>{files.begin(), files.end()}, params);
+            slv.main(std::vector<std::string_view>{files.begin(), files.end()}, params);
         }();
     } catch (std::exception const &e) {
         GRINGO_REPORT(lib->log, error) << e.what();

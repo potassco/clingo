@@ -29,16 +29,25 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, char const *const *argumen
     CLINGO_TRY {
         // for now could use the main stuff
         auto *out = stdout;
+        auto mode = Clingo::Control::AppMode::solve;
         for (auto const *arg : std::span(arguments, arguments_size)) {
             if (std::strcmp(arg, "--text-buffer") == 0) {
                 out = nullptr;
+            } else if (std::strcmp(arg, "--mode=ground") == 0) {
+                mode = Clingo::Control::AppMode::ground;
+            } else if (std::strcmp(arg, "--mode=solve") == 0) {
+                out = nullptr;
+                mode = Clingo::Control::AppMode::solve;
+            } else if (std::strcmp(arg, "--mode=parse") == 0) {
+                mode = Clingo::Control::AppMode::parse;
+            } else if (std::strcmp(arg, "--mode=rewrite") == 0) {
+                mode = Clingo::Control::AppMode::rewrite;
             }
         }
         static_cast<void>(arguments);
         static_cast<void>(arguments_size);
         auto opts = Clingo::Input::RewriteOptions{};
-        auto slv = std::make_unique<Clingo::Control::Solver>(lib->log, *lib->store, lib->scripts, opts,
-                                                             Clingo::Control::OutputMode::text, out);
+        auto slv = std::make_unique<Clingo::Control::Solver>(lib->log, *lib->store, lib->scripts, opts, mode, out);
         *control = new clingo_control{lib, nullptr};
         (*control)->slv = slv.release();
     }
@@ -112,14 +121,19 @@ extern "C" auto clingo_control_ground(clingo_control_t *control, clingo_part_t c
                 control->lib->store->string(part.name),
                 Clingo::Util::transform(part.params, part.params + part.size, make_part)};
         };
-        std::ignore = control->slv->ground(Clingo::Util::transform(parts, parts + parts_size, make_parts),
-                                           ctx ? &ctx.value() : nullptr);
+        control->slv->ground(Clingo::Util::transform(parts, parts + parts_size, make_parts),
+                             ctx ? &ctx.value() : nullptr);
     }
     CLINGO_CATCH;
 }
 
+extern "C" auto clingo_control_solve(clingo_control_t *control) -> clingo_result_t {
+    CLINGO_TRY { control->slv->solve(); }
+    CLINGO_CATCH;
+}
+
 extern "C" auto clingo_control_main(clingo_control_t *control) -> clingo_result_t {
-    CLINGO_TRY { control->slv->main(Clingo::Control::AppMode::ground, std::nullopt); }
+    CLINGO_TRY { control->slv->main(std::nullopt); }
     CLINGO_CATCH;
 }
 

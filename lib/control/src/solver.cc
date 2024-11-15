@@ -80,30 +80,28 @@ class BackendClasp : public Output::Backend {
 
 } // namespace
 
-Solver::Solver(Logger &log, SymbolStore &store, Scripts &scripts, Input::RewriteOptions opts, OutputMode mode,
-               FILE *out)
-    : buf_{out}, out_{make_output_(mode)}, grd_{log, store, opts, *out_}, scripts_{&scripts},
-      has_clasp_{mode == OutputMode::clasp} {}
+Solver::Solver(Logger &log, SymbolStore &store, Scripts &scripts, Input::RewriteOptions opts, AppMode mode, FILE *out)
+    : buf_{out}, out_{make_output_(mode)}, grd_{log, store, opts, *out_}, scripts_{&scripts}, mode_{mode} {}
 
-auto Solver::make_output_(OutputMode mode) -> UOutputStm {
+auto Solver::make_output_(AppMode mode) -> UOutputStm {
     switch (mode) {
-        case OutputMode::text: {
-            return Output::make_text_output(buf_);
-        }
-        case OutputMode::clasp: {
+        case AppMode::solve: {
             // TODO: find a better place to do this
             cfg_.solve.numModels = 0;
             backend_ = std::make_unique<BackendClasp>(clasp_.startAsp(cfg_, true));
             return Output::make_backend_output(*backend_);
         }
+        default: {
+            return Output::make_text_output(buf_);
+        }
     }
     Util::unreachable();
 }
 
-void Solver::main(AppMode mode, std::span<std::string_view const> const &files,
+void Solver::main(std::span<std::string_view const> const &files,
                   std::optional<std::vector<Clingo::Input::ProgramParamVec>> const &params) {
     parse(files);
-    main(mode, params);
+    main(params);
 }
 
 //! Test model printer.
@@ -132,30 +130,28 @@ class EH : public Clasp::EventHandler {
     Grounder *grd_;
 };
 
-void Solver::main(AppMode mode, std::optional<std::vector<Clingo::Input::ProgramParamVec>> const &params) {
+void Solver::main(std::optional<std::vector<Clingo::Input::ProgramParamVec>> const &params) {
     if (scripts_->callable("main", 0)) {
         scripts_->main(*this);
     } else {
-        if (mode == AppMode::parse) {
+        if (mode_ == AppMode::parse) {
             output_unprocessed_program(std::cout);
             return;
         }
-        if (mode == AppMode::rewrite) {
+        if (mode_ == AppMode::rewrite) {
             output_program(std::cout);
             return;
         }
         if (params) {
             for (auto const &param : *params) {
-                if (!ground(param, nullptr)) {
-                    break;
-                }
-                if (mode == AppMode::solve) {
+                ground(param, nullptr);
+                if (mode_ == AppMode::solve) {
                     solve();
                 }
             }
         } else {
-            std::ignore = ground(Clingo::Input::ProgramParamVec{{grd_.store().string("base"), {}}}, nullptr);
-            if (mode == AppMode::solve) {
+            ground(Clingo::Input::ProgramParamVec{{grd_.store().string("base"), {}}}, nullptr);
+            if (mode_ == AppMode::solve) {
                 solve();
             }
         }
@@ -163,10 +159,10 @@ void Solver::main(AppMode mode, std::optional<std::vector<Clingo::Input::Program
 }
 
 void Solver::solve() {
-    if (has_clasp_) {
+    if (mode_ == AppMode::solve) {
         if (state_ == State::solved || state_ == State::updated) {
             // we inject an emtpy ground
-            std::ignore = ground(Input::ProgramParamVec{}, nullptr);
+            ground(Input::ProgramParamVec{}, nullptr);
         }
         state_ = State::solved;
         clasp_.prepare();
@@ -183,15 +179,12 @@ void Solver::parse(std::span<std::string_view const> const &files) { grd_.parse(
 
 void Solver::add_const(String name, Symbol value) { grd_.add_const(name, value); }
 
-auto Solver::ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *ctx) -> bool {
-    if (has_clasp_ && state_ != State::updated) {
+void Solver::ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *ctx) {
+    if (mode_ == AppMode::solve && state_ != State::updated) {
         clasp_.update(true);
     }
     state_ = State::grounded;
-    // TODO: there is no need for a return value here. Instead, the program
-    // should be marked unsatisfiable and further grounding be suppressed.
-    // It should even be possible to handle this in the grounder.
-    return grd_.ground(params, ctx != nullptr ? ctx : scripts_);
+    std::ignore = grd_.ground(params, ctx != nullptr ? ctx : scripts_);
 }
 
 void Solver::output_unprocessed_program(std::ostream &out) { grd_.output_unprocessed_program(out); }

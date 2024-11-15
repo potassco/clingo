@@ -15,6 +15,7 @@ class Control {
     void parse_string(char const *str);
     void join(Program &prg);
     void ground(std::optional<std::vector<std::pair<std::string, SymbolVec>>> const &parts, py::handle ctx);
+    void solve();
     void main();
     auto buffer() -> char const *;
 

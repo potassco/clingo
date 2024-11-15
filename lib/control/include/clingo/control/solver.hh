@@ -11,12 +11,6 @@ namespace Clingo::Control {
 //! @addtogroup control
 //! @{
 
-//! Enumeration of available outputs.
-enum class OutputMode : uint8_t {
-    text, //!< Text output.
-    clasp //!< Clasp output.
-};
-
 class Solver;
 
 //! Script providing code execution, main, and callbacks.
@@ -69,14 +63,14 @@ enum class AppMode : uint8_t {
 class Solver {
   public:
     //! Create a grounder object.
-    Solver(Logger &log, SymbolStore &store, Scripts &scripts, Input::RewriteOptions opts, OutputMode mode,
+    Solver(Logger &log, SymbolStore &store, Scripts &scripts, Input::RewriteOptions opts, AppMode mode,
            FILE *out = stdout);
 
-    //! Parse and ground a program.
-    void main(AppMode mode, std::span<std::string_view const> const &files,
+    //! Parse, ground, and solve a program.
+    void main(std::span<std::string_view const> const &files,
               std::optional<std::vector<Clingo::Input::ProgramParamVec>> const &params);
-    //! Ground a program.
-    void main(AppMode mode, std::optional<std::vector<Clingo::Input::ProgramParamVec>> const &params);
+    //! Ground and solve a program.
+    void main(std::optional<std::vector<Clingo::Input::ProgramParamVec>> const &params);
 
     //! Parse a program from the given string.
     void join(Input::UnprocessedProgram const &prg);
@@ -87,7 +81,7 @@ class Solver {
     //! Define a constant.
     void add_const(String name, Symbol value);
     //! Ground the program.
-    [[nodiscard]] auto ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *ctx) -> bool;
+    void ground(Input::ProgramParamVec const &params, Ground::ScriptCallback *ctx);
     //! Solve the program.
     //!
     //! @todo Incomplete and just to get started.
@@ -126,7 +120,7 @@ class Solver {
     //!
     //! @param mode the configured output mode
     //! @return the resulting output
-    auto make_output_(OutputMode mode) -> UOutputStm;
+    auto make_output_(AppMode mode) -> UOutputStm;
 
     Clasp::ClaspConfig cfg_;
     Clasp::ClaspFacade clasp_;
@@ -136,7 +130,7 @@ class Solver {
     Grounder grd_;
     Scripts *scripts_;
     State state_ = State::updated;
-    bool has_clasp_; //< TODO: Try to get rid of this one
+    AppMode mode_;
 };
 
 //! @}

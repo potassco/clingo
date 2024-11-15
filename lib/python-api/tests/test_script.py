@@ -68,7 +68,7 @@ class TestScript(TestCase):
         """
         The main function.
         """
-        ctl = Control(self.lib, ["--text-buffer"])
+        ctl = Control(self.lib, ["--text-buffer", "--mode=ground"])
         ctl.parse_string(
             dedent(
                 """\
