@@ -17,10 +17,18 @@ class TestScript(TestCase):
     """
 
     def setUp(self):
-        self.lib = Library()
+        self._lib = Library()
 
     def tearDown(self):
-        self.lib = None
+        self._lib = None
+
+    @property
+    def lib(self) -> Library:
+        """
+        Get the library object.
+        """
+        assert self._lib is not None
+        return self._lib
 
     def test_control(self):
         """
@@ -68,19 +76,32 @@ class TestScript(TestCase):
         """
 
         class Context:
+            """
+            Simple test context.
+            """
+
             def __init__(self, lib):
+                """
+                Initialize the context.
+                """
                 self._lib = lib
 
-            def f(self, arg):
+            def fun(self, arg):
+                """
+                Test function f.
+                """
                 return [arg, Number(self._lib, arg.number + 1)]
 
-            def g(self, arg):
+            def gun(self, arg):
+                """
+                Test function g.
+                """
                 return Number(self._lib, arg.number + 1)
 
         ctl = Control(self.lib, ["--text-buffer", "--mode=ground"])
 
-        ctl.parse_string("p(@f(1)).")
-        ctl.parse_string("q(@f(2)).")
+        ctl.parse_string("p(@fun(1)).")
+        ctl.parse_string("q(@gun(2)).")
         ctl.parse_string("#show.")
         ctl.ground([("base", [])], context=Context(self.lib))
 
