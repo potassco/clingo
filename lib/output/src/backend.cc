@@ -268,6 +268,18 @@ class OutputBackend : public OutputStm, OutputTheory {
         auto lits = cond_.literals();
         // TODO: implement special handling for one-elementary conditions here!!!
         // TODO: maintain a dictionary of conditions
+
+        // representation
+        // - 0 sign literal
+        //   - compactly represent one-elementary conditions
+        // - 1 uid
+        //   - store uid of condition in map
+        // map:
+        // - ordered map
+        // - uid is index in map
+        // - key is the set of literals
+        // - the directions that have been introduced
+        //   - only create rules for conditions actually used
         auto hd = std::array{static_cast<uint32_t>(uid())};
         backend_->rule(hd, lits, false);
         return hd[0];
