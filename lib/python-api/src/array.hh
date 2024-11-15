@@ -5,19 +5,29 @@
 
 #include <vector>
 
+namespace Clingo::Python {
+
+template <class T, class Alloc = std::allocator<T>> class Array : public std::vector<T, Alloc> {
+  public:
+    using std::vector<T, Alloc>::vector;
+};
+
+} // namespace Clingo::Python
+
 namespace pybind11::detail {
 
-template <typename Type> class iterable_caster {
+template <typename T, typename A> class type_caster<Clingo::Python::Array<T, A>> {
   public:
-    using value_conv = make_caster<Type>;
-    using value_type = std::remove_cv_t<Type>;
+    using value_conv = make_caster<T>;
+    using value_type = std::remove_cv_t<T>;
+    using array_type = Clingo::Python::Array<T, A>;
 
-    PYBIND11_TYPE_CASTER(std::vector<Type>, _("Iterable[") + value_conv::name + _("]"));
+    PYBIND11_TYPE_CASTER(array_type, _("Iterable[") + value_conv::name + _("]"));
 
     auto load(handle src, bool convert) -> bool {
         if (isinstance<iterable>(src) && !isinstance<str>(src)) {
             auto s = reinterpret_borrow<iterable>(src);
-            value = std::vector<Type>{};
+            value = Clingo::Python::Array<T, A>{};
             if (isinstance<sequence>(src)) {
                 auto t = reinterpret_borrow<sequence>(src);
                 value.reserve(t.size());
@@ -27,7 +37,7 @@ template <typename Type> class iterable_caster {
                 if (!conv.load(it, convert)) {
                     return false;
                 }
-                value.push_back(cast_op<Type &&>(std::move(conv)));
+                value.push_back(cast_op<T &&>(std::move(conv)));
             }
             return true;
         }
@@ -35,9 +45,9 @@ template <typename Type> class iterable_caster {
     }
 
     // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
-    template <typename T> static auto cast(T &&src, return_value_policy policy, handle parent) -> handle {
-        if (!std::is_lvalue_reference_v<T>) {
-            policy = return_value_policy_override<Type>::policy(policy);
+    template <typename U> static auto cast(U &&src, return_value_policy policy, handle parent) -> handle {
+        if (!std::is_lvalue_reference_v<U>) {
+            policy = return_value_policy_override<U>::policy(policy);
         }
         auto l = list{src.size()};
         auto index = size_t{0};

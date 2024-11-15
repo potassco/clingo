@@ -1,6 +1,6 @@
 #include "ast.hh"
+#include "array.hh"
 #include "core.hh"
-#include "iterable.hh"
 #include "symbol.hh"
 #include "util.hh"
 
@@ -16,9 +16,9 @@ namespace Clingo::Python {
 
 namespace py = pybind11;
 
-using StringArray = std::vector<std::string>;
+using StringArray = Array<std::string>;
 
-auto to_string_array(std::vector<char const *> arr) -> StringArray {
+auto to_string_array(Array<char const *> arr) -> StringArray {
     auto res = StringArray();
     res.insert(res.end(), arr.begin(), arr.end());
     return res;
@@ -28,11 +28,11 @@ template <class T> auto c_cast(std::optional<T> const &opt) -> clingo_ast_t *;
 
 template <class... Ts> auto c_cast(std::variant<Ts...> const &var) -> clingo_ast_t *;
 
-template <class T> auto c_cast(std::span<T> const &arr) -> std::vector<clingo_ast_t *>;
-template <class T> auto c_cast(std::vector<T> const &arr) -> std::vector<clingo_ast_t *>;
+template <class T> auto c_cast(std::span<T> const &arr) -> Array<clingo_ast_t *>;
+template <class T> auto c_cast(Array<T> const &arr) -> Array<clingo_ast_t *>;
 
-auto c_cast(StringArray const &arr) -> std::vector<char const *> {
-    std::vector<char const *> ret;
+auto c_cast(StringArray const &arr) -> Array<char const *> {
+    Array<char const *> ret;
     ret.reserve(arr.size());
     for (auto const &str : arr) {
         ret.emplace_back(str.c_str());
@@ -239,7 +239,7 @@ using Term = std::variant<TermVariable, TermSymbolic, TermAbsolute, TermUnaryOpe
 
 auto construct_term(clingo_ast_t *ast) -> Term;
 
-using TermArray = std::vector<Term>;
+using TermArray = Array<Term>;
 
 auto construct_term_array(clingo_ast_t **ast, size_t size) -> TermArray;
 
@@ -275,13 +275,13 @@ using TermOrProjection = std::variant<Term, Projection>;
 
 auto construct_term_or_projection(clingo_ast_t *ast) -> TermOrProjection;
 
-using TermOrProjectionArray = std::vector<TermOrProjection>;
+using TermOrProjectionArray = Array<TermOrProjection>;
 
 auto construct_term_or_projection_array(clingo_ast_t **ast, size_t size) -> TermOrProjectionArray;
 
 class ArgumentTuple;
 
-using ArgumentTupleArray = std::vector<ArgumentTuple>;
+using ArgumentTupleArray = Array<ArgumentTuple>;
 
 auto construct_argument_tuple_array(clingo_ast_t **ast, size_t size) -> ArgumentTupleArray;
 
@@ -291,7 +291,7 @@ using TermOrArgumentTuple = std::variant<Term, ArgumentTuple>;
 
 auto construct_term_or_argument_tuple(clingo_ast_t *ast) -> TermOrArgumentTuple;
 
-using TermOrArgumentTupleArray = std::vector<TermOrArgumentTuple>;
+using TermOrArgumentTupleArray = Array<TermOrArgumentTuple>;
 
 auto construct_term_or_argument_tuple_array(clingo_ast_t **ast, size_t size) -> TermOrArgumentTupleArray;
 
@@ -588,7 +588,7 @@ class RightGuard : public ASTBase {
 
 using OptionalRightGuard = std::optional<RightGuard>;
 
-using RightGuardArray = std::vector<RightGuard>;
+using RightGuardArray = Array<RightGuard>;
 
 auto construct_right_guard_array(clingo_ast_t **ast, size_t size) -> RightGuardArray;
 
@@ -694,7 +694,7 @@ using TheoryTerm =
 
 auto construct_theory_term(clingo_ast_t *ast) -> TheoryTerm;
 
-using TheoryTermArray = std::vector<TheoryTerm>;
+using TheoryTermArray = Array<TheoryTerm>;
 
 auto construct_theory_term_array(clingo_ast_t **ast, size_t size) -> TheoryTermArray;
 
@@ -707,7 +707,7 @@ class UnparsedElement : public ASTBase {
     auto operator=(UnparsedElement &&x) noexcept -> UnparsedElement & = default;
     ~UnparsedElement() noexcept = default;
 
-    auto operators() -> std::vector<char const *>;
+    auto operators() -> Array<char const *>;
     auto term() -> TheoryTerm;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
@@ -725,7 +725,7 @@ class UnparsedElement : public ASTBase {
     UnparsedElement(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-using UnparsedElementArray = std::vector<UnparsedElement>;
+using UnparsedElementArray = Array<UnparsedElement>;
 
 auto construct_unparsed_element_array(clingo_ast_t **ast, size_t size) -> UnparsedElementArray;
 
@@ -900,7 +900,7 @@ class TheoryRightGuard : public ASTBase {
 
 using OptionalTheoryRightGuard = std::optional<TheoryRightGuard>;
 
-using LiteralArray = std::vector<Literal>;
+using LiteralArray = Array<Literal>;
 
 auto construct_literal_array(clingo_ast_t **ast, size_t size) -> LiteralArray;
 
@@ -934,7 +934,7 @@ class SetAggregateElement : public ASTBase {
     SetAggregateElement(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-using SetAggregateElementArray = std::vector<SetAggregateElement>;
+using SetAggregateElementArray = Array<SetAggregateElement>;
 
 auto construct_set_aggregate_element_array(clingo_ast_t **ast, size_t size) -> SetAggregateElementArray;
 
@@ -968,7 +968,7 @@ class BodyAggregateElement : public ASTBase {
     BodyAggregateElement(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-using BodyAggregateElementArray = std::vector<BodyAggregateElement>;
+using BodyAggregateElementArray = Array<BodyAggregateElement>;
 
 auto construct_body_aggregate_element_array(clingo_ast_t **ast, size_t size) -> BodyAggregateElementArray;
 
@@ -1001,7 +1001,7 @@ class TheoryAtomElement : public ASTBase {
     TheoryAtomElement(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-using TheoryAtomElementArray = std::vector<TheoryAtomElement>;
+using TheoryAtomElementArray = Array<TheoryAtomElement>;
 
 auto construct_theory_atom_element_array(clingo_ast_t **ast, size_t size) -> TheoryAtomElementArray;
 
@@ -1020,7 +1020,7 @@ using BodyLiteral =
 
 auto construct_body_literal(clingo_ast_t *ast) -> BodyLiteral;
 
-using BodyLiteralArray = std::vector<BodyLiteral>;
+using BodyLiteralArray = Array<BodyLiteral>;
 
 auto construct_body_literal_array(clingo_ast_t **ast, size_t size) -> BodyLiteralArray;
 
@@ -1211,7 +1211,7 @@ using DisjunctionElement = std::variant<Literal, HeadConditionalLiteral>;
 
 auto construct_disjunction_element(clingo_ast_t *ast) -> DisjunctionElement;
 
-using DisjunctionElementArray = std::vector<DisjunctionElement>;
+using DisjunctionElementArray = Array<DisjunctionElement>;
 
 auto construct_disjunction_element_array(clingo_ast_t **ast, size_t size) -> DisjunctionElementArray;
 
@@ -1246,7 +1246,7 @@ class HeadAggregateElement : public ASTBase {
     HeadAggregateElement(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-using HeadAggregateElementArray = std::vector<HeadAggregateElement>;
+using HeadAggregateElementArray = Array<HeadAggregateElement>;
 
 auto construct_head_aggregate_element_array(clingo_ast_t **ast, size_t size) -> HeadAggregateElementArray;
 
@@ -1443,7 +1443,7 @@ class TheoryOperatorDefinition : public ASTBase {
     TheoryOperatorDefinition(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-using TheoryOperatorDefinitionArray = std::vector<TheoryOperatorDefinition>;
+using TheoryOperatorDefinitionArray = Array<TheoryOperatorDefinition>;
 
 auto construct_theory_operator_definition_array(clingo_ast_t **ast, size_t size) -> TheoryOperatorDefinitionArray;
 
@@ -1477,7 +1477,7 @@ class TheoryTermDefinition : public ASTBase {
     TheoryTermDefinition(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-using TheoryTermDefinitionArray = std::vector<TheoryTermDefinition>;
+using TheoryTermDefinitionArray = Array<TheoryTermDefinition>;
 
 auto construct_theory_term_definition_array(clingo_ast_t **ast, size_t size) -> TheoryTermDefinitionArray;
 
@@ -1490,7 +1490,7 @@ class TheoryGuardDefinition : public ASTBase {
     auto operator=(TheoryGuardDefinition &&x) noexcept -> TheoryGuardDefinition & = default;
     ~TheoryGuardDefinition() noexcept = default;
 
-    auto operators() -> std::vector<char const *>;
+    auto operators() -> Array<char const *>;
     auto term() -> char const *;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
@@ -1545,7 +1545,7 @@ class TheoryAtomDefinition : public ASTBase {
     TheoryAtomDefinition(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-using TheoryAtomDefinitionArray = std::vector<TheoryAtomDefinition>;
+using TheoryAtomDefinitionArray = Array<TheoryAtomDefinition>;
 
 auto construct_theory_atom_definition_array(clingo_ast_t **ast, size_t size) -> TheoryAtomDefinitionArray;
 
@@ -1605,7 +1605,7 @@ class OptimizeElement : public ASTBase {
     OptimizeElement(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-using OptimizeElementArray = std::vector<OptimizeElement>;
+using OptimizeElementArray = Array<OptimizeElement>;
 
 auto construct_optimize_element_array(clingo_ast_t **ast, size_t size) -> OptimizeElementArray;
 
@@ -1636,7 +1636,7 @@ class Edge : public ASTBase {
     Edge(clingo_ast_t *ast) : ASTBase{ast} {}
 };
 
-using EdgeArray = std::vector<Edge>;
+using EdgeArray = Array<Edge>;
 
 auto construct_edge_array(clingo_ast_t **ast, size_t size) -> EdgeArray;
 
@@ -2140,7 +2140,7 @@ class StatementProgram : public ASTBase {
 
     auto location() -> Location;
     auto name() -> char const *;
-    auto arguments() -> std::vector<char const *>;
+    auto arguments() -> Array<char const *>;
 
     void visit(py::handle visitor, py::args const &args, py::kwargs const &kwargs);
     auto transform(Library &lib, py::handle transform, py::args const &args,
@@ -2216,58 +2216,6 @@ class StatementComment : public ASTBase {
   private:
     StatementComment(clingo_ast_t *ast) : ASTBase{ast} {}
 };
-
-} // namespace Clingo::Python
-
-namespace pybind11::detail {
-
-template <> class type_caster<Clingo::Python::StringArray> : public iterable_caster<std::string> {};
-template <> class type_caster<Clingo::Python::TermArray> : public iterable_caster<Clingo::Python::Term> {};
-template <>
-class type_caster<Clingo::Python::TermOrProjectionArray> : public iterable_caster<Clingo::Python::TermOrProjection> {};
-template <>
-class type_caster<Clingo::Python::ArgumentTupleArray> : public iterable_caster<Clingo::Python::ArgumentTuple> {};
-template <>
-class type_caster<Clingo::Python::TermOrArgumentTupleArray>
-    : public iterable_caster<Clingo::Python::TermOrArgumentTuple> {};
-template <> class type_caster<Clingo::Python::RightGuardArray> : public iterable_caster<Clingo::Python::RightGuard> {};
-template <> class type_caster<Clingo::Python::TheoryTermArray> : public iterable_caster<Clingo::Python::TheoryTerm> {};
-template <>
-class type_caster<Clingo::Python::UnparsedElementArray> : public iterable_caster<Clingo::Python::UnparsedElement> {};
-template <> class type_caster<Clingo::Python::LiteralArray> : public iterable_caster<Clingo::Python::Literal> {};
-template <>
-class type_caster<Clingo::Python::SetAggregateElementArray>
-    : public iterable_caster<Clingo::Python::SetAggregateElement> {};
-template <>
-class type_caster<Clingo::Python::BodyAggregateElementArray>
-    : public iterable_caster<Clingo::Python::BodyAggregateElement> {};
-template <>
-class type_caster<Clingo::Python::TheoryAtomElementArray> : public iterable_caster<Clingo::Python::TheoryAtomElement> {
-};
-template <>
-class type_caster<Clingo::Python::BodyLiteralArray> : public iterable_caster<Clingo::Python::BodyLiteral> {};
-template <>
-class type_caster<Clingo::Python::DisjunctionElementArray>
-    : public iterable_caster<Clingo::Python::DisjunctionElement> {};
-template <>
-class type_caster<Clingo::Python::HeadAggregateElementArray>
-    : public iterable_caster<Clingo::Python::HeadAggregateElement> {};
-template <>
-class type_caster<Clingo::Python::TheoryOperatorDefinitionArray>
-    : public iterable_caster<Clingo::Python::TheoryOperatorDefinition> {};
-template <>
-class type_caster<Clingo::Python::TheoryTermDefinitionArray>
-    : public iterable_caster<Clingo::Python::TheoryTermDefinition> {};
-template <>
-class type_caster<Clingo::Python::TheoryAtomDefinitionArray>
-    : public iterable_caster<Clingo::Python::TheoryAtomDefinition> {};
-template <>
-class type_caster<Clingo::Python::OptimizeElementArray> : public iterable_caster<Clingo::Python::OptimizeElement> {};
-template <> class type_caster<Clingo::Python::EdgeArray> : public iterable_caster<Clingo::Python::Edge> {};
-
-} // namespace pybind11::detail
-
-namespace Clingo::Python {
 
 auto construct_term(clingo_ast_t *ast) -> Term {
     clingo_ast_type_t type = 0;
@@ -3139,10 +3087,10 @@ auto construct_theory_term_array(clingo_ast_t **ast, size_t size) -> TheoryTermA
     return ret;
 }
 
-auto UnparsedElement::operators() -> std::vector<char const *> {
+auto UnparsedElement::operators() -> Array<char const *> {
     size_t size = 0;
     handle_error(clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_operators, nullptr, &size));
-    std::vector<char const *> ret;
+    Array<char const *> ret;
     ret.resize(size, nullptr);
     handle_error(clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_operators, ret.data(), &size));
     return ret;
@@ -4695,10 +4643,10 @@ auto construct_theory_term_definition_array(clingo_ast_t **ast, size_t size) -> 
     return ret;
 }
 
-auto TheoryGuardDefinition::operators() -> std::vector<char const *> {
+auto TheoryGuardDefinition::operators() -> Array<char const *> {
     size_t size = 0;
     handle_error(clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_operators, nullptr, &size));
-    std::vector<char const *> ret;
+    Array<char const *> ret;
     ret.resize(size, nullptr);
     handle_error(clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_operators, ret.data(), &size));
     return ret;
@@ -5869,10 +5817,10 @@ auto StatementProgram::name() -> char const * {
     return ret;
 }
 
-auto StatementProgram::arguments() -> std::vector<char const *> {
+auto StatementProgram::arguments() -> Array<char const *> {
     size_t size = 0;
     handle_error(clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_arguments, nullptr, &size));
-    std::vector<char const *> ret;
+    Array<char const *> ret;
     ret.resize(size, nullptr);
     handle_error(clingo_ast_attribute_get_string_array(ast_, clingo_ast_attribute_arguments, ret.data(), &size));
     return ret;
@@ -6012,8 +5960,8 @@ template <class... Ts> auto c_cast(std::variant<Ts...> const &var) -> clingo_ast
     return std::visit([](auto const &x) { return c_cast(x); }, var);
 }
 
-template <class T> auto c_cast(std::span<T> const &arr) -> std::vector<clingo_ast_t *> {
-    std::vector<clingo_ast_t *> ret;
+template <class T> auto c_cast(std::span<T> const &arr) -> Array<clingo_ast_t *> {
+    Array<clingo_ast_t *> ret;
     ret.reserve(arr.size());
     for (auto const &x : arr) {
         ret.emplace_back(c_cast(x));
@@ -6021,8 +5969,8 @@ template <class T> auto c_cast(std::span<T> const &arr) -> std::vector<clingo_as
     return ret;
 }
 
-template <class T> auto c_cast(std::vector<T> const &arr) -> std::vector<clingo_ast_t *> {
-    std::vector<clingo_ast_t *> ret;
+template <class T> auto c_cast(Array<T> const &arr) -> Array<clingo_ast_t *> {
+    Array<clingo_ast_t *> ret;
     ret.reserve(arr.size());
     for (auto const &x : arr) {
         ret.emplace_back(c_cast(x));
@@ -6033,12 +5981,12 @@ template <class T> auto c_cast(std::vector<T> const &arr) -> std::vector<clingo_
 template <class Cons>
 void visit_array(clingo_ast_t *ast, clingo_ast_attribute_t attr, py::handle visitor, py::args const &args,
                  py::kwargs const &kwargs, Cons cons) {
-    struct Array {
-        ~Array() { clingo_ast_array_free(begin, size); }
+    struct CArray {
+        ~CArray() { clingo_ast_array_free(begin, size); }
         clingo_ast_t **begin = nullptr;
         size_t size = 0;
     };
-    auto array = Array{};
+    auto array = CArray{};
     handle_error(clingo_ast_attribute_get_ast_array(ast, attr, &array.begin, &array.size));
     std::for_each_n(array.begin, array.size, [&](auto *&cld) {
         auto *cpy = cld;
@@ -6193,11 +6141,10 @@ class Scanner {
         handle_error(clingo_ast_scan_string(lib, program, &scanner_));
     }
 
-    Scanner(Library &lib, std::vector<std::string> files) : lib_{lib} {
-        std::vector<char const *> cfiles;
+    Scanner(Library &lib, Array<std::string> files) : lib_{lib} {
+        Array<char const *> cfiles;
         cfiles.reserve(cfiles.size());
-        std::transform(files.begin(), files.end(), std::back_inserter(cfiles),
-                       [](auto const &file) { return file.c_str(); });
+        std::ranges::transform(files, std::back_inserter(cfiles), [](auto const &file) { return file.c_str(); });
         handle_error(clingo_ast_scan_files(lib, cfiles.data(), cfiles.size(), &scanner_));
     }
 
@@ -6263,16 +6210,16 @@ class RewriteContext {
     clingo_ast_rewrite_context_t *ctx_ = nullptr;
 };
 
-auto rewrite_statement(RewriteContext &ctx, Statement &stm) -> std::vector<Statement> {
+auto rewrite_statement(RewriteContext &ctx, Statement &stm) -> Array<Statement> {
     auto *c_ctx = c_cast(ctx);
-    struct Array {
-        ~Array() { clingo_ast_array_free(result, result_size); }
+    struct CArray {
+        ~CArray() { clingo_ast_array_free(result, result_size); }
         clingo_ast_t **result = nullptr;
         size_t result_size = 0;
     };
-    auto arr = Array{};
+    auto arr = CArray{};
     handle_error(clingo_ast_rewrite(c_ctx, c_cast(stm), &arr.result, &arr.result_size));
-    std::vector<Statement> res;
+    Array<Statement> res;
     res.reserve(arr.result_size);
     std::for_each_n(arr.result, arr.result_size, [&res](clingo_ast *&ast) {
         auto *cpy = ast;
@@ -9195,7 +9142,7 @@ Args:
     lib: A library object to store symbols.
     program: The program to parse.
 )doc")
-        .def(py::init<Library &, std::vector<std::string>>(), py::arg("lib"), py::arg("files"), R"(
+        .def(py::init<Library &, Array<std::string>>(), py::arg("lib"), py::arg("files"), R"(
 Create a scanner to parse from the given files.
 
 The scanner follows clingo's handling of files on the command line. Filename

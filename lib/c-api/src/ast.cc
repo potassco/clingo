@@ -14,10 +14,12 @@
 #include <clingo/util/ordered_set.hh>
 #include <clingo/util/type_traits.hh>
 
+#include <algorithm>
 #include <cstdarg>
 #include <cstring>
 #include <forward_list>
 #include <fstream>
+#include <ranges>
 #include <span>
 
 // NOLINTBEGIN(cppcoreguidelines-macro-usage)
@@ -458,7 +460,7 @@ auto make_ast(std::shared_ptr<U> owner, std::optional<T> const &opt) -> std::uni
     return nullptr;
 }
 
-template <class U, class T> auto make_ast_vec(std::shared_ptr<U> owner, std::span<T> vec) -> ASTVec {
+template <class U, class T> auto make_ast_vec(std::shared_ptr<U> const &owner, std::span<T> vec) -> ASTVec {
     ASTVec res{vec.size()};
     size_t i = 0;
     for (auto const &elem : vec) {
@@ -474,13 +476,13 @@ template <class U> auto make_ast(U &&value) -> std::unique_ptr<clingo_ast_t> {
     return make_ast(std::move(owner), *ptr);
 }
 
-template <class U, class T> auto make_ast_vec(std::shared_ptr<U> owner, std::vector<T> const &vec) -> ASTVec {
-    return make_ast_vec(std::move(owner), std::span{vec});
+template <class U, class T> auto make_ast_vec(std::shared_ptr<U> const &owner, std::vector<T> const &vec) -> ASTVec {
+    return make_ast_vec(owner, std::span{vec});
 }
 
 template <class U, class T>
-auto make_ast_vec(std::shared_ptr<U> owner, Clingo::Util::immutable_array<T> const &vec) -> ASTVec {
-    return make_ast_vec(std::move(owner), std::span{vec});
+auto make_ast_vec(std::shared_ptr<U> const &owner, Clingo::Util::immutable_array<T> const &vec) -> ASTVec {
+    return make_ast_vec(owner, std::span{vec});
 }
 
 // }}} make_ast
@@ -2558,7 +2560,7 @@ extern "C" auto clingo_ast_scan_files(clingo_lib_t *lib, char const *const *file
         if (span.empty()) {
             res->scan_file("-");
         } else {
-            std::for_each(span.rbegin(), span.rend(), [&res](auto const *path) { res->scan_file(path); });
+            std::ranges::for_each(std::ranges::reverse_view(span), [&res](auto const *path) { res->scan_file(path); });
         }
         *scanner = res.release();
     }
