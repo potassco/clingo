@@ -1,4 +1,5 @@
 #include "ast.hh"
+#include "iterable.hh"
 #include "core.hh"
 #include "symbol.hh"
 #include "util.hh"
@@ -15,6 +16,7 @@ namespace Clingo::Python {
 namespace py = pybind11;
 
 using StringArray = std::vector<std::string>;
+using StringIterable = Iterable<std::string>;
 
 auto to_string_array(std::vector<char const *> arr) -> StringArray {
     auto res = StringArray();
@@ -38,6 +40,11 @@ auto c_cast(StringArray const &arr) -> std::vector<char const *> {
         ret.emplace_back(str.c_str());
     }
     return ret;
+}
+
+template <class T>
+auto c_cast(Iterable<T> const &it) {
+    return c_cast(it.vector());
 }
 
 template <class Cons>
@@ -158,6 +165,7 @@ class {{ name | camel }};
 
 {%      endfor -%}
 using {{ c_type_name }} = std::vector<{{ type.value_type | camel }}>;
+using {{ type.value_type | camel }}Iterable = Iterable<{{ type.value_type | camel }}>;
 
 auto construct_{{ type_name }}(clingo_ast_t **ast, size_t size) -> {{ c_type_name }};
 {%    elif type.type == 'union' %}

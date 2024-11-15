@@ -16,6 +16,7 @@ namespace Clingo::Python {
 namespace py = pybind11;
 
 using StringArray = std::vector<std::string>;
+using StringIterable = Iterable<std::string>;
 
 auto to_string_array(std::vector<char const *> arr) -> StringArray {
     auto res = StringArray();
@@ -28,7 +29,6 @@ template <class T> auto c_cast(std::optional<T> const &opt) -> clingo_ast_t *;
 template <class... Ts> auto c_cast(std::variant<Ts...> const &var) -> clingo_ast_t *;
 
 template <class T> auto c_cast(std::vector<T> const &arr) -> std::vector<clingo_ast_t *>;
-template <class T> auto c_cast(Iterable<T> const &it) -> std::vector<clingo_ast_t *> { return c_cast(it.vector()); }
 
 auto c_cast(StringArray const &arr) -> std::vector<char const *> {
     std::vector<char const *> ret;
@@ -38,6 +38,8 @@ auto c_cast(StringArray const &arr) -> std::vector<char const *> {
     }
     return ret;
 }
+
+template <class T> auto c_cast(Iterable<T> const &it) { return c_cast(it.vector()); }
 
 template <class Cons>
 void visit_array(clingo_ast_t *ast, clingo_ast_attribute_t attr, py::handle visitor, py::args const &args,
@@ -239,6 +241,7 @@ using Term = std::variant<TermVariable, TermSymbolic, TermAbsolute, TermUnaryOpe
 auto construct_term(clingo_ast_t *ast) -> Term;
 
 using TermArray = std::vector<Term>;
+using TermIterable = Iterable<Term>;
 
 auto construct_term_array(clingo_ast_t **ast, size_t size) -> TermArray;
 
@@ -275,12 +278,14 @@ using TermOrProjection = std::variant<Term, Projection>;
 auto construct_term_or_projection(clingo_ast_t *ast) -> TermOrProjection;
 
 using TermOrProjectionArray = std::vector<TermOrProjection>;
+using TermOrProjectionIterable = Iterable<TermOrProjection>;
 
 auto construct_term_or_projection_array(clingo_ast_t **ast, size_t size) -> TermOrProjectionArray;
 
 class ArgumentTuple;
 
 using ArgumentTupleArray = std::vector<ArgumentTuple>;
+using ArgumentTupleIterable = Iterable<ArgumentTuple>;
 
 auto construct_argument_tuple_array(clingo_ast_t **ast, size_t size) -> ArgumentTupleArray;
 
@@ -291,6 +296,7 @@ using TermOrArgumentTuple = std::variant<Term, ArgumentTuple>;
 auto construct_term_or_argument_tuple(clingo_ast_t *ast) -> TermOrArgumentTuple;
 
 using TermOrArgumentTupleArray = std::vector<TermOrArgumentTuple>;
+using TermOrArgumentTupleIterable = Iterable<TermOrArgumentTuple>;
 
 auto construct_term_or_argument_tuple_array(clingo_ast_t **ast, size_t size) -> TermOrArgumentTupleArray;
 
@@ -366,7 +372,7 @@ class TermAbsolute : public ASTBase {
                    py::kwargs const &kwargs) -> std::optional<TermAbsolute>;
     auto update(Library &lib, py::kwargs const &kwargs) -> TermAbsolute;
 
-    static auto construct(Library &lib, Location const &location, TermArray const &pool) -> TermAbsolute;
+    static auto construct(Library &lib, Location const &location, TermIterable const &pool) -> TermAbsolute;
     static auto acquire(clingo_ast_t *ast) -> TermAbsolute { return {ast}; }
 
     friend auto operator==(TermAbsolute const &a, TermAbsolute const &b) -> bool = default;
@@ -453,7 +459,7 @@ class TermTuple : public ASTBase {
                    py::kwargs const &kwargs) -> std::optional<TermTuple>;
     auto update(Library &lib, py::kwargs const &kwargs) -> TermTuple;
 
-    static auto construct(Library &lib, Location const &location, TermOrArgumentTupleArray const &pool) -> TermTuple;
+    static auto construct(Library &lib, Location const &location, TermOrArgumentTupleIterable const &pool) -> TermTuple;
     static auto acquire(clingo_ast_t *ast) -> TermTuple { return {ast}; }
 
     friend auto operator==(TermTuple const &a, TermTuple const &b) -> bool = default;
@@ -482,7 +488,7 @@ class TermFunction : public ASTBase {
                    py::kwargs const &kwargs) -> std::optional<TermFunction>;
     auto update(Library &lib, py::kwargs const &kwargs) -> TermFunction;
 
-    static auto construct(Library &lib, Location const &location, char const *name, ArgumentTupleArray const &pool,
+    static auto construct(Library &lib, Location const &location, char const *name, ArgumentTupleIterable const &pool,
                           bool external) -> TermFunction;
     static auto acquire(clingo_ast_t *ast) -> TermFunction { return {ast}; }
 
@@ -509,7 +515,7 @@ class ArgumentTuple : public ASTBase {
                    py::kwargs const &kwargs) -> std::optional<ArgumentTuple>;
     auto update(Library &lib, py::kwargs const &kwargs) -> ArgumentTuple;
 
-    static auto construct(Library &lib, TermOrProjectionArray const &arguments) -> ArgumentTuple;
+    static auto construct(Library &lib, TermOrProjectionIterable const &arguments) -> ArgumentTuple;
     static auto acquire(clingo_ast_t *ast) -> ArgumentTuple { return {ast}; }
 
     friend auto operator==(ArgumentTuple const &a, ArgumentTuple const &b) -> bool = default;
@@ -588,6 +594,7 @@ class RightGuard : public ASTBase {
 using OptionalRightGuard = std::optional<RightGuard>;
 
 using RightGuardArray = std::vector<RightGuard>;
+using RightGuardIterable = Iterable<RightGuard>;
 
 auto construct_right_guard_array(clingo_ast_t **ast, size_t size) -> RightGuardArray;
 
@@ -639,7 +646,7 @@ class LiteralComparison : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> LiteralComparison;
 
     static auto construct(Library &lib, Location const &location, Sign const &sign, Term const &left,
-                          RightGuardArray const &right) -> LiteralComparison;
+                          RightGuardIterable const &right) -> LiteralComparison;
     static auto acquire(clingo_ast_t *ast) -> LiteralComparison { return {ast}; }
 
     friend auto operator==(LiteralComparison const &a, LiteralComparison const &b) -> bool = default;
@@ -694,6 +701,7 @@ using TheoryTerm =
 auto construct_theory_term(clingo_ast_t *ast) -> TheoryTerm;
 
 using TheoryTermArray = std::vector<TheoryTerm>;
+using TheoryTermIterable = Iterable<TheoryTerm>;
 
 auto construct_theory_term_array(clingo_ast_t **ast, size_t size) -> TheoryTermArray;
 
@@ -714,7 +722,7 @@ class UnparsedElement : public ASTBase {
                    py::kwargs const &kwargs) -> std::optional<UnparsedElement>;
     auto update(Library &lib, py::kwargs const &kwargs) -> UnparsedElement;
 
-    static auto construct(Library &lib, StringArray const &operators, TheoryTerm const &term) -> UnparsedElement;
+    static auto construct(Library &lib, StringIterable const &operators, TheoryTerm const &term) -> UnparsedElement;
     static auto acquire(clingo_ast_t *ast) -> UnparsedElement { return {ast}; }
 
     friend auto operator==(UnparsedElement const &a, UnparsedElement const &b) -> bool = default;
@@ -725,6 +733,7 @@ class UnparsedElement : public ASTBase {
 };
 
 using UnparsedElementArray = std::vector<UnparsedElement>;
+using UnparsedElementIterable = Iterable<UnparsedElement>;
 
 auto construct_unparsed_element_array(clingo_ast_t **ast, size_t size) -> UnparsedElementArray;
 
@@ -803,7 +812,7 @@ class TheoryTermTuple : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryTermTuple;
 
     static auto construct(Library &lib, Location const &location, TheoryTupleType const &tuple_type,
-                          TheoryTermArray const &arguments) -> TheoryTermTuple;
+                          TheoryTermIterable const &arguments) -> TheoryTermTuple;
     static auto acquire(clingo_ast_t *ast) -> TheoryTermTuple { return {ast}; }
 
     friend auto operator==(TheoryTermTuple const &a, TheoryTermTuple const &b) -> bool = default;
@@ -832,7 +841,7 @@ class TheoryTermFunction : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryTermFunction;
 
     static auto construct(Library &lib, Location const &location, char const *name,
-                          TheoryTermArray const &arguments) -> TheoryTermFunction;
+                          TheoryTermIterable const &arguments) -> TheoryTermFunction;
     static auto acquire(clingo_ast_t *ast) -> TheoryTermFunction { return {ast}; }
 
     friend auto operator==(TheoryTermFunction const &a, TheoryTermFunction const &b) -> bool = default;
@@ -860,7 +869,7 @@ class TheoryTermUnparsed : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryTermUnparsed;
 
     static auto construct(Library &lib, Location const &location,
-                          UnparsedElementArray const &elements) -> TheoryTermUnparsed;
+                          UnparsedElementIterable const &elements) -> TheoryTermUnparsed;
     static auto acquire(clingo_ast_t *ast) -> TheoryTermUnparsed { return {ast}; }
 
     friend auto operator==(TheoryTermUnparsed const &a, TheoryTermUnparsed const &b) -> bool = default;
@@ -900,6 +909,7 @@ class TheoryRightGuard : public ASTBase {
 using OptionalTheoryRightGuard = std::optional<TheoryRightGuard>;
 
 using LiteralArray = std::vector<Literal>;
+using LiteralIterable = Iterable<Literal>;
 
 auto construct_literal_array(clingo_ast_t **ast, size_t size) -> LiteralArray;
 
@@ -922,7 +932,7 @@ class SetAggregateElement : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> SetAggregateElement;
 
     static auto construct(Library &lib, Location const &location, Literal const &literal,
-                          LiteralArray const &condition) -> SetAggregateElement;
+                          LiteralIterable const &condition) -> SetAggregateElement;
     static auto acquire(clingo_ast_t *ast) -> SetAggregateElement { return {ast}; }
 
     friend auto operator==(SetAggregateElement const &a, SetAggregateElement const &b) -> bool = default;
@@ -934,6 +944,7 @@ class SetAggregateElement : public ASTBase {
 };
 
 using SetAggregateElementArray = std::vector<SetAggregateElement>;
+using SetAggregateElementIterable = Iterable<SetAggregateElement>;
 
 auto construct_set_aggregate_element_array(clingo_ast_t **ast, size_t size) -> SetAggregateElementArray;
 
@@ -955,8 +966,8 @@ class BodyAggregateElement : public ASTBase {
                    py::kwargs const &kwargs) -> std::optional<BodyAggregateElement>;
     auto update(Library &lib, py::kwargs const &kwargs) -> BodyAggregateElement;
 
-    static auto construct(Library &lib, Location const &location, TermArray const &tuple,
-                          LiteralArray const &condition) -> BodyAggregateElement;
+    static auto construct(Library &lib, Location const &location, TermIterable const &tuple,
+                          LiteralIterable const &condition) -> BodyAggregateElement;
     static auto acquire(clingo_ast_t *ast) -> BodyAggregateElement { return {ast}; }
 
     friend auto operator==(BodyAggregateElement const &a, BodyAggregateElement const &b) -> bool = default;
@@ -968,6 +979,7 @@ class BodyAggregateElement : public ASTBase {
 };
 
 using BodyAggregateElementArray = std::vector<BodyAggregateElement>;
+using BodyAggregateElementIterable = Iterable<BodyAggregateElement>;
 
 auto construct_body_aggregate_element_array(clingo_ast_t **ast, size_t size) -> BodyAggregateElementArray;
 
@@ -989,8 +1001,8 @@ class TheoryAtomElement : public ASTBase {
                    py::kwargs const &kwargs) -> std::optional<TheoryAtomElement>;
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryAtomElement;
 
-    static auto construct(Library &lib, Location const &location, TheoryTermArray const &tuple,
-                          LiteralArray const &condition) -> TheoryAtomElement;
+    static auto construct(Library &lib, Location const &location, TheoryTermIterable const &tuple,
+                          LiteralIterable const &condition) -> TheoryAtomElement;
     static auto acquire(clingo_ast_t *ast) -> TheoryAtomElement { return {ast}; }
 
     friend auto operator==(TheoryAtomElement const &a, TheoryAtomElement const &b) -> bool = default;
@@ -1001,6 +1013,7 @@ class TheoryAtomElement : public ASTBase {
 };
 
 using TheoryAtomElementArray = std::vector<TheoryAtomElement>;
+using TheoryAtomElementIterable = Iterable<TheoryAtomElement>;
 
 auto construct_theory_atom_element_array(clingo_ast_t **ast, size_t size) -> TheoryAtomElementArray;
 
@@ -1072,7 +1085,7 @@ class BodyAggregate : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> BodyAggregate;
 
     static auto construct(Library &lib, Location const &location, Sign const &sign, OptionalLeftGuard const &left,
-                          AggregateFunction const &function, BodyAggregateElementArray const &elements,
+                          AggregateFunction const &function, BodyAggregateElementIterable const &elements,
                           OptionalRightGuard const &right) -> BodyAggregate;
     static auto acquire(clingo_ast_t *ast) -> BodyAggregate { return {ast}; }
 
@@ -1104,7 +1117,7 @@ class BodySetAggregate : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> BodySetAggregate;
 
     static auto construct(Library &lib, Location const &location, Sign const &sign, OptionalLeftGuard const &left,
-                          SetAggregateElementArray const &elements,
+                          SetAggregateElementIterable const &elements,
                           OptionalRightGuard const &right) -> BodySetAggregate;
     static auto acquire(clingo_ast_t *ast) -> BodySetAggregate { return {ast}; }
 
@@ -1136,7 +1149,7 @@ class BodyTheoryAtom : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> BodyTheoryAtom;
 
     static auto construct(Library &lib, Location const &location, Sign const &sign, Term const &name,
-                          TheoryAtomElementArray const &elements,
+                          TheoryAtomElementIterable const &elements,
                           OptionalTheoryRightGuard const &right) -> BodyTheoryAtom;
     static auto acquire(clingo_ast_t *ast) -> BodyTheoryAtom { return {ast}; }
 
@@ -1166,7 +1179,7 @@ class BodyConditionalLiteral : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> BodyConditionalLiteral;
 
     static auto construct(Library &lib, Location const &location, Literal const &literal,
-                          LiteralArray const &condition) -> BodyConditionalLiteral;
+                          LiteralIterable const &condition) -> BodyConditionalLiteral;
     static auto acquire(clingo_ast_t *ast) -> BodyConditionalLiteral { return {ast}; }
 
     friend auto operator==(BodyConditionalLiteral const &a, BodyConditionalLiteral const &b) -> bool = default;
@@ -1196,7 +1209,7 @@ class HeadConditionalLiteral : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> HeadConditionalLiteral;
 
     static auto construct(Library &lib, Location const &location, Literal const &literal,
-                          LiteralArray const &condition) -> HeadConditionalLiteral;
+                          LiteralIterable const &condition) -> HeadConditionalLiteral;
     static auto acquire(clingo_ast_t *ast) -> HeadConditionalLiteral { return {ast}; }
 
     friend auto operator==(HeadConditionalLiteral const &a, HeadConditionalLiteral const &b) -> bool = default;
@@ -1212,6 +1225,7 @@ using DisjunctionElement = std::variant<Literal, HeadConditionalLiteral>;
 auto construct_disjunction_element(clingo_ast_t *ast) -> DisjunctionElement;
 
 using DisjunctionElementArray = std::vector<DisjunctionElement>;
+using DisjunctionElementIterable = Iterable<DisjunctionElement>;
 
 auto construct_disjunction_element_array(clingo_ast_t **ast, size_t size) -> DisjunctionElementArray;
 
@@ -1234,8 +1248,8 @@ class HeadAggregateElement : public ASTBase {
                    py::kwargs const &kwargs) -> std::optional<HeadAggregateElement>;
     auto update(Library &lib, py::kwargs const &kwargs) -> HeadAggregateElement;
 
-    static auto construct(Library &lib, Location const &location, TermArray const &tuple, Literal const &literal,
-                          LiteralArray const &condition) -> HeadAggregateElement;
+    static auto construct(Library &lib, Location const &location, TermIterable const &tuple, Literal const &literal,
+                          LiteralIterable const &condition) -> HeadAggregateElement;
     static auto acquire(clingo_ast_t *ast) -> HeadAggregateElement { return {ast}; }
 
     friend auto operator==(HeadAggregateElement const &a, HeadAggregateElement const &b) -> bool = default;
@@ -1247,6 +1261,7 @@ class HeadAggregateElement : public ASTBase {
 };
 
 using HeadAggregateElementArray = std::vector<HeadAggregateElement>;
+using HeadAggregateElementIterable = Iterable<HeadAggregateElement>;
 
 auto construct_head_aggregate_element_array(clingo_ast_t **ast, size_t size) -> HeadAggregateElementArray;
 
@@ -1311,7 +1326,7 @@ class HeadAggregate : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> HeadAggregate;
 
     static auto construct(Library &lib, Location const &location, OptionalLeftGuard const &left,
-                          AggregateFunction const &function, HeadAggregateElementArray const &elements,
+                          AggregateFunction const &function, HeadAggregateElementIterable const &elements,
                           OptionalRightGuard const &right) -> HeadAggregate;
     static auto acquire(clingo_ast_t *ast) -> HeadAggregate { return {ast}; }
 
@@ -1342,7 +1357,7 @@ class HeadSetAggregate : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> HeadSetAggregate;
 
     static auto construct(Library &lib, Location const &location, OptionalLeftGuard const &left,
-                          SetAggregateElementArray const &elements,
+                          SetAggregateElementIterable const &elements,
                           OptionalRightGuard const &right) -> HeadSetAggregate;
     static auto acquire(clingo_ast_t *ast) -> HeadSetAggregate { return {ast}; }
 
@@ -1373,7 +1388,7 @@ class HeadTheoryAtom : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> HeadTheoryAtom;
 
     static auto construct(Library &lib, Location const &location, Term const &name,
-                          TheoryAtomElementArray const &elements,
+                          TheoryAtomElementIterable const &elements,
                           OptionalTheoryRightGuard const &right) -> HeadTheoryAtom;
     static auto acquire(clingo_ast_t *ast) -> HeadTheoryAtom { return {ast}; }
 
@@ -1402,7 +1417,7 @@ class HeadDisjunction : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> HeadDisjunction;
 
     static auto construct(Library &lib, Location const &location,
-                          DisjunctionElementArray const &elements) -> HeadDisjunction;
+                          DisjunctionElementIterable const &elements) -> HeadDisjunction;
     static auto acquire(clingo_ast_t *ast) -> HeadDisjunction { return {ast}; }
 
     friend auto operator==(HeadDisjunction const &a, HeadDisjunction const &b) -> bool = default;
@@ -1444,6 +1459,7 @@ class TheoryOperatorDefinition : public ASTBase {
 };
 
 using TheoryOperatorDefinitionArray = std::vector<TheoryOperatorDefinition>;
+using TheoryOperatorDefinitionIterable = Iterable<TheoryOperatorDefinition>;
 
 auto construct_theory_operator_definition_array(clingo_ast_t **ast, size_t size) -> TheoryOperatorDefinitionArray;
 
@@ -1466,7 +1482,7 @@ class TheoryTermDefinition : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryTermDefinition;
 
     static auto construct(Library &lib, Location const &location, char const *name,
-                          TheoryOperatorDefinitionArray const &operators) -> TheoryTermDefinition;
+                          TheoryOperatorDefinitionIterable const &operators) -> TheoryTermDefinition;
     static auto acquire(clingo_ast_t *ast) -> TheoryTermDefinition { return {ast}; }
 
     friend auto operator==(TheoryTermDefinition const &a, TheoryTermDefinition const &b) -> bool = default;
@@ -1478,6 +1494,7 @@ class TheoryTermDefinition : public ASTBase {
 };
 
 using TheoryTermDefinitionArray = std::vector<TheoryTermDefinition>;
+using TheoryTermDefinitionIterable = Iterable<TheoryTermDefinition>;
 
 auto construct_theory_term_definition_array(clingo_ast_t **ast, size_t size) -> TheoryTermDefinitionArray;
 
@@ -1498,7 +1515,7 @@ class TheoryGuardDefinition : public ASTBase {
                    py::kwargs const &kwargs) -> std::optional<TheoryGuardDefinition>;
     auto update(Library &lib, py::kwargs const &kwargs) -> TheoryGuardDefinition;
 
-    static auto construct(Library &lib, StringArray const &operators, char const *term) -> TheoryGuardDefinition;
+    static auto construct(Library &lib, StringIterable const &operators, char const *term) -> TheoryGuardDefinition;
     static auto acquire(clingo_ast_t *ast) -> TheoryGuardDefinition { return {ast}; }
 
     friend auto operator==(TheoryGuardDefinition const &a, TheoryGuardDefinition const &b) -> bool = default;
@@ -1546,6 +1563,7 @@ class TheoryAtomDefinition : public ASTBase {
 };
 
 using TheoryAtomDefinitionArray = std::vector<TheoryAtomDefinition>;
+using TheoryAtomDefinitionIterable = Iterable<TheoryAtomDefinition>;
 
 auto construct_theory_atom_definition_array(clingo_ast_t **ast, size_t size) -> TheoryAtomDefinitionArray;
 
@@ -1568,7 +1586,7 @@ class OptimizeTuple : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> OptimizeTuple;
 
     static auto construct(Library &lib, Term const &weight, OptionalTerm const &priority,
-                          TermArray const &terms) -> OptimizeTuple;
+                          TermIterable const &terms) -> OptimizeTuple;
     static auto acquire(clingo_ast_t *ast) -> OptimizeTuple { return {ast}; }
 
     friend auto operator==(OptimizeTuple const &a, OptimizeTuple const &b) -> bool = default;
@@ -1595,7 +1613,8 @@ class OptimizeElement : public ASTBase {
                    py::kwargs const &kwargs) -> std::optional<OptimizeElement>;
     auto update(Library &lib, py::kwargs const &kwargs) -> OptimizeElement;
 
-    static auto construct(Library &lib, OptimizeTuple const &tuple, LiteralArray const &condition) -> OptimizeElement;
+    static auto construct(Library &lib, OptimizeTuple const &tuple,
+                          LiteralIterable const &condition) -> OptimizeElement;
     static auto acquire(clingo_ast_t *ast) -> OptimizeElement { return {ast}; }
 
     friend auto operator==(OptimizeElement const &a, OptimizeElement const &b) -> bool = default;
@@ -1606,6 +1625,7 @@ class OptimizeElement : public ASTBase {
 };
 
 using OptimizeElementArray = std::vector<OptimizeElement>;
+using OptimizeElementIterable = Iterable<OptimizeElement>;
 
 auto construct_optimize_element_array(clingo_ast_t **ast, size_t size) -> OptimizeElementArray;
 
@@ -1637,6 +1657,7 @@ class Edge : public ASTBase {
 };
 
 using EdgeArray = std::vector<Edge>;
+using EdgeIterable = Iterable<Edge>;
 
 auto construct_edge_array(clingo_ast_t **ast, size_t size) -> EdgeArray;
 
@@ -1733,8 +1754,8 @@ class StatementTheory : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementTheory;
 
     static auto construct(Library &lib, Location const &location, char const *name,
-                          TheoryTermDefinitionArray const &terms,
-                          TheoryAtomDefinitionArray const &atoms) -> StatementTheory;
+                          TheoryTermDefinitionIterable const &terms,
+                          TheoryAtomDefinitionIterable const &atoms) -> StatementTheory;
     static auto acquire(clingo_ast_t *ast) -> StatementTheory { return {ast}; }
 
     friend auto operator==(StatementTheory const &a, StatementTheory const &b) -> bool = default;
@@ -1762,7 +1783,7 @@ class StatementOptimize : public ASTBase {
                    py::kwargs const &kwargs) -> std::optional<StatementOptimize>;
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementOptimize;
 
-    static auto construct(Library &lib, Location const &location, OptimizeElementArray const &elements,
+    static auto construct(Library &lib, Location const &location, OptimizeElementIterable const &elements,
                           OptimizeType const &optimize_type) -> StatementOptimize;
     static auto acquire(clingo_ast_t *ast) -> StatementOptimize { return {ast}; }
 
@@ -1791,7 +1812,7 @@ class StatementWeakConstraint : public ASTBase {
                    py::kwargs const &kwargs) -> std::optional<StatementWeakConstraint>;
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementWeakConstraint;
 
-    static auto construct(Library &lib, Location const &location, BodyLiteralArray const &body,
+    static auto construct(Library &lib, Location const &location, BodyLiteralIterable const &body,
                           OptimizeTuple const &tuple) -> StatementWeakConstraint;
     static auto acquire(clingo_ast_t *ast) -> StatementWeakConstraint { return {ast}; }
 
@@ -1822,7 +1843,7 @@ class StatementShow : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementShow;
 
     static auto construct(Library &lib, Location const &location, Term const &term,
-                          BodyLiteralArray const &body) -> StatementShow;
+                          BodyLiteralIterable const &body) -> StatementShow;
     static auto acquire(clingo_ast_t *ast) -> StatementShow { return {ast}; }
 
     friend auto operator==(StatementShow const &a, StatementShow const &b) -> bool = default;
@@ -1909,7 +1930,7 @@ class StatementProject : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementProject;
 
     static auto construct(Library &lib, Location const &location, Term const &atom,
-                          BodyLiteralArray const &body) -> StatementProject;
+                          BodyLiteralIterable const &body) -> StatementProject;
     static auto acquire(clingo_ast_t *ast) -> StatementProject { return {ast}; }
 
     friend auto operator==(StatementProject const &a, StatementProject const &b) -> bool = default;
@@ -1999,7 +2020,7 @@ class StatementExternal : public ASTBase {
                    py::kwargs const &kwargs) -> std::optional<StatementExternal>;
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementExternal;
 
-    static auto construct(Library &lib, Location const &location, Term const &atom, BodyLiteralArray const &body,
+    static auto construct(Library &lib, Location const &location, Term const &atom, BodyLiteralIterable const &body,
                           OptionalTerm const &external_type) -> StatementExternal;
     static auto acquire(clingo_ast_t *ast) -> StatementExternal { return {ast}; }
 
@@ -2028,8 +2049,8 @@ class StatementEdge : public ASTBase {
                    py::kwargs const &kwargs) -> std::optional<StatementEdge>;
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementEdge;
 
-    static auto construct(Library &lib, Location const &location, EdgeArray const &pool,
-                          BodyLiteralArray const &body) -> StatementEdge;
+    static auto construct(Library &lib, Location const &location, EdgeIterable const &pool,
+                          BodyLiteralIterable const &body) -> StatementEdge;
     static auto acquire(clingo_ast_t *ast) -> StatementEdge { return {ast}; }
 
     friend auto operator==(StatementEdge const &a, StatementEdge const &b) -> bool = default;
@@ -2060,7 +2081,7 @@ class StatementHeuristic : public ASTBase {
                    py::kwargs const &kwargs) -> std::optional<StatementHeuristic>;
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementHeuristic;
 
-    static auto construct(Library &lib, Location const &location, Term const &atom, BodyLiteralArray const &body,
+    static auto construct(Library &lib, Location const &location, Term const &atom, BodyLiteralIterable const &body,
                           Term const &weight, Term const &modifier, OptionalTerm const &priority) -> StatementHeuristic;
     static auto acquire(clingo_ast_t *ast) -> StatementHeuristic { return {ast}; }
 
@@ -2148,7 +2169,7 @@ class StatementProgram : public ASTBase {
     auto update(Library &lib, py::kwargs const &kwargs) -> StatementProgram;
 
     static auto construct(Library &lib, Location const &location, char const *name,
-                          StringArray const &arguments) -> StatementProgram;
+                          StringIterable const &arguments) -> StatementProgram;
     static auto acquire(clingo_ast_t *ast) -> StatementProgram { return {ast}; }
 
     friend auto operator==(StatementProgram const &a, StatementProgram const &b) -> bool = default;
@@ -2509,7 +2530,7 @@ auto TermAbsolute::pool() -> TermArray {
     return construct_term_array(ast, size);
 }
 
-auto TermAbsolute::construct(Library &lib, Location const &location, TermArray const &pool) -> TermAbsolute {
+auto TermAbsolute::construct(Library &lib, Location const &location, TermIterable const &pool) -> TermAbsolute {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_term_absolute, &res_,
                                       static_cast<clingo_location_t const *>(location), c_cast(pool).data(),
@@ -2657,7 +2678,8 @@ auto TermTuple::pool() -> TermOrArgumentTupleArray {
     return construct_term_or_argument_tuple_array(ast, size);
 }
 
-auto TermTuple::construct(Library &lib, Location const &location, TermOrArgumentTupleArray const &pool) -> TermTuple {
+auto TermTuple::construct(Library &lib, Location const &location,
+                          TermOrArgumentTupleIterable const &pool) -> TermTuple {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_term_tuple, &res_,
                                       static_cast<clingo_location_t const *>(location), c_cast(pool).data(),
@@ -2710,8 +2732,8 @@ auto TermFunction::external() -> bool {
     return ret != 0;
 }
 
-auto TermFunction::construct(Library &lib, Location const &location, char const *name, ArgumentTupleArray const &pool,
-                             bool external) -> TermFunction {
+auto TermFunction::construct(Library &lib, Location const &location, char const *name,
+                             ArgumentTupleIterable const &pool, bool external) -> TermFunction {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_term_function, &res_,
                                       static_cast<clingo_location_t const *>(location), name, c_cast(pool).data(),
@@ -2748,7 +2770,7 @@ auto ArgumentTuple::arguments() -> TermOrProjectionArray {
     return construct_term_or_projection_array(ast, size);
 }
 
-auto ArgumentTuple::construct(Library &lib, TermOrProjectionArray const &arguments) -> ArgumentTuple {
+auto ArgumentTuple::construct(Library &lib, TermOrProjectionIterable const &arguments) -> ArgumentTuple {
     clingo_ast_t *res_ = nullptr;
     handle_error(
         clingo_ast_construct(lib, clingo_ast_type_argument_tuple, &res_, c_cast(arguments).data(), arguments.size()));
@@ -2960,7 +2982,7 @@ auto LiteralComparison::right() -> RightGuardArray {
 }
 
 auto LiteralComparison::construct(Library &lib, Location const &location, Sign const &sign, Term const &left,
-                                  RightGuardArray const &right) -> LiteralComparison {
+                                  RightGuardIterable const &right) -> LiteralComparison {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_literal_comparison, &res_,
                                       static_cast<clingo_location_t const *>(location), static_cast<int>(sign),
@@ -3102,7 +3124,8 @@ auto UnparsedElement::term() -> TheoryTerm {
     return construct_theory_term(ast);
 }
 
-auto UnparsedElement::construct(Library &lib, StringArray const &operators, TheoryTerm const &term) -> UnparsedElement {
+auto UnparsedElement::construct(Library &lib, StringIterable const &operators,
+                                TheoryTerm const &term) -> UnparsedElement {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_unparsed_element, &res_, c_cast(operators).data(),
                                       operators.size(), c_cast(term)));
@@ -3244,7 +3267,7 @@ auto TheoryTermTuple::arguments() -> TheoryTermArray {
 }
 
 auto TheoryTermTuple::construct(Library &lib, Location const &location, TheoryTupleType const &tuple_type,
-                                TheoryTermArray const &arguments) -> TheoryTermTuple {
+                                TheoryTermIterable const &arguments) -> TheoryTermTuple {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_theory_term_tuple, &res_,
                                       static_cast<clingo_location_t const *>(location), static_cast<int>(tuple_type),
@@ -3294,7 +3317,7 @@ auto TheoryTermFunction::arguments() -> TheoryTermArray {
 }
 
 auto TheoryTermFunction::construct(Library &lib, Location const &location, char const *name,
-                                   TheoryTermArray const &arguments) -> TheoryTermFunction {
+                                   TheoryTermIterable const &arguments) -> TheoryTermFunction {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_theory_term_function, &res_,
                                       static_cast<clingo_location_t const *>(location), name, c_cast(arguments).data(),
@@ -3338,7 +3361,7 @@ auto TheoryTermUnparsed::elements() -> UnparsedElementArray {
 }
 
 auto TheoryTermUnparsed::construct(Library &lib, Location const &location,
-                                   UnparsedElementArray const &elements) -> TheoryTermUnparsed {
+                                   UnparsedElementIterable const &elements) -> TheoryTermUnparsed {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_theory_term_unparsed, &res_,
                                       static_cast<clingo_location_t const *>(location), c_cast(elements).data(),
@@ -3444,7 +3467,7 @@ auto SetAggregateElement::condition() -> LiteralArray {
 }
 
 auto SetAggregateElement::construct(Library &lib, Location const &location, Literal const &literal,
-                                    LiteralArray const &condition) -> SetAggregateElement {
+                                    LiteralIterable const &condition) -> SetAggregateElement {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_set_aggregate_element, &res_,
                                       static_cast<clingo_location_t const *>(location), c_cast(literal),
@@ -3513,8 +3536,8 @@ auto BodyAggregateElement::condition() -> LiteralArray {
     return construct_literal_array(ast, size);
 }
 
-auto BodyAggregateElement::construct(Library &lib, Location const &location, TermArray const &tuple,
-                                     LiteralArray const &condition) -> BodyAggregateElement {
+auto BodyAggregateElement::construct(Library &lib, Location const &location, TermIterable const &tuple,
+                                     LiteralIterable const &condition) -> BodyAggregateElement {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_body_aggregate_element, &res_,
                                       static_cast<clingo_location_t const *>(location), c_cast(tuple).data(),
@@ -3583,8 +3606,8 @@ auto TheoryAtomElement::condition() -> LiteralArray {
     return construct_literal_array(ast, size);
 }
 
-auto TheoryAtomElement::construct(Library &lib, Location const &location, TheoryTermArray const &tuple,
-                                  LiteralArray const &condition) -> TheoryAtomElement {
+auto TheoryAtomElement::construct(Library &lib, Location const &location, TheoryTermIterable const &tuple,
+                                  LiteralIterable const &condition) -> TheoryAtomElement {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_theory_atom_element, &res_,
                                       static_cast<clingo_location_t const *>(location), c_cast(tuple).data(),
@@ -3757,7 +3780,7 @@ auto BodyAggregate::right() -> OptionalRightGuard {
 }
 
 auto BodyAggregate::construct(Library &lib, Location const &location, Sign const &sign, OptionalLeftGuard const &left,
-                              AggregateFunction const &function, BodyAggregateElementArray const &elements,
+                              AggregateFunction const &function, BodyAggregateElementIterable const &elements,
                               OptionalRightGuard const &right) -> BodyAggregate {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_body_aggregate, &res_,
@@ -3840,7 +3863,7 @@ auto BodySetAggregate::right() -> OptionalRightGuard {
 }
 
 auto BodySetAggregate::construct(Library &lib, Location const &location, Sign const &sign,
-                                 OptionalLeftGuard const &left, SetAggregateElementArray const &elements,
+                                 OptionalLeftGuard const &left, SetAggregateElementIterable const &elements,
                                  OptionalRightGuard const &right) -> BodySetAggregate {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_body_set_aggregate, &res_,
@@ -3917,7 +3940,7 @@ auto BodyTheoryAtom::right() -> OptionalTheoryRightGuard {
 }
 
 auto BodyTheoryAtom::construct(Library &lib, Location const &location, Sign const &sign, Term const &name,
-                               TheoryAtomElementArray const &elements,
+                               TheoryAtomElementIterable const &elements,
                                OptionalTheoryRightGuard const &right) -> BodyTheoryAtom {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_body_theory_atom, &res_,
@@ -3976,7 +3999,7 @@ auto BodyConditionalLiteral::condition() -> LiteralArray {
 }
 
 auto BodyConditionalLiteral::construct(Library &lib, Location const &location, Literal const &literal,
-                                       LiteralArray const &condition) -> BodyConditionalLiteral {
+                                       LiteralIterable const &condition) -> BodyConditionalLiteral {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_body_conditional_literal, &res_,
                                       static_cast<clingo_location_t const *>(location), c_cast(literal),
@@ -4028,7 +4051,7 @@ auto HeadConditionalLiteral::condition() -> LiteralArray {
 }
 
 auto HeadConditionalLiteral::construct(Library &lib, Location const &location, Literal const &literal,
-                                       LiteralArray const &condition) -> HeadConditionalLiteral {
+                                       LiteralIterable const &condition) -> HeadConditionalLiteral {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_head_conditional_literal, &res_,
                                       static_cast<clingo_location_t const *>(location), c_cast(literal),
@@ -4129,8 +4152,8 @@ auto HeadAggregateElement::condition() -> LiteralArray {
     return construct_literal_array(ast, size);
 }
 
-auto HeadAggregateElement::construct(Library &lib, Location const &location, TermArray const &tuple,
-                                     Literal const &literal, LiteralArray const &condition) -> HeadAggregateElement {
+auto HeadAggregateElement::construct(Library &lib, Location const &location, TermIterable const &tuple,
+                                     Literal const &literal, LiteralIterable const &condition) -> HeadAggregateElement {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_head_aggregate_element, &res_,
                                       static_cast<clingo_location_t const *>(location), c_cast(tuple).data(),
@@ -4283,7 +4306,7 @@ auto HeadAggregate::right() -> OptionalRightGuard {
 }
 
 auto HeadAggregate::construct(Library &lib, Location const &location, OptionalLeftGuard const &left,
-                              AggregateFunction const &function, HeadAggregateElementArray const &elements,
+                              AggregateFunction const &function, HeadAggregateElementIterable const &elements,
                               OptionalRightGuard const &right) -> HeadAggregate {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(
@@ -4358,7 +4381,7 @@ auto HeadSetAggregate::right() -> OptionalRightGuard {
 }
 
 auto HeadSetAggregate::construct(Library &lib, Location const &location, OptionalLeftGuard const &left,
-                                 SetAggregateElementArray const &elements,
+                                 SetAggregateElementIterable const &elements,
                                  OptionalRightGuard const &right) -> HeadSetAggregate {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_head_set_aggregate, &res_,
@@ -4428,7 +4451,7 @@ auto HeadTheoryAtom::right() -> OptionalTheoryRightGuard {
 }
 
 auto HeadTheoryAtom::construct(Library &lib, Location const &location, Term const &name,
-                               TheoryAtomElementArray const &elements,
+                               TheoryAtomElementIterable const &elements,
                                OptionalTheoryRightGuard const &right) -> HeadTheoryAtom {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_head_theory_atom, &res_,
@@ -4480,7 +4503,7 @@ auto HeadDisjunction::elements() -> DisjunctionElementArray {
 }
 
 auto HeadDisjunction::construct(Library &lib, Location const &location,
-                                DisjunctionElementArray const &elements) -> HeadDisjunction {
+                                DisjunctionElementIterable const &elements) -> HeadDisjunction {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_head_disjunction, &res_,
                                       static_cast<clingo_location_t const *>(location), c_cast(elements).data(),
@@ -4596,7 +4619,7 @@ auto TheoryTermDefinition::operators() -> TheoryOperatorDefinitionArray {
 }
 
 auto TheoryTermDefinition::construct(Library &lib, Location const &location, char const *name,
-                                     TheoryOperatorDefinitionArray const &operators) -> TheoryTermDefinition {
+                                     TheoryOperatorDefinitionIterable const &operators) -> TheoryTermDefinition {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_theory_term_definition, &res_,
                                       static_cast<clingo_location_t const *>(location), name, c_cast(operators).data(),
@@ -4658,7 +4681,7 @@ auto TheoryGuardDefinition::term() -> char const * {
     return ret;
 }
 
-auto TheoryGuardDefinition::construct(Library &lib, StringArray const &operators,
+auto TheoryGuardDefinition::construct(Library &lib, StringIterable const &operators,
                                       char const *term) -> TheoryGuardDefinition {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_theory_guard_definition, &res_, c_cast(operators).data(),
@@ -4799,7 +4822,7 @@ auto OptimizeTuple::terms() -> TermArray {
 }
 
 auto OptimizeTuple::construct(Library &lib, Term const &weight, OptionalTerm const &priority,
-                              TermArray const &terms) -> OptimizeTuple {
+                              TermIterable const &terms) -> OptimizeTuple {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_optimize_tuple, &res_, c_cast(weight), c_cast(priority),
                                       c_cast(terms).data(), terms.size()));
@@ -4847,7 +4870,7 @@ auto OptimizeElement::condition() -> LiteralArray {
 }
 
 auto OptimizeElement::construct(Library &lib, OptimizeTuple const &tuple,
-                                LiteralArray const &condition) -> OptimizeElement {
+                                LiteralIterable const &condition) -> OptimizeElement {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_optimize_element, &res_, c_cast(tuple),
                                       c_cast(condition).data(), condition.size()));
@@ -5097,8 +5120,8 @@ auto StatementTheory::atoms() -> TheoryAtomDefinitionArray {
 }
 
 auto StatementTheory::construct(Library &lib, Location const &location, char const *name,
-                                TheoryTermDefinitionArray const &terms,
-                                TheoryAtomDefinitionArray const &atoms) -> StatementTheory {
+                                TheoryTermDefinitionIterable const &terms,
+                                TheoryAtomDefinitionIterable const &atoms) -> StatementTheory {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_theory, &res_,
                                       static_cast<clingo_location_t const *>(location), name, c_cast(terms).data(),
@@ -5150,7 +5173,7 @@ auto StatementOptimize::optimize_type() -> OptimizeType {
     return static_cast<OptimizeType>(ret);
 }
 
-auto StatementOptimize::construct(Library &lib, Location const &location, OptimizeElementArray const &elements,
+auto StatementOptimize::construct(Library &lib, Location const &location, OptimizeElementIterable const &elements,
                                   OptimizeType const &optimize_type) -> StatementOptimize {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_optimize, &res_,
@@ -5200,7 +5223,7 @@ auto StatementWeakConstraint::tuple() -> OptimizeTuple {
     return OptimizeTuple::acquire(ast);
 }
 
-auto StatementWeakConstraint::construct(Library &lib, Location const &location, BodyLiteralArray const &body,
+auto StatementWeakConstraint::construct(Library &lib, Location const &location, BodyLiteralIterable const &body,
                                         OptimizeTuple const &tuple) -> StatementWeakConstraint {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_weak_constraint, &res_,
@@ -5253,7 +5276,7 @@ auto StatementShow::body() -> BodyLiteralArray {
 }
 
 auto StatementShow::construct(Library &lib, Location const &location, Term const &term,
-                              BodyLiteralArray const &body) -> StatementShow {
+                              BodyLiteralIterable const &body) -> StatementShow {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_show, &res_,
                                       static_cast<clingo_location_t const *>(location), c_cast(term),
@@ -5381,7 +5404,7 @@ auto StatementProject::body() -> BodyLiteralArray {
 }
 
 auto StatementProject::construct(Library &lib, Location const &location, Term const &atom,
-                                 BodyLiteralArray const &body) -> StatementProject {
+                                 BodyLiteralIterable const &body) -> StatementProject {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_project, &res_,
                                       static_cast<clingo_location_t const *>(location), c_cast(atom),
@@ -5543,7 +5566,7 @@ auto StatementExternal::external_type() -> OptionalTerm {
 }
 
 auto StatementExternal::construct(Library &lib, Location const &location, Term const &atom,
-                                  BodyLiteralArray const &body,
+                                  BodyLiteralIterable const &body,
                                   OptionalTerm const &external_type) -> StatementExternal {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_external, &res_,
@@ -5601,8 +5624,8 @@ auto StatementEdge::body() -> BodyLiteralArray {
     return construct_body_literal_array(ast, size);
 }
 
-auto StatementEdge::construct(Library &lib, Location const &location, EdgeArray const &pool,
-                              BodyLiteralArray const &body) -> StatementEdge {
+auto StatementEdge::construct(Library &lib, Location const &location, EdgeIterable const &pool,
+                              BodyLiteralIterable const &body) -> StatementEdge {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_edge, &res_,
                                       static_cast<clingo_location_t const *>(location), c_cast(pool).data(),
@@ -5675,7 +5698,7 @@ auto StatementHeuristic::priority() -> OptionalTerm {
 }
 
 auto StatementHeuristic::construct(Library &lib, Location const &location, Term const &atom,
-                                   BodyLiteralArray const &body, Term const &weight, Term const &modifier,
+                                   BodyLiteralIterable const &body, Term const &weight, Term const &modifier,
                                    OptionalTerm const &priority) -> StatementHeuristic {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(
@@ -5827,7 +5850,7 @@ auto StatementProgram::arguments() -> std::vector<char const *> {
 }
 
 auto StatementProgram::construct(Library &lib, Location const &location, char const *name,
-                                 StringArray const &arguments) -> StatementProgram {
+                                 StringIterable const &arguments) -> StatementProgram {
     clingo_ast_t *res_ = nullptr;
     handle_error(clingo_ast_construct(lib, clingo_ast_type_statement_program, &res_,
                                       static_cast<clingo_location_t const *>(location), name, c_cast(arguments).data(),

@@ -2,6 +2,7 @@
 """
 Script to generate python ast module.
 """
+
 from textwrap import wrap
 
 import jinja2
@@ -48,6 +49,13 @@ def cref(name):
     if name == "symbol":
         return "Symbol const &"
     return f"{camel(name)} const &"
+
+
+def cpar(name: str):
+    """
+    Convert the given type to a C++ const reference.
+    """
+    return cref(name).replace("Array", "Iterable")
 
 
 def c_cast(arguments, type_map):
@@ -188,6 +196,7 @@ def generate():
     env.filters["camel"] = camel
     env.filters["cref"] = cref
     env.filters["cval"] = cval
+    env.filters["cpar"] = cpar
     env.filters["c_cast"] = c_cast
     env.filters["flatten_types"] = flatten_types
     env.filters["doc"] = doc

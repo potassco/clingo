@@ -28,7 +28,7 @@ public:
     auto transform(Library &lib, py::handle transform, py::args const &args, py::kwargs const &kwargs) -> std::optional<{{ c_type_name }}>;
     auto update(Library &lib, py::kwargs const &kwargs) -> {{ c_type_name }};
 
-    static auto construct(Library &lib{% for argument_name, argument in type.arguments.items() %}, {{ argument.type | cref }}{{ argument_name }}{% endfor %}) -> {{ c_type_name }};
+    static auto construct(Library &lib{% for argument_name, argument in type.arguments.items() %}, {{ argument.type | cpar }}{{ argument_name }}{% endfor %}) -> {{ c_type_name }};
     static auto acquire(clingo_ast_t *ast) -> {{ c_type_name }} {
         return {ast};
     }

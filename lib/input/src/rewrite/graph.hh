@@ -50,7 +50,6 @@ inline auto Graph::prev_phase_() const -> size_t { return phase_ == 0 ? 1 : 0; }
 
 inline void Graph::ensure_size(size_t n) {
     if (nodes_.size() < n) {
-        nodes_.reserve(n);
         while (nodes_.size() < n) {
             // Note: wrong simplification reported
             // NOLINTNEXTLINE(modernize-use-emplace)
