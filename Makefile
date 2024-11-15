@@ -1,4 +1,6 @@
 SHELL := /bin/zsh
+CLANG_CC := $(shell test -e /usr/bin/clang-18 && echo /usr/bin/clang-18 || echo clang)
+CLANG_CXX := $(shell test -e /usr/bin/clang++-18 && echo /usr/bin/clang++-18 || echo clang++)
 
 all: debug
 
@@ -24,8 +26,8 @@ venv: .venv
 build/debug/CMakeCache.txt: .venv
 	mkdir -p build/debug
 	source .venv/bin/activate && cmake -S. -Bbuild/debug \
-		-DCMAKE_CXX_COMPILER="clang++" \
-		-DCMAKE_C_COMPILER="clang" \
+		-DCMAKE_CXX_COMPILER="$(CLANG_CXX)" \
+		-DCMAKE_C_COMPILER="$(CLANG_CC)" \
 		-DCMAKE_BUILD_TYPE=debug \
 		-DCMAKE_EXPORT_COMPILE_COMMANDS=On \
 		-DPARSER_BUILD_TESTS=On \
@@ -63,8 +65,8 @@ release_clang:
 	cmake -S. -Bbuild/$@ \
 		-DCMAKE_BUILD_TYPE=release \
 		-DPARSER_BUILD_TESTS=On \
-		-DCMAKE_CXX_COMPILER="clang++" \
-		-DCMAKE_C_COMPILER="clang" \
+		-DCMAKE_CXX_COMPILER="$(CLANG_CXX)" \
+		-DCMAKE_C_COMPILER="$(CLANG_CC)" \
 		-DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld" \
 		-DCMAKE_MODULE_LINKER_FLAGS="-fuse-ld=lld" \
 		-DCMAKE_SHARED_LINKER_FLAGS="-fuse-ld=lld" \
@@ -78,8 +80,8 @@ release_clang_lto:
 	cmake -S. -Bbuild/$@ \
 		-DCMAKE_BUILD_TYPE=release \
 		-DPARSER_BUILD_TESTS=On \
-		-DCMAKE_CXX_COMPILER="clang++" \
-		-DCMAKE_C_COMPILER="clang" \
+		-DCMAKE_CXX_COMPILER="$(CLANG_CXX)" \
+		-DCMAKE_C_COMPILER="$(CLANG_CC)" \
 		-DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld" \
 		-DCMAKE_MODULE_LINKER_FLAGS="-fuse-ld=lld" \
 		-DCMAKE_SHARED_LINKER_FLAGS="-fuse-ld=lld" \
