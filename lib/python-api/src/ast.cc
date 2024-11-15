@@ -1,5 +1,6 @@
 #include "ast.hh"
 #include "core.hh"
+#include "iterable.hh"
 #include "symbol.hh"
 #include "util.hh"
 
@@ -7,6 +8,7 @@
 #include <pybind11/operators.h>
 
 #include <algorithm>
+#include <span>
 
 // NOLINTBEGIN(readability-convert-member-functions-to-static,performance-enum-size)
 
@@ -26,6 +28,7 @@ template <class T> auto c_cast(std::optional<T> const &opt) -> clingo_ast_t *;
 
 template <class... Ts> auto c_cast(std::variant<Ts...> const &var) -> clingo_ast_t *;
 
+template <class T> auto c_cast(std::span<T> const &arr) -> std::vector<clingo_ast_t *>;
 template <class T> auto c_cast(std::vector<T> const &arr) -> std::vector<clingo_ast_t *>;
 
 auto c_cast(StringArray const &arr) -> std::vector<char const *> {
@@ -2213,6 +2216,58 @@ class StatementComment : public ASTBase {
   private:
     StatementComment(clingo_ast_t *ast) : ASTBase{ast} {}
 };
+
+} // namespace Clingo::Python
+
+namespace pybind11::detail {
+
+template <> class type_caster<Clingo::Python::StringArray> : public iterable_caster<std::string> {};
+template <> class type_caster<Clingo::Python::TermArray> : public iterable_caster<Clingo::Python::Term> {};
+template <>
+class type_caster<Clingo::Python::TermOrProjectionArray> : public iterable_caster<Clingo::Python::TermOrProjection> {};
+template <>
+class type_caster<Clingo::Python::ArgumentTupleArray> : public iterable_caster<Clingo::Python::ArgumentTuple> {};
+template <>
+class type_caster<Clingo::Python::TermOrArgumentTupleArray>
+    : public iterable_caster<Clingo::Python::TermOrArgumentTuple> {};
+template <> class type_caster<Clingo::Python::RightGuardArray> : public iterable_caster<Clingo::Python::RightGuard> {};
+template <> class type_caster<Clingo::Python::TheoryTermArray> : public iterable_caster<Clingo::Python::TheoryTerm> {};
+template <>
+class type_caster<Clingo::Python::UnparsedElementArray> : public iterable_caster<Clingo::Python::UnparsedElement> {};
+template <> class type_caster<Clingo::Python::LiteralArray> : public iterable_caster<Clingo::Python::Literal> {};
+template <>
+class type_caster<Clingo::Python::SetAggregateElementArray>
+    : public iterable_caster<Clingo::Python::SetAggregateElement> {};
+template <>
+class type_caster<Clingo::Python::BodyAggregateElementArray>
+    : public iterable_caster<Clingo::Python::BodyAggregateElement> {};
+template <>
+class type_caster<Clingo::Python::TheoryAtomElementArray> : public iterable_caster<Clingo::Python::TheoryAtomElement> {
+};
+template <>
+class type_caster<Clingo::Python::BodyLiteralArray> : public iterable_caster<Clingo::Python::BodyLiteral> {};
+template <>
+class type_caster<Clingo::Python::DisjunctionElementArray>
+    : public iterable_caster<Clingo::Python::DisjunctionElement> {};
+template <>
+class type_caster<Clingo::Python::HeadAggregateElementArray>
+    : public iterable_caster<Clingo::Python::HeadAggregateElement> {};
+template <>
+class type_caster<Clingo::Python::TheoryOperatorDefinitionArray>
+    : public iterable_caster<Clingo::Python::TheoryOperatorDefinition> {};
+template <>
+class type_caster<Clingo::Python::TheoryTermDefinitionArray>
+    : public iterable_caster<Clingo::Python::TheoryTermDefinition> {};
+template <>
+class type_caster<Clingo::Python::TheoryAtomDefinitionArray>
+    : public iterable_caster<Clingo::Python::TheoryAtomDefinition> {};
+template <>
+class type_caster<Clingo::Python::OptimizeElementArray> : public iterable_caster<Clingo::Python::OptimizeElement> {};
+template <> class type_caster<Clingo::Python::EdgeArray> : public iterable_caster<Clingo::Python::Edge> {};
+
+} // namespace pybind11::detail
+
+namespace Clingo::Python {
 
 auto construct_term(clingo_ast_t *ast) -> Term {
     clingo_ast_type_t type = 0;
@@ -5957,6 +6012,15 @@ template <class... Ts> auto c_cast(std::variant<Ts...> const &var) -> clingo_ast
     return std::visit([](auto const &x) { return c_cast(x); }, var);
 }
 
+template <class T> auto c_cast(std::span<T> const &arr) -> std::vector<clingo_ast_t *> {
+    std::vector<clingo_ast_t *> ret;
+    ret.reserve(arr.size());
+    for (auto const &x : arr) {
+        ret.emplace_back(c_cast(x));
+    }
+    return ret;
+}
+
 template <class T> auto c_cast(std::vector<T> const &arr) -> std::vector<clingo_ast_t *> {
     std::vector<clingo_ast_t *> ret;
     ret.reserve(arr.size());
@@ -6509,7 +6573,8 @@ term.)doc");
         .value("Block", CommentType::Block, R"doc(For block comments.)doc");
 
     py_projection
-        .def(py::init(&Projection::construct), py::arg("lib"), py::arg("location"), R"doc(Construct a Projection object.
+        .def(py::init(&Projection::construct), py::arg("lib"), py::arg("location"),
+             R"doc(Construct a Projection object.
 
 Args:
     lib: The library object for storing symbols.
@@ -6783,7 +6848,8 @@ If there is more than one element in the pool, the term is unpooled during prepr
 Args:
     visitor: The visitor accepting the sub expressions.
 )doc")
-        .def("transform", &TermTuple::transform, py::arg("lib"), py::arg("transformer"), R"doc(Transform the expression.
+        .def("transform", &TermTuple::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
 Additional arguments are passed to the transformer.
 
@@ -6908,7 +6974,8 @@ Args:
 Args:
     visitor: The visitor accepting the sub expressions.
 )doc")
-        .def("transform", &LeftGuard::transform, py::arg("lib"), py::arg("transformer"), R"doc(Transform the expression.
+        .def("transform", &LeftGuard::transform, py::arg("lib"), py::arg("transformer"),
+             R"doc(Transform the expression.
 
 Additional arguments are passed to the transformer.
 
@@ -7557,7 +7624,8 @@ Returns:
 
     py_body_aggregate
         .def(py::init(&BodyAggregate::construct), py::arg("lib"), py::arg("location"), py::arg("sign"), py::arg("left"),
-             py::arg("function"), py::arg("elements"), py::arg("right"), R"doc(Construct a BodyAggregate object.
+             py::arg("function"), py::arg("elements"), py::arg("right"),
+             R"doc(Construct a BodyAggregate object.
 
 Args:
     lib: The library object for storing symbols.
@@ -7710,7 +7778,8 @@ Args:
         .def_property_readonly("literal", &BodyConditionalLiteral::literal, R"doc(The literal of the element.)doc")
         .def_property_readonly("condition", &BodyConditionalLiteral::condition,
                                R"doc(The condition of the element.)doc")
-        .def("visit", &BodyConditionalLiteral::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+        .def("visit", &BodyConditionalLiteral::visit, py::arg("visitor"),
+             R"doc(Visit the children of the expression.
 
 Args:
     visitor: The visitor accepting the sub expressions.
@@ -7753,7 +7822,8 @@ Args:
         .def_property_readonly("literal", &HeadConditionalLiteral::literal, R"doc(The literal of the element.)doc")
         .def_property_readonly("condition", &HeadConditionalLiteral::condition,
                                R"doc(The condition of the element.)doc")
-        .def("visit", &HeadConditionalLiteral::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+        .def("visit", &HeadConditionalLiteral::visit, py::arg("visitor"),
+             R"doc(Visit the children of the expression.
 
 Args:
     visitor: The visitor accepting the sub expressions.
@@ -8056,7 +8126,8 @@ Args:
                                R"doc(The priority of the operator.)doc")
         .def_property_readonly("operator_type", &TheoryOperatorDefinition::operator_type,
                                R"doc(The type of the operator.)doc")
-        .def("visit", &TheoryOperatorDefinition::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+        .def("visit", &TheoryOperatorDefinition::visit, py::arg("visitor"),
+             R"doc(Visit the children of the expression.
 
 Args:
     visitor: The visitor accepting the sub expressions.
@@ -8482,7 +8553,8 @@ Args:
                                R"doc(The location of the statement.)doc")
         .def_property_readonly("body", &StatementWeakConstraint::body, R"doc(The body of the statement.)doc")
         .def_property_readonly("tuple", &StatementWeakConstraint::tuple, R"doc(The tuple of the statement.)doc")
-        .def("visit", &StatementWeakConstraint::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+        .def("visit", &StatementWeakConstraint::visit, py::arg("visitor"),
+             R"doc(Visit the children of the expression.
 
 Args:
     visitor: The visitor accepting the sub expressions.
@@ -8606,7 +8678,8 @@ Args:
         .def_property_readonly("name", &StatementShowSignature::name, R"doc(The name of the atom to show.)doc")
         .def_property_readonly("arity", &StatementShowSignature::arity, R"doc(The arity of the atom to show.)doc")
         .def_property_readonly("sign", &StatementShowSignature::sign, R"doc(The classical sign of the atom.)doc")
-        .def("visit", &StatementShowSignature::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+        .def("visit", &StatementShowSignature::visit, py::arg("visitor"),
+             R"doc(Visit the children of the expression.
 
 Args:
     visitor: The visitor accepting the sub expressions.
@@ -8693,7 +8766,8 @@ Args:
         .def_property_readonly("name", &StatementProjectSignature::name, R"doc(The name of the atom to project.)doc")
         .def_property_readonly("arity", &StatementProjectSignature::arity, R"doc(The arity of the atom to project.)doc")
         .def_property_readonly("sign", &StatementProjectSignature::sign, R"doc(The classical sign of the atom.)doc")
-        .def("visit", &StatementProjectSignature::visit, py::arg("visitor"), R"doc(Visit the children of the expression.
+        .def("visit", &StatementProjectSignature::visit, py::arg("visitor"),
+             R"doc(Visit the children of the expression.
 
 Args:
     visitor: The visitor accepting the sub expressions.
@@ -9166,7 +9240,8 @@ Args:
 
 Returns:
     The parsed Literal object.)doc");
-    ast.def("parse_head_literal", &parse_head_literal, py::arg("lib"), py::arg("string"), R"doc(Parse a head literal.
+    ast.def("parse_head_literal", &parse_head_literal, py::arg("lib"), py::arg("string"),
+            R"doc(Parse a head literal.
 
 Args:
     lib: The library object for storing symbols.
@@ -9174,7 +9249,8 @@ Args:
 
 Returns:
     The parsed HeadLiteral object.)doc");
-    ast.def("parse_body_literal", &parse_body_literal, py::arg("lib"), py::arg("string"), R"doc(Parse a body literal.
+    ast.def("parse_body_literal", &parse_body_literal, py::arg("lib"), py::arg("string"),
+            R"doc(Parse a body literal.
 
 Args:
     lib: The library object for storing symbols.
