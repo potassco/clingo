@@ -1,5 +1,6 @@
 #include <clingo/output/backend.hh>
 
+#include <clingo/util/ordered_map.hh>
 #include <clingo/util/ordered_set.hh>
 #include <clingo/util/print.hh>
 #include <clingo/util/type_traits.hh>
@@ -8,6 +9,53 @@
 namespace Clingo::Output {
 
 namespace {
+
+enum class CondState : uint8_t {
+    forward = 1, //!< only forward direction is necessary
+    both = 2,    //!< forward and backward directions are necessary
+};
+
+class OutputHelper {
+  public:
+    OutputHelper(Backend &backend) : backend_{&backend} {}
+
+    [[nodiscard]] auto uid() -> size_t { return ++uids_; }
+    auto cond(std::vector<int32_t> lits) -> size_t {
+        if constexpr (sizeof(size_t) > sizeof(uint32_t)) {
+            if (lits.size() == 1) {
+                return (static_cast<size_t>(static_cast<uint32_t>(lits[0])) << 1) | 1;
+            }
+            auto state = uint64_t{0};
+            auto it = conds_.emplace(lits, state).first;
+            return std::distance(conds_.begin(), it) << 1;
+        } else {
+            auto state = uint64_t{0};
+            auto it = conds_.emplace(lits, state).first;
+            return std::distance(conds_.begin(), it);
+        }
+    }
+    auto cond(size_t uid, CondState type) -> int32_t {
+        auto *state = static_cast<uint64_t *>(nullptr);
+        if constexpr (sizeof(size_t) > sizeof(uint32_t)) {
+            auto val = uid >> 1;
+            if ((uid & 1) == 1) {
+                return static_cast<int32_t>(val);
+            }
+            state = &conds_.nth(val).value();
+        } else {
+            state = &conds_.nth(uid).value();
+        }
+        // TODO: introduce auxiliary rules depending on type
+        static_cast<void>(backend_);
+        static_cast<void>(type);
+        return static_cast<int32_t>(*state >> 2);
+    }
+
+  private:
+    Backend *backend_;
+    Util::ordered_map<std::vector<int32_t>, uint64_t> conds_;
+    size_t uids_ = 0;
+};
 
 //! Output handling conditions.
 //!
