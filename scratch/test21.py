@@ -17,6 +17,7 @@ def main(lib):
     ctl.join(prg)
 
     ctl.ground([("base", [])])
+    ctl.solve()
 
 
 def run():

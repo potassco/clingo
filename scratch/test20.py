@@ -62,6 +62,7 @@ def main(lib: Library):
 
     ctl.parse_string("#program ext(k). p(@fun(k)).")
     ctl.ground([("ext", [Number(lib, i)]) for i in range(1, 1000, 37)])
+    ctl.solve()
 
 
 if __name__ == "__main__":
