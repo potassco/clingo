@@ -22,10 +22,18 @@ class TestSymbol(TestCase):
     """
 
     def setUp(self):
-        self.lib = Library()
+        self._lib = Library()
 
     def tearDown(self):
-        self.lib = None
+        self._lib = None
+
+    @property
+    def lib(self) -> Library:
+        """
+        Get the library object.
+        """
+        assert self._lib is not None
+        return self._lib
 
     def test_number(self):
         """

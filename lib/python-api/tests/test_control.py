@@ -111,7 +111,6 @@ class TestScript(TestCase):
                 """\
                 p(1).
                 p(2).
-                q(2).
                 q(3).
                 #show.
                 """

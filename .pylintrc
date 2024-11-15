@@ -1,2 +1,12 @@
 [MAIN]
 ignored-modules=clingo
+
+[BASIC]
+variable-rgx=[a-z_][a-z0-9_]*$
+
+[FORMAT]
+max-line-length=10000
+max-module-lines=10000
+
+[DESIGN]
+max-public-methods=10000

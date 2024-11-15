@@ -38,11 +38,12 @@ class MyScript(Script):
         """
         return [self._scope[name](lib, *arguments)]
 
-    def callable(self, name: str, args: int) -> bool:
+    def callable(self, name: str, arguments: int) -> bool:
         """
         Check if there is a function with the given name in the scope.
         """
         # pylint: disable=unused-argument
+
         return name in self._scope and callable(self._scope[name])
 
     def main(self, lib: Library, control: Control) -> None:
@@ -58,11 +59,19 @@ class TestScript(TestCase):
     """
 
     def setUp(self):
-        self.lib = Library()
+        self._lib = Library()
         register(self.lib, MyScript())
 
     def tearDown(self):
-        self.lib = None
+        self._lib = None
+
+    @property
+    def lib(self) -> Library:
+        """
+        Get the library object.
+        """
+        assert self._lib is not None
+        return self._lib
 
     def test_script(self):
         """

@@ -17,14 +17,30 @@ class TestAST(TestCase):
     """
 
     def setUp(self):
-        self.lib = Library()
-        self.loc = Location(
-            Position(self.lib, "<a>", 1, 2), Position(self.lib, "<b>", 3, 4)
+        self._lib = Library()
+        self._loc = Location(
+            Position(self._lib, "<a>", 1, 2), Position(self._lib, "<b>", 3, 4)
         )
 
     def tearDown(self):
-        self.loc = None
-        self.lib = None
+        self._loc = None
+        self._lib = None
+
+    @property
+    def lib(self) -> Library:
+        """
+        Get the library object.
+        """
+        assert self._lib is not None
+        return self._lib
+
+    @property
+    def loc(self) -> Location:
+        """
+        Get a dummy location.
+        """
+        assert self._loc is not None
+        return self._loc
 
     def sym(self, val):
         """
