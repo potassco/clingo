@@ -7,37 +7,65 @@
 
 namespace Clingo::Python {
 
-template <class T, class Alloc = std::allocator<T>> class Array : public std::vector<T, Alloc> {
+template <class T, class A = std::allocator<T>> class Iterable {
   public:
-    using std::vector<T, Alloc>::vector;
+    using Vector = std::vector<T, A>;
+
+    Iterable() = default;
+    Iterable(Iterable const &other) = default;
+    Iterable(Iterable &&other) noexcept = default;
+    auto operator=(Iterable const &other) -> Iterable & = default;
+    auto operator=(Iterable &&other) -> Iterable & = default;
+
+    Iterable(Vector const &other) : vec_{other} {}
+    Iterable(Vector &&other) : vec_{std::move(other)} {}
+    auto operator=(Vector const &other) -> Iterable & {
+        vec_ = other;
+        return *this;
+    }
+    auto operator=(Vector &&other) noexcept -> Iterable & {
+        vec_ = std::move(other);
+        return *this;
+    }
+
+    [[nodiscard]] auto size() const -> size_t { return vec_.size(); }
+    [[nodiscard]] auto vector() const -> Vector const & { return vec_; }
+    [[nodiscard]] auto vector() -> Vector & { return vec_; }
+
+    friend auto begin(Iterable &x) { return x.vector().begin(); }
+    friend auto begin(Iterable const &x) { return x.vector().begin(); }
+    friend auto end(Iterable &x) { return x.vector().end(); }
+    friend auto end(Iterable const &x) { return x.vector().end(); }
+
+  private:
+    Vector vec_;
 };
 
 } // namespace Clingo::Python
 
 namespace pybind11::detail {
 
-template <typename T, typename A> class type_caster<Clingo::Python::Array<T, A>> {
+template <typename T, typename A> class type_caster<Clingo::Python::Iterable<T, A>> {
   public:
     using value_conv = make_caster<T>;
     using value_type = std::remove_cv_t<T>;
-    using array_type = Clingo::Python::Array<T, A>;
+    using type = Clingo::Python::Iterable<T, A>;
 
-    PYBIND11_TYPE_CASTER(array_type, _("Iterable[") + value_conv::name + _("]"));
+    PYBIND11_TYPE_CASTER(type, _("Iterable[") + value_conv::name + _("]"));
 
     auto load(handle src, bool convert) -> bool {
         if (isinstance<iterable>(src) && !isinstance<str>(src)) {
             auto s = reinterpret_borrow<iterable>(src);
-            value = Clingo::Python::Array<T, A>{};
             if (isinstance<sequence>(src)) {
                 auto t = reinterpret_borrow<sequence>(src);
-                value.reserve(t.size());
+                value.vector().reserve(t.size());
             }
             for (auto it : s) {
                 value_conv conv;
                 if (!conv.load(it, convert)) {
                     return false;
                 }
-                value.push_back(cast_op<T &&>(std::move(conv)));
+                value.vector().push_back(cast_op<T &&>(std::move(conv)));
             }
             return true;
         }
