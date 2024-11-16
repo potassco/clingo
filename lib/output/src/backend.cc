@@ -61,9 +61,14 @@ class OutputHelper {
         }
         // add backward
         if (cur == 1 && type == CondType::equivalence) {
-            // TODO: add the other direction
-            throw std::logic_error("add backward direction");
             it.value() |= 2;
+            for (auto const &clit : it.key()) {
+                if (clit > 0) {
+                    auto hd = std::array{static_cast<uint32_t>(clit)};
+                    auto bd = std::array{lit};
+                    backend_->rule(hd, bd, false);
+                }
+            }
         }
         return lit;
     }
