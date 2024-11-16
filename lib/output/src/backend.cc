@@ -10,9 +10,14 @@ namespace Clingo::Output {
 
 namespace {
 
-enum class CondState : uint8_t {
-    forward = 1, //!< only forward direction is necessary
-    both = 2,    //!< forward and backward directions are necessary
+// TODO: global changes
+// - static cast from size_t to int32_t: uid_to_lit
+// - static cast from size_t to uint32_t: uid_to_atom
+// - casts can add checks
+
+enum class CondType : uint8_t {
+    implication, //!< only forward direction is necessary
+    equivalence, //!< forward and backward directions are necessary
 };
 
 class OutputHelper {
@@ -34,26 +39,41 @@ class OutputHelper {
             return std::distance(conds_.begin(), it);
         }
     }
-    auto cond(size_t uid, CondState type) -> int32_t {
-        auto *state = static_cast<uint64_t *>(nullptr);
+    auto cond(size_t uid, CondType type) -> int32_t {
+        auto it = CondMap::iterator{};
         if constexpr (sizeof(size_t) > sizeof(uint32_t)) {
             auto val = uid >> 1;
             if ((uid & 1) == 1) {
                 return static_cast<int32_t>(val);
             }
-            state = &conds_.nth(val).value();
+            it = conds_.nth(val);
         } else {
-            state = &conds_.nth(uid).value();
+            it = conds_.nth(uid);
         }
-        // TODO: introduce auxiliary rules depending on type
-        static_cast<void>(backend_);
-        static_cast<void>(type);
-        return static_cast<int32_t>(*state >> 2);
+        auto lit = static_cast<int32_t>(it.value() >> 2);
+        auto cur = it.value() & 2;
+        // add forward
+        if (cur == 0) {
+            lit = static_cast<int32_t>(this->uid());
+            it.value() = (static_cast<uint64_t>(static_cast<uint32_t>(lit)) << 2) | 1;
+            auto hd = std::array{static_cast<uint32_t>(lit)};
+            backend_->rule(hd, it.key(), false);
+        }
+        // add backward
+        if (cur == 1 && type == CondType::equivalence) {
+            // TODO: add the other direction
+            throw std::logic_error("add backward direction");
+            it.value() |= 2;
+        }
+        return lit;
     }
 
+    [[nodiscard]] auto backend() -> Backend & { return *backend_; }
+
   private:
+    using CondMap = Util::ordered_map<std::vector<int32_t>, uint64_t>;
     Backend *backend_;
-    Util::ordered_map<std::vector<int32_t>, uint64_t> conds_;
+    CondMap conds_;
     size_t uids_ = 0;
 };
 
@@ -65,7 +85,7 @@ class OutputHelper {
 //! Only supports simple literals excluding aggregates, theory atoms and conditions.
 class OutputCond : public OutputLit {
   public:
-    OutputCond(Backend &backend, size_t &uids) : backend_{&backend}, uids_{&uids} {}
+    OutputCond(OutputHelper &helper) : helper_{&helper} {}
 
     //! Get the literals of the body.
     //!
@@ -74,7 +94,8 @@ class OutputCond : public OutputLit {
     //! @return the literals
     [[nodiscard]] auto literals() const -> std::vector<int32_t> const & { return body_; }
 
-    auto backend() -> Backend & { return *backend_; };
+    auto helper() -> OutputHelper & { return *helper_; };
+    auto backend() -> Backend & { return helper_->backend(); };
 
     auto append(Sign sign, size_t uid) {
         switch (sign) {
@@ -89,8 +110,8 @@ class OutputCond : public OutputLit {
             case Sign::twice: {
                 // Note: better way to handle?
                 auto bd = std::array{-static_cast<int32_t>(uid)};
-                auto hd = std::array{static_cast<uint32_t>(++*uids_)};
-                backend_->rule(hd, bd, false);
+                auto hd = std::array{static_cast<uint32_t>(helper().uid())};
+                backend().rule(hd, bd, false);
                 body_.emplace_back(-static_cast<int32_t>(hd[0]));
                 return;
             }
@@ -99,8 +120,6 @@ class OutputCond : public OutputLit {
     }
 
     auto append(size_t uid) { body_.emplace_back(static_cast<int32_t>(uid)); }
-
-    auto uid() -> size_t { return ++*uids_; }
 
     void start() { body_.clear(); }
 
@@ -127,8 +146,7 @@ class OutputCond : public OutputLit {
         throw std::runtime_error("unsupported literal");
     }
 
-    Backend *backend_;
-    size_t *uids_;
+    OutputHelper *helper_;
     std::vector<int32_t> body_;
 };
 
@@ -140,12 +158,12 @@ class OutputCond : public OutputLit {
 //! Supports the full range of clingo's body literals.
 class OutputBody : public OutputCond {
   public:
-    OutputBody(Backend &backend, size_t &uids) : OutputCond(backend, uids) {}
+    OutputBody(OutputHelper &helper) : OutputCond(helper) {}
 
   private:
     auto do_cond_lit(std::optional<size_t> uid) -> size_t override {
         if (!uid) {
-            uid = this->uid();
+            uid = helper().uid();
         }
         append(*uid);
         return *uid;
@@ -153,7 +171,7 @@ class OutputBody : public OutputCond {
 
     auto do_bd_aggr(Sign sign, std::optional<size_t> uid) -> size_t override {
         if (!uid) {
-            uid = this->uid();
+            uid = helper().uid();
         }
         append(sign, *uid);
         return *uid;
@@ -161,7 +179,7 @@ class OutputBody : public OutputCond {
 
     auto do_bd_theory(Sign sign, std::optional<size_t> uid) -> size_t override {
         if (!uid) {
-            uid = this->uid();
+            uid = helper().uid();
         }
         append(sign, *uid);
         return *uid;
@@ -170,14 +188,14 @@ class OutputBody : public OutputCond {
 
 class OutputBackend : public OutputStm, OutputTheory {
   public:
-    OutputBackend(Backend &backend) : backend_{&backend} {};
+    OutputBackend(Backend &backend) : helper_{backend} {};
 
   private:
     void do_fact(Symbol sym, size_t uid) override {
         auto hd = std::array{static_cast<uint32_t>(uid)};
         auto bd = std::array{static_cast<int32_t>(uid)};
-        backend_->rule(hd, std::span<int32_t>{}, false);
-        backend_->show(sym, bd);
+        helper_.backend().rule(hd, std::span<int32_t>{}, false);
+        helper_.backend().show(sym, bd);
     }
 
     [[nodiscard]] auto do_body() -> OutputLit & override {
@@ -192,10 +210,10 @@ class OutputBackend : public OutputStm, OutputTheory {
             choice = get<2>(*head);
             atoms_.emplace_back(get<1>(*head));
         }
-        backend_->rule(atoms_, body_.literals(), choice);
+        helper_.backend().rule(atoms_, body_.literals(), choice);
     }
 
-    void do_show_term(Symbol term) override { backend_->show(term, body_.literals()); }
+    void do_show_term(Symbol term) override { helper_.backend().show(term, body_.literals()); }
 
     void do_external(Symbol atom, ExternalType type) override {
         static_cast<void>(atom);
@@ -312,28 +330,9 @@ class OutputBackend : public OutputStm, OutputTheory {
         return cond_;
     }
 
-    auto do_cond_id() -> size_t override {
-        auto lits = cond_.literals();
-        // TODO: implement special handling for one-elementary conditions here!!!
-        // TODO: maintain a dictionary of conditions
+    auto do_cond_id() -> size_t override { return helper_.cond(cond_.literals()); }
 
-        // representation
-        // - 0 sign literal
-        //   - compactly represent one-elementary conditions
-        // - 1 uid
-        //   - store uid of condition in map
-        // map:
-        // - ordered map
-        // - uid is index in map
-        // - key is the set of literals
-        // - the directions that have been introduced
-        //   - only create rules for conditions actually used
-        auto hd = std::array{static_cast<uint32_t>(uid())};
-        backend_->rule(hd, lits, false);
-        return hd[0];
-    }
-
-    auto do_uid() -> size_t override { return ++uids_; }
+    auto do_uid() -> size_t override { return helper_.uid(); }
 
     void do_cond_lit(size_t uid, CondLits elems) override {
         // TODO: can be a member
@@ -347,10 +346,10 @@ class OutputBackend : public OutputStm, OutputTheory {
                 // condition and its elements
                 throw std::logic_error{"implement me: cond_lit"};
             }
-            body.emplace_back(-static_cast<int32_t>(cond));
+            body.emplace_back(-helper_.cond(uid, CondType::implication));
         }
         auto hd = std::array{static_cast<uint32_t>(uid)};
-        backend_->rule(hd, body, false);
+        helper_.backend().rule(hd, body, false);
     }
 
     void aggr(size_t uid, AggregateFunction fun, auto elems, Guards guards, auto prt) {
@@ -565,10 +564,9 @@ class OutputBackend : public OutputStm, OutputTheory {
         throw std::logic_error{"implement me: theory atom"};
     }
 
-    size_t uids_ = 0;
-    Backend *backend_;
-    OutputBody body_{*backend_, uids_};
-    OutputCond cond_{*backend_, uids_};
+    OutputHelper helper_;
+    OutputBody body_{helper_};
+    OutputCond cond_{helper_};
     std::vector<uint32_t> atoms_;
     // Util::OutputBuffer tmp_;
     // OutputCond cond_;
