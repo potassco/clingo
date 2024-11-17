@@ -107,7 +107,7 @@ class OutputStm {
     virtual ~OutputStm() = default;
 
     //! Generate a new unique id for a literal.
-    auto lit_uid() -> size_t { return do_lit_uid(); }
+    auto uid() -> size_t { return do_uid(); }
 
     //! Output the given fact.
     void fact(Symbol sym, size_t uid) { do_fact(sym, uid); }
@@ -182,7 +182,7 @@ class OutputStm {
     void mark(SymbolCollector &gc) { do_mark(gc); }
 
   private:
-    virtual auto do_lit_uid() -> size_t = 0;
+    virtual auto do_uid() -> size_t = 0;
 
     virtual void do_fact(Symbol sym, size_t uid) = 0;
 

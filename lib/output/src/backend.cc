@@ -62,14 +62,6 @@ enum class CondType : uint8_t {
     equivalence, //!< forward and backward directions are necessary
 };
 
-//! Available types of uinque identifiers.
-enum class UIDType : uint8_t {
-    lit,    //!< identify a literal
-    aggr,   //!< identify a body aggregate
-    theory, //!< identify a body theory atom
-    cond,   //!< identify a condition
-};
-
 //! Helper class to translate formulas (aggregates, conditional literal, etc.)
 //! into logic programs as accepted by the backend.
 class OutputHelper {
@@ -83,28 +75,12 @@ class OutputHelper {
 
     //! Introduce a new uid.
     //!
-    //! Literal uids can be used as Tseitin literals.
-    //!
-    //! @return a fresh uid of the given type
-    [[nodiscard]] auto uid(UIDType type) -> size_t {
-        switch (type) {
-            case UIDType::lit: {
-                if (lit_uids_ < lit_max) {
-                    return ++lit_uids_;
-                }
-                throw std::range_error("maximum number of literals exhausted");
-            }
-            case UIDType::cond: {
-                return ++cond_uids_;
-            }
-            case UIDType::aggr: {
-                throw std::logic_error("implement me: uid bd aggr");
-            }
-            case UIDType::theory: {
-                throw std::logic_error("implement me: uid bd theory");
-            }
+    //! @return a fresh uid
+    [[nodiscard]] auto uid() -> size_t {
+        if (lit_uids_ >= lit_max) {
+            throw std::range_error("maximum number of literals exhausted");
         }
-        Util::unreachable();
+        return ++lit_uids_;
     }
 
     //! Get a unique id identifying the given literals.
@@ -146,19 +122,16 @@ class OutputHelper {
         auto cur = it.value() & 2;
         // add forward
         if (cur == 0) {
-            lit = uid_to_lit(this->uid(UIDType::lit));
+            lit = uid_to_lit(this->uid());
             it.value() = (static_cast<uint64_t>(static_cast<atom_t>(lit)) << 2) | 1;
-            auto hd = std::array{lit_to_atom(lit)};
-            backend_->rule(hd, it.key(), false);
+            backend_->rule(std::array{lit_to_atom(lit)}, it.key(), false);
         }
         // add backward
         if (cur == 1 && type == CondType::equivalence) {
             it.value() |= 2;
             for (auto const &clit : it.key()) {
                 if (clit > 0) {
-                    auto hd = std::array{lit_to_atom(clit)};
-                    auto bd = std::array{lit};
-                    backend_->rule(hd, bd, false);
+                    backend_->rule(std::array{lit_to_atom(clit)}, std::array{lit}, false);
                 }
             }
         }
@@ -176,7 +149,7 @@ class OutputHelper {
         if (lit > 0) {
             return -lit;
         }
-        auto nlit = uid_to_lit(uid(UIDType::lit));
+        auto nlit = uid_to_lit(uid());
         backend_->rule(std::array{lit_to_atom(nlit)}, std::array{lit}, false);
         return -nlit;
     }
@@ -189,7 +162,6 @@ class OutputHelper {
     Backend *backend_;
     CondMap conds_;
     size_t lit_uids_ = 0;
-    size_t cond_uids_ = 0;
 };
 
 //! Output handling conditions.
@@ -293,7 +265,7 @@ class OutputBody : public OutputCond {
   private:
     auto do_cond_lit(std::optional<size_t> uid) -> size_t override {
         if (!uid) {
-            uid = helper().uid(UIDType::cond);
+            uid = helper().uid();
         }
         append(*uid);
         return *uid;
@@ -301,7 +273,7 @@ class OutputBody : public OutputCond {
 
     auto do_bd_aggr(Sign sign, std::optional<size_t> uid) -> size_t override {
         if (!uid) {
-            uid = helper().uid(UIDType::aggr);
+            uid = helper().uid();
         }
         append(sign, *uid);
         return *uid;
@@ -309,7 +281,7 @@ class OutputBody : public OutputCond {
 
     auto do_bd_theory(Sign sign, std::optional<size_t> uid) -> size_t override {
         if (!uid) {
-            uid = helper().uid(UIDType::theory);
+            uid = helper().uid();
         }
         append(sign, *uid);
         return *uid;
@@ -322,10 +294,8 @@ class OutputBackend : public OutputStm, OutputTheory {
 
   private:
     void do_fact(Symbol sym, size_t uid) override {
-        auto hd = std::array{uid_to_atom(uid)};
-        auto bd = std::array{uid_to_lit(uid)};
-        helper_.backend().rule(hd, LitSpan{}, false);
-        helper_.backend().show(sym, bd);
+        helper_.backend().rule(std::array{uid_to_atom(uid)}, LitSpan{}, false);
+        helper_.backend().show(sym, std::array{uid_to_lit(uid)});
     }
 
     [[nodiscard]] auto do_body() -> OutputLit & override {
@@ -462,14 +432,13 @@ class OutputBackend : public OutputStm, OutputTheory {
 
     auto do_cond_id() -> size_t override { return helper_.cond(cond_.literals()); }
 
-    auto do_lit_uid() -> size_t override { return helper_.uid(UIDType::lit); }
+    auto do_uid() -> size_t override { return helper_.uid(); }
 
     void do_cond_lit(size_t uid, CondLits elems) override {
         // TODO: It might be possible to reduce the number of auxiliary program
         // literals by only introducing only one variable K for all conditions.
-        // TODO: can be a member
-        LitVec body;
-        body.reserve(elems.size());
+        lits_.clear();
+        lits_.reserve(elems.size());
         for (auto const &elem : elems) {
             auto const &[conc, cond] = elem;
             if (conc) {
@@ -481,7 +450,7 @@ class OutputBackend : public OutputStm, OutputTheory {
                 // - F: cond
                 auto g = helper_.cond(*conc, CondType::equivalence);
                 auto f = helper_.cond(cond, CondType::equivalence);
-                auto k = uid_to_lit(helper_.uid(UIDType::lit));
+                auto k = uid_to_lit(helper_.uid());
                 auto &bck = helper_.backend();
                 bck.rule(std::array{lit_to_atom(k)}, std::array{g}, false);
                 assert(g > 0);
@@ -498,13 +467,12 @@ class OutputBackend : public OutputStm, OutputTheory {
                     // K :- not F.
                     bck.rule(std::array{lit_to_atom(k)}, std::array{helper_.negate(f)}, false);
                 }
-                body.emplace_back(k);
+                lits_.emplace_back(k);
             } else {
-                body.emplace_back(helper_.negate(helper_.cond(uid, CondType::implication)));
+                lits_.emplace_back(helper_.negate(helper_.cond(cond, CondType::implication)));
             }
         }
-        auto hd = std::array{uid_to_atom(uid)};
-        helper_.backend().rule(hd, body, false);
+        helper_.backend().rule(std::array{uid_to_atom(uid)}, lits_, false);
     }
 
     void aggr(size_t uid, AggregateFunction fun, auto elems, Guards guards, auto prt) {
@@ -513,19 +481,8 @@ class OutputBackend : public OutputStm, OutputTheory {
         static_cast<void>(elems);
         static_cast<void>(guards);
         static_cast<void>(prt);
-        // tmp_.reset();
-        // auto it = guards.begin();
-        // if (guards.size() > 1) {
-        //     tmp_ << it->second << " " << flip(it->first) << " ";
-        //     ++it;
-        // }
-        // tmp_ << fun << " { " << Util::p_range(elems, "; ", [prt](auto &buf, auto const &elem) { prt(buf, elem);
-        // })
-        //      << (elems.empty() ? "}" : " }");
-        // for (auto ie = guards.end(); it != ie; ++it) {
-        //     tmp_ << " " << it->first << " " << it->second;
-        // }
-        // body_.define(uid, tmp_.str());
+        // aux variable :- array
+        //
         throw std::logic_error{"implement me: aggr"};
     }
 
@@ -720,6 +677,7 @@ class OutputBackend : public OutputStm, OutputTheory {
         throw std::logic_error{"implement me: theory atom"};
     }
 
+    LitVec lits_;
     OutputHelper helper_;
     OutputBody body_{helper_};
     OutputCond cond_{helper_};

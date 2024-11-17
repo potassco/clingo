@@ -62,7 +62,7 @@ class Builder : public Input::DependencyBuilder {
     void do_fact(std::vector<Symbol> const &facts) override {
         for (auto const &fact : facts) {
             auto dom_it = base_.add_base(std::make_tuple(fact.name(), fact.args().size(), fact.has_sign()));
-            auto it = dom_it->second->add(fact, Ground::StateAtom::fact, [this]() { return out_->lit_uid(); }).first;
+            auto it = dom_it->second->add(fact, Ground::StateAtom::fact, [this]() { return out_->uid(); }).first;
             out_->fact(fact, it->second.id);
         }
     }
