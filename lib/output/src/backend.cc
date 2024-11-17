@@ -6,68 +6,141 @@
 #include <clingo/util/type_traits.hh>
 #include <clingo/util/unordered_map.hh>
 
+#include <clingo/util/checked_math.hh>
+
 namespace Clingo::Output {
 
 namespace {
 
-// TODO: global changes
-// - static cast from size_t to int32_t: uid_to_lit
-// - static cast from size_t to uint32_t: uid_to_atom
-// - casts can add checks
-
-auto uid_to_lit(size_t uid) -> int32_t {
-    assert(uid <= std::numeric_limits<int32_t>::max());
+//! Convert a uid to an integer literal.
+//!
+//! @pre 1 <= uid <= static_cast<atom_t>(numeric_limits<lit_t>::max())
+//!
+//! @param uid the uid to convert
+//! @return the resulting literal
+auto uid_to_lit(size_t uid) -> lit_t {
+    assert(1 <= uid && uid <= static_cast<atom_t>(std::numeric_limits<lit_t>::max()));
     return static_cast<int32_t>(uid);
 }
 
-auto uid_to_atom(size_t uid) -> uint32_t {
-    assert(uid <= std::numeric_limits<int32_t>::max());
-    return static_cast<uint32_t>(uid);
+//! Convert a uid to an atom.
+//!
+//! @pre 1 <= uid <= static_cast<atom_t>(numeric_limits<lit_t>::max())
+//!
+//! @param uid the uid to convert
+//! @return the resulting atom
+auto uid_to_atom(size_t uid) -> atom_t {
+    assert(1 <= uid && uid <= static_cast<atom_t>(std::numeric_limits<lit_t>::max()));
+    return static_cast<atom_t>(uid);
 }
 
-auto lit_to_atom(int32_t lit) -> uint32_t { return static_cast<uint32_t>(lit); }
+//! Get the atom corresponding to a literal.
+//!
+//! @pre lit != 0 && lit !=std::numeric_limits<lit_t>::min()
+//!
+//! @param lit the literal to convert
+//! @return the resulting atom
+auto lit_to_atom(int32_t lit) -> uint32_t {
+    assert(lit != 0 && lit != std::numeric_limits<lit_t>::min());
+    return static_cast<uint32_t>(lit);
+}
 
+//! Available condition types.
+//!
+//! Conditions are clauses associated with a literal. The equivalence between
+//! the literal and the clause is either established with an implication (a
+//! rule) or an equivalence.
 enum class CondType : uint8_t {
     implication, //!< only forward direction is necessary
     equivalence, //!< forward and backward directions are necessary
 };
 
+//! Available types of uinque identifiers.
+enum class UIDType : uint8_t {
+    lit,    //!< identify a literal
+    aggr,   //!< identify a body aggregate
+    theory, //!< identify a body theory atom
+    cond,   //!< identify a condition
+};
+
+//! Helper class to translate formulas (aggregates, conditional literal, etc.)
+//! into logic programs as accepted by the backend.
 class OutputHelper {
   public:
+    //! Construct the output helper.
+    //!
+    //! The reference to the backend is stored and used by the helper.
+    //!
+    //! @param backend the underlying backend
     OutputHelper(Backend &backend) : backend_{&backend} {}
 
-    [[nodiscard]] auto uid() -> size_t { return ++uids_; }
-    auto cond(LitVec const &lits) -> size_t {
-        if constexpr (sizeof(size_t) > sizeof(uint32_t)) {
-            if (lits.size() == 1) {
-                return (static_cast<size_t>(static_cast<uint32_t>(lits[0])) << 1) | 1;
+    //! Introduce a new uid.
+    //!
+    //! Literal uids can be used as Tseitin literals.
+    //!
+    //! @return a fresh uid of the given type
+    [[nodiscard]] auto uid(UIDType type) -> size_t {
+        switch (type) {
+            case UIDType::lit: {
+                if (lit_uids_ >= std::numeric_limits<lit_t>::max()) {
+                    throw std::range_error("maximum number of literals exhausted");
+                }
+                return ++lit_uids_;
             }
-            auto state = uint64_t{0};
-            auto it = conds_.emplace(lits, state).first;
-            return std::distance(conds_.begin(), it) << 1;
-        } else {
-            auto state = uint64_t{0};
-            auto it = conds_.emplace(lits, state).first;
-            return std::distance(conds_.begin(), it);
+            case UIDType::cond: {
+                return ++cond_uids_;
+            }
+            case UIDType::aggr: {
+                throw std::logic_error("implement me: uid bd aggr");
+            }
+            case UIDType::theory: {
+                throw std::logic_error("implement me: uid bd theory");
+            }
         }
+        Util::unreachable();
     }
-    auto cond(size_t uid, CondType type) -> int32_t {
-        auto it = CondMap::iterator{};
-        if constexpr (sizeof(size_t) > sizeof(uint32_t)) {
-            auto val = uid >> 1;
-            if ((uid & 1) == 1) {
-                return uid_to_lit(val);
-            }
-            it = conds_.nth(val);
-        } else {
-            it = conds_.nth(uid);
+    //! Get a unique id identifying the given literals.
+    //!
+    //! The function stores a map from the set of literals to the unique identifiers.
+    //!
+    //! @param lits the literals
+    auto cond(LitVec const &lits) -> size_t {
+        static_assert(sizeof(size_t) <= sizeof(uint64_t) && sizeof(atom_t) <= sizeof(size_t));
+        auto copy = lits;
+        std::ranges::sort(copy);
+        copy.erase(std::ranges::unique(copy).begin(), copy.end());
+        if (copy.size() == 1) {
+            auto res = Util::safe_cast<ssize_t>((int64_t{copy[0]} << 1) | 1);
+            return static_cast<size_t>(res);
         }
-        auto lit = static_cast<int32_t>(it.value() >> 2);
+        auto state = uint64_t{0};
+        auto it = conds_.emplace(std::move(copy), state).first;
+        auto res = static_cast<size_t>(std::distance(conds_.begin(), it));
+        if (res > (std::numeric_limits<size_t>::max() >> 1)) {
+            throw std::range_error("maximum number of conditions exhausted");
+        }
+        return res << 1;
+    }
+    //! Get a Tseitin literal for the condition with the given uid.
+    //!
+    //! The type parameter determines the kind of equivalence between condition
+    //! and its Tseitin literal.
+    //!
+    //! @param uid the uid of the condition
+    //! @param type the type of the Tseitin literal
+    //! @return the resulting literal
+    auto cond(size_t uid, CondType type) -> lit_t {
+        auto it = CondMap::iterator{};
+        if ((uid & 1) == 1) {
+            return static_cast<lit_t>(static_cast<ssize_t>(uid) >> 1);
+        }
+        it = conds_.nth(uid >> 1);
+        auto lit = static_cast<lit_t>(it.value() >> 2);
         auto cur = it.value() & 2;
         // add forward
         if (cur == 0) {
-            lit = uid_to_lit(this->uid());
-            it.value() = (static_cast<uint64_t>(static_cast<uint32_t>(lit)) << 2) | 1;
+            lit = uid_to_lit(this->uid(UIDType::lit));
+            it.value() = (static_cast<uint64_t>(static_cast<atom_t>(lit)) << 2) | 1;
             auto hd = std::array{lit_to_atom(lit)};
             backend_->rule(hd, it.key(), false);
         }
@@ -87,7 +160,7 @@ class OutputHelper {
 
     //! Negate the given literal.
     //!
-    //! Introduces an auxiliary literal to negate negative literals.
+    //! Introduces a Tseitin literal if the given literal is negative.
     //!
     //! @param lit the literal to negate
     //! @return the negated literal
@@ -96,7 +169,7 @@ class OutputHelper {
         if (lit > 0) {
             return -lit;
         }
-        auto nlit = uid_to_lit(uid());
+        auto nlit = uid_to_lit(uid(UIDType::lit));
         backend_->rule(std::array{lit_to_atom(nlit)}, std::array{lit}, false);
         return -nlit;
     }
@@ -108,7 +181,8 @@ class OutputHelper {
     using CondMap = Util::ordered_map<LitVec, uint64_t>;
     Backend *backend_;
     CondMap conds_;
-    size_t uids_ = 0;
+    size_t lit_uids_ = 0;
+    size_t cond_uids_ = 0;
 };
 
 //! Output handling conditions.
@@ -193,7 +267,7 @@ class OutputBody : public OutputCond {
   private:
     auto do_cond_lit(std::optional<size_t> uid) -> size_t override {
         if (!uid) {
-            uid = helper().uid();
+            uid = helper().uid(UIDType::cond);
         }
         append(*uid);
         return *uid;
@@ -201,7 +275,7 @@ class OutputBody : public OutputCond {
 
     auto do_bd_aggr(Sign sign, std::optional<size_t> uid) -> size_t override {
         if (!uid) {
-            uid = helper().uid();
+            uid = helper().uid(UIDType::aggr);
         }
         append(sign, *uid);
         return *uid;
@@ -209,7 +283,7 @@ class OutputBody : public OutputCond {
 
     auto do_bd_theory(Sign sign, std::optional<size_t> uid) -> size_t override {
         if (!uid) {
-            uid = helper().uid();
+            uid = helper().uid(UIDType::theory);
         }
         append(sign, *uid);
         return *uid;
@@ -222,8 +296,8 @@ class OutputBackend : public OutputStm, OutputTheory {
 
   private:
     void do_fact(Symbol sym, size_t uid) override {
-        auto hd = std::array{static_cast<uint32_t>(uid)};
-        auto bd = std::array{static_cast<int32_t>(uid)};
+        auto hd = std::array{uid_to_atom(uid)};
+        auto bd = std::array{uid_to_lit(uid)};
         helper_.backend().rule(hd, LitSpan{}, false);
         helper_.backend().show(sym, bd);
     }
@@ -362,7 +436,7 @@ class OutputBackend : public OutputStm, OutputTheory {
 
     auto do_cond_id() -> size_t override { return helper_.cond(cond_.literals()); }
 
-    auto do_uid() -> size_t override { return helper_.uid(); }
+    auto do_lit_uid() -> size_t override { return helper_.uid(UIDType::lit); }
 
     void do_cond_lit(size_t uid, CondLits elems) override {
         // TODO: It might be possible to reduce the number of auxiliary program
@@ -381,7 +455,7 @@ class OutputBackend : public OutputStm, OutputTheory {
                 // - F: cond
                 auto g = helper_.cond(*conc, CondType::equivalence);
                 auto f = helper_.cond(cond, CondType::equivalence);
-                auto k = uid_to_lit(helper_.uid());
+                auto k = uid_to_lit(helper_.uid(UIDType::lit));
                 auto &bck = helper_.backend();
                 bck.rule(std::array{lit_to_atom(k)}, std::array{g}, false);
                 assert(g > 0);

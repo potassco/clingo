@@ -317,7 +317,7 @@ auto get_atom(Base &base, OutputStm &out, Sign sign, size_t index, Symbol symbol
     if (sign == Sign::once && index == stratified_index) {
         return base.find(symbol);
     }
-    return base.add(symbol, StateAtom::unknown, [&out]() { return out.uid(); }).first;
+    return base.add(symbol, StateAtom::unknown, [&out]() { return out.lit_uid(); }).first;
 }
 
 } // namespace
