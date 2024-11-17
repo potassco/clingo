@@ -85,6 +85,15 @@ class OutputHelper {
         return lit;
     }
 
+    auto negate(lit_t lit) -> lit_t {
+        if (lit > 0) {
+            return -lit;
+        }
+        auto nlit = uid_to_lit(uid());
+        backend_->rule(std::array{lit_to_atom(nlit)}, std::array{lit}, false);
+        return -nlit;
+    }
+
     [[nodiscard]] auto backend() -> Backend & { return *backend_; }
 
   private:
@@ -126,11 +135,7 @@ class OutputCond : public OutputLit {
                 return;
             }
             case Sign::twice: {
-                // Note: better way to handle?
-                auto bd = std::array{-uid_to_lit(uid)};
-                auto hd = std::array{uid_to_atom(helper().uid())};
-                backend().rule(hd, bd, false);
-                body_.emplace_back(-uid_to_lit(hd[0]));
+                body_.emplace_back(helper_->negate(-uid_to_lit(uid)));
                 return;
             }
         }
@@ -353,18 +358,43 @@ class OutputBackend : public OutputStm, OutputTheory {
     auto do_uid() -> size_t override { return helper_.uid(); }
 
     void do_cond_lit(size_t uid, CondLits elems) override {
+        // TODO: It might be possible to reduce the number of auxiliary program
+        // literals by only introducing only one variable K for all conditions.
         // TODO: can be a member
         LitVec body;
         body.reserve(elems.size());
         for (auto const &elem : elems) {
             auto const &[conc, cond] = elem;
             if (conc) {
-                // TODO: needs translation
-                // the current logic does not work because the recursive case requires an equivalence between a
-                // condition and its elements
-                throw std::logic_error{"implement me: cond_lit"};
+                // Note: conc is encoded as a condition, which is guaranteed to
+                // be mapped to a positive literal.
+                // Below, we us the following variable names:
+                // - K: new uid replacing G : F in the body
+                // - G: conc
+                // - F: cond
+                auto g = helper_.cond(*conc, CondType::equivalence);
+                auto f = helper_.cond(cond, CondType::equivalence);
+                auto k = uid_to_lit(helper_.uid());
+                auto &bck = helper_.backend();
+                bck.rule(std::array{lit_to_atom(k)}, std::array{g}, false);
+                assert(g > 0);
+                if (f > 0) {
+                    // formula G : F is replaced by K
+                    // K :- G.
+                    // K :- not F.
+                    // K | F :- not not G.
+                    bck.rule(std::array{lit_to_atom(k)}, std::array{-f}, false);
+                    bck.rule(std::array{lit_to_atom(k), lit_to_atom(f)}, std::array{helper_.negate(-g)}, false);
+                } else {
+                    // the above formulas can be simplified
+                    // K :- G.
+                    // K :- not F.
+                    bck.rule(std::array{lit_to_atom(k)}, std::array{helper_.negate(f)}, false);
+                }
+                body.emplace_back(k);
+            } else {
+                body.emplace_back(helper_.negate(helper_.cond(uid, CondType::implication)));
             }
-            body.emplace_back(-helper_.cond(uid, CondType::implication));
         }
         auto hd = std::array{uid_to_atom(uid)};
         helper_.backend().rule(hd, body, false);
@@ -382,7 +412,8 @@ class OutputBackend : public OutputStm, OutputTheory {
         //     tmp_ << it->second << " " << flip(it->first) << " ";
         //     ++it;
         // }
-        // tmp_ << fun << " { " << Util::p_range(elems, "; ", [prt](auto &buf, auto const &elem) { prt(buf, elem); })
+        // tmp_ << fun << " { " << Util::p_range(elems, "; ", [prt](auto &buf, auto const &elem) { prt(buf, elem);
+        // })
         //      << (elems.empty() ? "}" : " }");
         // for (auto ie = guards.end(); it != ie; ++it) {
         //     tmp_ << " " << it->first << " " << it->second;
