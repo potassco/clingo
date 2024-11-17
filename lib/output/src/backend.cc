@@ -85,7 +85,14 @@ class OutputHelper {
         return lit;
     }
 
+    //! Negate the given literal.
+    //!
+    //! Introduces an auxiliary literal to negate negative literals.
+    //!
+    //! @param lit the literal to negate
+    //! @return the negated literal
     auto negate(lit_t lit) -> lit_t {
+        // TODO: maybe store a map for double negated literals.
         if (lit > 0) {
             return -lit;
         }
@@ -97,7 +104,7 @@ class OutputHelper {
     [[nodiscard]] auto backend() -> Backend & { return *backend_; }
 
   private:
-    // TODO: can be stored more compactly
+    // TODO: the vector can be stored more compactly.
     using CondMap = Util::ordered_map<LitVec, uint64_t>;
     Backend *backend_;
     CondMap conds_;
