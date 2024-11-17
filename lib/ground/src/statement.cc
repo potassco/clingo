@@ -323,7 +323,7 @@ auto StmRule::do_report(InstantiationContext const &ctx) -> bool {
         auto it =
             base_->add(atom_, fact ? StateAtom::fact : StateAtom::derived, [&ctx]() { return ctx.out().lit_uid(); })
                 .first;
-        ctx.out().rule(std::tuple{atom_, size_t{it.value().id}, type_ == RuleType::choice});
+        ctx.out().rule(std::tuple{atom_, static_cast<size_t>(it.value().id), type_ == RuleType::choice});
     } else if (type_ == RuleType::normal) {
         ctx.out().rule(std::nullopt);
     }

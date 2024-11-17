@@ -12,37 +12,44 @@ namespace Clingo::Output {
 
 namespace {
 
+//! The maximum literal.
+constexpr auto lit_max = std::numeric_limits<lit_t>::max();
+//! The minimum literal.
+constexpr auto lit_min = -lit_max;
+//! The maximum condition.
+constexpr auto cond_max = std::numeric_limits<size_t>::max() >> 1;
+
 //! Convert a uid to an integer literal.
 //!
-//! @pre 1 <= uid <= static_cast<atom_t>(numeric_limits<lit_t>::max())
+//! @pre 1 <= uid <= lit_max
 //!
 //! @param uid the uid to convert
 //! @return the resulting literal
 auto uid_to_lit(size_t uid) -> lit_t {
-    assert(1 <= uid && uid <= static_cast<atom_t>(std::numeric_limits<lit_t>::max()));
+    assert(1 <= uid && uid <= static_cast<atom_t>(lit_max));
     return static_cast<int32_t>(uid);
 }
 
 //! Convert a uid to an atom.
 //!
-//! @pre 1 <= uid <= static_cast<atom_t>(numeric_limits<lit_t>::max())
+//! @pre 1 <= uid <= lit_max
 //!
 //! @param uid the uid to convert
 //! @return the resulting atom
 auto uid_to_atom(size_t uid) -> atom_t {
-    assert(1 <= uid && uid <= static_cast<atom_t>(std::numeric_limits<lit_t>::max()));
+    assert(1 <= uid && uid <= static_cast<atom_t>(lit_max));
     return static_cast<atom_t>(uid);
 }
 
 //! Get the atom corresponding to a literal.
 //!
-//! @pre lit != 0 && lit !=std::numeric_limits<lit_t>::min()
+//! @pre lit != 0 && lit >= lit_min
 //!
 //! @param lit the literal to convert
 //! @return the resulting atom
-auto lit_to_atom(int32_t lit) -> uint32_t {
-    assert(lit != 0 && lit != std::numeric_limits<lit_t>::min());
-    return static_cast<uint32_t>(lit);
+auto lit_to_atom(lit_t lit) -> atom_t {
+    assert(lit != 0 && lit >= lit_min);
+    return static_cast<atom_t>(lit);
 }
 
 //! Available condition types.
@@ -82,10 +89,10 @@ class OutputHelper {
     [[nodiscard]] auto uid(UIDType type) -> size_t {
         switch (type) {
             case UIDType::lit: {
-                if (lit_uids_ >= std::numeric_limits<lit_t>::max()) {
-                    throw std::range_error("maximum number of literals exhausted");
+                if (lit_uids_ < lit_max) {
+                    return ++lit_uids_;
                 }
-                return ++lit_uids_;
+                throw std::range_error("maximum number of literals exhausted");
             }
             case UIDType::cond: {
                 return ++cond_uids_;
@@ -99,13 +106,13 @@ class OutputHelper {
         }
         Util::unreachable();
     }
+
     //! Get a unique id identifying the given literals.
     //!
     //! The function stores a map from the set of literals to the unique identifiers.
     //!
     //! @param lits the literals
     auto cond(LitVec const &lits) -> size_t {
-        static_assert(sizeof(size_t) <= sizeof(uint64_t) && sizeof(atom_t) <= sizeof(size_t));
         auto copy = lits;
         std::ranges::sort(copy);
         copy.erase(std::ranges::unique(copy).begin(), copy.end());
@@ -115,12 +122,12 @@ class OutputHelper {
         }
         auto state = uint64_t{0};
         auto it = conds_.emplace(std::move(copy), state).first;
-        auto res = static_cast<size_t>(std::distance(conds_.begin(), it));
-        if (res > (std::numeric_limits<size_t>::max() >> 1)) {
-            throw std::range_error("maximum number of conditions exhausted");
+        if (auto res = static_cast<size_t>(std::distance(conds_.begin(), it)); res <= cond_max) {
+            return res << 1;
         }
-        return res << 1;
+        throw std::range_error("maximum number of conditions exhausted");
     }
+
     //! Get a Tseitin literal for the condition with the given uid.
     //!
     //! The type parameter determines the kind of equivalence between condition
@@ -202,9 +209,22 @@ class OutputCond : public OutputLit {
     //! @return the literals
     [[nodiscard]] auto literals() const -> LitVec const & { return body_; }
 
+    //! Get the helper of the output.
+    //!
+    //! @return the helper
     auto helper() -> OutputHelper & { return *helper_; };
+
+    //! Get the backend of the output.
+    //!
+    //! @return the backend
     auto backend() -> Backend & { return helper_->backend(); };
 
+    //! Append the atom with the given sign.
+    //!
+    //! @pre The uid must be a literal uid.
+    //!
+    //! @param sign the sign of the literal
+    //! @param uid the uid
     auto append(Sign sign, size_t uid) {
         switch (sign) {
             case Sign::none: {
@@ -223,8 +243,14 @@ class OutputCond : public OutputLit {
         Util::unreachable();
     }
 
+    //! Append the given uid to the body.
+    //!
+    //! Equivalent to `append(Sign::none, uid)`.
+    //!
+    //! @param uid the uid
     auto append(size_t uid) { body_.emplace_back(uid_to_lit(uid)); }
 
+    //! Start a new condition/body clearing the underlying literals.
     void start() { body_.clear(); }
 
   private:
