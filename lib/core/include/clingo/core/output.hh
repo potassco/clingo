@@ -8,11 +8,14 @@ namespace Clingo {
 //! @addtogroup core_output
 //! @{
 
+//! A span of indices.
+using IndexSpan = std::span<size_t const>;
+//! A vector of indices.
+using IndexVec = std::vector<size_t>;
+
 //! Interface to output literals.
 class OutputTheory {
   public:
-    //! A span of indices.
-    using IndexSpan = std::span<size_t const>;
     //! An optional guard of string and term indices.
     using OptGuard = std::optional<std::pair<size_t, size_t>>;
     //! Destroy the output.
@@ -22,7 +25,7 @@ class OutputTheory {
     //! Output the given symbolic literal.
     auto num(Number const &num) -> size_t { return do_num(num); }
     //! Output the given symbolic literal.
-    auto fun(String name, std::span<size_t const> args) -> size_t { return do_fun(name, args); }
+    auto fun(String name, IndexSpan args) -> size_t { return do_fun(name, args); }
     //! Output the given tuple.
     auto tup(TheoryTermTupleType type, IndexSpan args) -> size_t { return do_tup(type, args); }
     //! Output the given element.
@@ -76,7 +79,7 @@ class OutputStm {
     //! A body aggregate element.
     //!
     //! The span captures the ids of conditions.
-    using BdElem = std::pair<SymbolSpan, std::span<size_t const>>;
+    using BdElem = std::pair<SymbolSpan, IndexSpan>;
     //! A span of body aggregate elements.
     using BdElems = std::span<BdElem const>;
     //! A head aggregate element.
@@ -96,7 +99,7 @@ class OutputStm {
     //! A span of conditional literals.
     using CondLits = std::span<CondLit const>;
     //! A disjunction element.
-    using DisjunctionElem = std::pair<Symbol, std::span<size_t const>>;
+    using DisjunctionElem = std::pair<Symbol, IndexSpan>;
     //! A span of disjunction elements.
     using DisjunctionElems = std::span<DisjunctionElem const>;
 

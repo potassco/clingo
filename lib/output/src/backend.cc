@@ -15,6 +15,18 @@ namespace {
 // - static cast from size_t to uint32_t: uid_to_atom
 // - casts can add checks
 
+auto uid_to_lit(size_t uid) -> int32_t {
+    assert(uid <= std::numeric_limits<int32_t>::max());
+    return static_cast<int32_t>(uid);
+}
+
+auto uid_to_atom(size_t uid) -> uint32_t {
+    assert(uid <= std::numeric_limits<int32_t>::max());
+    return static_cast<uint32_t>(uid);
+}
+
+auto lit_to_atom(int32_t lit) -> uint32_t { return static_cast<uint32_t>(lit); }
+
 enum class CondType : uint8_t {
     implication, //!< only forward direction is necessary
     equivalence, //!< forward and backward directions are necessary
@@ -25,7 +37,7 @@ class OutputHelper {
     OutputHelper(Backend &backend) : backend_{&backend} {}
 
     [[nodiscard]] auto uid() -> size_t { return ++uids_; }
-    auto cond(std::vector<int32_t> lits) -> size_t {
+    auto cond(LitVec const &lits) -> size_t {
         if constexpr (sizeof(size_t) > sizeof(uint32_t)) {
             if (lits.size() == 1) {
                 return (static_cast<size_t>(static_cast<uint32_t>(lits[0])) << 1) | 1;
@@ -44,7 +56,7 @@ class OutputHelper {
         if constexpr (sizeof(size_t) > sizeof(uint32_t)) {
             auto val = uid >> 1;
             if ((uid & 1) == 1) {
-                return static_cast<int32_t>(val);
+                return uid_to_lit(val);
             }
             it = conds_.nth(val);
         } else {
@@ -54,9 +66,9 @@ class OutputHelper {
         auto cur = it.value() & 2;
         // add forward
         if (cur == 0) {
-            lit = static_cast<int32_t>(this->uid());
+            lit = uid_to_lit(this->uid());
             it.value() = (static_cast<uint64_t>(static_cast<uint32_t>(lit)) << 2) | 1;
-            auto hd = std::array{static_cast<uint32_t>(lit)};
+            auto hd = std::array{lit_to_atom(lit)};
             backend_->rule(hd, it.key(), false);
         }
         // add backward
@@ -64,7 +76,7 @@ class OutputHelper {
             it.value() |= 2;
             for (auto const &clit : it.key()) {
                 if (clit > 0) {
-                    auto hd = std::array{static_cast<uint32_t>(clit)};
+                    auto hd = std::array{lit_to_atom(clit)};
                     auto bd = std::array{lit};
                     backend_->rule(hd, bd, false);
                 }
@@ -76,7 +88,8 @@ class OutputHelper {
     [[nodiscard]] auto backend() -> Backend & { return *backend_; }
 
   private:
-    using CondMap = Util::ordered_map<std::vector<int32_t>, uint64_t>;
+    // TODO: can be stored more compactly
+    using CondMap = Util::ordered_map<LitVec, uint64_t>;
     Backend *backend_;
     CondMap conds_;
     size_t uids_ = 0;
@@ -97,7 +110,7 @@ class OutputCond : public OutputLit {
     //! Literals are added via the OutputLit interface.
     //!
     //! @return the literals
-    [[nodiscard]] auto literals() const -> std::vector<int32_t> const & { return body_; }
+    [[nodiscard]] auto literals() const -> LitVec const & { return body_; }
 
     auto helper() -> OutputHelper & { return *helper_; };
     auto backend() -> Backend & { return helper_->backend(); };
@@ -105,26 +118,26 @@ class OutputCond : public OutputLit {
     auto append(Sign sign, size_t uid) {
         switch (sign) {
             case Sign::none: {
-                body_.emplace_back(static_cast<int32_t>(uid));
+                body_.emplace_back(uid_to_lit(uid));
                 return;
             }
             case Sign::once: {
-                body_.emplace_back(-static_cast<int32_t>(uid));
+                body_.emplace_back(-uid_to_lit(uid));
                 return;
             }
             case Sign::twice: {
                 // Note: better way to handle?
-                auto bd = std::array{-static_cast<int32_t>(uid)};
-                auto hd = std::array{static_cast<uint32_t>(helper().uid())};
+                auto bd = std::array{-uid_to_lit(uid)};
+                auto hd = std::array{uid_to_atom(helper().uid())};
                 backend().rule(hd, bd, false);
-                body_.emplace_back(-static_cast<int32_t>(hd[0]));
+                body_.emplace_back(-uid_to_lit(hd[0]));
                 return;
             }
         }
         Util::unreachable();
     }
 
-    auto append(size_t uid) { body_.emplace_back(static_cast<int32_t>(uid)); }
+    auto append(size_t uid) { body_.emplace_back(uid_to_lit(uid)); }
 
     void start() { body_.clear(); }
 
@@ -152,7 +165,7 @@ class OutputCond : public OutputLit {
     }
 
     OutputHelper *helper_;
-    std::vector<int32_t> body_;
+    LitVec body_;
 };
 
 //! Output handling rule bodies.
@@ -199,7 +212,7 @@ class OutputBackend : public OutputStm, OutputTheory {
     void do_fact(Symbol sym, size_t uid) override {
         auto hd = std::array{static_cast<uint32_t>(uid)};
         auto bd = std::array{static_cast<int32_t>(uid)};
-        helper_.backend().rule(hd, std::span<int32_t>{}, false);
+        helper_.backend().rule(hd, LitSpan{}, false);
         helper_.backend().show(sym, bd);
     }
 
@@ -341,7 +354,7 @@ class OutputBackend : public OutputStm, OutputTheory {
 
     void do_cond_lit(size_t uid, CondLits elems) override {
         // TODO: can be a member
-        std::vector<int32_t> body;
+        LitVec body;
         body.reserve(elems.size());
         for (auto const &elem : elems) {
             auto const &[conc, cond] = elem;
@@ -353,7 +366,7 @@ class OutputBackend : public OutputStm, OutputTheory {
             }
             body.emplace_back(-helper_.cond(uid, CondType::implication));
         }
-        auto hd = std::array{static_cast<uint32_t>(uid)};
+        auto hd = std::array{uid_to_atom(uid)};
         helper_.backend().rule(hd, body, false);
     }
 
@@ -470,7 +483,7 @@ class OutputBackend : public OutputStm, OutputTheory {
         throw std::logic_error{"implement me: theory num"};
     }
 
-    auto do_fun(String name, std::span<size_t const> args) -> size_t override {
+    auto do_fun(String name, IndexSpan args) -> size_t override {
         static_cast<void>(name);
         static_cast<void>(args);
         // auto is_theory_op = [](std::string_view str) {
@@ -517,7 +530,7 @@ class OutputBackend : public OutputStm, OutputTheory {
         throw std::logic_error{"implement me: theory fun"};
     }
 
-    auto do_tup(TheoryTermTupleType type, std::span<size_t const> args) -> size_t override {
+    auto do_tup(TheoryTermTupleType type, IndexSpan args) -> size_t override {
         static_cast<void>(type);
         static_cast<void>(args);
         // auto [od, cd] = [&]() -> std::pair<char const *, char const *> {
@@ -572,7 +585,7 @@ class OutputBackend : public OutputStm, OutputTheory {
     OutputHelper helper_;
     OutputBody body_{helper_};
     OutputCond cond_{helper_};
-    std::vector<uint32_t> atoms_;
+    AtomVec atoms_;
     // Util::OutputBuffer tmp_;
     // OutputCond cond_;
     // Util::ordered_set<std::string> strs_;

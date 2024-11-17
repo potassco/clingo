@@ -2,21 +2,27 @@
 
 namespace Clingo::Output {
 
+using lit_t = int32_t;
+using atom_t = uint32_t;
+
+using LitSpan = std::span<lit_t const>;
+using LitVec = std::vector<lit_t>;
+using AtomSpan = std::span<atom_t const>;
+using AtomVec = std::vector<atom_t>;
+
 //! Interface connecting grounder and solver.
 //!
 //! The backend is repsonsible for passig grounded statements to the solver (or
 //! other forms of backends).
 class Backend {
   public:
-    void rule(std::span<uint32_t const> head, std::span<int32_t const> body, bool choice) {
-        do_rule(head, body, choice);
-    }
-    void show(Symbol sym, std::span<int32_t const> body) { do_show(sym, body); }
+    void rule(AtomSpan head, LitSpan body, bool choice) { do_rule(head, body, choice); }
+    void show(Symbol sym, LitSpan body) { do_show(sym, body); }
     virtual ~Backend() = default;
 
   private:
-    virtual void do_rule(std::span<uint32_t const> head, std::span<int32_t const> body, bool choice) = 0;
-    virtual void do_show(Symbol sym, std::span<int32_t const> body) = 0;
+    virtual void do_rule(AtomSpan head, LitSpan body, bool choice) = 0;
+    virtual void do_show(Symbol sym, LitSpan body) = 0;
 };
 using UBackend = std::unique_ptr<Backend>;
 

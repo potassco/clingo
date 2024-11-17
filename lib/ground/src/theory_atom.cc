@@ -162,7 +162,7 @@ void StateTheory::output(Logger &log, SymbolStore &store, OutputStm &out) {
     std::vector<size_t> elems;
     auto guard = OutputTheory::OptGuard{};
     if (guard_) {
-        guard.emplace(thy.fun(guard_->first, OutputTheory::IndexSpan{}), size_t{});
+        guard.emplace(thy.fun(guard_->first, IndexSpan{}), size_t{});
     }
     for (auto const &atm : base_.atoms()) {
         elems.clear();
