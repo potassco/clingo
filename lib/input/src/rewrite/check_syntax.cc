@@ -67,8 +67,8 @@ struct CheckSyntax {
     }
 
     auto operator()(ArgumentTuple const &tuple, SyntaxCheck check) const -> bool {
-        return std::all_of(tuple.elems().begin(), tuple.elems().end(),
-                           [this, check](auto const &project_or_term) { return operator()(project_or_term, check); });
+        return std::ranges::all_of(
+            tuple.elems(), [this, check](auto const &project_or_term) { return operator()(project_or_term, check); });
     }
 
     auto operator()(TupleElement const &elem, SyntaxCheck check) const -> bool {
@@ -83,8 +83,8 @@ struct CheckSyntax {
             GRINGO_REPORT_LOC(*log_, error, term.loc()) << "pools not permitted in this context";
             return false;
         }
-        return std::all_of(term.pool().begin(), term.pool().end(),
-                           [this, check](auto const &tuple_or_term) { return operator()(tuple_or_term, check); });
+        return std::ranges::all_of(
+            term.pool(), [this, check](auto const &tuple_or_term) { return operator()(tuple_or_term, check); });
     }
 
     auto operator()(TermFunction const &term, SyntaxCheck check) const -> bool {
@@ -98,8 +98,7 @@ struct CheckSyntax {
                 return false;
             }
         }
-        return std::all_of(term.pool().begin(), term.pool().end(),
-                           [this, check](auto const &tuple) { return operator()(tuple, check); });
+        return std::ranges::all_of(term.pool(), [this, check](auto const &tuple) { return operator()(tuple, check); });
     }
 
     auto operator()(TermAbs const &term, SyntaxCheck check) const -> bool {
@@ -107,8 +106,7 @@ struct CheckSyntax {
             GRINGO_REPORT_LOC(*log_, error, term.loc()) << "pools not permitted in this context";
             return false;
         }
-        return std::all_of(term.pool().begin(), term.pool().end(),
-                           [this](auto const &term) { return operator()(term); });
+        return std::ranges::all_of(term.pool(), [this](auto const &term) { return operator()(term); });
     }
 
     auto operator()(TermUnary const &term, SyntaxCheck check) const -> bool {
@@ -138,8 +136,8 @@ struct CheckSyntax {
     }
 
     auto operator()(LitComparison const &lit, [[maybe_unused]] SyntaxCheck check) const -> bool {
-        return operator()(lit.lhs()) && std::all_of(lit.rhs().begin(), lit.rhs().end(),
-                                                    [this](auto &guard) { return operator()(guard.second); });
+        return operator()(lit.lhs()) &&
+               std::ranges::all_of(lit.rhs(), [this](auto &guard) { return operator()(guard.second); });
     }
 
     auto operator()(LitSymbolic const &lit, SyntaxCheck check) const -> bool {
@@ -152,7 +150,7 @@ struct CheckSyntax {
     // conditional literal
 
     auto operator()(LitArray const &lits) const -> bool {
-        return std::all_of(lits.begin(), lits.end(), [this](auto const &lit) {
+        return std::ranges::all_of(lits, [this](auto const &lit) {
             return operator()(lit, SyntaxCheck::project | SyntaxCheck::project_tuple);
         });
     }
@@ -169,17 +167,17 @@ struct CheckSyntax {
     auto operator()(RGuard guard) const -> bool { return !guard.has_value() || operator()(guard->second); }
 
     auto operator()(TermArray const &terms) const -> bool {
-        return std::all_of(terms.begin(), terms.end(), [this](auto const &term) { return operator()(term); });
+        return std::ranges::all_of(terms, [this](auto const &term) { return operator()(term); });
     }
 
     template <bool HasSign> auto operator()(SetAggregate<HasSign> const &lit) const -> bool {
-        return std::all_of(lit.elems().begin(), lit.elems().end(),
-                           [this](auto const &elem) {
-                               return this->operator()(elem.lit(),
-                                                       HasSign ? SyntaxCheck::project | SyntaxCheck::project_tuple
-                                                               : SyntaxCheck::none) &&
-                                      operator()(elem.cond());
-                           }) &&
+        return std::ranges::all_of(lit.elems(),
+                                   [this](auto const &elem) {
+                                       return this->operator()(elem.lit(), HasSign ? SyntaxCheck::project |
+                                                                                         SyntaxCheck::project_tuple
+                                                                                   : SyntaxCheck::none) &&
+                                              operator()(elem.cond());
+                                   }) &&
                operator()(lit.lhs()) && operator()(lit.rhs());
     }
 
@@ -187,8 +185,7 @@ struct CheckSyntax {
 
     template <bool HasSign> auto operator()(TheoryAtom<HasSign> const &atom) const -> bool {
         return operator()(atom.name()) &&
-               std::all_of(atom.elems().begin(), atom.elems().end(),
-                           [this](auto const &elem) { return this->operator()(elem.cond()); });
+               std::ranges::all_of(atom.elems(), [this](auto const &elem) { return this->operator()(elem.cond()); });
     }
 
     // head literal
@@ -198,17 +195,17 @@ struct CheckSyntax {
     auto operator()(HdLitSimple const &lit) const -> bool { return operator()(lit.lit(), SyntaxCheck::none); }
 
     auto operator()(HdLitDisjunction const &lit) const -> bool {
-        return std::all_of(lit.elems().begin(), lit.elems().end(), [this](auto const &elem) {
+        return std::ranges::all_of(lit.elems(), [this](auto const &elem) {
             return std::visit([this](auto const &elem) { return this->operator()(elem, SyntaxCheck::none); }, elem);
         });
     }
 
     auto operator()(HdLitAggregate const &lit) const -> bool {
-        return std::all_of(lit.elems().begin(), lit.elems().end(),
-                           [this](auto const &elem) {
-                               return operator()(elem.tuple()) && operator()(elem.lit(), SyntaxCheck::none) &&
-                                                                  operator()(elem.cond());
-                           }) &&
+        return std::ranges::all_of(lit.elems(),
+                                   [this](auto const &elem) {
+                                       return operator()(elem.tuple()) && operator()(elem.lit(), SyntaxCheck::none) &&
+                                                                          operator()(elem.cond());
+                                   }) &&
                operator()(lit.lhs()) && operator()(lit.rhs());
     }
 
@@ -223,8 +220,9 @@ struct CheckSyntax {
     auto operator()(BdLitConjunction const &lit) const -> bool { return operator()(lit.lit()); }
 
     auto operator()(BdLitAggregate const &lit) const -> bool {
-        return std::all_of(lit.elems().begin(), lit.elems().end(),
-                           [this](auto const &elem) { return operator()(elem.tuple()) && operator()(elem.cond()); }) &&
+        return std::ranges::all_of(
+                   lit.elems(),
+                   [this](auto const &elem) { return operator()(elem.tuple()) && operator()(elem.cond()); }) &&
                operator()(lit.lhs()) && operator()(lit.rhs());
     }
 
@@ -232,12 +230,12 @@ struct CheckSyntax {
 
     auto operator()(std::optional<Term> const &term) const -> bool { return (!term || operator()(*term)); }
 
-    auto operator()(BdLitArray const &lits) const -> bool { return std::all_of(lits.begin(), lits.end(), *this); }
+    auto operator()(BdLitArray const &lits) const -> bool { return std::ranges::all_of(lits, *this); }
 
     auto operator()(Stm const &stm) const -> bool { return std::visit(*this, stm); }
 
     auto operator()(StmRule const &stm) const -> bool {
-        return operator()(stm.head()) && std::all_of(stm.body().begin(), stm.body().end(), *this);
+        return operator()(stm.head()) && std::ranges::all_of(stm.body(), *this);
     }
 
     auto operator()(OptimizeTuple const &tuple) const -> bool {
@@ -245,12 +243,12 @@ struct CheckSyntax {
     }
 
     auto operator()(StmOptimize const &stm) const -> bool {
-        return std::all_of(stm.elems().begin(), stm.elems().end(),
-                           [this](auto const &elem) { return operator()(elem.tuple()) && operator()(elem.cond()); });
+        return std::ranges::all_of(
+            stm.elems(), [this](auto const &elem) { return operator()(elem.tuple()) && operator()(elem.cond()); });
     }
 
     auto operator()(StmWeakConstraint const &stm) const -> bool {
-        return std::all_of(stm.body().begin(), stm.body().end(), *this) && operator()(stm.tuple());
+        return std::ranges::all_of(stm.body(), *this) && operator()(stm.tuple());
     }
 
     auto operator()(StmShow const &stm) const -> bool { return operator()(stm.term()) && operator()(stm.body()); }
@@ -264,7 +262,7 @@ struct CheckSyntax {
     auto operator()(Edge const &edge) const -> bool { return operator()(edge.src()) && operator()(edge.dst()); }
 
     auto operator()(StmEdge const &stm) const -> bool {
-        return std::all_of(stm.edges().begin(), stm.edges().end(), *this) && operator()(stm.body());
+        return std::ranges::all_of(stm.edges(), *this) && operator()(stm.body());
     }
 
     auto operator()(StmHeuristic const &stm) const -> bool {

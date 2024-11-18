@@ -203,8 +203,7 @@ class Project : public Transformer<Project> {
     [[nodiscard]] auto accept(StmRule const &stm) const -> std::optional<Stm> {
         // do not project projection-like rules
         if (is_atom(stm.head())) {
-            auto has_atom =
-                std::any_of(stm.body().begin(), stm.body().end(), [](auto const &lit) { return is_atom(lit); });
+            auto has_atom = std::ranges::any_of(stm.body(), [](auto const &lit) { return is_atom(lit); });
             size_t n_test =
                 std::count_if(stm.body().begin(), stm.body().end(), [](auto const &lit) { return is_test(lit); });
             if (has_atom && n_test == stm.body().size() - 1) {

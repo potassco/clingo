@@ -144,16 +144,12 @@ struct NeverNumeric {
 
 struct IsMatchable {
     auto operator()(TermFunction const &term) const -> bool {
-        return !term.external() && std::all_of(term.pool().begin(), term.pool().end(), *this);
+        return !term.external() && std::ranges::all_of(term.pool(), *this);
     }
 
-    auto operator()(TermTuple const &term) const -> bool {
-        return std::all_of(term.pool().begin(), term.pool().end(), *this);
-    }
+    auto operator()(TermTuple const &term) const -> bool { return std::ranges::all_of(term.pool(), *this); }
 
-    auto operator()(ArgumentTuple const &tuple) const -> bool {
-        return std::all_of(tuple.elems().begin(), tuple.elems().end(), *this);
-    }
+    auto operator()(ArgumentTuple const &tuple) const -> bool { return std::ranges::all_of(tuple.elems(), *this); }
 
     auto operator()(TermUnary const &term) const -> bool {
         return term.op() == UnaryOperator::minus && std::visit(*this, *term.rhs());
@@ -221,7 +217,7 @@ struct IsClassical {
     auto operator()(HdLitSimple const &lit) const -> bool { return !is_atom(lit.lit()); }
 
     auto operator()(HdLitDisjunction const &lit) const -> bool {
-        return std::all_of(lit.elems().begin(), lit.elems().end(), [](auto const &elem) {
+        return std::ranges::all_of(lit.elems(), [](auto const &elem) {
             return std::visit(
                 []<class T>(T const &lit) {
                     if constexpr (std::is_same_v<T, Lit>) {

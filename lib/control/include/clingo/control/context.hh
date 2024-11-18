@@ -109,7 +109,7 @@ class BuildContext {
     //! Check if the (current) body can be grounded in a single pass.
     [[nodiscard]] auto single_pass_body() const -> bool {
         return test(comp_->type, Input::ComponentType::single_pass) ||
-               std::all_of(body_->begin(), body_->end(), [](auto const &lit) { return lit->single_pass(); });
+               std::ranges::all_of(*body_, [](auto const &lit) { return lit->single_pass(); });
     }
 
     //! Return a fresh atom index.

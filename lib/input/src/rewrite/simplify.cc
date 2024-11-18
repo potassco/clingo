@@ -69,9 +69,7 @@ template <class R> void extend(R &res, AuxTermVec &aux, bool conjunctive = true)
     return {true, std::move(res_terms).as_optional()};
 }
 
-[[nodiscard]] auto all_symbol(TermArray const &terms) -> bool {
-    return std::all_of(terms.begin(), terms.end(), is_symbol);
-}
+[[nodiscard]] auto all_symbol(TermArray const &terms) -> bool { return std::ranges::all_of(terms, is_symbol); }
 
 //! The detected type of a term.
 enum class TermType : uint8_t {

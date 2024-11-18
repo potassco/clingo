@@ -224,7 +224,7 @@ class Unifier {
 
   private:
     auto occurs_check_(String name, ArgumentTuple const &tup) -> bool {
-        return std::all_of(tup.elems().begin(), tup.elems().end(), [name, this](auto const &arg) {
+        return std::ranges::all_of(tup.elems(), [name, this](auto const &arg) {
             if (auto const *term = std::get_if<Term>(&arg); term != nullptr) {
                 return occurs_check_(name, *term);
             }
@@ -241,15 +241,15 @@ class Unifier {
                 } else if constexpr (Util::matches<T, TermSymbol>) {
                     return true;
                 } else if constexpr (Util::matches<T, TermTuple>) {
-                    return std::all_of(v_b.pool().begin(), v_b.pool().end(), [name, this](auto const &x) {
+                    return std::ranges::all_of(v_b.pool(), [name, this](auto const &x) {
                         return std::visit([name, this](auto const &x) { return this->occurs_check_(name, x); }, x);
                     });
                 } else if constexpr (Util::matches<T, TermFunction>) {
-                    return std::all_of(v_b.pool().begin(), v_b.pool().end(),
-                                       [name, this](auto const &x) { return this->occurs_check_(name, x); });
+                    return std::ranges::all_of(v_b.pool(),
+                                               [name, this](auto const &x) { return this->occurs_check_(name, x); });
                 } else if constexpr (Util::matches<T, TermAbs>) {
-                    return std::all_of(v_b.pool().begin(), v_b.pool().end(),
-                                       [name, this](auto const &x) { return this->occurs_check_(name, x); });
+                    return std::ranges::all_of(v_b.pool(),
+                                               [name, this](auto const &x) { return this->occurs_check_(name, x); });
                 } else if constexpr (Util::matches<T, TermUnary>) {
                     return occurs_check_(name, *v_b.rhs());
                 } else {

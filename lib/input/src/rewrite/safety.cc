@@ -205,8 +205,8 @@ template <class Lit> using NodeVec = std::vector<Node<Lit>>;
 [[nodiscard]] auto flip(BdLit const &lit) -> BdLit { return flip(std::get<BdLitSimple>(lit).lit()); }
 
 [[nodiscard]] auto is_provided(VariableSet const &provided, auto const &vars) {
-    return std::all_of(vars.begin(), vars.end(),
-                       [&provided](auto const &var) { return var.starts_with("$") || provided.contains(var); });
+    return std::ranges::all_of(vars,
+                               [&provided](auto const &var) { return var.starts_with("$") || provided.contains(var); });
 }
 
 template <class Span> using PrepareResult = std::pair<decltype(Util::ResultVec{std::declval<Span>()}), VariableSet>;
