@@ -1,5 +1,3 @@
-#include "graph.hh"
-
 #include <clingo/input/print.hh>
 
 #include <clingo/input/rewrite/evaluate.hh>
@@ -8,6 +6,7 @@
 
 #include <clingo/util/algorithm.hh>
 #include <clingo/util/checked_math.hh>
+#include <clingo/util/graph.hh>
 
 namespace Clingo::Input {
 
@@ -27,7 +26,7 @@ struct StateDep {
 
 class BuildDep {
   public:
-    BuildDep(Util::ordered_map<String, size_t> &map, Graph &dep, size_t id) : map_{&map}, dep_{&dep}, id_{id} {}
+    BuildDep(Util::ordered_map<String, size_t> &map, Util::Graph &dep, size_t id) : map_{&map}, dep_{&dep}, id_{id} {}
 
     // protect ourselves -> no unintended overloads
 
@@ -84,7 +83,7 @@ class BuildDep {
     //! A map from constant names to indices of const statements.
     Util::ordered_map<String, size_t> *map_;
     //! The dependency graph to build.
-    Graph *dep_;
+    Util::Graph *dep_;
     //! The id of the const statement at hand.
     size_t id_;
 };
@@ -406,7 +405,7 @@ void evaluate_const(Logger &log, SymbolStore &store, std::vector<StmConst> const
         ++id_stm;
     }
     // build dependency graph
-    Graph dep;
+    Util::Graph dep;
     dep.ensure_size(id_stm);
     for (const auto &[name, id_stm] : map) {
         BuildDep{map, dep, id_stm}(stms[id_stm].value());

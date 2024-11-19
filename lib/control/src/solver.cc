@@ -2,6 +2,8 @@
 
 #include <clingo/output/text.hh>
 
+#include <clingo/util/checked_math.hh>
+
 #include <clasp/solver.h>
 
 namespace Clingo::Control {
@@ -55,25 +57,46 @@ class BackendClasp : public Output::Backend {
     BackendClasp(Clasp::Asp::LogicProgram &prg) : prg_{&prg} {}
 
   private:
-    void do_rule(std::span<uint32_t const> head, std::span<int32_t const> body, bool choice) override {
+    void do_rule(Output::LitSpan head, Output::LitSpan body, bool choice) override {
+        aux_.clear();
+        if (!choice) {
+            for (auto const &lit : head) {
+                if (lit < 0) {
+                    auto aux = next_lit();
+                    aux_.emplace_back(-aux);
+                    bld_.clear();
+                    bld_.start();
+                    bld_.addHead(aux);
+                    bld_.addGoal(lit);
+                    prg_->addRule(bld_);
+                }
+            }
+        }
         bld_.clear();
         bld_.start(choice ? Potassco::Head_t::choice : Potassco::Head_t::disjunctive);
-        for (auto const &atom : head) {
-            bld_.addHead(atom);
+        for (auto const &lit : head) {
+            if (lit > 0) {
+                bld_.addHead(lit);
+            }
         }
         bld_.startBody();
         for (auto const &lit : body) {
             bld_.addGoal(lit);
         }
+        for (auto const &lit : aux_) {
+            bld_.addGoal(lit);
+        }
         prg_->addRule(bld_);
     }
-    void do_show(Symbol sym, std::span<int32_t const> body) override {
+
+    void do_show(Symbol sym, Output::LitSpan body) override {
         buf_.reset();
         buf_ << sym;
         prg_->addOutput(buf_.c_str(), prg_->newCondition(body));
     }
 
     Util::OutputBuffer buf_;
+    Output::LitVec aux_;
     Potassco::RuleBuilder bld_;
     Clasp::Asp::LogicProgram *prg_;
 };

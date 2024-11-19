@@ -3,7 +3,10 @@
 #include <cstddef>
 #include <vector>
 
-namespace Clingo::Input {
+namespace Clingo::Util {
+
+//! @addtogroup util_algorithm
+//! @{
 
 //! Graph class to compute strongly connected components.
 class Graph {
@@ -12,8 +15,6 @@ class Graph {
     using IdVec = std::vector<size_t>;
     //! A vector of vector of nodes forming a strongly connected component.
     using SCCVec = std::vector<IdVec>;
-
-    ~Graph() = default;
 
     //! Compute the strongly connected components of the graph.
     //!
@@ -25,10 +26,21 @@ class Graph {
     //!
     //! Nodes should be labeled consecutively.
     void add_edge(size_t u, size_t v);
+    //! Check if the given vertex has a loop.
+    //!
+    //! @param the vertex to check
+    //! @return whether the vertex has a loop
+    [[nodiscard]] auto has_loop(size_t u) const -> bool;
+    //! Clear the graph.
+    void clear() {
+        phase_ = 0;
+        nodes_.clear();
+    }
 
   private:
     //! Node class to capture edges and state information.
     struct Node {
+        Node(size_t visited) : visited_(visited) {}
         //! The outgoing edges of the node.
         IdVec out;
         //! An iterator pointing to the last element not yet processed.
@@ -51,9 +63,7 @@ inline auto Graph::prev_phase_() const -> size_t { return phase_ == 0 ? 1 : 0; }
 inline void Graph::ensure_size(size_t n) {
     if (nodes_.size() < n) {
         while (nodes_.size() < n) {
-            // Note: wrong simplification reported
-            // NOLINTNEXTLINE(modernize-use-emplace)
-            nodes_.emplace_back(Node{{}, {}, prev_phase_()});
+            nodes_.emplace_back(prev_phase_());
         }
     }
 }
@@ -61,6 +71,10 @@ inline void Graph::ensure_size(size_t n) {
 inline void Graph::add_edge(size_t u, size_t v) {
     ensure_size(std::max(u, v) + 1);
     nodes_[u].out.emplace_back(v);
+}
+
+inline auto Graph::has_loop(size_t u) const -> bool {
+    return std::ranges::find(nodes_[u].out, u) != nodes_[u].out.end();
 }
 
 template <class Callback> inline void Graph::tarjan(Callback cb) {
@@ -113,4 +127,6 @@ template <class Callback> inline void Graph::tarjan(Callback cb) {
     phase_ = prev_phase_();
 }
 
-} // namespace Clingo::Input
+//! @}
+
+} // namespace Clingo::Util

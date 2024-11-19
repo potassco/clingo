@@ -4,20 +4,12 @@
 #include <clingo/util/ordered_set.hh>
 #include <clingo/util/print.hh>
 #include <clingo/util/type_traits.hh>
-#include <clingo/util/unordered_map.hh>
 
 #include <clingo/util/checked_math.hh>
 
 namespace Clingo::Output {
 
 namespace {
-
-//! The maximum literal.
-constexpr auto lit_max = std::numeric_limits<lit_t>::max();
-//! The minimum literal.
-constexpr auto lit_min = -lit_max;
-//! The maximum condition.
-constexpr auto cond_max = std::numeric_limits<size_t>::max() >> 1;
 
 //! Convert a uid to an integer literal.
 //!
@@ -30,6 +22,7 @@ auto uid_to_lit(size_t uid) -> lit_t {
     return static_cast<int32_t>(uid);
 }
 
+/* TODO: maybe remove those
 //! Convert a uid to an atom.
 //!
 //! @pre 1 <= uid <= lit_max
@@ -51,118 +44,7 @@ auto lit_to_atom(lit_t lit) -> atom_t {
     assert(lit != 0 && lit >= lit_min);
     return static_cast<atom_t>(lit);
 }
-
-//! Available condition types.
-//!
-//! Conditions are clauses associated with a literal. The equivalence between
-//! the literal and the clause is either established with an implication (a
-//! rule) or an equivalence.
-enum class CondType : uint8_t {
-    implication, //!< only forward direction is necessary
-    equivalence, //!< forward and backward directions are necessary
-};
-
-//! Helper class to translate formulas (aggregates, conditional literal, etc.)
-//! into logic programs as accepted by the backend.
-class OutputHelper {
-  public:
-    //! Construct the output helper.
-    //!
-    //! The reference to the backend is stored and used by the helper.
-    //!
-    //! @param backend the underlying backend
-    OutputHelper(Backend &backend) : backend_{&backend} {}
-
-    //! Introduce a new uid.
-    //!
-    //! @return a fresh uid
-    [[nodiscard]] auto uid() -> size_t {
-        if (lit_uids_ >= lit_max) {
-            throw std::range_error("maximum number of literals exhausted");
-        }
-        return ++lit_uids_;
-    }
-
-    //! Get a unique id identifying the given literals.
-    //!
-    //! The function stores a map from the set of literals to the unique identifiers.
-    //!
-    //! @param lits the literals
-    auto cond(LitVec const &lits) -> size_t {
-        auto copy = lits;
-        std::ranges::sort(copy);
-        copy.erase(std::ranges::unique(copy).begin(), copy.end());
-        if (copy.size() == 1) {
-            auto res = Util::safe_cast<ssize_t>((int64_t{copy[0]} << 1) | 1);
-            return static_cast<size_t>(res);
-        }
-        auto state = uint64_t{0};
-        auto it = conds_.emplace(std::move(copy), state).first;
-        if (auto res = static_cast<size_t>(std::distance(conds_.begin(), it)); res <= cond_max) {
-            return res << 1;
-        }
-        throw std::range_error("maximum number of conditions exhausted");
-    }
-
-    //! Get a Tseitin literal for the condition with the given uid.
-    //!
-    //! The type parameter determines the kind of equivalence between condition
-    //! and its Tseitin literal.
-    //!
-    //! @param uid the uid of the condition
-    //! @param type the type of the Tseitin literal
-    //! @return the resulting literal
-    auto cond(size_t uid, CondType type) -> lit_t {
-        auto it = CondMap::iterator{};
-        if ((uid & 1) == 1) {
-            return static_cast<lit_t>(static_cast<ssize_t>(uid) >> 1);
-        }
-        it = conds_.nth(uid >> 1);
-        auto lit = static_cast<lit_t>(it.value() >> 2);
-        auto cur = it.value() & 2;
-        // add forward
-        if (cur == 0) {
-            lit = uid_to_lit(this->uid());
-            it.value() = (static_cast<uint64_t>(static_cast<atom_t>(lit)) << 2) | 1;
-            backend_->rule(std::array{lit_to_atom(lit)}, it.key(), false);
-        }
-        // add backward
-        if (cur == 1 && type == CondType::equivalence) {
-            it.value() |= 2;
-            for (auto const &clit : it.key()) {
-                if (clit > 0) {
-                    backend_->rule(std::array{lit_to_atom(clit)}, std::array{lit}, false);
-                }
-            }
-        }
-        return lit;
-    }
-
-    //! Negate the given literal.
-    //!
-    //! Introduces a Tseitin literal if the given literal is negative.
-    //!
-    //! @param lit the literal to negate
-    //! @return the negated literal
-    auto negate(lit_t lit) -> lit_t {
-        // TODO: maybe store a map for double negated literals.
-        if (lit > 0) {
-            return -lit;
-        }
-        auto nlit = uid_to_lit(uid());
-        backend_->rule(std::array{lit_to_atom(nlit)}, std::array{lit}, false);
-        return -nlit;
-    }
-
-    [[nodiscard]] auto backend() -> Backend & { return *backend_; }
-
-  private:
-    // TODO: the vector can be stored more compactly.
-    using CondMap = Util::ordered_map<LitVec, uint64_t>;
-    Backend *backend_;
-    CondMap conds_;
-    size_t lit_uids_ = 0;
-};
+*/
 
 //! Output handling conditions.
 //!
@@ -172,7 +54,7 @@ class OutputHelper {
 //! Only supports simple literals excluding aggregates, theory atoms and conditions.
 class OutputCond : public OutputLit {
   public:
-    OutputCond(OutputHelper &helper) : helper_{&helper} {}
+    OutputCond(Backend &backend) : backend_{&backend} {}
 
     //! Get the literals of the body.
     //!
@@ -181,15 +63,10 @@ class OutputCond : public OutputLit {
     //! @return the literals
     [[nodiscard]] auto literals() const -> LitVec const & { return body_; }
 
-    //! Get the helper of the output.
-    //!
-    //! @return the helper
-    auto helper() -> OutputHelper & { return *helper_; };
-
     //! Get the backend of the output.
     //!
     //! @return the backend
-    auto backend() -> Backend & { return helper_->backend(); };
+    auto backend() -> Backend & { return *backend_; };
 
     //! Append the atom with the given sign.
     //!
@@ -208,7 +85,7 @@ class OutputCond : public OutputLit {
                 return;
             }
             case Sign::twice: {
-                body_.emplace_back(helper_->negate(-uid_to_lit(uid)));
+                body_.emplace_back(backend().negate(-uid_to_lit(uid)));
                 return;
             }
         }
@@ -248,7 +125,7 @@ class OutputCond : public OutputLit {
         throw std::runtime_error("unsupported literal");
     }
 
-    OutputHelper *helper_;
+    Backend *backend_;
     LitVec body_;
 };
 
@@ -260,12 +137,12 @@ class OutputCond : public OutputLit {
 //! Supports the full range of clingo's body literals.
 class OutputBody : public OutputCond {
   public:
-    OutputBody(OutputHelper &helper) : OutputCond(helper) {}
+    OutputBody(Backend &backend) : OutputCond(backend) {}
 
   private:
     auto do_cond_lit(std::optional<size_t> uid) -> size_t override {
         if (!uid) {
-            uid = helper().uid();
+            uid = backend().next_lit();
         }
         append(*uid);
         return *uid;
@@ -273,7 +150,7 @@ class OutputBody : public OutputCond {
 
     auto do_bd_aggr(Sign sign, std::optional<size_t> uid) -> size_t override {
         if (!uid) {
-            uid = helper().uid();
+            uid = backend().next_lit();
         }
         append(sign, *uid);
         return *uid;
@@ -281,7 +158,7 @@ class OutputBody : public OutputCond {
 
     auto do_bd_theory(Sign sign, std::optional<size_t> uid) -> size_t override {
         if (!uid) {
-            uid = helper().uid();
+            uid = backend().next_lit();
         }
         append(sign, *uid);
         return *uid;
@@ -290,12 +167,12 @@ class OutputBody : public OutputCond {
 
 class OutputBackend : public OutputStm, OutputTheory {
   public:
-    OutputBackend(Backend &backend) : helper_{backend} {};
+    OutputBackend(Backend &backend) : backend_{&backend} {};
 
   private:
     void do_fact(Symbol sym, size_t uid) override {
-        helper_.backend().rule(std::array{uid_to_atom(uid)}, LitSpan{}, false);
-        helper_.backend().show(sym, std::array{uid_to_lit(uid)});
+        backend().rule(std::array{uid_to_lit(uid)}, LitSpan{}, false);
+        backend().show(sym, std::array{uid_to_lit(uid)});
     }
 
     [[nodiscard]] auto do_body() -> OutputLit & override {
@@ -304,16 +181,17 @@ class OutputBackend : public OutputStm, OutputTheory {
     }
 
     void do_rule(std::optional<std::tuple<Symbol, size_t, bool>> head) override {
-        atoms_.clear();
         bool choice = false;
         if (head) {
             choice = get<2>(*head);
-            atoms_.emplace_back(get<1>(*head));
+            auto lit = uid_to_lit(get<1>(*head));
+            backend().rule(std::array{lit}, body_.literals(), choice);
+        } else {
+            backend().rule({}, body_.literals(), choice);
         }
-        helper_.backend().rule(atoms_, body_.literals(), choice);
     }
 
-    void do_show_term(Symbol term) override { helper_.backend().show(term, body_.literals()); }
+    void do_show_term(Symbol term) override { backend().show(term, body_.literals()); }
 
     void do_external(Symbol atom, ExternalType type) override {
         static_cast<void>(atom);
@@ -430,79 +308,26 @@ class OutputBackend : public OutputStm, OutputTheory {
         return cond_;
     }
 
-    auto do_cond_id() -> size_t override { return helper_.cond(cond_.literals()); }
+    auto do_cond_id() -> size_t override { return backend().cond(cond_.literals()); }
 
-    auto do_uid() -> size_t override { return helper_.uid(); }
+    auto do_uid() -> size_t override { return backend().next_lit(); }
 
-    void do_cond_lit(size_t uid, CondLits elems) override {
-        // TODO: It might be possible to reduce the number of auxiliary program
-        // literals by only introducing only one variable K for all conditions.
-        lits_.clear();
-        lits_.reserve(elems.size());
-        for (auto const &elem : elems) {
-            auto const &[conc, cond] = elem;
-            if (conc) {
-                // Note: conc is encoded as a condition, which is guaranteed to
-                // be mapped to a positive literal.
-                // Below, we us the following variable names:
-                // - K: new uid replacing G : F in the body
-                // - G: conc
-                // - F: cond
-                auto g = helper_.cond(*conc, CondType::equivalence);
-                auto f = helper_.cond(cond, CondType::equivalence);
-                auto k = uid_to_lit(helper_.uid());
-                auto &bck = helper_.backend();
-                bck.rule(std::array{lit_to_atom(k)}, std::array{g}, false);
-                assert(g > 0);
-                if (f > 0) {
-                    // formula G : F is replaced by K
-                    // K :- G.
-                    // K :- not F.
-                    // K | F :- not not G.
-                    bck.rule(std::array{lit_to_atom(k)}, std::array{-f}, false);
-                    bck.rule(std::array{lit_to_atom(k), lit_to_atom(f)}, std::array{helper_.negate(-g)}, false);
-                } else {
-                    // the above formulas can be simplified
-                    // K :- G.
-                    // K :- not F.
-                    bck.rule(std::array{lit_to_atom(k)}, std::array{helper_.negate(f)}, false);
-                }
-                lits_.emplace_back(k);
-            } else {
-                lits_.emplace_back(helper_.negate(helper_.cond(cond, CondType::implication)));
-            }
-        }
-        helper_.backend().rule(std::array{uid_to_atom(uid)}, lits_, false);
-    }
-
-    void aggr(size_t uid, AggregateFunction fun, auto elems, Guards guards, auto prt) {
-        static_cast<void>(uid);
-        static_cast<void>(fun);
-        static_cast<void>(elems);
-        static_cast<void>(guards);
-        static_cast<void>(prt);
-        // aux variable :- array
-        //
-        throw std::logic_error{"implement me: aggr"};
-    }
+    void do_cond_lit(size_t uid, CondLits elems) override { backend_->cond_lit(uid_to_lit(uid), elems); }
 
     void do_bd_aggr(size_t uid, AggregateFunction fun, BdElems elems, Guards guards) override {
         static_cast<void>(uid);
         static_cast<void>(fun);
         static_cast<void>(elems);
         static_cast<void>(guards);
-        // aggr(uid, fun, elems, guards, [this](auto &buf, auto const &elem) {
-        //     if (elem.second.empty()) {
-        //         buf << Util::p_range(elem.first);
-        //         if (elem.first.empty()) {
-        //             buf << ": ";
-        //         }
-        //     } else {
-        //         buf << Util::p_range(elem.second, "; ", [this, &elem](auto &buf, auto const &cond) {
-        //             buf << Util::p_range(elem.first) << ": " << *strs_.nth(cond);
-        //         });
-        //     }
-        // });
+        // aggregates are already grouped by conditions
+        // depending on the type of aggregate, conditions have to be turned into implications or equivalences.
+        // simplifications shall be applied creating disjunctions in a similar fashion as conjunctions
+        // - add disjunctions in the same way as conjunctions
+        // - simplify elements grouping equivalent disjunctions
+        // - introduce literals for remaninig disjunctions
+        // translate aggregate
+        // - see paper by Mario and gringo implementation
+        // aggregates could be cached for reuse
         throw std::logic_error{"implement me: bd_aggr"};
     }
 
@@ -557,7 +382,7 @@ class OutputBackend : public OutputStm, OutputTheory {
 
     void do_flush() override {}
 
-    void do_end_step() override {}
+    void do_end_step() override { backend_->end_step(); }
 
     void do_mark([[maybe_unused]] SymbolCollector &gc) override {}
 
@@ -677,11 +502,12 @@ class OutputBackend : public OutputStm, OutputTheory {
         throw std::logic_error{"implement me: theory atom"};
     }
 
+    auto backend() -> Backend & { return *backend_; }
+
     LitVec lits_;
-    OutputHelper helper_;
-    OutputBody body_{helper_};
-    OutputCond cond_{helper_};
-    AtomVec atoms_;
+    Backend *backend_;
+    OutputBody body_{*backend_};
+    OutputCond cond_{*backend_};
     // Util::OutputBuffer tmp_;
     // OutputCond cond_;
     // Util::ordered_set<std::string> strs_;
@@ -689,6 +515,158 @@ class OutputBackend : public OutputStm, OutputTheory {
 };
 
 } // namespace
+
+auto Backend::next_lit() -> Output::lit_t {
+    if (lit_ < lit_max) {
+        return ++lit_;
+    }
+    throw std::range_error("literals number of literals exhausted");
+}
+
+auto Backend::negate(lit_t lit) -> lit_t {
+    assert(lit != 0 && lit >= lit_min);
+    if (lit > 0) {
+        return -lit;
+    }
+    auto nlit = next_lit();
+    rule(std::array{nlit}, std::array{lit}, false);
+    return -nlit;
+}
+
+void Backend::rule(LitSpan head, LitSpan body, bool choice) {
+    for (auto const &hlit : head) {
+        if (hlit > 0) {
+            for (auto const &blit : body) {
+                if (blit > 0) {
+                    graph_.add_edge(hlit, blit);
+                }
+            }
+        }
+    }
+    do_rule(head, body, choice);
+}
+
+auto Backend::cond(LitSpan lits) -> id_t {
+    aux1_.assign(lits.begin(), lits.end());
+    std::ranges::sort(aux1_);
+    aux1_.erase(std::ranges::unique(aux1_).begin(), aux1_.end());
+    if (aux1_.size() == 1) {
+        auto res = Util::safe_cast<sid_t>((int64_t{aux1_[0]} << 1) | 1);
+        return static_cast<id_t>(res);
+    }
+    auto state = uint64_t{0};
+    auto it = conds_.emplace(std::move(aux1_), state).first;
+    if (auto res = static_cast<id_t>(std::distance(conds_.begin(), it)); res <= cond_max) {
+        return res << 1;
+    }
+    throw std::range_error("maximum number of conditions exhausted");
+}
+
+auto Backend::cond_(id_t uid, CondType type) -> lit_t {
+    auto it = CondMap::iterator{};
+    if ((uid & 1) == 1) {
+        return static_cast<lit_t>(static_cast<sid_t>(uid) >> 1);
+    }
+    it = conds_.nth(uid >> 1);
+    auto lit = static_cast<lit_t>(it.value() >> 2);
+    auto cur = it.value() & 2;
+    // add forward
+    if (cur == 0) {
+        lit = next_lit();
+        it.value() = (static_cast<uint64_t>(static_cast<atom_t>(lit)) << 2) | 1;
+        rule(std::array{lit}, it.key(), false);
+    }
+    // add backward
+    if (cur == 1 && type == CondType::equivalence) {
+        it.value() |= 2;
+        for (auto const &clit : it.key()) {
+            if (clit > 0) {
+                rule(std::array{clit}, std::array{lit}, false);
+            }
+        }
+    }
+    return lit;
+}
+
+template <class F> void Backend::with_cond(id_t uid, F &&fun) const {
+    if ((uid & 1) == 1) {
+        std::invoke(std::forward<F>(fun), static_cast<lit_t>(static_cast<sid_t>(uid) >> 1));
+    } else {
+        for (auto const &clit : conds_.nth(uid >> 1).key()) {
+            std::invoke(std::forward<F>(fun), clit);
+        }
+    }
+}
+
+void Backend::cond_lit(lit_t lit, CondLitSpan elems) {
+    for (auto const &elem : elems) {
+        if (auto const &[id_conc, id_prem] = elem; id_conc) {
+            with_cond(*id_conc, [&](auto const &clit) { graph_.add_edge(lit, clit); });
+        }
+    }
+    cond_lits_.emplace_back(std::piecewise_construct, std::forward_as_tuple(lit),
+                            std::forward_as_tuple(elems.begin(), elems.end()));
+}
+
+[[nodiscard]] auto Backend::cond_in_scc_(SCCMap const &sccs, id_t uid, size_t scc) const -> bool {
+    bool res = false;
+    with_cond(uid, [&](auto const &clit) {
+        if (!res) {
+            auto it = sccs.find(clit);
+            res = it != sccs.end() && it.value() == scc;
+        }
+    });
+    return res;
+}
+
+void Backend::tr_cond_lits_(SCCMap const &sccs) {
+    for (auto const &[lit, elems] : cond_lits_) {
+        auto it_scc = sccs.find(lit);
+        aux2_.clear();
+        aux2_.reserve(elems.size());
+        for (auto const &elem : elems) {
+            auto const &[id_conc, id_prem] = elem;
+            if (id_conc) {
+                // Below, we us the following variable names:
+                // - K: new uid replacing G : F in the body
+                // - G: captures the conclusion
+                // - F: catures the premise
+                bool rec = it_scc != sccs.end() && cond_in_scc_(sccs, *id_conc, it_scc.value()) &&
+                           cond_in_scc_(sccs, id_prem, it_scc.value());
+                auto g = cond_(*id_conc, rec ? CondType::equivalence : CondType::implication);
+                auto f = cond_(id_prem, rec ? CondType::equivalence : CondType::implication);
+                auto k = next_lit();
+                // formula G : F is replaced by K
+                // K :- G.
+                // K :- not F.
+                do_rule(std::array{k}, std::array{g}, false);
+                do_rule(std::array{k}, std::array{negate(f)}, false);
+                if (rec) {
+                    // K | F :- not not G.
+                    do_rule(std::array{k, f}, std::array{negate(negate(g))}, false);
+                }
+                aux2_.emplace_back(k);
+            } else {
+                aux2_.emplace_back(negate(cond_(id_prem, CondType::implication)));
+            }
+        }
+        do_rule(std::array{lit}, aux2_, false);
+    }
+}
+
+void Backend::end_step() {
+    auto sccs = SCCMap{};
+    size_t idx_scc = 0;
+    graph_.tarjan([&](std::vector<size_t> const &scc) {
+        assert(!scc.empty());
+        if (scc.size() > 1 || graph_.has_loop(scc.front())) {
+            ++idx_scc;
+            std::ranges::for_each(scc, [&](auto const &lit) { sccs.emplace(lit, idx_scc); });
+        }
+    });
+    tr_cond_lits_(sccs);
+    graph_.clear();
+}
 
 auto make_backend_output(Backend &backend) -> UOutputStm { return std::make_unique<OutputBackend>(backend); }
 

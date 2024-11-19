@@ -1,4 +1,3 @@
-#include "graph.hh"
 #include "transform.hh"
 
 #include <clingo/input/print.hh>
@@ -6,6 +5,7 @@
 #include <clingo/input/rewrite/analyze.hh>
 #include <clingo/input/rewrite/dependency.hh>
 
+#include <clingo/util/graph.hh>
 #include <clingo/util/macro.hh>
 #include <clingo/util/ordered_set.hh>
 #include <clingo/util/type_traits.hh>
@@ -608,7 +608,7 @@ template <class T> void encode_html(T const &stm, std::ostream &out) {
 auto analyze(SymbolStore &store, std::vector<Stm> const &stms) -> Components {
     auto nodes = build_nodes(store, stms);
     // build graph considering positive and negative dependencies
-    auto graph = Graph{};
+    auto graph = Util::Graph{};
     graph.ensure_size(nodes.size());
     auto i = size_t{0};
     for (auto const &node : nodes) {
@@ -629,7 +629,7 @@ auto analyze(SymbolStore &store, std::vector<Stm> const &stms) -> Components {
             ++n;
         }
         // build graph considering only positive dependencies
-        auto sub_graph = Graph{};
+        auto sub_graph = Util::Graph{};
         sub_graph.ensure_size(n);
         for (auto i : scc) {
             for (auto const &[j, _bd_term, _hd_term, sign] : nodes[i].depend) {
