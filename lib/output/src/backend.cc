@@ -209,9 +209,11 @@ class OutputBackend : public OutputStm, OutputTheory {
     }
 
     auto do_aggr_rule(std::optional<size_t> uid) -> size_t override {
-        static_cast<void>(uid);
-        // return body_.delay_head(uid, " :- ");
-        throw std::logic_error{"implement me: aggr_rule"};
+        if (!uid) {
+            uid = backend_->next_lit();
+        }
+        backend().rule(std::array{uid_to_lit(*uid)}, body_.literals(), false);
+        return *uid;
     }
 
     auto do_theory_rule(std::optional<size_t> uid) -> size_t override {
