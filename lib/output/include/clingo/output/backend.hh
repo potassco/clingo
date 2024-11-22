@@ -147,7 +147,7 @@ class Backend {
     virtual void do_rule(LitSpan head, LitSpan body, bool choice) = 0;
     virtual void do_show(Symbol sym, LitSpan body) = 0;
 
-    template <class F> void with_cond(id_t uid, F &&fun) const;
+    template <class F> auto with_cond(id_t uid, F &&fun) const;
 
     //! Get a Tseitin literal for the condition with the given uid.
     //!

@@ -7,6 +7,8 @@
 
 #include <clingo/util/checked_math.hh>
 
+#include <iostream>
+
 namespace Clingo::Output {
 
 namespace {
@@ -522,16 +524,54 @@ auto Backend::negate(lit_t lit) -> lit_t {
     return -nlit;
 }
 
+template <class F> auto Backend::with_cond(id_t uid, F &&fun) const {
+    if ((uid & 1) == 1) {
+        auto lit = static_cast<lit_t>(static_cast<sid_t>(uid) >> 1);
+        return std::invoke(std::forward<F>(fun), std::span(static_cast<lit_t const *>(&lit), 1));
+    }
+    auto const &lits = conds_.nth(uid >> 1).key();
+    return std::invoke(std::forward<F>(fun), std::span(lits.begin(), lits.end()));
+}
+
 void Backend::bd_aggr(lit_t lit, AggregateFunction fun, BdAggrElemSpan elems, GuardSpan guards) {
     // TODO:
     // - analyze aggregate computing its range and monotonicity
     // - prune guards
     // - add edges to graph
     // - add individual aggregates to member table
+    // - similar code has been written for body aggregates
+    //   (it should be made available in core)
+    if (fun == AggregateFunction::sum || fun == AggregateFunction::sump) {
+        auto fixed = Number(0);
+        auto free = Number(0);
+        for (auto const &[tup, conds] : elems) {
+            // Note: an empty set of conditions is interpreted as true here
+            if (conds.empty()) {
+                fixed += tup.front().num();
+            } else {
+                free += tup.front().num();
+            }
+        }
+        for (auto const &guard : guards) {
+            if (guard.first == Relation::greater_equal) {
+                if (fixed >= guard.second) {
+                    // TODO: the guard can be dropped
+                }
+                if (fixed + free < guard.second) {
+                    // TODO: the aggregate is false
+                }
+            }
+        }
+        // TODO: drop aggregate if there are no more guards
+        std::cerr << "handle aggregate: \n";
+        std::cerr << "  fun: " << fun << "\n";
+        std::cerr << "  range: [" << fixed << "," << (fixed + free) << "]\n";
+        std::cerr << "  guards:\n";
+        for (auto const &guard : guards) {
+            std::cerr << "    " << guard.first << " " << guard.second << "\n";
+        }
+    }
     static_cast<void>(lit);
-    static_cast<void>(fun);
-    static_cast<void>(elems);
-    static_cast<void>(guards);
     static_cast<void>(this);
     throw std::logic_error("implement me!!!");
 }
@@ -591,20 +631,14 @@ auto Backend::cond_(id_t uid, CondType type) -> lit_t {
     return lit;
 }
 
-template <class F> void Backend::with_cond(id_t uid, F &&fun) const {
-    if ((uid & 1) == 1) {
-        std::invoke(std::forward<F>(fun), static_cast<lit_t>(static_cast<sid_t>(uid) >> 1));
-    } else {
-        for (auto const &clit : conds_.nth(uid >> 1).key()) {
-            std::invoke(std::forward<F>(fun), clit);
-        }
-    }
-}
-
 void Backend::cond_lit(lit_t lit, CondLitSpan elems) {
     for (auto const &elem : elems) {
         if (auto const &[id_conc, id_prem] = elem; id_conc) {
-            with_cond(*id_conc, [&](auto const &clit) { graph_.add_edge(lit, clit); });
+            with_cond(*id_conc, [&](auto const &clits) {
+                for (auto const &clit : clits) {
+                    graph_.add_edge(lit, clit);
+                }
+            });
         }
     }
     cond_lits_.emplace_back(std::piecewise_construct, std::forward_as_tuple(lit),
@@ -612,14 +646,12 @@ void Backend::cond_lit(lit_t lit, CondLitSpan elems) {
 }
 
 [[nodiscard]] auto Backend::cond_in_scc_(SCCMap const &sccs, id_t uid, size_t scc) const -> bool {
-    bool res = false;
-    with_cond(uid, [&](auto const &clit) {
-        if (!res) {
+    return with_cond(uid, [&](auto const &clits) {
+        return std::ranges::any_of(clits, [&](auto const &clit) {
             auto it = sccs.find(clit);
-            res = it != sccs.end() && it.value() == scc;
-        }
+            return it != sccs.end() && it.value() == scc;
+        });
     });
-    return res;
 }
 
 void Backend::tr_cond_lits_(SCCMap const &sccs) {
