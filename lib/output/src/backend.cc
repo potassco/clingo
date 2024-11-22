@@ -317,20 +317,7 @@ class OutputBackend : public OutputStm, OutputTheory {
     void do_cond_lit(size_t uid, CondLits elems) override { backend_->cond_lit(uid_to_lit(uid), elems); }
 
     void do_bd_aggr(size_t uid, AggregateFunction fun, BdElems elems, Guards guards) override {
-        static_cast<void>(uid);
-        static_cast<void>(fun);
-        static_cast<void>(elems);
-        static_cast<void>(guards);
-        // aggregates are already grouped by conditions
-        // depending on the type of aggregate, conditions have to be turned into implications or equivalences.
-        // simplifications shall be applied creating disjunctions in a similar fashion as conjunctions
-        // - add disjunctions in the same way as conjunctions
-        // - simplify elements grouping equivalent disjunctions
-        // - introduce literals for remaninig disjunctions
-        // translate aggregate
-        // - see paper by Mario and gringo implementation
-        // aggregates could be cached for reuse
-        throw std::logic_error{"implement me: bd_aggr"};
+        backend_->bd_aggr(uid_to_lit(uid), fun, elems, guards);
     }
 
     void do_hd_aggr(size_t uid, AggregateFunction fun, HdElems elems, Guards guards) override {
@@ -533,6 +520,20 @@ auto Backend::negate(lit_t lit) -> lit_t {
     auto nlit = next_lit();
     rule(std::array{nlit}, std::array{lit}, false);
     return -nlit;
+}
+
+void Backend::bd_aggr(lit_t lit, AggregateFunction fun, BdAggrElemSpan elems, GuardSpan guards) {
+    // TODO:
+    // - analyze aggregate computing its range and monotonicity
+    // - prune guards
+    // - add edges to graph
+    // - add individual aggregates to member table
+    static_cast<void>(lit);
+    static_cast<void>(fun);
+    static_cast<void>(elems);
+    static_cast<void>(guards);
+    static_cast<void>(this);
+    throw std::logic_error("implement me!!!");
 }
 
 void Backend::rule(LitSpan head, LitSpan body, bool choice) {

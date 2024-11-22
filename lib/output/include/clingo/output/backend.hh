@@ -42,6 +42,15 @@ using CondLitSpan = std::span<CondLit const>;
 //! A vector of conditional literals.
 using CondLitVec = std::vector<CondLit const>;
 
+//! A sum aggregate element.
+using BdAggrElem = std::pair<SymbolSpan, IndexSpan>;
+//! A span of sum aggregate elements.
+using BdAggrElemSpan = std::span<BdAggrElem const>;
+//! Guard
+using Guard = std::pair<Relation, Symbol>;
+//! A span of guards.
+using GuardSpan = std::span<Guard const>;
+
 //! The maximum literal.
 static constexpr auto lit_max = std::numeric_limits<lit_t>::max();
 //! The minimum literal.
@@ -84,6 +93,17 @@ class Backend {
     //! @param lit the literal that is derived
     //! @param elems the elements forming the conditional literal
     void cond_lit(lit_t lit, CondLitSpan elems);
+
+    //! Define a sum aggregate.
+    //!
+    //! The condition ids of the aggregate elements can be obtained using
+    //! function `cond()`.
+    //!
+    //! @param lit the literal that is derived
+    //! @param fun the aggregate function
+    //! @param elems the elements of the aggregate
+    //! @param guard the aggregate guards
+    void bd_aggr(lit_t lit, AggregateFunction fun, BdAggrElemSpan elems, GuardSpan guards);
 
     //! Add a disjunctive or choice rule.
     //!
