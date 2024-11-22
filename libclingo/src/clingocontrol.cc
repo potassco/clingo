@@ -104,12 +104,7 @@ void ClaspAPIBackend::assume(const Potassco::LitSpan& lits) {
 
 void ClaspAPIBackend::external(Potassco::Atom_t a, Potassco::Value_t v) {
     if (auto *p = prg()) {
-        switch (v) {
-            case Potassco::Value_t::False:   { p->freeze(a, Clasp::value_false); break; }
-            case Potassco::Value_t::True:    { p->freeze(a, Clasp::value_true); break; }
-            case Potassco::Value_t::Free:    { p->freeze(a, Clasp::value_free); break; }
-            case Potassco::Value_t::Release: { p->unfreeze(a); break; }
-        }
+        p->addExternal(a, v);
     }
 }
 
