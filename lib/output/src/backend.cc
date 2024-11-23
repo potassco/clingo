@@ -541,6 +541,8 @@ void Backend::bd_aggr(lit_t lit, AggregateFunction fun, BdAggrElemSpan elems, Gu
     // - add individual aggregates to member table
     // - similar code has been written for body aggregates
     //   (it should be made available in core)
+    // - since this class stores symbols, it should implement the symbol owner
+    //   interface or alternatively use shared symbols
     BdAggrElemVec elem_vec;
     if (fun == AggregateFunction::sum || fun == AggregateFunction::sump) {
         auto fixed = Number(0);
@@ -576,9 +578,7 @@ void Backend::bd_aggr(lit_t lit, AggregateFunction fun, BdAggrElemSpan elems, Gu
                     rule(std::array{-lit}, std::array<lit_t, 0>{}, false);
                     return;
                 }
-                // TODO: needs a symbol store or restricted number class
-                // guard_vec.emplace_back(guard.first, guard.second.num() - fixed);
-                guard_vec.emplace_back(guard.first, guard.second);
+                guard_vec.emplace_back(guard.first, store_->num_ref(guard.second.num() - fixed));
             } else {
                 throw std::logic_error{"implement me: other kinds of guards"};
             }

@@ -54,7 +54,7 @@ namespace {
 
 class BackendClasp : public Output::Backend {
   public:
-    BackendClasp(Clasp::Asp::LogicProgram &prg) : prg_{&prg} {}
+    BackendClasp(Clasp::Asp::LogicProgram &prg, SymbolStore &store) : Output::Backend(store), prg_{&prg} {}
 
   private:
     void do_rule(Output::LitSpan head, Output::LitSpan body, bool choice) override {
@@ -111,7 +111,7 @@ auto Solver::make_output_(AppMode mode) -> UOutputStm {
         case AppMode::solve: {
             // TODO: find a better place to do this
             cfg_.solve.numModels = 0;
-            backend_ = std::make_unique<BackendClasp>(clasp_.startAsp(cfg_, true));
+            backend_ = std::make_unique<BackendClasp>(clasp_.startAsp(cfg_, true), grd_.store());
             return Output::make_backend_output(*backend_);
         }
         default: {

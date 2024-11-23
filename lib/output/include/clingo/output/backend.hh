@@ -66,6 +66,7 @@ static constexpr auto lit_min = -lit_max;
 //! other forms of backends).
 class Backend {
   public:
+    Backend(SymbolStore &store) : store_{&store} {};
     //! Return a fresh literal.
     //!
     //! All literals should be created using this function.
@@ -169,6 +170,7 @@ class Backend {
     void tr_cond_lits_(SCCMap const &sccs);
     [[nodiscard]] auto cond_in_scc_(SCCMap const &sccs, id_t uid, size_t scc) const -> bool;
 
+    SymbolStore *store_;
     Output::lit_t lit_ = 0;
     Output::LitVec aux1_;
     Output::LitVec aux2_;
