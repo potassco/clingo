@@ -541,38 +541,62 @@ void Backend::bd_aggr(lit_t lit, AggregateFunction fun, BdAggrElemSpan elems, Gu
     // - add individual aggregates to member table
     // - similar code has been written for body aggregates
     //   (it should be made available in core)
+    BdAggrElemVec elem_vec;
     if (fun == AggregateFunction::sum || fun == AggregateFunction::sump) {
         auto fixed = Number(0);
-        auto free = Number(0);
+        auto lower = Number(0);
+        auto upper = Number(0);
         for (auto const &[tup, conds] : elems) {
-            // Note: an empty set of conditions is interpreted as true here
-            if (conds.empty()) {
-                fixed += tup.front().num();
-            } else {
-                free += tup.front().num();
+            if (!tup.empty() && tup.front().type() == SymbolType::number && tup.front().num() != 0) {
+                // Note: an empty set of conditions is interpreted as true here
+                if (conds.empty()) {
+                    fixed += tup.front().num();
+                } else {
+                    if (tup.front().num() > 0) {
+                        upper += tup.front().num();
+                    } else {
+                        lower += tup.front().num();
+                    }
+                    elem_vec.emplace_back(tup, conds);
+                }
             }
         }
+        lower += fixed;
+        upper += fixed;
+        auto guard_vec = GuardVec{};
+        guard_vec.reserve(guards.size());
         for (auto const &guard : guards) {
             if (guard.first == Relation::greater_equal) {
-                if (fixed >= guard.second) {
-                    // TODO: the guard can be dropped
+                if (lower >= guard.second) {
+                    // skip bounds that are fact
+                    continue;
                 }
-                if (fixed + free < guard.second) {
-                    // TODO: the aggregate is false
+                if (upper < guard.second) {
+                    // make the literal false
+                    rule(std::array{-lit}, std::array<lit_t, 0>{}, false);
+                    return;
                 }
+                // TODO: needs a symbol store or restricted number class
+                // guard_vec.emplace_back(guard.first, guard.second.num() - fixed);
+                guard_vec.emplace_back(guard.first, guard.second);
+            } else {
+                throw std::logic_error{"implement me: other kinds of guards"};
             }
+        }
+        if (guard_vec.empty()) {
+            // make the literal true
+            rule(std::array{lit}, std::array<lit_t, 0>{}, false);
+            return;
         }
         // TODO: drop aggregate if there are no more guards
         std::cerr << "handle aggregate: \n";
         std::cerr << "  fun: " << fun << "\n";
-        std::cerr << "  range: [" << fixed << "," << (fixed + free) << "]\n";
+        std::cerr << "  range: [" << lower << "," << upper << "]\n";
         std::cerr << "  guards:\n";
         for (auto const &guard : guards) {
             std::cerr << "    " << guard.first << " " << guard.second << "\n";
         }
     }
-    static_cast<void>(lit);
-    static_cast<void>(this);
     throw std::logic_error("implement me!!!");
 }
 

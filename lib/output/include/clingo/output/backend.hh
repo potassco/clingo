@@ -46,10 +46,14 @@ using CondLitVec = std::vector<CondLit const>;
 using BdAggrElem = std::pair<SymbolSpan, IndexSpan>;
 //! A span of sum aggregate elements.
 using BdAggrElemSpan = std::span<BdAggrElem const>;
+//! A vector of sum aggregate elements.
+using BdAggrElemVec = std::vector<BdAggrElem const>;
 //! Guard
 using Guard = std::pair<Relation, Symbol>;
 //! A span of guards.
 using GuardSpan = std::span<Guard const>;
+//! A vector of guards.
+using GuardVec = std::vector<Guard const>;
 
 //! The maximum literal.
 static constexpr auto lit_max = std::numeric_limits<lit_t>::max();
