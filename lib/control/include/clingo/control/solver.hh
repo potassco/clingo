@@ -120,7 +120,7 @@ class Solver {
     //!
     //! @param mode the configured output mode
     //! @return the resulting output
-    auto make_output_(AppMode mode) -> UOutputStm;
+    auto make_output_(AppMode mode, SymbolStore &store) -> UOutputStm;
 
     Clasp::ClaspConfig cfg_;
     Clasp::ClaspFacade clasp_;

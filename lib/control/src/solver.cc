@@ -104,14 +104,14 @@ class BackendClasp : public Output::Backend {
 } // namespace
 
 Solver::Solver(Logger &log, SymbolStore &store, Scripts &scripts, Input::RewriteOptions opts, AppMode mode, FILE *out)
-    : buf_{out}, out_{make_output_(mode)}, grd_{log, store, opts, *out_}, scripts_{&scripts}, mode_{mode} {}
+    : buf_{out}, out_{make_output_(mode, store)}, grd_{log, store, opts, *out_}, scripts_{&scripts}, mode_{mode} {}
 
-auto Solver::make_output_(AppMode mode) -> UOutputStm {
+auto Solver::make_output_(AppMode mode, SymbolStore &store) -> UOutputStm {
     switch (mode) {
         case AppMode::solve: {
             // TODO: find a better place to do this
             cfg_.solve.numModels = 0;
-            backend_ = std::make_unique<BackendClasp>(clasp_.startAsp(cfg_, true), grd_.store());
+            backend_ = std::make_unique<BackendClasp>(clasp_.startAsp(cfg_, true), store);
             return Output::make_backend_output(*backend_);
         }
         default: {

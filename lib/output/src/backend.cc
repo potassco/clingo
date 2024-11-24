@@ -533,6 +533,76 @@ template <class F> auto Backend::with_cond(id_t uid, F &&fun) const {
     return std::invoke(std::forward<F>(fun), std::span(lits.begin(), lits.end()));
 }
 
+namespace {
+
+auto check_rng(auto const &lower, auto const &upper, Relation rel, auto const &rhs) {
+    switch (rel) {
+        case Relation::greater_equal: {
+            // [l, u] >= rhs
+            if (lower >= rhs) {
+                return TruthValue::top;
+            }
+            if (upper < rhs) {
+                return TruthValue::bot;
+            }
+            return TruthValue::unknown;
+        }
+        case Relation::greater: {
+            // [l, u] > rhs
+            if (lower > rhs) {
+                return TruthValue::top;
+            }
+            if (upper <= rhs) {
+                return TruthValue::bot;
+            }
+            return TruthValue::unknown;
+        }
+        case Relation::less_equal: {
+            // [l, u] <= rhs
+            if (upper <= rhs) {
+                return TruthValue::top;
+            }
+            if (lower > rhs) {
+                return TruthValue::bot;
+            }
+            return TruthValue::unknown;
+        }
+        case Relation::less: {
+            // [l, u] < rhs
+            if (upper < rhs) {
+                return TruthValue::top;
+            }
+            if (lower >= rhs) {
+                return TruthValue::bot;
+            }
+            return TruthValue::unknown;
+        }
+        case Relation::equal: {
+            // [l, u] = rhs
+            if (lower == upper && lower == rhs) {
+                return TruthValue::top;
+            }
+            if (lower > rhs || upper < rhs) {
+                return TruthValue::bot;
+            }
+            return TruthValue::unknown;
+        }
+        case Relation::not_equal: {
+            // [l, u] != rhs
+            if (lower > rhs || upper < rhs) {
+                return TruthValue::top;
+            }
+            if (lower == upper && lower == rhs) {
+                return TruthValue::bot;
+            }
+            return TruthValue::unknown;
+        }
+    }
+    Util::unreachable();
+}
+
+} // namespace
+
 void Backend::bd_aggr(lit_t lit, AggregateFunction fun, BdAggrElemSpan elems, GuardSpan guards) {
     // TODO:
     // - analyze aggregate computing its range and monotonicity
@@ -565,22 +635,59 @@ void Backend::bd_aggr(lit_t lit, AggregateFunction fun, BdAggrElemSpan elems, Gu
         }
         lower += fixed;
         upper += fixed;
-        auto guard_vec = GuardVec{};
-        guard_vec.reserve(guards.size());
+        auto guard_vec = std::vector<std::pair<Relation, Number>>{};
+        // TODO: it seems like clingo-5's interval set-based guard
+        // representation would lead to a more compact and easier to understand
+        // top level algorithm. For example, assume an an aggregate with range
+        // [2, 10] and guards >= 5 and != 7. The guards can be represented as
+        // ([5,10] intersect ([2,6] plus [8,10])), which evaluates to ([5,6]
+        // plus [8,10]). The interval set in clingo-5 supporting the relevant
+        // operations is ready to use but probably has to be modernized
+        // regarding C++20.
         for (auto const &guard : guards) {
-            if (guard.first == Relation::greater_equal) {
-                if (lower >= guard.second) {
-                    // skip bounds that are fact
+            switch (check_rng(lower, upper, guard.first, guard.second)) {
+                case Clingo::TruthValue::top: {
                     continue;
                 }
-                if (upper < guard.second) {
-                    // make the literal false
-                    rule(std::array{-lit}, std::array<lit_t, 0>{}, false);
+                case Clingo::TruthValue::bot: {
+                    rule(std::array{negate(lit)}, LitSpan{}, false);
                     return;
                 }
-                guard_vec.emplace_back(guard.first, store_->num_ref(guard.second.num() - fixed));
+                case Clingo::TruthValue::unknown: {
+                    break;
+                }
+            }
+            // Note that non-numeric guards simplify to bot or top
+            assert(guard.second.type() == SymbolType::number);
+            auto rel = guard.first;
+            auto num = guard.second.num();
+            if (rel == Relation::greater) {
+                // x > y <==> x >= y + 1
+                rel = Relation::greater_equal;
+                num += 1;
+            }
+            if (rel == Relation::less) {
+                // x < y <==> x <= y - 1
+                rel = Relation::less_equal;
+                num -= 1;
+            }
+            if (rel == Relation::not_equal) {
+                if (lower == num) {
+                    guard_vec.emplace_back(Relation::greater_equal, num - fixed + 1);
+                } else if (upper == num) {
+                    guard_vec.emplace_back(Relation::less_equal, num - fixed - 1);
+                } else {
+                    guard_vec.emplace_back(Relation::not_equal, num - fixed);
+                }
+            } else if (rel == Relation::equal) {
+                if (lower < num) {
+                    guard_vec.emplace_back(Relation::greater_equal, num - fixed);
+                }
+                if (upper > num) {
+                    guard_vec.emplace_back(Relation::less_equal, num - fixed);
+                }
             } else {
-                throw std::logic_error{"implement me: other kinds of guards"};
+                guard_vec.emplace_back(rel, num - fixed);
             }
         }
         if (guard_vec.empty()) {
@@ -593,8 +700,8 @@ void Backend::bd_aggr(lit_t lit, AggregateFunction fun, BdAggrElemSpan elems, Gu
         std::cerr << "  fun: " << fun << "\n";
         std::cerr << "  range: [" << lower << "," << upper << "]\n";
         std::cerr << "  guards:\n";
-        for (auto const &guard : guards) {
-            std::cerr << "    " << guard.first << " " << guard.second << "\n";
+        for (auto const &guard : guard_vec) {
+            std::cerr << "    " << guard.first << " " << guard.second + fixed << "\n";
         }
     }
     throw std::logic_error("implement me!!!");
