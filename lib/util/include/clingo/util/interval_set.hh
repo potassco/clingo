@@ -85,7 +85,7 @@ template <class T> class interval_set {
     //! ```
     //! Can be used to check whether an interval is empty.
     friend auto operator<(left_bound const &x, right_bound const &y) -> bool {
-        return x.bound < y.bound || (x.bound == y.bound && x.inclusive && x.inclusive);
+        return x.bound < y.bound || (x.bound == y.bound && x.inclusive && y.inclusive);
     }
 
     //! Right bound x is smaller than right bound y.
@@ -220,8 +220,8 @@ template <class T> class interval_set {
     [[nodiscard]] auto intersects(interval const &x) const -> bool {
         if (!x.empty()) {
             for (auto &y : vec_) {
-                if (x.left <= y.right) {
-                    return y.left <= x.right;
+                if (x.left < y.right) {
+                    return y.left < x.right;
                 }
             }
         }

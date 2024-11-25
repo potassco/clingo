@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cassert>
 #include <charconv>
 #include <cstring>
@@ -93,7 +94,7 @@ class OutputBuffer {
     //! Append a string to the buffer.
     void append(std::string_view str) {
         auto n = static_cast<ssize_t>(str.length());
-        std::copy(str.begin(), str.end(), ensure_(n));
+        std::ranges::copy(str, ensure_(n));
         size_ += n;
     }
 
