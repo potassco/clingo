@@ -696,6 +696,7 @@ void Backend::bd_aggr(lit_t lit, AggregateFunction fun, BdAggrElemSpan elems, Gu
             return;
         }
         // TODO: drop aggregate if there are no more guards
+        static_cast<void>(store_);
         std::cerr << "handle aggregate: \n";
         std::cerr << "  fun: " << fun << "\n";
         std::cerr << "  range: [" << lower << "," << upper << "]\n";
