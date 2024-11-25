@@ -23,12 +23,10 @@ template <class T> class interval_set {
 
     //! A left bound of an interval.
     struct left_bound {
-        //! Assign a right bound.
-        auto operator=(right_bound const &x) -> left_bound & {
-            bound = x.bound;
-            inclusive = !x.inclusive;
-            return *this;
-        }
+        //! Construct the bound.
+        constexpr left_bound(value_type bound, bool inclusive) : bound{std::move(bound)}, inclusive{inclusive} {}
+        //! Construct the bound from a right bound.
+        explicit left_bound(right_bound const &x) : bound(x.bound), inclusive(!x.inclusive) {}
 
         //! The value of the bound.
         value_type bound;
@@ -38,12 +36,10 @@ template <class T> class interval_set {
 
     //! A right bound of an interval.
     struct right_bound {
-        //! Assign a left bound.
-        auto operator=(left_bound const &x) -> right_bound & {
-            bound = x.bound;
-            inclusive = !x.inclusive;
-            return *this;
-        }
+        //! Construct the bound.
+        constexpr right_bound(value_type bound, bool inclusive) : bound{std::move(bound)}, inclusive{inclusive} {}
+        //! Construct the bound from a left bound.
+        explicit right_bound(left_bound const &x) : bound(x.bound), inclusive(!x.inclusive) {}
 
         //! The value of the bound.
         value_type bound;
@@ -53,6 +49,8 @@ template <class T> class interval_set {
 
     //! An interval determined by a left and a right bound.
     struct interval {
+        //! Construct the bound.
+        constexpr interval(left_bound left, right_bound right) : left{std::move(left)}, right{std::move(right)} {}
         //! Whether the interval contains the given value.
         auto contains(value_type const &x) const -> bool { return !(x < *this) && !(*this < x); }
         //! Whether the interval is empty.
@@ -174,10 +172,8 @@ template <class T> class interval_set {
             if (it != vec_.end()) {
                 auto jt = std::upper_bound(it, vec_.end(), x);
                 if (it + 1 == jt) {
-                    interval r;
-                    r.left = x.right;
-                    r.right = it->right;
-                    it->right = x.left;
+                    auto r = interval{left_bound{x.right}, it->right};
+                    it->right = right_bound{x.left};
                     if (it->empty()) {
                         if (r.empty()) {
                             vec_.erase(it);
@@ -188,8 +184,8 @@ template <class T> class interval_set {
                         vec_.emplace(it + 1, r);
                     }
                 } else if (it != jt) {
-                    it->right = x.left;
-                    (jt - 1)->left = x.right;
+                    it->right = right_bound{x.left};
+                    (jt - 1)->left = left_bound{x.right};
                     vec_.erase(it + !it->empty(), jt - !(jt - 1)->empty());
                 }
             }
@@ -277,12 +273,12 @@ template <class T> class interval_set {
             for (; it != set.vec_.end() && it->right <= current.right; ++it) {
                 if (current.left < it->left) {
                     difference.vec_.emplace_back(current);
-                    difference.vec_.back().right = it->left;
+                    difference.vec_.back().right = right_bound{it->left};
                 }
-                current.left = it->right;
+                current.left = left_bound{it->right};
             }
             if (it != set.vec_.end() && it->left < current.right) {
-                current.right = it->left;
+                current.right = right_bound{it->left};
             }
             if (current.left < current.right) {
                 difference.vec_.emplace_back(current);

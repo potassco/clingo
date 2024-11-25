@@ -1,11 +1,11 @@
 #include <clingo/output/backend.hh>
 
+#include <clingo/util/checked_math.hh>
+#include <clingo/util/interval_set.hh>
 #include <clingo/util/ordered_map.hh>
 #include <clingo/util/ordered_set.hh>
 #include <clingo/util/print.hh>
 #include <clingo/util/type_traits.hh>
-
-#include <clingo/util/checked_math.hh>
 
 #include <iostream>
 
@@ -615,6 +615,7 @@ void Backend::bd_aggr(lit_t lit, AggregateFunction fun, BdAggrElemSpan elems, Gu
     //   interface or alternatively use shared symbols
     BdAggrElemVec elem_vec;
     if (fun == AggregateFunction::sum || fun == AggregateFunction::sump) {
+        // comput the range of the aggregate
         auto fixed = Number(0);
         auto lower = Number(0);
         auto upper = Number(0);
@@ -635,75 +636,59 @@ void Backend::bd_aggr(lit_t lit, AggregateFunction fun, BdAggrElemSpan elems, Gu
         }
         lower += fixed;
         upper += fixed;
-        auto guard_vec = std::vector<std::pair<Relation, Number>>{};
-        // TODO: it seems like clingo-5's interval set-based guard
-        // representation would lead to a more compact and easier to understand
-        // top level algorithm. For example, assume an an aggregate with range
-        // [2, 10] and guards >= 5 and != 7. The guards can be represented as
-        // ([5,10] intersect ([2,6] plus [8,10])), which evaluates to ([5,6]
-        // plus [8,10]). The interval set in clingo-5 supporting the relevant
-        // operations is ready to use but probably has to be modernized
-        // regarding C++20.
-        for (auto const &guard : guards) {
-            switch (check_rng(lower, upper, guard.first, guard.second)) {
-                case Clingo::TruthValue::top: {
-                    continue;
+        // compute the bounds of the aggregate
+        auto bounds = Util::interval_set<Number>{};
+        auto range = Util::interval_set<Number>::interval{{lower, true}, {upper, true}};
+        bounds.add(range);
+        for (auto const &[rel, guard] : guards) {
+            switch (rel) {
+                case Relation::greater_equal: {
+                    bounds.remove({{lower, true}, {guard.num(), false}});
+                    break;
                 }
-                case Clingo::TruthValue::bot: {
-                    rule(std::array{negate(lit)}, LitSpan{}, false);
-                    return;
+                case Relation::greater: {
+                    bounds.remove({{lower, true}, {guard.num() + 1, false}});
+                    break;
                 }
-                case Clingo::TruthValue::unknown: {
+                case Relation::less_equal: {
+                    bounds.remove({{guard.num(), false}, {upper, true}});
+                    break;
+                }
+                case Relation::less: {
+                    bounds.remove({{guard.num() - 1, false}, {upper, true}});
+                    break;
+                }
+                case Relation::equal: {
+                    bounds.remove({{lower, true}, {guard.num(), false}});
+                    bounds.remove({{guard.num(), false}, {upper, true}});
+                    break;
+                }
+                case Relation::not_equal: {
+                    bounds.remove({{guard.num() - 1, false}, {guard.num() + 1, false}});
                     break;
                 }
             }
-            // Note that non-numeric guards simplify to bot or top
-            assert(guard.second.type() == SymbolType::number);
-            auto rel = guard.first;
-            auto num = guard.second.num();
-            if (rel == Relation::greater) {
-                // x > y <==> x >= y + 1
-                rel = Relation::greater_equal;
-                num += 1;
-            }
-            if (rel == Relation::less) {
-                // x < y <==> x <= y - 1
-                rel = Relation::less_equal;
-                num -= 1;
-            }
-            if (rel == Relation::not_equal) {
-                if (lower == num) {
-                    guard_vec.emplace_back(Relation::greater_equal, num - fixed + 1);
-                } else if (upper == num) {
-                    guard_vec.emplace_back(Relation::less_equal, num - fixed - 1);
-                } else {
-                    guard_vec.emplace_back(Relation::not_equal, num - fixed);
-                }
-            } else if (rel == Relation::equal) {
-                if (lower < num) {
-                    guard_vec.emplace_back(Relation::greater_equal, num - fixed);
-                }
-                if (upper > num) {
-                    guard_vec.emplace_back(Relation::less_equal, num - fixed);
-                }
-            } else {
-                guard_vec.emplace_back(rel, num - fixed);
-            }
         }
-        if (guard_vec.empty()) {
-            // make the literal true
+        if (bounds.contains(range)) {
             rule(std::array{lit}, std::array<lit_t, 0>{}, false);
             return;
         }
-        // TODO: drop aggregate if there are no more guards
+        if (bounds.empty()) {
+            rule(std::array{negate(lit)}, LitSpan{}, false);
+            return;
+        }
+        // TODO: add edges based on bounds and store aggregate
         static_cast<void>(store_);
         std::cerr << "handle aggregate: \n";
         std::cerr << "  fun: " << fun << "\n";
-        std::cerr << "  range: [" << lower << "," << upper << "]\n";
-        std::cerr << "  guards:\n";
-        for (auto const &guard : guard_vec) {
-            std::cerr << "    " << guard.first << " " << guard.second + fixed << "\n";
+        std::cerr << "  range: " << (range.left.inclusive ? "[" : "(") << range.left.bound << "," << range.right.bound
+                  << (range.right.inclusive ? "]" : ")") << "\n";
+        std::cerr << "  bounds:";
+        for (auto const &[left, right] : bounds) {
+            std::cerr << (left.inclusive ? "[" : "(") << left.bound << "," << right.bound
+                      << (right.inclusive ? "]" : ")");
         }
+        std::cerr << "\n";
     }
     throw std::logic_error("implement me!!!");
 }
