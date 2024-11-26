@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <clingo/util/macro.hh>
 
+#include <cassert>
 #include <cstdint>
 #include <memory>
 #include <utility>
@@ -24,15 +25,33 @@ template <class T, size_t N = 2>
     requires(std::is_nothrow_destructible_v<T> && std::is_nothrow_move_constructible_v<T>)
 class small_vector {
   public:
+    using value_type = T;
+    using iterator = T *;
+    using const_iterator = T const *;
+    using reference = T &;
+    using const_reference = T const &;
+    using pointer = T *;
+    using const_pointer = T const *;
+
     //! Construct an empty vector.
     small_vector() = default;
-    //! For the time being, copy construction is disabled.
-    small_vector(small_vector const &) = delete;
+    //! Copy construct the vector.
+    small_vector(small_vector const &other) : small_vector{} {
+        reserve(other.size());
+        std::ranges::copy(other, std::back_inserter(*this));
+    }
     //! Move construct the vector.
     small_vector(small_vector &&other) noexcept { *this = std::move(other); }
 
-    //! For the time being, copy assignment is disabled.
-    auto operator=(small_vector const &other) = delete;
+    //! Copy assign the vector.
+    auto operator=(small_vector const &other) {
+        if (this != &other) {
+            clear();
+            reserve(other.size());
+            std::ranges::copy(other, std::back_inserter(*this));
+        }
+        return *this;
+    }
     //! Move assign the vector.
     auto operator=(small_vector &&other) noexcept -> small_vector & {
         clear();
@@ -68,33 +87,42 @@ class small_vector {
     }
 
     //! Get an iterator to the beginning of the vector.
-    auto begin() const -> T const * { return const_cast<small_vector *>(this)->begin(); }
+    auto begin() -> iterator { return is_small_() ? small_() : large_(); }
 
-    //! Get an iterator to the beginning of the vector.
-    auto begin() -> T * { return is_small_() ? small_() : large_(); }
+    //! Get a const iterator to the beginning of the vector.
+    auto begin() const -> const_iterator { return const_cast<small_vector *>(this)->begin(); }
 
-    //! Get a pointer to the stored C array.
-    auto data() -> T * { return begin(); }
-
-    //! Get a pointer to the stored C array.
-    auto data() const -> T const * { return begin(); }
+    //! Get a const iterator to the beginning of the vector.
+    auto cbegin() const -> const_iterator { return begin(); }
 
     //! Get an iterator to the end of the vector.
-    auto end() const -> T const * { return const_cast<small_vector *>(this)->end(); }
-
-    //! Get an iterator to the end of the vector.
-    auto end() -> T * {
+    auto end() -> iterator {
         if (is_small_()) {
             return begin() + size_small_();
         }
         return end_;
     }
 
-    //! Get the element at the given index.
-    auto operator[](size_t i) -> T & { return *(begin() + i); }
+    //! Get a const iterator to the end of the vector.
+    auto end() const -> const_iterator { return const_cast<small_vector *>(this)->end(); }
+
+    //! Get a const iterator to the end of the vector.
+    auto cend() const -> const_iterator { return end(); }
+
+    //! Get a pointer to the stored C array.
+    auto data() -> iterator { return begin(); }
+
+    //! Get a const pointer to the stored C array.
+    auto data() const -> const_iterator { return cbegin(); }
+
+    //! Get a const pointer to the stored C array.
+    auto cdata() const -> const_iterator { return cbegin(); }
 
     //! Get the element at the given index.
-    auto operator[](size_t i) const -> T const & { return *(begin() + i); }
+    auto operator[](size_t i) -> reference { return *(begin() + i); }
+
+    //! Get the element at the given index.
+    auto operator[](size_t i) const -> const_reference { return *(begin() + i); }
 
     //! Reserve space for at least n elements.
     void reserve(size_t n) {
@@ -103,8 +131,8 @@ class small_vector {
                 n = 2 * m;
             }
             auto l = size();
-            auto *data = ::operator new[](sizeof(T) * n);
-            std::uninitialized_move(begin(), end(), static_cast<T *>(data));
+            auto *data = ::operator new[](sizeof(value_type) * n);
+            std::uninitialized_move(begin(), end(), static_cast<pointer>(data));
             destroy_();
             begin_ = reinterpret_cast<uintptr_t>(data);
             end_ = large_() + l;
@@ -113,25 +141,38 @@ class small_vector {
     }
 
     //! Get the first element in the vector.
-    auto front() -> T & {
+    auto front() -> reference {
         assert(!empty());
         return *begin();
     }
 
     //! Get the last element in the vector.
-    auto back() -> T & {
+    auto back() -> reference {
         assert(!empty());
         return *(end() - 1);
     }
 
+    //! Erase the given element.
+    auto erase(iterator it) -> iterator {
+        assert(it != end());
+        std::destroy_at(std::move(it + 1, end(), it));
+        if (is_small_()) {
+            size_small_(size_small_() - 1);
+        } else {
+            --end_;
+        }
+        return it;
+    }
+
     //! Erase the given range of elements.
-    auto erase(T *first, T *last) -> T * {
+    auto erase(iterator first, iterator last) -> iterator {
+        assert(first <= last);
         if (ssize_t n = last - first; n > 0) {
-            std::destroy(first, last);
-            std::move(last, this->end(), first);
+            std::destroy(std::move(last, end(), first), end());
             if (is_small_()) {
                 size_small_(size_small_() - n);
             } else {
+                end_ -= n;
                 last -= n;
             }
         }
@@ -139,11 +180,27 @@ class small_vector {
     }
 
     //! Emplace an element before the given iterator.
-    template <class... U> void emplace(T *it, U &&...args) {
+    template <class... U> void emplace(const_iterator loc, U &&...args) {
+        // TODO: moves can be avoided when reallocating
+        auto i = std::distance(cbegin(), loc);
         reserve(size() + 1);
-        auto ie = end();
-        std::move_backward(it, ie, ie + 1);
-        new (it) T{std::forward<U>(args)...};
+        auto it = std::next(begin(), i);
+        if (auto ie = end(), ip = std::prev(ie); it != ie) {
+            std::construct_at(ie, std::move(*ip));
+            std::move_backward(it, ip, ie);
+        }
+        std::construct_at(it, std::forward<U>(args)...);
+        if (is_small_()) {
+            size_small_(size_small_() + 1);
+        } else {
+            std::advance(end_, 1);
+        }
+    }
+
+    //! Emplace an element after the last element.
+    template <class... U> void emplace_back(U &&...args) {
+        reserve(size() + 1);
+        std::construct_at(end(), std::forward<U>(args)...);
         if (is_small_()) {
             size_small_(size_small_() + 1);
         } else {
@@ -151,16 +208,8 @@ class small_vector {
         }
     }
 
-    //! Emplace an element after the last element.
-    template <class... U> void emplace_back(U &&...args) {
-        reserve(size() + 1);
-        new (end()) T{std::forward<U>(args)...};
-        if (is_small_()) {
-            size_small_(size_small_() + 1);
-        } else {
-            ++end_;
-        }
-    }
+    //! Append an element after the last element.
+    void push_back(value_type const &x) { return emplace_back(x); }
 
     //! Pop the last element.
     void pop_back() {
@@ -183,14 +232,14 @@ class small_vector {
     ~small_vector() { destroy_(); }
 
   private:
-    auto large_() const -> T * { return reinterpret_cast<T *>(begin_); }
-    auto small_() -> T * { return reinterpret_cast<T *>(buf_); }
+    auto large_() const -> pointer { return reinterpret_cast<T *>(begin_); }
+    auto small_() -> pointer { return reinterpret_cast<T *>(buf_); }
     auto is_small_() const -> bool { return (begin_ & 1) != 0; }
     auto size_small_() const -> size_t { return begin_ >> 1; }
 
     auto size_small_(size_t n) { begin_ = (n << 1) | 1; }
 
-    void destroy_() {
+    void destroy_() noexcept {
         std::destroy(begin(), end());
         if (!is_small_()) {
             ::operator delete[](large_());
@@ -201,11 +250,11 @@ class small_vector {
     uintptr_t begin_ = 1;
     union {
         struct {
-            alignas(T) unsigned char buf_[N * sizeof(T)];
+            alignas(value_type) unsigned char buf_[N * sizeof(value_type)];
         };
         struct {
-            T *end_;
-            T *cap_;
+            pointer end_;
+            pointer cap_;
         };
     };
     GRINGO_IGNORE_UNION_E

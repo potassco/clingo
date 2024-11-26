@@ -1,7 +1,7 @@
 #pragma once
 
 #include <algorithm>
-#include <vector>
+#include <clingo/util/small_vector.hh>
 
 namespace Clingo::Util {
 
@@ -62,7 +62,7 @@ template <class T> class interval_set {
         right_bound right;
     };
     //! The vector used to store intervals.
-    using interval_vector = std::vector<interval>;
+    using interval_vector = small_vector<interval>;
     //! An iterator over the intervals in the set.
     using iterator = typename interval_vector::const_iterator;
 
