@@ -13,8 +13,6 @@ namespace Clingo::Util {
 //! @addtogroup util_container
 //! @{
 
-// NOLINTBEGIN
-
 //! A vector that misuses the begin, end and capacity pointers to store
 //! elements.
 //!
@@ -23,6 +21,7 @@ namespace Clingo::Util {
 //! extend the size of the vector.
 template <class T, size_t N = 2>
     requires(std::is_nothrow_destructible_v<T> && std::is_nothrow_move_constructible_v<T>)
+// NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
 class small_vector {
   public:
     using value_type = T;
@@ -41,10 +40,10 @@ class small_vector {
         std::ranges::copy(other, std::back_inserter(*this));
     }
     //! Move construct the vector.
-    small_vector(small_vector &&other) noexcept { *this = std::move(other); }
+    small_vector(small_vector &&other) noexcept : small_vector{} { *this = std::move(other); }
 
     //! Copy assign the vector.
-    auto operator=(small_vector const &other) {
+    auto operator=(small_vector const &other) -> small_vector & {
         if (this != &other) {
             clear();
             reserve(other.size());
@@ -54,75 +53,89 @@ class small_vector {
     }
     //! Move assign the vector.
     auto operator=(small_vector &&other) noexcept -> small_vector & {
-        clear();
-        if (other.is_small_()) {
-            std::uninitialized_move_n(other.small_(), other.size_small_(), small_());
-            std::destroy_n(other.small_(), other.size_small_());
-            std::swap(other.begin_, begin_);
-        } else {
-            std::swap(begin_, other.begin_);
-            std::swap(end_, other.end_);
-            std::swap(cap_, other.cap_);
+        if (this != &other) {
+            clear();
+            if (other.is_small_()) {
+                std::uninitialized_move_n(other.begin_small_(), other.size_small_(), begin_small_());
+                std::ranges::destroy_n(other.begin_small_(), other.size_small_());
+                std::ranges::swap(other.begin_, begin_);
+            } else {
+                std::ranges::swap(begin_, other.begin_);
+                std::ranges::swap(end_large_(), other.end_large_());
+                std::ranges::swap(cap_large_(), other.cap_large_());
+            }
         }
         return *this;
     }
 
     //! Get the size of the vector.
-    auto size() const -> size_t {
+    [[nodiscard]] auto size() const -> size_t {
         if (is_small_()) {
             return size_small_();
         }
-        return end_ - large_();
+        return std::ranges::distance(begin_large_(), end_large_());
     }
 
     //! Check if the vector is empty.
-    auto empty() const -> bool { return size() == 0; }
+    [[nodiscard]] auto empty() const -> bool { return size() == 0; }
 
     //! Get the capacity of the vector.
-    auto capacity() const -> size_t {
+    [[nodiscard]] auto capacity() const -> size_t {
         if (is_small_()) {
             return N;
         }
-        return cap_ - large_();
+        return std::ranges::distance(begin_large_(), end_large_());
     }
 
     //! Get an iterator to the beginning of the vector.
-    auto begin() -> iterator { return is_small_() ? small_() : large_(); }
+    [[nodiscard]] auto begin() -> iterator { return is_small_() ? begin_small_() : begin_large_(); }
 
     //! Get a const iterator to the beginning of the vector.
-    auto begin() const -> const_iterator { return const_cast<small_vector *>(this)->begin(); }
+    [[nodiscard]] auto begin() const -> const_iterator {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
+        return const_cast<small_vector *>(this)->begin();
+    }
 
     //! Get a const iterator to the beginning of the vector.
-    auto cbegin() const -> const_iterator { return begin(); }
+    [[nodiscard]] auto cbegin() const -> const_iterator { return begin(); }
 
     //! Get an iterator to the end of the vector.
-    auto end() -> iterator {
+    [[nodiscard]] auto end() -> iterator {
         if (is_small_()) {
-            return begin() + size_small_();
+            return std::ranges::next(begin(), size_small_());
         }
-        return end_;
+        return end_large_();
     }
 
     //! Get a const iterator to the end of the vector.
-    auto end() const -> const_iterator { return const_cast<small_vector *>(this)->end(); }
+    [[nodiscard]] auto end() const -> const_iterator {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
+        return const_cast<small_vector *>(this)->end();
+    }
 
     //! Get a const iterator to the end of the vector.
-    auto cend() const -> const_iterator { return end(); }
+    [[nodiscard]] auto cend() const -> const_iterator { return end(); }
 
     //! Get a pointer to the stored C array.
-    auto data() -> iterator { return begin(); }
+    [[nodiscard]] auto data() -> iterator { return begin(); }
 
     //! Get a const pointer to the stored C array.
-    auto data() const -> const_iterator { return cbegin(); }
+    [[nodiscard]] auto data() const -> const_iterator { return cbegin(); }
 
     //! Get a const pointer to the stored C array.
-    auto cdata() const -> const_iterator { return cbegin(); }
+    [[nodiscard]] auto cdata() const -> const_iterator { return cbegin(); }
 
     //! Get the element at the given index.
-    auto operator[](size_t i) -> reference { return *(begin() + i); }
+    [[nodiscard]] auto operator[](size_t i) -> reference {
+        assert(i < size());
+        return *std::ranges::next(begin(), i);
+    }
 
     //! Get the element at the given index.
-    auto operator[](size_t i) const -> const_reference { return *(begin() + i); }
+    [[nodiscard]] auto operator[](size_t i) const -> const_reference {
+        assert(i < size());
+        return *std::ranges::next(begin(), i);
+    }
 
     //! Reserve space for at least n elements.
     void reserve(size_t n) {
@@ -134,9 +147,10 @@ class small_vector {
             auto *data = ::operator new[](sizeof(value_type) * n);
             std::uninitialized_move(begin(), end(), static_cast<pointer>(data));
             destroy_();
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
             begin_ = reinterpret_cast<uintptr_t>(data);
-            end_ = large_() + l;
-            cap_ = large_() + n;
+            end_large_() = std::ranges::next(begin_large_(), l);
+            cap_large_() = std::ranges::next(begin_large_(), n);
         }
     }
 
@@ -149,17 +163,17 @@ class small_vector {
     //! Get the last element in the vector.
     auto back() -> reference {
         assert(!empty());
-        return *(end() - 1);
+        return *std::ranges::prev(end());
     }
 
     //! Erase the given element.
     auto erase(iterator it) -> iterator {
         assert(it != end());
-        std::destroy_at(std::move(it + 1, end(), it));
+        std::ranges::destroy_at(std::move(std::ranges::next(it), end(), it));
         if (is_small_()) {
             size_small_(size_small_() - 1);
         } else {
-            --end_;
+            std::ranges::advance(end_large_(), -1);
         }
         return it;
     }
@@ -167,13 +181,13 @@ class small_vector {
     //! Erase the given range of elements.
     auto erase(iterator first, iterator last) -> iterator {
         assert(first <= last);
-        if (ssize_t n = last - first; n > 0) {
-            std::destroy(std::move(last, end(), first), end());
+        if (auto n = std::ranges::distance(first, last); n > 0) {
+            std::ranges::destroy(std::move(last, end(), first), end());
             if (is_small_()) {
                 size_small_(size_small_() - n);
             } else {
-                end_ -= n;
-                last -= n;
+                std::ranges::advance(end_large_(), -n);
+                std::ranges::advance(last, -n);
             }
         }
         return last;
@@ -182,29 +196,29 @@ class small_vector {
     //! Emplace an element before the given iterator.
     template <class... U> void emplace(const_iterator loc, U &&...args) {
         // TODO: moves can be avoided when reallocating
-        auto i = std::distance(cbegin(), loc);
+        auto i = std::ranges::distance(cbegin(), loc);
         reserve(size() + 1);
         auto it = std::next(begin(), i);
-        if (auto ie = end(), ip = std::prev(ie); it != ie) {
-            std::construct_at(ie, std::move(*ip));
-            std::move_backward(it, ip, ie);
+        if (auto ie = end(), ip = std::ranges::prev(ie); it != ie) {
+            std::ranges::construct_at(ie, std::move(*ip));
+            std::ranges::move_backward(it, ip, ie);
         }
-        std::construct_at(it, std::forward<U>(args)...);
+        std::ranges::construct_at(it, std::forward<U>(args)...);
         if (is_small_()) {
             size_small_(size_small_() + 1);
         } else {
-            std::advance(end_, 1);
+            std::ranges::advance(end_large_(), 1);
         }
     }
 
     //! Emplace an element after the last element.
     template <class... U> void emplace_back(U &&...args) {
         reserve(size() + 1);
-        std::construct_at(end(), std::forward<U>(args)...);
+        std::ranges::construct_at(end(), std::forward<U>(args)...);
         if (is_small_()) {
             size_small_(size_small_() + 1);
         } else {
-            ++end_;
+            std::advance(end_large_(), 1);
         }
     }
 
@@ -213,36 +227,59 @@ class small_vector {
 
     //! Pop the last element.
     void pop_back() {
+        assert(!empty());
+        std::destroy_at(std::prev(end()));
         if (is_small_()) {
             size_small_(size_small_() - 1);
         } else {
-            --end_;
+            std::advance(end_large_(), -1);
         }
     }
 
     //! Clear the vector.
     //!
     //! Note that this frees allocated storage.
-    void clear() {
+    void clear() noexcept {
         destroy_();
         begin_ = 1;
     }
 
     //! Deconstruct the vector.
-    ~small_vector() { destroy_(); }
+    ~small_vector() noexcept { destroy_(); }
 
   private:
-    auto large_() const -> pointer { return reinterpret_cast<T *>(begin_); }
-    auto small_() -> pointer { return reinterpret_cast<T *>(buf_); }
-    auto is_small_() const -> bool { return (begin_ & 1) != 0; }
-    auto size_small_() const -> size_t { return begin_ >> 1; }
-
-    auto size_small_(size_t n) { begin_ = (n << 1) | 1; }
+    [[nodiscard]] auto begin_large_() const -> pointer {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+        return reinterpret_cast<T *>(begin_);
+    }
+    [[nodiscard]] auto end_large_() -> pointer & {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
+        return end_;
+    }
+    [[nodiscard]] auto end_large_() const -> pointer {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
+        return end_;
+    }
+    [[nodiscard]] auto cap_large_() const -> pointer {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
+        return cap_;
+    }
+    [[nodiscard]] auto cap_large_() -> pointer & {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
+        return cap_;
+    }
+    [[nodiscard]] auto begin_small_() -> pointer {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast,cppcoreguidelines-pro-type-union-access)
+        return reinterpret_cast<T *>(buf_);
+    }
+    [[nodiscard]] auto is_small_() const -> bool { return (begin_ & 1) != 0; }
+    [[nodiscard]] auto size_small_() const -> size_t { return begin_ >> 1; }
+    [[nodiscard]] auto size_small_(size_t n) { begin_ = (n << 1) | 1; }
 
     void destroy_() noexcept {
         std::destroy(begin(), end());
         if (!is_small_()) {
-            ::operator delete[](large_());
+            ::operator delete[](begin_large_());
         }
     }
 
@@ -250,6 +287,7 @@ class small_vector {
     uintptr_t begin_ = 1;
     union {
         struct {
+            // NOLINTNEXTLINE(modernize-avoid-c-arrays)
             alignas(value_type) unsigned char buf_[N * sizeof(value_type)];
         };
         struct {
@@ -259,8 +297,6 @@ class small_vector {
     };
     GRINGO_IGNORE_UNION_E
 };
-
-// NOLINTEND
 
 //! @}
 
