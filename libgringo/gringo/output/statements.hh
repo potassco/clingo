@@ -239,7 +239,7 @@ public:
     LiteralId removeNotNot(DomainData &data, LiteralId lit);
     unsigned nodeUid(Symbol v);
     // These are used to cache literals of translated formulas.
-    // The clauses and formuals are tied to clauses and formulas in DomainData.
+    // The clauses and formulas are tied to clauses and formulas in DomainData.
     // Hence, they have to be deleted after each step.
     LiteralId clause(ClauseId id, bool conjunctive, bool equivalence);
     void clause(LiteralId lit, ClauseId id, bool conjunctive, bool equivalence);

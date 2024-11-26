@@ -1710,7 +1710,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_element(clingo_backend_t *b
 //! @param[in] backend the target backend
 //! @param[in] atom an undefined value, program atom, or zero for theory directives
 //! @param[in] term_id the term id of the term associated with the theory atom
-//! @param[in] elements an array of element ids for the theory atoms's elements
+//! @param[in] elements an array of element ids for the theory atom's elements
 //! @param[in] size the number of elements
 //! @param[out] atom_id the final program atom of the theory atom
 //! @return whether the call was successful; might set one of the following error codes:
@@ -1723,7 +1723,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_atom(clingo_backend_t *back
 //! @param[in] backend the target backend
 //! @param[in] atom an undefined value, program atom, or zero for theory directives
 //! @param[in] term_id the term id of the term associated with the theory atom
-//! @param[in] elements an array of element ids for the theory atoms's elements
+//! @param[in] elements an array of element ids for the theory atom's elements
 //! @param[in] size the number of elements
 //! @param[in] operator_name the string representation of a theory operator
 //! @param[in] right_hand_side_id the term id of the right hand side term
@@ -2903,7 +2903,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_assign_external(clingo_control_t *
 //! If a negative literal is passed, the corresponding atom is released.
 //!
 //! After this call, an external atom is no longer external and subject to
-//! program simplifications.  If the atom does not exist or is not external,
+//! program simplifications. If the atom does not exist or is not external,
 //! this is a noop.
 //!
 //! @param[in] control the target
@@ -2967,7 +2967,7 @@ CLINGO_VISIBILITY_DEFAULT void clingo_control_interrupt(clingo_control_t *contro
 //! This function is intended for experimental use only and not part of the stable API.
 //!
 //! This function may return a <code>nullptr</code>.
-//! Otherwise, the returned pointer can be casted to a ClaspFacade pointer.
+//! Otherwise, the returned pointer can be cast to a ClaspFacade pointer.
 //!
 //! @param[in] control the target
 //! @param[out] clasp pointer to the ClaspFacade object (may be <code>nullptr</code>)
@@ -3385,7 +3385,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_build(clingo_ast_type_t type, clingo_a
 
 //! @}
 
-//! @name Functions to manage life time of ASTs
+//! @name Functions to manage lifetime of ASTs
 //! @{
 
 //! Increment the reference count of an AST node.

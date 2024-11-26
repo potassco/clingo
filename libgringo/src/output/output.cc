@@ -736,7 +736,7 @@ void ASPIFOutBackend::theoryAtom(Id_t atomOrZero, Id_t termId, IdSpan const &ele
 }
 
 void ASPIFOutBackend::endStep() {
-    // transfer stored theory atoms to the ouputs theory class
+    // transfer stored theory atoms to the outputs theory class
     theory_.accept(*this);
     for (auto it = sym_tab_.begin(), ie = sym_tab_.end(); it != ie; ++it) {
         auto const &sym = it.key();
@@ -849,7 +849,7 @@ void ASPIFOutBackend::visit(const Potassco::TheoryData &data, Id_t elemId, const
         for (auto const &x : e) {
             tuple.emplace_back(terms_[x]);
         }
-        // one could alse remap to named literals but would have to store the mapping
+        // one could also remap to named literals but would have to store the mapping
         elements_[elemId].first = theory.addElem(make_span(tuple), make_span(elements_[elemId].second));
     }
 }

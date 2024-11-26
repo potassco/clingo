@@ -88,7 +88,7 @@ struct IncrementalControl : Control, private Output::ASPIFOutBackend {
     }
     void update() {
         // This function starts a new step and has to be called at least once
-        // before anything that causes output at the beginning of excecution or
+        // before anything that causes output at the beginning of execution or
         // after a solve step.
         if (!grounded) {
             if (!initialized_) {

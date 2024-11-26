@@ -69,7 +69,7 @@ class TestSolving(TestCase):
 
     def test_solve_async(self):
         """
-        Test asynchonous solving.
+        Test asynchronous solving.
         """
         self.ctl.add("base", [], "1 {a; b} 1. c.")
         self.ctl.ground([("base", [])])
