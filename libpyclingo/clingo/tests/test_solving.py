@@ -264,6 +264,31 @@ class TestSolving(TestCase):
         self.ctl.ground([("base", [])])
         self.ctl.solve(on_model=on_model)
 
+    def test_update_projection(self):
+        self.ctl.configuration.solve.project = "auto"
+        self.ctl.configuration.solve.models  = "0"
+        self.ctl.add("base", [], "{a;b;c;d}. #project a/0. #project b/0.")
+        self.ctl.ground([("base", [])])
+        self.ctl.solve(on_model=self.mcb.on_model)
+        self.assertEqual(self.mcb.models, _p([], ["a"], ["a", "b"], ["b"]))
+
+        pro = []
+        for atom in self.ctl.symbolic_atoms.by_signature("c", 0):
+            pro.append(atom.literal)
+        pro.append(Function("d"))
+
+        self.ctl.replace_project(pro)
+        self.mcb = _MCB()
+        self.ctl.solve(on_model=self.mcb.on_model)
+        self.assertEqual(self.mcb.models, _p([], ["c"], ["c", "d"], ["d"]))
+
+        self.mcb = _MCB()
+        pro = [Function("a")]
+        self.ctl.add_project(pro)
+        self.ctl.solve(on_model=self.mcb.on_model)
+        self.assertEqual(self.mcb.models, _p([], ["a"], ["a", "c"], ["a", "c", "d"], ["a", "d"], ["c"], ["c", "d"], ["d"]))
+
+
     def test_control_clause(self):
         """
         Test adding clauses while solving.

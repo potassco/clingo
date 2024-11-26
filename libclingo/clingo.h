@@ -2919,6 +2919,19 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_release_external(clingo_control_t 
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_remove_minimize(clingo_control_t *control);
+//! Add to or replace the set of projection variables.
+//!
+//! If `append` is true, the function adds the given atoms to the set of projection variables. Otherwise, it discards
+//! any previously added projection variables and sets the given atoms as the new set of projection variables.
+//!
+//! @param[in] control the target
+//! @param[in] atoms the projection atoms to add/set
+//! @param[in] size the number of atoms
+//! @param[in] append whether to append to (true) or replace (false) any previously added projection variables
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_update_project(clingo_control_t *control, clingo_atom_t const* atoms, size_t size, bool append);
+
 //! Register a custom propagator with the control object.
 //!
 //! If the sequential flag is set to true, the propagator is called

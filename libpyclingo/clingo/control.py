@@ -329,6 +329,56 @@ class Control:
             _lib.clingo_control_remove_minimize(self._rep)
         )
 
+    def _update_project(self, atoms: Sequence[Union[Symbol, int]], append: bool) -> None:
+        p_proj = _ffi.new("clingo_atom_t[]", len(atoms))
+        for i, lit in enumerate(atoms):
+            p_proj[i] = self._program_atom(lit)
+
+        _handle_error(
+            _lib.clingo_control_update_project(
+                self._rep, p_proj, len(atoms), append
+            )
+        )
+
+    def add_project(self, atoms: Sequence[Union[Symbol, int]]) -> None:
+        """
+        Add atoms to project on to the program.
+
+        Parameters
+        ----------
+        atoms
+            List of atoms or program literals (see `clingo.symbolic_atoms.SymbolicAtom.literal`) to project on.
+
+        Notes
+        -----
+        The function extends the set of atoms to project on with the given atoms.
+
+        See Also
+        --------
+        Control.replace_project
+        """
+        self._update_project(atoms, append=True)
+
+    def replace_project(self, atoms: Sequence[Union[Symbol, int]]) -> None:
+        """
+        Set atoms to project on.
+
+        Parameters
+        ----------
+        atoms
+           List of atoms or program literals (see `clingo.symbolic_atoms.SymbolicAtom.literal`) to project on.
+
+        Notes
+        -----
+        The function sets the atoms to project on to the given atoms thereby replacing any previously added project
+        statements.
+
+        See Also
+        --------
+        Control.add_project
+        """
+        self._update_project(atoms, append=False)
+
     def assign_external(
         self, external: Union[Symbol, int], truth: Optional[bool]
     ) -> None:

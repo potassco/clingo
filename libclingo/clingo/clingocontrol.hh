@@ -262,6 +262,7 @@ public:
             assignExternal(res.first->uid(), val);
         }
     }
+    void updateProject(Potassco::AtomSpan project, bool append) override;
     void removeMinimize() override;
     Symbol getConst(std::string const &name) const override;
     bool isConflicting() const noexcept override;

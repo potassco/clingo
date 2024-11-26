@@ -619,6 +619,16 @@ void ClingoControl::assignExternal(Potassco::Atom_t ext, Potassco::Value_t val) 
     }
 }
 
+void ClingoControl::updateProject(Potassco::AtomSpan project, bool append) {
+    auto *backend = update() ? out_->backend() : nullptr;
+    if (backend != nullptr) {
+        if (!append && clingoMode_) {
+            claspProgram()->removeProject();
+        }
+        backend->project(project);
+    }
+}
+
 void ClingoControl::removeMinimize() {
     if (clingoMode_) {
         out_->removeMinimize();
