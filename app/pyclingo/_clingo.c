@@ -10360,6 +10360,44 @@ _cffi_f_clingo_control_release_external(PyObject *self, PyObject *args)
 #  define _cffi_f_clingo_control_release_external _cffi_d_clingo_control_release_external
 #endif
 
+static _Bool _cffi_d_clingo_control_remove_minimize(clingo_control_t * x0)
+{
+  return clingo_control_remove_minimize(x0);
+}
+#ifndef PYPY_VERSION
+static PyObject *
+_cffi_f_clingo_control_remove_minimize(PyObject *self, PyObject *arg0)
+{
+  clingo_control_t * x0;
+  Py_ssize_t datasize;
+  struct _cffi_freeme_s *large_args_free = NULL;
+  _Bool result;
+  PyObject *pyresult;
+
+  datasize = _cffi_prepare_pointer_call_argument(
+      _cffi_type(26), arg0, (char **)&x0);
+  if (datasize != 0) {
+    x0 = ((size_t)datasize) <= 640 ? (clingo_control_t *)alloca((size_t)datasize) : NULL;
+    if (_cffi_convert_array_argument(_cffi_type(26), arg0, (char **)&x0,
+            datasize, &large_args_free) < 0)
+      return NULL;
+  }
+
+  Py_BEGIN_ALLOW_THREADS
+  _cffi_restore_errno();
+  { result = clingo_control_remove_minimize(x0); }
+  _cffi_save_errno();
+  Py_END_ALLOW_THREADS
+
+  (void)self; /* unused */
+  pyresult = _cffi_from_c__Bool(result);
+  if (large_args_free != NULL) _cffi_free_array_arguments(large_args_free);
+  return pyresult;
+}
+#else
+#  define _cffi_f_clingo_control_remove_minimize _cffi_d_clingo_control_remove_minimize
+#endif
+
 static _Bool _cffi_d_clingo_control_set_enable_cleanup(clingo_control_t * x0, _Bool x1)
 {
   return clingo_control_set_enable_cleanup(x0, x1);
@@ -18510,6 +18548,7 @@ static const struct _cffi_global_s _cffi_globals[] = {
   { "clingo_control_register_observer", (void *)_cffi_f_clingo_control_register_observer, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 468), (void *)_cffi_d_clingo_control_register_observer },
   { "clingo_control_register_propagator", (void *)_cffi_f_clingo_control_register_propagator, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 485), (void *)_cffi_d_clingo_control_register_propagator },
   { "clingo_control_release_external", (void *)_cffi_f_clingo_control_release_external, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 491), (void *)_cffi_d_clingo_control_release_external },
+  { "clingo_control_remove_minimize", (void *)_cffi_f_clingo_control_remove_minimize, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 436), (void *)_cffi_d_clingo_control_remove_minimize },
   { "clingo_control_set_enable_cleanup", (void *)_cffi_f_clingo_control_set_enable_cleanup, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 439), (void *)_cffi_d_clingo_control_set_enable_cleanup },
   { "clingo_control_set_enable_enumeration_assumption", (void *)_cffi_f_clingo_control_set_enable_enumeration_assumption, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 439), (void *)_cffi_d_clingo_control_set_enable_enumeration_assumption },
   { "clingo_control_solve", (void *)_cffi_f_clingo_control_solve, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 500), (void *)_cffi_d_clingo_control_solve },
@@ -19162,7 +19201,7 @@ static const struct _cffi_type_context_s _cffi_type_context = {
   _cffi_struct_unions,
   _cffi_enums,
   _cffi_typenames,
-  518,  /* num_globals */
+  519,  /* num_globals */
   26,  /* num_struct_unions */
   33,  /* num_enums */
   78,  /* num_typenames */

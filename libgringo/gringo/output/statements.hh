@@ -231,6 +231,7 @@ public:
     Translator(UAbstractOutput out, bool preserveFacts);
 
     void addMinimize(TupleId tuple, LiteralId cond);
+    void removeMinimize();
     void atoms(DomainData &data, unsigned atomset, IsTrueLookup const &isTrue, SymVec &atoms, OutputPredicates const &outPreds);
     void translate(DomainData &data, OutputPredicates const &outPreds, Logger &log);
     void output(DomainData &data, Statement &x);

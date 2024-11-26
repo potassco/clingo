@@ -2911,6 +2911,14 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_assign_external(clingo_control_t *
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_release_external(clingo_control_t *control, clingo_literal_t literal);
+//! Remove minimize constraints from the program.
+//!
+//! After this call, the program no longer contains any minimize constraints.
+//!
+//! @param[in] control the target
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_remove_minimize(clingo_control_t *control);
 //! Register a custom propagator with the control object.
 //!
 //! If the sequential flag is set to true, the propagator is called

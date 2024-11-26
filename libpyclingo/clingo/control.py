@@ -319,6 +319,16 @@ class Control:
         satom = self.symbolic_atoms[lit]
         return 0 if satom is None else satom.literal
 
+    def remove_minimize(self) -> None:
+        """
+        Remove all minimize constraints from the program.
+
+        This function removes all minimize constraints that were previously added to the program.
+        """
+        _handle_error(
+            _lib.clingo_control_remove_minimize(self._rep)
+        )
+
     def assign_external(
         self, external: Union[Symbol, int], truth: Optional[bool]
     ) -> None:

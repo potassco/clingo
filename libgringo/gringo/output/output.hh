@@ -156,6 +156,7 @@ public:
         }
         return atm.uid();
     }
+    void removeMinimize();
 private:
     static UAbstractOutput fromFormat(std::ostream &out, OutputFormat format, OutputOptions opts);
     static UAbstractOutput fromBackend(UBackend out, OutputOptions opts);

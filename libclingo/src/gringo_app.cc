@@ -200,6 +200,7 @@ struct IncrementalControl : Control, private Output::ASPIFOutBackend {
             assignExternal(res.first->uid(), val);
         }
     }
+    void removeMinimize() override { throw std::runtime_error("removing minimize constraints is not supported"); }
     SymbolicAtoms const &getDomain() const override { throw std::runtime_error("domain introspection not supported"); }
     ConfigProxy &getConf() override { throw std::runtime_error("configuration not supported"); }
     void registerPropagator(UProp, bool) override { throw std::runtime_error("theory propagators not supported"); }

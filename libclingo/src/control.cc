@@ -1971,6 +1971,11 @@ extern "C" bool clingo_control_release_external(clingo_control_t *ctl, clingo_li
     GRINGO_CLINGO_CATCH;
 }
 
+extern "C" bool clingo_control_remove_minimize(clingo_control_t *ctl) {
+    GRINGO_CLINGO_TRY { ctl->removeMinimize(); }
+    GRINGO_CLINGO_CATCH;
+}
+
 extern "C" bool clingo_program_builder_init(clingo_control_t *ctl, clingo_program_builder_t **ret) {
     GRINGO_CLINGO_TRY { *ret = static_cast<clingo_program_builder_t*>(ctl); }
     GRINGO_CLINGO_CATCH;

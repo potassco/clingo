@@ -618,6 +618,9 @@ Backend *OutputBase::backend() {
     backendLambda(data, *out_, [&backend](DomainData &, UBackend &out) { backend = out.get(); });
     return backend;
 }
+void OutputBase::removeMinimize() {
+    translateLambda(data, *out_, [](DomainData &, Translator &x) { x.removeMinimize(); });
+}
 
 namespace {
 

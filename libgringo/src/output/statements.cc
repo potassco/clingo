@@ -437,6 +437,10 @@ Translator::Translator(UAbstractOutput out, bool preserveFacts)
 void Translator::addMinimize(TupleId tuple, LiteralId cond) {
     minimize_.emplace_back(tuple, cond);
 }
+void Translator::removeMinimize() {
+    minimize_.clear();
+    tuples_.clear();
+}
 
 void Translator::translate(DomainData &data, OutputPredicates const &outPreds, Logger &log) {
     translateMinimize(data);

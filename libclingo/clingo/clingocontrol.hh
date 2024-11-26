@@ -206,6 +206,7 @@ public:
     bool onUnsat(Potassco::Span<int64_t> optimization);
     void onFinish(Clasp::ClaspFacade::Result ret);
     bool update();
+    Clasp::Asp::LogicProgram* claspProgram() const;
 
     virtual void postGround(Clasp::ProgramBuilder& prg) {
         if (pgf_ && !pgf_(prg)) {
@@ -261,6 +262,7 @@ public:
             assignExternal(res.first->uid(), val);
         }
     }
+    void removeMinimize() override;
     Symbol getConst(std::string const &name) const override;
     bool isConflicting() const noexcept override;
     Potassco::AbstractStatistics const *statistics() const override;
