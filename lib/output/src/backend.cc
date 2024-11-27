@@ -601,6 +601,85 @@ auto check_rng(auto const &lower, auto const &upper, Relation rel, auto const &r
     Util::unreachable();
 }
 
+using NumberSet = Util::interval_set<Number>;
+
+//! Analyze a sum aggregate.
+//!
+//! Constructs a new aggregate element vector removing unnecessary elements,
+//! computes an interval for largest and smallest value of the aggregate, and
+//! represents the guards of the aggreagte as an interval set. This interval set
+//! is additionally intersected with the range.
+auto analyze_sum(BdAggrElemSpan elems, GuardSpan guards) -> std::tuple<BdAggrElemVec, NumberSet::interval, NumberSet> {
+    BdAggrElemVec elem_vec;
+    // comput the range of the aggregate
+    auto fixed = Number(0);
+    auto lower = Number(0);
+    auto upper = Number(0);
+    for (auto const &[tup, conds] : elems) {
+        if (!tup.empty() && tup.front().type() == SymbolType::number && tup.front().num() != 0) {
+            // Note: an empty set of conditions is interpreted as true here
+            if (conds.empty()) {
+                fixed += tup.front().num();
+            } else {
+                if (tup.front().num() > 0) {
+                    upper += tup.front().num();
+                } else {
+                    lower += tup.front().num();
+                }
+                elem_vec.emplace_back(tup, conds);
+            }
+        }
+    }
+    // compute the bounds of the aggregate
+    auto bounds = Util::interval_set<Number>{};
+    auto range = Util::interval_set<Number>::interval{{lower, true}, {upper, true}};
+    bounds.add(range);
+    for (auto const &[rel, guard] : guards) {
+        auto adjust = [&]() {
+            // NOLINTBEGIN(clang-analyzer-core.CallAndMessage)
+            // Note: as far as I can tell the diagnostic is not just a false
+            // positive but plain wrong.
+            if (guard.type() == SymbolType::number) {
+                return guard.num() - fixed;
+            }
+            if (guard > upper) {
+                return upper + 1;
+            }
+            assert(guard < lower);
+            return lower - 1;
+            // NOLINTEND(clang-analyzer-core.CallAndMessage)
+        }();
+        switch (rel) {
+            case Relation::greater_equal: {
+                bounds.remove({{lower, true}, {adjust, false}});
+                break;
+            }
+            case Relation::greater: {
+                bounds.remove({{lower, true}, {adjust + 1, false}});
+                break;
+            }
+            case Relation::less_equal: {
+                bounds.remove({{adjust, false}, {upper, true}});
+                break;
+            }
+            case Relation::less: {
+                bounds.remove({{adjust - 1, false}, {upper, true}});
+                break;
+            }
+            case Relation::equal: {
+                bounds.remove({{lower, true}, {adjust, false}});
+                bounds.remove({{adjust, false}, {upper, true}});
+                break;
+            }
+            case Relation::not_equal: {
+                bounds.remove({{adjust - 1, false}, {adjust + 1, false}});
+                break;
+            }
+        }
+    }
+    return {std::move(elem_vec), std::move(range), std::move(bounds)};
+}
+
 } // namespace
 
 void Backend::bd_aggr(lit_t lit, AggregateFunction fun, BdAggrElemSpan elems, GuardSpan guards) {
@@ -615,60 +694,7 @@ void Backend::bd_aggr(lit_t lit, AggregateFunction fun, BdAggrElemSpan elems, Gu
     //   interface or alternatively use shared symbols
     BdAggrElemVec elem_vec;
     if (fun == AggregateFunction::sum || fun == AggregateFunction::sump) {
-        // comput the range of the aggregate
-        auto fixed = Number(0);
-        auto lower = Number(0);
-        auto upper = Number(0);
-        for (auto const &[tup, conds] : elems) {
-            if (!tup.empty() && tup.front().type() == SymbolType::number && tup.front().num() != 0) {
-                // Note: an empty set of conditions is interpreted as true here
-                if (conds.empty()) {
-                    fixed += tup.front().num();
-                } else {
-                    if (tup.front().num() > 0) {
-                        upper += tup.front().num();
-                    } else {
-                        lower += tup.front().num();
-                    }
-                    elem_vec.emplace_back(tup, conds);
-                }
-            }
-        }
-        lower += fixed;
-        upper += fixed;
-        // compute the bounds of the aggregate
-        auto bounds = Util::interval_set<Number>{};
-        auto range = Util::interval_set<Number>::interval{{lower, true}, {upper, true}};
-        bounds.add(range);
-        for (auto const &[rel, guard] : guards) {
-            switch (rel) {
-                case Relation::greater_equal: {
-                    bounds.remove({{lower, true}, {guard.num(), false}});
-                    break;
-                }
-                case Relation::greater: {
-                    bounds.remove({{lower, true}, {guard.num() + 1, false}});
-                    break;
-                }
-                case Relation::less_equal: {
-                    bounds.remove({{guard.num(), false}, {upper, true}});
-                    break;
-                }
-                case Relation::less: {
-                    bounds.remove({{guard.num() - 1, false}, {upper, true}});
-                    break;
-                }
-                case Relation::equal: {
-                    bounds.remove({{lower, true}, {guard.num(), false}});
-                    bounds.remove({{guard.num(), false}, {upper, true}});
-                    break;
-                }
-                case Relation::not_equal: {
-                    bounds.remove({{guard.num() - 1, false}, {guard.num() + 1, false}});
-                    break;
-                }
-            }
-        }
+        auto [elem_vec, range, bounds] = analyze_sum(elems, guards);
         if (bounds.contains(range)) {
             rule(std::array{lit}, std::array<lit_t, 0>{}, false);
             return;
