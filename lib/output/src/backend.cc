@@ -1,7 +1,6 @@
 #include <clingo/output/backend.hh>
 
 #include <clingo/util/checked_math.hh>
-#include <clingo/util/enum.hh>
 #include <clingo/util/ordered_map.hh>
 #include <clingo/util/ordered_set.hh>
 #include <clingo/util/print.hh>
@@ -601,10 +600,6 @@ auto check_rng(auto const &lower, auto const &upper, Relation rel, auto const &r
     Util::unreachable();
 }
 
-enum class CycleType : uint8_t { none, positive, negative, both };
-
-[[maybe_unused]] void is_bit_set_enum(CycleType type);
-
 //! Analyze a sum aggregate.
 //!
 //! Constructs a new aggregate element vector removing unnecessary elements,
@@ -739,6 +734,7 @@ void Backend::bd_aggr(lit_t lit, AggregateFunction fun, BdAggrElemSpan elems, Gu
             }
         }
 
+#ifdef GRINGO_DEBUG_AGGREGATES
         std::cerr << "handle aggregate: \n";
         std::cerr << "  fun: " << fun << "\n";
         std::cerr << "  range: " << (range.left.inclusive ? "[" : "(") << range.left.bound << "," << range.right.bound
@@ -759,7 +755,8 @@ void Backend::bd_aggr(lit_t lit, AggregateFunction fun, BdAggrElemSpan elems, Gu
             }
             return "antimonotone";
         }() << "\n";
-        sum_aggrs_.emplace_back(lit, std::move(elem_vec), std::move(range), std::move(bounds));
+#endif
+        sum_aggrs_.emplace_back(lit, std::move(elem_vec), std::move(range), std::move(bounds), type);
     } else {
         throw std::logic_error("implement me: add support for remaining aggregates");
     }
@@ -882,8 +879,47 @@ void Backend::tr_cond_lits_(SCCMap const &sccs) {
 
 void Backend::tr_aggr_(SCCMap const &sccs) {
     static_cast<void>(sccs);
-    for (auto const &aggr : sum_aggrs_) {
-        static_cast<void>(aggr);
+    for (auto const &[lit, elems, range, bounds, type] : sum_aggrs_) {
+        // check which kind of literals are cyclic
+        auto has_pos_cycle = false;
+        auto has_neg_cycle = false;
+        if (auto it = sccs.find(lit); type != CycleType::none && it != sccs.end()) {
+            for (auto const &[num, conds] : elems) {
+                for (auto const &cond : conds) {
+                    if (cond_in_scc_(sccs, cond, it.value())) {
+                        if (num > 0 && test(type, CycleType::positive)) {
+                            has_pos_cycle = true;
+                        }
+                        if (num < 0 && test(type, CycleType::negative)) {
+                            has_neg_cycle = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        // conditions have form
+        //   c1 :- c11, c12.
+        //   c2 :- c21, c22.
+        // they can then be used in aggregates
+        //   a :- #sum { 1: c1; 1:c2 } != 1.
+        // we assume that `c11` and `c22` are in the same scc as `a`
+        // the aggregate has to be translated as follows
+        //   c1 :- c11, c12.  c11 :- c1.
+        //   c2 :- c21, c22.  c22 :- c2.
+        //   a :- #sum { 1:   c1; 1:   c2 } >= 2.
+        //   a :- #sum { 1: n_c1; 1: n_c2 } >= 2.
+        //   p_c1        :-     c1.     % can I do this???
+        //   n_c1        :- not c1.     % fix
+        //   n_c1        :-         a.  % saturate
+        //   n_c1 | p_c1 :- not not a.  % generate
+        //   % same for n_c2
+
+        std::cerr << "aggregate " << lit << "\n";
+        std::cerr << "  pos cycle: " << has_pos_cycle << "\n";
+        std::cerr << "  neg cycle: " << has_neg_cycle << "\n";
+    }
+    if (!sum_aggrs_.empty()) {
         throw std::logic_error("implement me: translate aggregate!!!");
     }
 }

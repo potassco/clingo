@@ -1,6 +1,7 @@
 #include <clingo/core/output.hh>
 
 #include <clingo/util/checked_math.hh>
+#include <clingo/util/enum.hh>
 #include <clingo/util/graph.hh>
 #include <clingo/util/interval_set.hh>
 #include <clingo/util/ordered_map.hh>
@@ -56,6 +57,9 @@ using GuardSpan = std::span<Guard const>;
 //! A vector of guards.
 using GuardVec = std::vector<Guard>;
 
+//! Which weights have to be considered for cycle computation.
+enum class CycleType : uint8_t { none, positive, negative, both };
+[[maybe_unused]] void is_bit_set_enum(CycleType type);
 //! A set of numbers.
 using NumberSet = Util::interval_set<Number>;
 //! A sum aggregate element.
@@ -63,7 +67,7 @@ using BdSumAggrElem = std::pair<Number, IndexVec>;
 //! A vector of sum aggregate elements.
 using BdSumAggrElemVec = std::vector<BdSumAggrElem>;
 //! A vector of sum aggregates.
-using BdSumAggrVec = std::vector<std::tuple<lit_t, BdSumAggrElemVec, NumberSet::interval, NumberSet>>;
+using BdSumAggrVec = std::vector<std::tuple<lit_t, BdSumAggrElemVec, NumberSet::interval, NumberSet, CycleType>>;
 
 //! The maximum literal.
 static constexpr auto lit_max = std::numeric_limits<lit_t>::max();
