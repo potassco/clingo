@@ -809,6 +809,12 @@ auto Backend::cond_(id_t uid, CondType type) -> lit_t {
     if (cur == 1 && type == CondType::equivalence) {
         it.value() |= 2;
         for (auto const &clit : it.key()) {
+            // TODO: the backward direction is only needed if the literal is part of an scc
+            // - the function should accept an scc index as argument
+            // - a condition can only be part of one scc
+            // - the backward direction should only be added and marked if the
+            //   given scc correponds to an scc of at least one literal
+            // - this is just a refinement, the current implementation is correct
             if (clit > 0) {
                 rule(std::array{clit}, std::array{lit}, false);
             }
@@ -909,10 +915,9 @@ void Backend::tr_aggr_(SCCMap const &sccs) {
         //   c2 :- c21, c22.  c22 :- c2.
         //   a :- #sum { 1:   c1; 1:   c2 } >= 2.
         //   a :- #sum { 1: n_c1; 1: n_c2 } >= 2.
-        //   p_c1        :-     c1.     % can I do this???
-        //   n_c1        :- not c1.     % fix
-        //   n_c1        :-         a.  % saturate
-        //   n_c1 | p_c1 :- not not a.  % generate
+        //   n_c1      :- not c1.     % fix
+        //   n_c1      :-         a.  % saturate
+        //   n_c1 | c1 :- not not a.  % generate
         //   % same for n_c2
 
         std::cerr << "aggregate " << lit << "\n";
