@@ -1,7 +1,7 @@
 #include <clingo/output/backend.hh>
 
 #include <clingo/util/checked_math.hh>
-#include <clingo/util/interval_set.hh>
+#include <clingo/util/enum.hh>
 #include <clingo/util/ordered_map.hh>
 #include <clingo/util/ordered_set.hh>
 #include <clingo/util/print.hh>
@@ -601,7 +601,9 @@ auto check_rng(auto const &lower, auto const &upper, Relation rel, auto const &r
     Util::unreachable();
 }
 
-using NumberSet = Util::interval_set<Number>;
+enum class CycleType : uint8_t { none, positive, negative, both };
+
+[[maybe_unused]] void is_bit_set_enum(CycleType type);
 
 //! Analyze a sum aggregate.
 //!
@@ -609,25 +611,40 @@ using NumberSet = Util::interval_set<Number>;
 //! computes an interval for largest and smallest value of the aggregate, and
 //! represents the guards of the aggreagte as an interval set. This interval set
 //! is additionally intersected with the range.
-auto analyze_sum(BdAggrElemSpan elems, GuardSpan guards) -> std::tuple<BdAggrElemVec, NumberSet::interval, NumberSet> {
-    BdAggrElemVec elem_vec;
-    // comput the range of the aggregate
+auto analyze_sum(BdAggrElemSpan elems,
+                 GuardSpan guards) -> std::tuple<BdSumAggrElemVec, NumberSet::interval, NumberSet, CycleType> {
+    // simplify the aggregate
     auto fixed = Number(0);
-    auto lower = Number(0);
-    auto upper = Number(0);
+    auto elem_vec = BdSumAggrElemVec{};
+    auto cond_map = Util::unordered_map<IndexSpan, size_t>{};
+    elem_vec.reserve(elems.size());
+    cond_map.reserve(elems.size());
     for (auto const &[tup, conds] : elems) {
         if (!tup.empty() && tup.front().type() == SymbolType::number && tup.front().num() != 0) {
-            // Note: an empty set of conditions is interpreted as true here
+            auto num = tup.front().num();
             if (conds.empty()) {
-                fixed += tup.front().num();
+                fixed += num;
             } else {
-                if (tup.front().num() > 0) {
-                    upper += tup.front().num();
+                if (auto [it, ins] = cond_map.try_emplace(conds, elem_vec.size()); !ins) {
+                    get<0>(elem_vec[it.value()]) += num;
                 } else {
-                    lower += tup.front().num();
+                    elem_vec.emplace_back(std::move(num), IndexVec{conds.begin(), conds.end()});
                 }
-                elem_vec.emplace_back(tup, conds);
             }
+        }
+    }
+    elem_vec.erase(std::ranges::remove_if(elem_vec, [](auto const &x) { return std::get<0>(x) == 0; }).end(),
+                   elem_vec.end());
+    elem_vec.shrink_to_fit();
+    // comput the range of the aggregate
+    auto lower = Number(0);
+    auto upper = Number(0);
+    for (auto const &[num, conds] : elem_vec) {
+        assert(!conds.empty());
+        if (num > 0) {
+            upper += num;
+        } else {
+            lower += num;
         }
     }
     // compute the bounds of the aggregate
@@ -635,19 +652,16 @@ auto analyze_sum(BdAggrElemSpan elems, GuardSpan guards) -> std::tuple<BdAggrEle
     auto range = Util::interval_set<Number>::interval{{lower, true}, {upper, true}};
     bounds.add(range);
     for (auto const &[rel, guard] : guards) {
-        auto adjust = [&]() {
-            // NOLINTBEGIN(clang-analyzer-core.CallAndMessage)
-            // Note: as far as I can tell the diagnostic is not just a false
-            // positive but plain wrong.
-            if (guard.type() == SymbolType::number) {
-                return guard.num() - fixed;
+        // Note: workaround for buggy clang-tidy diagnostic
+        auto adjust = [&, &g = guard]() {
+            if (g.type() == SymbolType::number) {
+                return g.num() - fixed;
             }
-            if (guard > upper) {
+            if (g > upper) {
                 return upper + 1;
             }
-            assert(guard < lower);
+            assert(g < lower);
             return lower - 1;
-            // NOLINTEND(clang-analyzer-core.CallAndMessage)
         }();
         switch (rel) {
             case Relation::greater_equal: {
@@ -677,24 +691,30 @@ auto analyze_sum(BdAggrElemSpan elems, GuardSpan guards) -> std::tuple<BdAggrEle
             }
         }
     }
-    return {std::move(elem_vec), std::move(range), std::move(bounds)};
+    // classify which types of cycles have to be considered
+    auto type = bounds.size() > 1 ? CycleType::both : CycleType::none;
+    if (type != CycleType::both && bounds.size() == 1 && !bounds.contains(range)) {
+        auto const &sub = bounds.front();
+        if (lower < 0 && upper > 0) {
+            // the aggregate can stitch arbitrarily between true and false
+            type = CycleType::both;
+        } else if (lower < 0 && sub < upper) {
+            // the aggregate can go from false to true by adding negative weights
+            type |= CycleType::negative;
+        } else if (upper > 0 && lower < sub) {
+            // the aggregate can go from false to true by adding positive weights
+            type |= CycleType::positive;
+        }
+    }
+    return {std::move(elem_vec), std::move(range), std::move(bounds), type};
 }
 
 } // namespace
 
 void Backend::bd_aggr(lit_t lit, AggregateFunction fun, BdAggrElemSpan elems, GuardSpan guards) {
-    // TODO:
-    // - analyze aggregate computing its range and monotonicity
-    // - prune guards
-    // - add edges to graph
-    // - add individual aggregates to member table
-    // - similar code has been written for body aggregates
-    //   (it should be made available in core)
-    // - since this class stores symbols, it should implement the symbol owner
-    //   interface or alternatively use shared symbols
-    BdAggrElemVec elem_vec;
+    assert(fun != AggregateFunction::count);
     if (fun == AggregateFunction::sum || fun == AggregateFunction::sump) {
-        auto [elem_vec, range, bounds] = analyze_sum(elems, guards);
+        auto [elem_vec, range, bounds, type] = analyze_sum(elems, guards);
         if (bounds.contains(range)) {
             rule(std::array{lit}, std::array<lit_t, 0>{}, false);
             return;
@@ -703,8 +723,22 @@ void Backend::bd_aggr(lit_t lit, AggregateFunction fun, BdAggrElemSpan elems, Gu
             rule(std::array{negate(lit)}, LitSpan{}, false);
             return;
         }
-        // TODO: add edges based on bounds and store aggregate
-        static_cast<void>(store_);
+        // add edges based on the monotonicity of the aggregate
+        if (type != CycleType::none) {
+            for (auto const &[num, conds] : elem_vec) {
+                for (auto cond : conds) {
+                    with_cond(cond, [&](auto const &clits) {
+                        for (auto const &clit : clits) {
+                            if (lit > 0 && ((test(type, CycleType::positive) && num > 0) ||
+                                            (test(type, CycleType::negative) && num < 0))) {
+                                graph_.add_edge(lit, clit);
+                            }
+                        }
+                    });
+                }
+            }
+        }
+
         std::cerr << "handle aggregate: \n";
         std::cerr << "  fun: " << fun << "\n";
         std::cerr << "  range: " << (range.left.inclusive ? "[" : "(") << range.left.bound << "," << range.right.bound
@@ -715,8 +749,20 @@ void Backend::bd_aggr(lit_t lit, AggregateFunction fun, BdAggrElemSpan elems, Gu
                       << (right.inclusive ? "]" : ")");
         }
         std::cerr << "\n";
+        // Note: workaround for buggy clang-tidy diagnostic
+        std::cerr << "  monotonicity: " << [&t = type]() {
+            if (t == CycleType::both) {
+                return "nonmonotone";
+            }
+            if (t != CycleType::none) {
+                return "convex";
+            }
+            return "antimonotone";
+        }() << "\n";
+        sum_aggrs_.emplace_back(lit, std::move(elem_vec), std::move(range), std::move(bounds));
+    } else {
+        throw std::logic_error("implement me: add support for remaining aggregates");
     }
-    throw std::logic_error("implement me!!!");
 }
 
 void Backend::rule(LitSpan head, LitSpan body, bool choice) {
@@ -779,7 +825,9 @@ void Backend::cond_lit(lit_t lit, CondLitSpan elems) {
         if (auto const &[id_conc, id_prem] = elem; id_conc) {
             with_cond(*id_conc, [&](auto const &clits) {
                 for (auto const &clit : clits) {
-                    graph_.add_edge(lit, clit);
+                    if (lit > 0) {
+                        graph_.add_edge(lit, clit);
+                    }
                 }
             });
         }
@@ -832,6 +880,14 @@ void Backend::tr_cond_lits_(SCCMap const &sccs) {
     }
 }
 
+void Backend::tr_aggr_(SCCMap const &sccs) {
+    static_cast<void>(sccs);
+    for (auto const &aggr : sum_aggrs_) {
+        static_cast<void>(aggr);
+        throw std::logic_error("implement me: translate aggregate!!!");
+    }
+}
+
 void Backend::end_step() {
     auto sccs = SCCMap{};
     size_t idx_scc = 0;
@@ -843,6 +899,7 @@ void Backend::end_step() {
         }
     });
     tr_cond_lits_(sccs);
+    tr_aggr_(sccs);
     graph_.clear();
 }
 

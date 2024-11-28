@@ -160,8 +160,20 @@ class small_vector {
         return *begin();
     }
 
+    //! Get the first element in the vector.
+    auto front() const -> const_reference {
+        assert(!empty());
+        return *begin();
+    }
+
     //! Get the last element in the vector.
     auto back() -> reference {
+        assert(!empty());
+        return *std::ranges::prev(end());
+    }
+
+    //! Get the last element in the vector.
+    auto back() const -> const_reference {
         assert(!empty());
         return *std::ranges::prev(end());
     }

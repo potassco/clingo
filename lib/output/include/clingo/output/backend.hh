@@ -2,6 +2,7 @@
 
 #include <clingo/util/checked_math.hh>
 #include <clingo/util/graph.hh>
+#include <clingo/util/interval_set.hh>
 #include <clingo/util/ordered_map.hh>
 #include <clingo/util/unordered_map.hh>
 
@@ -44,16 +45,25 @@ using CondLitVec = std::vector<CondLit const>;
 
 //! A sum aggregate element.
 using BdAggrElem = std::pair<SymbolSpan, IndexSpan>;
-//! A span of sum aggregate elements.
+//! A span of aggregate elements.
 using BdAggrElemSpan = std::span<BdAggrElem const>;
-//! A vector of sum aggregate elements.
-using BdAggrElemVec = std::vector<BdAggrElem const>;
+//! A vector of aggregate elements.
+using BdAggrElemVec = std::vector<BdAggrElem>;
 //! Guard
 using Guard = std::pair<Relation, Symbol>;
 //! A span of guards.
 using GuardSpan = std::span<Guard const>;
 //! A vector of guards.
-using GuardVec = std::vector<Guard const>;
+using GuardVec = std::vector<Guard>;
+
+//! A set of numbers.
+using NumberSet = Util::interval_set<Number>;
+//! A sum aggregate element.
+using BdSumAggrElem = std::pair<Number, IndexVec>;
+//! A vector of sum aggregate elements.
+using BdSumAggrElemVec = std::vector<BdSumAggrElem>;
+//! A vector of sum aggregates.
+using BdSumAggrVec = std::vector<std::tuple<lit_t, BdSumAggrElemVec, NumberSet::interval, NumberSet>>;
 
 //! The maximum literal.
 static constexpr auto lit_max = std::numeric_limits<lit_t>::max();
@@ -66,7 +76,10 @@ static constexpr auto lit_min = -lit_max;
 //! other forms of backends).
 class Backend {
   public:
-    Backend(SymbolStore &store) : store_{&store} {};
+    Backend(SymbolStore &store) : store_{&store} {
+        // TODO: the store might be necessary later
+        static_cast<void>(store_);
+    };
     //! Return a fresh literal.
     //!
     //! All literals should be created using this function.
@@ -168,6 +181,12 @@ class Backend {
     //!
     //! @param sccs strongly connected components of literals
     void tr_cond_lits_(SCCMap const &sccs);
+
+    //! Translate aggregate literals taking positive cycles into account.
+    //!
+    //! @param sccs strongly connected components of literals
+    void tr_aggr_(SCCMap const &sccs);
+
     [[nodiscard]] auto cond_in_scc_(SCCMap const &sccs, id_t uid, size_t scc) const -> bool;
 
     SymbolStore *store_;
@@ -177,6 +196,7 @@ class Backend {
     Util::Graph graph_;
     CondMap conds_;
     CondLits cond_lits_;
+    BdSumAggrVec sum_aggrs_;
 };
 using UBackend = std::unique_ptr<Backend>;
 
