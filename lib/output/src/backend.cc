@@ -523,15 +523,6 @@ auto Backend::negate(lit_t lit) -> lit_t {
     return -nlit;
 }
 
-template <class F> auto Backend::with_cond(id_t uid, F &&fun) const {
-    if ((uid & 1) == 1) {
-        auto lit = static_cast<lit_t>(static_cast<sid_t>(uid) >> 1);
-        return std::invoke(std::forward<F>(fun), std::span(static_cast<lit_t const *>(&lit), 1));
-    }
-    auto const &lits = conds_.nth(uid >> 1).key();
-    return std::invoke(std::forward<F>(fun), std::span(lits.begin(), lits.end()));
-}
-
 namespace {
 
 auto check_rng(auto const &lower, auto const &upper, Relation rel, auto const &rhs) {
@@ -600,14 +591,16 @@ auto check_rng(auto const &lower, auto const &upper, Relation rel, auto const &r
     Util::unreachable();
 }
 
+} // namespace
+
 //! Analyze a sum aggregate.
 //!
 //! Constructs a new aggregate element vector removing unnecessary elements,
 //! computes an interval for largest and smallest value of the aggregate, and
 //! represents the guards of the aggreagte as an interval set. This interval set
 //! is additionally intersected with the range.
-auto analyze_sum(BdAggrElemSpan elems,
-                 GuardSpan guards) -> std::tuple<BdSumAggrElemVec, NumberSet::interval, NumberSet, CycleType> {
+auto Backend::analyze_sum_(BdAggrElemSpan elems, GuardSpan guards)
+    -> std::tuple<BdSumAggrElemVec, NumberSet::interval, NumberSet, CycleType> {
     // simplify the aggregate
     auto fixed = Number(0);
     auto elem_vec = BdSumAggrElemVec{};
@@ -623,7 +616,7 @@ auto analyze_sum(BdAggrElemSpan elems,
                 if (auto [it, ins] = cond_map.try_emplace(conds, elem_vec.size()); !ins) {
                     get<0>(elem_vec[it.value()]) += num;
                 } else {
-                    elem_vec.emplace_back(std::move(num), IndexVec{conds.begin(), conds.end()});
+                    elem_vec.emplace_back(std::move(num), LitVec{conds.begin(), conds.end()});
                 }
             }
         }
@@ -704,12 +697,10 @@ auto analyze_sum(BdAggrElemSpan elems,
     return {std::move(elem_vec), std::move(range), std::move(bounds), type};
 }
 
-} // namespace
-
 void Backend::bd_aggr(lit_t lit, AggregateFunction fun, BdAggrElemSpan elems, GuardSpan guards) {
     assert(fun != AggregateFunction::count);
     if (fun == AggregateFunction::sum || fun == AggregateFunction::sump) {
-        auto [elem_vec, range, bounds, type] = analyze_sum(elems, guards);
+        auto [elem_vec, range, bounds, type] = analyze_sum_(elems, guards);
         if (bounds.contains(range)) {
             rule(std::array{lit}, std::array<lit_t, 0>{}, false);
             return;
@@ -722,14 +713,10 @@ void Backend::bd_aggr(lit_t lit, AggregateFunction fun, BdAggrElemSpan elems, Gu
         if (type != CycleType::none) {
             for (auto const &[num, conds] : elem_vec) {
                 for (auto cond : conds) {
-                    with_cond(cond, [&](auto const &clits) {
-                        for (auto const &clit : clits) {
-                            if (lit > 0 && ((test(type, CycleType::positive) && num > 0) ||
-                                            (test(type, CycleType::negative) && num < 0))) {
-                                graph_.add_edge(lit, clit);
-                            }
-                        }
-                    });
+                    if (cond > 0 && ((test(type, CycleType::positive) && num > 0) ||
+                                     (test(type, CycleType::negative) && num < 0))) {
+                        graph_.add_edge(lit, cond);
+                    }
                 }
             }
         }
@@ -780,119 +767,91 @@ auto Backend::cond(LitSpan lits) -> id_t {
     std::ranges::sort(aux1_);
     aux1_.erase(std::ranges::unique(aux1_).begin(), aux1_.end());
     if (aux1_.size() == 1) {
-        auto res = Util::safe_cast<sid_t>((int64_t{aux1_[0]} << 1) | 1);
-        return static_cast<id_t>(res);
+        return aux1_.front();
     }
-    auto state = uint64_t{0};
-    auto it = conds_.emplace(std::move(aux1_), state).first;
-    if (auto res = static_cast<id_t>(std::distance(conds_.begin(), it)); res <= cond_max) {
-        return res << 1;
-    }
-    throw std::range_error("maximum number of conditions exhausted");
-}
-
-auto Backend::cond_(id_t uid, CondType type) -> lit_t {
-    auto it = CondMap::iterator{};
-    if ((uid & 1) == 1) {
-        return static_cast<lit_t>(static_cast<sid_t>(uid) >> 1);
-    }
-    it = conds_.nth(uid >> 1);
-    auto lit = static_cast<lit_t>(it.value() >> 2);
-    auto cur = it.value() & 2;
-    // add forward
-    if (cur == 0) {
-        lit = next_lit();
-        it.value() = (static_cast<uint64_t>(static_cast<atom_t>(lit)) << 2) | 1;
-        rule(std::array{lit}, it.key(), false);
-    }
-    // add backward
-    if (cur == 1 && type == CondType::equivalence) {
-        it.value() |= 2;
-        for (auto const &clit : it.key()) {
-            // TODO: the backward direction is only needed if the literal is part of an scc
-            // - the function should accept an scc index as argument
-            // - a condition can only be part of one scc
-            // - the backward direction should only be added and marked if the
-            //   given scc correponds to an scc of at least one literal
-            // - this is just a refinement, the current implementation is correct
-            if (clit > 0) {
-                rule(std::array{clit}, std::array{lit}, false);
+    auto [it, ins] = conds_.emplace(std::move(aux1_), 0);
+    if (ins) {
+        it.value() = next_lit();
+        for (auto const &lit : it->first) {
+            if (lit > 0) {
+                graph_.add_edge(lit, it.value());
             }
         }
     }
-    return lit;
+    return it.value();
+}
+
+void Backend::tr_conds_() {
+    for (auto const &[cond, lit] : conds_) {
+        assert(lit > 0);
+        auto const &lit_info = lits_[lit];
+        if (lit_info.type != CondType::none) {
+            rule(std::array{lit}, cond, false);
+        }
+        if (lit_info.type == CondType::equivalence && lit_info.scc > 0) {
+            for (auto const &clit : cond) {
+                if (clit > 0 && lits_[clit].scc == lit_info.scc) {
+                    rule(std::array{clit}, std::array{lit}, false);
+                }
+            }
+        }
+    }
 }
 
 void Backend::cond_lit(lit_t lit, CondLitSpan elems) {
     for (auto const &elem : elems) {
-        if (auto const &[id_conc, id_prem] = elem; id_conc) {
-            with_cond(*id_conc, [&](auto const &clits) {
-                for (auto const &clit : clits) {
-                    if (lit > 0) {
-                        graph_.add_edge(lit, clit);
-                    }
-                }
-            });
+        if (auto const &[id_conc, id_prem] = elem; id_conc && lit > 0 && *id_conc > 0) {
+            graph_.add_edge(lit, *id_conc);
         }
     }
     cond_lits_.emplace_back(std::piecewise_construct, std::forward_as_tuple(lit),
                             std::forward_as_tuple(elems.begin(), elems.end()));
 }
 
-[[nodiscard]] auto Backend::cond_in_scc_(SCCMap const &sccs, id_t uid, size_t scc) const -> bool {
-    return with_cond(uid, [&](auto const &clits) {
-        return std::ranges::any_of(clits, [&](auto const &clit) {
-            auto it = sccs.find(clit);
-            return it != sccs.end() && it.value() == scc;
-        });
-    });
-}
+void Backend::mark_(lit_t lit, CondType type) { lits_[lit].type = std::max(lits_[lit].type, type); }
 
-void Backend::tr_cond_lits_(SCCMap const &sccs) {
+void Backend::tr_cond_lits_() {
     for (auto const &[lit, elems] : cond_lits_) {
-        auto it_scc = sccs.find(lit);
         aux2_.clear();
         aux2_.reserve(elems.size());
-        for (auto const &elem : elems) {
-            auto const &[id_conc, id_prem] = elem;
-            if (id_conc) {
-                // Below, we us the following variable names:
-                // - K: new uid replacing G : F in the body
-                // - G: captures the conclusion
-                // - F: catures the premise
-                bool rec = it_scc != sccs.end() && cond_in_scc_(sccs, *id_conc, it_scc.value()) &&
-                           cond_in_scc_(sccs, id_prem, it_scc.value());
-                auto g = cond_(*id_conc, rec ? CondType::equivalence : CondType::implication);
-                auto f = cond_(id_prem, rec ? CondType::equivalence : CondType::implication);
+        // Below, we us the following variable names:
+        // - K: new uid replacing G : F in the body
+        // - G: captures the conclusion
+        // - F: catures the premise
+        for (auto const &[g, f] : elems) {
+            mark_(f, CondType::implication);
+            if (g) {
+                auto rec = lit > 0 && f > 0 && lits_[lit].scc > 0 && lits_[lit].scc == lits_[f].scc;
                 auto k = next_lit();
                 // formula G : F is replaced by K
                 // K :- G.
                 // K :- not F.
-                do_rule(std::array{k}, std::array{g}, false);
+                mark_(*g, CondType::implication);
+                do_rule(std::array{k}, std::array{*g}, false);
                 do_rule(std::array{k}, std::array{negate(f)}, false);
                 if (rec) {
                     // K | F :- not not G.
-                    do_rule(std::array{k, f}, std::array{negate(negate(g))}, false);
+                    mark_(f, CondType::equivalence);
+                    do_rule(std::array{k, f}, std::array{negate(negate(*g))}, false);
                 }
                 aux2_.emplace_back(k);
             } else {
-                aux2_.emplace_back(negate(cond_(id_prem, CondType::implication)));
+                aux2_.emplace_back(negate(f));
             }
         }
         do_rule(std::array{lit}, aux2_, false);
     }
 }
 
-void Backend::tr_aggr_(SCCMap const &sccs) {
-    static_cast<void>(sccs);
+void Backend::tr_aggr_() {
     for (auto const &[lit, elems, range, bounds, type] : sum_aggrs_) {
         // check which kind of literals are cyclic
         auto has_pos_cycle = false;
         auto has_neg_cycle = false;
-        if (auto it = sccs.find(lit); type != CycleType::none && it != sccs.end()) {
+        if (lit > 0 && lits_[lit].scc > 0 && type != CycleType::none) {
             for (auto const &[num, conds] : elems) {
                 for (auto const &cond : conds) {
-                    if (cond_in_scc_(sccs, cond, it.value())) {
+                    if (lits_[cond].scc == lits_[lit].scc) {
                         if (num > 0 && test(type, CycleType::positive)) {
                             has_pos_cycle = true;
                         }
@@ -903,6 +862,43 @@ void Backend::tr_aggr_(SCCMap const &sccs) {
                 }
             }
         }
+
+        // nested conjunctions
+        //   a :- 2 <= #sum { 1: c1; 1:c2; 1:c3 } <= 2.
+        // step 1
+        //   l :- #sum { 1: c1; 1:c2; 1:c3 } >= 2.
+        //   u :- #sum { 1: c1; 1:c2; 1:c3 } <= 2.
+        //   a :- l, u.
+        // step 2.1 (aggregate is convex)
+        //   l :- #sum { 1: c1; 1:c2; 1:c3 } >= 2.
+        //   u :- #sum { 1: c1; 1:c2; 1:c3 } >= 3.
+        //   a :- l, not u.
+        // step 2.2.1 (aggregate is nonmonotone)
+        //   l :- #sum { 1: c1; 1:c2; 1:c3 } >= 2.
+        //   u :- #sum { -1: c1; -1:c2; -1:c3 } >= -2.
+        //   a :- l, u.
+        // step 2.2.2
+        //   l :- #sum { 1:   c1; 1:  c2; 1:  c3 } >= 2.
+        //   u :- #sum { 1: n_c1; 1:n_c2; 1:n_c3 } >= 1.
+        //   a :- l, u.
+        //   n_c1      :- not c1.     % always
+        //   n_c1      :-         a.  % if literal is recursive
+        //   n_c1 | c1 :- not not a.  % if literal is recursive
+        //   % same for n_c2 and n_c3
+
+        // convex aggregates with cyclic negative weights
+        //   a :- #sum { -1: c1; -1:c2; -1:c3 } <= -2.
+        // step 1
+        //   a :- #sum { 1: c1; 1:c2; 1:c3 } >= 2.
+
+        // convex aggregates with cyclic positive weights
+        //   a :- #sum { -1: c1; 1:c2; -1:c3 } >= -1.
+        // step 1
+        //   a :- #sum { 1: n_c1; 1:c2; 1:n_c3 } >= 1.
+        //   n_c1      :- not c1.     % always
+        //   n_c1      :-         a.  % if literal is recursive
+        //   n_c1 | c1 :- not not a.  % if literal is recursive
+        //   % same for n_c3
 
         // conditions have form
         //   c1 :- c11, c12.
@@ -930,17 +926,17 @@ void Backend::tr_aggr_(SCCMap const &sccs) {
 }
 
 void Backend::end_step() {
-    auto sccs = SCCMap{};
     size_t idx_scc = 0;
-    graph_.tarjan([&](std::vector<size_t> const &scc) {
+    graph_.tarjan([&, this](std::vector<size_t> const &scc) {
         assert(!scc.empty());
         if (scc.size() > 1 || graph_.has_loop(scc.front())) {
             ++idx_scc;
-            std::ranges::for_each(scc, [&](auto const &lit) { sccs.emplace(lit, idx_scc); });
+            std::ranges::for_each(scc, [&](auto const &lit) { lits_[uid_to_lit(lit)].scc = idx_scc; });
         }
     });
-    tr_cond_lits_(sccs);
-    tr_aggr_(sccs);
+    tr_cond_lits_();
+    tr_aggr_();
+    tr_conds_();
     graph_.clear();
 }
 

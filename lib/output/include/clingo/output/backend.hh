@@ -42,7 +42,7 @@ using CondLit = std::pair<std::optional<id_t>, id_t>;
 //! A span of conditional literals.
 using CondLitSpan = std::span<CondLit const>;
 //! A vector of conditional literals.
-using CondLitVec = std::vector<CondLit const>;
+using CondLitVec = std::vector<std::pair<std::optional<lit_t>, lit_t>>;
 
 //! A sum aggregate element.
 using BdAggrElem = std::pair<SymbolSpan, IndexSpan>;
@@ -62,12 +62,6 @@ enum class CycleType : uint8_t { none, positive, negative, both };
 [[maybe_unused]] void is_bit_set_enum(CycleType type);
 //! A set of numbers.
 using NumberSet = Util::interval_set<Number>;
-//! A sum aggregate element.
-using BdSumAggrElem = std::pair<Number, IndexVec>;
-//! A vector of sum aggregate elements.
-using BdSumAggrElemVec = std::vector<BdSumAggrElem>;
-//! A vector of sum aggregates.
-using BdSumAggrVec = std::vector<std::tuple<lit_t, BdSumAggrElemVec, NumberSet::interval, NumberSet, CycleType>>;
 
 //! The maximum literal.
 static constexpr auto lit_max = std::numeric_limits<lit_t>::max();
@@ -158,46 +152,52 @@ class Backend {
     //! the literal and the clause is either established with an implication (a
     //! rule) or an equivalence.
     enum class CondType : uint8_t {
+        none,        //!< the condition is not used
         implication, //!< only forward direction is necessary
         equivalence, //!< forward and backward directions are necessary
     };
 
-    using SCCMap = Util::unordered_map<lit_t, size_t>;
-    using CondMap = Util::ordered_map<Output::LitVec, uint64_t>;
+    struct LitInfo {
+        id_t scc = 0;
+        CondType type = CondType::none;
+    };
+
+    using LitVec = std::vector<lit_t>;
+    //! A sum aggregate element.
+    using BdSumAggrElem = std::pair<Number, LitVec>;
+    //! A vector of sum aggregate elements.
+    using BdSumAggrElemVec = std::vector<BdSumAggrElem>;
+    //! A vector of sum aggregates.
+    using BdSumAggrVec = std::vector<std::tuple<lit_t, BdSumAggrElemVec, NumberSet::interval, NumberSet, CycleType>>;
+
+    using LitMap = Util::unordered_map<lit_t, LitInfo>;
+    using CondMap = Util::ordered_map<Output::LitVec, lit_t>;
     using CondLits = std::vector<std::pair<lit_t, CondLitVec>>;
 
     virtual void do_rule(LitSpan head, LitSpan body, bool choice) = 0;
     virtual void do_show(Symbol sym, LitSpan body) = 0;
 
-    template <class F> auto with_cond(id_t uid, F &&fun) const;
+    void mark_(lit_t lit, CondType type);
 
-    //! Get a Tseitin literal for the condition with the given uid.
-    //!
-    //! The type parameter determines the kind of equivalence between the condition
-    //! and its Tseitin literal.
-    //!
-    //! @param uid the uid of the condition
-    //! @param type the type of the Tseitin literal
-    //! @return the resulting literal
-    auto cond_(id_t uid, CondType type) -> lit_t;
+    //! Translate conditions based on how they are used.
+    void tr_conds_();
 
-    //! Translate conditional literals taking positive cycles into account.
-    //!
     //! @param sccs strongly connected components of literals
-    void tr_cond_lits_(SCCMap const &sccs);
+    void tr_cond_lits_();
 
+    static auto analyze_sum_(BdAggrElemSpan elems, GuardSpan guards)
+        -> std::tuple<BdSumAggrElemVec, NumberSet::interval, NumberSet, CycleType>;
     //! Translate aggregate literals taking positive cycles into account.
     //!
     //! @param sccs strongly connected components of literals
-    void tr_aggr_(SCCMap const &sccs);
-
-    [[nodiscard]] auto cond_in_scc_(SCCMap const &sccs, id_t uid, size_t scc) const -> bool;
+    void tr_aggr_();
 
     SymbolStore *store_;
     Output::lit_t lit_ = 0;
     Output::LitVec aux1_;
     Output::LitVec aux2_;
     Util::Graph graph_;
+    LitMap lits_;
     CondMap conds_;
     CondLits cond_lits_;
     BdSumAggrVec sum_aggrs_;
