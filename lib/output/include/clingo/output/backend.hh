@@ -159,6 +159,7 @@ class Backend {
 
     struct LitInfo {
         id_t scc = 0;
+        lit_t neg = 0;
         CondType type = CondType::none;
     };
 
@@ -170,12 +171,14 @@ class Backend {
     //! A vector of sum aggregates.
     using BdSumAggrVec = std::vector<std::tuple<lit_t, BdSumAggrElemVec, NumberSet::interval, NumberSet, CycleType>>;
 
-    using LitMap = Util::unordered_map<lit_t, LitInfo>;
+    using LitMap = std::vector<LitInfo>;
     using CondMap = Util::ordered_map<Output::LitVec, lit_t>;
     using CondLits = std::vector<std::pair<lit_t, CondLitVec>>;
 
     virtual void do_rule(LitSpan head, LitSpan body, bool choice) = 0;
     virtual void do_show(Symbol sym, LitSpan body) = 0;
+
+    [[nodiscard]] auto info_(lit_t lit) -> LitInfo &;
 
     void mark_(lit_t lit, CondType type);
 

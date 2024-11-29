@@ -506,8 +506,14 @@ class OutputBackend : public OutputStm, OutputTheory {
 
 } // namespace
 
+auto Backend::info_(lit_t lit) -> LitInfo & {
+    assert(lit > 0);
+    return lits_[lit - 1];
+}
+
 auto Backend::next_lit() -> Output::lit_t {
     if (lit_ < lit_max) {
+        lits_.emplace_back();
         return ++lit_;
     }
     throw std::range_error("literals number of literals exhausted");
@@ -518,9 +524,12 @@ auto Backend::negate(lit_t lit) -> lit_t {
     if (lit > 0) {
         return -lit;
     }
-    auto nlit = next_lit();
-    rule(std::array{nlit}, std::array{lit}, false);
-    return -nlit;
+    auto &neg = info_(lit).neg;
+    if (neg == 0) {
+        neg = next_lit();
+        rule(std::array{neg}, std::array{lit}, false);
+    }
+    return -neg;
 }
 
 namespace {
@@ -721,6 +730,7 @@ void Backend::bd_aggr(lit_t lit, AggregateFunction fun, BdAggrElemSpan elems, Gu
             }
         }
 
+#define GRINGO_DEBUG_AGGREGATES
 #ifdef GRINGO_DEBUG_AGGREGATES
         std::cerr << "handle aggregate: \n";
         std::cerr << "  fun: " << fun << "\n";
@@ -774,7 +784,7 @@ auto Backend::cond(LitSpan lits) -> id_t {
         it.value() = next_lit();
         for (auto const &lit : it->first) {
             if (lit > 0) {
-                graph_.add_edge(lit, it.value());
+                graph_.add_edge(it.value(), lit);
             }
         }
     }
@@ -784,13 +794,13 @@ auto Backend::cond(LitSpan lits) -> id_t {
 void Backend::tr_conds_() {
     for (auto const &[cond, lit] : conds_) {
         assert(lit > 0);
-        auto const &lit_info = lits_[lit];
+        auto const &lit_info = info_(lit);
         if (lit_info.type != CondType::none) {
             rule(std::array{lit}, cond, false);
         }
         if (lit_info.type == CondType::equivalence && lit_info.scc > 0) {
             for (auto const &clit : cond) {
-                if (clit > 0 && lits_[clit].scc == lit_info.scc) {
+                if (clit > 0 && info_(clit).scc == lit_info.scc) {
                     rule(std::array{clit}, std::array{lit}, false);
                 }
             }
@@ -808,7 +818,7 @@ void Backend::cond_lit(lit_t lit, CondLitSpan elems) {
                             std::forward_as_tuple(elems.begin(), elems.end()));
 }
 
-void Backend::mark_(lit_t lit, CondType type) { lits_[lit].type = std::max(lits_[lit].type, type); }
+void Backend::mark_(lit_t lit, CondType type) { info_(lit).type = std::max(info_(lit).type, type); }
 
 void Backend::tr_cond_lits_() {
     for (auto const &[lit, elems] : cond_lits_) {
@@ -821,7 +831,7 @@ void Backend::tr_cond_lits_() {
         for (auto const &[g, f] : elems) {
             mark_(f, CondType::implication);
             if (g) {
-                auto rec = lit > 0 && f > 0 && lits_[lit].scc > 0 && lits_[lit].scc == lits_[f].scc;
+                auto rec = lit > 0 && f > 0 && info_(lit).scc > 0 && info_(lit).scc == info_(f).scc;
                 auto k = next_lit();
                 // formula G : F is replaced by K
                 // K :- G.
@@ -848,10 +858,10 @@ void Backend::tr_aggr_() {
         // check which kind of literals are cyclic
         auto has_pos_cycle = false;
         auto has_neg_cycle = false;
-        if (lit > 0 && lits_[lit].scc > 0 && type != CycleType::none) {
+        if (lit > 0 && info_(lit).scc > 0 && type != CycleType::none) {
             for (auto const &[num, conds] : elems) {
                 for (auto const &cond : conds) {
-                    if (lits_[cond].scc == lits_[lit].scc) {
+                    if (info_(cond).scc == info_(lit).scc) {
                         if (num > 0 && test(type, CycleType::positive)) {
                             has_pos_cycle = true;
                         }
@@ -931,7 +941,7 @@ void Backend::end_step() {
         assert(!scc.empty());
         if (scc.size() > 1 || graph_.has_loop(scc.front())) {
             ++idx_scc;
-            std::ranges::for_each(scc, [&](auto const &lit) { lits_[uid_to_lit(lit)].scc = idx_scc; });
+            std::ranges::for_each(scc, [&](auto const &lit) { info_(uid_to_lit(lit)).scc = idx_scc; });
         }
     });
     tr_cond_lits_();
