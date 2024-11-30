@@ -693,7 +693,7 @@ auto Backend::analyze_sum_(BdAggrElemSpan elems, GuardSpan guards)
     if (type != CycleType::both && bounds.size() == 1 && !bounds.contains(range)) {
         auto const &sub = bounds.front();
         if (lower < 0 && upper > 0) {
-            // the aggregate can stitch arbitrarily between true and false
+            // the aggregate can switch arbitrarily between true and false
             type = CycleType::both;
         } else if (lower < 0 && sub < upper) {
             // the aggregate can go from false to true by adding negative weights
@@ -872,6 +872,23 @@ void Backend::tr_aggr_() {
                 }
             }
         }
+        // case bounds.size() == 1:
+        //   the aggregate can always be represented as `a >= lower && a <= upper`
+        //   case has_pos_cycle && !has_neg_cycle:
+        //     standard translation
+        //     recursion throw a >= lower
+        //   case !has_pos_cycle && has_neg_cycle:
+        //     standard translation with flipped weights and signs
+        //     recursion throw a <= upper
+        //     aggregate can be turned into `-a <= -lower && -a >= -upper`
+        //   case has_pos_cycle and has_neg_cycle:
+        //     mario's translation
+        // case bounds.size() > 1:
+        //   case has_pos_cycle || has_neg_cycle:
+        //     mario's translation
+        //   case !has_pos_cycle and !has_neg_cycle:
+        //     standard translation with flipped weights and signs
+        //     however it fits best
 
         // nested conjunctions
         //   a :- 2 <= #sum { 1: c1; 1:c2; 1:c3 } <= 2.
