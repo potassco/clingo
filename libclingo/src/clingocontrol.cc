@@ -126,7 +126,7 @@ void ClaspAPIBackend::theoryAtom(Potassco::Id_t, Potassco::Id_t, const Potassco:
 void ClaspAPIBackend::theoryAtom(Potassco::Id_t, Potassco::Id_t, const Potassco::IdSpan&, Potassco::Id_t, Potassco::Id_t){ }
 
 Clasp::Asp::LogicProgram *ClaspAPIBackend::prg() {
-    return ctl_.update() ? static_cast<Clasp::Asp::LogicProgram*>(ctl_.clasp_->program()) : nullptr;
+    return ctl_.update() ? ctl_.claspProgram() : nullptr;
 }
 
 ClaspAPIBackend::~ClaspAPIBackend() noexcept = default;
@@ -525,7 +525,7 @@ void ClingoControl::prepare(Assumptions ass) {
             //     For now, we explicitly restore the state here. Alternatively, we could adjust Atomtab::output() so
             //     that it always passes the atom id to the backend, or we could just maintain the set of "shown" atoms
             //     in ClingoControl.
-            auto &prg = static_cast<Clasp::Asp::LogicProgram&>(*clasp_->program());
+            auto &prg = *claspProgram();
             (void) out_->atoms(clingo_show_type_shown, [&](unsigned uid) {
                 if (prg.isFact(uid) && !prg.isShown(uid)) {
                     prg.addOutputState(uid, Clasp::Asp::LogicProgram::OutputState::out_shown);
@@ -540,6 +540,10 @@ void ClingoControl::prepare(Assumptions ass) {
 
 void *ClingoControl::claspFacade() {
     return clasp_;
+}
+
+Clasp::Asp::LogicProgram *ClingoControl::claspProgram() const {
+    return static_cast<Clasp::Asp::LogicProgram*>(clasp_->program());
 }
 
 const char* TheoryOutput::first(const Clasp::Model&) {
@@ -569,7 +573,7 @@ Potassco::Lit_t ClingoControl::decide(Id_t solverId, Potassco::AbstractAssignmen
 void ClingoControl::registerPropagator(UProp p, bool sequential) {
     propagators_.emplace_back(gringo_make_unique<Clasp::ClingoPropagatorInit>(*p, propLock_.add(sequential)));
     claspConfig_.addConfigurator(propagators_.back().get(), Clasp::Ownership_t::Retain);
-    static_cast<Clasp::Asp::LogicProgram*>(clasp_->program())->enableDistinctTrue();
+    claspProgram()->enableDistinctTrue();
     props_.emplace_back(std::move(p));
     if (props_.back()->hasHeuristic()) {
         if (heus_.empty()) {
@@ -584,7 +588,7 @@ void ClingoControl::cleanup() {
         return;
     }
     canClean_ = false;
-    Clasp::Asp::LogicProgram &prg = static_cast<Clasp::Asp::LogicProgram&>(*clasp_->program());
+    Clasp::Asp::LogicProgram &prg = *claspProgram();
     Clasp::Solver &solver = *clasp_->ctx.master();
     auto assignment = [&prg, &solver](unsigned uid) {
         Potassco::Value_t truth{Potassco::Value_t::Free};
@@ -612,6 +616,26 @@ void ClingoControl::assignExternal(Potassco::Atom_t ext, Potassco::Value_t val) 
         if (backend != nullptr) {
             backend->external(ext, val);
         }
+    }
+}
+
+void ClingoControl::updateProject(Potassco::AtomSpan project, bool append) {
+    auto *backend = update() ? out_->backend() : nullptr;
+    if (backend != nullptr) {
+        if (!append && clingoMode_) {
+            claspProgram()->removeProject();
+        }
+        backend->project(project);
+    }
+}
+
+void ClingoControl::removeMinimize() {
+    if (clingoMode_) {
+        out_->removeMinimize();
+        claspProgram()->removeMinimize();
+    }
+    else {
+        throw std::runtime_error("removing minimize constraints is not supported");
     }
 }
 
@@ -724,7 +748,7 @@ bool ClingoControl::fact(SymbolicAtomIter it) const {
 
 bool ClingoControl::external(SymbolicAtomIter it) const {
     auto &elem = domainElem(out_->predDoms(), it);
-    return elem.hasUid() && elem.isExternal() && (!clingoMode_ || static_cast<Clasp::Asp::LogicProgram*>(clasp_->program())->isExternal(elem.uid()));
+    return elem.hasUid() && elem.isExternal() && (!clingoMode_ || claspProgram()->isExternal(elem.uid()));
 }
 
 SymbolicAtomIter ClingoControl::next(SymbolicAtomIter it) const {

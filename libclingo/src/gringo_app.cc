@@ -88,7 +88,7 @@ struct IncrementalControl : Control, private Output::ASPIFOutBackend {
     }
     void update() {
         // This function starts a new step and has to be called at least once
-        // before anything that causes output at the beginning of excecution or
+        // before anything that causes output at the beginning of execution or
         // after a solve step.
         if (!grounded) {
             if (!initialized_) {
@@ -200,6 +200,18 @@ struct IncrementalControl : Control, private Output::ASPIFOutBackend {
             assignExternal(res.first->uid(), val);
         }
     }
+    void updateProject(Potassco::AtomSpan project, bool append) override {
+        if (append) {
+            update();
+            if (auto *b = out.backend()) {
+                b->project(project);
+            }
+        }
+        else {
+            throw std::runtime_error("replacing projection atoms is not supported");
+        }
+    }
+    void removeMinimize() override { throw std::runtime_error("removing minimize constraints is not supported"); }
     SymbolicAtoms const &getDomain() const override { throw std::runtime_error("domain introspection not supported"); }
     ConfigProxy &getConf() override { throw std::runtime_error("configuration not supported"); }
     void registerPropagator(UProp, bool) override { throw std::runtime_error("theory propagators not supported"); }
