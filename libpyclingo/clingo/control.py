@@ -379,6 +379,16 @@ class Control:
         """
         self._update_project(atoms, append=False)
 
+    def remove_project(self) -> None:
+        """
+        Remove all projection atoms.
+
+        See Also
+        --------
+        Control.add_project
+        """
+        self._update_project([], append=False)
+    
     def assign_external(
         self, external: Union[Symbol, int], truth: Optional[bool]
     ) -> None:
