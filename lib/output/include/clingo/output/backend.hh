@@ -99,12 +99,10 @@ class Backend {
     //! @return the negated literal
     auto negate(lit_t lit) -> lit_t;
 
-    //! Get a unique id identifying the given literals.
-    //!
-    //! The function stores a map from the set of literals to the unique identifiers.
+    //! Get a literal equivalent to the conjunction of the given literals.
     //!
     //! @param lits the literals
-    auto cond(LitSpan lits) -> id_t;
+    auto cond(LitSpan lits) -> lit_t;
 
     //! Define a conjunction of conditional literal.
     //!
@@ -169,14 +167,14 @@ class Backend {
 
     using LitVec = std::vector<lit_t>;
     //! A sum aggregate element.
-    using BdSumAggrElem = std::pair<Number, LitVec>;
+    using BdSumAggrElem = std::pair<Number, lit_t>;
     //! A vector of sum aggregate elements.
     using BdSumAggrElemVec = std::vector<BdSumAggrElem>;
     //! A vector of sum aggregates.
     using BdSumAggrVec = std::vector<std::tuple<lit_t, BdSumAggrElemVec, NumberSet::interval, NumberSet, CycleType>>;
 
     using LitMap = std::vector<LitInfo>;
-    using CondMap = Util::ordered_map<Output::LitVec, lit_t>;
+    using ClauseMap = Util::ordered_map<Output::LitVec, lit_t>;
     using CondLits = std::vector<std::pair<lit_t, CondLitVec>>;
 
     virtual void do_rule(LitSpan head, LitSpan body, bool choice) = 0;
@@ -190,15 +188,21 @@ class Backend {
     //! Translate conditions based on how they are used.
     void tr_conds_();
 
+    //! Translate dnfs based on how they are used.
+    void tr_dnfs_();
+
     //! @param sccs strongly connected components of literals
     void tr_cond_lits_();
 
-    static auto analyze_sum_(BdAggrElemSpan elems, GuardSpan guards)
-        -> std::tuple<BdSumAggrElemVec, NumberSet::interval, NumberSet, CycleType>;
+    auto analyze_sum_(BdAggrElemSpan elems,
+                      GuardSpan guards) -> std::tuple<BdSumAggrElemVec, NumberSet::interval, NumberSet, CycleType>;
     //! Translate aggregate literals taking positive cycles into account.
     //!
     //! @param sccs strongly connected components of literals
     void tr_aggr_();
+
+    //! Get a literal equivalent to the disjunction of the literals.
+    auto dnf_(LitSpan lits) -> lit_t;
 
     SymbolStore *store_;
     Output::lit_t lit_ = 0;
@@ -206,7 +210,8 @@ class Backend {
     Output::LitVec aux2_;
     Util::Graph graph_;
     LitMap lits_;
-    CondMap conds_;
+    ClauseMap conds_;
+    ClauseMap dnfs_;
     CondLits cond_lits_;
     BdSumAggrVec sum_aggrs_;
 };

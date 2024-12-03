@@ -625,7 +625,8 @@ auto Backend::analyze_sum_(BdAggrElemSpan elems, GuardSpan guards)
                 if (auto [it, ins] = cond_map.try_emplace(conds, elem_vec.size()); !ins) {
                     get<0>(elem_vec[it.value()]) += num;
                 } else {
-                    elem_vec.emplace_back(std::move(num), LitVec{conds.begin(), conds.end()});
+                    aux2_.assign(conds.begin(), conds.end());
+                    elem_vec.emplace_back(std::move(num), dnf_({aux2_.begin(), aux2_.end()}));
                 }
             }
         }
@@ -636,8 +637,7 @@ auto Backend::analyze_sum_(BdAggrElemSpan elems, GuardSpan guards)
     // comput the range of the aggregate
     auto lower = Number(0);
     auto upper = Number(0);
-    for (auto const &[num, conds] : elem_vec) {
-        assert(!conds.empty());
+    for (auto const &[num, clit] : elem_vec) {
         if (num > 0) {
             upper += num;
         } else {
@@ -720,12 +720,10 @@ void Backend::bd_aggr(lit_t lit, AggregateFunction fun, BdAggrElemSpan elems, Gu
         }
         // add edges based on the monotonicity of the aggregate
         if (type != CycleType::none) {
-            for (auto const &[num, conds] : elem_vec) {
-                for (auto cond : conds) {
-                    if (cond > 0 && ((test(type, CycleType::positive) && num > 0) ||
-                                     (test(type, CycleType::negative) && num < 0))) {
-                        graph_.add_edge(lit, cond);
-                    }
+            for (auto const &[num, clit] : elem_vec) {
+                if (clit > 0 &&
+                    ((test(type, CycleType::positive) && num > 0) || (test(type, CycleType::negative) && num < 0))) {
+                    graph_.add_edge(lit, clit);
                 }
             }
         }
@@ -772,7 +770,7 @@ void Backend::rule(LitSpan head, LitSpan body, bool choice) {
     do_rule(head, body, choice);
 }
 
-auto Backend::cond(LitSpan lits) -> id_t {
+auto Backend::cond(LitSpan lits) -> lit_t {
     aux1_.assign(lits.begin(), lits.end());
     std::ranges::sort(aux1_);
     aux1_.erase(std::ranges::unique(aux1_).begin(), aux1_.end());
@@ -791,17 +789,55 @@ auto Backend::cond(LitSpan lits) -> id_t {
     return it.value();
 }
 
+auto Backend::dnf_(LitSpan lits) -> lit_t {
+    aux1_.assign(lits.begin(), lits.end());
+    std::ranges::sort(aux1_);
+    aux1_.erase(std::ranges::unique(aux1_).begin(), aux1_.end());
+    if (aux1_.size() == 1) {
+        return aux1_.front();
+    }
+    auto [it, ins] = dnfs_.emplace(std::move(aux1_), 0);
+    if (ins) {
+        it.value() = next_lit();
+        for (auto const &lit : it->first) {
+            if (lit > 0) {
+                graph_.add_edge(it.value(), lit);
+            }
+        }
+    }
+    return it.value();
+}
+
+void Backend::tr_dnfs_() {
+    for (auto const &[clause, lit] : dnfs_) {
+        assert(lit > 0);
+        auto const &lit_info = info_(lit);
+        if (lit_info.type != EQType::none) {
+            for (auto const &clit : clause) {
+                if (clit > 0) {
+                    mark_(clit, lit_info.type);
+                }
+                do_rule(std::array{lit}, std::array{clit}, false);
+            }
+        }
+        if (lit_info.type == EQType::equivalence) {
+            // TODO: non-cyclic literals better be shifted
+            do_rule(clause, std::array{lit}, false);
+        }
+    }
+}
+
 void Backend::tr_conds_() {
     for (auto const &[cond, lit] : conds_) {
         assert(lit > 0);
         auto const &lit_info = info_(lit);
         if (lit_info.type != EQType::none) {
-            rule(std::array{lit}, cond, false);
+            do_rule(std::array{lit}, cond, false);
         }
         if (lit_info.type == EQType::equivalence && lit_info.scc > 0) {
             for (auto const &clit : cond) {
                 if (clit > 0 && info_(clit).scc == lit_info.scc) {
-                    rule(std::array{clit}, std::array{lit}, false);
+                    do_rule(std::array{clit}, std::array{lit}, false);
                 }
             }
         }
@@ -862,15 +898,13 @@ void Backend::tr_aggr_() {
         auto has_pos_cycle = false; // cycle through atom with *positive* weight
         auto has_neg_cycle = false; // cycle through atom with *negative* weight
         if (lit > 0 && info_(lit).scc > 0) {
-            for (auto const &[num, conds] : elems) {
-                for (auto const &cond : conds) {
-                    if (is_recursive(cond)) {
-                        if (bounds.size() == 1) {
-                            has_pos_cycle = has_pos_cycle || num > 0;
-                            has_neg_cycle = has_neg_cycle || num < 0;
-                        } else {
-                            has_pos_cycle = has_neg_cycle = true;
-                        }
+            for (auto const &[num, clit] : elems) {
+                if (is_recursive(clit)) {
+                    if (bounds.size() == 1) {
+                        has_pos_cycle = has_pos_cycle || num > 0;
+                        has_neg_cycle = has_neg_cycle || num < 0;
+                    } else {
+                        has_pos_cycle = has_neg_cycle = true;
                     }
                 }
             }
@@ -893,14 +927,7 @@ void Backend::tr_aggr_() {
             for (auto const &[weight, cond] : elems) {
                 auto &[clit, nlit] = *it++;
                 if (clit == 0) {
-                    if (cond.size() == 1) {
-                        clit = cond.front();
-                    } else {
-                        // TODO: implement me!!!
-                        // - the DNFs should be handled differently
-                        // - they should be added like conditions and a literal introduced right away
-                        throw std::logic_error("implement me: multiple conditions are not yet supported");
-                    }
+                    clit = cond;
                 }
                 if (weight > 0) {
                     wlits.emplace_back(clit, weight.as_int().value());
@@ -974,6 +1001,7 @@ void Backend::end_step() {
     });
     tr_cond_lits_();
     tr_aggr_();
+    tr_dnfs_();
     tr_conds_();
     graph_.clear();
 }
