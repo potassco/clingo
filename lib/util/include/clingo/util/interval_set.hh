@@ -139,6 +139,16 @@ template <class T> class interval_set {
         }
     }
 
+    //! Reserve space for at least n elements.
+    //!
+    //! Calls the reserve method of the underlying vector.
+    //!
+    //! @param n the number of elements to reserve space for
+    void reserve(size_t n) { vec_.reserve(n); }
+
+    //! Releases the underlying vector.
+    auto release() -> interval_vector { return std::move(vec_); }
+
     //! Add the given interval to the set.
     //!
     //! @param x the interval to add

@@ -89,6 +89,20 @@ class BackendClasp : public Output::Backend {
         prg_->addRule(bld_);
     }
 
+    void do_bd_aggr(Output::lit_t head, Output::WeightedLitSpan body, Output::weight_t bound) override {
+        assert(head > 0);
+        assert(bound > 0);
+        bld_.clear();
+        bld_.start();
+        bld_.addHead(head);
+        bld_.startSum(bound);
+        for (auto const &[lit, weight] : body) {
+            assert(weight > 0);
+            bld_.addGoal(lit, weight);
+        }
+        prg_->addRule(bld_);
+    }
+
     void do_show(Symbol sym, Output::LitSpan body) override {
         buf_.reset();
         buf_ << sym;

@@ -795,10 +795,10 @@ void Backend::tr_conds_() {
     for (auto const &[cond, lit] : conds_) {
         assert(lit > 0);
         auto const &lit_info = info_(lit);
-        if (lit_info.type != CondType::none) {
+        if (lit_info.type != EQType::none) {
             rule(std::array{lit}, cond, false);
         }
-        if (lit_info.type == CondType::equivalence && lit_info.scc > 0) {
+        if (lit_info.type == EQType::equivalence && lit_info.scc > 0) {
             for (auto const &clit : cond) {
                 if (clit > 0 && info_(clit).scc == lit_info.scc) {
                     rule(std::array{clit}, std::array{lit}, false);
@@ -818,7 +818,7 @@ void Backend::cond_lit(lit_t lit, CondLitSpan elems) {
                             std::forward_as_tuple(elems.begin(), elems.end()));
 }
 
-void Backend::mark_(lit_t lit, CondType type) { info_(lit).type = std::max(info_(lit).type, type); }
+void Backend::mark_(lit_t lit, EQType type) { info_(lit).type = std::max(info_(lit).type, type); }
 
 void Backend::tr_cond_lits_() {
     for (auto const &[lit, elems] : cond_lits_) {
@@ -829,19 +829,19 @@ void Backend::tr_cond_lits_() {
         // - G: captures the conclusion
         // - F: catures the premise
         for (auto const &[g, f] : elems) {
-            mark_(f, CondType::implication);
+            mark_(f, EQType::implication);
             if (g) {
                 auto rec = lit > 0 && f > 0 && info_(lit).scc > 0 && info_(lit).scc == info_(f).scc;
                 auto k = next_lit();
                 // formula G : F is replaced by K
                 // K :- G.
                 // K :- not F.
-                mark_(*g, CondType::implication);
+                mark_(*g, EQType::implication);
                 do_rule(std::array{k}, std::array{*g}, false);
                 do_rule(std::array{k}, std::array{negate(f)}, false);
                 if (rec) {
                     // K | F :- not not G.
-                    mark_(f, CondType::equivalence);
+                    mark_(f, EQType::equivalence);
                     do_rule(std::array{k, f}, std::array{negate(negate(*g))}, false);
                 }
                 aux2_.emplace_back(k);
@@ -854,101 +854,112 @@ void Backend::tr_cond_lits_() {
 }
 
 void Backend::tr_aggr_() {
-    for (auto const &[lit, elems, range, bounds, type] : sum_aggrs_) {
+    for (auto &[lit, elems, range, bounds, type] : sum_aggrs_) {
         // check which kind of literals are cyclic
-        auto has_pos_cycle = false;
-        auto has_neg_cycle = false;
-        if (lit > 0 && info_(lit).scc > 0 && type != CycleType::none) {
+        auto is_recursive = [lit, this](lit_t clit) {
+            return lit > 0 && clit > 0 && info_(clit).scc == info_(lit).scc;
+        };
+        auto has_pos_cycle = false; // cycle through atom with *positive* weight
+        auto has_neg_cycle = false; // cycle through atom with *negative* weight
+        if (lit > 0 && info_(lit).scc > 0) {
             for (auto const &[num, conds] : elems) {
                 for (auto const &cond : conds) {
-                    if (info_(cond).scc == info_(lit).scc) {
-                        if (num > 0 && test(type, CycleType::positive)) {
-                            has_pos_cycle = true;
-                        }
-                        if (num < 0 && test(type, CycleType::negative)) {
-                            has_neg_cycle = true;
+                    if (is_recursive(cond)) {
+                        if (bounds.size() == 1) {
+                            has_pos_cycle = has_pos_cycle || num > 0;
+                            has_neg_cycle = has_neg_cycle || num < 0;
+                        } else {
+                            has_pos_cycle = has_neg_cycle = true;
                         }
                     }
                 }
             }
         }
-        // case bounds.size() == 1:
-        //   the aggregate can always be represented as `a >= lower && a <= upper`
-        //   case has_pos_cycle && !has_neg_cycle:
-        //     standard translation
-        //     recursion throw a >= lower
-        //   case !has_pos_cycle && has_neg_cycle:
-        //     standard translation with flipped weights and signs
-        //     recursion throw a <= upper
-        //     aggregate can be turned into `-a <= -lower && -a >= -upper`
-        //   case has_pos_cycle and has_neg_cycle:
-        //     mario's translation
-        // case bounds.size() > 1:
-        //   case has_pos_cycle || has_neg_cycle:
-        //     mario's translation
-        //   case !has_pos_cycle and !has_neg_cycle:
-        //     standard translation with flipped weights and signs
-        //     however it fits best
+        auto flip = [](BdSumAggrElemVec const &elems) {
+            auto res = BdSumAggrElemVec{};
+            res.reserve(elems.size());
+            for (auto const &[num, cond] : elems) {
+                res.emplace_back(-num, cond);
+            }
+            return res;
+        };
 
-        // nested conjunctions
-        //   a :- 2 <= #sum { 1: c1; 1:c2; 1:c3 } <= 2.
-        // step 1
-        //   l :- #sum { 1: c1; 1:c2; 1:c3 } >= 2.
-        //   u :- #sum { 1: c1; 1:c2; 1:c3 } <= 2.
-        //   a :- l, u.
-        // step 2.1 (aggregate is convex)
-        //   l :- #sum { 1: c1; 1:c2; 1:c3 } >= 2.
-        //   u :- #sum { 1: c1; 1:c2; 1:c3 } >= 3.
-        //   a :- l, not u.
-        // step 2.2.1 (aggregate is nonmonotone)
-        //   l :- #sum { 1: c1; 1:c2; 1:c3 } >= 2.
-        //   u :- #sum { -1: c1; -1:c2; -1:c3 } >= -2.
-        //   a :- l, u.
-        // step 2.2.2
-        //   l :- #sum { 1:   c1; 1:  c2; 1:  c3 } >= 2.
-        //   u :- #sum { 1: n_c1; 1:n_c2; 1:n_c3 } >= 1.
-        //   a :- l, u.
-        //   n_c1      :- not c1.     % always
-        //   n_c1      :-         a.  % if literal is recursive
-        //   n_c1 | c1 :- not not a.  % if literal is recursive
-        //   % same for n_c2 and n_c3
+        // translate aggregate in lower bound form
+        auto t_lits = std::vector<std::pair<lit_t, lit_t>>(elems.size(), std::pair<lit_t, lit_t>{0, 0});
+        auto translate = [&](lit_t lit, BdSumAggrElemVec const &elems, Number bound) {
+            auto wlits = std::vector<std::pair<lit_t, weight_t>>{};
+            wlits.reserve(elems.size());
+            auto it = t_lits.begin();
+            for (auto const &[weight, cond] : elems) {
+                auto &[clit, nlit] = *it++;
+                if (clit == 0) {
+                    if (cond.size() == 1) {
+                        clit = cond.front();
+                    } else {
+                        // TODO: implement me!!!
+                        // - the DNFs should be handled differently
+                        // - they should be added like conditions and a literal introduced right away
+                        throw std::logic_error("implement me: multiple conditions are not yet supported");
+                    }
+                }
+                if (weight > 0) {
+                    wlits.emplace_back(clit, weight.as_int().value());
+                } else {
+                    if (!is_recursive(clit)) {
+                        wlits.emplace_back(negate(clit), (-weight).as_int().value());
+                    } else {
+                        if (nlit == 0) {
+                            nlit = next_lit();
+                            rule(std::array{nlit}, std::array{negate(clit)}, false);
+                        }
+                        wlits.emplace_back(nlit, (-weight).as_int().value());
+                    }
+                    bound -= weight;
+                }
+            }
+            do_bd_aggr(lit, wlits, bound.as_int().value());
+        };
 
-        // convex aggregates with cyclic negative weights
-        //   a :- #sum { -1: c1; -1:c2; -1:c3 } <= -2.
-        // step 1
-        //   a :- #sum { 1: c1; 1:c2; 1:c3 } >= 2.
+        // translate all bounds of an aggregate
+        for (auto const &bound : bounds) {
+            bool has_lower = range.left.bound < bound;
+            bool has_upper = bound < range.right.bound;
+            auto lit_lower = has_lower && has_upper ? next_lit() : lit;
+            auto lit_upper = has_lower && has_upper ? next_lit() : lit;
+            if (has_lower) {
+                if (has_neg_cycle && !has_pos_cycle) {
+                    translate(lit_lower, flip(elems), -bound.left.bound + 1);
+                    lit_lower = -lit_lower;
+                } else {
+                    translate(lit_lower, elems, bound.left.bound);
+                }
+            }
+            if (has_upper) {
+                if (!has_neg_cycle) {
+                    translate(lit_upper, elems, bound.right.bound + 1);
+                    lit_upper = -lit_upper;
+                } else {
+                    translate(lit_upper, flip(elems), -bound.right.bound);
+                }
+            }
+            if (has_lower && has_upper) {
+                rule(std::array{lit}, std::array{lit_lower, lit_upper}, false);
+            }
+        }
 
-        // convex aggregates with cyclic positive weights
-        //   a :- #sum { -1: c1; 1:c2; -1:c3 } >= -1.
-        // step 1
-        //   a :- #sum { 1: n_c1; 1:c2; 1:n_c3 } >= 1.
-        //   n_c1      :- not c1.     % always
-        //   n_c1      :-         a.  % if literal is recursive
-        //   n_c1 | c1 :- not not a.  % if literal is recursive
-        //   % same for n_c3
-
-        // conditions have form
-        //   c1 :- c11, c12.
-        //   c2 :- c21, c22.
-        // they can then be used in aggregates
-        //   a :- #sum { 1: c1; 1:c2 } != 1.
-        // we assume that `c11` and `c22` are in the same scc as `a`
-        // the aggregate has to be translated as follows
-        //   c1 :- c11, c12.  c11 :- c1.
-        //   c2 :- c21, c22.  c22 :- c2.
-        //   a :- #sum { 1:   c1; 1:   c2 } >= 2.
-        //   a :- #sum { 1: n_c1; 1: n_c2 } >= 2.
-        //   n_c1      :- not c1.     % fix
-        //   n_c1      :-         a.  % saturate
-        //   n_c1 | c1 :- not not a.  % generate
-        //   % same for n_c2
-
-        std::cerr << "aggregate " << lit << "\n";
-        std::cerr << "  pos cycle: " << has_pos_cycle << "\n";
-        std::cerr << "  neg cycle: " << has_neg_cycle << "\n";
-    }
-    if (!sum_aggrs_.empty()) {
-        throw std::logic_error("implement me: translate aggregate!!!");
+        // add disjunctions for recursive literals
+        for (auto const &[clit, nlit] : t_lits) {
+            if (clit > 0) {
+                mark_(clit, EQType::implication);
+            }
+            if (nlit > 0) {
+                mark_(clit, EQType::equivalence);
+                // nlit :- lit.                % saturate
+                rule(std::array{nlit}, std::array{lit}, false);
+                // nlit | clit :- not not lit. % guess
+                rule(std::array{nlit, clit, negate(lit)}, {}, false);
+            }
+        }
     }
 }
 

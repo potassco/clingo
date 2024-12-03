@@ -27,10 +27,14 @@ using lit_t = int32_t;
 //!
 //! A program atom must be in the range of 1 to `lit_max`.
 using atom_t = uint32_t;
+//! A weight used in weight and minimize constraints.
+using weight_t = int32_t;
 //! A span of program literals.
 using LitSpan = std::span<lit_t const>;
 //! A vector of program literals.
 using LitVec = std::vector<lit_t>;
+//! A vector of program literals.
+using WeightedLitSpan = std::vector<std::pair<lit_t, weight_t>>;
 
 //! A conditional literal consisting of a conclusion and a premise.
 //!
@@ -151,7 +155,7 @@ class Backend {
     //! Conditions are clauses associated with a literal. The equivalence between
     //! the literal and the clause is either established with an implication (a
     //! rule) or an equivalence.
-    enum class CondType : uint8_t {
+    enum class EQType : uint8_t {
         none,        //!< the condition is not used
         implication, //!< only forward direction is necessary
         equivalence, //!< forward and backward directions are necessary
@@ -160,7 +164,7 @@ class Backend {
     struct LitInfo {
         id_t scc = 0;
         lit_t neg = 0;
-        CondType type = CondType::none;
+        EQType type = EQType::none;
     };
 
     using LitVec = std::vector<lit_t>;
@@ -176,11 +180,12 @@ class Backend {
     using CondLits = std::vector<std::pair<lit_t, CondLitVec>>;
 
     virtual void do_rule(LitSpan head, LitSpan body, bool choice) = 0;
+    virtual void do_bd_aggr(lit_t head, WeightedLitSpan body, int32_t bound) = 0;
     virtual void do_show(Symbol sym, LitSpan body) = 0;
 
     [[nodiscard]] auto info_(lit_t lit) -> LitInfo &;
 
-    void mark_(lit_t lit, CondType type);
+    void mark_(lit_t lit, EQType type);
 
     //! Translate conditions based on how they are used.
     void tr_conds_();
