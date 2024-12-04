@@ -159,6 +159,11 @@ class Backend {
         equivalence, //!< forward and backward directions are necessary
     };
 
+    enum class ClauseType : uint8_t {
+        disjunctive,
+        conjunctive,
+    };
+
     struct LitInfo {
         id_t scc = 0;
         lit_t neg = 0;
@@ -200,6 +205,9 @@ class Backend {
     //!
     //! @param sccs strongly connected components of literals
     void tr_aggr_();
+
+    //! Get a literal equivalent to the given clause.
+    auto clause_(LitSpan lits, ClauseType type) -> lit_t;
 
     //! Get a literal equivalent to the disjunction of the literals.
     auto dnf_(LitSpan lits) -> lit_t;

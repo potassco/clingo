@@ -770,14 +770,14 @@ void Backend::rule(LitSpan head, LitSpan body, bool choice) {
     do_rule(head, body, choice);
 }
 
-auto Backend::cond(LitSpan lits) -> lit_t {
+auto Backend::clause_(LitSpan lits, ClauseType type) -> lit_t {
     aux1_.assign(lits.begin(), lits.end());
     std::ranges::sort(aux1_);
     aux1_.erase(std::ranges::unique(aux1_).begin(), aux1_.end());
     if (aux1_.size() == 1) {
         return aux1_.front();
     }
-    auto [it, ins] = conds_.emplace(std::move(aux1_), 0);
+    auto [it, ins] = (type == ClauseType::conjunctive ? conds_ : dnfs_).emplace(std::move(aux1_), 0);
     if (ins) {
         it.value() = next_lit();
         for (auto const &lit : it->first) {
@@ -789,24 +789,9 @@ auto Backend::cond(LitSpan lits) -> lit_t {
     return it.value();
 }
 
-auto Backend::dnf_(LitSpan lits) -> lit_t {
-    aux1_.assign(lits.begin(), lits.end());
-    std::ranges::sort(aux1_);
-    aux1_.erase(std::ranges::unique(aux1_).begin(), aux1_.end());
-    if (aux1_.size() == 1) {
-        return aux1_.front();
-    }
-    auto [it, ins] = dnfs_.emplace(std::move(aux1_), 0);
-    if (ins) {
-        it.value() = next_lit();
-        for (auto const &lit : it->first) {
-            if (lit > 0) {
-                graph_.add_edge(it.value(), lit);
-            }
-        }
-    }
-    return it.value();
-}
+auto Backend::cond(LitSpan lits) -> lit_t { return clause_(lits, ClauseType::conjunctive); }
+
+auto Backend::dnf_(LitSpan lits) -> lit_t { return clause_(lits, ClauseType::disjunctive); }
 
 void Backend::tr_dnfs_() {
     for (auto const &[clause, lit] : dnfs_) {
@@ -854,7 +839,12 @@ void Backend::cond_lit(lit_t lit, CondLitSpan elems) {
                             std::forward_as_tuple(elems.begin(), elems.end()));
 }
 
-void Backend::mark_(lit_t lit, EQType type) { info_(lit).type = std::max(info_(lit).type, type); }
+void Backend::mark_(lit_t lit, EQType type) {
+    // maybe mark literal to have type
+    if (lit > 0) {
+        info_(lit).type = std::max(info_(lit).type, type);
+    }
+}
 
 void Backend::tr_cond_lits_() {
     for (auto const &[lit, elems] : cond_lits_) {
@@ -918,28 +908,32 @@ void Backend::tr_aggr_() {
             return res;
         };
 
+        auto to_int = [](Number const &num) {
+            if (auto val = num.as_int()) {
+                return *val;
+            }
+            throw std::range_error("number out of range");
+        };
+
         // translate aggregate in lower bound form
-        auto t_lits = std::vector<std::pair<lit_t, lit_t>>(elems.size(), std::pair<lit_t, lit_t>{0, 0});
+        auto nlits = std::vector<lit_t>(elems.size(), 0);
         auto translate = [&](lit_t lit, BdSumAggrElemVec const &elems, Number bound) {
             auto wlits = std::vector<std::pair<lit_t, weight_t>>{};
             wlits.reserve(elems.size());
-            auto it = t_lits.begin();
-            for (auto const &[weight, cond] : elems) {
-                auto &[clit, nlit] = *it++;
-                if (clit == 0) {
-                    clit = cond;
-                }
+            auto it = nlits.begin();
+            for (auto const &[weight, clit] : elems) {
+                auto &nlit = *it++;
                 if (weight > 0) {
-                    wlits.emplace_back(clit, weight.as_int().value());
+                    wlits.emplace_back(clit, to_int(weight));
                 } else {
                     if (!is_recursive(clit)) {
-                        wlits.emplace_back(negate(clit), (-weight).as_int().value());
+                        wlits.emplace_back(negate(clit), to_int(-weight));
                     } else {
                         if (nlit == 0) {
                             nlit = next_lit();
                             rule(std::array{nlit}, std::array{negate(clit)}, false);
                         }
-                        wlits.emplace_back(nlit, (-weight).as_int().value());
+                        wlits.emplace_back(nlit, to_int(-weight));
                     }
                     bound -= weight;
                 }
@@ -975,12 +969,11 @@ void Backend::tr_aggr_() {
         }
 
         // add disjunctions for recursive literals
-        for (auto const &[clit, nlit] : t_lits) {
-            if (clit > 0) {
-                mark_(clit, EQType::implication);
-            }
+        auto it = nlits.begin();
+        for (auto const &nlit : nlits) {
+            auto clit = *it++;
+            mark_(clit, nlit > 0 ? EQType::equivalence : EQType::implication);
             if (nlit > 0) {
-                mark_(clit, EQType::equivalence);
                 // nlit :- lit.                % saturate
                 rule(std::array{nlit}, std::array{lit}, false);
                 // nlit | clit :- not not lit. % guess
