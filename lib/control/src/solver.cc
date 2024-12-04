@@ -66,9 +66,13 @@ class BackendClasp : public Output::Backend {
                     aux_.emplace_back(-aux);
                     bld_.clear();
                     bld_.start();
+                    // printf("%d ", aux);
                     bld_.addHead(aux);
+                    // printf(" :- ");
                     bld_.addGoal(lit);
+                    // printf("%d ", lit);
                     prg_->addRule(bld_);
+                    // printf(".\n");
                 }
             }
         }
@@ -76,16 +80,21 @@ class BackendClasp : public Output::Backend {
         bld_.start(choice ? Potassco::Head_t::choice : Potassco::Head_t::disjunctive);
         for (auto const &lit : head) {
             if (lit > 0) {
+                // printf("%d ", lit);
                 bld_.addHead(lit);
             }
         }
+        // printf(" :- ");
         bld_.startBody();
         for (auto const &lit : body) {
+            // printf("%d ", lit);
             bld_.addGoal(lit);
         }
         for (auto const &lit : aux_) {
+            // printf("%d ", lit);
             bld_.addGoal(lit);
         }
+        // printf(".\n");
         prg_->addRule(bld_);
     }
 
@@ -95,18 +104,26 @@ class BackendClasp : public Output::Backend {
         bld_.clear();
         bld_.start();
         bld_.addHead(head);
+        // printf("%d :- { ", head);
         bld_.startSum(bound);
         for (auto const &[lit, weight] : body) {
             assert(weight > 0);
             bld_.addGoal(lit, weight);
+            // printf("%d=%d ", lit, weight);
         }
         prg_->addRule(bld_);
+        // printf("} >= %d.\n", bound);
     }
 
     void do_show(Symbol sym, Output::LitSpan body) override {
         buf_.reset();
         buf_ << sym;
         prg_->addOutput(buf_.c_str(), prg_->newCondition(body));
+        // printf("#show %s :", buf_.c_str());
+        // for (auto const &lit : body) {
+        //     printf(" %d", lit);
+        // }
+        // printf(".\n");
     }
 
     Util::OutputBuffer buf_;

@@ -171,9 +171,8 @@ class OutputBackend : public OutputStm, OutputTheory {
     OutputBackend(Backend &backend) : backend_{&backend} {};
 
   private:
-    void do_fact(Symbol sym, size_t uid) override {
+    void do_fact([[maybe_unused]] Symbol sym, size_t uid) override {
         backend().rule(std::array{uid_to_lit(uid)}, LitSpan{}, false);
-        backend().show(sym, std::array{uid_to_lit(uid)});
     }
 
     [[nodiscard]] auto do_body() -> OutputLit & override {
@@ -532,76 +531,6 @@ auto Backend::negate(lit_t lit) -> lit_t {
     return -neg;
 }
 
-namespace {
-
-auto check_rng(auto const &lower, auto const &upper, Relation rel, auto const &rhs) {
-    switch (rel) {
-        case Relation::greater_equal: {
-            // [l, u] >= rhs
-            if (lower >= rhs) {
-                return TruthValue::top;
-            }
-            if (upper < rhs) {
-                return TruthValue::bot;
-            }
-            return TruthValue::unknown;
-        }
-        case Relation::greater: {
-            // [l, u] > rhs
-            if (lower > rhs) {
-                return TruthValue::top;
-            }
-            if (upper <= rhs) {
-                return TruthValue::bot;
-            }
-            return TruthValue::unknown;
-        }
-        case Relation::less_equal: {
-            // [l, u] <= rhs
-            if (upper <= rhs) {
-                return TruthValue::top;
-            }
-            if (lower > rhs) {
-                return TruthValue::bot;
-            }
-            return TruthValue::unknown;
-        }
-        case Relation::less: {
-            // [l, u] < rhs
-            if (upper < rhs) {
-                return TruthValue::top;
-            }
-            if (lower >= rhs) {
-                return TruthValue::bot;
-            }
-            return TruthValue::unknown;
-        }
-        case Relation::equal: {
-            // [l, u] = rhs
-            if (lower == upper && lower == rhs) {
-                return TruthValue::top;
-            }
-            if (lower > rhs || upper < rhs) {
-                return TruthValue::bot;
-            }
-            return TruthValue::unknown;
-        }
-        case Relation::not_equal: {
-            // [l, u] != rhs
-            if (lower > rhs || upper < rhs) {
-                return TruthValue::top;
-            }
-            if (lower == upper && lower == rhs) {
-                return TruthValue::bot;
-            }
-            return TruthValue::unknown;
-        }
-    }
-    Util::unreachable();
-}
-
-} // namespace
-
 //! Analyze a sum aggregate.
 //!
 //! Constructs a new aggregate element vector removing unnecessary elements,
@@ -626,7 +555,8 @@ auto Backend::analyze_sum_(BdAggrElemSpan elems, GuardSpan guards)
                     get<0>(elem_vec[it.value()]) += num;
                 } else {
                     aux2_.assign(conds.begin(), conds.end());
-                    elem_vec.emplace_back(std::move(num), dnf_({aux2_.begin(), aux2_.end()}));
+                    elem_vec.emplace_back(std::move(num),
+                                          clause_({aux2_.begin(), aux2_.end()}, ClauseType::disjunctive));
                 }
             }
         }
@@ -751,7 +681,7 @@ void Backend::bd_aggr(lit_t lit, AggregateFunction fun, BdAggrElemSpan elems, Gu
             return "antimonotone";
         }() << "\n";
 #endif
-        sum_aggrs_.emplace_back(lit, std::move(elem_vec), std::move(range), std::move(bounds), type);
+        sum_aggrs_.emplace_back(lit, std::move(elem_vec), std::move(range), std::move(bounds));
     } else {
         throw std::logic_error("implement me: add support for remaining aggregates");
     }
@@ -777,7 +707,7 @@ auto Backend::clause_(LitSpan lits, ClauseType type) -> lit_t {
     if (aux1_.size() == 1) {
         return aux1_.front();
     }
-    auto [it, ins] = (type == ClauseType::conjunctive ? conds_ : dnfs_).emplace(std::move(aux1_), 0);
+    auto [it, ins] = (type == ClauseType::conjunctive ? conds_ : disjunctions_).emplace(std::move(aux1_), 0);
     if (ins) {
         it.value() = next_lit();
         for (auto const &lit : it->first) {
@@ -791,10 +721,8 @@ auto Backend::clause_(LitSpan lits, ClauseType type) -> lit_t {
 
 auto Backend::cond(LitSpan lits) -> lit_t { return clause_(lits, ClauseType::conjunctive); }
 
-auto Backend::dnf_(LitSpan lits) -> lit_t { return clause_(lits, ClauseType::disjunctive); }
-
-void Backend::tr_dnfs_() {
-    for (auto const &[clause, lit] : dnfs_) {
+void Backend::tr_disjunctions() {
+    for (auto const &[clause, lit] : disjunctions_) {
         assert(lit > 0);
         auto const &lit_info = info_(lit);
         if (lit_info.type != EQType::none) {
@@ -812,7 +740,7 @@ void Backend::tr_dnfs_() {
     }
 }
 
-void Backend::tr_conds_() {
+void Backend::tr_conjunctions_() {
     for (auto const &[cond, lit] : conds_) {
         assert(lit > 0);
         auto const &lit_info = info_(lit);
@@ -880,7 +808,7 @@ void Backend::tr_cond_lits_() {
 }
 
 void Backend::tr_aggr_() {
-    for (auto &[lit, elems, range, bounds, type] : sum_aggrs_) {
+    for (auto &[lit, elems, range, bounds] : sum_aggrs_) {
         // check which kind of literals are cyclic
         auto is_recursive = [lit, this](lit_t clit) {
             return lit > 0 && clit > 0 && info_(clit).scc == info_(lit).scc;
@@ -949,6 +877,9 @@ void Backend::tr_aggr_() {
             auto lit_upper = has_lower && has_upper ? next_lit() : lit;
             if (has_lower) {
                 if (has_neg_cycle && !has_pos_cycle) {
+                    if (lit == lit_lower) {
+                        lit_lower = next_lit();
+                    }
                     translate(lit_lower, flip(elems), -bound.left.bound + 1);
                     lit_lower = -lit_lower;
                 } else {
@@ -957,14 +888,21 @@ void Backend::tr_aggr_() {
             }
             if (has_upper) {
                 if (!has_neg_cycle) {
+                    if (lit == lit_upper) {
+                        lit_upper = next_lit();
+                    }
                     translate(lit_upper, elems, bound.right.bound + 1);
                     lit_upper = -lit_upper;
                 } else {
                     translate(lit_upper, flip(elems), -bound.right.bound);
                 }
             }
-            if (has_lower && has_upper) {
+            if (lit != lit_lower && lit != lit_upper) {
                 rule(std::array{lit}, std::array{lit_lower, lit_upper}, false);
+            } else if (lit != lit_lower) {
+                rule(std::array{lit}, std::array{lit_lower}, false);
+            } else if (lit != lit_upper) {
+                rule(std::array{lit}, std::array{lit_upper}, false);
             }
         }
 
@@ -994,8 +932,8 @@ void Backend::end_step() {
     });
     tr_cond_lits_();
     tr_aggr_();
-    tr_dnfs_();
-    tr_conds_();
+    tr_disjunctions();
+    tr_conjunctions_();
     graph_.clear();
 }
 

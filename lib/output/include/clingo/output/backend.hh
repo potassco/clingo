@@ -61,9 +61,6 @@ using GuardSpan = std::span<Guard const>;
 //! A vector of guards.
 using GuardVec = std::vector<Guard>;
 
-//! Which weights have to be considered for cycle computation.
-enum class CycleType : uint8_t { none, positive, negative, both };
-[[maybe_unused]] void is_bit_set_enum(CycleType type);
 //! A set of numbers.
 using NumberSet = Util::interval_set<Number>;
 
@@ -164,6 +161,11 @@ class Backend {
         conjunctive,
     };
 
+    //! Which weights have to be considered for cycle computation.
+    enum class CycleType : uint8_t { none, positive, negative, both };
+
+    friend void is_bit_set_enum(CycleType type);
+
     struct LitInfo {
         id_t scc = 0;
         lit_t neg = 0;
@@ -176,7 +178,7 @@ class Backend {
     //! A vector of sum aggregate elements.
     using BdSumAggrElemVec = std::vector<BdSumAggrElem>;
     //! A vector of sum aggregates.
-    using BdSumAggrVec = std::vector<std::tuple<lit_t, BdSumAggrElemVec, NumberSet::interval, NumberSet, CycleType>>;
+    using BdSumAggrVec = std::vector<std::tuple<lit_t, BdSumAggrElemVec, NumberSet::interval, NumberSet>>;
 
     using LitMap = std::vector<LitInfo>;
     using ClauseMap = Util::ordered_map<Output::LitVec, lit_t>;
@@ -191,10 +193,10 @@ class Backend {
     void mark_(lit_t lit, EQType type);
 
     //! Translate conditions based on how they are used.
-    void tr_conds_();
+    void tr_conjunctions_();
 
     //! Translate dnfs based on how they are used.
-    void tr_dnfs_();
+    void tr_disjunctions();
 
     //! @param sccs strongly connected components of literals
     void tr_cond_lits_();
@@ -209,9 +211,6 @@ class Backend {
     //! Get a literal equivalent to the given clause.
     auto clause_(LitSpan lits, ClauseType type) -> lit_t;
 
-    //! Get a literal equivalent to the disjunction of the literals.
-    auto dnf_(LitSpan lits) -> lit_t;
-
     SymbolStore *store_;
     Output::lit_t lit_ = 0;
     Output::LitVec aux1_;
@@ -219,7 +218,7 @@ class Backend {
     Util::Graph graph_;
     LitMap lits_;
     ClauseMap conds_;
-    ClauseMap dnfs_;
+    ClauseMap disjunctions_;
     CondLits cond_lits_;
     BdSumAggrVec sum_aggrs_;
 };
