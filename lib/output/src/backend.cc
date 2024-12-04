@@ -876,6 +876,9 @@ void Backend::tr_aggr_() {
             auto lit_lower = has_lower && has_upper ? next_lit() : lit;
             auto lit_upper = has_lower && has_upper ? next_lit() : lit;
             if (has_lower) {
+                // Note: that the conditions could be weakend dropping
+                // `has_neg_cycle`. I am not sure which variant would work
+                // better in practice.
                 if (has_neg_cycle && !has_pos_cycle) {
                     if (lit == lit_lower) {
                         lit_lower = next_lit();
@@ -886,6 +889,7 @@ void Backend::tr_aggr_() {
                     translate(lit_lower, elems, bound.left.bound);
                 }
             }
+            // symmetric case for upper bounds
             if (has_upper) {
                 if (!has_neg_cycle) {
                     if (lit == lit_upper) {
