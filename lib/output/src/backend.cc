@@ -907,9 +907,9 @@ void Backend::tr_aggr_() {
         }
 
         // add disjunctions for recursive literals
-        auto it = nlits.begin();
+        auto it = elems.begin();
         for (auto const &nlit : nlits) {
-            auto clit = *it++;
+            auto clit = it++->second;
             mark_(clit, nlit > 0 ? EQType::equivalence : EQType::implication);
             if (nlit > 0) {
                 // nlit :- lit.                % saturate
