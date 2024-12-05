@@ -29,21 +29,30 @@ auto uid_to_lit(size_t uid) -> lit_t {
 //! other forms of backends).
 class Translator {
   public:
+    //! Guard
+    using Guard = std::pair<Relation, Symbol>;
+    //! A span of guards.
+    using GuardSpan = std::span<Guard const>;
+    //! A sum aggregate element.
+    using BdAggrElem = std::pair<SymbolSpan, IndexSpan>;
+    //! A span of aggregate elements.
+    using BdAggrElemSpan = std::span<BdAggrElem const>;
+    //! A conditional literal consisting of a conclusion and a premise.
+    //!
+    //! Conclusions and premises are represented by ids referring to conditions,
+    //! which, in turn, are sets of literals. In the current implementation, the
+    //! condition is either absent or consists of exactly one literal. If the
+    //! conclusion is absent, it is considered to be false.
+    using CondLit = std::pair<std::optional<id_t>, id_t>;
+    //! A span of conditional literals.
+    using CondLitSpan = std::span<CondLit const>;
+
     Translator(Backend &backend) : backend_{&backend} {};
 
     //! Return a fresh literal.
     //!
-    //! All literals should be created using this function.
-    //!
     //! @return the fresh literal
-    auto next_lit() -> Output::lit_t {
-        auto lit = backend_->next_lit();
-        assert(lit > 0);
-        while (static_cast<lit_t>(lits_.size()) < lit) {
-            lits_.emplace_back();
-        }
-        return lit;
-    }
+    auto next_lit() -> Output::lit_t { return backend_->next_lit(); }
 
     //! Negate the given literal.
     //!
@@ -58,10 +67,10 @@ class Translator {
         if (lit > 0) {
             return -lit;
         }
-        auto &neg = info_(lit).neg;
+        auto &neg = info_(-lit).neg;
         if (neg == 0) {
             neg = next_lit();
-            rule(std::array{neg}, std::array{lit}, false);
+            backend_->rule(std::array{neg}, std::array{lit}, false);
         }
         return -neg;
     }
@@ -97,15 +106,15 @@ class Translator {
     //! @param elems the elements of the aggregate
     //! @param guard the aggregate guards
     void bd_aggr(lit_t lit, AggregateFunction fun, BdAggrElemSpan elems, GuardSpan guards) {
-        assert(fun != AggregateFunction::count);
+        assert(lit > 0 && fun != AggregateFunction::count);
         if (fun == AggregateFunction::sum || fun == AggregateFunction::sump) {
             auto [elem_vec, range, bounds, type] = analyze_sum_(elems, guards);
             if (bounds.contains(range)) {
-                rule(std::array{lit}, std::array<lit_t, 0>{}, false);
+                rule(std::array{lit}, {}, false);
                 return;
             }
             if (bounds.empty()) {
-                rule(std::array{negate(lit)}, LitSpan{}, false);
+                rule({}, std::array{lit}, false);
                 return;
             }
             // add edges based on the monotonicity of the aggregate
@@ -149,22 +158,29 @@ class Translator {
 
     //! Add a disjunctive or choice rule.
     //!
-    //! Note that negative literals in the head are supported.
+    //! Note that negative literals in the head are supported. They are shifted
+    //! before passing them to the backend.
     //!
     //! @param head the literals forming the head
     //! @param body the literals forming the body
     //! @param choice whether the rule is a choice or disjunctive rule
     void rule(LitSpan head, LitSpan body, bool choice) {
+        aux_hd_.clear();
+        aux_bd_.clear();
         for (auto const &hlit : head) {
             if (hlit > 0) {
+                aux_hd_.emplace_back(hlit);
                 for (auto const &blit : body) {
                     if (blit > 0) {
                         graph_.add_edge(hlit, blit);
                     }
                 }
+            } else if (!choice) {
+                aux_bd_.emplace_back(negate(hlit));
             }
         }
-        backend_->rule(head, body, choice);
+        aux_bd_.insert(aux_bd_.end(), body.begin(), body.end());
+        backend_->rule(aux_hd_, aux_bd_, choice);
     }
 
     //! Finish a grounding step.
@@ -182,7 +198,7 @@ class Translator {
         });
         tr_cond_lits_();
         tr_aggr_();
-        tr_disjunctions();
+        tr_disjunctions_();
         tr_conjunctions_();
         graph_.clear();
     }
@@ -219,7 +235,7 @@ class Translator {
         EQType type = EQType::none;
     };
 
-    using LitVec = std::vector<lit_t>;
+    using NumberSet = Util::interval_set<Number>;
     //! A sum aggregate element.
     using BdSumAggrElem = std::pair<Number, lit_t>;
     //! A vector of sum aggregate elements.
@@ -229,21 +245,29 @@ class Translator {
 
     using LitMap = std::vector<LitInfo>;
     using ClauseMap = Util::ordered_map<Output::LitVec, lit_t>;
+    using CondLitVec = std::vector<std::pair<std::optional<lit_t>, lit_t>>;
     using CondLits = std::vector<std::pair<lit_t, CondLitVec>>;
 
+    //! Get the literal info for an atom.
     [[nodiscard]] auto info_(lit_t lit) -> LitInfo & {
         assert(lit > 0);
+        while (static_cast<lit_t>(lits_.size()) < lit) {
+            lits_.emplace_back();
+        }
         return lits_[lit - 1];
     }
 
+    //! Mark a literal with the given equivalence type.
+    //!
+    //! If the literal is associated with a clause, the equivalence between
+    //! literal and clause is established accordingly.
     void mark_(lit_t lit, EQType type) {
-        // maybe mark literal to have type
         if (lit > 0) {
             info_(lit).type = std::max(info_(lit).type, type);
         }
     }
 
-    //! Translate conditions based on how they are used.
+    //! Translate stored conjunctions.
     void tr_conjunctions_() {
         for (auto const &[cond, lit] : conds_) {
             assert(lit > 0);
@@ -261,8 +285,12 @@ class Translator {
         }
     }
 
-    //! Translate dnfs based on how they are used.
-    void tr_disjunctions() {
+    //! Translate stored disjunctions.
+    //!
+    //! Since disjunctions can have conjunctions as elements, those are marked
+    //! with the same equivalence type as the disjunction here. Conjunctions
+    //! must be translated after the disjunctions.
+    void tr_disjunctions_() {
         for (auto const &[clause, lit] : disjunctions_) {
             assert(lit > 0);
             auto const &lit_info = info_(lit);
@@ -275,17 +303,29 @@ class Translator {
                 }
             }
             if (lit_info.type == EQType::equivalence) {
-                // TODO: non-cyclic literals better be shifted
-                backend_->rule(clause, std::array{lit}, false);
+                aux_hd_.clear();
+                aux_hd_.emplace_back(lit);
+                aux_bd_.clear();
+                for (auto const &clit : clause) {
+                    if (clit < 0) {
+                        aux_bd_.emplace_back(negate(clit));
+                    } else if (clit > 0 && info_(lit).scc != info_(clit).scc) {
+                        aux_bd_.emplace_back(-clit);
+                    } else {
+                        aux_hd_.emplace_back(clit);
+                    }
+                }
+                backend_->rule(aux_hd_, aux_bd_, false);
             }
         }
     }
 
-    //! @param sccs strongly connected components of literals
+    //! Translate stored conditional literals.
     void tr_cond_lits_() {
         for (auto const &[lit, elems] : cond_lits_) {
-            aux2_.clear();
-            aux2_.reserve(elems.size());
+            assert(lit > 0);
+            aux_bd_.clear();
+            aux_bd_.reserve(elems.size());
             // Below, we us the following variable names:
             // - K: new uid replacing G : F in the body
             // - G: captures the conclusion
@@ -306,25 +346,26 @@ class Translator {
                         mark_(f, EQType::equivalence);
                         backend_->rule(std::array{k, f}, std::array{negate(negate(*g))}, false);
                     }
-                    aux2_.emplace_back(k);
+                    aux_bd_.emplace_back(k);
                 } else {
-                    aux2_.emplace_back(negate(f));
+                    aux_bd_.emplace_back(negate(f));
                 }
             }
-            backend_->rule(std::array{lit}, aux2_, false);
+            backend_->rule(std::array{lit}, aux_bd_, false);
         }
     }
 
-    //! Translate aggregate literals taking positive cycles into account.
+    //! Translate stored aggregate literals.
     void tr_aggr_() {
         for (auto &[lit, elems, range, bounds] : sum_aggrs_) {
+            assert(lit > 0);
             // check which kind of literals are cyclic
             auto is_recursive = [lit, this](lit_t clit) {
                 return lit > 0 && clit > 0 && info_(clit).scc == info_(lit).scc;
             };
             auto has_pos_cycle = false; // cycle through atom with *positive* weight
             auto has_neg_cycle = false; // cycle through atom with *negative* weight
-            if (lit > 0 && info_(lit).scc > 0) {
+            if (info_(lit).scc > 0) {
                 for (auto const &[num, clit] : elems) {
                     if (is_recursive(clit)) {
                         if (bounds.size() == 1) {
@@ -355,6 +396,7 @@ class Translator {
             // translate aggregate in lower bound form
             auto nlits = std::vector<lit_t>(elems.size(), 0);
             auto translate = [&](lit_t lit, BdSumAggrElemVec const &elems, Number bound) {
+                assert(lit > 0);
                 auto wlits = std::vector<std::pair<lit_t, weight_t>>{};
                 wlits.reserve(elems.size());
                 auto it = nlits.begin();
@@ -368,7 +410,7 @@ class Translator {
                         } else {
                             if (nlit == 0) {
                                 nlit = next_lit();
-                                rule(std::array{nlit}, std::array{negate(clit)}, false);
+                                backend_->rule(std::array{nlit}, std::array{negate(clit)}, false);
                             }
                             wlits.emplace_back(nlit, to_int(-weight));
                         }
@@ -411,11 +453,11 @@ class Translator {
                     }
                 }
                 if (lit != lit_lower && lit != lit_upper) {
-                    rule(std::array{lit}, std::array{lit_lower, lit_upper}, false);
+                    backend_->rule(std::array{lit}, std::array{lit_lower, lit_upper}, false);
                 } else if (lit != lit_lower) {
-                    rule(std::array{lit}, std::array{lit_lower}, false);
+                    backend_->rule(std::array{lit}, std::array{lit_lower}, false);
                 } else if (lit != lit_upper) {
-                    rule(std::array{lit}, std::array{lit_upper}, false);
+                    backend_->rule(std::array{lit}, std::array{lit_upper}, false);
                 }
             }
 
@@ -426,9 +468,9 @@ class Translator {
                 mark_(clit, nlit > 0 ? EQType::equivalence : EQType::implication);
                 if (nlit > 0) {
                     // nlit :- lit.                % saturate
-                    rule(std::array{nlit}, std::array{lit}, false);
+                    backend_->rule(std::array{nlit}, std::array{lit}, false);
                     // nlit | clit :- not not lit. % guess
-                    rule(std::array{nlit, clit, negate(lit)}, {}, false);
+                    backend_->rule(std::array{nlit, clit}, std::array{negate(negate(lit))}, false);
                 }
             }
         }
@@ -457,9 +499,9 @@ class Translator {
                     if (auto [it, ins] = cond_map.try_emplace(conds, elem_vec.size()); !ins) {
                         get<0>(elem_vec[it.value()]) += num;
                     } else {
-                        aux2_.assign(conds.begin(), conds.end());
+                        aux_bd_.assign(conds.begin(), conds.end());
                         elem_vec.emplace_back(std::move(num),
-                                              clause_({aux2_.begin(), aux2_.end()}, ClauseType::disjunctive));
+                                              clause_({aux_bd_.begin(), aux_bd_.end()}, ClauseType::disjunctive));
                     }
                 }
             }
@@ -541,13 +583,13 @@ class Translator {
 
     //! Get a literal equivalent to the given clause.
     auto clause_(LitSpan lits, ClauseType type) -> lit_t {
-        aux1_.assign(lits.begin(), lits.end());
-        std::ranges::sort(aux1_);
-        aux1_.erase(std::ranges::unique(aux1_).begin(), aux1_.end());
-        if (aux1_.size() == 1) {
-            return aux1_.front();
+        aux_bd_.assign(lits.begin(), lits.end());
+        std::ranges::sort(aux_bd_);
+        aux_bd_.erase(std::ranges::unique(aux_bd_).begin(), aux_bd_.end());
+        if (aux_bd_.size() == 1) {
+            return aux_bd_.front();
         }
-        auto [it, ins] = (type == ClauseType::conjunctive ? conds_ : disjunctions_).emplace(std::move(aux1_), 0);
+        auto [it, ins] = (type == ClauseType::conjunctive ? conds_ : disjunctions_).emplace(aux_hd_, 0);
         if (ins) {
             it.value() = next_lit();
             for (auto const &lit : it->first) {
@@ -560,9 +602,8 @@ class Translator {
     }
 
     Backend *backend_;
-    Output::lit_t lit_ = 0;
-    Output::LitVec aux1_;
-    Output::LitVec aux2_;
+    Output::LitVec aux_hd_;
+    Output::LitVec aux_bd_;
     Util::Graph graph_;
     LitMap lits_;
     ClauseMap conds_;
@@ -570,30 +611,6 @@ class Translator {
     CondLits cond_lits_;
     BdSumAggrVec sum_aggrs_;
 };
-
-/* TODO: maybe remove those
-//! Convert a uid to an atom.
-//!
-//! @pre 1 <= uid <= lit_max
-//!
-//! @param uid the uid to convert
-//! @return the resulting atom
-auto uid_to_atom(size_t uid) -> atom_t {
-    assert(1 <= uid && uid <= static_cast<atom_t>(lit_max));
-    return static_cast<atom_t>(uid);
-}
-
-//! Get the atom corresponding to a literal.
-//!
-//! @pre lit != 0 && lit >= lit_min
-//!
-//! @param lit the literal to convert
-//! @return the resulting atom
-auto lit_to_atom(lit_t lit) -> atom_t {
-    assert(lit != 0 && lit >= lit_min);
-    return static_cast<atom_t>(lit);
-}
-*/
 
 //! Output handling conditions.
 //!

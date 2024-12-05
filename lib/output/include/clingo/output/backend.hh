@@ -31,38 +31,10 @@ using atom_t = uint32_t;
 using weight_t = int32_t;
 //! A span of program literals.
 using LitSpan = std::span<lit_t const>;
-//! A vector of program literals.
+//! A vector of literals.
 using LitVec = std::vector<lit_t>;
 //! A vector of program literals.
 using WeightedLitSpan = std::span<std::pair<lit_t, weight_t>>;
-
-//! A conditional literal consisting of a conclusion and a premise.
-//!
-//! Conclusions and premises are represented by ids referring to conditions,
-//! which, in turn, are sets of literals. In the current implementation, the
-//! condition is either absent or consists of exactly one literal. If the
-//! conclusion is absent, it is considered to be false.
-using CondLit = std::pair<std::optional<id_t>, id_t>;
-//! A span of conditional literals.
-using CondLitSpan = std::span<CondLit const>;
-//! A vector of conditional literals.
-using CondLitVec = std::vector<std::pair<std::optional<lit_t>, lit_t>>;
-
-//! A sum aggregate element.
-using BdAggrElem = std::pair<SymbolSpan, IndexSpan>;
-//! A span of aggregate elements.
-using BdAggrElemSpan = std::span<BdAggrElem const>;
-//! A vector of aggregate elements.
-using BdAggrElemVec = std::vector<BdAggrElem>;
-//! Guard
-using Guard = std::pair<Relation, Symbol>;
-//! A span of guards.
-using GuardSpan = std::span<Guard const>;
-//! A vector of guards.
-using GuardVec = std::vector<Guard>;
-
-//! A set of numbers.
-using NumberSet = Util::interval_set<Number>;
 
 //! The maximum literal.
 static constexpr auto lit_max = std::numeric_limits<lit_t>::max();

@@ -57,49 +57,24 @@ class BackendClasp : public Output::Backend {
     BackendClasp(Clasp::Asp::LogicProgram &prg) : prg_{&prg} {}
 
   private:
-    static constexpr auto lit_max = std::numeric_limits<Output::lit_t>::max();
-
     auto do_next_lit() -> Output::lit_t override {
-        if (lit_ < lit_max) {
+        if (lit_ < Output::lit_max) {
             return ++lit_;
         }
         throw std::range_error("literals number of literals exhausted");
     }
 
     void do_rule(Output::LitSpan head, Output::LitSpan body, bool choice) override {
-        aux_.clear();
-        if (!choice) {
-            for (auto const &lit : head) {
-                if (lit < 0) {
-                    auto aux = next_lit();
-                    aux_.emplace_back(-aux);
-                    bld_.clear();
-                    bld_.start();
-                    // printf("%d ", aux);
-                    bld_.addHead(aux);
-                    // printf(" :- ");
-                    bld_.addGoal(lit);
-                    // printf("%d ", lit);
-                    prg_->addRule(bld_);
-                    // printf(".\n");
-                }
-            }
-        }
         bld_.clear();
         bld_.start(choice ? Potassco::Head_t::choice : Potassco::Head_t::disjunctive);
         for (auto const &lit : head) {
-            if (lit > 0) {
-                // printf("%d ", lit);
-                bld_.addHead(lit);
-            }
+            assert(lit > 0);
+            // printf("%d ", lit);
+            bld_.addHead(lit);
         }
         // printf(" :- ");
         bld_.startBody();
         for (auto const &lit : body) {
-            // printf("%d ", lit);
-            bld_.addGoal(lit);
-        }
-        for (auto const &lit : aux_) {
             // printf("%d ", lit);
             bld_.addGoal(lit);
         }
@@ -137,7 +112,6 @@ class BackendClasp : public Output::Backend {
 
     Output::lit_t lit_ = 0;
     Util::OutputBuffer buf_;
-    Output::LitVec aux_;
     Potassco::RuleBuilder bld_;
     Clasp::Asp::LogicProgram *prg_;
 };
