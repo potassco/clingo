@@ -54,9 +54,18 @@ namespace {
 
 class BackendClasp : public Output::Backend {
   public:
-    BackendClasp(Clasp::Asp::LogicProgram &prg, SymbolStore &store) : Output::Backend(store), prg_{&prg} {}
+    BackendClasp(Clasp::Asp::LogicProgram &prg) : prg_{&prg} {}
 
   private:
+    static constexpr auto lit_max = std::numeric_limits<Output::lit_t>::max();
+
+    auto do_next_lit() -> Output::lit_t override {
+        if (lit_ < lit_max) {
+            return ++lit_;
+        }
+        throw std::range_error("literals number of literals exhausted");
+    }
+
     void do_rule(Output::LitSpan head, Output::LitSpan body, bool choice) override {
         aux_.clear();
         if (!choice) {
@@ -126,6 +135,7 @@ class BackendClasp : public Output::Backend {
         // printf(".\n");
     }
 
+    Output::lit_t lit_ = 0;
     Util::OutputBuffer buf_;
     Output::LitVec aux_;
     Potassco::RuleBuilder bld_;
@@ -135,14 +145,14 @@ class BackendClasp : public Output::Backend {
 } // namespace
 
 Solver::Solver(Logger &log, SymbolStore &store, Scripts &scripts, Input::RewriteOptions opts, AppMode mode, FILE *out)
-    : buf_{out}, out_{make_output_(mode, store)}, grd_{log, store, opts, *out_}, scripts_{&scripts}, mode_{mode} {}
+    : buf_{out}, out_{make_output_(mode)}, grd_{log, store, opts, *out_}, scripts_{&scripts}, mode_{mode} {}
 
-auto Solver::make_output_(AppMode mode, SymbolStore &store) -> UOutputStm {
+auto Solver::make_output_(AppMode mode) -> UOutputStm {
     switch (mode) {
         case AppMode::solve: {
             // TODO: find a better place to do this
             cfg_.solve.numModels = 0;
-            backend_ = std::make_unique<BackendClasp>(clasp_.startAsp(cfg_, true), store);
+            backend_ = std::make_unique<BackendClasp>(clasp_.startAsp(cfg_, true));
             return Output::make_backend_output(*backend_);
         }
         default: {

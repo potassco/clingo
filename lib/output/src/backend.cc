@@ -23,6 +23,554 @@ auto uid_to_lit(size_t uid) -> lit_t {
     return static_cast<int32_t>(uid);
 }
 
+//! Abstract class connecting grounder and solver.
+//!
+//! The backend is repsonsible for passig grounded statements to the solver (or
+//! other forms of backends).
+class Translator {
+  public:
+    Translator(Backend &backend) : backend_{&backend} {};
+
+    //! Return a fresh literal.
+    //!
+    //! All literals should be created using this function.
+    //!
+    //! @return the fresh literal
+    auto next_lit() -> Output::lit_t {
+        auto lit = backend_->next_lit();
+        assert(lit > 0);
+        while (static_cast<lit_t>(lits_.size()) < lit) {
+            lits_.emplace_back();
+        }
+        return lit;
+    }
+
+    //! Negate the given literal.
+    //!
+    //! Introduces a Tseitin literal if the given literal is negative. Flag rec
+    //! can be set to false if the literal occurrence does not occur in a
+    //! positive cycle.
+    //!
+    //! @param lit the literal to negate
+    //! @return the negated literal
+    auto negate(lit_t lit) -> lit_t {
+        assert(lit != 0 && lit >= lit_min);
+        if (lit > 0) {
+            return -lit;
+        }
+        auto &neg = info_(lit).neg;
+        if (neg == 0) {
+            neg = next_lit();
+            rule(std::array{neg}, std::array{lit}, false);
+        }
+        return -neg;
+    }
+
+    //! Get a literal equivalent to the conjunction of the given literals.
+    //!
+    //! @param lits the literals
+    auto cond(LitSpan lits) -> lit_t { return clause_(lits, ClauseType::conjunctive); }
+
+    //! Define a conjunction of conditional literal.
+    //!
+    //! The given literal is derived by the given conditional literals.
+    //!
+    //! @param lit the literal that is derived
+    //! @param elems the elements forming the conditional literal
+    void cond_lit(lit_t lit, CondLitSpan elems) {
+        for (auto const &elem : elems) {
+            if (auto const &[id_conc, id_prem] = elem; id_conc && lit > 0 && *id_conc > 0) {
+                graph_.add_edge(lit, *id_conc);
+            }
+        }
+        cond_lits_.emplace_back(std::piecewise_construct, std::forward_as_tuple(lit),
+                                std::forward_as_tuple(elems.begin(), elems.end()));
+    }
+
+    //! Define a sum aggregate.
+    //!
+    //! The condition ids of the aggregate elements can be obtained using
+    //! function `cond()`.
+    //!
+    //! @param lit the literal that is derived
+    //! @param fun the aggregate function
+    //! @param elems the elements of the aggregate
+    //! @param guard the aggregate guards
+    void bd_aggr(lit_t lit, AggregateFunction fun, BdAggrElemSpan elems, GuardSpan guards) {
+        assert(fun != AggregateFunction::count);
+        if (fun == AggregateFunction::sum || fun == AggregateFunction::sump) {
+            auto [elem_vec, range, bounds, type] = analyze_sum_(elems, guards);
+            if (bounds.contains(range)) {
+                rule(std::array{lit}, std::array<lit_t, 0>{}, false);
+                return;
+            }
+            if (bounds.empty()) {
+                rule(std::array{negate(lit)}, LitSpan{}, false);
+                return;
+            }
+            // add edges based on the monotonicity of the aggregate
+            if (type != CycleType::none) {
+                for (auto const &[num, clit] : elem_vec) {
+                    if (clit > 0 && ((test(type, CycleType::positive) && num > 0) ||
+                                     (test(type, CycleType::negative) && num < 0))) {
+                        graph_.add_edge(lit, clit);
+                    }
+                }
+            }
+
+#define GRINGO_DEBUG_AGGREGATES
+#ifdef GRINGO_DEBUG_AGGREGATES
+            std::cerr << "handle aggregate: \n";
+            std::cerr << "  fun: " << fun << "\n";
+            std::cerr << "  range: " << (range.left.inclusive ? "[" : "(") << range.left.bound << ","
+                      << range.right.bound << (range.right.inclusive ? "]" : ")") << "\n";
+            std::cerr << "  bounds:";
+            for (auto const &[left, right] : bounds) {
+                std::cerr << (left.inclusive ? "[" : "(") << left.bound << "," << right.bound
+                          << (right.inclusive ? "]" : ")");
+            }
+            std::cerr << "\n";
+            // Note: workaround for buggy clang-tidy diagnostic
+            std::cerr << "  monotonicity: " << [&t = type]() {
+                if (t == CycleType::both) {
+                    return "nonmonotone";
+                }
+                if (t != CycleType::none) {
+                    return "convex";
+                }
+                return "antimonotone";
+            }() << "\n";
+#endif
+            sum_aggrs_.emplace_back(lit, std::move(elem_vec), std::move(range), std::move(bounds));
+        } else {
+            throw std::logic_error("implement me: add support for remaining aggregates");
+        }
+    }
+
+    //! Add a disjunctive or choice rule.
+    //!
+    //! Note that negative literals in the head are supported.
+    //!
+    //! @param head the literals forming the head
+    //! @param body the literals forming the body
+    //! @param choice whether the rule is a choice or disjunctive rule
+    void rule(LitSpan head, LitSpan body, bool choice) {
+        for (auto const &hlit : head) {
+            if (hlit > 0) {
+                for (auto const &blit : body) {
+                    if (blit > 0) {
+                        graph_.add_edge(hlit, blit);
+                    }
+                }
+            }
+        }
+        backend_->rule(head, body, choice);
+    }
+
+    //! Finish a grounding step.
+    //!
+    //! Some language constructs require additional translation.
+    //! Such translations are applied here.
+    void end_step() {
+        size_t idx_scc = 0;
+        graph_.tarjan([&, this](std::vector<size_t> const &scc) {
+            assert(!scc.empty());
+            if (scc.size() > 1 || graph_.has_loop(scc.front())) {
+                ++idx_scc;
+                std::ranges::for_each(scc, [&](auto const &lit) { info_(uid_to_lit(lit)).scc = idx_scc; });
+            }
+        });
+        tr_cond_lits_();
+        tr_aggr_();
+        tr_disjunctions();
+        tr_conjunctions_();
+        graph_.clear();
+    }
+
+    //! She the given symbol if the given conditon is true.
+    void show(Symbol sym, LitSpan body) { backend_->show(sym, body); }
+
+  private:
+    //! Available condition types.
+    //!
+    //! Conditions are clauses associated with a literal. The equivalence between
+    //! the literal and the clause is either established with an implication (a
+    //! rule) or an equivalence.
+    enum class EQType : uint8_t {
+        none,        //!< the condition is not used
+        implication, //!< only forward direction is necessary
+        equivalence, //!< forward and backward directions are necessary
+    };
+
+    enum class ClauseType : uint8_t {
+        disjunctive,
+        conjunctive,
+    };
+
+    //! Which weights have to be considered for cycle computation.
+    enum class CycleType : uint8_t { none, positive, negative, both };
+
+    // NOLINTNEXTLINE
+    friend void is_bit_set_enum(CycleType type);
+
+    struct LitInfo {
+        id_t scc = 0;
+        lit_t neg = 0;
+        EQType type = EQType::none;
+    };
+
+    using LitVec = std::vector<lit_t>;
+    //! A sum aggregate element.
+    using BdSumAggrElem = std::pair<Number, lit_t>;
+    //! A vector of sum aggregate elements.
+    using BdSumAggrElemVec = std::vector<BdSumAggrElem>;
+    //! A vector of sum aggregates.
+    using BdSumAggrVec = std::vector<std::tuple<lit_t, BdSumAggrElemVec, NumberSet::interval, NumberSet>>;
+
+    using LitMap = std::vector<LitInfo>;
+    using ClauseMap = Util::ordered_map<Output::LitVec, lit_t>;
+    using CondLits = std::vector<std::pair<lit_t, CondLitVec>>;
+
+    [[nodiscard]] auto info_(lit_t lit) -> LitInfo & {
+        assert(lit > 0);
+        return lits_[lit - 1];
+    }
+
+    void mark_(lit_t lit, EQType type) {
+        // maybe mark literal to have type
+        if (lit > 0) {
+            info_(lit).type = std::max(info_(lit).type, type);
+        }
+    }
+
+    //! Translate conditions based on how they are used.
+    void tr_conjunctions_() {
+        for (auto const &[cond, lit] : conds_) {
+            assert(lit > 0);
+            auto const &lit_info = info_(lit);
+            if (lit_info.type != EQType::none) {
+                backend_->rule(std::array{lit}, cond, false);
+            }
+            if (lit_info.type == EQType::equivalence && lit_info.scc > 0) {
+                for (auto const &clit : cond) {
+                    if (clit > 0 && info_(clit).scc == lit_info.scc) {
+                        backend_->rule(std::array{clit}, std::array{lit}, false);
+                    }
+                }
+            }
+        }
+    }
+
+    //! Translate dnfs based on how they are used.
+    void tr_disjunctions() {
+        for (auto const &[clause, lit] : disjunctions_) {
+            assert(lit > 0);
+            auto const &lit_info = info_(lit);
+            if (lit_info.type != EQType::none) {
+                for (auto const &clit : clause) {
+                    if (clit > 0) {
+                        mark_(clit, lit_info.type);
+                    }
+                    backend_->rule(std::array{lit}, std::array{clit}, false);
+                }
+            }
+            if (lit_info.type == EQType::equivalence) {
+                // TODO: non-cyclic literals better be shifted
+                backend_->rule(clause, std::array{lit}, false);
+            }
+        }
+    }
+
+    //! @param sccs strongly connected components of literals
+    void tr_cond_lits_() {
+        for (auto const &[lit, elems] : cond_lits_) {
+            aux2_.clear();
+            aux2_.reserve(elems.size());
+            // Below, we us the following variable names:
+            // - K: new uid replacing G : F in the body
+            // - G: captures the conclusion
+            // - F: catures the premise
+            for (auto const &[g, f] : elems) {
+                mark_(f, EQType::implication);
+                if (g) {
+                    auto rec = lit > 0 && f > 0 && info_(lit).scc > 0 && info_(lit).scc == info_(f).scc;
+                    auto k = next_lit();
+                    // formula G : F is replaced by K
+                    // K :- G.
+                    // K :- not F.
+                    mark_(*g, EQType::implication);
+                    backend_->rule(std::array{k}, std::array{*g}, false);
+                    backend_->rule(std::array{k}, std::array{negate(f)}, false);
+                    if (rec) {
+                        // K | F :- not not G.
+                        mark_(f, EQType::equivalence);
+                        backend_->rule(std::array{k, f}, std::array{negate(negate(*g))}, false);
+                    }
+                    aux2_.emplace_back(k);
+                } else {
+                    aux2_.emplace_back(negate(f));
+                }
+            }
+            backend_->rule(std::array{lit}, aux2_, false);
+        }
+    }
+
+    //! Translate aggregate literals taking positive cycles into account.
+    void tr_aggr_() {
+        for (auto &[lit, elems, range, bounds] : sum_aggrs_) {
+            // check which kind of literals are cyclic
+            auto is_recursive = [lit, this](lit_t clit) {
+                return lit > 0 && clit > 0 && info_(clit).scc == info_(lit).scc;
+            };
+            auto has_pos_cycle = false; // cycle through atom with *positive* weight
+            auto has_neg_cycle = false; // cycle through atom with *negative* weight
+            if (lit > 0 && info_(lit).scc > 0) {
+                for (auto const &[num, clit] : elems) {
+                    if (is_recursive(clit)) {
+                        if (bounds.size() == 1) {
+                            has_pos_cycle = has_pos_cycle || num > 0;
+                            has_neg_cycle = has_neg_cycle || num < 0;
+                        } else {
+                            has_pos_cycle = has_neg_cycle = true;
+                        }
+                    }
+                }
+            }
+            auto flip = [](BdSumAggrElemVec const &elems) {
+                auto res = BdSumAggrElemVec{};
+                res.reserve(elems.size());
+                for (auto const &[num, cond] : elems) {
+                    res.emplace_back(-num, cond);
+                }
+                return res;
+            };
+
+            auto to_int = [](Number const &num) {
+                if (auto val = num.as_int()) {
+                    return *val;
+                }
+                throw std::range_error("number out of range");
+            };
+
+            // translate aggregate in lower bound form
+            auto nlits = std::vector<lit_t>(elems.size(), 0);
+            auto translate = [&](lit_t lit, BdSumAggrElemVec const &elems, Number bound) {
+                auto wlits = std::vector<std::pair<lit_t, weight_t>>{};
+                wlits.reserve(elems.size());
+                auto it = nlits.begin();
+                for (auto const &[weight, clit] : elems) {
+                    auto &nlit = *it++;
+                    if (weight > 0) {
+                        wlits.emplace_back(clit, to_int(weight));
+                    } else {
+                        if (!is_recursive(clit)) {
+                            wlits.emplace_back(negate(clit), to_int(-weight));
+                        } else {
+                            if (nlit == 0) {
+                                nlit = next_lit();
+                                rule(std::array{nlit}, std::array{negate(clit)}, false);
+                            }
+                            wlits.emplace_back(nlit, to_int(-weight));
+                        }
+                        bound -= weight;
+                    }
+                }
+                backend_->bd_aggr(lit, wlits, bound.as_int().value());
+            };
+
+            // translate all bounds of an aggregate
+            for (auto const &bound : bounds) {
+                bool has_lower = range.left.bound < bound;
+                bool has_upper = bound < range.right.bound;
+                auto lit_lower = has_lower && has_upper ? next_lit() : lit;
+                auto lit_upper = has_lower && has_upper ? next_lit() : lit;
+                if (has_lower) {
+                    // Note: that the conditions could be weakend dropping
+                    // `has_neg_cycle`. I am not sure which variant would work
+                    // better in practice.
+                    if (has_neg_cycle && !has_pos_cycle) {
+                        if (lit == lit_lower) {
+                            lit_lower = next_lit();
+                        }
+                        translate(lit_lower, flip(elems), -bound.left.bound + 1);
+                        lit_lower = -lit_lower;
+                    } else {
+                        translate(lit_lower, elems, bound.left.bound);
+                    }
+                }
+                // symmetric case for upper bounds
+                if (has_upper) {
+                    if (!has_neg_cycle) {
+                        if (lit == lit_upper) {
+                            lit_upper = next_lit();
+                        }
+                        translate(lit_upper, elems, bound.right.bound + 1);
+                        lit_upper = -lit_upper;
+                    } else {
+                        translate(lit_upper, flip(elems), -bound.right.bound);
+                    }
+                }
+                if (lit != lit_lower && lit != lit_upper) {
+                    rule(std::array{lit}, std::array{lit_lower, lit_upper}, false);
+                } else if (lit != lit_lower) {
+                    rule(std::array{lit}, std::array{lit_lower}, false);
+                } else if (lit != lit_upper) {
+                    rule(std::array{lit}, std::array{lit_upper}, false);
+                }
+            }
+
+            // add disjunctions for recursive literals
+            auto it = elems.begin();
+            for (auto const &nlit : nlits) {
+                auto clit = it++->second;
+                mark_(clit, nlit > 0 ? EQType::equivalence : EQType::implication);
+                if (nlit > 0) {
+                    // nlit :- lit.                % saturate
+                    rule(std::array{nlit}, std::array{lit}, false);
+                    // nlit | clit :- not not lit. % guess
+                    rule(std::array{nlit, clit, negate(lit)}, {}, false);
+                }
+            }
+        }
+    }
+
+    //! Analyze a sum aggregate.
+    //!
+    //! Constructs a new aggregate element vector removing unnecessary elements,
+    //! computes an interval for largest and smallest value of the aggregate, and
+    //! represents the guards of the aggreagte as an interval set. This interval set
+    //! is additionally intersected with the range.
+    auto analyze_sum_(BdAggrElemSpan elems,
+                      GuardSpan guards) -> std::tuple<BdSumAggrElemVec, NumberSet::interval, NumberSet, CycleType> {
+        // simplify the aggregate
+        auto fixed = Number(0);
+        auto elem_vec = BdSumAggrElemVec{};
+        auto cond_map = Util::unordered_map<IndexSpan, size_t>{};
+        elem_vec.reserve(elems.size());
+        cond_map.reserve(elems.size());
+        for (auto const &[tup, conds] : elems) {
+            if (!tup.empty() && tup.front().type() == SymbolType::number && tup.front().num() != 0) {
+                auto num = tup.front().num();
+                if (conds.empty()) {
+                    fixed += num;
+                } else {
+                    if (auto [it, ins] = cond_map.try_emplace(conds, elem_vec.size()); !ins) {
+                        get<0>(elem_vec[it.value()]) += num;
+                    } else {
+                        aux2_.assign(conds.begin(), conds.end());
+                        elem_vec.emplace_back(std::move(num),
+                                              clause_({aux2_.begin(), aux2_.end()}, ClauseType::disjunctive));
+                    }
+                }
+            }
+        }
+        elem_vec.erase(std::ranges::remove_if(elem_vec, [](auto const &x) { return std::get<0>(x) == 0; }).end(),
+                       elem_vec.end());
+        elem_vec.shrink_to_fit();
+        // comput the range of the aggregate
+        auto lower = Number(0);
+        auto upper = Number(0);
+        for (auto const &[num, clit] : elem_vec) {
+            if (num > 0) {
+                upper += num;
+            } else {
+                lower += num;
+            }
+        }
+        // compute the bounds of the aggregate
+        auto bounds = Util::interval_set<Number>{};
+        auto range = Util::interval_set<Number>::interval{{lower, true}, {upper, true}};
+        bounds.add(range);
+        for (auto const &[rel, guard] : guards) {
+            // Note: workaround for buggy clang-tidy diagnostic
+            auto adjust = [&, &g = guard]() {
+                if (g.type() == SymbolType::number) {
+                    return g.num() - fixed;
+                }
+                if (g > upper) {
+                    return upper + 1;
+                }
+                assert(g < lower);
+                return lower - 1;
+            }();
+            switch (rel) {
+                case Relation::greater_equal: {
+                    bounds.remove({{lower, true}, {adjust, false}});
+                    break;
+                }
+                case Relation::greater: {
+                    bounds.remove({{lower, true}, {adjust + 1, false}});
+                    break;
+                }
+                case Relation::less_equal: {
+                    bounds.remove({{adjust, false}, {upper, true}});
+                    break;
+                }
+                case Relation::less: {
+                    bounds.remove({{adjust - 1, false}, {upper, true}});
+                    break;
+                }
+                case Relation::equal: {
+                    bounds.remove({{lower, true}, {adjust, false}});
+                    bounds.remove({{adjust, false}, {upper, true}});
+                    break;
+                }
+                case Relation::not_equal: {
+                    bounds.remove({{adjust - 1, false}, {adjust + 1, false}});
+                    break;
+                }
+            }
+        }
+        // classify which types of cycles have to be considered
+        auto type = bounds.size() > 1 ? CycleType::both : CycleType::none;
+        if (type != CycleType::both && bounds.size() == 1 && !bounds.contains(range)) {
+            auto const &sub = bounds.front();
+            if (lower < 0 && upper > 0) {
+                // the aggregate can switch arbitrarily between true and false
+                type = CycleType::both;
+            } else if (lower < 0 && sub < upper) {
+                // the aggregate can go from false to true by adding negative weights
+                type |= CycleType::negative;
+            } else if (upper > 0 && lower < sub) {
+                // the aggregate can go from false to true by adding positive weights
+                type |= CycleType::positive;
+            }
+        }
+        return {std::move(elem_vec), std::move(range), std::move(bounds), type};
+    }
+
+    //! Get a literal equivalent to the given clause.
+    auto clause_(LitSpan lits, ClauseType type) -> lit_t {
+        aux1_.assign(lits.begin(), lits.end());
+        std::ranges::sort(aux1_);
+        aux1_.erase(std::ranges::unique(aux1_).begin(), aux1_.end());
+        if (aux1_.size() == 1) {
+            return aux1_.front();
+        }
+        auto [it, ins] = (type == ClauseType::conjunctive ? conds_ : disjunctions_).emplace(std::move(aux1_), 0);
+        if (ins) {
+            it.value() = next_lit();
+            for (auto const &lit : it->first) {
+                if (lit > 0) {
+                    graph_.add_edge(it.value(), lit);
+                }
+            }
+        }
+        return it.value();
+    }
+
+    Backend *backend_;
+    Output::lit_t lit_ = 0;
+    Output::LitVec aux1_;
+    Output::LitVec aux2_;
+    Util::Graph graph_;
+    LitMap lits_;
+    ClauseMap conds_;
+    ClauseMap disjunctions_;
+    CondLits cond_lits_;
+    BdSumAggrVec sum_aggrs_;
+};
+
 /* TODO: maybe remove those
 //! Convert a uid to an atom.
 //!
@@ -55,7 +603,7 @@ auto lit_to_atom(lit_t lit) -> atom_t {
 //! Only supports simple literals excluding aggregates, theory atoms and conditions.
 class OutputCond : public OutputLit {
   public:
-    OutputCond(Backend &backend) : backend_{&backend} {}
+    OutputCond(Translator &translator) : translator_{&translator} {}
 
     //! Get the literals of the body.
     //!
@@ -64,10 +612,10 @@ class OutputCond : public OutputLit {
     //! @return the literals
     [[nodiscard]] auto literals() const -> LitVec const & { return body_; }
 
-    //! Get the backend of the output.
+    //! Get the translator of the output.
     //!
-    //! @return the backend
-    auto backend() -> Backend & { return *backend_; };
+    //! @return the translator
+    auto translator() -> Translator & { return *translator_; };
 
     //! Append the atom with the given sign.
     //!
@@ -86,7 +634,7 @@ class OutputCond : public OutputLit {
                 return;
             }
             case Sign::twice: {
-                body_.emplace_back(backend().negate(-uid_to_lit(uid)));
+                body_.emplace_back(translator().negate(-uid_to_lit(uid)));
                 return;
             }
         }
@@ -126,7 +674,7 @@ class OutputCond : public OutputLit {
         throw std::runtime_error("unsupported literal");
     }
 
-    Backend *backend_;
+    Translator *translator_;
     LitVec body_;
 };
 
@@ -138,12 +686,12 @@ class OutputCond : public OutputLit {
 //! Supports the full range of clingo's body literals.
 class OutputBody : public OutputCond {
   public:
-    OutputBody(Backend &backend) : OutputCond(backend) {}
+    OutputBody(Translator &translator) : OutputCond(translator) {}
 
   private:
     auto do_cond_lit(std::optional<size_t> uid) -> size_t override {
         if (!uid) {
-            uid = backend().next_lit();
+            uid = translator().next_lit();
         }
         append(*uid);
         return *uid;
@@ -151,7 +699,7 @@ class OutputBody : public OutputCond {
 
     auto do_bd_aggr(Sign sign, std::optional<size_t> uid) -> size_t override {
         if (!uid) {
-            uid = backend().next_lit();
+            uid = translator().next_lit();
         }
         append(sign, *uid);
         return *uid;
@@ -159,7 +707,7 @@ class OutputBody : public OutputCond {
 
     auto do_bd_theory(Sign sign, std::optional<size_t> uid) -> size_t override {
         if (!uid) {
-            uid = backend().next_lit();
+            uid = translator().next_lit();
         }
         append(sign, *uid);
         return *uid;
@@ -168,11 +716,11 @@ class OutputBody : public OutputCond {
 
 class OutputBackend : public OutputStm, OutputTheory {
   public:
-    OutputBackend(Backend &backend) : backend_{&backend} {};
+    OutputBackend(Backend &backend) : translator_{backend} {};
 
   private:
     void do_fact([[maybe_unused]] Symbol sym, size_t uid) override {
-        backend().rule(std::array{uid_to_lit(uid)}, LitSpan{}, false);
+        translator().rule(std::array{uid_to_lit(uid)}, LitSpan{}, false);
     }
 
     [[nodiscard]] auto do_body() -> OutputLit & override {
@@ -185,13 +733,13 @@ class OutputBackend : public OutputStm, OutputTheory {
         if (head) {
             choice = get<2>(*head);
             auto lit = uid_to_lit(get<1>(*head));
-            backend().rule(std::array{lit}, body_.literals(), choice);
+            translator().rule(std::array{lit}, body_.literals(), choice);
         } else {
-            backend().rule({}, body_.literals(), choice);
+            translator().rule({}, body_.literals(), choice);
         }
     }
 
-    void do_show_term(Symbol term) override { backend().show(term, body_.literals()); }
+    void do_show_term(Symbol term) override { translator().show(term, body_.literals()); }
 
     void do_external(Symbol atom, ExternalType type) override {
         static_cast<void>(atom);
@@ -210,9 +758,9 @@ class OutputBackend : public OutputStm, OutputTheory {
 
     auto do_aggr_rule(std::optional<size_t> uid) -> size_t override {
         if (!uid) {
-            uid = backend_->next_lit();
+            uid = translator_.next_lit();
         }
-        backend().rule(std::array{uid_to_lit(*uid)}, body_.literals(), false);
+        translator().rule(std::array{uid_to_lit(*uid)}, body_.literals(), false);
         return *uid;
     }
 
@@ -310,14 +858,14 @@ class OutputBackend : public OutputStm, OutputTheory {
         return cond_;
     }
 
-    auto do_cond_id() -> size_t override { return backend().cond(cond_.literals()); }
+    auto do_cond_id() -> size_t override { return translator().cond(cond_.literals()); }
 
-    auto do_uid() -> size_t override { return backend().next_lit(); }
+    auto do_uid() -> size_t override { return translator().next_lit(); }
 
-    void do_cond_lit(size_t uid, CondLits elems) override { backend_->cond_lit(uid_to_lit(uid), elems); }
+    void do_cond_lit(size_t uid, CondLits elems) override { translator_.cond_lit(uid_to_lit(uid), elems); }
 
     void do_bd_aggr(size_t uid, AggregateFunction fun, BdElems elems, Guards guards) override {
-        backend_->bd_aggr(uid_to_lit(uid), fun, elems, guards);
+        translator_.bd_aggr(uid_to_lit(uid), fun, elems, guards);
     }
 
     void do_hd_aggr(size_t uid, AggregateFunction fun, HdElems elems, Guards guards) override {
@@ -371,7 +919,7 @@ class OutputBackend : public OutputStm, OutputTheory {
 
     void do_flush() override {}
 
-    void do_end_step() override { backend_->end_step(); }
+    void do_end_step() override { translator_.end_step(); }
 
     void do_mark([[maybe_unused]] SymbolCollector &gc) override {}
 
@@ -491,455 +1039,15 @@ class OutputBackend : public OutputStm, OutputTheory {
         throw std::logic_error{"implement me: theory atom"};
     }
 
-    auto backend() -> Backend & { return *backend_; }
+    auto translator() -> Translator & { return translator_; }
 
     LitVec lits_;
-    Backend *backend_;
-    OutputBody body_{*backend_};
-    OutputCond cond_{*backend_};
-    // Util::OutputBuffer tmp_;
-    // OutputCond cond_;
-    // Util::ordered_set<std::string> strs_;
-    // bool explicit_show_ = true;
+    Translator translator_;
+    OutputBody body_{translator_};
+    OutputCond cond_{translator_};
 };
 
 } // namespace
-
-auto Backend::info_(lit_t lit) -> LitInfo & {
-    assert(lit > 0);
-    return lits_[lit - 1];
-}
-
-auto Backend::next_lit() -> Output::lit_t {
-    if (lit_ < lit_max) {
-        lits_.emplace_back();
-        return ++lit_;
-    }
-    throw std::range_error("literals number of literals exhausted");
-}
-
-auto Backend::negate(lit_t lit) -> lit_t {
-    assert(lit != 0 && lit >= lit_min);
-    if (lit > 0) {
-        return -lit;
-    }
-    auto &neg = info_(lit).neg;
-    if (neg == 0) {
-        neg = next_lit();
-        rule(std::array{neg}, std::array{lit}, false);
-    }
-    return -neg;
-}
-
-//! Analyze a sum aggregate.
-//!
-//! Constructs a new aggregate element vector removing unnecessary elements,
-//! computes an interval for largest and smallest value of the aggregate, and
-//! represents the guards of the aggreagte as an interval set. This interval set
-//! is additionally intersected with the range.
-auto Backend::analyze_sum_(BdAggrElemSpan elems, GuardSpan guards)
-    -> std::tuple<BdSumAggrElemVec, NumberSet::interval, NumberSet, CycleType> {
-    // simplify the aggregate
-    auto fixed = Number(0);
-    auto elem_vec = BdSumAggrElemVec{};
-    auto cond_map = Util::unordered_map<IndexSpan, size_t>{};
-    elem_vec.reserve(elems.size());
-    cond_map.reserve(elems.size());
-    for (auto const &[tup, conds] : elems) {
-        if (!tup.empty() && tup.front().type() == SymbolType::number && tup.front().num() != 0) {
-            auto num = tup.front().num();
-            if (conds.empty()) {
-                fixed += num;
-            } else {
-                if (auto [it, ins] = cond_map.try_emplace(conds, elem_vec.size()); !ins) {
-                    get<0>(elem_vec[it.value()]) += num;
-                } else {
-                    aux2_.assign(conds.begin(), conds.end());
-                    elem_vec.emplace_back(std::move(num),
-                                          clause_({aux2_.begin(), aux2_.end()}, ClauseType::disjunctive));
-                }
-            }
-        }
-    }
-    elem_vec.erase(std::ranges::remove_if(elem_vec, [](auto const &x) { return std::get<0>(x) == 0; }).end(),
-                   elem_vec.end());
-    elem_vec.shrink_to_fit();
-    // comput the range of the aggregate
-    auto lower = Number(0);
-    auto upper = Number(0);
-    for (auto const &[num, clit] : elem_vec) {
-        if (num > 0) {
-            upper += num;
-        } else {
-            lower += num;
-        }
-    }
-    // compute the bounds of the aggregate
-    auto bounds = Util::interval_set<Number>{};
-    auto range = Util::interval_set<Number>::interval{{lower, true}, {upper, true}};
-    bounds.add(range);
-    for (auto const &[rel, guard] : guards) {
-        // Note: workaround for buggy clang-tidy diagnostic
-        auto adjust = [&, &g = guard]() {
-            if (g.type() == SymbolType::number) {
-                return g.num() - fixed;
-            }
-            if (g > upper) {
-                return upper + 1;
-            }
-            assert(g < lower);
-            return lower - 1;
-        }();
-        switch (rel) {
-            case Relation::greater_equal: {
-                bounds.remove({{lower, true}, {adjust, false}});
-                break;
-            }
-            case Relation::greater: {
-                bounds.remove({{lower, true}, {adjust + 1, false}});
-                break;
-            }
-            case Relation::less_equal: {
-                bounds.remove({{adjust, false}, {upper, true}});
-                break;
-            }
-            case Relation::less: {
-                bounds.remove({{adjust - 1, false}, {upper, true}});
-                break;
-            }
-            case Relation::equal: {
-                bounds.remove({{lower, true}, {adjust, false}});
-                bounds.remove({{adjust, false}, {upper, true}});
-                break;
-            }
-            case Relation::not_equal: {
-                bounds.remove({{adjust - 1, false}, {adjust + 1, false}});
-                break;
-            }
-        }
-    }
-    // classify which types of cycles have to be considered
-    auto type = bounds.size() > 1 ? CycleType::both : CycleType::none;
-    if (type != CycleType::both && bounds.size() == 1 && !bounds.contains(range)) {
-        auto const &sub = bounds.front();
-        if (lower < 0 && upper > 0) {
-            // the aggregate can switch arbitrarily between true and false
-            type = CycleType::both;
-        } else if (lower < 0 && sub < upper) {
-            // the aggregate can go from false to true by adding negative weights
-            type |= CycleType::negative;
-        } else if (upper > 0 && lower < sub) {
-            // the aggregate can go from false to true by adding positive weights
-            type |= CycleType::positive;
-        }
-    }
-    return {std::move(elem_vec), std::move(range), std::move(bounds), type};
-}
-
-void Backend::bd_aggr(lit_t lit, AggregateFunction fun, BdAggrElemSpan elems, GuardSpan guards) {
-    assert(fun != AggregateFunction::count);
-    if (fun == AggregateFunction::sum || fun == AggregateFunction::sump) {
-        auto [elem_vec, range, bounds, type] = analyze_sum_(elems, guards);
-        if (bounds.contains(range)) {
-            rule(std::array{lit}, std::array<lit_t, 0>{}, false);
-            return;
-        }
-        if (bounds.empty()) {
-            rule(std::array{negate(lit)}, LitSpan{}, false);
-            return;
-        }
-        // add edges based on the monotonicity of the aggregate
-        if (type != CycleType::none) {
-            for (auto const &[num, clit] : elem_vec) {
-                if (clit > 0 &&
-                    ((test(type, CycleType::positive) && num > 0) || (test(type, CycleType::negative) && num < 0))) {
-                    graph_.add_edge(lit, clit);
-                }
-            }
-        }
-
-#define GRINGO_DEBUG_AGGREGATES
-#ifdef GRINGO_DEBUG_AGGREGATES
-        std::cerr << "handle aggregate: \n";
-        std::cerr << "  fun: " << fun << "\n";
-        std::cerr << "  range: " << (range.left.inclusive ? "[" : "(") << range.left.bound << "," << range.right.bound
-                  << (range.right.inclusive ? "]" : ")") << "\n";
-        std::cerr << "  bounds:";
-        for (auto const &[left, right] : bounds) {
-            std::cerr << (left.inclusive ? "[" : "(") << left.bound << "," << right.bound
-                      << (right.inclusive ? "]" : ")");
-        }
-        std::cerr << "\n";
-        // Note: workaround for buggy clang-tidy diagnostic
-        std::cerr << "  monotonicity: " << [&t = type]() {
-            if (t == CycleType::both) {
-                return "nonmonotone";
-            }
-            if (t != CycleType::none) {
-                return "convex";
-            }
-            return "antimonotone";
-        }() << "\n";
-#endif
-        sum_aggrs_.emplace_back(lit, std::move(elem_vec), std::move(range), std::move(bounds));
-    } else {
-        throw std::logic_error("implement me: add support for remaining aggregates");
-    }
-}
-
-void Backend::rule(LitSpan head, LitSpan body, bool choice) {
-    for (auto const &hlit : head) {
-        if (hlit > 0) {
-            for (auto const &blit : body) {
-                if (blit > 0) {
-                    graph_.add_edge(hlit, blit);
-                }
-            }
-        }
-    }
-    do_rule(head, body, choice);
-}
-
-auto Backend::clause_(LitSpan lits, ClauseType type) -> lit_t {
-    aux1_.assign(lits.begin(), lits.end());
-    std::ranges::sort(aux1_);
-    aux1_.erase(std::ranges::unique(aux1_).begin(), aux1_.end());
-    if (aux1_.size() == 1) {
-        return aux1_.front();
-    }
-    auto [it, ins] = (type == ClauseType::conjunctive ? conds_ : disjunctions_).emplace(std::move(aux1_), 0);
-    if (ins) {
-        it.value() = next_lit();
-        for (auto const &lit : it->first) {
-            if (lit > 0) {
-                graph_.add_edge(it.value(), lit);
-            }
-        }
-    }
-    return it.value();
-}
-
-auto Backend::cond(LitSpan lits) -> lit_t { return clause_(lits, ClauseType::conjunctive); }
-
-void Backend::tr_disjunctions() {
-    for (auto const &[clause, lit] : disjunctions_) {
-        assert(lit > 0);
-        auto const &lit_info = info_(lit);
-        if (lit_info.type != EQType::none) {
-            for (auto const &clit : clause) {
-                if (clit > 0) {
-                    mark_(clit, lit_info.type);
-                }
-                do_rule(std::array{lit}, std::array{clit}, false);
-            }
-        }
-        if (lit_info.type == EQType::equivalence) {
-            // TODO: non-cyclic literals better be shifted
-            do_rule(clause, std::array{lit}, false);
-        }
-    }
-}
-
-void Backend::tr_conjunctions_() {
-    for (auto const &[cond, lit] : conds_) {
-        assert(lit > 0);
-        auto const &lit_info = info_(lit);
-        if (lit_info.type != EQType::none) {
-            do_rule(std::array{lit}, cond, false);
-        }
-        if (lit_info.type == EQType::equivalence && lit_info.scc > 0) {
-            for (auto const &clit : cond) {
-                if (clit > 0 && info_(clit).scc == lit_info.scc) {
-                    do_rule(std::array{clit}, std::array{lit}, false);
-                }
-            }
-        }
-    }
-}
-
-void Backend::cond_lit(lit_t lit, CondLitSpan elems) {
-    for (auto const &elem : elems) {
-        if (auto const &[id_conc, id_prem] = elem; id_conc && lit > 0 && *id_conc > 0) {
-            graph_.add_edge(lit, *id_conc);
-        }
-    }
-    cond_lits_.emplace_back(std::piecewise_construct, std::forward_as_tuple(lit),
-                            std::forward_as_tuple(elems.begin(), elems.end()));
-}
-
-void Backend::mark_(lit_t lit, EQType type) {
-    // maybe mark literal to have type
-    if (lit > 0) {
-        info_(lit).type = std::max(info_(lit).type, type);
-    }
-}
-
-void Backend::tr_cond_lits_() {
-    for (auto const &[lit, elems] : cond_lits_) {
-        aux2_.clear();
-        aux2_.reserve(elems.size());
-        // Below, we us the following variable names:
-        // - K: new uid replacing G : F in the body
-        // - G: captures the conclusion
-        // - F: catures the premise
-        for (auto const &[g, f] : elems) {
-            mark_(f, EQType::implication);
-            if (g) {
-                auto rec = lit > 0 && f > 0 && info_(lit).scc > 0 && info_(lit).scc == info_(f).scc;
-                auto k = next_lit();
-                // formula G : F is replaced by K
-                // K :- G.
-                // K :- not F.
-                mark_(*g, EQType::implication);
-                do_rule(std::array{k}, std::array{*g}, false);
-                do_rule(std::array{k}, std::array{negate(f)}, false);
-                if (rec) {
-                    // K | F :- not not G.
-                    mark_(f, EQType::equivalence);
-                    do_rule(std::array{k, f}, std::array{negate(negate(*g))}, false);
-                }
-                aux2_.emplace_back(k);
-            } else {
-                aux2_.emplace_back(negate(f));
-            }
-        }
-        do_rule(std::array{lit}, aux2_, false);
-    }
-}
-
-void Backend::tr_aggr_() {
-    for (auto &[lit, elems, range, bounds] : sum_aggrs_) {
-        // check which kind of literals are cyclic
-        auto is_recursive = [lit, this](lit_t clit) {
-            return lit > 0 && clit > 0 && info_(clit).scc == info_(lit).scc;
-        };
-        auto has_pos_cycle = false; // cycle through atom with *positive* weight
-        auto has_neg_cycle = false; // cycle through atom with *negative* weight
-        if (lit > 0 && info_(lit).scc > 0) {
-            for (auto const &[num, clit] : elems) {
-                if (is_recursive(clit)) {
-                    if (bounds.size() == 1) {
-                        has_pos_cycle = has_pos_cycle || num > 0;
-                        has_neg_cycle = has_neg_cycle || num < 0;
-                    } else {
-                        has_pos_cycle = has_neg_cycle = true;
-                    }
-                }
-            }
-        }
-        auto flip = [](BdSumAggrElemVec const &elems) {
-            auto res = BdSumAggrElemVec{};
-            res.reserve(elems.size());
-            for (auto const &[num, cond] : elems) {
-                res.emplace_back(-num, cond);
-            }
-            return res;
-        };
-
-        auto to_int = [](Number const &num) {
-            if (auto val = num.as_int()) {
-                return *val;
-            }
-            throw std::range_error("number out of range");
-        };
-
-        // translate aggregate in lower bound form
-        auto nlits = std::vector<lit_t>(elems.size(), 0);
-        auto translate = [&](lit_t lit, BdSumAggrElemVec const &elems, Number bound) {
-            auto wlits = std::vector<std::pair<lit_t, weight_t>>{};
-            wlits.reserve(elems.size());
-            auto it = nlits.begin();
-            for (auto const &[weight, clit] : elems) {
-                auto &nlit = *it++;
-                if (weight > 0) {
-                    wlits.emplace_back(clit, to_int(weight));
-                } else {
-                    if (!is_recursive(clit)) {
-                        wlits.emplace_back(negate(clit), to_int(-weight));
-                    } else {
-                        if (nlit == 0) {
-                            nlit = next_lit();
-                            rule(std::array{nlit}, std::array{negate(clit)}, false);
-                        }
-                        wlits.emplace_back(nlit, to_int(-weight));
-                    }
-                    bound -= weight;
-                }
-            }
-            do_bd_aggr(lit, wlits, bound.as_int().value());
-        };
-
-        // translate all bounds of an aggregate
-        for (auto const &bound : bounds) {
-            bool has_lower = range.left.bound < bound;
-            bool has_upper = bound < range.right.bound;
-            auto lit_lower = has_lower && has_upper ? next_lit() : lit;
-            auto lit_upper = has_lower && has_upper ? next_lit() : lit;
-            if (has_lower) {
-                // Note: that the conditions could be weakend dropping
-                // `has_neg_cycle`. I am not sure which variant would work
-                // better in practice.
-                if (has_neg_cycle && !has_pos_cycle) {
-                    if (lit == lit_lower) {
-                        lit_lower = next_lit();
-                    }
-                    translate(lit_lower, flip(elems), -bound.left.bound + 1);
-                    lit_lower = -lit_lower;
-                } else {
-                    translate(lit_lower, elems, bound.left.bound);
-                }
-            }
-            // symmetric case for upper bounds
-            if (has_upper) {
-                if (!has_neg_cycle) {
-                    if (lit == lit_upper) {
-                        lit_upper = next_lit();
-                    }
-                    translate(lit_upper, elems, bound.right.bound + 1);
-                    lit_upper = -lit_upper;
-                } else {
-                    translate(lit_upper, flip(elems), -bound.right.bound);
-                }
-            }
-            if (lit != lit_lower && lit != lit_upper) {
-                rule(std::array{lit}, std::array{lit_lower, lit_upper}, false);
-            } else if (lit != lit_lower) {
-                rule(std::array{lit}, std::array{lit_lower}, false);
-            } else if (lit != lit_upper) {
-                rule(std::array{lit}, std::array{lit_upper}, false);
-            }
-        }
-
-        // add disjunctions for recursive literals
-        auto it = elems.begin();
-        for (auto const &nlit : nlits) {
-            auto clit = it++->second;
-            mark_(clit, nlit > 0 ? EQType::equivalence : EQType::implication);
-            if (nlit > 0) {
-                // nlit :- lit.                % saturate
-                rule(std::array{nlit}, std::array{lit}, false);
-                // nlit | clit :- not not lit. % guess
-                rule(std::array{nlit, clit, negate(lit)}, {}, false);
-            }
-        }
-    }
-}
-
-void Backend::end_step() {
-    size_t idx_scc = 0;
-    graph_.tarjan([&, this](std::vector<size_t> const &scc) {
-        assert(!scc.empty());
-        if (scc.size() > 1 || graph_.has_loop(scc.front())) {
-            ++idx_scc;
-            std::ranges::for_each(scc, [&](auto const &lit) { info_(uid_to_lit(lit)).scc = idx_scc; });
-        }
-    });
-    tr_cond_lits_();
-    tr_aggr_();
-    tr_disjunctions();
-    tr_conjunctions_();
-    graph_.clear();
-}
 
 auto make_backend_output(Backend &backend) -> UOutputStm { return std::make_unique<OutputBackend>(backend); }
 

@@ -34,7 +34,7 @@ using LitSpan = std::span<lit_t const>;
 //! A vector of program literals.
 using LitVec = std::vector<lit_t>;
 //! A vector of program literals.
-using WeightedLitSpan = std::vector<std::pair<lit_t, weight_t>>;
+using WeightedLitSpan = std::span<std::pair<lit_t, weight_t>>;
 
 //! A conditional literal consisting of a conclusion and a premise.
 //!
@@ -75,50 +75,22 @@ static constexpr auto lit_min = -lit_max;
 //! other forms of backends).
 class Backend {
   public:
-    Backend(SymbolStore &store) : store_{&store} {
-        // TODO: the store might be necessary later
-        static_cast<void>(store_);
-    };
+    //! Destroy the backend.
+    virtual ~Backend() = default;
+
     //! Return a fresh literal.
     //!
     //! All literals should be created using this function.
     //!
     //! @return the fresh literal
-    auto next_lit() -> Output::lit_t;
+    auto next_lit() -> Output::lit_t { return do_next_lit(); }
 
-    //! Negate the given literal.
+    //! Define a weight constraint.
     //!
-    //! Introduces a Tseitin literal if the given literal is negative. Flag rec
-    //! can be set to false if the literal occurrence does not occur in a
-    //! positive cycle.
-    //!
-    //! @param lit the literal to negate
-    //! @return the negated literal
-    auto negate(lit_t lit) -> lit_t;
-
-    //! Get a literal equivalent to the conjunction of the given literals.
-    //!
-    //! @param lits the literals
-    auto cond(LitSpan lits) -> lit_t;
-
-    //! Define a conjunction of conditional literal.
-    //!
-    //! The given literal is derived by the given conditional literals.
-    //!
-    //! @param lit the literal that is derived
-    //! @param elems the elements forming the conditional literal
-    void cond_lit(lit_t lit, CondLitSpan elems);
-
-    //! Define a sum aggregate.
-    //!
-    //! The condition ids of the aggregate elements can be obtained using
-    //! function `cond()`.
-    //!
-    //! @param lit the literal that is derived
-    //! @param fun the aggregate function
-    //! @param elems the elements of the aggregate
-    //! @param guard the aggregate guards
-    void bd_aggr(lit_t lit, AggregateFunction fun, BdAggrElemSpan elems, GuardSpan guards);
+    //! @param head the literal that is derived
+    //! @param body the weighted body literals
+    //! @param bound the lower bound of the constraint
+    void bd_aggr(lit_t head, WeightedLitSpan body, int32_t bound) { do_bd_aggr(head, body, bound); }
 
     //! Add a disjunctive or choice rule.
     //!
@@ -127,104 +99,21 @@ class Backend {
     //! @param head the literals forming the head
     //! @param body the literals forming the body
     //! @param choice whether the rule is a choice or disjunctive rule
-    void rule(LitSpan head, LitSpan body, bool choice);
+    void rule(LitSpan head, LitSpan body, bool choice) { do_rule(head, body, choice); }
 
-    //! Finish a grounding step.
+    //! Show the given symbol if the given conditon is true.
     //!
-    //! Some language constructs require additional translation.
-    //! Such translations are applied here.
-    void end_step();
-
-    //! She the given symbol if the given conditon is true.
+    //! @param sym the symbol to show
+    //! @param body the condition when to show the symbol
     void show(Symbol sym, LitSpan body) { do_show(sym, body); }
 
-    //! Destroy the backend.
-    virtual ~Backend() = default;
-
   private:
-    //! The maximum id of a condition.
-    static constexpr auto cond_max = std::numeric_limits<id_t>::max() >> 1;
-
-    //! Available condition types.
-    //!
-    //! Conditions are clauses associated with a literal. The equivalence between
-    //! the literal and the clause is either established with an implication (a
-    //! rule) or an equivalence.
-    enum class EQType : uint8_t {
-        none,        //!< the condition is not used
-        implication, //!< only forward direction is necessary
-        equivalence, //!< forward and backward directions are necessary
-    };
-
-    enum class ClauseType : uint8_t {
-        disjunctive,
-        conjunctive,
-    };
-
-    //! Which weights have to be considered for cycle computation.
-    enum class CycleType : uint8_t { none, positive, negative, both };
-
-    friend void is_bit_set_enum(CycleType type);
-
-    struct LitInfo {
-        id_t scc = 0;
-        lit_t neg = 0;
-        EQType type = EQType::none;
-    };
-
-    using LitVec = std::vector<lit_t>;
-    //! A sum aggregate element.
-    using BdSumAggrElem = std::pair<Number, lit_t>;
-    //! A vector of sum aggregate elements.
-    using BdSumAggrElemVec = std::vector<BdSumAggrElem>;
-    //! A vector of sum aggregates.
-    using BdSumAggrVec = std::vector<std::tuple<lit_t, BdSumAggrElemVec, NumberSet::interval, NumberSet>>;
-
-    using LitMap = std::vector<LitInfo>;
-    using ClauseMap = Util::ordered_map<Output::LitVec, lit_t>;
-    using CondLits = std::vector<std::pair<lit_t, CondLitVec>>;
-
+    virtual auto do_next_lit() -> lit_t = 0;
     virtual void do_rule(LitSpan head, LitSpan body, bool choice) = 0;
     virtual void do_bd_aggr(lit_t head, WeightedLitSpan body, int32_t bound) = 0;
     virtual void do_show(Symbol sym, LitSpan body) = 0;
-
-    [[nodiscard]] auto info_(lit_t lit) -> LitInfo &;
-
-    void mark_(lit_t lit, EQType type);
-
-    //! Translate conditions based on how they are used.
-    void tr_conjunctions_();
-
-    //! Translate dnfs based on how they are used.
-    void tr_disjunctions();
-
-    //! @param sccs strongly connected components of literals
-    void tr_cond_lits_();
-
-    auto analyze_sum_(BdAggrElemSpan elems,
-                      GuardSpan guards) -> std::tuple<BdSumAggrElemVec, NumberSet::interval, NumberSet, CycleType>;
-    //! Translate aggregate literals taking positive cycles into account.
-    //!
-    //! @param sccs strongly connected components of literals
-    void tr_aggr_();
-
-    //! Get a literal equivalent to the given clause.
-    auto clause_(LitSpan lits, ClauseType type) -> lit_t;
-
-    SymbolStore *store_;
-    Output::lit_t lit_ = 0;
-    Output::LitVec aux1_;
-    Output::LitVec aux2_;
-    Util::Graph graph_;
-    LitMap lits_;
-    ClauseMap conds_;
-    ClauseMap disjunctions_;
-    CondLits cond_lits_;
-    BdSumAggrVec sum_aggrs_;
 };
 using UBackend = std::unique_ptr<Backend>;
-
-class Preprocessor : public Backend {};
 
 //! Create an output that forwards ground statements to a backend.
 //!
