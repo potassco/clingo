@@ -152,6 +152,26 @@ class Translator {
 #endif
             sum_aggrs_.emplace_back(lit, std::move(elem_vec), std::move(range), std::move(bounds));
         } else {
+            if (fun == AggregateFunction::min) {
+                //  [ ] [ ]
+                // [       ]
+                // 123456789
+                // >= 2 && <= 4
+                // >= 6 && <= 8
+                // (2|3|4|6|7|8) & (1=>false) & (5=>2|3|4)
+                // h :- #sum{c2=1,c3=1,c4=1,c6=1,c7=1,c8=1}>=1, #sum{c1=-1}>=0, #sum{c2=1,c3=1,c4=1,c5=-1}>=0.
+                // h :- #sum{c2=1,c3=1,c4=1,c6=1,c7=1,c8=1}>=1, not c1, #sum{c2=1,c3=1,c4=1,n5=1}>=1.
+                // n5 :- not c5.
+                // n5 :- h.
+                // n5 | c5 :- not not h.
+                // % with auxiliary literals
+                // x :- c2. x :- c3. x :- c4. x :- c6. x :- c7. x :- c8.
+                // y :- c2. y :- c3. y :- c4. y :- n5.
+                // h :- x, not c1, y.
+                // n5 :- not c5.
+                // n5 :- y.
+                // n5 | c5 :- not not y.
+            }
             throw std::logic_error("implement me: add support for remaining aggregates");
         }
     }
