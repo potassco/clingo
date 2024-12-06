@@ -6,7 +6,9 @@
 #include <clingo/util/print.hh>
 #include <clingo/util/type_traits.hh>
 
+#ifdef GRINGO_DEBUG_AGGREGATES
 #include <iostream>
+#endif
 
 namespace Clingo::Output {
 
@@ -107,72 +109,23 @@ class Translator {
     //! @param guard the aggregate guards
     void bd_aggr(lit_t lit, AggregateFunction fun, BdAggrElemSpan elems, GuardSpan guards) {
         assert(lit > 0 && fun != AggregateFunction::count);
-        if (fun == AggregateFunction::sum || fun == AggregateFunction::sump) {
-            auto [elem_vec, range, bounds, type] = analyze_sum_(elems, guards);
-            if (bounds.contains(range)) {
-                rule(std::array{lit}, {}, false);
-                return;
+        switch (fun) {
+            case AggregateFunction::sum:
+            case AggregateFunction::sump: {
+                // Note: assumse that negative weights of sum+ have already been removed
+                delay_sum_(lit, elems, guards);
+                break;
             }
-            if (bounds.empty()) {
-                rule({}, std::array{lit}, false);
-                return;
+            case AggregateFunction::min: {
+                delay_min_(lit, elems, guards);
+                break;
             }
-            // add edges based on the monotonicity of the aggregate
-            if (type != CycleType::none) {
-                for (auto const &[num, clit] : elem_vec) {
-                    if (clit > 0 && ((test(type, CycleType::positive) && num > 0) ||
-                                     (test(type, CycleType::negative) && num < 0))) {
-                        graph_.add_edge(lit, clit);
-                    }
-                }
+            case AggregateFunction::max: {
+                throw std::logic_error("implement me: add support for max aggregate");
             }
-
-#define GRINGO_DEBUG_AGGREGATES
-#ifdef GRINGO_DEBUG_AGGREGATES
-            std::cerr << "handle aggregate: \n";
-            std::cerr << "  fun: " << fun << "\n";
-            std::cerr << "  range: " << (range.left.inclusive ? "[" : "(") << range.left.bound << ","
-                      << range.right.bound << (range.right.inclusive ? "]" : ")") << "\n";
-            std::cerr << "  bounds:";
-            for (auto const &[left, right] : bounds) {
-                std::cerr << (left.inclusive ? "[" : "(") << left.bound << "," << right.bound
-                          << (right.inclusive ? "]" : ")");
+            case Clingo::AggregateFunction::count: {
+                assert(false);
             }
-            std::cerr << "\n";
-            // Note: workaround for buggy clang-tidy diagnostic
-            std::cerr << "  monotonicity: " << [&t = type]() {
-                if (t == CycleType::both) {
-                    return "nonmonotone";
-                }
-                if (t != CycleType::none) {
-                    return "convex";
-                }
-                return "antimonotone";
-            }() << "\n";
-#endif
-            sum_aggrs_.emplace_back(lit, std::move(elem_vec), std::move(range), std::move(bounds));
-        } else {
-            if (fun == AggregateFunction::min) {
-                //  [ ] [ ]
-                // [       ]
-                // 123456789
-                // >= 2 && <= 4
-                // >= 6 && <= 8
-                // (2|3|4|6|7|8) & (1=>false) & (5=>2|3|4)
-                // h :- #sum{c2=1,c3=1,c4=1,c6=1,c7=1,c8=1}>=1, #sum{c1=-1}>=0, #sum{c2=1,c3=1,c4=1,c5=-1}>=0.
-                // h :- #sum{c2=1,c3=1,c4=1,c6=1,c7=1,c8=1}>=1, not c1, #sum{c2=1,c3=1,c4=1,n5=1}>=1.
-                // n5 :- not c5.
-                // n5 :- h.
-                // n5 | c5 :- not not h.
-                // % with auxiliary literals
-                // x :- c2. x :- c3. x :- c4. x :- c6. x :- c7. x :- c8.
-                // y :- c2. y :- c3. y :- c4. y :- n5.
-                // h :- x, not c1, y.
-                // n5 :- not c5.
-                // n5 :- y.
-                // n5 | c5 :- not not y.
-            }
-            throw std::logic_error("implement me: add support for remaining aggregates");
         }
     }
 
@@ -373,6 +326,150 @@ class Translator {
             }
             backend_->rule(std::array{lit}, aux_bd_, false);
         }
+    }
+
+    void delay_min_(lit_t lit, BdAggrElemSpan elems, GuardSpan guards) {
+        //  [ ] [ ]
+        // [       ]
+        // 123456789
+        // >= 2 && <= 4
+        // >= 6 && <= 8
+        // (2|3|4|6|7|8) & (1=>false) & (5=>2|3|4)
+        // h :- #sum{c2=1,c3=1,c4=1,c6=1,c7=1,c8=1}>=1, #sum{c1=-1}>=0, #sum{c2=1,c3=1,c4=1,c5=-1}>=0.
+        // h :- #sum{c2=1,c3=1,c4=1,c6=1,c7=1,c8=1}>=1, not c1, #sum{c2=1,c3=1,c4=1,n5=1}>=1.
+        // n5 :- not c5.
+        // n5 :- h.
+        // n5 | c5 :- not not h.
+        // % with auxiliary literals
+        // x :- c2. x :- c3. x :- c4. x :- c6. x :- c7. x :- c8.
+        // y :- c2. y :- c3. y :- c4. y :- n5.
+        // h :- x, not c1, y.
+        // n5 :- not c5.
+        // n5 :- y.
+        // n5 | c5 :- not not y.
+        // % without duplication
+        // l1 :- c2.
+        // l1 :- c3.
+        // l1 :- c4.
+        // l2 :- c6.
+        // l2 :- c7.
+        // l2 :- c8.
+        // x :- l1.
+        // x :- l2.
+        // y :- not c1.
+        // z :- l1.
+        // z :- n5.
+        // h :- x, y. z.
+        // compute the range of the aggregate
+        auto lower = SymbolStore::sup();
+        auto upper = SymbolStore::sup();
+        for (auto const &[tup, conds] : elems) {
+            if (!tup.empty()) {
+                auto weight = tup.front();
+                lower = std::min(lower, weight);
+                if (conds.empty()) {
+                    upper = std::min(upper, weight);
+                }
+            }
+        }
+        // compute the bounds of the aggregate
+        auto bounds = Util::interval_set<Symbol>{};
+        auto range = Util::interval_set<Symbol>::interval{{lower, true}, {upper, true}};
+        bounds.add(range);
+        for (auto const &[rel, guard] : guards) {
+            switch (rel) {
+                case Relation::greater_equal: {
+                    bounds.remove({{lower, true}, {guard, false}});
+                    break;
+                }
+                case Relation::greater: {
+                    bounds.remove({{lower, true}, {guard, true}});
+                    break;
+                }
+                case Relation::less_equal: {
+                    bounds.remove({{guard, false}, {upper, true}});
+                    break;
+                }
+                case Relation::less: {
+                    bounds.remove({{guard, true}, {upper, true}});
+                    break;
+                }
+                case Relation::equal: {
+                    bounds.remove({{lower, true}, {guard, false}});
+                    bounds.remove({{guard, false}, {upper, true}});
+                    break;
+                }
+                case Relation::not_equal: {
+                    bounds.remove({{guard, true}, {guard, true}});
+                    break;
+                }
+            }
+        }
+        // Group ranges as shown above. The result will be a sequence of form
+        //
+        //     F(TF)*
+        //
+        // where subsequences of form FTF and TFT can be merged into F and T if
+        // T and F are empty, repsectively.
+        //
+        // The sequence F corresponds to a convex, montone, and antimonotone
+        // aggregate. The sequence FTF corresponds to a convex aggregate that
+        // is
+        // - monotone if the first F is empty and
+        // - antimonotone if the second F is empty.
+        //
+        // Aggregates that are both monotone and antimonotone are either false
+        // (F) or true (FTF).
+        //
+        // Edges have to be added for all literals in T but antimonotone
+        // aggregates can be excluded.
+        static_cast<void>(this);
+        static_cast<void>(lit);
+        throw std::logic_error("group true/false ranges as shown above");
+    }
+
+    void delay_sum_(lit_t lit, BdAggrElemSpan elems, GuardSpan guards) {
+        auto [elem_vec, range, bounds, type] = analyze_sum_(elems, guards);
+        if (bounds.contains(range)) {
+            rule(std::array{lit}, {}, false);
+            return;
+        }
+        if (bounds.empty()) {
+            rule({}, std::array{lit}, false);
+            return;
+        }
+        // add edges based on the monotonicity of the aggregate
+        if (type != CycleType::none) {
+            for (auto const &[num, clit] : elem_vec) {
+                if (clit > 0 &&
+                    ((test(type, CycleType::positive) && num > 0) || (test(type, CycleType::negative) && num < 0))) {
+                    graph_.add_edge(lit, clit);
+                }
+            }
+        }
+
+#ifdef GRINGO_DEBUG_AGGREGATES
+        std::cerr << "handle aggregate: \n";
+        std::cerr << "  range: " << (range.left.inclusive ? "[" : "(") << range.left.bound << "," << range.right.bound
+                  << (range.right.inclusive ? "]" : ")") << "\n";
+        std::cerr << "  bounds:";
+        for (auto const &[left, right] : bounds) {
+            std::cerr << (left.inclusive ? "[" : "(") << left.bound << "," << right.bound
+                      << (right.inclusive ? "]" : ")");
+        }
+        std::cerr << "\n";
+        // Note: workaround for buggy clang-tidy diagnostic
+        std::cerr << "  monotonicity: " << [&t = type]() {
+            if (t == CycleType::both) {
+                return "nonmonotone";
+            }
+            if (t != CycleType::none) {
+                return "convex";
+            }
+            return "antimonotone";
+        }() << "\n";
+#endif
+        sum_aggrs_.emplace_back(lit, std::move(elem_vec), std::move(range), std::move(bounds));
     }
 
     //! Translate stored aggregate literals.
