@@ -252,6 +252,7 @@ public:
     void ground(Control::GroundVec const &vec, Context *ctx) override;
     void add(std::string const &name, Gringo::StringVec const &params, std::string const &part) override;
     void load(std::string const &filename) override;
+    void load_aspif(Potassco::Span<char const *> files) override;
     bool blocked() override;
     std::string str();
     void assignExternal(Potassco::Atom_t ext, Potassco::Value_t) override;

@@ -531,17 +531,32 @@ std::vector<Potassco::WeightLit_t> NonGroundParser::aspif_wlits_(Location &loc) 
     return wlits;
 }
 
-void NonGroundParser::aspif_(Location &loc) {
-    aspif_preamble_(loc);
-    bck_.beginStep();
+void NonGroundParser::parse_aspif(Logger &log) {
+    if (!empty()) {
+        log_ = &log;
+        condition_ = yycaspif;
+        auto loc = Location(filename(), 1, 1, filename(), 1, 1);
+        aspif_asp_(loc);
+        aspif_preamble_(loc);
+        bck_.beginStep();
+        do {
+            aspif_stms_(loc);
+            pop();
+        }
+        while (!empty());
+        bck_.endStep();
+        filenames_.clear();
+        disable_aspif();
+    }
+}
+
+void NonGroundParser::aspif_stms_(Location &loc) {
     for (;;) {
         auto stm_type = aspif_unsigned_(loc);
         switch (stm_type) {
             case 0:  {
                 aspif_nl_(loc);
-                bck_.endStep();
                 start(loc);
-                condition(yycnormal);
                 return;
             }
             case 1:  { aspif_rule_(loc); break; }
@@ -557,6 +572,15 @@ void NonGroundParser::aspif_(Location &loc) {
             default: { aspif_error_(loc, format("unsupported statement type: ", stm_type).c_str()); }
         }
     }
+}
+
+void NonGroundParser::aspif_(Location &loc) {
+    aspif_preamble_(loc);
+    bck_.beginStep();
+    aspif_stms_(loc);
+    bck_.endStep();
+    condition(yycnormal);
+    return;
 }
 
 void NonGroundParser::aspif_rule_(Location &loc) {

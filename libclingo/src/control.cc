@@ -2065,6 +2065,11 @@ extern "C" bool clingo_control_load(clingo_control_t *ctl, char const *file) {
     GRINGO_CLINGO_CATCH;
 }
 
+extern "C" bool clingo_control_load_aspif(clingo_control_t *ctl, char const **files, size_t size) {
+    GRINGO_CLINGO_TRY { ctl->load_aspif(Potassco::Span<char const *>{files, size}); }
+    GRINGO_CLINGO_CATCH;
+}
+
 extern "C" bool clingo_control_set_enable_enumeration_assumption(clingo_control_t *ctl, bool value) {
     GRINGO_CLINGO_TRY { ctl->useEnumAssumption(value); }
     GRINGO_CLINGO_CATCH;

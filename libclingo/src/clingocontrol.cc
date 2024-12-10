@@ -340,6 +340,19 @@ void ClingoControl::load(std::string const &filename) {
     parser_->pushFile(std::string(filename), logger_);
     parse();
 }
+void ClingoControl::load_aspif(Potassco::Span<char const*> files) {
+    using std::begin;
+    using std::end;
+    for (auto it = end(files), ib = begin(files); it != ib; --it) {
+        parser_->pushFile(std::string{*(it - 1)}, logger_);
+    }
+    if (!parser_->empty()) {
+        parser_->parse_aspif(logger_);
+    }
+    if (logger_.hasError()) {
+        throw std::runtime_error("parsing failed");
+    }
+}
 bool ClingoControl::hasSubKey(unsigned key, char const *name) const {
     unsigned subkey = claspConfig_.getKey(key, name);
     return subkey != Clasp::Cli::ClaspCliConfig::KEY_INVALID;

@@ -246,6 +246,7 @@ struct clingo_control {
     virtual void *claspFacade() = 0;
     virtual void add(std::string const &name, Gringo::StringVec const &params, std::string const &part) = 0;
     virtual void load(std::string const &filename) = 0;
+    virtual void load_aspif(Potassco::Span<char const *> files) = 0;
     virtual Gringo::Symbol getConst(std::string const &name) const = 0;
     virtual bool blocked() = 0;
     virtual void assignExternal(Potassco::Atom_t ext, Potassco::Value_t val) = 0;

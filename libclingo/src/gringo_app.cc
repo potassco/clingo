@@ -163,6 +163,17 @@ struct IncrementalControl : Control, private Output::ASPIFOutBackend {
         parser.pushFile(std::string(filename), logger_);
         parse();
     }
+    void load_aspif(Potassco::Span<char const *> files) override {
+        for (auto it = end(files), ib = begin(files); it != ib; --it) {
+            parser.pushFile(std::string{*(it - 1)}, logger_);
+        }
+        if (!parser.empty()) {
+            parser.parse_aspif(logger_);
+        }
+        if (logger_.hasError()) {
+            throw std::runtime_error("parsing failed");
+        }
+    }
     bool blocked() override { return false; }
     USolveFuture solve(Assumptions ass, clingo_solve_mode_bitset_t, USolveEventHandler cb) override {
         update();

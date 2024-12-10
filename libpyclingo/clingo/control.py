@@ -591,6 +591,26 @@ class Control:
         """
         _handle_error(_lib.clingo_control_load(self._rep, path.encode()))
 
+    def load_aspif(self, files: Sequence[str]) -> None:
+        """
+        Extend the logic program with a program in aspif format.
+
+        This function should be called on an empty control object. If more than
+        one file is given, they are merged into one file. Only the first one
+        should have a preamble.
+
+        Parameters
+        ----------
+        files
+            A list of files to load.
+        """
+        c_mem = []
+        c_files = _ffi.new("char*[]", len(files))
+        for i, path in enumerate(files):
+            c_mem.append(_ffi.new("char[]", path.encode()))
+            c_files[i] = c_mem[-1]
+        _handle_error(_lib.clingo_control_load_aspif(self._rep, c_files, len(files)))
+
     def register_observer(self, observer: Observer, replace: bool = False) -> None:
         """
         Registers the given observer to inspect the produced grounding.

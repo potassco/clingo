@@ -2826,6 +2826,20 @@ CLINGO_VISIBILITY_DEFAULT void clingo_control_free(clingo_control_t *control);
 //! - ::clingo_error_runtime if parsing or checking fails
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_load(clingo_control_t *control, char const *file);
 
+//! Load files in aspif format.
+//!
+//! This function should be called on an empty control object.
+//!
+//! If more than one file is given, they are merged into one file. Only the first one should have a preamble.
+//!
+//! @param[in] control the target
+//! @param[in] files the array of files to load
+//! @param[in] size the size of the array
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime if parsing or checking fails
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_load_aspif(clingo_control_t *ctl, char const **files, size_t size);
+
 //! Extend the logic program with the given non-ground logic program in string form.
 //!
 //! This function puts the given program into a block of form: <tt>\#program name(parameters).</tt>
