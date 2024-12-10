@@ -2770,6 +2770,21 @@ typedef struct clingo_part {
 //! ~~~~~~~~~~~~~~~
 typedef bool (*clingo_ground_callback_t) (clingo_location_t const *location, char const *name, clingo_symbol_t const *arguments, size_t arguments_size, void *data, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data);
 
+//! The available backends.
+//!
+//! This is a mix between enum and bit set. Bits 0 and 1 are used to configure
+//! the reify backend.
+enum clingo_backend_type_e {
+    clingo_backend_type_reify = 0,       //!< the reify backend
+    clingo_backend_type_reify_sccs = 1,  //!< whether to reify sccs
+    clingo_backend_type_reify_steps = 2, //!< whether to reify steps individually
+    clingo_backend_type_aspif = 4,       //!< the aspif backend
+    clingo_backend_type_smodels = 5,     //!< the smodels backend
+};
+//! Corresponding type to clingo_backend_type_e.
+typedef unsigned clingo_backend_type_t;
+
+
 //! Control object holding grounding and solving state.
 typedef struct clingo_control clingo_control_t;
 
@@ -3100,6 +3115,17 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_theory_atoms(clingo_control_t cons
 //! @param[in] data user data passed to the observer functions
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_register_observer(clingo_control_t *control, clingo_ground_program_observer_t const *observer, bool replace, void *data);
+//! Register a backend with the control object.
+//!
+//! This function is similar to clingo_control_register_observer except that
+//! clingo's internal backends can be selected.
+//!
+//! @param[in] control the target
+//! @param[in] type the kind of backend to register
+//! @param[in] file the file to write the result to
+//! @param[in] replace just pass the grounding to the backend but not the solver
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_register_backend(clingo_control_t *control, clingo_backend_type_t type, char const *file, bool replace);
 //! @}
 
 //! @name Program Modification Functions

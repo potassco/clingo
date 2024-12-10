@@ -228,6 +228,8 @@ private:
     Atom_t fact_id_ = 0;
 };
 
+UBackend make_backend(std::unique_ptr<std::ostream> out, OutputFormat format, bool reify_sccs, bool reify_steps);
+
 } } // namespace Output Gringo
 
 #endif // GRINGO_OUTPUT_OUTPUT_HH

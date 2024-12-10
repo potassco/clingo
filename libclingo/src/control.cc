@@ -2196,6 +2196,29 @@ extern "C" bool clingo_control_register_observer(clingo_control_t *control, clin
     GRINGO_CLINGO_CATCH;
 }
 
+extern "C" bool clingo_control_register_backend(clingo_control_t *control, clingo_backend_type_t type, char const *file, bool replace) {
+    GRINGO_CLINGO_TRY { 
+        auto out = gringo_make_unique<std::ofstream>(file);
+        auto backend = UBackend{}; //Output::make_backend(out, OutputFormat::reify, false, false);
+        switch (type & 0xFFFFFFFC) {
+            case clingo_backend_type_e::clingo_backend_type_reify: {
+                backend = Output::make_backend(std::move(out), Output::OutputFormat::REIFY, (type & 1) == 1, (type &2) == 2);
+                break;
+            }
+            case clingo_backend_type_e::clingo_backend_type_smodels: {
+                backend = Output::make_backend(std::move(out), Output::OutputFormat::SMODELS, false, false);
+                break;
+            }
+            case clingo_backend_type_e::clingo_backend_type_aspif: {
+                backend = Output::make_backend(std::move(out), Output::OutputFormat::INTERMEDIATE, false, false);
+                break;
+            }
+        }
+        control->registerObserver(std::move(backend), replace);
+    }
+    GRINGO_CLINGO_CATCH;
+}
+
 extern "C" bool clingo_control_new(char const *const * args, size_t n, clingo_logger_t logger, void *data, unsigned message_limit, clingo_control_t **ctl) {
     GRINGO_CLINGO_TRY {
         static std::mutex mut;
