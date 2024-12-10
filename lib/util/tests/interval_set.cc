@@ -3,6 +3,8 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <sstream>
+
 namespace Clingo::Util::Test {
 
 using IS = interval_set<int>;
