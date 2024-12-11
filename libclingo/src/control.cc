@@ -2065,6 +2065,11 @@ extern "C" bool clingo_control_load(clingo_control_t *ctl, char const *file) {
     GRINGO_CLINGO_CATCH;
 }
 
+extern "C" bool clingo_control_load_aspif(clingo_control_t *ctl, char const **files, size_t size) {
+    GRINGO_CLINGO_TRY { ctl->load_aspif(Potassco::Span<char const *>{files, size}); }
+    GRINGO_CLINGO_CATCH;
+}
+
 extern "C" bool clingo_control_set_enable_enumeration_assumption(clingo_control_t *ctl, bool value) {
     GRINGO_CLINGO_TRY { ctl->useEnumAssumption(value); }
     GRINGO_CLINGO_CATCH;
@@ -2193,6 +2198,35 @@ private:
 
 extern "C" bool clingo_control_register_observer(clingo_control_t *control, clingo_ground_program_observer_t const *observer, bool replace, void *data) {
     GRINGO_CLINGO_TRY { control->registerObserver(gringo_make_unique<Observer>(*observer, data), replace); }
+    GRINGO_CLINGO_CATCH;
+}
+
+extern "C" bool clingo_control_register_backend(clingo_control_t *control, clingo_backend_type_t type, char const *file, bool replace) {
+    GRINGO_CLINGO_TRY { 
+        auto out = gringo_make_unique<std::ofstream>(file);
+        if (!out->is_open()) {
+            throw std::runtime_error("file could not be opened");
+        }
+        auto backend = UBackend{};
+        switch (type & 0xFFFFFFFC) {
+            case clingo_backend_type_reify: {
+                backend = Output::make_backend(std::move(out), Output::OutputFormat::REIFY, (type & 1) == 1, (type &2) == 2);
+                break;
+            }
+            case clingo_backend_type_smodels: {
+                backend = Output::make_backend(std::move(out), Output::OutputFormat::SMODELS, false, false);
+                break;
+            }
+            case clingo_backend_type_aspif: {
+                backend = Output::make_backend(std::move(out), Output::OutputFormat::INTERMEDIATE, false, false);
+                break;
+            }
+            default: {
+                throw std::runtime_error("invalid backend type given");
+            }
+        }
+        control->registerObserver(std::move(backend), replace);
+    }
     GRINGO_CLINGO_CATCH;
 }
 

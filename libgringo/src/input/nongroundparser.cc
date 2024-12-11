@@ -266,7 +266,7 @@ String NonGroundParser::filename() const { return LexerState::data().first; }
 
 void NonGroundParser::pushFile(std::string &&file, Logger &log) {
     auto checked = check_file(file);
-    if (!checked.empty() && !filenames_.insert(checked).second) {
+    if (!checked.empty() && !filenames_.emplace(checked).second) {
         report_included("<cmd>", file.c_str(), log);
     }
     else if (checked.empty() || !push(file)) {
@@ -275,7 +275,7 @@ void NonGroundParser::pushFile(std::string &&file, Logger &log) {
 }
 
 void NonGroundParser::pushStream(std::string &&file, std::unique_ptr<std::istream> in, Logger &log) {
-    auto res = filenames_.insert(std::move(file));
+    auto res = filenames_.emplace(std::move(file));
     if (!res.second) {
         report_included("<cmd>", res.first->c_str(), log);
     }
@@ -344,7 +344,7 @@ void NonGroundParser::include(String file, Location const &loc, bool inbuilt, Lo
     }
     else {
         auto paths = check_file(file.c_str(), loc.beginFilename.c_str());
-        if (!paths.first.empty() && !filenames_.insert(paths.first).second) {
+        if (!paths.first.empty() && !filenames_.emplace(paths.first).second) {
             report_included(loc, file.c_str(), log);
         }
         else if (paths.first.empty() || !push(paths.second, true)) {
@@ -531,17 +531,32 @@ std::vector<Potassco::WeightLit_t> NonGroundParser::aspif_wlits_(Location &loc) 
     return wlits;
 }
 
-void NonGroundParser::aspif_(Location &loc) {
-    aspif_preamble_(loc);
-    bck_.beginStep();
+void NonGroundParser::parse_aspif(Logger &log) {
+    if (!empty()) {
+        log_ = &log;
+        condition_ = yycaspif;
+        auto loc = Location(filename(), 1, 1, filename(), 1, 1);
+        aspif_asp_(loc);
+        aspif_preamble_(loc);
+        bck_.beginStep();
+        do {
+            aspif_stms_(loc);
+            pop();
+        }
+        while (!empty());
+        bck_.endStep();
+        filenames_.clear();
+        disable_aspif();
+    }
+}
+
+void NonGroundParser::aspif_stms_(Location &loc) {
     for (;;) {
         auto stm_type = aspif_unsigned_(loc);
         switch (stm_type) {
             case 0:  {
                 aspif_nl_(loc);
-                bck_.endStep();
                 start(loc);
-                condition(yycnormal);
                 return;
             }
             case 1:  { aspif_rule_(loc); break; }
@@ -557,6 +572,15 @@ void NonGroundParser::aspif_(Location &loc) {
             default: { aspif_error_(loc, format("unsupported statement type: ", stm_type).c_str()); }
         }
     }
+}
+
+void NonGroundParser::aspif_(Location &loc) {
+    aspif_preamble_(loc);
+    bck_.beginStep();
+    aspif_stms_(loc);
+    bck_.endStep();
+    condition(yycnormal);
+    return;
 }
 
 void NonGroundParser::aspif_rule_(Location &loc) {

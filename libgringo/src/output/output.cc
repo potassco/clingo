@@ -24,7 +24,6 @@
 
 #include "gringo/output/output.hh"
 #include "gringo/logger.hh"
-#include "gringo/output/aggregates.hh"
 #include "gringo/output/backends.hh"
 #include "reify/program.hh"
 #include <cstring>
@@ -153,6 +152,11 @@ template <class T>
 class BackendAdapter : public Backend {
 public:
     template <class... U>
+    BackendAdapter(std::unique_ptr<std::ostream> out, U&&... args)
+    : out_{std::move(out)}, prg_(*out_, std::forward<U>(args)...) {
+    }
+
+    template <class... U>
     BackendAdapter(U&&... args)
     : prg_(std::forward<U>(args)...) {
     }
@@ -243,6 +247,7 @@ public:
         prg_.endStep();
     }
 private:
+    std::unique_ptr<std::ostream> out_;
     T prg_;
 };
 
@@ -889,6 +894,28 @@ Atom_t ASPIFOutBackend::fact_id() {
         fact_id_ = *it;
     }
     return fact_id_;
+}
+
+UBackend make_backend(std::unique_ptr<std::ostream> out, OutputFormat format, bool reify_sccs, bool reify_steps) {
+    UBackend backend;
+    switch (format) {
+        case OutputFormat::REIFY: {
+            backend = gringo_make_unique<BackendAdapter<Reify::Reifier>>(std::move(out), reify_sccs, reify_sccs);
+            break;
+        }
+        case OutputFormat::INTERMEDIATE: {
+            backend = gringo_make_unique<BackendAdapter<IntermediateFormatBackend>>(std::move(out));
+            break;
+        }
+        case OutputFormat::SMODELS: {
+            backend = gringo_make_unique<BackendAdapter<SmodelsFormatBackend>>(std::move(out));
+            break;
+        }
+        case OutputFormat::TEXT: {
+            throw std::runtime_error("must not be called");
+        }
+    }
+    return backend;
 }
 
 } } // namespace Output Gringo

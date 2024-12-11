@@ -42,6 +42,7 @@ The following example shows basic (multishot) grounding and solving:
 
 import sys
 from collections import abc
+from enum import IntEnum
 from typing import (
     Any,
     Callable,
@@ -53,6 +54,7 @@ from typing import (
     cast,
     overload,
 )
+
 if sys.version_info >= (3, 8):
     from typing import Literal
 
@@ -76,7 +78,26 @@ from .backend import Backend, Observer
 from .configuration import Configuration
 from .statistics import StatisticsMap, _mutable_statistics, _statistics
 
-__all__ = ["Control"]
+__all__ = ["Control", "BackendType"]
+
+
+class BackendType(IntEnum):
+    """
+    Enumeration of available backends.
+    """
+
+    Aspif = _lib.clingo_backend_type_aspif
+    """
+    The aspif Backend.
+    """
+    Smodels = _lib.clingo_backend_type_smodels
+    """
+    The smodels backend.
+    """
+    Reify = _lib.clingo_backend_type_reify
+    """
+    The reify backend.
+    """
 
 
 class _SolveEventHandler:
@@ -325,19 +346,17 @@ class Control:
 
         This function removes all minimize constraints that were previously added to the program.
         """
-        _handle_error(
-            _lib.clingo_control_remove_minimize(self._rep)
-        )
+        _handle_error(_lib.clingo_control_remove_minimize(self._rep))
 
-    def _update_project(self, atoms: Sequence[Union[Symbol, int]], append: bool) -> None:
+    def _update_project(
+        self, atoms: Sequence[Union[Symbol, int]], append: bool
+    ) -> None:
         p_proj = _ffi.new("clingo_atom_t[]", len(atoms))
         for i, lit in enumerate(atoms):
             p_proj[i] = self._program_atom(lit)
 
         _handle_error(
-            _lib.clingo_control_update_project(
-                self._rep, p_proj, len(atoms), append
-            )
+            _lib.clingo_control_update_project(self._rep, p_proj, len(atoms), append)
         )
 
     def add_project(self, atoms: Sequence[Union[Symbol, int]]) -> None:
@@ -388,7 +407,7 @@ class Control:
         Control.add_project
         """
         self._update_project([], append=False)
-    
+
     def assign_external(
         self, external: Union[Symbol, int], truth: Optional[bool]
     ) -> None:
@@ -572,6 +591,26 @@ class Control:
         """
         _handle_error(_lib.clingo_control_load(self._rep, path.encode()))
 
+    def load_aspif(self, files: Sequence[str]) -> None:
+        """
+        Extend the logic program with a program in aspif format.
+
+        This function should be called on an empty control object. If more than
+        one file is given, they are merged into one file. Only the first one
+        should have a preamble.
+
+        Parameters
+        ----------
+        files
+            A list of files to load.
+        """
+        c_mem = []
+        c_files = _ffi.new("char*[]", len(files))
+        for i, path in enumerate(files):
+            c_mem.append(_ffi.new("char[]", path.encode()))
+            c_files[i] = c_mem[-1]
+        _handle_error(_lib.clingo_control_load_aspif(self._rep, c_files, len(files)))
+
     def register_observer(self, observer: Observer, replace: bool = False) -> None:
         """
         Registers the given observer to inspect the produced grounding.
@@ -657,6 +696,48 @@ class Control:
         _handle_error(
             _lib.clingo_control_register_observer(
                 self._rep, c_observer, replace, c_data
+            )
+        )
+
+    def register_backend(
+        self,
+        type: BackendType,
+        file: str,
+        replace: bool = False,
+        reify_sccs: bool = False,
+        reify_steps: bool = False,
+    ) -> None:
+        """
+        Registers a backend of the given type.
+
+        This function is similar to register_observer but instead registers a predefined backend.
+
+        Parameters
+        ----------
+        type
+            The type of backend to register.
+        file:
+            The path of the file to write to.
+        replace
+            If set to true, the output is just passed to the backend and no longer to
+            the underlying solver (or any previously registered backends/observers).
+        reify_sccs
+            Whether to reify sccs.
+        reify_steps
+            Whether to reify steps.
+
+        See Also
+        --------
+        clingo.backend
+        """
+        bitset = type.value
+        if reify_sccs:
+            bitset = bitset | _lib.clingo_backend_type_reify_sccs
+        if reify_steps:
+            bitset = bitset | _lib.clingo_backend_type_reify_steps
+        _handle_error(
+            _lib.clingo_control_register_backend(
+                self._rep, bitset, file.encode(), replace
             )
         )
 
@@ -749,13 +830,16 @@ class Control:
     # this assumes that overloads are matched in the order they appear
     # unfortunately, PEP0484 does not specify any kind of semantics just giving examples
     if sys.version_info >= (3, 8):
+
         @overload
         def solve(
             self,
             assumptions: Sequence[Union[Tuple[Symbol, bool], int]] = (),
             on_model: Optional[Callable[[Model], Optional[bool]]] = None,
             on_unsat: Optional[Callable[[Sequence[int]], None]] = None,
-            on_statistics: Optional[Callable[[StatisticsMap, StatisticsMap], None]] = None,
+            on_statistics: Optional[
+                Callable[[StatisticsMap, StatisticsMap], None]
+            ] = None,
             on_finish: Optional[Callable[[SolveResult], None]] = None,
             on_core: Optional[Callable[[Sequence[int]], None]] = None,
             on_last: Optional[Callable[[Model], None]] = None,
@@ -769,7 +853,9 @@ class Control:
             assumptions: Sequence[Union[Tuple[Symbol, bool], int]] = (),
             on_model: Optional[Callable[[Model], Optional[bool]]] = None,
             on_unsat: Optional[Callable[[Sequence[int]], None]] = None,
-            on_statistics: Optional[Callable[[StatisticsMap, StatisticsMap], None]] = None,
+            on_statistics: Optional[
+                Callable[[StatisticsMap, StatisticsMap], None]
+            ] = None,
             on_finish: Optional[Callable[[SolveResult], None]] = None,
             on_core: Optional[Callable[[Sequence[int]], None]] = None,
             *,
@@ -782,7 +868,9 @@ class Control:
             assumptions: Sequence[Union[Tuple[Symbol, bool], int]] = (),
             on_model: Optional[Callable[[Model], Optional[bool]]] = None,
             on_unsat: Optional[Callable[[Sequence[int]], None]] = None,
-            on_statistics: Optional[Callable[[StatisticsMap, StatisticsMap], None]] = None,
+            on_statistics: Optional[
+                Callable[[StatisticsMap, StatisticsMap], None]
+            ] = None,
             on_finish: Optional[Callable[[SolveResult], None]] = None,
             on_core: Optional[Callable[[Sequence[int]], None]] = None,
             *,
@@ -790,13 +878,16 @@ class Control:
             async_: Literal[True],
         ) -> SolveHandle: ...
     else:
+
         @overload
         def solve(
             self,
             assumptions: Sequence[Union[Tuple[Symbol, bool], int]] = (),
             on_model: Optional[Callable[[Model], Optional[bool]]] = None,
             on_unsat: Optional[Callable[[Sequence[int]], None]] = None,
-            on_statistics: Optional[Callable[[StatisticsMap, StatisticsMap], None]] = None,
+            on_statistics: Optional[
+                Callable[[StatisticsMap, StatisticsMap], None]
+            ] = None,
             on_finish: Optional[Callable[[SolveResult], None]] = None,
             on_core: Optional[Callable[[Sequence[int]], None]] = None,
             on_last: Optional[Callable[[Model], None]] = None,
@@ -943,7 +1034,8 @@ class Control:
                     on_core(handle.core())
                 if on_last is not None:
                     m = handle.last()
-                    if m is not None: on_last(m)
+                    if m is not None:
+                        on_last(m)
                 return ret
         return handle
 

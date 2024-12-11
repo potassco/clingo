@@ -70,6 +70,7 @@ public:
     int lex(void *pValue, Location &loc);
     bool parseDefine(std::string const &define, Logger &log);
     ParseResult parse(Logger &log);
+    void parse_aspif(Logger &log);
     bool empty() { return LexerState::empty(); }
     void include(String file, Location const &loc, bool inbuilt, Logger &log);
     void theoryLexing(TheoryLexing mode);
@@ -106,6 +107,7 @@ private:
     Condition condition() const;
     String filename() const;
 
+    void aspif_stms_(Location &loc);
     Symbol aspif_symbol_(Location &loc);
     std::vector<Potassco::Id_t> aspif_ids_(Location &loc);
     std::vector<Potassco::Atom_t> aspif_atoms_(Location &loc);
@@ -131,7 +133,7 @@ private:
     void aspif_edge_(Location &loc);
     void aspif_theory_(Location &loc);
     void aspif_comment_(Location &loc);
-
+    void aspif_asp_(Location &loc);
 
     std::set<std::string> filenames_;
     bool &incmode_;
