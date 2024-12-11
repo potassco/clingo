@@ -716,6 +716,8 @@ class Control:
         ----------
         type
             The type of backend to register.
+        file:
+            The path of the file to write to.
         replace
             If set to true, the output is just passed to the backend and no longer to
             the underlying solver (or any previously registered backends/observers).

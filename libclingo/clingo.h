@@ -2838,7 +2838,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_load(clingo_control_t *control, ch
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_error_bad_alloc
 //! - ::clingo_error_runtime if parsing or checking fails
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_load_aspif(clingo_control_t *ctl, char const **files, size_t size);
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_load_aspif(clingo_control_t *control, char const **files, size_t size);
 
 //! Extend the logic program with the given non-ground logic program in string form.
 //!
@@ -3138,7 +3138,9 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_register_observer(clingo_control_t
 //! @param[in] type the kind of backend to register
 //! @param[in] file the file to write the result to
 //! @param[in] replace just pass the grounding to the backend but not the solver
-//! @return whether the call was successful
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_error_bad_alloc
+//! - ::clingo_error_runtime (for example if the file could not be opened)
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_register_backend(clingo_control_t *control, clingo_backend_type_t type, char const *file, bool replace);
 //! @}
 

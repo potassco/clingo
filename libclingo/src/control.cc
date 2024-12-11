@@ -2204,17 +2204,20 @@ extern "C" bool clingo_control_register_observer(clingo_control_t *control, clin
 extern "C" bool clingo_control_register_backend(clingo_control_t *control, clingo_backend_type_t type, char const *file, bool replace) {
     GRINGO_CLINGO_TRY { 
         auto out = gringo_make_unique<std::ofstream>(file);
-        auto backend = UBackend{}; //Output::make_backend(out, OutputFormat::reify, false, false);
+        if (!out->is_open()) {
+            throw std::runtime_error("file could not be opened");
+        }
+        auto backend = UBackend{};
         switch (type & 0xFFFFFFFC) {
-            case clingo_backend_type_e::clingo_backend_type_reify: {
+            case clingo_backend_type_reify: {
                 backend = Output::make_backend(std::move(out), Output::OutputFormat::REIFY, (type & 1) == 1, (type &2) == 2);
                 break;
             }
-            case clingo_backend_type_e::clingo_backend_type_smodels: {
+            case clingo_backend_type_smodels: {
                 backend = Output::make_backend(std::move(out), Output::OutputFormat::SMODELS, false, false);
                 break;
             }
-            case clingo_backend_type_e::clingo_backend_type_aspif: {
+            case clingo_backend_type_aspif: {
                 backend = Output::make_backend(std::move(out), Output::OutputFormat::INTERMEDIATE, false, false);
                 break;
             }
