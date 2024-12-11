@@ -74,10 +74,10 @@ This example shows how to solve both iteratively and asynchronously:
 from typing import ContextManager, Iterator, List, Optional, Sequence, Tuple, Union
 
 from ._internal import _c_call, _c_call2, _ffi, _handle_error, _lib
-from .util import Slice, SlicedSequence
 from .core import OrderedEnum
 from .symbol import Symbol
 from .symbolic_atoms import SymbolicAtoms
+from .util import Slice, SlicedSequence
 
 __all__ = ["Model", "ModelType", "SolveControl", "SolveHandle", "SolveResult"]
 

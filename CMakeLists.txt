@@ -324,4 +324,3 @@ if (NOT CLINGO_BUILD_STATIC AND (CLINGO_BUILD_SHARED OR Python_Development_FOUND
         set_target_properties(${target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
     endforeach()
 endif()
-

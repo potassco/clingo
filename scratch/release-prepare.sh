@@ -25,7 +25,7 @@ git worktree add "${dir}" ${gitref}
     for submodule in "${submodules[@]}"; do
         git rm "${submodule}"
     done
-    git rm TODO.md 
+    git rm TODO.md
     git rm -r scratch
     git commit -m "${message}"
 

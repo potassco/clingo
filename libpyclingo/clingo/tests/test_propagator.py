@@ -2,8 +2,9 @@
 Tests for the propagator.
 """
 
-from unittest import TestCase
 from typing import cast
+from unittest import TestCase
+
 from clingo import (
     Assignment,
     Control,
@@ -66,6 +67,7 @@ class TestPropagatorMode(Propagator):
     """
     Test check/undo mode.
     """
+
     def __init__(self, case: TestCase):
         self._case = case
         self.num_check = 0
@@ -294,8 +296,10 @@ class TestAddAssertingClause(TestCase):
                 self._test.assertFalse(result)
 
         def decide(self, thread_id: int, assignment: Assignment, fallback: int) -> int:
-            if assignment.is_free(self._end_lit): return -self._end_lit
-            if assignment.is_free(self._value_lit): return -self._value_lit
+            if assignment.is_free(self._end_lit):
+                return -self._end_lit
+            if assignment.is_free(self._value_lit):
+                return -self._value_lit
             return fallback
 
     def setUp(self):

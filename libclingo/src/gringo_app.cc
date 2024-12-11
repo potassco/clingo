@@ -23,33 +23,32 @@
 // }}}
 
 #include "clingo.h"
+#include <climits>
+#include <clingo/astv2.hh>
+#include <clingo/control.hh>
 #include <clingo/gringo_options.hh>
 #include <clingo/incmode.hh>
-#include <clingo/control.hh>
-#include <clingo/astv2.hh>
-#include <gringo/input/nongroundparser.hh>
-#include <gringo/input/groundtermparser.hh>
-#include <gringo/input/programbuilder.hh>
-#include <gringo/input/program.hh>
-#include <gringo/ground/program.hh>
-#include <gringo/logger.hh>
 #include <clingo/scripts.hh>
+#include <gringo/ground/program.hh>
+#include <gringo/input/groundtermparser.hh>
+#include <gringo/input/nongroundparser.hh>
+#include <gringo/input/program.hh>
+#include <gringo/input/programbuilder.hh>
+#include <gringo/logger.hh>
+#include <iostream>
 #include <potassco/application.h>
 #include <potassco/program_opts/typed_value.h>
-#include <climits>
-#include <iostream>
 #include <stdexcept>
 
 namespace Gringo {
 
-#define LOG if (opts.verbose) std::cerr
+#define LOG                                                                                                            \
+    if (opts.verbose)                                                                                                  \
+    std::cerr
 struct IncrementalControl : Control, private Output::ASPIFOutBackend {
     IncrementalControl(Output::OutputBase &out, std::vector<std::string> const &files, GringoOptions const &opts)
-    : out(out)
-    , scripts(g_scripts())
-    , pb(scripts, prg, out.outPreds, defs, opts.rewriteMinimize)
-    , parser(pb, *this, incmode)
-    , opts(opts) {
+        : out(out), scripts(g_scripts()), pb(scripts, prg, out.outPreds, defs, opts.rewriteMinimize),
+          parser(pb, *this, incmode), opts(opts) {
         using namespace Gringo;
         // TODO: should go where python script is once refactored
         out.keepFacts = opts.keepFacts;
@@ -72,20 +71,14 @@ struct IncrementalControl : Control, private Output::ASPIFOutBackend {
         }
         parse();
     }
-    Backend &getASPIFBackend() override {
-        return *this;
-    }
+    Backend &getASPIFBackend() override { return *this; }
     Output::OutputBase &beginOutput() override {
         beginAddBackend();
         return out;
     }
-    void endOutput() override {
-        endAddBackend();
-    }
+    void endOutput() override { endAddBackend(); }
 
-    Logger &logger() override {
-        return logger_;
-    }
+    Logger &logger() override { return logger_; }
     void update() {
         // This function starts a new step and has to be called at least once
         // before anything that causes output at the beginning of execution or
@@ -146,7 +139,9 @@ struct IncrementalControl : Control, private Output::ASPIFOutBackend {
     void add(std::string const &name, StringVec const &params, std::string const &part) override {
         Location loc("<block>", 1, 1, "<block>", 1, 1);
         Input::IdVec idVec;
-        for (auto &x : params) { idVec.emplace_back(loc, x); }
+        for (auto &x : params) {
+            idVec.emplace_back(loc, x);
+        }
         parser.pushBlock(name, std::move(idVec), part, logger_);
         parse();
     }
@@ -154,8 +149,10 @@ struct IncrementalControl : Control, private Output::ASPIFOutBackend {
         auto ret = defs.defs().find(name.c_str());
         if (ret != defs.defs().end()) {
             bool undefined = false;
-            Symbol val = std::get<2>(ret->second)->eval(undefined, const_cast<Logger&>(logger_));
-            if (!undefined) { return val; }
+            Symbol val = std::get<2>(ret->second)->eval(undefined, const_cast<Logger &>(logger_));
+            if (!undefined) {
+                return val;
+            }
         }
         return Symbol();
     }
@@ -182,27 +179,21 @@ struct IncrementalControl : Control, private Output::ASPIFOutBackend {
         out.reset(true);
         return gringo_make_unique<DefaultSolveFuture>(std::move(cb));
     }
-    void interrupt() override { }
-    void *claspFacade() override {
-        return nullptr;
+    void interrupt() override {}
+    void *claspFacade() override { return nullptr; }
+    void beginAdd() override { parse(); }
+    void add(clingo_ast_t const &ast) override { Input::parse(pb, logger_, ast.ast); }
+    void endAdd() override { defs.init(logger_); }
+    void registerObserver(UBackend prg, bool replace) override { out.registerObserver(std::move(prg), replace); }
+    Potassco::AbstractStatistics const *statistics() const override {
+        throw std::runtime_error("statistics not supported (yet)");
     }
-    void beginAdd() override {
-        parse();
-    }
-    void add(clingo_ast_t const &ast) override {
-        Input::parse(pb, logger_, ast.ast);
-    }
-    void endAdd() override {
-        defs.init(logger_);
-    }
-    void registerObserver(UBackend prg, bool replace) override {
-        out.registerObserver(std::move(prg), replace);
-    }
-    Potassco::AbstractStatistics const *statistics() const override { throw std::runtime_error("statistics not supported (yet)"); }
     bool isConflicting() const noexcept override { return false; }
     void assignExternal(Potassco::Atom_t ext, Potassco::Value_t val) override {
         update();
-        if (auto *b = out.backend()) { b->external(ext, val); }
+        if (auto *b = out.backend()) {
+            b->external(ext, val);
+        }
     }
     void assignExternal(Symbol ext, Potassco::Value_t val) override {
         update();
@@ -217,8 +208,7 @@ struct IncrementalControl : Control, private Output::ASPIFOutBackend {
             if (auto *b = out.backend()) {
                 b->project(project);
             }
-        }
-        else {
+        } else {
             throw std::runtime_error("replacing projection atoms is not supported");
         }
     }
@@ -226,12 +216,12 @@ struct IncrementalControl : Control, private Output::ASPIFOutBackend {
     SymbolicAtoms const &getDomain() const override { throw std::runtime_error("domain introspection not supported"); }
     ConfigProxy &getConf() override { throw std::runtime_error("configuration not supported"); }
     void registerPropagator(UProp, bool) override { throw std::runtime_error("theory propagators not supported"); }
-    void useEnumAssumption(bool) override { }
+    void useEnumAssumption(bool) override {}
     bool useEnumAssumption() const override { return false; }
-    void cleanup() override { }
-    void enableCleanup(bool) override { }
+    void cleanup() override {}
+    void enableCleanup(bool) override {}
     bool enableCleanup() const override { return false; }
-    ~IncrementalControl() override { }
+    ~IncrementalControl() override {}
     Output::DomainData const &theory() const override { return out.data; }
     bool beginAddBackend() override {
         update();
@@ -241,21 +231,21 @@ struct IncrementalControl : Control, private Output::ASPIFOutBackend {
         return backend_ != nullptr;
     }
     Backend *getBackend() override {
-        if (!backend_) { throw std::runtime_error("backend not available"); }
+        if (!backend_) {
+            throw std::runtime_error("backend not available");
+        }
         return backend_;
     }
-    Output::TheoryData &theoryData() override {
-        return out.data.theory();
-    }
+    Output::TheoryData &theoryData() override { return out.data.theory(); }
     Id_t addAtom(Symbol sym) override {
         bool added = false;
-        auto atom  = out.addAtom(sym, &added);
-        if (added) { added_atoms_.emplace_back(sym); }
+        auto atom = out.addAtom(sym, &added);
+        if (added) {
+            added_atoms_.emplace_back(sym);
+        }
         return atom;
     }
-    void addFact(Potassco::Atom_t uid) override {
-        added_facts_.emplace(uid);
-    }
+    void addFact(Potassco::Atom_t uid) override { added_facts_.emplace(uid); }
     void endAddBackend() override {
         for (auto &sym : added_atoms_) {
             auto it = out.predDoms().find(sym.sig());
@@ -275,18 +265,18 @@ struct IncrementalControl : Control, private Output::ASPIFOutBackend {
     }
     Potassco::Atom_t addProgramAtom() override { return out.data.newAtom(); }
 
-    Input::GroundTermParser        termParser;
-    Output::OutputBase            &out;
-    Scripts                       &scripts;
-    Defines                        defs;
-    Input::Program                 prg;
+    Input::GroundTermParser termParser;
+    Output::OutputBase &out;
+    Scripts &scripts;
+    Defines defs;
+    Input::Program prg;
     Input::NongroundProgramBuilder pb;
-    Input::NonGroundParser         parser;
-    GringoOptions const           &opts;
-    Logger                         logger_;
-    std::vector<Symbol>            added_atoms_;
+    Input::NonGroundParser parser;
+    GringoOptions const &opts;
+    Logger logger_;
+    std::vector<Symbol> added_atoms_;
     std::unordered_set<Potassco::Atom_t> added_facts_;
-    Backend                       *backend_ = nullptr;
+    Backend *backend_ = nullptr;
     std::unique_ptr<Ground::Program> backend_prg_;
     std::unique_ptr<Input::NongroundProgramBuilder> builder;
     bool incmode = false;
@@ -299,29 +289,29 @@ struct IncrementalControl : Control, private Output::ASPIFOutBackend {
 
 struct GringoApp : public Potassco::Application {
     using StringSeq = std::vector<std::string>;
-    const char* getName() const override    { return "gringo"; }
-    const char* getVersion() const override { return clingo_version_string(); }
-    HelpOpt     getHelpOption() const override { return HelpOpt("Print (<n {1=default|2=advanced}) help and exit", 2); }
-    void initOptions(Potassco::ProgramOptions::OptionContext& root) override {
+    const char *getName() const override { return "gringo"; }
+    const char *getVersion() const override { return clingo_version_string(); }
+    HelpOpt getHelpOption() const override { return HelpOpt("Print (<n {1=default|2=advanced}) help and exit", 2); }
+    void initOptions(Potassco::ProgramOptions::OptionContext &root) override {
         using namespace Potassco::ProgramOptions;
         OptionGroup gringo("Gringo Options");
         registerOptions(gringo, grOpts_, GringoOptions::AppType::Gringo);
         root.add(gringo);
         OptionGroup basic("Basic Options");
-        basic.addOptions()
-            ("file,f,@2", storeTo(input_)->composing(), "Input files")
-            ;
+        basic.addOptions()("file,f,@2", storeTo(input_)->composing(), "Input files");
         root.add(basic);
     }
-    void validateOptions(const Potassco::ProgramOptions::OptionContext&, const Potassco::ProgramOptions::ParsedOptions&, const Potassco::ProgramOptions::ParsedValues&) override { }
-    void setup() override { }
-    static bool parsePositional(std::string const &, std::string& out) {
+    void validateOptions(const Potassco::ProgramOptions::OptionContext &,
+                         const Potassco::ProgramOptions::ParsedOptions &,
+                         const Potassco::ProgramOptions::ParsedValues &) override {}
+    void setup() override {}
+    static bool parsePositional(std::string const &, std::string &out) {
         out = "file";
         return true;
     }
     Potassco::ProgramOptions::PosOption getPositional() const override { return parsePositional; }
 
-    void printHelp(const Potassco::ProgramOptions::OptionContext& root) override {
+    void printHelp(const Potassco::ProgramOptions::OptionContext &root) override {
         printf("%s version %s\n", getName(), getVersion());
         printUsage();
         Potassco::ProgramOptions::FileOut out(stdout);
@@ -337,9 +327,8 @@ struct GringoApp : public Potassco::Application {
         Potassco::Application::printVersion();
         printf("\n");
         printf("libgringo version " CLINGO_VERSION "\n");
-        printf("Configuration: %s%s, %s%s\n",
-             py_version ? "with Python " : "without Python", py_version ?  py_version : "",
-            lua_version ? "with Lua "    : "without Lua",   lua_version ? lua_version : "");
+        printf("Configuration: %s%s, %s%s\n", py_version ? "with Python " : "without Python",
+               py_version ? py_version : "", lua_version ? "with Lua " : "without Lua", lua_version ? lua_version : "");
         printf("License: The MIT License <https://opensource.org/licenses/MIT>\n");
         fflush(stdout);
     }
@@ -350,12 +339,10 @@ struct GringoApp : public Potassco::Application {
         if (inc.scripts.callable("main")) {
             inc.incremental_ = !grOpts_.singleShot;
             inc.scripts.main(inc);
-        }
-        else if (inc.incmode) {
+        } else if (inc.incmode) {
             inc.incremental_ = !grOpts_.singleShot;
             incmode(inc);
-        }
-        else {
+        } else {
             Control::GroundVec parts;
             parts.emplace_back("base", SymVec{});
             inc.incremental_ = false;
@@ -370,21 +357,22 @@ struct GringoApp : public Potassco::Application {
             grOpts_.verbose = verbose() == UINT_MAX;
             Output::OutputPredicates outPreds;
             for (auto &x : grOpts_.sigvec) {
-                outPreds.add(Location("<cmd>",1,1,"<cmd>", 1,1), x, false);
+                outPreds.add(Location("<cmd>", 1, 1, "<cmd>", 1, 1), x, false);
             }
             Potassco::TheoryData data;
             data.update();
             Output::OutputBase out(data, std::move(outPreds), std::cout, grOpts_.outputFormat, grOpts_.outputOptions);
             ground(out);
-        }
-        catch (GringoError const &e) {
+        } catch (GringoError const &e) {
             std::cerr << e.what() << std::endl;
             throw std::runtime_error("fatal error");
+        } catch (...) {
+            throw;
         }
-        catch (...) { throw; }
     }
-private:
-    StringSeq     input_;
+
+  private:
+    StringSeq input_;
     GringoOptions grOpts_;
 };
 
@@ -394,4 +382,3 @@ extern "C" CLINGO_VISIBILITY_DEFAULT int gringo_main_(int argc, char *argv[]) {
     Gringo::GringoApp app;
     return app.main(argc, argv);
 }
-

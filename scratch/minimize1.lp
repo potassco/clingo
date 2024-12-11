@@ -14,4 +14,3 @@ end
 1 { step(t,1..5) }.
 :- not 3 { step(t-1,X); step(t,X) }.
 #minimize { 1,step(t,X):step(t,X) }.
-
