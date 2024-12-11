@@ -5,9 +5,9 @@ Helpers to simplify testing.
 from typing import List, cast
 from unittest import TestCase
 
-from ..control import Control
-from ..configuration import Configuration
 from .. import SolveResult, parse_term
+from ..configuration import Configuration
+from ..control import Control
 
 
 def _p(*models):

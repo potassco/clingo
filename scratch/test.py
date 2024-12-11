@@ -11,10 +11,15 @@ class FunVal:
         return (self.name, len(self.args))
 
     def __eq__(self, other):
-        return isinstance(other, FunVal) and self.name == other.name and self.args == other.args
+        return (
+            isinstance(other, FunVal)
+            and self.name == other.name
+            and self.args == other.args
+        )
 
     def __repr__(self):
-        return self.name + "("+ ",".join([str(arg) for arg in self.args]) + ")"
+        return self.name + "(" + ",".join([str(arg) for arg in self.args]) + ")"
+
 
 class NumVal:
     def __init__(self, num):
@@ -28,8 +33,11 @@ class NumVal:
 
     def __repr__(self):
         return str(self.num)
+
+
 # }}}
 # {{{ Term
+
 
 class FunTerm:
     def __init__(self, name, args):
@@ -47,11 +55,13 @@ class FunTerm:
 
     def occurs(self, subst, var):
         for arg in self.args:
-            if arg.occurs(subst, var): return True
+            if arg.occurs(subst, var):
+                return True
         return False
 
     def __repr__(self):
-        return self.name + "("+ ",".join([str(arg) for arg in self.args]) + ")"
+        return self.name + "(" + ",".join([str(arg) for arg in self.args]) + ")"
+
 
 class VarTerm:
     def __init__(self, name):
@@ -73,15 +83,17 @@ class VarTerm:
     def __repr__(self):
         return self.name
 
+
 # class ValTerm:
 #     ...
 
 # }}}
 
+
 class Node:
     def __init__(self):
-        self.fun  = {}
-        self.var  = {}
+        self.fun = {}
+        self.var = {}
         self.leaf = None
 
     def addFun(self, fun, other, leaf):
@@ -99,7 +111,8 @@ class Node:
     def __matchVar(self, val, other, subst):
         for var, node in self.var.items():
             match = True
-            if var in subst: match = subst[var] == val
+            if var in subst:
+                match = subst[var] == val
             else:
                 subst = dict(subst)
                 subst[var] = val
@@ -108,7 +121,6 @@ class Node:
                     other[0].match(node, other[1:], subst)
                 else:
                     print("  matched: " + str(node.leaf) + " with: " + str(subst))
-
 
     def matchFun(self, fun, other, subst):
         node = self.fun.get(fun.sig())
@@ -135,7 +147,8 @@ class Node:
                 if not fun.occurs(subst, var):
                     subst = dict(subst)
                     subst[var] = fun
-                else: match = False
+                else:
+                    match = False
             if match:
                 if len(other) > 0:
                     other[0].unify(node, other[1:], subst)
@@ -150,10 +163,10 @@ class Node:
             ret = []
             for (nameB, nB), nodeB in self.fun.items():
                 funs = nodeB.getFun(nameB, nB, [])
-                for (node, fun) in funs:
-                    ret.extend(node.getFun(name, n-1, args + [fun]))
+                for node, fun in funs:
+                    ret.extend(node.getFun(name, n - 1, args + [fun]))
             for varB, nodeB in self.var.items():
-                ret.extend(nodeB.getFun(name, n-1, args + [VarTerm(varB)]))
+                ret.extend(nodeB.getFun(name, n - 1, args + [VarTerm(varB)]))
             return ret
 
     def unifyVar(self, var, other, subst):
@@ -169,7 +182,12 @@ class Node:
                         if len(other) > 0:
                             other[0].unify(nodeB, other[1:], substB)
                         else:
-                            print("  matched: " + str(nodeB.leaf) + " with: " + str(substB))
+                            print(
+                                "  matched: "
+                                + str(nodeB.leaf)
+                                + " with: "
+                                + str(substB)
+                            )
 
             for varB, node in self.var.items():
                 t = subst.get(varB)
@@ -190,14 +208,15 @@ class Node:
     def toString(self, ident):
         s = ""
         for x, y in self.fun.items():
-            s+= ident + str(x) + "\n"
-            s+= y.toString(ident + "  ")
+            s += ident + str(x) + "\n"
+            s += y.toString(ident + "  ")
         for x, y in self.var.items():
-            s+= ident + str(x) + "\n"
-            s+= y.toString(ident + "  ")
+            s += ident + str(x) + "\n"
+            s += y.toString(ident + "  ")
         if self.leaf != None:
-            s+= ident + "*" + str(self.leaf) + "*\n"
+            s += ident + "*" + str(self.leaf) + "*\n"
         return s
+
 
 class Lookup:
     def __init__(self):
@@ -218,6 +237,7 @@ class Lookup:
     def __repr__(self):
         return "root:\n" + self.root.toString("  ")
 
+
 l = Lookup()
 l.add(FunTerm("p", [FunTerm("f", [VarTerm("X"), VarTerm("Y")]), VarTerm("Z")]))
 l.add(FunTerm("p", [FunTerm("g", [VarTerm("X"), VarTerm("Y")]), VarTerm("Z")]))
@@ -227,7 +247,11 @@ print(l)
 
 # next match tuples
 l.match(FunVal("p", [FunVal("f", [NumVal(1), NumVal(2)]), NumVal(3)]))
-l.match(FunVal("p", [FunVal("f", [NumVal(1), NumVal(2)]), FunVal("f", [NumVal(1), NumVal(2)])]))
+l.match(
+    FunVal(
+        "p", [FunVal("f", [NumVal(1), NumVal(2)]), FunVal("f", [NumVal(1), NumVal(2)])]
+    )
+)
 
 # next unify terms
 l.unify(FunTerm("p", [FunTerm("g", [VarTerm("A"), VarTerm("B")]), VarTerm("C")]))

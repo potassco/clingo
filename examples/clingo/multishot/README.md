@@ -26,7 +26,7 @@ The branch-and-bound example:
     Solving...
     Optimum found
     UNSATISFIABLE
-    
+
     Models       : 5
     Calls        : 6
     Time         : 0.015s (Solving: 0.01s 1st Model: 0.01s Unsat: 0.00s)
@@ -45,7 +45,7 @@ The incremental solving example:
     move(1,c,8)  move(4,c,9)  move(3,a,10) move(4,a,11) move(2,c,12) move(4,b,13) move(3,c,14)
     move(4,c,15)
     SATISFIABLE
-    
+
     Models       : 1+
     Calls        : 16
     Time         : 0.020s (Solving: 0.00s 1st Model: 0.00s Unsat: 0.00s)

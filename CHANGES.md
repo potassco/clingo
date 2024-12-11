@@ -346,7 +346,7 @@
 
 ## gringo/clingo 4.2
 
-  * added clingo 
+  * added clingo
     * supports very flexible scripting support
     * can cover iclingo and oclingo functionality now
   * added stack traces to lua error messages

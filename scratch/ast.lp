@@ -21,5 +21,3 @@ a :- p(X), 1 #sum { Z : p(X,Z); X,Y : q(X,Y) }.
     for ast in x:
         print tostring(ast, "")
 #end.
-
-

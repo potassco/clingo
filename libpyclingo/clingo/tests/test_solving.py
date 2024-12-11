@@ -1,8 +1,10 @@
 """
 Tests for solving.
 """
-from unittest import TestCase
+
 from typing import cast
+from unittest import TestCase
+
 from clingo import (
     Control,
     Function,
@@ -60,7 +62,12 @@ class TestSolving(TestCase):
             self,
             cast(
                 SolveResult,
-                self.ctl.solve(on_model=self.mcb.on_model, on_last=self.mcb.on_last, yield_=False, async_=False),
+                self.ctl.solve(
+                    on_model=self.mcb.on_model,
+                    on_last=self.mcb.on_last,
+                    yield_=False,
+                    async_=False,
+                ),
             ),
         )
         self.assertEqual(self.mcb.models, _p(["a", "c"], ["b", "c"]))
@@ -94,7 +101,7 @@ class TestSolving(TestCase):
         ) as hnd:
             for m in hnd:
                 self.mit.on_model(m)
-                self.assertEqual(hnd.last(), None) # Not yet finished
+                self.assertEqual(hnd.last(), None)  # Not yet finished
             _check_sat(self, hnd.get())
             self.mit.on_last(hnd.last())
             self.assertEqual(self.mcb.last, self.mit.final)
@@ -118,7 +125,7 @@ class TestSolving(TestCase):
                 if m is None:
                     break
                 self.mit.on_model(m)
-                self.assertEqual(hnd.last(), None) # Not yet finished
+                self.assertEqual(hnd.last(), None)  # Not yet finished
             _check_sat(self, hnd.get())
             self.mit.on_last(hnd.last())
             self.assertEqual(self.mcb.last, self.mit.final)
@@ -207,25 +214,27 @@ class TestSolving(TestCase):
 
         self.ctl.add("base", [], "a. b. c. #minimize { 1@5,a:a; 1@5,b:b; 1@5,c:c }.")
         self.ctl.ground([("base", [])])
-        self.ctl.solve(on_model=lambda m:on_model(m, False), on_last=lambda m:on_model(m, True))
+        self.ctl.solve(
+            on_model=lambda m: on_model(m, False), on_last=lambda m: on_model(m, True)
+        )
 
     def test_remove_minimize(self):
         self.ctl.add("base", [], "a. #minimize { 1,t : a }.")
         self.ctl.ground([("base", [])])
 
-        self.ctl.solve(on_model=lambda m:self.assertEqual(m.cost, [1]))
+        self.ctl.solve(on_model=lambda m: self.assertEqual(m.cost, [1]))
 
         self.ctl.add("s1", [], "b. #minimize { 1,t : b }.")
         self.ctl.ground([("s1", [])])
-        self.ctl.solve(on_model=lambda m:self.assertEqual(m.cost, [1]))
+        self.ctl.solve(on_model=lambda m: self.assertEqual(m.cost, [1]))
 
         self.ctl.remove_minimize()
         self.ctl.add("s2", [], "c. #minimize { 1,x : c ; 1,t : c}.")
         self.ctl.ground([("s2", [])])
-        self.ctl.solve(on_model=lambda m:self.assertEqual(m.cost, [2]))
+        self.ctl.solve(on_model=lambda m: self.assertEqual(m.cost, [2]))
 
         self.ctl.remove_minimize()
-        self.ctl.solve(on_model=lambda m:self.assertEqual(m.cost, []))
+        self.ctl.solve(on_model=lambda m: self.assertEqual(m.cost, []))
 
     def test_cautious_consequences(self):
         """
@@ -266,7 +275,7 @@ class TestSolving(TestCase):
 
     def test_update_projection(self):
         self.ctl.configuration.solve.project = "auto"
-        self.ctl.configuration.solve.models  = "0"
+        self.ctl.configuration.solve.models = "0"
         self.ctl.add("base", [], "{a;b;c;d}. #project a/0. #project b/0.")
         self.ctl.ground([("base", [])])
         self.ctl.solve(on_model=self.mcb.on_model)
@@ -286,8 +295,19 @@ class TestSolving(TestCase):
         pro = [Function("a")]
         self.ctl.add_project(pro)
         self.ctl.solve(on_model=self.mcb.on_model)
-        self.assertEqual(self.mcb.models, _p([], ["a"], ["a", "c"], ["a", "c", "d"], ["a", "d"], ["c"], ["c", "d"], ["d"]))
-
+        self.assertEqual(
+            self.mcb.models,
+            _p(
+                [],
+                ["a"],
+                ["a", "c"],
+                ["a", "c", "d"],
+                ["a", "d"],
+                ["c"],
+                ["c", "d"],
+                ["d"],
+            ),
+        )
 
     def test_control_clause(self):
         """

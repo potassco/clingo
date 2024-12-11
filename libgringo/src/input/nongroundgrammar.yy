@@ -48,7 +48,7 @@
     #include "potassco/basic_types.h"
 
     namespace Gringo { namespace Input { class NonGroundParser; } }
-    
+
     struct DefaultLocation : Gringo::Location {
         DefaultLocation() : Location("<undef>", 0, 0, "<undef>", 0, 0) { }
     };
@@ -59,7 +59,7 @@
 
 #include "gringo/input/nongroundparser.hh"
 #include "gringo/input/programbuilder.hh"
-#include <climits> 
+#include <climits>
 
 #define BUILDER (lexer->builder())
 #define LOGGER (lexer->logger())
@@ -779,12 +779,12 @@ statement
 
 // {{{2 blocks
 
-nidlist 
+nidlist
     : nidlist[list] COMMA identifier[id] { $$ = BUILDER.idvec($list, @id, String::fromRep($id)); }
     | identifier[id]                     { $$ = BUILDER.idvec(BUILDER.idvec(), @id, String::fromRep($id)); }
     ;
 
-idlist 
+idlist
     :               { $$ = BUILDER.idvec(); }
     | nidlist[list] { $$ = $list; }
     ;
@@ -851,7 +851,7 @@ theory_opterm_list
     |                           { $$ = BUILDER.theoryopterms(); }
     ;
 
-theory_atom_element 
+theory_atom_element
     : theory_opterm_nlist[list] disable_theory_lexing optcondition[cond] { $$ = { $list, $cond }; }
     |                           disable_theory_lexing COLON litvec[cond] { $$ = { BUILDER.theoryopterms(), $cond }; }
     ;

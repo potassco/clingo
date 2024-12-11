@@ -32,24 +32,24 @@
 namespace Gringo {
 
 struct GringoOptions {
-    enum class AppType {Gringo, Clingo, Lib};
+    enum class AppType { Gringo, Clingo, Lib };
     using SigVec = std::vector<Sig>;
     std::vector<std::string> defines;
-    Output::OutputOptions    outputOptions;
-    Output::OutputFormat     outputFormat          = Output::OutputFormat::INTERMEDIATE;
-    bool                     verbose               = false;
-    bool                     wNoOperationUndefined = false;
-    bool                     wNoAtomUndef          = false;
-    bool                     wNoFileIncluded       = false;
-    bool                     wNoGlobalVariable     = false;
-    bool                     wNoOther              = false;
-    bool                     rewriteMinimize       = false;
-    bool                     keepFacts             = false;
-    bool                     singleShot            = false;
-    SigVec                   sigvec;
+    Output::OutputOptions outputOptions;
+    Output::OutputFormat outputFormat = Output::OutputFormat::INTERMEDIATE;
+    bool verbose = false;
+    bool wNoOperationUndefined = false;
+    bool wNoAtomUndef = false;
+    bool wNoFileIncluded = false;
+    bool wNoGlobalVariable = false;
+    bool wNoOther = false;
+    bool rewriteMinimize = false;
+    bool keepFacts = false;
+    bool singleShot = false;
+    SigVec sigvec;
 };
 
-void registerOptions(Potassco::ProgramOptions::OptionGroup& group, GringoOptions& opts, GringoOptions::AppType type);
+void registerOptions(Potassco::ProgramOptions::OptionGroup &group, GringoOptions &opts, GringoOptions::AppType type);
 
 } // namespace Gringo
 

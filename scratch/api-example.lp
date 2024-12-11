@@ -25,8 +25,8 @@ def someTerms():
     return terms
 
 def onModel(m):
-    # gringo uses ground terms to refer to atoms 
-    # because function symbols and symbolic constants 
+    # gringo uses ground terms to refer to atoms
+    # because function symbols and symbolic constants
     # are structurally equivalent
 
     # prints a model in a similar fashion to clasp
@@ -49,7 +49,7 @@ def onModel(m):
     print "answer contains a: {0}".format(m.contains(Fun("a")))
     print "answer contains b: {0}".format(m.contains(Fun("b")))
 
-    # optionally can return a boolean to indicate 
+    # optionally can return a boolean to indicate
     # whether solving should be continued
     return True
 
@@ -58,13 +58,13 @@ def onFinish(ret, interrupted):
     # interrupted indicates whether the search was interrupted
     print "solving finished!"
 
-# if there is a main clingo will execute this function 
+# if there is a main clingo will execute this function
 # instead of grounding and solving the base part
 # the argument can be used to control grounding and solving
 # (it must only be used in the context of the main function)
 def main(prg):
-    # (instructs to) ground the program with a given name 
-    # and corresponding parameters 
+    # (instructs to) ground the program with a given name
+    # and corresponding parameters
     # note that the actual grounding happens during solve
     prg.ground("base", [])
     # fix the truth value of an external atom
@@ -76,7 +76,7 @@ def main(prg):
     ret = prg.solve(onModel)
     print ret
 
-    # get a constant defined with #const 
+    # get a constant defined with #const
     # (returns None if the constant is not defined)
     n = prg.getConst("n")
     # add an arbitrary program
