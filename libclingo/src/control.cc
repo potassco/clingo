@@ -2221,6 +2221,9 @@ extern "C" bool clingo_control_register_backend(clingo_control_t *control, cling
                 backend = Output::make_backend(std::move(out), Output::OutputFormat::INTERMEDIATE, false, false);
                 break;
             }
+            default: {
+                throw std::runtime_error("invalid backend type given");
+            }
         }
         control->registerObserver(std::move(backend), replace);
     }
