@@ -170,7 +170,7 @@ class Translator {
             }
         });
         tr_cond_lits_();
-        tr_aggr_();
+        tr_sum_();
         tr_disjunctions_();
         tr_conjunctions_();
         graph_.clear();
@@ -215,6 +215,8 @@ class Translator {
     using BdSumAggrElemVec = std::vector<BdSumAggrElem>;
     //! A vector of sum aggregates.
     using BdSumAggrVec = std::vector<std::tuple<lit_t, BdSumAggrElemVec, NumberSet::interval, NumberSet>>;
+    //! A vector of sum aggregates.
+    using MinAggrVec = std::vector<std::tuple<lit_t, LitVec, IndexVec>>;
 
     using LitMap = std::vector<LitInfo>;
     using ClauseMap = Util::ordered_map<Output::LitVec, lit_t>;
@@ -328,7 +330,39 @@ class Translator {
         }
     }
 
-    auto analyze_min_(lit_t lit, BdAggrElemSpan elems, GuardSpan guards) -> std::pair<LitVec, IndexVec> {
+    // Min aggregates should be translated in line with the example below.
+    //  [ ] [ ]
+    // [       ]
+    // 123456789
+    // >= 2 && <= 4
+    // >= 6 && <= 8
+    // (2|3|4|6|7|8) & (1=>false) & (5=>2|3|4)
+    // h :- #sum{c2=1,c3=1,c4=1,c6=1,c7=1,c8=1}>=1, #sum{c1=-1}>=0, #sum{c2=1,c3=1,c4=1,c5=-1}>=0.
+    // h :- #sum{c2=1,c3=1,c4=1,c6=1,c7=1,c8=1}>=1, not c1, #sum{c2=1,c3=1,c4=1,n5=1}>=1.
+    // n5 :- not c5.
+    // n5 :- h.
+    // n5 | c5 :- not not h.
+    // % with auxiliary literals
+    // x :- c2. x :- c3. x :- c4. x :- c6. x :- c7. x :- c8.
+    // y :- c2. y :- c3. y :- c4. y :- n5.
+    // h :- x, not c1, y.
+    // n5 :- not c5.
+    // n5 :- y.
+    // n5 | c5 :- not not y.
+    // % without duplication
+    // l1 :- c2.
+    // l1 :- c3.
+    // l1 :- c4.
+    // l2 :- c6.
+    // l2 :- c7.
+    // l2 :- c8.
+    // x :- l1.
+    // x :- l2.
+    // y :- not c1.
+    // z :- l1.
+    // z :- n5.
+    // h :- x, y. z.
+    void delay_min_(lit_t lit, BdAggrElemSpan elems, GuardSpan guards) {
         // simplify the elements
         auto upper = SymbolStore::sup();
         auto elem_vec = std::vector<std::pair<Symbol, lit_t>>{};
@@ -408,8 +442,9 @@ class Translator {
         //
         // Edges have to be added for all literals in T but antimonotone
         // aggregates can be excluded.
-        auto ftf = std::pair<LitVec, IndexVec>{};
-        auto &[lits, ids] = ftf;
+        min_aggrs_.emplace_back(lit, LitVec{}, IndexVec{});
+        auto &lits = get<1>(min_aggrs_.back());
+        auto &ids = get<2>(min_aggrs_.back());
         lits.reserve(elem_vec.size());
         ids.emplace_back(0);
         auto state = false;
@@ -427,48 +462,125 @@ class Translator {
         // add edges based on monotonicity
         if (ids.size() > 3 || (ids.size() > 1 && !state)) {
             for (auto const &clit : lits) {
-                graph_.add_edge(lit, clit);
+                if (lit > 0 && clit > 0) {
+                    graph_.add_edge(lit, clit);
+                }
             }
         }
-        return ftf;
+        // TODO: aggregates with ids.size() == 1 (or even antimonotone ones)
+        // could be translated right away.
     }
 
-    void delay_min_(lit_t lit, BdAggrElemSpan elems, GuardSpan guards) {
-        //  [ ] [ ]
-        // [       ]
-        // 123456789
-        // >= 2 && <= 4
-        // >= 6 && <= 8
-        // (2|3|4|6|7|8) & (1=>false) & (5=>2|3|4)
-        // h :- #sum{c2=1,c3=1,c4=1,c6=1,c7=1,c8=1}>=1, #sum{c1=-1}>=0, #sum{c2=1,c3=1,c4=1,c5=-1}>=0.
-        // h :- #sum{c2=1,c3=1,c4=1,c6=1,c7=1,c8=1}>=1, not c1, #sum{c2=1,c3=1,c4=1,n5=1}>=1.
-        // n5 :- not c5.
-        // n5 :- h.
-        // n5 | c5 :- not not h.
-        // % with auxiliary literals
-        // x :- c2. x :- c3. x :- c4. x :- c6. x :- c7. x :- c8.
-        // y :- c2. y :- c3. y :- c4. y :- n5.
-        // h :- x, not c1, y.
-        // n5 :- not c5.
-        // n5 :- y.
-        // n5 | c5 :- not not y.
-        // % without duplication
-        // l1 :- c2.
-        // l1 :- c3.
-        // l1 :- c4.
-        // l2 :- c6.
-        // l2 :- c7.
-        // l2 :- c8.
-        // x :- l1.
-        // x :- l2.
-        // y :- not c1.
-        // z :- l1.
-        // z :- n5.
-        // h :- x, y. z.
-        auto ftf = analyze_min_(lit, elems, guards);
-        // TODO: store aggregate for later processing
-        static_cast<void>(ftf);
-        throw std::logic_error("add aggregate for later processing");
+    //! Translate stored aggregate literals.
+    void tr_min_() {
+        if (!min_aggrs_.empty()) {
+            throw std::logic_error("implement me!!!");
+        }
+    }
+
+    //! Analyze a sum aggregate.
+    //!
+    //! Constructs a new aggregate element vector removing unnecessary elements,
+    //! computes an interval for largest and smallest value of the aggregate, and
+    //! represents the guards of the aggreagte as an interval set. This interval set
+    //! is additionally intersected with the range.
+    auto analyze_sum_(BdAggrElemSpan elems,
+                      GuardSpan guards) -> std::tuple<BdSumAggrElemVec, NumberSet::interval, NumberSet, CycleType> {
+        // simplify the aggregate
+        auto fixed = Number(0);
+        auto elem_vec = BdSumAggrElemVec{};
+        auto cond_map = Util::unordered_map<IndexSpan, size_t>{};
+        elem_vec.reserve(elems.size());
+        cond_map.reserve(elems.size());
+        for (auto const &[tup, conds] : elems) {
+            if (!tup.empty() && tup.front().type() == SymbolType::number && tup.front().num() != 0) {
+                auto num = tup.front().num();
+                if (conds.empty()) {
+                    fixed += num;
+                } else {
+                    if (auto [it, ins] = cond_map.try_emplace(conds, elem_vec.size()); !ins) {
+                        get<0>(elem_vec[it.value()]) += num;
+                    } else {
+                        aux_bd_.assign(conds.begin(), conds.end());
+                        elem_vec.emplace_back(std::move(num),
+                                              clause_({aux_bd_.begin(), aux_bd_.end()}, ClauseType::disjunctive));
+                    }
+                }
+            }
+        }
+        elem_vec.erase(std::ranges::remove_if(elem_vec, [](auto const &x) { return std::get<0>(x) == 0; }).end(),
+                       elem_vec.end());
+        elem_vec.shrink_to_fit();
+        // comput the range of the aggregate
+        auto lower = Number(0);
+        auto upper = Number(0);
+        for (auto const &[num, clit] : elem_vec) {
+            if (num > 0) {
+                upper += num;
+            } else {
+                lower += num;
+            }
+        }
+        // compute the bounds of the aggregate
+        auto bounds = Util::interval_set<Number>{};
+        auto range = Util::interval_set<Number>::interval{{lower, true}, {upper, true}};
+        bounds.add(range);
+        for (auto const &[rel, guard] : guards) {
+            // Note: workaround for buggy clang-tidy diagnostic
+            auto adjust = [&, &g = guard]() {
+                if (g.type() == SymbolType::number) {
+                    return g.num() - fixed;
+                }
+                if (g > upper) {
+                    return upper + 1;
+                }
+                assert(g < lower);
+                return lower - 1;
+            }();
+            switch (rel) {
+                case Relation::greater_equal: {
+                    bounds.remove({{lower, true}, {adjust, false}});
+                    break;
+                }
+                case Relation::greater: {
+                    bounds.remove({{lower, true}, {adjust + 1, false}});
+                    break;
+                }
+                case Relation::less_equal: {
+                    bounds.remove({{adjust, false}, {upper, true}});
+                    break;
+                }
+                case Relation::less: {
+                    bounds.remove({{adjust - 1, false}, {upper, true}});
+                    break;
+                }
+                case Relation::equal: {
+                    bounds.remove({{lower, true}, {adjust, false}});
+                    bounds.remove({{adjust, false}, {upper, true}});
+                    break;
+                }
+                case Relation::not_equal: {
+                    bounds.remove({{adjust - 1, false}, {adjust + 1, false}});
+                    break;
+                }
+            }
+        }
+        // classify which types of cycles have to be considered
+        auto type = bounds.size() > 1 ? CycleType::both : CycleType::none;
+        if (type != CycleType::both && bounds.size() == 1 && !bounds.contains(range)) {
+            auto const &sub = bounds.front();
+            if (lower < 0 && upper > 0) {
+                // the aggregate can switch arbitrarily between true and false
+                type = CycleType::both;
+            } else if (lower < 0 && sub < upper) {
+                // the aggregate can go from false to true by adding negative weights
+                type |= CycleType::negative;
+            } else if (upper > 0 && lower < sub) {
+                // the aggregate can go from false to true by adding positive weights
+                type |= CycleType::positive;
+            }
+        }
+        return {std::move(elem_vec), std::move(range), std::move(bounds), type};
     }
 
     void delay_sum_(lit_t lit, BdAggrElemSpan elems, GuardSpan guards) {
@@ -516,7 +628,7 @@ class Translator {
     }
 
     //! Translate stored aggregate literals.
-    void tr_aggr_() {
+    void tr_sum_() {
         for (auto &[lit, elems, range, bounds] : sum_aggrs_) {
             assert(lit > 0);
             // check which kind of literals are cyclic
@@ -636,111 +748,6 @@ class Translator {
         }
     }
 
-    //! Analyze a sum aggregate.
-    //!
-    //! Constructs a new aggregate element vector removing unnecessary elements,
-    //! computes an interval for largest and smallest value of the aggregate, and
-    //! represents the guards of the aggreagte as an interval set. This interval set
-    //! is additionally intersected with the range.
-    auto analyze_sum_(BdAggrElemSpan elems,
-                      GuardSpan guards) -> std::tuple<BdSumAggrElemVec, NumberSet::interval, NumberSet, CycleType> {
-        // simplify the aggregate
-        auto fixed = Number(0);
-        auto elem_vec = BdSumAggrElemVec{};
-        auto cond_map = Util::unordered_map<IndexSpan, size_t>{};
-        elem_vec.reserve(elems.size());
-        cond_map.reserve(elems.size());
-        for (auto const &[tup, conds] : elems) {
-            if (!tup.empty() && tup.front().type() == SymbolType::number && tup.front().num() != 0) {
-                auto num = tup.front().num();
-                if (conds.empty()) {
-                    fixed += num;
-                } else {
-                    if (auto [it, ins] = cond_map.try_emplace(conds, elem_vec.size()); !ins) {
-                        get<0>(elem_vec[it.value()]) += num;
-                    } else {
-                        aux_bd_.assign(conds.begin(), conds.end());
-                        elem_vec.emplace_back(std::move(num),
-                                              clause_({aux_bd_.begin(), aux_bd_.end()}, ClauseType::disjunctive));
-                    }
-                }
-            }
-        }
-        elem_vec.erase(std::ranges::remove_if(elem_vec, [](auto const &x) { return std::get<0>(x) == 0; }).end(),
-                       elem_vec.end());
-        elem_vec.shrink_to_fit();
-        // comput the range of the aggregate
-        auto lower = Number(0);
-        auto upper = Number(0);
-        for (auto const &[num, clit] : elem_vec) {
-            if (num > 0) {
-                upper += num;
-            } else {
-                lower += num;
-            }
-        }
-        // compute the bounds of the aggregate
-        auto bounds = Util::interval_set<Number>{};
-        auto range = Util::interval_set<Number>::interval{{lower, true}, {upper, true}};
-        bounds.add(range);
-        for (auto const &[rel, guard] : guards) {
-            // Note: workaround for buggy clang-tidy diagnostic
-            auto adjust = [&, &g = guard]() {
-                if (g.type() == SymbolType::number) {
-                    return g.num() - fixed;
-                }
-                if (g > upper) {
-                    return upper + 1;
-                }
-                assert(g < lower);
-                return lower - 1;
-            }();
-            switch (rel) {
-                case Relation::greater_equal: {
-                    bounds.remove({{lower, true}, {adjust, false}});
-                    break;
-                }
-                case Relation::greater: {
-                    bounds.remove({{lower, true}, {adjust + 1, false}});
-                    break;
-                }
-                case Relation::less_equal: {
-                    bounds.remove({{adjust, false}, {upper, true}});
-                    break;
-                }
-                case Relation::less: {
-                    bounds.remove({{adjust - 1, false}, {upper, true}});
-                    break;
-                }
-                case Relation::equal: {
-                    bounds.remove({{lower, true}, {adjust, false}});
-                    bounds.remove({{adjust, false}, {upper, true}});
-                    break;
-                }
-                case Relation::not_equal: {
-                    bounds.remove({{adjust - 1, false}, {adjust + 1, false}});
-                    break;
-                }
-            }
-        }
-        // classify which types of cycles have to be considered
-        auto type = bounds.size() > 1 ? CycleType::both : CycleType::none;
-        if (type != CycleType::both && bounds.size() == 1 && !bounds.contains(range)) {
-            auto const &sub = bounds.front();
-            if (lower < 0 && upper > 0) {
-                // the aggregate can switch arbitrarily between true and false
-                type = CycleType::both;
-            } else if (lower < 0 && sub < upper) {
-                // the aggregate can go from false to true by adding negative weights
-                type |= CycleType::negative;
-            } else if (upper > 0 && lower < sub) {
-                // the aggregate can go from false to true by adding positive weights
-                type |= CycleType::positive;
-            }
-        }
-        return {std::move(elem_vec), std::move(range), std::move(bounds), type};
-    }
-
     //! Get a literal equivalent to the given clause.
     auto clause_(LitSpan lits, ClauseType type) -> lit_t {
         aux_bd_.assign(lits.begin(), lits.end());
@@ -770,6 +777,7 @@ class Translator {
     ClauseMap disjunctions_;
     CondLits cond_lits_;
     BdSumAggrVec sum_aggrs_;
+    MinAggrVec min_aggrs_;
 };
 
 //! Output handling conditions.
