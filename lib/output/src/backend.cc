@@ -363,6 +363,7 @@ class Translator {
         // compute the range of the aggregate
         auto lower = SymbolStore::sup();
         auto upper = SymbolStore::sup();
+        // TODO: if there are elements with equal conditions drop the ones with larger weights
         for (auto const &[tup, conds] : elems) {
             if (!tup.empty()) {
                 auto weight = tup.front();
@@ -423,6 +424,13 @@ class Translator {
         //
         // Edges have to be added for all literals in T but antimonotone
         // aggregates can be excluded.
+        auto ftf = std::vector<LitVec>{};
+        // TODO: loop over sorted elements to build the ftf list
+        for (auto const &[tup, conds] : elems) {
+            static_cast<void>(tup);
+            static_cast<void>(conds);
+            static_cast<void>(ftf);
+        }
         static_cast<void>(this);
         static_cast<void>(lit);
         throw std::logic_error("group true/false ranges as shown above");
