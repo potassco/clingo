@@ -219,6 +219,19 @@ template <class T> class interval_set {
         return false;
     }
 
+    //! Check if the set contains the given value.
+    //!
+    //! @param x the value to check
+    //! @return whether the set contains the value
+    [[nodiscard]] auto contains(T const &x) const -> bool {
+        for (auto &y : vec_) {
+            if (!(y < x)) {
+                return !(x < y);
+            }
+        }
+        return false;
+    }
+
     //! Check if the set intersects the given interval.
     //!
     //! @param x the interval to check

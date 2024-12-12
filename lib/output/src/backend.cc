@@ -328,51 +328,35 @@ class Translator {
         }
     }
 
-    void delay_min_(lit_t lit, BdAggrElemSpan elems, GuardSpan guards) {
-        //  [ ] [ ]
-        // [       ]
-        // 123456789
-        // >= 2 && <= 4
-        // >= 6 && <= 8
-        // (2|3|4|6|7|8) & (1=>false) & (5=>2|3|4)
-        // h :- #sum{c2=1,c3=1,c4=1,c6=1,c7=1,c8=1}>=1, #sum{c1=-1}>=0, #sum{c2=1,c3=1,c4=1,c5=-1}>=0.
-        // h :- #sum{c2=1,c3=1,c4=1,c6=1,c7=1,c8=1}>=1, not c1, #sum{c2=1,c3=1,c4=1,n5=1}>=1.
-        // n5 :- not c5.
-        // n5 :- h.
-        // n5 | c5 :- not not h.
-        // % with auxiliary literals
-        // x :- c2. x :- c3. x :- c4. x :- c6. x :- c7. x :- c8.
-        // y :- c2. y :- c3. y :- c4. y :- n5.
-        // h :- x, not c1, y.
-        // n5 :- not c5.
-        // n5 :- y.
-        // n5 | c5 :- not not y.
-        // % without duplication
-        // l1 :- c2.
-        // l1 :- c3.
-        // l1 :- c4.
-        // l2 :- c6.
-        // l2 :- c7.
-        // l2 :- c8.
-        // x :- l1.
-        // x :- l2.
-        // y :- not c1.
-        // z :- l1.
-        // z :- n5.
-        // h :- x, y. z.
-        // compute the range of the aggregate
-        auto lower = SymbolStore::sup();
+    auto analyze_min_(lit_t lit, BdAggrElemSpan elems, GuardSpan guards) -> std::pair<LitVec, IndexVec> {
+        // simplify the elements
         auto upper = SymbolStore::sup();
-        // TODO: if there are elements with equal conditions drop the ones with larger weights
+        auto elem_vec = std::vector<std::pair<Symbol, lit_t>>{};
+        auto cond_map = Util::unordered_map<IndexSpan, size_t>{};
+        elem_vec.reserve(elems.size());
+        cond_map.reserve(elems.size());
         for (auto const &[tup, conds] : elems) {
-            if (!tup.empty()) {
-                auto weight = tup.front();
-                lower = std::min(lower, weight);
+            if (!tup.empty() && tup.front().type() != SymbolType::sup) {
                 if (conds.empty()) {
-                    upper = std::min(upper, weight);
+                    // adjust upper bound
+                    upper = std::min(upper, tup.front());
+                } else if (auto [it, ins] = cond_map.try_emplace(conds, elem_vec.size()); !ins) {
+                    // drop tuples with larger weights
+                    get<0>(elem_vec[it.value()]) = std::min(get<0>(elem_vec[it.value()]), tup.front());
+                } else {
+                    // add weight literal pairs
+                    aux_bd_.assign(conds.begin(), conds.end());
+                    elem_vec.emplace_back(tup.front(),
+                                          clause_({aux_bd_.begin(), aux_bd_.end()}, ClauseType::disjunctive));
                 }
             }
         }
+        // remove irrelevant values
+        elem_vec.erase(std::ranges::remove_if(elem_vec, [upper](auto const &x) { return get<0>(x) >= upper; }).end(),
+                       elem_vec.end());
+        elem_vec.shrink_to_fit();
+        std::ranges::sort(elem_vec);
+        auto lower = elem_vec.empty() ? upper : get<0>(elem_vec.front());
         // compute the bounds of the aggregate
         auto bounds = Util::interval_set<Symbol>{};
         auto range = Util::interval_set<Symbol>::interval{{lower, true}, {upper, true}};
@@ -406,7 +390,7 @@ class Translator {
                 }
             }
         }
-        // Group ranges as shown above. The result will be a sequence of form
+        // Convert aggregate into form
         //
         //     F(TF)*
         //
@@ -424,16 +408,67 @@ class Translator {
         //
         // Edges have to be added for all literals in T but antimonotone
         // aggregates can be excluded.
-        auto ftf = std::vector<LitVec>{};
-        // TODO: loop over sorted elements to build the ftf list
-        for (auto const &[tup, conds] : elems) {
-            static_cast<void>(tup);
-            static_cast<void>(conds);
-            static_cast<void>(ftf);
+        auto ftf = std::pair<LitVec, IndexVec>{};
+        auto &[lits, ids] = ftf;
+        lits.reserve(elem_vec.size());
+        ids.emplace_back(0);
+        auto state = false;
+        for (auto const &[weight, lit] : elem_vec) {
+            auto prev = state;
+            state = bounds.contains(weight);
+            if (prev != state) {
+                ids.emplace_back(lits.size());
+            }
+            lits.emplace_back(lit);
         }
-        static_cast<void>(this);
-        static_cast<void>(lit);
-        throw std::logic_error("group true/false ranges as shown above");
+        if (state) {
+            ids.emplace_back(lits.size());
+        }
+        // add edges based on monotonicity
+        if (ids.size() > 3 || (ids.size() > 1 && !state)) {
+            for (auto const &clit : lits) {
+                graph_.add_edge(lit, clit);
+            }
+        }
+        return ftf;
+    }
+
+    void delay_min_(lit_t lit, BdAggrElemSpan elems, GuardSpan guards) {
+        //  [ ] [ ]
+        // [       ]
+        // 123456789
+        // >= 2 && <= 4
+        // >= 6 && <= 8
+        // (2|3|4|6|7|8) & (1=>false) & (5=>2|3|4)
+        // h :- #sum{c2=1,c3=1,c4=1,c6=1,c7=1,c8=1}>=1, #sum{c1=-1}>=0, #sum{c2=1,c3=1,c4=1,c5=-1}>=0.
+        // h :- #sum{c2=1,c3=1,c4=1,c6=1,c7=1,c8=1}>=1, not c1, #sum{c2=1,c3=1,c4=1,n5=1}>=1.
+        // n5 :- not c5.
+        // n5 :- h.
+        // n5 | c5 :- not not h.
+        // % with auxiliary literals
+        // x :- c2. x :- c3. x :- c4. x :- c6. x :- c7. x :- c8.
+        // y :- c2. y :- c3. y :- c4. y :- n5.
+        // h :- x, not c1, y.
+        // n5 :- not c5.
+        // n5 :- y.
+        // n5 | c5 :- not not y.
+        // % without duplication
+        // l1 :- c2.
+        // l1 :- c3.
+        // l1 :- c4.
+        // l2 :- c6.
+        // l2 :- c7.
+        // l2 :- c8.
+        // x :- l1.
+        // x :- l2.
+        // y :- not c1.
+        // z :- l1.
+        // z :- n5.
+        // h :- x, y. z.
+        auto ftf = analyze_min_(lit, elems, guards);
+        // TODO: store aggregate for later processing
+        static_cast<void>(ftf);
+        throw std::logic_error("add aggregate for later processing");
     }
 
     void delay_sum_(lit_t lit, BdAggrElemSpan elems, GuardSpan guards) {
