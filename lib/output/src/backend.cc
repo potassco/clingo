@@ -216,7 +216,7 @@ class Translator {
     //! A vector of sum aggregates.
     using BdSumAggrVec = std::vector<std::tuple<lit_t, BdSumAggrElemVec, NumberSet::interval, NumberSet>>;
     //! A vector of sum aggregates.
-    using MinAggrVec = std::vector<std::tuple<lit_t, LitVec, IndexVec>>;
+    using MinAggrVec = std::vector<std::tuple<lit_t, bool, LitVec, IndexVec>>;
 
     using LitMap = std::vector<LitInfo>;
     using ClauseMap = Util::ordered_map<Output::LitVec, lit_t>;
@@ -363,6 +363,7 @@ class Translator {
     // z :- n5.
     // h :- x, y. z.
     void delay_min_(lit_t lit, BdAggrElemSpan elems, GuardSpan guards) {
+        assert(lit > 0);
         // simplify the elements
         auto upper = SymbolStore::sup();
         auto elem_vec = std::vector<std::pair<Symbol, lit_t>>{};
@@ -426,38 +427,25 @@ class Translator {
         }
         // Convert aggregate into form
         //
-        //     F(TF)*
+        //     F(TF)*T?
+        //     T(FT)*F?
         //
-        // where subsequences of form FTF and TFT can be merged into F and T if
-        // T and F are empty, repsectively.
+        // where the last T and F in the sequence are empty and the remaining
+        // ones are non-empty.
         //
-        // The sequence F corresponds to a convex, montone, and antimonotone
-        // aggregate. The sequence FTF corresponds to a convex aggregate that
-        // is
-        // - monotone if the first F is empty and
-        // - antimonotone if the second F is empty.
+        // The sequences T and F correspond to true and false, respectively.
         //
-        // Aggregates that are both monotone and antimonotone are either false
-        // (F) or true (FTF).
+        // The sequences FT, TF, FTF correspond to monotone, antimonotone, and
+        // convex aggregates, respectively.
         //
         // Edges have to be added for all literals in T but antimonotone
         // aggregates can be excluded.
-        //
-        // Example:
-        // F,T,F,T,F,T,F
-        // a,b,c,d,e,f,g
-        // #sum { g=-1,f=1,e=-2,d=3,c=-5,b=8,a=-13 } >= 0. % empty = true
-        // (empty case could be handled by appending a factual true at the end)
-        // TODO:
-        // - list more cases
-        // - a trailing T? has to be added above to distinguish
-        //   whether the empty case is true or false
-        min_aggrs_.emplace_back(lit, LitVec{}, IndexVec{});
-        auto &lits = get<1>(min_aggrs_.back());
-        auto &ids = get<2>(min_aggrs_.back());
+        auto lits = LitVec{};
+        auto ids = IndexVec{};
         lits.reserve(elem_vec.size());
         ids.emplace_back(0);
-        auto state = false;
+        auto start = bounds.contains(lower);
+        auto state = start;
         for (auto const &[weight, lit] : elem_vec) {
             auto prev = state;
             state = bounds.contains(weight);
@@ -466,16 +454,67 @@ class Translator {
             }
             lits.emplace_back(lit);
         }
-        if (state) {
+        if (state != bounds.contains(upper)) {
             ids.emplace_back(lits.size());
         }
-        // add edges based on monotonicity
-        if (ids.size() > 3 || (ids.size() > 1 && !state)) {
-            for (auto const &clit : lits) {
-                if (lit > 0 && clit > 0) {
-                    graph_.add_edge(lit, clit);
+        lits.resize(ids.back());
+        auto get_span = [&lits](auto it) {
+            return std::span{std::next(lits.begin(), *it), std::next(lits.begin(), *(it + 1))};
+        };
+        if (ids.size() == 1) {
+            // translate constant case
+            assert(lits.empty());
+            if (start) {
+                backend_->rule(std::array{lit}, {}, false);
+            } else {
+                backend_->rule({}, std::array{lit}, false);
+            }
+        } else if (ids.size() == 2) {
+            if (start) {
+                // translate monotone case
+                for (auto const &clit : get_span(lits.begin())) {
+                    backend_->rule(std::array{lit}, std::array{clit}, false);
+                    if (clit > 0) {
+                        graph_.add_edge(lit, clit);
+                    }
+                }
+            } else {
+                // translate antimonotone case
+                aux_bd_.clear();
+                for (auto const &clit : get_span(lits.begin())) {
+                    aux_bd_.emplace_back(negate(clit));
+                }
+                backend_->rule(std::array{lit}, aux_bd_, false);
+            }
+        } else if (ids.size() == 3 && !start) {
+            // translate convex case
+            aux_bd_.clear();
+            aux_bd_.emplace_back(next_lit());
+            for (auto const &clit : get_span(lits.begin() + 1)) {
+                backend_->rule(std::array{aux_bd_.back()}, std::array{clit}, false);
+                if (clit > 0) {
+                    graph_.add_edge(aux_bd_.back(), clit);
                 }
             }
+            graph_.add_edge(lit, aux_bd_.back());
+            for (auto const &clit : get_span(lits.begin())) {
+                aux_bd_.emplace_back(negate(clit));
+            }
+            backend_->rule(std::array{lit}, aux_bd_, false);
+        } else {
+            // delay nonmonotone case
+            bool state = start;
+            for (auto it = ids.begin(), ie = ids.end(); it + 1 != ie; ++it) {
+                if (state) {
+                    for (auto const &clit : get_span(it)) {
+                        if (clit > 0) {
+                            graph_.add_edge(lit, clit);
+                        }
+                    }
+                }
+                state = !state;
+            }
+            min_aggrs_.emplace_back(lit, start, std::move(lits), std::move(ids));
         }
     }
 
