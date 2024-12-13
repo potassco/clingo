@@ -330,38 +330,6 @@ class Translator {
         }
     }
 
-    // Min aggregates should be translated in line with the example below.
-    //  [ ] [ ]
-    // [       ]
-    // 123456789
-    // >= 2 && <= 4
-    // >= 6 && <= 8
-    // (2|3|4|6|7|8) & (1=>false) & (5=>2|3|4)
-    // h :- #sum{c2=1,c3=1,c4=1,c6=1,c7=1,c8=1}>=1, #sum{c1=-1}>=0, #sum{c2=1,c3=1,c4=1,c5=-1}>=0.
-    // h :- #sum{c2=1,c3=1,c4=1,c6=1,c7=1,c8=1}>=1, not c1, #sum{c2=1,c3=1,c4=1,n5=1}>=1.
-    // n5 :- not c5.
-    // n5 :- h.
-    // n5 | c5 :- not not h.
-    // % with auxiliary literals
-    // x :- c2. x :- c3. x :- c4. x :- c6. x :- c7. x :- c8.
-    // y :- c2. y :- c3. y :- c4. y :- n5.
-    // h :- x, not c1, y.
-    // n5 :- not c5.
-    // n5 :- y.
-    // n5 | c5 :- not not y.
-    // % without duplication
-    // l1 :- c2.
-    // l1 :- c3.
-    // l1 :- c4.
-    // l2 :- c6.
-    // l2 :- c7.
-    // l2 :- c8.
-    // x :- l1.
-    // x :- l2.
-    // y :- not c1.
-    // z :- l1.
-    // z :- n5.
-    // h :- x, y. z.
     void delay_min_(lit_t lit, BdAggrElemSpan elems, GuardSpan guards) {
         assert(lit > 0);
         // simplify the elements
@@ -520,6 +488,25 @@ class Translator {
 
     //! Translate stored aggregate literals.
     void tr_min_() {
+        // Min aggregates should be translated in line with the examples below.
+        // Example 1:
+        // l :- 2 != #min { 1:a; 2:b; 3:c; 4:d } !=4
+        // [         ]
+        // [ ] [ ] [ ]
+        //  1 2 3 4 e
+        // l :- a.
+        // l :- c, nb.
+        // l :- nb, nd. % (*)
+        // nb :- not b.
+        // nb :- l.
+        // nb | b :- not not l.
+        // nd :- not d.
+        // nd :- l.
+        // nd | d :- not not l.
+        // In theory, intruducing rules (*) might lead to repeated sequences of
+        // literals. However, since the above example is the worst case
+        // regarding nonmonotone aggregates, there is no need to optimize
+        // further.
         if (!min_aggrs_.empty()) {
             throw std::logic_error("implement me!!!");
         }
