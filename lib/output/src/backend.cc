@@ -472,7 +472,7 @@ class Translator {
         } else if (ids.size() == 2) {
             if (start) {
                 // translate monotone case
-                for (auto const &clit : get_span(lits.begin())) {
+                for (auto const &clit : get_span(ids.begin())) {
                     backend_->rule(std::array{lit}, std::array{clit}, false);
                     if (clit > 0) {
                         graph_.add_edge(lit, clit);
@@ -481,7 +481,7 @@ class Translator {
             } else {
                 // translate antimonotone case
                 aux_bd_.clear();
-                for (auto const &clit : get_span(lits.begin())) {
+                for (auto const &clit : get_span(ids.begin())) {
                     aux_bd_.emplace_back(negate(clit));
                 }
                 backend_->rule(std::array{lit}, aux_bd_, false);
@@ -490,14 +490,14 @@ class Translator {
             // translate convex case
             aux_bd_.clear();
             aux_bd_.emplace_back(next_lit());
-            for (auto const &clit : get_span(lits.begin() + 1)) {
+            for (auto const &clit : get_span(ids.begin() + 1)) {
                 backend_->rule(std::array{aux_bd_.back()}, std::array{clit}, false);
                 if (clit > 0) {
                     graph_.add_edge(aux_bd_.back(), clit);
                 }
             }
             graph_.add_edge(lit, aux_bd_.back());
-            for (auto const &clit : get_span(lits.begin())) {
+            for (auto const &clit : get_span(ids.begin())) {
                 aux_bd_.emplace_back(negate(clit));
             }
             backend_->rule(std::array{lit}, aux_bd_, false);
