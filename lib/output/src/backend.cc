@@ -442,6 +442,16 @@ class Translator {
         //
         // Edges have to be added for all literals in T but antimonotone
         // aggregates can be excluded.
+        //
+        // Example:
+        // F,T,F,T,F,T,F
+        // a,b,c,d,e,f,g
+        // #sum { g=-1,f=1,e=-2,d=3,c=-5,b=8,a=-13 } >= 0. % empty = true
+        // (empty case could be handled by appending a factual true at the end)
+        // TODO:
+        // - list more cases
+        // - a trailing T? has to be added above to distinguish
+        //   whether the empty case is true or false
         min_aggrs_.emplace_back(lit, LitVec{}, IndexVec{});
         auto &lits = get<1>(min_aggrs_.back());
         auto &ids = get<2>(min_aggrs_.back());
@@ -467,8 +477,6 @@ class Translator {
                 }
             }
         }
-        // TODO: aggregates with ids.size() == 1 (or even antimonotone ones)
-        // could be translated right away.
     }
 
     //! Translate stored aggregate literals.
