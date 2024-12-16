@@ -355,9 +355,8 @@ class Translator {
     }
 
     template <class Sym>
-    auto analyze_mm_(lit_t lit, BdAggrElemSpan elems, GuardSpan guards)
+    auto analyze_mm_(BdAggrElemSpan elems, GuardSpan guards)
         -> std::tuple<Sym, Sym, Util::interval_set<Sym>, std::vector<std::pair<Sym, lit_t>>> {
-        assert(lit > 0);
         // simplify the elements
         auto upper = Sym::neutral();
         auto elem_vec = std::vector<std::pair<Sym, lit_t>>{};
@@ -439,7 +438,7 @@ class Translator {
         // Edges have to be added for all literals in T but antimonotone
         // aggregates can be excluded.
         assert(lit > 0);
-        auto [lower, upper, bounds, elem_vec] = analyze_mm_<Sym>(lit, elems, guards);
+        auto [lower, upper, bounds, elem_vec] = analyze_mm_<Sym>(elems, guards);
         auto lits = LitVec{};
         auto ids = IndexVec{};
         lits.reserve(elem_vec.size());
