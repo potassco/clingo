@@ -6,6 +6,12 @@
 
 #include <clasp/solver.h>
 
+// #define DEUBG_BACKENED
+#ifdef DEUBG_BACKENED
+#include <clingo/util/print.hh>
+#include <iostream>
+#endif
+
 namespace Clingo::Control {
 
 void Scripts::register_script(std::string_view name, UScript script) { scripts_.emplace_back(name, std::move(script)); }
@@ -67,18 +73,18 @@ class BackendClasp : public Output::Backend {
     void do_rule(Output::LitSpan head, Output::LitSpan body, bool choice) override {
         bld_.clear();
         bld_.start(choice ? Potassco::Head_t::choice : Potassco::Head_t::disjunctive);
+#ifdef DEUBG_BACKENED
+        std::cerr << (choice ? "{ " : "") << Util::p_range(head, ", ") << (choice ? " }" : "") << " :- "
+                  << Util::p_range(body, ", ") << ".\n";
+#endif
         for (auto const &lit : head) {
             assert(lit > 0);
-            // printf("%d ", lit);
             bld_.addHead(lit);
         }
-        // printf(" :- ");
         bld_.startBody();
         for (auto const &lit : body) {
-            // printf("%d ", lit);
             bld_.addGoal(lit);
         }
-        // printf(".\n");
         prg_->addRule(bld_);
     }
 
@@ -103,11 +109,9 @@ class BackendClasp : public Output::Backend {
         buf_.reset();
         buf_ << sym;
         prg_->addOutput(buf_.c_str(), prg_->newCondition(body));
-        // printf("#show %s :", buf_.c_str());
-        // for (auto const &lit : body) {
-        //     printf(" %d", lit);
-        // }
-        // printf(".\n");
+#ifdef DEUBG_BACKENED
+        std::cerr << "#show " << sym << " : " << Util::p_range(body, ", ") << ".\n";
+#endif
     }
 
     Output::lit_t lit_ = 0;

@@ -378,9 +378,9 @@ class Translator {
                     get<0>(elem_vec[it.value()]) = std::min<Sym>(get<0>(elem_vec[it.value()]), tup.front());
                 } else {
                     // add weight literal pairs
-                    aux_bd_.assign(conds.begin(), conds.end());
+                    aux_cond_.assign(conds.begin(), conds.end());
                     elem_vec.emplace_back(tup.front(),
-                                          clause_({aux_bd_.begin(), aux_bd_.end()}, ClauseType::disjunctive));
+                                          clause_({aux_cond_.begin(), aux_cond_.end()}, ClauseType::disjunctive));
                 }
             }
         }
@@ -466,7 +466,6 @@ class Translator {
         };
         if (ids.size() == 1) {
             // translate constant case
-            printf("constant case\n");
             assert(lits.empty());
             if (start) {
                 backend_->rule(std::array{lit}, {}, false);
@@ -476,7 +475,6 @@ class Translator {
         } else if (ids.size() == 2) {
             if (start) {
                 // translate monotone case
-                printf("monotone case\n");
                 for (auto const &clit : get_span(ids.begin())) {
                     backend_->rule(std::array{lit}, std::array{clit}, false);
                     if (clit > 0) {
@@ -485,7 +483,6 @@ class Translator {
                 }
             } else {
                 // translate antimonotone case
-                printf("antimonotone case\n");
                 aux_bd_.clear();
                 for (auto const &clit : get_span(ids.begin())) {
                     aux_bd_.emplace_back(negate(clit));
@@ -494,7 +491,6 @@ class Translator {
             }
         } else if (ids.size() == 3 && !start) {
             // translate convex case
-            printf("convex case\n");
             aux_bd_.clear();
             aux_bd_.emplace_back(next_lit());
             for (auto const &clit : get_span(ids.begin() + 1)) {
@@ -510,7 +506,6 @@ class Translator {
             backend_->rule(std::array{lit}, aux_bd_, false);
         } else {
             // delay nonmonotone case
-            printf("nonmontone case\n");
             bool state = start;
             for (auto it = ids.begin(), ie = ids.end(); it + 1 != ie; ++it) {
                 if (state) {
@@ -543,28 +538,27 @@ class Translator {
         // nd :- lit.
         // nd | d :- not not lit.
         // Rules of form (*) are shortened by introducing auxiliary literals.
-        auto neg = LitVec{};
         for (auto const &[lit, start, lits, ids] : min_aggrs_) {
             assert(!ids.empty());
             auto get_span = [&lits = lits](auto it) {
                 return std::span{std::next(lits.begin(), *it), std::next(lits.begin(), *(it + 1))};
             };
             auto scc = info_(lit).scc;
-            neg.clear();
+            aux_cond_.clear();
             auto state = start;
             for (auto it = ids.begin(), ie = ids.end(); it + 1 != ie; ++it) {
                 for (auto const &clit : get_span(it)) {
                     if (state) {
-                        // lit :- clit, neg.
-                        if (neg.size() > 1) {
-                            auto nlit = clause_(neg, ClauseType::conjunctive, false);
+                        // lit :- clit, aux_cond_.
+                        if (aux_cond_.size() > 1) {
+                            auto nlit = clause_(aux_cond_, ClauseType::conjunctive, false);
                             mark_(nlit, EQType::implication);
-                            neg.clear();
-                            neg.emplace_back(nlit);
+                            aux_cond_.clear();
+                            aux_cond_.emplace_back(nlit);
                         }
-                        neg.emplace_back(clit);
-                        backend_->rule(std::array{lit}, neg, false);
-                        neg.pop_back();
+                        aux_cond_.emplace_back(clit);
+                        backend_->rule(std::array{lit}, aux_cond_, false);
+                        aux_cond_.pop_back();
                     } else {
                         if (clit > 0 && scc != 0 && scc == info_(clit).scc) {
                             // nlit :- not clit.
@@ -575,16 +569,16 @@ class Translator {
                             backend_->rule(std::array{nlit}, std::array{negate(clit)}, false);
                             backend_->rule(std::array{nlit}, std::array{negate(lit)}, false);
                             backend_->rule(std::array{nlit, clit}, std::array{negate(negate(lit))}, false);
-                            neg.emplace_back(nlit);
+                            aux_cond_.emplace_back(nlit);
                         } else {
-                            neg.emplace_back(negate(clit));
+                            aux_cond_.emplace_back(negate(clit));
                         }
                     }
                 }
                 state = !state;
             }
             if (state) {
-                backend_->rule(std::array{lit}, neg, false);
+                backend_->rule(std::array{lit}, aux_cond_, false);
             }
         }
     }
@@ -612,9 +606,9 @@ class Translator {
                     if (auto [it, ins] = cond_map.try_emplace(conds, elem_vec.size()); !ins) {
                         get<0>(elem_vec[it.value()]) += num;
                     } else {
-                        aux_bd_.assign(conds.begin(), conds.end());
+                        aux_cond_.assign(conds.begin(), conds.end());
                         elem_vec.emplace_back(std::move(num),
-                                              clause_({aux_bd_.begin(), aux_bd_.end()}, ClauseType::disjunctive));
+                                              clause_({aux_cond_.begin(), aux_cond_.end()}, ClauseType::disjunctive));
                     }
                 }
             }
@@ -867,7 +861,7 @@ class Translator {
         if (aux_bd_.size() == 1) {
             return aux_bd_.front();
         }
-        auto [it, ins] = (type == ClauseType::conjunctive ? conds_ : disjunctions_).emplace(aux_hd_, 0);
+        auto [it, ins] = (type == ClauseType::conjunctive ? conds_ : disjunctions_).emplace(aux_bd_, 0);
         if (ins) {
             it.value() = next_lit();
             for (auto const &lit : it->first) {
@@ -882,6 +876,7 @@ class Translator {
     Backend *backend_;
     Output::LitVec aux_hd_;
     Output::LitVec aux_bd_;
+    Output::LitVec aux_cond_;
     Util::Graph graph_;
     LitMap lits_;
     ClauseMap conds_;
