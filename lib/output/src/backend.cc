@@ -25,6 +25,28 @@ auto uid_to_lit(size_t uid) -> lit_t {
     return static_cast<int32_t>(uid);
 }
 
+class FwdSym {
+  public:
+    FwdSym(Symbol sym) : sym_{sym} {}
+    friend auto operator==(FwdSym const &a, FwdSym const &b) -> bool = default;
+    friend auto operator<=>(FwdSym const &a, FwdSym const &b) = default;
+    static auto neutral() { return FwdSym{SymbolStore::sup()}; }
+
+  private:
+    Symbol sym_;
+};
+
+class BwdSym {
+  public:
+    BwdSym(Symbol sym) : sym_{sym} {}
+    friend auto operator==(BwdSym const &a, BwdSym const &b) -> bool = default;
+    friend auto operator<=>(BwdSym const &a, BwdSym const &b) { return b.sym_ <=> a.sym_; }
+    static auto neutral() { return BwdSym{SymbolStore::inf()}; }
+
+  private:
+    Symbol sym_;
+};
+
 //! Abstract class connecting grounder and solver.
 //!
 //! The backend is repsonsible for passig grounded statements to the solver (or
@@ -117,11 +139,12 @@ class Translator {
                 break;
             }
             case AggregateFunction::min: {
-                delay_min_(lit, elems, guards);
+                delay_mm_<FwdSym>(lit, elems, guards);
                 break;
             }
             case AggregateFunction::max: {
-                throw std::logic_error("implement me: add support for max aggregate");
+                delay_mm_<BwdSym>(lit, elems, guards);
+                break;
             }
             case Clingo::AggregateFunction::count: {
                 assert(false);
@@ -331,22 +354,28 @@ class Translator {
         }
     }
 
-    void delay_min_(lit_t lit, BdAggrElemSpan elems, GuardSpan guards) {
+    template <class Sym>
+    auto analyze_mm_(lit_t lit, BdAggrElemSpan elems, GuardSpan guards)
+        -> std::tuple<Sym, Sym, Util::interval_set<Sym>, std::vector<std::pair<Sym, lit_t>>> {
         assert(lit > 0);
         // simplify the elements
-        auto upper = SymbolStore::sup();
-        auto elem_vec = std::vector<std::pair<Symbol, lit_t>>{};
+        auto upper = Sym::neutral();
+        auto elem_vec = std::vector<std::pair<Sym, lit_t>>{};
         auto cond_map = Util::unordered_map<IndexSpan, size_t>{};
         elem_vec.reserve(elems.size());
         cond_map.reserve(elems.size());
         for (auto const &[tup, conds] : elems) {
-            if (!tup.empty() && tup.front().type() != SymbolType::sup) {
-                if (conds.empty()) {
-                    // adjust upper bound
-                    upper = std::min(upper, tup.front());
-                } else if (auto [it, ins] = cond_map.try_emplace(conds, elem_vec.size()); !ins) {
+            if (!tup.empty() && tup.front() < upper && conds.empty()) {
+                // adjust upper bound
+                upper = std::min<Sym>(upper, tup.front());
+            }
+        }
+        for (auto const &[tup, conds] : elems) {
+            if (!tup.empty() && tup.front() < upper) {
+                assert(!conds.empty());
+                if (auto [it, ins] = cond_map.try_emplace(conds, elem_vec.size()); !ins) {
                     // drop tuples with larger weights
-                    get<0>(elem_vec[it.value()]) = std::min(get<0>(elem_vec[it.value()]), tup.front());
+                    get<0>(elem_vec[it.value()]) = std::min<Sym>(get<0>(elem_vec[it.value()]), tup.front());
                 } else {
                     // add weight literal pairs
                     aux_bd_.assign(conds.begin(), conds.end());
@@ -355,15 +384,11 @@ class Translator {
                 }
             }
         }
-        // remove irrelevant values
-        elem_vec.erase(std::ranges::remove_if(elem_vec, [upper](auto const &x) { return get<0>(x) >= upper; }).end(),
-                       elem_vec.end());
-        elem_vec.shrink_to_fit();
         std::ranges::sort(elem_vec);
         auto lower = elem_vec.empty() ? upper : get<0>(elem_vec.front());
         // compute the bounds of the aggregate
-        auto bounds = Util::interval_set<Symbol>{};
-        auto range = Util::interval_set<Symbol>::interval{{lower, true}, {upper, true}};
+        auto bounds = Util::interval_set<Sym>{};
+        auto range = typename Util::interval_set<Sym>::interval{{lower, true}, {upper, true}};
         bounds.add(range);
         for (auto const &[rel, guard] : guards) {
             switch (rel) {
@@ -394,7 +419,11 @@ class Translator {
                 }
             }
         }
-        // Convert aggregate into form
+        return {lower, upper, bounds, std::move(elem_vec)};
+    }
+
+    template <class Sym> void delay_mm_(lit_t lit, BdAggrElemSpan elems, GuardSpan guards) {
+        // Converst aggregate #min/#max aggregates into form
         //
         //     F(TF)*T?
         //     T(FT)*F?
@@ -409,6 +438,8 @@ class Translator {
         //
         // Edges have to be added for all literals in T but antimonotone
         // aggregates can be excluded.
+        assert(lit > 0);
+        auto [lower, upper, bounds, elem_vec] = analyze_mm_<Sym>(lit, elems, guards);
         auto lits = LitVec{};
         auto ids = IndexVec{};
         lits.reserve(elem_vec.size());
