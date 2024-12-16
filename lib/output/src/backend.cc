@@ -171,6 +171,7 @@ class Translator {
         });
         tr_cond_lits_();
         tr_sum_();
+        tr_min_();
         tr_disjunctions_();
         tr_conjunctions_();
         graph_.clear();
@@ -426,6 +427,9 @@ class Translator {
             ids.emplace_back(lits.size());
         }
         lits.resize(ids.back());
+        for (auto const &clit : lits) {
+            mark_(clit, EQType::implication);
+        }
         auto get_span = [&lits](auto it) {
             return std::span{std::next(lits.begin(), *it), std::next(lits.begin(), *(it + 1))};
         };
@@ -486,29 +490,66 @@ class Translator {
         }
     }
 
-    //! Translate stored aggregate literals.
+    //! Translate stored min aggregates.
     void tr_min_() {
-        // Min aggregates should be translated in line with the examples below.
-        // Example 1:
-        // l :- 2 != #min { 1:a; 2:b; 3:c; 4:d } !=4
+        // Min aggregates are translated as indicated in the example below:
+        // lit :- 2 != #min { 1:a; 2:b; 3:c; 4:d } !=4
         // [         ]
         // [ ] [ ] [ ]
         //  1 2 3 4 e
-        // l :- a.
-        // l :- c, nb.
-        // l :- nb, nd. % (*)
+        // lit :- a.
+        // lit :- c, nb.
+        // lit :- nb, nd. % (*)
         // nb :- not b.
-        // nb :- l.
-        // nb | b :- not not l.
+        // nb :- lit.
+        // nb | b :- not not lit.
         // nd :- not d.
-        // nd :- l.
-        // nd | d :- not not l.
-        // In theory, intruducing rules (*) might lead to repeated sequences of
-        // literals. However, since the above example is the worst case
-        // regarding nonmonotone aggregates, there is no need to optimize
-        // further.
-        if (!min_aggrs_.empty()) {
-            throw std::logic_error("implement me!!!");
+        // nd :- lit.
+        // nd | d :- not not lit.
+        // Rules of form (*) are shortened by introducing auxiliary literals.
+        auto neg = LitVec{};
+        for (auto const &[lit, start, lits, ids] : min_aggrs_) {
+            assert(!ids.empty());
+            auto get_span = [&lits = lits](auto it) {
+                return std::span{std::next(lits.begin(), *it), std::next(lits.begin(), *(it + 1))};
+            };
+            auto scc = info_(lit).scc;
+            neg.clear();
+            auto state = start;
+            for (auto it = ids.begin(), ie = ids.end(); it + 1 != ie; ++it) {
+                for (auto const &clit : get_span(it)) {
+                    if (state) {
+                        // lit :- clit, neg.
+                        if (neg.size() > 1) {
+                            auto nlit = clause_(neg, ClauseType::conjunctive);
+                            mark_(nlit, EQType::implication);
+                            neg.clear();
+                            neg.emplace_back(nlit);
+                        }
+                        neg.emplace_back(clit);
+                        backend_->rule(std::array{lit}, neg, false);
+                        neg.pop_back();
+                    } else {
+                        if (clit > 0 && scc != 0 && scc == info_(clit).scc) {
+                            // nlit :- not clit.
+                            // nlit :- lit.
+                            // nlit | clit :- not not l.
+                            mark_(clit, EQType::equivalence);
+                            auto nlit = next_lit();
+                            backend_->rule(std::array{nlit}, std::array{negate(clit)}, false);
+                            backend_->rule(std::array{nlit}, std::array{negate(lit)}, false);
+                            backend_->rule(std::array{nlit, clit}, std::array{negate(negate(lit))}, false);
+                            neg.emplace_back(nlit);
+                        } else {
+                            neg.emplace_back(negate(clit));
+                        }
+                    }
+                }
+                state = !state;
+            }
+            if (state) {
+                backend_->rule(std::array{lit}, neg, false);
+            }
         }
     }
 
