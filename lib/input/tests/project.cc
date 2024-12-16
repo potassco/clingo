@@ -76,6 +76,7 @@ TEST_CASE("project_statement_head") {
     REQUIRE(project_statement("{ not p(X,Y) : q(X) } > 5.") == "{ not p(X,Y): q(X) } > 5.");
     REQUIRE(project_statement("{ not p(X,_) : q(X) } > 5.") == "{ not p(X,*): q(X) } > 5.");
     // aggregates
+    REQUIRE(project_statement("p(X) = #min { }.") == "p(X) = #min { }.");
     REQUIRE(project_statement("#count { X: p(X) : q(X,Y) } != 5.") == "#count { X: p(X): q(X,*) } != 5.");
     REQUIRE(project_statement("#count { X: p(X) : q(X,_) } != 5.") == "#count { X: p(X): q(X,*) } != 5.");
     REQUIRE(project_statement("#count { X: p(X) : q(X,Y) } > 5.") == "#count { X: p(X): q(X,*) } > 5.");

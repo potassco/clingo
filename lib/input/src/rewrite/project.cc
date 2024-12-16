@@ -148,7 +148,7 @@ class Project : public Transformer<Project> {
 
     template <class T>
         requires Util::is_among_v<T, HdLitAggregate, HdLitSetAggregate>
-    [[nodiscard]] auto accept(HdLitAggregate const &lit) const -> std::optional<HdLit> {
+    [[nodiscard]] auto accept(T const &lit) const -> std::optional<HdLit> {
         // Note that we can always project in conditions. Semantic-wise a head
         // aggregate is a shortcut for a choice rule + a body aggregate in an
         // integrity constraint.
