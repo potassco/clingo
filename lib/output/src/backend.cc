@@ -367,7 +367,7 @@ class Translator {
         for (auto const &[tup, conds] : elems) {
             if (!tup.empty() && tup.front() < upper && conds.empty()) {
                 // adjust upper bound
-                upper = std::min<Sym>(upper, tup.front());
+                upper = tup.front();
             }
         }
         for (auto const &[tup, conds] : elems) {
@@ -466,6 +466,7 @@ class Translator {
         };
         if (ids.size() == 1) {
             // translate constant case
+            printf("constant case\n");
             assert(lits.empty());
             if (start) {
                 backend_->rule(std::array{lit}, {}, false);
@@ -475,6 +476,7 @@ class Translator {
         } else if (ids.size() == 2) {
             if (start) {
                 // translate monotone case
+                printf("monotone case\n");
                 for (auto const &clit : get_span(ids.begin())) {
                     backend_->rule(std::array{lit}, std::array{clit}, false);
                     if (clit > 0) {
@@ -483,6 +485,7 @@ class Translator {
                 }
             } else {
                 // translate antimonotone case
+                printf("antimonotone case\n");
                 aux_bd_.clear();
                 for (auto const &clit : get_span(ids.begin())) {
                     aux_bd_.emplace_back(negate(clit));
@@ -491,6 +494,7 @@ class Translator {
             }
         } else if (ids.size() == 3 && !start) {
             // translate convex case
+            printf("convex case\n");
             aux_bd_.clear();
             aux_bd_.emplace_back(next_lit());
             for (auto const &clit : get_span(ids.begin() + 1)) {
@@ -506,6 +510,7 @@ class Translator {
             backend_->rule(std::array{lit}, aux_bd_, false);
         } else {
             // delay nonmonotone case
+            printf("nonmontone case\n");
             bool state = start;
             for (auto it = ids.begin(), ie = ids.end(); it + 1 != ie; ++it) {
                 if (state) {
