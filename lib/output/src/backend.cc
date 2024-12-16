@@ -521,7 +521,7 @@ class Translator {
                     if (state) {
                         // lit :- clit, neg.
                         if (neg.size() > 1) {
-                            auto nlit = clause_(neg, ClauseType::conjunctive);
+                            auto nlit = clause_(neg, ClauseType::conjunctive, false);
                             mark_(nlit, EQType::implication);
                             neg.clear();
                             neg.emplace_back(nlit);
@@ -824,7 +824,7 @@ class Translator {
     }
 
     //! Get a literal equivalent to the given clause.
-    auto clause_(LitSpan lits, ClauseType type) -> lit_t {
+    auto clause_(LitSpan lits, ClauseType type, bool add_edges = true) -> lit_t {
         aux_bd_.assign(lits.begin(), lits.end());
         std::ranges::sort(aux_bd_);
         aux_bd_.erase(std::ranges::unique(aux_bd_).begin(), aux_bd_.end());
@@ -835,7 +835,7 @@ class Translator {
         if (ins) {
             it.value() = next_lit();
             for (auto const &lit : it->first) {
-                if (lit > 0) {
+                if (add_edges && lit > 0) {
                     graph_.add_edge(it.value(), lit);
                 }
             }
