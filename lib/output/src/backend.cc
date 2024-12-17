@@ -177,13 +177,11 @@ class Translator {
                 for (auto const &[sym, huid, cuid] : conds) {
                     auto clit = uid_to_lit(cuid);
                     if (huid > 0) {
-                        printf("we have a hlit\n");
                         auto hlit = uid_to_lit(huid);
                         bd_conds.back().emplace_back(cond(std::array{hlit, clit}));
                         mark_(clit, EQType::implication);
                         rule(std::array{hlit}, std::array{blit, clit}, true);
                     } else {
-                        printf("we have no hlit\n");
                         bd_conds.back().emplace_back(clit);
                     }
                 }

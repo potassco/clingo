@@ -2,6 +2,7 @@
 
 #include <clingo/util/print.hh>
 #include <clingo/util/type_traits.hh>
+
 #include <functional>
 
 // #define DEBUG_AGGR
@@ -325,7 +326,7 @@ void StateHdAggr::propagate(OutputStm &out, Queue &queue) {
                                                        [](auto const &a) -> decltype(auto) { return std::get<0>(a); });
                     assert(it != bases_.end());
                     auto *base = std::get<1>(*it);
-                    base->add(sym, StateAtom::derived, [&out, &head = head]() { return head = out.uid(); });
+                    head = base->add(sym, StateAtom::derived, [&out]() { return out.uid(); }).first.value().id;
                 }
             }
 #ifdef DEBUG_AGGR
@@ -383,12 +384,13 @@ void StateHdAggr::insert_elem(InstantiationContext const &ctx, AtomMap::iterator
         }
 
         auto [cond_id, fact] = elem.get_cond_(ctx);
-        if (elem.head_ != nullptr && fact) {
+        if (elem.head_ == nullptr && fact) {
             jt.key()->mark_fact();
         }
         auto &cond = jt.value();
         cond.emplace_back(sym, 0, cond_id);
         std::ranges::sort(cond);
+        // TODO: std::unique should merge 0 and non-zero literals
         cond.erase(std::ranges::unique(cond).begin(), cond.end());
     }
 }
