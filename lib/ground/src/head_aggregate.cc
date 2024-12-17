@@ -319,13 +319,13 @@ void StateHdAggr::propagate(OutputStm &out, Queue &queue) {
         // propagate the elements
         if (state.propagate(guards_, it.key() + global_.size())) {
             for (auto elem_idx : state.todo()) {
-                for (auto const &[sym, cond] : tuples_.nth(elem_idx).value()) {
+                for (auto &[sym, head, cond] : tuples_.nth(elem_idx).value()) {
                     auto sig = std::make_tuple(sym.name(), sym.args().size(), sym.has_classical_sign());
                     auto it = std::ranges::lower_bound(bases_, sig, std::less<>{},
                                                        [](auto const &a) -> decltype(auto) { return std::get<0>(a); });
                     assert(it != bases_.end());
                     auto *base = std::get<1>(*it);
-                    base->add(sym, StateAtom::derived, [&out]() { return out.uid(); });
+                    base->add(sym, StateAtom::derived, [&out, &head = head]() { return head = out.uid(); });
                 }
             }
 #ifdef DEBUG_AGGR
@@ -387,7 +387,7 @@ void StateHdAggr::insert_elem(InstantiationContext const &ctx, AtomMap::iterator
             jt.key()->mark_fact();
         }
         auto &cond = jt.value();
-        cond.emplace_back(sym, cond_id);
+        cond.emplace_back(sym, 0, cond_id);
         std::ranges::sort(cond);
         cond.erase(std::ranges::unique(cond).begin(), cond.end());
     }
@@ -411,7 +411,7 @@ void StateHdAggr::print(std::ostream &out, bool print_index) {
 }
 
 void StateHdAggr::output([[maybe_unused]] Logger &log, [[maybe_unused]] SymbolStore &store, OutputStm &out) {
-    std::vector<std::pair<SymbolSpan, std::span<std::pair<Symbol, size_t> const>>> elems;
+    std::vector<std::pair<SymbolSpan, std::span<std::tuple<Symbol, size_t, size_t> const>>> elems;
     std::vector<std::pair<Relation, Symbol>> guards;
     for (auto const &[tuple, atom] : base_.atoms()) {
         if (auto uid = atom.uid(); uid) {

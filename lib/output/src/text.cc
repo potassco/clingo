@@ -379,12 +379,12 @@ class OutputText : public OutputStm, OutputTheory {
         aggr(uid, fun, elems, guards, [this](auto &buf, auto const &elem) {
             buf << Util::p_range(elem.second, "; ", [this, &elem](auto &buf, auto const &hc) {
                 buf << Util::p_range(elem.first) << ": ";
-                if (hc.first.type() == SymbolType::sup) {
+                if (get<0>(hc).type() == SymbolType::sup) {
                     buf << "#true";
                 } else {
-                    buf << hc.first;
+                    buf << get<0>(hc);
                 }
-                buf << *strs_.nth(hc.second);
+                buf << *strs_.nth(get<2>(hc));
             });
         });
     }

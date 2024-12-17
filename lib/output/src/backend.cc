@@ -71,6 +71,10 @@ class Translator {
     //! A span of conditional literals.
     using CondLitSpan = std::span<CondLit const>;
 
+    // TODO: add literal
+    using HdAggrElem = std::pair<SymbolSpan, std::span<std::tuple<Symbol, size_t, size_t> const>>;
+    using HdAggrElemSpan = std::span<HdAggrElem const>;
+
     Translator(Backend &backend) : backend_{&backend} {};
 
     //! Return a fresh literal.
@@ -150,6 +154,47 @@ class Translator {
                 assert(false);
             }
         }
+    }
+
+    void hd_aggr(lit_t blit, AggregateFunction fun, HdAggrElemSpan elems, GuardSpan guards) {
+        // The head aggregate
+        //
+        //     #sum { tuple: lit: cond } >= 1 :- body.
+        //
+        // is rewritten into
+        //
+        //     { lit } :- body, cond.
+        //     :- not #sum { tuple: lit, cond } >= 1, body.
+        //
+        // With uid there is already an abbreviation for the body.
+        auto bd_conds = std::vector<IndexVec>{};
+        auto bd_elems = std::vector<BdAggrElem>{};
+        for (auto const &[tuple, conds] : elems) {
+            if (conds.empty()) {
+                bd_elems.emplace_back(tuple, IndexSpan{});
+            } else {
+                bd_conds.emplace_back();
+                for (auto const &[sym, huid, cuid] : conds) {
+                    auto clit = uid_to_lit(cuid);
+                    if (huid > 0) {
+                        printf("we have a hlit\n");
+                        auto hlit = uid_to_lit(huid);
+                        bd_conds.back().emplace_back(cond(std::array{hlit, clit}));
+                        mark_(clit, EQType::implication);
+                        rule(std::array{hlit}, std::array{blit, clit}, true);
+                    } else {
+                        printf("we have no hlit\n");
+                        bd_conds.back().emplace_back(clit);
+                    }
+                }
+                // Note: that we can create a span here even though the vector
+                // might be moved due to reallocation.
+                bd_elems.emplace_back(tuple, bd_conds.back());
+            }
+        }
+        auto lit = next_lit();
+        bd_aggr(lit, fun, bd_elems, guards);
+        rule({}, std::array{-lit, blit}, false);
     }
 
     //! Add a disjunctive or choice rule.
@@ -1139,22 +1184,7 @@ class OutputBackend : public OutputStm, OutputTheory {
     }
 
     void do_hd_aggr(size_t uid, AggregateFunction fun, HdElems elems, Guards guards) override {
-        static_cast<void>(uid);
-        static_cast<void>(fun);
-        static_cast<void>(elems);
-        static_cast<void>(guards);
-
-        // The head aggregate
-        //
-        //     #sum { tuple: lit: cond } >= 1 :- body.
-        //
-        // is rewritten into
-        //
-        //     { lit } :- body, cond.
-        //     :- not #sum { tuple: lit, cond } >= 1, body.
-        //
-        // With uid there is already an abbreviation for the body.
-        throw std::logic_error{"implement me: hd_aggr"};
+        translator_.hd_aggr(uid_to_lit(uid), fun, elems, guards);
     }
 
     void do_disjunction(size_t uid, DisjunctionElems elems) override {

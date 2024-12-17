@@ -180,7 +180,7 @@ class StateHdAggr : public State {
     //!
     //! Head atoms must be either true or symbolic atoms. We use \#sup to
     //! represent true. Whether an element is fact is stored in the key.
-    using ElementMap = Util::ordered_map<ElementKey *, Util::small_vector<std::pair<Symbol, size_t>, 1>>;
+    using ElementMap = Util::ordered_map<ElementKey *, Util::small_vector<std::tuple<Symbol, size_t, size_t>, 1>>;
 
     //! Initialize an aggregate state.
     StateHdAggr(std::pmr::monotonic_buffer_resource &mbr, BaseVec bases, VariableVec global, GuardVec guards,

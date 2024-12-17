@@ -86,7 +86,7 @@ class OutputStm {
     //!
     //! The span captures the heads (`#sup` is used to represent `#true`) and
     //! the ids of conditions.
-    using HdElem = std::pair<SymbolSpan, std::span<std::pair<Symbol, size_t> const>>;
+    using HdElem = std::pair<SymbolSpan, std::span<std::tuple<Symbol, size_t, size_t> const>>;
     //! A span of body aggregate elements.
     using HdElems = std::span<HdElem const>;
     //! The guards of an aggregate.

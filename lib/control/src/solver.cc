@@ -6,8 +6,8 @@
 
 #include <clasp/solver.h>
 
-// #define DEUBG_BACKENED
-#ifdef DEUBG_BACKENED
+#define DEBUG_BACKEND
+#ifdef DEBUG_BACKEND
 #include <clingo/util/print.hh>
 #include <iostream>
 #endif
@@ -73,7 +73,7 @@ class BackendClasp : public Output::Backend {
     void do_rule(Output::LitSpan head, Output::LitSpan body, bool choice) override {
         bld_.clear();
         bld_.start(choice ? Potassco::Head_t::choice : Potassco::Head_t::disjunctive);
-#ifdef DEUBG_BACKENED
+#ifdef DEBUG_BACKEND
         std::cerr << (choice ? "{ " : "") << Util::p_range(head, ", ") << (choice ? " }" : "") << " :- "
                   << Util::p_range(body, ", ") << ".\n";
 #endif
@@ -94,22 +94,25 @@ class BackendClasp : public Output::Backend {
         bld_.clear();
         bld_.start();
         bld_.addHead(head);
-        // printf("%d :- { ", head);
         bld_.startSum(bound);
         for (auto const &[lit, weight] : body) {
             assert(weight > 0);
             bld_.addGoal(lit, weight);
-            // printf("%d=%d ", lit, weight);
         }
         prg_->addRule(bld_);
-        // printf("} >= %d.\n", bound);
+#ifdef DEBUG_BACKEND
+        std::cerr << head << " :- " << "{"
+                  << Util::p_range(body, "",
+                                   [](auto &out, auto &wlit) { out << " " << wlit.first << "=" << wlit.second; })
+                  << " } >= " << bound << ".\n";
+#endif
     }
 
     void do_show(Symbol sym, Output::LitSpan body) override {
         buf_.reset();
         buf_ << sym;
         prg_->addOutput(buf_.c_str(), prg_->newCondition(body));
-#ifdef DEUBG_BACKENED
+#ifdef DEBUG_BACKEND
         std::cerr << "#show " << sym << " : " << Util::p_range(body, ", ") << ".\n";
 #endif
     }
