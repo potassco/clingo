@@ -194,7 +194,7 @@ class Translator {
         });
         tr_cond_lits_();
         tr_sum_();
-        tr_min_();
+        tr_mms_();
         tr_disjunctions_();
         tr_conjunctions_();
         graph_.clear();
@@ -354,6 +354,9 @@ class Translator {
         }
     }
 
+    //! Simplify and analyze min and max aggregates.
+    //!
+    //! Returns relevant elements, the range, and bounds of the aggregate.
     template <class Sym>
     auto analyze_mm_(BdAggrElemSpan elems, GuardSpan guards)
         -> std::tuple<Sym, Sym, Util::interval_set<Sym>, std::vector<std::pair<Sym, lit_t>>> {
@@ -421,22 +424,25 @@ class Translator {
         return {lower, upper, bounds, std::move(elem_vec)};
     }
 
+    //! Delays or translates min and max aggregates based on monotonicity.
+    //!
+    //! Converts aggregates into sequences of form
+    //!
+    //!     F(TF)*T?
+    //!     T(FT)*F?
+    //!
+    //! where all but the last T and F in the sequence are non-empty.
+    //!
+    //! The sequences T and F correspond to true and false, respectively.
+    //!
+    //! The sequences TF, FT, FTF correspond to monotone, antimonotone, and
+    //! convex aggregates, respectively.
+    //!
+    //! Edges have to be added for all literals in T.
+    //!
+    //! Nonmonotone aggregates are delayed for later translation. Otherwise,
+    //! aggregates are translated right away.
     template <class Sym> void delay_mm_(lit_t lit, BdAggrElemSpan elems, GuardSpan guards) {
-        // Converst aggregate #min/#max aggregates into form
-        //
-        //     F(TF)*T?
-        //     T(FT)*F?
-        //
-        // where the last T and F in the sequence are empty and the remaining
-        // ones are non-empty.
-        //
-        // The sequences T and F correspond to true and false, respectively.
-        //
-        // The sequences FT, TF, FTF correspond to monotone, antimonotone, and
-        // convex aggregates, respectively.
-        //
-        // Edges have to be added for all literals in T but antimonotone
-        // aggregates can be excluded.
         assert(lit > 0);
         auto [lower, upper, bounds, elem_vec] = analyze_mm_<Sym>(elems, guards);
         auto lits = LitVec{};
@@ -463,46 +469,9 @@ class Translator {
         auto get_span = [&lits](auto it) {
             return std::span{std::next(lits.begin(), *it), std::next(lits.begin(), *(it + 1))};
         };
-        if (ids.size() == 1) {
-            // translate constant case
-            assert(lits.empty());
-            if (start) {
-                backend_->rule(std::array{lit}, {}, false);
-            } else {
-                backend_->rule({}, std::array{lit}, false);
-            }
-        } else if (ids.size() == 2) {
-            if (start) {
-                // translate monotone case
-                for (auto const &clit : get_span(ids.begin())) {
-                    backend_->rule(std::array{lit}, std::array{clit}, false);
-                    if (clit > 0) {
-                        graph_.add_edge(lit, clit);
-                    }
-                }
-            } else {
-                // translate antimonotone case
-                aux_bd_.clear();
-                for (auto const &clit : get_span(ids.begin())) {
-                    aux_bd_.emplace_back(negate(clit));
-                }
-                backend_->rule(std::array{lit}, aux_bd_, false);
-            }
-        } else if (ids.size() == 3 && !start) {
-            // translate convex case
-            aux_bd_.clear();
-            aux_bd_.emplace_back(next_lit());
-            for (auto const &clit : get_span(ids.begin() + 1)) {
-                backend_->rule(std::array{aux_bd_.back()}, std::array{clit}, false);
-                if (clit > 0) {
-                    graph_.add_edge(aux_bd_.back(), clit);
-                }
-            }
-            graph_.add_edge(lit, aux_bd_.back());
-            for (auto const &clit : get_span(ids.begin())) {
-                aux_bd_.emplace_back(negate(clit));
-            }
-            backend_->rule(std::array{lit}, aux_bd_, false);
+        if (ids.size() <= 2 || (ids.size() == 3 && !start)) {
+            // translate constant, monotone, antimontone, and convex cases
+            tr_mm_(lit, start, lits, ids, false);
         } else {
             // delay nonmonotone case
             bool state = start;
@@ -520,65 +489,76 @@ class Translator {
         }
     }
 
-    //! Translate stored min aggregates.
-    void tr_min_() {
-        // Min aggregates are translated as indicated in the example below:
-        // lit :- 2 != #min { 1:a; 2:b; 3:c; 4:d } !=4
-        // [         ]
-        // [ ] [ ] [ ]
-        //  1 2 3 4 e
-        // lit :- a.
-        // lit :- c, nb.
-        // lit :- nb, nd. % (*)
-        // nb :- not b.
-        // nb :- lit.
-        // nb | b :- not not lit.
-        // nd :- not d.
-        // nd :- lit.
-        // nd | d :- not not lit.
-        // Rules of form (*) are shortened by introducing auxiliary literals.
-        for (auto const &[lit, start, lits, ids] : min_aggrs_) {
-            assert(!ids.empty());
-            auto get_span = [&lits = lits](auto it) {
-                return std::span{std::next(lits.begin(), *it), std::next(lits.begin(), *(it + 1))};
-            };
-            auto scc = info_(lit).scc;
-            aux_cond_.clear();
-            auto state = start;
-            for (auto it = ids.begin(), ie = ids.end(); it + 1 != ie; ++it) {
-                for (auto const &clit : get_span(it)) {
-                    if (state) {
-                        // lit :- clit, aux_cond_.
-                        if (aux_cond_.size() > 1) {
-                            auto nlit = clause_(aux_cond_, ClauseType::conjunctive, false);
-                            mark_(nlit, EQType::implication);
-                            aux_cond_.clear();
-                            aux_cond_.emplace_back(nlit);
-                        }
-                        aux_cond_.emplace_back(clit);
-                        backend_->rule(std::array{lit}, aux_cond_, false);
-                        aux_cond_.pop_back();
+    //! Translates min and max aggregates.
+    //!
+    //! Min aggregates are translated as indicated in the example below:
+    //!
+    //!     lit :- 2 != #min { 1:a; 2:b; 3:c; 4:d } !=4
+    //!     [         ]
+    //!     [ ] [ ] [ ]
+    //!      1 2 3 4 e
+    //!     lit :- a.
+    //!     lit :- c, nb.
+    //!     lit :- nb, nd. % (*)
+    //!     nb :- not b.
+    //!     nb :- lit.
+    //!     nb | b :- not not lit.
+    //!     nd :- not d.
+    //!     nd :- lit.
+    //!     nd | d :- not not lit.
+    //!
+    //! Rules of form (*) are shortened by introducing auxiliary literals.
+    void tr_mm_(lit_t lit, bool start, LitVec const &lits, IndexVec const &ids, bool delayed) {
+        assert(!ids.empty() && lits.size() == ids.back() && lit > 0);
+        auto get_span = [&lits = lits](auto it) {
+            return std::span{std::next(lits.begin(), *it), std::next(lits.begin(), *(it + 1))};
+        };
+        auto scc = info_(lit).scc;
+        aux_cond_.clear();
+        auto state = start;
+        for (auto it = ids.begin(), ie = ids.end(); it + 1 != ie; ++it) {
+            for (auto const &clit : get_span(it)) {
+                if (state) {
+                    // lit :- clit, aux_cond_.
+                    if (aux_cond_.size() > 1) {
+                        auto nlit = clause_(aux_cond_, ClauseType::conjunctive, false);
+                        mark_(nlit, EQType::implication);
+                        aux_cond_.clear();
+                        aux_cond_.emplace_back(nlit);
+                    }
+                    aux_cond_.emplace_back(clit);
+                    if (!delayed && clit > 0) {
+                        graph_.add_edge(lit, clit);
+                    }
+                    backend_->rule(std::array{lit}, aux_cond_, false);
+                    aux_cond_.pop_back();
+                } else {
+                    if (delayed && clit > 0 && scc != 0 && scc == info_(clit).scc) {
+                        // nlit :- not clit.
+                        // nlit :- lit.
+                        // nlit | clit :- not not l.
+                        mark_(clit, EQType::equivalence);
+                        auto nlit = next_lit();
+                        backend_->rule(std::array{nlit}, std::array{negate(clit)}, false);
+                        backend_->rule(std::array{nlit}, std::array{negate(lit)}, false);
+                        backend_->rule(std::array{nlit, clit}, std::array{negate(negate(lit))}, false);
+                        aux_cond_.emplace_back(nlit);
                     } else {
-                        if (clit > 0 && scc != 0 && scc == info_(clit).scc) {
-                            // nlit :- not clit.
-                            // nlit :- lit.
-                            // nlit | clit :- not not l.
-                            mark_(clit, EQType::equivalence);
-                            auto nlit = next_lit();
-                            backend_->rule(std::array{nlit}, std::array{negate(clit)}, false);
-                            backend_->rule(std::array{nlit}, std::array{negate(lit)}, false);
-                            backend_->rule(std::array{nlit, clit}, std::array{negate(negate(lit))}, false);
-                            aux_cond_.emplace_back(nlit);
-                        } else {
-                            aux_cond_.emplace_back(negate(clit));
-                        }
+                        aux_cond_.emplace_back(negate(clit));
                     }
                 }
-                state = !state;
             }
-            if (state) {
-                backend_->rule(std::array{lit}, aux_cond_, false);
-            }
+            state = !state;
+        }
+        if (state) {
+            backend_->rule(std::array{lit}, aux_cond_, false);
+        }
+    }
+
+    //! Translate delayed min and max aggregates.
+    void tr_mms_() {
+        for (auto const &[lit, start, lits, ids] : min_aggrs_) {
+            tr_mm_(lit, start, lits, ids, true);
         }
     }
 
