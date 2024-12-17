@@ -1143,17 +1143,17 @@ class OutputBackend : public OutputStm, OutputTheory {
         static_cast<void>(fun);
         static_cast<void>(elems);
         static_cast<void>(guards);
-        // aggr(uid, fun, elems, guards, [this](auto &buf, auto const &elem) {
-        //     buf << Util::p_range(elem.second, "; ", [this, &elem](auto &buf, auto const &hc) {
-        //         buf << Util::p_range(elem.first) << ": ";
-        //         if (hc.first.type() == SymbolType::sup) {
-        //             buf << "#true";
-        //         } else {
-        //             buf << hc.first;
-        //         }
-        //         buf << *strs_.nth(hc.second);
-        //     });
-        // });
+
+        // The head aggregate
+        //
+        //     #sum { tuple: lit: cond } >= 1 :- body.
+        //
+        // is rewritten into
+        //
+        //     { lit } :- body, cond.
+        //     :- not #sum { tuple: lit, cond } >= 1, body.
+        //
+        // With uid there is already an abbreviation for the body.
         throw std::logic_error{"implement me: hd_aggr"};
     }
 
