@@ -81,27 +81,29 @@ class OutputStm {
     //! The span captures the ids of conditions.
     using BdElem = std::pair<SymbolSpan, IndexSpan>;
     //! A span of body aggregate elements.
-    using BdElems = std::span<BdElem const>;
+    using BdElemSpan = std::span<BdElem const>;
     //! A head aggregate element.
     //!
     //! The span captures the heads (`#sup` is used to represent `#true`) and
     //! the ids of conditions.
     using HdElem = std::pair<SymbolSpan, std::span<std::tuple<Symbol, size_t, size_t> const>>;
     //! A span of body aggregate elements.
-    using HdElems = std::span<HdElem const>;
+    using HdElemSpan = std::span<HdElem const>;
+    //! A rhs guard.
+    using Guard = std::pair<Relation, Symbol>;
     //! The guards of an aggregate.
-    using Guards = std::span<std::pair<Relation, Symbol> const>;
+    using GuardSpan = std::span<Guard const>;
     //! A conditional literal.
     //!
     //! The two sizes correspond to indices of conditions.
     //! If the first one is not given, it is assumed false.
     using CondLit = std::pair<std::optional<size_t>, size_t>;
     //! A span of conditional literals.
-    using CondLits = std::span<CondLit const>;
+    using CondLitSpan = std::span<CondLit const>;
     //! A disjunction element.
-    using DisjunctionElem = std::pair<Symbol, IndexSpan>;
+    using DisjElem = std::pair<Symbol, IndexSpan>;
     //! A span of disjunction elements.
-    using DisjunctionElems = std::span<DisjunctionElem const>;
+    using DisjElemSpan = std::span<DisjElem const>;
 
     //! Destroy the output.
     virtual ~OutputStm() = default;
@@ -155,18 +157,18 @@ class OutputStm {
     auto cond_id() -> size_t { return do_cond_id(); }
 
     //! Complete a delayed body aggregate.
-    void bd_aggr(size_t uid, AggregateFunction fun, BdElems elems, Guards guards) {
+    void bd_aggr(size_t uid, AggregateFunction fun, BdElemSpan elems, GuardSpan guards) {
         do_bd_aggr(uid, fun, elems, guards);
     }
     //! Complete a delayed head aggregate.
-    void hd_aggr(size_t uid, AggregateFunction fun, HdElems elems, Guards guards) {
+    void hd_aggr(size_t uid, AggregateFunction fun, HdElemSpan elems, GuardSpan guards) {
         do_hd_aggr(uid, fun, elems, guards);
     }
     //! Complete a delayed disjunction.
-    void disjunction(size_t uid, DisjunctionElems elems) { do_disjunction(uid, elems); }
+    void disjunction(size_t uid, DisjElemSpan elems) { do_disjunction(uid, elems); }
 
     //! Complete a delayed conditional literal.
-    void cond_lit(size_t uid, CondLits elems) { do_cond_lit(uid, elems); }
+    void cond_lit(size_t uid, CondLitSpan elems) { do_cond_lit(uid, elems); }
 
     //! Return a theory output.
     auto theory() -> OutputTheory & { return do_theory(); }
@@ -201,10 +203,10 @@ class OutputStm {
     virtual auto do_cond() -> OutputLit & = 0;
     virtual auto do_cond_id() -> size_t = 0;
 
-    virtual void do_cond_lit(size_t uid, CondLits elems) = 0;
-    virtual void do_bd_aggr(size_t uid, AggregateFunction fun, BdElems elems, Guards guards) = 0;
-    virtual void do_hd_aggr(size_t uid, AggregateFunction fun, HdElems elems, Guards guards) = 0;
-    virtual void do_disjunction(size_t uid, DisjunctionElems elems) = 0;
+    virtual void do_cond_lit(size_t uid, CondLitSpan elems) = 0;
+    virtual void do_bd_aggr(size_t uid, AggregateFunction fun, BdElemSpan elems, GuardSpan guards) = 0;
+    virtual void do_hd_aggr(size_t uid, AggregateFunction fun, HdElemSpan elems, GuardSpan guards) = 0;
+    virtual void do_disjunction(size_t uid, DisjElemSpan elems) = 0;
 
     virtual auto do_theory() -> OutputTheory & = 0;
 

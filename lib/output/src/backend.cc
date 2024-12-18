@@ -55,26 +55,14 @@ class BwdSym {
 //! other forms of backends).
 class Translator {
   public:
-    //! Guard
-    using Guard = std::pair<Relation, Symbol>;
-    //! A span of guards.
-    using GuardSpan = std::span<Guard const>;
-    //! A sum aggregate element.
-    using BdAggrElem = std::pair<SymbolSpan, IndexSpan>;
-    //! A span of aggregate elements.
-    using BdAggrElemSpan = std::span<BdAggrElem const>;
-    //! A conditional literal consisting of a conclusion and a premise.
-    //!
-    //! Conclusions and premises are represented by ids referring to conditions,
-    //! which, in turn, are sets of literals. In the current implementation, the
-    //! condition is either absent or consists of exactly one literal. If the
-    //! conclusion is absent, it is considered to be false.
-    using CondLit = std::pair<std::optional<id_t>, id_t>;
-    //! A span of conditional literals.
-    using CondLitSpan = std::span<CondLit const>;
-
-    using HdAggrElem = std::pair<SymbolSpan, std::span<std::tuple<Symbol, size_t, size_t> const>>;
-    using HdAggrElemSpan = std::span<HdAggrElem const>;
+    using CondLit = OutputStm::CondLit;
+    using CondLitSpan = OutputStm::CondLitSpan;
+    using Guard = OutputStm::Guard;
+    using GuardSpan = OutputStm::GuardSpan;
+    using BdElem = OutputStm::BdElem;
+    using BdElemSpan = OutputStm::BdElemSpan;
+    using HdElem = OutputStm::HdElem;
+    using HdElemSpan = OutputStm::HdElemSpan;
 
     Translator(Backend &backend) : backend_{&backend} {};
 
@@ -134,7 +122,7 @@ class Translator {
     //! @param fun the aggregate function
     //! @param elems the elements of the aggregate
     //! @param guard the aggregate guards
-    void bd_aggr(lit_t lit, AggregateFunction fun, BdAggrElemSpan elems, GuardSpan guards) {
+    void bd_aggr(lit_t lit, AggregateFunction fun, BdElemSpan elems, GuardSpan guards) {
         assert(lit > 0 && fun != AggregateFunction::count);
         switch (fun) {
             case AggregateFunction::sum:
@@ -157,7 +145,7 @@ class Translator {
         }
     }
 
-    void hd_aggr(lit_t blit, AggregateFunction fun, HdAggrElemSpan elems, GuardSpan guards) {
+    void hd_aggr(lit_t blit, AggregateFunction fun, HdElemSpan elems, GuardSpan guards) {
         // The head aggregate
         //
         //     #sum { tuple: lit: cond } >= 1 :- body.
@@ -169,7 +157,7 @@ class Translator {
         //
         // With uid there is already an abbreviation for the body.
         auto bd_conds = std::vector<IndexVec>{};
-        auto bd_elems = std::vector<BdAggrElem>{};
+        auto bd_elems = std::vector<BdElem>{};
         for (auto const &[tuple, conds] : elems) {
             if (conds.empty()) {
                 bd_elems.emplace_back(tuple, IndexSpan{});
@@ -278,18 +266,19 @@ class Translator {
 
     using NumberSet = Util::interval_set<Number>;
     //! A sum aggregate element.
-    using BdSumAggrElem = std::pair<Number, lit_t>;
+    using SumElem = std::pair<Number, lit_t>;
     //! A vector of sum aggregate elements.
-    using BdSumAggrElemVec = std::vector<BdSumAggrElem>;
+    using SumElemVec = std::vector<SumElem>;
     //! A vector of sum aggregates.
-    using BdSumAggrVec = std::vector<std::tuple<lit_t, BdSumAggrElemVec, NumberSet::interval, NumberSet>>;
+    using SumVec = std::vector<std::tuple<lit_t, SumElemVec, NumberSet::interval, NumberSet>>;
     //! A vector of sum aggregates.
-    using MinAggrVec = std::vector<std::tuple<lit_t, bool, LitVec, IndexVec>>;
+    using MinVec = std::vector<std::tuple<lit_t, bool, LitVec, IndexVec>>;
 
-    using LitMap = std::vector<LitInfo>;
+    using LitInfoVec = std::vector<LitInfo>;
     using ClauseMap = Util::ordered_map<Output::LitVec, lit_t>;
-    using CondLitVec = std::vector<std::pair<std::optional<lit_t>, lit_t>>;
-    using CondLits = std::vector<std::pair<lit_t, CondLitVec>>;
+    using CondLitElem = std::pair<std::optional<lit_t>, lit_t>;
+    using CondLitElemVec = std::vector<CondLitElem>;
+    using CondLitVec = std::vector<std::pair<lit_t, CondLitElemVec>>;
 
     //! Get the literal info for an atom.
     [[nodiscard]] auto info_(lit_t lit) -> LitInfo & {
@@ -402,7 +391,7 @@ class Translator {
     //!
     //! Returns relevant elements, the range, and bounds of the aggregate.
     template <class Sym>
-    auto analyze_mm_(BdAggrElemSpan elems, GuardSpan guards)
+    auto analyze_mm_(BdElemSpan elems, GuardSpan guards)
         -> std::tuple<Sym, Sym, Util::interval_set<Sym>, std::vector<std::pair<Sym, lit_t>>> {
         // simplify the elements
         auto upper = Sym::neutral();
@@ -486,7 +475,7 @@ class Translator {
     //!
     //! Nonmonotone aggregates are delayed for later translation. Otherwise,
     //! aggregates are translated right away.
-    template <class Sym> void delay_mm_(lit_t lit, BdAggrElemSpan elems, GuardSpan guards) {
+    template <class Sym> void delay_mm_(lit_t lit, BdElemSpan elems, GuardSpan guards) {
         assert(lit > 0);
         auto [lower, upper, bounds, elem_vec] = analyze_mm_<Sym>(elems, guards);
         auto lits = LitVec{};
@@ -612,11 +601,11 @@ class Translator {
     //! computes an interval for largest and smallest value of the aggregate, and
     //! represents the guards of the aggreagte as an interval set. This interval set
     //! is additionally intersected with the range.
-    auto analyze_sum_(BdAggrElemSpan elems,
-                      GuardSpan guards) -> std::tuple<BdSumAggrElemVec, NumberSet::interval, NumberSet, CycleType> {
+    auto analyze_sum_(BdElemSpan elems,
+                      GuardSpan guards) -> std::tuple<SumElemVec, NumberSet::interval, NumberSet, CycleType> {
         // simplify the aggregate
         auto fixed = Number(0);
-        auto elem_vec = BdSumAggrElemVec{};
+        auto elem_vec = SumElemVec{};
         auto cond_map = Util::unordered_map<IndexSpan, size_t>{};
         elem_vec.reserve(elems.size());
         cond_map.reserve(elems.size());
@@ -711,7 +700,7 @@ class Translator {
         return {std::move(elem_vec), std::move(range), std::move(bounds), type};
     }
 
-    void delay_sum_(lit_t lit, BdAggrElemSpan elems, GuardSpan guards) {
+    void delay_sum_(lit_t lit, BdElemSpan elems, GuardSpan guards) {
         auto [elem_vec, range, bounds, type] = analyze_sum_(elems, guards);
         if (bounds.contains(range)) {
             rule(std::array{lit}, {}, false);
@@ -777,8 +766,8 @@ class Translator {
                     }
                 }
             }
-            auto flip = [](BdSumAggrElemVec const &elems) {
-                auto res = BdSumAggrElemVec{};
+            auto flip = [](SumElemVec const &elems) {
+                auto res = SumElemVec{};
                 res.reserve(elems.size());
                 for (auto const &[num, cond] : elems) {
                     res.emplace_back(-num, cond);
@@ -795,7 +784,7 @@ class Translator {
 
             // translate aggregate in lower bound form
             auto nlits = std::vector<lit_t>(elems.size(), 0);
-            auto translate = [&](lit_t lit, BdSumAggrElemVec const &elems, Number bound) {
+            auto translate = [&](lit_t lit, SumElemVec const &elems, Number bound) {
                 assert(lit > 0);
                 auto wlits = std::vector<std::pair<lit_t, weight_t>>{};
                 wlits.reserve(elems.size());
@@ -901,12 +890,12 @@ class Translator {
     Output::LitVec aux_bd_;
     Output::LitVec aux_cond_;
     Util::Graph graph_;
-    LitMap lits_;
+    LitInfoVec lits_;
     ClauseMap conds_;
     ClauseMap disjunctions_;
-    CondLits cond_lits_;
-    BdSumAggrVec sum_aggrs_;
-    MinAggrVec min_aggrs_;
+    CondLitVec cond_lits_;
+    SumVec sum_aggrs_;
+    MinVec min_aggrs_;
 };
 
 //! Output handling conditions.
@@ -1176,38 +1165,29 @@ class OutputBackend : public OutputStm, OutputTheory {
 
     auto do_uid() -> size_t override { return translator().next_lit(); }
 
-    void do_cond_lit(size_t uid, CondLits elems) override { translator_.cond_lit(uid_to_lit(uid), elems); }
+    void do_cond_lit(size_t uid, CondLitSpan elems) override { translator_.cond_lit(uid_to_lit(uid), elems); }
 
-    void do_bd_aggr(size_t uid, AggregateFunction fun, BdElems elems, Guards guards) override {
-        translator_.bd_aggr(uid_to_lit(uid), fun, elems, guards);
+    void do_bd_aggr(size_t uid, AggregateFunction fun, BdElemSpan elems, GuardSpan guards) override {
+        translator().bd_aggr(uid_to_lit(uid), fun, elems, guards);
     }
 
-    void do_hd_aggr(size_t uid, AggregateFunction fun, HdElems elems, Guards guards) override {
-        translator_.hd_aggr(uid_to_lit(uid), fun, elems, guards);
+    void do_hd_aggr(size_t uid, AggregateFunction fun, HdElemSpan elems, GuardSpan guards) override {
+        translator().hd_aggr(uid_to_lit(uid), fun, elems, guards);
     }
 
-    void do_disjunction(size_t uid, DisjunctionElems elems) override {
+    void do_disjunction(size_t uid, DisjElemSpan elems) override {
         static_cast<void>(uid);
         static_cast<void>(elems);
-        // tmp_.reset();
-        // if (elems.empty()) {
-        //     tmp_ << "#false";
-        // } else {
-        //     tmp_ << Util::p_range(elems, "; ", [this](auto &buf, DisjunctionElem const &elem) {
-        //         if (elem.second.empty()) {
-        //             if (elem.first.type() == SymbolType::sup) {
-        //                 buf << "#true";
-        //             } else {
-        //                 buf << elem.first;
-        //             }
-        //         } else {
-        //             buf << Util::p_range(elem.second, "; ", [this, &elem](auto &buf, auto const &cond) {
-        //                 buf << elem.first << ": " << *strs_.nth(cond);
-        //             });
-        //         }
-        //     });
-        // }
-        // body_.define(uid, tmp_.str());
+        // a : c | b :- B.
+        // shifting:
+        //     b :- not c, B.
+        // a | b :-     c, B.
+        // replace by auxiliary variable:
+        // x | b :- B.
+        // :- x, not c.
+        // a :- x, c.                       % drop c if a and c are in different sccs
+        // x :- a, c.                       % shift x into body if there is no head cycle between a and b
+        // x | c :- not not ac, not not cc. % drop rule if a and c are in different sccs
         throw std::logic_error{"implement me: disjunction"};
     }
 

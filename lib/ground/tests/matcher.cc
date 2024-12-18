@@ -39,12 +39,12 @@ class NullOutputStm : public OutputStm {
                             [[maybe_unused]] SymbolSpan terms) override {};
     auto do_cond() -> OutputLit & override { return lout; }
     auto do_cond_id() -> size_t override { return 0; }
-    void do_cond_lit([[maybe_unused]] size_t uid, [[maybe_unused]] CondLits elems) override {}
-    void do_bd_aggr([[maybe_unused]] size_t uid, [[maybe_unused]] AggregateFunction fun, [[maybe_unused]] BdElems elems,
-                    [[maybe_unused]] Guards guards) override {}
-    void do_hd_aggr([[maybe_unused]] size_t uid, [[maybe_unused]] AggregateFunction fun, [[maybe_unused]] HdElems elems,
-                    [[maybe_unused]] Guards guards) override {}
-    void do_disjunction([[maybe_unused]] size_t uid, [[maybe_unused]] DisjunctionElems elems) override {}
+    void do_cond_lit([[maybe_unused]] size_t uid, [[maybe_unused]] CondLitSpan elems) override {}
+    void do_bd_aggr([[maybe_unused]] size_t uid, [[maybe_unused]] AggregateFunction fun,
+                    [[maybe_unused]] BdElemSpan elems, [[maybe_unused]] GuardSpan guards) override {}
+    void do_hd_aggr([[maybe_unused]] size_t uid, [[maybe_unused]] AggregateFunction fun,
+                    [[maybe_unused]] HdElemSpan elems, [[maybe_unused]] GuardSpan guards) override {}
+    void do_disjunction([[maybe_unused]] size_t uid, [[maybe_unused]] DisjElemSpan elems) override {}
     auto do_theory() -> OutputTheory & override { throw std::logic_error("not implemented"); }
     void do_heuristic([[maybe_unused]] Symbol atom, [[maybe_unused]] Number const &weight,
                       [[maybe_unused]] Number const *prio, [[maybe_unused]] HeuristicType type) override {}

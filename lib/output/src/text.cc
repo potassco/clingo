@@ -328,7 +328,7 @@ class OutputText : public OutputStm, OutputTheory {
 
     auto do_uid() -> size_t override { return ++uids_; }
 
-    void do_cond_lit(size_t uid, CondLits elems) override {
+    void do_cond_lit(size_t uid, CondLitSpan elems) override {
         if (elems.empty()) {
             body_.define(uid, "#true");
         } else {
@@ -345,7 +345,7 @@ class OutputText : public OutputStm, OutputTheory {
         }
     }
 
-    void aggr(size_t uid, AggregateFunction fun, auto elems, Guards guards, auto prt) {
+    void aggr(size_t uid, AggregateFunction fun, auto elems, GuardSpan guards, auto prt) {
         tmp_.reset();
         auto it = guards.begin();
         if (guards.size() > 1) {
@@ -360,7 +360,7 @@ class OutputText : public OutputStm, OutputTheory {
         body_.define(uid, tmp_.str());
     }
 
-    void do_bd_aggr(size_t uid, AggregateFunction fun, BdElems elems, Guards guards) override {
+    void do_bd_aggr(size_t uid, AggregateFunction fun, BdElemSpan elems, GuardSpan guards) override {
         aggr(uid, fun, elems, guards, [this](auto &buf, auto const &elem) {
             if (elem.second.empty()) {
                 buf << Util::p_range(elem.first);
@@ -375,7 +375,7 @@ class OutputText : public OutputStm, OutputTheory {
         });
     }
 
-    void do_hd_aggr(size_t uid, AggregateFunction fun, HdElems elems, Guards guards) override {
+    void do_hd_aggr(size_t uid, AggregateFunction fun, HdElemSpan elems, GuardSpan guards) override {
         aggr(uid, fun, elems, guards, [this](auto &buf, auto const &elem) {
             buf << Util::p_range(elem.second, "; ", [this, &elem](auto &buf, auto const &hc) {
                 buf << Util::p_range(elem.first) << ": ";
@@ -389,12 +389,12 @@ class OutputText : public OutputStm, OutputTheory {
         });
     }
 
-    void do_disjunction(size_t uid, DisjunctionElems elems) override {
+    void do_disjunction(size_t uid, DisjElemSpan elems) override {
         tmp_.reset();
         if (elems.empty()) {
             tmp_ << "#false";
         } else {
-            tmp_ << Util::p_range(elems, "; ", [this](auto &buf, DisjunctionElem const &elem) {
+            tmp_ << Util::p_range(elems, "; ", [this](auto &buf, DisjElem const &elem) {
                 if (elem.second.empty()) {
                     if (elem.first.type() == SymbolType::sup) {
                         buf << "#true";
