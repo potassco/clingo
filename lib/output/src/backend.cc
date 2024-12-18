@@ -779,7 +779,10 @@ class Translator {
         sum_aggrs_.emplace_back(lit, std::move(elem_vec), std::move(range), std::move(bounds));
     }
 
-    //! Translate stored aggregate literals.
+    //! Translates stored aggregate literals.
+    //!
+    //! This function iterates over all stored aggregate literals and
+    //! translates them into a form understood by the backend.
     void tr_sum_() {
         for (auto &[lit, elems, range, bounds] : sum_aggrs_) {
             assert(lit > 0);
