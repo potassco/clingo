@@ -395,15 +395,15 @@ class OutputText : public OutputStm, OutputTheory {
             tmp_ << "#false";
         } else {
             tmp_ << Util::p_range(elems, "; ", [this](auto &buf, DisjElem const &elem) {
-                if (elem.second.empty()) {
-                    if (elem.first.type() == SymbolType::sup) {
+                if (get<2>(elem).empty()) {
+                    if (get<0>(elem).type() == SymbolType::sup) {
                         buf << "#true";
                     } else {
-                        buf << elem.first;
+                        buf << get<0>(elem);
                     }
                 } else {
-                    buf << Util::p_range(elem.second, "; ", [this, &elem](auto &buf, auto const &cond) {
-                        buf << elem.first << ": " << *strs_.nth(cond);
+                    buf << Util::p_range(get<2>(elem), "; ", [this, &elem](auto &buf, auto const &cond) {
+                        buf << get<0>(elem) << ": " << *strs_.nth(cond);
                     });
                 }
             });

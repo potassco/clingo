@@ -104,7 +104,7 @@ class StateDisjunction : public State {
     //! A key consisting of a head atom and a disjunction atom index.
     using ElementKey = std::pair<Symbol, size_t>;
     //! A map from disjunction atoms and their heads to conditions.
-    using ElementMap = Util::ordered_map<ElementKey, Util::small_vector<size_t>>;
+    using ElementMap = Util::ordered_map<ElementKey, std::pair<size_t, Util::small_vector<size_t>>>;
 
     //! Initialize an disjunction state.
     StateDisjunction(std::pmr::monotonic_buffer_resource &mbr, DisjunctionBaseVec bases, VariableVec global,

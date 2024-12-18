@@ -101,7 +101,7 @@ class OutputStm {
     //! A span of conditional literals.
     using CondLitSpan = std::span<CondLit const>;
     //! A disjunction element.
-    using DisjElem = std::pair<Symbol, IndexSpan>;
+    using DisjElem = std::tuple<Symbol, size_t, IndexSpan>;
     //! A span of disjunction elements.
     using DisjElemSpan = std::span<DisjElem const>;
 

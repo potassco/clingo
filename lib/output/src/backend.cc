@@ -16,12 +16,12 @@ namespace {
 
 //! Convert a uid to an integer literal.
 //!
-//! @pre 1 <= uid <= lit_max
+//! @pre uid != 0
 //!
 //! @param uid the uid to convert
 //! @return the resulting literal
 auto uid_to_lit(size_t uid) -> lit_t {
-    assert(1 <= uid && uid <= static_cast<atom_t>(lit_max));
+    assert(uid != 0);
     return static_cast<int32_t>(uid);
 }
 
@@ -57,6 +57,8 @@ class Translator {
   public:
     using CondLit = OutputStm::CondLit;
     using CondLitSpan = OutputStm::CondLitSpan;
+    using DijsElem = OutputStm::DisjElem;
+    using DisjElemSpan = OutputStm::DisjElemSpan;
     using Guard = OutputStm::Guard;
     using GuardSpan = OutputStm::GuardSpan;
     using BdElem = OutputStm::BdElem;
@@ -111,6 +113,39 @@ class Translator {
         }
         cond_lits_.emplace_back(std::piecewise_construct, std::forward_as_tuple(lit),
                                 std::forward_as_tuple(elems.begin(), elems.end()));
+    }
+
+    void disjunction(lit_t lit, DisjElemSpan elems) {
+        assert(lit > 0);
+        // a : c | b :- B.
+        // shifting:
+        //     b :- not c, B.
+        // a | b :-     c, B.
+        // replace by auxiliary variable:
+        // x | b :- B.
+        // :- x, not c.
+        // a :- x, c.                       % drop c if a and c are in different sccs
+        // x :- a, c.                       % shift x into body if there is no head cycle between a and b
+        // x | c :- not not ac, not not cc. % drop rule if a and c are in different sccs
+        for (auto const &[sym, auid, conds] : elems) {
+            // TODO: cases to consider
+            //- the disjunction is false if the elements are empty
+            //- the conclusion of an element is true if auid is zero
+            //- the premise of an element is true if it is empty
+            //- the disjunction is true if there is an element with a true premise and conclusion
+            if (auid != 0) {
+                auto alit = uid_to_lit(auid);
+                assert(alit > 0);
+                graph_.add_edge(alit, lit);
+                for (auto const &cuid : conds) {
+                    auto clit = uid_to_lit(cuid);
+                    if (clit > 0) {
+                        graph_.add_edge(alit, clit);
+                    }
+                }
+            }
+        }
+        throw std::logic_error("implement me!!!");
     }
 
     //! Define a sum aggregate.
@@ -1074,9 +1109,11 @@ class OutputBackend : public OutputStm, OutputTheory {
     }
 
     auto do_disjunctive_rule(std::optional<size_t> uid) -> size_t override {
-        static_cast<void>(uid);
-        // return body_.delay_head(uid, " :- ");
-        throw std::logic_error{"implement me: disjunctive_rule"};
+        if (!uid) {
+            uid = translator_.next_lit();
+        }
+        translator().rule(std::array{uid_to_lit(*uid)}, body_.literals(), false);
+        return *uid;
     }
 
     void do_weak_constraint(Number const &weight, std::optional<Symbol> prio, SymbolSpan terms) override {
@@ -1175,21 +1212,7 @@ class OutputBackend : public OutputStm, OutputTheory {
         translator().hd_aggr(uid_to_lit(uid), fun, elems, guards);
     }
 
-    void do_disjunction(size_t uid, DisjElemSpan elems) override {
-        static_cast<void>(uid);
-        static_cast<void>(elems);
-        // a : c | b :- B.
-        // shifting:
-        //     b :- not c, B.
-        // a | b :-     c, B.
-        // replace by auxiliary variable:
-        // x | b :- B.
-        // :- x, not c.
-        // a :- x, c.                       % drop c if a and c are in different sccs
-        // x :- a, c.                       % shift x into body if there is no head cycle between a and b
-        // x | c :- not not ac, not not cc. % drop rule if a and c are in different sccs
-        throw std::logic_error{"implement me: disjunction"};
-    }
+    void do_disjunction(size_t uid, DisjElemSpan elems) override { translator().disjunction(uid_to_lit(uid), elems); }
 
     auto do_theory() -> OutputTheory & override {
         // return *this;

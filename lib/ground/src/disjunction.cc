@@ -101,7 +101,7 @@ void StateDisjunction::propagate(OutputStm &out, Queue &queue) {
         if (!it.value().is_fact()) {
             for (auto elem_idx : state.todo()) {
                 auto elem = elems_.nth(elem_idx);
-                if (elem.value().empty()) {
+                if (elem.value().second.empty()) {
                     auto sym = elem.key().first;
                     auto sig = std::make_tuple(sym.name(), sym.args().size(), sym.has_classical_sign());
                     auto jt = std::ranges::lower_bound(bases_, sig, std::less<>{},
@@ -122,12 +122,14 @@ void StateDisjunction::propagate(OutputStm &out, Queue &queue) {
         // propagate the elements
         if (!it.value().is_fact()) {
             for (auto elem_idx : state.todo()) {
-                auto sym = elems_.nth(elem_idx).key().first;
+                auto elem = elems_.nth(elem_idx);
+                auto sym = elem.key().first;
                 auto sig = std::make_tuple(sym.name(), sym.args().size(), sym.has_classical_sign());
-                auto it = std::ranges::lower_bound(bases_, sig, std::less<>{},
+                auto jt = std::ranges::lower_bound(bases_, sig, std::less<>{},
                                                    [](auto const &a) -> decltype(auto) { return std::get<0>(a); });
-                assert(it != bases_.end());
-                std::get<1>(*it)->add(sym, StateAtom::derived, [&out]() { return out.uid(); });
+                assert(jt != bases_.end());
+                elem.value().first =
+                    std::get<1>(*jt)->add(sym, StateAtom::derived, [&out]() { return out.uid(); }).first.value().id;
             }
 #ifdef DEBUG_AGGR
             std::cerr << "propagate: a: " << atom_idx << "\n";
@@ -184,10 +186,10 @@ void StateDisjunction::insert_elem(EvalContext const &ctx, AtomMap::iterator it,
             enqueue_(it);
         }
         auto [cond_id, fact] = get_cond();
-        auto &conds = jt.value();
+        auto &conds = jt.value().second;
         if (fact) {
             conds.clear();
-        } else if (jns || !jt.value().empty()) {
+        } else if (jns || !jt.value().second.empty()) {
             auto kt = std::ranges::lower_bound(conds, cond_id);
             if (kt == conds.end() || *kt != cond_id) {
                 conds.emplace(kt, cond_id);
@@ -206,16 +208,16 @@ void StateDisjunction::print(std::ostream &out, bool print_index) {
 }
 
 void StateDisjunction::output([[maybe_unused]] Logger &log, [[maybe_unused]] SymbolStore &store, OutputStm &out) {
-    std::vector<std::pair<Symbol, std::span<size_t const>>> elems;
+    std::vector<OutputStm::DisjElem> elems;
     for (auto const &[tuple, atom] : base_.atoms()) {
         if (auto uid = atom.uid(); uid) {
             elems.clear();
             if (atom.is_fact()) {
-                elems.emplace_back(SymbolStore::sup(), std::span<size_t const>{});
+                elems.emplace_back(SymbolStore::sup(), 0, std::span<size_t const>{});
             } else {
                 for (auto const &elem_idx : atom.elems()) {
                     auto const &[head, cond] = *elems_.nth(elem_idx);
-                    elems.emplace_back(head.first, std::span{cond.data(), cond.size()});
+                    elems.emplace_back(head.first, cond.first, IndexSpan{cond.second});
                 }
             }
             // NOLINTNEXTLINE(bugprone-unchecked-optional-access)

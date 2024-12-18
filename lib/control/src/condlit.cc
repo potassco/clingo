@@ -72,7 +72,7 @@ void build_hd_lit(BuildContext &ctx, Input::HdLitDisjunction const &lit) {
     // initialize state
     std::ranges::sort(bases, std::less<>{}, [](auto const &x) -> decltype(auto) { return std::get<0>(x); });
     bases.erase(
-        std::ranges::unique(bases, std::less<>{}, [](auto const &x) -> decltype(auto) { return std::get<0>(x); })
+        std::ranges::unique(bases, std::equal_to<>{}, [](auto const &x) -> decltype(auto) { return std::get<0>(x); })
             .begin(),
         bases.end());
     auto &state =
