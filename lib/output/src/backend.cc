@@ -28,6 +28,7 @@ auto uid_to_lit(size_t uid) -> lit_t {
 class FwdSym {
   public:
     FwdSym(Symbol sym) : sym_{sym} {}
+    // NOLINTNEXTLINE
     friend auto operator==(FwdSym const &a, FwdSym const &b) -> bool = default;
     friend auto operator<=>(FwdSym const &a, FwdSym const &b) = default;
     static auto neutral() { return FwdSym{SymbolStore::sup()}; }
@@ -39,6 +40,7 @@ class FwdSym {
 class BwdSym {
   public:
     BwdSym(Symbol sym) : sym_{sym} {}
+    // NOLINTNEXTLINE
     friend auto operator==(BwdSym const &a, BwdSym const &b) -> bool = default;
     friend auto operator<=>(BwdSym const &a, BwdSym const &b) { return b.sym_ <=> a.sym_; }
     static auto neutral() { return BwdSym{SymbolStore::inf()}; }
@@ -71,7 +73,6 @@ class Translator {
     //! A span of conditional literals.
     using CondLitSpan = std::span<CondLit const>;
 
-    // TODO: add literal
     using HdAggrElem = std::pair<SymbolSpan, std::span<std::tuple<Symbol, size_t, size_t> const>>;
     using HdAggrElemSpan = std::span<HdAggrElem const>;
 

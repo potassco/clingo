@@ -389,9 +389,19 @@ void StateHdAggr::insert_elem(InstantiationContext const &ctx, AtomMap::iterator
         }
         auto &cond = jt.value();
         cond.emplace_back(sym, 0, cond_id);
-        std::ranges::sort(cond);
-        // TODO: std::unique should merge 0 and non-zero literals
-        cond.erase(std::ranges::unique(cond).begin(), cond.end());
+        // Note: we prefer conditions that already have a literal
+        auto lt = [](auto &a, auto &b) {
+            if (auto cmp = get<0>(a) <=> get<0>(b); cmp != 0) {
+                return cmp < 0;
+            }
+            if (auto cmp = get<2>(a) <=> get<2>(b); cmp != 0) {
+                return cmp < 0;
+            }
+            return get<1>(b) < get<1>(a);
+        };
+        auto eq = [](auto &a, auto &b) { return get<0>(a) == get<0>(b) && get<2>(a) == get<2>(b); };
+        std::ranges::sort(cond, lt);
+        cond.erase(std::ranges::unique(cond, eq).begin(), cond.end());
     }
 }
 
