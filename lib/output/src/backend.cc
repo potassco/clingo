@@ -127,25 +127,39 @@ class Translator {
         // a :- x, c.                       % drop c if a and c are in different sccs
         // x :- a, c.                       % shift x into body if there is no head cycle between a and b
         // x | c :- not not ac, not not cc. % drop rule if a and c are in different sccs
+        if (elems.empty()) {
+            backend_->rule({}, std::array{lit}, false);
+            return;
+        }
         for (auto const &[sym, auid, conds] : elems) {
-            // TODO: cases to consider
-            // - the disjunction is false if the elements are empty
-            // - the conclusion of an element is true if auid is zero
-            // - the premise of an element is true if it is empty
-            // - the disjunction is true if there is an element with a true premise and conclusion
+            if (auid == 0 && conds.empty()) {
+                return;
+            }
+        }
+        aux_hd_.clear();
+        aux_bd_.clear();
+        aux_bd_.emplace_back(lit);
+        for (auto const &[sym, auid, conds] : elems) {
             if (auid != 0) {
                 auto alit = uid_to_lit(auid);
                 assert(alit > 0);
                 graph_.add_edge(alit, lit);
-                for (auto const &cuid : conds) {
-                    auto clit = uid_to_lit(cuid);
-                    if (clit > 0) {
-                        graph_.add_edge(alit, clit);
+                if (conds.empty()) {
+                    aux_hd_.emplace_back(alit);
+                } else {
+                    for (auto const &cuid : conds) {
+                        auto clit = uid_to_lit(cuid);
+                        if (clit > 0) {
+                            graph_.add_edge(alit, clit);
+                        }
                     }
+                    throw std::logic_error("implement me: disjunction with non-trivial conditions");
                 }
+            } else {
+                throw std::logic_error("implement me: disjunctions with true heads but non-trivial conditions");
             }
         }
-        throw std::logic_error("implement me!!!");
+        rule(aux_hd_, aux_bd_, false);
     }
 
     //! Define a sum aggregate.
