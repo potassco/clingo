@@ -129,10 +129,10 @@ class Translator {
         // x | c :- not not ac, not not cc. % drop rule if a and c are in different sccs
         for (auto const &[sym, auid, conds] : elems) {
             // TODO: cases to consider
-            //- the disjunction is false if the elements are empty
-            //- the conclusion of an element is true if auid is zero
-            //- the premise of an element is true if it is empty
-            //- the disjunction is true if there is an element with a true premise and conclusion
+            // - the disjunction is false if the elements are empty
+            // - the conclusion of an element is true if auid is zero
+            // - the premise of an element is true if it is empty
+            // - the disjunction is true if there is an element with a true premise and conclusion
             if (auid != 0) {
                 auto alit = uid_to_lit(auid);
                 assert(alit > 0);
@@ -1082,15 +1082,11 @@ class OutputBackend : public OutputStm, OutputTheory {
     void do_external(Symbol atom, ExternalType type) override {
         static_cast<void>(atom);
         static_cast<void>(type);
-        // *out_ << "#external " << atom << ". [" << type << "]\n";
-        // out_->endl();
         throw std::logic_error{"implement me: external"};
     }
 
     void do_project(Symbol atom) override {
         static_cast<void>(atom);
-        // *out_ << "#project " << atom << ".\n";
-        // out_->endl();
         throw std::logic_error{"implement me: project"};
     }
 
@@ -1103,9 +1099,11 @@ class OutputBackend : public OutputStm, OutputTheory {
     }
 
     auto do_theory_rule(std::optional<size_t> uid) -> size_t override {
-        static_cast<void>(uid);
-        // return body_.delay_head(uid, " :- ");
-        throw std::logic_error{"implement me: theory_rule"};
+        if (!uid) {
+            uid = translator_.next_lit();
+        }
+        translator().rule(std::array{uid_to_lit(*uid)}, body_.literals(), false);
+        return *uid;
     }
 
     auto do_disjunctive_rule(std::optional<size_t> uid) -> size_t override {
@@ -1120,27 +1118,6 @@ class OutputBackend : public OutputStm, OutputTheory {
         static_cast<void>(weight);
         static_cast<void>(prio);
         static_cast<void>(terms);
-        // auto p_tup = [&](auto &out) {
-        //     out << ". [" << weight;
-        //     if (prio) {
-        //         out << "@" << *prio;
-        //     }
-        //     for (auto const &term : terms) {
-        //         out << "," << term;
-        //     }
-        //     out << "].\n";
-        // };
-        // if (!body_.delayed()) {
-        //     *out_ << " :~ ";
-        //     *out_ << body_.end();
-        //     p_tup(*out_);
-        //     out_->endl();
-        // } else {
-        //     p_tup(body_.buf());
-        //     body_.delay();
-        //     body_.buf() << " :~ ";
-        //     body_.prepend();
-        // }
         throw std::logic_error{"implement me: weak_constraint"};
     }
 
@@ -1149,47 +1126,12 @@ class OutputBackend : public OutputStm, OutputTheory {
         static_cast<void>(weight);
         static_cast<void>(prio);
         static_cast<void>(type);
-        // auto p_tup = [&](auto &out) {
-        //     out << ". [" << weight;
-        //     if (prio) {
-        //         out << "@" << *prio;
-        //     }
-        //     out << "," << type;
-        //     out << "]\n";
-        // };
-        // if (!body_.delayed()) {
-        //     *out_ << "#heuristic " << atom;
-        //     if (!body_.empty()) {
-        //         *out_ << ": ";
-        //     }
-        //     *out_ << body_.end();
-        //     p_tup(*out_);
-        //     out_->endl();
-        // } else {
-        //     p_tup(body_.buf());
-        //     body_.delay();
-        //     body_.buf() << "#heuristic " << atom << ": ";
-        //     body_.prepend();
-        // }
         throw std::logic_error{"implement me: heuristic"};
     }
 
     void do_edge(Symbol src, Symbol dst) override {
         static_cast<void>(src);
         static_cast<void>(dst);
-        // if (!body_.delayed()) {
-        //     *out_ << "#edge (" << src << "," << dst << ")";
-        //     if (!body_.empty()) {
-        //         *out_ << ": ";
-        //     }
-        //     *out_ << body_.end() << ".\n";
-        //     out_->endl();
-        // } else {
-        //     body_.buf() << ".\n";
-        //     body_.delay();
-        //     *out_ << "#edge (" << src << "," << dst << "): ";
-        //     body_.prepend();
-        // }
         throw std::logic_error{"implement me: edge"};
     }
 
@@ -1214,10 +1156,7 @@ class OutputBackend : public OutputStm, OutputTheory {
 
     void do_disjunction(size_t uid, DisjElemSpan elems) override { translator().disjunction(uid_to_lit(uid), elems); }
 
-    auto do_theory() -> OutputTheory & override {
-        // return *this;
-        throw std::logic_error{"implement me: theory"};
-    }
+    auto do_theory() -> OutputTheory & override { return *this; }
 
     void do_flush() override {}
 
@@ -1227,100 +1166,29 @@ class OutputBackend : public OutputStm, OutputTheory {
 
     auto do_str(String val) -> size_t override {
         static_cast<void>(val);
-        // return str_id_(val.view());
         throw std::logic_error{"implement me: theory str"};
     }
 
     auto do_num(Number const &val) -> size_t override {
         static_cast<void>(val);
-        // if (val < 0) {
-        //     tmp_.reset() << "(" << val << ")";
-        // } else {
-        //     tmp_.reset() << val;
-        // }
-        // return str_id_(tmp_.view());
         throw std::logic_error{"implement me: theory num"};
     }
 
     auto do_fun(String name, IndexSpan args) -> size_t override {
         static_cast<void>(name);
         static_cast<void>(args);
-        // auto is_theory_op = [](std::string_view str) {
-        //     if (str.empty()) {
-        //         return false;
-        //     }
-        //     switch (str.front()) {
-        //         case '/':
-        //         case '!':
-        //         case '<':
-        //         case '=':
-        //         case '>':
-        //         case '+':
-        //         case '-':
-        //         case '*':
-        //         case '\\':
-        //         case '?':
-        //         case '&':
-        //         case '@':
-        //         case '|':
-        //         case ':':
-        //         case ';':
-        //         case '~':
-        //         case '^':
-        //         case '.': {
-        //             return true;
-        //         }
-        //         default: {
-        //             return false;
-        //         }
-        //     }
-        // };
-        // if (args.size() == 1 && is_theory_op(name.view())) {
-        //     tmp_.reset() << "(" << name << *strs_.nth(args.back()) << ")";
-        // } else if (args.size() == 2 && is_theory_op(name.view())) {
-        //     tmp_.reset() << "(" << *strs_.nth(args.front()) << name << *strs_.nth(args.back()) << ")";
-        // } else {
-        //     tmp_.reset() << name;
-        //     if (!args.empty()) {
-        //         tmp_ << "(" << Util::p_range(args, [&](auto &out, auto idx) { out << *strs_.nth(idx); }) << ")";
-        //     }
-        // }
-        // return str_id_(tmp_.view());
         throw std::logic_error{"implement me: theory fun"};
     }
 
     auto do_tup(TheoryTermTupleType type, IndexSpan args) -> size_t override {
         static_cast<void>(type);
         static_cast<void>(args);
-        // auto [od, cd] = [&]() -> std::pair<char const *, char const *> {
-        //     switch (type) {
-        //         case TheoryTermTupleType::list: {
-        //             return {"[", "]"};
-        //         }
-        //         case TheoryTermTupleType::set: {
-        //             return {"{", "}"};
-        //         }
-        //         case TheoryTermTupleType::tuple: {
-        //             return {"(", args.size() == 1 ? ",)" : ")"};
-        //         }
-        //     }
-        //     Util::unreachable();
-        // }();
-        // tmp_.reset() << od << Util::p_range(args, [&](auto &out, auto idx) { out << *strs_.nth(idx); }) << cd;
-        // return str_id_(tmp_.view());
         throw std::logic_error{"implement me: theory tup"};
     }
 
     auto do_elem(IndexSpan tuple, size_t cond) -> size_t override {
         static_cast<void>(tuple);
         static_cast<void>(cond);
-        // tmp_.reset() << Util::p_range(tuple, [this](auto &out, auto idx) { out << *strs_.nth(idx); });
-        // auto const &sc = *strs_.nth(cond);
-        // if (tuple.empty() || !sc.empty()) {
-        //     tmp_ << ": ";
-        // }
-        // tmp_ << *strs_.nth(cond);
-        // return str_id_(tmp_.view());
         throw std::logic_error{"implement me: theory elem"};
     }
 
@@ -1329,15 +1197,6 @@ class OutputBackend : public OutputStm, OutputTheory {
         static_cast<void>(name);
         static_cast<void>(elems);
         static_cast<void>(guard);
-        // tmp_.reset() << "&" << name;
-        // if (!elems.empty()) {
-        //     tmp_ << " { " << Util::p_range(elems, "; ", [this](auto &out, auto idx) { out << *strs_.nth(idx); })
-        //          << " }";
-        // }
-        // if (guard) {
-        //     tmp_ << " " << *strs_.nth(guard->first) << " " << *strs_.nth(guard->second);
-        // }
-        // body_.define(atom_uid, tmp_.str());
         throw std::logic_error{"implement me: theory atom"};
     }
 
