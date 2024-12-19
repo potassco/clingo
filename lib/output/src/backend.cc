@@ -20,7 +20,7 @@ namespace {
 //!
 //! @param uid the uid to convert
 //! @return the resulting literal
-auto uid_to_lit(size_t uid) -> lit_t {
+auto uid_to_lit(id_t uid) -> lit_t {
     assert(uid != 0);
     return static_cast<int32_t>(uid);
 }
@@ -103,6 +103,8 @@ class Translator {
     //!
     //! The given literal is derived by the given conditional literals.
     //!
+    //! @pre lit > 0
+    //!
     //! @param lit the literal that is derived
     //! @param elems the elements forming the conditional literal
     void cond_lit(lit_t lit, CondLitSpan elems) {
@@ -115,8 +117,13 @@ class Translator {
                                 std::forward_as_tuple(elems.begin(), elems.end()));
     }
 
+    //! Define a disjunction of (conditional) literals.
+    //!
+    //! The given literal derives the given literals.
+    //!
+    //! @param lit the literal representing the body
+    //! @param elems the literals to derive
     void disjunction(lit_t lit, DisjElemSpan elems) {
-        assert(lit > 0);
         // a : c | b :- B.
         // shifting:
         //     b :- not c, B.
@@ -216,7 +223,7 @@ class Translator {
                     auto clit = uid_to_lit(cuid);
                     if (huid > 0) {
                         auto hlit = uid_to_lit(huid);
-                        bd_conds.back().emplace_back(cond(std::array{hlit, clit}));
+                        bd_conds.back().emplace_back(clause_(std::array{hlit, clit}, ClauseType::conjunctive));
                         mark_(clit, EQType::implication);
                         rule(std::array{hlit}, std::array{blit, clit}, true);
                     } else {
@@ -265,8 +272,8 @@ class Translator {
     //! Some language constructs require additional translation.
     //! Such translations are applied here.
     void end_step() {
-        size_t idx_scc = 0;
-        graph_.tarjan([&, this](std::vector<size_t> const &scc) {
+        id_t idx_scc = 0;
+        graph_.tarjan([&, this](std::vector<id_t> const &scc) {
             assert(!scc.empty());
             if (scc.size() > 1 || graph_.has_loop(scc.front())) {
                 ++idx_scc;
@@ -276,8 +283,7 @@ class Translator {
         tr_cond_lits_();
         tr_sum_();
         tr_mms_();
-        tr_disjunctions_();
-        tr_conjunctions_();
+        tr_clauses();
         graph_.clear();
     }
 
@@ -307,8 +313,11 @@ class Translator {
     // NOLINTNEXTLINE
     friend void is_bit_set_enum(CycleType type);
 
+    static constexpr auto invalid_id = std::numeric_limits<id_t>::max();
+
     struct LitInfo {
         id_t scc = 0;
+        id_t clause = 0;
         lit_t neg = 0;
         EQType type = EQType::none;
     };
@@ -324,7 +333,8 @@ class Translator {
     using MinVec = std::vector<std::tuple<lit_t, bool, LitVec, IndexVec>>;
 
     using LitInfoVec = std::vector<LitInfo>;
-    using ClauseMap = Util::ordered_map<Output::LitVec, lit_t>;
+    using ClauseLitMap = Util::ordered_map<std::pair<Output::LitVec, ClauseType>, lit_t>;
+
     using CondLitElem = std::pair<std::optional<lit_t>, lit_t>;
     using CondLitElemVec = std::vector<CondLitElem>;
     using CondLitVec = std::vector<std::pair<lit_t, CondLitElemVec>>;
@@ -342,61 +352,82 @@ class Translator {
     //!
     //! If the literal is associated with a clause, the equivalence between
     //! literal and clause is established accordingly.
-    void mark_(lit_t lit, EQType type) {
-        if (lit > 0) {
-            info_(lit).type = std::max(info_(lit).type, type);
+    auto mark_(lit_t lit, EQType type) -> bool {
+        auto atm = std::abs(lit);
+        if (lit < 0) {
+            type = std::max(type, EQType::implication);
         }
+        if (auto &info = info_(atm); info.clause != invalid_id && info.type < type) {
+            info.type = type;
+            return true;
+        }
+        return false;
     }
 
-    //! Translate stored conjunctions.
-    void tr_conjunctions_() {
-        for (auto const &[cond, lit] : conds_) {
-            assert(lit > 0);
-            auto const &lit_info = info_(lit);
-            if (lit_info.type != EQType::none) {
-                backend_->rule(std::array{lit}, cond, false);
-            }
-            if (lit_info.type == EQType::equivalence && lit_info.scc > 0) {
-                for (auto const &clit : cond) {
-                    if (clit > 0 && info_(clit).scc == lit_info.scc) {
-                        backend_->rule(std::array{clit}, std::array{lit}, false);
-                    }
-                }
-            }
-        }
-    }
-
-    //! Translate stored disjunctions.
+    //! Translate stored clauses.
     //!
-    //! Since disjunctions can have conjunctions as elements, those are marked
-    //! with the same equivalence type as the disjunction here. Conjunctions
-    //! must be translated after the disjunctions.
-    void tr_disjunctions_() {
-        for (auto const &[clause, lit] : disjunctions_) {
+    //! Since clauses can have other clauses as elements, those are marked with
+    //! the same equivalence type as the parent. For negative literals, some
+    //! rules are omitted.
+    //!
+    //! This function should be the last translation function called so that
+    //! prior ones can add additional clauses if necessary.
+    void tr_clauses() {
+        auto todo = LitVec{};
+        auto mark = [&todo, this](lit_t lit) {
             assert(lit > 0);
-            auto const &lit_info = info_(lit);
-            if (lit_info.type != EQType::none) {
-                for (auto const &clit : clause) {
-                    if (clit > 0) {
-                        mark_(clit, lit_info.type);
+            if (auto &info = info_(lit); info.type != EQType::none) {
+                for (auto const &clit : clauses_.nth(info.clause).key().first) {
+                    if (mark_(clit, info.type)) {
+                        todo.emplace_back(std::abs(clit));
                     }
-                    backend_->rule(std::array{lit}, std::array{clit}, false);
                 }
             }
-            if (lit_info.type == EQType::equivalence) {
-                aux_hd_.clear();
-                aux_hd_.emplace_back(lit);
-                aux_bd_.clear();
-                for (auto const &clit : clause) {
-                    if (clit < 0) {
-                        aux_bd_.emplace_back(negate(clit));
-                    } else if (clit > 0 && info_(lit).scc != info_(clit).scc) {
-                        aux_bd_.emplace_back(-clit);
-                    } else {
-                        aux_hd_.emplace_back(clit);
+        };
+        for (auto const &[clause, lit] : clauses_) {
+            mark(lit);
+        }
+        while (!todo.empty()) {
+            auto lit = todo.back();
+            todo.pop_back();
+            mark(lit);
+        }
+        for (auto const &[clause, lit] : clauses_) {
+            assert(lit > 0);
+            auto const &info = info_(lit);
+            auto const &[lits, type] = clause;
+            if (type == ClauseType::conjunctive) {
+                if (info.type != EQType::none) {
+                    backend_->rule(std::array{lit}, lits, false);
+                }
+                if (info.type == EQType::equivalence && info.scc > 0) {
+                    for (auto const &clit : lits) {
+                        if (clit > 0 && info_(clit).scc == info.scc) {
+                            backend_->rule(std::array{clit}, std::array{lit}, false);
+                        }
                     }
                 }
-                backend_->rule(aux_hd_, aux_bd_, false);
+            } else {
+                if (info.type != EQType::none) {
+                    for (auto const &clit : lits) {
+                        backend_->rule(std::array{lit}, std::array{clit}, false);
+                    }
+                }
+                if (info.type == EQType::equivalence) {
+                    aux_hd_.clear();
+                    aux_hd_.emplace_back(lit);
+                    aux_bd_.clear();
+                    for (auto const &clit : lits) {
+                        if (clit < 0) {
+                            aux_bd_.emplace_back(negate(clit));
+                        } else if (clit > 0 && info_(lit).scc != info_(clit).scc) {
+                            aux_bd_.emplace_back(-clit);
+                        } else {
+                            aux_hd_.emplace_back(clit);
+                        }
+                    }
+                    backend_->rule(aux_hd_, aux_bd_, false);
+                }
             }
         }
     }
@@ -445,7 +476,7 @@ class Translator {
         // simplify the elements
         auto upper = Sym::neutral();
         auto elem_vec = std::vector<std::pair<Sym, lit_t>>{};
-        auto cond_map = Util::unordered_map<IndexSpan, size_t>{};
+        auto cond_map = Util::unordered_map<IndexSpan, id_t>{};
         elem_vec.reserve(elems.size());
         cond_map.reserve(elems.size());
         for (auto const &[tup, conds] : elems) {
@@ -655,7 +686,7 @@ class Translator {
         // simplify the aggregate
         auto fixed = Number(0);
         auto elem_vec = SumElemVec{};
-        auto cond_map = Util::unordered_map<IndexSpan, size_t>{};
+        auto cond_map = Util::unordered_map<IndexSpan, id_t>{};
         elem_vec.reserve(elems.size());
         cond_map.reserve(elems.size());
         for (auto const &[tup, conds] : elems) {
@@ -925,10 +956,11 @@ class Translator {
         if (aux_bd_.size() == 1) {
             return aux_bd_.front();
         }
-        auto [it, ins] = (type == ClauseType::conjunctive ? conds_ : disjunctions_).emplace(aux_bd_, 0);
+        auto [it, ins] = clauses_.emplace(std::pair{aux_bd_, type}, 0);
         if (ins) {
             it.value() = next_lit();
-            for (auto const &lit : it->first) {
+            info_(it.value()).clause = std::distance(clauses_.begin(), it);
+            for (auto const &lit : it->first.first) {
                 if (add_edges && lit > 0) {
                     graph_.add_edge(it.value(), lit);
                 }
@@ -943,8 +975,8 @@ class Translator {
     Output::LitVec aux_cond_;
     Util::Graph graph_;
     LitInfoVec lits_;
-    ClauseMap conds_;
-    ClauseMap disjunctions_;
+    ClauseLitMap clauses_;
+
     CondLitVec cond_lits_;
     SumVec sum_aggrs_;
     MinVec min_aggrs_;
@@ -978,7 +1010,7 @@ class OutputCond : public OutputLit {
     //!
     //! @param sign the sign of the literal
     //! @param uid the uid
-    auto append(Sign sign, size_t uid) {
+    auto append(Sign sign, id_t uid) {
         switch (sign) {
             case Sign::none: {
                 body_.emplace_back(uid_to_lit(uid));
@@ -1001,13 +1033,13 @@ class OutputCond : public OutputLit {
     //! Equivalent to `append(Sign::none, uid)`.
     //!
     //! @param uid the uid
-    auto append(size_t uid) { body_.emplace_back(uid_to_lit(uid)); }
+    auto append(id_t uid) { body_.emplace_back(uid_to_lit(uid)); }
 
     //! Start a new condition/body clearing the underlying literals.
     void start() { body_.clear(); }
 
   private:
-    void do_lit(Sign sign, [[maybe_unused]] Symbol sym, size_t uid) override { append(sign, uid); }
+    void do_lit(Sign sign, [[maybe_unused]] Symbol sym, id_t uid) override { append(sign, uid); }
 
     void do_boolean(bool value) override {
         if (!value) {
@@ -1017,15 +1049,15 @@ class OutputCond : public OutputLit {
         }
     }
 
-    auto do_cond_lit([[maybe_unused]] std::optional<size_t> uid) -> size_t override {
+    auto do_cond_lit([[maybe_unused]] std::optional<id_t> uid) -> id_t override {
         throw std::runtime_error("unsupported literal");
     }
 
-    auto do_bd_aggr([[maybe_unused]] Sign sign, [[maybe_unused]] std::optional<size_t> uid) -> size_t override {
+    auto do_bd_aggr([[maybe_unused]] Sign sign, [[maybe_unused]] std::optional<id_t> uid) -> id_t override {
         throw std::runtime_error("unsupported literal");
     }
 
-    auto do_bd_theory([[maybe_unused]] Sign sign, [[maybe_unused]] std::optional<size_t> uid) -> size_t override {
+    auto do_bd_theory([[maybe_unused]] Sign sign, [[maybe_unused]] std::optional<id_t> uid) -> id_t override {
         throw std::runtime_error("unsupported literal");
     }
 
@@ -1044,7 +1076,7 @@ class OutputBody : public OutputCond {
     OutputBody(Translator &translator) : OutputCond(translator) {}
 
   private:
-    auto do_cond_lit(std::optional<size_t> uid) -> size_t override {
+    auto do_cond_lit(std::optional<id_t> uid) -> id_t override {
         if (!uid) {
             uid = translator().next_lit();
         }
@@ -1052,7 +1084,7 @@ class OutputBody : public OutputCond {
         return *uid;
     }
 
-    auto do_bd_aggr(Sign sign, std::optional<size_t> uid) -> size_t override {
+    auto do_bd_aggr(Sign sign, std::optional<id_t> uid) -> id_t override {
         if (!uid) {
             uid = translator().next_lit();
         }
@@ -1060,7 +1092,7 @@ class OutputBody : public OutputCond {
         return *uid;
     }
 
-    auto do_bd_theory(Sign sign, std::optional<size_t> uid) -> size_t override {
+    auto do_bd_theory(Sign sign, std::optional<id_t> uid) -> id_t override {
         if (!uid) {
             uid = translator().next_lit();
         }
@@ -1074,7 +1106,7 @@ class OutputBackend : public OutputStm, OutputTheory {
     OutputBackend(Backend &backend) : translator_{backend} {};
 
   private:
-    void do_fact([[maybe_unused]] Symbol sym, size_t uid) override {
+    void do_fact([[maybe_unused]] Symbol sym, id_t uid) override {
         translator().rule(std::array{uid_to_lit(uid)}, LitSpan{}, false);
     }
 
@@ -1083,7 +1115,7 @@ class OutputBackend : public OutputStm, OutputTheory {
         return body_;
     }
 
-    void do_rule(std::optional<std::tuple<Symbol, size_t, bool>> head) override {
+    void do_rule(std::optional<std::tuple<Symbol, id_t, bool>> head) override {
         bool choice = false;
         if (head) {
             choice = get<2>(*head);
@@ -1107,7 +1139,7 @@ class OutputBackend : public OutputStm, OutputTheory {
         throw std::logic_error{"implement me: project"};
     }
 
-    auto do_aggr_rule(std::optional<size_t> uid) -> size_t override {
+    auto do_aggr_rule(std::optional<id_t> uid) -> id_t override {
         if (!uid) {
             uid = translator_.next_lit();
         }
@@ -1115,7 +1147,7 @@ class OutputBackend : public OutputStm, OutputTheory {
         return *uid;
     }
 
-    auto do_theory_rule(std::optional<size_t> uid) -> size_t override {
+    auto do_theory_rule(std::optional<id_t> uid) -> id_t override {
         if (!uid) {
             uid = translator_.next_lit();
         }
@@ -1123,7 +1155,7 @@ class OutputBackend : public OutputStm, OutputTheory {
         return *uid;
     }
 
-    auto do_disjunctive_rule(std::optional<size_t> uid) -> size_t override {
+    auto do_disjunctive_rule(std::optional<id_t> uid) -> id_t override {
         if (!uid) {
             uid = translator_.next_lit();
         }
@@ -1157,21 +1189,21 @@ class OutputBackend : public OutputStm, OutputTheory {
         return cond_;
     }
 
-    auto do_cond_id() -> size_t override { return translator().cond(cond_.literals()); }
+    auto do_cond_id() -> id_t override { return translator().cond(cond_.literals()); }
 
-    auto do_uid() -> size_t override { return translator().next_lit(); }
+    auto do_uid() -> id_t override { return translator().next_lit(); }
 
-    void do_cond_lit(size_t uid, CondLitSpan elems) override { translator_.cond_lit(uid_to_lit(uid), elems); }
+    void do_cond_lit(id_t uid, CondLitSpan elems) override { translator_.cond_lit(uid_to_lit(uid), elems); }
 
-    void do_bd_aggr(size_t uid, AggregateFunction fun, BdElemSpan elems, GuardSpan guards) override {
+    void do_bd_aggr(id_t uid, AggregateFunction fun, BdElemSpan elems, GuardSpan guards) override {
         translator().bd_aggr(uid_to_lit(uid), fun, elems, guards);
     }
 
-    void do_hd_aggr(size_t uid, AggregateFunction fun, HdElemSpan elems, GuardSpan guards) override {
+    void do_hd_aggr(id_t uid, AggregateFunction fun, HdElemSpan elems, GuardSpan guards) override {
         translator().hd_aggr(uid_to_lit(uid), fun, elems, guards);
     }
 
-    void do_disjunction(size_t uid, DisjElemSpan elems) override { translator().disjunction(uid_to_lit(uid), elems); }
+    void do_disjunction(id_t uid, DisjElemSpan elems) override { translator().disjunction(uid_to_lit(uid), elems); }
 
     auto do_theory() -> OutputTheory & override { return *this; }
 
@@ -1181,35 +1213,35 @@ class OutputBackend : public OutputStm, OutputTheory {
 
     void do_mark([[maybe_unused]] SymbolCollector &gc) override {}
 
-    auto do_str(String val) -> size_t override {
+    auto do_str(String val) -> id_t override {
         static_cast<void>(val);
         throw std::logic_error{"implement me: theory str"};
     }
 
-    auto do_num(Number const &val) -> size_t override {
+    auto do_num(Number const &val) -> id_t override {
         static_cast<void>(val);
         throw std::logic_error{"implement me: theory num"};
     }
 
-    auto do_fun(String name, IndexSpan args) -> size_t override {
+    auto do_fun(String name, IndexSpan args) -> id_t override {
         static_cast<void>(name);
         static_cast<void>(args);
         throw std::logic_error{"implement me: theory fun"};
     }
 
-    auto do_tup(TheoryTermTupleType type, IndexSpan args) -> size_t override {
+    auto do_tup(TheoryTermTupleType type, IndexSpan args) -> id_t override {
         static_cast<void>(type);
         static_cast<void>(args);
         throw std::logic_error{"implement me: theory tup"};
     }
 
-    auto do_elem(IndexSpan tuple, size_t cond) -> size_t override {
+    auto do_elem(IndexSpan tuple, id_t cond) -> id_t override {
         static_cast<void>(tuple);
         static_cast<void>(cond);
         throw std::logic_error{"implement me: theory elem"};
     }
 
-    void do_atm(size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard) override {
+    void do_atm(id_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard) override {
         static_cast<void>(atom_uid);
         static_cast<void>(name);
         static_cast<void>(elems);
