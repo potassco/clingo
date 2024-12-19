@@ -143,30 +143,37 @@ class Translator {
                 return;
             }
         }
-        aux_hd_.clear();
-        aux_bd_.clear();
-        aux_bd_.emplace_back(lit);
+        auto hd = LitVec{};
+        auto bd = LitVec{};
+        auto celems = std::vector<std::tuple<lit_t, lit_t>>{};
+        bd.emplace_back(lit);
         for (auto const &[sym, auid, conds] : elems) {
             if (auid != 0) {
                 auto alit = uid_to_lit(auid);
                 assert(alit > 0);
-                graph_.add_edge(alit, lit);
                 if (conds.empty()) {
-                    aux_hd_.emplace_back(alit);
+                    hd.emplace_back(alit);
                 } else {
-                    for (auto const &cuid : conds) {
-                        auto clit = uid_to_lit(cuid);
-                        if (clit > 0) {
-                            graph_.add_edge(alit, clit);
-                        }
+                    auto aux = next_lit();
+                    auto dlit = clause_(aux_cond_, ClauseType::disjunctive);
+                    hd.emplace_back(aux);
+                    aux_cond_.assign(conds.begin(), conds.end());
+                    celems.emplace_back(aux, dlit);
+                    if (dlit > 0) {
+                        graph_.add_edge(aux, dlit);
                     }
-                    throw std::logic_error("implement me: disjunction with non-trivial conditions");
+                    graph_.add_edge(alit, aux);
                 }
             } else {
-                throw std::logic_error("implement me: disjunctions with true heads but non-trivial conditions");
+                aux_cond_.assign(conds.begin(), conds.end());
+                bd.emplace_back(negate(clause_(aux_cond_, ClauseType::disjunctive)));
+                mark_(bd.back(), EQType::implication);
             }
         }
-        rule(aux_hd_, aux_bd_, false);
+        rule(hd, bd, false);
+        if (!celems.empty()) {
+            throw std::logic_error("implement me: disjunctions with true heads but non-trivial conditions");
+        }
     }
 
     //! Define a sum aggregate.
