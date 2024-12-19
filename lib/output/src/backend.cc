@@ -201,6 +201,16 @@ class Translator {
         }
     }
 
+    //! Define a head aggregate.
+    //!
+    //! The given literal represents the body associated with the aggregate.
+    //!
+    //! This functions reuses the translation of body aggregates.
+    //!
+    //! @param blit the body literal
+    //! @param fun the aggregate's function
+    //! @param elems the elements of the aggregate
+    //! @param guards the guards of the aggregate
     void hd_aggr(lit_t blit, AggregateFunction fun, HdElemSpan elems, GuardSpan guards) {
         // The head aggregate
         //
