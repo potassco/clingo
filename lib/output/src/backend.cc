@@ -145,7 +145,7 @@ class Translator {
         }
         auto hd = LitVec{};
         auto bd = LitVec{};
-        auto celems = std::vector<std::tuple<lit_t, lit_t>>{};
+        auto celems = std::vector<std::tuple<lit_t, lit_t, lit_t>>{};
         bd.emplace_back(lit);
         for (auto const &[sym, auid, conds] : elems) {
             if (auid != 0) {
@@ -155,10 +155,11 @@ class Translator {
                     hd.emplace_back(alit);
                 } else {
                     auto aux = next_lit();
-                    auto dlit = clause_(aux_cond_, ClauseType::disjunctive);
                     hd.emplace_back(aux);
                     aux_cond_.assign(conds.begin(), conds.end());
-                    celems.emplace_back(aux, dlit);
+                    auto dlit = clause_(aux_cond_, ClauseType::disjunctive);
+                    hd.emplace_back(aux);
+                    celems.emplace_back(alit, aux, dlit);
                     if (dlit > 0) {
                         graph_.add_edge(aux, dlit);
                     }
@@ -172,13 +173,62 @@ class Translator {
         }
         rule(hd, bd, false);
         if (!celems.empty()) {
+            hd.clear();
+            for (auto const &elem : elems) {
+                if (auto auid = get<1>(elem); auid != 0) {
+                    hd.emplace_back(uid_to_lit(auid));
+                }
+            }
             disjs_.emplace_back(std::move(hd), std::move(celems));
         }
     }
 
     void tr_disjs_() {
-        if (!disjs_.empty()) {
-            throw std::logic_error("implement me: disjunctions with true heads but non-trivial conditions");
+        auto hd_counts = Util::unordered_map<size_t, size_t>{};
+        auto in_head_cycle = [&hd_counts, this](lit_t lit) {
+            auto scc = info_(lit).scc;
+            return scc > 0 && hd_counts.find(scc).value() > 0;
+        };
+        auto init_head_cycle = [&hd_counts, this](LitVec const &hd) {
+            hd_counts.clear();
+            for (auto lit : hd) {
+                if (auto scc = info_(lit).scc; scc > 0) {
+                    ++hd_counts[scc];
+                }
+            }
+        };
+        auto in_same_scc = [this](lit_t a, lit_t b) {
+            if (a > 0 && b > 0) {
+                auto scc = info_(a).scc;
+                return scc > 0 && scc == info_(b).scc;
+            }
+            return false;
+        };
+        for (auto &[hd, elems] : disjs_) {
+            init_head_cycle(hd);
+            for (auto const &[a, x, c] : elems) {
+                // :- x, not c.
+                // a :- x, c.             % (1)
+                // x :- a, c.             % (2)
+                // not a | not c | x | c. % (3)
+                // (1) `c` is dropped if `a` and `c` are not in the same scc
+                // (2) shifted if `a` is not in a head cycle
+                // (3) dropped if `a` and `c` are not in the same scc
+                mark_(c, EQType::implication);
+                backend_->rule({}, std::array{x, negate(c)}, false);
+                if (in_head_cycle(a)) {
+                    backend_->rule(std::array{x}, std::array{a, c}, false);
+                } else {
+                    backend_->rule({}, std::array{a, c, negate(x)}, false);
+                }
+                if (in_same_scc(a, c)) {
+                    mark_(c, EQType::equivalence);
+                    backend_->rule(std::array{a}, std::array{x, c}, false);
+                    backend_->rule(std::array{x, c}, std::array{negate(negate(a)), negate(negate(c))}, false);
+                } else {
+                    backend_->rule(std::array{a}, std::array{x}, false);
+                }
+            }
         }
     }
 
@@ -362,7 +412,7 @@ class Translator {
     using CondLitElem = std::pair<std::optional<lit_t>, lit_t>;
     using CondLitElemVec = std::vector<CondLitElem>;
     using CondLitVec = std::vector<std::pair<lit_t, CondLitElemVec>>;
-    using DisjVec = std::vector<std::tuple<LitVec, std::vector<std::tuple<lit_t, lit_t>>>>;
+    using DisjVec = std::vector<std::tuple<LitVec, std::vector<std::tuple<lit_t, lit_t, lit_t>>>>;
 
     //! Get the literal info for an atom.
     [[nodiscard]] auto info_(lit_t lit) -> LitInfo & {
