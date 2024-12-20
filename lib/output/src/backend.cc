@@ -121,19 +121,33 @@ class Translator {
     //!
     //! The given literal derives the given literals.
     //!
+    //! We use a shifting of conditions into rule bodies as semantic guideline
+    //! for the translation applied in this function.
+    //!
     //! @param lit the literal representing the body
     //! @param elems the literals to derive
     void disjunction(lit_t lit, DisjElemSpan elems) {
-        // a : c | b :- B.
-        // shifting:
-        //     b :- not c, B.
-        // a | b :-     c, B.
-        // replace by auxiliary variable:
-        // x | b :- B.
-        // :- x, not c.
-        // a :- x, c.                       % drop c if a and c are in different sccs
-        // x :- a, c.                       % shift x into body if there is no head cycle between a and b
-        // x | c :- not not ac, not not cc. % drop rule if a and c are in different sccs
+        // example:
+        //   a : c | b :- B.
+        // shift:
+        //       b :- not c, B.
+        //   a | b :-     c, B.
+        // factor:
+        //   (a & ~~c) | b :- (c | not c), B.
+        // replace:
+        //   x | b :- y, B.
+        //   (a & ~~c) :- x.
+        //   x :- (a & ~~c).
+        //   y :- (c | not c).
+        // transform:
+        //   x | b :- y, B.
+        //   a :- x.
+        //     :- x, not     c.
+        //   x :- a, not not c. (*)
+        //   y :-     c.
+        //   y :- not c.
+        // simplify (*) if a does not occur in a head cycle:
+        //   :- a, c, not x.
         if (elems.empty()) {
             backend_->rule({}, std::array{lit}, false);
             return;
@@ -149,21 +163,28 @@ class Translator {
         bd.emplace_back(lit);
         for (auto const &[sym, auid, conds] : elems) {
             if (auid != 0) {
-                auto alit = uid_to_lit(auid);
-                assert(alit > 0);
+                auto a = uid_to_lit(auid);
+                assert(a > 0);
                 if (conds.empty()) {
-                    hd.emplace_back(alit);
+                    hd.emplace_back(a);
                 } else {
-                    auto aux = next_lit();
-                    hd.emplace_back(aux);
+                    auto x = next_lit();
+                    auto y = next_lit();
                     aux_cond_.assign(conds.begin(), conds.end());
-                    auto dlit = clause_(aux_cond_, ClauseType::disjunctive);
-                    hd.emplace_back(aux);
-                    celems.emplace_back(alit, aux, dlit);
-                    if (dlit > 0) {
-                        graph_.add_edge(aux, dlit);
-                    }
-                    graph_.add_edge(alit, aux);
+                    auto c = clause_(aux_cond_, ClauseType::disjunctive);
+                    mark_(c, EQType::implication);
+                    hd.emplace_back(x);
+                    bd.emplace_back(y);
+                    // a :- x.
+                    rule(std::array{a}, std::array{x}, false);
+                    //   :- x, not c.
+                    rule({}, std::array{x, negate(c)}, false);
+                    // y :- c.
+                    rule(std::array{y}, std::array{c}, false);
+                    // y :- not c.
+                    rule(std::array{y}, std::array{negate(c)}, false);
+                    // x :- a, not not c.
+                    celems.emplace_back(a, x, c);
                 }
             } else {
                 aux_cond_.assign(conds.begin(), conds.end());
@@ -183,6 +204,7 @@ class Translator {
         }
     }
 
+    // Translate rule (*) from disjunction() based on head cycles.
     void tr_disjs_() {
         auto hd_counts = Util::unordered_map<size_t, size_t>{};
         auto in_head_cycle = [&hd_counts, this](lit_t lit) {
@@ -197,36 +219,14 @@ class Translator {
                 }
             }
         };
-        auto in_same_scc = [this](lit_t a, lit_t b) {
-            if (a > 0 && b > 0) {
-                auto scc = info_(a).scc;
-                return scc > 0 && scc == info_(b).scc;
-            }
-            return false;
-        };
         for (auto &[hd, elems] : disjs_) {
             init_head_cycle(hd);
             for (auto const &[a, x, c] : elems) {
-                // :- x, not c.
-                // a :- x, c.             % (1)
-                // x :- a, c.             % (2)
-                // not a | not c | x | c. % (3)
-                // (1) `c` is dropped if `a` and `c` are not in the same scc
-                // (2) shifted if `a` is not in a head cycle
-                // (3) dropped if `a` and `c` are not in the same scc
-                mark_(c, EQType::implication);
                 backend_->rule({}, std::array{x, negate(c)}, false);
                 if (in_head_cycle(a)) {
-                    backend_->rule(std::array{x}, std::array{a, c}, false);
+                    backend_->rule(std::array{x}, std::array{a, negate(negate(c))}, false);
                 } else {
                     backend_->rule({}, std::array{a, c, negate(x)}, false);
-                }
-                if (in_same_scc(a, c)) {
-                    mark_(c, EQType::equivalence);
-                    backend_->rule(std::array{a}, std::array{x, c}, false);
-                    backend_->rule(std::array{x, c}, std::array{negate(negate(a)), negate(negate(c))}, false);
-                } else {
-                    backend_->rule(std::array{a}, std::array{x}, false);
                 }
             }
         }
