@@ -172,6 +172,12 @@ class Translator {
         }
         rule(hd, bd, false);
         if (!celems.empty()) {
+            disjs_.emplace_back(std::move(hd), std::move(celems));
+        }
+    }
+
+    void tr_disjs_() {
+        if (!disjs_.empty()) {
             throw std::logic_error("implement me: disjunctions with true heads but non-trivial conditions");
         }
     }
@@ -297,6 +303,7 @@ class Translator {
                 std::ranges::for_each(scc, [&](auto const &lit) { info_(uid_to_lit(lit)).scc = idx_scc; });
             }
         });
+        tr_disjs_();
         tr_cond_lits_();
         tr_sum_();
         tr_mms_();
@@ -355,6 +362,7 @@ class Translator {
     using CondLitElem = std::pair<std::optional<lit_t>, lit_t>;
     using CondLitElemVec = std::vector<CondLitElem>;
     using CondLitVec = std::vector<std::pair<lit_t, CondLitElemVec>>;
+    using DisjVec = std::vector<std::tuple<LitVec, std::vector<std::tuple<lit_t, lit_t>>>>;
 
     //! Get the literal info for an atom.
     [[nodiscard]] auto info_(lit_t lit) -> LitInfo & {
@@ -995,6 +1003,7 @@ class Translator {
     ClauseLitMap clauses_;
 
     CondLitVec cond_lits_;
+    DisjVec disjs_;
     SumVec sum_aggrs_;
     MinVec min_aggrs_;
 };
