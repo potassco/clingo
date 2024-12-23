@@ -207,16 +207,14 @@ void Solver::main(std::span<std::string_view const> const &files,
 //! Test model printer.
 class EH : public Clasp::EventHandler {
   public:
-    EH(Clasp::Asp::LogicProgram &prg, Grounder &grd) : prg_{&prg}, grd_{&grd} {}
-    auto onModel([[maybe_unused]] Clasp::Solver const &slv, Clasp::Model const &mdl) -> bool override {
+    auto onModel(Clasp::Solver const &slv, Clasp::Model const &mdl) -> bool override {
         buf_ << "Model:";
-        for (auto const &[sig, base] : grd_->base()) {
-            for (auto i = size_t{0}, e = base->size(); i != e; ++i) {
-                auto const &atom = base->nth(i);
-                if (auto lit = Clasp::Asp::solverLiteral(*prg_, static_cast<int32_t>(atom->second.id));
-                    mdl.isTrue(lit)) {
-                    buf_ << " " << atom->first;
-                }
+        for (auto const &pred : slv.outputTable().fact_range()) {
+            buf_ << " " << pred.c_str();
+        }
+        for (auto const &pred : slv.outputTable().pred_range()) {
+            if (mdl.isTrue(pred.cond)) {
+                buf_ << " " << pred.name.c_str();
             }
         }
         buf_ << "\n";
@@ -226,8 +224,6 @@ class EH : public Clasp::EventHandler {
 
   private:
     Util::OutputBuffer buf_{stdout};
-    Clasp::Asp::LogicProgram *prg_;
-    Grounder *grd_;
 };
 
 void Solver::main(std::optional<std::vector<Clingo::Input::ProgramParamVec>> const &params) {
@@ -266,7 +262,7 @@ void Solver::solve() {
         }
         state_ = State::solved;
         clasp_.prepare();
-        auto eh = EH{*clasp_.asp(), grd_};
+        auto eh = EH{};
         clasp_.solve(&eh);
     }
 }
