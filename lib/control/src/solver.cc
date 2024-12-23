@@ -108,6 +108,8 @@ class BackendClasp : public Output::Backend {
 #endif
     }
 
+    void do_edge(Output::id_t u, Output::id_t v, Output::LitSpan body) override { prg_->addAcycEdge(u, v, body); }
+
     void do_show(Symbol sym, Output::LitSpan body) override {
         buf_.reset();
         buf_ << sym;

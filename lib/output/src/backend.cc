@@ -20,7 +20,7 @@ namespace {
 //!
 //! @param uid the uid to convert
 //! @return the resulting literal
-auto uid_to_lit(id_t uid) -> lit_t {
+auto uid_to_lit(size_t uid) -> lit_t {
     assert(uid != 0);
     return static_cast<int32_t>(uid);
 }
@@ -340,13 +340,22 @@ class Translator {
         backend_->rule(aux_hd_, aux_bd_, choice);
     }
 
+    //! Add an edge directive.
+    //!
+    //! A map from symbols to unsigned integers is stored in the translator.
+    //!
+    //! @param src name of the source vertex
+    //! @param dst name of the target vertex
+    //! @param body the body
+    void edge(Symbol src, Symbol dst, LitSpan body) { backend_->edge(vertex_(src), vertex_(dst), body); }
+
     //! Finish a grounding step.
     //!
     //! Some language constructs require additional translation.
     //! Such translations are applied here.
     void end_step() {
-        id_t idx_scc = 0;
-        graph_.tarjan([&, this](std::vector<id_t> const &scc) {
+        size_t idx_scc = 0;
+        graph_.tarjan([&, this](std::vector<size_t> const &scc) {
             assert(!scc.empty());
             if (scc.size() > 1 || graph_.has_loop(scc.front())) {
                 ++idx_scc;
@@ -387,11 +396,11 @@ class Translator {
     // NOLINTNEXTLINE
     friend void is_bit_set_enum(CycleType type);
 
-    static constexpr auto invalid_id = std::numeric_limits<id_t>::max();
+    static constexpr auto invalid_id = std::numeric_limits<size_t>::max();
 
     struct LitInfo {
-        id_t scc = 0;
-        id_t clause = 0;
+        size_t scc = 0;
+        size_t clause = 0;
         lit_t neg = 0;
         EQType type = EQType::none;
     };
@@ -413,6 +422,8 @@ class Translator {
     using CondLitElemVec = std::vector<CondLitElem>;
     using CondLitVec = std::vector<std::pair<lit_t, CondLitElemVec>>;
     using DisjVec = std::vector<std::tuple<LitVec, std::vector<std::tuple<lit_t, lit_t, lit_t>>>>;
+
+    using VertexMap = Util::unordered_map<SharedSymbol, Output::id_t>;
 
     //! Get the literal info for an atom.
     [[nodiscard]] auto info_(lit_t lit) -> LitInfo & {
@@ -437,6 +448,17 @@ class Translator {
             return true;
         }
         return false;
+    }
+
+    //! Map the given symbol to a unique id.
+    //!
+    //! @param name the name
+    auto vertex_(Symbol name) -> id_t {
+        auto [it, ins] = vertices_.emplace(name, vertices_.size());
+        if (ins && vertices_.size() > 1 && it.value() == 0) {
+            throw std::range_error("maximum number of vertices exceeded");
+        }
+        return it.value();
     }
 
     //! Translate stored clauses.
@@ -551,7 +573,7 @@ class Translator {
         // simplify the elements
         auto upper = Sym::neutral();
         auto elem_vec = std::vector<std::pair<Sym, lit_t>>{};
-        auto cond_map = Util::unordered_map<IndexSpan, id_t>{};
+        auto cond_map = Util::unordered_map<IndexSpan, size_t>{};
         elem_vec.reserve(elems.size());
         cond_map.reserve(elems.size());
         for (auto const &[tup, conds] : elems) {
@@ -761,7 +783,7 @@ class Translator {
         // simplify the aggregate
         auto fixed = Number(0);
         auto elem_vec = SumElemVec{};
-        auto cond_map = Util::unordered_map<IndexSpan, id_t>{};
+        auto cond_map = Util::unordered_map<IndexSpan, size_t>{};
         elem_vec.reserve(elems.size());
         cond_map.reserve(elems.size());
         for (auto const &[tup, conds] : elems) {
@@ -1051,6 +1073,7 @@ class Translator {
     Util::Graph graph_;
     LitInfoVec lits_;
     ClauseLitMap clauses_;
+    VertexMap vertices_;
 
     CondLitVec cond_lits_;
     DisjVec disjs_;
@@ -1086,7 +1109,7 @@ class OutputCond : public OutputLit {
     //!
     //! @param sign the sign of the literal
     //! @param uid the uid
-    auto append(Sign sign, id_t uid) {
+    auto append(Sign sign, size_t uid) {
         switch (sign) {
             case Sign::none: {
                 body_.emplace_back(uid_to_lit(uid));
@@ -1109,13 +1132,13 @@ class OutputCond : public OutputLit {
     //! Equivalent to `append(Sign::none, uid)`.
     //!
     //! @param uid the uid
-    auto append(id_t uid) { body_.emplace_back(uid_to_lit(uid)); }
+    auto append(size_t uid) { body_.emplace_back(uid_to_lit(uid)); }
 
     //! Start a new condition/body clearing the underlying literals.
     void start() { body_.clear(); }
 
   private:
-    void do_lit(Sign sign, [[maybe_unused]] Symbol sym, id_t uid) override { append(sign, uid); }
+    void do_lit(Sign sign, [[maybe_unused]] Symbol sym, size_t uid) override { append(sign, uid); }
 
     void do_boolean(bool value) override {
         if (!value) {
@@ -1125,15 +1148,15 @@ class OutputCond : public OutputLit {
         }
     }
 
-    auto do_cond_lit([[maybe_unused]] std::optional<id_t> uid) -> id_t override {
+    auto do_cond_lit([[maybe_unused]] std::optional<size_t> uid) -> size_t override {
         throw std::runtime_error("unsupported literal");
     }
 
-    auto do_bd_aggr([[maybe_unused]] Sign sign, [[maybe_unused]] std::optional<id_t> uid) -> id_t override {
+    auto do_bd_aggr([[maybe_unused]] Sign sign, [[maybe_unused]] std::optional<size_t> uid) -> size_t override {
         throw std::runtime_error("unsupported literal");
     }
 
-    auto do_bd_theory([[maybe_unused]] Sign sign, [[maybe_unused]] std::optional<id_t> uid) -> id_t override {
+    auto do_bd_theory([[maybe_unused]] Sign sign, [[maybe_unused]] std::optional<size_t> uid) -> size_t override {
         throw std::runtime_error("unsupported literal");
     }
 
@@ -1152,7 +1175,7 @@ class OutputBody : public OutputCond {
     OutputBody(Translator &translator) : OutputCond(translator) {}
 
   private:
-    auto do_cond_lit(std::optional<id_t> uid) -> id_t override {
+    auto do_cond_lit(std::optional<size_t> uid) -> size_t override {
         if (!uid) {
             uid = translator().next_lit();
         }
@@ -1160,7 +1183,7 @@ class OutputBody : public OutputCond {
         return *uid;
     }
 
-    auto do_bd_aggr(Sign sign, std::optional<id_t> uid) -> id_t override {
+    auto do_bd_aggr(Sign sign, std::optional<size_t> uid) -> size_t override {
         if (!uid) {
             uid = translator().next_lit();
         }
@@ -1168,7 +1191,7 @@ class OutputBody : public OutputCond {
         return *uid;
     }
 
-    auto do_bd_theory(Sign sign, std::optional<id_t> uid) -> id_t override {
+    auto do_bd_theory(Sign sign, std::optional<size_t> uid) -> size_t override {
         if (!uid) {
             uid = translator().next_lit();
         }
@@ -1182,7 +1205,7 @@ class OutputBackend : public OutputStm, OutputTheory {
     OutputBackend(Backend &backend) : translator_{backend} {};
 
   private:
-    void do_fact([[maybe_unused]] Symbol sym, id_t uid) override {
+    void do_fact([[maybe_unused]] Symbol sym, size_t uid) override {
         translator().rule(std::array{uid_to_lit(uid)}, LitSpan{}, false);
     }
 
@@ -1191,7 +1214,7 @@ class OutputBackend : public OutputStm, OutputTheory {
         return body_;
     }
 
-    void do_rule(std::optional<std::tuple<Symbol, id_t, bool>> head) override {
+    void do_rule(std::optional<std::tuple<Symbol, size_t, bool>> head) override {
         bool choice = false;
         if (head) {
             choice = get<2>(*head);
@@ -1215,7 +1238,7 @@ class OutputBackend : public OutputStm, OutputTheory {
         throw std::logic_error{"implement me: project"};
     }
 
-    auto do_aggr_rule(std::optional<id_t> uid) -> id_t override {
+    auto do_aggr_rule(std::optional<size_t> uid) -> size_t override {
         if (!uid) {
             uid = translator_.next_lit();
         }
@@ -1223,7 +1246,7 @@ class OutputBackend : public OutputStm, OutputTheory {
         return *uid;
     }
 
-    auto do_theory_rule(std::optional<id_t> uid) -> id_t override {
+    auto do_theory_rule(std::optional<size_t> uid) -> size_t override {
         if (!uid) {
             uid = translator_.next_lit();
         }
@@ -1231,7 +1254,7 @@ class OutputBackend : public OutputStm, OutputTheory {
         return *uid;
     }
 
-    auto do_disjunctive_rule(std::optional<id_t> uid) -> id_t override {
+    auto do_disjunctive_rule(std::optional<size_t> uid) -> size_t override {
         if (!uid) {
             uid = translator_.next_lit();
         }
@@ -1254,32 +1277,28 @@ class OutputBackend : public OutputStm, OutputTheory {
         throw std::logic_error{"implement me: heuristic"};
     }
 
-    void do_edge(Symbol src, Symbol dst) override {
-        static_cast<void>(src);
-        static_cast<void>(dst);
-        throw std::logic_error{"implement me: edge"};
-    }
+    void do_edge(Symbol src, Symbol dst) override { translator().edge(src, dst, body_.literals()); }
 
     auto do_cond() -> OutputLit & override {
         cond_.start();
         return cond_;
     }
 
-    auto do_cond_id() -> id_t override { return translator().cond(cond_.literals()); }
+    auto do_cond_id() -> size_t override { return translator().cond(cond_.literals()); }
 
-    auto do_uid() -> id_t override { return translator().next_lit(); }
+    auto do_uid() -> size_t override { return translator().next_lit(); }
 
-    void do_cond_lit(id_t uid, CondLitSpan elems) override { translator_.cond_lit(uid_to_lit(uid), elems); }
+    void do_cond_lit(size_t uid, CondLitSpan elems) override { translator_.cond_lit(uid_to_lit(uid), elems); }
 
-    void do_bd_aggr(id_t uid, AggregateFunction fun, BdElemSpan elems, GuardSpan guards) override {
+    void do_bd_aggr(size_t uid, AggregateFunction fun, BdElemSpan elems, GuardSpan guards) override {
         translator().bd_aggr(uid_to_lit(uid), fun, elems, guards);
     }
 
-    void do_hd_aggr(id_t uid, AggregateFunction fun, HdElemSpan elems, GuardSpan guards) override {
+    void do_hd_aggr(size_t uid, AggregateFunction fun, HdElemSpan elems, GuardSpan guards) override {
         translator().hd_aggr(uid_to_lit(uid), fun, elems, guards);
     }
 
-    void do_disjunction(id_t uid, DisjElemSpan elems) override { translator().disjunction(uid_to_lit(uid), elems); }
+    void do_disjunction(size_t uid, DisjElemSpan elems) override { translator().disjunction(uid_to_lit(uid), elems); }
 
     auto do_theory() -> OutputTheory & override { return *this; }
 
@@ -1289,35 +1308,35 @@ class OutputBackend : public OutputStm, OutputTheory {
 
     void do_mark([[maybe_unused]] SymbolCollector &gc) override {}
 
-    auto do_str(String val) -> id_t override {
+    auto do_str(String val) -> size_t override {
         static_cast<void>(val);
         throw std::logic_error{"implement me: theory str"};
     }
 
-    auto do_num(Number const &val) -> id_t override {
+    auto do_num(Number const &val) -> size_t override {
         static_cast<void>(val);
         throw std::logic_error{"implement me: theory num"};
     }
 
-    auto do_fun(String name, IndexSpan args) -> id_t override {
+    auto do_fun(String name, IndexSpan args) -> size_t override {
         static_cast<void>(name);
         static_cast<void>(args);
         throw std::logic_error{"implement me: theory fun"};
     }
 
-    auto do_tup(TheoryTermTupleType type, IndexSpan args) -> id_t override {
+    auto do_tup(TheoryTermTupleType type, IndexSpan args) -> size_t override {
         static_cast<void>(type);
         static_cast<void>(args);
         throw std::logic_error{"implement me: theory tup"};
     }
 
-    auto do_elem(IndexSpan tuple, id_t cond) -> id_t override {
+    auto do_elem(IndexSpan tuple, size_t cond) -> size_t override {
         static_cast<void>(tuple);
         static_cast<void>(cond);
         throw std::logic_error{"implement me: theory elem"};
     }
 
-    void do_atm(id_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard) override {
+    void do_atm(size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard) override {
         static_cast<void>(atom_uid);
         static_cast<void>(name);
         static_cast<void>(elems);

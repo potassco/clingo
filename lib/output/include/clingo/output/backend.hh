@@ -15,7 +15,7 @@ namespace Clingo::Output {
 //! An id to refer to elements of a logic program.
 //!
 //! The semantics of ids is context dependent.
-using id_t = size_t;
+using id_t = uint32_t;
 //! An signed version of `id_t`.
 using sid_t = std::make_signed_t<id_t>;
 //! A program literal.
@@ -79,11 +79,19 @@ class Backend {
     //! @param body the condition when to show the symbol
     void show(Symbol sym, LitSpan body) { do_show(sym, body); }
 
+    //! Add an edge for acyclicity checking.
+    //!
+    //! @param u the source vertex
+    //! @param v the target vertex
+    //! @param body the body of the statement
+    void edge(Output::id_t u, Output::id_t v, Output::LitSpan body) { do_edge(u, v, body); }
+
   private:
     virtual auto do_next_lit() -> lit_t = 0;
     virtual void do_rule(LitSpan head, LitSpan body, bool choice) = 0;
     virtual void do_bd_aggr(lit_t head, WeightedLitSpan body, int32_t bound) = 0;
     virtual void do_show(Symbol sym, LitSpan body) = 0;
+    virtual void do_edge(Output::id_t u, Output::id_t v, Output::LitSpan body) = 0;
 };
 using UBackend = std::unique_ptr<Backend>;
 
