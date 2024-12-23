@@ -1384,9 +1384,34 @@ class OutputBackend : public OutputStm, OutputTheory {
 
     void do_mark([[maybe_unused]] SymbolCollector &gc) override {}
 
+    class Theory {
+      public:
+        auto str(String str) -> id_t {
+            auto id = insert_(strings_, str);
+            // backend_->str(str, id);
+            return id;
+        }
+
+      private:
+        using StringMap = Util::unordered_map<SharedString, id_t>;
+
+        template <class V> auto insert_(auto &map, V &&val) -> id_t {
+            auto [it, ins] = map.try_emplace(std::forward<V>(val), ids_);
+            if (ins) {
+                ++ids_;
+                if (ids_ == std::numeric_limits<id_t>::max()) {
+                    throw std::range_error("theory ids exhausted");
+                }
+            }
+            return it.value();
+        }
+        StringMap strings_;
+        id_t ids_ = 0;
+    };
+
     auto do_str(String val) -> size_t override {
-        static_cast<void>(val);
-        throw std::logic_error{"implement me: theory str"};
+        auto theory_ = Theory{};
+        return theory_.str(val);
     }
 
     auto do_num(Number const &val) -> size_t override {
