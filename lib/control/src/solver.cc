@@ -139,6 +139,24 @@ class BackendClasp : public Output::Backend {
         prg_->addDomHeuristic(atom, dmod, weight, prio, body);
     }
 
+    void do_external(Output::lit_t atom, ExternalType type) override {
+        auto value = [type] {
+            switch (type) {
+                case ExternalType::true_: {
+                    return Potassco::Value_t::true_;
+                }
+                case ExternalType::false_: {
+                    return Potassco::Value_t::false_;
+                }
+                case ExternalType::free: {
+                    return Potassco::Value_t::free;
+                }
+            }
+            Util::unreachable();
+        }();
+        prg_->addExternal(atom, value);
+    }
+
     void do_show(Symbol sym, Output::LitSpan body) override {
         buf_.reset();
         buf_ << sym;

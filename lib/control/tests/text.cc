@@ -561,8 +561,8 @@ TEST_CASE("grounder_text") {
                                   "#external ef(2). [false]\n"
                                   "#external ec(1). [free]\n"
                                   "#external ec(2). [free]\n"
-                                  "#external en(1). [free]\n"
-                                  "#external en(2). [free]\n"
+                                  "#external en(1). [false]\n"
+                                  "#external en(2). [false]\n"
                                   "#show.\n");
         }
         SECTION("show") {

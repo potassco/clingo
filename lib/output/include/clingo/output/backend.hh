@@ -93,7 +93,12 @@ class Backend {
     //! @param prio the priority of the modification
     //! @param type the type of the modification
     void heuristic(lit_t atom, int32_t weight, int32_t prio, HeuristicType type, Output::LitSpan body) {
+        assert(atom > 0);
         do_heuristic(atom, weight, prio, type, body);
+    }
+    void external(lit_t atom, ExternalType type) {
+        assert(atom > 0);
+        do_external(atom, type);
     }
 
   private:
@@ -103,6 +108,7 @@ class Backend {
     virtual void do_show(Symbol sym, LitSpan body) = 0;
     virtual void do_edge(Output::id_t u, Output::id_t v, Output::LitSpan body) = 0;
     virtual void do_heuristic(lit_t atom, int32_t weight, int32_t prio, HeuristicType type, Output::LitSpan body) = 0;
+    virtual void do_external(lit_t atom, ExternalType type) = 0;
 };
 using UBackend = std::unique_ptr<Backend>;
 

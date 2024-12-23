@@ -376,6 +376,17 @@ class Translator {
         backend_->heuristic(atom, num_to_int(weight), prio != nullptr ? num_to_int(*prio) : 0, type, body);
     }
 
+    //! Add an external directive.
+    //!
+    //! @pre atom > 0
+    //!
+    //! @param atom the atom to declare external
+    //! @param type the type of the external
+    void external(lit_t atom, ExternalType type) {
+        assert(atom > 0);
+        backend_->external(atom, type);
+    }
+
     //! Finish a grounding step.
     //!
     //! Some language constructs require additional translation.
@@ -1247,10 +1258,8 @@ class OutputBackend : public OutputStm, OutputTheory {
 
     void do_show_term(Symbol term) override { translator().show(term, body_.literals()); }
 
-    void do_external(Symbol atom, ExternalType type) override {
-        static_cast<void>(atom);
-        static_cast<void>(type);
-        throw std::logic_error{"implement me: external"};
+    void do_external([[maybe_unused]] Symbol atom, size_t uid, ExternalType type) override {
+        translator().external(uid_to_lit(uid), type);
     }
 
     void do_project(Symbol atom) override {

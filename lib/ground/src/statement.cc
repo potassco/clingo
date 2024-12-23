@@ -368,7 +368,7 @@ void StmExternal::init_() {
                     return false;
                 }
             } else {
-                stm_->res_type_ = ExternalType::free;
+                stm_->res_type_ = ExternalType::false_;
             }
             return true;
         }
@@ -423,7 +423,8 @@ auto StmExternal::do_important() const -> VariableSet {
 void StmExternal::do_init(size_t gen) { base_->update(gen); }
 
 auto StmExternal::do_report(InstantiationContext const &ctx) -> bool {
-    ctx.out().external(res_atom_, res_type_);
+    auto it = base_->add(res_atom_, StateAtom::derived, [&ctx]() { return ctx.out().uid(); }).first;
+    ctx.out().external(res_atom_, it.value().id, res_type_);
     return true;
 }
 

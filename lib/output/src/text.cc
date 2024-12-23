@@ -233,7 +233,7 @@ class OutputText : public OutputStm, OutputTheory {
         }
     }
 
-    void do_external(Symbol atom, ExternalType type) override {
+    void do_external(Symbol atom, [[maybe_unused]] size_t uid, ExternalType type) override {
         *out_ << "#external " << atom << ". [" << type << "]\n";
         out_->endl();
     }
