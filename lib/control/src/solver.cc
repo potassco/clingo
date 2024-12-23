@@ -159,6 +159,10 @@ class BackendClasp : public Output::Backend {
 
     void do_project(Output::lit_t atom) override { prg_->addProject(std::array{static_cast<Potassco::Atom_t>(atom)}); }
 
+    void do_minimize(Output::lit_t lit, Output::weight_t weight, Output::weight_t priority) override {
+        prg_->addMinimize(priority, std::array{Potassco::WeightLit_t{lit, weight}});
+    }
+
     void do_show(Symbol sym, Output::LitSpan body) override {
         buf_.reset();
         buf_ << sym;

@@ -454,7 +454,9 @@ void StmWeakConstraint::init_() {
                 return false;
             }
             if (stm_->prio_) {
-                if (auto prio = stm_->prio_->eval(ctx)) {
+                if (auto prio = stm_->prio_->eval(ctx);
+                    prio && (prio->type() == SymbolType::number ||
+                             expect(ctx, stm_->loc_prio_, logged_, "number expected (", *prio, ")"))) {
                     stm_->res_prio_ = *prio;
                 } else {
                     return false;
@@ -540,7 +542,7 @@ auto StmWeakConstraint::do_report(InstantiationContext const &ctx) -> bool {
     for (auto const &lit : body_) {
         std::ignore = lit->output(ctx, out);
     }
-    ctx.out().weak_constraint(res_weight_.num(), res_prio_, res_terms_);
+    ctx.out().weak_constraint(res_weight_.num(), res_prio_ ? &res_prio_->num() : nullptr, res_terms_);
     return true;
 }
 

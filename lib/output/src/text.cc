@@ -249,10 +249,10 @@ class OutputText : public OutputStm, OutputTheory {
 
     auto do_disjunctive_rule(std::optional<size_t> uid) -> size_t override { return body_.delay_head(uid, " :- "); }
 
-    void do_weak_constraint(Number const &weight, std::optional<Symbol> prio, SymbolSpan terms) override {
+    void do_weak_constraint(Number const &weight, Number const *prio, SymbolSpan terms) override {
         auto p_tup = [&](auto &out) {
             out << ". [" << weight;
-            if (prio) {
+            if (prio != nullptr) {
                 out << "@" << *prio;
             }
             for (auto const &term : terms) {

@@ -113,6 +113,13 @@ class Backend {
         do_project(atom);
     }
 
+    //! Project the given atom.
+    //!
+    //! @param atom the literal to minimize
+    //! @param weight the weight of the literal
+    //! @param priority the priority of the literal
+    void minimize(lit_t lit, weight_t weight, weight_t priority) { do_minimize(lit, weight, priority); }
+
   private:
     virtual auto do_next_lit() -> lit_t = 0;
     virtual void do_rule(LitSpan head, LitSpan body, bool choice) = 0;
@@ -122,6 +129,7 @@ class Backend {
     virtual void do_heuristic(lit_t atom, int32_t weight, int32_t prio, HeuristicType type, Output::LitSpan body) = 0;
     virtual void do_external(lit_t atom, ExternalType type) = 0;
     virtual void do_project(lit_t atom) = 0;
+    virtual void do_minimize(lit_t lit, weight_t weight, weight_t priority) = 0;
 };
 using UBackend = std::unique_ptr<Backend>;
 

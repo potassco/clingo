@@ -133,7 +133,7 @@ class OutputStm {
     //! Output the given weak constraint.
     //!
     //! The body of the rule has to be output first.
-    void weak_constraint(Number const &weight, std::optional<Symbol> prio, SymbolSpan terms) {
+    void weak_constraint(Number const &weight, Number const *prio, SymbolSpan terms) {
         do_weak_constraint(weight, prio, terms);
     }
     //! Output the given heuristic statement.
@@ -195,7 +195,7 @@ class OutputStm {
     virtual auto do_aggr_rule(std::optional<size_t> uid) -> size_t = 0;
     virtual auto do_theory_rule(std::optional<size_t> uid) -> size_t = 0;
     virtual auto do_disjunctive_rule(std::optional<size_t> uid) -> size_t = 0;
-    virtual void do_weak_constraint(Number const &weight, std::optional<Symbol> prio, SymbolSpan terms) = 0;
+    virtual void do_weak_constraint(Number const &weight, Number const *prio, SymbolSpan terms) = 0;
     virtual void do_heuristic(Symbol atom, size_t uid, Number const &weight, Number const *prio,
                               HeuristicType type) = 0;
     virtual void do_edge(Symbol src, Symbol dst) = 0;

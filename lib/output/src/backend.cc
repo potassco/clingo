@@ -397,6 +397,16 @@ class Translator {
         backend_->project(atom);
     }
 
+    //! Add a weak constraint.
+    //!
+    //! @param weight the weight
+    //! @param prio the priority
+    //! @param terms the term tuple (without weight and priority)
+    //! @param body the body
+    void weak_constraint(weight_t weight, weight_t prio, SymbolSpan terms, LitSpan body) {
+        minimize_.add(*this, body, weight, prio, terms);
+    }
+
     //! Finish a grounding step.
     //!
     //! Some language constructs require additional translation.
@@ -414,6 +424,7 @@ class Translator {
         tr_cond_lits_();
         tr_sum_();
         tr_mms_();
+        minimize_.tr(*this);
         tr_clauses();
         graph_.clear();
     }
@@ -472,6 +483,40 @@ class Translator {
     using DisjVec = std::vector<std::tuple<LitVec, std::vector<std::tuple<lit_t, lit_t, lit_t>>>>;
 
     using VertexMap = Util::unordered_map<SharedSymbol, Output::id_t>;
+
+    class Minimize {
+      public:
+        void add(Translator &tr, LitSpan lits, weight_t weight, weight_t prio, SymbolSpan terms) {
+            auto [it, ins] = tuples_.try_emplace(std::tuple(weight, prio, SharedSymbolVec{terms.begin(), terms.end()}));
+            auto &[old, conds] = it.value();
+            auto cond = LitVec{lits.begin(), lits.end()};
+            if (old != 0) {
+                cond.emplace_back(tr.negate(old));
+            }
+            if (ins) {
+                todo_.emplace_back(std::distance(tuples_.begin(), it));
+            }
+            conds.emplace_back(tr.clause_(cond, ClauseType::conjunctive));
+            tr.mark_(conds.back(), EQType::implication);
+        }
+
+        void tr(Translator &tr) {
+            for (auto const &idx : todo_) {
+                auto const &[weight, prio, terms] = tuples_.nth(idx).key();
+                auto &[old, conds] = tuples_.nth(idx).value();
+                assert(!conds.empty());
+                old = tr.clause_(conds, ClauseType::disjunctive);
+                tr.mark_(old, EQType::implication);
+                tr.backend_->minimize(old, weight, prio);
+                conds.clear();
+            }
+            todo_.clear();
+        }
+
+      private:
+        Util::ordered_map<std::tuple<weight_t, weight_t, SharedSymbolVec>, std::pair<lit_t, LitVec>> tuples_;
+        IndexVec todo_;
+    };
 
     //! Get the literal info for an atom.
     [[nodiscard]] auto info_(lit_t lit) -> LitInfo & {
@@ -1115,11 +1160,11 @@ class Translator {
     LitInfoVec lits_;
     ClauseLitMap clauses_;
     VertexMap vertices_;
-
     CondLitVec cond_lits_;
     DisjVec disjs_;
     SumVec sum_aggrs_;
     MinVec min_aggrs_;
+    Minimize minimize_;
 };
 
 //! Output handling conditions.
@@ -1298,11 +1343,9 @@ class OutputBackend : public OutputStm, OutputTheory {
         return *uid;
     }
 
-    void do_weak_constraint(Number const &weight, std::optional<Symbol> prio, SymbolSpan terms) override {
-        static_cast<void>(weight);
-        static_cast<void>(prio);
-        static_cast<void>(terms);
-        throw std::logic_error{"implement me: weak_constraint"};
+    void do_weak_constraint(Number const &weight, Number const *prio, SymbolSpan terms) override {
+        translator().weak_constraint(num_to_int(weight), prio != nullptr ? num_to_int(*prio) : 0, terms,
+                                     body_.literals());
     }
 
     void do_heuristic([[maybe_unused]] Symbol atom, size_t uid, Number const &weight, Number const *prio,

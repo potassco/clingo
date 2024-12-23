@@ -57,8 +57,7 @@ TEST_CASE("logger_test") {
                 V{"<string>:1:27-31: info: number expected (got bar)"});
         REQUIRE(ground("#external a. [snarf]") == V{"<string>:1:15-21: info: unexpected external type (got snarf)"});
         REQUIRE(ground("p(a). #minimize { X: p(X) }.") == V{"<string>:1:19-20: info: number expected (a)"});
-        // Note: currently arbitrary priorities are supported
-        REQUIRE(ground("p(a). #minimize { 1@X: p(X) }.").empty());
+        REQUIRE(ground("p(a). #minimize { 1@X: p(X) }.") == V{"<string>:1:21-22: info: number expected (a)"});
     }
     // Note: the current implementation takes two iterations to clean up everything
     auto res = store->gc();
