@@ -110,6 +110,35 @@ class BackendClasp : public Output::Backend {
 
     void do_edge(Output::id_t u, Output::id_t v, Output::LitSpan body) override { prg_->addAcycEdge(u, v, body); }
 
+    void do_heuristic(Output::lit_t atom, int32_t weight, int32_t prio, HeuristicType type,
+                      Output::LitSpan body) override {
+        assert(atom > 0);
+        auto dmod = [type] {
+            switch (type) {
+                case Clingo::HeuristicType::init: {
+                    return Clasp::DomModType::init;
+                }
+                case Clingo::HeuristicType::factor: {
+                    return Clasp::DomModType::factor;
+                }
+                case Clingo::HeuristicType::false_: {
+                    return Clasp::DomModType::false_;
+                }
+                case Clingo::HeuristicType::level: {
+                    return Clasp::DomModType::level;
+                }
+                case Clingo::HeuristicType::sign: {
+                    return Clasp::DomModType::sign;
+                }
+                case Clingo::HeuristicType::true_: {
+                    return Clasp::DomModType::true_;
+                }
+            }
+            Util::unreachable();
+        }();
+        prg_->addDomHeuristic(atom, dmod, weight, prio, body);
+    }
+
     void do_show(Symbol sym, Output::LitSpan body) override {
         buf_.reset();
         buf_ << sym;

@@ -46,7 +46,7 @@ class NullOutputStm : public OutputStm {
                     [[maybe_unused]] HdElemSpan elems, [[maybe_unused]] GuardSpan guards) override {}
     void do_disjunction([[maybe_unused]] size_t uid, [[maybe_unused]] DisjElemSpan elems) override {}
     auto do_theory() -> OutputTheory & override { throw std::logic_error("not implemented"); }
-    void do_heuristic([[maybe_unused]] Symbol atom, [[maybe_unused]] Number const &weight,
+    void do_heuristic([[maybe_unused]] Symbol atom, [[maybe_unused]] size_t uid, [[maybe_unused]] Number const &weight,
                       [[maybe_unused]] Number const *prio, [[maybe_unused]] HeuristicType type) override {}
     void do_edge([[maybe_unused]] Symbol src, [[maybe_unused]] Symbol dst) override {}
     void do_flush() override {}

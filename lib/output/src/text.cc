@@ -273,7 +273,8 @@ class OutputText : public OutputStm, OutputTheory {
         }
     }
 
-    void do_heuristic(Symbol atom, Number const &weight, Number const *prio, HeuristicType type) override {
+    void do_heuristic(Symbol atom, [[maybe_unused]] size_t uid, Number const &weight, Number const *prio,
+                      HeuristicType type) override {
         auto p_tup = [&](auto &out) {
             out << ". [" << weight;
             if (prio) {

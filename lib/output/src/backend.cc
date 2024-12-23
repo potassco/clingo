@@ -25,6 +25,20 @@ auto uid_to_lit(size_t uid) -> lit_t {
     return static_cast<int32_t>(uid);
 }
 
+//! Convert a number into an integer.
+//!
+//! Throws a range error if the number cannot be converted into a 32 bit
+//! integer.
+//!
+//! @param num the number to convert
+//! @return the resulting integer
+auto num_to_int(Number const &num) -> int32_t {
+    if (auto val = num.as_int()) {
+        return *val;
+    }
+    throw std::range_error("number out of range");
+};
+
 class FwdSym {
   public:
     FwdSym(Symbol sym) : sym_{sym} {}
@@ -348,6 +362,19 @@ class Translator {
     //! @param dst name of the target vertex
     //! @param body the body
     void edge(Symbol src, Symbol dst, LitSpan body) { backend_->edge(vertex_(src), vertex_(dst), body); }
+
+    //! Add a heuristic directive.
+    //!
+    //! @pre atom > 0
+    //!
+    //! @param atom the atom index
+    //! @param weight the weight
+    //! @param prio the optional priority
+    //! @param type the heuristic type
+    //! @param body the body of the directive
+    void heuristic(lit_t atom, Number const &weight, Number const *prio, HeuristicType type, LitSpan body) {
+        backend_->heuristic(atom, num_to_int(weight), prio != nullptr ? num_to_int(*prio) : 0, type, body);
+    }
 
     //! Finish a grounding step.
     //!
@@ -955,13 +982,6 @@ class Translator {
                 return res;
             };
 
-            auto to_int = [](Number const &num) {
-                if (auto val = num.as_int()) {
-                    return *val;
-                }
-                throw std::range_error("number out of range");
-            };
-
             // translate aggregate in lower bound form
             auto nlits = std::vector<lit_t>(elems.size(), 0);
             auto translate = [&](lit_t lit, SumElemVec const &elems, Number bound) {
@@ -972,16 +992,16 @@ class Translator {
                 for (auto const &[weight, clit] : elems) {
                     auto &nlit = *it++;
                     if (weight > 0) {
-                        wlits.emplace_back(clit, to_int(weight));
+                        wlits.emplace_back(clit, num_to_int(weight));
                     } else {
                         if (!is_recursive(clit)) {
-                            wlits.emplace_back(negate(clit), to_int(-weight));
+                            wlits.emplace_back(negate(clit), num_to_int(-weight));
                         } else {
                             if (nlit == 0) {
                                 nlit = next_lit();
                                 backend_->rule(std::array{nlit}, std::array{negate(clit)}, false);
                             }
-                            wlits.emplace_back(nlit, to_int(-weight));
+                            wlits.emplace_back(nlit, num_to_int(-weight));
                         }
                         bound -= weight;
                     }
@@ -1269,12 +1289,9 @@ class OutputBackend : public OutputStm, OutputTheory {
         throw std::logic_error{"implement me: weak_constraint"};
     }
 
-    void do_heuristic(Symbol atom, Number const &weight, Number const *prio, HeuristicType type) override {
-        static_cast<void>(atom);
-        static_cast<void>(weight);
-        static_cast<void>(prio);
-        static_cast<void>(type);
-        throw std::logic_error{"implement me: heuristic"};
+    void do_heuristic([[maybe_unused]] Symbol atom, size_t uid, Number const &weight, Number const *prio,
+                      HeuristicType type) override {
+        translator().heuristic(uid_to_lit(uid), weight, prio, type, body_.literals());
     }
 
     void do_edge(Symbol src, Symbol dst) override { translator().edge(src, dst, body_.literals()); }

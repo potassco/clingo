@@ -86,12 +86,23 @@ class Backend {
     //! @param body the body of the statement
     void edge(Output::id_t u, Output::id_t v, Output::LitSpan body) { do_edge(u, v, body); }
 
+    //! Add a heuristic directive.
+    //!
+    //! @param atom the atom to modify heuristically
+    //! @param weight the weight of the modification
+    //! @param prio the priority of the modification
+    //! @param type the type of the modification
+    void heuristic(lit_t atom, int32_t weight, int32_t prio, HeuristicType type, Output::LitSpan body) {
+        do_heuristic(atom, weight, prio, type, body);
+    }
+
   private:
     virtual auto do_next_lit() -> lit_t = 0;
     virtual void do_rule(LitSpan head, LitSpan body, bool choice) = 0;
     virtual void do_bd_aggr(lit_t head, WeightedLitSpan body, int32_t bound) = 0;
     virtual void do_show(Symbol sym, LitSpan body) = 0;
     virtual void do_edge(Output::id_t u, Output::id_t v, Output::LitSpan body) = 0;
+    virtual void do_heuristic(lit_t atom, int32_t weight, int32_t prio, HeuristicType type, Output::LitSpan body) = 0;
 };
 using UBackend = std::unique_ptr<Backend>;
 

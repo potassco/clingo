@@ -697,8 +697,8 @@ auto StmHeuristic::do_report(InstantiationContext const &ctx) -> bool {
     for (auto const &lit : body_) {
         std::ignore = lit->output(ctx, out);
     }
-    auto atom = base_->nth(offset_).key();
-    ctx.out().heuristic(atom, res_weight_.num(), prio_ ? &res_prio_.num() : nullptr, res_type_);
+    auto atom = base_->nth(offset_);
+    ctx.out().heuristic(atom.key(), atom.value().id, res_weight_.num(), prio_ ? &res_prio_.num() : nullptr, res_type_);
     return true;
 }
 
