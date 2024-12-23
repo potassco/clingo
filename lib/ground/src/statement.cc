@@ -903,7 +903,8 @@ void StmProject::do_print_head(std::ostream &out) const { out << "#project " << 
 void StmProject::do_init([[maybe_unused]] size_t gen) {}
 
 auto StmProject::do_report(InstantiationContext const &ctx) -> bool {
-    ctx.out().project(base_->nth(offset_).key());
+    auto atom = base_->nth(offset_);
+    ctx.out().project(atom.key(), atom.value().id);
     return true;
 }
 

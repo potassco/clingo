@@ -238,7 +238,7 @@ class OutputText : public OutputStm, OutputTheory {
         out_->endl();
     }
 
-    void do_project(Symbol atom) override {
+    void do_project(Symbol atom, [[maybe_unused]] size_t uid) override {
         *out_ << "#project " << atom << ".\n";
         out_->endl();
     }

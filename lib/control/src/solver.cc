@@ -157,6 +157,8 @@ class BackendClasp : public Output::Backend {
         prg_->addExternal(atom, value);
     }
 
+    void do_project(Output::lit_t atom) override { prg_->addProject(std::array{static_cast<Potassco::Atom_t>(atom)}); }
+
     void do_show(Symbol sym, Output::LitSpan body) override {
         buf_.reset();
         buf_ << sym;

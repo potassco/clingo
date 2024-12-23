@@ -123,7 +123,7 @@ class OutputStm {
     //! Output the given external.
     void external(Symbol atom, size_t uid, ExternalType type) { do_external(atom, uid, type); }
     //! Output the given external.
-    void project(Symbol atom) { do_project(atom); }
+    void project(Symbol atom, size_t uid) { do_project(atom, uid); }
     //! Output a head aggregate rule.
     auto aggr_rule(std::optional<size_t> uid) -> size_t { return do_aggr_rule(uid); }
     //! Output a theory atom rule.
@@ -191,7 +191,7 @@ class OutputStm {
     virtual auto do_body() -> OutputLit & = 0;
     virtual void do_rule(std::optional<std::tuple<Symbol, size_t, bool>> head) = 0;
     virtual void do_external(Symbol atom, size_t uid, ExternalType type) = 0;
-    virtual void do_project(Symbol atom) = 0;
+    virtual void do_project(Symbol atom, size_t uid) = 0;
     virtual auto do_aggr_rule(std::optional<size_t> uid) -> size_t = 0;
     virtual auto do_theory_rule(std::optional<size_t> uid) -> size_t = 0;
     virtual auto do_disjunctive_rule(std::optional<size_t> uid) -> size_t = 0;

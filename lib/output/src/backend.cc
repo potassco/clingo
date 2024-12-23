@@ -387,6 +387,16 @@ class Translator {
         backend_->external(atom, type);
     }
 
+    //! Add a project directive.
+    //!
+    //! @pre atom > 0
+    //!
+    //! @param atom the atom to project
+    void project(lit_t atom) {
+        assert(atom > 0);
+        backend_->project(atom);
+    }
+
     //! Finish a grounding step.
     //!
     //! Some language constructs require additional translation.
@@ -1262,10 +1272,7 @@ class OutputBackend : public OutputStm, OutputTheory {
         translator().external(uid_to_lit(uid), type);
     }
 
-    void do_project(Symbol atom) override {
-        static_cast<void>(atom);
-        throw std::logic_error{"implement me: project"};
-    }
+    void do_project([[maybe_unused]] Symbol atom, size_t uid) override { translator().project(uid_to_lit(uid)); }
 
     auto do_aggr_rule(std::optional<size_t> uid) -> size_t override {
         if (!uid) {

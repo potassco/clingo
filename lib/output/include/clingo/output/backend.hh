@@ -96,9 +96,21 @@ class Backend {
         assert(atom > 0);
         do_heuristic(atom, weight, prio, type, body);
     }
+    //! Declare the given atom as external.
+    //!
+    //! @param atom the atom to declare external
+    //! @param type the truth value of the atom
     void external(lit_t atom, ExternalType type) {
         assert(atom > 0);
         do_external(atom, type);
+    }
+
+    //! Project the given atom.
+    //!
+    //! @param atom the atom to project
+    void project(lit_t atom) {
+        assert(atom > 0);
+        do_project(atom);
     }
 
   private:
@@ -109,6 +121,7 @@ class Backend {
     virtual void do_edge(Output::id_t u, Output::id_t v, Output::LitSpan body) = 0;
     virtual void do_heuristic(lit_t atom, int32_t weight, int32_t prio, HeuristicType type, Output::LitSpan body) = 0;
     virtual void do_external(lit_t atom, ExternalType type) = 0;
+    virtual void do_project(lit_t atom) = 0;
 };
 using UBackend = std::unique_ptr<Backend>;
 

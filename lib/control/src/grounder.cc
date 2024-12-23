@@ -186,9 +186,8 @@ struct Grounder::Impl : Clingo::SymbolOwner {
                             it != atom_base.end()) {
                             auto &base = *it->second;
                             for (auto i = base.mark_projected(), n = base.size(); i != n; ++i) {
-                                auto jt = base.nth(i);
-                                auto const &atom = jt.key();
-                                out->project(atom);
+                                auto atom = base.nth(i);
+                                out->project(atom.key(), atom.value().id);
                             }
                         }
                     } else if constexpr (Util::matches<T, Input::StmShowNothing>) {
