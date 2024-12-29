@@ -385,7 +385,9 @@ class OutputText : public OutputStm, OutputTheory {
                 } else {
                     buf << get<0>(hc);
                 }
-                buf << *strs_.nth(get<2>(hc));
+                if (auto const &str = *strs_.nth(get<2>(hc)); !str.empty()) {
+                    buf << ": " << str;
+                }
             });
         });
     }
