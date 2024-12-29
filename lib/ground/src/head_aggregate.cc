@@ -337,12 +337,10 @@ void StateHdAggr::propagate(OutputStm &out, Queue &queue) {
     }
     queue_.clear();
     // propagate modified bases
-    if (index_ != stratified_index) {
-        for (auto const &[sig, base, indices] : bases_) {
-            if (!indices.empty() && base->has_update()) {
-                for (auto const &index : indices) {
-                    queue.propagate(index);
-                }
+    for (auto const &[sig, base, indices] : bases_) {
+        if (!indices.empty() && base->has_update()) {
+            for (auto const &index : indices) {
+                queue.propagate(index);
             }
         }
     }
