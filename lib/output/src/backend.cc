@@ -1387,15 +1387,42 @@ class OutputBackend : public OutputStm, OutputTheory {
     class Theory {
       public:
         auto str(String str) -> id_t {
-            auto id = insert_(strings_, str);
-            // backend_->str(str, id);
+            auto [id, ins] = insert_(strings_, str);
+            if (ins) {
+                // backend_->str(str, id);
+            }
+            return id;
+        }
+        auto num(Number const &num) -> id_t {
+            auto [id, ins] = insert_(nums_, num_to_int(num));
+            if (ins) {
+                // backend_->str(num, id);
+            }
+            return id;
+        }
+        auto fun(String name, IndexSpan args) -> size_t {
+            auto [id, ins] = insert_(funs_, std::make_pair(str(name), IdVec{args.begin(), args.end()}));
+            if (ins) {
+                // backend_->fun(num, id);
+            }
+            return id;
+        }
+        auto tup(TheoryTermTupleType type, IndexSpan args) -> size_t {
+            auto [id, ins] = insert_(tups_, std::make_pair(type, IdVec{args.begin(), args.end()}));
+            if (ins) {
+                // backend_->fun(num, id);
+            }
             return id;
         }
 
       private:
+        using IdVec = std::vector<id_t>;
         using StringMap = Util::unordered_map<SharedString, id_t>;
+        using NumMap = Util::unordered_map<weight_t, id_t>;
+        using FunMap = Util::unordered_map<std::pair<id_t, IdVec>, id_t>;
+        using TupMap = Util::unordered_map<std::pair<TheoryTermTupleType, IdVec>, id_t>;
 
-        template <class V> auto insert_(auto &map, V &&val) -> id_t {
+        template <class V> auto insert_(auto &map, V &&val) -> std::pair<id_t, bool> {
             auto [it, ins] = map.try_emplace(std::forward<V>(val), ids_);
             if (ins) {
                 ++ids_;
@@ -1403,35 +1430,25 @@ class OutputBackend : public OutputStm, OutputTheory {
                     throw std::range_error("theory ids exhausted");
                 }
             }
-            return it.value();
+            return {it.value(), ins};
         }
         StringMap strings_;
+        NumMap nums_;
+        FunMap funs_;
+        TupMap tups_;
         id_t ids_ = 0;
     };
 
-    auto do_str(String val) -> size_t override {
-        auto theory_ = Theory{};
-        return theory_.str(val);
-    }
+    auto do_str(String val) -> size_t override { return theory_.str(val); }
 
-    auto do_num(Number const &val) -> size_t override {
-        static_cast<void>(val);
-        throw std::logic_error{"implement me: theory num"};
-    }
+    auto do_num(Number const &val) -> size_t override { return theory_.num(val); }
 
-    auto do_fun(String name, IndexSpan args) -> size_t override {
-        static_cast<void>(name);
-        static_cast<void>(args);
-        throw std::logic_error{"implement me: theory fun"};
-    }
+    auto do_fun(String name, IndexSpan args) -> size_t override { return theory_.fun(name, args); }
 
-    auto do_tup(TheoryTermTupleType type, IndexSpan args) -> size_t override {
-        static_cast<void>(type);
-        static_cast<void>(args);
-        throw std::logic_error{"implement me: theory tup"};
-    }
+    auto do_tup(TheoryTermTupleType type, IndexSpan args) -> size_t override { return theory_.tup(type, args); }
 
     auto do_elem(IndexSpan tuple, size_t cond) -> size_t override {
+        // single literal condition or list?
         static_cast<void>(tuple);
         static_cast<void>(cond);
         throw std::logic_error{"implement me: theory elem"};
@@ -1449,6 +1466,7 @@ class OutputBackend : public OutputStm, OutputTheory {
 
     LitVec lits_;
     Translator translator_;
+    Theory theory_;
     OutputBody body_{translator_};
     OutputCond cond_{translator_};
 };
