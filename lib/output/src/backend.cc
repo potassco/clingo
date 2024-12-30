@@ -113,6 +113,23 @@ class Translator {
     //! @param lits the literals
     auto cond(LitSpan lits) -> lit_t { return clause_(lits, ClauseType::conjunctive); }
 
+    //! Get a conjunction of literals equivalent to the given literal.
+    //!
+    //! @note If the literal itself represents the conjunction, a one
+    //! elementary span pointing to the given literal is returned.
+    //!
+    //! @param lit the literal
+    auto cond(lit_t const &lit) -> LitSpan {
+        if (lit > 0) {
+            if (auto &info = info_(lit); info.clause != invalid_id) {
+                if (auto const &[clause, type] = clauses_.nth(info.clause).key(); type == ClauseType::conjunctive) {
+                    return clause;
+                }
+            }
+        }
+        return std::span{&lit, 1};
+    }
+
     //! Define a conjunction of conditional literal.
     //!
     //! The given literal is derived by the given conditional literals.
