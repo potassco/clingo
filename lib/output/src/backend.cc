@@ -1,6 +1,7 @@
 #include <clingo/output/backend.hh>
 
 #include <clingo/util/checked_math.hh>
+#include <clingo/util/optional.hh>
 #include <clingo/util/ordered_map.hh>
 #include <clingo/util/ordered_set.hh>
 #include <clingo/util/print.hh>
@@ -1418,18 +1419,44 @@ class OutputBackend : public OutputStm, OutputTheory {
             return id;
         }
         auto fun(String name, IndexSpan args) -> size_t {
-            auto [id, ins] = insert_(funs_, std::make_pair(str(name), IdVec{args.begin(), args.end()}));
+            auto [id, ins] = insert_(funs_, std::pair{str(name), IdVec{args.begin(), args.end()}});
             if (ins) {
                 // backend_->fun(num, id);
             }
             return id;
         }
         auto tup(TheoryTermTupleType type, IndexSpan args) -> size_t {
-            auto [id, ins] = insert_(tups_, std::make_pair(type, IdVec{args.begin(), args.end()}));
+            auto [id, ins] = insert_(tups_, std::pair{type, IdVec{args.begin(), args.end()}});
             if (ins) {
                 // backend_->fun(num, id);
             }
             return id;
+        }
+
+        auto elem(Translator &trans, IndexSpan tuple, lit_t cond) -> size_t {
+            auto [id, ins] = insert_(elems_, std::pair{cond, IdVec{tuple.begin(), tuple.end()}});
+            if (ins) {
+                auto clits = trans.cond(cond);
+                static_cast<void>(clits);
+                // backend_->fun(num, id);
+            }
+            return id;
+        }
+        void atom(lit_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard) {
+            auto [id, ins] = insert_(atoms_, std::tuple{atom_uid, sym_(name), IdVec{elems.begin(), elems.end()},
+                                                        Util::transform(guard, [](auto const &guard) {
+                                                            return std::pair{static_cast<id_t>(guard.first),
+                                                                             static_cast<id_t>(guard.second)};
+                                                        })});
+            if (ins) {
+                // TODO: better handle id as in clingo
+                // - make atom_uid part of the value
+                // - add rules making atom and uid equivalent (needs the type)
+                // - maybe directives should have uid zero
+                // backend_->atom(num, id);
+            }
+            // TODO: should become the literal of the atom
+            static_cast<void>(id);
         }
 
       private:
@@ -1438,6 +1465,14 @@ class OutputBackend : public OutputStm, OutputTheory {
         using NumMap = Util::unordered_map<weight_t, id_t>;
         using FunMap = Util::unordered_map<std::pair<id_t, IdVec>, id_t>;
         using TupMap = Util::unordered_map<std::pair<TheoryTermTupleType, IdVec>, id_t>;
+        using ElemMap = Util::unordered_map<std::pair<lit_t, IdVec>, id_t>;
+        using AtomMap = Util::unordered_map<std::tuple<lit_t, id_t, IdVec, std::optional<std::pair<id_t, id_t>>>, id_t>;
+
+        auto sym_(Symbol sym) -> size_t {
+            static_cast<void>(sym);
+            static_cast<void>(this);
+            throw std::runtime_error("implement me!!!");
+        }
 
         template <class V> auto insert_(auto &map, V &&val) -> std::pair<id_t, bool> {
             auto [it, ins] = map.try_emplace(std::forward<V>(val), ids_);
@@ -1453,6 +1488,8 @@ class OutputBackend : public OutputStm, OutputTheory {
         NumMap nums_;
         FunMap funs_;
         TupMap tups_;
+        ElemMap elems_;
+        AtomMap atoms_;
         id_t ids_ = 0;
     };
 
@@ -1465,18 +1502,11 @@ class OutputBackend : public OutputStm, OutputTheory {
     auto do_tup(TheoryTermTupleType type, IndexSpan args) -> size_t override { return theory_.tup(type, args); }
 
     auto do_elem(IndexSpan tuple, size_t cond) -> size_t override {
-        // single literal condition or list?
-        static_cast<void>(tuple);
-        static_cast<void>(cond);
-        throw std::logic_error{"implement me: theory elem"};
+        return theory_.elem(translator_, tuple, uid_to_lit(cond));
     }
 
     void do_atm(size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard) override {
-        static_cast<void>(atom_uid);
-        static_cast<void>(name);
-        static_cast<void>(elems);
-        static_cast<void>(guard);
-        throw std::logic_error{"implement me: theory atom"};
+        theory_.atom(uid_to_lit(atom_uid), name, elems, guard);
     }
 
     auto translator() -> Translator & { return translator_; }
