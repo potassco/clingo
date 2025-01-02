@@ -9,7 +9,7 @@
 #include <potassco/aspif_text.h>
 #include <potassco/theory_data.h>
 
-#define DEBUG_BACKEND
+// #define DEBUG_BACKEND
 #ifdef DEBUG_BACKEND
 #include <clingo/util/print.hh>
 #include <iostream>
