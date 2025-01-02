@@ -173,13 +173,16 @@ class BackendClasp : public Output::Backend {
 #endif
     }
 
-    void do_theory_num(id_t id, int32_t num) override { prg_->theoryData().addTerm(id, num); }
+    void do_theory_num(Output::id_t id, int32_t num) override { prg_->theoryData().addTerm(id, num); }
 
-    void do_theory_str(id_t id, char const *str) override { prg_->theoryData().addTerm(id, str); }
+    void do_theory_str(Output::id_t id, char const *str) override { prg_->theoryData().addTerm(id, str); }
 
-    void do_theory_fun(id_t id, id_t name, Output::IdSpan args) override { prg_->theoryData().addTerm(id, name, args); }
+    void do_theory_fun(Output::id_t id, Output::id_t name, Output::IdSpan args) override {
+        assert(!args.empty());
+        prg_->theoryData().addTerm(id, name, args);
+    }
 
-    void do_theory_tup(id_t id, TheoryTermTupleType type, Output::IdSpan args) override {
+    void do_theory_tup(Output::id_t id, TheoryTermTupleType type, Output::IdSpan args) override {
         prg_->theoryData().addTerm(
             id,
             [type] {
@@ -199,8 +202,18 @@ class BackendClasp : public Output::Backend {
             args);
     }
 
-    void do_theory_elem(id_t id, Output::IdSpan terms, Output::LitSpan cond) override {
+    void do_theory_elem(Output::id_t id, Output::IdSpan terms, Output::LitSpan cond) override {
         prg_->theoryData().addElement(id, terms, prg_->newCondition(cond));
+    }
+
+    void do_theory_atom(Output::lit_t lit_or_zero, Output::id_t name, Output::IdSpan elems,
+                        std::optional<std::pair<id_t, id_t>> guard) override {
+        assert(lit_or_zero > 0);
+        if (guard) {
+            prg_->theoryData().addAtom(lit_or_zero, name, elems, guard->first, guard->second);
+        } else {
+            prg_->theoryData().addAtom(lit_or_zero, name, elems);
+        }
     }
 
     Output::lit_t lit_ = 0;

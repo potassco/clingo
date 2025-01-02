@@ -1499,6 +1499,9 @@ class OutputBackend : public OutputStm, OutputTheory {
                                    std::vector{sym_(trans, *sym.flip_classical_sign())});
                         // NOLINTEND(bugprone-unchecked-optional-access)
                     }
+                    if (sym.args().empty()) {
+                        return str(trans, sym.name());
+                    }
                     auto args = IdVec{};
                     args.reserve(sym.args().size());
                     for (auto const &arg : sym.args()) {

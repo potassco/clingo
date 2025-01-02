@@ -164,6 +164,17 @@ class Backend {
     //! @param cond the condition of the element
     void theory_elem(id_t id, Output::IdSpan terms, Output::LitSpan cond) { do_theory_elem(id, terms, cond); }
 
+    //! Add a theory atom.
+    //!
+    //! @param atom_or_zero the literal of the atom (zero for directives)
+    //! @param name the name of the atom (must be a function or symbol)
+    //! @param elems the elements of the atom
+    //! @param guard the optional guard of the atom
+    void theory_atom(lit_t atom_or_zero, id_t name, Output::IdSpan elems, std::optional<std::pair<id_t, id_t>> guard) {
+        assert(atom_or_zero >= 0);
+        do_theory_atom(atom_or_zero, name, elems, guard);
+    }
+
   private:
     virtual auto do_next_lit() -> lit_t = 0;
     virtual void do_rule(LitSpan head, LitSpan body, bool choice) = 0;
@@ -179,6 +190,8 @@ class Backend {
     virtual void do_theory_fun(id_t id, id_t name, IdSpan args) = 0;
     virtual void do_theory_tup(id_t id, TheoryTermTupleType type, Output::IdSpan args) = 0;
     virtual void do_theory_elem(id_t id, Output::IdSpan terms, Output::LitSpan cond) = 0;
+    virtual void do_theory_atom(lit_t atom_or_zero, id_t name, Output::IdSpan elems,
+                                std::optional<std::pair<id_t, id_t>> guard) = 0;
 };
 using UBackend = std::unique_ptr<Backend>;
 
