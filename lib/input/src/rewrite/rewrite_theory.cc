@@ -16,7 +16,7 @@ class ParseTheory : public Transformer<ParseTheory> {
         return parser_->parse(*log_, atom, fact_);
     }
 
-    template <bool has_sign> auto accept(StmRule const &stm) const -> std::optional<Stm> {
+    auto accept(StmRule const &stm) const -> std::optional<Stm> {
         fact_ = stm.body().empty();
         return rewrite(stm, a_head, a_body);
     }
