@@ -1427,6 +1427,9 @@ class OutputBackend : public OutputStm, OutputTheory {
             return it.value();
         }
         auto fun(Translator &trans, String name, IdVec args) -> size_t {
+            if (args.empty()) {
+                return str(trans, name);
+            }
             auto [it, ins] = insert_(funs_, std::pair{str(trans, name), std::move(args)});
             if (ins) {
                 trans.backend().theory_fun(it.value(), it.key().first, it.key().second);
@@ -1449,6 +1452,7 @@ class OutputBackend : public OutputStm, OutputTheory {
             return it.value();
         }
         void atom(Translator &trans, bool head, lit_t lit, Symbol name, IndexSpan elems, OptGuard guard) {
+            assert(lit >= 0);
             auto [it, ins] =
                 atoms_.emplace(std::tuple{sym_(trans, name), IdVec{elems.begin(), elems.end()},
                                           Util::transform(guard,
@@ -1458,8 +1462,9 @@ class OutputBackend : public OutputStm, OutputTheory {
                                                           })},
                                lit);
             if (ins) {
-                // bck.theory_atom();
+                trans.backend().theory_atom(it.value(), get<0>(it.key()), get<1>(it.key()), get<2>(it.key()));
             } else if (lit != it.value()) {
+                assert(lit != 0 && it.value() != 0);
                 if (head) {
                     trans.backend().rule(std::array{lit}, std::array{it.value()}, false);
                 } else {
@@ -1498,9 +1503,6 @@ class OutputBackend : public OutputStm, OutputTheory {
                         return fun(trans, trans.store().string_ref("-"),
                                    std::vector{sym_(trans, *sym.flip_classical_sign())});
                         // NOLINTEND(bugprone-unchecked-optional-access)
-                    }
-                    if (sym.args().empty()) {
-                        return str(trans, sym.name());
                     }
                     auto args = IdVec{};
                     args.reserve(sym.args().size());
@@ -1558,7 +1560,6 @@ class OutputBackend : public OutputStm, OutputTheory {
     }
 
     void do_atm(bool head, size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard) override {
-        // TODO: need info about head/body
         theory_.atom(translator(), head, uid_to_lit(atom_uid), name, elems, guard);
     }
 
