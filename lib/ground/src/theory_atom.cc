@@ -175,8 +175,7 @@ void StateTheory::output(Logger &log, SymbolStore &store, OutputStm &out) {
         if (guard_) {
             guard->second = *atm.second.rhs();
         }
-        thy.atm(type_, type_ != OutputTheory::AtomType::directive ? *atm.second.uid() : 0, atm.second.name(), elems,
-                guard);
+        thy.atm(type_, *atm.second.uid(), atm.second.name(), elems, guard);
     }
 }
 

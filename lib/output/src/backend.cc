@@ -1463,7 +1463,8 @@ class OutputBackend : public OutputStm, OutputTheory {
                                                           })},
                                lit);
             if (ins) {
-                trans.backend().theory_atom(it.value(), get<0>(it.key()), get<1>(it.key()), get<2>(it.key()));
+                trans.backend().theory_atom(type != OutputTheory::AtomType::directive ? it.value() : 0,
+                                            get<0>(it.key()), get<1>(it.key()), get<2>(it.key()));
             } else if (lit != it.value()) {
                 assert(lit != 0 && it.value() != 0);
                 if (type == OutputTheory::AtomType::body) {
