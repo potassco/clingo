@@ -511,7 +511,7 @@ class OutputText : public OutputStm, OutputTheory {
         return str_id_(tmp_.view());
     }
 
-    void do_atm(size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard) override {
+    void do_atm([[maybe_unused]] bool head, size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard) override {
         tmp_.reset() << "&" << name;
         if (!elems.empty()) {
             tmp_ << " { " << Util::p_range(elems, "; ", [this](auto &out, auto idx) { out << *strs_.nth(idx); })

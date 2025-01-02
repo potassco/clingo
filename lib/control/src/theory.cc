@@ -76,7 +76,8 @@ auto build_state(BuildContext &ctx, Input::TheoryAtom<HasSign> const &lit) -> Gr
     }
 
     // add theory state
-    auto &state = ctx.state<Ground::StateTheory>(ctx.mbr(), vars_global.release(), std::move(name), std::move(guard));
+    auto &state =
+        ctx.state<Ground::StateTheory>(ctx.mbr(), vars_global.release(), std::move(name), std::move(guard), !HasSign);
 
     // add elements to state
     auto stms = Ground::UStmVec{};

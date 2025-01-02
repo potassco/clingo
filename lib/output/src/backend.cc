@@ -70,6 +70,7 @@ class BwdSym {
 //! other forms of backends).
 class Translator {
   public:
+    using IdVec = std::vector<id_t>;
     using CondLit = OutputStm::CondLit;
     using CondLitSpan = OutputStm::CondLitSpan;
     using DijsElem = OutputStm::DisjElem;
@@ -81,7 +82,7 @@ class Translator {
     using HdElem = OutputStm::HdElem;
     using HdElemSpan = OutputStm::HdElemSpan;
 
-    Translator(Backend &backend) : backend_{&backend} {};
+    Translator(SymbolStore &store, Backend &backend) : store_{&store}, backend_{&backend} {};
 
     //! Return a fresh literal.
     //!
@@ -449,6 +450,10 @@ class Translator {
 
     //! She the given symbol if the given conditon is true.
     void show(Symbol sym, LitSpan body) { backend_->show(sym, body); }
+
+    auto backend() -> Backend & { return *backend_; }
+
+    auto store() -> SymbolStore & { return *store_; }
 
   private:
     //! Available condition types.
@@ -1170,6 +1175,7 @@ class Translator {
         return it.value();
     }
 
+    SymbolStore *store_;
     Backend *backend_;
     Output::LitVec aux_hd_;
     Output::LitVec aux_bd_;
@@ -1306,7 +1312,7 @@ class OutputBody : public OutputCond {
 
 class OutputBackend : public OutputStm, OutputTheory {
   public:
-    OutputBackend(Backend &backend) : translator_{backend} {};
+    OutputBackend(SymbolStore &store, Backend &backend) : translator_{store, backend} {};
 
   private:
     void do_fact([[maybe_unused]] Symbol sym, size_t uid) override {
@@ -1404,77 +1410,115 @@ class OutputBackend : public OutputStm, OutputTheory {
 
     class Theory {
       public:
-        auto str(String str) -> id_t {
-            auto [id, ins] = insert_(strings_, str);
+        using IdVec = Translator::IdVec;
+
+        auto str(Translator &trans, String str) -> id_t {
+            auto [it, ins] = insert_(strings_, str);
             if (ins) {
-                // backend_->str(str, id);
+                trans.backend().theory_str(it.value(), it.key()->c_str());
             }
-            return id;
+            return it.value();
         }
-        auto num(Number const &num) -> id_t {
-            auto [id, ins] = insert_(nums_, num_to_int(num));
+        auto num(Translator &trans, Number const &num) -> id_t {
+            auto [it, ins] = insert_(nums_, num_to_int(num));
             if (ins) {
-                // backend_->str(num, id);
+                trans.backend().theory_num(it.value(), it.key());
             }
-            return id;
+            return it.value();
         }
-        auto fun(String name, IndexSpan args) -> size_t {
-            auto [id, ins] = insert_(funs_, std::pair{str(name), IdVec{args.begin(), args.end()}});
+        auto fun(Translator &trans, String name, IdVec args) -> size_t {
+            auto [it, ins] = insert_(funs_, std::pair{str(trans, name), std::move(args)});
             if (ins) {
-                // backend_->fun(num, id);
+                trans.backend().theory_fun(it.value(), it.key().first, it.key().second);
             }
-            return id;
+            return it.value();
         }
-        auto tup(TheoryTermTupleType type, IndexSpan args) -> size_t {
-            auto [id, ins] = insert_(tups_, std::pair{type, IdVec{args.begin(), args.end()}});
+        auto tup(Translator &trans, TheoryTermTupleType type, IdVec args) -> size_t {
+            auto [it, ins] = insert_(tups_, std::pair{type, std::move(args)});
             if (ins) {
-                // backend_->fun(num, id);
+                trans.backend().theory_tup(it.value(), it.key().first, it.key().second);
             }
-            return id;
+            return it.value();
         }
 
         auto elem(Translator &trans, IndexSpan tuple, lit_t cond) -> size_t {
-            auto [id, ins] = insert_(elems_, std::pair{cond, IdVec{tuple.begin(), tuple.end()}});
+            auto [it, ins] = insert_(elems_, std::pair{cond, IdVec{tuple.begin(), tuple.end()}});
             if (ins) {
-                auto clits = trans.cond(cond);
-                static_cast<void>(clits);
-                // backend_->fun(num, id);
+                trans.backend().theory_elem(it.value(), it.key().second, trans.cond(cond));
             }
-            return id;
+            return it.value();
         }
-        void atom(lit_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard) {
-            auto [id, ins] = insert_(atoms_, std::tuple{atom_uid, sym_(name), IdVec{elems.begin(), elems.end()},
-                                                        Util::transform(guard, [](auto const &guard) {
-                                                            return std::pair{static_cast<id_t>(guard.first),
-                                                                             static_cast<id_t>(guard.second)};
-                                                        })});
+        void atom(Translator &trans, bool head, lit_t lit, Symbol name, IndexSpan elems, OptGuard guard) {
+            auto [it, ins] =
+                atoms_.emplace(std::tuple{sym_(trans, name), IdVec{elems.begin(), elems.end()},
+                                          Util::transform(guard,
+                                                          [](auto const &guard) {
+                                                              return std::pair{static_cast<id_t>(guard.first),
+                                                                               static_cast<id_t>(guard.second)};
+                                                          })},
+                               lit);
             if (ins) {
-                // TODO: better handle id as in clingo
-                // - make atom_uid part of the value
-                // - add rules making atom and uid equivalent (needs the type)
-                // - maybe directives should have uid zero
-                // backend_->atom(num, id);
+                // bck.theory_atom();
+            } else if (lit != it.value()) {
+                if (head) {
+                    trans.backend().rule(std::array{lit}, std::array{it.value()}, false);
+                } else {
+                    trans.backend().rule(std::array{it.value()}, std::array{lit}, false);
+                }
             }
-            // TODO: should become the literal of the atom
-            static_cast<void>(id);
         }
 
       private:
-        using IdVec = std::vector<id_t>;
         using StringMap = Util::unordered_map<SharedString, id_t>;
         using NumMap = Util::unordered_map<weight_t, id_t>;
         using FunMap = Util::unordered_map<std::pair<id_t, IdVec>, id_t>;
         using TupMap = Util::unordered_map<std::pair<TheoryTermTupleType, IdVec>, id_t>;
         using ElemMap = Util::unordered_map<std::pair<lit_t, IdVec>, id_t>;
-        using AtomMap = Util::unordered_map<std::tuple<lit_t, id_t, IdVec, std::optional<std::pair<id_t, id_t>>>, id_t>;
+        using AtomMap = Util::unordered_map<std::tuple<id_t, IdVec, std::optional<std::pair<id_t, id_t>>>, lit_t>;
 
-        auto sym_(Symbol sym) -> size_t {
-            static_cast<void>(sym);
-            static_cast<void>(this);
-            throw std::runtime_error("implement me!!!");
+        auto sym_(Translator &trans, Symbol sym) -> id_t {
+            switch (sym.type()) {
+                case SymbolType::inf: {
+                    return str(trans, trans.store().string_ref("#inf"));
+                }
+                case SymbolType::sup: {
+                    return str(trans, trans.store().string_ref("#sup"));
+                }
+                case SymbolType::number: {
+                    return num(trans, sym.num());
+                }
+                case SymbolType::string: {
+                    buf_.reset();
+                    buf_ << sym;
+                    return str(trans, trans.store().string_ref(buf_.c_str()));
+                }
+                case SymbolType::function: {
+                    if (sym.has_classical_sign()) {
+                        // NOLINTBEGIN(bugprone-unchecked-optional-access)
+                        return fun(trans, trans.store().string_ref("-"),
+                                   std::vector{sym_(trans, *sym.flip_classical_sign())});
+                        // NOLINTEND(bugprone-unchecked-optional-access)
+                    }
+                    auto args = IdVec{};
+                    args.reserve(sym.args().size());
+                    for (auto const &arg : sym.args()) {
+                        args.emplace_back(sym_(trans, arg));
+                    }
+                    return fun(trans, sym.name(), args);
+                }
+                case SymbolType::tuple: {
+                    auto args = IdVec{};
+                    args.reserve(sym.args().size());
+                    for (auto const &arg : sym.args()) {
+                        args.emplace_back(sym_(trans, arg));
+                    }
+                    return tup(trans, TheoryTermTupleType::tuple, args);
+                }
+            }
+            Util::unreachable();
         }
 
-        template <class V> auto insert_(auto &map, V &&val) -> std::pair<id_t, bool> {
+        template <class M, class V> auto insert_(M &map, V &&val) -> std::pair<typename M::iterator, bool> {
             auto [it, ins] = map.try_emplace(std::forward<V>(val), ids_);
             if (ins) {
                 ++ids_;
@@ -1482,8 +1526,9 @@ class OutputBackend : public OutputStm, OutputTheory {
                     throw std::range_error("theory ids exhausted");
                 }
             }
-            return {it.value(), ins};
+            return {it, ins};
         }
+        Util::OutputBuffer buf_;
         StringMap strings_;
         NumMap nums_;
         FunMap funs_;
@@ -1493,20 +1538,25 @@ class OutputBackend : public OutputStm, OutputTheory {
         id_t ids_ = 0;
     };
 
-    auto do_str(String val) -> size_t override { return theory_.str(val); }
+    auto do_str(String val) -> size_t override { return theory_.str(translator(), val); }
 
-    auto do_num(Number const &val) -> size_t override { return theory_.num(val); }
+    auto do_num(Number const &val) -> size_t override { return theory_.num(translator(), val); }
 
-    auto do_fun(String name, IndexSpan args) -> size_t override { return theory_.fun(name, args); }
-
-    auto do_tup(TheoryTermTupleType type, IndexSpan args) -> size_t override { return theory_.tup(type, args); }
-
-    auto do_elem(IndexSpan tuple, size_t cond) -> size_t override {
-        return theory_.elem(translator_, tuple, uid_to_lit(cond));
+    auto do_fun(String name, IndexSpan args) -> size_t override {
+        return theory_.fun(translator(), name, {args.begin(), args.end()});
     }
 
-    void do_atm(size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard) override {
-        theory_.atom(uid_to_lit(atom_uid), name, elems, guard);
+    auto do_tup(TheoryTermTupleType type, IndexSpan args) -> size_t override {
+        return theory_.tup(translator(), type, {args.begin(), args.end()});
+    }
+
+    auto do_elem(IndexSpan tuple, size_t cond) -> size_t override {
+        return theory_.elem(translator(), tuple, uid_to_lit(cond));
+    }
+
+    void do_atm(bool head, size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard) override {
+        // TODO: need info about head/body
+        theory_.atom(translator(), head, uid_to_lit(atom_uid), name, elems, guard);
     }
 
     auto translator() -> Translator & { return translator_; }
@@ -1520,6 +1570,8 @@ class OutputBackend : public OutputStm, OutputTheory {
 
 } // namespace
 
-auto make_backend_output(Backend &backend) -> UOutputStm { return std::make_unique<OutputBackend>(backend); }
+auto make_backend_output(SymbolStore &store, Backend &backend) -> UOutputStm {
+    return std::make_unique<OutputBackend>(store, backend);
+}
 
 } // namespace Clingo::Output

@@ -175,7 +175,7 @@ void StateTheory::output(Logger &log, SymbolStore &store, OutputStm &out) {
         if (guard_) {
             guard->second = *atm.second.rhs();
         }
-        thy.atm(*atm.second.uid(), atm.second.name(), elems, guard);
+        thy.atm(head_, *atm.second.uid(), atm.second.name(), elems, guard);
     }
 }
 

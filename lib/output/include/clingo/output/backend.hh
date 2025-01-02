@@ -16,6 +16,8 @@ namespace Clingo::Output {
 //!
 //! The semantics of ids is context dependent.
 using id_t = uint32_t;
+//! A span of ids.
+using IdSpan = std::span<id_t const>;
 //! An signed version of `id_t`.
 using sid_t = std::make_signed_t<id_t>;
 //! A program literal.
@@ -120,16 +122,63 @@ class Backend {
     //! @param priority the priority of the literal
     void minimize(lit_t lit, weight_t weight, weight_t priority) { do_minimize(lit, weight, priority); }
 
+    //! Add a theory number.
+    //!
+    //! @note The caller is repsonsible to assign unique ids.
+    //!
+    //! @param id the unique term id
+    //! @param num the number
+    void theory_num(id_t id, weight_t num) { do_theory_num(id, num); }
+    //! Add a theory string.
+    //!
+    //! @note The caller is repsonsible to assign unique ids.
+    //!
+    //! @param id the unique term id
+    //! @param str the string
+    void theory_str(id_t id, char const *str) { do_theory_str(id, str); }
+    //! Add a theory function.
+    //!
+    //! @note The caller is repsonsible to assign unique ids.
+    //! @pre The name must be an id to a string.
+    //!
+    //! @param id the unique term id
+    //! @param name the term id of the function name
+    //! @param args the term ids of the arguments
+    void theory_fun(id_t id, id_t name, IdSpan args) { do_theory_fun(id, name, args); }
+
+    //! Add a theory tuple.
+    //!
+    //! @note The caller is repsonsible to assign unique ids.
+    //!
+    //! @param id the unique term id
+    //! @param type the type of the tuple
+    //! @param args the term ids of the arguments
+    void theory_tup(id_t id, TheoryTermTupleType type, Output::IdSpan args) { do_theory_tup(id, type, args); }
+
+    //! Add a theory element.
+    //!
+    //! @note The caller is repsonsible to assign unique ids.
+    //!
+    //! @param id the unique element id
+    //! @param terms the terms forming the tuple
+    //! @param cond the condition of the element
+    void theory_elem(id_t id, Output::IdSpan terms, Output::LitSpan cond) { do_theory_elem(id, terms, cond); }
+
   private:
     virtual auto do_next_lit() -> lit_t = 0;
     virtual void do_rule(LitSpan head, LitSpan body, bool choice) = 0;
     virtual void do_bd_aggr(lit_t head, WeightedLitSpan body, int32_t bound) = 0;
     virtual void do_show(Symbol sym, LitSpan body) = 0;
     virtual void do_edge(Output::id_t u, Output::id_t v, Output::LitSpan body) = 0;
-    virtual void do_heuristic(lit_t atom, int32_t weight, int32_t prio, HeuristicType type, Output::LitSpan body) = 0;
+    virtual void do_heuristic(lit_t atom, weight_t weight, weight_t prio, HeuristicType type, Output::LitSpan body) = 0;
     virtual void do_external(lit_t atom, ExternalType type) = 0;
     virtual void do_project(lit_t atom) = 0;
     virtual void do_minimize(lit_t lit, weight_t weight, weight_t priority) = 0;
+    virtual void do_theory_num(id_t id, weight_t num) = 0;
+    virtual void do_theory_str(id_t id, char const *str) = 0;
+    virtual void do_theory_fun(id_t id, id_t name, IdSpan args) = 0;
+    virtual void do_theory_tup(id_t id, TheoryTermTupleType type, Output::IdSpan args) = 0;
+    virtual void do_theory_elem(id_t id, Output::IdSpan terms, Output::LitSpan cond) = 0;
 };
 using UBackend = std::unique_ptr<Backend>;
 
@@ -139,8 +188,9 @@ using UBackend = std::unique_ptr<Backend>;
 //! brings the statements into the required form and passes them to the
 //! backend.
 //!
-//! @param backend the target Backend
-auto make_backend_output(Backend &backend) -> UOutputStm;
+//! @param store the store holding symbols
+//! @param backend the target backend
+auto make_backend_output(SymbolStore &store, Backend &backend) -> UOutputStm;
 
 //! @}
 

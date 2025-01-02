@@ -173,6 +173,36 @@ class BackendClasp : public Output::Backend {
 #endif
     }
 
+    void do_theory_num(id_t id, int32_t num) override { prg_->theoryData().addTerm(id, num); }
+
+    void do_theory_str(id_t id, char const *str) override { prg_->theoryData().addTerm(id, str); }
+
+    void do_theory_fun(id_t id, id_t name, Output::IdSpan args) override { prg_->theoryData().addTerm(id, name, args); }
+
+    void do_theory_tup(id_t id, TheoryTermTupleType type, Output::IdSpan args) override {
+        prg_->theoryData().addTerm(
+            id,
+            [type] {
+                switch (type) {
+                    case TheoryTermTupleType::tuple: {
+                        return Potassco::Tuple_t::paren;
+                    }
+                    case TheoryTermTupleType::list: {
+                        return Potassco::Tuple_t::bracket;
+                    }
+                    case TheoryTermTupleType::set: {
+                        return Potassco::Tuple_t::brace;
+                    }
+                }
+                Util::unreachable();
+            }(),
+            args);
+    }
+
+    void do_theory_elem(id_t id, Output::IdSpan terms, Output::LitSpan cond) override {
+        prg_->theoryData().addElement(id, terms, prg_->newCondition(cond));
+    }
+
     Output::lit_t lit_ = 0;
     Util::OutputBuffer buf_;
     Potassco::RuleBuilder bld_;
@@ -182,15 +212,15 @@ class BackendClasp : public Output::Backend {
 } // namespace
 
 Solver::Solver(Logger &log, SymbolStore &store, Scripts &scripts, Input::RewriteOptions opts, AppMode mode, FILE *out)
-    : buf_{out}, out_{make_output_(mode)}, grd_{log, store, opts, *out_}, scripts_{&scripts}, mode_{mode} {}
+    : buf_{out}, out_{make_output_(store, mode)}, grd_{log, store, opts, *out_}, scripts_{&scripts}, mode_{mode} {}
 
-auto Solver::make_output_(AppMode mode) -> UOutputStm {
+auto Solver::make_output_(SymbolStore &store, AppMode mode) -> UOutputStm {
     switch (mode) {
         case AppMode::solve: {
             // TODO: find a better place to do this
             cfg_.solve.numModels = 0;
             backend_ = std::make_unique<BackendClasp>(clasp_.startAsp(cfg_, true));
-            return Output::make_backend_output(*backend_);
+            return Output::make_backend_output(store, *backend_);
         }
         default: {
             return Output::make_text_output(buf_);
