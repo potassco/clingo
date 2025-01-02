@@ -176,6 +176,21 @@ void Program::check(Logger &log) {
     depend_offset_ = depend_.size();
 }
 
+auto Program::theory_directives() const -> TheorySigVec {
+    auto res = TheorySigVec{};
+    for (auto const &thy : thy_stms_) {
+        for (auto const &def : thy.atom_defs()) {
+            if (def.type() == Input::TheoryAtomType::directive) {
+                res.emplace_back(def.name(), def.arity());
+            }
+        }
+    }
+    std::ranges::sort(res);
+    res.erase(std::ranges::unique(res).begin(), res.end());
+    res.shrink_to_fit();
+    return res;
+}
+
 auto Program::analyze(SymbolStore &store, ProgramParamVec const &params, DependencyBuilder &bld) const -> bool {
     bld.meta(meta_stms_);
     std::vector<Stm> stms;

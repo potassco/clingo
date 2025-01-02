@@ -16,6 +16,12 @@ using IndexVec = std::vector<size_t>;
 //! Interface to output literals.
 class OutputTheory {
   public:
+    enum class AtomType : uint8_t {
+        head,
+        body,
+        directive,
+    };
+
     //! An optional guard of string and term indices.
     using OptGuard = std::optional<std::pair<size_t, size_t>>;
     //! Destroy the output.
@@ -31,8 +37,8 @@ class OutputTheory {
     //! Output the given element.
     auto elem(IndexSpan tuple, size_t cond) -> size_t { return do_elem(tuple, cond); }
     //! Output the given atom.
-    void atm(bool head, size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard = std::nullopt) {
-        do_atm(head, atom_uid, name, elems, guard);
+    void atm(AtomType type, size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard = std::nullopt) {
+        do_atm(type, atom_uid, name, elems, guard);
     }
 
   private:
@@ -41,7 +47,7 @@ class OutputTheory {
     virtual auto do_fun(String name, std::span<size_t const> args) -> size_t = 0;
     virtual auto do_tup(TheoryTermTupleType type, std::span<size_t const> args) -> size_t = 0;
     virtual auto do_elem(IndexSpan tuple, size_t cond) -> size_t = 0;
-    virtual void do_atm(bool head, size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard) = 0;
+    virtual void do_atm(AtomType type, size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard) = 0;
 };
 
 //! Interface to output literals.

@@ -76,8 +76,14 @@ auto build_state(BuildContext &ctx, Input::TheoryAtom<HasSign> const &lit) -> Gr
     }
 
     // add theory state
+    auto type = HasSign ? OutputTheory::AtomType::body : OutputTheory::AtomType::head;
+    if constexpr (!HasSign) {
+        if (auto sig = Input::signature(lit.name()); sig && ctx.is_theory_directive({get<0>(*sig), get<1>(*sig)})) {
+            type = OutputTheory::AtomType::directive;
+        }
+    }
     auto &state =
-        ctx.state<Ground::StateTheory>(ctx.mbr(), vars_global.release(), std::move(name), std::move(guard), !HasSign);
+        ctx.state<Ground::StateTheory>(ctx.mbr(), vars_global.release(), std::move(name), std::move(guard), type);
 
     // add elements to state
     auto stms = Ground::UStmVec{};

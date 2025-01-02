@@ -40,10 +40,10 @@ class Profiler {
 class Builder : public Input::DependencyBuilder {
   public:
     //! Construct the builder.
-    Builder(std::pmr::monotonic_buffer_resource &mbr, Logger &log, SymbolStore &store, BaseMap &base_atom,
-            ProjectMap &base_project, Ground::ScriptCallback *context, OutputStm &out)
-        : mbr_{&mbr}, log_{&log}, store_{&store}, base_{base_atom, base_aux_, base_project}, context_{context},
-          out_{&out} {}
+    Builder(std::pmr::monotonic_buffer_resource &mbr, Logger &log, SymbolStore &store, TheorySigVec theory_directives,
+            BaseMap &base_atom, ProjectMap &base_project, Ground::ScriptCallback *context, OutputStm &out)
+        : mbr_{&mbr}, log_{&log}, store_{&store}, theory_directives_{std::move(theory_directives)},
+          base_{base_atom, base_aux_, base_project}, context_{context}, out_{&out} {}
 
   private:
     //! Handle program parameters.
@@ -101,8 +101,9 @@ class Builder : public Input::DependencyBuilder {
                         }
                         ++i;
                     }
-                    auto ctx = BuildContext{*mbr_, *log_,   *store_, base_,  ref_comp, def_map,
-                                            gcomp, var_map, body,    states, context_};
+                    auto ctx = BuildContext{*mbr_,   *log_,    *store_, theory_directives_,
+                                            base_,   ref_comp, def_map, gcomp,
+                                            var_map, body,     states,  context_};
                     build_stm(ctx, *stm);
                 }
                 auto queue = Ground::Queue{};
@@ -126,6 +127,7 @@ class Builder : public Input::DependencyBuilder {
     std::pmr::monotonic_buffer_resource *mbr_;
     Logger *log_;
     SymbolStore *store_;
+    TheorySigVec theory_directives_;
     BaseMap base_aux_;
     BaseHelper base_;
     Ground::ScriptCallback *context_;
@@ -313,8 +315,9 @@ auto Grounder::ground(Input::ProgramParamVec const &params, Ground::ScriptCallba
 #endif
     if (impl_->is_sat) {
         impl_->prg.check(*impl_->log);
-        auto bld = Builder{impl_->mbr,          *impl_->log, *impl_->store, impl_->atom_base,
-                           impl_->project_base, context,     *impl_->out};
+
+        auto bld = Builder{impl_->mbr,       *impl_->log,         *impl_->store, impl_->prg.theory_directives(),
+                           impl_->atom_base, impl_->project_base, context,       *impl_->out};
         impl_->is_sat = impl_->prg.analyze(*impl_->store, params, bld);
         impl_->meta();
         impl_->clear();

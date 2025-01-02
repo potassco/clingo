@@ -1451,7 +1451,8 @@ class OutputBackend : public OutputStm, OutputTheory {
             }
             return it.value();
         }
-        void atom(Translator &trans, bool head, lit_t lit, Symbol name, IndexSpan elems, OptGuard guard) {
+        void atom(Translator &trans, OutputTheory::AtomType type, lit_t lit, Symbol name, IndexSpan elems,
+                  OptGuard guard) {
             assert(lit >= 0);
             auto [it, ins] =
                 atoms_.emplace(std::tuple{sym_(trans, name), IdVec{elems.begin(), elems.end()},
@@ -1465,10 +1466,10 @@ class OutputBackend : public OutputStm, OutputTheory {
                 trans.backend().theory_atom(it.value(), get<0>(it.key()), get<1>(it.key()), get<2>(it.key()));
             } else if (lit != it.value()) {
                 assert(lit != 0 && it.value() != 0);
-                if (head) {
-                    trans.backend().rule(std::array{lit}, std::array{it.value()}, false);
-                } else {
+                if (type == OutputTheory::AtomType::body) {
                     trans.backend().rule(std::array{it.value()}, std::array{lit}, false);
+                } else {
+                    trans.backend().rule(std::array{lit}, std::array{it.value()}, false);
                 }
             }
         }
@@ -1559,8 +1560,8 @@ class OutputBackend : public OutputStm, OutputTheory {
         return theory_.elem(translator(), tuple, uid_to_lit(cond));
     }
 
-    void do_atm(bool head, size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard) override {
-        theory_.atom(translator(), head, uid_to_lit(atom_uid), name, elems, guard);
+    void do_atm(OutputTheory::AtomType type, size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard) override {
+        theory_.atom(translator(), type, static_cast<int32_t>(atom_uid), name, elems, guard);
     }
 
     auto translator() -> Translator & { return translator_; }

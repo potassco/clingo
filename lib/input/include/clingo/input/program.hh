@@ -189,6 +189,9 @@ class Program {
     //! Check program and emit diagonstics.
     void check(Logger &log);
 
+    //! Get a sorted vector of all signatures of theory directives in the program.
+    [[nodiscard]] auto theory_directives() const -> TheorySigVec;
+
   private:
     //! The signature of a program part.
     //!

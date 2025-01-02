@@ -81,11 +81,12 @@ using DefMap = Util::unordered_map<Input::Term const *, std::vector<size_t>>;
 class BuildContext {
   public:
     //! Construct the build context.
-    BuildContext(std::pmr::monotonic_buffer_resource &mbr, Logger &log, SymbolStore &store, BaseHelper base,
-                 Input::Component const &comp, DefMap &def_map, Ground::Component &gcomp, VarMap &var_map,
-                 Ground::ULitVec &body, Ground::UStateVec &states, Ground::ScriptCallback *context)
-        : mbr_{&mbr}, log_{&log}, store_{&store}, base_{base}, comp_{&comp}, def_map_{&def_map}, gcomp_{&gcomp},
-          var_map_{&var_map}, body_{&body}, states_{&states}, context_{context} {}
+    BuildContext(std::pmr::monotonic_buffer_resource &mbr, Logger &log, SymbolStore &store,
+                 TheorySigVec const &theory_directives, BaseHelper base, Input::Component const &comp, DefMap &def_map,
+                 Ground::Component &gcomp, VarMap &var_map, Ground::ULitVec &body, Ground::UStateVec &states,
+                 Ground::ScriptCallback *context)
+        : mbr_{&mbr}, log_{&log}, store_{&store}, theory_directives_{&theory_directives}, base_{base}, comp_{&comp},
+          def_map_{&def_map}, gcomp_{&gcomp}, var_map_{&var_map}, body_{&body}, states_{&states}, context_{context} {}
 
     //! Get the index of the given symbolic literal.
     [[nodiscard]] auto index(Input::LitSymbolic const &lit) const -> size_t {
@@ -208,10 +209,15 @@ class BuildContext {
             lit);
     }
 
+    [[nodiscard]] auto is_theory_directive(TheorySig sig) const -> bool {
+        return std::ranges::binary_search(*theory_directives_, sig);
+    }
+
   private:
     std::pmr::monotonic_buffer_resource *mbr_;
     Logger *log_;
     SymbolStore *store_;
+    TheorySigVec const *theory_directives_;
     BaseHelper base_;
     Input::Component const *comp_;
     DefMap *def_map_;

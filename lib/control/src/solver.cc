@@ -5,9 +5,11 @@
 #include <clingo/util/checked_math.hh>
 
 #include <clasp/solver.h>
+
+#include <potassco/aspif_text.h>
 #include <potassco/theory_data.h>
 
-// #define DEBUG_BACKEND
+#define DEBUG_BACKEND
 #ifdef DEBUG_BACKEND
 #include <clingo/util/print.hh>
 #include <iostream>
@@ -206,14 +208,64 @@ class BackendClasp : public Output::Backend {
         prg_->theoryData().addElement(id, terms, prg_->newCondition(cond));
     }
 
+#ifdef DEBUG_BACKEND
+    void print(Potassco::TheoryTerm const &term) {
+        switch (term.type()) {
+            case Potassco::Theory_t::number: {
+                std::cerr << term.number();
+                return;
+            }
+            case Potassco::Theory_t::symbol: {
+                std::cerr << term.symbol();
+                return;
+            }
+            case Potassco::Theory_t::compound: {
+                if (term.isFunction()) {
+                    print(prg_->theoryData().getTerm(term.function()));
+                    std::cerr << "(" << Util::p_range(term, [this]([[maybe_unused]] auto &out, auto &term) {
+                        print(prg_->theoryData().getTerm(term));
+                    }) << ")";
+                } else {
+                    // TODO: trailing comma + proper parens
+                    std::cerr << "(" << Util::p_range(term, [this]([[maybe_unused]] auto &out, auto &term) {
+                        print(prg_->theoryData().getTerm(term));
+                    }) << ")";
+                }
+                return;
+            }
+            default: {
+                Util::unreachable();
+            }
+        }
+    }
+
+    void print(Potassco::TheoryAtom const &atom) {
+        std::cerr << "&";
+        print(prg_->theoryData().getTerm(atom.term()));
+        std::cerr << " { " << Util::p_range(atom.elements(), "; ", [this]([[maybe_unused]] auto &out, auto &elem) {
+            print(prg_->theoryData().getElement(elem));
+        }) << " }";
+    }
+
+    void print(Potassco::TheoryElement const &elem) {
+        std::cerr << Util::p_range(elem, [this]([[maybe_unused]] auto &out, auto &term) {
+            print(prg_->theoryData().getTerm(term));
+        }) << ": " << elem.condition();
+    }
+#endif
+
     void do_theory_atom(Output::lit_t lit_or_zero, Output::id_t name, Output::IdSpan elems,
                         std::optional<std::pair<id_t, id_t>> guard) override {
-        assert(lit_or_zero > 0);
         if (guard) {
             prg_->theoryData().addAtom(lit_or_zero, name, elems, guard->first, guard->second);
         } else {
             prg_->theoryData().addAtom(lit_or_zero, name, elems);
         }
+#ifdef DEBUG_BACKEND
+        std::cerr << lit_or_zero << " <> ";
+        print(**(prg_->theoryData().end() - 1));
+        std::cerr << "\n";
+#endif
     }
 
     Output::lit_t lit_ = 0;

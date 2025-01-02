@@ -178,6 +178,11 @@ enum class ExternalType : uint8_t { true_ = 0, false_ = 1, free = 2 };
 //! Output the given external type.
 auto operator<<(Util::OutputBuffer &out, ExternalType type) -> Util::OutputBuffer &;
 
+//! A signature of a theory atom.
+using TheorySig = std::tuple<String, size_t>;
+//! A vector of theory atom signatures.
+using TheorySigVec = std::vector<TheorySig>;
+
 //! @}
 
 } // namespace Clingo

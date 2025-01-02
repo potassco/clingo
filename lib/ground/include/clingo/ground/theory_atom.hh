@@ -154,9 +154,10 @@ class StateTheory : public Ground::State {
     using ElementMap = Util::ordered_map<ElementKey *, Util::small_vector<size_t>>;
 
     //! Construct the state.
-    StateTheory(std::pmr::monotonic_buffer_resource &mbr, VariableVec global, UTerm name, TheoryRGuard guard, bool head)
+    StateTheory(std::pmr::monotonic_buffer_resource &mbr, VariableVec global, UTerm name, TheoryRGuard guard,
+                OutputTheory::AtomType type)
         : base_{global.size()}, mbr_{&mbr}, global_{std::move(global)}, name_{std::move(name)},
-          guard_{std::move(guard)}, head_{head} {}
+          guard_{std::move(guard)}, type_{type} {}
 
     //! Find a previously grounded theory atom.
     //!
@@ -195,7 +196,7 @@ class StateTheory : public Ground::State {
     TheoryRGuard guard_;
     UStmVec elems_;
     Symbol *atom_key_ = nullptr;
-    bool head_;
+    OutputTheory::AtomType type_;
 };
 
 //! A term like object used to match theory atoms.
