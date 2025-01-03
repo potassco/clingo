@@ -7,6 +7,7 @@
 #include <clingo/util/print.hh>
 #include <clingo/util/type_traits.hh>
 
+// #define GRINGO_DEBUG_AGGREGATES
 #ifdef GRINGO_DEBUG_AGGREGATES
 #include <iostream>
 #endif
@@ -230,7 +231,7 @@ class BuilderBase {
                     for (auto const &clit : lits) {
                         if (clit < 0) {
                             bd.emplace_back(negate(clit));
-                        } else if (clit > 0 && info(lit).scc != info(clit).scc) {
+                        } else if (in_cycle(clit, lit)) {
                             bd.emplace_back(-clit);
                         } else {
                             hd.emplace_back(clit);
@@ -308,6 +309,14 @@ class BuilderBase {
         return infos_[lit - 1];
     }
 
+    [[nodiscard]] auto in_cycle(lit_t a, lit_t b) -> bool {
+        if (a > 0 && b > 0) {
+            auto scc = info(a).scc;
+            return scc > 0 && scc == info(b).scc;
+        }
+        return false;
+    }
+
   private:
     using LitInfoVec = std::vector<LitInfo>;
     using ClauseLitMap = Util::ordered_map<std::pair<Output::LitVec, ClauseType>, lit_t>;
@@ -332,7 +341,7 @@ class BuilderRule {
     //! @param head the literals forming the head
     //! @param body the literals forming the body
     //! @param choice whether the rule is a choice or disjunctive rule
-    void add(BuilderBase &tr, LitSpan head, LitSpan body, bool choice) {
+    void add(BuilderBase &bld, LitSpan head, LitSpan body, bool choice) {
         hd_.clear();
         bd_.clear();
         for (auto const &hlit : head) {
@@ -340,15 +349,15 @@ class BuilderRule {
                 hd_.emplace_back(hlit);
                 for (auto const &blit : body) {
                     if (blit > 0) {
-                        tr.add_edge(hlit, blit);
+                        bld.add_edge(hlit, blit);
                     }
                 }
             } else if (!choice) {
-                bd_.emplace_back(tr.negate(hlit));
+                bd_.emplace_back(bld.negate(hlit));
             }
         }
         bd_.insert(bd_.end(), body.begin(), body.end());
-        tr.backend().rule(hd_, bd_, choice);
+        bld.backend().rule(hd_, bd_, choice);
     }
 
   private:
@@ -420,15 +429,16 @@ class BuilderMinMax {
                 }
                 state = !state;
             }
-            min_aggrs_.emplace_back(lit, start, std::move(lits), std::move(ids));
+            delayed_.emplace_back(lit, start, std::move(lits), std::move(ids));
         }
     }
 
     //! Translate delayed min and max aggregates.
     void tr(BuilderBase &bld) {
-        for (auto const &[lit, start, lits, ids] : min_aggrs_) {
+        for (auto const &[lit, start, lits, ids] : delayed_) {
             tr_(bld, lit, start, lits, ids, true);
         }
+        delayed_.clear();
     }
 
   private:
@@ -529,7 +539,6 @@ class BuilderMinMax {
         auto get_span = [&lits = lits](auto it) {
             return std::span{std::next(lits.begin(), *it), std::next(lits.begin(), *(it + 1))};
         };
-        auto scc = bld.info(lit).scc;
         lits_.clear();
         auto state = start;
         for (auto it = ids.begin(), ie = ids.end(); it + 1 != ie; ++it) {
@@ -549,7 +558,7 @@ class BuilderMinMax {
                     bld.backend().rule(std::array{lit}, lits_, false);
                     lits_.pop_back();
                 } else {
-                    if (delayed && clit > 0 && scc != 0 && scc == bld.info(clit).scc) {
+                    if (delayed && bld.in_cycle(lit, clit)) {
                         // nlit :- not clit.
                         // nlit :- lit.
                         // nlit | clit :- not not l.
@@ -571,7 +580,7 @@ class BuilderMinMax {
         }
     }
 
-    MinVec min_aggrs_;
+    MinVec delayed_;
     LitVec lits_;
 };
 
@@ -618,7 +627,7 @@ class BuilderSum {
             return "antimonotone";
         }() << "\n";
 #endif
-        sum_aggrs_.emplace_back(lit, std::move(elem_vec), std::move(range), std::move(bounds));
+        delayed_.emplace_back(lit, std::move(elem_vec), std::move(range), std::move(bounds));
     }
 
     //! Translates stored aggregate literals.
@@ -626,12 +635,10 @@ class BuilderSum {
     //! This function iterates over all stored aggregate literals and
     //! translates them into a form understood by the backend.
     void tr(BuilderBase &bld) {
-        for (auto &[lit, elems, range, bounds] : sum_aggrs_) {
+        for (auto &[lit, elems, range, bounds] : delayed_) {
             assert(lit > 0);
             // check which kind of literals are cyclic
-            auto is_recursive = [lit, &bld](lit_t clit) {
-                return lit > 0 && clit > 0 && bld.info(clit).scc == bld.info(lit).scc;
-            };
+            auto is_recursive = [lit, &bld](lit_t clit) { return bld.in_cycle(lit, clit); };
             auto has_pos_cycle = false; // cycle through atom with *positive* weight
             auto has_neg_cycle = false; // cycle through atom with *negative* weight
             if (bld.info(lit).scc > 0) {
@@ -736,6 +743,7 @@ class BuilderSum {
                 }
             }
         }
+        delayed_.clear();
     }
 
   private:
@@ -857,7 +865,7 @@ class BuilderSum {
         return {std::move(elem_vec), std::move(range), std::move(bounds), type};
     }
 
-    SumVec sum_aggrs_;
+    SumVec delayed_;
     BuilderRule rule_;
     LitVec lits_;
 };
@@ -872,19 +880,19 @@ class BuilderCondLit {
     //!
     //! @param lit the literal that is derived
     //! @param elems the elements forming the conditional literal
-    void add(BuilderBase &tr, lit_t lit, OutputStm::CondLitSpan elems) {
+    void add(BuilderBase &bld, lit_t lit, OutputStm::CondLitSpan elems) {
         for (auto const &elem : elems) {
             if (auto const &[id_conc, id_prem] = elem; id_conc && lit > 0 && *id_conc > 0) {
-                tr.add_edge(lit, *id_conc);
+                bld.add_edge(lit, *id_conc);
             }
         }
-        cond_lits_.emplace_back(std::piecewise_construct, std::forward_as_tuple(lit),
-                                std::forward_as_tuple(elems.begin(), elems.end()));
+        delayed_.emplace_back(std::piecewise_construct, std::forward_as_tuple(lit),
+                              std::forward_as_tuple(elems.begin(), elems.end()));
     }
 
     //! Translate stored conditional literals.
-    void tr(BuilderBase &tr) {
-        for (auto const &[lit, elems] : cond_lits_) {
+    void tr(BuilderBase &bld) {
+        for (auto const &[lit, elems] : delayed_) {
             assert(lit > 0);
             lits_.clear();
             lits_.reserve(elems.size());
@@ -893,28 +901,29 @@ class BuilderCondLit {
             // - G: captures the conclusion
             // - F: catures the premise
             for (auto const &[g, f] : elems) {
-                tr.mark(f, EQType::implication);
+                bld.mark(f, EQType::implication);
                 if (g) {
-                    auto rec = lit > 0 && f > 0 && tr.info(lit).scc > 0 && tr.info(lit).scc == tr.info(f).scc;
-                    auto k = tr.next_lit();
+                    auto rec = bld.in_cycle(lit, f);
+                    auto k = bld.next_lit();
                     // formula G : F is replaced by K
                     // K :- G.
                     // K :- not F.
-                    tr.mark(*g, EQType::implication);
-                    tr.backend().rule(std::array{k}, std::array{*g}, false);
-                    tr.backend().rule(std::array{k}, std::array{tr.negate(f)}, false);
+                    bld.mark(*g, EQType::implication);
+                    bld.backend().rule(std::array{k}, std::array{*g}, false);
+                    bld.backend().rule(std::array{k}, std::array{bld.negate(f)}, false);
                     if (rec) {
                         // K | F :- not not G.
-                        tr.mark(f, EQType::equivalence);
-                        tr.backend().rule(std::array{k, f}, std::array{tr.negate(tr.negate(*g))}, false);
+                        bld.mark(f, EQType::equivalence);
+                        bld.backend().rule(std::array{k, f}, std::array{bld.negate(bld.negate(*g))}, false);
                     }
                     lits_.emplace_back(k);
                 } else {
-                    lits_.emplace_back(tr.negate(f));
+                    lits_.emplace_back(bld.negate(f));
                 }
             }
-            tr.backend().rule(std::array{lit}, lits_, false);
+            bld.backend().rule(std::array{lit}, lits_, false);
         }
+        delayed_.clear();
     }
 
   private:
@@ -922,7 +931,7 @@ class BuilderCondLit {
     using CondLitElemVec = std::vector<CondLitElem>;
     using CondLitVec = std::vector<std::pair<lit_t, CondLitElemVec>>;
 
-    CondLitVec cond_lits_;
+    CondLitVec delayed_;
     Output::LitVec lits_;
 };
 
@@ -939,7 +948,7 @@ class BuilderDisjunction {
     //!
     //! @param lit the literal representing the body
     //! @param elems the literals to derive
-    void add(BuilderBase &tr, lit_t lit, DisjElemSpan elems) {
+    void add(BuilderBase &bld, lit_t lit, DisjElemSpan elems) {
         // example:
         //   a : c | b :- B.
         // shift:
@@ -962,7 +971,7 @@ class BuilderDisjunction {
         // simplify (*) if a does not occur in a head cycle:
         //   :- a, c, not x.
         if (elems.empty()) {
-            tr.backend().rule({}, std::array{lit}, false);
+            bld.backend().rule({}, std::array{lit}, false);
             return;
         }
         for (auto const &[sym, auid, conds] : elems) {
@@ -979,31 +988,31 @@ class BuilderDisjunction {
                 if (conds.empty()) {
                     hd_.emplace_back(a);
                 } else {
-                    auto x = tr.next_lit();
-                    auto y = tr.next_lit();
+                    auto x = bld.next_lit();
+                    auto y = bld.next_lit();
                     lits_.assign(conds.begin(), conds.end());
-                    auto c = tr.clause(lits_, ClauseType::disjunctive);
-                    tr.mark(c, EQType::implication);
+                    auto c = bld.clause(lits_, ClauseType::disjunctive);
+                    bld.mark(c, EQType::implication);
                     hd_.emplace_back(x);
                     bd_.emplace_back(y);
                     // a :- x.
-                    rule_.add(tr, std::array{a}, std::array{x}, false);
+                    rule_.add(bld, std::array{a}, std::array{x}, false);
                     //   :- x, not c.
-                    rule_.add(tr, {}, std::array{x, tr.negate(c)}, false);
+                    rule_.add(bld, {}, std::array{x, bld.negate(c)}, false);
                     // y :- c.
-                    rule_.add(tr, std::array{y}, std::array{c}, false);
+                    rule_.add(bld, std::array{y}, std::array{c}, false);
                     // y :- not c.
-                    rule_.add(tr, std::array{y}, std::array{tr.negate(c)}, false);
+                    rule_.add(bld, std::array{y}, std::array{bld.negate(c)}, false);
                     // x :- a, not not c.
                     elems_.emplace_back(a, x, c);
                 }
             } else {
                 lits_.assign(conds.begin(), conds.end());
-                bd_.emplace_back(tr.negate(tr.clause(lits_, ClauseType::disjunctive)));
-                tr.mark(bd_.back(), EQType::implication);
+                bd_.emplace_back(bld.negate(bld.clause(lits_, ClauseType::disjunctive)));
+                bld.mark(bd_.back(), EQType::implication);
             }
         }
-        rule_.add(tr, hd_, bd_, false);
+        rule_.add(bld, hd_, bd_, false);
         if (!elems_.empty()) {
             hd_.clear();
             for (auto const &elem : elems) {
@@ -1011,42 +1020,43 @@ class BuilderDisjunction {
                     hd_.emplace_back(uid_to_lit(auid));
                 }
             }
-            disjs_.emplace_back(std::move(hd_), std::move(elems_));
+            delayed_.emplace_back(std::move(hd_), std::move(elems_));
         }
     }
 
     // Translate rule (*) from add() based on head cycles.
-    void tr(BuilderBase &tr) {
+    void tr(BuilderBase &bld) {
         auto hd_counts = Util::unordered_map<size_t, size_t>{};
-        auto in_head_cycle = [&hd_counts, &tr](lit_t lit) {
-            auto scc = tr.info(lit).scc;
+        auto in_head_cycle = [&hd_counts, &bld](lit_t lit) {
+            auto scc = bld.info(lit).scc;
             return scc > 0 && hd_counts.find(scc).value() > 0;
         };
-        auto init_head_cycle = [&hd_counts, &tr](LitVec const &hd) {
+        auto init_head_cycle = [&hd_counts, &bld](LitVec const &hd) {
             hd_counts.clear();
             for (auto lit : hd) {
-                if (auto scc = tr.info(lit).scc; scc > 0) {
+                if (auto scc = bld.info(lit).scc; scc > 0) {
                     ++hd_counts[scc];
                 }
             }
         };
-        for (auto &[hd, elems] : disjs_) {
+        for (auto &[hd, elems] : delayed_) {
             init_head_cycle(hd);
             for (auto const &[a, x, c] : elems) {
-                tr.backend().rule({}, std::array{x, tr.negate(c)}, false);
+                bld.backend().rule({}, std::array{x, bld.negate(c)}, false);
                 if (in_head_cycle(a)) {
-                    tr.backend().rule(std::array{x}, std::array{a, tr.negate(tr.negate(c))}, false);
+                    bld.backend().rule(std::array{x}, std::array{a, bld.negate(bld.negate(c))}, false);
                 } else {
-                    tr.backend().rule({}, std::array{a, c, tr.negate(x)}, false);
+                    bld.backend().rule({}, std::array{a, c, bld.negate(x)}, false);
                 }
             }
         }
+        delayed_.clear();
     }
 
   private:
     using DisjVec = std::vector<std::tuple<LitVec, std::vector<std::tuple<lit_t, lit_t, lit_t>>>>;
 
-    DisjVec disjs_;
+    DisjVec delayed_;
     BuilderRule rule_;
     std::vector<std::tuple<lit_t, lit_t, lit_t>> elems_;
     Output::LitVec lits_;
@@ -1056,86 +1066,86 @@ class BuilderDisjunction {
 
 class BuilderMinimize {
   public:
-    void add(BuilderBase &tr, LitSpan lits, weight_t weight, weight_t prio, SymbolSpan terms) {
+    void add(BuilderBase &bld, LitSpan lits, weight_t weight, weight_t prio, SymbolSpan terms) {
         auto [it, ins] = tuples_.try_emplace(std::tuple(weight, prio, SharedSymbolVec{terms.begin(), terms.end()}));
         auto &[old, conds] = it.value();
         auto cond = LitVec{lits.begin(), lits.end()};
         if (old != 0) {
-            cond.emplace_back(tr.negate(old));
+            cond.emplace_back(bld.negate(old));
         }
         if (ins) {
-            todo_.emplace_back(std::distance(tuples_.begin(), it));
+            delayed_.emplace_back(std::distance(tuples_.begin(), it));
         }
-        conds.emplace_back(tr.clause(cond, ClauseType::conjunctive));
-        tr.mark(conds.back(), EQType::implication);
+        conds.emplace_back(bld.clause(cond, ClauseType::conjunctive));
+        bld.mark(conds.back(), EQType::implication);
     }
 
-    void tr(BuilderBase &tr) {
-        for (auto const &idx : todo_) {
+    void tr(BuilderBase &bld) {
+        for (auto const &idx : delayed_) {
             auto const &[weight, prio, terms] = tuples_.nth(idx).key();
             auto &[old, conds] = tuples_.nth(idx).value();
             assert(!conds.empty());
-            old = tr.clause(conds, ClauseType::disjunctive);
-            tr.mark(old, EQType::implication);
-            tr.backend().minimize(old, weight, prio);
+            old = bld.clause(conds, ClauseType::disjunctive);
+            bld.mark(old, EQType::implication);
+            bld.backend().minimize(old, weight, prio);
             conds.clear();
         }
-        todo_.clear();
+        delayed_.clear();
     }
 
   private:
+    IndexVec delayed_;
     Util::ordered_map<std::tuple<weight_t, weight_t, SharedSymbolVec>, std::pair<lit_t, LitVec>> tuples_;
-    IndexVec todo_;
 };
 
 class BuilderTheory {
   public:
     using IdVec = std::vector<id_t>;
 
-    auto str(BuilderBase &trans, String str) -> id_t {
+    auto str(BuilderBase &bld, String str) -> id_t {
         auto [it, ins] = insert_(strings_, str);
         if (ins) {
-            trans.backend().theory_str(it.value(), it.key()->c_str());
+            bld.backend().theory_str(it.value(), it.key()->c_str());
         }
         return it.value();
     }
-    auto num(BuilderBase &trans, Number const &num) -> id_t {
+    auto num(BuilderBase &bld, Number const &num) -> id_t {
         auto [it, ins] = insert_(nums_, num_to_int(num));
         if (ins) {
-            trans.backend().theory_num(it.value(), it.key());
+            bld.backend().theory_num(it.value(), it.key());
         }
         return it.value();
     }
-    auto fun(BuilderBase &trans, String name, IdVec args) -> size_t {
+    auto fun(BuilderBase &bld, String name, IdVec args) -> size_t {
         if (args.empty()) {
-            return str(trans, name);
+            return str(bld, name);
         }
-        auto [it, ins] = insert_(funs_, std::pair{str(trans, name), std::move(args)});
+        auto [it, ins] = insert_(funs_, std::pair{str(bld, name), std::move(args)});
         if (ins) {
-            trans.backend().theory_fun(it.value(), it.key().first, it.key().second);
+            bld.backend().theory_fun(it.value(), it.key().first, it.key().second);
         }
         return it.value();
     }
-    auto tup(BuilderBase &trans, TheoryTermTupleType type, IdVec args) -> size_t {
+    auto tup(BuilderBase &bld, TheoryTermTupleType type, IdVec args) -> size_t {
         auto [it, ins] = insert_(tups_, std::pair{type, std::move(args)});
         if (ins) {
-            trans.backend().theory_tup(it.value(), it.key().first, it.key().second);
+            bld.backend().theory_tup(it.value(), it.key().first, it.key().second);
         }
         return it.value();
     }
 
-    auto elm(BuilderBase &trans, IndexSpan tuple, lit_t cond) -> size_t {
+    auto elm(BuilderBase &bld, IndexSpan tuple, lit_t cond) -> size_t {
         auto [it, ins] = insert_(elems_, std::pair{cond, IdVec{tuple.begin(), tuple.end()}});
         if (ins) {
-            trans.backend().theory_elem(it.value(), it.key().second, trans.cond(cond));
+            bld.backend().theory_elem(it.value(), it.key().second, bld.cond(cond));
         }
         return it.value();
     }
-    void atm(BuilderBase &trans, OutputTheory::AtomType type, lit_t lit, Symbol name, IndexSpan elems,
+    void atm(BuilderBase &bld, OutputTheory::AtomType type, lit_t lit, Symbol name, IndexSpan elems,
              OutputTheory::OptGuard guard) {
         assert(lit >= 0);
         auto [it, ins] =
-            atoms_.emplace(std::tuple{sym_(trans, name), IdVec{elems.begin(), elems.end()},
+            atoms_.emplace(std::tuple{sym_(bld, name), IdVec{elems.begin(), elems.end()},
                                       Util::transform(guard,
                                                       [](auto const &guard) {
                                                           return std::pair{static_cast<id_t>(guard.first),
@@ -1143,14 +1153,14 @@ class BuilderTheory {
                                                       })},
                            lit);
         if (ins) {
-            trans.backend().theory_atom(type != OutputTheory::AtomType::directive ? it.value() : 0, get<0>(it.key()),
-                                        get<1>(it.key()), get<2>(it.key()));
+            bld.backend().theory_atom(type != OutputTheory::AtomType::directive ? it.value() : 0, get<0>(it.key()),
+                                      get<1>(it.key()), get<2>(it.key()));
         } else if (lit != it.value()) {
             assert(lit != 0 && it.value() != 0);
             if (type == OutputTheory::AtomType::body) {
-                trans.backend().rule(std::array{it.value()}, std::array{lit}, false);
+                bld.backend().rule(std::array{it.value()}, std::array{lit}, false);
             } else {
-                trans.backend().rule(std::array{lit}, std::array{it.value()}, false);
+                bld.backend().rule(std::array{lit}, std::array{it.value()}, false);
             }
         }
     }
@@ -1163,43 +1173,42 @@ class BuilderTheory {
     using ElemMap = Util::unordered_map<std::pair<lit_t, IdVec>, id_t>;
     using AtomMap = Util::unordered_map<std::tuple<id_t, IdVec, std::optional<std::pair<id_t, id_t>>>, lit_t>;
 
-    auto sym_(BuilderBase &trans, Symbol sym) -> id_t {
+    auto sym_(BuilderBase &bld, Symbol sym) -> id_t {
         switch (sym.type()) {
             case SymbolType::inf: {
-                return str(trans, trans.store().string_ref("#inf"));
+                return str(bld, bld.store().string_ref("#inf"));
             }
             case SymbolType::sup: {
-                return str(trans, trans.store().string_ref("#sup"));
+                return str(bld, bld.store().string_ref("#sup"));
             }
             case SymbolType::number: {
-                return num(trans, sym.num());
+                return num(bld, sym.num());
             }
             case SymbolType::string: {
                 buf_.reset();
                 buf_ << sym;
-                return str(trans, trans.store().string_ref(buf_.c_str()));
+                return str(bld, bld.store().string_ref(buf_.c_str()));
             }
             case SymbolType::function: {
                 if (sym.has_classical_sign()) {
                     // NOLINTBEGIN(bugprone-unchecked-optional-access)
-                    return fun(trans, trans.store().string_ref("-"),
-                               std::vector{sym_(trans, *sym.flip_classical_sign())});
+                    return fun(bld, bld.store().string_ref("-"), std::vector{sym_(bld, *sym.flip_classical_sign())});
                     // NOLINTEND(bugprone-unchecked-optional-access)
                 }
                 auto args = IdVec{};
                 args.reserve(sym.args().size());
                 for (auto const &arg : sym.args()) {
-                    args.emplace_back(sym_(trans, arg));
+                    args.emplace_back(sym_(bld, arg));
                 }
-                return fun(trans, sym.name(), args);
+                return fun(bld, sym.name(), args);
             }
             case SymbolType::tuple: {
                 auto args = IdVec{};
                 args.reserve(sym.args().size());
                 for (auto const &arg : sym.args()) {
-                    args.emplace_back(sym_(trans, arg));
+                    args.emplace_back(sym_(bld, arg));
                 }
-                return tup(trans, TheoryTermTupleType::tuple, args);
+                return tup(bld, TheoryTermTupleType::tuple, args);
             }
         }
         Util::unreachable();
@@ -1233,7 +1242,7 @@ class BuilderTheory {
 //! Only supports simple literals excluding aggregates, theory atoms and conditions.
 class OutputCond : public OutputLit {
   public:
-    OutputCond(BuilderBase &translator) : translator_{&translator} {}
+    OutputCond(BuilderBase &bld) : bld_{&bld} {}
 
     //! Get the literals of the body.
     //!
@@ -1245,7 +1254,7 @@ class OutputCond : public OutputLit {
     //! Get the translator of the output.
     //!
     //! @return the translator
-    auto translator() -> BuilderBase & { return *translator_; };
+    auto builder() -> BuilderBase & { return *bld_; };
 
     //! Append the atom with the given sign.
     //!
@@ -1260,11 +1269,11 @@ class OutputCond : public OutputLit {
                 return;
             }
             case Sign::once: {
-                body_.emplace_back(translator().negate(uid_to_lit(uid)));
+                body_.emplace_back(builder().negate(uid_to_lit(uid)));
                 return;
             }
             case Sign::twice: {
-                body_.emplace_back(translator().negate(translator().negate(uid_to_lit(uid))));
+                body_.emplace_back(builder().negate(builder().negate(uid_to_lit(uid))));
                 return;
             }
         }
@@ -1295,7 +1304,7 @@ class OutputCond : public OutputLit {
         throw std::runtime_error("unsupported literal");
     }
 
-    BuilderBase *translator_;
+    BuilderBase *bld_;
     LitVec body_;
 };
 
@@ -1307,12 +1316,12 @@ class OutputCond : public OutputLit {
 //! Supports the full range of clingo's body literals.
 class OutputBody : public OutputCond {
   public:
-    OutputBody(BuilderBase &translator) : OutputCond(translator) {}
+    OutputBody(BuilderBase &bld) : OutputCond(bld) {}
 
   private:
     auto delay_(Sign sign, std::optional<size_t> uid) -> size_t {
         if (!uid) {
-            uid = translator().next_lit();
+            uid = builder().next_lit();
         }
         append(sign, *uid);
         return *uid;
@@ -1400,9 +1409,9 @@ class OutputBackend : public OutputStm, OutputTheory {
         return cond_;
     }
 
-    auto do_cond_id() -> size_t override { return translator().cond(cond_.literals()); }
+    auto do_cond_id() -> size_t override { return builder().cond(cond_.literals()); }
 
-    auto do_uid() -> size_t override { return translator().next_lit(); }
+    auto do_uid() -> size_t override { return builder().next_lit(); }
 
     void do_cond_lit(size_t uid, CondLitSpan elems) override { cond_lit_.add(bld_, uid_to_lit(uid), elems); }
 
@@ -1491,27 +1500,27 @@ class OutputBackend : public OutputStm, OutputTheory {
 
     void do_mark([[maybe_unused]] SymbolCollector &gc) override {}
 
-    auto do_str(String val) -> size_t override { return theory_.str(translator(), val); }
+    auto do_str(String val) -> size_t override { return theory_.str(builder(), val); }
 
-    auto do_num(Number const &val) -> size_t override { return theory_.num(translator(), val); }
+    auto do_num(Number const &val) -> size_t override { return theory_.num(builder(), val); }
 
     auto do_fun(String name, IndexSpan args) -> size_t override {
-        return theory_.fun(translator(), name, {args.begin(), args.end()});
+        return theory_.fun(builder(), name, {args.begin(), args.end()});
     }
 
     auto do_tup(TheoryTermTupleType type, IndexSpan args) -> size_t override {
-        return theory_.tup(translator(), type, {args.begin(), args.end()});
+        return theory_.tup(builder(), type, {args.begin(), args.end()});
     }
 
     auto do_elem(IndexSpan tuple, size_t cond) -> size_t override {
-        return theory_.elm(translator(), tuple, uid_to_lit(cond));
+        return theory_.elm(builder(), tuple, uid_to_lit(cond));
     }
 
     void do_atm(OutputTheory::AtomType type, size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard) override {
-        theory_.atm(translator(), type, static_cast<int32_t>(atom_uid), name, elems, guard);
+        theory_.atm(builder(), type, static_cast<int32_t>(atom_uid), name, elems, guard);
     }
 
-    auto translator() -> BuilderBase & { return bld_; }
+    auto builder() -> BuilderBase & { return bld_; }
 
     LitVec lits_;
     BuilderBase bld_;
