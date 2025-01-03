@@ -15,6 +15,22 @@ namespace Clingo::Output {
 
 namespace {
 
+//! Available condition types.
+//!
+//! Conditions are clauses associated with a literal. The equivalence between
+//! the literal and the clause is either established with an implication (a
+//! rule) or an equivalence.
+enum class EQType : uint8_t {
+    none,        //!< the condition is not used
+    implication, //!< only forward direction is necessary
+    equivalence, //!< forward and backward directions are necessary
+};
+
+enum class ClauseType : uint8_t {
+    disjunctive,
+    conjunctive,
+};
+
 //! Convert a uid to an integer literal.
 //!
 //! @pre uid != 0
@@ -23,6 +39,17 @@ namespace {
 //! @return the resulting literal
 auto uid_to_lit(size_t uid) -> lit_t {
     assert(uid != 0);
+    return static_cast<int32_t>(uid);
+}
+
+//! Convert a uid to an integer atom.
+//!
+//! @pre static_cast<int32_t>(uid) > 0
+//!
+//! @param uid the uid to convert
+//! @return the resulting literal
+auto uid_to_atom(size_t uid) -> lit_t {
+    assert(static_cast<int32_t>(uid) > 0);
     return static_cast<int32_t>(uid);
 }
 
@@ -113,7 +140,7 @@ class Translator {
     //! Get a literal equivalent to the conjunction of the given literals.
     //!
     //! @param lits the literals
-    auto cond(LitSpan lits) -> lit_t { return clause_(lits, ClauseType::conjunctive); }
+    auto cond(LitSpan lits) -> lit_t { return clause(lits, ClauseType::conjunctive); }
 
     //! Get a conjunction of literals equivalent to the given literal.
     //!
@@ -204,8 +231,8 @@ class Translator {
                     auto x = next_lit();
                     auto y = next_lit();
                     aux_cond_.assign(conds.begin(), conds.end());
-                    auto c = clause_(aux_cond_, ClauseType::disjunctive);
-                    mark_(c, EQType::implication);
+                    auto c = clause(aux_cond_, ClauseType::disjunctive);
+                    mark(c, EQType::implication);
                     hd.emplace_back(x);
                     bd.emplace_back(y);
                     // a :- x.
@@ -221,8 +248,8 @@ class Translator {
                 }
             } else {
                 aux_cond_.assign(conds.begin(), conds.end());
-                bd.emplace_back(negate(clause_(aux_cond_, ClauseType::disjunctive)));
-                mark_(bd.back(), EQType::implication);
+                bd.emplace_back(negate(clause(aux_cond_, ClauseType::disjunctive)));
+                mark(bd.back(), EQType::implication);
             }
         }
         rule(hd, bd, false);
@@ -329,8 +356,8 @@ class Translator {
                     auto clit = uid_to_lit(cuid);
                     if (huid > 0) {
                         auto hlit = uid_to_lit(huid);
-                        bd_conds.back().emplace_back(clause_(std::array{hlit, clit}, ClauseType::conjunctive));
-                        mark_(clit, EQType::implication);
+                        bd_conds.back().emplace_back(clause(std::array{hlit, clit}, ClauseType::conjunctive));
+                        mark(clit, EQType::implication);
                         rule(std::array{hlit}, std::array{blit, clit}, true);
                     } else {
                         bd_conds.back().emplace_back(clit);
@@ -373,59 +400,6 @@ class Translator {
         backend_->rule(aux_hd_, aux_bd_, choice);
     }
 
-    //! Add an edge directive.
-    //!
-    //! A map from symbols to unsigned integers is stored in the translator.
-    //!
-    //! @param src name of the source vertex
-    //! @param dst name of the target vertex
-    //! @param body the body
-    void edge(Symbol src, Symbol dst, LitSpan body) { backend_->edge(vertex_(src), vertex_(dst), body); }
-
-    //! Add a heuristic directive.
-    //!
-    //! @pre atom > 0
-    //!
-    //! @param atom the atom index
-    //! @param weight the weight
-    //! @param prio the optional priority
-    //! @param type the heuristic type
-    //! @param body the body of the directive
-    void heuristic(lit_t atom, Number const &weight, Number const *prio, HeuristicType type, LitSpan body) {
-        backend_->heuristic(atom, num_to_int(weight), prio != nullptr ? num_to_int(*prio) : 0, type, body);
-    }
-
-    //! Add an external directive.
-    //!
-    //! @pre atom > 0
-    //!
-    //! @param atom the atom to declare external
-    //! @param type the type of the external
-    void external(lit_t atom, ExternalType type) {
-        assert(atom > 0);
-        backend_->external(atom, type);
-    }
-
-    //! Add a project directive.
-    //!
-    //! @pre atom > 0
-    //!
-    //! @param atom the atom to project
-    void project(lit_t atom) {
-        assert(atom > 0);
-        backend_->project(atom);
-    }
-
-    //! Add a weak constraint.
-    //!
-    //! @param weight the weight
-    //! @param prio the priority
-    //! @param terms the term tuple (without weight and priority)
-    //! @param body the body
-    void weak_constraint(weight_t weight, weight_t prio, SymbolSpan terms, LitSpan body) {
-        minimize_.add(*this, body, weight, prio, terms);
-    }
-
     //! Finish a grounding step.
     //!
     //! Some language constructs require additional translation.
@@ -443,35 +417,68 @@ class Translator {
         tr_cond_lits_();
         tr_sum_();
         tr_mms_();
-        minimize_.tr(*this);
         tr_clauses();
         graph_.clear();
     }
 
-    //! She the given symbol if the given conditon is true.
-    void show(Symbol sym, LitSpan body) { backend_->show(sym, body); }
-
+    //! Get the underlying backend.
     auto backend() -> Backend & { return *backend_; }
 
+    //! Get the underlying symbol store.
     auto store() -> SymbolStore & { return *store_; }
 
-  private:
-    //! Available condition types.
+    //! Mark a literal with the given equivalence type.
     //!
-    //! Conditions are clauses associated with a literal. The equivalence between
-    //! the literal and the clause is either established with an implication (a
-    //! rule) or an equivalence.
-    enum class EQType : uint8_t {
-        none,        //!< the condition is not used
-        implication, //!< only forward direction is necessary
-        equivalence, //!< forward and backward directions are necessary
-    };
+    //! If the literal is associated with a clause, the equivalence between
+    //! literal and clause is established accordingly.
+    auto mark(lit_t lit, EQType type) -> bool {
+        auto atm = std::abs(lit);
+        if (lit < 0) {
+            type = std::max(type, EQType::implication);
+        }
+        if (auto &info = info_(atm); info.clause != invalid_id && info.type < type) {
+            info.type = type;
+            return true;
+        }
+        return false;
+    }
 
-    enum class ClauseType : uint8_t {
-        disjunctive,
-        conjunctive,
-    };
+    //! Get a literal equivalent to the given clause.
+    auto clause(LitSpan lits, ClauseType type, bool add_edges = true) -> lit_t {
+        aux_bd_.assign(lits.begin(), lits.end());
+        std::ranges::sort(aux_bd_);
+        aux_bd_.erase(std::ranges::unique(aux_bd_).begin(), aux_bd_.end());
+        if (aux_bd_.size() == 1) {
+            return aux_bd_.front();
+        }
+        auto [it, ins] = clauses_.emplace(std::pair{aux_bd_, type}, 0);
+        if (ins) {
+            it.value() = next_lit();
+            info_(it.value()).clause = std::distance(clauses_.begin(), it);
+            for (auto const &lit : it->first.first) {
+                if (add_edges && lit > 0) {
+                    graph_.add_edge(it.value(), lit);
+                }
+            }
+        }
+        return it.value();
+    }
 
+    //! Map the given symbol to a unique id.
+    //!
+    //! @param name the name
+    auto vertex(Symbol name) -> id_t {
+        auto [it, ins] = vertices_.emplace(name, vertices_.size());
+        if (ins && vertices_.size() > 1 && it.value() == 0) {
+            throw std::range_error("maximum number of vertices exceeded");
+        }
+        return it.value();
+    }
+
+    //! Add an edge to the underlying graph.
+    void add_edge(size_t u, size_t v) { graph_.add_edge(u, v); }
+
+  private:
     //! Which weights have to be considered for cycle computation.
     enum class CycleType : uint8_t { none, positive, negative, both };
 
@@ -507,40 +514,6 @@ class Translator {
 
     using VertexMap = Util::unordered_map<SharedSymbol, Output::id_t>;
 
-    class Minimize {
-      public:
-        void add(Translator &tr, LitSpan lits, weight_t weight, weight_t prio, SymbolSpan terms) {
-            auto [it, ins] = tuples_.try_emplace(std::tuple(weight, prio, SharedSymbolVec{terms.begin(), terms.end()}));
-            auto &[old, conds] = it.value();
-            auto cond = LitVec{lits.begin(), lits.end()};
-            if (old != 0) {
-                cond.emplace_back(tr.negate(old));
-            }
-            if (ins) {
-                todo_.emplace_back(std::distance(tuples_.begin(), it));
-            }
-            conds.emplace_back(tr.clause_(cond, ClauseType::conjunctive));
-            tr.mark_(conds.back(), EQType::implication);
-        }
-
-        void tr(Translator &tr) {
-            for (auto const &idx : todo_) {
-                auto const &[weight, prio, terms] = tuples_.nth(idx).key();
-                auto &[old, conds] = tuples_.nth(idx).value();
-                assert(!conds.empty());
-                old = tr.clause_(conds, ClauseType::disjunctive);
-                tr.mark_(old, EQType::implication);
-                tr.backend_->minimize(old, weight, prio);
-                conds.clear();
-            }
-            todo_.clear();
-        }
-
-      private:
-        Util::ordered_map<std::tuple<weight_t, weight_t, SharedSymbolVec>, std::pair<lit_t, LitVec>> tuples_;
-        IndexVec todo_;
-    };
-
     //! Get the literal info for an atom.
     [[nodiscard]] auto info_(lit_t lit) -> LitInfo & {
         assert(lit > 0);
@@ -548,33 +521,6 @@ class Translator {
             lits_.emplace_back();
         }
         return lits_[lit - 1];
-    }
-
-    //! Mark a literal with the given equivalence type.
-    //!
-    //! If the literal is associated with a clause, the equivalence between
-    //! literal and clause is established accordingly.
-    auto mark_(lit_t lit, EQType type) -> bool {
-        auto atm = std::abs(lit);
-        if (lit < 0) {
-            type = std::max(type, EQType::implication);
-        }
-        if (auto &info = info_(atm); info.clause != invalid_id && info.type < type) {
-            info.type = type;
-            return true;
-        }
-        return false;
-    }
-
-    //! Map the given symbol to a unique id.
-    //!
-    //! @param name the name
-    auto vertex_(Symbol name) -> id_t {
-        auto [it, ins] = vertices_.emplace(name, vertices_.size());
-        if (ins && vertices_.size() > 1 && it.value() == 0) {
-            throw std::range_error("maximum number of vertices exceeded");
-        }
-        return it.value();
     }
 
     //! Translate stored clauses.
@@ -591,7 +537,7 @@ class Translator {
             assert(lit > 0);
             if (auto &info = info_(lit); info.type != EQType::none) {
                 for (auto const &clit : clauses_.nth(info.clause).key().first) {
-                    if (mark_(clit, info.type)) {
+                    if (this->mark(clit, info.type)) {
                         todo.emplace_back(std::abs(clit));
                     }
                 }
@@ -656,19 +602,19 @@ class Translator {
             // - G: captures the conclusion
             // - F: catures the premise
             for (auto const &[g, f] : elems) {
-                mark_(f, EQType::implication);
+                mark(f, EQType::implication);
                 if (g) {
                     auto rec = lit > 0 && f > 0 && info_(lit).scc > 0 && info_(lit).scc == info_(f).scc;
                     auto k = next_lit();
                     // formula G : F is replaced by K
                     // K :- G.
                     // K :- not F.
-                    mark_(*g, EQType::implication);
+                    mark(*g, EQType::implication);
                     backend_->rule(std::array{k}, std::array{*g}, false);
                     backend_->rule(std::array{k}, std::array{negate(f)}, false);
                     if (rec) {
                         // K | F :- not not G.
-                        mark_(f, EQType::equivalence);
+                        mark(f, EQType::equivalence);
                         backend_->rule(std::array{k, f}, std::array{negate(negate(*g))}, false);
                     }
                     aux_bd_.emplace_back(k);
@@ -708,7 +654,7 @@ class Translator {
                     // add weight literal pairs
                     aux_cond_.assign(conds.begin(), conds.end());
                     elem_vec.emplace_back(tup.front(),
-                                          clause_({aux_cond_.begin(), aux_cond_.end()}, ClauseType::disjunctive));
+                                          clause({aux_cond_.begin(), aux_cond_.end()}, ClauseType::disjunctive));
                 }
             }
         }
@@ -790,7 +736,7 @@ class Translator {
         }
         lits.resize(ids.back());
         for (auto const &clit : lits) {
-            mark_(clit, EQType::implication);
+            mark(clit, EQType::implication);
         }
         auto get_span = [&lits](auto it) {
             return std::span{std::next(lits.begin(), *it), std::next(lits.begin(), *(it + 1))};
@@ -847,8 +793,8 @@ class Translator {
                 if (state) {
                     // lit :- clit, aux_cond_.
                     if (aux_cond_.size() > 1) {
-                        auto nlit = clause_(aux_cond_, ClauseType::conjunctive, false);
-                        mark_(nlit, EQType::implication);
+                        auto nlit = clause(aux_cond_, ClauseType::conjunctive, false);
+                        mark(nlit, EQType::implication);
                         aux_cond_.clear();
                         aux_cond_.emplace_back(nlit);
                     }
@@ -863,7 +809,7 @@ class Translator {
                         // nlit :- not clit.
                         // nlit :- lit.
                         // nlit | clit :- not not l.
-                        mark_(clit, EQType::equivalence);
+                        mark(clit, EQType::equivalence);
                         auto nlit = next_lit();
                         backend_->rule(std::array{nlit}, std::array{negate(clit)}, false);
                         backend_->rule(std::array{nlit}, std::array{negate(lit)}, false);
@@ -913,7 +859,7 @@ class Translator {
                     } else {
                         aux_cond_.assign(conds.begin(), conds.end());
                         elem_vec.emplace_back(std::move(num),
-                                              clause_({aux_cond_.begin(), aux_cond_.end()}, ClauseType::disjunctive));
+                                              clause({aux_cond_.begin(), aux_cond_.end()}, ClauseType::disjunctive));
                     }
                 }
             }
@@ -1143,7 +1089,7 @@ class Translator {
             auto it = elems.begin();
             for (auto const &nlit : nlits) {
                 auto clit = it++->second;
-                mark_(clit, nlit > 0 ? EQType::equivalence : EQType::implication);
+                mark(clit, nlit > 0 ? EQType::equivalence : EQType::implication);
                 if (nlit > 0) {
                     // nlit :- lit.                % saturate
                     backend_->rule(std::array{nlit}, std::array{lit}, false);
@@ -1152,27 +1098,6 @@ class Translator {
                 }
             }
         }
-    }
-
-    //! Get a literal equivalent to the given clause.
-    auto clause_(LitSpan lits, ClauseType type, bool add_edges = true) -> lit_t {
-        aux_bd_.assign(lits.begin(), lits.end());
-        std::ranges::sort(aux_bd_);
-        aux_bd_.erase(std::ranges::unique(aux_bd_).begin(), aux_bd_.end());
-        if (aux_bd_.size() == 1) {
-            return aux_bd_.front();
-        }
-        auto [it, ins] = clauses_.emplace(std::pair{aux_bd_, type}, 0);
-        if (ins) {
-            it.value() = next_lit();
-            info_(it.value()).clause = std::distance(clauses_.begin(), it);
-            for (auto const &lit : it->first.first) {
-                if (add_edges && lit > 0) {
-                    graph_.add_edge(it.value(), lit);
-                }
-            }
-        }
-        return it.value();
     }
 
     SymbolStore *store_;
@@ -1188,7 +1113,211 @@ class Translator {
     DisjVec disjs_;
     SumVec sum_aggrs_;
     MinVec min_aggrs_;
-    Minimize minimize_;
+};
+
+class RuleBuilder {
+  public:
+    //! Add a disjunctive or choice rule.
+    //!
+    //! Note that negative literals in the head are supported. They are shifted
+    //! before passing them to the backend.
+    //!
+    //! @param head the literals forming the head
+    //! @param body the literals forming the body
+    //! @param choice whether the rule is a choice or disjunctive rule
+    void add(Translator &tr, LitSpan head, LitSpan body, bool choice) {
+        hd_.clear();
+        bd_.clear();
+        for (auto const &hlit : head) {
+            if (hlit > 0) {
+                hd_.emplace_back(hlit);
+                for (auto const &blit : body) {
+                    if (blit > 0) {
+                        tr.add_edge(hlit, blit);
+                    }
+                }
+            } else if (!choice) {
+                bd_.emplace_back(tr.negate(hlit));
+            }
+        }
+        bd_.insert(bd_.end(), body.begin(), body.end());
+        tr.backend().rule(hd_, bd_, choice);
+    }
+
+  private:
+    Output::LitVec hd_;
+    Output::LitVec bd_;
+};
+
+class MinimizeBuilder {
+  public:
+    void add(Translator &tr, LitSpan lits, weight_t weight, weight_t prio, SymbolSpan terms) {
+        auto [it, ins] = tuples_.try_emplace(std::tuple(weight, prio, SharedSymbolVec{terms.begin(), terms.end()}));
+        auto &[old, conds] = it.value();
+        auto cond = LitVec{lits.begin(), lits.end()};
+        if (old != 0) {
+            cond.emplace_back(tr.negate(old));
+        }
+        if (ins) {
+            todo_.emplace_back(std::distance(tuples_.begin(), it));
+        }
+        conds.emplace_back(tr.clause(cond, ClauseType::conjunctive));
+        tr.mark(conds.back(), EQType::implication);
+    }
+
+    void tr(Translator &tr) {
+        for (auto const &idx : todo_) {
+            auto const &[weight, prio, terms] = tuples_.nth(idx).key();
+            auto &[old, conds] = tuples_.nth(idx).value();
+            assert(!conds.empty());
+            old = tr.clause(conds, ClauseType::disjunctive);
+            tr.mark(old, EQType::implication);
+            tr.backend().minimize(old, weight, prio);
+            conds.clear();
+        }
+        todo_.clear();
+    }
+
+  private:
+    Util::ordered_map<std::tuple<weight_t, weight_t, SharedSymbolVec>, std::pair<lit_t, LitVec>> tuples_;
+    IndexVec todo_;
+};
+
+class TheoryBuilder {
+  public:
+    using IdVec = Translator::IdVec;
+
+    auto str(Translator &trans, String str) -> id_t {
+        auto [it, ins] = insert_(strings_, str);
+        if (ins) {
+            trans.backend().theory_str(it.value(), it.key()->c_str());
+        }
+        return it.value();
+    }
+    auto num(Translator &trans, Number const &num) -> id_t {
+        auto [it, ins] = insert_(nums_, num_to_int(num));
+        if (ins) {
+            trans.backend().theory_num(it.value(), it.key());
+        }
+        return it.value();
+    }
+    auto fun(Translator &trans, String name, IdVec args) -> size_t {
+        if (args.empty()) {
+            return str(trans, name);
+        }
+        auto [it, ins] = insert_(funs_, std::pair{str(trans, name), std::move(args)});
+        if (ins) {
+            trans.backend().theory_fun(it.value(), it.key().first, it.key().second);
+        }
+        return it.value();
+    }
+    auto tup(Translator &trans, TheoryTermTupleType type, IdVec args) -> size_t {
+        auto [it, ins] = insert_(tups_, std::pair{type, std::move(args)});
+        if (ins) {
+            trans.backend().theory_tup(it.value(), it.key().first, it.key().second);
+        }
+        return it.value();
+    }
+
+    auto elm(Translator &trans, IndexSpan tuple, lit_t cond) -> size_t {
+        auto [it, ins] = insert_(elems_, std::pair{cond, IdVec{tuple.begin(), tuple.end()}});
+        if (ins) {
+            trans.backend().theory_elem(it.value(), it.key().second, trans.cond(cond));
+        }
+        return it.value();
+    }
+    void atm(Translator &trans, OutputTheory::AtomType type, lit_t lit, Symbol name, IndexSpan elems,
+             OutputTheory::OptGuard guard) {
+        assert(lit >= 0);
+        auto [it, ins] =
+            atoms_.emplace(std::tuple{sym_(trans, name), IdVec{elems.begin(), elems.end()},
+                                      Util::transform(guard,
+                                                      [](auto const &guard) {
+                                                          return std::pair{static_cast<id_t>(guard.first),
+                                                                           static_cast<id_t>(guard.second)};
+                                                      })},
+                           lit);
+        if (ins) {
+            trans.backend().theory_atom(type != OutputTheory::AtomType::directive ? it.value() : 0, get<0>(it.key()),
+                                        get<1>(it.key()), get<2>(it.key()));
+        } else if (lit != it.value()) {
+            assert(lit != 0 && it.value() != 0);
+            if (type == OutputTheory::AtomType::body) {
+                trans.backend().rule(std::array{it.value()}, std::array{lit}, false);
+            } else {
+                trans.backend().rule(std::array{lit}, std::array{it.value()}, false);
+            }
+        }
+    }
+
+  private:
+    using StringMap = Util::unordered_map<SharedString, id_t>;
+    using NumMap = Util::unordered_map<weight_t, id_t>;
+    using FunMap = Util::unordered_map<std::pair<id_t, IdVec>, id_t>;
+    using TupMap = Util::unordered_map<std::pair<TheoryTermTupleType, IdVec>, id_t>;
+    using ElemMap = Util::unordered_map<std::pair<lit_t, IdVec>, id_t>;
+    using AtomMap = Util::unordered_map<std::tuple<id_t, IdVec, std::optional<std::pair<id_t, id_t>>>, lit_t>;
+
+    auto sym_(Translator &trans, Symbol sym) -> id_t {
+        switch (sym.type()) {
+            case SymbolType::inf: {
+                return str(trans, trans.store().string_ref("#inf"));
+            }
+            case SymbolType::sup: {
+                return str(trans, trans.store().string_ref("#sup"));
+            }
+            case SymbolType::number: {
+                return num(trans, sym.num());
+            }
+            case SymbolType::string: {
+                buf_.reset();
+                buf_ << sym;
+                return str(trans, trans.store().string_ref(buf_.c_str()));
+            }
+            case SymbolType::function: {
+                if (sym.has_classical_sign()) {
+                    // NOLINTBEGIN(bugprone-unchecked-optional-access)
+                    return fun(trans, trans.store().string_ref("-"),
+                               std::vector{sym_(trans, *sym.flip_classical_sign())});
+                    // NOLINTEND(bugprone-unchecked-optional-access)
+                }
+                auto args = IdVec{};
+                args.reserve(sym.args().size());
+                for (auto const &arg : sym.args()) {
+                    args.emplace_back(sym_(trans, arg));
+                }
+                return fun(trans, sym.name(), args);
+            }
+            case SymbolType::tuple: {
+                auto args = IdVec{};
+                args.reserve(sym.args().size());
+                for (auto const &arg : sym.args()) {
+                    args.emplace_back(sym_(trans, arg));
+                }
+                return tup(trans, TheoryTermTupleType::tuple, args);
+            }
+        }
+        Util::unreachable();
+    }
+
+    template <class M, class V> auto insert_(M &map, V &&val) -> std::pair<typename M::iterator, bool> {
+        auto [it, ins] = map.try_emplace(std::forward<V>(val), ids_);
+        if (ins) {
+            ++ids_;
+            if (ids_ == std::numeric_limits<id_t>::max()) {
+                throw std::range_error("theory ids exhausted");
+            }
+        }
+        return {it, ins};
+    }
+    Util::OutputBuffer buf_;
+    StringMap strings_;
+    NumMap nums_;
+    FunMap funs_;
+    TupMap tups_;
+    ElemMap elems_;
+    AtomMap atoms_;
+    id_t ids_ = 0;
 };
 
 //! Output handling conditions.
@@ -1226,23 +1355,16 @@ class OutputCond : public OutputLit {
                 return;
             }
             case Sign::once: {
-                body_.emplace_back(-uid_to_lit(uid));
+                body_.emplace_back(translator().negate(uid_to_lit(uid)));
                 return;
             }
             case Sign::twice: {
-                body_.emplace_back(translator().negate(-uid_to_lit(uid)));
+                body_.emplace_back(translator().negate(translator().negate(uid_to_lit(uid))));
                 return;
             }
         }
         Util::unreachable();
     }
-
-    //! Append the given uid to the body.
-    //!
-    //! Equivalent to `append(Sign::none, uid)`.
-    //!
-    //! @param uid the uid
-    auto append(size_t uid) { body_.emplace_back(uid_to_lit(uid)); }
 
     //! Start a new condition/body clearing the underlying literals.
     void start() { body_.clear(); }
@@ -1261,11 +1383,9 @@ class OutputCond : public OutputLit {
     auto do_cond_lit([[maybe_unused]] std::optional<size_t> uid) -> size_t override {
         throw std::runtime_error("unsupported literal");
     }
-
     auto do_bd_aggr([[maybe_unused]] Sign sign, [[maybe_unused]] std::optional<size_t> uid) -> size_t override {
         throw std::runtime_error("unsupported literal");
     }
-
     auto do_bd_theory([[maybe_unused]] Sign sign, [[maybe_unused]] std::optional<size_t> uid) -> size_t override {
         throw std::runtime_error("unsupported literal");
     }
@@ -1285,15 +1405,7 @@ class OutputBody : public OutputCond {
     OutputBody(Translator &translator) : OutputCond(translator) {}
 
   private:
-    auto do_cond_lit(std::optional<size_t> uid) -> size_t override {
-        if (!uid) {
-            uid = translator().next_lit();
-        }
-        append(*uid);
-        return *uid;
-    }
-
-    auto do_bd_aggr(Sign sign, std::optional<size_t> uid) -> size_t override {
+    auto delay_(Sign sign, std::optional<size_t> uid) -> size_t {
         if (!uid) {
             uid = translator().next_lit();
         }
@@ -1301,13 +1413,9 @@ class OutputBody : public OutputCond {
         return *uid;
     }
 
-    auto do_bd_theory(Sign sign, std::optional<size_t> uid) -> size_t override {
-        if (!uid) {
-            uid = translator().next_lit();
-        }
-        append(sign, *uid);
-        return *uid;
-    }
+    auto do_cond_lit(std::optional<size_t> uid) -> size_t override { return delay_(Sign::none, uid); }
+    auto do_bd_aggr(Sign sign, std::optional<size_t> uid) -> size_t override { return delay_(sign, uid); }
+    auto do_bd_theory(Sign sign, std::optional<size_t> uid) -> size_t override { return delay_(sign, uid); }
 };
 
 class OutputBackend : public OutputStm, OutputTheory {
@@ -1315,39 +1423,40 @@ class OutputBackend : public OutputStm, OutputTheory {
     OutputBackend(SymbolStore &store, Backend &backend) : translator_{store, backend} {};
 
   private:
-    void do_fact([[maybe_unused]] Symbol sym, size_t uid) override {
-        translator().rule(std::array{uid_to_lit(uid)}, LitSpan{}, false);
-    }
-
     [[nodiscard]] auto do_body() -> OutputLit & override {
         body_.start();
         return body_;
     }
 
+    void do_fact([[maybe_unused]] Symbol sym, size_t uid) override {
+        rule_.add(translator_, std::array{uid_to_lit(uid)}, LitSpan{}, false);
+    }
+
     void do_rule(std::optional<std::tuple<Symbol, size_t, bool>> head) override {
-        bool choice = false;
         if (head) {
-            choice = get<2>(*head);
+            auto choice = get<2>(*head);
             auto lit = uid_to_lit(get<1>(*head));
-            translator().rule(std::array{lit}, body_.literals(), choice);
+            rule_.add(translator_, std::array{lit}, body_.literals(), choice);
         } else {
-            translator().rule({}, body_.literals(), choice);
+            rule_.add(translator_, {}, body_.literals(), false);
         }
     }
 
-    void do_show_term(Symbol term) override { translator().show(term, body_.literals()); }
+    void do_show_term(Symbol term) override { translator_.backend().show(term, body_.literals()); }
 
     void do_external([[maybe_unused]] Symbol atom, size_t uid, ExternalType type) override {
-        translator().external(uid_to_lit(uid), type);
+        translator_.backend().external(uid_to_atom(uid), type);
     }
 
-    void do_project([[maybe_unused]] Symbol atom, size_t uid) override { translator().project(uid_to_lit(uid)); }
+    void do_project([[maybe_unused]] Symbol atom, size_t uid) override {
+        translator_.backend().project(uid_to_atom(uid));
+    }
 
     auto do_aggr_rule(std::optional<size_t> uid) -> size_t override {
         if (!uid) {
             uid = translator_.next_lit();
         }
-        translator().rule(std::array{uid_to_lit(*uid)}, body_.literals(), false);
+        rule_.add(translator_, std::array{uid_to_lit(*uid)}, body_.literals(), false);
         return *uid;
     }
 
@@ -1355,7 +1464,7 @@ class OutputBackend : public OutputStm, OutputTheory {
         if (!uid) {
             uid = translator_.next_lit();
         }
-        translator().rule(std::array{uid_to_lit(*uid)}, body_.literals(), false);
+        rule_.add(translator_, std::array{uid_to_lit(*uid)}, body_.literals(), false);
         return *uid;
     }
 
@@ -1363,21 +1472,26 @@ class OutputBackend : public OutputStm, OutputTheory {
         if (!uid) {
             uid = translator_.next_lit();
         }
-        translator().rule(std::array{uid_to_lit(*uid)}, body_.literals(), false);
+        rule_.add(translator_, std::array{uid_to_lit(*uid)}, body_.literals(), false);
         return *uid;
     }
 
     void do_weak_constraint(Number const &weight, Number const *prio, SymbolSpan terms) override {
-        translator().weak_constraint(num_to_int(weight), prio != nullptr ? num_to_int(*prio) : 0, terms,
-                                     body_.literals());
+        minimize_.add(translator_, body_.literals(), num_to_int(weight), prio != nullptr ? num_to_int(*prio) : 0,
+                      terms);
     }
 
     void do_heuristic([[maybe_unused]] Symbol atom, size_t uid, Number const &weight, Number const *prio,
                       HeuristicType type) override {
-        translator().heuristic(uid_to_lit(uid), weight, prio, type, body_.literals());
+        translator_.backend().heuristic(uid_to_lit(uid), num_to_int(weight), prio != nullptr ? num_to_int(*prio) : 0,
+                                        type, body_.literals());
     }
 
-    void do_edge(Symbol src, Symbol dst) override { translator().edge(src, dst, body_.literals()); }
+    void do_edge(Symbol src, Symbol dst) override {
+        auto id_src = translator_.vertex(src);
+        auto id_dst = translator_.vertex(dst);
+        translator_.backend().edge(id_src, id_dst, body_.literals());
+    }
 
     auto do_cond() -> OutputLit & override {
         cond_.start();
@@ -1404,146 +1518,12 @@ class OutputBackend : public OutputStm, OutputTheory {
 
     void do_flush() override {}
 
-    void do_end_step() override { translator_.end_step(); }
+    void do_end_step() override {
+        translator_.end_step();
+        minimize_.tr(translator_);
+    }
 
     void do_mark([[maybe_unused]] SymbolCollector &gc) override {}
-
-    class Theory {
-      public:
-        using IdVec = Translator::IdVec;
-
-        auto str(Translator &trans, String str) -> id_t {
-            auto [it, ins] = insert_(strings_, str);
-            if (ins) {
-                trans.backend().theory_str(it.value(), it.key()->c_str());
-            }
-            return it.value();
-        }
-        auto num(Translator &trans, Number const &num) -> id_t {
-            auto [it, ins] = insert_(nums_, num_to_int(num));
-            if (ins) {
-                trans.backend().theory_num(it.value(), it.key());
-            }
-            return it.value();
-        }
-        auto fun(Translator &trans, String name, IdVec args) -> size_t {
-            if (args.empty()) {
-                return str(trans, name);
-            }
-            auto [it, ins] = insert_(funs_, std::pair{str(trans, name), std::move(args)});
-            if (ins) {
-                trans.backend().theory_fun(it.value(), it.key().first, it.key().second);
-            }
-            return it.value();
-        }
-        auto tup(Translator &trans, TheoryTermTupleType type, IdVec args) -> size_t {
-            auto [it, ins] = insert_(tups_, std::pair{type, std::move(args)});
-            if (ins) {
-                trans.backend().theory_tup(it.value(), it.key().first, it.key().second);
-            }
-            return it.value();
-        }
-
-        auto elem(Translator &trans, IndexSpan tuple, lit_t cond) -> size_t {
-            auto [it, ins] = insert_(elems_, std::pair{cond, IdVec{tuple.begin(), tuple.end()}});
-            if (ins) {
-                trans.backend().theory_elem(it.value(), it.key().second, trans.cond(cond));
-            }
-            return it.value();
-        }
-        void atom(Translator &trans, OutputTheory::AtomType type, lit_t lit, Symbol name, IndexSpan elems,
-                  OptGuard guard) {
-            assert(lit >= 0);
-            auto [it, ins] =
-                atoms_.emplace(std::tuple{sym_(trans, name), IdVec{elems.begin(), elems.end()},
-                                          Util::transform(guard,
-                                                          [](auto const &guard) {
-                                                              return std::pair{static_cast<id_t>(guard.first),
-                                                                               static_cast<id_t>(guard.second)};
-                                                          })},
-                               lit);
-            if (ins) {
-                trans.backend().theory_atom(type != OutputTheory::AtomType::directive ? it.value() : 0,
-                                            get<0>(it.key()), get<1>(it.key()), get<2>(it.key()));
-            } else if (lit != it.value()) {
-                assert(lit != 0 && it.value() != 0);
-                if (type == OutputTheory::AtomType::body) {
-                    trans.backend().rule(std::array{it.value()}, std::array{lit}, false);
-                } else {
-                    trans.backend().rule(std::array{lit}, std::array{it.value()}, false);
-                }
-            }
-        }
-
-      private:
-        using StringMap = Util::unordered_map<SharedString, id_t>;
-        using NumMap = Util::unordered_map<weight_t, id_t>;
-        using FunMap = Util::unordered_map<std::pair<id_t, IdVec>, id_t>;
-        using TupMap = Util::unordered_map<std::pair<TheoryTermTupleType, IdVec>, id_t>;
-        using ElemMap = Util::unordered_map<std::pair<lit_t, IdVec>, id_t>;
-        using AtomMap = Util::unordered_map<std::tuple<id_t, IdVec, std::optional<std::pair<id_t, id_t>>>, lit_t>;
-
-        auto sym_(Translator &trans, Symbol sym) -> id_t {
-            switch (sym.type()) {
-                case SymbolType::inf: {
-                    return str(trans, trans.store().string_ref("#inf"));
-                }
-                case SymbolType::sup: {
-                    return str(trans, trans.store().string_ref("#sup"));
-                }
-                case SymbolType::number: {
-                    return num(trans, sym.num());
-                }
-                case SymbolType::string: {
-                    buf_.reset();
-                    buf_ << sym;
-                    return str(trans, trans.store().string_ref(buf_.c_str()));
-                }
-                case SymbolType::function: {
-                    if (sym.has_classical_sign()) {
-                        // NOLINTBEGIN(bugprone-unchecked-optional-access)
-                        return fun(trans, trans.store().string_ref("-"),
-                                   std::vector{sym_(trans, *sym.flip_classical_sign())});
-                        // NOLINTEND(bugprone-unchecked-optional-access)
-                    }
-                    auto args = IdVec{};
-                    args.reserve(sym.args().size());
-                    for (auto const &arg : sym.args()) {
-                        args.emplace_back(sym_(trans, arg));
-                    }
-                    return fun(trans, sym.name(), args);
-                }
-                case SymbolType::tuple: {
-                    auto args = IdVec{};
-                    args.reserve(sym.args().size());
-                    for (auto const &arg : sym.args()) {
-                        args.emplace_back(sym_(trans, arg));
-                    }
-                    return tup(trans, TheoryTermTupleType::tuple, args);
-                }
-            }
-            Util::unreachable();
-        }
-
-        template <class M, class V> auto insert_(M &map, V &&val) -> std::pair<typename M::iterator, bool> {
-            auto [it, ins] = map.try_emplace(std::forward<V>(val), ids_);
-            if (ins) {
-                ++ids_;
-                if (ids_ == std::numeric_limits<id_t>::max()) {
-                    throw std::range_error("theory ids exhausted");
-                }
-            }
-            return {it, ins};
-        }
-        Util::OutputBuffer buf_;
-        StringMap strings_;
-        NumMap nums_;
-        FunMap funs_;
-        TupMap tups_;
-        ElemMap elems_;
-        AtomMap atoms_;
-        id_t ids_ = 0;
-    };
 
     auto do_str(String val) -> size_t override { return theory_.str(translator(), val); }
 
@@ -1558,18 +1538,20 @@ class OutputBackend : public OutputStm, OutputTheory {
     }
 
     auto do_elem(IndexSpan tuple, size_t cond) -> size_t override {
-        return theory_.elem(translator(), tuple, uid_to_lit(cond));
+        return theory_.elm(translator(), tuple, uid_to_lit(cond));
     }
 
     void do_atm(OutputTheory::AtomType type, size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard) override {
-        theory_.atom(translator(), type, static_cast<int32_t>(atom_uid), name, elems, guard);
+        theory_.atm(translator(), type, static_cast<int32_t>(atom_uid), name, elems, guard);
     }
 
     auto translator() -> Translator & { return translator_; }
 
     LitVec lits_;
     Translator translator_;
-    Theory theory_;
+    RuleBuilder rule_;
+    TheoryBuilder theory_;
+    MinimizeBuilder minimize_;
     OutputBody body_{translator_};
     OutputCond cond_{translator_};
 };
