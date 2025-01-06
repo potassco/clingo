@@ -365,7 +365,7 @@ class BuilderRule {
     Output::LitVec bd_;
 };
 
-class BuilderMinMax {
+template <class Sym> class BuilderMinMax {
   public:
     //! Delays or translates min and max aggregates based on monotonicity.
     //!
@@ -385,41 +385,39 @@ class BuilderMinMax {
     //!
     //! Nonmonotone aggregates are delayed for later translation. Otherwise,
     //! aggregates are translated right away.
-    template <class Sym>
     void add(BuilderBase &bld, lit_t lit, OutputStm::BdElemSpan elems, OutputStm::GuardSpan guards) {
         assert(lit > 0);
-        auto [lower, upper, bounds, elem_vec] = analyze_<Sym>(bld, elems, guards);
-        auto lits = LitVec{};
-        auto ids = IndexVec{};
-        lits.reserve(elem_vec.size());
-        ids.emplace_back(0);
+        auto [lower, upper, bounds] = analyze_(bld, elems, guards);
+        lits_.clear();
+        ids_.clear();
+        ids_.emplace_back(0);
         auto start = bounds.contains(lower);
         auto state = start;
-        for (auto const &[weight, lit] : elem_vec) {
+        for (auto const &[weight, lit] : elems_) {
             auto prev = state;
             state = bounds.contains(weight);
             if (prev != state) {
-                ids.emplace_back(lits.size());
+                ids_.emplace_back(lits_.size());
             }
-            lits.emplace_back(lit);
+            lits_.emplace_back(lit);
         }
         if (state != bounds.contains(upper)) {
-            ids.emplace_back(lits.size());
+            ids_.emplace_back(lits_.size());
         }
-        lits.resize(ids.back());
-        for (auto const &clit : lits) {
+        lits_.resize(ids_.back());
+        for (auto const &clit : lits_) {
             bld.mark(clit, EQType::implication);
         }
-        auto get_span = [&lits](auto it) {
-            return std::span{std::next(lits.begin(), *it), std::next(lits.begin(), *(it + 1))};
+        auto get_span = [this](auto it) {
+            return std::span{std::next(lits_.begin(), *it), std::next(lits_.begin(), *(it + 1))};
         };
-        if (ids.size() <= 2 || (ids.size() == 3 && !start)) {
+        if (ids_.size() <= 2 || (ids_.size() == 3 && !start)) {
             // translate constant, monotone, antimontone, and convex cases
-            tr_(bld, lit, start, lits, ids, false);
+            tr_(bld, lit, start, lits_, ids_, false);
         } else {
             // delay nonmonotone case
             bool state = start;
-            for (auto it = ids.begin(), ie = ids.end(); it + 1 != ie; ++it) {
+            for (auto it = ids_.begin(), ie = ids_.end(); it + 1 != ie; ++it) {
                 if (state) {
                     for (auto const &clit : get_span(it)) {
                         if (clit > 0) {
@@ -429,7 +427,7 @@ class BuilderMinMax {
                 }
                 state = !state;
             }
-            delayed_.emplace_back(lit, start, std::move(lits), std::move(ids));
+            delayed_.emplace_back(lit, start, lits_, ids_);
         }
     }
 
@@ -443,20 +441,21 @@ class BuilderMinMax {
 
   private:
     //! A vector of sum aggregates.
-    using MinVec = std::vector<std::tuple<lit_t, bool, LitVec, IndexVec>>;
+    using DelayedVec = std::vector<std::tuple<lit_t, bool, LitVec, IndexVec>>;
 
     //! Simplify and analyze min and max aggregates.
     //!
     //! Returns relevant elements, the range, and bounds of the aggregate.
-    template <class Sym>
-    auto analyze_(BuilderBase &bld, OutputStm::BdElemSpan elems, OutputStm::GuardSpan guards)
-        -> std::tuple<Sym, Sym, Util::interval_set<Sym>, std::vector<std::pair<Sym, lit_t>>> {
+    //!
+    //! @warning Relevant elements are stored in member `elems_`.
+    auto analyze_(BuilderBase &bld, OutputStm::BdElemSpan elems,
+                  OutputStm::GuardSpan guards) -> std::tuple<Sym, Sym, Util::interval_set<Sym>> {
         // simplify the elements
+        elems_.clear();
+        elems_.reserve(elems.size());
+        cond_map_.clear();
+        cond_map_.reserve(elems.size());
         auto upper = Sym::neutral();
-        auto elem_vec = std::vector<std::pair<Sym, lit_t>>{};
-        auto cond_map = Util::unordered_map<IndexSpan, size_t>{};
-        elem_vec.reserve(elems.size());
-        cond_map.reserve(elems.size());
         for (auto const &[tup, conds] : elems) {
             if (!tup.empty() && tup.front() < upper && conds.empty()) {
                 // adjust upper bound
@@ -466,19 +465,18 @@ class BuilderMinMax {
         for (auto const &[tup, conds] : elems) {
             if (!tup.empty() && tup.front() < upper) {
                 assert(!conds.empty());
-                if (auto [it, ins] = cond_map.try_emplace(conds, elem_vec.size()); !ins) {
+                if (auto [it, ins] = cond_map_.try_emplace(conds, elems_.size()); !ins) {
                     // drop tuples with larger weights
-                    get<0>(elem_vec[it.value()]) = std::min<Sym>(get<0>(elem_vec[it.value()]), tup.front());
+                    get<0>(elems_[it.value()]) = std::min<Sym>(get<0>(elems_[it.value()]), tup.front());
                 } else {
                     // add weight literal pairs
                     lits_.assign(conds.begin(), conds.end());
-                    elem_vec.emplace_back(tup.front(),
-                                          bld.clause({lits_.begin(), lits_.end()}, ClauseType::disjunctive));
+                    elems_.emplace_back(tup.front(), bld.clause({lits_.begin(), lits_.end()}, ClauseType::disjunctive));
                 }
             }
         }
-        std::ranges::sort(elem_vec);
-        auto lower = elem_vec.empty() ? upper : get<0>(elem_vec.front());
+        std::ranges::sort(elems_);
+        auto lower = elems_.empty() ? upper : get<0>(elems_.front());
         // compute the bounds of the aggregate
         auto bounds = Util::interval_set<Sym>{};
         auto range = typename Util::interval_set<Sym>::interval{{lower, true}, {upper, true}};
@@ -512,7 +510,7 @@ class BuilderMinMax {
                 }
             }
         }
-        return {lower, upper, bounds, std::move(elem_vec)};
+        return {lower, upper, bounds};
     }
 
     //! Translates min and max aggregates.
@@ -539,24 +537,25 @@ class BuilderMinMax {
         auto get_span = [&lits = lits](auto it) {
             return std::span{std::next(lits.begin(), *it), std::next(lits.begin(), *(it + 1))};
         };
-        lits_.clear();
+        tr_lits_.clear();
+        tr_lits_.reserve(lits.size());
         auto state = start;
         for (auto it = ids.begin(), ie = ids.end(); it + 1 != ie; ++it) {
             for (auto const &clit : get_span(it)) {
                 if (state) {
-                    // lit :- clit, lits_.
-                    if (lits_.size() > 1) {
-                        auto nlit = bld.clause(lits_, ClauseType::conjunctive, false);
+                    // lit :- clit, tr_lits_.
+                    if (tr_lits_.size() > 1) {
+                        auto nlit = bld.clause(tr_lits_, ClauseType::conjunctive, false);
                         bld.mark(nlit, EQType::implication);
-                        lits_.clear();
-                        lits_.emplace_back(nlit);
+                        tr_lits_.clear();
+                        tr_lits_.emplace_back(nlit);
                     }
-                    lits_.emplace_back(clit);
+                    tr_lits_.emplace_back(clit);
                     if (!delayed && clit > 0) {
                         bld.add_edge(lit, clit);
                     }
-                    bld.backend().rule(std::array{lit}, lits_, false);
-                    lits_.pop_back();
+                    bld.backend().rule(std::array{lit}, tr_lits_, false);
+                    tr_lits_.pop_back();
                 } else {
                     if (delayed && bld.in_cycle(lit, clit)) {
                         // nlit :- not clit.
@@ -567,21 +566,31 @@ class BuilderMinMax {
                         bld.backend().rule(std::array{nlit}, std::array{bld.negate(clit)}, false);
                         bld.backend().rule(std::array{nlit}, std::array{bld.negate(lit)}, false);
                         bld.backend().rule(std::array{nlit, clit}, std::array{bld.negate(bld.negate(lit))}, false);
-                        lits_.emplace_back(nlit);
+                        tr_lits_.emplace_back(nlit);
                     } else {
-                        lits_.emplace_back(bld.negate(clit));
+                        tr_lits_.emplace_back(bld.negate(clit));
                     }
                 }
             }
             state = !state;
         }
         if (state) {
-            bld.backend().rule(std::array{lit}, lits_, false);
+            bld.backend().rule(std::array{lit}, tr_lits_, false);
         }
     }
 
-    MinVec delayed_;
+    //! Aggregates for translation once dependency info is available.
+    DelayedVec delayed_;
+    //! Vector produced as a side-effect by analyze_ to avoid allocations.
+    std::vector<std::pair<Sym, lit_t>> elems_;
+    //! Map used by `analyze_` to avoid allocations.
+    Util::unordered_map<IndexSpan, size_t> cond_map_;
+    //! Vector used by `add` and `analyze_` to avoid allocations.
     LitVec lits_;
+    //! Vector used by `add` to avoid allocations.
+    IndexVec ids_;
+    //! Vector used by `tr_` to avoid allocations.
+    LitVec tr_lits_;
 };
 
 class BuilderSum {
@@ -1426,11 +1435,11 @@ class OutputBackend : public OutputStm, OutputTheory {
                 break;
             }
             case AggregateFunction::min: {
-                mm_.add<FwdSym>(bld_, lit, elems, guards);
+                min_.add(bld_, lit, elems, guards);
                 break;
             }
             case AggregateFunction::max: {
-                mm_.add<BwdSym>(bld_, lit, elems, guards);
+                max_.add(bld_, lit, elems, guards);
                 break;
             }
             case Clingo::AggregateFunction::count: {
@@ -1493,7 +1502,8 @@ class OutputBackend : public OutputStm, OutputTheory {
         minimize_.tr(bld_);
         cond_lit_.tr(bld_);
         disjunction_.tr(bld_);
-        mm_.tr(bld_);
+        min_.tr(bld_);
+        max_.tr(bld_);
         sum_.tr(bld_);
         bld_.tr();
     }
@@ -1525,7 +1535,8 @@ class OutputBackend : public OutputStm, OutputTheory {
     LitVec lits_;
     BuilderBase bld_;
     BuilderRule rule_;
-    BuilderMinMax mm_;
+    BuilderMinMax<FwdSym> min_;
+    BuilderMinMax<BwdSym> max_;
     BuilderSum sum_;
     BuilderCondLit cond_lit_;
     BuilderDisjunction disjunction_;
