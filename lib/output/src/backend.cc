@@ -597,10 +597,11 @@ template <class Sym> class BuilderMinMax {
     LitVec tr_lits_;
 };
 
+//! A builder for sum aggregates taking dependency info into account.
 class BuilderSum {
   public:
     void add(BuilderBase &bld, lit_t lit, OutputStm::BdElemSpan elems, OutputStm::GuardSpan guards) {
-        auto [elem_vec, range, bounds, type] = analyze_(bld, elems, guards);
+        auto [range, bounds, type] = analyze_(bld, elems, guards);
         if (bounds.contains(range)) {
             rule_.add(bld, std::array{lit}, {}, false);
             return;
@@ -611,7 +612,7 @@ class BuilderSum {
         }
         // add edges based on the monotonicity of the aggregate
         if (type != CycleType::none) {
-            for (auto const &[num, clit] : elem_vec) {
+            for (auto const &[num, clit] : elems_) {
                 if (clit > 0 &&
                     ((test(type, CycleType::positive) && num > 0) || (test(type, CycleType::negative) && num < 0))) {
                     bld.add_edge(lit, clit);
@@ -640,7 +641,8 @@ class BuilderSum {
             return "antimonotone";
         }() << "\n";
 #endif
-        delayed_.emplace_back(lit, std::move(elem_vec), std::move(range), std::move(bounds));
+        // Note: convex aggregates could be translated right away.
+        delayed_.emplace_back(lit, elems_, std::move(range), std::move(bounds));
     }
 
     //! Translates stored aggregate literals.
@@ -648,6 +650,10 @@ class BuilderSum {
     //! This function iterates over all stored aggregate literals and
     //! translates them into a form understood by the backend.
     void tr(BuilderBase &bld) {
+        auto nlits = std::vector<lit_t>{};
+        auto wlits = std::vector<std::pair<lit_t, weight_t>>{};
+        auto flits = SumElemVec{};
+
         for (auto &[lit, elems, range, bounds] : delayed_) {
             assert(lit > 0);
             // check which kind of literals are cyclic
@@ -666,20 +672,19 @@ class BuilderSum {
                     }
                 }
             }
-            auto flip = [](SumElemVec const &elems) {
-                auto res = SumElemVec{};
-                res.reserve(elems.size());
-                for (auto const &[num, cond] : elems) {
-                    res.emplace_back(-num, cond);
-                }
-                return res;
-            };
-
             // translate aggregate in lower bound form
-            auto nlits = std::vector<lit_t>(elems.size(), 0);
+            auto flip = [&flits](SumElemVec const &elems) -> decltype(auto) {
+                flits.clear();
+                flits.reserve(elems.size());
+                for (auto const &[num, cond] : elems) {
+                    flits.emplace_back(-num, cond);
+                }
+                return flits;
+            };
+            nlits.assign(elems.size(), 0);
             auto translate = [&](lit_t lit, SumElemVec const &elems, Number bound) {
                 assert(lit > 0);
-                auto wlits = std::vector<std::pair<lit_t, weight_t>>{};
+                wlits.clear();
                 wlits.reserve(elems.size());
                 auto it = nlits.begin();
                 for (auto const &[weight, clit] : elems) {
@@ -779,37 +784,39 @@ class BuilderSum {
     //! computes an interval for largest and smallest value of the aggregate, and
     //! represents the guards of the aggreagte as an interval set. This interval set
     //! is additionally intersected with the range.
+    //!
+    //! @warning Vector `elems_` is produced as a side-effect.
     auto analyze_(BuilderBase &bld, OutputStm::BdElemSpan elems,
-                  OutputStm::GuardSpan guards) -> std::tuple<SumElemVec, NumberSet::interval, NumberSet, CycleType> {
+                  OutputStm::GuardSpan guards) -> std::tuple<NumberSet::interval, NumberSet, CycleType> {
         // simplify the aggregate
         auto fixed = Number(0);
-        auto elem_vec = SumElemVec{};
-        auto cond_map = Util::unordered_map<IndexSpan, size_t>{};
-        elem_vec.reserve(elems.size());
-        cond_map.reserve(elems.size());
+        elems_.clear();
+        elems_.reserve(elems.size());
+        cond_map_.clear();
+        cond_map_.reserve(elems.size());
         for (auto const &[tup, conds] : elems) {
             if (!tup.empty() && tup.front().type() == SymbolType::number && tup.front().num() != 0) {
                 auto num = tup.front().num();
                 if (conds.empty()) {
                     fixed += num;
                 } else {
-                    if (auto [it, ins] = cond_map.try_emplace(conds, elem_vec.size()); !ins) {
-                        get<0>(elem_vec[it.value()]) += num;
+                    if (auto [it, ins] = cond_map_.try_emplace(conds, elems_.size()); !ins) {
+                        get<0>(elems_[it.value()]) += num;
                     } else {
                         lits_.assign(conds.begin(), conds.end());
-                        elem_vec.emplace_back(std::move(num),
-                                              bld.clause({lits_.begin(), lits_.end()}, ClauseType::disjunctive));
+                        elems_.emplace_back(std::move(num),
+                                            bld.clause({lits_.begin(), lits_.end()}, ClauseType::disjunctive));
                     }
                 }
             }
         }
-        elem_vec.erase(std::ranges::remove_if(elem_vec, [](auto const &x) { return std::get<0>(x) == 0; }).end(),
-                       elem_vec.end());
-        elem_vec.shrink_to_fit();
+        elems_.erase(std::ranges::remove_if(elems_, [](auto const &x) { return std::get<0>(x) == 0; }).end(),
+                     elems_.end());
+        elems_.shrink_to_fit();
         // comput the range of the aggregate
         auto lower = Number(0);
         auto upper = Number(0);
-        for (auto const &[num, clit] : elem_vec) {
+        for (auto const &[num, clit] : elems_) {
             if (num > 0) {
                 upper += num;
             } else {
@@ -875,11 +882,13 @@ class BuilderSum {
                 type |= CycleType::positive;
             }
         }
-        return {std::move(elem_vec), std::move(range), std::move(bounds), type};
+        return {std::move(range), std::move(bounds), type};
     }
 
     SumVec delayed_;
     BuilderRule rule_;
+    SumElemVec elems_;
+    Util::unordered_map<IndexSpan, size_t> cond_map_;
     LitVec lits_;
 };
 
@@ -962,6 +971,7 @@ class BuilderCondLit {
     CondLitElemVec elems_;
 };
 
+//! Builder for disjunctions in rule heads.
 class BuilderDisjunction {
   public:
     using DisjElemSpan = OutputStm::DisjElemSpan;
@@ -1091,22 +1101,25 @@ class BuilderDisjunction {
     LitVec bd_;
 };
 
+//! Builder incrementally extending a minimize constraint.
 class BuilderMinimize {
   public:
+    //! Extend the current minimize constraint.
     void add(BuilderBase &bld, LitSpan lits, weight_t weight, weight_t prio, SymbolSpan terms) {
         auto [it, ins] = tuples_.try_emplace(std::tuple(weight, prio, SharedSymbolVec{terms.begin(), terms.end()}));
         auto &[old, conds] = it.value();
-        auto cond = LitVec{lits.begin(), lits.end()};
+        lits_.assign(lits.begin(), lits.end());
         if (old != 0) {
-            cond.emplace_back(bld.negate(old));
+            lits_.emplace_back(bld.negate(old));
         }
         if (ins) {
             delayed_.emplace_back(std::distance(tuples_.begin(), it));
         }
-        conds.emplace_back(bld.clause(cond, ClauseType::conjunctive));
+        conds.emplace_back(bld.clause(lits_, ClauseType::conjunctive));
         bld.mark(conds.back(), EQType::implication);
     }
 
+    //! Translate tuples from the current step.
     void tr(BuilderBase &bld) {
         for (auto const &idx : delayed_) {
             auto const &[weight, prio, terms] = tuples_.nth(idx).key();
@@ -1123,8 +1136,10 @@ class BuilderMinimize {
   private:
     IndexVec delayed_;
     Util::ordered_map<std::tuple<weight_t, weight_t, SharedSymbolVec>, std::pair<lit_t, LitVec>> tuples_;
+    LitVec lits_;
 };
 
+//! Builder for theory related expressions.
 class BuilderTheory {
   public:
     using IdVec = std::vector<id_t>;
