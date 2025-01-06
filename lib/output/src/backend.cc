@@ -331,6 +331,7 @@ class BuilderBase {
     VertexMap vertices_;
 };
 
+//! Builder for rules.
 class BuilderRule {
   public:
     //! Add a disjunctive or choice rule.
@@ -343,7 +344,9 @@ class BuilderRule {
     //! @param choice whether the rule is a choice or disjunctive rule
     void add(BuilderBase &bld, LitSpan head, LitSpan body, bool choice) {
         hd_.clear();
+        hd_.reserve(head.size());
         bd_.clear();
+        bd_.reserve(body.size());
         for (auto const &hlit : head) {
             if (hlit > 0) {
                 hd_.emplace_back(hlit);
@@ -365,6 +368,7 @@ class BuilderRule {
     Output::LitVec bd_;
 };
 
+//! Builder for min and max aggregates.
 template <class Sym> class BuilderMinMax {
   public:
     //! Delays or translates min and max aggregates based on monotonicity.
@@ -879,6 +883,7 @@ class BuilderSum {
     LitVec lits_;
 };
 
+//! Builder for conditional literals in rule bodies.
 class BuilderCondLit {
   public:
     //! Define a conjunction of conditional literal.
@@ -890,46 +895,26 @@ class BuilderCondLit {
     //! @param lit the literal that is derived
     //! @param elems the elements forming the conditional literal
     void add(BuilderBase &bld, lit_t lit, OutputStm::CondLitSpan elems) {
+        assert(lit > 0);
+        bool simple = true;
         for (auto const &elem : elems) {
             if (auto const &[id_conc, id_prem] = elem; id_conc && lit > 0 && *id_conc > 0) {
                 bld.add_edge(lit, *id_conc);
+                simple = false;
             }
+            elems_.emplace_back(Util::transform(elem.first, uid_to_lit), uid_to_lit(elem.second));
         }
-        delayed_.emplace_back(std::piecewise_construct, std::forward_as_tuple(lit),
-                              std::forward_as_tuple(elems.begin(), elems.end()));
+        if (simple) {
+            tr_(bld, lit, elems_);
+        } else {
+            delayed_.emplace_back(lit, elems_);
+        }
     }
 
     //! Translate stored conditional literals.
     void tr(BuilderBase &bld) {
         for (auto const &[lit, elems] : delayed_) {
-            assert(lit > 0);
-            lits_.clear();
-            lits_.reserve(elems.size());
-            // Below, we us the following variable names:
-            // - K: new uid replacing G : F in the body
-            // - G: captures the conclusion
-            // - F: catures the premise
-            for (auto const &[g, f] : elems) {
-                bld.mark(f, EQType::implication);
-                if (g) {
-                    auto rec = bld.in_cycle(lit, f);
-                    auto k = bld.next_lit();
-                    // formula G : F is replaced by K
-                    // K :- G.
-                    // K :- not F.
-                    bld.mark(*g, EQType::implication);
-                    bld.backend().rule(std::array{k}, std::array{*g}, false);
-                    bld.backend().rule(std::array{k}, std::array{bld.negate(f)}, false);
-                    if (rec) {
-                        // K | F :- not not G.
-                        bld.mark(f, EQType::equivalence);
-                        bld.backend().rule(std::array{k, f}, std::array{bld.negate(bld.negate(*g))}, false);
-                    }
-                    lits_.emplace_back(k);
-                } else {
-                    lits_.emplace_back(bld.negate(f));
-                }
-            }
+            tr_(bld, lit, elems);
             bld.backend().rule(std::array{lit}, lits_, false);
         }
         delayed_.clear();
@@ -940,8 +925,41 @@ class BuilderCondLit {
     using CondLitElemVec = std::vector<CondLitElem>;
     using CondLitVec = std::vector<std::pair<lit_t, CondLitElemVec>>;
 
+    //! Translate a single conditional literal.
+    void tr_(BuilderBase &bld, lit_t lit, CondLitElemVec const &elems) {
+        lits_.clear();
+        lits_.reserve(elems.size());
+        // Below, we us the following variable names:
+        // - K: new uid replacing G : F in the body
+        // - G: captures the conclusion
+        // - F: catures the premise
+        for (auto const &[g, f] : elems) {
+            bld.mark(f, EQType::implication);
+            if (g) {
+                auto rec = bld.in_cycle(lit, f);
+                auto k = bld.next_lit();
+                // formula G : F is replaced by K
+                // K :- G.
+                // K :- not F.
+                bld.mark(*g, EQType::implication);
+                bld.backend().rule(std::array{k}, std::array{*g}, false);
+                bld.backend().rule(std::array{k}, std::array{bld.negate(f)}, false);
+                if (rec) {
+                    // K | F :- not not G.
+                    bld.mark(f, EQType::equivalence);
+                    bld.backend().rule(std::array{k, f}, std::array{bld.negate(bld.negate(*g))}, false);
+                }
+                lits_.emplace_back(k);
+            } else {
+                lits_.emplace_back(bld.negate(f));
+            }
+        }
+        bld.backend().rule(std::array{lit}, lits_, false);
+    }
+
     CondLitVec delayed_;
     Output::LitVec lits_;
+    CondLitElemVec elems_;
 };
 
 class BuilderDisjunction {
