@@ -27,18 +27,21 @@ enum class EQType : uint8_t {
     equivalence, //!< forward and backward directions are necessary
 };
 
+//! Available clause types.
 enum class ClauseType : uint8_t {
-    disjunctive,
-    conjunctive,
+    disjunctive, //!< disjunctive clauses
+    conjunctive, //!< conjunctive clauses (also sometimes conditions)
 };
 
+//! Sentinel to mark invalid ids.
 constexpr auto invalid_id = std::numeric_limits<size_t>::max();
 
+//! Per literal information.
 struct LitInfo {
-    size_t scc = 0;
-    size_t clause = invalid_id;
-    lit_t neg = 0;
-    EQType type = EQType::none;
+    size_t scc = 0;             //!< component number
+    size_t clause = invalid_id; //!< associated clause index
+    lit_t neg = 0;              //!< associated negative literal
+    EQType type = EQType::none; //!< equivalence type of the associated clause
 };
 
 //! Convert a uid to an integer literal.
@@ -110,6 +113,10 @@ class BwdSym {
 //! Helper storing the backend and information relevant for translation.
 class BuilderBase {
   public:
+    //! Construct the builder.
+    //!
+    //! @param store the symbol storage
+    //! @param backend the backend
     BuilderBase(SymbolStore &store, Backend &backend) : store_{&store}, backend_{&backend} {};
 
     //! Return a fresh literal.
@@ -138,17 +145,19 @@ class BuilderBase {
         return -neg;
     }
 
-    //! Get a literal equivalent to the conjunction of the given literals.
+    //! Get a Tseitin literal for the conjunction of the given literals.
     //!
     //! @param lits the literals
+    //! @return an equivalent literal
     auto cond(LitSpan lits) -> lit_t { return clause(lits, ClauseType::conjunctive); }
 
-    //! Get a conjunction of literals equivalent to the given literal.
+    //! Get the conjunction of literals equivalent to the given literal.
     //!
     //! @note If the literal itself represents the conjunction, a one
     //! elementary span pointing to the given literal is returned.
     //!
     //! @param lit the literal
+    //! @return the associated literals
     auto cond(lit_t const &lit) -> LitSpan {
         if (lit > 0) {
             if (auto &li = info(lit); li.clause != invalid_id) {
@@ -161,6 +170,9 @@ class BuilderBase {
     }
 
     //! Compute the strongly connected components of the positive dependency graph.
+    //!
+    //! Component numbers are stored in the lit info vector. Trivial components
+    //! have scc number zero.
     void compute_sccs() {
         size_t idx_scc = 0;
         graph_.tarjan([&, this](std::vector<size_t> const &scc) {
@@ -244,15 +256,23 @@ class BuilderBase {
     }
 
     //! Get the underlying backend.
+    //!
+    //! @return the backend
     auto backend() -> Backend & { return *backend_; }
 
     //! Get the underlying symbol store.
+    //!
+    //! @return the symbol store
     auto store() -> SymbolStore & { return *store_; }
 
     //! Mark a literal with the given equivalence type.
     //!
     //! If the literal is associated with a clause, the equivalence between
     //! literal and clause is established accordingly.
+    //!
+    //! @param lit the literal to mark
+    //! @param type the type of the equivalence
+    //! @return whether the literal has been marked with a stricter type
     auto mark(lit_t lit, EQType type) -> bool {
         auto atm = std::abs(lit);
         if (lit < 0) {
@@ -265,7 +285,15 @@ class BuilderBase {
         return false;
     }
 
-    //! Get a literal equivalent to the given clause.
+    //! Add a Tseitin literal for the given clause.
+    //!
+    //! Uses a map to uniquely associate literals. For the singleton clauses,
+    //! the single literal is returned.
+    //!
+    //! @param lits the literals
+    //! @param type the type of the clause
+    //! @param add_edges whether to add dependency edges
+    //! @return the Tseitin literal
     auto clause(LitSpan lits, ClauseType type, bool add_edges = true) -> lit_t {
         lits_.assign(lits.begin(), lits.end());
         std::ranges::sort(lits_);
@@ -289,6 +317,7 @@ class BuilderBase {
     //! Map the given symbol to a unique id.
     //!
     //! @param name the name
+    //! @return the id of the vertex
     auto vertex(Symbol name) -> id_t {
         auto [it, ins] = vertices_.emplace(name, vertices_.size());
         if (ins && vertices_.size() > 1 && it.value() == 0) {
@@ -298,9 +327,17 @@ class BuilderBase {
     }
 
     //! Add an edge to the underlying graph.
+    //!
+    //! @param u a "head" atom
+    //! @param v a "body" atom
     void add_edge(size_t u, size_t v) { graph_.add_edge(u, v); }
 
     //! Get the literal info for an atom.
+    //!
+    //! @pre lit > 0
+    //!
+    //! @param lit the literal
+    //! @return a reference to the info
     [[nodiscard]] auto info(lit_t lit) -> LitInfo & {
         assert(lit > 0);
         while (static_cast<lit_t>(infos_.size()) < lit) {
@@ -309,6 +346,11 @@ class BuilderBase {
         return infos_[lit - 1];
     }
 
+    //! Check if the literals occur in the same positive cycle.
+    //!
+    //! Returns false if one of the literals is negativ.
+    //!
+    //! @return the Boolean result
     [[nodiscard]] auto in_cycle(lit_t a, lit_t b) -> bool {
         if (a > 0 && b > 0) {
             auto scc = info(a).scc;
@@ -380,6 +422,10 @@ template <class Sym> class BuilderMinMax {
     //!
     //! where all but the last T and F in the sequence are non-empty.
     //!
+    //! The aggregate is true if for each true literal in F there is one true
+    //! literal in the preceeding Ts. Here the empty F is considered to contain
+    //! a true literal.
+    //!
     //! The sequences T and F correspond to true and false, respectively.
     //!
     //! The sequences TF, FT, FTF correspond to monotone, antimonotone, and
@@ -389,6 +435,11 @@ template <class Sym> class BuilderMinMax {
     //!
     //! Nonmonotone aggregates are delayed for later translation. Otherwise,
     //! aggregates are translated right away.
+    //!
+    //! @param bld the base builder
+    //! @param lit the Tseitin literal of the aggregate
+    //! @param elems the aggregates elements
+    //! @param guards the guards of the aggregate
     void add(BuilderBase &bld, lit_t lit, OutputStm::BdElemSpan elems, OutputStm::GuardSpan guards) {
         assert(lit > 0);
         auto [lower, upper, bounds] = analyze_(bld, elems, guards);
@@ -436,6 +487,8 @@ template <class Sym> class BuilderMinMax {
     }
 
     //! Translate delayed min and max aggregates.
+    //!
+    //! @param bld the base builder
     void tr(BuilderBase &bld) {
         for (auto const &[lit, start, lits, ids] : delayed_) {
             tr_(bld, lit, start, lits, ids, true);
@@ -452,6 +505,11 @@ template <class Sym> class BuilderMinMax {
     //! Returns relevant elements, the range, and bounds of the aggregate.
     //!
     //! @warning Relevant elements are stored in member `elems_`.
+    //!
+    //! @param bld the base builder
+    //! @param elems the elements of the aggregate
+    //! @param guards the guards of the aggregate
+    //! @return the lower bound, upper bound, and bounds
     auto analyze_(BuilderBase &bld, OutputStm::BdElemSpan elems,
                   OutputStm::GuardSpan guards) -> std::tuple<Sym, Sym, Util::interval_set<Sym>> {
         // simplify the elements
@@ -524,7 +582,8 @@ template <class Sym> class BuilderMinMax {
     //!     lit :- 2 != #min { 1:a; 2:b; 3:c; 4:d } !=4
     //!     [         ]
     //!     [ ] [ ] [ ]
-    //!      1 2 3 4 e
+    //!      a b c d
+    //!      T F T F T
     //!     lit :- a.
     //!     lit :- c, nb.
     //!     lit :- nb, nd. % (*)
@@ -535,7 +594,17 @@ template <class Sym> class BuilderMinMax {
     //!     nd :- lit.
     //!     nd | d :- not not lit.
     //!
-    //! Rules of form (*) are shortened by introducing auxiliary literals.
+    //! Rules of form (*) are chained by introducing Tseitin literals.
+    //!
+    //! Convex aggregates are translated right away. In which case no cycle
+    //! information is available yet and the delayed flag is set to false.
+    //!
+    //! @param bld the base builder
+    //! @param lit the Tseitin literal of the aggregate
+    //! @param start whether the sequences starts with a T or an F
+    //! @param lits the literals in the sequence
+    //! @param ids the start indices of the alternating T/F in the sequence
+    //! @param delayed whether translation was delayed
     void tr_(BuilderBase &bld, lit_t lit, bool start, LitVec const &lits, IndexVec const &ids, bool delayed) {
         assert(!ids.empty() && lits.size() == ids.back() && lit > 0);
         auto get_span = [&lits = lits](auto it) {
@@ -600,6 +669,12 @@ template <class Sym> class BuilderMinMax {
 //! A builder for sum aggregates taking dependency info into account.
 class BuilderSum {
   public:
+    //! Add a sum aggregate.
+    //!
+    //! @param bld the base builder
+    //! @param lit the Tseitin literal of the aggregate
+    //! @param elems the elements of the aggregate
+    //! @param guards the guards of the aggregate
     void add(BuilderBase &bld, lit_t lit, OutputStm::BdElemSpan elems, OutputStm::GuardSpan guards) {
         auto [range, bounds, type] = analyze_(bld, elems, guards);
         if (bounds.contains(range)) {
@@ -649,6 +724,8 @@ class BuilderSum {
     //!
     //! This function iterates over all stored aggregate literals and
     //! translates them into a form understood by the backend.
+    //!
+    //! @param bld the base builder
     void tr(BuilderBase &bld) {
         auto nlits = std::vector<lit_t>{};
         auto wlits = std::vector<std::pair<lit_t, weight_t>>{};
@@ -786,6 +863,11 @@ class BuilderSum {
     //! is additionally intersected with the range.
     //!
     //! @warning Vector `elems_` is produced as a side-effect.
+    //!
+    //! @param bld the base builder
+    //! @param elems the elements of the aggregate
+    //! @param guards the guards of the aggregate
+    //! @return the range, bounds, and cycles to consider for depencies
     auto analyze_(BuilderBase &bld, OutputStm::BdElemSpan elems,
                   OutputStm::GuardSpan guards) -> std::tuple<NumberSet::interval, NumberSet, CycleType> {
         // simplify the aggregate
@@ -901,7 +983,8 @@ class BuilderCondLit {
     //!
     //! @pre lit > 0
     //!
-    //! @param lit the literal that is derived
+    //! @param bld the base builder
+    //! @param lit the Tseitin literal of the conditional literal
     //! @param elems the elements forming the conditional literal
     void add(BuilderBase &bld, lit_t lit, OutputStm::CondLitSpan elems) {
         assert(lit > 0);
@@ -921,6 +1004,8 @@ class BuilderCondLit {
     }
 
     //! Translate stored conditional literals.
+    //!
+    //! @param bld the base builder
     void tr(BuilderBase &bld) {
         for (auto const &[lit, elems] : delayed_) {
             tr_(bld, lit, elems);
@@ -935,6 +1020,10 @@ class BuilderCondLit {
     using CondLitVec = std::vector<std::pair<lit_t, CondLitElemVec>>;
 
     //! Translate a single conditional literal.
+    //!
+    //! @param bld the base builder
+    //! @param lit the Tseitin literal of the conditional literal
+    //! @param elems the elements of the conditional literal
     void tr_(BuilderBase &bld, lit_t lit, CondLitElemVec const &elems) {
         lits_.clear();
         lits_.reserve(elems.size());
@@ -983,7 +1072,8 @@ class BuilderDisjunction {
     //! We use a shifting of conditions into rule bodies as semantic guideline
     //! for the translation applied in this function.
     //!
-    //! @param lit the literal representing the body
+    //! @param bld the base builder
+    //! @param lit the Tseitin literal of the rule body
     //! @param elems the literals to derive
     void add(BuilderBase &bld, lit_t lit, DisjElemSpan elems) {
         // example:
@@ -1061,7 +1151,9 @@ class BuilderDisjunction {
         }
     }
 
-    // Translate rule (*) from add() based on head cycles.
+    //! Translate rule (*) from add() based on head cycles.
+    //!
+    //! @param bld the base builder
     void tr(BuilderBase &bld) {
         auto hd_counts = Util::unordered_map<size_t, size_t>{};
         auto in_head_cycle = [&hd_counts, &bld](lit_t lit) {
@@ -1105,6 +1197,12 @@ class BuilderDisjunction {
 class BuilderMinimize {
   public:
     //! Extend the current minimize constraint.
+    //!
+    //! @param bld the base builder
+    //! @param lits the condition
+    //! @param weight the weight
+    //! @param prio the priority
+    //! @param terms the tuple (without weight and priority)
     void add(BuilderBase &bld, LitSpan lits, weight_t weight, weight_t prio, SymbolSpan terms) {
         auto [it, ins] = tuples_.try_emplace(std::tuple(weight, prio, SharedSymbolVec{terms.begin(), terms.end()}));
         auto &[old, conds] = it.value();
@@ -1120,6 +1218,8 @@ class BuilderMinimize {
     }
 
     //! Translate tuples from the current step.
+    //!
+    //! @param bld the base builder
     void tr(BuilderBase &bld) {
         for (auto const &idx : delayed_) {
             auto const &[weight, prio, terms] = tuples_.nth(idx).key();
@@ -1144,6 +1244,11 @@ class BuilderTheory {
   public:
     using IdVec = std::vector<id_t>;
 
+    //! Add a string term.
+    //!
+    //! @param bld the base builder
+    //! @param str the string
+    //! @return the term id
     auto str(BuilderBase &bld, String str) -> id_t {
         auto [it, ins] = insert_(strings_, str);
         if (ins) {
@@ -1151,6 +1256,11 @@ class BuilderTheory {
         }
         return it.value();
     }
+    //! Add a number term.
+    //!
+    //! @param bld the base builder
+    //! @param num the number
+    //! @return the term id
     auto num(BuilderBase &bld, Number const &num) -> id_t {
         auto [it, ins] = insert_(nums_, num_to_int(num));
         if (ins) {
@@ -1158,6 +1268,12 @@ class BuilderTheory {
         }
         return it.value();
     }
+    //! Add a function term.
+    //!
+    //! @param bld the base builder
+    //! @param name the name of the function
+    //! @param args the arguments of the function
+    //! @return the term id
     auto fun(BuilderBase &bld, String name, IdVec args) -> size_t {
         if (args.empty()) {
             return str(bld, name);
@@ -1168,6 +1284,12 @@ class BuilderTheory {
         }
         return it.value();
     }
+    //! Add a tuple term.
+    //!
+    //! @param bld the base builder
+    //! @param type the type of the tuple
+    //! @param args the arguments of the tuple
+    //! @return the term id
     auto tup(BuilderBase &bld, TheoryTermTupleType type, IdVec args) -> size_t {
         auto [it, ins] = insert_(tups_, std::pair{type, std::move(args)});
         if (ins) {
@@ -1176,6 +1298,12 @@ class BuilderTheory {
         return it.value();
     }
 
+    //! Add a theory element.
+    //!
+    //! @param bld the base builder
+    //! @param tuple the ids of terms forming the tuple
+    //! @param cond the Tseitin literal of the condition
+    //! @return the element id
     auto elm(BuilderBase &bld, IndexSpan tuple, lit_t cond) -> size_t {
         auto [it, ins] = insert_(elems_, std::pair{cond, IdVec{tuple.begin(), tuple.end()}});
         if (ins) {
@@ -1183,6 +1311,15 @@ class BuilderTheory {
         }
         return it.value();
     }
+    //! Add a theory element.
+    //!
+    //! @param bld the base builder
+    //! @param type the type of the atom
+    //! @param lit the Tseitin literal of the atom
+    //! @param name the name of the atom
+    //! @param elems the element ids
+    //! @param guard the optional guard of the atom
+    //! @return the atom id
     void atm(BuilderBase &bld, OutputTheory::AtomType type, lit_t lit, Symbol name, IndexSpan elems,
              OutputTheory::OptGuard guard) {
         assert(lit >= 0);
@@ -1215,6 +1352,11 @@ class BuilderTheory {
     using ElemMap = Util::unordered_map<std::pair<lit_t, IdVec>, id_t>;
     using AtomMap = Util::unordered_map<std::tuple<id_t, IdVec, std::optional<std::pair<id_t, id_t>>>, lit_t>;
 
+    //! Translate a symbol into a theory atom.
+    //!
+    //! @param bld the base builder
+    //! @param sym the symbol to translate
+    //! @return the term id
     auto sym_(BuilderBase &bld, Symbol sym) -> id_t {
         switch (sym.type()) {
             case SymbolType::inf: {
@@ -1256,6 +1398,11 @@ class BuilderTheory {
         Util::unreachable();
     }
 
+    //! Helper to insert elemens into the term maps.
+    //!
+    //! @param map the map to insert in
+    //! @param val the value to insert
+    //! @return same as map.insert
     template <class M, class V> auto insert_(M &map, V &&val) -> std::pair<typename M::iterator, bool> {
         auto [it, ins] = map.try_emplace(std::forward<V>(val), ids_);
         if (ins) {
@@ -1266,6 +1413,7 @@ class BuilderTheory {
         }
         return {it, ins};
     }
+
     Util::OutputBuffer buf_;
     StringMap strings_;
     NumMap nums_;
@@ -1284,6 +1432,9 @@ class BuilderTheory {
 //! Only supports simple literals excluding aggregates, theory atoms and conditions.
 class OutputCond : public OutputLit {
   public:
+    //! Construct the output.
+    //!
+    //! @param bld the base builder
     OutputCond(BuilderBase &bld) : bld_{&bld} {}
 
     //! Get the literals of the body.
@@ -1293,9 +1444,9 @@ class OutputCond : public OutputLit {
     //! @return the literals
     [[nodiscard]] auto literals() const -> LitVec const & { return body_; }
 
-    //! Get the translator of the output.
+    //! Get the base builder of the output.
     //!
-    //! @return the translator
+    //! @return the base builder
     auto builder() -> BuilderBase & { return *bld_; };
 
     //! Append the atom with the given sign.
@@ -1304,7 +1455,7 @@ class OutputCond : public OutputLit {
     //!
     //! @param sign the sign of the literal
     //! @param uid the uid
-    auto append(Sign sign, size_t uid) {
+    void append(Sign sign, size_t uid) {
         switch (sign) {
             case Sign::none: {
                 body_.emplace_back(uid_to_lit(uid));
@@ -1358,9 +1509,17 @@ class OutputCond : public OutputLit {
 //! Supports the full range of clingo's body literals.
 class OutputBody : public OutputCond {
   public:
+    //! Construct the output.
+    //! @param bld the base builder
     OutputBody(BuilderBase &bld) : OutputCond(bld) {}
 
   private:
+    //! Delay building by introducing a fresh literal if necessary and adding
+    //! it to the current body.
+    //!
+    //! @param sign the sign of the body literal
+    //! @param uid the current literal (stored as an id)
+    //! @return the literal in form of an id
     auto delay_(Sign sign, std::optional<size_t> uid) -> size_t {
         if (!uid) {
             uid = builder().next_lit();
@@ -1374,8 +1533,15 @@ class OutputBody : public OutputCond {
     auto do_bd_theory(Sign sign, std::optional<size_t> uid) -> size_t override { return delay_(sign, uid); }
 };
 
+//! Output for statements and theory.
+//!
+//! This class more or relays calls to the responsible builders.
 class OutputBackend : public OutputStm, OutputTheory {
   public:
+    //! Construct the output.
+    //!
+    //! @param store the symbol store
+    //! @param backend the backend
     OutputBackend(SymbolStore &store, Backend &backend) : bld_{store, backend} {};
 
   private:
@@ -1451,9 +1617,9 @@ class OutputBackend : public OutputStm, OutputTheory {
         return cond_;
     }
 
-    auto do_cond_id() -> size_t override { return builder().cond(cond_.literals()); }
+    auto do_cond_id() -> size_t override { return bld_.cond(cond_.literals()); }
 
-    auto do_uid() -> size_t override { return builder().next_lit(); }
+    auto do_uid() -> size_t override { return bld_.next_lit(); }
 
     void do_cond_lit(size_t uid, CondLitSpan elems) override { cond_lit_.add(bld_, uid_to_lit(uid), elems); }
 
@@ -1543,27 +1709,23 @@ class OutputBackend : public OutputStm, OutputTheory {
 
     void do_mark([[maybe_unused]] SymbolCollector &gc) override {}
 
-    auto do_str(String val) -> size_t override { return theory_.str(builder(), val); }
+    auto do_str(String val) -> size_t override { return theory_.str(bld_, val); }
 
-    auto do_num(Number const &val) -> size_t override { return theory_.num(builder(), val); }
+    auto do_num(Number const &val) -> size_t override { return theory_.num(bld_, val); }
 
     auto do_fun(String name, IndexSpan args) -> size_t override {
-        return theory_.fun(builder(), name, {args.begin(), args.end()});
+        return theory_.fun(bld_, name, {args.begin(), args.end()});
     }
 
     auto do_tup(TheoryTermTupleType type, IndexSpan args) -> size_t override {
-        return theory_.tup(builder(), type, {args.begin(), args.end()});
+        return theory_.tup(bld_, type, {args.begin(), args.end()});
     }
 
-    auto do_elem(IndexSpan tuple, size_t cond) -> size_t override {
-        return theory_.elm(builder(), tuple, uid_to_lit(cond));
-    }
+    auto do_elem(IndexSpan tuple, size_t cond) -> size_t override { return theory_.elm(bld_, tuple, uid_to_lit(cond)); }
 
     void do_atm(OutputTheory::AtomType type, size_t atom_uid, Symbol name, IndexSpan elems, OptGuard guard) override {
-        theory_.atm(builder(), type, static_cast<int32_t>(atom_uid), name, elems, guard);
+        theory_.atm(bld_, type, static_cast<int32_t>(atom_uid), name, elems, guard);
     }
-
-    auto builder() -> BuilderBase & { return bld_; }
 
     LitVec lits_;
     BuilderBase bld_;
