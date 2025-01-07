@@ -3,6 +3,7 @@
 #include <clingo/output/text.hh>
 
 #include <clingo/util/checked_math.hh>
+#include <clingo/util/enum.hh>
 
 #include <clasp/solver.h>
 
@@ -349,6 +350,65 @@ void Solver::main(std::optional<std::vector<Clingo::Input::ProgramParamVec>> con
         }
     }
 }
+
+namespace Draft {
+
+enum class SymbolSelectSet : uint8_t {
+    None = 0,       //!< Select nothing.
+    Shown = 1,      //!< Select shown atoms and terms.
+    Atoms = 2,      //!< Select all atoms.
+    Terms = 4,      //!< Select all terms.
+    Theory = 8,     //!< Select symbols added by theory.
+    All = 15,       //!< Select everything.
+    Complement = 16 //!< Select false instead of true atoms (Atoms/Shown) or terms (Terms).
+};
+void is_bit_set_enum(SymbolSelectSet type);
+
+//! The model class.
+class Model {
+  public:
+    Model(BaseMap &base, Clasp::Solver const &slv, Clasp::Model const &mdl) : base_{&base}, slv_{&slv}, mdl_{&mdl} {}
+    void symbols(SymbolSelectSet type, SymbolVec &res) {
+        if ((type & (SymbolSelectSet::Theory | SymbolSelectSet::Complement)) != SymbolSelectSet::None) {
+            throw std::logic_error("implement me: theory and complement selection modes");
+        }
+        static_cast<void>(res);
+        static_cast<void>(base_);
+        static_cast<void>(slv_);
+        static_cast<void>(mdl_);
+        throw std::logic_error("implement me: select atoms and terms");
+    }
+
+  private:
+    BaseMap const *base_;
+    Clasp::Solver const *slv_;
+    Clasp::Model const *mdl_;
+};
+
+//! The event handler interface.
+class EventHandler {
+  public:
+    auto on_model(Model &m) -> bool { return do_on_model(m); }
+    virtual ~EventHandler() noexcept = default;
+
+  private:
+    virtual auto do_on_model(Model &m) -> bool = 0;
+};
+
+class EventHandlerAdapter : public Clasp::EventHandler {
+  public:
+    EventHandlerAdapter(BaseMap &base, Draft::EventHandler &eh) : base_{&base}, eh_{&eh} {}
+    auto onModel(Clasp::Solver const &slv, Clasp::Model const &mdl) -> bool override {
+        auto cm = Draft::Model{*base_, slv, mdl};
+        return eh_->on_model(cm);
+    }
+
+  private:
+    BaseMap *base_;
+    Draft::EventHandler *eh_;
+};
+
+} // namespace Draft
 
 void Solver::solve() {
     if (mode_ == AppMode::solve) {
