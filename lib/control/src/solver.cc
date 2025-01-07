@@ -353,7 +353,7 @@ void Solver::main(std::optional<std::vector<Clingo::Input::ProgramParamVec>> con
 
 namespace Draft {
 
-enum class SymbolSelectSet : uint8_t {
+enum class SymbolSelectFlags : uint8_t {
     None = 0,       //!< Select nothing.
     Shown = 1,      //!< Select shown atoms and terms.
     Atoms = 2,      //!< Select all atoms.
@@ -362,21 +362,33 @@ enum class SymbolSelectSet : uint8_t {
     All = 15,       //!< Select everything.
     Complement = 16 //!< Select false instead of true atoms (Atoms/Shown) or terms (Terms).
 };
-void is_bit_set_enum(SymbolSelectSet type);
+void is_bit_set_enum(SymbolSelectFlags type);
 
 //! The model class.
 class Model {
   public:
     Model(BaseMap &base, Clasp::Solver const &slv, Clasp::Model const &mdl) : base_{&base}, slv_{&slv}, mdl_{&mdl} {}
-    void symbols(SymbolSelectSet type, SymbolVec &res) {
-        if ((type & (SymbolSelectSet::Theory | SymbolSelectSet::Complement)) != SymbolSelectSet::None) {
+    void symbols(SymbolSelectFlags type, SymbolVec &res) {
+        if ((type & (SymbolSelectFlags::Theory | SymbolSelectFlags::Complement)) != SymbolSelectFlags::None) {
             throw std::logic_error("implement me: theory and complement selection modes");
         }
-        static_cast<void>(res);
-        static_cast<void>(base_);
-        static_cast<void>(slv_);
-        static_cast<void>(mdl_);
-        throw std::logic_error("implement me: select atoms and terms");
+        if (test(type, SymbolSelectFlags::Atoms)) {
+            for (auto const &base : *base_) {
+                for (size_t i = 0, e = base.second->size(); i != e; ++i) {
+                    auto [sym, state] = *base.second->nth(i);
+                    auto lit = Clasp::Literal{};
+                    // TODO: the logic program is necessary to map literals
+                    static_cast<void>(slv_);
+                    if (mdl_->isTrue(lit)) {
+                        res.emplace_back(sym);
+                    }
+                    throw std::logic_error("implement me: select atoms and terms");
+                }
+            }
+        }
+        if (test(type, SymbolSelectFlags::Terms)) {
+            throw std::logic_error("implement me: store a term map somewhere");
+        }
     }
 
   private:
@@ -392,7 +404,7 @@ class EventHandler {
     virtual ~EventHandler() noexcept = default;
 
   private:
-    virtual auto do_on_model(Model &m) -> bool = 0;
+    virtual auto do_on_model([[maybe_unused]] Model &m) -> bool { return true; }
 };
 
 class EventHandlerAdapter : public Clasp::EventHandler {
