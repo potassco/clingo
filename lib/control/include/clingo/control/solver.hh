@@ -57,6 +57,39 @@ enum class AppMode : uint8_t {
     solve    //!< Stop processing after solving.
 };
 
+enum class SymbolSelectFlags : uint8_t {
+    None = 0,       //!< Select nothing.
+    Shown = 1,      //!< Select shown atoms and terms.
+    Atoms = 2,      //!< Select all atoms.
+    Terms = 4,      //!< Select all terms.
+    Theory = 8,     //!< Select symbols added by theory.
+    All = 15,       //!< Select everything.
+    Complement = 16 //!< Select false instead of true atoms (Atoms/Shown) or terms (Terms).
+};
+void is_bit_set_enum(SymbolSelectFlags type);
+
+//! The model class.
+class Model {
+  public:
+    class Impl;
+    explicit Model(Impl &impl) : impl_{&impl} {}
+
+    void symbols(SymbolSelectFlags type, SymbolVec &res);
+
+  private:
+    Impl *impl_;
+};
+
+//! The event handler interface.
+class EventHandler {
+  public:
+    auto on_model(Model &m) -> bool { return do_on_model(m); }
+    virtual ~EventHandler() noexcept = default;
+
+  private:
+    virtual auto do_on_model([[maybe_unused]] Model &m) -> bool { return true; }
+};
+
 //! A grounder and solver for logic programs.
 //!
 //! Takes care of parsing, grounding, and solving.
@@ -85,7 +118,7 @@ class Solver {
     //! Solve the program.
     //!
     //! @todo Incomplete and just to get started.
-    void solve();
+    void solve(EventHandler *eh);
 
     //! Output the current unprocessed program.
     void output_unprocessed_program(std::ostream &out);

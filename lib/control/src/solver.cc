@@ -256,7 +256,7 @@ class BackendClasp : public Output::Backend {
 #endif
 
     void do_theory_atom(Output::lit_t lit_or_zero, Output::id_t name, Output::IdSpan elems,
-                        std::optional<std::pair<id_t, id_t>> guard) override {
+                        std::optional<std::pair<Output::id_t, Output::id_t>> guard) override {
         if (guard) {
             prg_->theoryData().addAtom(lit_or_zero, name, elems, guard->first, guard->second);
         } else {
@@ -276,6 +276,43 @@ class BackendClasp : public Output::Backend {
 };
 
 } // namespace
+
+//! The model class.
+class Model::Impl {
+  public:
+    Impl(BaseMap const &base, Clasp::Asp::LogicProgram &prg, Clasp::Solver const &slv, Clasp::Model const &mdl)
+        : base_{&base}, prg_{&prg}, slv_{&slv}, mdl_{&mdl} {
+        // TODO: remove once there is a use for slv_
+        static_cast<void>(slv_);
+    }
+    void symbols(SymbolSelectFlags type, SymbolVec &res) {
+        if ((type & (SymbolSelectFlags::Theory | SymbolSelectFlags::Complement)) != SymbolSelectFlags::None) {
+            throw std::logic_error("implement me: theory and complement selection modes");
+        }
+        if (test(type, SymbolSelectFlags::Atoms)) {
+            for (auto const &base : *base_) {
+                for (size_t i = 0, e = base.second->size(); i != e; ++i) {
+                    auto [sym, state] = *base.second->nth(i);
+                    auto lit = Clasp::Asp::solverLiteral(*prg_, static_cast<Potassco::Lit_t>(state.id));
+                    if (mdl_->isTrue(lit)) {
+                        res.emplace_back(sym);
+                    }
+                }
+            }
+        }
+        if (test(type, SymbolSelectFlags::Terms)) {
+            throw std::logic_error("implement me: store a term map somewhere");
+        }
+    }
+
+  private:
+    BaseMap const *base_;
+    Clasp::Asp::LogicProgram const *prg_;
+    Clasp::Solver const *slv_;
+    Clasp::Model const *mdl_;
+};
+
+void Model::symbols(SymbolSelectFlags type, SymbolVec &res) { impl_->symbols(type, res); }
 
 Solver::Solver(Logger &log, SymbolStore &store, Scripts &scripts, Input::RewriteOptions opts, AppMode mode, FILE *out)
     : buf_{out}, out_{make_output_(store, mode)}, grd_{log, store, opts, *out_}, scripts_{&scripts}, mode_{mode} {}
@@ -339,90 +376,40 @@ void Solver::main(std::optional<std::vector<Clingo::Input::ProgramParamVec>> con
             for (auto const &param : *params) {
                 ground(param, nullptr);
                 if (mode_ == AppMode::solve) {
-                    solve();
+                    solve(nullptr);
                 }
             }
         } else {
             ground(Clingo::Input::ProgramParamVec{{grd_.store().string("base"), {}}}, nullptr);
             if (mode_ == AppMode::solve) {
-                solve();
+                solve(nullptr);
             }
         }
     }
 }
 
-namespace Draft {
-
-enum class SymbolSelectFlags : uint8_t {
-    None = 0,       //!< Select nothing.
-    Shown = 1,      //!< Select shown atoms and terms.
-    Atoms = 2,      //!< Select all atoms.
-    Terms = 4,      //!< Select all terms.
-    Theory = 8,     //!< Select symbols added by theory.
-    All = 15,       //!< Select everything.
-    Complement = 16 //!< Select false instead of true atoms (Atoms/Shown) or terms (Terms).
-};
-void is_bit_set_enum(SymbolSelectFlags type);
-
-//! The model class.
-class Model {
-  public:
-    Model(BaseMap &base, Clasp::Solver const &slv, Clasp::Model const &mdl) : base_{&base}, slv_{&slv}, mdl_{&mdl} {}
-    void symbols(SymbolSelectFlags type, SymbolVec &res) {
-        if ((type & (SymbolSelectFlags::Theory | SymbolSelectFlags::Complement)) != SymbolSelectFlags::None) {
-            throw std::logic_error("implement me: theory and complement selection modes");
-        }
-        if (test(type, SymbolSelectFlags::Atoms)) {
-            for (auto const &base : *base_) {
-                for (size_t i = 0, e = base.second->size(); i != e; ++i) {
-                    auto [sym, state] = *base.second->nth(i);
-                    auto lit = Clasp::Literal{};
-                    // TODO: the logic program is necessary to map literals
-                    static_cast<void>(slv_);
-                    if (mdl_->isTrue(lit)) {
-                        res.emplace_back(sym);
-                    }
-                    throw std::logic_error("implement me: select atoms and terms");
-                }
-            }
-        }
-        if (test(type, SymbolSelectFlags::Terms)) {
-            throw std::logic_error("implement me: store a term map somewhere");
-        }
-    }
-
-  private:
-    BaseMap const *base_;
-    Clasp::Solver const *slv_;
-    Clasp::Model const *mdl_;
-};
-
-//! The event handler interface.
-class EventHandler {
-  public:
-    auto on_model(Model &m) -> bool { return do_on_model(m); }
-    virtual ~EventHandler() noexcept = default;
-
-  private:
-    virtual auto do_on_model([[maybe_unused]] Model &m) -> bool { return true; }
-};
+namespace {
 
 class EventHandlerAdapter : public Clasp::EventHandler {
   public:
-    EventHandlerAdapter(BaseMap &base, Draft::EventHandler &eh) : base_{&base}, eh_{&eh} {}
+    EventHandlerAdapter(BaseMap const &base, Clasp::Asp::LogicProgram &prg, Control::EventHandler &eh)
+        : base_{&base}, prg_{&prg}, eh_{&eh} {}
+
     auto onModel(Clasp::Solver const &slv, Clasp::Model const &mdl) -> bool override {
-        auto cm = Draft::Model{*base_, slv, mdl};
+        auto impl = Control::Model::Impl{*base_, *prg_, slv, mdl};
+        auto cm = Control::Model{impl};
         return eh_->on_model(cm);
     }
 
   private:
-    BaseMap *base_;
-    Draft::EventHandler *eh_;
+    BaseMap const *base_;
+    Clasp::Asp::LogicProgram *prg_;
+    Control::EventHandler *eh_;
 };
 
-} // namespace Draft
+} // namespace
 
-void Solver::solve() {
+void Solver::solve(EventHandler *eh) {
     if (mode_ == AppMode::solve) {
         if (state_ == State::solved || state_ == State::updated) {
             // we inject an emtpy ground
@@ -430,8 +417,14 @@ void Solver::solve() {
         }
         state_ = State::solved;
         clasp_.prepare();
-        auto eh = EH{};
-        clasp_.solve(&eh);
+        // TODO: just for now
+        if (eh == nullptr) {
+            auto eh = EH{};
+            clasp_.solve(&eh);
+        } else {
+            auto eha = EventHandlerAdapter{grd_.base(), *clasp_.asp(), *eh};
+            clasp_.solve(&eha);
+        }
     }
 }
 

@@ -128,7 +128,10 @@ extern "C" auto clingo_control_ground(clingo_control_t *control, clingo_part_t c
 }
 
 extern "C" auto clingo_control_solve(clingo_control_t *control) -> clingo_result_t {
-    CLINGO_TRY { control->slv->solve(); }
+    CLINGO_TRY {
+        // TODO: handler!!
+        control->slv->solve(nullptr);
+    }
     CLINGO_CATCH;
 }
 
