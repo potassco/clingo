@@ -40,6 +40,7 @@ extern "C" {
 //!
 //! The API is mainly intended for developing higher level language bindings.
 //! @{
+
 //! @defgroup c_core Core Functionality
 
 //! @defgroup c_symbol Symbol Handling
