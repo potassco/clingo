@@ -2,7 +2,7 @@
 
 #include <clingo/input/program.hh>
 
-#include <clingo.h>
+#include <clingo/ast.h>
 
 struct clingo_program : public Clingo::SymbolOwner {
     clingo_program(clingo_lib_t *lib);

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <clingo.h>
+#include <clingo/core.h>
 
 #include <pybind11/functional.h>
 #include <pybind11/operators.h>

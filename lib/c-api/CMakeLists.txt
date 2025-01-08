@@ -1,9 +1,10 @@
 add_library(clingo
     "src/ast.cc"
-    "src/main.cc"
     "src/ast_yaml.cc"
+    "src/base.cc"
     "src/control.cc"
     "src/core.cc"
+    "src/main.cc"
     "src/symbol.cc"
     )
 target_link_libraries(clingo PRIVATE clingo::control CLI11)

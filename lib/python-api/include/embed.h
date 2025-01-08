@@ -1,7 +1,7 @@
 #ifndef CLINGO_EMBED_H
 #define CLINGO_EMBED_H
 
-#include <clingo.h>
+#include <clingo/core.h>
 
 #ifdef __cplusplus
 extern "C" {

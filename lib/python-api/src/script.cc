@@ -1,5 +1,7 @@
-#include "script.hh"
+#include <clingo/script.h>
+
 #include "control.hh"
+#include "script.hh"
 #include "symbol.hh"
 #include "util.hh"
 

@@ -2,6 +2,9 @@
 
 #include <clingo/util/algorithm.hh>
 
+#include <clingo/control.h>
+#include <clingo/script.h>
+
 #include "ast.hh"
 #include "lib.hh"
 

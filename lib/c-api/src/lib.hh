@@ -1,6 +1,7 @@
 #pragma once
 
-#include <clingo.h>
+#include <clingo/core.h>
+#include <clingo/symbol.h>
 
 #include <clingo/control/solver.hh>
 #include <clingo/core/logger.hh>

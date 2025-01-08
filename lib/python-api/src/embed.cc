@@ -4,7 +4,9 @@
 #include "symbol.hh"
 #include "util.hh"
 
-#include <clingo.h>
+#include <clingo/app.h>
+#include <clingo/script.h>
+
 #include <embed.h>
 
 #include <pybind11/embed.h>

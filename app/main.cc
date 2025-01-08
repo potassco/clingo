@@ -1,4 +1,4 @@
-#include <clingo.h>
+#include <clingo/app.h>
 #include <embed.h>
 
 static constexpr auto message_limit = 25;

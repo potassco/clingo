@@ -2,7 +2,7 @@
 
 #include "util.hh"
 
-#include <clingo.h>
+#include <clingo/core.h>
 
 #include <pybind11/pybind11.h>
 

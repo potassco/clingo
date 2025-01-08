@@ -3,6 +3,8 @@
 #include "core.hh"
 #include "util.hh"
 
+#include <clingo/ast.h>
+
 #include <pybind11/pybind11.h>
 
 namespace Clingo::Python {

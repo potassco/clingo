@@ -1,4 +1,4 @@
-#include <clingo.h>
+#include <clingo/core.h>
 #include <stdio.h>
 
 int main(int argc, char *argv[]) {

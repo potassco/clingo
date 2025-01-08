@@ -1,4 +1,4 @@
-#include <clingo.h>
+#include <clingo/ast.h>
 
 extern "C" auto clingo_ast_type_info_yaml() -> char const * {
     return R"yaml(unary_operator:

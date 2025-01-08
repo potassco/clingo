@@ -1,7 +1,9 @@
 // NOLINTNEXTLINE(STDC_FORMAT_MACROS)
 #define STDC_FORMAT_MACROS
+
+#include <clingo/symbol.h>
+
 #include <assert.h>
-#include <clingo.h>
 #include <stdio.h>
 #include <stdlib.h>
 
